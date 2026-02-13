@@ -28,6 +28,7 @@ def _clear_stores() -> None:
     groups_db.invite_code_to_group.clear()
     reviews_db.reviews_by_code.clear()
     reviews_db.reviews_by_place.clear()
+    reviews_db.reviews_by_user.clear()
     check_ins_db.check_ins_by_code.clear()
     check_ins_db.check_ins_by_user.clear()
     notifications_db.notifications_by_code.clear()
@@ -79,6 +80,7 @@ def run_seed(seed_path: str | Path | None = None) -> None:
             image_urls=p.get("image_urls"),
             description=p.get("description"),
             religion_specific=p.get("religion_specific"),
+            website_url=p.get("website_url"),
         )
         place_codes.append(row.place_code)
 
@@ -90,6 +92,7 @@ def run_seed(seed_path: str | Path | None = None) -> None:
             description=g.get("description", ""),
             created_by_user_code=g["created_by_user_code"],
             is_private=g.get("is_private", False),
+            path_place_codes=g.get("path_place_codes"),
         )
         group_codes.append(row.group_code)
 

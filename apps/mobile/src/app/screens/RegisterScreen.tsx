@@ -11,10 +11,8 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../navigation';
-import { SHOW_SELECT_PATH_KEY } from '../../lib/constants';
 import { useAuth } from '../providers';
 import { useI18n } from '../providers';
 
@@ -43,7 +41,7 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await register(email, password, displayName.trim() || undefined);
-      await AsyncStorage.setItem(SHOW_SELECT_PATH_KEY, 'true');
+      navigation.replace('Main');
     } catch (e) {
       setError(e instanceof Error ? e.message : t('errors.registrationFailed'));
     } finally {

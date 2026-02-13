@@ -15,7 +15,7 @@ router = APIRouter()
 Religion = Literal["islam", "hinduism", "christianity"]
 
 
-def _place_to_item(place, distance: Optional[float] = None) -> dict:
+def _place_to_item(place, distance: Optional[float] = None, include_rating: bool = False) -> dict:
     d = distance
     if d is not None:
         d = round(d * 10) / 10
@@ -33,13 +33,24 @@ def _place_to_item(place, distance: Optional[float] = None) -> dict:
         "created_at": place.created_at,
         "distance": d,
     }
-    if getattr(place, "religion_specific", None):
-        out["religion_specific"] = place.religion_specific
+    rs = getattr(place, "religion_specific", None)
+    if rs:
+        out["religion_specific"] = rs
+    is_open = places_db._is_open_now_from_hours(place.opening_hours)
+    out["is_open_now"] = is_open
+    if getattr(place, "website_url", None):
+        out["website_url"] = place.website_url
+    out["has_events"] = places_db._place_has_events(place)
+    if include_rating:
+        agg = reviews_db.get_aggregate_rating(place.place_code)
+        if agg:
+            out["average_rating"] = agg["average"]
+            out["review_count"] = agg["count"]
     return out
 
 
 def _place_detail(place) -> dict:
-    out = _place_to_item(place)
+    out = _place_to_item(place, include_rating=True)
     out["religion_specific"] = getattr(place, "religion_specific", None) or {}
     if "distance" in out:
         del out["distance"]
@@ -57,8 +68,11 @@ def list_places(
     sort: Optional[str] = Query(None, description="proximity or rating"),
     limit: int = Query(50),
     offset: int = Query(0),
+    jummah: Optional[bool] = Query(None, description="If true, only places with Jummah / Friday prayer (Islam)"),
+    has_events: Optional[bool] = Query(None, description="If true, only places that have events"),
+    include_rating: bool = Query(True, description="Include average_rating and review_count in list items"),
 ):
-    religions = religion  # list from repeated ?religion= param
+    religions = religion
     rows = places_db.list_places(
         religions=religions,
         lat=lat,
@@ -69,8 +83,10 @@ def list_places(
         sort=sort,
         limit=limit,
         offset=offset,
+        jummah=jummah,
+        has_events=has_events,
     )
-    return [_place_to_item(p, dist) for p, dist in rows]
+    return [_place_to_item(p, dist, include_rating=include_rating) for p, dist in rows]
 
 
 @router.get("/{place_code}")
@@ -100,16 +116,19 @@ def get_place_reviews(
     agg = reviews_db.get_aggregate_rating(place_code)
     out = []
     for r in rows:
-        user = user_store.get_user_by_code(r.user_code)
+        is_anon = getattr(r, "is_anonymous", False)
+        user = user_store.get_user_by_code(r.user_code) if not is_anon else None
         out.append({
             "review_code": r.review_code,
             "place_code": r.place_code,
-            "user_code": r.user_code,
-            "display_name": user.display_name if user else "Unknown",
+            "user_code": r.user_code if not is_anon else None,
+            "display_name": "Anonymous" if is_anon else (user.display_name if user else "Unknown"),
             "rating": r.rating,
             "title": r.title,
             "body": r.body,
             "created_at": r.created_at,
+            "is_anonymous": is_anon,
+            "photo_urls": getattr(r, "photo_urls", []) or [],
         })
     result = {"reviews": out}
     if agg:
@@ -166,7 +185,15 @@ def create_review(
         raise HTTPException(status_code=404, detail="Place not found")
     if not (1 <= body.rating <= 5):
         raise HTTPException(status_code=400, detail="Rating must be 1-5")
-    row = reviews_db.create_review(user.user_code, place_code, body.rating, title=body.title, body=body.body)
+    row = reviews_db.create_review(
+        user.user_code,
+        place_code,
+        body.rating,
+        title=body.title,
+        body=body.body,
+        is_anonymous=body.is_anonymous or False,
+        photo_urls=body.photo_urls,
+    )
     return {
         "review_code": row.review_code,
         "place_code": row.place_code,
@@ -174,4 +201,6 @@ def create_review(
         "title": row.title,
         "body": row.body,
         "created_at": row.created_at,
+        "is_anonymous": row.is_anonymous,
+        "photo_urls": row.photo_urls,
     }

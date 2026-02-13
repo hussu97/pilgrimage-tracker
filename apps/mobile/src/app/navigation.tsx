@@ -45,22 +45,16 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-function AuthStack() {
+/** Single root stack: Splash (loading) then Main (Home). Auth screens are in the same stack for "Sign in" from Home. */
+function RootStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Splash">
       <Stack.Screen name="Splash" component={SplashScreen} />
+      <Stack.Screen name="Main" component={Layout} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-    </Stack.Navigator>
-  );
-}
-
-function MainStack() {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Main" component={Layout} />
       <Stack.Screen name="SelectPath" component={SelectPathScreen} />
       <Stack.Screen name="PlaceDetail" component={PlaceDetailScreen} />
       <Stack.Screen name="CheckIn" component={CheckInScreen} />
@@ -76,7 +70,6 @@ function MainStack() {
   );
 }
 
-/** Renders the correct stack; auth state is passed from App (under AuthProvider). */
 export function AppNavigationContent({
   user,
   loading,
@@ -87,7 +80,7 @@ export function AppNavigationContent({
   if (loading) return null;
   return (
     <NavigationContainer>
-      {user ? <MainStack /> : <AuthStack />}
+      <RootStack />
     </NavigationContainer>
   );
 }

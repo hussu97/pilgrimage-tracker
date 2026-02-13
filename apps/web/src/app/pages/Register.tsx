@@ -26,7 +26,7 @@ export default function Register() {
     }
     try {
       await register(email, password, display_name || undefined);
-      navigate('/select-path');
+      navigate('/home');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.registrationFailed'));
     }

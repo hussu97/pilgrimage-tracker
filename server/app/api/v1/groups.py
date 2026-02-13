@@ -17,8 +17,10 @@ router = APIRouter()
 def list_groups(user: Annotated[any, Depends(get_current_user)]):
     group_list = groups_db.get_groups_for_user(user.user_code)
     out = []
-    for g in group_list:
+    for i, g in enumerate(group_list):
         members = groups_db.get_members(g.group_code)
+        last_activity = groups_db.get_last_activity(g.group_code, check_ins_db)
+        progress = groups_db.get_group_progress(g.group_code, check_ins_db, places_db)
         out.append({
             "group_code": g.group_code,
             "name": g.name,
@@ -28,6 +30,12 @@ def list_groups(user: Annotated[any, Depends(get_current_user)]):
             "is_private": g.is_private,
             "created_at": g.created_at,
             "member_count": len(members),
+            "last_activity": last_activity,
+            "sites_visited": progress["sites_visited"],
+            "total_sites": progress["total_sites"],
+            "next_place_code": progress["next_place_code"],
+            "next_place_name": progress["next_place_name"],
+            "featured": i == 0,
         })
     return out
 
@@ -64,6 +72,7 @@ def create_group(body: GroupCreateBody, user: Annotated[any, Depends(get_current
         description=body.description or "",
         created_by_user_code=user.user_code,
         is_private=body.is_private or False,
+        path_place_codes=body.path_place_codes,
     )
     return {
         "group_code": g.group_code,

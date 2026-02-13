@@ -79,6 +79,13 @@ export default function NotificationsScreen() {
         { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 100 },
       ]}
     >
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.backText}>‹ {t('common.back')}</Text>
+      </TouchableOpacity>
       <Text style={styles.sectionLabel}>Updates</Text>
       <Text style={styles.title}>{t('notifications.title')}</Text>
 
@@ -154,6 +161,8 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fafafa' },
   content: { paddingHorizontal: 24 },
+  backButton: { marginBottom: 16 },
+  backText: { fontSize: 16, color: '#6b7280' },
   sectionLabel: {
     fontSize: 12,
     fontWeight: '600',

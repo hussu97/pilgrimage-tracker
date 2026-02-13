@@ -54,6 +54,8 @@ class ReviewCreateBody(BaseModel):
     rating: int
     title: Optional[str] = None
     body: Optional[str] = None
+    is_anonymous: Optional[bool] = None
+    photo_urls: Optional[List[str]] = None
 
 
 class ReviewUpdateBody(BaseModel):
@@ -66,6 +68,7 @@ class GroupCreateBody(BaseModel):
     name: str
     description: Optional[str] = None
     is_private: Optional[bool] = False
+    path_place_codes: Optional[List[str]] = None
 
 
 class GroupUpdateBody(BaseModel):

@@ -10,7 +10,10 @@ import {
   Linking,
   Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { RootStackParamList } from '../navigation';
 import { getSettings, updateSettings } from '../../lib/api/client';
 import { useI18n } from '../providers';
 import { useTheme } from '../providers';
@@ -25,6 +28,7 @@ const THEME_OPTIONS: { value: Theme; labelKey: string }[] = [
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Settings'>>();
   const { t, locale, setLocale, languages } = useI18n();
   const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState<UserSettings | null>(null);
@@ -98,6 +102,13 @@ export default function SettingsScreen() {
         { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 },
       ]}
     >
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.backText}>‹ {t('common.back')}</Text>
+      </TouchableOpacity>
       <Text style={styles.sectionLabel}>Preferences</Text>
       <Text style={styles.title}>{t('settings.title')}</Text>
 
@@ -252,6 +263,8 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fafafa' },
   content: { paddingHorizontal: 24 },
+  backButton: { marginBottom: 16 },
+  backText: { fontSize: 16, color: '#6b7280' },
   sectionLabel: {
     fontSize: 12,
     fontWeight: '600',

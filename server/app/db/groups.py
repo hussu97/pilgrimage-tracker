@@ -1,5 +1,9 @@
 """
 In-memory groups store for local dev.
+
+Optional group path: path_place_codes is an ordered list of place_codes defining
+the group's "sites" (e.g. pilgrimage path). Progress = how many of those sites
+at least one member has visited; next = first site in path not yet visited.
 """
 import secrets
 from datetime import datetime
@@ -21,6 +25,7 @@ class GroupRow:
         invite_code: str,
         is_private: bool,
         created_at: str,
+        path_place_codes: Optional[List[str]] = None,
     ):
         self.group_code = group_code
         self.name = name
@@ -29,6 +34,7 @@ class GroupRow:
         self.invite_code = invite_code
         self.is_private = is_private
         self.created_at = created_at
+        self.path_place_codes = path_place_codes or []
 
 
 def _generate_group_code() -> str:
@@ -44,6 +50,7 @@ def create_group(
     description: str,
     created_by_user_code: str,
     is_private: bool = False,
+    path_place_codes: Optional[List[str]] = None,
 ) -> GroupRow:
     group_code = _generate_group_code()
     invite_code = _generate_invite_code()
@@ -56,6 +63,7 @@ def create_group(
         invite_code=invite_code,
         is_private=is_private,
         created_at=now,
+        path_place_codes=path_place_codes or [],
     )
     groups_by_code[group_code] = row
     members_by_group[group_code] = [(created_by_user_code, "admin", now)]
@@ -117,6 +125,65 @@ def get_leaderboard(group_code: str, check_ins_db) -> List[dict]:
         {"user_code": u, "places_visited": c, "rank": i + 1}
         for i, (u, c) in enumerate(sorted_users)
     ]
+
+
+def get_last_activity(group_code: str, check_ins_db) -> Optional[str]:
+    """Most recent checked_in_at among any group member, or None."""
+    members = members_by_group.get(group_code, [])
+    user_codes = {m[0] for m in members}
+    latest = None
+    for uc in user_codes:
+        for chk in check_ins_db.get_check_ins_by_user(uc):
+            if latest is None or (chk.checked_in_at and chk.checked_in_at > latest):
+                latest = chk.checked_in_at
+    return latest
+
+
+def get_group_progress(
+    group_code: str,
+    check_ins_db,
+    places_db,
+) -> dict:
+    """
+    Return { sites_visited, total_sites, next_place_code, next_place_name }.
+    If group has path_place_codes: progress is over that path; next = first in path
+    not visited by any member. If no path: sites_visited = distinct places any
+    member visited, total_sites = 0, next = None.
+    """
+    members = members_by_group.get(group_code, [])
+    user_codes = {m[0] for m in members}
+    visited_place_codes = set()
+    for uc in user_codes:
+        for chk in check_ins_db.get_check_ins_by_user(uc):
+            visited_place_codes.add(chk.place_code)
+    path = getattr(
+        groups_by_code.get(group_code),
+        "path_place_codes",
+        None,
+    ) or []
+    if path:
+        sites_visited = sum(1 for pc in path if pc in visited_place_codes)
+        total_sites = len(path)
+        next_place_code = None
+        next_place_name = None
+        for pc in path:
+            if pc not in visited_place_codes:
+                next_place_code = pc
+                place = places_db.get_place_by_code(pc)
+                next_place_name = place.name if place else pc
+                break
+        return {
+            "sites_visited": sites_visited,
+            "total_sites": total_sites,
+            "next_place_code": next_place_code,
+            "next_place_name": next_place_name,
+        }
+    return {
+        "sites_visited": len(visited_place_codes),
+        "total_sites": 0,
+        "next_place_code": None,
+        "next_place_name": None,
+    }
 
 
 def get_activity(group_code: str, check_ins_db, user_store, places_db, limit: int = 20) -> List[dict]:

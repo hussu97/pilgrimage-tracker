@@ -12,7 +12,7 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type MainTabParamList = { Home: undefined; Favorites: undefined; Groups: undefined; Profile: undefined };
-import { useI18n } from '../providers';
+import { useAuth, useI18n } from '../providers';
 import { getMyFavorites, removeFavorite } from '../../lib/api/client';
 import PlaceCard from '../../components/PlaceCard';
 import type { Place } from '../../lib/types';
@@ -20,6 +20,8 @@ import type { Place } from '../../lib/types';
 export default function FavoritesScreen() {
   const insets = useSafeAreaInsets();
   const tabNav = useNavigation<BottomTabNavigationProp<MainTabParamList, 'Favorites'>>();
+  const stackNav = tabNav.getParent();
+  const { user } = useAuth();
   const { t } = useI18n();
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,13 +29,14 @@ export default function FavoritesScreen() {
   const [removingCode, setRemovingCode] = useState<string | null>(null);
 
   const fetchFavorites = useCallback(() => {
+    if (!user) return;
     setLoading(true);
     setError('');
     getMyFavorites()
       .then(setPlaces)
       .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
-  }, [t]);
+  }, [user, t]);
 
   useEffect(() => {
     fetchFavorites();
@@ -50,6 +53,21 @@ export default function FavoritesScreen() {
       setRemovingCode(null);
     }
   };
+
+  if (!user) {
+    return (
+      <View style={[styles.container, styles.centered, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 100 }]}>
+        <Text style={styles.signInTitle}>{t('auth.signInToViewFavorites')}</Text>
+        <TouchableOpacity
+          style={styles.signInButton}
+          onPress={() => stackNav?.navigate('Login' as never)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.signInButtonText}>{t('auth.login')}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -107,6 +125,10 @@ export default function FavoritesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fafafa' },
+  centered: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  signInTitle: { fontSize: 18, color: '#374151', textAlign: 'center', marginBottom: 24 },
+  signInButton: { backgroundColor: '#0d9488', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  signInButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   content: { paddingHorizontal: 24 },
   sectionLabel: {
     fontSize: 12,

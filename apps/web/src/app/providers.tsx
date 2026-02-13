@@ -124,15 +124,22 @@ interface I18nContextValue {
 
 const I18nContext = createContext<I18nContextValue | null>(null);
 
+function resolveInitialLocale(list: { code: string; name: string }[]): LocaleCode {
+  const codes = list.map((l) => l.code);
+  const codeSet = new Set(codes);
+  try {
+    const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
+    if (stored && codeSet.has(stored)) return stored as LocaleCode;
+  } catch {}
+  if (typeof navigator === 'undefined') return codes.includes('en') ? 'en' : (codes[0] as LocaleCode);
+  const device = navigator.language?.toLowerCase().split(/[-_]/)[0] ?? 'en';
+  const match = codes.find((c) => c === device || c.split(/[-_]/)[0] === device);
+  return (match as LocaleCode) ?? (codes.includes('en') ? 'en' : (codes[0] as LocaleCode));
+}
+
 export function I18nProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [locale, setLocaleState] = useState<LocaleCode>(() => {
-    try {
-      const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
-      if (stored && SUPPORTED_LOCALES.includes(stored as LocaleCode)) return stored as LocaleCode;
-    } catch {}
-    return normalizeLocale(typeof navigator !== 'undefined' ? navigator.language : 'en');
-  });
+  const [locale, setLocaleState] = useState<LocaleCode>('en');
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const [languages, setLanguages] = useState<{ code: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,8 +148,15 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     try {
       const list = await api.getLanguages();
       setLanguages(list);
+      return list;
     } catch {
-      setLanguages([{ code: 'en', name: 'English' }, { code: 'ar', name: 'العربية' }, { code: 'hi', name: 'हिन्दी' }]);
+      const fallback = [
+        { code: 'en', name: 'English' },
+        { code: 'ar', name: 'العربية' },
+        { code: 'hi', name: 'हिन्दी' },
+      ];
+      setLanguages(fallback);
+      return fallback;
     }
   }, []);
 
@@ -156,7 +170,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    loadLanguages().finally(() => setLoading(false));
+    loadLanguages()
+      .then((list) => setLocaleState(resolveInitialLocale(list)))
+      .finally(() => setLoading(false));
   }, [loadLanguages]);
 
   useEffect(() => {

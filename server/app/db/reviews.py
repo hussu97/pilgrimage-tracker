@@ -7,6 +7,7 @@ from typing import List, Optional
 
 reviews_by_code: dict = {}
 reviews_by_place: dict = {}  # place_code -> list of review_code
+reviews_by_user: dict = {}  # user_code -> list of review_code (for stats)
 
 
 class ReviewRow:
@@ -19,6 +20,8 @@ class ReviewRow:
         title: Optional[str],
         body: Optional[str],
         created_at: str,
+        is_anonymous: bool = False,
+        photo_urls: Optional[List[str]] = None,
     ):
         self.review_code = review_code
         self.user_code = user_code
@@ -27,13 +30,23 @@ class ReviewRow:
         self.title = title
         self.body = body
         self.created_at = created_at
+        self.is_anonymous = is_anonymous
+        self.photo_urls = photo_urls or []
 
 
 def _generate_review_code() -> str:
     return "rev_" + secrets.token_hex(8)
 
 
-def create_review(user_code: str, place_code: str, rating: int, title: Optional[str] = None, body: Optional[str] = None) -> ReviewRow:
+def create_review(
+    user_code: str,
+    place_code: str,
+    rating: int,
+    title: Optional[str] = None,
+    body: Optional[str] = None,
+    is_anonymous: bool = False,
+    photo_urls: Optional[List[str]] = None,
+) -> ReviewRow:
     review_code = _generate_review_code()
     now = datetime.utcnow().isoformat() + "Z"
     row = ReviewRow(
@@ -44,11 +57,16 @@ def create_review(user_code: str, place_code: str, rating: int, title: Optional[
         title=title,
         body=body,
         created_at=now,
+        is_anonymous=is_anonymous,
+        photo_urls=photo_urls or [],
     )
     reviews_by_code[review_code] = row
     if place_code not in reviews_by_place:
         reviews_by_place[place_code] = []
     reviews_by_place[place_code].append(review_code)
+    if user_code not in reviews_by_user:
+        reviews_by_user[user_code] = []
+    reviews_by_user[user_code].append(review_code)
     return row
 
 
@@ -71,3 +89,7 @@ def get_aggregate_rating(place_code: str) -> Optional[dict]:
         return None
     avg = sum(r.rating for r in rows) / len(rows)
     return {"average": round(avg * 10) / 10, "count": len(rows)}
+
+
+def count_reviews_by_user(user_code: str) -> int:
+    return len(reviews_by_user.get(user_code, []))

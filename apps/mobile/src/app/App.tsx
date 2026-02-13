@@ -1,6 +1,7 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, I18nProvider, ThemeProvider, useAuth } from './providers';
+import { LocationProvider } from './contexts/LocationContext';
 import { AppNavigationContent } from './navigation';
 
 function AuthGate() {
@@ -18,7 +19,9 @@ export default function App() {
     <I18nProvider>
       <ThemeProvider>
         <AuthProvider>
-          <AuthGate />
+          <LocationProvider>
+            <AuthGate />
+          </LocationProvider>
         </AuthProvider>
       </ThemeProvider>
     </I18nProvider>

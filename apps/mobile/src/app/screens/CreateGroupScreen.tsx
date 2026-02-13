@@ -74,6 +74,13 @@ export default function CreateGroupScreen() {
         style={styles.container}
         contentContainerStyle={[styles.successContent, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}
       >
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.backText}>‹ {t('common.back')}</Text>
+        </TouchableOpacity>
         <View style={styles.successIconWrap}>
           <Text style={styles.successIcon}>✓</Text>
         </View>
@@ -217,6 +224,8 @@ const styles = StyleSheet.create({
   submitDisabled: { opacity: 0.7 },
   submitText: { color: '#fff', fontWeight: '600' },
   successContent: { paddingHorizontal: 24, alignItems: 'center' },
+  backButton: { alignSelf: 'flex-start', marginBottom: 16 },
+  backText: { fontSize: 16, color: '#6b7280' },
   successIconWrap: {
     width: 56,
     height: 56,

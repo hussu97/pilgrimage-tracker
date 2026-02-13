@@ -7,7 +7,7 @@ import React, {
   useMemo,
   type ReactNode,
 } from 'react';
-import { I18nManager } from 'react-native';
+import { I18nManager, NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '../lib/types';
 import * as api from '../lib/api/client';
@@ -25,6 +25,33 @@ function normalizeLocale(lang: string): LocaleCode {
   const lower = lang.toLowerCase().split(/[-_]/)[0];
   if (SUPPORTED_LOCALES.includes(lower as LocaleCode)) return lower as LocaleCode;
   return 'en';
+}
+
+function getDeviceLocale(): string {
+  try {
+    if (Platform.OS === 'ios') {
+      const settings = NativeModules.SettingsManager?.settings;
+      const raw = settings?.AppleLocale ?? settings?.AppleLanguages?.[0];
+      return typeof raw === 'string' ? raw : 'en';
+    }
+    if (Platform.OS === 'android') {
+      const raw = NativeModules.I18nManager?.localeIdentifier;
+      return typeof raw === 'string' ? raw : 'en';
+    }
+  } catch {}
+  return 'en';
+}
+
+async function resolveInitialLocale(list: { code: string; name: string }[]): Promise<string> {
+  const codes = list.map((l) => l.code);
+  const codeSet = new Set(codes);
+  try {
+    const stored = await AsyncStorage.getItem(LOCALE_STORAGE_KEY);
+    if (stored && codeSet.has(stored)) return stored;
+  } catch {}
+  const device = getDeviceLocale().toLowerCase().split(/[-_]/)[0] ?? 'en';
+  const match = codes.find((c) => c === device || c.split(/[-_]/)[0] === device);
+  return match ?? (codes.includes('en') ? 'en' : codes[0] ?? 'en');
 }
 
 // --- Auth ---
@@ -220,12 +247,15 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     try {
       const list = await api.getLanguages();
       setLanguages(list);
+      return list;
     } catch {
-      setLanguages([
+      const fallback = [
         { code: 'en', name: 'English' },
         { code: 'ar', name: 'العربية' },
         { code: 'hi', name: 'हिन्दी' },
-      ]);
+      ];
+      setLanguages(fallback);
+      return fallback;
     }
   }, []);
 
@@ -242,21 +272,23 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem(LOCALE_STORAGE_KEY);
-        const initial = stored && SUPPORTED_LOCALES.includes(stored as LocaleCode)
-          ? stored
-          : 'en';
+        const list = await loadLanguages();
+        if (cancelled) return;
+        const initial = await resolveInitialLocale(list);
+        if (cancelled) return;
         setLocaleState(initial);
-        await loadLanguages();
-        if (!cancelled) await loadTranslations(initial);
+        await loadTranslations(initial);
+        if (cancelled) return;
         const isRTL = initial === 'ar';
         if (I18nManager.isRTL !== isRTL) {
           I18nManager.forceRTL(isRTL);
         }
       } catch {
-        setLocaleState('en');
-        await loadLanguages();
-        if (!cancelled) await loadTranslations('en');
+        if (!cancelled) {
+          setLocaleState('en');
+          await loadLanguages();
+          if (!cancelled) await loadTranslations('en');
+        }
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -276,6 +308,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         const isRTL = next === 'ar';
         if (I18nManager.isRTL !== isRTL) {
           I18nManager.forceRTL(isRTL);
+        }
+        try {
+          await api.updateSettings({ language: next });
+        } catch {
+          // not logged in or request failed
         }
       } catch {
         // keep new locale

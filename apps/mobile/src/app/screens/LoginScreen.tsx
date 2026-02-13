@@ -31,6 +31,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await login(email, password);
+      navigation.replace('Main');
     } catch (e) {
       setError(e instanceof Error ? e.message : t('errors.loginFailed'));
     } finally {

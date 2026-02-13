@@ -7,6 +7,7 @@ from app.db import store
 from app.db import check_ins as check_ins_db
 from app.db import places as places_db
 from app.db import favorites as favorites_db
+from app.db import reviews as reviews_db
 from app.models.schemas import UserResponse, UpdateMeBody, SettingsBody
 
 router = APIRouter()
@@ -46,28 +47,66 @@ def update_me(
     return _to_public_user(updated)
 
 
+def _parse_iso_datetime(iso_str: str):
+    """Return (date_str, time_str) e.g. ('2024-06-12', '09:30:00') from ISO string."""
+    if not iso_str:
+        return None, None
+    try:
+        s = iso_str.replace("Z", "").split(".")[0]
+        if "T" in s:
+            date_part, time_part = s.split("T", 1)
+            return date_part, time_part
+        return s, None
+    except Exception:
+        return None, None
+
+
 @router.get("/me/check-ins")
 def get_my_check_ins(user: Annotated[any, Depends(get_current_user)]):
     rows = check_ins_db.get_check_ins_by_user(user.user_code)
     out = []
     for r in rows:
         place = places_db.get_place_by_code(r.place_code)
+        date_str, time_str = _parse_iso_datetime(r.checked_in_at)
+        place_image_url = None
+        if place and getattr(place, "image_urls", None) and len(place.image_urls) > 0:
+            place_image_url = place.image_urls[0]
+        place_payload = None
+        if place:
+            place_payload = {
+                "place_code": place.place_code,
+                "name": place.name,
+                "address": place.address,
+                "image_urls": getattr(place, "image_urls", []) or [],
+                "location": place.address,
+            }
         out.append({
             "check_in_code": r.check_in_code,
             "place_code": r.place_code,
             "checked_in_at": r.checked_in_at,
+            "date": date_str,
+            "time": time_str,
             "note": r.note,
             "photo_url": r.photo_url,
-            "place": {"place_code": place.place_code, "name": place.name, "address": place.address} if place else None,
+            "place": place_payload,
+            "place_name": place.name if place else None,
+            "place_image_url": place_image_url,
+            "location": place.address if place else None,
         })
     return out
 
 
 @router.get("/me/stats")
 def get_my_stats(user: Annotated[any, Depends(get_current_user)]):
+    check_in_count = len(check_ins_db.get_check_ins_by_user(user.user_code))
+    review_count = reviews_db.count_reviews_by_user(user.user_code)
     return {
         "placesVisited": check_ins_db.count_places_visited(user.user_code),
         "checkInsThisYear": check_ins_db.count_check_ins_this_year(user.user_code),
+        "visits": check_in_count,
+        "reviews": review_count,
+        "badges_count": 0,
+        "badges": [],
     }
 
 

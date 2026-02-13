@@ -1,11 +1,64 @@
 """
 In-memory places store for local dev.
+
+religion_specific (optional dict) shapes for faith-specific UI:
+- Islam: prayer_times (map: fajr, dhuhr, asr, maghrib, isha -> "HH:MM"), capacity,
+  wudu_area, parking, womens_area; jummah_times or prayer_times for Friday filter.
+- Hindu: deities ([{name, subtitle?, image_url}]), architecture, next_festival,
+  dress_code, dress_code_notes, crowd_level? (Low/Medium/High).
+- Christian: service_times ([{day, name, location?, time}]), founded_year, style,
+  website_url (or use place.website_url).
 """
 import math
 import secrets
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 
 Religion = Literal["islam", "hinduism", "christianity"]
+
+
+def _parse_time(s: str) -> Optional[tuple]:
+    """Parse 'HH:MM' or 'HH:MM:SS' to (hour, minute). Returns None if invalid."""
+    if not s or not isinstance(s, str):
+        return None
+    parts = s.strip().split(":")
+    if len(parts) >= 2:
+        try:
+            h, m = int(parts[0]), int(parts[1])
+            if 0 <= h <= 23 and 0 <= m <= 59:
+                return (h, m)
+        except ValueError:
+            pass
+    return None
+
+
+def _is_open_now_from_hours(opening_hours: Optional[Dict[str, Any]]) -> Optional[bool]:
+    """
+    Compute is_open_now from opening_hours using server UTC time.
+    Supports: {"opens": "09:00", "closes": "17:00"} (24h).
+    Returns None if unknown (no hours or can't parse); True/False otherwise.
+    """
+    if not opening_hours or not isinstance(opening_hours, dict):
+        return None
+    opens = opening_hours.get("opens")
+    closes = opening_hours.get("closes")
+    if opens is None and closes is None:
+        return None
+    now = datetime.now(timezone.utc).time()
+    open_t = _parse_time(opens) if opens else (0, 0)
+    close_t = _parse_time(closes) if closes else (23, 59)
+    if open_t is None and close_t is None:
+        return None
+    if open_t is None:
+        open_t = (0, 0)
+    if close_t is None:
+        close_t = (23, 59)
+    now_min = now.hour * 60 + now.minute
+    open_min = open_t[0] * 60 + open_t[1]
+    close_min = close_t[0] * 60 + close_t[1]
+    if open_min <= close_min:
+        return open_min <= now_min <= close_min
+    return now_min >= open_min or now_min <= close_min
 
 
 class PlaceRow:
@@ -23,6 +76,7 @@ class PlaceRow:
         description: Optional[str],
         created_at: str,
         religion_specific: Optional[Dict[str, Any]] = None,
+        website_url: Optional[str] = None,
     ):
         self.place_code = place_code
         self.name = name
@@ -36,6 +90,7 @@ class PlaceRow:
         self.description = description
         self.created_at = created_at
         self.religion_specific = religion_specific or {}
+        self.website_url = website_url
 
 
 places: dict[str, PlaceRow] = {}
@@ -68,9 +123,9 @@ def create_place(
     image_urls: Optional[List[str]] = None,
     description: Optional[str] = None,
     religion_specific: Optional[Dict[str, Any]] = None,
+    website_url: Optional[str] = None,
 ) -> PlaceRow:
     place_code = _generate_place_code()
-    from datetime import datetime
     now = datetime.utcnow().isoformat() + "Z"
     row = PlaceRow(
         place_code=place_code,
@@ -85,6 +140,7 @@ def create_place(
         description=description,
         created_at=now,
         religion_specific=religion_specific or {},
+        website_url=website_url,
     )
     places[place_code] = row
     return row
@@ -92,6 +148,28 @@ def create_place(
 
 def get_place_by_code(place_code: str) -> Optional[PlaceRow]:
     return places.get(place_code)
+
+
+def _place_has_jummah(p: PlaceRow) -> bool:
+    """True if place (Islam) has Jummah / Friday prayer data."""
+    if p.religion != "islam":
+        return False
+    rs = getattr(p, "religion_specific", None) or {}
+    if rs.get("jummah_times"):
+        return True
+    pt = rs.get("prayer_times")
+    if isinstance(pt, dict) and (pt.get("dhuhr") or pt.get("jummah") or pt.get("friday")):
+        return True
+    return False
+
+
+def _place_has_events(p: PlaceRow) -> bool:
+    """True if place has events (religion_specific.events non-empty or has_events true)."""
+    rs = getattr(p, "religion_specific", None) or {}
+    if rs.get("has_events") is True:
+        return True
+    ev = rs.get("events")
+    return isinstance(ev, list) and len(ev) > 0
 
 
 def list_places(
@@ -104,12 +182,18 @@ def list_places(
     sort: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
+    jummah: Optional[bool] = None,
+    has_events: Optional[bool] = None,
 ) -> List[tuple]:
     result: List[tuple] = []
     for p in places.values():
         if religions and p.religion not in religions:
             continue
         if place_type and p.place_type != place_type:
+            continue
+        if jummah is True and not _place_has_jummah(p):
+            continue
+        if has_events is True and not _place_has_events(p):
             continue
         if search:
             q = search.lower()
@@ -122,7 +206,6 @@ def list_places(
             continue
         result.append((p, dist))
     if sort == "rating":
-        # We don't have rating on place; keep current order (proximity if lat/lng)
         pass
     if lat is not None and lng is not None and sort != "rating":
         result.sort(key=lambda x: (x[1] or 0))

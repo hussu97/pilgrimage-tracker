@@ -45,4 +45,6 @@ def delete_review(
         del reviews_db.reviews_by_code[review_code]
     if row.place_code in reviews_db.reviews_by_place:
         reviews_db.reviews_by_place[row.place_code] = [c for c in reviews_db.reviews_by_place[row.place_code] if c != review_code]
+    if row.user_code in reviews_db.reviews_by_user:
+        reviews_db.reviews_by_user[row.user_code] = [c for c in reviews_db.reviews_by_user[row.user_code] if c != review_code]
     return {"ok": True}

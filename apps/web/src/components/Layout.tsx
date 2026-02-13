@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { useI18n } from '@/app/providers';
+import { useAuth, useI18n } from '@/app/providers';
 import { getNotifications } from '@/lib/api/client';
 
 const navItems = [
@@ -13,20 +13,22 @@ const navItems = [
 
 export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const { user } = useAuth();
   const { t } = useI18n();
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
+    if (!user) return;
     getNotifications(1, 0)
       .then((res) => setUnreadCount(res.unread_count ?? 0))
       .catch(() => {});
-  }, [location.pathname]);
+  }, [user, location.pathname]);
 
   return (
     <div className="min-h-screen flex flex-col font-display">
       <header className="hidden md:flex safe-area-top border-b border-input-border bg-background-light px-6 py-4">
         <nav className="flex items-center gap-6 w-full max-w-6xl mx-auto">
-          <Link to="/" className="text-xl font-semibold text-primary">{t('common.appName')}</Link>
+          <Link to="/home" className="text-xl font-semibold text-primary">{t('common.appName')}</Link>
           <Link to="/home" className="text-text-muted hover:text-primary" aria-current={location.pathname === '/home' ? 'page' : undefined}>{t('nav.explore')}</Link>
           <Link to="/favorites" className="text-text-muted hover:text-primary" aria-current={location.pathname === '/favorites' ? 'page' : undefined}>{t('nav.saved')}</Link>
           <Link to="/groups" className="text-text-muted hover:text-primary" aria-current={location.pathname.startsWith('/groups') ? 'page' : undefined}>{t('nav.groups')}</Link>
@@ -38,7 +40,11 @@ export default function Layout({ children }: { children: ReactNode }) {
               </span>
             )}
           </Link>
-          <Link to="/profile" className="ml-auto text-text-muted hover:text-primary" aria-current={location.pathname === '/profile' ? 'page' : undefined}>{t('nav.profile')}</Link>
+          {user ? (
+            <Link to="/profile" className="ml-auto text-text-muted hover:text-primary" aria-current={location.pathname === '/profile' ? 'page' : undefined}>{t('nav.profile')}</Link>
+          ) : (
+            <Link to="/login" className="ml-auto text-text-muted hover:text-primary">{t('auth.login')}</Link>
+          )}
         </nav>
       </header>
 

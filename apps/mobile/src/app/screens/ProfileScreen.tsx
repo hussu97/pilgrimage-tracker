@@ -51,10 +51,23 @@ export default function ProfileScreen() {
   }, [t]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (user) fetchData();
+  }, [user, fetchData]);
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <View style={[styles.container, styles.centered, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 100 }]}>
+        <Text style={styles.signInTitle}>{t('auth.signInToViewProfile')}</Text>
+        <TouchableOpacity
+          style={styles.signInButton}
+          onPress={() => stackNav?.navigate('Login' as never)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.signInButtonText}>{t('auth.login')}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   const displayName = user.display_name?.trim() || user.email?.split('@')[0] || '';
 
@@ -158,6 +171,10 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fafafa' },
+  centered: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  signInTitle: { fontSize: 18, color: '#374151', textAlign: 'center', marginBottom: 24 },
+  signInButton: { backgroundColor: '#0d9488', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  signInButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   errorWrap: { paddingHorizontal: 24, paddingVertical: 16, marginBottom: 8 },
   errorText: { color: '#c00', marginBottom: 8 },
   retryButton: { alignSelf: 'flex-start' },

@@ -57,6 +57,13 @@ export default function SelectPathScreen() {
       ]}
       keyboardShouldPersistTaps="handled"
     >
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.backText}>‹ {t('common.back')}</Text>
+      </TouchableOpacity>
       <Text style={styles.title}>{t('selectPath.title')}</Text>
       <Text style={styles.subtitle}>{t('selectPath.subtitle')}</Text>
       <View style={styles.cards}>
@@ -98,6 +105,8 @@ export default function SelectPathScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   content: { paddingHorizontal: 24 },
+  backButton: { marginBottom: 16 },
+  backText: { fontSize: 16, color: '#6b7280' },
   title: { fontSize: 24, fontWeight: '600', color: '#111', marginBottom: 12 },
   subtitle: { fontSize: 16, color: '#666', marginBottom: 24 },
   cards: { marginBottom: 24 },

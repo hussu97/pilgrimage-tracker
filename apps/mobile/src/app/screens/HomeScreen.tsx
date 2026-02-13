@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useI18n } from '../providers';
+import { useLocation } from '../contexts/LocationContext';
 import { getPlaces } from '../../lib/api/client';
 import PlaceCard from '../../components/PlaceCard';
 import type { Place } from '../../lib/types';
@@ -21,6 +22,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t } = useI18n();
+  const { coords } = useLocation();
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -36,6 +38,8 @@ export default function HomeScreen() {
       search: searchDebounced || undefined,
       sort: 'distance' as const,
       limit: 50,
+      lat: coords.lat,
+      lng: coords.lng,
       place_type: filter === 'historical' ? 'temple' : undefined,
     };
     try {
@@ -47,7 +51,7 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user?.religions, searchDebounced, filter, t]);
+  }, [user?.religions, searchDebounced, filter, coords, t]);
 
   useEffect(() => {
     fetchPlaces();

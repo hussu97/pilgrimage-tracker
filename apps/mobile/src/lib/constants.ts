@@ -28,8 +28,9 @@ export const LOCALE_STORAGE_KEY = 'pilgrimage-locale';
 export const THEME_STORAGE_KEY = 'pilgrimage-theme';
 export const TOKEN_KEY = 'token';
 export const USER_KEY = 'user';
-/** Set to 'true' after register so Main stack redirects to SelectPath */
-export const SHOW_SELECT_PATH_KEY = 'pilgrimage-show-select-path';
+/** Default coordinates when location permission is denied or unavailable (used for getPlaces, etc.). */
+export const DEFAULT_LAT = 0;
+export const DEFAULT_LNG = 0;
 
 /** Optional base URL for invite links (e.g. web app URL). When set, invite share uses /join?code=xxx */
 export const INVITE_LINK_BASE_URL = process.env.EXPO_PUBLIC_INVITE_LINK_BASE_URL ?? '';

@@ -1,7 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import Splash from '@/app/pages/Splash';
 import Login from '@/app/pages/Login';
 import Register from '@/app/pages/Register';
 import ForgotPassword from '@/app/pages/ForgotPassword';
@@ -25,14 +24,14 @@ import Notifications from '@/app/pages/Notifications';
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Splash />} />
+      <Route path="/" element={<Navigate to="/home" replace />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/select-path" element={<ProtectedRoute><SelectPath /></ProtectedRoute>} />
-      <Route path="/home" element={<Layout><ProtectedRoute><Home /></ProtectedRoute></Layout>} />
-      <Route path="/places/:placeCode" element={<Layout><ProtectedRoute><PlaceDetail /></ProtectedRoute></Layout>} />
+      <Route path="/home" element={<Layout><Home /></Layout>} />
+      <Route path="/places/:placeCode" element={<Layout><PlaceDetail /></Layout>} />
       <Route path="/places/:placeCode/check-in" element={<Layout><ProtectedRoute><CheckIn /></ProtectedRoute></Layout>} />
       <Route path="/places/:placeCode/review" element={<Layout><ProtectedRoute><WriteReview /></ProtectedRoute></Layout>} />
       <Route path="/profile" element={<Layout><ProtectedRoute><Profile /></ProtectedRoute></Layout>} />
@@ -45,7 +44,7 @@ export function AppRoutes() {
       <Route path="/join" element={<Layout><ProtectedRoute><JoinGroup /></ProtectedRoute></Layout>} />
       <Route path="/settings" element={<Layout><ProtectedRoute><Settings /></ProtectedRoute></Layout>} />
       <Route path="/notifications" element={<Layout><ProtectedRoute><Notifications /></ProtectedRoute></Layout>} />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
   );
 }

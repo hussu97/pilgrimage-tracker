@@ -87,6 +87,13 @@ export default function JoinGroupScreen() {
   if (showNoCodeState) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + 24, paddingHorizontal: 24 }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.backText}>‹ {t('common.back')}</Text>
+        </TouchableOpacity>
         <Text style={styles.noCodeTitle}>No invite code</Text>
         <Text style={styles.noCodeDesc}>
           Open an invite link or enter a code below to join a group.
@@ -109,6 +116,13 @@ export default function JoinGroupScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 24, paddingHorizontal: 24 }]}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.backText}>‹ {t('common.back')}</Text>
+      </TouchableOpacity>
       <Text style={styles.title}>Join group</Text>
       <TextInput
         style={styles.input}
@@ -157,6 +171,8 @@ export default function JoinGroupScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fafafa' },
   card: { paddingHorizontal: 24 },
+  backButton: { marginBottom: 16 },
+  backText: { fontSize: 16, color: '#6b7280' },
   title: { fontSize: 20, fontWeight: '700', color: '#111', marginBottom: 16 },
   input: {
     borderWidth: 1,

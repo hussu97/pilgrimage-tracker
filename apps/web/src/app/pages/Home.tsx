@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '@/app/providers';
 import { useI18n } from '@/app/providers';
+import { useLocation } from '@/app/contexts/LocationContext';
 import { getPlaces } from '@/lib/api/client';
 import PlaceCard from '@/components/PlaceCard';
 import PlacesMap from '@/components/PlacesMap';
@@ -15,6 +16,7 @@ type FilterChip = 'nearby' | 'historical' | '';
 export default function Home() {
   const { user } = useAuth();
   const { t } = useI18n();
+  const { coords } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const search = searchParams.get('search') ?? '';
   const [places, setPlaces] = useState<Place[]>([]);
@@ -22,7 +24,6 @@ export default function Home() {
   const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filter, setFilter] = useState<FilterChip>('');
-  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const fetchPlaces = useCallback(async () => {
     setLoading(true);
@@ -32,11 +33,9 @@ export default function Home() {
       search: search || undefined,
       sort: 'distance',
       limit: 50,
+      lat: coords.lat,
+      lng: coords.lng,
     };
-    if (coords) {
-      params.lat = coords.lat;
-      params.lng = coords.lng;
-    }
     if (filter === 'historical') params.place_type = 'temple';
     try {
       const data = await getPlaces(params);
@@ -52,15 +51,6 @@ export default function Home() {
   useEffect(() => {
     fetchPlaces();
   }, [fetchPlaces]);
-
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => {},
-      { enableHighAccuracy: false, timeout: 5000 }
-    );
-  }, []);
 
   const handleSearchChange = (value: string) => {
     if (value) setSearchParams({ search: value });

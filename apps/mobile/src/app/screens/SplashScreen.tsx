@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,14 +11,18 @@ const PRIMARY = '#007AFF';
 export default function SplashScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Splash'>>();
-  const { t } = useI18n();
+  const { t, ready } = useI18n();
+
+  useEffect(() => {
+    if (ready) {
+      navigation.replace('Main');
+    }
+  }, [ready, navigation]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-      {/* Subtle background gradient similar to DESIGN_FILE */}
       <View style={styles.bgPattern} pointerEvents="none" />
       <View style={styles.centered}>
-        {/* Logo: DESIGN_FILE-style rounded container with compass-style icon */}
         <View style={styles.logoOuter}>
           <View style={styles.logo}>
             <Text style={styles.logoText}>⊕</Text>
@@ -25,21 +30,7 @@ export default function SplashScreen() {
         </View>
         <Text style={styles.title}>{t('splash.appName') || 'Pilgrimage'}</Text>
         <Text style={styles.tagline}>{t('splash.tagline')}</Text>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={() => navigation.navigate('Register')}
-          activeOpacity={0.9}
-        >
-          <Text style={styles.primaryButtonText}>{t('splash.getStarted')}</Text>
-          <Text style={styles.arrow}>→</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.linkButton}
-          onPress={() => navigation.navigate('Login')}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.linkText}>{t('splash.haveAccount')}</Text>
-        </TouchableOpacity>
+        <ActivityIndicator size="large" color={PRIMARY} style={styles.spinner} />
       </View>
     </View>
   );
@@ -96,24 +87,5 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     opacity: 0.9,
   },
-  primaryButton: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: PRIMARY,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: PRIMARY,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  arrow: { color: '#fff', fontSize: 14, marginLeft: 8 },
-  linkButton: { marginTop: 20 },
-  linkText: { fontSize: 14, color: '#666' },
+  spinner: { marginTop: 24 },
 });
