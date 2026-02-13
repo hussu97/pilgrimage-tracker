@@ -4,6 +4,36 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Redesign: BE-3 groups (progress, next place, featured), location, auth flow, i18n
+
+**Done when:** Groups list API returns progress and next place; optional group path; single root stack and location provider; i18n device locale and settings sync.
+
+### Backend
+
+- **Groups list (`GET /api/v1/groups`):** Each group now includes `last_activity` (latest check-in among members), `sites_visited`, `total_sites`, `next_place_code`, `next_place_name` (first unvisited site in path when applicable), and `featured` (true for first group). New helpers: `get_last_activity(group_code, check_ins_db)`, `get_group_progress(group_code, check_ins_db, places_db)` in `app/db/groups.py`.
+- **Group path:** Optional `path_place_codes` (ordered list of place_codes) on Group; `create_group` and `GroupCreateBody` accept `path_place_codes`; seed supports `path_place_codes` in group JSON. Progress “X/Y sites” and “next place” are derived from path and member check-ins when path is set.
+- **Places, reviews, users, check-ins:** (From earlier BE-1/BE-2 work) Places: `is_open_now`, `website_url`, `has_events`, `jummah`/`has_events` filters; reviews: `is_anonymous`, `photo_urls`; user stats and check-ins list shape as documented.
+
+### Frontend — Web
+
+- **Location:** `LocationProvider` in `app/contexts/LocationContext.tsx`; coords from geolocation used for `getPlaces` (lat/lng). Home uses `useLocation().coords`.
+- **Auth/routes:** Root redirects to `/home`; Home and PlaceDetail no longer behind ProtectedRoute (signed-out can browse); Register redirects to `/home` after signup.
+- **I18n:** Initial locale from API language list + device locale or stored locale; `updateSettings({ language })` called when user changes language.
+
+### Frontend — Mobile
+
+- **Location:** `expo-location` plugin; `LocationContext` provides coords (default 0,0 when denied); Home passes lat/lng to `getPlaces`.
+- **Navigation:** Single root stack (Splash → Main, Login, Register, etc.); Splash shows spinner then replaces to Main when i18n ready; Login/Register replace to Main on success.
+- **Auth:** Favorites and Profile show “Sign in to view” + Login when not signed in; no SelectPath redirect after register.
+- **I18n:** Device locale via NativeModules; `resolveInitialLocale` from API list; language change calls `updateSettings({ language })`.
+- **UI:** Back buttons and safe area on CheckIn, CreateGroup, JoinGroup, Notifications, SelectPath, Settings; CheckIn receives `placeCode` from route params.
+
+### Docs
+
+- **ARCHITECTURE.md:** Data model §4 updated for Group `path_place_codes`; API §5 updated for groups list response fields and create body `path_place_codes`.
+
+---
+
 ## Web app migration to TypeScript architecture (apps/web)
 
 **Done when:** Web app uses `app/`, `components/`, and `lib/` layout; docs and Cursor globs updated; flows verified.
