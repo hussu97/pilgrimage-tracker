@@ -660,7 +660,8 @@
       "email": "alice@test.com",
       "password": "test123",
       "display_name": "Alice",
-      "religion": "islam"
+      "religion": "islam",
+      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=alice"
     },
     {
       "user_code": "usr_seed2",
@@ -677,6 +678,13 @@
       "religion": "christianity"
     }
   ],
+  "user_settings": [
+    { "user_code": "usr_seed1", "theme": "dark", "units": "km", "language": "en", "notifications_on": true },
+    { "user_code": "usr_seed2", "theme": "light", "units": "miles" }
+  ],
+  "password_resets": [
+    { "token": "seed_reset_token_abc123", "user_code": "usr_seed1", "expires_at": "2030-12-31T23:59:59Z" }
+  ],
   "places": [
     {
       "name": "Sultan Ahmed Mosque",
@@ -685,6 +693,13 @@
       "lat": 41.0054,
       "lng": 28.9768,
       "address": "Istanbul, Turkey",
+      "opening_hours": {"opens": "05:00", "closes": "21:00"},
+      "image_urls": [
+        "https://images.unsplash.com/photo-1548013146-72479768bada?w=800",
+        "https://images.unsplash.com/photo-1564769625905-50e93615e5d2?w=800"
+      ],
+      "description": "The Blue Mosque, an iconic Ottoman-era mosque with six minarets and hand-painted blue tiles.",
+      "website_url": "https://www.sultanahmetcamii.org",
       "religion_specific": {
         "prayer_times": {"fajr": "05:30", "dhuhr": "12:45", "asr": "15:30", "maghrib": "18:15", "isha": "19:45"},
         "capacity": 10000,
@@ -698,6 +713,9 @@
       "lat": 40.71,
       "lng": -74.01,
       "address": "Downtown District",
+      "image_urls": [
+        "https://images.unsplash.com/photo-1591604129938-1e2e1a3dd963?w=800"
+      ],
       "religion_specific": {"prayer_times": {}, "capacity": 500, "facilities": ["ablution"]}
     },
     {
@@ -707,10 +725,17 @@
       "lat": 13.0342,
       "lng": 80.2676,
       "address": "Mylapore, Chennai, India",
+      "opening_hours": {"opens": "06:00", "closes": "20:00"},
+      "image_urls": [
+        "https://images.unsplash.com/photo-1548013146-72479768bada?w=800",
+        "https://images.unsplash.com/photo-1580327342882-640e2c4d1b20?w=800"
+      ],
+      "description": "A historic Shiva temple with Dravidian architecture and a towering gopuram.",
       "religion_specific": {
-        "deities": [{"name": "Lord Shiva", "image_url": ""}],
+        "deities": [{"name": "Lord Shiva", "subtitle": "Kapaleeshwarar", "image_url": "https://images.unsplash.com/photo-1580327342882-640e2c4d1b20?w=400"}],
         "festival_dates": ["Maha Shivaratri"],
-        "dress_code": "Traditional attire preferred"
+        "dress_code": "Traditional attire preferred",
+        "architecture": "Dravidian"
       }
     },
     {
@@ -720,6 +745,9 @@
       "lat": 40.72,
       "lng": -74.00,
       "address": "456 Oak Ave",
+      "image_urls": [
+        "https://picsum.photos/800/600?random=4"
+      ],
       "religion_specific": {"deities": [], "festival_dates": [], "dress_code": ""}
     },
     {
@@ -729,10 +757,19 @@
       "lat": 48.853,
       "lng": 2.3499,
       "address": "Paris, France",
+      "opening_hours": {"opens": "08:00", "closes": "18:45"},
+      "image_urls": [
+        "https://images.unsplash.com/photo-1548013146-72479768bada?w=800",
+        "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800"
+      ],
+      "description": "Medieval Catholic cathedral on the Île de la Cité, famous for its French Gothic architecture.",
+      "website_url": "https://www.notredamedeparis.fr",
       "religion_specific": {
         "denomination": "Roman Catholic",
         "service_times": {"Sunday": "10:00, 18:00"},
-        "notable_features": ["Gothic architecture", "Rose windows"]
+        "notable_features": ["Gothic architecture", "Rose windows"],
+        "founded_year": 1345,
+        "style": "French Gothic"
       }
     },
     {
@@ -742,6 +779,9 @@
       "lat": 40.708,
       "lng": -74.009,
       "address": "123 Main St",
+      "image_urls": [
+        "https://picsum.photos/800/600?random=6"
+      ],
       "religion_specific": {"denomination": "Interdenominational", "service_times": {}, "notable_features": []}
     }
   ],
@@ -750,7 +790,8 @@
       "name": "Istanbul Pilgrims",
       "description": "Group for visitors to Istanbul sites.",
       "created_by_user_code": "usr_seed1",
-      "is_private": false
+      "is_private": false,
+      "path_place_indices": [0, 1]
     },
     {
       "name": "Temple Explorers",
@@ -760,20 +801,25 @@
     }
   ],
   "group_members": [
-    { "group_index": 0, "user_code": "usr_seed2", "role": "member" }
+    { "group_index": 0, "user_code": "usr_seed2", "role": "member" },
+    { "group_index": 0, "user_code": "usr_seed3", "role": "member" },
+    { "group_index": 1, "user_code": "usr_seed1", "role": "member" }
   ],
   "reviews": [
-    { "user_code": "usr_seed1", "place_index": 0, "rating": 5, "title": "Beautiful mosque", "body": "A must-visit in Istanbul." },
-    { "user_code": "usr_seed2", "place_index": 2, "rating": 5, "title": "Peaceful", "body": "Very spiritual place." }
+    { "user_code": "usr_seed1", "place_index": 0, "rating": 5, "title": "Beautiful mosque", "body": "A must-visit in Istanbul.", "photo_urls": ["https://images.unsplash.com/photo-1548013146-72479768bada?w=600"] },
+    { "user_code": "usr_seed2", "place_index": 2, "rating": 5, "title": "Peaceful", "body": "Very spiritual place.", "photo_urls": ["https://images.unsplash.com/photo-1580327342882-640e2c4d1b20?w=600"] },
+    { "user_code": "usr_seed3", "place_index": 4, "rating": 4 },
+    { "user_code": "usr_seed1", "place_index": 4, "rating": 5, "title": "Stunning architecture", "body": "The rose windows are breathtaking." }
   ],
   "check_ins": [
-    { "user_code": "usr_seed1", "place_index": 0, "note": "Morning visit" },
+    { "user_code": "usr_seed1", "place_index": 0, "note": "Morning visit", "photo_url": "https://images.unsplash.com/photo-1548013146-72479768bada?w=600" },
     { "user_code": "usr_seed1", "place_index": 1, "note": null },
     { "user_code": "usr_seed2", "place_index": 2, "note": "Maha Shivaratri" }
   ],
   "notifications": [
     { "user_code": "usr_seed1", "type": "check_in", "payload": {"body": "You checked in at Sultan Ahmed Mosque."} },
-    { "user_code": "usr_seed2", "type": "group_invite", "payload": {"body": "You were added to Istanbul Pilgrims."} }
+    { "user_code": "usr_seed2", "type": "group_invite", "payload": {"body": "You were added to Istanbul Pilgrims."} },
+    { "user_code": "usr_seed3", "type": "check_in_activity", "payload": {"body": "Bob checked in at Kapaleeshwarar Temple."} }
   ],
   "favorites": [
     { "user_code": "usr_seed1", "place_index": 0 },

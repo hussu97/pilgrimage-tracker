@@ -3,6 +3,7 @@ Central seed runner. Loads seed_data.json and populates all in-memory stores.
 Run on app startup (main.py) or via: python -m app.db.seed
 """
 import json
+from datetime import datetime
 from pathlib import Path
 
 from app.core.security import hash_password
@@ -66,6 +67,17 @@ def run_seed(seed_path: str | Path | None = None) -> None:
         if u.get("religion"):
             store.update_user_settings(u["user_code"], religions=[u["religion"]])
 
+    for entry in data.get("user_settings", []):
+        user_code = entry.get("user_code")
+        if user_code:
+            kwargs = {k: v for k, v in entry.items() if k != "user_code"}
+            if kwargs:
+                store.update_user_settings(user_code, **kwargs)
+
+    for pr in data.get("password_resets", []):
+        expires_at = datetime.fromisoformat(pr["expires_at"].replace("Z", "+00:00"))
+        store.save_password_reset(pr["token"], pr["user_code"], expires_at)
+
     # Places (order preserved for place_index refs)
     place_codes: list[str] = []
     for p in data.get("places", []):
@@ -87,12 +99,17 @@ def run_seed(seed_path: str | Path | None = None) -> None:
     # Groups
     group_codes: list[str] = []
     for g in data.get("groups", []):
+        path_place_codes = None
+        if "path_place_indices" in g:
+            path_place_codes = [place_codes[i] for i in g["path_place_indices"]]
+        elif g.get("path_place_codes") is not None:
+            path_place_codes = g["path_place_codes"]
         row = groups_db.create_group(
             name=g["name"],
             description=g.get("description", ""),
             created_by_user_code=g["created_by_user_code"],
             is_private=g.get("is_private", False),
-            path_place_codes=g.get("path_place_codes"),
+            path_place_codes=path_place_codes,
         )
         group_codes.append(row.group_code)
 
@@ -109,6 +126,8 @@ def run_seed(seed_path: str | Path | None = None) -> None:
             rating=r["rating"],
             title=r.get("title"),
             body=r.get("body"),
+            is_anonymous=r.get("is_anonymous", False),
+            photo_urls=r.get("photo_urls"),
         )
 
     for c in data.get("check_ins", []):

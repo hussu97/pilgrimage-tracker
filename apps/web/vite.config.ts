@@ -6,6 +6,10 @@ import path from 'path';
 // Use 127.0.0.1 so connections hit IPv4; localhost can resolve to ::1 and fail if server binds to 127.0.0.1 (macOS).
 const backendOrigin = process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:3000';
 
+// Resolve react and react-dom from a single node_modules so one React instance is used (avoids "ReactCurrentDispatcher" error when workspace hoists mixed versions).
+// Use root node_modules because in this workspace npm may not install react-dom under apps/web/node_modules.
+const rootNodeModules = path.resolve(__dirname, '..', '..', 'node_modules');
+
 export default defineConfig({
   plugins: [
     react(),
@@ -31,7 +35,12 @@ export default defineConfig({
     }),
   ],
   resolve: {
-    alias: { '@': path.resolve(__dirname, './src') },
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+      react: path.resolve(rootNodeModules, 'react'),
+      'react-dom': path.resolve(rootNodeModules, 'react-dom'),
+    },
+    dedupe: ['react', 'react-dom'],
   },
   server: {
     port: 5173,

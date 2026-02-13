@@ -1,6 +1,6 @@
 # Pilgrimage Tracker API (Python + FastAPI)
 
-Backend for Pilgrimage Tracker. Versioned API at `/api/v1`. **Python 3.14** (or 3.11+) required. On macOS, use `brew install python` for the latest, then create the venv with `python3 -m venv .venv`.
+Backend for Pilgrimage Tracker. Versioned API at `/api/v1`. **Python 3.11+** required. On macOS, use `brew install python@3.12` (or latest) then create the venv with `python3 -m venv .venv`.
 
 ## Run
 
@@ -31,8 +31,12 @@ In-memory data (users, places, groups, reviews, check-ins, notifications, favori
 - `POST /api/v1/auth/forgot-password` — request reset link
 - `POST /api/v1/auth/reset-password` — reset with token
 - `GET /api/v1/users/me` — current user (Bearer token)
-- `PATCH /api/v1/users/me` — update profile
-- `PATCH /api/v1/users/me/religion` — set religion
+- `PATCH /api/v1/users/me` — update profile (display_name, avatar_url)
+- `GET /api/v1/users/me/settings` — get settings (theme, language, units, religions, etc.)
+- `PATCH /api/v1/users/me/settings` — update settings
+- `GET /api/v1/users/me/check-ins` — current user's check-ins
+- `GET /api/v1/users/me/stats` — places visited, check-ins this year
+- `GET /api/v1/users/me/favorites` — favorited places
 - `GET /api/v1/places` — list places (query: religion, lat, lng, limit, offset)
 - `GET /api/v1/languages` — list supported languages (code, name); no auth
 - `GET /api/v1/translations?lang=en` — translation key→value for locale; fallback to English for missing keys; no auth

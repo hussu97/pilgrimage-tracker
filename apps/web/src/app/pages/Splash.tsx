@@ -50,9 +50,7 @@ export default function Splash() {
             {t('splash.appName') || 'Pilgrimage'}
           </h1>
           <p className="text-text-dark text-lg font-normal leading-relaxed opacity-90">
-            {typeof t('splash.tagline') === 'string' && t('splash.tagline').includes('Sacred Spaces')
-              ? <>Discover, Visit, and Track <br /> Sacred Spaces</>
-              : t('splash.tagline')}
+            {t('splash.tagline')}
           </p>
         </div>
       </main>
