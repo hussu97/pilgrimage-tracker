@@ -1,0 +1,25 @@
+---
+description: Replicate UI and features between apps/web and apps/mobile
+globs: apps/web/**/*,apps/mobile/**/*
+alwaysApply: false
+---
+
+# Frontend replication (web and mobile)
+
+This project has **two separate frontend codebases**: `apps/web` (desktop + mobile web) and `apps/mobile` (Capacitor for iOS/Android). There are no shared packages; each app has its own types, API client, and components.
+
+**Rule:** When adding or changing UI or features in `apps/web`, replicate the same UI and behavior in `apps/mobile`. When adding or changing UI or features in `apps/mobile`, replicate the same in `apps/web`. Keep screens, components, and feature behavior in sync across both apps.
+
+**What to replicate:**
+- New or updated screens and page components
+- New or updated shared components (buttons, cards, forms, layout)
+- New or updated flows (e.g. auth, check-in, groups)
+- Route structure and navigation (use the same route names and params, e.g. `/places/:placeCode`, `/groups/:groupCode`)
+- Design tokens and Tailwind theme usage
+
+**What may differ:**
+- App-specific config (e.g. Capacitor plugins, native env, build config)
+- Environment variable names or loading (e.g. `VITE_API_URL` in each app)
+- Deployment or run scripts
+
+After editing one app, update the other so both stay in sync.
