@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import type { User, Religion } from '@/types';
+import type { User } from '@/types';
 import * as api from '@/api/client';
 
 const TOKEN_KEY = 'token';
@@ -16,7 +16,6 @@ interface AuthContextValue extends AuthState {
   register: (email: string, password: string, display_name?: string) => Promise<void>;
   logout: () => void;
   setUser: (user: User | null) => void;
-  setReligion: (religion: Religion | null) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -84,11 +83,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserState(null);
   }, []);
 
-  const setReligion = useCallback(async (religion: Religion | null) => {
-    const u = await api.updateReligion(religion);
-    setUser(u);
-  }, [setUser]);
-
   const value: AuthContextValue = {
     user,
     token,
@@ -97,7 +91,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     register,
     logout,
     setUser,
-    setReligion,
     refreshUser,
   };
 

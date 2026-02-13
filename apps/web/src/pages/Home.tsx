@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/context/I18nContext';
 import { getPlaces } from '@/api/client';
@@ -67,52 +67,51 @@ export default function Home() {
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
 
   const fetchPlaces = useCallback(() => {
-    if (!user?.religion) return;
+    if (!user) return;
     setLoading(true);
     setError('');
-    getPlaces({
-      religion: user.religion,
+    const params: Parameters<typeof getPlaces>[0] = {
       lat: DEFAULT_LAT,
       lng: DEFAULT_LNG,
       search: searchQuery || undefined,
       place_type: placeTypeFilter || undefined,
       radius: 100,
-    })
+    };
+    if (user.religions?.length) params.religions = user.religions;
+    getPlaces(params)
       .then(setPlaces)
       .catch((err) => setError(err instanceof Error ? err.message : t('common.error')))
       .finally(() => setLoading(false));
-  }, [user?.religion, searchQuery, placeTypeFilter, t]);
+  }, [user, user?.religions, searchQuery, placeTypeFilter, t]);
 
   useEffect(() => {
-    const t = setTimeout(() => setSearchQuery(searchInput), 400);
-    return () => clearTimeout(t);
+    const timeout = setTimeout(() => setSearchQuery(searchInput), 400);
+    return () => clearTimeout(timeout);
   }, [searchInput]);
 
   useEffect(() => {
     let cancelled = false;
-    if (!user?.religion) return;
+    if (!user) return;
     setLoading(true);
     setError('');
-    getPlaces({
-      religion: user.religion,
+    const params: Parameters<typeof getPlaces>[0] = {
       lat: DEFAULT_LAT,
       lng: DEFAULT_LNG,
       search: searchQuery || undefined,
       place_type: placeTypeFilter || undefined,
       radius: 100,
-    })
+    };
+    if (user.religions?.length) params.religions = user.religions;
+    getPlaces(params)
       .then((data) => { if (!cancelled) setPlaces(data); })
       .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : t('common.error')); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [user?.religion, searchQuery, placeTypeFilter, t]);
+  }, [user, user?.religions, searchQuery, placeTypeFilter, t]);
 
   if (!user) return null;
-  if (!user.religion) {
-    return <Navigate to="/select-path" replace />;
-  }
 
-  const greeting = user.religion === 'islam' ? 'Assalamu Alaikum' : 'Welcome';
+  const greeting = user.religions?.includes('islam') ? 'Assalamu Alaikum' : 'Welcome';
 
   return (
     <div className="max-w-md mx-auto px-5 py-6 md:max-w-4xl">

@@ -2,17 +2,25 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/context/I18nContext';
-import { updateMe, updateReligion } from '@/api/client';
+import { updateMe, updateSettings } from '@/api/client';
 import type { Religion } from '@/types';
+
+const RELIGIONS: Religion[] = ['islam', 'hinduism', 'christianity'];
 
 export default function EditProfile() {
   const { user, refreshUser } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState(user?.display_name ?? '');
-  const [religion, setReligion] = useState<Religion | ''>(user?.religion ?? '');
+  const [religions, setReligions] = useState<Religion[]>(user?.religions ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  function toggleReligion(r: Religion) {
+    setReligions((prev) =>
+      prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]
+    );
+  }
 
   const handleSave = async () => {
     if (!user) return;
@@ -20,9 +28,7 @@ export default function EditProfile() {
     setError('');
     try {
       await updateMe({ display_name: displayName });
-      if (religion !== '' && religion !== user.religion) {
-        await updateReligion(religion as Religion);
-      }
+      await updateSettings({ religions });
       await refreshUser();
       navigate('/profile');
     } catch (e) {
@@ -49,17 +55,21 @@ export default function EditProfile() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-text-main mb-1">Religion</label>
-          <select
-            value={religion}
-            onChange={(e) => setReligion(e.target.value as Religion | '')}
-            className="w-full border border-gray-200 dark:border-gray-600 rounded-xl px-4 py-3 text-text-main bg-white dark:bg-gray-800"
-          >
-            <option value="">{t('selectPath.skip')}</option>
-            <option value="islam">{t('common.islam')}</option>
-            <option value="hinduism">{t('common.hinduism')}</option>
-            <option value="christianity">{t('common.christianity')}</option>
-          </select>
+          <label className="block text-sm font-medium text-text-main mb-2">{t('settings.religionsToShow')}</label>
+          <div className="space-y-2">
+            {RELIGIONS.map((r) => (
+              <label key={r} className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={religions.includes(r)}
+                  onChange={() => toggleReligion(r)}
+                  className="rounded border-gray-300 text-primary"
+                />
+                <span className="text-text-main">{t(`common.${r}`)}</span>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-text-muted mt-1">{t('selectPath.hint')}</p>
         </div>
       </div>
       <div className="flex gap-3">

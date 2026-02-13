@@ -32,7 +32,7 @@ function authHeaders(): HeadersInit {
 }
 
 export interface GetPlacesParams {
-  religion?: string;
+  religions?: Religion[];
   lat?: number;
   lng?: number;
   radius?: number;
@@ -45,7 +45,7 @@ export interface GetPlacesParams {
 
 export async function getPlaces(params?: GetPlacesParams): Promise<Place[]> {
   const sp = new URLSearchParams();
-  if (params?.religion) sp.set('religion', params.religion);
+  if (params?.religions?.length) params.religions.forEach((r) => sp.append('religion', r));
   if (params?.lat != null) sp.set('lat', String(params.lat));
   if (params?.lng != null) sp.set('lng', String(params.lng));
   if (params?.radius != null) sp.set('radius', String(params.radius));
@@ -111,17 +111,6 @@ export async function updateMe(updates: { display_name?: string; avatar_url?: st
     method: 'PATCH',
     headers: authHeaders(),
     body: JSON.stringify(updates),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? 'Update failed');
-  return data;
-}
-
-export async function updateReligion(religion: Religion | null): Promise<User> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me/religion`, {
-    method: 'PATCH',
-    headers: authHeaders(),
-    body: JSON.stringify({ religion }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? 'Update failed');

@@ -1,4 +1,4 @@
-from typing import Annotated, Literal, Optional
+from typing import Annotated, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -48,7 +48,7 @@ def _place_detail(place) -> dict:
 
 @router.get("", response_model=list)
 def list_places(
-    religion: Optional[Religion] = Query(None),
+    religion: Optional[List[Religion]] = Query(None, description="Filter by religion(s); repeat for multiple; omit for all"),
     lat: Optional[float] = Query(None),
     lng: Optional[float] = Query(None),
     radius: Optional[float] = Query(None, description="Radius in km"),
@@ -58,8 +58,9 @@ def list_places(
     limit: int = Query(50),
     offset: int = Query(0),
 ):
+    religions = religion  # list from repeated ?religion= param
     rows = places_db.list_places(
-        religion=religion,
+        religions=religions,
         lat=lat,
         lng=lng,
         radius_km=radius,

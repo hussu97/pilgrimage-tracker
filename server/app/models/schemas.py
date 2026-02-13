@@ -9,7 +9,7 @@ class UserResponse(BaseModel):
     user_code: str
     email: str
     display_name: str
-    religion: Optional[Religion] = None
+    religions: List[Religion] = []
     avatar_url: Optional[str] = None
     created_at: str
     updated_at: str
@@ -29,10 +29,6 @@ class RegisterBody(BaseModel):
 class LoginBody(BaseModel):
     email: str
     password: str
-
-
-class ReligionBody(BaseModel):
-    religion: Optional[Religion] = None
 
 
 class UpdateMeBody(BaseModel):
@@ -87,6 +83,7 @@ class SettingsBody(BaseModel):
     theme: Optional[str] = None  # light, dark, system
     units: Optional[str] = None  # km, miles
     language: Optional[str] = None  # en, ar, hi
+    religions: Optional[List[Religion]] = None  # filter preference; empty = show all
 
 
 # Place list item (with optional distance)

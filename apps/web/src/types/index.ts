@@ -4,7 +4,7 @@ export interface User {
   user_code: string;
   email: string;
   display_name: string;
-  religion: Religion | null;
+  religions: Religion[];
   avatar_url?: string;
   created_at?: string;
   updated_at?: string;
@@ -104,4 +104,5 @@ export interface UserSettings {
   theme?: string;
   units?: string;
   language?: string;
+  religions?: Religion[];
 }

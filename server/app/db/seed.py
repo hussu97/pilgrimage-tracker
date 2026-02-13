@@ -61,6 +61,9 @@ def run_seed(seed_path: str | Path | None = None) -> None:
             religion=u.get("religion"),
             avatar_url=u.get("avatar_url"),
         )
+        # Preferred religions (filter): seed from single religion if present
+        if u.get("religion"):
+            store.update_user_settings(u["user_code"], religions=[u["religion"]])
 
     # Places (order preserved for place_index refs)
     place_codes: list[str] = []

@@ -3,15 +3,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/context/I18nContext';
 import { getSettings, updateSettings } from '@/api/client';
-import type { UserSettings } from '@/types';
+import type { Religion, UserSettings } from '@/types';
 
 const THEME_KEY = 'pilgrimage-theme';
+const RELIGIONS: Religion[] = ['islam', 'hinduism', 'christianity'];
 
 export default function Settings() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const { t, locale, setLocale, languages } = useI18n();
   const navigate = useNavigate();
   const [settings, setSettings] = useState<UserSettings>({});
+  const [religions, setReligions] = useState<Religion[]>(user?.religions ?? []);
   const [_loading, setLoading] = useState(true);
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(() => {
     const stored = localStorage.getItem(THEME_KEY) as 'light' | 'dark' | 'system' | null;
@@ -20,10 +22,25 @@ export default function Settings() {
 
   useEffect(() => {
     getSettings()
-      .then(setSettings)
+      .then((s) => {
+        setSettings(s);
+        if (s.religions != null) setReligions(s.religions);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (user?.religions != null) setReligions(user.religions);
+  }, [user?.religions]);
+
+  const toggleReligion = (r: Religion) => {
+    const next = religions.includes(r) ? religions.filter((x) => x !== r) : [...religions, r];
+    setReligions(next);
+    updateSettings({ religions: next })
+      .then(() => refreshUser())
+      .catch(() => {});
+  };
 
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
@@ -93,7 +110,7 @@ export default function Settings() {
               className="rounded"
             />
           </label>
-          <label className="flex items-center justify-between p-4">
+          <label className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
             <span className="text-text-main">{t('settings.units')}</span>
             <select
               value={settings.units || 'km'}
@@ -108,6 +125,23 @@ export default function Settings() {
               <option value="miles">{t('settings.unitsMiles')}</option>
             </select>
           </label>
+          <div className="p-4">
+            <span className="block text-text-main font-medium mb-2">{t('settings.religionsToShow')}</span>
+            <p className="text-xs text-text-muted mb-2">{t('selectPath.hint')}</p>
+            <div className="space-y-2">
+              {RELIGIONS.map((r) => (
+                <label key={r} className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={religions.includes(r)}
+                    onChange={() => toggleReligion(r)}
+                    className="rounded border-gray-300 text-primary"
+                  />
+                  <span className="text-text-main">{t(`common.${r}`)}</span>
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 

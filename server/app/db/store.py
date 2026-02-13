@@ -2,9 +2,10 @@
 In-memory store for local dev. Replace with SQLite/Postgres for production.
 """
 from datetime import datetime
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 Religion = Literal["islam", "hinduism", "christianity"]
+VALID_RELIGIONS = ("islam", "hinduism", "christianity")
 
 
 class UserRow:
@@ -121,7 +122,10 @@ def consume_password_reset(token: str) -> Optional[str]:
 
 
 def get_user_settings(user_code: str) -> dict:
-    return dict(user_settings.get(user_code, {}))
+    s = dict(user_settings.get(user_code, {}))
+    if "religions" not in s:
+        s["religions"] = []
+    return s
 
 
 def update_user_settings(user_code: str, **kwargs) -> dict:
@@ -134,4 +138,11 @@ def update_user_settings(user_code: str, **kwargs) -> dict:
         s["units"] = kwargs["units"]
     if "language" in kwargs:
         s["language"] = kwargs["language"]
-    return dict(s)
+    if "religions" in kwargs:
+        raw = kwargs["religions"]
+        if raw is not None:
+            validated = [r for r in raw if r in VALID_RELIGIONS]
+            s["religions"] = validated
+        else:
+            s["religions"] = []
+    return get_user_settings(user_code)

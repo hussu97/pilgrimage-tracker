@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException
 
 from app.core.security import hash_password, verify_password, create_access_token
+from app.db import store
 from app.db.store import (
     get_user_by_email,
     create_user,
@@ -24,11 +25,13 @@ router = APIRouter()
 
 
 def _to_public_user(user) -> UserResponse:
+    settings = store.get_user_settings(user.user_code)
+    religions = settings.get("religions", [])
     return UserResponse(
         user_code=user.user_code,
         email=user.email,
         display_name=user.display_name,
-        religion=user.religion,
+        religions=religions,
         avatar_url=user.avatar_url,
         created_at=user.created_at,
         updated_at=user.updated_at,

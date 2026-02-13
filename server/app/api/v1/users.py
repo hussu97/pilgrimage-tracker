@@ -7,17 +7,19 @@ from app.db import store
 from app.db import check_ins as check_ins_db
 from app.db import places as places_db
 from app.db import favorites as favorites_db
-from app.models.schemas import UserResponse, ReligionBody, UpdateMeBody, SettingsBody
+from app.models.schemas import UserResponse, UpdateMeBody, SettingsBody
 
 router = APIRouter()
 
 
 def _to_public_user(user) -> UserResponse:
+    settings = store.get_user_settings(user.user_code)
+    religions = settings.get("religions", [])
     return UserResponse(
         user_code=user.user_code,
         email=user.email,
         display_name=user.display_name,
-        religion=user.religion,
+        religions=religions,
         avatar_url=user.avatar_url,
         created_at=user.created_at,
         updated_at=user.updated_at,
@@ -39,20 +41,6 @@ def update_me(
         display_name=body.display_name,
         avatar_url=body.avatar_url,
     )
-    if not updated:
-        raise HTTPException(status_code=404, detail="User not found")
-    return _to_public_user(updated)
-
-
-@router.patch("/me/religion", response_model=UserResponse)
-def set_religion(
-    body: ReligionBody,
-    user: Annotated[any, Depends(get_current_user)],
-):
-    religion = body.religion
-    if religion is not None and religion not in ("islam", "hinduism", "christianity"):
-        raise HTTPException(status_code=400, detail="Invalid religion")
-    updated = store.update_user_religion(user.user_code, religion)
     if not updated:
         raise HTTPException(status_code=404, detail="User not found")
     return _to_public_user(updated)
@@ -120,4 +108,7 @@ def update_my_settings(body: SettingsBody, user: Annotated[any, Depends(get_curr
         kwargs["units"] = body.units
     if body.language is not None:
         kwargs["language"] = body.language
-    return store.update_user_settings(user.user_code, **kwargs)
+    if body.religions is not None:
+        kwargs["religions"] = body.religions
+    updated = store.update_user_settings(user.user_code, **kwargs)
+    return updated

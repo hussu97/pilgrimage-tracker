@@ -95,7 +95,7 @@ def get_place_by_code(place_code: str) -> Optional[PlaceRow]:
 
 
 def list_places(
-    religion: Optional[Religion] = None,
+    religions: Optional[List[Religion]] = None,
     lat: Optional[float] = None,
     lng: Optional[float] = None,
     radius_km: Optional[float] = None,
@@ -107,7 +107,7 @@ def list_places(
 ) -> List[tuple]:
     result: List[tuple] = []
     for p in places.values():
-        if religion and p.religion != religion:
+        if religions and p.religion not in religions:
             continue
         if place_type and p.place_type != place_type:
             continue
