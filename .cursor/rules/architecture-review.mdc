@@ -1,0 +1,20 @@
+---
+description: Review ARCHITECTURE.md when functionality changes system architecture
+alwaysApply: true
+---
+
+# Architecture review
+
+When implementing functionality that may affect how the system is built or deployed:
+
+**Rule:** Review the **[ARCHITECTURE.md](ARCHITECTURE.md)** file. If any implemented functionality **changes the architecture** of the system (e.g. new services, new data stores, new API versioning, new frontend/backend boundaries, new deployment units), update ARCHITECTURE.md to reflect those changes.
+
+**Examples of architecture-changing work:**
+- Adding a new backend service or splitting the API
+- Introducing a new database, cache, or message queue
+- Changing auth strategy (e.g. adding OAuth providers)
+- Adding a new client (e.g. a third app) or changing the monorepo layout
+- Changing API versioning or breaking the API contract
+- Adding translation/i18n served from backend (new endpoint, new responsibility)
+
+Keep ARCHITECTURE.md accurate so that future work and production planning (see PRODUCTION.md) stay aligned with the actual system.

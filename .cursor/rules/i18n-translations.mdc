@@ -1,0 +1,17 @@
+---
+description: Customer-facing strings from backend; English and Arabic with fallback to English
+globs: apps/web/**/*,apps/mobile/**/*,server/**/*
+alwaysApply: false
+---
+
+# Internationalization (i18n) and translations
+
+**Rule:** Any **customer-facing frontend strings** must be **translated from the backend**. The system must support **English** and **Arabic**, and **fall back to English** when Arabic is not available.
+
+**Implementation direction:**
+
+- **Backend:** Expose translations (e.g. `GET /api/v1/translations?lang=en` or `?lang=ar`). Return a JSON map of keys to localized strings. Include all UI strings used by the frontend (labels, buttons, errors, empty states). English is the default/source; Arabic is optional per key with fallback to English.
+- **Frontend:** Do not hardcode customer-facing copy. Fetch translations for the user’s locale (e.g. from preference or Accept-Language). Use translation keys in the UI and resolve them via the fetched map. If a key is missing for Arabic, use the English value.
+- **Scope:** “Customer-facing” means any text shown to the end user (labels, messages, placeholders, errors). Developer-only strings (e.g. log messages, comments) need not go through the translation API.
+
+When adding or changing UI copy, add or update the corresponding keys and values (at least English; add Arabic when available) in the backend translation source and ensure the frontend uses the translation layer.
