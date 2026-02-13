@@ -205,7 +205,10 @@ export async function getMyFavorites(): Promise<Place[]> {
   return res.json();
 }
 
-export async function createReview(placeCode: string, body: { rating: number; title?: string; body?: string }): Promise<Review> {
+export async function createReview(
+  placeCode: string,
+  body: { rating: number; title?: string; body?: string; is_anonymous?: boolean; photo_urls?: string[] }
+): Promise<Review> {
   const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/reviews`, {
     method: 'POST',
     headers: authHeaders(),

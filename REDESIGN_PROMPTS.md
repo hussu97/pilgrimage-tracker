@@ -92,13 +92,13 @@ Work from DESIGN_FILE_V2.html; mobile and mobile web UIs should match the design
 
 ### M-8. My Pilgrimage Groups (mobile + mobile web)
 
-- Redesign Groups list to match DESIGN_FILE_V2.html “My Pilgrimage Groups”: “My Groups” header, notifications icon, featured group card (gradient, progress %, “Next: …”, member avatars, CTA), list of groups with name, last active, progress (e.g. 45/100 Sites, Lvl 3), member avatars, FAB “+”. Use groups API with progress and “next” when backend provides. Match design on mobile and mobile web.
+- [x] Redesign Groups list to match DESIGN_FILE_V2.html “My Pilgrimage Groups”: “My Groups” header, notifications icon, featured group card (gradient, progress %, “Next: …”, member avatars, CTA), list of groups with name, last active, progress (e.g. 45/100 Sites, Lvl 3), member avatars, FAB “+”. Use groups API with progress and “next” when backend provides. Match design on mobile and mobile web.
 
 ---
 
 ### M-9. Write a Review (mobile + mobile web)
 
-- Redesign Write Review to match DESIGN_FILE_V2.html “Write a Review”: header (Cancel, “Write Review”, Save), place name and location and thumb, star rating (1–5), text area “Share your experience…”, photo upload strip, “Post Anonymously” toggle, Submit button, success overlay “Review Posted”, bottom nav. Use POST /places/{code}/reviews; send is_anonymous and photo_urls when supported. Match design on mobile and mobile web.
+- [x] Redesign Write Review to match DESIGN_FILE_V2.html “Write a Review”: header (Cancel, “Write Review”, Save), place name and location and thumb, star rating (1–5), text area “Share your experience…”, photo upload strip, “Post Anonymously” toggle, Submit button, success overlay “Review Posted”, bottom nav. Use POST /places/{code}/reviews; send is_anonymous and photo_urls when supported. Match design on mobile and mobile web.
 
 ---
 

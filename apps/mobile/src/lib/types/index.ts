@@ -82,6 +82,12 @@ export interface Group {
   is_private: boolean;
   created_at: string;
   member_count?: number;
+  last_activity?: string | null;
+  sites_visited?: number;
+  total_sites?: number;
+  next_place_code?: string | null;
+  next_place_name?: string | null;
+  featured?: boolean;
 }
 
 export interface GroupMember {

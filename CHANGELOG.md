@@ -4,6 +4,43 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## M-9: Write a Review (mobile + mobile web)
+
+**Done when:** Write Review matches DESIGN_FILE_V2: header (Cancel, Write Review, Save), place name/location/thumb, stars, text area, photo strip, Post Anonymously, Submit, success overlay.
+
+### Frontend — Web
+
+- **WriteReview:** Header with Cancel, “Write Review” title, Save (edit only). Place name, address, thumb image. Star rating (1–5) with label. Textarea “Share your experience…”. Photo add button (placeholder). Post Anonymously toggle. Submit button (floating for create). Success overlay “Review Posted” / “Your voice has been heard.” / Return. createReview sends is_anonymous; API client accepts is_anonymous and photo_urls.
+
+### Frontend — Mobile
+
+- **WriteReviewScreen:** Same layout with tokens: header, place row with thumb, stars, textarea, add photo button, Post Anonymously toggle, floating Submit (or bottom Save for edit). Success modal with Return. Passes is_anonymous to createReview.
+
+### Backend
+
+- **i18n:** writeReview.title, shareExperience, postAnonymously, submit, reviewPosted, yourVoiceHeard, return, addPhoto (en, ar, hi).
+
+---
+
+## M-8: My Pilgrimage Groups (mobile + mobile web)
+
+**Done when:** Groups list matches DESIGN_FILE_V2 “My Pilgrimage Groups”: My Groups header, notifications icon, featured card, list with progress, FAB.
+
+### Frontend — Web
+
+- **Groups:** Header “My Groups” + notifications link. Featured group card (first/featured): gradient (blue), “Featured” badge, name, “Next: {next_place_name}”, progress bar with %, member placeholder avatars + “+N”, arrow CTA; links to group detail. List: each group has name, last active (relative time), “X/Y Sites”, level badge (New, Lvl 1–5, Done), progress bar; member avatars row. FAB “+” to create group. Uses GET /groups (last_activity, sites_visited, total_sites, next_place_name, featured).
+
+### Frontend — Mobile
+
+- **GroupsScreen:** Same structure with tokens: header with title and notifications button, featured card (gradient, progress, next, avatars, arrow), list rows with last active, sites count, level badge, progress bar, overlapping avatar circles; FAB + for Create Group.
+
+### Backend
+
+- **Group type:** Extended with last_activity, sites_visited, total_sites, next_place_code, next_place_name, featured (API already returns these).
+- **i18n:** groups.myGroups, groups.featured, groups.next, groups.currentProgress, groups.sitesCount, groups.lastActive, groups.noGroupsYet, groups.noGroupsDescription (en, ar, hi).
+
+---
+
 ## M-7: User Profile & Stats (mobile + mobile web)
 
 **Done when:** Profile matches DESIGN_FILE_V2 “User Profile & Stats”: avatar, name, Joined date, stats (Visits, Reviews, Badges), faith toggle, Edit Profile, Account (My Check-ins, Favorite Places, Group Activity), app version.

@@ -239,7 +239,7 @@ export async function removeFavorite(placeCode: string): Promise<void> {
 
 export async function createReview(
   placeCode: string,
-  body: { rating: number; title?: string; body?: string }
+  body: { rating: number; title?: string; body?: string; is_anonymous?: boolean; photo_urls?: string[] }
 ): Promise<Review> {
   const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/reviews`, {
     method: 'POST',

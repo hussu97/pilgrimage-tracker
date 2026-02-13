@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  Modal,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -16,6 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getPlace, createReview, updateReview } from '../../lib/api/client';
 import { useI18n } from '../providers';
 import type { RootStackParamList } from '../navigation';
+import type { PlaceDetail } from '../../lib/types';
+import { tokens } from '../../lib/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'WriteReview'>;
 type WriteReviewRoute = RouteProp<RootStackParamList, 'WriteReview'>;
@@ -26,22 +30,25 @@ export default function WriteReviewScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const route = useRoute<WriteReviewRoute>();
-  const { placeCode, reviewCode, rating: initRating, title: initTitle, body: initBody } = route.params;
+  const { placeCode, reviewCode, rating: initRating, title: initTitle, body: initBody } =
+    route.params;
   const { t } = useI18n();
-  const [placeName, setPlaceName] = useState('');
+  const [place, setPlace] = useState<PlaceDetail | null>(null);
   const [rating, setRating] = useState(initRating ?? 0);
   const [title, setTitle] = useState(initTitle ?? '');
   const [body, setBody] = useState(initBody ?? '');
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
 
   const isEdit = Boolean(reviewCode);
 
   useEffect(() => {
     if (!placeCode) return;
     getPlace(placeCode)
-      .then((p) => setPlaceName(p.name))
-      .catch(() => setPlaceName(''));
+      .then(setPlace)
+      .catch(() => setPlace(null));
   }, [placeCode]);
 
   const handleSubmit = async () => {
@@ -64,9 +71,10 @@ export default function WriteReviewScreen() {
           rating,
           title: title.trim() || undefined,
           body: body.trim() || undefined,
+          is_anonymous: isAnonymous,
         });
       }
-      navigation.replace('PlaceDetail', { placeCode });
+      setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
     } finally {
@@ -74,11 +82,15 @@ export default function WriteReviewScreen() {
     }
   };
 
+  const handleReturn = () => {
+    if (placeCode) navigation.replace('PlaceDetail', { placeCode });
+  };
+
   if (!placeCode) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top + 24 }]}>
         <Text style={styles.muted}>Missing place.</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Main')}>
+        <TouchableOpacity onPress={() => navigation.navigate('Main' as never)}>
           <Text style={styles.link}>Home</Text>
         </TouchableOpacity>
       </View>
@@ -87,86 +99,122 @@ export default function WriteReviewScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: tokens.colors.surface }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={0}
     >
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>
+          <Text style={styles.headerCancel}>{t('common.cancel')}</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{t('writeReview.title')}</Text>
+        {isEdit ? (
+          <TouchableOpacity
+            onPress={handleSubmit}
+            disabled={submitting}
+            style={styles.headerBtn}
+          >
+            <Text style={[styles.headerSave, submitting && styles.headerSaveDisabled]}>
+              {t('common.save')}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerBtn} />
+        )}
+      </View>
+
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 },
-        ]}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
         keyboardShouldPersistTaps="handled"
       >
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backLink}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.backArrow}>←</Text>
-          <Text style={styles.backLabel}>{t('common.back')}</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.title}>
-          {isEdit ? 'Edit your review' : t('places.writeReview')}
-        </Text>
-        {placeName ? <Text style={styles.placeName}>{placeName}</Text> : null}
+        <View style={styles.placeRow}>
+          <View style={styles.placeInfo}>
+            <Text style={styles.placeName}>{place?.name ?? '…'}</Text>
+            <Text style={styles.placeAddress} numberOfLines={1}>
+              {place?.address ?? ''}
+            </Text>
+          </View>
+          {place?.image_urls?.[0] ? (
+            <Image
+              source={{ uri: place.image_urls[0] }}
+              style={styles.placeThumb}
+            />
+          ) : null}
+        </View>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Rating *</Text>
-          <View style={styles.starRow}>
-            {STARS.map((value) => (
-              <TouchableOpacity
-                key={value}
-                onPress={() => setRating(value)}
-                style={styles.starBtn}
-                activeOpacity={0.8}
-                accessibilityLabel={`${value} stars`}
-              >
-                <Text style={styles.starIcon}>{value <= rating ? '★' : '☆'}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        <View style={styles.starRow}>
+          {STARS.map((value) => (
+            <TouchableOpacity
+              key={value}
+              onPress={() => setRating(value)}
+              style={styles.starBtn}
+              activeOpacity={0.8}
+              accessibilityLabel={`${value} stars`}
+            >
+              <Text style={[styles.starIcon, value > rating && styles.starIconOff]}>
+                {value <= rating ? '★' : '☆'}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Title (optional)</Text>
-          <TextInput
-            style={styles.input}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Summarize your experience"
-            placeholderTextColor="#9ca3af"
-            autoCapitalize="sentences"
-          />
+        <TextInput
+          style={styles.textArea}
+          value={body}
+          onChangeText={setBody}
+          placeholder={t('writeReview.shareExperience')}
+          placeholderTextColor={tokens.colors.textMuted}
+          multiline
+          numberOfLines={6}
+          textAlignVertical="top"
+        />
+
+        <View style={styles.photoRow}>
+          <TouchableOpacity style={styles.addPhotoBtn}>
+            <Text style={styles.addPhotoIcon}>+</Text>
+            <Text style={styles.addPhotoLabel}>{t('writeReview.addPhoto')}</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.field}>
-          <Text style={styles.label}>Review (optional)</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={body}
-            onChangeText={setBody}
-            placeholder="Tell others about your visit..."
-            placeholderTextColor="#9ca3af"
-            multiline
-            numberOfLines={4}
-          />
-        </View>
-
-        <View style={styles.actions}>
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleLabel}>{t('writeReview.postAnonymously')}</Text>
           <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => navigation.goBack()}
+            style={[styles.toggle, isAnonymous && styles.toggleOn]}
+            onPress={() => setIsAnonymous((a) => !a)}
             activeOpacity={0.8}
           >
-            <Text style={styles.cancelText}>{t('common.cancel')}</Text>
+            <View style={[styles.toggleKnob, isAnonymous && styles.toggleKnobOn]} />
           </TouchableOpacity>
+        </View>
+      </ScrollView>
+
+      {!isEdit && (
+        <View style={[styles.submitWrap, { bottom: insets.bottom + 80 }]}>
           <TouchableOpacity
-            style={[styles.submitButton, submitting && styles.submitDisabled]}
+            style={[styles.submitBtn, submitting && styles.submitDisabled]}
+            onPress={handleSubmit}
+            disabled={submitting}
+            activeOpacity={0.9}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Text style={styles.submitText}>{t('writeReview.submit')}</Text>
+                <Text style={styles.submitArrow}>›</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {isEdit && (
+        <View style={[styles.editSubmitWrap, { paddingBottom: insets.bottom + 24 }]}>
+          <TouchableOpacity
+            style={[styles.editSubmitBtn, submitting && styles.submitDisabled]}
             onPress={handleSubmit}
             disabled={submitting}
             activeOpacity={0.8}
@@ -174,61 +222,166 @@ export default function WriteReviewScreen() {
             {submitting ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text style={styles.submitText}>{isEdit ? t('common.save') : 'Submit'}</Text>
+              <Text style={styles.submitText}>{t('common.save')}</Text>
             )}
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      )}
+
+      <Modal visible={success} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <View style={styles.successCard}>
+            <View style={styles.successIconWrap}>
+              <Text style={styles.successIcon}>✓</Text>
+            </View>
+            <Text style={styles.successTitle}>{t('writeReview.reviewPosted')}</Text>
+            <Text style={styles.successDesc}>{t('writeReview.yourVoiceHeard')}</Text>
+            <TouchableOpacity style={styles.returnBtn} onPress={handleReturn} activeOpacity={0.8}>
+              <Text style={styles.returnBtnText}>{t('writeReview.return')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
+  container: { flex: 1 },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: 24 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  muted: { fontSize: 14, color: '#6b7280', marginBottom: 8 },
-  link: { color: '#0d9488', fontWeight: '600' },
-  backLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
-  backArrow: { fontSize: 20, color: '#6b7280' },
-  backLabel: { fontSize: 16, color: '#6b7280' },
-  title: { fontSize: 20, fontWeight: '700', color: '#111', marginBottom: 4 },
-  placeName: { fontSize: 14, color: '#6b7280', marginBottom: 20 },
-  errorText: { color: '#c00', marginBottom: 12, fontSize: 14 },
-  field: { marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 8 },
-  starRow: { flexDirection: 'row', gap: 8 },
+  muted: { fontSize: 14, color: tokens.colors.textMuted, marginBottom: 8 },
+  link: { color: tokens.colors.primary, fontWeight: '600' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.colors.inputBorder,
+  },
+  headerBtn: { minWidth: 60 },
+  headerCancel: { fontSize: 14, color: tokens.colors.textMuted, fontWeight: '300' },
+  headerTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: tokens.colors.textMain,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  headerSave: { fontSize: 14, fontWeight: '600', color: tokens.colors.primary },
+  headerSaveDisabled: { opacity: 0.5 },
+  placeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginTop: 24,
+    marginBottom: 24,
+  },
+  placeInfo: { flex: 1, marginRight: 16, minWidth: 0 },
+  placeName: { fontSize: 22, fontWeight: '300', color: tokens.colors.textDark, marginBottom: 4 },
+  placeAddress: { fontSize: 12, color: tokens.colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  placeThumb: { width: 48, height: 48, borderRadius: 8 },
+  errorText: { color: '#b91c1c', fontSize: 14, marginBottom: 12 },
+  starRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 24 },
   starBtn: { padding: 4 },
-  starIcon: { fontSize: 32, color: '#f59e0b' },
-  input: {
+  starIcon: { fontSize: 28, color: '#facc15' },
+  starIconOff: { color: tokens.colors.textMuted },
+  textArea: {
+    fontSize: 18,
+    fontWeight: '300',
+    color: tokens.colors.textMain,
+    minHeight: 140,
+    padding: 0,
+    marginBottom: 24,
+  },
+  photoRow: { flexDirection: 'row', marginBottom: 24 },
+  addPhotoBtn: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    borderStyle: 'dashed',
+    borderColor: tokens.colors.inputBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addPhotoIcon: { fontSize: 20, color: tokens.colors.textMuted, marginBottom: 2 },
+  addPhotoLabel: { fontSize: 10, color: tokens.colors.textMuted },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 12,
-    fontSize: 16,
+  },
+  toggleLabel: { fontSize: 14, fontWeight: '300', color: tokens.colors.textSecondary },
+  toggle: {
+    width: 40,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#e2e8f0',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  toggleOn: { backgroundColor: tokens.colors.primary },
+  toggleKnob: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: '#fff',
-    color: '#111',
+    alignSelf: 'flex-start',
   },
-  textArea: { minHeight: 100, textAlignVertical: 'top' },
-  actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
+  toggleKnobOn: { alignSelf: 'flex-end' },
+  submitWrap: { position: 'absolute', right: 24, zIndex: 40 },
+  submitBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    backgroundColor: tokens.colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 9999,
+    ...tokens.shadow.elevated,
   },
-  cancelText: { color: '#374151', fontWeight: '600' },
-  submitButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#0d9488',
-    alignItems: 'center',
-  },
+  submitText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  submitArrow: { color: '#fff', fontSize: 20, fontWeight: '300' },
   submitDisabled: { opacity: 0.7 },
-  submitText: { color: '#fff', fontWeight: '600' },
+  editSubmitWrap: { paddingHorizontal: 24, paddingTop: 16 },
+  editSubmitBtn: {
+    backgroundColor: tokens.colors.primary,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  successCard: {
+    backgroundColor: tokens.colors.surface,
+    borderRadius: 16,
+    padding: 32,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+    ...tokens.shadow.elevated,
+  },
+  successIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#eff6ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  successIcon: { fontSize: 24, color: tokens.colors.primary, fontWeight: '700' },
+  successTitle: { fontSize: 18, fontWeight: '600', color: tokens.colors.textMain, marginBottom: 8 },
+  successDesc: { fontSize: 14, color: tokens.colors.textMuted, fontWeight: '300', marginBottom: 24 },
+  returnBtn: {},
+  returnBtnText: { fontSize: 14, fontWeight: '600', color: tokens.colors.primary },
 });
