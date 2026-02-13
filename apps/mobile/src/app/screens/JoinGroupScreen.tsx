@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getGroupByInviteCode, joinGroupByCode } from '../../lib/api/client';
 import { useI18n } from '../providers';
 import type { RootStackParamList } from '../navigation';
+import { tokens } from '../../lib/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'JoinGroup'>;
 type JoinGroupRoute = RouteProp<RootStackParamList, 'JoinGroup'>;
@@ -103,7 +104,7 @@ export default function JoinGroupScreen() {
           value={codeInput}
           onChangeText={setCodeInput}
           placeholder="Invite code"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={tokens.colors.textMuted}
           autoCapitalize="none"
           autoCorrect={false}
         />
@@ -129,13 +130,13 @@ export default function JoinGroupScreen() {
         value={codeInput}
         onChangeText={setCodeInput}
         placeholder="Invite code"
-        placeholderTextColor="#9ca3af"
+        placeholderTextColor={tokens.colors.textMuted}
         autoCapitalize="none"
         autoCorrect={false}
         editable={!joining}
       />
       {loadingPreview && code ? (
-        <ActivityIndicator size="small" color="#0d9488" style={styles.loader} />
+        <ActivityIndicator size="small" color={tokens.colors.primary} style={styles.loader} />
       ) : preview && code ? (
         <View style={styles.previewBox}>
           <Text style={styles.previewLabel}>You're joining</Text>
@@ -158,7 +159,7 @@ export default function JoinGroupScreen() {
           activeOpacity={0.8}
         >
           {joining ? (
-            <ActivityIndicator color="#fff" size="small" />
+            <ActivityIndicator color={tokens.colors.surface} size="small" />
           ) : (
             <Text style={styles.joinText}>Join</Text>
           )}
@@ -169,55 +170,56 @@ export default function JoinGroupScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
+  container: { flex: 1, backgroundColor: tokens.colors.surfaceTint },
   card: { paddingHorizontal: 24 },
   backButton: { marginBottom: 16 },
-  backText: { fontSize: 16, color: '#6b7280' },
-  title: { fontSize: 20, fontWeight: '700', color: '#111', marginBottom: 16 },
+  backText: { fontSize: 16, color: tokens.colors.textMuted },
+  title: { fontSize: 20, fontWeight: '700', color: tokens.colors.textDark, marginBottom: 16 },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
+    borderColor: tokens.colors.inputBorder,
+    borderRadius: tokens.borderRadius.xl,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    backgroundColor: '#fff',
-    color: '#111',
+    backgroundColor: tokens.colors.surface,
+    color: tokens.colors.textMain,
     marginBottom: 16,
   },
   loader: { marginBottom: 16 },
   previewBox: {
     padding: 16,
-    borderRadius: 12,
+    borderRadius: tokens.borderRadius.xl,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#fff',
+    borderColor: tokens.colors.inputBorder,
+    backgroundColor: tokens.colors.surface,
     marginBottom: 16,
+    ...tokens.shadow.subtle,
   },
-  previewLabel: { fontSize: 12, color: '#6b7280', marginBottom: 4 },
-  previewName: { fontSize: 16, fontWeight: '600', color: '#111' },
-  errorText: { color: '#c00', marginBottom: 12, fontSize: 14 },
+  previewLabel: { fontSize: 12, color: tokens.colors.textMuted, marginBottom: 4 },
+  previewName: { fontSize: 16, fontWeight: '600', color: tokens.colors.textDark },
+  errorText: { color: '#b91c1c', marginBottom: 12, fontSize: 14 },
   actions: { flexDirection: 'row', gap: 12 },
   cancelButton: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: tokens.borderRadius.xl,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: tokens.colors.inputBorder,
     alignItems: 'center',
   },
-  cancelText: { color: '#374151', fontWeight: '600' },
+  cancelText: { color: tokens.colors.textMain, fontWeight: '600' },
   joinButton: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#0d9488',
+    borderRadius: tokens.borderRadius.xl,
+    backgroundColor: tokens.colors.primary,
     alignItems: 'center',
   },
   joinDisabled: { opacity: 0.6 },
   joinText: { color: '#fff', fontWeight: '600' },
-  noCodeTitle: { fontSize: 18, fontWeight: '600', color: '#111', marginBottom: 8 },
-  noCodeDesc: { fontSize: 14, color: '#6b7280', marginBottom: 16 },
+  noCodeTitle: { fontSize: 18, fontWeight: '600', color: tokens.colors.textDark, marginBottom: 8 },
+  noCodeDesc: { fontSize: 14, color: tokens.colors.textMuted, marginBottom: 16 },
   linkButton: { alignSelf: 'flex-start' },
-  linkButtonText: { color: '#0d9488', fontWeight: '600' },
+  linkButtonText: { color: tokens.colors.primary, fontWeight: '600' },
 });

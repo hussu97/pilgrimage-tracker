@@ -70,9 +70,9 @@ export default function Map() {
     : '#';
 
   return (
-    <div className="relative h-[calc(100vh-8rem)] md:h-[calc(100vh-6rem)] min-h-[400px] w-full -mx-0 md:mx-0 px-0 flex flex-col">
+    <div className="relative h-[calc(100vh-8rem)] md:h-[calc(100vh-6rem)] min-h-[400px] w-full -mx-0 md:mx-0 px-0 flex flex-col md:flex-row">
       {/* Search bar */}
-      <div className="absolute top-4 left-2 right-2 z-[1000] flex justify-center px-2">
+      <div className="absolute top-4 left-2 right-2 md:right-[26rem] z-[1000] flex justify-center px-2">
         <div className="w-full max-w-md bg-white/90 backdrop-blur-md shadow-soft rounded-full pl-5 pr-1.5 py-1.5 flex items-center gap-3 border border-white/50 ring-1 ring-black/5">
           <span className="material-symbols-outlined text-slate-400 text-xl">search</span>
           <input
@@ -112,16 +112,79 @@ export default function Map() {
         </a>
       </div>
       {/* Map */}
-      <div className="flex-1 min-h-0 w-full">
+      <div className="flex-1 min-h-0 w-full min-w-0">
         <PlacesMap
           places={places}
           center={coords}
           onPlaceSelect={setSelectedPlace}
         />
       </div>
-      {/* Bottom sheet - selected place */}
+      {/* Desktop: right side panel; Mobile: bottom sheet */}
+      <div className="hidden md:flex md:flex-col md:w-96 md:shrink-0 md:border-l md:border-slate-200 md:bg-white md:overflow-y-auto">
+        {selectedPlace ? (
+          <div className="p-4 border-b border-slate-100">
+            <div className="flex gap-3">
+              <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-100 shrink-0">
+                {selectedPlace.image_urls?.[0] ? (
+                  <img src={selectedPlace.image_urls[0]} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="material-symbols-outlined text-2xl text-slate-400">place</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-slate-800 truncate">{selectedPlace.name}</h3>
+                <p className="text-xs text-slate-500 truncate">{selectedPlace.address || selectedPlace.place_type || ''}</p>
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  {selectedPlace.average_rating != null && (
+                    <span className="text-xs font-semibold text-amber-700">{selectedPlace.average_rating.toFixed(1)} ★</span>
+                  )}
+                  {selectedPlace.distance != null && (
+                    <span className="text-xs text-slate-500">{formatDistance(selectedPlace.distance)}</span>
+                  )}
+                  {selectedPlace.is_open_now && (
+                    <span className="text-xs text-green-600 font-semibold">{t('places.openNow')}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold flex items-center justify-center gap-1">
+                <span className="material-symbols-outlined text-lg">directions</span>
+                {t('placeDetail.directions')}
+              </a>
+              <button type="button" onClick={() => shareUrl(selectedPlace.name, `/places/${selectedPlace.place_code}`)} className="py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700" aria-label="Share">
+                <span className="material-symbols-outlined">share</span>
+              </button>
+            </div>
+          </div>
+        ) : null}
+        <div className="p-4 flex-1 overflow-y-auto">
+          <p className="text-sm font-medium text-slate-700 mb-3">{t('home.findPlace')}</p>
+          <ul className="space-y-2">
+            {places.slice(0, 20).map((place) => (
+              <li key={place.place_code}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlace(place)}
+                  className={`w-full text-left p-3 rounded-xl border transition-colors ${
+                    selectedPlace?.place_code === place.place_code
+                      ? 'border-primary bg-primary/5'
+                      : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <span className="font-medium text-slate-800 block truncate">{place.name}</span>
+                  <span className="text-xs text-slate-500 block truncate">{place.address || place.place_type || ''}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      {/* Mobile: Bottom sheet - selected place */}
       {selectedPlace && (
-        <div className="absolute bottom-0 left-0 right-0 z-[1000] px-2 pb-20 md:pb-6 pointer-events-auto animate-[slide-up_0.3s_ease-out]">
+        <div className="absolute bottom-0 left-0 right-0 z-[1000] px-2 pb-20 md:hidden pointer-events-auto animate-[slide-up_0.3s_ease-out]">
           <div className="bg-white border border-gray-100 shadow-card rounded-[2rem] p-5 w-full max-w-md mx-auto overflow-hidden">
             <div className="absolute top-3 left-1/2 -translate-x-1/2 w-8 h-1 bg-gray-200 rounded-full opacity-50" />
             <div className="flex gap-4 mt-2">

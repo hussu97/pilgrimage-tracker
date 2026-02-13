@@ -18,7 +18,7 @@ import { getSettings, updateSettings } from '../../lib/api/client';
 import { useI18n } from '../providers';
 import { useTheme } from '../providers';
 import type { UserSettings } from '../../lib/types';
-import type { Theme } from '../../lib/theme';
+import { tokens, type Theme } from '../../lib/theme';
 
 const THEME_OPTIONS: { value: Theme; labelKey: string }[] = [
   { value: 'light', labelKey: 'settings.themeLight' },
@@ -114,7 +114,7 @@ export default function SettingsScreen() {
 
       {loading ? (
         <View style={styles.loaderWrap}>
-          <ActivityIndicator size="small" color="#0d9488" />
+          <ActivityIndicator size="small" color={tokens.colors.primary} />
           <Text style={styles.muted}>{t('common.loading')}</Text>
         </View>
       ) : (
@@ -188,8 +188,8 @@ export default function SettingsScreen() {
                   value={settings?.notifications_on ?? true}
                   onValueChange={handleNotificationsToggle}
                   disabled={saving}
-                  trackColor={{ false: '#e5e7eb', true: '#0d9488' }}
-                  thumbColor="#fff"
+                  trackColor={{ false: tokens.colors.inputBorder, true: tokens.colors.primary }}
+                  thumbColor={tokens.colors.surface}
                 />
               </View>
             </View>
@@ -261,49 +261,50 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
+  container: { flex: 1, backgroundColor: tokens.colors.surfaceTint },
   content: { paddingHorizontal: 24 },
   backButton: { marginBottom: 16 },
-  backText: { fontSize: 16, color: '#6b7280' },
+  backText: { fontSize: 16, color: tokens.colors.textMuted },
   sectionLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#0d9488',
+    color: tokens.colors.primaryDark,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
-  title: { fontSize: 24, fontWeight: '700', color: '#111', marginBottom: 20 },
+  title: { fontSize: 24, fontWeight: '700', color: tokens.colors.textDark, marginBottom: 20 },
   loaderWrap: { alignItems: 'center', paddingVertical: 24 },
-  muted: { fontSize: 14, color: '#6b7280', marginTop: 8 },
+  muted: { fontSize: 14, color: tokens.colors.textMuted, marginTop: 8 },
   section: { marginBottom: 24 },
   sectionTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6b7280',
+    color: tokens.colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 10,
   },
   card: {
-    borderRadius: 12,
+    borderRadius: tokens.borderRadius.xl,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#fff',
+    borderColor: tokens.colors.inputBorder,
+    backgroundColor: tokens.colors.surface,
     overflow: 'hidden',
+    ...tokens.shadow.subtle,
   },
   cardRow: { paddingHorizontal: 16, paddingTop: 14 },
-  cardLabel: { fontSize: 14, fontWeight: '500', color: '#374151' },
+  cardLabel: { fontSize: 14, fontWeight: '500', color: tokens.colors.textMain },
   themeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 16, paddingTop: 8 },
   themeBtn: {
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: tokens.colors.inputBorder,
   },
-  themeBtnActive: { backgroundColor: '#0d9488', borderColor: '#0d9488' },
-  themeBtnText: { fontSize: 14, fontWeight: '500', color: '#6b7280' },
+  themeBtnActive: { backgroundColor: tokens.colors.primary, borderColor: tokens.colors.primary },
+  themeBtnText: { fontSize: 14, fontWeight: '500', color: tokens.colors.textMuted },
   themeBtnTextActive: { color: '#fff' },
   languageList: { padding: 16, paddingTop: 4 },
   languageRow: {
@@ -314,12 +315,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 10,
     marginBottom: 8,
-    backgroundColor: '#f9fafb',
+    backgroundColor: tokens.colors.backgroundLight,
   },
-  languageRowActive: { backgroundColor: 'rgba(13, 148, 136, 0.1)' },
-  languageName: { fontSize: 15, color: '#374151' },
-  languageNameActive: { fontWeight: '600', color: '#0d9488' },
-  checkmark: { color: '#0d9488', fontWeight: '700' },
+  languageRowActive: { backgroundColor: tokens.colors.blueTint },
+  languageName: { fontSize: 15, color: tokens.colors.textMain },
+  languageNameActive: { fontWeight: '600', color: tokens.colors.primary },
+  checkmark: { color: tokens.colors.primary, fontWeight: '700' },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -332,34 +333,34 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: tokens.colors.inputBorder,
   },
-  linkRowText: { fontSize: 15, color: '#111' },
-  chevron: { fontSize: 18, color: '#9ca3af' },
+  linkRowText: { fontSize: 15, color: tokens.colors.textMain },
+  chevron: { fontSize: 18, color: tokens.colors.textMuted },
   deleteRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
   },
-  deleteRowText: { fontSize: 15, color: '#c00', fontWeight: '500' },
+  deleteRowText: { fontSize: 15, color: '#b91c1c', fontWeight: '500' },
   deleteConfirm: { padding: 16 },
-  deleteConfirmText: { fontSize: 14, color: '#6b7280', marginBottom: 12 },
+  deleteConfirmText: { fontSize: 14, color: tokens.colors.textMuted, marginBottom: 12 },
   deleteConfirmActions: { flexDirection: 'row', gap: 12 },
   deleteCancelBtn: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: tokens.colors.inputBorder,
     alignItems: 'center',
   },
-  deleteCancelBtnText: { color: '#374151', fontWeight: '600' },
+  deleteCancelBtnText: { color: tokens.colors.textMain, fontWeight: '600' },
   deleteConfirmBtn: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: '#c00',
+    backgroundColor: '#b91c1c',
     alignItems: 'center',
   },
   deleteConfirmBtnText: { color: '#fff', fontWeight: '600' },

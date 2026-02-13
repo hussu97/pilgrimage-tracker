@@ -52,12 +52,12 @@ export default function CreateGroup() {
           <input
             readOnly
             value={inviteUrlFull}
-            className="flex-1 text-sm border border-input-border rounded-xl px-4 py-3 bg-gray-50 dark:bg-gray-800 text-text-main"
+            className="flex-1 text-sm border border-input-border rounded-xl px-4 py-3 bg-background-light text-text-main"
           />
           <button
             type="button"
             onClick={() => shareUrl('Join our group', inviteUrlFull)}
-            className="px-4 py-3 rounded-xl border border-input-border text-text-main font-medium shrink-0 hover:bg-gray-50 dark:hover:bg-gray-800 inline-flex items-center gap-1"
+            className="px-4 py-3 rounded-xl border border-input-border text-text-main font-medium shrink-0 hover:bg-soft-blue inline-flex items-center gap-1"
           >
             <span className="material-symbols-outlined">share</span>
             Share
@@ -73,7 +73,7 @@ export default function CreateGroup() {
         <button
           type="button"
           onClick={handleGoToGroup}
-          className="w-full py-3 rounded-xl border border-input-border text-text-main font-medium hover:bg-gray-50 dark:hover:bg-gray-800"
+          className="w-full py-3 rounded-xl border border-input-border text-text-main font-medium hover:bg-soft-blue"
         >
           Go to group
         </button>
@@ -93,7 +93,7 @@ export default function CreateGroup() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="w-full border border-input-border rounded-xl px-4 py-3 text-text-main bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full border border-input-border rounded-xl px-4 py-3 text-text-main bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
         <div>
@@ -102,15 +102,15 @@ export default function CreateGroup() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="w-full border border-input-border rounded-xl px-4 py-3 text-text-main bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full border border-input-border rounded-xl px-4 py-3 text-text-main bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
-        <label className="flex items-center gap-3 p-3 border border-input-border rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50">
+        <label className="flex items-center gap-3 p-3 border border-input-border rounded-xl cursor-pointer hover:bg-soft-blue">
           <input
             type="checkbox"
             checked={isPrivate}
             onChange={(e) => setIsPrivate(e.target.checked)}
-            className="rounded border-gray-300 text-primary"
+            className="rounded border-input-border text-primary"
           />
           <span className="text-text-main text-sm">Private group (invite only)</span>
         </label>

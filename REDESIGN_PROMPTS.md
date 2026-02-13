@@ -55,7 +55,7 @@ Work from DESIGN_FILE_V2.html; mobile and mobile web UIs should match the design
 
 - [x] Redesign the Select Path screen to match DESIGN_FILE_V2.html “Select Your Path”: faith cards (Islam, Hinduism, Christianity), “View More Faiths”, “Skip for now”. Use existing settings API to save religion preference. Match layout, spacing, and typography from the design on both mobile app and mobile web.
 
----
+--- 
 
 ### M-3. Explore Sacred Places – Home (mobile + mobile web)
 
@@ -104,7 +104,7 @@ Work from DESIGN_FILE_V2.html; mobile and mobile web UIs should match the design
 
 ### M-10. Check-in History / My Journey (mobile + mobile web)
 
-- Implement or refactor Check-in History to match DESIGN_FILE_V2.html “Check-in History Calendar” or “Journey Log”: title “My Journey” or “Journey Log”, total check-ins and “This month”, calendar with month nav and check-in indicators, Recent Activity / Recent Visits list. Use GET /me/check-ins; derive calendar from check-in dates on the client. Pick one visual variant (dark or light) or support theme. Match design on mobile and mobile web.
+- [x] Implement or refactor Check-in History to match DESIGN_FILE_V2.html “Check-in History Calendar” or “Journey Log”: title “My Journey” or “Journey Log”, total check-ins and “This month”, calendar with month nav and check-in indicators, Recent Activity / Recent Visits list. Use GET /me/check-ins; derive calendar from check-in dates on the client. Pick one visual variant (dark or light) or support theme. Match design on mobile and mobile web.
 
 ---
 
@@ -114,29 +114,29 @@ Use the same information hierarchy and components as mobile; replace single-colu
 
 ### D-1. Desktop layout and navigation
 
-- Add a desktop layout: max-width content area centered, top bar or sidebar with Explore, Map, Groups, Profile (and logo/home). Apply same design tokens as mobile. Ensure all main routes are reachable from this nav and that layout is responsive (e.g. switch to bottom nav or stacked layout below a breakpoint for tablet/mobile web).
+- [x] Add a desktop layout: max-width content area centered, top bar or sidebar with Explore, Map, Groups, Profile (and logo/home). Apply same design tokens as mobile. Ensure all main routes are reachable from this nav and that layout is responsive (e.g. switch to bottom nav or stacked layout below a breakpoint for tablet/mobile web).
 
 ---
 
 ### D-2. Desktop – Explore and Map
 
-- **Explore**: Same content as mobile Explore (greeting, search, filter chips, place cards) in a 2–3 column grid; search and filters in header or a sidebar. Reuse PlaceCard and tokens.
-- **Map**: Map fills main area; place list or selected place in a side panel or bottom sheet. Reuse map and place card from mobile implementation; adapt layout only.
+- [x] **Explore**: Same content as mobile Explore (greeting, search, filter chips, place cards) in a 2–3 column grid; search and filters in header or a sidebar. Reuse PlaceCard and tokens.
+- [x] **Map**: Map fills main area; place list or selected place in a side panel or bottom sheet. Reuse map and place card from mobile implementation; adapt layout only.
 
 ---
 
 ### D-3. Desktop – Place Detail and Profile
 
-- **Place Detail**: Same sections as mobile (hero, prayer times / sanctum / service times, about, facilities, reviews, actions) in a single column or two-column layout (e.g. hero + sticky sidebar with actions and key info). Support all three variants (mosque, temple, church).
-- **Profile**: Same blocks as mobile (avatar, name, Joined, stats, faith toggle, Edit Profile, Account links) in a centered card or two columns. Reuse tokens and components.
+- [x] **Place Detail**: Same sections as mobile (hero, prayer times / sanctum / service times, about, facilities, reviews, actions) in a single column or two-column layout (e.g. hero + sticky sidebar with actions and key info). Support all three variants (mosque, temple, church).
+- [x] **Profile**: Same blocks as mobile (avatar, name, Joined, stats, faith toggle, Edit Profile, Account links) in a centered card or two columns. Reuse tokens and components.
 
 ---
 
 ### D-4. Desktop – Groups, Write Review, Check-in History
 
-- **Groups**: Same content as mobile (featured group card, list with progress) in a grid or list with featured card on top; FAB or primary CTA visible.
-- **Write Review**: Same form as mobile (place info, stars, text area, photos, anonymous toggle, Submit) in a centered card.
-- **Check-in History**: Same content (title, totals, calendar, recent list) with a larger calendar and list layout. Reuse tokens and components.
+- [x] **Groups**: Same content as mobile (featured group card, list with progress) in a grid or list with featured card on top; FAB or primary CTA visible.
+- [x] **Write Review**: Same form as mobile (place info, stars, text area, photos, anonymous toggle, Submit) in a centered card.
+- [x] **Check-in History**: Same content (title, totals, calendar, recent list) with a larger calendar and list layout. Reuse tokens and components.
 
 ---
 
@@ -144,13 +144,13 @@ Use the same information hierarchy and components as mobile; replace single-colu
 
 ### X-1. Verify API contracts and data flow
 
-- After backend and frontend changes: Verify that GET /places (list and detail) returns all fields used by the new UI (e.g. religion_specific, is_open_now, aggregate rating/count). Verify GET /users/me/check-ins includes place name, image, date, time, location/city. Verify GET /users/me/stats returns visits, reviews, and optionally badges. Verify groups list returns progress and next place when implemented. Document any gaps and fix backend or frontend accordingly.
+- [x] After backend and frontend changes: Verify that GET /places (list and detail) returns all fields used by the new UI (e.g. religion_specific, is_open_now, aggregate rating/count). Verify GET /users/me/check-ins includes place name, image, date, time, location/city. Verify GET /users/me/stats returns visits, reviews, and optionally badges. Verify groups list returns progress and next place when implemented. Document any gaps and fix backend or frontend accordingly.
 
 ---
 
 ### X-2. Screens not in design – restyle to design system
 
-- Restyle the following screens to use the same design tokens and components (colors, typography, buttons, inputs) as DESIGN_FILE_V2.html; keep existing flows and copy, only update look and feel:
+- [x] Restyle the following screens to use the same design tokens and components (colors, typography, buttons, inputs) as DESIGN_FILE_V2.html; keep existing flows and copy, only update look and feel:
   - **Splash** – Keep as loading only; use design tokens.
   - **Login, Register, Forgot Password, Reset Password** – Same layout and flow; apply tokens and component styles.
   - **Check-in (standalone)** – If kept, restyle to match design system.
@@ -164,10 +164,10 @@ Use the same information hierarchy and components as mobile; replace single-colu
 
 ### X-3. Cross-platform and accessibility
 
-- Ensure mobile and mobile web render the same for each redesigned screen (same structure and styling from DESIGN_FILE_V2.html). Run a quick pass for accessibility: focus order, labels, contrast, and touch targets on mobile. Fix any regressions in existing flows (auth, check-in, review submit, group join).
+- [x] Ensure mobile and mobile web render the same for each redesigned screen (same structure and styling from DESIGN_FILE_V2.html). Run a quick pass for accessibility: focus order, labels, contrast, and touch targets on mobile. Fix any regressions in existing flows (auth, check-in, review submit, group join).
 
 ---
 
 ### X-4. Optional: theme and check-in history variant
 
-- If supporting both “Check-in History” design variants (dark “My Journey” vs light “Journey Log”), add a theme or toggle and apply the chosen variant to the Check-in History screen so it matches DESIGN_FILE_V2.html for both themes.
+- [ ] If supporting both “Check-in History” design variants (dark “My Journey” vs light “Journey Log”), add a theme or toggle and apply the chosen variant to the Check-in History screen so it matches DESIGN_FILE_V2.html for both themes.

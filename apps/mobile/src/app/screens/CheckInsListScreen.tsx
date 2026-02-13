@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,6 +15,45 @@ import type { RootStackParamList } from '../navigation';
 import { useI18n } from '../providers';
 import { getMyCheckIns } from '../../lib/api/client';
 import type { CheckIn } from '../../lib/types';
+import { tokens } from '../../lib/theme';
+
+const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+function getDatesWithCheckIns(checkIns: CheckIn[]): Set<string> {
+  const set = new Set<string>();
+  checkIns.forEach((c) => {
+    if (c.checked_in_at) {
+      const d = new Date(c.checked_in_at);
+      set.add(
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      );
+    }
+  });
+  return set;
+}
+
+function getMonthDays(
+  year: number,
+  month: number
+): { date: Date; isCurrent: boolean }[] {
+  const first = new Date(year, month, 1);
+  const last = new Date(year, month + 1, 0);
+  const startPad = first.getDay();
+  const days: { date: Date; isCurrent: boolean }[] = [];
+  const prevMonth = new Date(year, month, 0);
+  const prevCount = prevMonth.getDate();
+  for (let i = startPad - 1; i >= 0; i--) {
+    days.push({ date: new Date(year, month - 1, prevCount - i), isCurrent: false });
+  }
+  for (let d = 1; d <= last.getDate(); d++) {
+    days.push({ date: new Date(year, month, d), isCurrent: true });
+  }
+  const remaining = 42 - days.length;
+  for (let d = 1; d <= remaining; d++) {
+    days.push({ date: new Date(year, month + 1, d), isCurrent: false });
+  }
+  return days;
+}
 
 export default function CheckInsListScreen() {
   const insets = useSafeAreaInsets();
@@ -22,6 +62,10 @@ export default function CheckInsListScreen() {
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const n = new Date();
+    return { year: n.getFullYear(), month: n.getMonth() };
+  });
 
   const fetchList = useCallback(() => {
     setLoading(true);
@@ -36,21 +80,69 @@ export default function CheckInsListScreen() {
     fetchList();
   }, [fetchList]);
 
+  const datesSet = useMemo(() => getDatesWithCheckIns(checkIns), [checkIns]);
+  const totalCount = checkIns.length;
+  const now = new Date();
+  const thisMonthCount = useMemo(
+    () =>
+      checkIns.filter((c) => {
+        if (!c.checked_in_at) return false;
+        const d = new Date(c.checked_in_at);
+        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      }).length,
+    [checkIns]
+  );
+
+  const monthLabel = useMemo(
+    () =>
+      new Date(calendarMonth.year, calendarMonth.month).toLocaleDateString('en-US', {
+        month: 'long',
+        year: 'numeric',
+      }),
+    [calendarMonth]
+  );
+  const monthDays = useMemo(
+    () => getMonthDays(calendarMonth.year, calendarMonth.month),
+    [calendarMonth]
+  );
+
+  const goPrevMonth = () => {
+    setCalendarMonth((m) => (m.month === 0 ? { year: m.year - 1, month: 11 } : { year: m.year, month: m.month - 1 }));
+  };
+  const goNextMonth = () => {
+    setCalendarMonth((m) => (m.month === 11 ? { year: m.year + 1, month: 0 } : { year: m.year, month: m.month + 1 }));
+  };
+
+  const dateKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const hasCheckIn = (d: Date) => datesSet.has(dateKey(d));
+  const isToday = (d: Date) => dateKey(d) === dateKey(now);
+
+  const recentCheckIns = useMemo(
+    () =>
+      [...checkIns]
+        .sort((a, b) => (b.checked_in_at || '').localeCompare(a.checked_in_at || ''))
+        .slice(0, 10),
+    [checkIns]
+  );
+
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 },
-      ]}
+      style={[styles.container, { backgroundColor: tokens.colors.surfaceTint }]}
+      contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 100 }}
+      showsVerticalScrollIndicator={false}
     >
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-        <Text style={styles.backText}>‹ {t('common.back')}</Text>
-      </TouchableOpacity>
-      <Text style={styles.title}>{t('profile.visitedPlaces')}</Text>
-      <Text style={styles.subtitle}>{t('profile.yourJourney')}</Text>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.backText}>‹ {t('common.back')}</Text>
+        </TouchableOpacity>
+        <Text style={styles.label}>{t('profile.myCheckIns')}</Text>
+        <Text style={styles.title}>{t('journey.journeyLog')}</Text>
+      </View>
 
-      {loading && <ActivityIndicator size="small" color="#0d9488" style={styles.loader} />}
+      {loading && (
+        <ActivityIndicator size="small" color={tokens.colors.primary} style={styles.loader} />
+      )}
       {error ? (
         <View style={styles.errorWrap}>
           <Text style={styles.errorText}>{error}</Text>
@@ -59,96 +151,274 @@ export default function CheckInsListScreen() {
           </TouchableOpacity>
         </View>
       ) : null}
+
       {!loading && !error && checkIns.length === 0 && (
         <View style={styles.emptyWrap}>
           <Text style={styles.emptyIcon}>⊕</Text>
           <Text style={styles.emptyTitle}>{t('profile.noCheckInsYet')}</Text>
           <TouchableOpacity
             style={styles.emptyCta}
-            onPress={() => navigation.navigate('Main')}
+            onPress={() => navigation.navigate('Main' as never)}
             activeOpacity={0.8}
           >
             <Text style={styles.emptyCtaText}>{t('profile.exploreCta')}</Text>
           </TouchableOpacity>
         </View>
       )}
+
       {!loading && !error && checkIns.length > 0 && (
-        <View style={styles.list}>
-          {checkIns.map((c) => (
+        <>
+          <View style={styles.statsCard}>
+            <View>
+              <Text style={styles.statsLabel}>{t('journey.totalVisits')}</Text>
+              <View style={styles.statsRow}>
+                <Text style={styles.statsTotal}>{totalCount}</Text>
+                <Text style={styles.statsSuffix}> {t('journey.sacredPlaces')}</Text>
+              </View>
+            </View>
+            <View style={styles.statsDivider} />
+            <View style={styles.statsRight}>
+              <Text style={styles.statsThisMonthLabel}>{t('journey.thisMonth')}</Text>
+              <Text style={styles.statsThisMonthValue}>{thisMonthCount}</Text>
+            </View>
+          </View>
+
+          <View style={styles.calendarSection}>
+            <View style={styles.calendarHeader}>
+              <Text style={styles.calendarTitle}>{monthLabel}</Text>
+              <View style={styles.calendarNav}>
+                <TouchableOpacity onPress={goPrevMonth} style={styles.calendarNavBtn}>
+                  <Text style={styles.calendarNavIcon}>‹</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={goNextMonth} style={styles.calendarNavBtn}>
+                  <Text style={styles.calendarNavIcon}>›</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={styles.calendarCard}>
+              <View style={styles.weekdayRow}>
+                {WEEKDAY_LABELS.map((l) => (
+                  <Text key={l} style={styles.weekdayLabel}>
+                    {l}
+                  </Text>
+                ))}
+              </View>
+              <View style={styles.daysGrid}>
+                {monthDays.map(({ date, isCurrent }, i) => {
+                  const has = hasCheckIn(date);
+                  const today = isCurrent && isToday(date);
+                  return (
+                    <View key={i} style={styles.dayCell}>
+                      {has && (
+                        <View
+                          style={[
+                            styles.dayDot,
+                            today && styles.dayDotToday,
+                          ]}
+                        />
+                      )}
+                      <Text
+                        style={[
+                          styles.dayNum,
+                          !isCurrent && styles.dayNumMuted,
+                          has && styles.dayNumBold,
+                          today && styles.dayNumToday,
+                        ]}
+                      >
+                        {date.getDate()}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          <Text style={styles.sectionTitle}>{t('journey.recentVisits')}</Text>
+          {recentCheckIns.map((c) => (
             <TouchableOpacity
               key={c.check_in_code}
-              style={styles.row}
+              style={styles.visitCard}
               onPress={() => navigation.navigate('PlaceDetail', { placeCode: c.place_code })}
               activeOpacity={0.8}
             >
-              <View style={styles.rowIcon}>
-                <Text style={styles.rowIconText}>⊕</Text>
+              <View style={styles.visitThumb}>
+                {(c.place_image_url || c.place?.image_urls?.[0]) ? (
+                  <Image
+                    source={{
+                      uri: c.place_image_url || c.place?.image_urls?.[0],
+                    }}
+                    style={styles.visitThumbImg}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.visitThumbPlaceholder}>
+                    <Text style={styles.visitThumbIcon}>⊕</Text>
+                  </View>
+                )}
               </View>
-              <View style={styles.rowBody}>
-                <Text style={styles.rowTitle} numberOfLines={1}>
-                  {c.place?.name ?? c.place_code}
+              <View style={styles.visitBody}>
+                <Text style={styles.visitName} numberOfLines={1}>
+                  {c.place?.name ?? c.place_name ?? c.place_code}
                 </Text>
-                <Text style={styles.rowDate}>
-                  {c.checked_in_at ? new Date(c.checked_in_at).toLocaleDateString() : ''}
+                <Text style={styles.visitDate}>
+                  {c.checked_in_at
+                    ? new Date(c.checked_in_at).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                    : c.date ?? ''}
+                  {c.time ? ` · ${c.time}` : ''}
                 </Text>
+                {(c.location || c.place?.address) && (
+                  <Text style={styles.visitLocation} numberOfLines={1}>
+                    {(c.location || c.place?.address || '').split(',')[0].trim() || c.place?.address}
+                  </Text>
+                )}
               </View>
               <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </>
       )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { paddingHorizontal: 24 },
-  backButton: { marginBottom: 16 },
-  backText: { fontSize: 16, color: '#6b7280' },
-  title: { fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 4 },
-  subtitle: { fontSize: 14, color: '#6b7280', marginBottom: 20 },
-  loader: { marginVertical: 24 },
-  errorWrap: { marginBottom: 16 },
-  errorText: { color: '#c00', marginBottom: 8 },
+  container: { flex: 1 },
+  header: { paddingHorizontal: 24, marginBottom: 24 },
+  backBtn: { marginBottom: 8 },
+  backText: { fontSize: 14, color: tokens.colors.textMuted },
+  label: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: tokens.colors.primaryDark,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  title: { fontSize: 24, fontWeight: '600', color: tokens.colors.textDark },
+  loader: { marginVertical: 24, alignSelf: 'center' },
+  errorWrap: { paddingHorizontal: 24, marginBottom: 16 },
+  errorText: { color: '#b91c1c', marginBottom: 8 },
   retryButton: { alignSelf: 'flex-start' },
-  retryText: { color: '#0d9488', fontWeight: '600' },
+  retryText: { color: tokens.colors.primary, fontWeight: '600' },
   emptyWrap: {
+    marginHorizontal: 24,
     paddingVertical: 48,
-    paddingHorizontal: 24,
     alignItems: 'center',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#f9fafb',
+    borderColor: tokens.colors.inputBorder,
+    backgroundColor: tokens.colors.surface,
   },
-  emptyIcon: { fontSize: 48, marginBottom: 16, color: '#9ca3af' },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: '#374151', marginBottom: 20 },
-  emptyCta: { backgroundColor: '#0d9488', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 },
+  emptyIcon: { fontSize: 48, marginBottom: 16, color: tokens.colors.textMuted },
+  emptyTitle: { fontSize: 16, fontWeight: '600', color: tokens.colors.textMain, marginBottom: 20 },
+  emptyCta: {
+    backgroundColor: tokens.colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
   emptyCtaText: { color: '#fff', fontWeight: '600' },
-  list: { gap: 8 },
-  row: {
+  statsCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  rowIcon: {
-    width: 48,
-    height: 48,
+    marginHorizontal: 24,
+    marginBottom: 24,
+    padding: 24,
+    backgroundColor: tokens.colors.surface,
     borderRadius: 24,
-    backgroundColor: 'rgba(13, 148, 136, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+    borderWidth: 1,
+    borderColor: tokens.colors.inputBorder,
+    ...tokens.shadow.subtle,
   },
-  rowIconText: { fontSize: 24, color: '#0d9488' },
-  rowBody: { flex: 1, minWidth: 0 },
-  rowTitle: { fontSize: 16, fontWeight: '600', color: '#111' },
-  rowDate: { fontSize: 12, color: '#6b7280', marginTop: 2 },
-  chevron: { fontSize: 20, color: '#9ca3af' },
+  statsLabel: { fontSize: 12, fontWeight: '600', color: tokens.colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  statsRow: { flexDirection: 'row', alignItems: 'baseline' },
+  statsTotal: { fontSize: 40, fontWeight: '300', color: tokens.colors.primaryDark },
+  statsSuffix: { fontSize: 14, color: tokens.colors.textMuted },
+  statsDivider: { width: 1, height: 48, backgroundColor: tokens.colors.inputBorder, marginHorizontal: 16 },
+  statsRight: { alignItems: 'flex-end' },
+  statsThisMonthLabel: { fontSize: 12, fontWeight: '600', color: tokens.colors.textSecondary, textTransform: 'uppercase', marginBottom: 4 },
+  statsThisMonthValue: { fontSize: 24, fontWeight: '600', color: tokens.colors.textDark },
+  calendarSection: { paddingHorizontal: 24, marginBottom: 24 },
+  calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  calendarTitle: { fontSize: 18, fontWeight: '600', color: tokens.colors.textDark },
+  calendarNav: { flexDirection: 'row', gap: 8 },
+  calendarNavBtn: { padding: 4 },
+  calendarNavIcon: { fontSize: 20, color: tokens.colors.textMuted },
+  calendarCard: {
+    backgroundColor: tokens.colors.surface,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: tokens.colors.inputBorder,
+    ...tokens.shadow.subtle,
+  },
+  weekdayRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 12,
+  },
+  weekdayLabel: { fontSize: 12, fontWeight: '600', color: tokens.colors.textMuted },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  dayCell: {
+    width: '14.28%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    position: 'relative',
+  },
+  dayDot: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#eff6ff',
+  },
+  dayDotToday: { backgroundColor: tokens.colors.primary },
+  dayNum: { fontSize: 14, color: tokens.colors.textMain },
+  dayNumMuted: { color: tokens.colors.textMuted },
+  dayNumBold: { fontWeight: '600', color: tokens.colors.primaryDark },
+  dayNumToday: { color: '#fff', fontWeight: '600' },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: tokens.colors.textDark,
+    marginHorizontal: 24,
+    marginBottom: 12,
+  },
+  visitCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 24,
+    marginBottom: 12,
+    padding: 16,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: tokens.colors.inputBorder,
+    ...tokens.shadow.subtle,
+  },
+  visitThumb: {
+    width: 72,
+    height: 72,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: tokens.colors.softBlue,
+    marginRight: 16,
+  },
+  visitThumbImg: { width: '100%', height: '100%' },
+  visitThumbPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  visitThumbIcon: { fontSize: 28, color: tokens.colors.textMuted },
+  visitBody: { flex: 1, minWidth: 0 },
+  visitName: { fontSize: 16, fontWeight: '600', color: tokens.colors.textDark },
+  visitDate: { fontSize: 12, color: tokens.colors.textMuted, marginTop: 4 },
+  visitLocation: { fontSize: 11, color: tokens.colors.textSecondary, marginTop: 4 },
+  chevron: { fontSize: 20, color: tokens.colors.textMuted },
 });

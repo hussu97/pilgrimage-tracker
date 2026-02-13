@@ -59,7 +59,12 @@ export interface CheckIn {
   checked_in_at: string;
   note?: string;
   photo_url?: string;
-  place?: { place_code: string; name: string; address: string };
+  place?: { place_code: string; name: string; address: string; image_urls?: string[] };
+  date?: string;
+  time?: string;
+  place_name?: string;
+  place_image_url?: string;
+  location?: string;
 }
 
 export interface UserStats {

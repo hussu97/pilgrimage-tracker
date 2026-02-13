@@ -5,8 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../navigation';
 import { useI18n } from '../providers';
-
-const PRIMARY = '#007AFF';
+import { tokens } from '../../lib/theme';
 
 export default function SplashScreen() {
   const insets = useSafeAreaInsets();
@@ -30,14 +29,14 @@ export default function SplashScreen() {
         </View>
         <Text style={styles.title}>{t('splash.appName') || 'Pilgrimage'}</Text>
         <Text style={styles.tagline}>{t('splash.tagline')}</Text>
-        <ActivityIndicator size="large" color={PRIMARY} style={styles.spinner} />
+        <ActivityIndicator size="large" color={tokens.colors.primary} style={styles.spinner} />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  container: { flex: 1, backgroundColor: tokens.colors.surfaceTint },
   bgPattern: {
     position: 'absolute',
     inset: 0,
@@ -58,30 +57,26 @@ const styles = StyleSheet.create({
   logo: {
     width: 144,
     height: 144,
-    borderRadius: 32,
-    backgroundColor: '#fff',
+    borderRadius: tokens.borderRadius['3xl'],
+    backgroundColor: tokens.colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.04,
-    shadowRadius: 30,
-    elevation: 4,
+    ...tokens.shadow.card,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.5)',
   },
-  logoText: { fontSize: 72, color: PRIMARY, fontWeight: '300' },
+  logoText: { fontSize: 72, color: tokens.colors.primary, fontWeight: '300' },
   title: {
     fontSize: 36,
     fontWeight: '700',
-    color: '#111',
+    color: tokens.colors.textDark,
     marginBottom: 20,
     textAlign: 'center',
     letterSpacing: -0.5,
   },
   tagline: {
     fontSize: 18,
-    color: '#333',
+    color: tokens.colors.textMain,
     textAlign: 'center',
     marginBottom: 48,
     lineHeight: 26,

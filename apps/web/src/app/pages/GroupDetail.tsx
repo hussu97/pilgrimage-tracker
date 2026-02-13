@@ -89,7 +89,7 @@ export default function GroupDetail() {
             <button
               type="button"
               onClick={() => navigate('/groups')}
-              className="px-4 py-2 rounded-xl border border-input-border text-text-main font-medium hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="px-4 py-2 rounded-xl border border-input-border text-text-main font-medium hover:bg-soft-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
               {t('nav.groups')}
             </button>
@@ -129,7 +129,7 @@ export default function GroupDetail() {
               <button
                 type="button"
                 onClick={handleShareInvite}
-                className="inline-flex items-center gap-2 py-2 px-4 rounded-xl border border-input-border text-text-main font-medium text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+                className="inline-flex items-center gap-2 py-2 px-4 rounded-xl border border-input-border text-text-main font-medium text-sm hover:bg-soft-blue"
               >
                 <span className="material-symbols-outlined text-lg">share</span>
                 Share
@@ -212,7 +212,7 @@ export default function GroupDetail() {
             {displayLeaderboard.map((entry) => (
               <li
                 key={entry.user_code}
-                className="flex items-center gap-3 p-3 rounded-xl border border-input-border bg-white dark:bg-gray-800"
+                className="flex items-center gap-3 p-3 rounded-xl border border-input-border bg-surface"
               >
                 <span className="text-sm font-medium text-text-muted w-6">#{entry.rank}</span>
                 <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold shrink-0">
@@ -242,7 +242,7 @@ export default function GroupDetail() {
               <li key={`${item.user_code}-${item.place_code}-${item.checked_in_at}-${i}`}>
                 <Link
                   to={`/places/${item.place_code}`}
-                  className="flex items-center gap-3 p-3 rounded-xl border border-input-border bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  className="flex items-center gap-3 p-3 rounded-xl border border-input-border bg-surface hover:bg-soft-blue"
                 >
                   <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold shrink-0">
                     {(item.display_name || '?').charAt(0)}

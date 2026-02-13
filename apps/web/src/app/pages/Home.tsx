@@ -289,7 +289,7 @@ export default function Home() {
                 </Link>
 
                 {/* Rest of places */}
-                <div className="space-y-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
+                <div className="space-y-6 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:space-y-0">
                   {restPlaces.map((place) => (
                     <PlaceCard key={place.place_code} place={place} />
                   ))}

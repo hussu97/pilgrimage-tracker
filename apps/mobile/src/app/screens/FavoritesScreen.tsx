@@ -16,6 +16,7 @@ import { useAuth, useI18n } from '../providers';
 import { getMyFavorites, removeFavorite } from '../../lib/api/client';
 import PlaceCard from '../../components/PlaceCard';
 import type { Place } from '../../lib/types';
+import { tokens } from '../../lib/theme';
 
 export default function FavoritesScreen() {
   const insets = useSafeAreaInsets();
@@ -80,7 +81,7 @@ export default function FavoritesScreen() {
       <Text style={styles.sectionLabel}>{t('nav.saved')}</Text>
       <Text style={styles.title}>{t('favorites.title')}</Text>
 
-      {loading && <ActivityIndicator size="small" color="#0d9488" style={styles.loader} />}
+      {loading && <ActivityIndicator size="small" color={tokens.colors.primary} style={styles.loader} />}
       {error ? (
         <View style={styles.errorWrap}>
           <Text style={styles.errorText}>{error}</Text>
@@ -124,39 +125,40 @@ export default function FavoritesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
+  container: { flex: 1, backgroundColor: tokens.colors.surfaceTint },
   centered: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  signInTitle: { fontSize: 18, color: '#374151', textAlign: 'center', marginBottom: 24 },
-  signInButton: { backgroundColor: '#0d9488', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 },
+  signInTitle: { fontSize: 18, color: tokens.colors.textMain, textAlign: 'center', marginBottom: 24 },
+  signInButton: { backgroundColor: tokens.colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: tokens.borderRadius.xl },
   signInButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   content: { paddingHorizontal: 24 },
   sectionLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#0d9488',
+    color: tokens.colors.primaryDark,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
-  title: { fontSize: 24, fontWeight: '700', color: '#111', marginBottom: 20 },
+  title: { fontSize: 24, fontWeight: '700', color: tokens.colors.textDark, marginBottom: 20 },
   loader: { marginVertical: 24 },
   errorWrap: { marginBottom: 16 },
-  errorText: { color: '#c00', marginBottom: 8 },
+  errorText: { color: '#b91c1c', marginBottom: 8 },
   retryButton: { alignSelf: 'flex-start' },
-  retryText: { color: '#0d9488', fontWeight: '600' },
+  retryText: { color: tokens.colors.primary, fontWeight: '600' },
   emptyWrap: {
     paddingVertical: 48,
     paddingHorizontal: 24,
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: tokens.borderRadius['2xl'],
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#f9fafb',
+    borderColor: tokens.colors.inputBorder,
+    backgroundColor: tokens.colors.surface,
+    ...tokens.shadow.subtle,
   },
-  emptyIcon: { fontSize: 48, marginBottom: 16, color: '#9ca3af' },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#374151', marginBottom: 8 },
-  emptyDesc: { fontSize: 14, color: '#6b7280', marginBottom: 20 },
-  emptyCta: { backgroundColor: '#0d9488', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 },
+  emptyIcon: { fontSize: 48, marginBottom: 16, color: tokens.colors.textMuted },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: tokens.colors.textMain, marginBottom: 8 },
+  emptyDesc: { fontSize: 14, color: tokens.colors.textMuted, marginBottom: 20 },
+  emptyCta: { backgroundColor: tokens.colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: tokens.borderRadius.xl },
   emptyCtaText: { color: '#fff', fontWeight: '600' },
   list: { gap: 16 },
   cardWrap: { position: 'relative' },

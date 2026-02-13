@@ -27,29 +27,30 @@ export default function Layout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen flex flex-col font-display">
       <header className="hidden md:flex safe-area-top border-b border-input-border bg-background-light px-6 py-4">
-        <nav className="flex items-center gap-6 w-full max-w-6xl mx-auto">
-          <Link to="/home" className="text-xl font-semibold text-primary">{t('common.appName')}</Link>
-          <Link to="/home" className="text-text-muted hover:text-primary" aria-current={location.pathname === '/home' ? 'page' : undefined}>{t('nav.explore')}</Link>
-          <Link to="/map" className="text-text-muted hover:text-primary" aria-current={location.pathname === '/map' ? 'page' : undefined}>{t('nav.map')}</Link>
-          <Link to="/favorites" className="text-text-muted hover:text-primary" aria-current={location.pathname === '/favorites' ? 'page' : undefined}>{t('nav.favorites')}</Link>
-          <Link to="/groups" className="text-text-muted hover:text-primary" aria-current={location.pathname.startsWith('/groups') ? 'page' : undefined}>{t('nav.groups')}</Link>
-          <Link to="/notifications" className="relative text-text-muted hover:text-primary" aria-label={t('nav.notifications')} aria-current={location.pathname === '/notifications' ? 'page' : undefined}>
-            <span className="material-symbols-outlined">notifications</span>
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center px-1">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
+        <nav className="flex items-center gap-8 w-full max-w-6xl xl:max-w-7xl mx-auto">
+          <Link to="/home" className="text-xl font-semibold text-primary hover:text-primary-hover transition-colors" aria-label={t('nav.explore')}>{t('common.appName')}</Link>
+          <Link to="/home" className="text-text-muted hover:text-primary font-medium transition-colors" aria-current={location.pathname === '/home' ? 'page' : undefined}>{t('nav.explore')}</Link>
+          <Link to="/map" className="text-text-muted hover:text-primary font-medium transition-colors" aria-current={location.pathname === '/map' ? 'page' : undefined}>{t('nav.map')}</Link>
+          <Link to="/groups" className="text-text-muted hover:text-primary font-medium transition-colors" aria-current={location.pathname.startsWith('/groups') ? 'page' : undefined}>{t('nav.groups')}</Link>
+          <span className="ml-auto flex items-center gap-4">
+            <Link to="/notifications" className="relative text-text-muted hover:text-primary p-1 -mr-1" aria-label={t('nav.notifications')} aria-current={location.pathname === '/notifications' ? 'page' : undefined}>
+              <span className="material-symbols-outlined">notifications</span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center px-1">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </Link>
+            {user ? (
+              <Link to="/profile" className="text-text-muted hover:text-primary font-medium transition-colors" aria-current={location.pathname === '/profile' ? 'page' : undefined}>{t('nav.profile')}</Link>
+            ) : (
+              <Link to="/login" className="text-text-muted hover:text-primary font-medium transition-colors">{t('auth.login')}</Link>
             )}
-          </Link>
-          {user ? (
-            <Link to="/profile" className="ml-auto text-text-muted hover:text-primary" aria-current={location.pathname === '/profile' ? 'page' : undefined}>{t('nav.profile')}</Link>
-          ) : (
-            <Link to="/login" className="ml-auto text-text-muted hover:text-primary">{t('auth.login')}</Link>
-          )}
+          </span>
         </nav>
       </header>
 
-      <main className="flex-1 safe-area-top safe-area-bottom pb-20 md:pb-6 w-full max-w-6xl mx-auto px-0">
+      <main className="flex-1 safe-area-top safe-area-bottom pb-20 md:pb-6 w-full max-w-6xl xl:max-w-7xl mx-auto px-0">
         {children}
       </main>
 

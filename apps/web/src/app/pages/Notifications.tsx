@@ -63,10 +63,10 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="max-w-md md:max-w-2xl mx-auto px-4 py-6 pb-24 md:pb-6">
+    <div className="min-h-screen bg-surface-tint max-w-md md:max-w-2xl mx-auto px-4 py-6 pb-24 md:pb-6">
       <header className="mb-6">
-        <p className="text-sm text-primary font-medium uppercase tracking-wide mb-1">Updates</p>
-        <h1 className="text-2xl font-semibold text-text-main">{t('notifications.title')}</h1>
+        <p className="text-xs text-primary-dark font-semibold uppercase tracking-wider mb-1">Updates</p>
+        <h1 className="text-2xl font-semibold text-text-dark">{t('notifications.title')}</h1>
       </header>
 
       {loading && <p className="text-text-muted">{t('common.loading')}</p>}
@@ -90,12 +90,12 @@ export default function NotificationsPage() {
           {notifications.map((n) => (
             <li
               key={n.notification_code}
-              className={`rounded-xl border border-input-border overflow-hidden ${
-                n.read_at ? 'bg-white dark:bg-gray-800' : 'bg-primary/5 dark:bg-primary/10 border-primary/30'
+              className={`rounded-2xl border border-input-border overflow-hidden shadow-subtle ${
+                n.read_at ? 'bg-surface' : 'bg-primary/5 border-primary/30'
               }`}
             >
               <div className="flex gap-3 p-4">
-                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary shrink-0">
+                <div className="w-10 h-10 rounded-full bg-soft-blue flex items-center justify-center text-primary shrink-0">
                   <span className="material-symbols-outlined">{notificationIcon(n.type)}</span>
                 </div>
                 <div className="min-w-0 flex-1">
@@ -114,7 +114,7 @@ export default function NotificationsPage() {
                     aria-label={t('notifications.markRead')}
                     className="shrink-0 text-primary text-sm font-medium hover:text-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   >
-                    Mark read
+                    {t('notifications.markRead')}
                   </button>
                 )}
               </div>

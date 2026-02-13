@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getNotifications, markNotificationRead } from '../../lib/api/client';
 import { useI18n } from '../providers';
 import type { Notification } from '../../lib/types';
+import { tokens } from '../../lib/theme';
 
 function notificationIcon(type: string): string {
   if (type.includes('check') || type.includes('check_in')) return '✓';
@@ -91,7 +92,7 @@ export default function NotificationsScreen() {
 
       {loading && (
         <View style={styles.loaderWrap}>
-          <ActivityIndicator size="small" color="#0d9488" />
+          <ActivityIndicator size="small" color={tokens.colors.primary} />
           <Text style={styles.muted}>{t('common.loading')}</Text>
         </View>
       )}
@@ -159,65 +160,67 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
+  container: { flex: 1, backgroundColor: tokens.colors.surfaceTint },
   content: { paddingHorizontal: 24 },
   backButton: { marginBottom: 16 },
-  backText: { fontSize: 16, color: '#6b7280' },
+  backText: { fontSize: 16, color: tokens.colors.textMuted },
   sectionLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#0d9488',
+    color: tokens.colors.primaryDark,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 4,
   },
-  title: { fontSize: 24, fontWeight: '700', color: '#111', marginBottom: 20 },
+  title: { fontSize: 24, fontWeight: '700', color: tokens.colors.textDark, marginBottom: 20 },
   loaderWrap: { alignItems: 'center', paddingVertical: 24 },
-  muted: { fontSize: 14, color: '#6b7280', marginTop: 8 },
+  muted: { fontSize: 14, color: tokens.colors.textMuted, marginTop: 8 },
   errorWrap: { marginBottom: 16 },
-  errorText: { color: '#c00', marginBottom: 8 },
+  errorText: { color: '#b91c1c', marginBottom: 8 },
   retryButton: { alignSelf: 'flex-start' },
-  retryText: { color: '#0d9488', fontWeight: '600' },
+  retryText: { color: tokens.colors.primary, fontWeight: '600' },
   emptyWrap: {
     paddingVertical: 48,
     paddingHorizontal: 24,
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: tokens.borderRadius['2xl'],
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#f9fafb',
+    borderColor: tokens.colors.inputBorder,
+    backgroundColor: tokens.colors.surface,
+    ...tokens.shadow.subtle,
   },
-  emptyIcon: { fontSize: 48, marginBottom: 16, color: '#9ca3af' },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: '#374151', marginBottom: 8 },
-  emptyDesc: { fontSize: 14, color: '#6b7280', marginBottom: 20, textAlign: 'center' },
-  emptyCta: { backgroundColor: '#0d9488', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 },
+  emptyIcon: { fontSize: 48, marginBottom: 16, color: tokens.colors.textMuted },
+  emptyTitle: { fontSize: 18, fontWeight: '600', color: tokens.colors.textMain, marginBottom: 8 },
+  emptyDesc: { fontSize: 14, color: tokens.colors.textMuted, marginBottom: 20, textAlign: 'center' },
+  emptyCta: { backgroundColor: tokens.colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: tokens.borderRadius.xl },
   emptyCtaText: { color: '#fff', fontWeight: '600' },
   list: { gap: 10 },
   card: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: tokens.borderRadius.xl,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#fff',
+    borderColor: tokens.colors.inputBorder,
+    backgroundColor: tokens.colors.surface,
+    ...tokens.shadow.subtle,
   },
-  cardUnread: { backgroundColor: 'rgba(13, 148, 136, 0.06)', borderColor: 'rgba(13, 148, 136, 0.3)' },
+  cardUnread: { backgroundColor: tokens.colors.blueTint, borderColor: 'rgba(59, 130, 246, 0.3)' },
   iconWrap: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(13, 148, 136, 0.2)',
+    backgroundColor: tokens.colors.softBlue,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
     flexShrink: 0,
   },
-  iconText: { fontSize: 16, color: '#0d9488', fontWeight: '600' },
+  iconText: { fontSize: 16, color: tokens.colors.primary, fontWeight: '600' },
   cardBody: { flex: 1, minWidth: 0 },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: '#111' },
-  cardBodyText: { fontSize: 14, color: '#6b7280', marginTop: 4 },
-  cardTime: { fontSize: 12, color: '#9ca3af', marginTop: 6 },
+  cardTitle: { fontSize: 15, fontWeight: '600', color: tokens.colors.textMain },
+  cardBodyText: { fontSize: 14, color: tokens.colors.textMuted, marginTop: 4 },
+  cardTime: { fontSize: 12, color: tokens.colors.textMuted, marginTop: 6 },
   markRead: { flexShrink: 0, paddingVertical: 4 },
-  markReadText: { fontSize: 13, color: '#0d9488', fontWeight: '600' },
+  markReadText: { fontSize: 13, color: tokens.colors.primary, fontWeight: '600' },
 });

@@ -69,7 +69,7 @@ export default function CheckInPage() {
           <button
             type="button"
             onClick={handleShare}
-            className="flex-1 py-3 rounded-xl border border-input-border text-text-main font-medium hover:bg-gray-50 dark:hover:bg-gray-800 inline-flex items-center justify-center gap-2"
+            className="flex-1 py-3 rounded-xl border border-input-border text-text-main font-medium hover:bg-soft-blue inline-flex items-center justify-center gap-2"
           >
             <span className="material-symbols-outlined">share</span>
             Share
@@ -108,7 +108,7 @@ export default function CheckInPage() {
             onChange={(e) => setNote(e.target.value)}
             placeholder="Add a note about your visit..."
             rows={3}
-            className="w-full border border-input-border rounded-xl px-4 py-3 text-text-main bg-white dark:bg-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full border border-input-border rounded-xl px-4 py-3 text-text-main bg-surface placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
         <div>
@@ -118,7 +118,7 @@ export default function CheckInPage() {
             value={photoUrl}
             onChange={(e) => setPhotoUrl(e.target.value)}
             placeholder="Photo URL (upload coming later)"
-            className="w-full border border-input-border rounded-xl px-4 py-3 text-text-main bg-white dark:bg-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full border border-input-border rounded-xl px-4 py-3 text-text-main bg-surface placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
           <p className="text-xs text-text-muted mt-1">Paste an image URL for now. Photo upload will be added later.</p>
         </div>
@@ -126,7 +126,7 @@ export default function CheckInPage() {
           <button
             type="button"
             onClick={handleBackToPlace}
-            className="flex-1 py-3 rounded-xl border border-input-border text-text-main font-medium hover:bg-gray-50 dark:hover:bg-gray-800"
+            className="flex-1 py-3 rounded-xl border border-input-border text-text-main font-medium hover:bg-soft-blue"
           >
             {t('common.cancel')}
           </button>

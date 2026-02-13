@@ -96,7 +96,7 @@ export default function Settings() {
         <div className="space-y-6">
           <section>
             <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide mb-3">{t('settings.appearance')}</h2>
-            <div className="rounded-xl border border-input-border bg-white dark:bg-gray-800 overflow-hidden divide-y divide-input-border">
+            <div className="rounded-xl border border-input-border bg-surface overflow-hidden divide-y divide-input-border">
               <div className="p-4">
                 <p className="text-sm font-medium text-text-main mb-2">{t('settings.theme')}</p>
                 <div className="flex gap-2 flex-wrap">
@@ -111,7 +111,7 @@ export default function Settings() {
                       className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
                         theme === opt.value
                           ? 'bg-primary text-white border-primary'
-                          : 'border-input-border text-text-muted hover:bg-gray-50 dark:hover:bg-gray-700'
+                          : 'border-input-border text-text-muted hover:bg-soft-blue'
                       }`}
                     >
                       {t(opt.labelKey)}
@@ -125,7 +125,7 @@ export default function Settings() {
                   value={locale}
                   onChange={(e) => handleLanguageChange(e.target.value)}
                   disabled={saving}
-                  className="w-full border border-input-border rounded-lg px-4 py-2 text-text-main bg-background-light dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full border border-input-border rounded-lg px-4 py-2 text-text-main bg-background-light focus:outline-none focus:ring-2 focus:ring-primary/30"
                 >
                   {languages.length > 0 ? (
                     languages.map((lang) => (
@@ -147,15 +147,15 @@ export default function Settings() {
 
           <section>
             <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide mb-3">{t('settings.preferences')}</h2>
-            <div className="rounded-xl border border-input-border bg-white dark:bg-gray-800 overflow-hidden divide-y divide-input-border">
-              <label className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+            <div className="rounded-xl border border-input-border bg-surface overflow-hidden divide-y divide-input-border">
+              <label className="flex items-center justify-between p-4 cursor-pointer hover:bg-soft-blue">
                 <span className="text-text-main font-medium">{t('settings.notifications')}</span>
                 <input
                   type="checkbox"
                   checked={settings?.notifications_on ?? true}
                   onChange={(e) => handleNotificationsToggle(e.target.checked)}
                   disabled={saving}
-                  className="rounded border-gray-300 text-primary"
+                  className="rounded border-input-border text-primary"
                 />
               </label>
             </div>
@@ -163,17 +163,17 @@ export default function Settings() {
 
           <section>
             <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide mb-3">Support</h2>
-            <div className="rounded-xl border border-input-border bg-white dark:bg-gray-800 overflow-hidden divide-y divide-input-border">
+            <div className="rounded-xl border border-input-border bg-surface overflow-hidden divide-y divide-input-border">
               <a
                 href="#about"
-                className="flex items-center justify-between p-4 text-text-main hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                className="flex items-center justify-between p-4 text-text-main hover:bg-soft-blue"
               >
                 <span>{t('settings.about')}</span>
                 <span className="material-symbols-outlined text-text-muted text-lg">chevron_right</span>
               </a>
               <a
                 href="#terms"
-                className="flex items-center justify-between p-4 text-text-main hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                className="flex items-center justify-between p-4 text-text-main hover:bg-soft-blue"
               >
                 <span>{t('settings.termsOfService')}</span>
                 <span className="material-symbols-outlined text-text-muted text-lg">chevron_right</span>

@@ -18,6 +18,7 @@ import { shareUrl } from '../../lib/share';
 import { INVITE_LINK_BASE_URL } from '../../lib/constants';
 import { useI18n } from '../providers';
 import type { RootStackParamList } from '../navigation';
+import { tokens } from '../../lib/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CreateGroup'>;
 
@@ -119,7 +120,7 @@ export default function CreateGroupScreen() {
             value={name}
             onChangeText={setName}
             placeholder="Group name"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={tokens.colors.textMuted}
             autoCapitalize="words"
           />
         </View>
@@ -130,7 +131,7 @@ export default function CreateGroupScreen() {
             value={description}
             onChangeText={setDescription}
             placeholder="What's this group about?"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={tokens.colors.textMuted}
             multiline
             numberOfLines={3}
           />
@@ -160,7 +161,7 @@ export default function CreateGroupScreen() {
             activeOpacity={0.8}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" size="small" />
+              <ActivityIndicator color={tokens.colors.surface} size="small" />
             ) : (
               <Text style={styles.submitText}>{t('common.save')}</Text>
             )}
@@ -172,22 +173,22 @@ export default function CreateGroupScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
+  container: { flex: 1, backgroundColor: tokens.colors.surfaceTint },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 24 },
-  title: { fontSize: 20, fontWeight: '700', color: '#111', marginBottom: 20 },
-  errorText: { color: '#c00', marginBottom: 12, fontSize: 14 },
+  title: { fontSize: 20, fontWeight: '700', color: tokens.colors.textDark, marginBottom: 20 },
+  errorText: { color: '#b91c1c', marginBottom: 12, fontSize: 14 },
   field: { marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 6 },
+  label: { fontSize: 14, fontWeight: '500', color: tokens.colors.textMain, marginBottom: 6 },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 12,
+    borderColor: tokens.colors.inputBorder,
+    borderRadius: tokens.borderRadius.xl,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
-    backgroundColor: '#fff',
-    color: '#111',
+    backgroundColor: tokens.colors.surface,
+    color: tokens.colors.textMain,
   },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
   checkRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
@@ -196,65 +197,65 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#d1d5db',
+    borderColor: tokens.colors.inputBorder,
     marginRight: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxChecked: { backgroundColor: '#0d9488', borderColor: '#0d9488' },
+  checkboxChecked: { backgroundColor: tokens.colors.primary, borderColor: tokens.colors.primary },
   checkMark: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  checkLabel: { fontSize: 14, color: '#374151' },
+  checkLabel: { fontSize: 14, color: tokens.colors.textMain },
   actions: { flexDirection: 'row', gap: 12 },
   cancelButton: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: tokens.borderRadius.xl,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: tokens.colors.inputBorder,
     alignItems: 'center',
   },
-  cancelText: { color: '#374151', fontWeight: '600' },
+  cancelText: { color: tokens.colors.textMain, fontWeight: '600' },
   submitButton: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#0d9488',
+    borderRadius: tokens.borderRadius.xl,
+    backgroundColor: tokens.colors.primary,
     alignItems: 'center',
   },
   submitDisabled: { opacity: 0.7 },
   submitText: { color: '#fff', fontWeight: '600' },
   successContent: { paddingHorizontal: 24, alignItems: 'center' },
   backButton: { alignSelf: 'flex-start', marginBottom: 16 },
-  backText: { fontSize: 16, color: '#6b7280' },
+  backText: { fontSize: 16, color: tokens.colors.textMuted },
   successIconWrap: {
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(13, 148, 136, 0.2)',
+    backgroundColor: tokens.colors.softBlue,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
-  successIcon: { fontSize: 28, color: '#0d9488', fontWeight: '700' },
-  successTitle: { fontSize: 20, fontWeight: '600', color: '#111', marginBottom: 8 },
-  successSub: { fontSize: 14, color: '#6b7280', marginBottom: 16 },
+  successIcon: { fontSize: 28, color: tokens.colors.primary, fontWeight: '700' },
+  successTitle: { fontSize: 20, fontWeight: '600', color: tokens.colors.textDark, marginBottom: 8 },
+  successSub: { fontSize: 14, color: tokens.colors.textMuted, marginBottom: 16 },
   inviteRow: { width: '100%', marginBottom: 12 },
-  inviteCode: { fontSize: 12, color: '#6b7280' },
+  inviteCode: { fontSize: 12, color: tokens.colors.textMuted },
   shareButton: {
     width: '100%',
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: tokens.borderRadius.xl,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: tokens.colors.inputBorder,
     alignItems: 'center',
     marginBottom: 12,
   },
-  shareButtonText: { color: '#374151', fontWeight: '600' },
+  shareButtonText: { color: tokens.colors.textMain, fontWeight: '600' },
   goButton: {
     width: '100%',
     paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#0d9488',
+    borderRadius: tokens.borderRadius.xl,
+    backgroundColor: tokens.colors.primary,
     alignItems: 'center',
   },
   goButtonText: { color: '#fff', fontWeight: '600' },

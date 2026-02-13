@@ -4,6 +4,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../navigation';
 import { useI18n } from '../providers';
+import { tokens } from '../../lib/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CheckIn'>;
 type CheckInRoute = RouteProp<RootStackParamList, 'CheckIn'>;
@@ -38,10 +39,10 @@ export default function CheckInScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fafafa' },
+  container: { flex: 1, backgroundColor: tokens.colors.surfaceTint },
   content: { paddingHorizontal: 24 },
   backButton: { marginBottom: 16 },
-  backText: { fontSize: 16, color: '#6b7280' },
+  backText: { fontSize: 16, color: tokens.colors.textMuted },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 200 },
-  title: { fontSize: 24, fontWeight: '600' },
+  title: { fontSize: 24, fontWeight: '600', color: tokens.colors.textDark },
 });

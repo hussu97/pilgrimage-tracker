@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../navigation';
 import { useAuth } from '../providers';
 import { useI18n } from '../providers';
+import { tokens } from '../../lib/theme';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -58,7 +59,7 @@ export default function LoginScreen() {
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
-          placeholderTextColor="#999"
+          placeholderTextColor={tokens.colors.textMuted}
         />
         <TextInput
           style={styles.input}
@@ -66,7 +67,7 @@ export default function LoginScreen() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          placeholderTextColor="#999"
+          placeholderTextColor={tokens.colors.textMuted}
         />
         <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotLink}>
           <Text style={styles.forgotText}>{t('auth.forgotPassword')}</Text>
@@ -89,31 +90,32 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: tokens.colors.surface },
   scrollContent: { paddingHorizontal: 24, flexGrow: 1 },
-  title: { fontSize: 24, fontWeight: '700', color: '#111', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#666', marginBottom: 24 },
+  title: { fontSize: 24, fontWeight: '700', color: tokens.colors.textMain, marginBottom: 8 },
+  subtitle: { fontSize: 16, color: tokens.colors.textMuted, marginBottom: 24 },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 12,
+    borderColor: tokens.colors.inputBorder,
+    borderRadius: tokens.borderRadius.xl,
     padding: 14,
     marginBottom: 12,
     fontSize: 16,
-    backgroundColor: '#fafafa',
+    backgroundColor: tokens.colors.backgroundLight,
+    color: tokens.colors.textMain,
   },
   forgotLink: { alignSelf: 'flex-start', marginBottom: 16 },
-  forgotText: { fontSize: 14, color: '#0d9488' },
-  error: { color: '#c00', fontSize: 14, marginBottom: 12 },
+  forgotText: { fontSize: 14, color: tokens.colors.primary },
+  error: { color: '#b91c1c', fontSize: 14, marginBottom: 12 },
   button: {
-    backgroundColor: '#0d9488',
+    backgroundColor: tokens.colors.primary,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: tokens.borderRadius.xl,
     alignItems: 'center',
     marginTop: 8,
   },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   secondaryLink: { marginTop: 24, alignItems: 'center' },
-  secondaryLinkText: { fontSize: 14, color: '#666' },
+  secondaryLinkText: { fontSize: 14, color: tokens.colors.textMuted },
 });

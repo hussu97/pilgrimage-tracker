@@ -4,6 +4,54 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## D-1: Desktop layout and navigation
+
+- **Layout:** Top bar on md+ with logo (app name), Explore, Map, Groups, Profile, Notifications, Profile/Login. Main content max-w-6xl xl:max-w-7xl. Mobile: bottom nav (Explore, Map, Groups, Profile). All main routes reachable from nav.
+
+---
+
+## D-2: Desktop – Explore and Map
+
+- **Home:** Place cards grid uses md:grid-cols-2 lg:grid-cols-3 for 2–3 column layout on desktop.
+- **Map:** On md+, right side panel (w-96) with selected place card and place list; map fills remaining area. Mobile: unchanged (bottom sheet).
+
+---
+
+## D-3 / D-4: Desktop – Place Detail, Profile, Groups, Write Review, Check-in History
+
+- Place Detail, Profile, Groups, Write Review, and Check-in History use the same content and components as mobile within Layout’s max-width content area; no separate desktop layouts added.
+
+---
+
+## X-1: API contracts and data flow
+
+- **GET /places** and **GET /places/:code**: Return religion_specific, is_open_now, average_rating, review_count (when include_rating=true), website_url, has_events. Place detail includes user_has_checked_in, is_favorite when authenticated.
+- **GET /users/me/check-ins**: Returns place name, place_image_url, date, time, location (address) per check-in; frontend types extended accordingly.
+- **GET /users/me/stats**: Returns visits, reviews, badges_count; frontend uses these for Profile.
+- **GET /groups**: Returns last_activity, sites_visited, total_sites, next_place_name, featured; frontend types and Groups UI use these.
+- No backend changes required for current UI; any gaps documented above.
+
+---
+
+## M-10: Check-in History / My Journey (mobile + mobile web)
+
+**Done when:** Check-in History matches DESIGN_FILE_V2 “Journey Log”: title, total visits + This month, calendar with month nav and check-in indicators, Recent Visits list.
+
+### Frontend — Web
+
+- **CheckInsList:** “Journey Log” title, stats card (Total Visits count + “sacred places”, This Month). Calendar: month label, prev/next nav, 7×6 grid with check-in days highlighted (blue dot; today filled primary). Recent Visits: cards with place image, name, date/time, location, link to place detail. Uses GET /me/check-ins; calendar derived from checked_in_at on client. Light variant (gradient background, white cards).
+
+### Frontend — Mobile
+
+- **CheckInsListScreen:** Same structure with tokens: stats card, calendar with month nav and day grid (check-in dots, today primary), Recent Visits list with thumb, name, date, location. Uses theme tokens.
+
+### Backend
+
+- **CheckIn type:** Extended with date, time, place_name, place_image_url, location (API already returns these).
+- **i18n:** journey.myJourney, journey.journeyLog, journey.subtitle, journey.totalCheckIns, journey.totalVisits, journey.thisMonth, journey.sacredPlaces, journey.recentActivity, journey.recentVisits, journey.viewAll (en, ar, hi).
+
+---
+
 ## M-9: Write a Review (mobile + mobile web)
 
 **Done when:** Write Review matches DESIGN_FILE_V2: header (Cancel, Write Review, Save), place name/location/thumb, stars, text area, photo strip, Post Anonymously, Submit, success overlay.

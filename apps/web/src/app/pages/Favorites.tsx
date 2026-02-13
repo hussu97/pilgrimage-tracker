@@ -42,10 +42,10 @@ export default function Favorites() {
   };
 
   return (
-    <div className="max-w-md mx-auto px-4 py-6 md:max-w-4xl pb-24 md:pb-6">
+    <div className="min-h-screen bg-surface-tint max-w-md mx-auto px-4 py-6 md:max-w-4xl pb-24 md:pb-6">
       <header className="mb-6">
-        <p className="text-sm text-primary font-medium uppercase tracking-wide mb-1">{t('nav.saved')}</p>
-        <h1 className="text-2xl font-semibold text-text-main">{t('favorites.title')}</h1>
+        <p className="text-xs text-primary-dark font-semibold uppercase tracking-wider mb-1">{t('nav.saved')}</p>
+        <h1 className="text-2xl font-semibold text-text-dark">{t('favorites.title')}</h1>
       </header>
 
       {loading && <p className="text-text-muted">{t('common.loading')}</p>}

@@ -16,6 +16,7 @@ import { useAuth } from '../providers';
 import { useI18n } from '../providers';
 import { updateMe, updateSettings } from '../../lib/api/client';
 import type { Religion } from '../../lib/types';
+import { tokens } from '../../lib/theme';
 
 const RELIGIONS: Religion[] = ['islam', 'hinduism', 'christianity'];
 
@@ -81,7 +82,7 @@ export default function EditProfileScreen() {
         value={displayName}
         onChangeText={setDisplayName}
         placeholder={t('auth.displayName')}
-        placeholderTextColor="#9ca3af"
+        placeholderTextColor={tokens.colors.textMuted}
       />
 
       <Text style={[styles.label, { marginTop: 20 }]}>{t('settings.religionsToShow')}</Text>
@@ -115,7 +116,7 @@ export default function EditProfileScreen() {
           activeOpacity={0.8}
         >
           {saving ? (
-            <ActivityIndicator color="#fff" size="small" />
+            <ActivityIndicator color={tokens.colors.surface} size="small" />
           ) : (
             <Text style={styles.saveText}>{t('common.save')}</Text>
           )}
@@ -126,20 +127,21 @@ export default function EditProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: tokens.colors.surface },
   content: { paddingHorizontal: 24 },
   backButton: { marginBottom: 16 },
-  backText: { fontSize: 16, color: '#6b7280' },
-  title: { fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 20 },
-  error: { color: '#c00', marginBottom: 12 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
+  backText: { fontSize: 16, color: tokens.colors.textMuted },
+  title: { fontSize: 22, fontWeight: '700', color: tokens.colors.textDark, marginBottom: 20 },
+  error: { color: '#b91c1c', marginBottom: 12 },
+  label: { fontSize: 14, fontWeight: '600', color: tokens.colors.textMain, marginBottom: 8 },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 12,
+    borderColor: tokens.colors.inputBorder,
+    borderRadius: tokens.borderRadius.xl,
     padding: 14,
     fontSize: 16,
-    backgroundColor: '#fafafa',
+    backgroundColor: tokens.colors.backgroundLight,
+    color: tokens.colors.textMain,
   },
   religionRow: {
     flexDirection: 'row',
@@ -147,32 +149,32 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 12,
+    borderRadius: tokens.borderRadius.xl,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#fafafa',
+    borderColor: tokens.colors.inputBorder,
+    backgroundColor: tokens.colors.backgroundLight,
     marginBottom: 8,
   },
-  religionRowSelected: { borderColor: '#0d9488', backgroundColor: 'rgba(13, 148, 136, 0.05)' },
-  religionLabel: { fontSize: 16, color: '#374151' },
-  religionLabelSelected: { color: '#0d9488', fontWeight: '600' },
-  check: { fontSize: 18, color: '#0d9488' },
-  hint: { fontSize: 12, color: '#6b7280', marginTop: 8 },
+  religionRowSelected: { borderColor: tokens.colors.primary, backgroundColor: tokens.colors.blueTint },
+  religionLabel: { fontSize: 16, color: tokens.colors.textMain },
+  religionLabelSelected: { color: tokens.colors.primary, fontWeight: '600' },
+  check: { fontSize: 18, color: tokens.colors.primary },
+  hint: { fontSize: 12, color: tokens.colors.textMuted, marginTop: 8 },
   buttons: { flexDirection: 'row', gap: 12, marginTop: 28 },
   cancelButton: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: tokens.borderRadius.xl,
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: tokens.colors.inputBorder,
     alignItems: 'center',
   },
-  cancelText: { fontSize: 16, fontWeight: '600', color: '#374151' },
+  cancelText: { fontSize: 16, fontWeight: '600', color: tokens.colors.textMain },
   saveButton: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#0d9488',
+    borderRadius: tokens.borderRadius.xl,
+    backgroundColor: tokens.colors.primary,
     alignItems: 'center',
   },
   saveButtonDisabled: { opacity: 0.6 },
