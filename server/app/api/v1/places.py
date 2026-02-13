@@ -1,0 +1,176 @@
+from typing import Annotated, Literal, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from app.api.deps import get_current_user, get_optional_user
+from app.db import places as places_db
+from app.db import reviews as reviews_db
+from app.db import store as user_store
+from app.db import check_ins as check_ins_db
+from app.db import favorites as favorites_db
+from app.models.schemas import CheckInBody, ReviewCreateBody
+
+router = APIRouter()
+
+Religion = Literal["islam", "hinduism", "christianity"]
+
+
+def _place_to_item(place, distance: Optional[float] = None) -> dict:
+    d = distance
+    if d is not None:
+        d = round(d * 10) / 10
+    out = {
+        "place_code": place.place_code,
+        "name": place.name,
+        "religion": place.religion,
+        "place_type": place.place_type,
+        "lat": place.lat,
+        "lng": place.lng,
+        "address": place.address,
+        "opening_hours": place.opening_hours,
+        "image_urls": place.image_urls,
+        "description": place.description,
+        "created_at": place.created_at,
+        "distance": d,
+    }
+    if getattr(place, "religion_specific", None):
+        out["religion_specific"] = place.religion_specific
+    return out
+
+
+def _place_detail(place) -> dict:
+    out = _place_to_item(place)
+    out["religion_specific"] = getattr(place, "religion_specific", None) or {}
+    if "distance" in out:
+        del out["distance"]
+    return out
+
+
+@router.get("", response_model=list)
+def list_places(
+    religion: Optional[Religion] = Query(None),
+    lat: Optional[float] = Query(None),
+    lng: Optional[float] = Query(None),
+    radius: Optional[float] = Query(None, description="Radius in km"),
+    place_type: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    sort: Optional[str] = Query(None, description="proximity or rating"),
+    limit: int = Query(50),
+    offset: int = Query(0),
+):
+    rows = places_db.list_places(
+        religion=religion,
+        lat=lat,
+        lng=lng,
+        radius_km=radius,
+        place_type=place_type,
+        search=search,
+        sort=sort,
+        limit=limit,
+        offset=offset,
+    )
+    return [_place_to_item(p, dist) for p, dist in rows]
+
+
+@router.get("/{place_code}")
+def get_place(
+    place_code: str,
+    user: Annotated[any, Depends(get_optional_user)] = None,
+):
+    place = places_db.get_place_by_code(place_code)
+    if not place:
+        raise HTTPException(status_code=404, detail="Place not found")
+    out = _place_detail(place)
+    if user:
+        out["user_has_checked_in"] = check_ins_db.has_checked_in(user.user_code, place_code)
+        out["is_favorite"] = favorites_db.is_favorite(user.user_code, place_code)
+    return out
+
+
+@router.get("/{place_code}/reviews")
+def get_place_reviews(
+    place_code: str,
+    limit: int = Query(5),
+    offset: int = Query(0),
+):
+    if not places_db.get_place_by_code(place_code):
+        raise HTTPException(status_code=404, detail="Place not found")
+    rows = reviews_db.get_reviews_by_place(place_code, limit=limit, offset=offset)
+    agg = reviews_db.get_aggregate_rating(place_code)
+    out = []
+    for r in rows:
+        user = user_store.get_user_by_code(r.user_code)
+        out.append({
+            "review_code": r.review_code,
+            "place_code": r.place_code,
+            "user_code": r.user_code,
+            "display_name": user.display_name if user else "Unknown",
+            "rating": r.rating,
+            "title": r.title,
+            "body": r.body,
+            "created_at": r.created_at,
+        })
+    result = {"reviews": out}
+    if agg:
+        result["average_rating"] = agg["average"]
+        result["review_count"] = agg["count"]
+    return result
+
+
+@router.post("/{place_code}/check-in")
+def check_in(
+    place_code: str,
+    body: CheckInBody,
+    user: Annotated[any, Depends(get_current_user)],
+):
+    if not places_db.get_place_by_code(place_code):
+        raise HTTPException(status_code=404, detail="Place not found")
+    row = check_ins_db.create_check_in(user.user_code, place_code, note=body.note, photo_url=body.photo_url)
+    return {
+        "check_in_code": row.check_in_code,
+        "place_code": row.place_code,
+        "checked_in_at": row.checked_in_at,
+        "note": row.note,
+        "photo_url": row.photo_url,
+    }
+
+
+@router.post("/{place_code}/favorite")
+def add_favorite(
+    place_code: str,
+    user: Annotated[any, Depends(get_current_user)],
+):
+    if not places_db.get_place_by_code(place_code):
+        raise HTTPException(status_code=404, detail="Place not found")
+    favorites_db.add_favorite(user.user_code, place_code)
+    return {"ok": True}
+
+
+@router.delete("/{place_code}/favorite")
+def remove_favorite(
+    place_code: str,
+    user: Annotated[any, Depends(get_current_user)],
+):
+    favorites_db.remove_favorite(user.user_code, place_code)
+    return {"ok": True}
+
+
+@router.post("/{place_code}/reviews")
+def create_review(
+    place_code: str,
+    body: ReviewCreateBody,
+    user: Annotated[any, Depends(get_current_user)],
+):
+    if not places_db.get_place_by_code(place_code):
+        raise HTTPException(status_code=404, detail="Place not found")
+    if not (1 <= body.rating <= 5):
+        raise HTTPException(status_code=400, detail="Rating must be 1-5")
+    row = reviews_db.create_review(user.user_code, place_code, body.rating, title=body.title, body=body.body)
+    return {
+        "review_code": row.review_code,
+        "place_code": row.place_code,
+        "rating": row.rating,
+        "title": row.title,
+        "body": row.body,
+        "created_at": row.created_at,
+    }

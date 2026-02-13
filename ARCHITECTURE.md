@@ -86,12 +86,13 @@ flowchart TB
 
 | Concern | Choice | Rationale |
 |--------|--------|-----------|
-| Runtime | Node.js (Express or Fastify) or similar | Simple REST API, good fit for JS/TS monorepo. |
-| Language | TypeScript | Shared types with frontend, type safety. |
-| Database | PostgreSQL | Relational data (users, places, check-ins, groups, reviews). |
+| Runtime | Python 3.11+ | Type hints, async support. |
+| Framework | FastAPI | REST API, OpenAPI docs, Pydantic validation. |
+| Server | Uvicorn (ASGI) | Runs FastAPI. |
+| Database | PostgreSQL (or SQLite for local dev) | Relational data (users, places, check-ins, groups, reviews). |
 | Geo | PostGIS or lat/lng + distance in DB | Proximity sort “nearest first”. |
-| Auth | JWT (access + refresh) + optional OAuth (Google, Apple) | Matches “Continue with Google/Apple” in designs. |
-| File storage | S3-compatible (e.g. AWS S3, MinIO) | Avatars, place photos, review photos. |
+| Auth | JWT; python-jose or PyJWT; passlib; optional OAuth | Matches “Continue with Google/Apple” in designs. |
+| File storage | S3-compatible (boto3) or local uploads | Avatars, place photos, review photos. |
 | Email | SendGrid or similar | Password reset, optional group invites. |
 
 ### 3.3 Monorepo Layout (recommended)
@@ -101,13 +102,15 @@ pilgrimage-tracker/
 ├── apps/
 │   ├── web/                 # Vite React app (desktop + mobile web). Own api client, types, constants.
 │   └── mobile/              # Capacitor-wrapped React app. Replicated UI and features from web (no shared packages).
-├── server/                  # Backend API (Express/Fastify), versioned at /api/v1
-│   ├── src/
-│   │   ├── routes/
-│   │   ├── services/
-│   │   ├── middleware/
-│   │   └── db/
-│   └── package.json
+├── server/                  # Backend API (Python + FastAPI), versioned at /api/v1
+│   ├── app/
+│   │   ├── main.py          # FastAPI app, CORS, router includes
+│   │   ├── api/v1/          # Routers: auth, users, places, reviews, groups, notifications
+│   │   ├── core/             # Config, security (JWT), dependencies
+│   │   ├── models/          # Pydantic schemas (request/response)
+│   │   └── db/              # Store or SQLAlchemy models
+│   ├── requirements.txt
+│   └── pyproject.toml       # Optional
 ├── .cursor/
 │   └── rules/               # Cursor rules: e.g. replicate frontend UI/features in both web and mobile
 ├── DESIGN_FILE.html
@@ -118,7 +121,9 @@ pilgrimage-tracker/
 
 **Why no shared `packages`:** Shared packages can be hard to maintain in production (e.g. build/deploy and import paths differ for web vs mobile). Instead, **replicate** frontend code in both `apps/web` and `apps/mobile`. Use a **Cursor rules file** (e.g. in `.cursor/rules/`) that states: *when adding or changing UI or features in one app (web or mobile), replicate the same UI and behavior in the other app so both stay in sync.* Business logic, screens, and design should be identical; only app-specific config (e.g. Capacitor plugins, env vars) may differ.
 
-**Capacitor:** `apps/mobile` is a full copy of the frontend (or mirrors web’s structure) and is built separately for iOS/Android. Both web and mobile call the same versioned API.
+**Capacitor:** `apps/mobile` is a full copy of the frontend (or mirrors web’s structure) and is built separately for iOS/Android. Both web and mobile call the same versioned API. Backend is Python + FastAPI; same API contract so frontends need no code changes.
+
+**Migration:** If the project was started with a Node.js/Express backend (e.g. after Prompts 1–3), see the "Migration: Node.js backend → Python/FastAPI" section in [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION_PROMPTS.md) for how to replace the backend with Python + FastAPI without changing the frontend.
 
 ---
 

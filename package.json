@@ -1,0 +1,20 @@
+{
+  "name": "pilgrimage-tracker",
+  "private": true,
+  "description": "Discover, visit, and track religious places",
+  "workspaces": [
+    "apps/*",
+    "server"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev -w server",
+    "dev:web": "npm run dev -w @pilgrimage-tracker/web",
+    "dev:mobile": "npm run dev -w @pilgrimage-tracker/mobile",
+    "build:server": "npm run build -w server",
+    "build:web": "npm run build -w @pilgrimage-tracker/web",
+    "build:mobile": "npm run build -w @pilgrimage-tracker/mobile"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
