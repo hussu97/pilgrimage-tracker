@@ -18,8 +18,8 @@ This document describes the end-to-end architecture for Pilgrimage Tracker: a mu
 flowchart TB
     subgraph clients [Clients - Web and Mobile Replicated]
         Web[Web App - apps/web]
-        iOS[iOS App - apps/mobile Capacitor]
-        Android[Android App - apps/mobile Capacitor]
+        iOS[iOS App - apps/mobile Expo]
+        Android[Android App - apps/mobile Expo]
     end
 
     subgraph api [Backend API - versioned /api/v1]
@@ -30,6 +30,7 @@ flowchart TB
         CheckIns[Check-ins and Reviews]
         Groups[Groups Service]
         Notifications[Notifications]
+        I18n[Languages and Translations]
     end
 
     subgraph data [Data]
@@ -47,6 +48,7 @@ flowchart TB
     Gateway --> CheckIns
     Gateway --> Groups
     Gateway --> Notifications
+    Gateway --> I18n
     Auth --> DB
     Places --> DB
     Places --> Geo
@@ -59,7 +61,7 @@ flowchart TB
 
 - **Clients:** Two frontend codebases kept in sync by convention and tooling:
   - **Web:** `apps/web` — React SPA (desktop + mobile web).
-  - **Mobile:** `apps/mobile` — Same UI and features replicated in a separate folder, wrapped with **Capacitor** for iOS/Android. A Cursor rules file enforces that UI and features are replicated in both web and mobile so they stay consistent; no shared `packages` folder (see repo layout below).
+  - **Mobile:** `apps/mobile` — **Expo (React Native)** app for iOS/Android. Same API and feature set as web; UI implemented with React Native and Expo. A Cursor rules file enforces feature parity between web and mobile; no shared `packages` folder (see repo layout below).
 - **Backend:** Single **versioned** API (e.g. `/api/v1/...`) talking to PostgreSQL, optional geo index, and file storage.
 
 ---
@@ -70,15 +72,15 @@ flowchart TB
 
 | Concern | Choice | Rationale |
 |--------|--------|-----------|
-| Framework | React 18+ | Matches design system (components, state), large ecosystem, works with Capacitor. |
+| Framework | React 18+ | Matches design system (components, state), large ecosystem. Web: Vite + React; mobile: Expo (React Native). |
 | Build | Vite | Fast dev and build for web. |
 | Styling | Tailwind CSS | Matches DESIGN_FILE.html (Tailwind, design tokens). |
-| Routing | React Router | SPA routing for web; same routes in Capacitor. |
+| Routing | React Router (web) / Expo Router or React Navigation (mobile) | SPA routing for web; stack/tab navigation for Expo. |
 | State | React Query + Context or Zustand | Server state (places, user, groups) + minimal client state. |
 | Forms/validation | React Hook Form + Zod | Registration, login, reviews, group creation. |
-| Maps | Mapbox GL JS or Leaflet | List + map view; same lib works on web and in Capacitor. |
-| Icons/fonts | Material Icons + Lexend | Per DESIGN_FILE. |
-| Native shell | Capacitor | One codebase → iOS/Android apps; access to camera, geolocation, push. |
+| Maps | Mapbox GL JS or Leaflet (web); react-native-maps or Expo map (mobile) | List + map view. |
+| Icons/fonts | Material Icons + Lexend (web); Expo vector icons or similar (mobile) | Per DESIGN_FILE. |
+| Native shell | Expo (React Native) | iOS/Android via Expo; access to camera, geolocation, push. |
 
 **Responsive strategy:** One layout with breakpoints (e.g. sm/md/lg) so the same components work on desktop and mobile web; bottom nav on mobile, optional sidebar/top nav on desktop.
 
@@ -86,7 +88,7 @@ flowchart TB
 
 | Concern | Choice | Rationale |
 |--------|--------|-----------|
-| Runtime | Python 3.11+ | Type hints, async support. |
+| Runtime | Python 3.14 (or 3.11+) | Type hints, async support. Use latest available (e.g. Homebrew on macOS). |
 | Framework | FastAPI | REST API, OpenAPI docs, Pydantic validation. |
 | Server | Uvicorn (ASGI) | Runs FastAPI. |
 | Database | PostgreSQL (or SQLite for local dev) | Relational data (users, places, check-ins, groups, reviews). |
@@ -101,14 +103,14 @@ flowchart TB
 pilgrimage-tracker/
 ├── apps/
 │   ├── web/                 # Vite React app (desktop + mobile web). Own api client, types, constants.
-│   └── mobile/              # Capacitor-wrapped React app. Replicated UI and features from web (no shared packages).
+│   └── mobile/              # Expo (React Native) app. Same API and features as web (no shared packages).
 ├── server/                  # Backend API (Python + FastAPI), versioned at /api/v1
 │   ├── app/
 │   │   ├── main.py          # FastAPI app, CORS, router includes
-│   │   ├── api/v1/          # Routers: auth, users, places, reviews, groups, notifications
+│   │   ├── api/v1/          # Routers: auth, users, places, reviews, groups, notifications, i18n
 │   │   ├── core/             # Config, security (JWT), dependencies
 │   │   ├── models/          # Pydantic schemas (request/response)
-│   │   └── db/              # Store or SQLAlchemy models
+│   │   └── db/              # Store or SQLAlchemy models; i18n (languages, translations); seed_data.json + seed.py
 │   ├── requirements.txt
 │   └── pyproject.toml       # Optional
 ├── .cursor/
@@ -119,9 +121,9 @@ pilgrimage-tracker/
 └── IMPLEMENTATION_PROMPTS.md
 ```
 
-**Why no shared `packages`:** Shared packages can be hard to maintain in production (e.g. build/deploy and import paths differ for web vs mobile). Instead, **replicate** frontend code in both `apps/web` and `apps/mobile`. Use a **Cursor rules file** (e.g. in `.cursor/rules/`) that states: *when adding or changing UI or features in one app (web or mobile), replicate the same UI and behavior in the other app so both stay in sync.* Business logic, screens, and design should be identical; only app-specific config (e.g. Capacitor plugins, env vars) may differ.
+**Why no shared `packages`:** Shared packages can be hard to maintain in production (e.g. build/deploy and import paths differ for web vs mobile). Instead, **replicate** frontend code in both `apps/web` and `apps/mobile`. Use a **Cursor rules file** (e.g. in `.cursor/rules/`) that states: *when adding or changing UI or features in one app (web or mobile), replicate the same UI and behavior in the other app so both stay in sync.* Business logic, screens, and design should be identical; only app-specific config (e.g. Expo config, env vars) may differ.
 
-**Capacitor:** `apps/mobile` is a full copy of the frontend (or mirrors web’s structure) and is built separately for iOS/Android. Both web and mobile call the same versioned API. Backend is Python + FastAPI; same API contract so frontends need no code changes.
+**Expo:** `apps/mobile` is an Expo (React Native) app built for iOS/Android. Both web and mobile call the same versioned API. Backend is Python + FastAPI; same API contract so frontends need no backend code changes.
 
 **Migration:** If the project was started with a Node.js/Express backend (e.g. after Prompts 1–3), see the "Migration: Node.js backend → Python/FastAPI" section in [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION_PROMPTS.md) for how to replace the backend with Python + FastAPI without changing the frontend.
 
@@ -158,6 +160,7 @@ All API routes are **versioned** under `/api/v1` (e.g. `/api/v1/places`). Paths 
 - **Favorites:** `POST/DELETE /api/v1/places/:placeCode/favorite`, `GET /api/v1/users/me/favorites`.
 - **Groups:** `GET /api/v1/groups`, `POST /api/v1/groups`, `GET /api/v1/groups/:groupCode`, `PATCH /api/v1/groups/:groupCode`, `POST /api/v1/groups/:groupCode/join`, `POST /api/v1/groups/:groupCode/invite`, `GET /api/v1/groups/:groupCode/members`, `GET /api/v1/groups/:groupCode/leaderboard`, `GET /api/v1/groups/:groupCode/activity`. Request/response bodies use `group_code`, `user_code`.
 - **Notifications:** `GET /api/v1/notifications`, `PATCH /api/v1/notifications/:notificationCode/read`.
+- **i18n (no auth):** `GET /api/v1/languages` (list of supported languages: code, name), `GET /api/v1/translations?lang=en|ar|hi` (key→value map; fallback to English for missing keys). User preference for language is stored in `GET/PATCH /api/v1/users/me/settings` (`language` field). Frontends use these endpoints for all customer-facing strings and set RTL when locale is Arabic.
 
 All authenticated routes use JWT in `Authorization: Bearer <token>`.
 
@@ -168,6 +171,7 @@ All authenticated routes use JWT in `Authorization: Bearer <token>`.
 - **Routes:** Splash → Login/Register → Religion selection (if new) → Home. Home (list/map), Place detail (by `placeCode`), Profile, Groups list, Group detail (by `groupCode`), Favorites, Settings, Notifications, Write review. Use the same route names and **codes** in both `apps/web` and `apps/mobile` (e.g. `/places/:placeCode`).
 - **Layout:** Responsive shell with bottom nav on small screens and optional top/side nav on large screens; safe-area padding for notched devices (as in DESIGN_FILE). Implement in both web and mobile.
 - **State:** Current user (and religion) in context/store; places, place detail, groups, and notifications via React Query (or similar) against a **local** API client in each app. Each app (`web`, `mobile`) has its own `api-client` and types; no shared packages.
+- **i18n:** Both web and mobile fetch languages and translations from the backend (`/api/v1/languages`, `/api/v1/translations?lang=`). Locale from user settings when logged in, else localStorage/AsyncStorage or browser. All customer-facing copy uses translation keys and `t(key)`. When locale is Arabic, set RTL (web: `document.documentElement.dir`; mobile: `I18nManager.forceRTL`).
 - **Design tokens:** Centralize Tailwind theme (primary, background-light, fonts, radii) to match DESIGN_FILE.html in **both** apps.
 - **Cursor rule:** A rule in `.cursor/rules/` must require that when adding or changing UI or features in `apps/web`, the same changes are replicated in `apps/mobile`, and vice versa, so the two codebases stay in sync.
 
@@ -177,8 +181,8 @@ All authenticated routes use JWT in `Authorization: Bearer <token>`.
 
 - **HTTPS only;** secure cookies or httpOnly refresh token if using cookie-based refresh.
 - **Rate limiting and validation** on auth and write endpoints.
-- **CORS** configured for web origin(s); Capacitor apps use same API origin.
-- **Deployment:** Backend on a VPS or PaaS (e.g. Railway, Render); DB managed (e.g. Supabase, Neon). Web app on Vercel/Netlify or same host as API. iOS/Android built via Capacitor and submitted to App Store / Play Store.
+- **CORS** configured for web origin(s); Expo app uses same API origin.
+- **Deployment:** Backend on a VPS or PaaS (e.g. Railway, Render); DB managed (e.g. Supabase, Neon). Web app on Vercel/Netlify or same host as API. iOS/Android built via Expo (EAS or local) and submitted to App Store / Play Store.
 
 ---
 

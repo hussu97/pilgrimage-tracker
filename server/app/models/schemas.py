@@ -86,6 +86,7 @@ class SettingsBody(BaseModel):
     notifications_on: Optional[bool] = None
     theme: Optional[str] = None  # light, dark, system
     units: Optional[str] = None  # km, miles
+    language: Optional[str] = None  # en, ar, hi
 
 
 # Place list item (with optional distance)

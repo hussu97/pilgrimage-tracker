@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useI18n } from '@/context/I18nContext';
 import { getPlaces } from '@/api/client';
 import type { Place } from '@/types';
 
@@ -50,15 +51,12 @@ function SimpleMap({
   );
 }
 
-const FILTER_CHIPS = [
-  { id: '', label: 'Nearby' },
-  { id: 'mosque', label: 'Mosque' },
-  { id: 'temple', label: 'Temple' },
-  { id: 'church', label: 'Church' },
-];
+const FILTER_CHIP_IDS = ['', 'mosque', 'temple', 'church'] as const;
+const FILTER_LABEL_KEYS = ['home.nearby', 'home.mosque', 'home.temple', 'home.church'] as const;
 
 export default function Home() {
   const { user, logout } = useAuth();
+  const { t } = useI18n();
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -81,9 +79,9 @@ export default function Home() {
       radius: 100,
     })
       .then(setPlaces)
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load places'))
+      .catch((err) => setError(err instanceof Error ? err.message : t('common.error')))
       .finally(() => setLoading(false));
-  }, [user?.religion, searchQuery, placeTypeFilter]);
+  }, [user?.religion, searchQuery, placeTypeFilter, t]);
 
   useEffect(() => {
     const t = setTimeout(() => setSearchQuery(searchInput), 400);
@@ -104,10 +102,10 @@ export default function Home() {
       radius: 100,
     })
       .then((data) => { if (!cancelled) setPlaces(data); })
-      .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load places'); })
+      .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : t('common.error')); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [user?.religion, searchQuery, placeTypeFilter]);
+  }, [user?.religion, searchQuery, placeTypeFilter, t]);
 
   if (!user) return null;
   if (!user.religion) {
@@ -119,7 +117,7 @@ export default function Home() {
   return (
     <div className="max-w-md mx-auto px-5 py-6 md:max-w-4xl">
       <header className="mb-6">
-        <p className="text-sm text-primary font-medium uppercase tracking-wide mb-1">Explore</p>
+        <p className="text-sm text-primary font-medium uppercase tracking-wide mb-1">{t('nav.explore')}</p>
         <h1 className="text-2xl font-semibold text-text-main">
           {greeting},<br />{user.display_name}
         </h1>
@@ -134,7 +132,7 @@ export default function Home() {
           }`}
         >
           <span className="material-symbols-outlined text-lg">list</span>
-          List
+          {t('home.list')}
         </button>
         <button
           type="button"
@@ -144,7 +142,7 @@ export default function Home() {
           }`}
         >
           <span className="material-symbols-outlined text-lg">map</span>
-          Map
+          {t('home.map')}
         </button>
       </div>
 
@@ -152,44 +150,44 @@ export default function Home() {
         <span className="material-icons absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden>search</span>
         <input
           type="search"
-          placeholder="Find a place..."
+          placeholder={t('home.findPlace')}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-input-border rounded-xl text-sm"
-          aria-label="Search places"
+          className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-input-border rounded-xl text-sm"
+          aria-label={t('places.search')}
         />
       </div>
 
       <div className="flex gap-3 overflow-x-auto pb-2 mb-4">
-        {FILTER_CHIPS.map((chip) => (
+        {FILTER_CHIP_IDS.map((id, i) => (
           <button
-            key={chip.id || 'all'}
+            key={id || 'all'}
             type="button"
-            onClick={() => setPlaceTypeFilter(chip.id)}
+            onClick={() => setPlaceTypeFilter(id)}
             className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap ${
-              placeTypeFilter === chip.id ? 'bg-primary text-white' : 'bg-white border border-gray-200 text-gray-600'
+              placeTypeFilter === id ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300'
             }`}
           >
-            {chip.label}
+            {t(FILTER_LABEL_KEYS[i])}
           </button>
         ))}
       </div>
 
       {viewMode === 'list' && (
         <>
-          {loading && <p className="text-text-muted py-8">Loading places...</p>}
+          {loading && <p className="text-text-muted py-8">{t('home.loadingPlaces')}</p>}
           {error && (
             <div className="py-4">
               <p className="text-red-600 mb-2">{error}</p>
-              <button type="button" onClick={fetchPlaces} className="text-primary font-medium">Retry</button>
+              <button type="button" onClick={fetchPlaces} className="text-primary font-medium">{t('common.retry')}</button>
             </div>
           )}
           {!loading && !error && places.length === 0 && (
-            <div className="text-center py-12 bg-gray-50 rounded-2xl border border-gray-100">
+            <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
               <span className="material-symbols-outlined text-5xl text-gray-300 mb-3">explore</span>
-              <p className="text-text-muted mb-2">No places found</p>
-              <p className="text-sm text-text-muted mb-4">Try a different search or filter.</p>
-              <button type="button" onClick={() => { setSearchInput(''); setPlaceTypeFilter(''); }} className="text-primary font-medium">Clear filters</button>
+              <p className="text-text-muted mb-2">{t('home.noPlacesFound')}</p>
+              <p className="text-sm text-text-muted mb-4">{t('places.search')}</p>
+              <button type="button" onClick={() => { setSearchInput(''); setPlaceTypeFilter(''); }} className="text-primary font-medium">{t('home.clearFilters')}</button>
             </div>
           )}
           {!loading && !error && places.length > 0 && (
@@ -228,7 +226,7 @@ export default function Home() {
                         <span className="font-bold text-gray-700">4.9</span>
                         <span className="text-gray-400">(mock)</span>
                       </span>
-                      <span className="text-xs font-medium text-primary uppercase">View Details</span>
+                      <span className="text-xs font-medium text-primary uppercase">{t('places.detail')}</span>
                     </div>
                   </div>
                 </Link>
@@ -243,7 +241,7 @@ export default function Home() {
           <div className="h-80 relative">
             {places.length === 0 && !loading && (
               <div className="absolute inset-0 flex items-center justify-center text-text-muted">
-                No places to show on map
+                {t('home.noPlacesFound')}
               </div>
             )}
             {places.length > 0 && (
@@ -263,7 +261,7 @@ export default function Home() {
                 <p className="text-xs text-text-muted">{selectedPlace.distance != null ? `${selectedPlace.distance} km` : selectedPlace.address}</p>
               </div>
               <Link to={`/places/${selectedPlace.place_code}`} className="py-2 px-4 rounded-xl bg-primary text-white text-sm font-medium">
-                View details
+                {t('places.detail')}
               </Link>
             </div>
           )}
@@ -271,7 +269,7 @@ export default function Home() {
       )}
 
       <p className="mt-8 text-sm text-text-muted">
-        <button type="button" onClick={() => logout()} className="text-primary">Log out</button>
+        <button type="button" onClick={() => logout()} className="text-primary">{t('auth.logout')}</button>
       </p>
     </div>
   );

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useI18n } from '@/context/I18nContext';
 import { getGroup, getGroupLeaderboard, getGroupActivity } from '@/api/client';
 import type { Group, LeaderboardEntry, ActivityItem } from '@/types';
 
 export default function GroupDetail() {
   const { groupCode } = useParams<{ groupCode: string }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [group, setGroup] = useState<Group | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
@@ -28,10 +30,10 @@ export default function GroupDetail() {
           setActivity(act);
         }
       })
-      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load'); })
+      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : t('common.error')); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [groupCode]);
+  }, [groupCode, t]);
 
   const copyInviteLink = () => {
     if (!group) return;
@@ -39,8 +41,8 @@ export default function GroupDetail() {
     navigator.clipboard.writeText(url);
   };
 
-  if (loading) return <div className="max-w-md mx-auto px-5 py-8 text-text-muted">Loading...</div>;
-  if (error || !group) return <div className="max-w-md mx-auto px-5 py-8 text-red-600">{error || 'Group not found'}</div>;
+  if (loading) return <div className="max-w-md mx-auto px-5 py-8 text-text-muted">{t('common.loading')}</div>;
+  if (error || !group) return <div className="max-w-md mx-auto px-5 py-8 text-red-600">{error || t('common.error')}</div>;
 
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3, 10);
@@ -48,22 +50,22 @@ export default function GroupDetail() {
   return (
     <div className="max-w-md mx-auto px-5 py-6 pb-24">
       <div className="flex items-center gap-3 mb-6">
-        <button type="button" onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-100" aria-label="Back">
+        <button type="button" onClick={() => navigate(-1)} className="p-2 rounded-full hover:bg-gray-100" aria-label={t('common.back')}>
           <span className="material-icons">arrow_back</span>
         </button>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-text-main">{group.name}</h1>
-          <p className="text-sm text-text-muted">{group.member_count ?? 0} members</p>
+          <p className="text-sm text-text-muted">{group.member_count ?? 0} {t('groups.members')}</p>
         </div>
         <button type="button" onClick={copyInviteLink} className="py-2 px-4 rounded-xl bg-primary text-white text-sm font-medium">
-          Invite
+          {t('groups.inviteCode')}
         </button>
       </div>
 
       {group.description && <p className="text-sm text-text-muted mb-6">{group.description}</p>}
 
       <section className="mb-6">
-        <h2 className="text-sm font-semibold text-text-main mb-3">Leaderboard</h2>
+        <h2 className="text-sm font-semibold text-text-main mb-3">{t('groups.leaderboard')}</h2>
         {top3.length > 0 ? (
           <>
             <div className="flex justify-center items-end gap-2 mb-4">
@@ -90,7 +92,7 @@ export default function GroupDetail() {
               )}
             </div>
             <ul className="space-y-2">
-              {rest.map((e, i) => (
+              {rest.map((e) => (
                 <li key={e.user_code} className="flex items-center gap-3 py-2 border-b border-gray-100 last:border-0">
                   <span className="text-sm font-bold text-gray-400 w-6">{e.rank}</span>
                   <span className="flex-1 font-medium text-text-main">{e.display_name}</span>
@@ -105,7 +107,7 @@ export default function GroupDetail() {
       </section>
 
       <section>
-        <h2 className="text-sm font-semibold text-text-main mb-3">Recently visited</h2>
+        <h2 className="text-sm font-semibold text-text-main mb-3">{t('groups.activity')}</h2>
         {activity.length > 0 ? (
           <ul className="space-y-3">
             {activity.map((a, i) => (

@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { resetPassword } from '@/api/client';
+import { useI18n } from '@/context/I18nContext';
 
 export default function ResetPassword() {
+  const { t } = useI18n();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') ?? '';
   const [password, setPassword] = useState('');
@@ -14,39 +16,39 @@ export default function ResetPassword() {
     e.preventDefault();
     setError('');
     if (password !== confirm) {
-      setError('Passwords do not match');
+      setError(t('auth.passwordsDoNotMatch'));
       return;
     }
     if (!token) {
-      setError('Missing reset token');
+      setError(t('errors.missingToken'));
       return;
     }
     try {
       await resetPassword(token, password);
       setDone(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Reset failed');
+      setError(err instanceof Error ? err.message : t('errors.invalidOrExpiredToken'));
     }
   }
 
   if (done) {
     return (
       <div className="max-w-md mx-auto px-6 py-8">
-        <h1 className="text-2xl font-bold text-text-main mb-2">Password reset</h1>
-        <p className="text-text-muted mb-6">Your password has been updated. You can now log in.</p>
-        <Link to="/login" className="text-primary font-medium">Log In</Link>
+        <h1 className="text-2xl font-bold text-text-main mb-2">{t('auth.resetPassword')}</h1>
+        <p className="text-text-muted mb-6">{t('auth.passwordUpdated')}</p>
+        <Link to="/login" className="text-primary font-medium">{t('auth.login')}</Link>
       </div>
     );
   }
 
   return (
     <div className="max-w-md mx-auto px-6 py-8">
-      <h1 className="text-2xl font-bold text-text-main mb-2">Set new password</h1>
-      <p className="text-text-muted mb-6">Enter your new password below.</p>
+      <h1 className="text-2xl font-bold text-text-main mb-2">{t('auth.setNewPassword')}</h1>
+      <p className="text-text-muted mb-6">{t('auth.enterNewPassword')}</p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="password"
-          placeholder="New password"
+          placeholder={t('auth.newPassword')}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="w-full px-4 py-3 border border-input-border rounded-xl"
@@ -55,7 +57,7 @@ export default function ResetPassword() {
         />
         <input
           type="password"
-          placeholder="Confirm password"
+          placeholder={t('auth.confirmPassword')}
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           className="w-full px-4 py-3 border border-input-border rounded-xl"
@@ -63,10 +65,10 @@ export default function ResetPassword() {
         />
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <button type="submit" className="w-full bg-primary text-white py-3 rounded-xl font-semibold">
-          Reset password
+          {t('auth.resetPassword')}
         </button>
       </form>
-      <Link to="/login" className="block mt-6 text-center text-sm text-text-muted">Back to Log In</Link>
+      <Link to="/login" className="block mt-6 text-center text-sm text-text-muted">{t('auth.backToLogin')}</Link>
     </div>
   );
 }

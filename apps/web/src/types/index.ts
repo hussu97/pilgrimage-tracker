@@ -103,4 +103,5 @@ export interface UserSettings {
   notifications_on?: boolean;
   theme?: string;
   units?: string;
+  language?: string;
 }

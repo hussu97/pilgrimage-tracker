@@ -132,4 +132,6 @@ def update_user_settings(user_code: str, **kwargs) -> dict:
         s["theme"] = kwargs["theme"]
     if "units" in kwargs:
         s["units"] = kwargs["units"]
+    if "language" in kwargs:
+        s["language"] = kwargs["language"]
     return dict(s)

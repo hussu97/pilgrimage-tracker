@@ -39,12 +39,26 @@ coverage/
 .nyc_output/
 *.lcov
 
-# Capacitor (when added)
-apps/mobile/ios/App/Pods/
-apps/mobile/android/.gradle/
-apps/mobile/android/app/build/
-apps/mobile/android/build/
-apps/mobile/ios/App/build/
+# Expo
+.expo/
+apps/mobile/.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+*.egg
+.ruff_cache/
 
 # Optional: local DB or uploads (uncomment if used)
 # server/data/

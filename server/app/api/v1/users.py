@@ -118,4 +118,6 @@ def update_my_settings(body: SettingsBody, user: Annotated[any, Depends(get_curr
         kwargs["theme"] = body.theme
     if body.units is not None:
         kwargs["units"] = body.units
+    if body.language is not None:
+        kwargs["language"] = body.language
     return store.update_user_settings(user.user_code, **kwargs)

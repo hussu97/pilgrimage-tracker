@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { I18nProvider } from './context/I18nContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import Splash from './pages/Splash';
@@ -24,6 +25,7 @@ import Notifications from './pages/Notifications';
 export default function App() {
   return (
     <AuthProvider>
+      <I18nProvider>
       <Layout>
         <Routes>
           <Route path="/" element={<Splash />} />
@@ -47,6 +49,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
+      </I18nProvider>
     </AuthProvider>
   );
 }

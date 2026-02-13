@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useI18n } from '@/context/I18nContext';
 import { getNotifications, markNotificationRead } from '@/api/client';
 import type { Notification } from '@/types';
 
 export default function Notifications() {
+  const { t } = useI18n();
   const [data, setData] = useState<{ notifications: Notification[]; unread_count: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -11,7 +13,7 @@ export default function Notifications() {
   const load = () => {
     getNotifications(50, 0)
       .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
+      .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
   };
 
@@ -37,17 +39,17 @@ export default function Notifications() {
   return (
     <div className="max-w-md mx-auto px-5 py-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-text-main">Notifications</h1>
-        <Link to="/settings" className="text-sm text-primary">Settings</Link>
+        <h1 className="text-xl font-bold text-text-main">{t('notifications.title')}</h1>
+        <Link to="/settings" className="text-sm text-primary">{t('nav.settings')}</Link>
       </div>
 
-      {loading && <p className="text-text-muted">Loading...</p>}
+      {loading && <p className="text-text-muted">{t('common.loading')}</p>}
       {error && <p className="text-red-600 mb-4">{error}</p>}
 
       {!loading && data?.notifications.length === 0 && (
-        <div className="text-center py-12 bg-gray-50 rounded-2xl border border-gray-100">
+        <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
           <span className="material-symbols-outlined text-5xl text-gray-300 mb-3">notifications</span>
-          <p className="text-text-muted">No notifications yet</p>
+          <p className="text-text-muted">{t('notifications.empty')}</p>
         </div>
       )}
 

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useI18n } from '@/context/I18nContext';
 import { joinGroupByCode, getGroupByInviteCode } from '@/api/client';
 
 export default function JoinGroup() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const code = searchParams.get('code');
   const [groupName, setGroupName] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
@@ -64,12 +66,12 @@ export default function JoinGroup() {
 
   return (
     <div className="max-w-md mx-auto px-5 py-12">
-      <h1 className="text-xl font-bold text-text-main mb-2">Join group</h1>
+      <h1 className="text-xl font-bold text-text-main mb-2">{t('groups.joinGroup')}</h1>
       {groupName && <p className="text-text-muted mb-6">You've been invited to join <strong>{groupName}</strong>.</p>}
       {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
       <div className="flex gap-3">
-        <button type="button" onClick={() => navigate('/groups')} className="flex-1 py-3 rounded-xl border border-gray-200 text-text-main font-medium">Decline</button>
-        <button type="button" onClick={handleJoin} disabled={joining} className="flex-1 py-3 rounded-xl bg-primary text-white font-medium disabled:opacity-50">{joining ? 'Joining...' : 'Join'}</button>
+        <button type="button" onClick={() => navigate('/groups')} className="flex-1 py-3 rounded-xl border border-gray-200 text-text-main font-medium">{t('common.cancel')}</button>
+        <button type="button" onClick={handleJoin} disabled={joining} className="flex-1 py-3 rounded-xl bg-primary text-white font-medium disabled:opacity-50">{joining ? t('common.loading') : t('groups.joinGroup')}</button>
       </div>
     </div>
   );

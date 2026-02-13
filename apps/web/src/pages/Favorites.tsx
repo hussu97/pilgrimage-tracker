@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useI18n } from '@/context/I18nContext';
 import { getMyFavorites } from '@/api/client';
 import type { Place } from '@/types';
 
 export default function Favorites() {
+  const { t } = useI18n();
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -13,40 +15,40 @@ export default function Favorites() {
     setError('');
     getMyFavorites()
       .then(setPlaces)
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load'))
+      .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     getMyFavorites()
       .then((data) => { if (!cancelled) setPlaces(data); })
-      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load'); })
+      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : t('common.error')); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [t]);
 
   return (
     <div className="max-w-md mx-auto px-5 py-6 md:max-w-4xl">
       <header className="mb-6">
-        <p className="text-sm text-primary font-medium uppercase tracking-wide mb-1">Saved</p>
-        <h1 className="text-2xl font-semibold text-text-main">Favorites</h1>
+        <p className="text-sm text-primary font-medium uppercase tracking-wide mb-1">{t('nav.saved')}</p>
+        <h1 className="text-2xl font-semibold text-text-main">{t('favorites.title')}</h1>
       </header>
 
-      {loading && <p className="text-text-muted">Loading...</p>}
+      {loading && <p className="text-text-muted">{t('common.loading')}</p>}
       {error && (
         <div className="py-4">
           <p className="text-red-600 mb-2">{error}</p>
-          <button type="button" onClick={fetchFavorites} className="text-primary font-medium">Retry</button>
+          <button type="button" onClick={fetchFavorites} className="text-primary font-medium">{t('common.retry')}</button>
         </div>
       )}
       {!loading && !error && places.length === 0 && (
-        <div className="text-center py-12 bg-gray-50 rounded-2xl border border-gray-100">
+        <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
           <span className="material-symbols-outlined text-5xl text-gray-300 mb-3">bookmark</span>
-          <p className="text-text-muted mb-2">No saved places</p>
-          <p className="text-sm text-text-muted mb-4">Add places from their detail screen.</p>
-          <Link to="/home" className="inline-block py-2 px-4 rounded-xl bg-primary text-white text-sm font-medium">Explore places</Link>
+          <p className="text-text-muted mb-2">{t('favorites.empty')}</p>
+          <p className="text-sm text-text-muted mb-4">{t('home.explorePlaces')}</p>
+          <Link to="/home" className="inline-block py-2 px-4 rounded-xl bg-primary text-white text-sm font-medium">{t('profile.exploreCta')}</Link>
         </div>
       )}
       {!loading && !error && places.length > 0 && (

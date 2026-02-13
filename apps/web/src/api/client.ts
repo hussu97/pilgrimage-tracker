@@ -2,6 +2,23 @@ import type { Place, PlaceDetail, User, Religion, Review, ReviewsResponse, Check
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
+export interface LanguageOption {
+  code: string;
+  name: string;
+}
+
+export async function getLanguages(): Promise<LanguageOption[]> {
+  const res = await fetch(`${API_BASE}/api/v1/languages`);
+  if (!res.ok) throw new Error('Failed to fetch languages');
+  return res.json();
+}
+
+export async function getTranslations(lang: string): Promise<Record<string, string>> {
+  const res = await fetch(`${API_BASE}/api/v1/translations?lang=${encodeURIComponent(lang)}`);
+  if (!res.ok) throw new Error('Failed to fetch translations');
+  return res.json();
+}
+
 function getToken(): string | null {
   return localStorage.getItem('token');
 }

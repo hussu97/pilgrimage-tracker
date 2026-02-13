@@ -1,8 +1,15 @@
-# Pilgrimage Tracker – Mobile app
+# Pilgrimage Tracker – Mobile app (Expo)
 
-Vite + React + TypeScript + Tailwind frontend for Pilgrimage Tracker, intended to be wrapped with **Capacitor** for iOS and Android. Same UI and features as `apps/web`; the two codebases are replicated (see `.cursor/rules/frontend-replication.mdc`).
+Expo (React Native) app for Pilgrimage Tracker. Builds for iOS and Android. Uses the same API as the web app; feature parity with `apps/web` is maintained (see `.cursor/rules/frontend-replication.mdc`).
 
-## Run locally (web preview)
+## Prerequisites
+
+- Node.js 18+
+- iOS: Xcode (for simulator or device)
+- Android: Android Studio / SDK (for emulator or device)
+- Optional: [Expo Go](https://expo.dev/go) on a device for quick testing
+
+## Run
 
 From **repo root**:
 
@@ -11,40 +18,45 @@ npm install
 npm run dev:mobile
 ```
 
-Runs at `http://localhost:5174` (or next free port). Set **`VITE_API_URL`** if the backend is not at `http://localhost:3000`, or configure the proxy in `vite.config.ts`.
-
 From this directory:
 
 ```bash
 npm install
-npm run dev
+npx expo start
 ```
 
-## Build for web
+Then press `i` for iOS simulator, `a` for Android emulator, or scan the QR code with Expo Go.
+
+## Build for iOS/Android
+
+**Development build (local):**
 
 ```bash
-npm run build
+npx expo run:ios
+# or
+npx expo run:android
 ```
 
-Output: `dist/`. Set `VITE_API_URL` for production API when building.
-
-## Build for iOS/Android (Capacitor)
-
-After adding Capacitor to the project:
+**Production build (EAS Build):**
 
 ```bash
-npm run build
-npx cap sync
-npx cap open ios    # or: cap open android
+npm install -g eas-cli
+eas build --platform ios
+eas build --platform android
 ```
 
-Build and run from Xcode or Android Studio. Configure the production API URL in app config or env (e.g. `VITE_API_URL`) before building.
+Configure `app.json` / `app.config.js` (icons, splash, scheme). Submit to App Store / Play Store using EAS Submit or manually.
 
 ## Environment
 
-- **`VITE_API_URL`** – Base URL of the API. Required when not using the default dev proxy.
+- **`EXPO_PUBLIC_API_URL`** – Base URL of the API (e.g. `http://localhost:3000` for dev, or your production API URL). Use in API client for all requests.
 
 ## Structure
 
-- `src/` – Same structure as `apps/web`: pages, components, API client, types.
-- API client calls `/api/v1/*`. Design reference: `DESIGN_FILE.html` at repo root.
+- `App.js` – Root component.
+- `app.json` – Expo config (name, slug, version, etc.).
+- `api/` – API client (e.g. `getLanguages`, `getTranslations` for i18n; add other endpoints to match web).
+- `context/` – React context (e.g. `I18nContext` for locale and `t(key)`).
+- `screens/` – Screen components (e.g. `SettingsScreen` with language picker; add auth, home, places, groups, profile to match web flows).
+
+Design reference: `DESIGN_FILE.html` at repo root. Use the same translation keys and API shapes as `apps/web` (see `.cursor/rules/i18n-translations.mdc` and `.cursor/rules/frontend-replication.mdc`).

@@ -12,6 +12,6 @@ alwaysApply: true
 1. **Root [README.md](README.md)** – Overview of the monorepo: what the project is, structure (`server/`, `apps/web/`, `apps/mobile/`), prerequisites, how to set up and run backend and frontends locally, env vars, and links to ARCHITECTURE.md and other docs.
 2. **Backend [server/README.md](server/README.md)** – What the server is (FastAPI, Python), how to install dependencies and run it (e.g. venv + uvicorn), main env vars, and how to hit the API (health, versioned routes).
 3. **Web app [apps/web/README.md](apps/web/README.md)** – What the web app is (Vite + React), how to install and run (e.g. npm/pnpm), env (e.g. VITE_API_URL), and how it talks to the backend.
-4. **Mobile app [apps/mobile/README.md](apps/mobile/README.md)** – What the mobile app is (same stack, Capacitor-ready), how to install and run, env, and how to build for iOS/Android when applicable.
+4. **Mobile app [apps/mobile/README.md](apps/mobile/README.md)** – What the mobile app is (Expo / React Native), how to install and run, env, and how to build for iOS/Android with Expo.
 
 When you add or change setup steps, scripts, or environment variables, update the relevant README(s) so the docs stay accurate.

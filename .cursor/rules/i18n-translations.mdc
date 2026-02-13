@@ -1,17 +1,18 @@
 ---
-description: Customer-facing strings from backend; English and Arabic with fallback to English
+description: Customer-facing strings from backend; English, Arabic, Hindi with fallback to English
 globs: apps/web/**/*,apps/mobile/**/*,server/**/*
 alwaysApply: false
 ---
 
 # Internationalization (i18n) and translations
 
-**Rule:** Any **customer-facing frontend strings** must be **translated from the backend**. The system must support **English** and **Arabic**, and **fall back to English** when Arabic is not available.
+**Rule:** Any **customer-facing frontend strings** must be **translated from the backend**. The system supports **English**, **Arabic**, and **Hindi**. The **language list** and all **translations** come from the backend (e.g. `GET /api/v1/languages`, `GET /api/v1/translations?lang=en|ar|hi`). **Fall back to English** when a key is missing for the requested language.
 
 **Implementation direction:**
 
-- **Backend:** Expose translations (e.g. `GET /api/v1/translations?lang=en` or `?lang=ar`). Return a JSON map of keys to localized strings. Include all UI strings used by the frontend (labels, buttons, errors, empty states). English is the default/source; Arabic is optional per key with fallback to English.
-- **Frontend:** Do not hardcode customer-facing copy. Fetch translations for the user’s locale (e.g. from preference or Accept-Language). Use translation keys in the UI and resolve them via the fetched map. If a key is missing for Arabic, use the English value.
-- **Scope:** “Customer-facing” means any text shown to the end user (labels, messages, placeholders, errors). Developer-only strings (e.g. log messages, comments) need not go through the translation API.
+- **Backend:** Expose supported languages (`GET /api/v1/languages`) and translations (`GET /api/v1/translations?lang=...`). Return a JSON map of keys to localized strings. Include all UI strings used by the frontend (labels, buttons, errors, empty states). English is the default/source; Arabic and Hindi values are provided per key with fallback to English when missing.
+- **Frontend (web and mobile):** Do not hardcode customer-facing copy. Fetch the language list and translations for the user’s locale (from user settings when logged in, or localStorage/AsyncStorage, or Accept-Language). Use translation keys in the UI and resolve them via the fetched map. If a key is missing for the requested language, the API returns the English value.
+- **RTL:** When the locale is Arabic (`ar`), set RTL (e.g. `document.documentElement.dir = 'rtl'` on web; `I18nManager.forceRTL(true)` on React Native).
+- **Scope:** “Customer-facing” means any text shown to the end user (labels, messages, placeholders, errors). Developer-only strings need not go through the translation API.
 
-When adding or changing UI copy, add or update the corresponding keys and values (at least English; add Arabic when available) in the backend translation source and ensure the frontend uses the translation layer.
+When adding or changing UI copy, add or update the corresponding keys and values for **en**, **ar**, and **hi** in the backend seed/translation source and ensure the frontend uses the translation layer (`t('key')`).

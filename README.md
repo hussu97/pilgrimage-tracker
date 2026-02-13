@@ -1,18 +1,18 @@
 # Pilgrimage Tracker
 
-Discover, visit, and track religious places. Multi-platform: desktop web, mobile web, and (via Capacitor) iOS/Android.
+Discover, visit, and track religious places. Multi-platform: desktop web, mobile web, and (via Expo) iOS/Android.
 
 ## Structure
 
 - **`server/`** – Backend API (**Python + FastAPI**). Versioned at `/api/v1`. See [server/README.md](server/README.md).
 - **`apps/web/`** – Web app (Vite + React + Tailwind). Desktop and mobile browser.
-- **`apps/mobile/`** – Mobile app (same stack). Replicated UI; add Capacitor for iOS/Android builds.
+- **`apps/mobile/`** – Mobile app (Expo / React Native). iOS and Android builds via Expo; same API as web.
 
 Both frontend apps use the **same API base URL** for `/api/v1`. No shared `packages/` folder; each app has its own types and API client. See [ARCHITECTURE.md](ARCHITECTURE.md) and [.cursor/rules/frontend-replication.mdc](.cursor/rules/frontend-replication.mdc).
 
 ## Prerequisites
 
-- **Backend:** Python 3.9+ (3.11+ recommended)
+- **Backend:** Python 3.14 (or 3.11+). On macOS with Homebrew: `brew install python` for the latest; use `python3 -m venv .venv` in `server/` to create the virtual environment.
 - **Frontend:** Node.js 18+, npm (or pnpm/yarn)
 
 ## Setup
@@ -21,7 +21,7 @@ Both frontend apps use the **same API base URL** for `/api/v1`. No shared `packa
 
 ```bash
 cd server
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate   # or .venv\Scripts\activate on Windows
 pip install -r requirements.txt
 ```
@@ -40,7 +40,7 @@ npm install
 cd server && source .venv/bin/activate && uvicorn app.main:app --reload --port 3000
 ```
 
-Runs at `http://localhost:3000`. Health: `GET /health`. API: `/api/v1/places`, `/api/v1/auth/*`, `/api/v1/users/me`, etc.
+Runs at `http://127.0.0.1:3000`. Health: `GET /health`. API: `/api/v1/places`, `/api/v1/auth/*`, `/api/v1/users/me`, etc.
 
 **Web app:**
 
@@ -48,20 +48,21 @@ Runs at `http://localhost:3000`. Health: `GET /health`. API: `/api/v1/places`, `
 npm run dev:web
 ```
 
-Runs at `http://localhost:5173`. Proxies `/api` to the server when server is on port 3000.
+Runs at **http://127.0.0.1:5173**. Open that URL (use `127.0.0.1`—not `localhost`—on macOS to avoid IPv6 and pending API requests). Proxies `/api` to the server when server is on port 3000.
 
-**Mobile app (same UI, different port):**
+**Mobile app (Expo):**
 
 ```bash
 npm run dev:mobile
 ```
 
-Runs at `http://localhost:5174`. Set `VITE_API_URL=http://localhost:3000` if not using proxy, or configure proxy in `apps/mobile/vite.config.ts`.
+Starts the Expo dev server. Run on iOS simulator, Android emulator, or device via Expo Go; or use `npx expo run:ios` / `npx expo run:android` from `apps/mobile`. Set `EXPO_PUBLIC_API_URL` to the API base URL (e.g. `http://127.0.0.1:3000`) when needed. Use `127.0.0.1`—not `localhost`—on macOS to avoid IPv6 issues. See [apps/mobile/README.md](apps/mobile/README.md).
 
 ## Environment
 
 - **Server:** `JWT_SECRET`, `PORT` (default 3000). See `server/README.md`.
-- **Web/Mobile:** `VITE_API_URL` – API base URL. Leave unset when using Vite proxy to `http://localhost:3000`.
+- **Web:** `VITE_API_URL` – API base URL. Leave unset when using Vite proxy to `http://localhost:3000`.
+- **Mobile:** `EXPO_PUBLIC_API_URL` – API base URL for the Expo app (e.g. `http://localhost:3000`).
 
 ## Docs
 

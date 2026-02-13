@@ -2,7 +2,7 @@
 
 This document outlines how to deploy Pilgrimage Tracker to production. **Update the relevant plan(s) whenever deployment-relevant changes are made** (e.g. new env vars, new services, build steps).
 
-Current system: **Backend** (Python FastAPI in `server/`), **Web app** (Vite + React in `apps/web/`), **Mobile app** (Vite + React + Capacitor in `apps/mobile/`). API is versioned at `/api/v1`. For production, replace in-memory stores with PostgreSQL (and optional file storage).
+Current system: **Backend** (Python FastAPI in `server/`), **Web app** (Vite + React in `apps/web/`), **Mobile app** (Expo / React Native in `apps/mobile/`). API is versioned at `/api/v1`. For production, replace in-memory stores with PostgreSQL (and optional file storage).
 
 ---
 
@@ -13,7 +13,7 @@ Deploy using Docker and Docker Compose.
 ### Backend (API)
 
 - **Dockerfile** (in `server/` or repo root):
-  - Base image: `python:3.11-slim`.
+  - Base image: `python:3.14-slim` (or `python:3.12-slim` if 3.14 is unavailable in your registry).
   - Copy `server/` (or `app/`), install deps from `requirements.txt`.
   - Run: `uvicorn app.main:app --host 0.0.0.0 --port 3000`.
 - **Environment:** `JWT_SECRET`, `DATABASE_URL` (PostgreSQL), optional `PORT`. For production DB, use a real connection string; do not use in-memory store.
@@ -32,7 +32,7 @@ Deploy using Docker and Docker Compose.
 
 ### Mobile app
 
-- Not run in Docker. Build locally or in CI: `cd apps/mobile && npm run build && npx cap sync`. Use Capacitor to build iOS/Android artifacts and submit to App Store / Play Store. Set API URL in app config or env (e.g. `VITE_API_URL`) to production API.
+- Not run in Docker. Build locally or in CI: `cd apps/mobile && npx expo export` then build with EAS Build or `expo run:ios` / `expo run:android`. Submit to App Store / Play Store. Set API URL in app config or env (e.g. `EXPO_PUBLIC_API_URL`) to production API.
 
 ### Updates
 
@@ -65,7 +65,7 @@ Deploy backend and web on free-tier or low-cost services; use a free or cheap Po
 
 ### Mobile app
 
-- Build locally or in CI (e.g. GitHub Actions). Set `VITE_API_URL` to production API. Build iOS/Android with Capacitor and submit to stores.
+- Build locally or in CI (e.g. GitHub Actions). Set `EXPO_PUBLIC_API_URL` to production API. Build iOS/Android with Expo (EAS or local) and submit to stores.
 
 ### Updates
 
@@ -95,7 +95,7 @@ Deploy using GCP services.
 
 ### Mobile app
 
-- Build with Capacitor; set `VITE_API_URL` to Cloud Run (or API URL). Submit to App Store / Play Store. Optional: use Firebase App Distribution for beta.
+- Build with Expo (EAS or local); set `EXPO_PUBLIC_API_URL` to Cloud Run (or API URL). Submit to App Store / Play Store. Optional: use EAS Update or Firebase App Distribution for beta.
 
 ### Optional GCP services
 

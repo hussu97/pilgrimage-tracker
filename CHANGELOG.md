@@ -4,6 +4,83 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Multi-language support (en / ar / hi) and central seed
+
+**Done when:** Backend serves languages and translations; user language in settings; one seed file populates all in-memory data; web and mobile use `t(key)` with RTL for Arabic.
+
+### Backend
+
+- **i18n:** `GET /api/v1/languages` and `GET /api/v1/translations?lang=` (no auth). In-memory store in `app/db/i18n.py`; fallback to English for missing keys.
+- **User settings:** Optional `language` (en, ar, hi) on `GET/PATCH /api/v1/users/me/settings`.
+- **Central seed:** Single `app/db/seed_data.json` with languages, translations (en, ar, hi), users, places, groups, reviews, check_ins, notifications, favorites. `app/db/seed.py` runs on app startup and populates all stores; inline seed removed from `places.py`. Seed can be re-run by restarting the server or `python -m app.db.seed`.
+
+### Frontend — Web
+
+- **API:** `getLanguages()`, `getTranslations(lang)` in `api/client.ts`.
+- **I18nContext:** Fetches languages and translations; locale from user settings (when logged in), else `pilgrimage-locale` in localStorage, else browser language; exposes `locale`, `setLocale`, `t(key)`. RTL: `document.documentElement.dir = 'rtl'` and `lang` when locale is `ar`.
+- **Settings:** Language dropdown (from API); saving updates settings and refetches translations.
+- **Copy:** Customer-facing strings in pages and Layout replaced with `t('key')`; keys added to seed for en, ar, hi.
+
+### Frontend — Mobile
+
+- **API:** `api/client.js` with `getLanguages()` and `getTranslations(lang)` (uses `EXPO_PUBLIC_API_URL`).
+- **I18nContext:** Locale in AsyncStorage; loads languages/translations; `I18nManager.forceRTL(true)` when locale is `ar`; exposes `locale`, `setLocale`, `t`, `languages`, `ready`.
+- **Example screen:** Settings screen with language picker and `t()` for title and labels; same translation keys as web.
+
+### Docs
+
+- **.cursor/rules/i18n-translations.mdc:** Updated for English, Arabic, Hindi; backend as source; fallback to English; RTL for Arabic.
+- **server/README.md:** Seed data section (file location, runner, reset); i18n endpoints listed.
+
+---
+
+## Switch mobile app from Capacitor to Expo
+
+**Done when:** Mobile app uses Expo (React Native) for iOS/Android; all Capacitor references removed.
+
+### Removed
+
+- **Capacitor:** No Capacitor packages were in use; all references to Capacitor removed from docs, `.gitignore`, and Cursor rules.
+- **apps/mobile (Vite + React):** Replaced with a new Expo (React Native) app. The previous Vite-based mobile app was removed; it had been intended for Capacitor wrapping.
+
+### Added
+
+- **Expo app** in `apps/mobile`: Created with `create-expo-app@latest --template blank`. Package name `@pilgrimage-tracker/mobile`; scripts include `dev` and `start` (both run `expo start`), plus `ios`, `android`, `web`.
+- **.gitignore:** Capacitor section replaced with Expo section (`.expo/`, `web-build/`, common Expo artifacts).
+
+### Updated
+
+- **README.md (root):** Mobile described as Expo; run instructions and env (`EXPO_PUBLIC_API_URL`) for Expo.
+- **apps/mobile/README.md:** Rewritten for Expo (run, build for iOS/Android, EAS, env).
+- **ARCHITECTURE.md:** Mobile stack is Expo (React Native); diagrams and tables updated.
+- **PRODUCTION.md:** Plan 1–3 mobile build steps use Expo (EAS or `expo run:ios`/`android`); env `EXPO_PUBLIC_API_URL`.
+- **IMPLEMENTATION_PROMPTS.md:** Stack recap and prompts refer to Expo instead of Capacitor.
+- **.cursor/rules/frontend-replication.mdc:** Web is Vite+React; mobile is Expo/React Native; feature parity and API sync described.
+- **.cursor/rules/readme-maintenance.mdc:** Mobile README described as Expo.
+
+### Note
+
+The new `apps/mobile` is a blank Expo template. Screens, API client, and navigation (e.g. Expo Router or React Navigation) need to be implemented to match the web app’s flows and API usage.
+
+---
+
+## Python 3.14 (latest) as standard
+
+**Done when:** Docs and requirements reference Python 3.14 (or 3.11+); local and production paths use latest Python where available.
+
+### Backend / Docs
+
+- **server/requirements.txt** – Comment added: Python 3.14+ (or 3.11+); venv creation command.
+- **README.md (root)** – Prerequisites: Python 3.14 (or 3.11+), Homebrew note for macOS. Setup uses `python3 -m venv .venv`.
+- **server/README.md** – States Python 3.14 (or 3.11+) required; Homebrew hint; `python3 -m venv .venv` in Run.
+- **ARCHITECTURE.md** – Backend runtime: Python 3.14 (or 3.11+).
+- **PRODUCTION.md** – Plan 1 Docker: base image `python:3.14-slim` (fallback `python:3.12-slim` if needed).
+- **IMPLEMENTATION_PROMPTS.md** – Stack recap: Python 3.14 (or 3.11+).
+
+To use Python 3.14 for the server venv: `cd server && rm -rf .venv && /opt/homebrew/bin/python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt`.
+
+---
+
 ## Implemented features (Python + FastAPI backend, web and mobile frontends)
 
 **Done when:** Full stack is implemented: backend API (auth, places, reviews, check-ins, groups, notifications, user management) and replicated UIs in web and mobile.
@@ -75,7 +152,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - **README.md (root)** – Updated to link to PRODUCTION.md and to service READMEs (server, apps/web, apps/mobile).
 - **server/README.md** – Added `DATABASE_URL` and link to PRODUCTION.md.
 - **apps/web/README.md** – New: how to run and build web app, env, structure.
-- **apps/mobile/README.md** – New: how to run and build mobile app, Capacitor notes, env, structure.
+- **apps/mobile/README.md** – New: how to run and build mobile app (Expo), env, structure.
 
 ---
 

@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useI18n } from '@/context/I18nContext';
 import { getPlace, getPlaceReviews, checkIn, addFavorite, removeFavorite } from '@/api/client';
 import type { PlaceDetail as PlaceDetailType, ReviewsResponse } from '@/types';
 
 export default function PlaceDetail() {
   const { placeCode } = useParams<{ placeCode: string }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [place, setPlace] = useState<PlaceDetailType | null>(null);
   const [reviews, setReviews] = useState<ReviewsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,7 +25,7 @@ export default function PlaceDetail() {
         setPlace(p);
         setReviews(r);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'))
+      .catch((err) => setError(err instanceof Error ? err.message : t('common.error')))
       .finally(() => setLoading(false));
   };
 
@@ -40,7 +42,7 @@ export default function PlaceDetail() {
         }
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load');
+        if (!cancelled) setError(err instanceof Error ? err.message : t('common.error'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -57,7 +59,7 @@ export default function PlaceDetail() {
       setCheckInNote('');
       setPlace((prev) => prev ? { ...prev, user_has_checked_in: true } : null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Check-in failed');
+      setError(e instanceof Error ? e.message : t('common.error'));
     } finally {
       setCheckingIn(false);
     }
@@ -74,16 +76,16 @@ export default function PlaceDetail() {
         setPlace({ ...place, is_favorite: true });
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update favorite');
+      setError(e instanceof Error ? e.message : t('common.error'));
     }
   };
 
-  if (loading) return <div className="max-w-md mx-auto px-5 py-8 text-text-muted">Loading...</div>;
+  if (loading) return <div className="max-w-md mx-auto px-5 py-8 text-text-muted">{t('common.loading')}</div>;
   if (error || !place) {
     return (
       <div className="max-w-md mx-auto px-5 py-8 md:max-w-2xl">
-        <p className="text-red-600 mb-2">{error || 'Place not found'}</p>
-        <button type="button" onClick={fetchPlace} className="text-primary font-medium">Retry</button>
+        <p className="text-red-600 mb-2">{error || t('places.detail')}</p>
+        <button type="button" onClick={fetchPlace} className="text-primary font-medium">{t('common.retry')}</button>
       </div>
     );
   }
@@ -139,69 +141,69 @@ export default function PlaceDetail() {
             </section>
           )}
 
-          {place.description && (
+          {place.description ? (
             <section className="mt-6">
               <h2 className="text-sm font-semibold text-text-main mb-2">About</h2>
-              <p className="text-sm text-text-muted">{place.description}</p>
+              <p className="text-sm text-text-muted">{String(place.description)}</p>
             </section>
-          )}
+          ) : null}
 
-          {isHindu && (rs.deities || rs.festival_dates || rs.dress_code) && (
+          {isHindu && (rs.deities || rs.festival_dates || rs.dress_code) ? (
             <section className="mt-6">
               <h2 className="text-sm font-semibold text-text-main mb-2">Temple info</h2>
-              {Array.isArray(rs.deities) && rs.deities.length > 0 && (
+              {Array.isArray(rs.deities) && rs.deities.length > 0 ? (
                 <div className="mb-2">
                   <p className="text-xs text-text-muted mb-1">Main Deities</p>
                   <div className="flex gap-2 flex-wrap">
-                    {rs.deities.map((d: { name?: string }, i: number) => (
+                    {(rs.deities as { name?: string }[]).map((d, i) => (
                       <span key={i} className="px-3 py-1.5 bg-gray-100 rounded-lg text-sm">{d.name || 'Deity'}</span>
                     ))}
                   </div>
                 </div>
-              )}
-              {Array.isArray(rs.festival_dates) && rs.festival_dates.length > 0 && (
-                <p className="text-sm text-text-muted mb-1">Festivals: {rs.festival_dates.join(', ')}</p>
-              )}
-              {rs.dress_code && <p className="text-sm text-text-muted">Dress code: {String(rs.dress_code)}</p>}
+              ) : null}
+              {Array.isArray(rs.festival_dates) && rs.festival_dates.length > 0 ? (
+                <p className="text-sm text-text-muted mb-1">Festivals: {(rs.festival_dates as string[]).join(', ')}</p>
+              ) : null}
+              {rs.dress_code ? <p className="text-sm text-text-muted">Dress code: {String(rs.dress_code)}</p> : null}
             </section>
-          )}
+          ) : null}
 
-          {isIslam && (rs.prayer_times || rs.capacity || rs.facilities) && (
+          {isIslam && (rs.prayer_times || rs.capacity || rs.facilities) ? (
             <section className="mt-6">
               <h2 className="text-sm font-semibold text-text-main mb-2">Prayer & facilities</h2>
-              {rs.prayer_times && typeof rs.prayer_times === 'object' && Object.keys(rs.prayer_times as object).length > 0 && (
+              {rs.prayer_times && typeof rs.prayer_times === 'object' && Object.keys(rs.prayer_times as object).length > 0 ? (
                 <div className="text-sm text-text-muted mb-2">
                   {Object.entries(rs.prayer_times as Record<string, string>).map(([name, time]) => (
                     <div key={name}>{name}: {time}</div>
                   ))}
                 </div>
-              )}
-              {rs.capacity != null && <p className="text-sm text-text-muted">Capacity: {rs.capacity}</p>}
-              {Array.isArray(rs.facilities) && rs.facilities.length > 0 && (
-                <p className="text-sm text-text-muted mt-1">Facilities: {rs.facilities.join(', ')}</p>
-              )}
+              ) : null}
+              {rs.capacity != null ? <p className="text-sm text-text-muted">Capacity: {String(rs.capacity)}</p> : null}
+              {Array.isArray(rs.facilities) && rs.facilities.length > 0 ? (
+                <p className="text-sm text-text-muted mt-1">Facilities: {(rs.facilities as string[]).join(', ')}</p>
+              ) : null}
             </section>
-          )}
+          ) : null}
 
-          {isChristian && (rs.denomination || rs.service_times || rs.notable_features) && (
+          {isChristian && (rs.denomination || rs.service_times || rs.notable_features) ? (
             <section className="mt-6">
               <h2 className="text-sm font-semibold text-text-main mb-2">Service info</h2>
-              {rs.denomination && <p className="text-sm text-text-muted">Denomination: {String(rs.denomination)}</p>}
-              {rs.service_times && typeof rs.service_times === 'object' && (
+              {rs.denomination ? <p className="text-sm text-text-muted">Denomination: {String(rs.denomination)}</p> : null}
+              {rs.service_times && typeof rs.service_times === 'object' ? (
                 <div className="text-sm text-text-muted mt-1">
                   {Object.entries(rs.service_times as Record<string, string>).map(([k, v]) => (
                     <div key={k}>{k}: {v}</div>
                   ))}
                 </div>
-              )}
-              {Array.isArray(rs.notable_features) && rs.notable_features.length > 0 && (
-                <p className="text-sm text-text-muted mt-1">Notable: {rs.notable_features.join(', ')}</p>
-              )}
+              ) : null}
+              {Array.isArray(rs.notable_features) && rs.notable_features.length > 0 ? (
+                <p className="text-sm text-text-muted mt-1">Notable: {(rs.notable_features as string[]).join(', ')}</p>
+              ) : null}
             </section>
-          )}
+          ) : null}
 
           <section className="mt-6">
-            <h2 className="text-sm font-semibold text-text-main mb-2">Visitor reviews</h2>
+            <h2 className="text-sm font-semibold text-text-main mb-2">{t('places.reviews')}</h2>
             {reviews?.reviews && reviews.reviews.length > 0 ? (
               <div className="space-y-3">
                 {reviews.reviews.slice(0, 3).map((r) => (
@@ -217,9 +219,9 @@ export default function PlaceDetail() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-text-muted">No reviews yet.</p>
+              <p className="text-sm text-text-muted">{t('places.noReviewsYet')}</p>
             )}
-            <Link to={`/places/${placeCode}/review`} className="inline-block mt-2 text-primary font-medium text-sm">Write a review</Link>
+            <Link to={`/places/${placeCode}/review`} className="inline-block mt-2 text-primary font-medium text-sm">{t('places.writeReview')}</Link>
           </section>
         </div>
       </div>
@@ -248,7 +250,7 @@ export default function PlaceDetail() {
       {showCheckInModal && (
         <div className="fixed inset-0 z-20 bg-black/50 flex items-end justify-center p-4">
           <div className="bg-white rounded-t-2xl w-full max-w-md p-5 pb-8">
-            <h3 className="text-lg font-bold text-text-main mb-3">Check in at {place.name}</h3>
+            <h3 className="text-lg font-bold text-text-main mb-3">{t('places.checkIn')} – {place.name}</h3>
             <textarea
               placeholder="Add a note (optional)"
               value={checkInNote}

@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '@/context/I18nContext';
 import { createGroup } from '@/api/client';
 
 export default function CreateGroup() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -21,7 +23,7 @@ export default function CreateGroup() {
       setInviteCode(g.invite_code);
       setTimeout(() => navigate(`/groups/${g.group_code}`), 1500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create');
+      setError(err instanceof Error ? err.message : t('common.error'));
     } finally {
       setSubmitting(false);
     }
@@ -50,7 +52,7 @@ export default function CreateGroup() {
 
   return (
     <div className="max-w-md mx-auto px-5 py-6">
-      <h1 className="text-xl font-bold text-text-main mb-4">Create group</h1>
+      <h1 className="text-xl font-bold text-text-main mb-4">{t('groups.createGroup')}</h1>
       {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -72,8 +74,8 @@ export default function CreateGroup() {
           <span className="text-sm text-text-main">Private group</span>
         </label>
         <div className="flex gap-3">
-          <button type="button" onClick={() => navigate(-1)} className="flex-1 py-3 rounded-xl border border-gray-200 text-text-main font-medium">Cancel</button>
-          <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-xl bg-primary text-white font-medium disabled:opacity-50">{submitting ? 'Creating...' : 'Create'}</button>
+          <button type="button" onClick={() => navigate(-1)} className="flex-1 py-3 rounded-xl border border-gray-200 text-text-main font-medium">{t('common.cancel')}</button>
+          <button type="submit" disabled={submitting} className="flex-1 py-3 rounded-xl bg-primary text-white font-medium disabled:opacity-50">{submitting ? t('common.loading') : t('common.save')}</button>
         </div>
       </form>
     </div>
