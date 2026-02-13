@@ -6,8 +6,8 @@ import { getNotifications } from '@/lib/api/client';
 
 const navItems = [
   { path: '/home', labelKey: 'nav.explore', icon: 'explore' },
-  { path: '/favorites', labelKey: 'nav.saved', icon: 'bookmark' },
-  { path: '/groups', labelKey: 'nav.pilgrimage', icon: 'groups' },
+  { path: '/map', labelKey: 'nav.map', icon: 'map' },
+  { path: '/groups', labelKey: 'nav.groups', icon: 'groups' },
   { path: '/profile', labelKey: 'nav.profile', icon: 'person' },
 ];
 
@@ -30,7 +30,8 @@ export default function Layout({ children }: { children: ReactNode }) {
         <nav className="flex items-center gap-6 w-full max-w-6xl mx-auto">
           <Link to="/home" className="text-xl font-semibold text-primary">{t('common.appName')}</Link>
           <Link to="/home" className="text-text-muted hover:text-primary" aria-current={location.pathname === '/home' ? 'page' : undefined}>{t('nav.explore')}</Link>
-          <Link to="/favorites" className="text-text-muted hover:text-primary" aria-current={location.pathname === '/favorites' ? 'page' : undefined}>{t('nav.saved')}</Link>
+          <Link to="/map" className="text-text-muted hover:text-primary" aria-current={location.pathname === '/map' ? 'page' : undefined}>{t('nav.map')}</Link>
+          <Link to="/favorites" className="text-text-muted hover:text-primary" aria-current={location.pathname === '/favorites' ? 'page' : undefined}>{t('nav.favorites')}</Link>
           <Link to="/groups" className="text-text-muted hover:text-primary" aria-current={location.pathname.startsWith('/groups') ? 'page' : undefined}>{t('nav.groups')}</Link>
           <Link to="/notifications" className="relative text-text-muted hover:text-primary" aria-label={t('nav.notifications')} aria-current={location.pathname === '/notifications' ? 'page' : undefined}>
             <span className="material-symbols-outlined">notifications</span>

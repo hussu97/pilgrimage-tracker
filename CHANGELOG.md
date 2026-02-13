@@ -4,6 +4,136 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## M-7: User Profile & Stats (mobile + mobile web)
+
+**Done when:** Profile matches DESIGN_FILE_V2 “User Profile & Stats”: avatar, name, Joined date, stats (Visits, Reviews, Badges), faith toggle, Edit Profile, Account (My Check-ins, Favorite Places, Group Activity), app version.
+
+### Frontend — Web
+
+- **Profile:** Gradient header, “Profile” title and settings icon; avatar (144px), name, “Joined {date}” from user.created_at; stats row (Visits, Reviews, Badges from GET /me/stats: visits, reviews, badges_count); faith pill (Islam / Christianity / Hinduism) linking to /select-path; Edit Profile button; Account section with My Check-ins, Favorite Places, Group Activity (icons and labels); version at bottom. Uses design tokens.
+
+### Frontend — Mobile
+
+- **ProfileScreen:** Same structure with theme tokens: header (centered “Profile”, settings button), avatar 144px, name, Joined date, three-column stats, faith pill (Islam/Christianity/Hinduism) to SelectPath, Edit Profile button, Account card with three rows, version. GET /me/stats for visits, reviews, badges_count.
+
+### Backend
+
+- **UserStats:** API already returns visits, reviews, badges_count; frontend types extended with optional visits, reviews, badges_count.
+- **i18n:** profile.visits, profile.reviews, profile.badges, profile.joined, profile.account, profile.myCheckIns, profile.favoritePlaces, profile.groupActivity, profile.selectPilgrimagePath, profile.version (en, ar, hi).
+
+---
+
+## M-6: Map Discovery tab and screen (mobile + mobile web)
+
+**Done when:** Map tab in bottom nav; Map screen matches DESIGN_FILE_V2 “Map Discovery View”: search, map/list, bottom sheet with selected place, Get Directions.
+
+### Frontend — Web
+
+- **Map page:** Full-height map (PlacesMap) with search bar at top, layers + my location buttons on the right. Markers call `onPlaceSelect(place)`; bottom sheet shows selected place (image, name, address, rating, distance, Open Now), Get Directions (opens maps URL), Share. Search triggers GET /places with 300ms debounce.
+
+### Frontend — Mobile
+
+- **MapScreen:** Search bar, list of places (thumb from `image_urls[0]`, name, address, rating/distance/Open Now). Tap opens modal bottom sheet with selected place card, Get Directions, Share, and link to PlaceDetail. No native map yet (list + sheet only); uses theme tokens.
+
+### Backend
+
+- No backend changes; uses existing GET /places with lat/lng and optional search.
+
+---
+
+## M-5: Place Detail – Hindu temple and Christian church variants (mobile + mobile web)
+
+**Done when:** Place Detail branches on religion to show mosque (M-4), Hindu temple, or Christian church variant; temple and church match DESIGN_FILE_V2.
+
+### Frontend — Web
+
+- **PlaceDetail:** When `place.religion === 'hinduism'`: temple variant — hero (55vh), back/share/favorite, “Hindu Temple” badge + rating, name + address; row Opens At / Distance / Crowd from opening_hours, distance, religion_specific.crowd_level; Sanctum Story (description + Read more); Divine Presence (deities carousel from religion_specific.deities); Essential Information (Architecture, Next Festival, Dress Code + notes); Pilgrim Voices (ReviewsPreview); footer Directions + Check-in. When `place.religion === 'christianity'`: church variant — hero 420px, back/bookmark/share, place_type + Open badges, name + address; stats row rating, Founded (founded_year), Style (style); Get Directions + Visit Website (website_url); The Sanctuary (description); Service Times table from religion_specific.service_times; Pilgrim Voices; floating CTA “Start Pilgrimage” (check-in).
+
+### Frontend — Mobile
+
+- **PlaceDetailScreen:** Temple variant: hero with type badge + rating, Opens At / Distance / Crowd row, Sanctum Story, Divine Presence (horizontal deities), Essential Information grid, Pilgrim Voices; footer Directions + Check-in. Church variant: hero with type + Open badges, stats row (rating, Founded, Style), Directions + Visit Website, The Sanctuary, Service Times list, Pilgrim Voices; bottom CTA “Start Pilgrimage”. Shared variantStyles for temple/church.
+
+### Backend
+
+- **i18n:** placeDetail.opensAt, distance, crowd, sanctumStory, divinePresence, principalDeities, viewAll, essentialInfo, architecture, nextFestival, dressCode, dressCodeNotes, pilgrimVoices, founded, style, theSanctuary, serviceTimes, fullSchedule, visitWebsite, startPilgrimage, hinduTemple, reviewsCount; common.readMore (en, ar, hi).
+
+---
+
+## M-4: Place Detail – mosque variant (mobile + mobile web)
+
+**Done when:** Place Detail for mosque matches DESIGN_FILE_V2 “Place Details - Mosque”: hero, back/share/favorite, Open Now & distance, name & address, Prayer Times, About, Details & Facilities, Check-in & Directions, Recent Reviews.
+
+### Frontend — Web
+
+- **PlaceDetail:** When `place.religion === 'islam'`, render mosque variant: hero 420px, rounded-b-2.5rem, back + share (glass) + favorite on hero; Open Now and distance badges; name (text-3xl white) and address. Sections: Prayer Times (horizontal scroll, Fajr–Isha + date badge from `religion_specific.prayer_times`), About (description + Read Full Story), Details & Facilities (2×2 grid: Capacity, Wudu Area, Parking, Women’s Area from `religion_specific`), Check-in + Directions buttons, Recent Reviews (rating badge + ReviewsPreview with hideTitle). SharePlaceButton supports `variant="glass"` for hero. ReviewsPreview supports `hideTitle`.
+
+### Frontend — Mobile
+
+- **PlaceDetailScreen:** When `place.religion === 'islam'`, render mosque variant: hero 420px with overlay, back/share/favorite circle buttons, Open Now & distance badges, name & address. ScrollView: Prayer Times (horizontal), About, Details & Facilities (2-col grid), Recent Reviews; footer Check-in + Directions. Uses `tokens` and new i18n keys.
+
+### Backend
+
+- **i18n:** Added `placeDetail.prayerTimes`, `placeDetail.about`, `placeDetail.readFullStory`, `placeDetail.detailsAndFacilities`, `placeDetail.capacity`, `placeDetail.wuduArea`, `placeDetail.parking`, `placeDetail.womensArea`, `placeDetail.directions`, `placeDetail.recentReviews`, `placeDetail.whatPeopleSay`, `placeDetail.readAllReviews`, `placeDetail.fajr/dhuhr/asr/maghrib/isha` (en, ar, hi).
+
+---
+
+## M-3: Explore Sacred Places – Home (mobile + mobile web)
+
+**Done when:** Home/Explore matches DESIGN_FILE_V2 “Explore Sacred Places”: greeting, search, filter chips, hero card, place list, bottom nav.
+
+### Frontend — Web
+
+- **Home:** Gradient background (F0F7FF → FFFFFF). Header: “Explore” label, greeting “Assalamu Alaikum,” + name (text-2xl extralight / text-3xl normal). List/Map toggle (pill, primary when active). Search bar (border-b, search icon). Filter chips: Nearby (default), Historical, Jummah, Events (single-select; Jummah/Events UI only until backend). Hero: first place as large card (rounded-2rem, ~28rem height), image, overlay, glass-style bottom with name, address, rating, distance, “Details” link. Remaining places as PlaceCard grid. GET /places with lat/lng, sort distance; place_type=temple for Historical.
+
+### Frontend — Mobile
+
+- **HomeScreen:** Same structure: surfaceTint background, “Explore” label, greeting + name, search (underline), horizontal chips (Nearby, Historical, Jummah, Events). Hero card: first place 320px height, image, dark overlay, glass bottom card (name, address, rating, distance, “Details”). FlatList of remaining PlaceCards. Theme tokens throughout.
+
+### Backend
+
+- **i18n:** `home.greeting` (Assalamu Alaikum / السلام عليكم / नमस्ते), `home.historical`, `home.jummah`, `home.events`, `home.details`; `home.findPlace` updated to “Search for places…” (en).
+
+---
+
+## M-2: Select Your Path (mobile + mobile web)
+
+**Done when:** Select Path screen matches DESIGN_FILE_V2.html “Select Your Path”: faith cards, View More Faiths, Skip for now; settings API saves religion preference.
+
+### Frontend — Web
+
+- **SelectPath:** Full-viewport layout with gradient background (F0F5FA → E6EEF5). Header: title “Select Your Path” (32px semibold), subtitle “Begin your spiritual journey.” Three faith cards: large circular buttons (144px) with Material Symbol icons (mosque, temple_hindu, church), label below; toggle selection; faith-specific hover (emerald/orange/blue). Footer: Continue (when any selected), “View More Faiths”, “Skip for now”. Saves selection via `updateSettings({ religions })` and navigates to /home.
+
+### Frontend — Mobile
+
+- **SelectPathScreen:** Same layout and copy: gradient-style background, back button, centered header (title 32px, subtitle), three faith cards with 144px circle, emoji icons (🕌 🛕 ⛪), selection ring per faith accent (emerald/orange/blue). Footer: Continue when selected, “View More Faiths”, “Skip for now”. Uses `updateSettings({ religions })` and navigates to Main.
+
+### Backend
+
+- **i18n:** `selectPath.subtitle` set to “Begin your spiritual journey.” (en, ar, hi); added `selectPath.viewMoreFaiths` (en, ar, hi).
+
+---
+
+## M-1: Design tokens and shared components (DESIGN_FILE_V2)
+
+**Done when:** Tokens and reusable components from DESIGN_FILE_V2.html for web and mobile; PlaceCard with rating and Open Now; BottomNav Explore, Map, Groups, Profile.
+
+### Design tokens
+
+- **Web:** `tailwind.config.js` extended with DESIGN_FILE_V2 tokens: primary, primary-dark, primary-hover, accent, background-light, surface, soft-blue, surface-tint, text-main, text-dark, text-secondary, text-muted, blue-tint, icon-grey; fontFamily Inter (replacing Lexend); borderRadius lg/xl/2xl/3xl/full; boxShadow soft, card, elevated, floating, nav, subtle. `index.html` font switched to Inter.
+- **Mobile:** `apps/mobile/src/lib/theme.ts` with same tokens (colors, borderRadius, shadow, typography) for use in StyleSheet and components.
+
+### Reusable components
+
+- **PlaceCard (web + mobile):** Image, name, address, distance, rating (average_rating + review_count), “Open Now” badge when `is_open_now`, “Visited” badge; uses design tokens. Place type extended with optional `average_rating`, `review_count`, `is_open_now`.
+- **BottomNav:** Matches design labels and tabs: **Explore** (Home), **Map**, **Groups**, **Profile**. Web: `Layout` nav items and route `/map`; Map page full-height PlacesMap. Mobile: tab order Home, Map, Groups, Profile; MapScreen lists places (native map can be added later); Favorites removed from tab bar (still reachable via Profile/stack). Icons: Material-style labels; mobile uses symbol text (⊕, ◉, ◆, ○) until vector icons added.
+- **Buttons & chips:** Web: `PrimaryButton` (primary/secondary), `FilterChip`, `SearchBar`. Mobile: `PrimaryButton`, `FilterChip`, `SearchBar` using theme tokens.
+
+### Backend
+
+- **i18n:** Seed translations for `places.openNow`, `places.visited`, `nav.map` (en, ar, hi).
+
+---
+
 ## Web I18n: align with mobile (ready, gate until loaded)
 
 **Done when:** Web I18n context uses `ready` like mobile; web app waits for initial translations before rendering routes so no raw keys flash.

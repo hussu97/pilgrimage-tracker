@@ -25,6 +25,7 @@ import { useAuth } from '../providers';
 import { useI18n } from '../providers';
 import type { RootStackParamList } from '../navigation';
 import type { PlaceDetail as PlaceDetailType, Review } from '../../lib/types';
+import { tokens } from '../../lib/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>;
 type PlaceDetailRoute = RouteProp<RootStackParamList, 'PlaceDetail'>;
@@ -160,7 +161,354 @@ export default function PlaceDetailScreen() {
 
   if (!place) return null;
 
+  const isMosque = place.religion === 'islam';
   const heroImage = place.image_urls?.[0];
+  const rs = (place.religion_specific ?? {}) as Record<string, unknown>;
+  const prayerTimes = (rs.prayer_times as Record<string, string> | undefined) ?? {};
+  const getPrayer = (key: string) =>
+    prayerTimes[key] ?? prayerTimes[key.toLowerCase()] ?? prayerTimes[key.charAt(0).toUpperCase() + key.slice(1).toLowerCase()] ?? '';
+  const prayerList = [
+    { key: 'fajr', labelKey: 'placeDetail.fajr' },
+    { key: 'dhuhr', labelKey: 'placeDetail.dhuhr' },
+    { key: 'asr', labelKey: 'placeDetail.asr' },
+    { key: 'maghrib', labelKey: 'placeDetail.maghrib' },
+    { key: 'isha', labelKey: 'placeDetail.isha' },
+  ] as const;
+  const hasPrayerTimes = prayerList.some((p) => getPrayer(p.key));
+  const capacity = rs.capacity != null ? String(rs.capacity) : null;
+  const wuduArea = rs.wudu_area != null ? String(rs.wudu_area) : (Array.isArray(rs.facilities) && (rs.facilities as string[]).some((f) => /wudu|ablution/i.test(f)) ? 'Available' : null);
+  const parking = rs.parking != null ? String(rs.parking) : null;
+  const womensArea = rs.womens_area != null ? String(rs.womens_area) : (Array.isArray(rs.facilities) && (rs.facilities as string[]).some((f) => /women|female/i.test(f)) ? 'Separate' : null);
+  const formatDist = (km: number) => (km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`);
+
+  const isTemple = place.religion === 'hinduism';
+  const isChurch = place.religion === 'christianity';
+  const todayKey = new Date().toLocaleDateString('en-GB', { weekday: 'long' }).toLowerCase();
+  const openingHoursMap: Record<string, string> = {};
+  if (place.opening_hours) {
+    Object.entries(place.opening_hours).forEach(([k, v]) => {
+      openingHoursMap[k.toLowerCase()] = v;
+    });
+  }
+  const opensAtToday = openingHoursMap[todayKey] ?? place.opening_hours?.[todayKey] ?? '';
+  const deities = (Array.isArray(rs.deities) ? rs.deities : []) as { name?: string; subtitle?: string; image_url?: string }[];
+  const architecture = rs.architecture != null ? String(rs.architecture) : null;
+  const nextFestival = rs.next_festival != null ? String(rs.next_festival) : null;
+  const dressCode = rs.dress_code != null ? String(rs.dress_code) : null;
+  const dressCodeNotes = rs.dress_code_notes != null ? String(rs.dress_code_notes) : null;
+  const crowdLevel = rs.crowd_level != null ? String(rs.crowd_level) : null;
+  const foundedYear = rs.founded_year != null ? String(rs.founded_year) : null;
+  const style = rs.style != null ? String(rs.style) : null;
+  const serviceTimes = (rs.service_times as { day?: string; name?: string; time?: string }[] | Record<string, string>) ?? {};
+  const serviceTimesArray = Array.isArray(serviceTimes) ? serviceTimes : Object.entries(serviceTimes).map(([day, v]) => ({ day, time: typeof v === 'string' ? v : (v as { time?: string })?.time ?? '' }));
+  const websiteUrl = (rs.website_url as string) ?? (place as { website_url?: string }).website_url ?? null;
+
+  if (isMosque) {
+    return (
+      <View style={[styles.container, { backgroundColor: tokens.colors.backgroundLight }]}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={mosqueStyles.hero}>
+            {heroImage ? (
+              <Image source={{ uri: heroImage }} style={mosqueStyles.heroImage} resizeMode="cover" />
+            ) : (
+              <View style={mosqueStyles.heroPlaceholder}>
+                <Text style={mosqueStyles.heroPlaceholderIcon}>🕌</Text>
+              </View>
+            )}
+            <View style={mosqueStyles.heroOverlay} pointerEvents="none" />
+            <View style={[mosqueStyles.heroTopBar, { paddingTop: insets.top + 16 }]}>
+              <TouchableOpacity style={mosqueStyles.heroCircleBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+                <Text style={mosqueStyles.heroCircleBtnText}>←</Text>
+              </TouchableOpacity>
+              <View style={mosqueStyles.heroTopRight}>
+                <TouchableOpacity style={mosqueStyles.heroCircleBtn} onPress={() => shareUrl(place.name, `places/${placeCode}`)} activeOpacity={0.8}>
+                  <Text style={mosqueStyles.heroCircleBtnText}>⎘</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={mosqueStyles.heroCircleBtn} onPress={toggleFavorite} disabled={favoriteLoading} activeOpacity={0.8}>
+                  <Text style={mosqueStyles.heroCircleBtnText}>{place.is_favorite ? '♥' : '♡'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            <View style={mosqueStyles.heroBottom}>
+              <View style={mosqueStyles.heroBadges}>
+                {place.is_open_now && (
+                  <View style={mosqueStyles.openNowBadge}>
+                    <Text style={mosqueStyles.openNowText}>{t('places.openNow')}</Text>
+                  </View>
+                )}
+                {place.distance != null && (
+                  <View style={mosqueStyles.distanceBadge}>
+                    <Text style={mosqueStyles.distanceBadgeText}>{formatDist(place.distance)}</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={mosqueStyles.heroName}>{place.name}</Text>
+              {place.address ? (
+                <Text style={mosqueStyles.heroAddress}>{place.address}</Text>
+              ) : null}
+            </View>
+          </View>
+
+          <View style={mosqueStyles.body}>
+            {hasPrayerTimes && (
+              <View style={mosqueStyles.section}>
+                <Text style={mosqueStyles.sectionTitle}>{t('placeDetail.prayerTimes')}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={mosqueStyles.prayerRow}>
+                  {prayerList.map(({ key, labelKey }) => (
+                    <View key={key} style={mosqueStyles.prayerItem}>
+                      <Text style={mosqueStyles.prayerLabel}>{t(labelKey)}</Text>
+                      <Text style={mosqueStyles.prayerTime}>{getPrayer(key) || '—'}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {place.description ? (
+              <View style={mosqueStyles.section}>
+                <Text style={mosqueStyles.sectionTitle}>{t('placeDetail.about')}</Text>
+                <Text style={mosqueStyles.description} numberOfLines={4}>{place.description}</Text>
+                <Text style={mosqueStyles.readFullStory}>{t('placeDetail.readFullStory')}</Text>
+              </View>
+            ) : null}
+
+            {(capacity || wuduArea || parking || womensArea) ? (
+              <View style={mosqueStyles.section}>
+                <Text style={mosqueStyles.sectionTitle}>{t('placeDetail.detailsAndFacilities')}</Text>
+                <View style={mosqueStyles.facilitiesGrid}>
+                  {capacity ? (
+                    <View style={mosqueStyles.facilityCard}>
+                      <Text style={mosqueStyles.facilityLabel}>{t('placeDetail.capacity')}</Text>
+                      <Text style={mosqueStyles.facilityValue}>{capacity}</Text>
+                    </View>
+                  ) : null}
+                  {wuduArea ? (
+                    <View style={mosqueStyles.facilityCard}>
+                      <Text style={mosqueStyles.facilityLabel}>{t('placeDetail.wuduArea')}</Text>
+                      <Text style={mosqueStyles.facilityValue}>{wuduArea}</Text>
+                    </View>
+                  ) : null}
+                  {parking ? (
+                    <View style={mosqueStyles.facilityCard}>
+                      <Text style={mosqueStyles.facilityLabel}>{t('placeDetail.parking')}</Text>
+                      <Text style={mosqueStyles.facilityValue}>{parking}</Text>
+                    </View>
+                  ) : null}
+                  {womensArea ? (
+                    <View style={mosqueStyles.facilityCard}>
+                      <Text style={mosqueStyles.facilityLabel}>{t('placeDetail.womensArea')}</Text>
+                      <Text style={mosqueStyles.facilityValue}>{womensArea}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
+
+            <View style={mosqueStyles.section}>
+              <Text style={mosqueStyles.sectionTitle}>{t('placeDetail.recentReviews')}</Text>
+              <Text style={mosqueStyles.whatPeopleSay}>{t('placeDetail.whatPeopleSay')}</Text>
+              {(averageRating != null || (reviewCount != null && reviewCount > 0)) && (
+                <View style={mosqueStyles.reviewMeta}>
+                  <Text style={mosqueStyles.reviewMetaText}>★ {averageRating?.toFixed(1) ?? '—'}</Text>
+                  <Text style={mosqueStyles.reviewMetaMuted}>{reviewCount ?? 0} reviews</Text>
+                </View>
+              )}
+              {userReview ? (
+                <TouchableOpacity onPress={() => navigation.navigate('WriteReview', { placeCode, reviewCode: userReview.review_code, rating: userReview.rating, title: userReview.title ?? '', body: userReview.body ?? '' })} style={styles.writeReviewLink}>
+                  <Text style={styles.writeReviewLinkText}>Edit your review</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => navigation.navigate('WriteReview', { placeCode })} style={styles.writeReviewLink}>
+                  <Text style={styles.writeReviewLinkText}>{t('places.writeReview')}</Text>
+                </TouchableOpacity>
+              )}
+              {reviews.length === 0 ? (
+                <Text style={styles.muted}>{t('places.noReviewsYet')}</Text>
+              ) : (
+                <View style={styles.reviewList}>
+                  {reviews.slice(0, 3).map((r) => (
+                    <View key={r.review_code} style={styles.reviewCard}>
+                      <View style={styles.reviewCardHeader}>
+                        <View style={styles.reviewAvatar}>
+                          <Text style={styles.reviewAvatarText}>{(r.display_name || '?').charAt(0).toUpperCase()}</Text>
+                        </View>
+                        <View style={styles.reviewCardMeta}>
+                          <Text style={styles.reviewAuthor}>{r.display_name || 'Visitor'}</Text>
+                          <Text style={styles.reviewDate}>{r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}</Text>
+                        </View>
+                        <View style={styles.reviewCardRight}>
+                          <View style={styles.starRowSmall}>
+                            {[1, 2, 3, 4, 5].map((i) => (
+                              <Text key={i} style={styles.starSmall}>{i <= r.rating ? '★' : '☆'}</Text>
+                            ))}
+                          </View>
+                        </View>
+                      </View>
+                      {r.body ? <Text style={styles.reviewBody}>{r.body}</Text> : null}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
+        </ScrollView>
+
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 12, paddingTop: 12, paddingHorizontal: 24, backgroundColor: tokens.colors.surface, borderTopColor: tokens.colors.inputBorder }]}>
+          <TouchableOpacity style={[styles.footerBtn, { borderColor: tokens.colors.inputBorder }]} onPress={() => navigation.navigate('CheckIn', { placeCode })} activeOpacity={0.8}>
+            <Text style={[styles.footerBtnText, { color: tokens.colors.textMain }]}>{t('places.checkIn')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.footerBtnPrimary, { backgroundColor: tokens.colors.textMain }]} onPress={() => directionsUrl && Linking.openURL(directionsUrl)} activeOpacity={0.8}>
+            <Text style={styles.footerBtnPrimaryText}>{t('placeDetail.directions')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (isTemple) {
+    return (
+      <View style={[styles.container, { backgroundColor: tokens.colors.surface }]}>
+        <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }} showsVerticalScrollIndicator={false}>
+          <View style={variantStyles.heroTall}>
+            {heroImage ? <Image source={{ uri: heroImage }} style={variantStyles.heroImage} resizeMode="cover" /> : <View style={variantStyles.heroPlaceholder}><Text style={variantStyles.heroPlaceholderIcon}>🛕</Text></View>}
+            <View style={variantStyles.heroOverlay} pointerEvents="none" />
+            <View style={[variantStyles.heroTopBar, { paddingTop: insets.top + 16 }]}>
+              <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={() => navigation.goBack()}><Text style={variantStyles.heroCircleBtnText}>←</Text></TouchableOpacity>
+              <View style={variantStyles.heroTopRight}>
+                <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={() => shareUrl(place.name, `places/${placeCode}`)}><Text style={variantStyles.heroCircleBtnText}>⎘</Text></TouchableOpacity>
+                <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={toggleFavorite} disabled={favoriteLoading}><Text style={variantStyles.heroCircleBtnText}>{place.is_favorite ? '♥' : '♡'}</Text></TouchableOpacity>
+              </View>
+            </View>
+            <View style={variantStyles.heroBottom}>
+              <View style={variantStyles.heroBadgeRow}>
+                <View style={variantStyles.typeBadge}><Text style={variantStyles.typeBadgeText}>{t('placeDetail.hinduTemple')}</Text></View>
+                {averageRating != null && <View style={variantStyles.ratingBadge}><Text style={variantStyles.ratingBadgeText}>★ {averageRating.toFixed(1)}</Text></View>}
+              </View>
+              <Text style={variantStyles.heroNameLarge}>{place.name}</Text>
+              {place.address ? <Text style={variantStyles.heroAddress}>{place.address}</Text> : null}
+            </View>
+          </View>
+          <View style={variantStyles.body}>
+            <View style={variantStyles.infoRow}>
+              <View style={variantStyles.infoCell}>
+                <Text style={variantStyles.infoLabel}>{t('placeDetail.opensAt')}</Text>
+                <Text style={variantStyles.infoValue}>{opensAtToday || '—'}</Text>
+              </View>
+              <View style={variantStyles.infoDivider} />
+              <View style={variantStyles.infoCell}>
+                <Text style={variantStyles.infoLabel}>{t('placeDetail.distance')}</Text>
+                <Text style={variantStyles.infoValue}>{place.distance != null ? formatDist(place.distance) : '—'}</Text>
+              </View>
+              <View style={variantStyles.infoDivider} />
+              <View style={variantStyles.infoCell}>
+                <Text style={variantStyles.infoLabel}>{t('placeDetail.crowd')}</Text>
+                <Text style={[variantStyles.infoValue, { color: '#059669' }]}>{crowdLevel || '—'}</Text>
+              </View>
+            </View>
+            {place.description ? (
+              <View style={variantStyles.section}>
+                <Text style={variantStyles.sectionTitle}>{t('placeDetail.sanctumStory')}</Text>
+                <Text style={variantStyles.description} numberOfLines={3}>{place.description}</Text>
+                <Text style={variantStyles.readMore}>{t('common.readMore')}</Text>
+              </View>
+            ) : null}
+            {deities.length > 0 ? (
+              <View style={variantStyles.section}>
+                <Text style={variantStyles.sectionTitle}>{t('placeDetail.divinePresence')}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={variantStyles.deitiesRow}>
+                  {deities.map((d, i) => (
+                    <View key={i} style={variantStyles.deityItem}>
+                      <View style={variantStyles.deityCircle}>
+                        {d.image_url ? <Image source={{ uri: d.image_url }} style={variantStyles.deityImage} /> : <Text style={variantStyles.deityPlaceholder}>🛕</Text>}
+                      </View>
+                      <Text style={variantStyles.deityName}>{d.name ?? 'Deity'}</Text>
+                      {d.subtitle ? <Text style={variantStyles.deitySubtitle}>{d.subtitle}</Text> : null}
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+            {(architecture || nextFestival || dressCode) ? (
+              <View style={variantStyles.section}>
+                <Text style={variantStyles.sectionTitle}>{t('placeDetail.essentialInfo')}</Text>
+                <View style={variantStyles.facilitiesRow}>
+                  {architecture ? <View style={variantStyles.facilityCard}><Text style={variantStyles.facilityLabel}>{t('placeDetail.architecture')}</Text><Text style={variantStyles.facilityValue}>{architecture}</Text></View> : null}
+                  {nextFestival ? <View style={variantStyles.facilityCard}><Text style={variantStyles.facilityLabel}>{t('placeDetail.nextFestival')}</Text><Text style={variantStyles.facilityValue}>{nextFestival}</Text></View> : null}
+                  {dressCode ? <View style={[variantStyles.facilityCard, variantStyles.dressCard]}><Text style={variantStyles.facilityLabel}>{t('placeDetail.dressCode')}</Text><Text style={variantStyles.facilityValue}>{dressCode}</Text>{dressCodeNotes ? <Text style={variantStyles.facilityNotes}>{dressCodeNotes}</Text> : null}</View> : null}
+                </View>
+              </View>
+            ) : null}
+            <View style={variantStyles.section}>
+              <Text style={variantStyles.sectionTitle}>{t('placeDetail.pilgrimVoices')}</Text>
+              {userReview ? <TouchableOpacity onPress={() => navigation.navigate('WriteReview', { placeCode, reviewCode: userReview.review_code, rating: userReview.rating, title: userReview.title ?? '', body: userReview.body ?? '' })} style={styles.writeReviewLink}><Text style={styles.writeReviewLinkText}>Edit your review</Text></TouchableOpacity> : <TouchableOpacity onPress={() => navigation.navigate('WriteReview', { placeCode })} style={styles.writeReviewLink}><Text style={styles.writeReviewLinkText}>{t('places.writeReview')}</Text></TouchableOpacity>}
+              {reviews.length === 0 ? <Text style={styles.muted}>{t('places.noReviewsYet')}</Text> : <View style={styles.reviewList}>{reviews.slice(0, 3).map((r) => (<View key={r.review_code} style={styles.reviewCard}><View style={styles.reviewCardHeader}><View style={styles.reviewAvatar}><Text style={styles.reviewAvatarText}>{(r.display_name || '?').charAt(0).toUpperCase()}</Text></View><View style={styles.reviewCardMeta}><Text style={styles.reviewAuthor}>{r.display_name || 'Visitor'}</Text><Text style={styles.reviewDate}>{r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}</Text></View><View style={styles.reviewCardRight}><View style={styles.starRowSmall}>{[1,2,3,4,5].map((i) => <Text key={i} style={styles.starSmall}>{i <= r.rating ? '★' : '☆'}</Text>)}</View></View></View>{r.body ? <Text style={styles.reviewBody}>{r.body}</Text> : null}</View>))}</View>}
+            </View>
+          </View>
+        </ScrollView>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 12, paddingTop: 12, paddingHorizontal: 24, backgroundColor: tokens.colors.surface, borderTopColor: tokens.colors.inputBorder }]}>
+          <TouchableOpacity style={[styles.footerBtn, { borderColor: tokens.colors.inputBorder }]} onPress={() => directionsUrl && Linking.openURL(directionsUrl)}><Text style={[styles.footerBtnText, { color: tokens.colors.textMain }]}>{t('placeDetail.directions')}</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.footerBtnPrimary, { backgroundColor: tokens.colors.primary }]} onPress={() => navigation.navigate('CheckIn', { placeCode })}><Text style={styles.footerBtnPrimaryText}>{t('places.checkIn')}</Text></TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (isChurch) {
+    return (
+      <View style={[styles.container, { backgroundColor: tokens.colors.surface }]}>
+        <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }} showsVerticalScrollIndicator={false}>
+          <View style={variantStyles.hero}>
+            {heroImage ? <Image source={{ uri: heroImage }} style={variantStyles.heroImage} resizeMode="cover" /> : <View style={variantStyles.heroPlaceholder}><Text style={variantStyles.heroPlaceholderIcon}>⛪</Text></View>}
+            <View style={variantStyles.heroOverlay} pointerEvents="none" />
+            <View style={[variantStyles.heroTopBar, { paddingTop: insets.top + 16 }]}>
+              <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={() => navigation.goBack()}><Text style={variantStyles.heroCircleBtnText}>←</Text></TouchableOpacity>
+              <View style={variantStyles.heroTopRight}>
+                <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={toggleFavorite} disabled={favoriteLoading}><Text style={variantStyles.heroCircleBtnText}>{place.is_favorite ? '♥' : '♡'}</Text></TouchableOpacity>
+                <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={() => shareUrl(place.name, `places/${placeCode}`)}><Text style={variantStyles.heroCircleBtnText}>⎘</Text></TouchableOpacity>
+              </View>
+            </View>
+            <View style={variantStyles.heroBottom}>
+              <View style={variantStyles.heroBadgeRow}>
+                {place.place_type ? <View style={variantStyles.typeBadge}><Text style={variantStyles.typeBadgeText}>{place.place_type}</Text></View> : null}
+                {place.is_open_now ? <View style={variantStyles.openBadge}><Text style={variantStyles.openBadgeText}>{t('places.openNow')}</Text></View> : null}
+              </View>
+              <Text style={variantStyles.heroNameLarge}>{place.name}</Text>
+              {place.address ? <Text style={variantStyles.heroAddress}>{place.address}</Text> : null}
+            </View>
+          </View>
+          <View style={variantStyles.body}>
+            <View style={variantStyles.statsRow}>
+              <View style={variantStyles.statCell}><Text style={variantStyles.statValue}>{averageRating?.toFixed(1) ?? '—'}</Text><Text style={variantStyles.statLabel}>/ 5.0</Text></View>
+              <View style={variantStyles.statDivider} />
+              <View style={variantStyles.statCell}><Text style={variantStyles.statValue}>{foundedYear ?? '—'}</Text><Text style={variantStyles.statLabel}>{t('placeDetail.founded')}</Text></View>
+              <View style={variantStyles.statDivider} />
+              <View style={variantStyles.statCell}><Text style={variantStyles.statValue}>{style ?? '—'}</Text><Text style={variantStyles.statLabel}>{t('placeDetail.style')}</Text></View>
+            </View>
+            <View style={variantStyles.actionRow}>
+              <TouchableOpacity style={variantStyles.actionBtnPrimary} onPress={() => directionsUrl && Linking.openURL(directionsUrl)}><Text style={variantStyles.actionBtnPrimaryText}>{t('placeDetail.directions')}</Text></TouchableOpacity>
+              {websiteUrl ? <TouchableOpacity style={variantStyles.actionBtnSecondary} onPress={() => websiteUrl && Linking.openURL(websiteUrl)}><Text style={variantStyles.actionBtnSecondaryText}>{t('placeDetail.visitWebsite')}</Text></TouchableOpacity> : null}
+            </View>
+            {place.description ? (<View style={variantStyles.section}><Text style={variantStyles.sectionTitle}>{t('placeDetail.theSanctuary')}</Text><Text style={variantStyles.description}>{place.description}</Text></View>) : null}
+            {serviceTimesArray.length > 0 ? (<View style={variantStyles.section}><Text style={variantStyles.sectionTitle}>{t('placeDetail.serviceTimes')}</Text><View style={variantStyles.serviceList}>{serviceTimesArray.map((row: { day?: string; name?: string; time?: string }, i: number) => (<View key={i} style={variantStyles.serviceRow}><Text style={variantStyles.serviceDay}>{row.day ?? ''}</Text><Text style={variantStyles.serviceName}>{row.name ?? ''}</Text><Text style={variantStyles.serviceTime}>{row.time ?? ''}</Text></View>))}</View></View>) : null}
+            <View style={variantStyles.section}>
+              <Text style={variantStyles.sectionTitle}>{t('placeDetail.pilgrimVoices')}</Text>
+              {userReview ? <TouchableOpacity onPress={() => navigation.navigate('WriteReview', { placeCode, reviewCode: userReview.review_code, rating: userReview.rating, title: userReview.title ?? '', body: userReview.body ?? '' })} style={styles.writeReviewLink}><Text style={styles.writeReviewLinkText}>Edit your review</Text></TouchableOpacity> : <TouchableOpacity onPress={() => navigation.navigate('WriteReview', { placeCode })} style={styles.writeReviewLink}><Text style={styles.writeReviewLinkText}>{t('places.writeReview')}</Text></TouchableOpacity>}
+              {reviews.length === 0 ? <Text style={styles.muted}>{t('places.noReviewsYet')}</Text> : <View style={styles.reviewList}>{reviews.slice(0, 3).map((r) => (<View key={r.review_code} style={styles.reviewCard}><View style={styles.reviewCardHeader}><View style={styles.reviewAvatar}><Text style={styles.reviewAvatarText}>{(r.display_name || '?').charAt(0).toUpperCase()}</Text></View><View style={styles.reviewCardMeta}><Text style={styles.reviewAuthor}>{r.display_name || 'Visitor'}</Text><Text style={styles.reviewDate}>{r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}</Text></View><View style={styles.reviewCardRight}><View style={styles.starRowSmall}>{[1,2,3,4,5].map((i) => <Text key={i} style={styles.starSmall}>{i <= r.rating ? '★' : '☆'}</Text>)}</View></View></View>{r.body ? <Text style={styles.reviewBody}>{r.body}</Text> : null}</View>))}</View>}
+            </View>
+          </View>
+        </ScrollView>
+        <View style={[variantStyles.ctaFooter, { paddingBottom: insets.bottom + 12 }]}>
+          <TouchableOpacity style={variantStyles.ctaButton} onPress={() => navigation.navigate('CheckIn', { placeCode })}>
+            <Text style={variantStyles.ctaButtonText}>{t('placeDetail.startPilgrimage')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -484,4 +832,114 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   footerIconText: { fontSize: 12, color: '#374151' },
+});
+
+const mosqueStyles = StyleSheet.create({
+  hero: { height: 420, position: 'relative', backgroundColor: tokens.colors.softBlue, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, overflow: 'hidden' },
+  heroImage: { width: '100%', height: '100%' },
+  heroPlaceholder: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
+  heroPlaceholderIcon: { fontSize: 64 },
+  heroOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '60%', backgroundColor: 'rgba(0,0,0,0.5)' },
+  heroTopBar: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, zIndex: 2 },
+  heroCircleBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  heroCircleBtnText: { color: '#fff', fontSize: 20 },
+  heroTopRight: { flexDirection: 'row', gap: 12 },
+  heroBottom: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 24, zIndex: 2 },
+  heroBadges: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  openNowBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(16, 185, 129, 0.9)', alignSelf: 'flex-start' },
+  openNowText: { color: '#fff', fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
+  distanceBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', alignSelf: 'flex-start' },
+  distanceBadgeText: { color: '#fff', fontSize: 11, fontWeight: '500' },
+  heroName: { fontSize: 28, fontWeight: '700', color: '#fff', marginBottom: 4 },
+  heroAddress: { fontSize: 14, color: 'rgba(255,255,255,0.9)', fontWeight: '300' },
+  body: { paddingHorizontal: 24, paddingTop: 24, marginTop: -24, backgroundColor: tokens.colors.backgroundLight },
+  section: { marginBottom: 24, backgroundColor: tokens.colors.surface, padding: 24, borderRadius: 24, ...tokens.shadow.subtle },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: tokens.colors.textMain, marginBottom: 16 },
+  description: { fontSize: 15, color: tokens.colors.textSecondary, lineHeight: 24 },
+  readFullStory: { marginTop: 12, fontSize: 12, fontWeight: '700', color: tokens.colors.primary, textTransform: 'uppercase' },
+  prayerRow: { flexDirection: 'row', gap: 16, paddingVertical: 8 },
+  prayerItem: { minWidth: 56, alignItems: 'center' },
+  prayerLabel: { fontSize: 10, fontWeight: '700', color: tokens.colors.textMuted, textTransform: 'uppercase', marginBottom: 4 },
+  prayerTime: { fontSize: 14, fontWeight: '600', color: tokens.colors.textMain },
+  facilitiesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  facilityCard: { width: '47%', padding: 20, borderRadius: 16, backgroundColor: tokens.colors.blueTint, borderWidth: 1, borderColor: 'rgba(59, 130, 246, 0.2)' },
+  facilityLabel: { fontSize: 10, fontWeight: '700', color: tokens.colors.primaryDark, opacity: 0.7, textTransform: 'uppercase', marginBottom: 4 },
+  facilityValue: { fontSize: 18, fontWeight: '700', color: tokens.colors.primaryDark },
+  whatPeopleSay: { fontSize: 12, color: tokens.colors.textMuted, marginBottom: 8 },
+  reviewMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  reviewMetaText: { fontSize: 14, fontWeight: '700', color: tokens.colors.textMain },
+  reviewMetaMuted: { fontSize: 12, color: tokens.colors.textMuted },
+});
+
+const variantStyles = StyleSheet.create({
+  hero: { height: 420, position: 'relative', backgroundColor: tokens.colors.softBlue, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, overflow: 'hidden' },
+  heroTall: { height: 380, position: 'relative', backgroundColor: tokens.colors.softBlue, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, overflow: 'hidden' },
+  heroImage: { width: '100%', height: '100%' },
+  heroPlaceholder: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
+  heroPlaceholderIcon: { fontSize: 64 },
+  heroOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '55%', backgroundColor: 'rgba(0,0,0,0.5)' },
+  heroTopBar: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 24, zIndex: 2 },
+  heroCircleBtn: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+  heroCircleBtnText: { color: '#fff', fontSize: 20 },
+  heroTopRight: { flexDirection: 'row', gap: 12 },
+  heroBottom: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 24, zIndex: 2 },
+  heroBadgeRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  typeBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.2)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+  typeBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
+  ratingBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.3)' },
+  ratingBadgeText: { color: '#F3EAC2', fontSize: 14, fontWeight: '600' },
+  openBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(34, 197, 94, 0.8)' },
+  openBadgeText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  heroNameLarge: { fontSize: 28, fontWeight: '700', color: '#fff', marginBottom: 4 },
+  heroAddress: { fontSize: 14, color: 'rgba(255,255,255,0.9)', fontWeight: '300' },
+  body: { paddingHorizontal: 24, paddingTop: 24, marginTop: -24, backgroundColor: tokens.colors.surface },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 24, paddingHorizontal: 24, borderBottomWidth: 1, borderBottomColor: tokens.colors.inputBorder },
+  infoCell: { flex: 1, alignItems: 'center' },
+  infoLabel: { fontSize: 10, color: tokens.colors.textMuted, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 },
+  infoValue: { fontSize: 14, fontWeight: '600', color: tokens.colors.textMain },
+  infoDivider: { width: 1, height: 32, backgroundColor: tokens.colors.inputBorder },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 24, paddingHorizontal: 24, borderBottomWidth: 1, borderBottomColor: tokens.colors.inputBorder },
+  statCell: { flex: 1, alignItems: 'center' },
+  statValue: { fontSize: 22, fontWeight: '700', color: tokens.colors.textMain },
+  statLabel: { fontSize: 12, color: tokens.colors.textMuted, marginTop: 2 },
+  statDivider: { width: 1, height: 32, backgroundColor: tokens.colors.inputBorder },
+  section: { marginBottom: 24, paddingHorizontal: 24, paddingTop: 24 },
+  sectionTitle: { fontSize: 20, fontWeight: '700', color: tokens.colors.textMain, marginBottom: 12 },
+  description: { fontSize: 15, color: tokens.colors.textSecondary, lineHeight: 24 },
+  readMore: { marginTop: 8, fontSize: 12, fontWeight: '600', color: tokens.colors.primary },
+  deitiesRow: { flexDirection: 'row', gap: 24, paddingVertical: 16 },
+  deityItem: { alignItems: 'center', minWidth: 100 },
+  deityCircle: { width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: 'rgba(197, 160, 89, 0.3)', backgroundColor: tokens.colors.surface, overflow: 'hidden', marginBottom: 8, alignItems: 'center', justifyContent: 'center' },
+  deityImage: { width: '100%', height: '100%' },
+  deityPlaceholder: { fontSize: 40 },
+  deityName: { fontSize: 14, fontWeight: '600', color: tokens.colors.textMain },
+  deitySubtitle: { fontSize: 10, color: tokens.colors.textMuted, textTransform: 'uppercase' },
+  facilitiesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  facilityCard: { width: '47%', padding: 16, borderRadius: 16, backgroundColor: tokens.colors.surface, borderWidth: 1, borderColor: tokens.colors.inputBorder },
+  facilityLabel: { fontSize: 10, fontWeight: '700', color: tokens.colors.textMuted, textTransform: 'uppercase', marginBottom: 4 },
+  facilityValue: { fontSize: 14, fontWeight: '600', color: tokens.colors.textMain },
+  facilityNotes: { fontSize: 12, color: tokens.colors.textMuted, marginTop: 4 },
+  dressCard: { width: '100%' },
+  actionRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 24, marginBottom: 24 },
+  actionBtnPrimary: { flex: 1, paddingVertical: 16, paddingHorizontal: 24, borderRadius: 16, backgroundColor: tokens.colors.blueTint, alignItems: 'center', justifyContent: 'center' },
+  actionBtnPrimaryText: { fontSize: 14, fontWeight: '600', color: tokens.colors.primary },
+  actionBtnSecondary: { flex: 1, paddingVertical: 16, paddingHorizontal: 24, borderRadius: 16, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' },
+  actionBtnSecondaryText: { fontSize: 14, fontWeight: '600', color: tokens.colors.textSecondary },
+  serviceList: { borderWidth: 1, borderColor: tokens.colors.inputBorder, borderRadius: 16, overflow: 'hidden' },
+  serviceRow: { flexDirection: 'row', padding: 16, borderBottomWidth: 1, borderBottomColor: tokens.colors.inputBorder, alignItems: 'center' },
+  serviceDay: { width: '30%', fontSize: 14, color: tokens.colors.textMuted, fontWeight: '500' },
+  serviceName: { flex: 1, fontSize: 14, fontWeight: '600', color: tokens.colors.textMain },
+  serviceTime: { fontSize: 16, fontWeight: '600', color: tokens.colors.textMain },
+  ctaFooter: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 24, paddingBottom: 24, paddingTop: 12, backgroundColor: tokens.colors.surface, alignItems: 'center' },
+  ctaButton: { backgroundColor: tokens.colors.primary, paddingVertical: 16, paddingHorizontal: 32, borderRadius: 999, minWidth: 200, alignItems: 'center' },
+  ctaButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

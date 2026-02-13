@@ -47,14 +47,19 @@ function FitBounds({ places }: { places: Place[] }) {
 interface PlacesMapProps {
   places: Place[];
   center: { lat: number; lng: number } | null;
+  onPlaceSelect?: (place: Place) => void;
 }
 
-export default function PlacesMap({ places, center }: PlacesMapProps) {
+function formatDistance(km: number): string {
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+}
+
+export default function PlacesMap({ places, center, onPlaceSelect }: PlacesMapProps) {
   const mapCenter: [number, number] = center ? [center.lat, center.lng] : DEFAULT_CENTER;
   const zoom = center ? USER_ZOOM : DEFAULT_ZOOM;
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-input-border h-[400px] md:h-[500px] bg-gray-100 dark:bg-gray-800">
+    <div className="rounded-2xl overflow-hidden border border-input-border h-full min-h-[400px] md:min-h-[500px] bg-soft-blue dark:bg-gray-800">
       <MapContainer
         center={mapCenter}
         zoom={zoom}
@@ -72,16 +77,13 @@ export default function PlacesMap({ places, center }: PlacesMapProps) {
             key={place.place_code}
             position={[place.lat, place.lng]}
             icon={createMarkerIcon(place.religion)}
+            eventHandlers={onPlaceSelect ? { click: () => onPlaceSelect(place) } : undefined}
           >
-            <Popup>
+            {!onPlaceSelect && <Popup>
               <div className="min-w-[160px]">
                 <p className="font-semibold text-gray-900 mb-1">{place.name}</p>
                 {place.distance != null && (
-                  <p className="text-sm text-gray-600 mb-2">
-                    {place.distance < 1
-                      ? `${Math.round(place.distance * 1000)} m away`
-                      : `${place.distance.toFixed(1)} km away`}
-                  </p>
+                  <p className="text-sm text-gray-600 mb-2">{formatDistance(place.distance)} away</p>
                 )}
                 <Link
                   to={`/places/${place.place_code}`}
@@ -91,7 +93,7 @@ export default function PlacesMap({ places, center }: PlacesMapProps) {
                   <span className="material-symbols-outlined text-sm">arrow_forward</span>
                 </Link>
               </div>
-            </Popup>
+            </Popup>}
           </Marker>
         ))}
       </MapContainer>

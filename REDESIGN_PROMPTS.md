@@ -53,40 +53,40 @@ Work from DESIGN_FILE_V2.html; mobile and mobile web UIs should match the design
 
 ### M-2. Select Your Path (mobile + mobile web)
 
-- Redesign the Select Path screen to match DESIGN_FILE_V2.html “Select Your Path”: faith cards (Islam, Hinduism, Christianity), “View More Faiths”, “Skip for now”. Use existing settings API to save religion preference. Match layout, spacing, and typography from the design on both mobile app and mobile web.
+- [x] Redesign the Select Path screen to match DESIGN_FILE_V2.html “Select Your Path”: faith cards (Islam, Hinduism, Christianity), “View More Faiths”, “Skip for now”. Use existing settings API to save religion preference. Match layout, spacing, and typography from the design on both mobile app and mobile web.
 
 ---
 
 ### M-3. Explore Sacred Places – Home (mobile + mobile web)
 
-- Redesign Home/Explore to match DESIGN_FILE_V2.html “Explore Sacred Places”: greeting (e.g. “Assalamu Alaikum, [name]”), search bar, filter chips (Nearby, Historical, Jummah, Events), hero place card and list of place cards, bottom nav (Explore, Map, Groups, Profile). Use GET /places with lat/lng; add Jummah/Events filters when backend supports. Show “Open Now” when API provides it. Match design layout and styling on mobile and mobile web.
+- [x] Redesign Home/Explore to match DESIGN_FILE_V2.html “Explore Sacred Places”: greeting (e.g. “Assalamu Alaikum, [name]”), search bar, filter chips (Nearby, Historical, Jummah, Events), hero place card and list of place cards, bottom nav (Explore, Map, Groups, Profile). Use GET /places with lat/lng; add Jummah/Events filters when backend supports. Show “Open Now” when API provides it. Match design layout and styling on mobile and mobile web.
 
 ---
 
 ### M-4. Place Detail – mosque variant (mobile + mobile web)
 
-- Redesign Place Detail for **mosque** to match DESIGN_FILE_V2.html “Place Details - Mosque”: hero image, back/share/favorite, “Open Now” and distance, name and address, Prayer Times (Fajr, Dhuhr, Asr, Maghrib, Isha with date), About, Details & Facilities (Capacity, Wudu Area, Parking, Women’s Area), Check-in and Directions buttons, Recent Reviews. Use place detail and `religion_specific`; add prayer_times and facilities if backend is extended. Match design on mobile and mobile web.
+- [x] Redesign Place Detail for **mosque** to match DESIGN_FILE_V2.html “Place Details - Mosque”: hero image, back/share/favorite, “Open Now” and distance, name and address, Prayer Times (Fajr, Dhuhr, Asr, Maghrib, Isha with date), About, Details & Facilities (Capacity, Wudu Area, Parking, Women’s Area), Check-in and Directions buttons, Recent Reviews. Use place detail and `religion_specific`; add prayer_times and facilities if backend is extended. Match design on mobile and mobile web.
 
 ---
 
 ### M-5. Place Detail – Hindu temple and Christian church variants (mobile + mobile web)
 
-- For **Hindu temple**: Match DESIGN_FILE_V2.html “Place Details - Hindu Temple” — hero, Opens At / Distance / Crowd, Sanctum Story, Divine Presence (deities carousel), Essential Information (Architecture, Next Festival, Dress Code), Pilgrim Voices. Use `opening_hours` and `religion_specific` (deities, architecture, next_festival, dress_code, crowd_level).
-- For **Christian church**: Match “Place Details - Christian Church” — hero, badge and “Open”, name and address, rating/founded/style, Get Directions, Visit Website, The Sanctuary copy, Service Times table. Use `religion_specific` (founded_year, style, service_times, website_url).
-- Ensure one Place Detail screen branches on religion/place_type to render the correct variant. Match design on mobile and mobile web.
+- [x] For **Hindu temple**: Match DESIGN_FILE_V2.html “Place Details - Hindu Temple” — hero, Opens At / Distance / Crowd, Sanctum Story, Divine Presence (deities carousel), Essential Information (Architecture, Next Festival, Dress Code), Pilgrim Voices. Use `opening_hours` and `religion_specific` (deities, architecture, next_festival, dress_code, crowd_level).
+- [x] For **Christian church**: Match “Place Details - Christian Church” — hero, badge and “Open”, name and address, rating/founded/style, Get Directions, Visit Website, The Sanctuary copy, Service Times table. Use `religion_specific` (founded_year, style, service_times, website_url).
+- [x] Ensure one Place Detail screen branches on religion/place_type to render the correct variant. Match design on mobile and mobile web.
 
 ---
 
 ### M-6. Map Discovery tab and screen (mobile + mobile web)
 
-- Add a **Map** tab to the main tabs: bottom nav should be Explore, **Map**, Groups, Profile (replace Favorites with Map per design, or add Map and keep Favorites per product decision; design shows Map).
-- Implement the Map screen to match DESIGN_FILE_V2.html “Map Discovery View”: full-screen map with place pins, search bar, layers and “my location” buttons, bottom sheet with selected place card (image, name, address, rating, distance, “Open Now”), Get Directions. Use GET /places with lat/lng (and optional bounds). Match design on mobile and mobile web.
+- [x] Add a **Map** tab to the main tabs: bottom nav should be Explore, **Map**, Groups, Profile (replace Favorites with Map per design, or add Map and keep Favorites per product decision; design shows Map).
+- [x] Implement the Map screen to match DESIGN_FILE_V2.html “Map Discovery View”: full-screen map with place pins, search bar, layers and “my location” buttons, bottom sheet with selected place card (image, name, address, rating, distance, “Open Now”), Get Directions. Use GET /places with lat/lng (and optional bounds). Match design on mobile and mobile web.
 
 ---
 
 ### M-7. User Profile & Stats (mobile + mobile web)
 
-- Redesign Profile to match DESIGN_FILE_V2.html “User Profile & Stats”: avatar, name, Joined date, stats (Visits, Reviews, Badges), faith toggle, Edit Profile button, Account section (My Check-ins, Favorite Places, Group Activity), app version, bottom nav. Use GET /me and GET /me/stats; show badges when backend supports. Match design on mobile and mobile web.
+- [x] Redesign Profile to match DESIGN_FILE_V2.html “User Profile & Stats”: avatar, name, Joined date, stats (Visits, Reviews, Badges), faith toggle, Edit Profile button, Account section (My Check-ins, Favorite Places, Group Activity), app version, bottom nav. Use GET /me and GET /me/stats; show badges when backend supports. Match design on mobile and mobile web.
 
 ---
 

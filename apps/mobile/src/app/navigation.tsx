@@ -41,6 +41,7 @@ export type RootStackParamList = {
   JoinGroup: { inviteCode?: string };
   Settings: undefined;
   Notifications: undefined;
+  Favorites: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -66,6 +67,7 @@ function RootStack() {
       <Stack.Screen name="JoinGroup" component={JoinGroupScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen name="Favorites" component={FavoritesScreen} />
     </Stack.Navigator>
   );
 }

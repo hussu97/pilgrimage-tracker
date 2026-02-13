@@ -3,17 +3,18 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HomeScreen from '../app/screens/HomeScreen';
-import FavoritesScreen from '../app/screens/FavoritesScreen';
+import MapScreen from '../app/screens/MapScreen';
 import GroupsScreen from '../app/screens/GroupsScreen';
 import ProfileScreen from '../app/screens/ProfileScreen';
 import { useI18n } from '../app/providers';
+import { tokens } from '../lib/theme';
 
 const Tab = createBottomTabNavigator();
 
-function TabIcon({ name }: { name: string }) {
+function TabIcon({ name, focused }: { name: string; focused: boolean }) {
   return (
     <View style={styles.tabIcon}>
-      <Text style={styles.tabIconText}>{name}</Text>
+      <Text style={[styles.tabIconText, focused && styles.tabIconTextActive]}>{name}</Text>
     </View>
   );
 }
@@ -26,8 +27,16 @@ export default function Layout() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { paddingBottom: insets.bottom, paddingTop: 8 },
-        tabBarLabelStyle: { fontSize: 10 },
+        tabBarStyle: {
+          paddingBottom: insets.bottom,
+          paddingTop: 8,
+          backgroundColor: tokens.colors.surface,
+          borderTopColor: tokens.colors.inputBorder,
+          borderTopWidth: 1,
+        },
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '500' },
+        tabBarActiveTintColor: tokens.colors.primary,
+        tabBarInactiveTintColor: tokens.colors.textMuted,
       }}
     >
       <Tab.Screen
@@ -35,15 +44,15 @@ export default function Layout() {
         component={HomeScreen}
         options={{
           tabBarLabel: t('nav.explore'),
-          tabBarIcon: () => <TabIcon name="⊕" />,
+          tabBarIcon: ({ focused }) => <TabIcon name="⊕" focused={focused} />,
         }}
       />
       <Tab.Screen
-        name="Favorites"
-        component={FavoritesScreen}
+        name="Map"
+        component={MapScreen}
         options={{
-          tabBarLabel: t('nav.saved'),
-          tabBarIcon: () => <TabIcon name="♥" />,
+          tabBarLabel: t('nav.map'),
+          tabBarIcon: ({ focused }) => <TabIcon name="◉" focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -51,7 +60,7 @@ export default function Layout() {
         component={GroupsScreen}
         options={{
           tabBarLabel: t('nav.groups'),
-          tabBarIcon: () => <TabIcon name="◉" />,
+          tabBarIcon: ({ focused }) => <TabIcon name="◆" focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -59,7 +68,7 @@ export default function Layout() {
         component={ProfileScreen}
         options={{
           tabBarLabel: t('nav.profile'),
-          tabBarIcon: () => <TabIcon name="☺" />,
+          tabBarIcon: ({ focused }) => <TabIcon name="○" focused={focused} />,
         }}
       />
     </Tab.Navigator>
@@ -68,5 +77,6 @@ export default function Layout() {
 
 const styles = StyleSheet.create({
   tabIcon: { alignItems: 'center', justifyContent: 'center' },
-  tabIconText: { fontSize: 18 },
+  tabIconText: { fontSize: 20, color: tokens.colors.textMuted },
+  tabIconTextActive: { color: tokens.colors.primary },
 });

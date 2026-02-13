@@ -3,14 +3,22 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../app/navigation';
 import type { Place } from '../lib/types';
+import { tokens } from '../lib/theme';
 
 interface PlaceCardProps {
   place: Place;
 }
 
+function formatDistance(km: number): string {
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+}
+
 export default function PlaceCard({ place }: PlaceCardProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>>();
   const imageUrl = place.image_urls?.[0] ?? '';
+  const rating = place.average_rating;
+  const reviewCount = place.review_count ?? 0;
+  const showOpenNow = place.is_open_now === true;
 
   return (
     <TouchableOpacity
@@ -26,22 +34,36 @@ export default function PlaceCard({ place }: PlaceCardProps) {
             <Text style={styles.placeholderIcon}>⊕</Text>
           </View>
         )}
-        {place.user_has_checked_in ? (
-          <View style={styles.visitedBadge}>
-            <Text style={styles.visitedText}>✓ Visited</Text>
-          </View>
-        ) : null}
+        <View style={styles.badges}>
+          {showOpenNow && (
+            <View style={styles.openNowBadge}>
+              <View style={styles.openNowDot} />
+              <Text style={styles.openNowText}>Open Now</Text>
+            </View>
+          )}
+          {place.user_has_checked_in && (
+            <View style={styles.visitedBadge}>
+              <Text style={styles.visitedText}>✓ Visited</Text>
+            </View>
+          )}
+        </View>
       </View>
       <View style={styles.body}>
         <Text style={styles.name} numberOfLines={2}>{place.name}</Text>
         <Text style={styles.address} numberOfLines={1}>{place.address || place.place_type}</Text>
-        {place.distance != null ? (
-          <Text style={styles.distance}>
-            {place.distance < 1
-              ? `${Math.round(place.distance * 1000)} m`
-              : `${place.distance.toFixed(1)} km`}
-          </Text>
-        ) : null}
+        <View style={styles.footer}>
+          {place.distance != null && (
+            <Text style={styles.distance}>{formatDistance(place.distance)}</Text>
+          )}
+          {rating != null && (
+            <View style={styles.ratingRow}>
+              <Text style={styles.ratingValue}>{rating.toFixed(1)}</Text>
+              {reviewCount > 0 && (
+                <Text style={styles.reviewCount}> ({reviewCount})</Text>
+              )}
+            </View>
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -49,28 +71,90 @@ export default function PlaceCard({ place }: PlaceCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: tokens.borderRadius['2xl'],
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: tokens.colors.inputBorder,
+    ...tokens.shadow.card,
   },
-  imageWrap: { height: 160, backgroundColor: '#f3f4f6', position: 'relative' },
+  imageWrap: {
+    height: 160,
+    backgroundColor: tokens.colors.softBlue,
+    position: 'relative',
+  },
   image: { width: '100%', height: '100%' },
   imagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  placeholderIcon: { fontSize: 40, color: '#9ca3af' },
-  visitedBadge: {
+  placeholderIcon: { fontSize: 40, color: tokens.colors.textMuted },
+  badges: {
     position: 'absolute',
     top: 12,
+    left: 12,
     right: 12,
-    backgroundColor: 'rgba(13, 148, 136, 0.9)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  openNowBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: tokens.colors.openNowBg,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
+    borderRadius: tokens.borderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
   },
-  visitedText: { color: '#fff', fontSize: 12, fontWeight: '600' },
+  openNowDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: tokens.colors.openNow,
+  },
+  openNowText: {
+    color: tokens.colors.openNow,
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  visitedBadge: {
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: tokens.borderRadius.full,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  visitedText: { color: '#fff', fontSize: 10, fontWeight: '600' },
   body: { padding: 16 },
-  name: { fontSize: 18, fontWeight: '700', color: '#111', marginBottom: 4 },
-  address: { fontSize: 14, color: '#6b7280', marginBottom: 4 },
-  distance: { fontSize: 12, color: '#0d9488', fontWeight: '600' },
+  name: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: tokens.colors.textMain,
+    marginBottom: 4,
+  },
+  address: {
+    fontSize: 14,
+    color: tokens.colors.textSecondary,
+    marginBottom: 8,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: tokens.colors.inputBorder,
+  },
+  distance: {
+    fontSize: 12,
+    color: tokens.colors.textSecondary,
+    fontWeight: '500',
+  },
+  ratingRow: { flexDirection: 'row', alignItems: 'baseline' },
+  ratingValue: { fontSize: 14, fontWeight: '600', color: tokens.colors.textMain },
+  reviewCount: { fontSize: 12, color: tokens.colors.textMuted },
 });

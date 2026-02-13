@@ -5,10 +5,10 @@ import { useI18n } from '@/app/providers';
 import { updateSettings } from '@/lib/api/client';
 import type { Religion } from '@/lib/types';
 
-const RELIGIONS: { code: Religion; labelKey: string }[] = [
-  { code: 'islam', labelKey: 'common.islam' },
-  { code: 'hinduism', labelKey: 'common.hinduism' },
-  { code: 'christianity', labelKey: 'common.christianity' },
+const RELIGIONS: { code: Religion; labelKey: string; icon: string; hoverClass: string }[] = [
+  { code: 'islam', labelKey: 'common.islam', icon: 'mosque', hoverClass: 'group-hover:border-emerald-100 group-hover:shadow-emerald-100/40 group-hover:text-emerald-700' },
+  { code: 'hinduism', labelKey: 'common.hinduism', icon: 'temple_hindu', hoverClass: 'group-hover:border-orange-100 group-hover:shadow-orange-100/40 group-hover:text-orange-700' },
+  { code: 'christianity', labelKey: 'common.christianity', icon: 'church', hoverClass: 'group-hover:border-blue-100 group-hover:shadow-blue-100/40 group-hover:text-blue-700' },
 ];
 
 export default function SelectPath() {
@@ -44,49 +44,84 @@ export default function SelectPath() {
   }
 
   return (
-    <div className="max-w-md mx-auto px-6 py-8 safe-area-top safe-area-bottom">
-      <h1 className="text-3xl font-semibold text-text-main mb-3">{t('selectPath.title')}</h1>
-      <p className="text-text-muted mb-6">{t('selectPath.subtitle')}</p>
+    <div
+      className="min-h-screen flex flex-col items-center antialiased font-sans"
+      style={{ background: 'linear-gradient(180deg, #F0F5FA 0%, #E6EEF5 100%)' }}
+    >
+      <div className="w-full max-w-md flex flex-col flex-1 px-8 py-10 mx-auto">
+        <header className="mt-14 mb-12 text-center">
+          <h1 className="text-[32px] font-semibold tracking-tight mb-3 text-slate-800">
+            {t('selectPath.title')}
+          </h1>
+          <p className="text-slate-500 text-base leading-relaxed max-w-[280px] mx-auto font-normal tracking-wide">
+            {t('selectPath.subtitle')}
+          </p>
+        </header>
 
-      <div className="space-y-3 mb-8">
-        {RELIGIONS.map(({ code, labelKey }) => (
+        <main className="flex-1 flex flex-col items-center justify-start gap-10">
+          {RELIGIONS.map(({ code, labelKey, icon, hoverClass }) => {
+            const isSelected = selected.includes(code);
+            return (
+              <button
+                key={code}
+                type="button"
+                onClick={() => toggle(code)}
+                className={`faith-btn group flex flex-col items-center gap-5 w-full transition-transform duration-300 active:scale-[0.96] ${
+                  isSelected ? 'ring-2 ring-primary ring-offset-2 rounded-full' : ''
+                }`}
+              >
+                <div
+                  className={`w-36 h-36 rounded-full bg-white shadow-elevated flex items-center justify-center border-[1.5px] border-white transition-all duration-300 relative overflow-hidden ${hoverClass}`}
+                >
+                  <div className="absolute inset-0 bg-transparent group-hover:bg-opacity-30 transition-colors duration-300" />
+                  <span
+                    className={`material-symbols-outlined text-[64px] font-light relative z-10 transition-colors duration-300 ${
+                      isSelected ? 'text-primary' : 'text-slate-700'
+                    } ${hoverClass}`}
+                    style={{ fontVariationSettings: "'wght' 200" }}
+                  >
+                    {icon}
+                  </span>
+                </div>
+                <span className="text-lg font-medium text-slate-700 tracking-tight group-hover:transition-colors group-focus:text-slate-900">
+                  {t(labelKey)}
+                </span>
+              </button>
+            );
+          })}
+        </main>
+
+        <footer className="mt-auto pb-8 flex flex-col items-center gap-5">
+          {error && (
+            <p className="text-red-600 text-sm text-center" role="alert">
+              {error}
+            </p>
+          )}
+          {selected.length > 0 && (
+            <button
+              type="button"
+              onClick={handleContinue}
+              disabled={loading}
+              className="w-full max-w-[280px] bg-primary hover:bg-primary-dark text-white py-3 rounded-xl font-semibold transition-colors disabled:opacity-50"
+            >
+              {loading ? t('common.loading') : t('selectPath.continue')}
+            </button>
+          )}
           <button
-            key={code}
             type="button"
-            onClick={() => toggle(code)}
-            className={`w-full flex items-center justify-between px-4 py-4 rounded-xl border-2 text-left transition-colors ${
-              selected.includes(code)
-                ? 'border-primary bg-primary/5 text-primary'
-                : 'border-input-border bg-background-light text-text-main hover:border-primary/50'
-            }`}
+            onClick={() => {}}
+            className="text-[15px] font-medium text-slate-500 hover:text-slate-800 transition-colors py-2 px-6 tracking-tight"
           >
-            <span className="font-medium">{t(labelKey)}</span>
-            {selected.includes(code) && (
-              <span className="material-symbols-outlined text-primary">check_circle</span>
-            )}
+            {t('selectPath.viewMoreFaiths')}
           </button>
-        ))}
-      </div>
-      <p className="text-xs text-text-muted mb-6">{t('selectPath.hint')}</p>
-
-      {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
-
-      <div className="space-y-3">
-        <button
-          type="button"
-          onClick={handleContinue}
-          disabled={loading}
-          className="w-full bg-primary hover:bg-primary-hover text-white py-3 rounded-xl font-semibold transition-colors disabled:opacity-50"
-        >
-          {loading ? t('common.loading') : t('selectPath.continue')}
-        </button>
-        <button
-          type="button"
-          onClick={handleSkip}
-          className="w-full py-3 rounded-xl border border-input-border text-text-muted hover:text-text-main hover:border-primary/50 transition-colors"
-        >
-          {t('selectPath.skip')}
-        </button>
+          <button
+            type="button"
+            onClick={handleSkip}
+            className="text-sm font-normal text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            {t('selectPath.skip')}
+          </button>
+        </footer>
       </div>
     </div>
   );

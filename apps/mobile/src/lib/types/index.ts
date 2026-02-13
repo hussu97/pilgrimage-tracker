@@ -25,6 +25,9 @@ export interface Place {
   religion_specific?: Record<string, unknown>;
   user_has_checked_in?: boolean;
   is_favorite?: boolean;
+  average_rating?: number;
+  review_count?: number;
+  is_open_now?: boolean;
 }
 
 export interface PlaceDetail extends Place {
@@ -62,6 +65,12 @@ export interface CheckIn {
 export interface UserStats {
   placesVisited: number;
   checkInsThisYear: number;
+  /** Total check-in count (for "Visits" in profile) */
+  visits?: number;
+  /** Review count (for "Reviews" in profile) */
+  reviews?: number;
+  /** Badges count (for "Badges" in profile) */
+  badges_count?: number;
 }
 
 export interface Group {

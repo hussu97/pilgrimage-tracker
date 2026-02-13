@@ -8,11 +8,18 @@ import { useAuth } from '../providers';
 import { useI18n } from '../providers';
 import { updateSettings } from '../../lib/api/client';
 import type { Religion } from '../../lib/types';
+import { tokens } from '../../lib/theme';
 
-const RELIGIONS: { code: Religion; labelKey: string }[] = [
-  { code: 'islam', labelKey: 'common.islam' },
-  { code: 'hinduism', labelKey: 'common.hinduism' },
-  { code: 'christianity', labelKey: 'common.christianity' },
+const RELIGIONS: {
+  code: Religion;
+  labelKey: string;
+  icon: string;
+  accent: string;
+  accentBg: string;
+}[] = [
+  { code: 'islam', labelKey: 'common.islam', icon: '🕌', accent: '#059669', accentBg: 'rgba(16, 185, 129, 0.15)' },
+  { code: 'hinduism', labelKey: 'common.hinduism', icon: '🛕', accent: '#ea580c', accentBg: 'rgba(234, 88, 12, 0.15)' },
+  { code: 'christianity', labelKey: 'common.christianity', icon: '⛪', accent: '#2563eb', accentBg: 'rgba(37, 99, 235, 0.15)' },
 ];
 
 export default function SelectPathScreen() {
@@ -50,10 +57,14 @@ export default function SelectPathScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: '#F0F5FA' }]}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 },
+        {
+          paddingTop: insets.top + 56,
+          paddingBottom: insets.bottom + 32,
+          minHeight: '100%',
+        },
       ]}
       keyboardShouldPersistTaps="handled"
     >
@@ -64,85 +75,127 @@ export default function SelectPathScreen() {
       >
         <Text style={styles.backText}>‹ {t('common.back')}</Text>
       </TouchableOpacity>
-      <Text style={styles.title}>{t('selectPath.title')}</Text>
-      <Text style={styles.subtitle}>{t('selectPath.subtitle')}</Text>
-      <View style={styles.cards}>
-        {RELIGIONS.map(({ code, labelKey }) => (
+
+      <header style={styles.header}>
+        <Text style={styles.title}>{t('selectPath.title')}</Text>
+        <Text style={styles.subtitle}>{t('selectPath.subtitle')}</Text>
+      </header>
+
+      <View style={styles.main}>
+        {RELIGIONS.map(({ code, labelKey, icon, accent, accentBg }) => {
+          const isSelected = selected.includes(code);
+          return (
+            <TouchableOpacity
+              key={code}
+              style={[
+                styles.faithCard,
+                isSelected && { borderWidth: 2, borderColor: accent, backgroundColor: accentBg },
+              ]}
+              onPress={() => toggle(code)}
+              activeOpacity={0.9}
+            >
+              <View style={[styles.circle, isSelected && { borderWidth: 2, borderColor: accent }]}>
+                <Text style={styles.icon}>{icon}</Text>
+              </View>
+              <Text style={[styles.label, isSelected && { color: accent }]}>{t(labelKey)}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <View style={styles.footer}>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {selected.length > 0 && (
           <TouchableOpacity
-            key={code}
-            style={[styles.card, selected.includes(code) && styles.cardSelected]}
-            onPress={() => toggle(code)}
+            style={[styles.primaryButton, loading && styles.buttonDisabled]}
+            onPress={handleContinue}
+            disabled={loading}
             activeOpacity={0.8}
           >
-            <Text style={[styles.cardLabel, selected.includes(code) && styles.cardLabelSelected]}>
-              {t(labelKey)}
+            <Text style={styles.primaryButtonText}>
+              {loading ? t('common.loading') : t('selectPath.continue')}
             </Text>
-            {selected.includes(code) ? (
-              <Text style={styles.checkmark}>✓</Text>
-            ) : null}
           </TouchableOpacity>
-        ))}
+        )}
+        <TouchableOpacity onPress={() => {}} style={styles.textButton} activeOpacity={0.8}>
+          <Text style={styles.textButtonPrimary}>{t('selectPath.viewMoreFaiths')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={handleSkip} style={styles.textButton} activeOpacity={0.8}>
+          <Text style={styles.textButtonSecondary}>{t('selectPath.skip')}</Text>
+        </TouchableOpacity>
       </View>
-      <Text style={styles.hint}>{t('selectPath.hint')}</Text>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <TouchableOpacity
-        style={[styles.primaryButton, loading && styles.buttonDisabled]}
-        onPress={handleContinue}
-        disabled={loading}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.primaryButtonText}>
-          {loading ? t('common.loading') : t('selectPath.continue')}
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.secondaryButton} onPress={handleSkip} activeOpacity={0.8}>
-        <Text style={styles.secondaryButtonText}>{t('selectPath.skip')}</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { paddingHorizontal: 24 },
-  backButton: { marginBottom: 16 },
-  backText: { fontSize: 16, color: '#6b7280' },
-  title: { fontSize: 24, fontWeight: '600', color: '#111', marginBottom: 12 },
-  subtitle: { fontSize: 16, color: '#666', marginBottom: 24 },
-  cards: { marginBottom: 24 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#ddd',
-    backgroundColor: '#fafafa',
+  container: { flex: 1 },
+  content: { paddingHorizontal: 32 },
+  backButton: { marginBottom: 8 },
+  backText: { fontSize: 16, color: tokens.colors.textSecondary },
+  header: { alignItems: 'center', marginBottom: 48 },
+  title: {
+    fontSize: 32,
+    fontWeight: '600',
+    color: tokens.colors.textDark,
     marginBottom: 12,
+    textAlign: 'center',
+    letterSpacing: -0.5,
   },
-  cardSelected: { borderColor: '#0d9488', backgroundColor: 'rgba(13, 148, 136, 0.05)' },
-  cardLabel: { fontSize: 16, fontWeight: '500', color: '#333' },
-  cardLabelSelected: { color: '#0d9488' },
-  checkmark: { fontSize: 18, color: '#0d9488' },
-  hint: { fontSize: 12, color: '#888', marginBottom: 24 },
-  error: { color: '#c00', fontSize: 14, marginBottom: 12 },
-  primaryButton: {
-    backgroundColor: '#0d9488',
-    paddingVertical: 14,
-    borderRadius: 12,
+  subtitle: {
+    fontSize: 16,
+    color: tokens.colors.textSecondary,
+    textAlign: 'center',
+    maxWidth: 280,
+    lineHeight: 24,
+  },
+  main: { alignItems: 'center', gap: 40, marginBottom: 24 },
+  faithCard: {
     alignItems: 'center',
-    marginBottom: 12,
+    width: '100%',
+    paddingVertical: 8,
+    borderRadius: 9999,
+  },
+  circle: {
+    width: 144,
+    height: 144,
+    borderRadius: 72,
+    backgroundColor: tokens.colors.surface,
+    ...tokens.shadow.elevated,
+    borderWidth: 1.5,
+    borderColor: tokens.colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  icon: { fontSize: 64 },
+  label: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: tokens.colors.textDark,
+    letterSpacing: -0.3,
+  },
+  footer: { alignItems: 'center', gap: 20, marginTop: 'auto', paddingTop: 32 },
+  error: { color: '#b91c1c', fontSize: 14, textAlign: 'center' },
+  primaryButton: {
+    backgroundColor: tokens.colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: tokens.borderRadius.xl,
+    alignSelf: 'stretch',
+    maxWidth: 280,
+    alignItems: 'center',
   },
   buttonDisabled: { opacity: 0.6 },
   primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  secondaryButton: {
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
+  textButton: { paddingVertical: 8, paddingHorizontal: 24 },
+  textButtonPrimary: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: tokens.colors.textSecondary,
   },
-  secondaryButtonText: { fontSize: 16, color: '#666' },
+  textButtonSecondary: {
+    fontSize: 14,
+    color: tokens.colors.textMuted,
+  },
 });
