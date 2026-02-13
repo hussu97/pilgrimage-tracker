@@ -8,6 +8,7 @@ import type {
   CheckIn,
   UserStats,
   Group,
+  GroupMember,
   LeaderboardEntry,
   ActivityItem,
   Notification,
@@ -282,6 +283,22 @@ export async function joinGroupByCode(inviteCode: string): Promise<{ ok: boolean
 export async function joinGroup(groupCode: string): Promise<void> {
   const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/join`, { method: 'POST', headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to join group');
+}
+
+export async function getGroupMembers(groupCode: string): Promise<GroupMember[]> {
+  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/members`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch members');
+  return res.json();
+}
+
+export async function createGroupInvite(groupCode: string): Promise<{ invite_code: string; invite_url: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/invite`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? 'Failed to create invite');
+  return data;
 }
 
 export async function getGroupLeaderboard(groupCode: string): Promise<LeaderboardEntry[]> {

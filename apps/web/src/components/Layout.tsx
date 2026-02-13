@@ -27,10 +27,10 @@ export default function Layout({ children }: { children: ReactNode }) {
       <header className="hidden md:flex safe-area-top border-b border-input-border bg-background-light px-6 py-4">
         <nav className="flex items-center gap-6 w-full max-w-6xl mx-auto">
           <Link to="/" className="text-xl font-semibold text-primary">{t('common.appName')}</Link>
-          <Link to="/home" className="text-text-muted hover:text-primary">{t('nav.explore')}</Link>
-          <Link to="/favorites" className="text-text-muted hover:text-primary">{t('nav.saved')}</Link>
-          <Link to="/groups" className="text-text-muted hover:text-primary">{t('nav.groups')}</Link>
-          <Link to="/notifications" className="relative text-text-muted hover:text-primary" aria-label={t('nav.notifications')}>
+          <Link to="/home" className="text-text-muted hover:text-primary" aria-current={location.pathname === '/home' ? 'page' : undefined}>{t('nav.explore')}</Link>
+          <Link to="/favorites" className="text-text-muted hover:text-primary" aria-current={location.pathname === '/favorites' ? 'page' : undefined}>{t('nav.saved')}</Link>
+          <Link to="/groups" className="text-text-muted hover:text-primary" aria-current={location.pathname.startsWith('/groups') ? 'page' : undefined}>{t('nav.groups')}</Link>
+          <Link to="/notifications" className="relative text-text-muted hover:text-primary" aria-label={t('nav.notifications')} aria-current={location.pathname === '/notifications' ? 'page' : undefined}>
             <span className="material-symbols-outlined">notifications</span>
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center px-1">
@@ -38,7 +38,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               </span>
             )}
           </Link>
-          <Link to="/profile" className="ml-auto text-text-muted hover:text-primary">{t('nav.profile')}</Link>
+          <Link to="/profile" className="ml-auto text-text-muted hover:text-primary" aria-current={location.pathname === '/profile' ? 'page' : undefined}>{t('nav.profile')}</Link>
         </nav>
       </header>
 

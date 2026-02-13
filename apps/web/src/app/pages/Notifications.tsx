@@ -63,7 +63,7 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto px-4 py-6 pb-24 md:pb-6">
+    <div className="max-w-md md:max-w-2xl mx-auto px-4 py-6 pb-24 md:pb-6">
       <header className="mb-6">
         <p className="text-sm text-primary font-medium uppercase tracking-wide mb-1">Updates</p>
         <h1 className="text-2xl font-semibold text-text-main">{t('notifications.title')}</h1>
@@ -111,7 +111,8 @@ export default function NotificationsPage() {
                   <button
                     type="button"
                     onClick={() => handleMarkRead(n.notification_code)}
-                    className="shrink-0 text-primary text-sm font-medium hover:text-primary-hover"
+                    aria-label={t('notifications.markRead')}
+                    className="shrink-0 text-primary text-sm font-medium hover:text-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                   >
                     Mark read
                   </button>

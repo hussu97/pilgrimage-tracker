@@ -49,7 +49,7 @@ Configure `app.json` / `app.config.js` (icons, splash, scheme). Submit to App St
 
 ## Environment
 
-- **`EXPO_PUBLIC_API_URL`** – Base URL of the API (e.g. `http://localhost:3000` for dev, or your production API URL). Use in API client for all requests.
+- **`EXPO_PUBLIC_API_URL`** – Base URL of the API. When unset, the app defaults to `http://127.0.0.1:3000` so the simulator can reach the backend. For a physical device, set this to your machine’s LAN IP (e.g. `http://192.168.1.10:3000`). The **backend must be running** (e.g. `cd server && uvicorn app.main:app --reload --port 3000`) for the Home screen and other API features to work.
 
 ## Structure
 

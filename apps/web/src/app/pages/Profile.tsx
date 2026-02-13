@@ -4,6 +4,7 @@ import { useAuth } from '@/app/providers';
 import { useI18n } from '@/app/providers';
 import { getMyStats, getMyCheckIns } from '@/lib/api/client';
 import ErrorState from '@/components/ErrorState';
+import EmptyState from '@/components/EmptyState';
 import type { UserStats } from '@/lib/types';
 
 export default function Profile() {
@@ -70,16 +71,29 @@ export default function Profile() {
       {!loading && (
         <section className="mb-8">
           <h2 className="text-sm font-medium text-primary uppercase tracking-wide mb-3">{t('profile.stats')}</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-xl border border-input-border bg-gray-50 dark:bg-gray-800/50 p-4 text-center">
-              <p className="text-2xl font-bold text-text-main">{stats?.placesVisited ?? 0}</p>
-              <p className="text-sm text-text-muted mt-1">{t('profile.placesVisited')}</p>
+          {(stats?.placesVisited ?? 0) === 0 && (stats?.checkInsThisYear ?? 0) === 0 ? (
+            <EmptyState
+              icon="explore"
+              title={t('profile.noVisitsYet')}
+              description={t('profile.noVisitsDescription')}
+              action={
+                <Link to="/home" className="inline-block py-2 px-4 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+                  {t('profile.exploreCta')}
+                </Link>
+              }
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl border border-input-border bg-gray-50 dark:bg-gray-800/50 p-4 text-center">
+                <p className="text-2xl font-bold text-text-main">{stats?.placesVisited ?? 0}</p>
+                <p className="text-sm text-text-muted mt-1">{t('profile.placesVisited')}</p>
+              </div>
+              <div className="rounded-xl border border-input-border bg-gray-50 dark:bg-gray-800/50 p-4 text-center">
+                <p className="text-2xl font-bold text-text-main">{stats?.checkInsThisYear ?? 0}</p>
+                <p className="text-sm text-text-muted mt-1">{t('profile.checkInsThisYear')}</p>
+              </div>
             </div>
-            <div className="rounded-xl border border-input-border bg-gray-50 dark:bg-gray-800/50 p-4 text-center">
-              <p className="text-2xl font-bold text-text-main">{stats?.checkInsThisYear ?? 0}</p>
-              <p className="text-sm text-text-muted mt-1">{t('profile.checkInsThisYear')}</p>
-            </div>
-          </div>
+          )}
         </section>
       )}
 

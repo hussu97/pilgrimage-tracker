@@ -8,7 +8,25 @@ alwaysApply: false
 
 This project has **two frontend codebases**: `apps/web` (Vite + React, desktop + mobile web) and `apps/mobile` (Expo / React Native for iOS/Android). There are no shared packages; each app has its own types, API client, and components.
 
-**Rule:** When adding or changing UI or features in `apps/web`, replicate the same behavior and flows in `apps/mobile` (using React Native primitives and Expo). When changing `apps/mobile`, keep feature parity with `apps/web`. Keep screens, flows, and API usage in sync across both apps.
+**Rule:** When adding or changing UI or features in `apps/web`, replicate the same behavior and flows in `apps/mobile` (using React Native primitives and Expo). When changing `apps/mobile`, keep feature parity with `apps/web`. Keep screens, flows, and API usage in sync across both apps. There are no shared packages; each app has its own types, API client, and components—replicate code in both apps, do not create shared imports.
+
+---
+
+## After every frontend task
+
+After completing any frontend task in either `apps/web` or `apps/mobile`, the agent **must**:
+
+1. **Check:** Does the other app have this screen, this API method, and this route/flow?
+2. **Implement or update:** If not, add the same functionality in the other app (replicated code, not shared imports).
+3. **Note:** When completing a task, state whether parity was checked and what was added or changed in the other app (if anything).
+
+**Parity checklist** (run after a frontend change):
+
+- [ ] Same screen or route exists in the other app?
+- [ ] Same API client methods used (same endpoints and request/response shapes)?
+- [ ] Same navigation/route names and params where applicable?
+
+---
 
 **What to replicate:**
 - Screens and flows (auth, home, place detail, groups, profile, settings, etc.)
@@ -20,5 +38,3 @@ This project has **two frontend codebases**: `apps/web` (Vite + React, desktop +
 - App-specific config (e.g. Expo config, native env, build config)
 - Environment variable names or loading
 - Deployment or run scripts
-
-After editing one app, update the other so both stay in sync.

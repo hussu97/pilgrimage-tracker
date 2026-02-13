@@ -66,3 +66,9 @@ Under `src/`:
 - **`main.tsx`**, **`index.css`** – Entry and global styles.
 
 Design reference: `DESIGN_FILE.html` at repo root.
+
+## Parity reference (for mobile)
+
+Canonical **screens** (see `app/routes.tsx` and `app/pages/`): Splash, Login, Register, ForgotPassword, ResetPassword, SelectPath, Home, PlaceDetail, CheckIn, WriteReview, Profile, EditProfile, CheckInsList, Favorites, Groups, CreateGroup, GroupDetail, JoinGroup, Settings, Notifications.
+
+**API surface** (see `lib/api/client.ts`): auth (login, register, forgot/reset, me), users (getMe, updateMe, check-ins, stats, favorites, settings), places (getPlaces, getPlace, reviews, checkIn, favorite, createReview), reviews (updateReview, deleteReview), groups (list, create, get, by-invite, join-by-code, join, members, invite, leaderboard, activity), notifications (get, markRead), i18n (getLanguages, getTranslations). Types in `lib/types/index.ts` use `user_code`, `place_code`, `religions` array.

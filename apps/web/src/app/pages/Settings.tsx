@@ -15,11 +15,13 @@ export default function Settings() {
   const [theme, setThemeState] = useState<Theme>(getStoredTheme());
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const fetchSettings = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const s = await getSettings();
       setSettings(s);
@@ -27,12 +29,13 @@ export default function Settings() {
         setThemeState(s.theme as Theme);
         applyTheme(s.theme as Theme);
       }
-    } catch {
+    } catch (e) {
       setSettings({});
+      setError(e instanceof Error ? e.message : t('common.error'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     fetchSettings();
@@ -76,9 +79,20 @@ export default function Settings() {
         <h1 className="text-2xl font-semibold text-text-main">{t('settings.title')}</h1>
       </header>
 
-      {loading ? (
-        <p className="text-text-muted text-sm">{t('common.loading')}</p>
-      ) : (
+      {loading && !error && <p className="text-text-muted text-sm">{t('common.loading')}</p>}
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800 p-4">
+          <p className="text-red-700 dark:text-red-300 text-sm mb-2">{error}</p>
+          <button
+            type="button"
+            onClick={fetchSettings}
+            className="text-primary font-medium text-sm hover:text-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg"
+          >
+            {t('common.retry')}
+          </button>
+        </div>
+      )}
+      {!loading && (
         <div className="space-y-6">
           <section>
             <h2 className="text-sm font-medium text-text-muted uppercase tracking-wide mb-3">{t('settings.appearance')}</h2>
@@ -92,6 +106,8 @@ export default function Settings() {
                       type="button"
                       onClick={() => handleThemeChange(opt.value)}
                       disabled={saving}
+                      aria-pressed={theme === opt.value}
+                      aria-label={t(opt.labelKey)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
                         theme === opt.value
                           ? 'bg-primary text-white border-primary'

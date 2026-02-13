@@ -112,11 +112,12 @@ export default function Home() {
         </div>
 
         <div className="relative">
-          <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-muted">
+          <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-muted" aria-hidden>
             <span className="material-symbols-outlined">search</span>
           </span>
           <input
             type="search"
+            aria-label={t('home.findPlace')}
             placeholder={t('home.findPlace')}
             value={search}
             onChange={(e) => handleSearchChange(e.target.value)}
@@ -128,6 +129,7 @@ export default function Home() {
           <button
             type="button"
             onClick={() => setFilter((f) => (f === 'nearby' ? '' : 'nearby'))}
+            aria-pressed={filter === 'nearby'}
             className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
               filter === 'nearby'
                 ? 'bg-primary text-white border-primary'
@@ -139,6 +141,7 @@ export default function Home() {
           <button
             type="button"
             onClick={() => setFilter((f) => (f === 'historical' ? '' : 'historical'))}
+            aria-pressed={filter === 'historical'}
             className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
               filter === 'historical'
                 ? 'bg-primary text-white border-primary'

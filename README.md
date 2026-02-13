@@ -48,7 +48,7 @@ Runs at `http://127.0.0.1:3000`. Health: `GET /health`. API: `/api/v1/places`, `
 npm run dev:web
 ```
 
-Runs at **http://127.0.0.1:5173**. Open that URL (use `127.0.0.1`—not `localhost`—on macOS to avoid IPv6 and pending API requests). Proxies `/api` to the server when server is on port 3000.
+Runs at **http://127.0.0.1:5173**. Open that URL (use `127.0.0.1`—not `localhost`—on macOS to avoid IPv6 and pending API requests). Proxies `/api` to the server when the server is on port 3000. The **Home** page at `/home` (after login) fetches places from the API; if nothing appears, ensure the backend is running and the proxy target matches (default `http://127.0.0.1:3000`). If the server runs on another port (e.g. 8000), set `VITE_PROXY_TARGET=http://127.0.0.1:8000` before starting the web app, or see [apps/web/README.md](apps/web/README.md).
 
 **Mobile app (Expo):**
 

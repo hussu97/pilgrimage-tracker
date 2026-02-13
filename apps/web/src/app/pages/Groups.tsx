@@ -58,7 +58,7 @@ export default function Groups() {
         />
       )}
       {!loading && !error && groups.length > 0 && (
-        <ul className="space-y-3">
+        <ul className="space-y-3 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
           {groups.map((g) => (
             <li key={g.group_code}>
               <Link

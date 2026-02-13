@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useI18n } from '@/app/providers';
 import { getGroup, getGroupLeaderboard, getGroupActivity } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
+import ErrorState from '@/components/ErrorState';
 import type { Group, LeaderboardEntry, ActivityItem } from '@/lib/types';
 
 export default function GroupDetail() {
@@ -79,15 +80,21 @@ export default function GroupDetail() {
 
   if (error || !group) {
     return (
-      <div className="max-w-md mx-auto px-4 py-8 text-center">
-        <p className="text-red-600 mb-4">{error ?? 'Group not found'}</p>
-        <button
-          type="button"
-          onClick={() => navigate('/groups')}
-          className="px-4 py-2 rounded-xl bg-primary text-white font-medium"
-        >
-          Back to Groups
-        </button>
+      <div className="max-w-md md:max-w-2xl mx-auto px-4 py-8">
+        <ErrorState
+          message={error ?? t('groups.notFound')}
+          onRetry={fetchData}
+          retryLabel={t('common.retry')}
+          action={
+            <button
+              type="button"
+              onClick={() => navigate('/groups')}
+              className="px-4 py-2 rounded-xl border border-input-border text-text-main font-medium hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
+              {t('nav.groups')}
+            </button>
+          }
+        />
       </div>
     );
   }
@@ -101,9 +108,10 @@ export default function GroupDetail() {
       <button
         type="button"
         onClick={() => navigate('/groups')}
-        className="flex items-center gap-2 text-text-muted hover:text-primary mb-6"
+        aria-label={t('common.back')}
+        className="flex items-center gap-2 text-text-muted hover:text-primary mb-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg"
       >
-        <span className="material-symbols-outlined">arrow_back</span>
+        <span className="material-symbols-outlined" aria-hidden>arrow_back</span>
         Back
       </button>
 

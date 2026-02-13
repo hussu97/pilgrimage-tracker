@@ -6,6 +6,10 @@
     "apps/*",
     "server"
   ],
+  "overrides": {
+    "react": "19.1.0",
+    "react-native": "0.81.5"
+  },
   "scripts": {
     "dev:server": "npm run dev -w server",
     "dev:web": "npm run dev -w @pilgrimage-tracker/web",
