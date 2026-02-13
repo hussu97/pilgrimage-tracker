@@ -4,6 +4,28 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Web app migration to TypeScript architecture (apps/web)
+
+**Done when:** Web app uses `app/`, `components/`, and `lib/` layout; docs and Cursor globs updated; flows verified.
+
+### Structure (apps/web/src/)
+
+- **app/** – `App.tsx`, `providers.tsx` (Auth + I18n), `routes.tsx`, and all pages under `app/pages/` (Splash, Login, Register, Home, PlaceDetail, Profile, Favorites, Groups, Notifications, Settings, Write review, Check-in, CreateGroup, GroupDetail, JoinGroup, EditProfile, CheckInsList, ForgotPassword, ResetPassword, SelectPath).
+- **components/** – Layout, ProtectedRoute, PlaceCard, PlacesMap, EmptyState, ErrorState.
+- **lib/** – `lib/api/client.ts` (all API calls), `lib/types/index.ts` (Place, User, Group, etc.), `lib/theme.ts`, `lib/constants.ts`, `lib/share.ts`. Entry remains `main.tsx` → App → providers → routes.
+
+### Features (unchanged behavior)
+
+- All routes and flows preserved: Splash → Register/Login → Select Path → Home (list + map) → Place detail → Check-in, Profile, Favorites, Groups, Settings, Notifications, Write review. Map view (Leaflet) with pins, search/filters shared by list and map. Empty and error states with Retry; responsive desktop; accessibility (focus, aria-labels); PWA manifest and service worker (vite-plugin-pwa).
+
+### Docs and rules
+
+- **ARCHITECTURE.md** – Section 6 updated: web app layout documented (`app/`, `components/`, `lib/`); state in providers; no shared `packages`.
+- **apps/web/README.md** – Structure section updated to describe `app/`, `components/`, `lib/`.
+- **.cursor/rules/schema-api-codes.mdc** – Globs updated to `apps/web/src/lib/types/**/*` and `apps/web/src/lib/api/**/*` (types and API live under `lib/`).
+
+---
+
 ## Multi-language support (en / ar / hi) and central seed
 
 **Done when:** Backend serves languages and translations; user language in settings; one seed file populates all in-memory data; web and mobile use `t(key)` with RTL for Arabic.

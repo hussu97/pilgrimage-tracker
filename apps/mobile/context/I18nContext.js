@@ -63,10 +63,14 @@ export function I18nProvider({ children }) {
   const setLocale = useCallback(async (lang) => {
     const next = normalizeLocale(lang);
     setLocaleState(next);
-    await AsyncStorage.setItem(LOCALE_KEY, next);
-    await loadTranslations(next);
-    const isRTL = next === 'ar';
-    if (I18nManager.isRTL !== isRTL) I18nManager.forceRTL(isRTL);
+    try {
+      await AsyncStorage.setItem(LOCALE_KEY, next);
+      await loadTranslations(next);
+      const isRTL = next === 'ar';
+      if (I18nManager.isRTL !== isRTL) I18nManager.forceRTL(isRTL);
+    } catch {
+      // Keep the new locale; translations may fall back to keys until next load
+    }
   }, [loadTranslations]);
 
   const t = useCallback((key) => translations[key] ?? key, [translations]);

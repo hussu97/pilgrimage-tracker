@@ -1,6 +1,6 @@
 ---
 description: DB schema and API use code-based identifiers (not numeric id); see ARCHITECTURE.md
-globs: server/**/*,apps/web/src/types/**/*,apps/web/src/api/**/*,apps/mobile/**/*
+globs: server/**/*,apps/web/src/lib/types/**/*,apps/web/src/lib/api/**/*,apps/mobile/**/*
 alwaysApply: false
 ---
 

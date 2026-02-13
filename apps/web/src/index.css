@@ -6,8 +6,15 @@
   font-family: Lexend, sans-serif;
 }
 
+/* Accessibility: visible focus for keyboard users (fallback where components don't use ring) */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid #0d9488;
+  outline-offset: 2px;
+}
+
 body {
-  @apply bg-background-light text-text-main antialiased min-h-screen;
+  @apply bg-background-light text-text-main antialiased min-h-screen dark:bg-gray-900 dark:text-gray-100;
 }
 
 .safe-area-top {
@@ -15,4 +22,18 @@ body {
 }
 .safe-area-bottom {
   padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Leaflet marker (divIcon) – hide default pin styling */
+.place-marker {
+  background: none !important;
+  border: none !important;
 }

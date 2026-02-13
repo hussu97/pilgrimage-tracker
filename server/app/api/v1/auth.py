@@ -76,7 +76,7 @@ def forgot_password(body: ForgotPasswordBody):
     token = secrets.token_hex(32)
     expires_at = datetime.utcnow() + timedelta(hours=1)
     save_password_reset(token, user.user_code, expires_at)
-    print(f"[DEV] Password reset for {body.email}: http://localhost:5173/reset-password?token={token}")
+    # In production, send the reset link by email; do not log tokens or emails.
     return {"ok": True, "message": "If an account exists, you will receive a reset link."}
 
 

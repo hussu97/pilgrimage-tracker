@@ -58,6 +58,11 @@ Output: `dist/`. For production, set `VITE_API_URL` to the production API base U
 
 ## Structure
 
-- `src/` – React app: pages, components, API client (`src/api/client.ts`), types, context. All code is under `apps/web`.
-- The API client calls `/api/v1/*` (relative when `VITE_API_URL` is unset).
-- Design reference: `DESIGN_FILE.html` at repo root.
+Under `src/`:
+
+- **`app/`** – App shell and pages: `App.tsx`, `providers.tsx` (auth + i18n), `routes.tsx`, and all screens under `app/pages/` (Splash, Login, Register, Home, PlaceDetail, Profile, Favorites, Groups, Notifications, Settings, etc.).
+- **`components/`** – Shared UI: Layout, ProtectedRoute, PlaceCard, PlacesMap, EmptyState, ErrorState.
+- **`lib/`** – API client (`lib/api/client.ts`), shared types (`lib/types/index.ts`), theme, constants, share helpers. The API client calls `/api/v1/*` (relative when `VITE_API_URL` is unset).
+- **`main.tsx`**, **`index.css`** – Entry and global styles.
+
+Design reference: `DESIGN_FILE.html` at repo root.

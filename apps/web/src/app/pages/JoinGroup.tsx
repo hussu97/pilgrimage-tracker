@@ -1,0 +1,106 @@
+import { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useI18n } from '@/app/providers';
+import { getGroupByInviteCode, joinGroupByCode } from '@/lib/api/client';
+
+export default function JoinGroup() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { t } = useI18n();
+  const code = searchParams.get('code')?.trim() ?? '';
+  const [groupName, setGroupName] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!code) {
+      setPreviewLoading(false);
+      return;
+    }
+    getGroupByInviteCode(code)
+      .then((res) => setGroupName(res.name))
+      .catch(() => setGroupName(null))
+      .finally(() => setPreviewLoading(false));
+  }, [code]);
+
+  const handleJoin = async () => {
+    if (!code) {
+      setError('Missing invite code');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const { group_code } = await joinGroupByCode(code);
+      navigate(`/groups/${group_code}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('common.error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (previewLoading && code) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-12 text-center">
+        <p className="text-text-muted">{t('common.loading')}</p>
+      </div>
+    );
+  }
+
+  if (!code) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-12 text-center">
+        <span className="material-symbols-outlined text-5xl text-text-muted mb-4 block">link_off</span>
+        <h1 className="text-xl font-semibold text-text-main mb-2">No invite code</h1>
+        <p className="text-text-muted text-sm mb-6">
+          Use a link like /join?code=XXX to join a group.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/groups')}
+          className="px-4 py-2 rounded-xl bg-primary text-white font-medium"
+        >
+          {t('groups.title')}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-md mx-auto px-4 py-8">
+      <div className="text-center mb-8">
+        <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
+          <span className="material-symbols-outlined text-3xl text-primary">groups</span>
+        </div>
+        <h1 className="text-xl font-semibold text-text-main mb-2">{t('groups.joinGroup')}</h1>
+        {groupName ? (
+          <p className="text-text-muted text-sm">You&apos;re invited to join <strong className="text-text-main">{groupName}</strong></p>
+        ) : (
+          <p className="text-text-muted text-sm">Join with this invite code</p>
+        )}
+      </div>
+
+      {error && <p className="text-red-600 text-sm mb-4 text-center">{error}</p>}
+
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => navigate('/groups')}
+          className="flex-1 py-3 rounded-xl border border-input-border text-text-main font-medium"
+        >
+          {t('common.cancel')}
+        </button>
+        <button
+          type="button"
+          onClick={handleJoin}
+          disabled={loading}
+          className="flex-1 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary-hover disabled:opacity-50"
+        >
+          {loading ? t('common.loading') : 'Join'}
+        </button>
+      </div>
+    </div>
+  );
+}

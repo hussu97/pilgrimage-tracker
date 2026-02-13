@@ -264,6 +264,17 @@ If you added a custom **Prompt 3.5** between 3 and 4, migrate its backend tasks 
 
 ---
 
+## Web app migration to TypeScript architecture
+
+To migrate the **web app** (`apps/web`) from its current layout to a TypeScript architecture with **stores**, **assets**, **components**, **lib**, and **app** folders, use the prompts in **[WEB_APP_MIGRATION_PROMPTS.md](WEB_APP_MIGRATION_PROMPTS.md)**. That file contains copy-paste-ready prompt text for an executor (e.g. Cursor).
+
+- **Phase 1 (Prompt 1):** Remove existing code under `apps/web/src/` (except `vite-env.d.ts` and `index.css`), create the five folders, move API and types into `lib/`, add App/providers/routes in `app/`, add Layout and ProtectedRoute in `components/`, add auth and i18n state (stores or providers), and wire `main.tsx` so the app runs with placeholder pages.
+- **Phase 2 (Prompts 2–10):** Recreate all screens and flows in order: public and onboarding pages, Home (list), Place detail, Check-in and profile, Groups, Favorites/Settings/Notifications, Write review and share, Map view and search/filters, Polish.
+
+Run the prompts in order. The backend and API are unchanged. After migration, update ARCHITECTURE.md (Section 6), apps/web/README.md, CHANGELOG.md, and the Cursor rule globs for `lib/types` and `lib/api` as described in WEB_APP_MIGRATION_PROMPTS.md.
+
+---
+
 ## Order of use
 
 Execute prompts in order **1 → 10**. Each prompt assumes the previous ones are done (e.g. Prompt 3 assumes auth and shell from 1 and 2). You can break a prompt into smaller steps (e.g. backend first, then frontend) when implementing.
