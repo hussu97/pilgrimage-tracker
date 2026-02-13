@@ -4,6 +4,17 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Web I18n: align with mobile (ready, gate until loaded)
+
+**Done when:** Web I18n context uses `ready` like mobile; web app waits for initial translations before rendering routes so no raw keys flash.
+
+### Frontend — Web
+
+- **I18nProvider:** Replaced `loading` with `ready` in context so web and mobile share the same shape (`useI18n().ready`). `ready` is set only after initial locale and translations have loaded (single bootstrap effect: loadLanguages → resolveInitialLocale → setLocaleState → loadTranslations(initial) → setReady(true)); user-settings locale override still loads translations after setting locale.
+- **App:** Added `I18nReadyGate` inside `I18nProvider`: shows a minimal splash (logo, “Pilgrimage”, spinner) until `ready` is true, then renders `LocationProvider` and `AppRoutes`. Prevents untranslated strings (translation keys) from appearing on first paint.
+
+---
+
 ## Redesign: BE-3 groups (progress, next place, featured), location, auth flow, i18n
 
 **Done when:** Groups list API returns progress and next place; optional group path; single root stack and location provider; i18n device locale and settings sync.

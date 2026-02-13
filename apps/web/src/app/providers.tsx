@@ -119,7 +119,8 @@ interface I18nContextValue {
   setLocale: (lang: string) => Promise<void>;
   t: (key: string) => string;
   languages: { code: string; name: string }[];
-  loading: boolean;
+  /** True once initial locale and translations have loaded (aligns with mobile `ready`). */
+  ready: boolean;
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -142,7 +143,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<LocaleCode>('en');
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const [languages, setLanguages] = useState<{ code: string; name: string }[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
 
   const loadLanguages = useCallback(async () => {
     try {
@@ -170,14 +171,28 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    loadLanguages()
-      .then((list) => setLocaleState(resolveInitialLocale(list)))
-      .finally(() => setLoading(false));
-  }, [loadLanguages]);
-
-  useEffect(() => {
-    loadTranslations(locale);
-  }, [locale, loadTranslations]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const list = await loadLanguages();
+        if (cancelled) return;
+        const initial = resolveInitialLocale(list);
+        setLocaleState(initial);
+        await loadTranslations(initial);
+        if (cancelled) return;
+        setReady(true);
+      } catch {
+        if (!cancelled) {
+          setLocaleState('en');
+          await loadTranslations('en');
+          if (!cancelled) setReady(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadLanguages, loadTranslations]);
 
   useEffect(() => {
     if (!user) return;
@@ -185,14 +200,16 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       try {
         const settings = await api.getSettings();
         if (settings.language && SUPPORTED_LOCALES.includes(settings.language as LocaleCode)) {
-          setLocaleState(settings.language as LocaleCode);
-          localStorage.setItem(LOCALE_STORAGE_KEY, settings.language);
+          const next = settings.language as LocaleCode;
+          setLocaleState(next);
+          localStorage.setItem(LOCALE_STORAGE_KEY, next);
+          await loadTranslations(next);
         }
       } catch {
         // ignore
       }
     })();
-  }, [user?.user_code]);
+  }, [user?.user_code, loadTranslations]);
 
   const setLocale = useCallback(
     async (lang: string) => {
@@ -223,8 +240,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const t = useCallback((key: string) => translations[key] ?? key, [translations]);
 
   const i18nValue = useMemo(
-    () => ({ locale, setLocale, t, languages, loading }),
-    [locale, setLocale, t, languages, loading],
+    () => ({ locale, setLocale, t, languages, ready }),
+    [locale, setLocale, t, languages, ready],
   );
 
   return <I18nContext.Provider value={i18nValue}>{children}</I18nContext.Provider>;
