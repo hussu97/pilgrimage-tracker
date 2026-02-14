@@ -4,6 +4,44 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Mobile: Profile Fixes, Home Map UX, Filter System
+
+### Frontend (mobile)
+
+- **ProfileScreen — My Wishlist removed:** Removed duplicate "My Wishlist" row from Preferences section; "Favorites" row in the Account section now uses translation key `profile.favorites`.
+- **ProfileScreen — Language bottom sheet:** Tapping the Language row now opens an inline bottom-sheet modal with all supported languages; selecting a language switches the app locale in-place without navigating to a separate settings page. Language row subtitle now shows the currently selected language name (e.g. "English") instead of a generic description.
+- **ProfileScreen — Dynamic version:** App version now reads from `expo-constants` (`Constants.expoConfig?.version`) with fallback to `1.0.0`.
+- **Settings screen removed:** `SettingsScreen.tsx` deleted and `Settings` removed from `RootStackParamList` and the stack navigator.
+- **NotificationsScreen — Dark-mode theming:** Replaced static `StyleSheet.create()` with `makeStyles(isDark)` factory. All colors (backgrounds, card surfaces, text, borders) now adapt to dark mode using the same token mapping as other screens. Back button replaced with a 40×40 circular icon button (`arrow-back`) matching the design system.
+- **HomeScreen — Header cleanup:** Removed redundant "EXPLORE" label above the greeting. Greeting changed to "Hello," (updated translation key `home.greeting`).
+- **HomeScreen — Map horizontal scroller:** Removed the place-count badge from map view. Added a horizontal `FlatList` scroller at the bottom of the map showing places visible in the current map bounds. Bounds are tracked via Leaflet `moveend` events posted through `ReactNativeWebView.postMessage`. Scroller updates automatically as the user pans/zooms the map.
+- **HomeScreen — Animated place card panel:** Tapping a map pin now dismisses the horizontal scroller and reveals an inline place detail card using a spring animation (`Animated.spring`, `bounciness: 4`). Tapping the × on the card reverses the animation. Both panels share a single `Animated.Value` interpolated for `opacity` and `translateY`.
+- **HomeScreen — Filter system:** Removed filter pills below the search bar. Added a `tune` icon button on the right of the search bar with an active-state dot badge. Tapping it opens a filter bottom-sheet with:
+  - Place type chips (Mosque / Shrine / Temple)
+  - Feature filter chips sourced from the backend response (Open Now, Has Parking, Women's Area, Has Events, Top Rated) with live counts
+  - "Apply Filters" button re-fetches places with selected filters
+
+### Backend
+
+- **`/api/v1/places` — New filter params:** Added `open_now`, `has_parking`, `womens_area`, `top_rated` query parameters (all `Optional[bool]`). Each applies a filter to the result set in `db/places.py`.
+- **`/api/v1/places` — FiltersMetadata in response:** Response envelope changed from a plain places array to `{"places": [...], "filters": {"options": [...]}}`. Filter option counts are computed on a snapshot of the base result set (before boolean filters), so counts accurately reflect the available pool regardless of which filters are active.
+- **`schemas.py`:** Added `FilterOption`, `FiltersMetadata`, and `PlacesListResponse` Pydantic models.
+
+### Mobile API client + types
+
+- **`types/index.ts`:** Added `FilterOption` and `PlacesListResponse` interfaces.
+- **`api/client.ts`:** Updated `GetPlacesParams` with new filter fields; `getPlaces()` now returns `Promise<PlacesListResponse>`.
+
+### i18n
+
+- **`seed_data.json`:** Updated `home.greeting` (en: "Hello,", ar: "مرحبا،", hi: "नमस्ते,"). Added `profile.favorites`, `home.noPlacesVisible`, `home.filters`, `home.clearAll`, `home.filterType`, `home.filterFeatures`, `home.applyFilters`, `home.filter_mosque/shrine/temple`, `notifications.updatesLabel` for all three supported languages.
+
+### Docs
+
+- Updated `CHANGELOG.md`.
+
+---
+
 ## Mobile: Profile Redesign, Home Map Toggle, Dark Mode Fix
 
 ### Frontend (mobile)
