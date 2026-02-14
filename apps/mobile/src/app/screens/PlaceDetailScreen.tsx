@@ -13,6 +13,7 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
 import {
   getPlace,
   getPlaceReviews,
@@ -216,20 +217,20 @@ export default function PlaceDetailScreen() {
               <Image source={{ uri: heroImage }} style={mosqueStyles.heroImage} resizeMode="cover" />
             ) : (
               <View style={mosqueStyles.heroPlaceholder}>
-                <Text style={mosqueStyles.heroPlaceholderIcon}>🕌</Text>
+                <MaterialIcons name="location-city" size={56} color={tokens.colors.textMuted} />
               </View>
             )}
             <View style={mosqueStyles.heroOverlay} pointerEvents="none" />
             <View style={[mosqueStyles.heroTopBar, { paddingTop: insets.top + 16 }]}>
               <TouchableOpacity style={mosqueStyles.heroCircleBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-                <Text style={mosqueStyles.heroCircleBtnText}>←</Text>
+                <MaterialIcons name="arrow-back" size={20} color="#fff" />
               </TouchableOpacity>
               <View style={mosqueStyles.heroTopRight}>
                 <TouchableOpacity style={mosqueStyles.heroCircleBtn} onPress={() => shareUrl(place.name, `places/${placeCode}`)} activeOpacity={0.8}>
-                  <Text style={mosqueStyles.heroCircleBtnText}>⎘</Text>
+                  <MaterialIcons name="share" size={20} color="#fff" />
                 </TouchableOpacity>
                 <TouchableOpacity style={mosqueStyles.heroCircleBtn} onPress={toggleFavorite} disabled={favoriteLoading} activeOpacity={0.8}>
-                  <Text style={mosqueStyles.heroCircleBtnText}>{place.is_favorite ? '♥' : '♡'}</Text>
+                  <MaterialIcons name={place.is_favorite ? 'favorite' : 'favorite-border'} size={20} color={place.is_favorite ? '#ef4444' : '#fff'} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -358,11 +359,12 @@ export default function PlaceDetailScreen() {
         </ScrollView>
 
         <View style={[styles.footer, { paddingBottom: insets.bottom + 12, paddingTop: 12, paddingHorizontal: 24, backgroundColor: tokens.colors.surface, borderTopColor: tokens.colors.inputBorder }]}>
-          <TouchableOpacity style={[styles.footerBtn, { borderColor: tokens.colors.inputBorder }]} onPress={() => navigation.navigate('CheckIn', { placeCode })} activeOpacity={0.8}>
-            <Text style={[styles.footerBtnText, { color: tokens.colors.textMain }]}>{t('places.checkIn')}</Text>
+          <TouchableOpacity style={[styles.footerBtn, { borderColor: tokens.colors.inputBorder }]} onPress={() => directionsUrl && Linking.openURL(directionsUrl)} activeOpacity={0.8}>
+            <MaterialIcons name="directions" size={16} color={tokens.colors.textMain} />
+            <Text style={[styles.footerBtnText, { color: tokens.colors.textMain, marginLeft: 6 }]}>{t('placeDetail.directions')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.footerBtnPrimary, { backgroundColor: tokens.colors.textMain }]} onPress={() => directionsUrl && Linking.openURL(directionsUrl)} activeOpacity={0.8}>
-            <Text style={styles.footerBtnPrimaryText}>{t('placeDetail.directions')}</Text>
+          <TouchableOpacity style={[styles.footerBtnPrimary, { backgroundColor: tokens.colors.primary }]} onPress={() => navigation.navigate('CheckIn', { placeCode })} activeOpacity={0.8}>
+            <Text style={styles.footerBtnPrimaryText}>{t('places.checkIn')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -374,13 +376,13 @@ export default function PlaceDetailScreen() {
       <View style={[styles.container, { backgroundColor: tokens.colors.surface }]}>
         <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }} showsVerticalScrollIndicator={false}>
           <View style={variantStyles.heroTall}>
-            {heroImage ? <Image source={{ uri: heroImage }} style={variantStyles.heroImage} resizeMode="cover" /> : <View style={variantStyles.heroPlaceholder}><Text style={variantStyles.heroPlaceholderIcon}>🛕</Text></View>}
+            {heroImage ? <Image source={{ uri: heroImage }} style={variantStyles.heroImage} resizeMode="cover" /> : <View style={variantStyles.heroPlaceholder}><MaterialIcons name="account-balance" size={64} color={tokens.colors.textMuted} /></View>}
             <View style={variantStyles.heroOverlay} pointerEvents="none" />
             <View style={[variantStyles.heroTopBar, { paddingTop: insets.top + 16 }]}>
-              <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={() => navigation.goBack()}><Text style={variantStyles.heroCircleBtnText}>←</Text></TouchableOpacity>
+              <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={() => navigation.goBack()}><MaterialIcons name="arrow-back" size={20} color="#fff" /></TouchableOpacity>
               <View style={variantStyles.heroTopRight}>
-                <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={() => shareUrl(place.name, `places/${placeCode}`)}><Text style={variantStyles.heroCircleBtnText}>⎘</Text></TouchableOpacity>
-                <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={toggleFavorite} disabled={favoriteLoading}><Text style={variantStyles.heroCircleBtnText}>{place.is_favorite ? '♥' : '♡'}</Text></TouchableOpacity>
+                <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={() => shareUrl(place.name, `places/${placeCode}`)}><MaterialIcons name="share" size={20} color="#fff" /></TouchableOpacity>
+                <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={toggleFavorite} disabled={favoriteLoading}><MaterialIcons name={place.is_favorite ? 'favorite' : 'favorite-border'} size={20} color={place.is_favorite ? '#ef4444' : '#fff'} /></TouchableOpacity>
               </View>
             </View>
             <View style={variantStyles.heroBottom}>
@@ -462,13 +464,13 @@ export default function PlaceDetailScreen() {
       <View style={[styles.container, { backgroundColor: tokens.colors.surface }]}>
         <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: insets.bottom + 100 }} showsVerticalScrollIndicator={false}>
           <View style={variantStyles.hero}>
-            {heroImage ? <Image source={{ uri: heroImage }} style={variantStyles.heroImage} resizeMode="cover" /> : <View style={variantStyles.heroPlaceholder}><Text style={variantStyles.heroPlaceholderIcon}>⛪</Text></View>}
+            {heroImage ? <Image source={{ uri: heroImage }} style={variantStyles.heroImage} resizeMode="cover" /> : <View style={variantStyles.heroPlaceholder}><MaterialIcons name="location-city" size={64} color={tokens.colors.textMuted} /></View>}
             <View style={variantStyles.heroOverlay} pointerEvents="none" />
             <View style={[variantStyles.heroTopBar, { paddingTop: insets.top + 16 }]}>
-              <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={() => navigation.goBack()}><Text style={variantStyles.heroCircleBtnText}>←</Text></TouchableOpacity>
+              <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={() => navigation.goBack()}><MaterialIcons name="arrow-back" size={20} color="#fff" /></TouchableOpacity>
               <View style={variantStyles.heroTopRight}>
-                <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={toggleFavorite} disabled={favoriteLoading}><Text style={variantStyles.heroCircleBtnText}>{place.is_favorite ? '♥' : '♡'}</Text></TouchableOpacity>
-                <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={() => shareUrl(place.name, `places/${placeCode}`)}><Text style={variantStyles.heroCircleBtnText}>⎘</Text></TouchableOpacity>
+                <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={toggleFavorite} disabled={favoriteLoading}><MaterialIcons name={place.is_favorite ? 'favorite' : 'favorite-border'} size={20} color={place.is_favorite ? '#ef4444' : '#fff'} /></TouchableOpacity>
+                <TouchableOpacity style={variantStyles.heroCircleBtn} onPress={() => shareUrl(place.name, `places/${placeCode}`)}><MaterialIcons name="share" size={20} color="#fff" /></TouchableOpacity>
               </View>
             </View>
             <View style={variantStyles.heroBottom}>
@@ -524,7 +526,7 @@ export default function PlaceDetailScreen() {
             <Image source={{ uri: heroImage }} style={styles.heroImage} resizeMode="cover" />
           ) : (
             <View style={styles.heroPlaceholder}>
-              <Text style={styles.heroPlaceholderIcon}>◉</Text>
+              <MaterialIcons name="location-on" size={56} color={tokens.colors.textMuted} />
             </View>
           )}
           <TouchableOpacity
@@ -532,7 +534,7 @@ export default function PlaceDetailScreen() {
             onPress={() => navigation.goBack()}
             activeOpacity={0.8}
           >
-            <Text style={styles.backArrow}>←</Text>
+            <MaterialIcons name="arrow-back" size={20} color="#fff" />
           </TouchableOpacity>
           <View style={styles.heroGradient} />
           <View style={styles.heroCaption}>
@@ -697,7 +699,7 @@ export default function PlaceDetailScreen() {
           onPress={() => shareUrl(place.name, `places/${placeCode}`)}
           activeOpacity={0.8}
         >
-          <Text style={styles.footerIconText}>Share</Text>
+          <MaterialIcons name="share" size={20} color={tokens.colors.textMain} />
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.footerIconBtn}
@@ -705,7 +707,7 @@ export default function PlaceDetailScreen() {
           disabled={favoriteLoading}
           activeOpacity={0.8}
         >
-          <Text style={styles.footerIconText}>{place.is_favorite ? '♥' : '♡'}</Text>
+          <MaterialIcons name={place.is_favorite ? 'favorite' : 'favorite-border'} size={20} color={place.is_favorite ? '#ef4444' : tokens.colors.textMain} />
         </TouchableOpacity>
       </View>
     </View>
@@ -815,6 +817,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
   },
   footerBtnText: { fontSize: 14, fontWeight: '600', color: '#374151' },
   footerBtnPrimary: {

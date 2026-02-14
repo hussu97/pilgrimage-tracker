@@ -4,6 +4,25 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Mobile UI & Feature Overhaul
+
+### Frontend (mobile)
+
+- **Navigation:** App now opens directly on the Home tab (Explore) on launch. The SplashScreen shows a loading spinner and immediately redirects to `Main` without showing auth buttons, removing the blocking onboarding gate.
+- **Profile — Unauthenticated state:** When the user is not logged in, the Profile tab shows a full login landing page (hero image, app title, tagline, "Get Started" → Register, "Sign In" → Login) instead of a bare sign-in prompt.
+- **Profile — Authenticated state:** Redesigned with proper MaterialIcons (settings, edit, assignment, favorite, group, chevron-right, dark-mode). Removed unicode symbol placeholders.
+- **Profile — Dark mode toggle:** Added a `Switch` row directly in the Profile screen account section to toggle between light and dark mode, using the existing `ThemeProvider` context.
+- **Places list cleanup:** Removed the inline `PlaceCardFull` component from `HomeScreen.tsx` (~100 lines of duplicated card code). The `FlatList` now uses the shared `PlaceCard` component, eliminating the duplicate card implementation. Updated search, filter, and map button icons with `MaterialIcons`.
+- **Place detail:** Updated all icon buttons (back, share, favorite) across mosque, temple, church, and generic variants to use `MaterialIcons` (arrow-back, share, favorite, favorite-border, location-city, account-balance). Mosque footer reordered to match design: Directions (outline) | Check-in Here (primary blue). Generic footer also updated with proper icons.
+- **Map page fix:** Root cause was that no map library was installed and `MapScreen` rendered a `ScrollView` list. Fixed by installing `react-native-webview` and embedding a Leaflet.js + OpenStreetMap map in a `WebView`. Place markers are rendered on the map; tapping a marker opens the existing bottom sheet. Map centers on user location, falling back to Mecca coordinates. Search bar overlays the map.
+- **Icons — App-wide:** Replaced all unicode approximations (⊙, ◻, ◇, ○, ⌕, ›, ⚙, ⎘, ←, ♥, ♡, ⊕, ⊞) with `@expo/vector-icons` `MaterialIcons` across `Layout.tsx` (tab bar), `PlaceCard.tsx` (location-on, check-circle), `HomeScreen.tsx` (search, map, tune, location-off), `MapScreen.tsx` (search, close, directions, share, location-on, chevron-right), and `PlaceDetailScreen.tsx`.
+
+### Docs
+
+- Updated `CHANGELOG.md` with all mobile changes.
+
+---
+
 ## D-1: Desktop layout and navigation
 
 - **Layout:** Top bar on md+ with logo (app name), Explore, Map, Groups, Profile, Notifications, Profile/Login. Main content max-w-6xl xl:max-w-7xl. Mobile: bottom nav (Explore, Map, Groups, Profile). All main routes reachable from nav.
