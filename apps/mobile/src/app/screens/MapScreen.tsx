@@ -9,7 +9,6 @@ import {
   Modal,
   Pressable,
   Image,
-  Linking,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -21,7 +20,7 @@ import { useAuth } from '../providers';
 import { useI18n } from '../providers';
 import { useLocation } from '../contexts/LocationContext';
 import { getPlaces } from '../../lib/api/client';
-import { shareUrl } from '../../lib/share';
+import { shareUrl, openDirections } from '../../lib/share';
 import type { Place } from '../../lib/types';
 import { tokens } from '../../lib/theme';
 
@@ -156,9 +155,9 @@ export default function MapScreen() {
     } catch {}
   }, [places]);
 
-  const directionsUrl = selectedPlace
-    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selectedPlace.lat + ',' + selectedPlace.lng)}`
-    : '';
+  const handleDirections = () => {
+    if (selectedPlace) openDirections(selectedPlace.lat, selectedPlace.lng, selectedPlace.name);
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -252,7 +251,7 @@ export default function MapScreen() {
                   <View style={styles.sheetActions}>
                     <TouchableOpacity
                       style={styles.sheetDirections}
-                      onPress={() => directionsUrl && Linking.openURL(directionsUrl)}
+                      onPress={handleDirections}
                     >
                       <MaterialIcons name="directions" size={18} color="#fff" />
                       <Text style={styles.sheetDirectionsText}>{t('placeDetail.directions')}</Text>
