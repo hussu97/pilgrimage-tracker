@@ -1,4 +1,4 @@
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel
 
@@ -87,6 +87,22 @@ class SettingsBody(BaseModel):
     units: Optional[str] = None  # km, miles
     language: Optional[str] = None  # en, ar, hi
     religions: Optional[List[Religion]] = None  # filter preference; empty = show all
+
+
+class FilterOption(BaseModel):
+    key: str
+    label: str
+    icon: str
+    count: int
+
+
+class FiltersMetadata(BaseModel):
+    options: List[FilterOption]
+
+
+class PlacesListResponse(BaseModel):
+    places: List[Any]  # list of place dicts (dynamic fields)
+    filters: FiltersMetadata
 
 
 # Place list item (with optional distance)

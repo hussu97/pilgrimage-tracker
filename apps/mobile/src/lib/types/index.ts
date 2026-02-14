@@ -1,5 +1,12 @@
 export type Religion = 'islam' | 'hinduism' | 'christianity';
 
+export interface FilterOption {
+  key: string;
+  label: string;
+  icon: string;
+  count: number;
+}
+
 export interface User {
   user_code: string;
   email: string;
@@ -28,6 +35,11 @@ export interface Place {
   average_rating?: number;
   review_count?: number;
   is_open_now?: boolean;
+}
+
+export interface PlacesListResponse {
+  places: Place[];
+  filters: { options: FilterOption[] };
 }
 
 export interface PlaceTiming {

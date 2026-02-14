@@ -8,8 +8,11 @@ import {
   ScrollView,
   ActivityIndicator,
   Switch,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +21,10 @@ import { getMyStats } from '../../lib/api/client';
 import type { UserStats } from '../../lib/types';
 import { tokens } from '../../lib/theme';
 
-const APP_VERSION = '2.4.0';
+const APP_VERSION =
+  Constants.expoConfig?.version ??
+  (Constants.manifest as { version?: string } | null)?.version ??
+  '1.0.0';
 
 type MainTabParamList = {
   Home: undefined;
@@ -257,6 +263,49 @@ function makeStyles(isDark: boolean) {
       marginTop: 8,
       marginBottom: 24,
     },
+    // Language sheet
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'flex-end',
+    },
+    langSheet: {
+      backgroundColor: isDark ? tokens.colors.darkSurface : tokens.colors.surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 24,
+      paddingTop: 12,
+    },
+    sheetHandle: {
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder,
+      alignSelf: 'center',
+      marginBottom: 16,
+    },
+    langSheetTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: isDark ? '#fff' : tokens.colors.textDark,
+      marginBottom: 12,
+    },
+    langRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder,
+    },
+    langRowText: {
+      fontSize: 15,
+      color: isDark ? '#e0e0e0' : tokens.colors.textDark,
+    },
+    langRowActive: {
+      color: tokens.colors.primary,
+      fontWeight: '600',
+    },
   });
 }
 
@@ -265,11 +314,12 @@ export default function ProfileScreen() {
   const tabNav = useNavigation<BottomTabNavigationProp<MainTabParamList, 'Profile'>>();
   const stackNav = tabNav.getParent();
   const { user, logout } = useAuth();
-  const { t } = useI18n();
+  const { t, locale, languages, setLocale } = useI18n();
   const { isDark, setTheme } = useTheme();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [langSheetOpen, setLangSheetOpen] = useState(false);
 
   const styles = makeStyles(isDark);
 
@@ -387,7 +437,7 @@ export default function ProfileScreen() {
             {/* Language */}
             <TouchableOpacity
               style={styles.prefRow}
-              onPress={() => stackNav?.navigate('Settings' as never)}
+              onPress={() => setLangSheetOpen(true)}
               activeOpacity={0.7}
             >
               <View style={styles.rowLeft}>
@@ -396,7 +446,9 @@ export default function ProfileScreen() {
                 </View>
                 <View style={styles.rowTexts}>
                   <Text style={styles.rowTitle}>{t('profile.language')}</Text>
-                  <Text style={styles.rowSubtext}>{t('profile.languageSubtext')}</Text>
+                  <Text style={styles.rowSubtext}>
+                    {languages.find(l => l.code === locale)?.name ?? locale.toUpperCase()}
+                  </Text>
                 </View>
               </View>
               <MaterialIcons name="chevron-right" size={22} color={mutedColor} />
@@ -415,24 +467,6 @@ export default function ProfileScreen() {
                 <View style={styles.rowTexts}>
                   <Text style={styles.rowTitle}>{t('profile.notifications')}</Text>
                   <Text style={styles.rowSubtext}>{t('profile.notificationsSubtext')}</Text>
-                </View>
-              </View>
-              <MaterialIcons name="chevron-right" size={22} color={mutedColor} />
-            </TouchableOpacity>
-
-            {/* My Wishlist */}
-            <TouchableOpacity
-              style={styles.prefRow}
-              onPress={() => stackNav?.navigate('Favorites' as never)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.rowLeft}>
-                <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
-                  <MaterialIcons name="favorite" size={20} color={tokens.colors.primary} />
-                </View>
-                <View style={styles.rowTexts}>
-                  <Text style={styles.rowTitle}>{t('profile.myWishlist')}</Text>
-                  <Text style={styles.rowSubtext}>{t('profile.wishlistSubtext')}</Text>
                 </View>
               </View>
               <MaterialIcons name="chevron-right" size={22} color={mutedColor} />
@@ -485,7 +519,7 @@ export default function ProfileScreen() {
                 <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
                   <MaterialIcons name="favorite" size={20} color={tokens.colors.primary} />
                 </View>
-                <Text style={styles.accountLabel}>{t('profile.favoritePlaces')}</Text>
+                <Text style={styles.accountLabel}>{t('profile.favorites')}</Text>
               </View>
               <MaterialIcons name="chevron-right" size={22} color={mutedColor} />
             </TouchableOpacity>
@@ -507,6 +541,34 @@ export default function ProfileScreen() {
           {t('profile.version').replace('{version}', APP_VERSION)}
         </Text>
       </ScrollView>
+
+      {/* Language selection bottom sheet */}
+      <Modal visible={langSheetOpen} transparent animationType="slide">
+        <Pressable style={styles.modalOverlay} onPress={() => setLangSheetOpen(false)}>
+          <Pressable
+            style={[styles.langSheet, { paddingBottom: insets.bottom + 16 }]}
+            onPress={e => e.stopPropagation()}
+          >
+            <View style={styles.sheetHandle} />
+            <Text style={styles.langSheetTitle}>{t('profile.language')}</Text>
+            {languages.map(lang => (
+              <TouchableOpacity
+                key={lang.code}
+                style={styles.langRow}
+                onPress={() => { setLocale(lang.code); setLangSheetOpen(false); }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.langRowText, locale === lang.code && styles.langRowActive]}>
+                  {lang.name}
+                </Text>
+                {locale === lang.code && (
+                  <MaterialIcons name="check" size={18} color={tokens.colors.primary} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

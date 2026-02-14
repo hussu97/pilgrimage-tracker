@@ -7,18 +7,19 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getNotifications, markNotificationRead } from '../../lib/api/client';
-import { useI18n } from '../providers';
+import { useI18n, useTheme } from '../providers';
 import type { Notification } from '../../lib/types';
 import { tokens } from '../../lib/theme';
 
-function notificationIcon(type: string): string {
-  if (type.includes('check') || type.includes('check_in')) return '✓';
-  if (type.includes('group')) return '◉';
-  if (type.includes('review')) return '★';
-  return '•';
+function notificationIcon(type: string): 'assignment-turned-in' | 'group' | 'star' | 'notifications' {
+  if (type.includes('check') || type.includes('check_in')) return 'assignment-turned-in';
+  if (type.includes('group')) return 'group';
+  if (type.includes('review')) return 'star';
+  return 'notifications';
 }
 
 function notificationTitle(n: Notification): string {
@@ -36,10 +37,111 @@ function notificationBody(n: Notification): string {
   return '';
 }
 
+function makeStyles(isDark: boolean) {
+  const bg = isDark ? tokens.colors.darkBg : tokens.colors.surfaceTint;
+  const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
+  const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
+  const textMain = isDark ? '#ffffff' : tokens.colors.textDark;
+  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
+  const primary = tokens.colors.primary;
+
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: bg },
+    content: { paddingHorizontal: 24 },
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: surface,
+      borderWidth: 1,
+      borderColor: border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    sectionLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: primary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 4,
+    },
+    title: { fontSize: 24, fontWeight: '700', color: textMain, marginBottom: 20 },
+    loaderWrap: { alignItems: 'center', paddingVertical: 24 },
+    muted: { fontSize: 14, color: textMuted, marginTop: 8 },
+    errorWrap: { marginBottom: 16 },
+    errorText: { color: '#b91c1c', marginBottom: 8 },
+    retryButton: { alignSelf: 'flex-start' },
+    retryText: { color: primary, fontWeight: '600' },
+    emptyWrap: {
+      paddingVertical: 48,
+      paddingHorizontal: 24,
+      alignItems: 'center',
+      borderRadius: tokens.borderRadius['2xl'],
+      borderWidth: 1,
+      borderColor: border,
+      backgroundColor: surface,
+      ...tokens.shadow.subtle,
+    },
+    emptyIconWrap: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: isDark ? '#2a2a3e' : tokens.colors.blueTint,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    emptyTitle: { fontSize: 18, fontWeight: '600', color: textMain, marginBottom: 8 },
+    emptyDesc: { fontSize: 14, color: textMuted, marginBottom: 20, textAlign: 'center' },
+    emptyCta: {
+      backgroundColor: primary,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: tokens.borderRadius.xl,
+    },
+    emptyCtaText: { color: '#fff', fontWeight: '600' },
+    list: { gap: 10 },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      padding: 16,
+      borderRadius: tokens.borderRadius.xl,
+      borderWidth: 1,
+      borderColor: border,
+      backgroundColor: surface,
+      ...tokens.shadow.subtle,
+    },
+    cardUnread: {
+      backgroundColor: isDark ? '#1e2a3e' : tokens.colors.blueTint,
+      borderColor: 'rgba(59, 130, 246, 0.3)',
+    },
+    iconWrap: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: isDark ? '#2a2a3e' : tokens.colors.softBlue,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+      flexShrink: 0,
+    },
+    cardBody: { flex: 1, minWidth: 0 },
+    cardTitle: { fontSize: 15, fontWeight: '600', color: textMain },
+    cardBodyText: { fontSize: 14, color: textMuted, marginTop: 4 },
+    cardTime: { fontSize: 12, color: textMuted, marginTop: 6 },
+    markRead: { flexShrink: 0, paddingVertical: 4 },
+    markReadText: { fontSize: 13, color: primary, fontWeight: '600' },
+  });
+}
+
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { t } = useI18n();
+  const { isDark } = useTheme();
+  const styles = makeStyles(isDark);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -81,13 +183,14 @@ export default function NotificationsScreen() {
       ]}
     >
       <TouchableOpacity
-        style={styles.backButton}
+        style={styles.backBtn}
         onPress={() => navigation.goBack()}
         activeOpacity={0.8}
       >
-        <Text style={styles.backText}>‹ {t('common.back')}</Text>
+        <MaterialIcons name="arrow-back" size={20} color={isDark ? '#fff' : tokens.colors.textDark} />
       </TouchableOpacity>
-      <Text style={styles.sectionLabel}>Updates</Text>
+
+      <Text style={styles.sectionLabel}>{t('notifications.updatesLabel')}</Text>
       <Text style={styles.title}>{t('notifications.title')}</Text>
 
       {loading && (
@@ -106,17 +209,19 @@ export default function NotificationsScreen() {
       ) : null}
       {!loading && !error && notifications.length === 0 && (
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyIcon}>◉</Text>
+          <View style={styles.emptyIconWrap}>
+            <MaterialIcons name="notifications-none" size={28} color={tokens.colors.primary} />
+          </View>
           <Text style={styles.emptyTitle}>{t('notifications.empty')}</Text>
           <Text style={styles.emptyDesc}>
-            When you get check-ins or group updates, they'll show here.
+            {t('notifications.emptyDesc') || "When you get check-ins or group updates, they'll show here."}
           </Text>
           <TouchableOpacity
             style={styles.emptyCta}
             onPress={() => navigation.navigate('Main' as never)}
             activeOpacity={0.8}
           >
-            <Text style={styles.emptyCtaText}>Explore places</Text>
+            <Text style={styles.emptyCtaText}>{t('nav.explore')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -125,13 +230,14 @@ export default function NotificationsScreen() {
           {notifications.map((n) => (
             <View
               key={n.notification_code}
-              style={[
-                styles.card,
-                !n.read_at && styles.cardUnread,
-              ]}
+              style={[styles.card, !n.read_at && styles.cardUnread]}
             >
               <View style={styles.iconWrap}>
-                <Text style={styles.iconText}>{notificationIcon(n.type)}</Text>
+                <MaterialIcons
+                  name={notificationIcon(n.type)}
+                  size={18}
+                  color={tokens.colors.primary}
+                />
               </View>
               <View style={styles.cardBody}>
                 <Text style={styles.cardTitle}>{notificationTitle(n)}</Text>
@@ -158,69 +264,3 @@ export default function NotificationsScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: tokens.colors.surfaceTint },
-  content: { paddingHorizontal: 24 },
-  backButton: { marginBottom: 16 },
-  backText: { fontSize: 16, color: tokens.colors.textMuted },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: tokens.colors.primaryDark,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  title: { fontSize: 24, fontWeight: '700', color: tokens.colors.textDark, marginBottom: 20 },
-  loaderWrap: { alignItems: 'center', paddingVertical: 24 },
-  muted: { fontSize: 14, color: tokens.colors.textMuted, marginTop: 8 },
-  errorWrap: { marginBottom: 16 },
-  errorText: { color: '#b91c1c', marginBottom: 8 },
-  retryButton: { alignSelf: 'flex-start' },
-  retryText: { color: tokens.colors.primary, fontWeight: '600' },
-  emptyWrap: {
-    paddingVertical: 48,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    borderRadius: tokens.borderRadius['2xl'],
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    backgroundColor: tokens.colors.surface,
-    ...tokens.shadow.subtle,
-  },
-  emptyIcon: { fontSize: 48, marginBottom: 16, color: tokens.colors.textMuted },
-  emptyTitle: { fontSize: 18, fontWeight: '600', color: tokens.colors.textMain, marginBottom: 8 },
-  emptyDesc: { fontSize: 14, color: tokens.colors.textMuted, marginBottom: 20, textAlign: 'center' },
-  emptyCta: { backgroundColor: tokens.colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: tokens.borderRadius.xl },
-  emptyCtaText: { color: '#fff', fontWeight: '600' },
-  list: { gap: 10 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 16,
-    borderRadius: tokens.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    backgroundColor: tokens.colors.surface,
-    ...tokens.shadow.subtle,
-  },
-  cardUnread: { backgroundColor: tokens.colors.blueTint, borderColor: 'rgba(59, 130, 246, 0.3)' },
-  iconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: tokens.colors.softBlue,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-    flexShrink: 0,
-  },
-  iconText: { fontSize: 16, color: tokens.colors.primary, fontWeight: '600' },
-  cardBody: { flex: 1, minWidth: 0 },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: tokens.colors.textMain },
-  cardBodyText: { fontSize: 14, color: tokens.colors.textMuted, marginTop: 4 },
-  cardTime: { fontSize: 12, color: tokens.colors.textMuted, marginTop: 6 },
-  markRead: { flexShrink: 0, paddingVertical: 4 },
-  markReadText: { fontSize: 13, color: tokens.colors.primary, fontWeight: '600' },
-});
