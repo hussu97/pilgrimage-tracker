@@ -7,18 +7,62 @@ import { tokens } from '../lib/theme';
 
 interface PlaceCardProps {
   place: Place;
+  compact?: boolean;
 }
 
 function formatDistance(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
-export default function PlaceCard({ place }: PlaceCardProps) {
+export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>>();
   const imageUrl = place.image_urls?.[0] ?? '';
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
   const showOpenNow = place.is_open_now === true;
+
+  if (compact) {
+    return (
+      <TouchableOpacity
+        style={styles.compactCard}
+        onPress={() => navigation.navigate('PlaceDetail', { placeCode: place.place_code })}
+        activeOpacity={0.88}
+      >
+        <View style={styles.compactImageWrap}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.compactImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.compactImagePlaceholder}>
+              <Text style={styles.compactPlaceholderIcon}>⊕</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.compactBody}>
+          <Text style={styles.compactName} numberOfLines={1}>{place.name}</Text>
+          <Text style={styles.compactAddress} numberOfLines={2}>
+            {place.address || place.place_type || ''}
+          </Text>
+          <View style={styles.compactChips}>
+            {place.place_type ? (
+              <View style={styles.chipType}>
+                <Text style={styles.chipTypeText}>{place.place_type}</Text>
+              </View>
+            ) : null}
+            {place.distance != null && (
+              <View style={styles.chipDist}>
+                <Text style={styles.chipDistText}>{formatDistance(place.distance)}</Text>
+              </View>
+            )}
+            {rating != null && (
+              <View style={styles.chipRating}>
+                <Text style={styles.chipRatingText}>★ {rating.toFixed(1)}{reviewCount > 0 ? ` (${reviewCount})` : ''}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  }
 
   return (
     <TouchableOpacity
@@ -70,6 +114,64 @@ export default function PlaceCard({ place }: PlaceCardProps) {
 }
 
 const styles = StyleSheet.create({
+  compactCard: {
+    flexDirection: 'row',
+    height: 128,
+    backgroundColor: tokens.colors.surface,
+    borderRadius: 24,
+    padding: 16,
+    gap: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: tokens.colors.inputBorder,
+    ...tokens.shadow.subtle,
+  },
+  compactImageWrap: {
+    width: 96,
+    height: 96,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: tokens.colors.softBlue,
+    flexShrink: 0,
+  },
+  compactImage: { width: '100%', height: '100%' },
+  compactImagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  compactPlaceholderIcon: { fontSize: 32, color: tokens.colors.textMuted },
+  compactBody: { flex: 1, flexDirection: 'column', justifyContent: 'center', paddingVertical: 4 },
+  compactName: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: tokens.colors.textMain,
+    marginBottom: 4,
+  },
+  compactAddress: {
+    fontSize: 12,
+    color: tokens.colors.textMuted,
+    fontWeight: '300',
+    marginBottom: 8,
+  },
+  compactChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chipType: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+  },
+  chipTypeText: { fontSize: 10, fontWeight: '500', color: tokens.colors.primaryDark },
+  chipDist: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: tokens.colors.softBlue,
+  },
+  chipDistText: { fontSize: 10, fontWeight: '500', color: tokens.colors.textSecondary },
+  chipRating: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: '#fffbeb',
+  },
+  chipRatingText: { fontSize: 10, fontWeight: '500', color: '#92400e' },
   card: {
     backgroundColor: tokens.colors.surface,
     borderRadius: tokens.borderRadius['2xl'],

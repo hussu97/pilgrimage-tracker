@@ -64,7 +64,8 @@ export default function Home() {
 
   const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || t('home.title');
   const heroPlace = places.length > 0 ? places[0] : null;
-  const restPlaces = places.slice(1);
+  const secondaryPlace = places.length > 1 ? places[1] : null;
+  const restPlaces = places.slice(2);
 
   return (
     <div
@@ -128,6 +129,9 @@ export default function Home() {
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="flex-1 bg-transparent border-none p-0 text-lg font-light text-slate-800 placeholder-slate-300 focus:ring-0 focus:outline-none"
               />
+              <button type="button" aria-label="Filter" className="text-slate-400 hover:text-slate-600 transition-colors ml-2">
+                <span className="material-symbols-outlined text-xl font-light">tune</span>
+              </button>
             </div>
           </div>
 
@@ -210,14 +214,14 @@ export default function Home() {
                 {/* Hero place card */}
                 <Link
                   to={`/places/${heroPlace!.place_code}`}
-                  className="block rounded-[2rem] overflow-hidden shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] group cursor-pointer relative h-[28rem] w-full transform transition-all duration-300 hover:shadow-xl"
+                  className="block rounded-[2rem] overflow-hidden shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] group cursor-pointer relative h-[28rem] w-full transform transition-all duration-500 hover:shadow-xl"
                 >
                   <div className="absolute inset-0">
                     {heroPlace!.image_urls?.[0] ? (
                       <img
                         src={heroPlace!.image_urls[0]}
                         alt=""
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                       />
                     ) : (
                       <div className="w-full h-full bg-soft-blue flex items-center justify-center">
@@ -265,7 +269,7 @@ export default function Home() {
                             </span>
                             <div className="flex text-yellow-400 text-[10px]">
                               {[1, 2, 3, 4, 5].map((i) => (
-                                <span key={i} className="material-symbols-outlined text-[12px]">
+                                <span key={i} className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                                   star
                                 </span>
                               ))}
@@ -288,12 +292,84 @@ export default function Home() {
                   </div>
                 </Link>
 
-                {/* Rest of places */}
-                <div className="space-y-6 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:space-y-0">
-                  {restPlaces.map((place) => (
-                    <PlaceCard key={place.place_code} place={place} />
-                  ))}
-                </div>
+                {/* Secondary place card */}
+                {secondaryPlace && (
+                  <div className="rounded-[2rem] overflow-hidden shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] group cursor-pointer relative h-80 w-full transform transition-all duration-500 hover:shadow-xl">
+                    <div className="absolute inset-0">
+                      {secondaryPlace.image_urls?.[0] ? (
+                        <img
+                          src={secondaryPlace.image_urls[0]}
+                          alt=""
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-soft-blue flex items-center justify-center">
+                          <span className="material-symbols-outlined text-6xl text-slate-400">place</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/70" />
+                    </div>
+                    {secondaryPlace.is_open_now && (
+                      <div className="absolute top-5 left-5 z-10">
+                        <span className="inline-flex items-center gap-1 bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 rounded-full px-3 py-1 text-[10px] font-medium text-white uppercase tracking-wider">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          {t('places.openNow')}
+                        </span>
+                      </div>
+                    )}
+                    {secondaryPlace.user_has_checked_in && (
+                      <div className="absolute top-5 right-5 z-10">
+                        <span className="inline-flex items-center gap-1 bg-white/20 backdrop-blur-md border border-white/30 rounded-full px-3 py-1 text-[10px] font-medium text-white uppercase tracking-wider">
+                          <span className="material-symbols-outlined text-[14px]">check</span>
+                          {t('places.visited')}
+                        </span>
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 p-6 text-white z-10">
+                      <div className="bg-white/15 backdrop-blur-md rounded-2xl p-5 border border-white/30 border-t-white/20">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h3 className="text-xl font-semibold leading-tight mb-1" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                              {secondaryPlace.name}
+                            </h3>
+                            <p className="text-sm text-white/80 font-light">
+                              {secondaryPlace.address || secondaryPlace.place_type || ''}
+                            </p>
+                          </div>
+                          {secondaryPlace.distance != null && (
+                            <span className="text-xs font-light bg-white/20 px-2 py-1 rounded backdrop-blur-sm">
+                              {formatDistance(secondaryPlace.distance)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex gap-3">
+                          <Link
+                            to={`/places/${secondaryPlace.place_code}/check-in`}
+                            className="flex-1 bg-white text-slate-900 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider hover:bg-white/90 transition-colors shadow-lg text-center"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {t('places.checkIn')}
+                          </Link>
+                          <Link
+                            to={`/places/${secondaryPlace.place_code}`}
+                            className="px-3 bg-white/20 backdrop-blur-md text-white border border-white/30 rounded-xl hover:bg-white/30 transition-colors flex items-center"
+                          >
+                            <span className="material-symbols-outlined text-lg">bookmark_border</span>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Compact cards */}
+                {restPlaces.length > 0 && (
+                  <div className="space-y-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:space-y-0">
+                    {restPlaces.map((place) => (
+                      <PlaceCard key={place.place_code} place={place} compact />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </>

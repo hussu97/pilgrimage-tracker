@@ -22,6 +22,7 @@ import type { Place } from '../../lib/types';
 import type { RootStackParamList } from '../navigation';
 import { tokens } from '../../lib/theme';
 
+type ViewMode = 'list' | 'map';
 type FilterChip = 'nearby' | 'historical' | 'jummah' | 'events' | '';
 
 function formatDistance(km: number): string {
@@ -40,6 +41,7 @@ export default function HomeScreen() {
   const [search, setSearch] = useState('');
   const [searchDebounced, setSearchDebounced] = useState('');
   const [filter, setFilter] = useState<FilterChip>('nearby');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   const fetchPlaces = useCallback(async () => {
     setLoading(true);
@@ -73,9 +75,19 @@ export default function HomeScreen() {
     return () => clearTimeout(id);
   }, [search]);
 
+  // When map mode is selected, navigate to the Map tab
+  const handleViewModeChange = (mode: ViewMode) => {
+    if (mode === 'map') {
+      (navigation as unknown as NativeStackNavigationProp<RootStackParamList>).navigate('Map' as never);
+    } else {
+      setViewMode('list');
+    }
+  };
+
   const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || t('home.title');
   const heroPlace = places.length > 0 ? places[0] : null;
-  const restPlaces = places.slice(1);
+  const secondaryPlace = places.length > 1 ? places[1] : null;
+  const restPlaces = places.slice(2);
   const showEmpty = !loading && !error && places.length === 0;
   const showList = !loading && !error && places.length > 0;
 
@@ -123,6 +135,7 @@ export default function HomeScreen() {
                 {heroPlace.average_rating != null && (
                   <View style={styles.heroRatingWrap}>
                     <Text style={styles.heroRatingValue}>{heroPlace.average_rating.toFixed(1)}</Text>
+                    <Text style={styles.heroRatingStars}>★★★★★</Text>
                   </View>
                 )}
               </View>
@@ -139,13 +152,111 @@ export default function HomeScreen() {
     );
   };
 
+  const renderSecondaryCard = () => {
+    if (!secondaryPlace) return null;
+    return (
+      <TouchableOpacity
+        style={styles.secondaryCard}
+        onPress={() => navigation.navigate('PlaceDetail', { placeCode: secondaryPlace.place_code })}
+        activeOpacity={0.95}
+      >
+        <View style={styles.secondaryImageWrap}>
+          {secondaryPlace.image_urls?.[0] ? (
+            <Image source={{ uri: secondaryPlace.image_urls[0] }} style={styles.secondaryImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.heroImagePlaceholder}>
+              <Text style={styles.heroPlaceholderIcon}>⊕</Text>
+            </View>
+          )}
+          <View style={styles.secondaryOverlay} pointerEvents="none" />
+          {secondaryPlace.is_open_now && (
+            <View style={[styles.heroBadges, { justifyContent: 'flex-start' }]}>
+              <View style={styles.openNowBadge}>
+                <View style={styles.openNowDot} />
+                <Text style={styles.openNowText}>{t('places.openNow')}</Text>
+              </View>
+            </View>
+          )}
+          {secondaryPlace.user_has_checked_in && (
+            <View style={[styles.heroBadges, { justifyContent: 'flex-end' }]}>
+              <View style={styles.visitedBadge}>
+                <Text style={styles.visitedText}>✓ {t('places.visited')}</Text>
+              </View>
+            </View>
+          )}
+          <View style={styles.heroBottom}>
+            <View style={styles.heroGlass}>
+              <View style={[styles.heroGlassRow, { alignItems: 'flex-start', marginBottom: 16 }]}>
+                <View style={styles.heroGlassLeft}>
+                  <Text style={styles.secondaryName} numberOfLines={1}>{secondaryPlace.name}</Text>
+                  <Text style={styles.heroAddress} numberOfLines={1}>
+                    {secondaryPlace.address || secondaryPlace.place_type || ''}
+                  </Text>
+                </View>
+                {secondaryPlace.distance != null && (
+                  <View style={styles.distanceBadge}>
+                    <Text style={styles.distanceBadgeText}>{formatDistance(secondaryPlace.distance)}</Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.secondaryCtas}>
+                <TouchableOpacity
+                  style={styles.checkInBtn}
+                  onPress={() => navigation.navigate('CheckIn' as never, { placeCode: secondaryPlace.place_code } as never)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.checkInBtnText}>{t('places.checkIn')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.bookmarkBtn} activeOpacity={0.8}>
+                  <Text style={styles.bookmarkBtnIcon}>🔖</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderListHeader = () => (
+    <>
+      {renderHero()}
+      {renderSecondaryCard()}
+      {restPlaces.length > 0 && <View style={styles.separator} />}
+    </>
+  );
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Gradient background (top tint fading to white) */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <View style={styles.gradientTop} />
+      </View>
+
       <View style={styles.header}>
-        <View>
-          <Text style={styles.label}>{t('nav.explore')}</Text>
-          <Text style={styles.greeting}>{t('home.greeting')}</Text>
-          <Text style={styles.title}>{displayName}</Text>
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={styles.label}>{t('nav.explore')}</Text>
+            <Text style={styles.greeting}>{t('home.greeting')}</Text>
+            <Text style={styles.title}>{displayName}</Text>
+          </View>
+          {/* List / Map toggle */}
+          <View style={styles.viewToggle}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
+              onPress={() => handleViewModeChange('list')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.toggleIcon, viewMode === 'list' && styles.toggleIconActive]}>☰</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, viewMode === 'map' && styles.toggleBtnActive]}
+              onPress={() => handleViewModeChange('map')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.toggleIcon, viewMode === 'map' && styles.toggleIconActive]}>⊞</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -158,6 +269,7 @@ export default function HomeScreen() {
           value={search}
           onChangeText={setSearch}
         />
+        <Text style={styles.tuneIcon}>⚙</Text>
       </View>
 
       <ScrollView
@@ -209,10 +321,10 @@ export default function HomeScreen() {
         <FlatList
           data={restPlaces}
           keyExtractor={(item) => item.place_code}
-          ListHeaderComponent={renderHero}
-          renderItem={({ item }) => <PlaceCard place={item} />}
+          ListHeaderComponent={renderListHeader}
+          renderItem={({ item }) => <PlaceCard place={item} compact />}
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={() => <View style={styles.compactSeparator} />}
           refreshControl={
             <RefreshControl
               refreshing={loading}
@@ -231,7 +343,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: tokens.colors.surfaceTint,
   },
+  gradientTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 300,
+    backgroundColor: '#F0F7FF',
+    opacity: 0.6,
+  },
   header: { paddingHorizontal: 24, paddingBottom: 24 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   label: {
     fontSize: 12,
     fontWeight: '600',
@@ -252,6 +374,31 @@ const styles = StyleSheet.create({
     color: tokens.colors.textDark,
     letterSpacing: -0.5,
   },
+  viewToggle: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 9999,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.8)',
+  },
+  toggleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleBtnActive: {
+    backgroundColor: tokens.colors.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  toggleIcon: { fontSize: 16, color: tokens.colors.textMuted },
+  toggleIconActive: { color: '#fff' },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -263,6 +410,7 @@ const styles = StyleSheet.create({
   },
   searchIcon: { fontSize: 20, color: tokens.colors.textMuted, marginRight: 12 },
   searchInput: { flex: 1, paddingVertical: 4, fontSize: 18, color: tokens.colors.textDark, fontWeight: '300' },
+  tuneIcon: { fontSize: 18, color: tokens.colors.textMuted, marginLeft: 8 },
   chipsScroll: { marginBottom: 8 },
   chipsWrap: { flexDirection: 'row', gap: 12, paddingHorizontal: 24, paddingVertical: 8 },
   chip: {
@@ -293,14 +441,16 @@ const styles = StyleSheet.create({
   retryText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   listContent: { paddingHorizontal: 24, paddingTop: 8 },
   separator: { height: 16 },
+  compactSeparator: { height: 12 },
+  // Hero card
   heroCard: {
     borderRadius: tokens.borderRadius['3xl'],
     overflow: 'hidden',
-    marginBottom: 32,
+    marginBottom: 16,
     ...tokens.shadow.card,
   },
   heroImageWrap: {
-    height: 320,
+    height: 420,
     backgroundColor: tokens.colors.softBlue,
     position: 'relative',
   },
@@ -311,9 +461,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
+    top: 0,
     bottom: 0,
-    height: '65%',
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    // Simulated gradient: transparent top → dark bottom
+    backgroundColor: 'transparent',
   },
   heroBadges: {
     position: 'absolute',
@@ -357,6 +508,9 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     padding: 24,
+    // Dark overlay at bottom from heroOverlay is simulated via the image gradient
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: 0,
   },
   heroGlass: {
     backgroundColor: 'rgba(255,255,255,0.2)',
@@ -371,6 +525,7 @@ const styles = StyleSheet.create({
   heroAddress: { fontSize: 14, color: 'rgba(255,255,255,0.9)', fontWeight: '300' },
   heroRatingWrap: { alignItems: 'flex-end' },
   heroRatingValue: { fontSize: 22, fontWeight: '300', color: '#fff' },
+  heroRatingStars: { fontSize: 10, color: '#fbbf24', marginTop: 2 },
   heroGlassFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -381,4 +536,58 @@ const styles = StyleSheet.create({
   },
   heroDistance: { fontSize: 12, fontWeight: '300', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase' },
   heroDetails: { fontSize: 12, fontWeight: '600', color: '#fff', textTransform: 'uppercase' },
+  // Secondary card
+  secondaryCard: {
+    borderRadius: tokens.borderRadius['3xl'],
+    overflow: 'hidden',
+    marginBottom: 16,
+    ...tokens.shadow.card,
+  },
+  secondaryImageWrap: {
+    height: 280,
+    backgroundColor: tokens.colors.softBlue,
+    position: 'relative',
+  },
+  secondaryImage: { width: '100%', height: '100%' },
+  secondaryOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.0)',
+  },
+  secondaryName: { fontSize: 20, fontWeight: '600', color: '#fff', marginBottom: 4 },
+  distanceBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  distanceBadgeText: { fontSize: 12, color: '#fff', fontWeight: '300' },
+  secondaryCtas: { flexDirection: 'row', gap: 12 },
+  checkInBtn: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingVertical: 10,
+    borderRadius: tokens.borderRadius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  checkInBtnText: { color: '#0f172a', fontWeight: '700', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 },
+  bookmarkBtn: {
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: tokens.borderRadius.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookmarkBtnIcon: { fontSize: 18 },
 });

@@ -4,18 +4,69 @@ import { useI18n } from '@/app/providers';
 
 interface PlaceCardProps {
   place: Place;
+  compact?: boolean;
 }
 
 function formatDistance(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
-export default function PlaceCard({ place }: PlaceCardProps) {
+export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const { t } = useI18n();
   const imageUrl = place.image_urls?.[0] ?? '';
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
   const showOpenNow = place.is_open_now === true;
+
+  if (compact) {
+    return (
+      <Link
+        to={`/places/${place.place_code}`}
+        className="flex gap-4 h-32 bg-white rounded-[1.5rem] p-4 shadow-[0_2px_10px_rgba(0,0,0,0.03)] border border-slate-100 items-center hover:shadow-md transition-shadow group"
+      >
+        <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 bg-soft-blue">
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt=""
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <span className="material-symbols-outlined text-3xl text-text-muted">explore</span>
+            </div>
+          )}
+        </div>
+        <div className="flex-1 flex flex-col justify-center h-full py-1 min-w-0">
+          <h3 className="text-base font-medium text-slate-800 leading-tight truncate group-hover:text-primary transition-colors">
+            {place.name}
+          </h3>
+          <p className="text-xs text-slate-400 mt-1 line-clamp-2 font-light">
+            {place.address || place.place_type || ''}
+          </p>
+          <div className="flex items-center gap-2 mt-3">
+            {place.place_type && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary-dark">
+                {place.place_type}
+              </span>
+            )}
+            {place.distance != null && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500">
+                {formatDistance(place.distance)}
+              </span>
+            )}
+            {rating != null && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-600">
+                <span className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                {rating.toFixed(1)}
+                {reviewCount > 0 && <span className="text-amber-500/70">({reviewCount})</span>}
+              </span>
+            )}
+          </div>
+        </div>
+      </Link>
+    );
+  }
 
   return (
     <Link
