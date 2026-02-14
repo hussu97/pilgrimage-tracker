@@ -1,0 +1,2048 @@
+<!-- Explore Sacred Places -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sacred Explorer - Homepage Map View - Visited</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#007AFF", 
+                        "primary-dark": "#005ec4",
+                        "accent": "#90CAF9",
+                        "surface": "#121212",
+                        "card-dark": "#1E1E1E",
+                        "glass": "rgba(30, 30, 30, 0.7)",
+                        "glass-border": "rgba(255, 255, 255, 0.1)",
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"],
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "1rem", "2xl": "1.5rem", "3xl": "2rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        .safe-top {
+            padding-top: env(safe-area-inset-top, 44px);
+        }
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 34px);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        body {
+            background-color: #121212;
+        }
+        .glass-panel {
+            background: rgba(30, 30, 30, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .text-shadow-sm {
+            text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+        }
+        .map-bg {
+            background-color: #0f1012;
+            background-image: 
+                radial-gradient(circle at 50% 50%, #1a1c23 1px, transparent 1px),
+                radial-gradient(circle at 10% 20%, #1a1c23 1px, transparent 1px);
+            background-size: 40px 40px;
+        }.map-road {
+            position: absolute;
+            background-color: #242424;
+            border-radius: 999px;
+        }
+        .map-river {
+            position: absolute;
+            background-color: #1a2230;
+            border-radius: 999px;
+        }
+        .map-pin-glow {
+            box-shadow: 0 0 20px rgba(0, 122, 255, 0.6);
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-slate-300 font-sans antialiased h-screen flex flex-col bg-[#121212] overflow-hidden">
+<div class="fixed top-0 w-full z-50 safe-top bg-[#121212]/90 backdrop-blur-md border-b border-white/5">
+<div class="px-6 h-10 flex justify-between items-center text-xs font-semibold text-white">
+<span>9:41</span>
+<div class="flex gap-1.5 items-center">
+<span class="material-icons text-[14px]">signal_cellular_alt</span>
+<span class="material-icons text-[14px]">wifi</span>
+<span class="material-icons text-[14px] rotate-90">battery_full</span>
+</div>
+</div>
+</div>
+<main class="flex-1 flex flex-col pt-[calc(env(safe-area-inset-top,44px)+2.5rem)] relative">
+<div class="absolute top-[calc(env(safe-area-inset-top,44px)+2.5rem)] left-0 w-full z-30 pointer-events-none">
+<header class="px-6 pb-4 bg-gradient-to-b from-[#121212] via-[#121212]/80 to-transparent pointer-events-auto">
+<div class="flex justify-between items-center">
+<h1 class="text-3xl font-semibold text-white tracking-tight leading-tight">
+                    Hello, Ahmed
+                </h1>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-2xl">list</span>
+</button>
+</div>
+<div class="mt-4 relative">
+<div class="flex items-center bg-white/5 rounded-2xl px-4 py-3.5 border border-white/10 backdrop-blur-md">
+<span class="material-symbols-outlined text-slate-400 text-xl mr-3">search</span>
+<input class="w-full bg-transparent border-none p-0 text-base font-normal text-white placeholder-slate-500 focus:ring-0" placeholder="Search sacred places..." type="text"/>
+</div>
+</div>
+<div class="flex gap-2 mt-4 overflow-x-auto no-scrollbar pb-2">
+<button class="bg-primary text-white px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shadow-lg shadow-primary/20">All Places</button>
+<button class="bg-white/10 backdrop-blur-md border border-white/10 text-white px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap">Mosques</button>
+<button class="bg-white/10 backdrop-blur-md border border-white/10 text-white px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap">Shrines</button>
+<button class="bg-white/10 backdrop-blur-md border border-white/10 text-white px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap">Temples</button>
+</div>
+</header>
+</div>
+<div class="absolute inset-0 z-0 map-bg w-full h-full">
+<div class="map-river w-[120%] h-24 rotate-12 top-1/4 -left-10"></div>
+<div class="map-road w-full h-4 rotate-45 top-1/3 -left-20 opacity-30"></div>
+<div class="map-road w-full h-3 -rotate-12 bottom-1/3 -right-20 opacity-30"></div>
+<div class="map-road w-[150%] h-6 rotate-[20deg] top-20 -left-10 opacity-20"></div>
+<div class="absolute top-[30%] left-[20%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1 group">
+<div class="w-8 h-8 rounded-full bg-[#1E1E1E] border-2 border-[#333] flex items-center justify-center shadow-lg">
+<div class="w-3 h-3 rounded-full bg-slate-500"></div>
+</div>
+</div>
+<div class="absolute top-[25%] right-[25%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1">
+<div class="w-8 h-8 rounded-full bg-[#1E1E1E] border-2 border-[#333] flex items-center justify-center shadow-lg">
+<div class="w-3 h-3 rounded-full bg-slate-500"></div>
+</div>
+</div>
+<div class="absolute bottom-[40%] left-[15%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1">
+<div class="w-8 h-8 rounded-full bg-[#1E1E1E] border-2 border-[#333] flex items-center justify-center shadow-lg">
+<div class="w-3 h-3 rounded-full bg-slate-500"></div>
+</div>
+</div>
+<div class="absolute top-[45%] left-[55%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10">
+<div class="relative">
+<div class="w-12 h-12 rounded-full bg-[#1E1E1E] border-[3px] border-primary flex items-center justify-center shadow-2xl map-pin-glow z-20 relative">
+<span class="material-icons text-primary text-xl">mosque</span>
+</div>
+<div class="absolute inset-0 rounded-full bg-primary/30 animate-ping"></div>
+</div>
+<div class="w-1 h-8 bg-primary/50 rounded-full -mt-1"></div>
+<div class="w-3 h-1.5 bg-black/50 rounded-[100%] blur-[2px]"></div>
+</div>
+</div>
+<div class="absolute bottom-4 left-6 right-6 z-20 pb-[calc(env(safe-area-inset-bottom,34px)+5rem)]">
+<div class="glass-panel rounded-3xl p-4 text-white shadow-2xl transform transition-all active:scale-95 duration-200 cursor-pointer">
+<div class="flex gap-4">
+<div class="w-24 h-24 rounded-2xl overflow-hidden shrink-0 relative bg-gray-800">
+<img alt="Sultan Ahmed Mosque" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAceiAdgf7TzoDBEER5U0kKO5Q8sI1kQ3hakRwCoTvTzFfipflTz-aKyfecSfrgtJ3zze9omlJ0MxrXg97GbxXvBE0uC1kJM9qQ1SCPHo9NuJ1O-dccgzLXde9xYApPpfcyjC2wULiSCBfAAPNCn7lU70LxTk3TPsSvA2A0kfx6Fi9d6WocItKgVd9GJMN6oPYLW_Yre5jqrAcVd6R5QMwVsJnFLLNgmJnFOgUsStpvDjWMX4IGuHJo1mE1I2znBG6LcJRPJLsAyeU"/>
+<div class="absolute inset-0 bg-black/20"></div>
+</div>
+<div class="flex-1 flex flex-col justify-between py-0.5">
+<div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="text-lg font-bold text-white leading-tight pr-2">Sultan Ahmed Mosque</h3>
+<div class="bg-black/40 backdrop-blur-md border border-white/20 rounded-full px-2 py-0.5 flex items-center gap-1 shrink-0">
+<div class="w-1.5 h-1.5 rounded-full bg-green-400"></div>
+<span class="text-[9px] font-bold text-white uppercase tracking-wider">Open</span>
+</div>
+</div>
+<p class="text-xs text-slate-400 font-medium flex items-center truncate">
+                            Istanbul, Turkey
+                        </p>
+</div>
+<div class="flex items-end justify-between mt-2">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-1 text-xs">
+<span class="material-icons text-amber-400 text-[14px]">star</span>
+<span class="font-bold text-white">4.8</span>
+<span class="text-slate-500">(1.2k)</span>
+</div>
+<div class="text-[10px] text-slate-500 font-semibold tracking-wide uppercase">
+                                2.4 km away
+                            </div>
+</div>
+<div class="flex flex-col items-end">
+<div class="bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-3 py-1 flex items-center gap-1.5">
+<span class="material-icons text-primary text-[12px]">check_circle</span>
+<span class="text-[10px] font-bold text-white uppercase tracking-wider">Visited</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<nav class="fixed bottom-0 w-full bg-[#121212]/90 backdrop-blur-xl border-t border-white/5 pb-[env(safe-area-inset-bottom,20px)] pt-2 safe-bottom z-40">
+<div class="grid grid-cols-4 gap-1 px-2">
+<button class="flex flex-col items-center justify-center gap-1 py-1 text-primary">
+<span class="material-symbols-outlined text-[28px] fill-1">explore</span>
+<span class="text-[10px] font-bold tracking-tight">Explore</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 py-1 text-slate-500">
+<span class="material-symbols-outlined text-[28px]">map</span>
+<span class="text-[10px] font-medium tracking-tight">Map</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 py-1 text-slate-500">
+<span class="material-symbols-outlined text-[28px]">groups</span>
+<span class="text-[10px] font-medium tracking-tight">Groups</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 py-1 text-slate-500">
+<span class="material-symbols-outlined text-[28px]">person</span>
+<span class="text-[10px] font-medium tracking-tight">Profile</span>
+</button>
+</div>
+</nav>
+
+</body></html>
+
+<!-- Place Details - Hindu Temple -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Mosque Details - Standardized Dark Corrected</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#007AFF",
+                        "dark-bg": "#121212",
+                        "dark-card": "#1E1E1E",
+                        "dark-border": "#2C2C2C",
+                        "light-grey": "#A1A1A1",
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"],
+                        "display": ["Inter", "sans-serif"],
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        body {
+            min-height: 100dvh;
+            background-color: #000;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-sans antialiased text-white">
+<div class="mx-auto max-w-md bg-dark-bg min-h-screen relative shadow-2xl overflow-hidden pb-24">
+<div class="relative h-[30vh] w-full">
+<img alt="Al-Nour Grand Mosque" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBp6H6Mmb_aAStE0D6U2ARnRT3ps5PzZspC4WzgjZ775MeTYgDqFxbI8uI5OoLBg5IMSdCJmH6t2JOqZc881pMRqSlEjTL03kQAjzueEcWy_55YiLuNBBcjpCdBZoJb2s8-Ui-zmovgDOmjjFF0Sc5TxEc6abJ9hTpg7c-nKsd9TeCaKNxHfJMyBm7qwNpDj91uhsGfwlDLhjlkxODXdOCtNabcB_P8faSfiaw_JZgy3gPRzrvvcQCNg0cYdK2GQeXIAXE9GPONmV4"/>
+<div class="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-dark-bg/90"></div>
+<div class="absolute top-0 left-0 w-full z-20 pt-12 px-6 flex justify-between items-center">
+<button class="bg-black/20 backdrop-blur-lg w-10 h-10 flex items-center justify-center rounded-full border border-white/10 active:scale-95 transition">
+<span class="material-symbols-outlined text-white text-[22px]">arrow_back_ios_new</span>
+</button>
+<div class="flex gap-3">
+<button class="bg-black/20 backdrop-blur-lg w-10 h-10 flex items-center justify-center rounded-full border border-white/10 active:scale-95 transition">
+<span class="material-symbols-outlined text-white text-[22px]">share</span>
+</button>
+<button class="bg-black/20 backdrop-blur-lg w-10 h-10 flex items-center justify-center rounded-full border border-white/10 active:scale-95 transition">
+<span class="material-symbols-outlined text-white text-[22px]">favorite</span>
+</button>
+</div>
+</div>
+<div class="absolute bottom-0 left-0 w-full p-6 pb-10 z-10">
+<div class="flex items-center gap-2 mb-3">
+<span class="px-3 py-1 bg-primary shadow-lg shadow-primary/20 rounded-full text-[10px] font-bold tracking-widest uppercase text-white">Open Now</span>
+<div class="flex items-center text-white text-[11px] font-semibold bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
+<span class="material-icons text-[12px] mr-1 text-yellow-400">star</span>
+                        4.8 (1.2k)
+                    </div>
+</div>
+<h1 class="text-3xl font-bold mb-1 leading-tight tracking-tight text-white">Al-Nour Grand Mosque</h1>
+<div class="flex items-center text-light-grey text-xs font-medium">
+<span class="material-symbols-outlined text-sm mr-1 opacity-80">location_on</span>
+                    Jumeirah St, Dubai, UAE
+                </div>
+</div>
+</div>
+<div class="relative -mt-6 bg-dark-bg rounded-t-[2.5rem] overflow-hidden min-h-[70vh]">
+<div class="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 bg-white/10 rounded-full"></div>
+<div class="pt-10 pb-6 px-4 flex justify-between items-center border-b border-white/5">
+<div class="flex flex-col items-center gap-1.5 flex-1">
+<div class="w-10 h-10 flex items-center justify-center rounded-full bg-dark-card text-light-grey">
+<span class="material-symbols-outlined text-xl">near_me</span>
+</div>
+<div class="text-center">
+<p class="text-[10px] text-light-grey uppercase font-bold tracking-wider">Distance</p>
+<p class="text-white font-semibold text-sm">2.4 km</p>
+</div>
+</div>
+<div class="w-px h-8 bg-white/5"></div>
+<div class="flex flex-col items-center gap-1.5 flex-1">
+<div class="w-10 h-10 flex items-center justify-center rounded-full bg-dark-card text-primary">
+<span class="material-symbols-outlined text-xl">groups</span>
+</div>
+<div class="text-center">
+<p class="text-[10px] text-light-grey uppercase font-bold tracking-wider">Crowd</p>
+<p class="text-primary font-semibold text-sm">Low</p>
+</div>
+</div>
+<div class="w-px h-8 bg-white/5"></div>
+<div class="flex flex-col items-center gap-1.5 flex-1">
+<div class="w-10 h-10 flex items-center justify-center rounded-full bg-dark-card text-primary">
+<span class="material-symbols-outlined text-xl">check_circle</span>
+</div>
+<div class="text-center">
+<p class="text-[10px] text-light-grey uppercase font-bold tracking-wider">Status</p>
+<p class="text-white font-semibold text-sm">850 In</p>
+</div>
+</div>
+</div>
+<div class="px-6 py-8">
+<h2 class="text-lg font-semibold text-white mb-3 tracking-tight">The Story</h2>
+<p class="text-light-grey leading-[1.8] text-[15px] font-normal">
+                    An architectural marvel inspired by Fatimid design, the Al-Nour Grand Mosque stands as a beacon of peace. Its white stone facade and intricate <span class="text-white font-medium">calligraphy</span> reflect centuries of Islamic art heritage.
+                    <button class="text-primary font-semibold ml-1 hover:text-white transition-colors text-sm">Read more</button>
+</p>
+</div>
+<div class="bg-dark-card/30 py-8 pl-6 border-y border-white/5">
+<div class="flex justify-between items-center mb-5 pr-6">
+<div>
+<h2 class="text-lg font-semibold text-white tracking-tight">Sacred Timings</h2>
+<p class="text-xs text-light-grey mt-1 font-normal">Prayer times for today</p>
+</div>
+<div class="text-[10px] font-bold text-light-grey uppercase tracking-widest bg-dark-card px-2.5 py-1.5 rounded border border-white/10">
+                        Rajab 14
+                    </div>
+</div>
+<div class="flex gap-4 overflow-x-auto hide-scrollbar pb-2 pr-6">
+<div class="flex-shrink-0 flex flex-col items-center">
+<div class="w-[72px] h-[72px] rounded-full border border-white/10 bg-dark-card flex items-center justify-center mb-2 opacity-50">
+<div class="flex flex-col items-center">
+<span class="text-[9px] text-light-grey font-bold uppercase tracking-wide">Fajr</span>
+<span class="text-sm font-bold text-white">05:12</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 flex flex-col items-center">
+<div class="w-[72px] h-[72px] rounded-full border-2 border-primary bg-primary/10 flex items-center justify-center relative mb-2 shadow-[0_0_15px_rgba(0,122,255,0.2)]">
+<div class="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-dark-bg"></div>
+<div class="flex flex-col items-center">
+<span class="text-[9px] text-primary font-bold uppercase tracking-wide">Dhuhr</span>
+<span class="text-sm font-bold text-white">12:30</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 flex flex-col items-center">
+<div class="w-[72px] h-[72px] rounded-full border border-white/10 bg-dark-card flex items-center justify-center mb-2">
+<div class="flex flex-col items-center">
+<span class="text-[9px] text-light-grey font-bold uppercase tracking-wide">Asr</span>
+<span class="text-sm font-bold text-white">15:45</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 flex flex-col items-center">
+<div class="w-[72px] h-[72px] rounded-full border border-white/10 bg-dark-card flex items-center justify-center mb-2">
+<div class="flex flex-col items-center">
+<span class="text-[9px] text-light-grey font-bold uppercase tracking-wide">Maghrib</span>
+<span class="text-sm font-bold text-white">18:15</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="px-6 py-8">
+<h2 class="text-lg font-semibold text-white mb-5 tracking-tight">Specifications</h2>
+<div class="grid grid-cols-2 gap-4">
+<div class="p-4 rounded-2xl bg-dark-card border border-white/5 flex flex-col items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-xl">water_drop</span>
+</div>
+<div>
+<p class="text-[10px] text-light-grey uppercase font-bold tracking-wider mb-0.5">Ablution</p>
+<p class="text-sm font-semibold text-white">Wudu Area</p>
+</div>
+</div>
+<div class="p-4 rounded-2xl bg-dark-card border border-white/5 flex flex-col items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-light-grey">
+<span class="material-symbols-outlined text-xl">local_parking</span>
+</div>
+<div>
+<p class="text-[10px] text-light-grey uppercase font-bold tracking-wider mb-0.5">Access</p>
+<p class="text-sm font-semibold text-white">Free Parking</p>
+</div>
+</div>
+</div>
+</div>
+<div class="px-6 pb-32">
+<div class="flex justify-between items-center mb-5">
+<h2 class="text-lg font-semibold text-white tracking-tight">Reviews</h2>
+<div class="flex items-center gap-1.5 bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
+<span class="text-primary font-bold text-sm">4.8</span>
+<span class="material-icons text-sm text-primary">star</span>
+</div>
+</div>
+<div class="p-5 rounded-2xl bg-dark-card border border-white/5 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-[4rem] -mr-6 -mt-6 z-0"></div>
+<div class="relative z-10">
+<div class="flex items-center gap-3 mb-3">
+<img alt="User Avatar" class="w-10 h-10 rounded-full object-cover ring-2 ring-white/10" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBYSiVOaV_l2qA5rljyFKczEcYqKVpweFGPR3DOj1cNwS39Z6hw7zpzJe9Zbv-Mh5eq4gCeQSJ7GASH4_bnye-IapAgisJGFTqO3RdtsL5sVIOXKLFbVjeKOwxnmn-LPg0_B07vz6lDytHfMEG0pAaLM3wWO9He83IZnqZaC4uWiLOhNmwa26M6TC6-seKZfzRYZDtGXuvKKsCLWTmESLJbGuoNcIFkXNuEqY1UvOTHznKZe7hiHd0PpuyyNPCWvmGMXjl5G5_KHQg"/>
+<div>
+<p class="text-sm font-bold text-white">Omar Farooq</p>
+<p class="text-xs text-light-grey">Visited yesterday</p>
+</div>
+</div>
+<p class="text-sm text-light-grey italic leading-relaxed">
+                            "The serenity here is unmatched. Extremely clean wudu areas and the carpet is plush. I recommend coming early for Jummah as it fills up quickly."
+                        </p>
+</div>
+</div>
+</div>
+</div>
+<div class="fixed bottom-0 left-0 w-full bg-dark-card/80 backdrop-blur-xl border-t border-white/10 z-50 max-w-md mx-auto right-0 pb-safe pt-2">
+<div class="flex justify-around items-center px-4 h-[70px]">
+<button class="flex flex-col items-center gap-1 w-16 group">
+<span class="material-symbols-outlined text-[26px] text-primary">explore</span>
+<span class="text-[10px] font-bold tracking-wide text-primary">Explore</span>
+</button>
+<button class="flex flex-col items-center gap-1 w-16 group text-light-grey hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[26px]">map</span>
+<span class="text-[10px] font-medium tracking-wide">Map</span>
+</button>
+<button class="flex flex-col items-center gap-1 w-16 group text-light-grey hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[26px]">groups</span>
+<span class="text-[10px] font-medium tracking-wide">Groups</span>
+</button>
+<button class="flex flex-col items-center gap-1 w-16 group text-light-grey hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[26px]">person</span>
+<span class="text-[10px] font-medium tracking-wide">Profile</span>
+</button>
+</div>
+<div class="h-6 w-full"></div>
+</div>
+</div>
+
+</body></html>
+
+<!-- Explore Sacred Places -->
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sacred Explorer - Homepage</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#64B5F6", 
+                        "primary-dark": "#1E88E5",
+                        "accent": "#90CAF9",
+                        "surface": "#121212",
+                        "card-dark": "#1E1E1E",
+                        "glass": "rgba(255, 255, 255, 0.1)",
+                        "glass-border": "rgba(255, 255, 255, 0.2)",
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"],
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "1rem", "2xl": "1.5rem", "3xl": "2rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        .safe-top {
+            padding-top: env(safe-area-inset-top, 44px);
+        }
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 34px);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        body {
+            background-color: #121212;
+        }
+        .glass-overlay {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .text-shadow-sm {
+            text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-slate-300 font-sans antialiased min-h-screen flex flex-col bg-[#121212]">
+<div class="fixed top-0 w-full z-50 safe-top bg-[#121212]/80 backdrop-blur-md">
+<div class="px-6 h-10 flex justify-between items-center text-xs font-semibold text-white">
+<span>9:41</span>
+<div class="flex gap-1.5 items-center">
+<span class="material-icons text-[14px]">signal_cellular_alt</span>
+<span class="material-icons text-[14px]">wifi</span>
+<span class="material-icons text-[14px] rotate-90">battery_full</span>
+</div>
+</div>
+</div>
+<main class="flex-1 flex flex-col pt-[calc(env(safe-area-inset-top,44px)+2.5rem)] pb-[calc(env(safe-area-inset-bottom,34px)+5rem)]">
+<header class="px-6 mb-6">
+<div class="flex justify-between items-center">
+<h1 class="text-3xl font-semibold text-white tracking-tight leading-tight">
+                    Hello, Ahmed
+                </h1>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white">
+<span class="material-symbols-outlined text-2xl">map</span>
+</button>
+</div>
+<div class="mt-6 relative">
+<div class="flex items-center bg-white/5 rounded-2xl px-4 py-3.5 border border-white/10">
+<span class="material-symbols-outlined text-slate-400 text-xl mr-3">search</span>
+<input class="w-full bg-transparent border-none p-0 text-base font-normal text-white placeholder-slate-500 focus:ring-0" placeholder="Search sacred places..." type="text"/>
+</div>
+</div>
+</header>
+<div class="px-6 space-y-6">
+<div class="rounded-3xl overflow-hidden relative h-72 w-full shadow-lg group">
+<img alt="Sultan Ahmed Mosque" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAceiAdgf7TzoDBEER5U0kKO5Q8sI1kQ3hakRwCoTvTzFfipflTz-aKyfecSfrgtJ3zze9omlJ0MxrXg97GbxXvBE0uC1kJM9qQ1SCPHo9NuJ1O-dccgzLXde9xYApPpfcyjC2wULiSCBfAAPNCn7lU70LxTk3TPsSvA2A0kfx6Fi9d6WocItKgVd9GJMN6oPYLW_Yre5jqrAcVd6R5QMwVsJnFLLNgmJnFOgUsStpvDjWMX4IGuHJo1mE1I2znBG6LcJRPJLsAyeU"/>
+<div class="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/70"></div>
+<div class="absolute top-4 left-4 z-10">
+<div class="bg-black/40 backdrop-blur-md border border-white/20 rounded-full px-3 py-1 flex items-center gap-1">
+<div class="w-1.5 h-1.5 rounded-full bg-green-400"></div>
+<span class="text-[10px] font-bold text-white uppercase tracking-wider">Open</span>
+</div>
+</div>
+<div class="absolute top-4 right-4 z-10">
+<div class="bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-3 py-1 flex items-center gap-1">
+<span class="material-icons text-white text-[12px]">check</span>
+<span class="text-[10px] font-bold text-white uppercase tracking-wider">Visited</span>
+</div>
+</div>
+<div class="absolute bottom-4 left-4 right-4 z-10">
+<div class="glass-overlay rounded-2xl p-4 text-white">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-lg font-semibold text-shadow-sm">Sultan Ahmed Mosque</h3>
+<p class="text-xs text-white/80 font-medium flex items-center mt-0.5">
+<span class="material-icons text-white/60 text-[14px] mr-1">location_on</span>
+                                    Istanbul, Turkey
+                                </p>
+</div>
+</div>
+<div class="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
+<div class="flex items-center gap-3">
+<span class="text-[10px] font-bold tracking-widest text-white/70 uppercase">2.4 km away</span>
+<div class="flex items-center gap-1">
+<span class="material-icons text-amber-400 text-[12px]">star</span>
+<span class="text-[10px] font-bold text-white/90">4.8 (1.2k)</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="rounded-3xl overflow-hidden relative h-72 w-full shadow-lg group">
+<img alt="Cathedral Interior" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwi5In9kMhpWvSYPWM4WIxzzAY2zjRYxkHx6zUVrZoplbsRgIOZQMFW8BaEZDgcFJmaSsaL56TLzj46aXzACxfpOo56VaFH5gcCbCw9lV4VdQGrw_LA6_mxBbzox3vDQtrtZ_hwmRgQ_HOgMRLmgK42sKwIs4HujtHDB_cZE9q-YMIdpKJgTaYhvzNLRqoZU-r6mbwR98TW5mh4lxEuhSbOwNmAFvpU_SD17ZJ4TPwL-yZiVex0-Kdkux45Xif3H8cdMoXJTodUyI"/>
+<div class="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/70"></div>
+<div class="absolute top-4 left-4 z-10">
+<div class="bg-black/40 backdrop-blur-md border border-white/20 rounded-full px-3 py-1 flex items-center gap-1">
+<div class="w-1.5 h-1.5 rounded-full bg-green-400"></div>
+<span class="text-[10px] font-bold text-white uppercase tracking-wider">Open</span>
+</div>
+</div>
+<div class="absolute bottom-4 left-4 right-4 z-10">
+<div class="glass-overlay rounded-2xl p-4 text-white">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-lg font-semibold text-shadow-sm">St. Paul's Cathedral</h3>
+<p class="text-xs text-white/80 font-medium flex items-center mt-0.5">
+<span class="material-icons text-white/60 text-[14px] mr-1">location_on</span>
+                                    London, United Kingdom
+                                </p>
+</div>
+</div>
+<div class="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
+<div class="flex items-center gap-3">
+<span class="text-[10px] font-bold tracking-widest text-white/70 uppercase">5.1 km away</span>
+<div class="flex items-center gap-1">
+<span class="material-icons text-amber-400 text-[12px]">star</span>
+<span class="text-[10px] font-bold text-white/90">4.7 (3.4k)</span>
+</div>
+</div>
+<button class="bg-white text-slate-900 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-primary transition-all shadow-md">
+                                Check In
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<div class="rounded-3xl overflow-hidden relative h-72 w-full shadow-lg group">
+<img alt="Temple Entrance" class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAG00wcY55ctD7fYD-UjCrk2tWt3JcqG9ic8QU3oyIXqUpQ362Z0PG76mXA7d2-IFxfPh-YeSl6-vaIBaXK8K6p5Sgn0kzc8sTKr517_HTzVpi1gVMjfnhsuimI9KSzsI5uqZAg7MmFDCTcnYzM8mFFaMMLczzxqIA8FCo2tyW9KcBWEsTQfJq8JOGezHqApnQqyHMxlk4Fqs_LYBkvvuZ6vUHhk3gp-_YuJCIsec6_Lwi2tZH2mivucffdoq6vRBLUaWHKZqUn7PM"/>
+<div class="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/70"></div>
+<div class="absolute top-4 left-4 z-10">
+<div class="bg-black/40 backdrop-blur-md border border-white/20 rounded-full px-3 py-1 flex items-center gap-1">
+<div class="w-1.5 h-1.5 rounded-full bg-red-400"></div>
+<span class="text-[10px] font-bold text-white uppercase tracking-wider">Closed</span>
+</div>
+</div>
+<div class="absolute bottom-4 left-4 right-4 z-10">
+<div class="glass-overlay rounded-2xl p-4 text-white">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-lg font-semibold text-shadow-sm">Lotus Temple</h3>
+<p class="text-xs text-white/80 font-medium flex items-center mt-0.5">
+<span class="material-icons text-white/60 text-[14px] mr-1">location_on</span>
+                                    New Delhi, India
+                                </p>
+</div>
+</div>
+<div class="flex items-center justify-between mt-3 pt-3 border-t border-white/10">
+<div class="flex items-center gap-3">
+<span class="text-[10px] font-bold tracking-widest text-white/70 uppercase">12.8 km away</span>
+<div class="flex items-center gap-1">
+<span class="material-icons text-amber-400 text-[12px]">star</span>
+<span class="text-[10px] font-bold text-white/90">4.9 (2.1k)</span>
+</div>
+</div>
+<button class="bg-white text-slate-900 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-primary transition-all shadow-md">
+                                Check In
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<div class="h-4"></div>
+</div>
+</main>
+<nav class="fixed bottom-0 w-full bg-[#121212]/90 backdrop-blur-xl border-t border-white/5 pb-[env(safe-area-inset-bottom,20px)] pt-2 safe-bottom z-40">
+<div class="grid grid-cols-4 gap-1 px-2">
+<button class="flex flex-col items-center justify-center gap-1 py-1 text-primary">
+<span class="material-symbols-outlined text-[28px] fill-1">explore</span>
+<span class="text-[10px] font-bold tracking-tight">Explore</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 py-1 text-slate-500">
+<span class="material-symbols-outlined text-[28px]">map</span>
+<span class="text-[10px] font-medium tracking-tight">Map</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 py-1 text-slate-500">
+<span class="material-symbols-outlined text-[28px]">groups</span>
+<span class="text-[10px] font-medium tracking-tight">Groups</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 py-1 text-slate-500">
+<span class="material-symbols-outlined text-[28px]">person</span>
+<span class="text-[10px] font-medium tracking-tight">Profile</span>
+</button>
+</div>
+</nav>
+</body></html>
+
+<!-- Explore Sacred Places -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Check-in History - Dark Mode</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#64B5F6", 
+                        "primary-dark": "#1E88E5",
+                        "dark-bg": "#121212",
+                        "dark-surface": "#1E1E1E",
+                        "text-main": "#FFFFFF",
+                        "text-secondary": "#B0B0B0",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "sans": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "1rem", "2xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        @layer base {
+            body {
+                @apply bg-dark-bg text-text-main font-display antialiased;
+            }
+        }
+        .safe-top {
+            padding-top: env(safe-area-inset-top, 44px);
+        }
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 34px);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen flex flex-col">
+<div class="fixed top-0 w-full z-50 safe-top bg-dark-bg">
+<div class="px-6 pb-2 flex justify-between items-center text-xs font-medium text-white">
+<span>9:41</span>
+<div class="flex gap-1.5 items-center">
+<span class="material-icons text-[14px]">signal_cellular_alt</span>
+<span class="material-icons text-[14px]">wifi</span>
+<span class="material-icons text-[14px] rotate-90">battery_full</span>
+</div>
+</div>
+</div>
+<main class="flex-1 flex flex-col pt-[calc(env(safe-area-inset-top,44px)+1rem)] pb-[calc(env(safe-area-inset-bottom,34px)+5rem)]">
+<header class="px-6 mb-8">
+<div class="relative flex items-center justify-center mb-6">
+<button class="absolute left-0 p-1 text-white">
+<span class="material-symbols-outlined font-light text-2xl">arrow_back_ios_new</span>
+</button>
+<h1 class="text-xl font-semibold text-white tracking-tight">Check-Ins</h1>
+</div>
+<div class="bg-dark-surface rounded-[2rem] p-6 flex items-center justify-between relative overflow-hidden border border-white/5">
+<div class="absolute -right-6 -top-6 w-32 h-32 bg-primary/10 rounded-full blur-2xl"></div>
+<div>
+<span class="text-sm font-medium text-text-secondary uppercase tracking-wide">Total Check-ins</span>
+<div class="flex items-baseline mt-1">
+<span class="text-5xl font-light text-primary tracking-tighter">42</span>
+<span class="ml-2 text-sm text-text-secondary font-normal">Check-ins</span>
+</div>
+</div>
+<div class="h-12 w-[1px] bg-white/10 mx-4"></div>
+<div class="text-right">
+<span class="text-xs font-medium text-text-secondary uppercase tracking-wide block mb-1">This Month</span>
+<span class="text-2xl font-medium text-white">8</span>
+</div>
+</div>
+</header>
+<section class="px-6 mb-8">
+<div class="flex justify-between items-center mb-4">
+<h2 class="text-lg font-medium text-white">October 2023</h2>
+<div class="flex gap-2">
+<button class="p-1 rounded-full hover:bg-white/10 transition-colors">
+<span class="material-icons text-text-secondary text-sm">chevron_left</span>
+</button>
+<button class="p-1 rounded-full hover:bg-white/10 transition-colors">
+<span class="material-icons text-text-secondary text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+<div class="bg-dark-surface rounded-[1.5rem] p-4 border border-white/5">
+<div class="grid grid-cols-7 gap-y-4 text-center text-xs mb-2">
+<span class="text-text-secondary font-medium">S</span>
+<span class="text-text-secondary font-medium">M</span>
+<span class="text-text-secondary font-medium">T</span>
+<span class="text-text-secondary font-medium">W</span>
+<span class="text-text-secondary font-medium">T</span>
+<span class="text-text-secondary font-medium">F</span>
+<span class="text-text-secondary font-medium">S</span>
+</div>
+<div class="grid grid-cols-7 gap-y-3 text-center text-sm">
+<span class="text-white/20 py-2">28</span>
+<span class="text-white/20 py-2">29</span>
+<span class="text-white/20 py-2">30</span>
+<span class="text-white py-2">1</span>
+<span class="text-white py-2 relative flex items-center justify-center">
+<span class="absolute w-8 h-8 border border-primary/40 rounded-full z-0"></span>
+<span class="relative z-10 text-primary font-semibold">2</span>
+</span>
+<span class="text-white py-2">3</span>
+<span class="text-white py-2">4</span>
+<span class="text-white py-2">5</span>
+<span class="text-white py-2">6</span>
+<span class="text-white py-2">7</span>
+<span class="text-white py-2 relative flex items-center justify-center">
+<span class="absolute w-8 h-8 border border-primary/40 rounded-full z-0"></span>
+<span class="relative z-10 text-primary font-semibold">8</span>
+</span>
+<span class="text-white py-2">9</span>
+<span class="text-white py-2">10</span>
+<span class="text-white py-2">11</span>
+<span class="text-white py-2 relative flex items-center justify-center">
+<span class="absolute w-8 h-8 border border-primary/40 rounded-full z-0"></span>
+<span class="relative z-10 text-primary font-semibold">12</span>
+</span>
+<span class="text-white py-2">13</span>
+<span class="text-white py-2">14</span>
+<span class="text-white py-2 relative flex items-center justify-center">
+<span class="absolute w-8 h-8 border border-primary/40 rounded-full z-0"></span>
+<span class="relative z-10 text-primary font-semibold">15</span>
+</span>
+<span class="text-white py-2">16</span>
+<span class="text-white py-2">17</span>
+<span class="text-white py-2">18</span>
+<span class="text-white py-2">19</span>
+<span class="text-white py-2">20</span>
+<span class="text-white py-2">21</span>
+<span class="text-white py-2">22</span>
+<span class="text-white py-2">23</span>
+<span class="text-white py-2">24</span>
+<span class="text-white py-2 relative flex items-center justify-center">
+<span class="absolute w-8 h-8 bg-primary text-white rounded-full z-0"></span>
+<span class="relative z-10 font-medium">25</span>
+</span>
+<span class="text-white py-2">26</span>
+<span class="text-white py-2">27</span>
+<span class="text-white py-2">28</span>
+<span class="text-white py-2">29</span>
+<span class="text-white py-2">30</span>
+<span class="text-white py-2">31</span>
+</div>
+</div>
+</section>
+<section class="px-6 mb-8">
+<h2 class="text-lg font-medium text-white mb-4">Recent Check-ins (3)</h2>
+<div class="space-y-4">
+<div class="bg-dark-surface rounded-[1.5rem] p-4 flex gap-4 h-32 items-center group cursor-pointer border border-white/5">
+<div class="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 relative">
+<img alt="Interior of a historic mosque" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAceiAdgf7TzoDBEER5U0kKO5Q8sI1kQ3hakRwCoTvTzFfipflTz-aKyfecSfrgtJ3zze9omlJ0MxrXg97GbxXvBE0uC1kJM9qQ1SCPHo9NuJ1O-dccgzLXde9xYApPpfcyjC2wULiSCBfAAPNCn7lU70LxTk3TPsSvA2A0kfx6Fi9d6WocItKgVd9GJMN6oPYLW_Yre5jqrAcVd6R5QMwVsJnFLLNgmJnFOgUsStpvDjWMX4IGuHJo1mE1I2znBG6LcJRPJLsAyeU"/>
+<div class="absolute bottom-1 right-1 bg-primary px-1.5 py-0.5 rounded-lg flex items-center gap-0.5">
+<span class="material-icons text-[10px] text-white">star</span>
+<span class="text-[10px] font-bold text-white">4.8</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col justify-center h-full py-1">
+<h3 class="text-base font-medium text-white leading-tight">Sultan Ahmed Mosque</h3>
+<div class="flex items-center gap-1 mt-1.5 text-xs text-text-secondary font-light">
+<span class="material-icons text-[12px] text-primary">calendar_today</span>
+<span>Oct 25, 2023</span>
+</div>
+<div class="flex items-center gap-2 mt-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-primary text-white">
+<span class="material-icons text-[10px] mr-1">location_on</span> Istanbul
+                            </span>
+</div>
+</div>
+</div>
+<div class="bg-dark-surface rounded-[1.5rem] p-4 flex gap-4 h-32 items-center group cursor-pointer border border-white/5">
+<div class="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 relative">
+<img alt="Islamic geometric patterns" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAG00wcY55ctD7fYD-UjCrk2tWt3JcqG9ic8QU3oyIXqUpQ362Z0PG76mXA7d2-IFxfPh-YeSl6-vaIBaXK8K6p5Sgn0kzc8sTKr517_HTzVpi1gVMjfnhsuimI9KSzsI5uqZAg7MmFDCTcnYzM8mFFaMMLczzxqIA8FCo2tyW9KcBWEsTQfJq8JOGezHqApnQqyHMxlk4Fqs_LYBkvvuZ6vUHhk3gp-_YuJCIsec6_Lwi2tZH2mivucffdoq6vRBLUaWHKZqUn7PM"/>
+<div class="absolute bottom-1 right-1 bg-primary px-1.5 py-0.5 rounded-lg flex items-center gap-0.5">
+<span class="material-icons text-[10px] text-white">star</span>
+<span class="text-[10px] font-bold text-white">4.5</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col justify-center h-full py-1">
+<h3 class="text-base font-medium text-white leading-tight">Islamic Cultural Center</h3>
+<div class="flex items-center gap-1 mt-1.5 text-xs text-text-secondary font-light">
+<span class="material-icons text-[12px] text-primary">calendar_today</span>
+<span>Oct 15, 2023</span>
+</div>
+<div class="flex items-center gap-2 mt-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-primary text-white">
+<span class="material-icons text-[10px] mr-1">location_on</span> Community Center
+                            </span>
+</div>
+</div>
+</div>
+<div class="bg-dark-surface rounded-[1.5rem] p-4 flex gap-4 h-32 items-center group cursor-pointer border border-white/5">
+<div class="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 relative">
+<img alt="Modern mosque minaret" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwi5In9kMhpWvSYPWM4WIxzzAY2zjRYxkHx6zUVrZoplbsRgIOZQMFW8BaEZDgcFJmaSsaL56TLzj46aXzACxfpOo56VaFH5gcCbCw9lV4VdQGrw_LA6_mxBbzox3vDQtrtZ_hwmRgQ_HOgMRLmgK42sKwIs4HujtHDB_cZE9q-YMIdpKJgTaYhvzNLRqoZU-r6mbwR98TW5mh4lxEuhSbOwNmAFvpU_SD17ZJ4TPwL-yZiVex0-Kdkux45Xif3H8cdMoXJTodUyI"/>
+<div class="absolute bottom-1 right-1 bg-primary px-1.5 py-0.5 rounded-lg flex items-center gap-0.5">
+<span class="material-icons text-[10px] text-white">star</span>
+<span class="text-[10px] font-bold text-white">4.7</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col justify-center h-full py-1">
+<h3 class="text-base font-medium text-white leading-tight">Masjid Al-Noor</h3>
+<div class="flex items-center gap-1 mt-1.5 text-xs text-text-secondary font-light">
+<span class="material-icons text-[12px] text-primary">calendar_today</span>
+<span>Oct 12, 2023</span>
+</div>
+<div class="flex items-center gap-2 mt-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-primary text-white">
+<span class="material-icons text-[10px] mr-1">location_on</span> Downtown
+                            </span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="px-6">
+<h2 class="text-lg font-medium text-white mb-4">On this Day</h2>
+<div class="bg-dark-surface rounded-[1.5rem] p-4 flex gap-4 h-32 items-center group cursor-pointer border border-white/5">
+<div class="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 relative">
+<img alt="Interior of a historic mosque" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAceiAdgf7TzoDBEER5U0kKO5Q8sI1kQ3hakRwCoTvTzFfipflTz-aKyfecSfrgtJ3zze9omlJ0MxrXg97GbxXvBE0uC1kJM9qQ1SCPHo9NuJ1O-dccgzLXde9xYApPpfcyjC2wULiSCBfAAPNCn7lU70LxTk3TPsSvA2A0kfx6Fi9d6WocItKgVd9GJMN6oPYLW_Yre5jqrAcVd6R5QMwVsJnFLLNgmJnFOgUsStpvDjWMX4IGuHJo1mE1I2znBG6LcJRPJLsAyeU"/>
+<div class="absolute bottom-1 right-1 bg-primary px-1.5 py-0.5 rounded-lg flex items-center gap-0.5">
+<span class="material-icons text-[10px] text-white">star</span>
+<span class="text-[10px] font-bold text-white">4.8</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col justify-center h-full py-1">
+<h3 class="text-base font-medium text-white leading-tight">Sultan Ahmed Mosque</h3>
+<div class="flex items-center gap-1 mt-1.5 text-xs text-text-secondary font-light">
+<span class="material-icons text-[12px] text-primary">calendar_today</span>
+<span>Oct 25, 2023</span>
+</div>
+<div class="flex items-center gap-2 mt-3">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-primary text-white">
+<span class="material-icons text-[10px] mr-1">location_on</span> Istanbul
+                        </span>
+</div>
+</div>
+</div>
+<div class="h-8"></div>
+</section>
+</main>
+<nav class="fixed bottom-0 w-full bg-dark-bg/95 backdrop-blur-xl border-t border-white/5 pb-[env(safe-area-inset-bottom,20px)] pt-2 safe-bottom z-40">
+<div class="grid grid-cols-4 gap-1 px-2">
+<button class="flex flex-col items-center justify-center gap-1.5 pt-2 text-text-secondary group">
+<span class="material-symbols-outlined text-[26px] font-light">explore</span>
+<span class="text-[10px] font-medium tracking-wide">Explore</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1.5 pt-2 text-text-secondary group">
+<span class="material-symbols-outlined text-[26px] font-light">map</span>
+<span class="text-[10px] font-medium tracking-wide">Map</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1.5 pt-2 text-text-secondary group">
+<span class="material-symbols-outlined text-[26px] font-light">groups</span>
+<span class="text-[10px] font-medium tracking-wide">Groups</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1.5 pt-2 text-primary group">
+<div class="relative p-1">
+<span class="material-symbols-outlined text-[26px] fill-1">person</span>
+<span class="absolute top-1 right-0 w-1.5 h-1.5 bg-red-400 rounded-full ring-2 ring-dark-bg"></span>
+</div>
+<span class="text-[10px] font-medium tracking-wide">Profile</span>
+</button>
+</div>
+</nav>
+
+</body></html>
+
+<!-- My Pilgrimage Groups -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>My Pilgrimage Groups</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#3b82f6", 
+              "dark-bg": "#121212",
+              "card-dark": "#1E1E1E",
+              "text-main": "#ffffff", 
+              "text-sub": "#9ca3af", 
+              "progress-bg-dark": "#333333", 
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"],
+              "body": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+            backgroundImage: {
+                'featured-gradient': 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', // Deep blue gradient for dark mode
+            }
+          },
+        },
+      }
+    </script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+        }.no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-[#121212] font-display text-white min-h-screen flex flex-col overflow-hidden antialiased selection:bg-blue-900 selection:text-white">
+<div class="h-12 w-full bg-[#121212] shrink-0 flex items-end justify-between px-6 pb-2 z-50">
+<span class="text-xs font-medium text-white">9:41</span>
+<div class="flex items-center space-x-1.5 text-white">
+<span class="material-icons text-[16px]">signal_cellular_alt</span>
+<span class="material-icons text-[16px]">wifi</span>
+<span class="material-icons text-[16px] rotate-90">battery_full</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col relative overflow-hidden bg-[#121212]">
+<header class="px-6 py-6 flex items-center justify-between shrink-0 bg-[#121212] z-40 sticky top-0">
+<h1 class="text-3xl font-bold tracking-tight text-white">My Groups</h1>
+<button class="p-2 -mr-2 rounded-full hover:bg-white/5 transition-colors">
+<span class="material-icons-outlined text-gray-400">notifications</span>
+</button>
+</header>
+<main class="flex-1 overflow-y-auto px-6 pb-24 space-y-8 no-scrollbar pt-2">
+<div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0f172a] via-[#1e3a8a] to-[#2563eb] shadow-lg shadow-black/40 p-6 text-white group cursor-pointer transition-transform active:scale-[0.98] border border-white/5">
+<div class="absolute top-0 right-0 p-3 opacity-20 pointer-events-none">
+<span class="material-icons text-[160px] -mr-12 -mt-12 rotate-12 text-white">landscape</span>
+</div>
+<div class="relative z-10 flex justify-between items-start mb-10">
+<div>
+<span class="inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-white/10 text-blue-100 mb-4 backdrop-blur-sm border border-white/10">Featured</span>
+<h2 class="text-3xl font-bold leading-tight tracking-tight font-display text-white">Santiago Walkers</h2>
+<p class="text-blue-100/80 text-sm mt-2 font-medium font-display">Next: The Cathedral</p>
+</div>
+</div>
+<div class="relative z-10">
+<div class="flex justify-between text-xs font-semibold mb-3 text-blue-100/80 uppercase tracking-wide font-display">
+<span>Current Progress</span>
+<span>82%</span>
+</div>
+<div class="h-1 w-full bg-black/30 rounded-full overflow-hidden backdrop-blur-sm">
+<div class="h-full bg-blue-400 rounded-full w-[82%] shadow-[0_0_10px_rgba(96,165,250,0.5)]"></div>
+</div>
+<div class="flex items-center justify-between mt-8">
+<div class="flex -space-x-3">
+<img class="h-10 w-10 rounded-full border-2 border-[#1e3a8a] object-cover" data-alt="User avatar 1" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9TVDNjQQNHdn6CAemIzKLwyfP-R0_nRVJoZ38YQi84VxxEqJPNKb0sb8o7BhOx9LjhxHPfnFTYCZ2QG4AcKq3ELPAgtenT5wnDj7L3IuzE3uY2gTLNoGjRyxDdimeaLMXVNu8pru4kgoZf0uD5VxwpafPF_GkpTA2XyTs7NJrIK0l5jKwOb_65aneNiIM0f5f1M9emnTP1_t2CBI1PQQla9dRlqCXHrSmRuFScacf1OKXiv1A9IPzrxoWtXNRB09FPYaM9YwLfB4"/>
+<img class="h-10 w-10 rounded-full border-2 border-[#1e3a8a] object-cover" data-alt="User avatar 2" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUNFSe8W8pjyZu46Tpht0YQAMHI3hOfGjYcAupG0vVd-C44GrwsoKIfF9q81V5P2H9paYgSnpN6LPSAwL57MRVrGfGbIlksRBe3iC2tTNxo5hyRFnBngosIKi5iTgTFxuo8BT9E2xZa6JDDntrxyw51INf4M4oHJ-L17sKDcvQK2J3BsT0eJTRE8zt_gwfnDijufydc13mvLZYgEfKaZnt0v1kUUjm9e_hxNctel2VHLxgtGWZNMK8MBMAgjmqY5CrTcLfIS4JsCw"/>
+<img class="h-10 w-10 rounded-full border-2 border-[#1e3a8a] object-cover" data-alt="User avatar 3" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAcTCGKLJ_NR7kg0u6SsIXM3g1aW_MoEVCsMQj_t3g-yJUDrtIk8Cguf9XwHuVcz1Tkkybawfsdrfrj4WZpRZC1Eq_nq585Q2IvmF_UBAEpvPqb08g1fx11cNR1VBtKOChnULKSmhCxYRmUjddy-mYE8Z6R3d68MDVT-onlEownuoEqd3rxjYpYyyXtNjeSR83-UQkTyQKFR9ST7rx4hsyLZS5NvQ73K-EaZ4RjHbvdLHT61pLrN_bKnqvx9nNpFY2Qxw86a7yAang"/>
+<div class="h-10 w-10 rounded-full border-2 border-[#1e3a8a] bg-[#2563eb] text-white flex items-center justify-center text-xs font-bold z-10 shadow-sm font-display">
+                                +9
+                            </div>
+</div>
+<div class="h-10 w-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-white/20 transition-colors">
+<span class="material-icons text-white">arrow_forward</span>
+</div>
+</div>
+</div>
+</div>
+<div class="hidden"></div>
+<div class="space-y-4"> 
+<div class="bg-[#1E1E1E] rounded-2xl p-4 group cursor-pointer border border-white/5 hover:border-white/10 transition-colors">
+<div class="flex items-start justify-between mb-4">
+<div class="flex-1 min-w-0 pr-4">
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-bold text-white text-xl tracking-tight font-display">Family Pilgrimage</h3>
+<span class="h-1.5 w-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>
+</div>
+<p class="text-sm text-gray-400 font-medium font-display">Last active 2h ago</p>
+</div>
+<div class="flex -space-x-2 shrink-0">
+<img class="h-8 w-8 rounded-full border-2 border-[#1E1E1E] ring-1 ring-white/10 object-cover" data-alt="User avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCjaTcwYrZ0NdVW5WXdL7owYF8WGLtW9G4CMElGIBFfU7St9z6VCSkY4tNukFiwbjuDifWbh_-jS2wm-EnvIrAjlVUERu4p18WZxJ_NZHhFQ6QEJo06UjAA05PEBbDrDbWaUeGsEesUFqFiRmEDnpAwOvoNaDqJPpIadPDWZugvbygX8TRNsF6j16Sv3yR1F-_T-g9JYWFO9PTcbs-wMVfj81wOL5xQqilhcQ2co8NVS-Xi4gsn6XlpO97jGhf7uFrrH8EvKarj6S4"/>
+<div class="h-8 w-8 rounded-full border-2 border-[#1E1E1E] ring-1 ring-white/10 bg-[#333] text-gray-400 flex items-center justify-center text-[10px] font-bold font-display">
+                                    +3
+                                </div>
+</div>
+</div>
+<div class="relative pt-1">
+<div class="flex justify-between items-center text-xs text-gray-400 mb-2 font-medium font-display">
+<span>45/100 Sites</span>
+<span class="text-blue-400 bg-blue-900/30 border border-blue-500/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider font-display">Lvl 3</span>
+</div>
+<div class="w-full bg-[#333333] rounded-full h-[3px]">
+<div class="bg-blue-500 h-[3px] rounded-full shadow-[0_0_8px_rgba(59,130,246,0.5)]" style="width: 45%"></div>
+</div>
+</div>
+</div>
+<div class="bg-[#1E1E1E] rounded-2xl p-4 group cursor-pointer border border-white/5 hover:border-white/10 transition-colors">
+<div class="flex items-start justify-between mb-4">
+<div class="flex-1 min-w-0 pr-4">
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-bold text-white text-xl tracking-tight font-display">Kyoto Zen Seekers</h3>
+</div>
+<p class="text-sm text-gray-400 font-medium font-display">Last active 5m ago</p>
+</div>
+<div class="flex -space-x-2 shrink-0">
+<div class="h-8 w-8 rounded-full border-2 border-[#1E1E1E] ring-1 ring-white/10 bg-indigo-900/50 flex items-center justify-center text-indigo-400">
+<span class="material-icons text-sm">temple_buddhist</span>
+</div>
+<div class="h-8 w-8 rounded-full border-2 border-[#1E1E1E] ring-1 ring-white/10 bg-[#333] text-gray-400 flex items-center justify-center text-[10px] font-bold font-display">
+                                    +27
+                                </div>
+</div>
+</div>
+<div class="relative pt-1">
+<div class="flex justify-between items-center text-xs text-gray-400 mb-2 font-medium font-display">
+<span>12/88 Temples</span>
+<span class="text-indigo-400 bg-indigo-900/30 border border-indigo-500/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider font-display">New</span>
+</div>
+<div class="w-full bg-[#333333] rounded-full h-[3px]">
+<div class="bg-indigo-500 h-[3px] rounded-full shadow-[0_0_8px_rgba(99,102,241,0.5)]" style="width: 12%"></div>
+</div>
+</div>
+</div>
+<div class="bg-[#1E1E1E] rounded-2xl p-4 group cursor-pointer border border-white/5 hover:border-white/10 transition-colors">
+<div class="flex items-start justify-between mb-4">
+<div class="flex-1 min-w-0 pr-4">
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-bold text-white text-xl tracking-tight font-display">Weekend Explorers</h3>
+</div>
+<p class="text-sm text-gray-400 font-medium font-display">Last active 1d ago</p>
+</div>
+<div class="flex -space-x-2 shrink-0">
+<div class="h-8 w-8 rounded-full border-2 border-[#1E1E1E] ring-1 ring-white/10 bg-amber-900/40 flex items-center justify-center text-amber-500">
+<span class="material-icons text-sm">mosque</span>
+</div>
+<div class="h-8 w-8 rounded-full border-2 border-[#1E1E1E] ring-1 ring-white/10 bg-[#333] text-gray-400 flex items-center justify-center text-[10px] font-bold font-display">
+                                    +7
+                                </div>
+</div>
+</div>
+<div class="relative pt-1">
+<div class="flex justify-between items-center text-xs text-gray-400 mb-2 font-medium font-display">
+<span>13/20 Mosques</span>
+<span class="text-amber-500 bg-amber-900/30 border border-amber-500/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider font-display">Lvl 5</span>
+</div>
+<div class="w-full bg-[#333333] rounded-full h-[3px]">
+<div class="bg-amber-500 h-[3px] rounded-full shadow-[0_0_8px_rgba(245,158,11,0.5)]" style="width: 65%"></div>
+</div>
+</div>
+</div>
+<div class="bg-[#1E1E1E] rounded-2xl p-4 group cursor-pointer opacity-60 hover:opacity-100 transition-opacity border border-white/5">
+<div class="flex items-start justify-between mb-4">
+<div class="flex-1 min-w-0 pr-4">
+<div class="flex items-center gap-2 mb-1">
+<h3 class="font-bold text-gray-400 text-xl tracking-tight font-display">Himalayan Trek</h3>
+<span class="material-icons text-green-500 text-sm">check_circle</span>
+</div>
+<p class="text-sm text-gray-500 font-medium font-display">Completed on Oct 12</p>
+</div>
+<div class="flex -space-x-2 shrink-0">
+<img class="h-8 w-8 rounded-full border-2 border-[#1E1E1E] ring-1 ring-white/10 object-cover grayscale" data-alt="Mountain trek icon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAcpW_5nknWQe7qXwsAhhGt_9ZtbwdN0OpUfS58iLjpdnXzmtwTXRTEbbANvj6fsBUoiMtCAiAFIQkNP20U8eg_0T1eaSKJ7uq1HAz_RNkBXM_lMhOfbR7Sm7V3yE0tcs85_RA67a8NDxIte9c--tCCAjksrGDhwb_f164spnUCWXKS4r3Vbm-FguN1s4_Fb06g-OaXM3cI3FsmoCCWHvi-3b3WmAcvuGX-87PnLTk8li_k2pnmyOMgnIF4SI1FIJ-FQG9V0Nn5cPQ"/>
+</div>
+</div>
+<div class="relative pt-1">
+<div class="flex justify-between items-center text-xs text-gray-500 mb-2 font-medium font-display">
+<span>5/5 Peaks</span>
+<span class="text-green-500 bg-green-900/30 border border-green-500/20 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider font-display">Done</span>
+</div>
+<div class="w-full bg-[#333333] rounded-full h-[3px]">
+<div class="bg-green-600 h-[3px] rounded-full shadow-sm" style="width: 100%"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="h-20"></div>
+</main>
+<div class="absolute bottom-24 right-6 z-50">
+<button class="h-14 w-14 rounded-full bg-blue-600 text-white shadow-xl shadow-black/50 flex items-center justify-center hover:bg-blue-500 active:scale-90 transition-all transform group border border-white/10">
+<span class="material-icons text-2xl">add</span>
+</button>
+</div>
+<nav class="bg-[#121212] border-t border-white/10 px-6 py-2 pb-6 flex justify-between items-center shrink-0 z-50">
+<button class="flex flex-col items-center gap-1.5 text-gray-500 hover:text-blue-500 transition-colors w-16 group pt-1">
+<span class="material-icons-outlined text-[26px] group-hover:-translate-y-0.5 transition-transform">explore</span>
+<span class="text-[10px] font-semibold font-display">Explore</span>
+</button>
+<button class="flex flex-col items-center gap-1.5 text-gray-500 hover:text-blue-500 transition-colors w-16 group pt-1">
+<span class="material-icons-outlined text-[26px] group-hover:-translate-y-0.5 transition-transform">map</span>
+<span class="text-[10px] font-semibold font-display">Map</span>
+</button>
+<button class="flex flex-col items-center gap-1.5 text-blue-500 w-16 pt-1">
+<span class="material-icons text-[26px]">groups</span>
+<span class="text-[10px] font-bold font-display">Groups</span>
+</button>
+<button class="flex flex-col items-center gap-1.5 text-gray-500 hover:text-blue-500 transition-colors w-16 group pt-1">
+<span class="material-icons-outlined text-[26px] group-hover:-translate-y-0.5 transition-transform">person</span>
+<span class="text-[10px] font-semibold font-display">Profile</span>
+</button>
+</nav>
+</div>
+</body></html>
+
+<!-- User Profile & Stats -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Refined Profile - Dark Mode Variant</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined|Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#007AFF",
+                        "dark-bg": "#121212",
+                        "surface": "#1E1E1E",
+                        "surface-border": "#2C2C2E",
+                        "accent-blue": "#007AFF",
+                        "icon-bg": "rgba(0, 122, 255, 0.15)",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "sans": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "3xl": "1.5rem",
+                        "full": "9999px"
+                    }
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        body {
+            min-height: 100dvh;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-black font-sans text-white flex items-center justify-center p-0 sm:p-4">
+<div class="w-full max-w-sm bg-dark-bg h-screen sm:h-[812px] relative overflow-hidden flex flex-col shadow-2xl sm:rounded-[40px] border border-zinc-800">
+<div class="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-blue-900/10 to-transparent pointer-events-none z-0"></div>
+<main class="relative z-10 flex-1 overflow-y-auto no-scrollbar pt-16 pb-24">
+<section class="px-8 mb-10">
+<h1 class="text-3xl font-bold text-white tracking-tight">Sarah Jenkins</h1>
+<div class="flex items-center gap-1.5 mt-1.5 text-zinc-400 text-sm font-medium">
+<span class="material-icons-outlined text-base">calendar_today</span>
+                    Joined Jan 2024
+                </div>
+</section>
+<section class="px-8 mb-10">
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface border border-surface-border p-6 rounded-3xl flex flex-col">
+<span class="text-3xl font-bold text-white">12</span>
+<span class="text-xs uppercase tracking-widest font-bold text-zinc-500 mt-1">Check-ins</span>
+</div>
+<div class="bg-surface border border-surface-border p-6 rounded-3xl flex flex-col">
+<span class="text-3xl font-bold text-white">5</span>
+<span class="text-xs uppercase tracking-widest font-bold text-zinc-500 mt-1">Reviews</span>
+</div>
+</div>
+</section>
+<section class="px-6 mb-6">
+<h3 class="text-[11px] font-bold text-zinc-500 uppercase tracking-[0.15em] mb-3 ml-2">Preferences</h3>
+<div class="bg-surface rounded-3xl border border-surface-border overflow-hidden">
+<button class="w-full flex items-center justify-between p-5 hover:bg-zinc-800/50 transition-colors group border-b border-zinc-800/50">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-icon-bg text-accent-blue flex items-center justify-center group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[22px] font-medium">map</span>
+</div>
+<div class="text-left">
+<h3 class="font-semibold text-white text-sm">My Path</h3>
+<p class="text-xs text-zinc-400 font-medium">Islam, Christianity</p>
+</div>
+</div>
+<span class="material-icons-round text-zinc-600 group-hover:text-accent-blue transition-all text-xl">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-5 hover:bg-zinc-800/50 transition-colors group border-b border-zinc-800/50">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-icon-bg text-accent-blue flex items-center justify-center group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[22px] font-medium">language</span>
+</div>
+<div class="text-left">
+<h3 class="font-semibold text-white text-sm">Language</h3>
+<p class="text-xs text-zinc-400 font-medium">English (US)</p>
+</div>
+</div>
+<span class="material-icons-round text-zinc-600 group-hover:text-accent-blue transition-all text-xl">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-5 hover:bg-zinc-800/50 transition-colors group border-b border-zinc-800/50">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-icon-bg text-accent-blue flex items-center justify-center group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[22px] font-medium">notifications</span>
+</div>
+<div class="text-left">
+<h3 class="font-semibold text-white text-sm">Notifications</h3>
+<p class="text-xs text-zinc-400 font-medium">On</p>
+</div>
+</div>
+<span class="material-icons-round text-zinc-600 group-hover:text-accent-blue transition-all text-xl">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-5 hover:bg-zinc-800/50 transition-colors group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-icon-bg text-accent-blue flex items-center justify-center group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[22px] font-medium">favorite</span>
+</div>
+<div class="text-left">
+<h3 class="font-semibold text-white text-sm">My Wishlist</h3>
+<p class="text-xs text-zinc-400 font-medium">8 Saved Places</p>
+</div>
+</div>
+<span class="material-icons-round text-zinc-600 group-hover:text-accent-blue transition-all text-xl">chevron_right</span>
+</button>
+</div>
+</section>
+<div class="mt-8 mb-4 flex flex-col items-center gap-3">
+<p class="text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Version 2.4.0</p>
+<button class="flex items-center gap-2 px-4 py-2 rounded-full text-zinc-400 hover:text-white transition-colors group">
+<span class="material-symbols-outlined text-lg">logout</span>
+<span class="text-sm font-semibold">Log Out</span>
+</button>
+</div>
+</main>
+<nav class="border-t border-zinc-800 bg-dark-bg/95 backdrop-blur-lg pt-3 pb-8 px-6 flex justify-between items-center z-20 absolute bottom-0 w-full">
+<button class="flex flex-col items-center gap-1.5 text-zinc-500 hover:text-accent-blue transition-colors flex-1">
+<span class="material-icons-outlined text-[26px]">explore</span>
+<span class="text-[10px] font-bold">Explore</span>
+</button>
+<button class="flex flex-col items-center gap-1.5 text-zinc-500 hover:text-accent-blue transition-colors flex-1">
+<span class="material-icons-outlined text-[26px]">map</span>
+<span class="text-[10px] font-bold">Map</span>
+</button>
+<button class="flex flex-col items-center gap-1.5 text-zinc-500 hover:text-accent-blue transition-colors flex-1">
+<span class="material-icons-outlined text-[26px]">groups</span>
+<span class="text-[10px] font-bold">Groups</span>
+</button>
+<button class="flex flex-col items-center gap-1.5 text-accent-blue flex-1 relative">
+<span class="absolute -top-3 w-8 h-1 bg-accent-blue rounded-b-full"></span>
+<span class="material-icons-round text-[26px]">person</span>
+<span class="text-[10px] font-bold">Profile</span>
+</button>
+</nav>
+</div>
+
+</body></html>
+
+<!-- User Profile & Stats -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Discover Your Sacred Journey</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined|Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#007AFF",
+                        "primary-dark": "#0062cc",
+                        "dark-bg": "#121212",
+                        "surface": "#1E1E1E",
+                        "light-grey": "#A1A1A1",
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "pill": "9999px",
+                        "3xl": "1.5rem",
+                    }
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        body {
+            min-height: 100dvh;
+            -webkit-font-smoothing: antialiased;
+        }
+        .hero-gradient {
+            background: linear-gradient(to bottom, rgba(18, 18, 18, 0) 0%, rgba(18, 18, 18, 1) 100%);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-black font-sans text-white flex items-center justify-center p-0 sm:p-4">
+<div class="w-full max-w-sm bg-dark-bg h-screen sm:h-[812px] relative overflow-hidden flex flex-col shadow-2xl sm:rounded-[40px] border border-white/10">
+<main class="relative flex-1 overflow-y-auto no-scrollbar flex flex-col">
+<div class="relative w-full h-[55%] shrink-0">
+<img alt="Sacred Archway" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUPo3Wpj6hrEGtSwmMTHjZOANZIMioXDGQFQFNNWKGl1w1HdBrPNXimqieb5b7DDFs0rcfoJy7OpKXBMFs-uJ1q9XsMs0vZWNNnyn4zLVL0fb2aebz6rnKx8VKLvwqAPjHYMuhUiGsrnN1Q8pj9eIk384o3BebRF7hynSFJW8YvJ7u0hgyCDwx2FpDE4eMV561v3Q1WD0BRDhDeJvPrNRz-yu6U6lxy3bT1U8CSHUY1QmCscihA2YZBOg5Hxixp9WtNSRoOzA00Yk"/>
+<div class="absolute inset-0 hero-gradient"></div>
+</div>
+<section class="px-8 -mt-16 relative z-10 flex flex-col items-center text-center">
+<h1 class="text-[32px] leading-tight font-bold text-white tracking-tight mb-4">
+                    Discover Your <br/>Sacred Journey
+                </h1>
+<p class="text-[15px] leading-relaxed text-light-grey font-medium px-2">
+                    Track your pilgrimages, explore ancient trails, and join global communities on a path of spiritual discovery.
+                </p>
+</section>
+<section class="px-8 mt-12 mb-12 space-y-3 w-full">
+<button class="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-4 rounded-pill shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98]">
+                    Get Started
+                </button>
+<button class="w-full bg-transparent border border-white/30 text-white font-semibold py-4 rounded-pill hover:bg-white/5 transition-all active:scale-[0.98]">
+                    Sign In
+                </button>
+</section>
+</main>
+<nav class="border-t border-white/5 bg-dark-bg/95 backdrop-blur-lg pt-3 pb-8 px-6 flex justify-between items-center z-20">
+<button class="flex flex-col items-center gap-1.5 text-white/40 hover:text-primary transition-colors flex-1">
+<span class="material-icons-outlined text-[26px]">explore</span>
+<span class="text-[10px] font-bold">Explore</span>
+</button>
+<button class="flex flex-col items-center gap-1.5 text-white/40 hover:text-primary transition-colors flex-1">
+<span class="material-icons-outlined text-[26px]">map</span>
+<span class="text-[10px] font-bold">Map</span>
+</button>
+<button class="flex flex-col items-center gap-1.5 text-white/40 hover:text-primary transition-colors flex-1">
+<span class="material-icons-outlined text-[26px]">groups</span>
+<span class="text-[10px] font-bold">Groups</span>
+</button>
+<button class="flex flex-col items-center gap-1.5 text-primary flex-1 relative">
+<span class="absolute -top-3 w-8 h-1 bg-primary rounded-b-full"></span>
+<span class="material-icons-round text-[26px]">person</span>
+<span class="text-[10px] font-bold">Profile</span>
+</button>
+</nav>
+</div>
+
+</body></html>
+
+<!-- User Profile & Stats -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sign In - Pilgrimage Explorer</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined|Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#007AFF",
+                        "dark-bg": "#121212",
+                        "field-bg": "#1E1E1E",
+                        "label-grey": "#A1A1A1",
+                        "border-grey": "#2C2C2E"
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "ios": "12px",
+                        "ios-xl": "20px"
+                    }
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        body {
+            min-height: 100dvh;
+            background-color: #000;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus {
+            -webkit-text-fill-color: white;
+            -webkit-box-shadow: 0 0 0px 1000px #1E1E1E inset;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-sans flex items-center justify-center p-0 sm:p-4">
+<div class="w-full max-w-[390px] bg-dark-bg h-screen sm:h-[844px] relative overflow-hidden flex flex-col sm:rounded-[48px] border sm:border-zinc-800 shadow-2xl">
+<div class="h-12 w-full flex items-center justify-between px-8 relative z-20">
+<div class="text-white text-sm font-semibold">9:41</div>
+<div class="flex items-center space-x-1.5">
+<span class="material-icons-round text-white text-[18px]">signal_cellular_alt</span>
+<span class="material-icons-round text-white text-[18px]">wifi</span>
+<span class="material-icons-round text-white text-[18px]">battery_full</span>
+</div>
+</div>
+<div class="px-4 py-2 relative z-20">
+<button class="flex items-center text-primary active:opacity-50 transition-opacity">
+<span class="material-symbols-outlined text-[28px]">chevron_left</span>
+<span class="text-[17px]">Back</span>
+</button>
+</div>
+<main class="relative z-10 flex-1 overflow-y-auto no-scrollbar px-8 pt-8 pb-12 flex flex-col">
+<div class="mb-10">
+<div class="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-6">
+<span class="material-symbols-outlined text-primary text-3xl">auto_awesome</span>
+</div>
+<h1 class="text-3xl font-bold text-white tracking-tight">Sign In</h1>
+<p class="text-label-grey mt-2 font-normal text-[16px]">Welcome back. Your spiritual journey continues here.</p>
+</div>
+<form class="space-y-5">
+<div>
+<label class="block text-[13px] font-medium text-label-grey mb-2 ml-1">Email Address</label>
+<input class="w-full bg-field-bg px-4 py-4 rounded-ios border-none focus:ring-1 focus:ring-primary transition-all outline-none text-white placeholder:text-zinc-600" placeholder="name@example.com" type="email"/>
+</div>
+<div>
+<div class="flex justify-between items-center mb-2">
+<label class="block text-[13px] font-medium text-label-grey ml-1">Password</label>
+<a class="text-[13px] font-medium text-primary active:opacity-60 transition-opacity" href="#">Forgot Password?</a>
+</div>
+<div class="relative">
+<input class="w-full bg-field-bg px-4 py-4 rounded-ios border-none focus:ring-1 focus:ring-primary transition-all outline-none text-white placeholder:text-zinc-600" placeholder="••••••••" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 active:text-zinc-300" type="button">
+<span class="material-icons-outlined text-[20px]">visibility</span>
+</button>
+</div>
+</div>
+<div class="pt-4">
+<button class="w-full bg-primary active:bg-blue-600 text-white font-semibold py-4 rounded-ios shadow-lg transition-all active:scale-[0.99]" type="submit">
+                        Sign In
+                    </button>
+</div>
+</form>
+<div class="mt-auto pt-10">
+<p class="text-center text-[15px] text-label-grey">
+                    Don't have an account? 
+                    <a class="text-primary font-semibold ml-1" href="#">Sign Up</a>
+</p>
+</div>
+</main>
+<div class="h-8 w-full flex justify-center items-end pb-2">
+<div class="w-32 h-1.5 bg-white/20 rounded-full"></div>
+</div>
+</div>
+
+</body></html>
+
+<!-- User Profile & Stats -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Reset Password - Sacred Journey</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#007AFF",
+                        "dark-bg": "#121212",
+                        "surface": "#1E1E1E",
+                        "text-grey": "#A1A1A1",
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "pill": "9999px",
+                        "3xl": "1.5rem",
+                    }
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        body {
+            min-height: 100dvh;
+            -webkit-font-smoothing: antialiased;
+            background-color: #000000;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .ios-input-focus:focus {
+            @apply ring-1 ring-primary border-primary outline-none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-sans text-white flex items-center justify-center p-0 sm:p-4">
+<div class="w-full max-w-sm bg-dark-bg h-screen sm:h-[812px] relative overflow-hidden flex flex-col shadow-2xl sm:rounded-[40px] border border-white/10">
+<header class="pt-14 px-6 flex items-center justify-between">
+<button class="w-10 h-10 -ml-2 flex items-center justify-center rounded-full text-white active:opacity-50 transition-opacity">
+<span class="material-symbols-outlined font-light">arrow_back_ios_new</span>
+</button>
+<div class="flex-1"></div>
+</header>
+<main class="flex-1 px-8 pt-10 overflow-y-auto no-scrollbar">
+<div class="max-w-xs mx-auto text-center mb-10">
+<div class="w-16 h-16 bg-white/5 rounded-3xl flex items-center justify-center mx-auto mb-8 text-primary">
+<span class="material-symbols-outlined text-[32px] font-light">key</span>
+</div>
+<h1 class="text-3xl font-bold text-white tracking-tight mb-4">Reset Password</h1>
+<p class="text-[15px] leading-relaxed text-text-grey font-normal">
+                    Enter your email address and we'll send you a link to reset your password.
+                </p>
+</div>
+<form class="space-y-6">
+<div class="space-y-2">
+<label class="block text-xs font-bold text-text-grey uppercase tracking-widest ml-1" for="email">Email Address</label>
+<input class="w-full bg-surface border border-white/5 rounded-2xl py-4 px-5 text-[15px] text-white placeholder:text-white/20 ios-input-focus transition-all" id="email" placeholder="pilgrim@sacredjourney.com" type="email"/>
+</div>
+<button class="w-full bg-primary hover:bg-blue-600 text-white font-semibold py-4 rounded-pill shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98] mt-4" type="submit">
+                    Send Reset Link
+                </button>
+</form>
+<div class="mt-8 hidden" id="success-area">
+<div class="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-xl mt-0.5">check_circle</span>
+<div class="flex-1">
+<p class="text-sm font-semibold text-white">Check your inbox</p>
+<p class="text-xs text-text-grey leading-relaxed">If an account exists for that email, you will receive password reset instructions shortly.</p>
+</div>
+</div>
+</div>
+<div class="text-center mt-12">
+<p class="text-[13px] text-text-grey">
+                    Didn't receive an email? 
+                    <button class="text-primary font-semibold hover:opacity-80 transition-opacity">Resend</button>
+</p>
+</div>
+</main>
+<footer class="pb-12 px-8 text-center">
+<div class="h-1 w-32 bg-white/20 rounded-full mx-auto"></div>
+</footer>
+</div>
+
+</body></html>
+
+<!-- Sign Up Screen - Light Mode -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sign Up - Pilgrimage Explorer</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          theme: {
+            extend: {
+              colors: {
+                "primary": "#007AFF",
+                "background": "#121212",
+                "surface": "#1E1E1E",
+                "text-main": "#FFFFFF",
+                "text-muted": "#8E8E93",
+                "input-border": "transparent",
+              },
+              fontFamily: {
+                "sans": ["Inter", "sans-serif"]
+              },
+            },
+          },
+        }
+    </script>
+<style type="text/tailwindcss">
+        @layer base {
+            body {
+                @apply font-sans antialiased text-text-main bg-black;
+                -webkit-tap-highlight-color: transparent;
+            }
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen flex items-center justify-center p-4">
+<div class="w-full max-w-[390px] h-[844px] bg-background shadow-2xl rounded-[3rem] overflow-hidden relative flex flex-col border border-white/5">
+<div class="h-12 w-full flex items-center justify-between px-8 pt-4 text-white">
+<span class="text-xs font-semibold">9:41</span>
+<div class="flex items-center space-x-1.5">
+<span class="material-symbols-outlined text-[14px]">signal_cellular_4_bar</span>
+<span class="material-symbols-outlined text-[14px]">wifi</span>
+<span class="material-symbols-outlined text-[18px]">battery_full</span>
+</div>
+</div>
+<header class="px-8 pt-6 pb-4 flex items-center">
+<button class="w-10 h-10 -ml-2 flex items-center justify-center rounded-full hover:bg-surface transition-colors">
+<span class="material-symbols-outlined text-text-main">arrow_back_ios</span>
+</button>
+</header>
+<div class="flex-1 overflow-y-auto hide-scrollbar px-8">
+<div class="mt-2 mb-8">
+<h1 class="text-[28px] font-semibold tracking-tight text-text-main">Create Account</h1>
+<p class="text-text-muted mt-2 leading-[1.6] font-normal">
+                    Join a global community of spiritual explorers and find your next sacred journey.
+                </p>
+</div>
+<form class="space-y-6" onsubmit="event.preventDefault();">
+<div class="space-y-2">
+<label class="block text-[13px] font-medium text-text-muted ml-1 uppercase tracking-wider">Full Name</label>
+<input class="w-full h-[52px] px-4 rounded-xl bg-surface border-none focus:ring-1 focus:ring-primary/50 text-text-main placeholder:text-text-muted/50 transition-all outline-none" placeholder="John Doe" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="block text-[13px] font-medium text-text-muted ml-1 uppercase tracking-wider">Email Address</label>
+<input class="w-full h-[52px] px-4 rounded-xl bg-surface border-none focus:ring-1 focus:ring-primary/50 text-text-main placeholder:text-text-muted/50 transition-all outline-none" placeholder="name@example.com" type="email"/>
+</div>
+<div class="space-y-2">
+<label class="block text-[13px] font-medium text-text-muted ml-1 uppercase tracking-wider">Password</label>
+<div class="relative">
+<input class="w-full h-[52px] px-4 rounded-xl bg-surface border-none focus:ring-1 focus:ring-primary/50 text-text-main placeholder:text-text-muted/50 transition-all outline-none" placeholder="••••••••" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted" type="button">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+</div>
+</div>
+<div class="pt-2">
+<div class="flex items-center justify-between mb-4 ml-1">
+<h2 class="text-[13px] font-semibold text-text-main uppercase tracking-wider">Select Your Path</h2>
+<span class="text-[11px] text-text-muted font-medium bg-surface px-2 py-0.5 rounded-full">Optional</span>
+</div>
+<div class="flex overflow-x-auto gap-2.5 pb-2 hide-scrollbar -mx-8 px-8">
+<button class="flex-shrink-0 px-6 py-2.5 rounded-full bg-primary text-white font-medium text-[14px] transition-all whitespace-nowrap">
+                            All Religions
+                        </button>
+<button class="flex-shrink-0 px-6 py-2.5 rounded-full bg-surface text-text-main font-medium text-[14px] border border-transparent hover:border-primary/30 transition-all whitespace-nowrap">
+                            Islam
+                        </button>
+<button class="flex-shrink-0 px-6 py-2.5 rounded-full bg-surface text-text-main font-medium text-[14px] border border-transparent hover:border-primary/30 transition-all whitespace-nowrap">
+                            Hinduism
+                        </button>
+<button class="flex-shrink-0 px-6 py-2.5 rounded-full bg-surface text-text-main font-medium text-[14px] border border-transparent hover:border-primary/30 transition-all whitespace-nowrap">
+                            Christianity
+                        </button>
+</div>
+</div>
+<div class="pt-4">
+<button class="w-full h-[54px] bg-primary hover:bg-[#006EE5] text-white font-semibold rounded-full transition-all transform active:scale-[0.98] flex items-center justify-center">
+                        Create Account
+                    </button>
+</div>
+</form>
+<div class="mt-8 text-center pb-12">
+<p class="text-text-muted text-[14px]">
+                    Already have an account? 
+                    <a class="text-primary font-semibold hover:opacity-80 transition-opacity ml-1" href="#">Sign In</a>
+</p>
+</div>
+</div>
+<div class="h-1.5 w-32 bg-white/20 rounded-full mx-auto mb-2 absolute bottom-2 left-1/2 -translate-x-1/2"></div>
+</div>
+
+</body></html>
+
+<!-- Write a Review -->
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Write a Review - Pilgrimage Tracker</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined|Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary-blue": "#007AFF", 
+                        "primary-hover": "#0056b3",
+                        "background-dark": "#121212",
+                        "surface-dark": "#1E1E1E",
+                        "text-header-dark": "#FFFFFF", 
+                        "text-body-dark": "#9CA3AF",
+                        "neutral-border-dark": "#374151",
+                        "gold-star": "#FACC15",
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"],
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }.toggle-checkbox:checked {
+            right: 0;
+            border-color: #007AFF;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #007AFF;
+        }
+        .toggle-checkbox {
+            right: auto;
+            left: 0;
+            background-color: #FFFFFF;
+            border-color: transparent;
+        }
+        .toggle-label {
+            background-color: #374151;}
+        body {
+            min-height: max(884px, 100dvh);
+            background-color: #000;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-black font-sans text-text-body-dark min-h-screen flex justify-center">
+<main class="w-full max-w-md bg-background-dark relative min-h-screen shadow-2xl overflow-hidden flex flex-col text-gray-300">
+<header class="flex items-center justify-between px-6 pt-12 pb-4 sticky top-0 bg-background-dark z-30 border-b border-white/5">
+<button class="text-primary-blue text-[17px] font-normal hover:opacity-80 transition-opacity">Cancel</button>
+<h1 class="text-[17px] font-semibold text-white tracking-tight">Write Review</h1>
+<button class="text-[17px] font-semibold text-primary-blue hover:opacity-80 transition-opacity">Save</button>
+</header>
+<div class="flex-1 overflow-y-auto pb-32 no-scrollbar">
+<section class="px-6 pt-6 pb-2">
+<div class="flex items-start justify-between">
+<div>
+<h2 class="text-2xl font-semibold text-white leading-tight">Golden Temple</h2>
+<p class="text-sm text-gray-400 mt-1 font-normal">Amritsar, India</p>
+</div>
+<div class="w-14 h-14 rounded-lg overflow-hidden border border-white/10 bg-surface-dark">
+<img alt="Golden Temple Reflection" class="w-full h-full object-cover opacity-90" data-alt="Golden Temple reflected in sacred water" data-location="Amritsar, India" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCEuM8DqOFvVCFzCcrHPhiOGJoiyr8E9pxzNMS3n3C3KOShCYhzW-2wXVQVZNrNk_oHTjzBQvXoGztRNS-58UtZ4k2ZbN04seXXiGCmPYev-3SH-qlyHPAuszTyjlAPiEA8BMzA3zEfc--9jcuCddjtjrTSGLyfonYbzuaEg17XFKUBOdNLigT5EWpYY86O1xS21jxyp-2Qdwm3OjQrgmn2WtfHnmKxCA8KD-v0ociU94dpAflKF1GTKjHAF2feyp--nbWGEB81DJ0"/>
+</div>
+</div>
+</section>
+<section class="px-6 py-6">
+<div class="flex flex-col items-center justify-center space-y-2">
+<div class="flex gap-4 items-center">
+<button class="group focus:outline-none transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[32px] text-primary-blue font-light" style="font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 48;">star</span>
+</button>
+<button class="group focus:outline-none transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[32px] text-primary-blue font-light" style="font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 48;">star</span>
+</button>
+<button class="group focus:outline-none transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[32px] text-primary-blue font-light" style="font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 48;">star</span>
+</button>
+<button class="group focus:outline-none transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[32px] text-primary-blue font-light" style="font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 48;">star</span>
+</button>
+<button class="group focus:outline-none transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[32px] text-gray-600 font-light" style="font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 48;">star</span>
+</button>
+</div>
+<span class="text-sm text-gray-400 font-normal">Tap to rate</span>
+</div>
+</section>
+<section class="px-6 flex-1">
+<div class="relative min-h-[200px] bg-surface-dark rounded-xl p-4 border border-white/5 shadow-inner">
+<textarea class="w-full h-full bg-transparent border-none p-0 text-[17px] text-white placeholder-gray-500 focus:ring-0 resize-none font-normal leading-relaxed min-h-[200px]" id="review-text" placeholder="Share your experience..." rows="8"></textarea>
+</div>
+</section>
+<section class="px-6 pt-6 pb-6">
+<div class="flex items-center space-x-3 overflow-x-auto no-scrollbar py-1">
+<button class="flex-shrink-0 w-20 h-20 border border-dashed border-gray-600 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-white/5 transition-colors bg-surface-dark/50">
+<span class="material-icons-outlined text-primary-blue text-2xl">add_a_photo</span>
+<span class="text-[10px] text-primary-blue font-medium">Add Photo</span>
+</button>
+<div class="relative flex-shrink-0 w-20 h-20 group">
+<img alt="Temple entrance view" class="w-full h-full object-cover rounded-xl opacity-90 border border-white/10" data-alt="Detailed architecture of temple entrance" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAiCwVAIb_IJPxcy8aDQZEqjb8syAnByXc9hDbfEK9Q69YBwQp0QgbCanZsV4AJcenDRqBle8pHoAgSKWLcWdUhvyowOECe5WaUnfgfcaIyFBcVpauz2makccxEd47vBt-xZnar_MIlefN3C31L6vMaNRvqcU_wr3pPKCFp9oRyORi54Yw4RB88zO7QWe1A8XUATMMM03hsHl0E2P9-7riNqAzlEjYyFWrEXOB6d6OK3Y4SZPwWy4a5pcJGvmvIFHaan08BGL8cBf8"/>
+<button class="absolute -top-2 -right-2 bg-gray-800 text-white rounded-full p-1 transform shadow-lg border border-white/10 flex items-center justify-center">
+<span class="material-icons-round text-[12px]">close</span>
+</button>
+</div>
+<div class="relative flex-shrink-0 w-20 h-20 group">
+<img alt="Serene prayer hall" class="w-full h-full object-cover rounded-xl opacity-90 border border-white/10" data-alt="Interior view of a peaceful prayer hall" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA8JX05iAOi0frLyREYgZ4jeHOcLWMoULGa4NxBxLXPSawj0fJokwmwLeCY5ehqVnE_RxhAYkXi6er3KCtFALV_BY3cV40sldXp1aFEqKuJXzyNNO3bmc7hYBKUkd1zqeXbfUZoFSp1YQYKfnd76W0Jjm85ODd8ImfdX0_JtT58Gh_yjXCevKsLDU1d3Xfg3rgsUD8rDY78rQP-RAnrYX7CuTT8MmOx4isne7xjWcdapdRLOGmkjwMb4slluR3ImJ0CXhruKwTxcd0"/>
+<button class="absolute -top-2 -right-2 bg-gray-800 text-white rounded-full p-1 transform shadow-lg border border-white/10 flex items-center justify-center">
+<span class="material-icons-round text-[12px]">close</span>
+</button>
+</div>
+</div>
+</section>
+<section class="px-6 pb-24">
+<div class="bg-surface-dark rounded-xl px-4 py-3 flex items-center justify-between border border-white/5">
+<span class="text-[17px] font-normal text-white">Post Anonymously</span>
+<div class="relative inline-block w-[51px] h-[31px] align-middle select-none transition duration-200 ease-in">
+<input class="toggle-checkbox absolute block w-[27px] h-[27px] rounded-full appearance-none cursor-pointer transition-all duration-300 top-[2px] left-[2px] shadow-sm" id="toggle" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-[31px] rounded-full cursor-pointer transition-colors duration-300" for="toggle"></label>
+</div>
+</div>
+<p class="text-xs text-gray-500 mt-2 px-2">Your name and profile picture will be hidden from public view.</p>
+</section>
+</div>
+<div class="absolute bottom-[90px] left-0 right-0 px-6 z-40 flex justify-center">
+<button class="w-full bg-primary-blue hover:bg-primary-hover text-white font-semibold text-[17px] py-4 px-6 rounded-full shadow-lg active:scale-[0.98] transition-all flex items-center justify-center space-x-2">
+<span>Submit Review</span>
+</button>
+</div>
+<div class="absolute bottom-0 w-full bg-[#121212]/95 backdrop-blur-md border-t border-white/5 px-6 py-2 z-50 pb-6">
+<nav class="flex justify-between items-center">
+<a class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors py-2 px-2" href="#">
+<span class="material-icons-outlined text-[26px]">explore</span>
+<span class="text-[10px] font-medium">Explore</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors py-2 px-2" href="#">
+<span class="material-icons-outlined text-[26px]">map</span>
+<span class="text-[10px] font-medium">Map</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors py-2 px-2" href="#">
+<span class="material-icons-outlined text-[26px]">groups</span>
+<span class="text-[10px] font-medium">Groups</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary-blue transition-colors py-2 px-2" href="#">
+<span class="material-icons-round text-[26px]">person</span>
+<span class="text-[10px] font-medium">Profile</span>
+</a>
+</nav>
+</div>
+<div class="hidden absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6" id="success-overlay">
+<div class="bg-surface-dark w-full max-w-sm rounded-2xl p-8 text-center shadow-2xl border border-white/10 transform scale-100 animate-fade-in-up">
+<div class="w-14 h-14 bg-primary-blue/20 rounded-full flex items-center justify-center mx-auto mb-5">
+<span class="material-icons-round text-3xl text-primary-blue">check</span>
+</div>
+<h3 class="text-xl font-semibold text-white mb-2">Review Posted</h3>
+<p class="text-gray-400 text-sm font-normal mb-8">Your review helps other pilgrims on their journey.</p>
+<button class="w-full bg-primary-blue text-white font-semibold py-3 rounded-xl hover:bg-primary-hover transition-colors" onclick="document.getElementById('success-overlay').classList.add('hidden')">
+                    Done
+                </button>
+</div>
+</div>
+</main>
+
+</body></html>
