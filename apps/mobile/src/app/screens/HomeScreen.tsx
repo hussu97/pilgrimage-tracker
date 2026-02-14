@@ -8,9 +8,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Image,
 } from 'react-native';
 import { ScrollView } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -20,6 +20,7 @@ import { getPlaces } from '../../lib/api/client';
 import type { Place } from '../../lib/types';
 import type { RootStackParamList } from '../navigation';
 import { tokens } from '../../lib/theme';
+import PlaceCard from '../../components/PlaceCard';
 
 type FilterChip = 'all' | 'mosque' | 'shrine' | 'temple';
 
@@ -29,77 +30,6 @@ const FILTER_CHIPS: { key: FilterChip; labelKey: string; placeType?: string }[] 
   { key: 'shrine', labelKey: 'home.filterShrines', placeType: 'shrine' },
   { key: 'temple', labelKey: 'home.filterTemples', placeType: 'temple' },
 ];
-
-function formatDistance(km: number): string {
-  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
-}
-
-function PlaceCardFull({ place, onPress, onCheckIn }: {
-  place: Place;
-  onPress: () => void;
-  onCheckIn: () => void;
-}) {
-  return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.95}>
-      <View style={styles.cardImageWrap}>
-        {place.image_urls?.[0] ? (
-          <Image source={{ uri: place.image_urls[0] }} style={styles.cardImage} resizeMode="cover" />
-        ) : (
-          <View style={styles.cardImagePlaceholder}>
-            <Text style={styles.cardPlaceholderIcon}>⊕</Text>
-          </View>
-        )}
-        {/* Dark gradient overlay at bottom */}
-        <View style={styles.cardOverlay} pointerEvents="none" />
-
-        {/* Open Now badge */}
-        {place.is_open_now && (
-          <View style={styles.openNowBadge}>
-            <View style={styles.openNowDot} />
-            <Text style={styles.openNowText}>OPEN NOW</Text>
-          </View>
-        )}
-
-        {/* Visited badge */}
-        {place.user_has_checked_in && (
-          <View style={styles.visitedBadge}>
-            <Text style={styles.visitedText}>✓ VISITED</Text>
-          </View>
-        )}
-
-        {/* Glass info panel */}
-        <View style={styles.cardBottom}>
-          <View style={styles.cardGlass}>
-            <View style={styles.cardGlassRow}>
-              <View style={styles.cardGlassLeft}>
-                <Text style={styles.cardName} numberOfLines={1}>{place.name}</Text>
-                <Text style={styles.cardAddress} numberOfLines={1}>
-                  {place.address || place.place_type || ''}
-                </Text>
-              </View>
-              {place.average_rating != null && (
-                <View style={styles.cardRating}>
-                  <Text style={styles.cardRatingStar}>★</Text>
-                  <Text style={styles.cardRatingValue}>{place.average_rating.toFixed(1)}</Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.cardGlassFooter}>
-              {place.distance != null ? (
-                <Text style={styles.cardDistance}>{formatDistance(place.distance)}</Text>
-              ) : (
-                <View />
-              )}
-              <TouchableOpacity style={styles.checkInBtn} onPress={onCheckIn} activeOpacity={0.85}>
-                <Text style={styles.checkInBtnText}>Check In</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-}
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -148,7 +78,6 @@ export default function HomeScreen() {
 
   const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || t('home.title');
   const showEmpty = !loading && !error && places.length === 0;
-  const showList = !loading && !error && places.length > 0;
 
   const renderListHeader = () => (
     <>
@@ -166,14 +95,14 @@ export default function HomeScreen() {
             onPress={() => (navigation as unknown as NativeStackNavigationProp<RootStackParamList>).navigate('Map' as never)}
             activeOpacity={0.8}
           >
-            <Text style={styles.mapBtnIcon}>⊞</Text>
+            <MaterialIcons name="map" size={20} color={tokens.colors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Search bar */}
       <View style={styles.searchWrap}>
-        <Text style={styles.searchIcon}>⌕</Text>
+        <MaterialIcons name="search" size={20} color={tokens.colors.textMuted} style={styles.searchIconStyle} />
         <TextInput
           style={styles.searchInput}
           placeholder={t('home.findPlace')}
@@ -181,7 +110,7 @@ export default function HomeScreen() {
           value={search}
           onChangeText={setSearch}
         />
-        <Text style={styles.tuneIcon}>⚙</Text>
+        <MaterialIcons name="tune" size={18} color={tokens.colors.textMuted} />
       </View>
 
       {/* Filter chips */}
@@ -244,17 +173,11 @@ export default function HomeScreen() {
         data={places}
         keyExtractor={(item) => item.place_code}
         ListHeaderComponent={renderListHeader}
-        renderItem={({ item }) => (
-          <PlaceCardFull
-            place={item}
-            onPress={() => navigation.navigate('PlaceDetail', { placeCode: item.place_code })}
-            onCheckIn={() => (navigation as unknown as NativeStackNavigationProp<RootStackParamList>).navigate('CheckIn' as never, { placeCode: item.place_code } as never)}
-          />
-        )}
+        renderItem={({ item }) => <PlaceCard place={item} />}
         ListEmptyComponent={
           showEmpty ? (
             <View style={styles.centered}>
-              <Text style={styles.emptyIcon}>⊕</Text>
+              <MaterialIcons name="location-off" size={48} color={tokens.colors.textMuted} style={styles.emptyIcon} />
               <Text style={styles.emptyTitle}>{t('home.noPlacesFound')}</Text>
               <TouchableOpacity style={styles.retryButton} onPress={() => setFilter('all')}>
                 <Text style={styles.retryText}>{t('home.clearFilters')}</Text>
@@ -324,7 +247,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.06)',
   },
-  mapBtnIcon: { fontSize: 20, color: tokens.colors.textSecondary },
   searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -342,9 +264,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
   },
-  searchIcon: { fontSize: 18, color: tokens.colors.textMuted, marginRight: 10 },
+  searchIconStyle: { marginRight: 10 },
   searchInput: { flex: 1, fontSize: 15, color: tokens.colors.textDark, padding: 0 },
-  tuneIcon: { fontSize: 16, color: tokens.colors.textMuted, marginLeft: 8 },
   chipsScroll: { marginBottom: 20 },
   chipsWrap: { flexDirection: 'row', gap: 8, paddingHorizontal: 24, paddingVertical: 4 },
   chip: {
@@ -364,7 +285,7 @@ const styles = StyleSheet.create({
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40, minHeight: 200 },
   loadingText: { marginTop: 12, fontSize: 14, color: tokens.colors.textSecondary },
   errorText: { fontSize: 14, color: '#b91c1c', textAlign: 'center', marginBottom: 12 },
-  emptyIcon: { fontSize: 48, color: tokens.colors.textMuted, marginBottom: 12 },
+  emptyIcon: { marginBottom: 12 },
   emptyTitle: { fontSize: 16, color: tokens.colors.textSecondary, textAlign: 'center', marginBottom: 16 },
   retryButton: {
     backgroundColor: tokens.colors.primary,
@@ -375,96 +296,4 @@ const styles = StyleSheet.create({
   retryText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   listContent: { paddingHorizontal: 24, paddingTop: 4 },
   separator: { height: 16 },
-  // Place card
-  card: {
-    borderRadius: tokens.borderRadius['3xl'],
-    overflow: 'hidden',
-    ...tokens.shadow.card,
-  },
-  cardImageWrap: {
-    height: 288,
-    backgroundColor: tokens.colors.softBlue,
-    position: 'relative',
-  },
-  cardImage: { width: '100%', height: '100%' },
-  cardImagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  cardPlaceholderIcon: { fontSize: 56, color: tokens.colors.textMuted },
-  cardOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 180,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  openNowBadge: {
-    position: 'absolute',
-    top: 16,
-    left: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(16,185,129,0.25)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: tokens.borderRadius.full,
-    borderWidth: 1,
-    borderColor: 'rgba(52,211,153,0.35)',
-  },
-  openNowDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#34D399' },
-  openNowText: { color: '#fff', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
-  visitedBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: tokens.borderRadius.full,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  visitedText: { color: '#fff', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
-  cardBottom: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    padding: 16,
-  },
-  cardGlass: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: tokens.borderRadius['2xl'],
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  cardGlassRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  cardGlassLeft: { flex: 1, marginRight: 12 },
-  cardName: { fontSize: 16, fontWeight: '600', color: '#fff', marginBottom: 3 },
-  cardAddress: { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '300' },
-  cardRating: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  cardRatingStar: { fontSize: 13, color: '#FBBF24' },
-  cardRatingValue: { fontSize: 14, fontWeight: '600', color: '#fff' },
-  cardGlassFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.2)',
-  },
-  cardDistance: { fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: '300' },
-  checkInBtn: {
-    backgroundColor: tokens.colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: tokens.borderRadius.full,
-  },
-  checkInBtnText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });
