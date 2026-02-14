@@ -21,7 +21,7 @@ import {
   removeFavorite,
   deleteReview,
 } from '../../lib/api/client';
-import { shareUrl } from '../../lib/share';
+import { shareUrl, openDirections } from '../../lib/share';
 import { useAuth } from '../providers';
 import { useI18n } from '../providers';
 import type { RootStackParamList } from '../navigation';
@@ -116,9 +116,9 @@ export default function PlaceDetailScreen() {
     );
   };
 
-  const directionsUrl = place
-    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.lat + ',' + place.lng)}`
-    : '';
+  const handleDirections = () => {
+    if (place) openDirections(place.lat, place.lng, place.name);
+  };
 
   const userReview = user ? reviews.find((r) => r.user_code === user.user_code) : null;
 
@@ -359,7 +359,7 @@ export default function PlaceDetailScreen() {
         </ScrollView>
 
         <View style={[styles.footer, { paddingBottom: insets.bottom + 12, paddingTop: 12, paddingHorizontal: 24, backgroundColor: tokens.colors.surface, borderTopColor: tokens.colors.inputBorder }]}>
-          <TouchableOpacity style={[styles.footerBtn, { borderColor: tokens.colors.inputBorder }]} onPress={() => directionsUrl && Linking.openURL(directionsUrl)} activeOpacity={0.8}>
+          <TouchableOpacity style={[styles.footerBtn, { borderColor: tokens.colors.inputBorder }]} onPress={() => handleDirections()} activeOpacity={0.8}>
             <MaterialIcons name="directions" size={16} color={tokens.colors.textMain} />
             <Text style={[styles.footerBtnText, { color: tokens.colors.textMain, marginLeft: 6 }]}>{t('placeDetail.directions')}</Text>
           </TouchableOpacity>
@@ -452,7 +452,7 @@ export default function PlaceDetailScreen() {
           </View>
         </ScrollView>
         <View style={[styles.footer, { paddingBottom: insets.bottom + 12, paddingTop: 12, paddingHorizontal: 24, backgroundColor: tokens.colors.surface, borderTopColor: tokens.colors.inputBorder }]}>
-          <TouchableOpacity style={[styles.footerBtn, { borderColor: tokens.colors.inputBorder }]} onPress={() => directionsUrl && Linking.openURL(directionsUrl)}><Text style={[styles.footerBtnText, { color: tokens.colors.textMain }]}>{t('placeDetail.directions')}</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.footerBtn, { borderColor: tokens.colors.inputBorder }]} onPress={() => handleDirections()}><Text style={[styles.footerBtnText, { color: tokens.colors.textMain }]}>{t('placeDetail.directions')}</Text></TouchableOpacity>
           <TouchableOpacity style={[styles.footerBtnPrimary, { backgroundColor: tokens.colors.primary }]} onPress={() => navigation.navigate('CheckIn', { placeCode })}><Text style={styles.footerBtnPrimaryText}>{t('places.checkIn')}</Text></TouchableOpacity>
         </View>
       </View>
@@ -491,7 +491,7 @@ export default function PlaceDetailScreen() {
               <View style={variantStyles.statCell}><Text style={variantStyles.statValue}>{style ?? '—'}</Text><Text style={variantStyles.statLabel}>{t('placeDetail.style')}</Text></View>
             </View>
             <View style={variantStyles.actionRow}>
-              <TouchableOpacity style={variantStyles.actionBtnPrimary} onPress={() => directionsUrl && Linking.openURL(directionsUrl)}><Text style={variantStyles.actionBtnPrimaryText}>{t('placeDetail.directions')}</Text></TouchableOpacity>
+              <TouchableOpacity style={variantStyles.actionBtnPrimary} onPress={() => handleDirections()}><Text style={variantStyles.actionBtnPrimaryText}>{t('placeDetail.directions')}</Text></TouchableOpacity>
               {websiteUrl ? <TouchableOpacity style={variantStyles.actionBtnSecondary} onPress={() => websiteUrl && Linking.openURL(websiteUrl)}><Text style={variantStyles.actionBtnSecondaryText}>{t('placeDetail.visitWebsite')}</Text></TouchableOpacity> : null}
             </View>
             {place.description ? (<View style={variantStyles.section}><Text style={variantStyles.sectionTitle}>{t('placeDetail.theSanctuary')}</Text><Text style={variantStyles.description}>{place.description}</Text></View>) : null}
@@ -682,7 +682,7 @@ export default function PlaceDetailScreen() {
       >
         <TouchableOpacity
           style={styles.footerBtn}
-          onPress={() => directionsUrl && Linking.openURL(directionsUrl)}
+          onPress={() => handleDirections()}
           activeOpacity={0.8}
         >
           <Text style={styles.footerBtnText}>Directions</Text>
