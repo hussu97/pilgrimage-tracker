@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useI18n } from '@/app/providers';
-import { getMyCheckIns } from '@/lib/api/client';
+import { getMyCheckIns, getOnThisDayCheckIns, getThisMonthCheckIns } from '@/lib/api/client';
 import type { CheckIn } from '@/lib/types';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -37,10 +37,69 @@ function getMonthDays(year: number, month: number): { date: Date; isCurrent: boo
   return days;
 }
 
+function CheckInCard({ c }: { c: CheckIn }) {
+  return (
+    <Link
+      to={`/places/${c.place_code}`}
+      className="bg-white dark:bg-dark-surface rounded-[1.5rem] p-4 shadow-subtle border border-slate-100 dark:border-dark-border flex gap-4 items-center group hover:shadow-lg transition-all"
+    >
+      <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 bg-slate-100 dark:bg-dark-border">
+        {(c.place_image_url || c.place?.image_urls?.[0]) ? (
+          <img
+            src={c.place_image_url || c.place?.image_urls?.[0]}
+            alt=""
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-slate-400">
+            <span className="material-symbols-outlined text-2xl">place</span>
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <h3 className="text-base font-medium text-slate-800 dark:text-white leading-tight truncate">
+          {c.place?.name ?? c.place_name ?? c.place_code}
+        </h3>
+        <div className="flex items-center gap-1 mt-1.5 text-xs text-slate-400 font-light">
+          <span className="material-symbols-outlined text-[12px] text-primary">calendar_today</span>
+          <span>
+            {c.checked_in_at
+              ? new Date(c.checked_in_at).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
+              : c.date ?? ''}
+          </span>
+          {c.time && (
+            <>
+              <span className="mx-1">·</span>
+              <span>{c.time}</span>
+            </>
+          )}
+        </div>
+        {(c.location || c.place?.address) && (
+          <div className="flex items-center gap-2 mt-2">
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 dark:bg-primary/20 text-primary-dark dark:text-primary">
+              <span className="material-symbols-outlined text-[10px] mr-1">location_on</span>
+              {(c.location || c.place?.address || '').split(',')[0].trim()}
+            </span>
+          </div>
+        )}
+      </div>
+      <span className="material-symbols-outlined text-slate-300 group-hover:text-primary flex-shrink-0">
+        chevron_right
+      </span>
+    </Link>
+  );
+}
+
 export default function CheckInsList() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  const [onThisDay, setOnThisDay] = useState<CheckIn[]>([]);
+  const [thisMonth, setThisMonth] = useState<CheckIn[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -51,8 +110,16 @@ export default function CheckInsList() {
   const fetchList = useCallback(() => {
     setLoading(true);
     setError('');
-    getMyCheckIns()
-      .then(setCheckIns)
+    Promise.all([
+      getMyCheckIns(),
+      getOnThisDayCheckIns().catch(() => [] as CheckIn[]),
+      getThisMonthCheckIns().catch(() => [] as CheckIn[]),
+    ])
+      .then(([all, otd, tm]) => {
+        setCheckIns(all);
+        setOnThisDay(otd);
+        setThisMonth(tm);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
   }, [t]);
@@ -64,15 +131,6 @@ export default function CheckInsList() {
   const datesSet = useMemo(() => getDatesWithCheckIns(checkIns), [checkIns]);
   const totalCount = checkIns.length;
   const now = new Date();
-  const thisMonthCount = useMemo(
-    () =>
-      checkIns.filter((c) => {
-        if (!c.checked_in_at) return false;
-        const d = new Date(c.checked_in_at);
-        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-      }).length,
-    [checkIns, now.getFullYear(), now.getMonth()]
-  );
 
   const monthLabel = useMemo(
     () =>
@@ -111,7 +169,7 @@ export default function CheckInsList() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#F0F7FF] to-white">
+    <div className="min-h-screen bg-gradient-to-b from-[#EBF5FF] to-white dark:from-dark-bg dark:to-dark-bg">
       <header className="px-6 pt-6 pb-4">
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -123,54 +181,44 @@ export default function CheckInsList() {
               <span className="material-symbols-outlined text-lg">arrow_back</span>
               {t('common.back')}
             </button>
-            <p className="text-xs text-primary-dark font-medium tracking-[0.2em] uppercase mb-1">
+            <p className="text-xs text-primary font-semibold tracking-[0.2em] uppercase mb-1">
               {t('profile.myCheckIns')}
             </p>
-            <h1 className="text-2xl font-semibold text-slate-800 tracking-tight">
+            <h1 className="text-2xl font-semibold text-slate-800 dark:text-white tracking-tight">
               {t('journey.journeyLog')}
             </h1>
           </div>
-          <Link
-            to="/settings"
-            className="w-10 h-10 rounded-full bg-white shadow-subtle flex items-center justify-center border border-slate-100 text-text-muted"
-            aria-label={t('settings.title')}
-          >
-            <span className="material-icons">history</span>
-          </Link>
         </div>
 
-        {loading && <p className="text-text-muted">{t('common.loading')}</p>}
+        {loading && <p className="text-text-muted text-sm py-4">{t('common.loading')}</p>}
         {error && (
           <div className="py-4">
-            <p className="text-red-600 mb-2">{error}</p>
-            <button type="button" onClick={fetchList} className="text-primary font-medium">
+            <p className="text-red-600 mb-2 text-sm">{error}</p>
+            <button type="button" onClick={fetchList} className="text-primary font-medium text-sm">
               {t('common.retry')}
             </button>
           </div>
         )}
 
+        {/* Stats card */}
         {!loading && !error && (
-          <div className="bg-white rounded-[2rem] p-6 shadow-subtle border border-slate-100/50 flex items-center justify-between relative overflow-hidden">
-            <div className="absolute -right-6 -top-6 w-32 h-32 bg-primary/10 rounded-full blur-2xl" />
+          <div className="bg-white dark:bg-dark-surface rounded-[2rem] p-6 shadow-subtle border border-slate-100/50 dark:border-dark-border flex items-center justify-between relative overflow-hidden">
+            <div className="absolute -right-6 -top-6 w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
             <div>
-              <span className="text-sm font-medium text-slate-500 uppercase tracking-wide">
+              <span className="text-xs font-medium text-slate-500 dark:text-dark-text-secondary uppercase tracking-wide">
                 {t('journey.totalVisits')}
               </span>
-              <div className="flex items-baseline mt-1">
-                <span className="text-5xl font-light text-primary-dark tracking-tighter">
-                  {totalCount}
-                </span>
-                <span className="ml-2 text-sm text-slate-400 font-normal">
-                  {t('journey.sacredPlaces')}
-                </span>
+              <div className="flex items-baseline mt-1 gap-2">
+                <span className="text-5xl font-light text-primary tracking-tighter">{totalCount}</span>
+                <span className="text-sm text-slate-400 font-normal">{t('journey.sacredPlaces')}</span>
               </div>
             </div>
-            <div className="h-12 w-px bg-slate-100 mx-4" />
+            <div className="h-12 w-px bg-slate-100 dark:bg-dark-border mx-4" />
             <div className="text-right">
-              <span className="text-xs font-medium text-slate-500 uppercase tracking-wide block mb-1">
-                {t('journey.thisMonth')}
+              <span className="text-xs font-medium text-slate-500 dark:text-dark-text-secondary uppercase tracking-wide block mb-1">
+                {t('checkins.thisMonth')}
               </span>
-              <span className="text-2xl font-medium text-slate-800">{thisMonthCount}</span>
+              <span className="text-2xl font-medium text-slate-800 dark:text-white">{thisMonth.length}</span>
             </div>
           </div>
         )}
@@ -178,14 +226,12 @@ export default function CheckInsList() {
 
       {!loading && !error && checkIns.length === 0 && (
         <div className="px-6 py-12 text-center">
-          <div className="rounded-2xl border border-input-border bg-white py-12 shadow-subtle">
-            <span className="material-symbols-outlined text-5xl text-text-muted mb-3 block">
-              location_off
-            </span>
-            <p className="text-text-muted mb-4">{t('profile.noCheckInsYet')}</p>
+          <div className="rounded-2xl border border-input-border bg-white dark:bg-dark-surface py-12 shadow-subtle">
+            <span className="material-symbols-outlined text-5xl text-text-muted mb-3 block">location_off</span>
+            <p className="text-text-muted mb-4 text-sm">{t('profile.noCheckInsYet')}</p>
             <Link
               to="/home"
-              className="inline-block py-2 px-4 rounded-xl bg-primary text-white text-sm font-medium"
+              className="inline-block py-2 px-5 rounded-2xl bg-primary text-white text-sm font-medium"
             >
               {t('profile.exploreCta')}
             </Link>
@@ -195,34 +241,49 @@ export default function CheckInsList() {
 
       {!loading && !error && checkIns.length > 0 && (
         <>
+          {/* On This Day */}
+          {onThisDay.length > 0 && (
+            <section className="px-6 mb-8">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="material-symbols-outlined text-primary text-xl">auto_stories</span>
+                <h2 className="text-lg font-semibold text-slate-800 dark:text-white">{t('checkins.onThisDay')}</h2>
+              </div>
+              <p className="text-xs text-text-muted mb-4">{t('checkins.onThisDayDescription')}</p>
+              <div className="space-y-3">
+                {onThisDay.map((c) => (
+                  <CheckInCard key={c.check_in_code} c={c} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Calendar */}
           <section className="px-6 mb-8">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-slate-800">{monthLabel}</h2>
+              <h2 className="text-lg font-medium text-slate-800 dark:text-white">{monthLabel}</h2>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={goPrevMonth}
-                  className="p-1 rounded-full hover:bg-slate-100 transition-colors"
+                  className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-dark-surface transition-colors"
                   aria-label="Previous month"
                 >
-                  <span className="material-icons text-slate-400 text-sm">chevron_left</span>
+                  <span className="material-symbols-outlined text-slate-400 text-sm">chevron_left</span>
                 </button>
                 <button
                   type="button"
                   onClick={goNextMonth}
-                  className="p-1 rounded-full hover:bg-slate-100 transition-colors"
+                  className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-dark-surface transition-colors"
                   aria-label="Next month"
                 >
-                  <span className="material-icons text-slate-400 text-sm">chevron_right</span>
+                  <span className="material-symbols-outlined text-slate-400 text-sm">chevron_right</span>
                 </button>
               </div>
             </div>
-            <div className="bg-white rounded-[1.5rem] p-4 shadow-subtle border border-slate-100">
+            <div className="bg-white dark:bg-dark-surface rounded-[1.5rem] p-4 shadow-subtle border border-slate-100 dark:border-dark-border">
               <div className="grid grid-cols-7 gap-y-4 text-center text-xs mb-2">
-                {WEEKDAY_LABELS.map((l) => (
-                  <span key={l} className="text-slate-400 font-medium">
-                    {l}
-                  </span>
+                {WEEKDAY_LABELS.map((l, i) => (
+                  <span key={i} className="text-slate-400 font-medium">{l}</span>
                 ))}
               </div>
               <div className="grid grid-cols-7 gap-y-3 text-center text-sm">
@@ -233,19 +294,21 @@ export default function CheckInsList() {
                     <div
                       key={i}
                       className={`py-2 relative flex items-center justify-center ${
-                        !isCurrent ? 'text-slate-300' : 'text-slate-800'
+                        !isCurrent ? 'text-slate-300' : 'text-slate-800 dark:text-white'
                       }`}
                     >
                       {has && (
                         <span
                           className={`absolute w-8 h-8 rounded-full z-0 ${
                             today
-                              ? 'bg-primary text-white shadow-md shadow-blue-200'
-                              : 'bg-blue-50'
+                              ? 'bg-primary shadow-md shadow-blue-200'
+                              : 'bg-blue-50 dark:bg-primary/20'
                           }`}
                         />
                       )}
-                      <span className={`relative z-10 ${has ? 'font-semibold text-primary-dark' : ''} ${today ? 'text-white' : ''}`}>
+                      <span
+                        className={`relative z-10 ${has ? 'font-semibold text-primary' : ''} ${today ? 'text-white' : ''}`}
+                      >
                         {date.getDate()}
                       </span>
                     </div>
@@ -255,64 +318,28 @@ export default function CheckInsList() {
             </div>
           </section>
 
-          <section className="px-6 space-y-4 pb-24">
-            <h2 className="text-lg font-medium text-slate-800 mb-2">
+          {/* This Month */}
+          {thisMonth.length > 0 && (
+            <section className="px-6 mb-8">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="material-symbols-outlined text-primary text-xl">calendar_month</span>
+                <h2 className="text-lg font-semibold text-slate-800 dark:text-white">{t('checkins.thisMonth')}</h2>
+              </div>
+              <div className="space-y-3">
+                {thisMonth.map((c) => (
+                  <CheckInCard key={c.check_in_code} c={c} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* All recent visits */}
+          <section className="px-6 space-y-3 pb-24">
+            <h2 className="text-lg font-medium text-slate-800 dark:text-white mb-2">
               {t('journey.recentVisits')}
             </h2>
             {recentCheckIns.map((c) => (
-              <Link
-                key={c.check_in_code}
-                to={`/places/${c.place_code}`}
-                className="bg-white rounded-[1.5rem] p-4 shadow-subtle border border-slate-100 flex gap-4 items-center group hover:shadow-lg transition-all"
-              >
-                <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 bg-slate-100">
-                  {(c.place_image_url || c.place?.image_urls?.[0]) ? (
-                    <img
-                      src={c.place_image_url || c.place?.image_urls?.[0]}
-                      alt=""
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-400">
-                      <span className="material-symbols-outlined text-3xl">place</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-medium text-slate-800 leading-tight truncate">
-                    {c.place?.name ?? c.place_name ?? c.place_code}
-                  </h3>
-                  <div className="flex items-center gap-1 mt-1.5 text-xs text-slate-400 font-light">
-                    <span className="material-icons text-[12px] text-primary">calendar_today</span>
-                    <span>
-                      {c.checked_in_at
-                        ? new Date(c.checked_in_at).toLocaleDateString(undefined, {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })
-                        : c.date ?? ''}
-                    </span>
-                    {c.time && (
-                      <>
-                        <span className="mx-1">·</span>
-                        <span>{c.time}</span>
-                      </>
-                    )}
-                  </div>
-                  {(c.location || c.place?.address) && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-primary-dark">
-                        <span className="material-icons text-[10px] mr-1">location_on</span>
-                        {(c.location || c.place?.address || '').split(',')[0].trim() || c.place?.address}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <span className="material-symbols-outlined text-slate-400 group-hover:text-primary">
-                  chevron_right
-                </span>
-              </Link>
+              <CheckInCard key={c.check_in_code} c={c} />
             ))}
           </section>
         </>

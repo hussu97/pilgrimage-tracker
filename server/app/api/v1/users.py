@@ -61,9 +61,7 @@ def _parse_iso_datetime(iso_str: str):
         return None, None
 
 
-@router.get("/me/check-ins")
-def get_my_check_ins(user: Annotated[any, Depends(get_current_user)]):
-    rows = check_ins_db.get_check_ins_by_user(user.user_code)
+def _format_check_ins(rows) -> list:
     out = []
     for r in rows:
         place = places_db.get_place_by_code(r.place_code)
@@ -94,6 +92,24 @@ def get_my_check_ins(user: Annotated[any, Depends(get_current_user)]):
             "location": place.address if place else None,
         })
     return out
+
+
+@router.get("/me/check-ins")
+def get_my_check_ins(user: Annotated[any, Depends(get_current_user)]):
+    rows = check_ins_db.get_check_ins_by_user(user.user_code)
+    return _format_check_ins(rows)
+
+
+@router.get("/me/check-ins/this-month")
+def get_my_check_ins_this_month(user: Annotated[any, Depends(get_current_user)]):
+    rows = check_ins_db.get_check_ins_this_month(user.user_code)
+    return _format_check_ins(rows)
+
+
+@router.get("/me/check-ins/on-this-day")
+def get_my_check_ins_on_this_day(user: Annotated[any, Depends(get_current_user)]):
+    rows = check_ins_db.get_check_ins_on_this_day(user.user_code)
+    return _format_check_ins(rows)
 
 
 @router.get("/me/stats")

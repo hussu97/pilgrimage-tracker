@@ -31,10 +31,26 @@ export interface Place {
   is_open_now?: boolean;
 }
 
+export interface PlaceTiming {
+  name: string;
+  time: string;
+  is_current: boolean;
+}
+
+export interface PlaceSpecification {
+  icon: string;
+  label: string;
+  value: string;
+}
+
 export interface PlaceDetail extends Place {
   religion_specific?: Record<string, unknown>;
   user_has_checked_in?: boolean;
   is_favorite?: boolean;
+  crowd_level?: string;
+  total_checkins_count?: number;
+  timings?: PlaceTiming[];
+  specifications?: PlaceSpecification[];
 }
 
 export interface Review {

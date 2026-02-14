@@ -7,7 +7,7 @@ import React, {
   useMemo,
   type ReactNode,
 } from 'react';
-import { I18nManager, NativeModules, Platform } from 'react-native';
+import { Appearance, I18nManager, NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '../lib/types';
 import * as api from '../lib/api/client';
@@ -187,30 +187,50 @@ export function useAuth() {
 // --- Theme ---
 interface ThemeContextValue {
   theme: Theme;
+  isDark: boolean;
   setTheme: (t: Theme) => Promise<void>;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+function resolveIsDark(theme: Theme): boolean {
+  if (theme === 'dark') return true;
+  if (theme === 'light') return false;
+  return Appearance.getColorScheme() === 'dark';
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('system');
+  const [isDark, setIsDark] = useState(() => resolveIsDark('system'));
 
   useEffect(() => {
     let cancelled = false;
     getStoredTheme().then((t) => {
-      if (!cancelled) setThemeState(t);
+      if (!cancelled) {
+        setThemeState(t);
+        setIsDark(resolveIsDark(t));
+      }
     });
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    if (theme !== 'system') return;
+    const sub = Appearance.addChangeListener(({ colorScheme }) => {
+      setIsDark(colorScheme === 'dark');
+    });
+    return () => sub.remove();
+  }, [theme]);
+
   const setTheme = useCallback(async (t: Theme) => {
     setThemeState(t);
+    setIsDark(resolveIsDark(t));
     await setStoredTheme(t);
   }, []);
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ theme, setTheme }),
-    [theme, setTheme]
+    () => ({ theme, isDark, setTheme }),
+    [theme, isDark, setTheme]
   );
 
   return (

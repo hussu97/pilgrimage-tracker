@@ -13,7 +13,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '../navigation';
 import { useI18n } from '../providers';
-import { getMyCheckIns } from '../../lib/api/client';
+import { getMyCheckIns, getOnThisDayCheckIns, getThisMonthCheckIns } from '../../lib/api/client';
 import type { CheckIn } from '../../lib/types';
 import { tokens } from '../../lib/theme';
 
@@ -60,6 +60,8 @@ export default function CheckInsListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'CheckInsList'>>();
   const { t } = useI18n();
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  const [onThisDay, setOnThisDay] = useState<CheckIn[]>([]);
+  const [thisMonth, setThisMonth] = useState<CheckIn[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -70,8 +72,16 @@ export default function CheckInsListScreen() {
   const fetchList = useCallback(() => {
     setLoading(true);
     setError('');
-    getMyCheckIns()
-      .then(setCheckIns)
+    Promise.all([
+      getMyCheckIns(),
+      getOnThisDayCheckIns().catch(() => [] as CheckIn[]),
+      getThisMonthCheckIns().catch(() => [] as CheckIn[]),
+    ])
+      .then(([all, otd, tm]) => {
+        setCheckIns(all);
+        setOnThisDay(otd);
+        setThisMonth(tm);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
   }, [t]);
@@ -83,15 +93,6 @@ export default function CheckInsListScreen() {
   const datesSet = useMemo(() => getDatesWithCheckIns(checkIns), [checkIns]);
   const totalCount = checkIns.length;
   const now = new Date();
-  const thisMonthCount = useMemo(
-    () =>
-      checkIns.filter((c) => {
-        if (!c.checked_in_at) return false;
-        const d = new Date(c.checked_in_at);
-        return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-      }).length,
-    [checkIns]
-  );
 
   const monthLabel = useMemo(
     () =>
@@ -179,9 +180,39 @@ export default function CheckInsListScreen() {
             <View style={styles.statsDivider} />
             <View style={styles.statsRight}>
               <Text style={styles.statsThisMonthLabel}>{t('journey.thisMonth')}</Text>
-              <Text style={styles.statsThisMonthValue}>{thisMonthCount}</Text>
+              <Text style={styles.statsThisMonthValue}>{thisMonth.length}</Text>
             </View>
           </View>
+
+          {/* On This Day */}
+          {onThisDay.length > 0 && (
+            <View style={styles.sectionWrap}>
+              <Text style={styles.sectionTitle}>{t('checkins.onThisDay')}</Text>
+              <Text style={styles.sectionSubtitle}>{t('checkins.onThisDayDescription')}</Text>
+              {onThisDay.map((c) => (
+                <TouchableOpacity
+                  key={c.check_in_code}
+                  style={styles.visitCard}
+                  onPress={() => navigation.navigate('PlaceDetail', { placeCode: c.place_code })}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.visitThumb}>
+                    {(c.place_image_url || c.place?.image_urls?.[0]) ? (
+                      <Image source={{ uri: c.place_image_url || c.place?.image_urls?.[0] }} style={styles.visitThumbImg} resizeMode="cover" />
+                    ) : (
+                      <View style={styles.visitThumbPlaceholder}><Text style={styles.visitThumbIcon}>⊕</Text></View>
+                    )}
+                  </View>
+                  <View style={styles.visitBody}>
+                    <Text style={styles.visitName} numberOfLines={1}>{c.place?.name ?? c.place_name ?? c.place_code}</Text>
+                    <Text style={styles.visitDate}>{c.checked_in_at ? new Date(c.checked_in_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : c.date ?? ''}</Text>
+                    {(c.location || c.place?.address) && <Text style={styles.visitLocation} numberOfLines={1}>{(c.location || c.place?.address || '').split(',')[0].trim()}</Text>}
+                  </View>
+                  <Text style={styles.chevron}>›</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           <View style={styles.calendarSection}>
             <View style={styles.calendarHeader}>
@@ -233,6 +264,35 @@ export default function CheckInsListScreen() {
               </View>
             </View>
           </View>
+
+          {/* This Month */}
+          {thisMonth.length > 0 && (
+            <View style={styles.sectionWrap}>
+              <Text style={styles.sectionTitle}>{t('checkins.thisMonth')}</Text>
+              {thisMonth.map((c) => (
+                <TouchableOpacity
+                  key={c.check_in_code}
+                  style={styles.visitCard}
+                  onPress={() => navigation.navigate('PlaceDetail', { placeCode: c.place_code })}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.visitThumb}>
+                    {(c.place_image_url || c.place?.image_urls?.[0]) ? (
+                      <Image source={{ uri: c.place_image_url || c.place?.image_urls?.[0] }} style={styles.visitThumbImg} resizeMode="cover" />
+                    ) : (
+                      <View style={styles.visitThumbPlaceholder}><Text style={styles.visitThumbIcon}>⊕</Text></View>
+                    )}
+                  </View>
+                  <View style={styles.visitBody}>
+                    <Text style={styles.visitName} numberOfLines={1}>{c.place?.name ?? c.place_name ?? c.place_code}</Text>
+                    <Text style={styles.visitDate}>{c.checked_in_at ? new Date(c.checked_in_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : c.date ?? ''}</Text>
+                    {(c.location || c.place?.address) && <Text style={styles.visitLocation} numberOfLines={1}>{(c.location || c.place?.address || '').split(',')[0].trim()}</Text>}
+                  </View>
+                  <Text style={styles.chevron}>›</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           <Text style={styles.sectionTitle}>{t('journey.recentVisits')}</Text>
           {recentCheckIns.map((c) => (
@@ -386,10 +446,18 @@ const styles = StyleSheet.create({
   dayNumMuted: { color: tokens.colors.textMuted },
   dayNumBold: { fontWeight: '600', color: tokens.colors.primaryDark },
   dayNumToday: { color: '#fff', fontWeight: '600' },
+  sectionWrap: { marginBottom: 8 },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: tokens.colors.textDark,
+    marginHorizontal: 24,
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: tokens.colors.textMuted,
     marginHorizontal: 24,
     marginBottom: 12,
   },

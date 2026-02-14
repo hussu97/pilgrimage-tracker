@@ -193,6 +193,18 @@ export async function getMyCheckIns(): Promise<CheckIn[]> {
   return data;
 }
 
+export async function getThisMonthCheckIns(): Promise<CheckIn[]> {
+  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins/this-month`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch this month check-ins');
+  return res.json();
+}
+
+export async function getOnThisDayCheckIns(): Promise<CheckIn[]> {
+  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins/on-this-day`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch on-this-day check-ins');
+  return res.json();
+}
+
 export async function getMyStats(): Promise<UserStats> {
   const res = await fetch(`${API_BASE}/api/v1/users/me/stats`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch stats');

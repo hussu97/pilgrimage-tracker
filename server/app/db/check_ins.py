@@ -62,3 +62,46 @@ def count_check_ins_this_year(user_code: str) -> int:
         if row and row.checked_in_at.startswith(year):
             n += 1
     return n
+
+
+def count_check_ins_for_place(place_code: str) -> int:
+    """Total check-ins across ALL users for this place."""
+    total = 0
+    for codes in check_ins_by_user.values():
+        for code in codes:
+            row = check_ins_by_code.get(code)
+            if row and row.place_code == place_code:
+                total += 1
+    return total
+
+
+def get_check_ins_this_month(user_code: str) -> List[CheckInRow]:
+    """Return check-ins for the current calendar month."""
+    now = datetime.utcnow()
+    out = []
+    for code in check_ins_by_user.get(user_code, []):
+        row = check_ins_by_code.get(code)
+        if row and row.checked_in_at:
+            try:
+                dt = datetime.fromisoformat(row.checked_in_at.replace("Z", ""))
+                if dt.month == now.month and dt.year == now.year:
+                    out.append(row)
+            except Exception:
+                pass
+    return out
+
+
+def get_check_ins_on_this_day(user_code: str) -> List[CheckInRow]:
+    """Return check-ins from past years on today's month+day (anniversary visits)."""
+    now = datetime.utcnow()
+    out = []
+    for code in check_ins_by_user.get(user_code, []):
+        row = check_ins_by_code.get(code)
+        if row and row.checked_in_at:
+            try:
+                dt = datetime.fromisoformat(row.checked_in_at.replace("Z", ""))
+                if dt.month == now.month and dt.day == now.day and dt.year != now.year:
+                    out.append(row)
+            except Exception:
+                pass
+    return out

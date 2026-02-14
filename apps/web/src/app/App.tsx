@@ -1,4 +1,4 @@
-import { AuthProvider, I18nProvider, useI18n } from '@/app/providers';
+import { AuthProvider, I18nProvider, ThemeProvider, useI18n } from '@/app/providers';
 import { LocationProvider } from '@/app/contexts/LocationContext';
 import { AppRoutes } from '@/app/routes';
 
@@ -21,14 +21,16 @@ function I18nReadyGate({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <I18nProvider>
-        <I18nReadyGate>
-          <LocationProvider>
-            <AppRoutes />
-          </LocationProvider>
-        </I18nReadyGate>
-      </I18nProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <I18nProvider>
+          <I18nReadyGate>
+            <LocationProvider>
+              <AppRoutes />
+            </LocationProvider>
+          </I18nReadyGate>
+        </I18nProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

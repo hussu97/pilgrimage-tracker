@@ -33,6 +33,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Frontend Revamp — Phase 3 & 4 (2026-02-14)
+
+### Frontend — Web
+- **Home:** Uniform h-72 rounded-3xl glass cards for all places; filter chips updated to `all/mosque/shrine/temple` passing `place_type` query param; tune icon in search bar; map icon navigates to `/map`.
+- **CheckInsList:** Added "On This Day" section (uses new `GET /me/check-ins/on-this-day` endpoint) and "This Month" section (uses `GET /me/check-ins/this-month`); dark mode support; `CheckInCard` extracted as reusable component.
+
+### Frontend — Mobile
+- **HomeScreen:** Uniform `h-288` glass cards for all places (matching web); filter chips updated to `all/mosque/shrine/temple` with `place_type` mapping; inline `PlaceCardFull` component; map button navigates to Map tab.
+- **CheckInsListScreen:** Added "On This Day" section and "This Month" section using new API endpoints matching web.
+
+### Backend
+- Two new endpoints: `GET /users/me/check-ins/this-month`, `GET /users/me/check-ins/on-this-day`.
+
+---
+
 ## M-10: Check-in History / My Journey (mobile + mobile web)
 
 **Done when:** Check-in History matches DESIGN_FILE_V2 “Journey Log”: title, total visits + This month, calendar with month nav and check-in indicators, Recent Visits list.

@@ -49,11 +49,49 @@ def _place_to_item(place, distance: Optional[float] = None, include_rating: bool
     return out
 
 
+def _build_timings(place) -> list:
+    rs = getattr(place, "religion_specific", {}) or {}
+    result = []
+    prayer_times = rs.get("prayer_times", {})
+    if prayer_times and isinstance(prayer_times, dict):
+        for key in ["fajr", "dhuhr", "asr", "maghrib", "isha"]:
+            t = prayer_times.get(key) or prayer_times.get(key.capitalize())
+            if t:
+                result.append({"name": key, "time": t, "is_current": False})
+    if not result:
+        service_times = rs.get("service_times", {})
+        if service_times and isinstance(service_times, dict):
+            for day, time in service_times.items():
+                result.append({"name": day, "time": time, "is_current": False})
+    return result
+
+
+def _build_specifications(place) -> list:
+    rs = getattr(place, "religion_specific", {}) or {}
+    specs = []
+    if rs.get("capacity"):
+        specs.append({"icon": "groups", "label": "placeDetail.capacity", "value": str(rs["capacity"])})
+    if rs.get("wudu_area"):
+        specs.append({"icon": "water_drop", "label": "placeDetail.wuduArea", "value": "Available"})
+    if rs.get("parking"):
+        specs.append({"icon": "local_parking", "label": "placeDetail.parking", "value": str(rs["parking"])})
+    if rs.get("womens_area"):
+        specs.append({"icon": "escalator_warning", "label": "placeDetail.womensArea", "value": "Separate"})
+    if rs.get("dress_code"):
+        specs.append({"icon": "checkroom", "label": "placeDetail.dressCode", "value": str(rs["dress_code"])})
+    return specs
+
+
 def _place_detail(place) -> dict:
     out = _place_to_item(place, include_rating=True)
     out["religion_specific"] = getattr(place, "religion_specific", None) or {}
     if "distance" in out:
         del out["distance"]
+    rs = out["religion_specific"]
+    out["crowd_level"] = rs.get("crowd_level") or getattr(place, "crowd_level", None)
+    out["total_checkins_count"] = check_ins_db.count_check_ins_for_place(place.place_code)
+    out["timings"] = _build_timings(place)
+    out["specifications"] = _build_specifications(place)
     return out
 
 
