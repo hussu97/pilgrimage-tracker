@@ -206,7 +206,7 @@
       "profile.exploreCta": "Explore",
       "profile.noVisitsYet": "You haven't visited any places yet",
       "profile.noVisitsDescription": "Check in at a place to see your stats here.",
-      "home.greeting": "Assalamu Alaikum,",
+      "home.greeting": "Hello,",
       "home.nearby": "Nearby",
       "home.historical": "Historical",
       "home.jummah": "Jummah",
@@ -249,7 +249,18 @@
       "register.religionChip.christianity": "Christianity",
       "splash.heroTitle": "Discover Your Sacred Journey",
       "splash.signIn": "Sign In",
-      "splash.createAccount": "Create Account"
+      "splash.createAccount": "Create Account",
+      "profile.favorites": "Favorites",
+      "home.noPlacesVisible": "Pan the map to see places",
+      "home.filters": "Filters",
+      "home.clearAll": "Clear All",
+      "home.filterType": "Place Type",
+      "home.filterFeatures": "Features",
+      "home.applyFilters": "Apply Filters",
+      "home.filter_mosque": "Mosque",
+      "home.filter_shrine": "Shrine",
+      "home.filter_temple": "Temple",
+      "notifications.updatesLabel": "Updates"
     },
     "ar": {
       "auth.login": "تسجيل الدخول",
@@ -452,7 +463,7 @@
       "profile.exploreCta": "استكشف",
       "profile.noVisitsYet": "لم تزر أي مكان بعد",
       "profile.noVisitsDescription": "سجّل دخولك في مكان لرؤية إحصائياتك هنا.",
-      "home.greeting": "السلام عليكم،",
+      "home.greeting": "مرحبا،",
       "home.nearby": "قريب",
       "home.historical": "تاريخي",
       "home.jummah": "الجمعة",
@@ -495,7 +506,18 @@
       "register.religionChip.christianity": "المسيحية",
       "splash.heroTitle": "اكتشف رحلتك المقدسة",
       "splash.signIn": "تسجيل الدخول",
-      "splash.createAccount": "إنشاء حساب"
+      "splash.createAccount": "إنشاء حساب",
+      "profile.favorites": "المفضلة",
+      "home.noPlacesVisible": "تحريك الخريطة لرؤية الأماكن",
+      "home.filters": "الفلاتر",
+      "home.clearAll": "مسح الكل",
+      "home.filterType": "نوع المكان",
+      "home.filterFeatures": "المميزات",
+      "home.applyFilters": "تطبيق الفلاتر",
+      "home.filter_mosque": "مسجد",
+      "home.filter_shrine": "ضريح",
+      "home.filter_temple": "معبد",
+      "notifications.updatesLabel": "التحديثات"
     },
     "hi": {
       "auth.login": "लॉग इन करें",
@@ -741,7 +763,18 @@
       "register.religionChip.christianity": "ईसाई धर्म",
       "splash.heroTitle": "अपनी पवित्र यात्रा खोजें",
       "splash.signIn": "साइन इन करें",
-      "splash.createAccount": "खाता बनाएं"
+      "splash.createAccount": "खाता बनाएं",
+      "profile.favorites": "पसंदीदा",
+      "home.noPlacesVisible": "स्थान देखने के लिए मानचित्र स्क्रॉल करें",
+      "home.filters": "फ़िल्टर",
+      "home.clearAll": "सभी हटाएं",
+      "home.filterType": "स्थान प्रकार",
+      "home.filterFeatures": "सुविधाएं",
+      "home.applyFilters": "फ़िल्टर लागू करें",
+      "home.filter_mosque": "मस्जिद",
+      "home.filter_shrine": "दरगाह",
+      "home.filter_temple": "मंदिर",
+      "notifications.updatesLabel": "अपडेट"
     }
   },
   "users": [

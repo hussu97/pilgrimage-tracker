@@ -20,7 +20,6 @@ import GroupsScreen from './screens/GroupsScreen';
 import CreateGroupScreen from './screens/CreateGroupScreen';
 import GroupDetailScreen from './screens/GroupDetailScreen';
 import JoinGroupScreen from './screens/JoinGroupScreen';
-import SettingsScreen from './screens/SettingsScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 
 export type RootStackParamList = {
@@ -39,7 +38,6 @@ export type RootStackParamList = {
   CreateGroup: undefined;
   GroupDetail: { groupCode: string };
   JoinGroup: { inviteCode?: string };
-  Settings: undefined;
   Notifications: undefined;
   Favorites: undefined;
 };
@@ -65,7 +63,6 @@ function RootStack() {
       <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
       <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
       <Stack.Screen name="JoinGroup" component={JoinGroupScreen} />
-      <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="Favorites" component={FavoritesScreen} />
     </Stack.Navigator>

@@ -19,6 +19,7 @@ import type {
   Notification,
   UserSettings,
   LanguageOption,
+  PlacesListResponse,
 } from '../types';
 import { TOKEN_KEY } from '../constants';
 
@@ -189,9 +190,14 @@ export interface GetPlacesParams {
   sort?: string;
   limit?: number;
   offset?: number;
+  open_now?: boolean;
+  has_parking?: boolean;
+  womens_area?: boolean;
+  has_events?: boolean;
+  top_rated?: boolean;
 }
 
-export async function getPlaces(params?: GetPlacesParams): Promise<Place[]> {
+export async function getPlaces(params?: GetPlacesParams): Promise<PlacesListResponse> {
   const sp = new URLSearchParams();
   if (params?.religions?.length) params.religions.forEach((r) => sp.append('religion', r));
   if (params?.lat != null) sp.set('lat', String(params.lat));
@@ -202,6 +208,11 @@ export async function getPlaces(params?: GetPlacesParams): Promise<Place[]> {
   if (params?.sort) sp.set('sort', params.sort);
   if (params?.limit != null) sp.set('limit', String(params.limit));
   if (params?.offset != null) sp.set('offset', String(params.offset));
+  if (params?.open_now) sp.set('open_now', 'true');
+  if (params?.has_parking) sp.set('has_parking', 'true');
+  if (params?.womens_area) sp.set('womens_area', 'true');
+  if (params?.has_events) sp.set('has_events', 'true');
+  if (params?.top_rated) sp.set('top_rated', 'true');
   const qs = sp.toString();
   const url = `${API_BASE}/api/v1/places${qs ? `?${qs}` : ''}`;
   const res = await fetch(url, { headers: await authHeaders() });

@@ -172,6 +172,18 @@ def _place_has_events(p: PlaceRow) -> bool:
     return isinstance(ev, list) and len(ev) > 0
 
 
+def _place_has_parking(p: PlaceRow) -> bool:
+    """True if place has parking available (from religion_specific.parking)."""
+    rs = getattr(p, "religion_specific", None) or {}
+    return bool(rs.get("parking"))
+
+
+def _place_has_womens_area(p: PlaceRow) -> bool:
+    """True if place has a women's area (from religion_specific.womens_area)."""
+    rs = getattr(p, "religion_specific", None) or {}
+    return bool(rs.get("womens_area"))
+
+
 def list_places(
     religions: Optional[List[Religion]] = None,
     lat: Optional[float] = None,
@@ -184,7 +196,13 @@ def list_places(
     offset: int = 0,
     jummah: Optional[bool] = None,
     has_events: Optional[bool] = None,
-) -> List[tuple]:
+    open_now: Optional[bool] = None,
+    has_parking: Optional[bool] = None,
+    womens_area: Optional[bool] = None,
+    top_rated: Optional[bool] = None,
+    _reviews_agg_fn=None,
+) -> dict:
+    """Returns {"rows": [(PlaceRow, dist)...], "filters": {...metadata...}}."""
     result: List[tuple] = []
     for p in places.values():
         if religions and p.religion not in religions:
@@ -205,10 +223,44 @@ def list_places(
         if radius_km is not None and dist is not None and dist > radius_km:
             continue
         result.append((p, dist))
+
     if sort == "rating":
         pass
     if lat is not None and lng is not None and sort != "rating":
         result.sort(key=lambda x: (x[1] or 0))
-    return result[offset : offset + limit]
+
+    # Snapshot after base filters (religion/type/search/radius) for counting
+    base_results = result[:]
+
+    def _get_avg(place_code: str) -> float:
+        if _reviews_agg_fn:
+            agg = _reviews_agg_fn(place_code)
+            return agg["average"] if agg else 0.0
+        return 0.0
+
+    def count_filter(fn) -> int:
+        return sum(1 for p, _ in base_results if fn(p))
+
+    filters_meta = {
+        "options": [
+            {"key": "open_now",    "label": "Open Now",    "icon": "access_time",   "count": count_filter(lambda p: bool(_is_open_now_from_hours(p.opening_hours)))},
+            {"key": "has_parking", "label": "Has Parking", "icon": "local_parking", "count": count_filter(_place_has_parking)},
+            {"key": "womens_area", "label": "Women's Area","icon": "wc",            "count": count_filter(_place_has_womens_area)},
+            {"key": "has_events",  "label": "Has Events",  "icon": "event",         "count": count_filter(_place_has_events)},
+            {"key": "top_rated",   "label": "Top Rated",   "icon": "star",          "count": count_filter(lambda p: _get_avg(p.place_code) >= 4.0)},
+        ]
+    }
+
+    # Apply new boolean filters after counting
+    if open_now is True:
+        result = [(p, d) for p, d in result if _is_open_now_from_hours(p.opening_hours) is True]
+    if has_parking is True:
+        result = [(p, d) for p, d in result if _place_has_parking(p)]
+    if womens_area is True:
+        result = [(p, d) for p, d in result if _place_has_womens_area(p)]
+    if top_rated is True:
+        result = [(p, d) for p, d in result if _get_avg(p.place_code) >= 4.0]
+
+    return {"rows": result[offset: offset + limit], "filters": filters_meta}
 
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,10 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  ScrollView,
+  Image,
   Modal,
   Pressable,
-  Image,
+  Animated,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -21,21 +21,26 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, useI18n, useTheme } from '../providers';
 import { useLocation } from '../contexts/LocationContext';
 import { getPlaces } from '../../lib/api/client';
-import type { Place } from '../../lib/types';
+import type { Place, FilterOption } from '../../lib/types';
 import type { RootStackParamList } from '../navigation';
 import { tokens } from '../../lib/theme';
 import PlaceCard from '../../components/PlaceCard';
 import { shareUrl, openDirections } from '../../lib/share';
 
-type FilterChip = 'all' | 'mosque' | 'shrine' | 'temple';
 type ViewMode = 'list' | 'map';
 
-const FILTER_CHIPS: { key: FilterChip; labelKey: string; placeType?: string }[] = [
-  { key: 'all', labelKey: 'home.filterAll' },
-  { key: 'mosque', labelKey: 'home.filterMosques', placeType: 'mosque' },
-  { key: 'shrine', labelKey: 'home.filterShrines', placeType: 'shrine' },
-  { key: 'temple', labelKey: 'home.filterTemples', placeType: 'temple' },
-];
+interface ActiveFilters {
+  placeType?: string;
+  openNow?: boolean;
+  hasParking?: boolean;
+  womensArea?: boolean;
+  hasEvents?: boolean;
+  topRated?: boolean;
+}
+
+function toCamel(s: string): string {
+  return s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+}
 
 function formatDistance(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
@@ -100,6 +105,20 @@ function buildMapHtml(places: Place[], centerLat: number, centerLng: number): st
       opacity: 1,
       fillOpacity: 1
     }).addTo(map).bindPopup('Your location');
+
+    function postBounds() {
+      if (!window.ReactNativeWebView) return;
+      var b = map.getBounds();
+      window.ReactNativeWebView.postMessage(JSON.stringify({
+        type: 'boundsChanged',
+        north: b.getNorth(),
+        south: b.getSouth(),
+        east: b.getEast(),
+        west: b.getWest()
+      }));
+    }
+    map.on('moveend', postBounds);
+    map.whenReady(function() { setTimeout(postBounds, 300); });
   </script>
 </body>
 </html>`;
@@ -142,14 +161,6 @@ function makeStyles(isDark: boolean) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-    },
-    label: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: tokens.colors.primary,
-      marginBottom: 6,
-      letterSpacing: 2,
-      textTransform: 'uppercase',
     },
     greeting: {
       fontSize: 22,
@@ -201,31 +212,6 @@ function makeStyles(isDark: boolean) {
       color: textMain,
       padding: 0,
     },
-    chipsScroll: { marginBottom: 20 },
-    chipsWrap: {
-      flexDirection: 'row',
-      gap: 8,
-      paddingHorizontal: 24,
-      paddingVertical: 4,
-    },
-    chip: {
-      paddingHorizontal: 18,
-      paddingVertical: 9,
-      borderRadius: tokens.borderRadius.full,
-      backgroundColor: chipBg,
-      borderWidth: 1,
-      borderColor: chipBorder,
-    },
-    chipActive: {
-      backgroundColor: tokens.colors.primary,
-      borderColor: tokens.colors.primary,
-    },
-    chipText: {
-      fontSize: 13,
-      fontWeight: '500',
-      color: textSecondary,
-    },
-    chipTextActive: { color: '#fff' },
     contentArea: {
       flex: 1,
     },
@@ -266,41 +252,136 @@ function makeStyles(isDark: boolean) {
     retryText: { color: '#fff', fontWeight: '600', fontSize: 14 },
     listContent: { paddingHorizontal: 24, paddingTop: 4 },
     separator: { height: 16 },
-    countBadge: {
-      position: 'absolute',
-      bottom: 24,
-      right: 16,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      backgroundColor: tokens.colors.primary,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: tokens.borderRadius.full,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: 4,
+    // Filter icon in search bar
+    filterIconBtn: {
+      padding: 6,
+      borderRadius: 8,
+      marginLeft: 2,
     },
-    countText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-    // Bottom sheet styles
+    filterIconBtnActive: {
+      backgroundColor: isDark ? '#1e2a3e' : tokens.colors.blueTint,
+    },
+    filterDot: {
+      position: 'absolute',
+      top: 4,
+      right: 4,
+      width: 7,
+      height: 7,
+      borderRadius: 3.5,
+      backgroundColor: tokens.colors.primary,
+    },
+    // Filter sheet
     modalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.4)',
       justifyContent: 'flex-end',
     },
-    bottomSheet: {
+    filterSheet: {
       backgroundColor: surface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
       paddingHorizontal: 24,
       paddingTop: 12,
-      shadowColor: '#94a3b8',
-      shadowOffset: { width: 0, height: -8 },
-      shadowOpacity: 0.2,
-      shadowRadius: 24,
-      elevation: 4,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 16,
+      elevation: 8,
+    },
+    filterSheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    filterSheetTitle: { fontSize: 18, fontWeight: '700', color: textMain },
+    filterClearAll: { fontSize: 14, color: tokens.colors.primary, fontWeight: '600' },
+    filterSectionLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 8,
+      marginTop: 4,
+    },
+    filterChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+    filterChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: tokens.borderRadius.full,
+      backgroundColor: chipBg,
+      borderWidth: 1,
+      borderColor: chipBorder,
+    },
+    filterChipActive: {
+      backgroundColor: tokens.colors.primary,
+      borderColor: tokens.colors.primary,
+    },
+    filterChipText: { fontSize: 13, fontWeight: '500', color: textMain },
+    filterChipTextActive: { color: '#fff', fontWeight: '600' },
+    applyFiltersBtn: {
+      backgroundColor: tokens.colors.primary,
+      paddingVertical: 14,
+      borderRadius: 12,
+      alignItems: 'center',
+      marginTop: 4,
+      marginBottom: 8,
+    },
+    applyFiltersBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+    // Map bottom panel
+    mapBottomPanel: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+    },
+    scrollerCard: {
+      width: 140,
+      backgroundColor: surface,
+      borderRadius: 16,
+      padding: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    scrollerThumb: { width: '100%', height: 80, borderRadius: 10, marginBottom: 6 },
+    scrollerThumbPlaceholder: {
+      width: '100%',
+      height: 80,
+      borderRadius: 10,
+      backgroundColor: isDark ? tokens.colors.darkSurface : tokens.colors.softBlue,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 6,
+    },
+    scrollerCardName: { fontSize: 13, fontWeight: '600', color: textMain, marginBottom: 2 },
+    scrollerCardSub: { fontSize: 11, color: textMuted, textTransform: 'capitalize' },
+    scrollerEmpty: { paddingHorizontal: 24, paddingVertical: 12 },
+    scrollerEmptyText: { fontSize: 13, color: textMuted },
+    // Inline place card (replaces modal)
+    placeCard: {
+      backgroundColor: surface,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      paddingHorizontal: 24,
+      paddingTop: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 16,
+      elevation: 8,
+    },
+    cardClose: {
+      position: 'absolute',
+      top: 16,
+      right: 16,
+      zIndex: 1,
+      padding: 4,
     },
     sheetHandle: {
       width: 32,
@@ -392,17 +473,21 @@ export default function HomeScreen() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [searchDebounced, setSearchDebounced] = useState('');
-  const [filter, setFilter] = useState<FilterChip>('all');
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
+  const [pendingFilters, setPendingFilters] = useState<ActiveFilters>({});
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [mapHtml, setMapHtml] = useState<string>('');
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const [visiblePlaceCodes, setVisiblePlaceCodes] = useState<Set<string>>(new Set());
+  const panelAnim = useRef(new Animated.Value(0)).current;
 
   const styles = makeStyles(isDark);
 
   const fetchPlaces = useCallback(async () => {
     setLoading(true);
     setError('');
-    const chip = FILTER_CHIPS.find((c) => c.key === filter);
     try {
       const data = await getPlaces({
         religions: user?.religions?.length ? user.religions : undefined,
@@ -411,19 +496,25 @@ export default function HomeScreen() {
         limit: 50,
         lat: coords.lat,
         lng: coords.lng,
-        place_type: chip?.placeType,
+        place_type: activeFilters.placeType,
+        open_now: activeFilters.openNow,
+        has_parking: activeFilters.hasParking,
+        womens_area: activeFilters.womensArea,
+        has_events: activeFilters.hasEvents,
+        top_rated: activeFilters.topRated,
       });
-      setPlaces(data);
+      setPlaces(data.places);
+      setFilterOptions(data.filters?.options ?? []);
       const centerLat = coords.lat ?? 21.3891;
       const centerLng = coords.lng ?? 39.8579;
-      setMapHtml(buildMapHtml(data, centerLat, centerLng));
+      setMapHtml(buildMapHtml(data.places, centerLat, centerLng));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
       setPlaces([]);
     } finally {
       setLoading(false);
     }
-  }, [user?.religions, searchDebounced, filter, coords, t]);
+  }, [user?.religions, searchDebounced, activeFilters, coords, t]);
 
   useEffect(() => {
     fetchPlaces();
@@ -436,13 +527,38 @@ export default function HomeScreen() {
 
   const handleWebViewMessage = useCallback((event: { nativeEvent: { data: string } }) => {
     try {
-      const msg = JSON.parse(event.nativeEvent.data) as { placeCode: string };
+      const msg = JSON.parse(event.nativeEvent.data) as {
+        placeCode?: string;
+        type?: string;
+        north?: number; south?: number; east?: number; west?: number;
+      };
       if (msg.placeCode) {
         const found = places.find((p) => p.place_code === msg.placeCode);
         if (found) setSelectedPlace(found);
+      } else if (msg.type === 'boundsChanged' && msg.north != null) {
+        const { north, south, east, west } = msg;
+        setVisiblePlaceCodes(new Set(
+          places
+            .filter(p => p.lat >= (south ?? -90) && p.lat <= (north ?? 90) &&
+                         p.lng >= (west ?? -180) && p.lng <= (east ?? 180))
+            .map(p => p.place_code)
+        ));
       }
     } catch {}
   }, [places]);
+
+  const visiblePlaces = useMemo(
+    () => places.filter(p => visiblePlaceCodes.has(p.place_code)),
+    [places, visiblePlaceCodes]
+  );
+
+  useEffect(() => {
+    Animated.spring(panelAnim, {
+      toValue: selectedPlace ? 1 : 0,
+      useNativeDriver: true,
+      bounciness: 4,
+    }).start();
+  }, [selectedPlace, panelAnim]);
 
   const handleDirections = () => {
     if (selectedPlace) openDirections(selectedPlace.lat, selectedPlace.lng, selectedPlace.name);
@@ -450,6 +566,7 @@ export default function HomeScreen() {
 
   const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || t('home.title');
   const showEmpty = !loading && !error && places.length === 0;
+  const hasActiveFilters = Object.values(activeFilters).some(Boolean);
   const textSecondaryColor = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary;
   const textMutedColor = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
 
@@ -466,7 +583,6 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <View>
-              <Text style={styles.label}>{t('nav.explore')}</Text>
               <Text style={styles.greeting}>
                 {t('home.greeting')} <Text style={styles.greetingName}>{displayName}</Text>
               </Text>
@@ -515,32 +631,23 @@ export default function HomeScreen() {
             onChangeText={setSearch}
           />
           {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')}>
+            <TouchableOpacity onPress={() => setSearch('')} style={{ marginRight: 4 }}>
               <MaterialIcons name="close" size={18} color={textMutedColor} />
             </TouchableOpacity>
           )}
+          <TouchableOpacity
+            style={[styles.filterIconBtn, hasActiveFilters && styles.filterIconBtnActive]}
+            onPress={() => { setPendingFilters(activeFilters); setFilterSheetOpen(true); }}
+            activeOpacity={0.75}
+          >
+            <MaterialIcons
+              name="tune"
+              size={20}
+              color={hasActiveFilters ? tokens.colors.primary : textMutedColor}
+            />
+            {hasActiveFilters && <View style={styles.filterDot} />}
+          </TouchableOpacity>
         </View>
-
-        {/* Filter chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsWrap}
-          style={styles.chipsScroll}
-        >
-          {FILTER_CHIPS.map(({ key, labelKey }) => (
-            <TouchableOpacity
-              key={key}
-              style={[styles.chip, filter === key && styles.chipActive]}
-              onPress={() => setFilter(key)}
-              activeOpacity={0.75}
-            >
-              <Text style={[styles.chipText, filter === key && styles.chipTextActive]}>
-                {t(labelKey)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
       </View>
 
       {/* Conditional content area */}
@@ -575,7 +682,7 @@ export default function HomeScreen() {
                     <Text style={styles.emptyTitle}>{t('home.noPlacesFound')}</Text>
                     <TouchableOpacity
                       style={styles.retryButton}
-                      onPress={() => setFilter('all')}
+                      onPress={() => setActiveFilters({})}
                     >
                       <Text style={styles.retryText}>{t('home.clearFilters')}</Text>
                     </TouchableOpacity>
@@ -626,111 +733,192 @@ export default function HomeScreen() {
               />
             ) : null}
 
-            {/* Place count badge */}
-            {!loading && places.length > 0 && (
-              <View style={styles.countBadge}>
-                <MaterialIcons name="location-on" size={14} color="#fff" />
-                <Text style={styles.countText}>
-                  {places.length} {t('places.places') || 'places'}
-                </Text>
-              </View>
-            )}
+            {/* Map bottom panel: scroller ↔ place card */}
+            <View style={styles.mapBottomPanel} pointerEvents="box-none">
+              {/* Horizontal place scroller */}
+              <Animated.View
+                pointerEvents={selectedPlace ? 'none' : 'auto'}
+                style={{
+                  opacity: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+                  transform: [{ translateY: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 80] }) }],
+                }}
+              >
+                <FlatList
+                  horizontal
+                  data={visiblePlaces}
+                  keyExtractor={p => p.place_code}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.scrollerCard}
+                      onPress={() => setSelectedPlace(item)}
+                      activeOpacity={0.85}
+                    >
+                      {item.image_urls?.[0] ? (
+                        <Image source={{ uri: item.image_urls[0] }} style={styles.scrollerThumb} />
+                      ) : (
+                        <View style={styles.scrollerThumbPlaceholder}>
+                          <MaterialIcons name="place" size={24} color={textMutedColor} />
+                        </View>
+                      )}
+                      <Text style={styles.scrollerCardName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={styles.scrollerCardSub} numberOfLines={1}>{item.place_type}</Text>
+                    </TouchableOpacity>
+                  )}
+                  contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 10 }}
+                  showsHorizontalScrollIndicator={false}
+                  ListEmptyComponent={
+                    !loading ? (
+                      <View style={styles.scrollerEmpty}>
+                        <Text style={styles.scrollerEmptyText}>{t('home.noPlacesVisible')}</Text>
+                      </View>
+                    ) : null
+                  }
+                />
+              </Animated.View>
+
+              {/* Selected place card */}
+              <Animated.View
+                pointerEvents={selectedPlace ? 'auto' : 'none'}
+                style={[styles.placeCard, { paddingBottom: insets.bottom + 12 }, {
+                  opacity: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
+                  transform: [{ translateY: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [80, 0] }) }],
+                }]}
+              >
+                {selectedPlace && (
+                  <>
+                    <View style={styles.sheetHandle} />
+                    <TouchableOpacity style={styles.cardClose} onPress={() => setSelectedPlace(null)} activeOpacity={0.7}>
+                      <MaterialIcons name="close" size={18} color={textMutedColor} />
+                    </TouchableOpacity>
+                    <View style={styles.sheetRow}>
+                      <View style={styles.sheetThumb}>
+                        {selectedPlace.image_urls?.[0] ? (
+                          <Image
+                            source={{ uri: selectedPlace.image_urls[0] }}
+                            style={styles.sheetThumbImage}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View style={styles.sheetThumbPlaceholder}>
+                            <MaterialIcons name="location-on" size={32} color={textMutedColor} />
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.sheetInfo}>
+                        <Text style={styles.sheetName} numberOfLines={2}>{selectedPlace.name}</Text>
+                        <Text style={styles.sheetAddress} numberOfLines={1}>
+                          {selectedPlace.address || selectedPlace.place_type || ''}
+                        </Text>
+                        <View style={styles.sheetMeta}>
+                          {selectedPlace.average_rating != null && (
+                            <Text style={styles.sheetRating}>⭐ {selectedPlace.average_rating.toFixed(1)}</Text>
+                          )}
+                          {selectedPlace.distance != null && (
+                            <Text style={styles.sheetDistance}>{formatDistance(selectedPlace.distance)}</Text>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.sheetActions}>
+                      <TouchableOpacity style={styles.sheetDirections} onPress={handleDirections}>
+                        <MaterialIcons name="directions" size={18} color="#fff" />
+                        <Text style={styles.sheetDirectionsText}>{t('placeDetail.directions')}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.sheetShare}
+                        onPress={() => shareUrl(selectedPlace.name, `places/${selectedPlace.place_code}`)}
+                      >
+                        <MaterialIcons name="share" size={20} color={isDark ? '#fff' : tokens.colors.textMain} />
+                      </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.sheetDetail}
+                      onPress={() => {
+                        setSelectedPlace(null);
+                        navigation.navigate('PlaceDetail', { placeCode: selectedPlace.place_code });
+                      }}
+                    >
+                      <Text style={styles.sheetDetailText}>{t('places.detail')}</Text>
+                      <MaterialIcons name="chevron-right" size={16} color={tokens.colors.primary} />
+                    </TouchableOpacity>
+                  </>
+                )}
+              </Animated.View>
+            </View>
           </View>
         )}
       </View>
 
-      {/* Bottom sheet for selected place (map mode) */}
-      <Modal visible={selectedPlace != null} transparent animationType="slide">
-        <Pressable style={styles.modalOverlay} onPress={() => setSelectedPlace(null)}>
+      {/* Filter bottom sheet */}
+      <Modal visible={filterSheetOpen} transparent animationType="slide">
+        <Pressable style={styles.modalOverlay} onPress={() => setFilterSheetOpen(false)}>
           <Pressable
-            style={[styles.bottomSheet, { paddingBottom: insets.bottom + 24 }]}
-            onPress={(e) => e.stopPropagation()}
+            style={[styles.filterSheet, { paddingBottom: insets.bottom + 16 }]}
+            onPress={e => e.stopPropagation()}
           >
-            {selectedPlace && (
-              <>
-                <View style={styles.sheetHandle} />
-                <View style={styles.sheetRow}>
-                  <View style={styles.sheetThumb}>
-                    {selectedPlace.image_urls?.[0] ? (
-                      <Image
-                        source={{ uri: selectedPlace.image_urls[0] }}
-                        style={styles.sheetThumbImage}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <View style={styles.sheetThumbPlaceholder}>
-                        <MaterialIcons
-                          name="location-on"
-                          size={32}
-                          color={textMutedColor}
-                        />
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.sheetInfo}>
-                    <Text style={styles.sheetName} numberOfLines={2}>
-                      {selectedPlace.name}
-                    </Text>
-                    <Text style={styles.sheetAddress} numberOfLines={1}>
-                      {selectedPlace.address || selectedPlace.place_type || ''}
-                    </Text>
-                    <View style={styles.sheetMeta}>
-                      {selectedPlace.average_rating != null && (
-                        <Text style={styles.sheetRating}>
-                          ★ {selectedPlace.average_rating.toFixed(1)}
-                        </Text>
-                      )}
-                      {selectedPlace.distance != null && (
-                        <Text style={styles.sheetDistance}>
-                          {formatDistance(selectedPlace.distance)}
-                        </Text>
-                      )}
-                      {selectedPlace.is_open_now && (
-                        <Text style={styles.sheetOpen}>{t('places.openNow')}</Text>
-                      )}
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.sheetActions}>
-                  <TouchableOpacity
-                    style={styles.sheetDirections}
-                    onPress={handleDirections}
-                  >
-                    <MaterialIcons name="directions" size={18} color="#fff" />
-                    <Text style={styles.sheetDirectionsText}>
-                      {t('placeDetail.directions')}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.sheetShare}
-                    onPress={() =>
-                      shareUrl(selectedPlace.name, `places/${selectedPlace.place_code}`)
-                    }
-                  >
-                    <MaterialIcons name="share" size={20} color={isDark ? '#fff' : tokens.colors.textMain} />
-                  </TouchableOpacity>
-                </View>
+            <View style={styles.sheetHandle} />
+            <View style={styles.filterSheetHeader}>
+              <Text style={styles.filterSheetTitle}>{t('home.filters')}</Text>
+              <TouchableOpacity onPress={() => setPendingFilters({})}>
+                <Text style={styles.filterClearAll}>{t('home.clearAll')}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Place type */}
+            <Text style={styles.filterSectionLabel}>{t('home.filterType')}</Text>
+            <View style={styles.filterChipsRow}>
+              {(['mosque', 'shrine', 'temple'] as const).map(type => (
                 <TouchableOpacity
-                  style={styles.sheetDetail}
-                  onPress={() => {
-                    setSelectedPlace(null);
-                    navigation.navigate('PlaceDetail', {
-                      placeCode: selectedPlace.place_code,
-                    });
-                  }}
+                  key={type}
+                  style={[styles.filterChip, pendingFilters.placeType === type && styles.filterChipActive]}
+                  onPress={() => setPendingFilters(f => ({ ...f, placeType: f.placeType === type ? undefined : type }))}
+                  activeOpacity={0.75}
                 >
-                  <Text style={styles.sheetDetailText}>{t('places.detail')}</Text>
-                  <MaterialIcons
-                    name="chevron-right"
-                    size={16}
-                    color={tokens.colors.primary}
-                  />
+                  <Text style={[styles.filterChipText, pendingFilters.placeType === type && styles.filterChipTextActive]}>
+                    {t(`home.filter_${type}`)}
+                  </Text>
                 </TouchableOpacity>
-              </>
-            )}
+              ))}
+            </View>
+
+            {/* Feature filters from backend */}
+            <Text style={styles.filterSectionLabel}>{t('home.filterFeatures')}</Text>
+            <View style={styles.filterChipsRow}>
+              {filterOptions.map(opt => {
+                const key = toCamel(opt.key) as keyof ActiveFilters;
+                const isActive = Boolean((pendingFilters as Record<string, unknown>)[key]);
+                return (
+                  <TouchableOpacity
+                    key={opt.key}
+                    style={[styles.filterChip, isActive && styles.filterChipActive]}
+                    onPress={() => setPendingFilters(f => ({ ...f, [key]: isActive ? undefined : true }))}
+                    activeOpacity={0.75}
+                  >
+                    <MaterialIcons
+                      name={opt.icon as any}
+                      size={14}
+                      color={isActive ? '#fff' : textMutedColor}
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
+                      {opt.label} ({opt.count})
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              style={styles.applyFiltersBtn}
+              onPress={() => { setActiveFilters(pendingFilters); setFilterSheetOpen(false); }}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.applyFiltersBtnText}>{t('home.applyFilters')}</Text>
+            </TouchableOpacity>
           </Pressable>
         </Pressable>
       </Modal>
     </View>
   );
 }
+

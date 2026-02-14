@@ -8,7 +8,7 @@ from app.db import reviews as reviews_db
 from app.db import store as user_store
 from app.db import check_ins as check_ins_db
 from app.db import favorites as favorites_db
-from app.models.schemas import CheckInBody, ReviewCreateBody
+from app.models.schemas import CheckInBody, ReviewCreateBody, PlacesListResponse
 
 router = APIRouter()
 
@@ -95,7 +95,7 @@ def _place_detail(place) -> dict:
     return out
 
 
-@router.get("", response_model=list)
+@router.get("")
 def list_places(
     religion: Optional[List[Religion]] = Query(None, description="Filter by religion(s); repeat for multiple; omit for all"),
     lat: Optional[float] = Query(None),
@@ -109,9 +109,13 @@ def list_places(
     jummah: Optional[bool] = Query(None, description="If true, only places with Jummah / Friday prayer (Islam)"),
     has_events: Optional[bool] = Query(None, description="If true, only places that have events"),
     include_rating: bool = Query(True, description="Include average_rating and review_count in list items"),
+    open_now: Optional[bool] = Query(None, description="If true, only currently open places"),
+    has_parking: Optional[bool] = Query(None, description="If true, only places with parking"),
+    womens_area: Optional[bool] = Query(None, description="If true, only places with a women's area"),
+    top_rated: Optional[bool] = Query(None, description="If true, only places rated 4.0 or above"),
 ):
     religions = religion
-    rows = places_db.list_places(
+    result = places_db.list_places(
         religions=religions,
         lat=lat,
         lng=lng,
@@ -123,8 +127,14 @@ def list_places(
         offset=offset,
         jummah=jummah,
         has_events=has_events,
+        open_now=open_now,
+        has_parking=has_parking,
+        womens_area=womens_area,
+        top_rated=top_rated,
+        _reviews_agg_fn=reviews_db.get_aggregate_rating,
     )
-    return [_place_to_item(p, dist, include_rating=include_rating) for p, dist in rows]
+    places_out = [_place_to_item(p, dist, include_rating=include_rating) for p, dist in result["rows"]]
+    return {"places": places_out, "filters": result["filters"]}
 
 
 @router.get("/{place_code}")
