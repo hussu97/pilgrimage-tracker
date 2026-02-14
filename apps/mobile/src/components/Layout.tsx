@@ -4,20 +4,18 @@ import { View, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HomeScreen from '../app/screens/HomeScreen';
-import MapScreen from '../app/screens/MapScreen';
 import GroupsScreen from '../app/screens/GroupsScreen';
 import ProfileScreen from '../app/screens/ProfileScreen';
-import { useI18n, useAuth } from '../app/providers';
+import { useI18n, useAuth, useTheme } from '../app/providers';
 import { tokens } from '../lib/theme';
 import { getNotifications } from '../lib/api/client';
 
 const Tab = createBottomTabNavigator();
 
-type TabIconName = 'explore' | 'map' | 'group' | 'person';
+type TabIconName = 'explore' | 'group' | 'person';
 
 const TAB_ICONS: Record<string, TabIconName> = {
   explore: 'explore',
-  map: 'map',
   groups: 'group',
   person: 'person',
 };
@@ -48,6 +46,7 @@ export default function Layout() {
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
   const { user } = useAuth();
+  const { isDark } = useTheme();
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -64,14 +63,14 @@ export default function Layout() {
         tabBarStyle: {
           paddingBottom: insets.bottom,
           paddingTop: 4,
-          backgroundColor: 'rgba(255,255,255,0.92)',
-          borderTopColor: '#F1F5F9',
+          backgroundColor: isDark ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.92)',
+          borderTopColor: isDark ? tokens.colors.darkBorder : '#F1F5F9',
           borderTopWidth: 1,
           height: 56 + insets.bottom,
         },
         tabBarLabelStyle: { fontSize: 10, fontWeight: '500', marginTop: 2 },
         tabBarActiveTintColor: tokens.colors.primary,
-        tabBarInactiveTintColor: tokens.colors.textMuted,
+        tabBarInactiveTintColor: isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted,
       }}
     >
       <Tab.Screen
@@ -80,14 +79,6 @@ export default function Layout() {
         options={{
           tabBarLabel: t('nav.explore'),
           tabBarIcon: ({ focused }) => <TabIcon iconKey="explore" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Map"
-        component={MapScreen}
-        options={{
-          tabBarLabel: t('nav.map'),
-          tabBarIcon: ({ focused }) => <TabIcon iconKey="map" focused={focused} />,
         }}
       />
       <Tab.Screen
