@@ -4,6 +4,25 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Mobile: Profile Redesign, Home Map Toggle, Dark Mode Fix
+
+### Frontend (mobile)
+
+- **Dark mode fix:** Replaced static `StyleSheet.create()` in `ProfileScreen` and `HomeScreen` with `makeStyles(isDark: boolean)` factory functions called inside each component, so all styles (colors, borders, backgrounds) recompute immediately when `isDark` changes in `ThemeProvider`. Tab bar in `Layout.tsx` also respects dark mode (background and border color).
+- **ProfileScreen rebuild:** Complete rewrite matching `FRONTEND_REWAMP_DARK/LIGHT` design. Header now shows bold display name + calendar icon + join date (no avatar circle). Stats replaced with a 2-column grid (Check-Ins, Reviews). Faith selector pills removed. New PREFERENCES card with My Path, Language, Notifications, My Wishlist (chevrons) and Dark Mode (Switch toggle, no chevron) as the last row. ACCOUNT section simplified to My Check-Ins and Favorites. Logout button added (red text, centered). Version string at bottom.
+- **HomeScreen map embed:** Map view is now embedded directly in `HomeScreen` with a list/map toggle (two icon buttons in the header — list icon and map icon). The same search bar and filter chips apply to both views. Switching to map mode renders the Leaflet WebView with place markers; tapping a marker shows the existing bottom-sheet place detail modal. The separate Map bottom tab is removed.
+- **Layout.tsx — 3 tabs:** Map tab removed. Bottom nav is now Explore, Groups, Profile (3 tabs). Tab bar background and border colors update correctly in dark mode.
+
+### Backend / i18n
+
+- **seed_data.json:** Added missing translation keys `settings.darkMode` ("Dark Mode" / "الوضع المظلم" / "डार्क मोड") and `profile.preferences` ("Preferences" / "التفضيلات" / "प्राथमिकताएं") for all three supported languages (en, ar, hi).
+
+### Docs
+
+- Updated `CHANGELOG.md`.
+
+---
+
 ## Mobile UI & Feature Overhaul
 
 ### Frontend (mobile)
