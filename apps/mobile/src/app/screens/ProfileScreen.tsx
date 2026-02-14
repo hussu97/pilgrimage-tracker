@@ -7,12 +7,13 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../providers';
-import { useI18n } from '../providers';
+import { useAuth, useI18n, useTheme } from '../providers';
 import { getMyStats } from '../../lib/api/client';
 import type { UserStats } from '../../lib/types';
 import { tokens } from '../../lib/theme';
@@ -36,12 +37,59 @@ function formatJoinedDate(createdAt: string | undefined): string {
   }
 }
 
+/** Shown when the user is not authenticated — a login landing page. */
+function LoginLanding({ onGetStarted, onSignIn }: { onGetStarted: () => void; onSignIn: () => void }) {
+  const insets = useSafeAreaInsets();
+  const { t } = useI18n();
+
+  return (
+    <View style={[landingStyles.container, { paddingBottom: insets.bottom }]}>
+      {/* Hero image */}
+      <View style={landingStyles.heroContainer}>
+        <Image
+          source={{ uri: 'https://images.unsplash.com/photo-1548013146-72479768bada?w=800&auto=format&fit=crop' }}
+          style={landingStyles.heroImage}
+          resizeMode="cover"
+        />
+        <View style={landingStyles.heroOverlay} pointerEvents="none" />
+      </View>
+
+      {/* Content */}
+      <View style={landingStyles.content}>
+        <View style={landingStyles.textBlock}>
+          <Text style={landingStyles.title}>{t('splash.heroTitle') || t('splash.welcome')}</Text>
+          <Text style={landingStyles.tagline}>{t('splash.tagline')}</Text>
+        </View>
+
+        <View style={landingStyles.buttons}>
+          <TouchableOpacity
+            style={landingStyles.primaryButton}
+            onPress={onGetStarted}
+            activeOpacity={0.85}
+          >
+            <Text style={landingStyles.primaryButtonText}>{t('splash.getStarted')}</Text>
+            <MaterialIcons name="arrow-forward" size={20} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={landingStyles.outlineButton}
+            onPress={onSignIn}
+            activeOpacity={0.85}
+          >
+            <Text style={landingStyles.outlineButtonText}>{t('splash.signIn') || t('auth.login')}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const tabNav = useNavigation<BottomTabNavigationProp<MainTabParamList, 'Profile'>>();
   const stackNav = tabNav.getParent();
   const { user } = useAuth();
   const { t } = useI18n();
+  const { isDark, setTheme, theme } = useTheme();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -62,20 +110,16 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     if (user) fetchData();
+    else setLoading(false);
   }, [user, fetchData]);
 
+  // Show login landing page when unauthenticated
   if (!user) {
     return (
-      <View style={[styles.container, styles.centered, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 100 }]}>
-        <Text style={styles.signInTitle}>{t('auth.signInToViewProfile')}</Text>
-        <TouchableOpacity
-          style={styles.signInButton}
-          onPress={() => stackNav?.navigate('Login' as never)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.signInButtonText}>{t('auth.login')}</Text>
-        </TouchableOpacity>
-      </View>
+      <LoginLanding
+        onGetStarted={() => stackNav?.navigate('Register' as never)}
+        onSignIn={() => stackNav?.navigate('Login' as never)}
+      />
     );
   }
 
@@ -87,9 +131,16 @@ export default function ProfileScreen() {
   const religions = user.religions ?? [];
   const primaryReligion = religions[0] ?? 'islam';
 
-  const accountLink = (label: string, screen: 'EditProfile' | 'CheckInsList' | 'Settings' | 'Favorites', icon: string, iconBg: string) => (
+  const accountLink = (
+    label: string,
+    screen: 'EditProfile' | 'CheckInsList' | 'Settings' | 'Favorites',
+    iconName: React.ComponentProps<typeof MaterialIcons>['name'],
+    iconBg: string,
+    isLast = false,
+  ) => (
     <TouchableOpacity
-      style={styles.accountRow}
+      key={screen}
+      style={[styles.accountRow, isLast && styles.accountRowLast]}
       onPress={() => {
         if (screen === 'Favorites') stackNav?.navigate('Favorites' as never);
         else stackNav?.navigate(screen as never);
@@ -98,11 +149,11 @@ export default function ProfileScreen() {
     >
       <View style={styles.accountLeft}>
         <View style={[styles.accountIconWrap, { backgroundColor: iconBg }]}>
-          <Text style={styles.accountIcon}>{icon}</Text>
+          <MaterialIcons name={iconName} size={18} color={tokens.colors.iconGrey} />
         </View>
         <Text style={styles.accountLabel}>{label}</Text>
       </View>
-      <Text style={styles.chevron}>›</Text>
+      <MaterialIcons name="chevron-right" size={22} color={tokens.colors.textMuted} />
     </TouchableOpacity>
   );
 
@@ -122,6 +173,7 @@ export default function ProfileScreen() {
           </View>
         ) : null}
 
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.settingsBtn} />
           <Text style={styles.profileTitle}>{t('profile.title')}</Text>
@@ -129,10 +181,11 @@ export default function ProfileScreen() {
             style={styles.settingsBtn}
             onPress={() => stackNav?.navigate('Settings' as never)}
           >
-            <Text style={styles.settingsBtnText}>⚙</Text>
+            <MaterialIcons name="settings" size={22} color={tokens.colors.iconGrey} />
           </TouchableOpacity>
         </View>
 
+        {/* Avatar + Name */}
         <View style={styles.avatarSection}>
           <View style={styles.avatarWrap}>
             {user.avatar_url ? (
@@ -149,8 +202,9 @@ export default function ProfileScreen() {
           ) : null}
         </View>
 
+        {/* Stats */}
         <View style={styles.statsSection}>
-          {loading && !error ? (
+          {loading ? (
             <ActivityIndicator size="small" color={tokens.colors.primary} style={styles.loader} />
           ) : (
             <View style={styles.statsRow}>
@@ -170,6 +224,7 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* Faith selector */}
         <View style={styles.faithSection}>
           <View style={styles.faithPill}>
             <TouchableOpacity
@@ -203,32 +258,51 @@ export default function ProfileScreen() {
           <Text style={styles.faithHint}>{t('profile.selectPilgrimagePath')}</Text>
         </View>
 
+        {/* Edit Profile */}
         <TouchableOpacity
           style={styles.editProfileBtn}
           onPress={() => stackNav?.navigate('EditProfile' as never)}
           activeOpacity={0.8}
         >
-          <Text style={styles.editProfileBtnText}>✎ {t('profile.editProfile')}</Text>
+          <MaterialIcons name="edit" size={16} color="#fff" />
+          <Text style={styles.editProfileBtnText}>{t('profile.editProfile')}</Text>
         </TouchableOpacity>
 
+        {/* Account section */}
         <View style={styles.accountSection}>
           <Text style={styles.accountSectionTitle}>{t('profile.account')}</Text>
           <View style={styles.accountCard}>
-            {accountLink(t('profile.myCheckIns'), 'CheckInsList', '📋', '#ecfdf5')}
-            {accountLink(t('profile.favoritePlaces'), 'Favorites', '♥', '#fef2f2')}
+            {accountLink(t('profile.myCheckIns'), 'CheckInsList', 'assignment', '#ecfdf5')}
+            {accountLink(t('profile.favoritePlaces'), 'Favorites', 'favorite', '#fef2f2')}
             <TouchableOpacity
-              style={[styles.accountRow, styles.accountRowLast]}
+              style={styles.accountRow}
               onPress={() => tabNav.navigate('Groups')}
               activeOpacity={0.7}
             >
               <View style={styles.accountLeft}>
                 <View style={[styles.accountIconWrap, { backgroundColor: '#eef2ff' }]}>
-                  <Text style={styles.accountIcon}>◆</Text>
+                  <MaterialIcons name="group" size={18} color={tokens.colors.iconGrey} />
                 </View>
                 <Text style={styles.accountLabel}>{t('profile.groupActivity')}</Text>
               </View>
-              <Text style={styles.chevron}>›</Text>
+              <MaterialIcons name="chevron-right" size={22} color={tokens.colors.textMuted} />
             </TouchableOpacity>
+
+            {/* Dark mode toggle */}
+            <View style={[styles.accountRow, styles.accountRowLast]}>
+              <View style={styles.accountLeft}>
+                <View style={[styles.accountIconWrap, { backgroundColor: '#f5f3ff' }]}>
+                  <MaterialIcons name="dark-mode" size={18} color={tokens.colors.iconGrey} />
+                </View>
+                <Text style={styles.accountLabel}>{t('settings.darkMode') || 'Dark Mode'}</Text>
+              </View>
+              <Switch
+                value={isDark}
+                onValueChange={(val) => setTheme(val ? 'dark' : 'light')}
+                trackColor={{ false: tokens.colors.inputBorder, true: tokens.colors.primary }}
+                thumbColor="#fff"
+              />
+            </View>
           </View>
           <Text style={styles.version}>
             {t('profile.version').replace('{version}', APP_VERSION)}
@@ -242,15 +316,6 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { flex: 1 },
-  centered: { justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-  signInTitle: { fontSize: 18, color: tokens.colors.textMain, textAlign: 'center', marginBottom: 24 },
-  signInButton: {
-    backgroundColor: tokens.colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: tokens.borderRadius.xl,
-  },
-  signInButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   errorWrap: { paddingHorizontal: 24, paddingVertical: 16, marginBottom: 8 },
   errorText: { color: '#b91c1c', marginBottom: 8 },
   retryButton: { alignSelf: 'flex-start' },
@@ -280,7 +345,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: tokens.colors.inputBorder,
   },
-  settingsBtnText: { fontSize: 20 },
   avatarSection: { alignItems: 'center', marginBottom: 24, paddingHorizontal: 24 },
   avatarWrap: {
     width: 144,
@@ -360,6 +424,8 @@ const styles = StyleSheet.create({
     borderRadius: tokens.borderRadius.xl,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
   editProfileBtnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   accountSection: { paddingHorizontal: 24, paddingBottom: 24 },
@@ -384,7 +450,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#f8fafc',
@@ -398,14 +464,84 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  accountIcon: { fontSize: 18 },
   accountLabel: { fontSize: 15, fontWeight: '500', color: tokens.colors.textMain },
-  chevron: { fontSize: 20, color: tokens.colors.textMuted },
   version: {
     textAlign: 'center',
     fontSize: 10,
     fontWeight: '600',
     color: tokens.colors.textMuted,
     marginTop: 32,
+  },
+});
+
+// Styles for the login landing page (unauthenticated state)
+const landingStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: tokens.colors.surface,
+  },
+  heroContainer: {
+    height: '55%',
+    position: 'relative',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 80,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 28,
+    paddingTop: 28,
+    justifyContent: 'space-between',
+    paddingBottom: 16,
+  },
+  textBlock: { gap: 8 },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: tokens.colors.textDark,
+    lineHeight: 36,
+    letterSpacing: -0.3,
+  },
+  tagline: {
+    fontSize: 16,
+    color: tokens.colors.textSecondary,
+    lineHeight: 24,
+  },
+  buttons: { gap: 12 },
+  primaryButton: {
+    backgroundColor: tokens.colors.primary,
+    paddingVertical: 16,
+    borderRadius: tokens.borderRadius['3xl'],
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    ...tokens.shadow.glass,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  outlineButton: {
+    paddingVertical: 16,
+    borderRadius: tokens.borderRadius['3xl'],
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: tokens.colors.primary,
+  },
+  outlineButtonText: {
+    color: tokens.colors.primary,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

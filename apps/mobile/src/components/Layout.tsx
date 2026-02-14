@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import HomeScreen from '../app/screens/HomeScreen';
 import MapScreen from '../app/screens/MapScreen';
@@ -12,12 +13,13 @@ import { getNotifications } from '../lib/api/client';
 
 const Tab = createBottomTabNavigator();
 
-// Icon glyphs — unicode approximations until vector icons are wired up
-const TAB_ICONS: Record<string, { default: string; active: string }> = {
-  explore: { default: '⊙', active: '⊕' },
-  map:     { default: '◻', active: '◼' },
-  groups:  { default: '◇', active: '◆' },
-  person:  { default: '○', active: '●' },
+type TabIconName = 'explore' | 'map' | 'group' | 'person';
+
+const TAB_ICONS: Record<string, TabIconName> = {
+  explore: 'explore',
+  map: 'map',
+  groups: 'group',
+  person: 'person',
 };
 
 function TabIcon({
@@ -29,14 +31,13 @@ function TabIcon({
   focused: boolean;
   showDot?: boolean;
 }) {
-  const icons = TAB_ICONS[iconKey] ?? { default: '●', active: '●' };
+  const iconName = TAB_ICONS[iconKey] ?? 'circle';
+  const color = focused ? tokens.colors.primary : tokens.colors.textMuted;
   return (
     <View style={styles.tabIconWrapper}>
       {focused && <View style={styles.activeBar} />}
       <View>
-        <Text style={[styles.tabIconText, focused && styles.tabIconTextActive]}>
-          {focused ? icons.active : icons.default}
-        </Text>
+        <MaterialIcons name={iconName} size={24} color={color} />
         {showDot && <View style={styles.notificationDot} />}
       </View>
     </View>
@@ -123,13 +124,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: tokens.colors.primary,
     marginBottom: 2,
-  },
-  tabIconText: {
-    fontSize: 20,
-    color: tokens.colors.textMuted,
-  },
-  tabIconTextActive: {
-    color: tokens.colors.primary,
   },
   notificationDot: {
     position: 'absolute',

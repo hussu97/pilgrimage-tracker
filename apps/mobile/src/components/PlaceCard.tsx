@@ -1,4 +1,5 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../app/navigation';
@@ -33,7 +34,7 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
             <Image source={{ uri: imageUrl }} style={styles.compactImage} resizeMode="cover" />
           ) : (
             <View style={styles.compactImagePlaceholder}>
-              <Text style={styles.compactPlaceholderIcon}>⊕</Text>
+              <MaterialIcons name="location-on" size={32} color={tokens.colors.textMuted} />
             </View>
           )}
         </View>
@@ -75,7 +76,7 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
           <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
         ) : (
           <View style={styles.imagePlaceholder}>
-            <Text style={styles.placeholderIcon}>⊕</Text>
+            <MaterialIcons name="location-on" size={40} color={tokens.colors.textMuted} />
           </View>
         )}
         <View style={styles.badges}>
@@ -87,7 +88,8 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
           )}
           {place.user_has_checked_in && (
             <View style={styles.visitedBadge}>
-              <Text style={styles.visitedText}>✓ Visited</Text>
+              <MaterialIcons name="check-circle" size={12} color="#fff" />
+              <Text style={styles.visitedText}> Visited</Text>
             </View>
           )}
         </View>
@@ -136,7 +138,6 @@ const styles = StyleSheet.create({
   },
   compactImage: { width: '100%', height: '100%' },
   compactImagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  compactPlaceholderIcon: { fontSize: 32, color: tokens.colors.textMuted },
   compactBody: { flex: 1, flexDirection: 'column', justifyContent: 'center', paddingVertical: 4 },
   compactName: {
     fontSize: 15,
@@ -187,7 +188,6 @@ const styles = StyleSheet.create({
   },
   image: { width: '100%', height: '100%' },
   imagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  placeholderIcon: { fontSize: 40, color: tokens.colors.textMuted },
   badges: {
     position: 'absolute',
     top: 12,
@@ -222,6 +222,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   visitedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.25)',
     paddingHorizontal: 10,
     paddingVertical: 4,
