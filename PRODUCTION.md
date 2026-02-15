@@ -109,6 +109,22 @@ Deploy using GCP services.
 
 ---
 
+---
+
+## Data Strategy
+
+### Data Enrichment (Scraper)
+
+The project includes a data scraper in `data_scraper/` to enrich place data from OpenStreetMap and Wikidata.
+
+- **To update data:**
+  1. Run `python enrich_places.py` locally in `data_scraper/`.
+  2. Commit the generated `enriched_places.json`.
+  3. Update `server/app/db/seed_data.json` (or import script) with the new data.
+  4. Deploy the updated seed file to production.
+
+---
+
 ## Summary
 
 | Plan   | Backend        | DB              | Web frontend      | Mobile        |

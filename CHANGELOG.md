@@ -4,6 +4,25 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Data Enrichment Scraper API (2026-02-15)
+
+### Scraper Service (`data_scraper/`)
+- **FastAPI Migration:** Refactored the standalone scraper script into a full **FastAPI service**.
+- **Directory Refactor:** Restructured `data_scraper/app/` to match the main server's `server/app/` layout (subdirectories for `api/v1`, `db`, and `models`).
+- **Database:** Integrated **SQLModel** and **SQLite** to manage data locations and scraper runs.
+- **Smart Sheet Handling:** Updated to store the unique **Google Sheet ID** (code) instead of full URLs, ensuring robust construction of export links.
+- **Run Management:** 
+    - Added `POST /api/v1/scraper/runs` to initiate background scraping.
+    - Added `POST /api/v1/scraper/runs/{run_code}/cancel` to safely abort active runs.
+    - **Partial Persistence:** Implemented row-level commits so data extracted before cancellation is preserved.
+- **Sync Mechanism:** Added background sync to push enriched data directly to the Main Server via the new `POST /api/v1/places` endpoint.
+
+### Main Server (`server/`)
+- **New Sync Endpoint:** Added `POST /api/v1/places` to accept `PlaceCreate` schema data from the scraper service.
+- **Schema Update:** Added `PlaceCreate` to `app/models/schemas.py`.
+
+---
+
 ## PlaceDetail UX + Real Sites + Glass Nav (2026-02-15)
 
 ### Frontend (mobile)

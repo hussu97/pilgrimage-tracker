@@ -202,7 +202,38 @@ The web app uses a TypeScript architecture with clear separation of concerns und
 
 ---
 
-## 8. Design Alignment
+## 8. Data Enrichment
+ 
+ ### 8.1 Overview
+ 
+To provide rich content without heavy manual data entry, the system uses a **Scraper API Service** in `data_scraper/` to fetch details from public APIs and sync them to the main server.
+ 
+### 8.2 Scraper Service Architecture
+ 
+The Scraper Service is a separate FastAPI application that mirrors the main server's directory structure (`app/api/v1`, `app/db`, `app/models`).
+ 
+- **Stack:** Python 3.14, FastAPI, SQLModel (ORM), SQLite.
+- **Core Entities:**
+    - **DataLocation:** Stores metadata and the unique **Google Sheet ID** (code) for data sources.
+    - **ScraperRun:** Tracks individual scraping jobs, their status (pending, running, completed, cancelled, failed), and progress.
+    - **ScrapedPlace:** Temporary storage for enriched data before it is synced to the main server.
+ 
+### 8.3 Data Flow & Integration
+ 
+1. **Registration:** Users register a Google Sheet URL. The service extracts the unique ID and stores it as `sheet_code`.
+2. **Scraping:** Tracing a run initiates a background task (`BackgroundTasks`):
+    - Fetches the sheet as CSV.
+    - Queries **OpenStreetMap (Overpass API)** for amenities and architecture.
+    - Queries **Wikipedia/Wikidata** for descriptions and image URLs.
+    - Saves partial progress (row-level commits) to `ScrapedPlace`.
+3. **Cancellation:** Runs can be cancelled via API. The background task checks for a `cancelled` status in each iteration and stops safely.
+4. **Syncing:** Once scraping is complete (or partially complete), the user triggers a sync:
+    - The service pushes data to the **Main Server** via the `POST /api/v1/places` endpoint.
+    - The Main Server validates the data against its `PlaceCreate` schema and persists it.
+
+---
+
+## 9. Design Alignment
 
 - **Screens to implement** (from DESIGN_FILE.html and app-design-prompt): Splash, Create Account, Login, Forgot Password, Preferred religions (multi-select, optional), Home (list + map), Place detail (Islam/Hinduism/Christianity variants), Check-in flow, Profile and stats, Groups list, Group detail and leaderboard, Favorites, Settings, Notifications, Write review. Empty and error states as specified in the design prompt.
 - **Design system:** Lexend, Material Icons/Symbols, Tailwind with tokens from DESIGN_FILE (primary, borders, radii, safe areas). Support light/dark where designs specify (e.g. Place detail Hindu temple).

@@ -122,3 +122,17 @@ class PlaceListItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PlaceCreate(BaseModel):
+    name: str
+    religion: Religion
+    place_type: str
+    lat: float
+    lng: float
+    address: str
+    opening_hours: Optional[dict] = None
+    image_urls: List[str] = []
+    description: Optional[str] = None
+    religion_specific: Optional[dict] = None
+    website_url: Optional[str] = None

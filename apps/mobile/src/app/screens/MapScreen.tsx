@@ -122,11 +122,12 @@ export default function MapScreen() {
         lat: coords.lat,
         lng: coords.lng,
       });
-      setPlaces(data);
+      const placesList = data.places ?? [];
+      setPlaces(placesList);
       // Use user location or fallback to Mecca as spiritual default
       const centerLat = coords.lat ?? 21.3891;
       const centerLng = coords.lng ?? 39.8579;
-      setMapHtml(buildMapHtml(data, centerLat, centerLng));
+      setMapHtml(buildMapHtml(placesList, centerLat, centerLng));
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common.error'));
       setPlaces([]);

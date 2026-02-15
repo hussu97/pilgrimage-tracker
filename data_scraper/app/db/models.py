@@ -1,0 +1,25 @@
+from typing import Optional, List, Dict, Any
+from datetime import datetime
+from sqlmodel import Field, SQLModel, JSON, Column
+
+class DataLocation(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    code: str = Field(index=True, unique=True)
+    name: str = Field(index=True)
+    sheet_code: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class ScraperRun(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    run_code: str = Field(index=True, unique=True)
+    location_code: str = Field(foreign_key="datalocation.code")
+    status: str = Field(default="pending") # pending, running, completed, failed
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class ScrapedPlace(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    run_code: str = Field(foreign_key="scraperrun.run_code", index=True)
+    place_code: str = Field(index=True)
+    name: str
+    raw_data: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=datetime.utcnow)

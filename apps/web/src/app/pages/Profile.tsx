@@ -4,7 +4,6 @@ import { useAuth } from '@/app/providers';
 import { useI18n } from '@/app/providers';
 import { getMyStats } from '@/lib/api/client';
 import ErrorState from '@/components/ErrorState';
-import EmptyState from '@/components/EmptyState';
 import type { UserStats } from '@/lib/types';
 
 const APP_VERSION = '2.4.0';
@@ -23,7 +22,7 @@ export default function Profile() {
   const { user } = useAuth();
   const { t } = useI18n();
   const [stats, setStats] = useState<UserStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const fetchData = useCallback(async () => {

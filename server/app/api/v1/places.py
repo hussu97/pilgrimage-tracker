@@ -9,7 +9,7 @@ from app.db import reviews as reviews_db
 from app.db import store as user_store
 from app.db import check_ins as check_ins_db
 from app.db import favorites as favorites_db
-from app.models.schemas import CheckInBody, ReviewCreateBody, PlacesListResponse
+from app.models.schemas import CheckInBody, ReviewCreateBody, PlacesListResponse, PlaceCreate
 
 router = APIRouter()
 
@@ -391,3 +391,28 @@ def create_review(
         "is_anonymous": row.is_anonymous,
         "photo_urls": row.photo_urls,
     }
+
+
+@router.post("")
+def create_place(
+    body: PlaceCreate,
+    # user: Annotated[any, Depends(get_current_user)], # Admin check later
+):
+    """
+    Create a new place. 
+    Ideally protected by Admin or Service Token.
+    """
+    row = places_db.create_place(
+        name=body.name,
+        religion=body.religion,
+        place_type=body.place_type,
+        lat=body.lat,
+        lng=body.lng,
+        address=body.address,
+        opening_hours=body.opening_hours,
+        image_urls=body.image_urls,
+        description=body.description,
+        religion_specific=body.religion_specific,
+        website_url=body.website_url,
+    )
+    return _place_detail(row)

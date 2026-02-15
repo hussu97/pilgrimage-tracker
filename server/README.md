@@ -38,6 +38,7 @@ In-memory data (users, places, groups, reviews, check-ins, notifications, favori
 - `GET /api/v1/users/me/stats` — places visited, check-ins this year
 - `GET /api/v1/users/me/favorites` — favorited places
 - `GET /api/v1/places` — list places (query: religion, lat, lng, limit, offset)
+- `POST /api/v1/places` — create a new place (used for syncing scraper data)
 - `GET /api/v1/languages` — list supported languages (code, name); no auth
 - `GET /api/v1/translations?lang=en` — translation key→value for locale; fallback to English for missing keys; no auth
 
