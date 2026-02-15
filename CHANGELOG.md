@@ -4,6 +4,19 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Mobile: PlaceCard Full-Image Redesign
+
+### Frontend (mobile)
+
+- **PlaceCard — Full-image layout:** Regular list-view cards now use the image as a full-bleed background (280 px tall, `rounded-3xl`) matching the design system. Removed the separate white body section below the image.
+- **PlaceCard — Gradient overlay:** Two layered semi-transparent `View`s simulate the design's top-to-bottom dark gradient, ensuring badge and text legibility over any photo.
+- **PlaceCard — Glass badge system:** Open/Closed status and Visited badges are now frosted-glass pills (semi-transparent white background, white border) anchored to the top-left and top-right of the card respectively. Closed badge uses a darker background for contrast. Open badge includes a `#34d399` green dot.
+- **PlaceCard — Bottom glass info panel:** Place name, address with `location_on` pin icon, a hairline divider, and a meta row (distance + star-rating pill) are now inside an absolute-positioned glass-morphism panel at the card bottom.
+- **PlaceCard — Check In button:** A white pill button labeled "CHECK IN" appears in the meta row for places not yet visited. Tapping it navigates to the PlaceDetail screen.
+- **PlaceCard — Review count formatting:** Added `formatCount` helper to display review counts as `"2.4k"` / `"12k"` instead of raw integers.
+
+---
+
 ## Mobile: Profile Fixes, Home Map UX, Filter System
 
 ### Frontend (mobile)
