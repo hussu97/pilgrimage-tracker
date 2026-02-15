@@ -4,6 +4,74 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## PlaceDetail: Unified Layout (Mobile + Web)
+
+### Frontend (mobile)
+
+- **PlaceDetailScreen — Single unified layout:** Replaced the four religion-specific layout variants (Mosque, Temple, Church, Generic) with a single unified screen for all place types. The layout is driven by the backend-supplied `timings` and `specifications` arrays, so the same component handles all religions without branching.
+- **PlaceDetailScreen — Parallax hero:** Full-bleed hero image (300px) with `Animated.Image` parallax (30% translation on scroll). Sticky header with place name fades in as the user scrolls past the hero.
+- **PlaceDetailScreen — Card overlap:** White card with rounded top corners (borderRadius 28) slides up 32px over the hero via negative margin.
+- **PlaceDetailScreen — Scorecards:** Three scorecards in a bordered row below the hero: Distance (tappable, opens Google Maps), Crowd Level (colour-coded green/amber/red), Check-in count.
+- **PlaceDetailScreen — The Story:** Description section with 5-line clamp and Read more / Read less toggle.
+- **PlaceDetailScreen — Religion carousel:** Horizontal scrollable carousel renders `TimingCircle` (prayers / service times with past / current / upcoming state styling) or `DeityCircle` (deity image or 🛕 placeholder) sub-components from the `place.timings` array. Carousel title adapts to religion.
+- **PlaceDetailScreen — Facilities grid:** 2-column grid of `specCard` tiles, each with a Material Icon, translated label, and value from the `place.specifications` array.
+- **PlaceDetailScreen — Sticky footer:** Two-button footer: outlined Directions button (opens maps) + Check In widget (spinner → scale-bounce → Checked-in badge).
+
+### Frontend (web)
+
+- **PlaceDetail — Single unified layout:** Replaced four religion-specific return branches with one unified layout. Timings and specifications are rendered from backend-supplied arrays.
+- **PlaceDetail — Hero:** Full-bleed hero (300px mobile / 380px desktop) with gradient overlays, glass Open/Closed and rating badges, place name, and address. Back, Share, and Favourite buttons in top bar.
+- **PlaceDetail — Card overlap:** Content card with rounded top corners (`rounded-t-[2rem]`) slides 32px over the hero via `-mt-8`.
+- **PlaceDetail — Scorecards:** Distance (links to Google Maps), Crowd Level (emerald/amber/red colour classes), Check-in count in a divided row.
+- **PlaceDetail — The Story:** Description with `line-clamp-5` and Read more / Read less toggle.
+- **PlaceDetail — Religion carousel:** Horizontal scrollable row of `TimingCircle` or `DeityCircle` components from `place.timings`. Carousel title adapts to religion.
+- **PlaceDetail — Specifications grid:** 2-column grid on mobile, 2–3 columns on desktop, using `place.specifications` array.
+- **PlaceDetail — Desktop 2-column layout:** `lg:grid lg:grid-cols-[1fr_360px]` with main content on the left and a sticky sidebar containing scorecards + action buttons on the right.
+- **PlaceDetail — Mobile sticky footer:** Directions + Check-in buttons pinned to the bottom.
+
+### Backend
+
+- **`_build_timings()` — Unified timings format:** Returns a typed array (`type`, `name`, `time`, `status`, `subtitle`, `image_url`) for all religions:
+  - **Islam:** Prayer circles with `past` / `current` / `upcoming` status computed from current UTC time.
+  - **Hinduism:** Deity circles with `type: "deity"`, `name`, `subtitle`, `image_url`.
+  - **Christianity:** Service time circles from `service_times_array` (preferred) or `service_times` dict, with today's status logic.
+- **`_build_specifications()` — Unified specifications format:** Returns icon + i18n label + value for all religion-specific metadata (Islam: capacity, wudu_area, parking, womens_area; Hinduism: architecture, dress_code, next_festival, festival_dates; Christianity: denomination, founded_year, style, notable_features).
+- **Seed data:** Added `crowd_level: "Low"` to all 6 places; `wudu_area`, `womens_area` fields to Islam places; `service_times_array` to Christianity places; `description` text to all places.
+
+### Types (mobile + web)
+
+- **`PlaceTiming`:** Extended with `status?: 'past' | 'current' | 'upcoming'`, `type?: 'prayer' | 'service' | 'deity'`, `subtitle?: string`, `image_url?: string`.
+
+---
+
+## Inline Check-In: PlaceDetail (Mobile + Web)
+
+### Frontend (mobile)
+
+- **PlaceDetailScreen — Inline check-in widget:** Removed navigation to the empty `CheckInScreen`. The Check In button is now an inline widget in the PlaceDetail footer that calls the API directly. While the request is in flight, the button shows a spinner. On success, a spring scale animation plays, then the button transitions to a non-interactive "Checked in {date}" badge (green, with check-circle icon). If the user already visited the place, the badge renders immediately on load.
+- **PlaceDetailScreen — All religion layouts updated:** The inline widget is used in all four layout variants (Mosque, Temple, Church CTA, and the generic default footer).
+- **CheckInScreen removed:** `CheckInScreen.tsx` deleted; `CheckIn` removed from `RootStackParamList` and the stack navigator.
+
+### Frontend (web)
+
+- **PlaceDetail — Inline check-in widget:** Removed the `Link` to `/places/:placeCode/check-in`. All layout variants (Mosque inline card, Temple bottom bar, Church CTA, generic footer) now use an inline `checkInWidget()` that calls the API directly. Loading state shows a spinning icon. The success state transitions to an emerald-green "Checked in {date}" display. On initial load, already-visited places show the badge immediately.
+- **CheckIn page removed:** `CheckIn.tsx` deleted; `/places/:placeCode/check-in` route removed from the router.
+
+---
+
+## Mobile: PlaceCard Full-Image Redesign
+
+### Frontend (mobile)
+
+- **PlaceCard — Full-image layout:** Regular list-view cards now use the image as a full-bleed background (280 px tall, `rounded-3xl`) matching the design system. Removed the separate white body section below the image.
+- **PlaceCard — Gradient overlay:** Two layered semi-transparent `View`s simulate the design's top-to-bottom dark gradient, ensuring badge and text legibility over any photo.
+- **PlaceCard — Glass badge system:** Open/Closed status and Visited badges are now frosted-glass pills (semi-transparent white background, white border) anchored to the top-left and top-right of the card respectively. Closed badge uses a darker background for contrast. Open badge includes a `#34d399` green dot.
+- **PlaceCard — Bottom glass info panel:** Place name, address with `location_on` pin icon, a hairline divider, and a meta row (distance + star-rating pill) are now inside an absolute-positioned glass-morphism panel at the card bottom.
+- **PlaceCard — Check In button:** A white pill button labeled "CHECK IN" appears in the meta row for places not yet visited. Tapping it navigates to the PlaceDetail screen.
+- **PlaceCard — Review count formatting:** Added `formatCount` helper to display review counts as `"2.4k"` / `"12k"` instead of raw integers.
+
+---
+
 ## Mobile: Profile Fixes, Home Map UX, Filter System
 
 ### Frontend (mobile)

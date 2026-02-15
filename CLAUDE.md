@@ -18,7 +18,7 @@ Update the relevant plan(s) when adding new env vars, services, DB migrations, o
 After any feature change (or coherent set of changes), commit the work with a clear, descriptive message. One logical change per commit where practical. Do not leave implemented work uncommitted.
 
 ## 5. Design File Inspiration
-For any frontend UI/UX changes in `apps/web` or `apps/mobile`, use **DESIGN_FILE.html** as the primary visual and layout reference. Align structure, spacing, typography (Lexend), colors, and icons (Material Icons/Symbols) with the design. Also reference `app-design-prompt-google-stitch.md` for additional context.
+For any frontend UI/UX changes in `apps/web` or `apps/mobile`, use **FRONTEND_REWAMP_LIGHT.html** (light mode) and **FRONTEND_REWAMP_DARK.html** (dark mode) as the primary visual and layout reference. Align structure, spacing, typography (Lexend), colors, and icons (Material Icons/Symbols) with the design. Also reference `app-design-prompt-google-stitch.md` for additional context.
 
 ## 6. README Maintenance
 Keep the following READMEs accurate and up to date:
