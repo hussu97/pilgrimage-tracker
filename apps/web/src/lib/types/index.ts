@@ -159,3 +159,17 @@ export interface LanguageOption {
   code: string;
   name: string;
 }
+
+export interface FilterOption {
+  key: string;
+  label: string;
+  icon: string;
+  count: number;
+}
+
+export interface PlacesResponse {
+  places: Place[];
+  filters?: {
+    options: FilterOption[];
+  };
+}

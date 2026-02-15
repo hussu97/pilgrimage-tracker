@@ -7,7 +7,6 @@ import ForgotPassword from '@/app/pages/ForgotPassword';
 import ResetPassword from '@/app/pages/ResetPassword';
 import SelectPath from '@/app/pages/SelectPath';
 import Home from '@/app/pages/Home';
-import Map from '@/app/pages/Map';
 import PlaceDetail from '@/app/pages/PlaceDetail';
 import WriteReview from '@/app/pages/WriteReview';
 import Profile from '@/app/pages/Profile';
@@ -31,7 +30,6 @@ export function AppRoutes() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/select-path" element={<ProtectedRoute><SelectPath /></ProtectedRoute>} />
       <Route path="/home" element={<Layout><Home /></Layout>} />
-      <Route path="/map" element={<Layout><Map /></Layout>} />
       <Route path="/places/:placeCode" element={<Layout><PlaceDetail /></Layout>} />
       <Route path="/places/:placeCode/review" element={<Layout><ProtectedRoute><WriteReview /></ProtectedRoute></Layout>} />
       <Route path="/profile" element={<Layout><ProtectedRoute><Profile /></ProtectedRoute></Layout>} />

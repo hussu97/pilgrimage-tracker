@@ -14,6 +14,7 @@ import type {
   Notification,
   UserSettings,
   LanguageOption,
+  PlacesResponse,
 } from '@/lib/types';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -54,9 +55,14 @@ export interface GetPlacesParams {
   sort?: string;
   limit?: number;
   offset?: number;
+  open_now?: boolean;
+  has_parking?: boolean;
+  womens_area?: boolean;
+  has_events?: boolean;
+  top_rated?: boolean;
 }
 
-export async function getPlaces(params?: GetPlacesParams): Promise<Place[]> {
+export async function getPlaces(params?: GetPlacesParams): Promise<PlacesResponse> {
   const sp = new URLSearchParams();
   if (params?.religions?.length) params.religions.forEach((r) => sp.append('religion', r));
   if (params?.lat != null) sp.set('lat', String(params.lat));
@@ -67,11 +73,31 @@ export async function getPlaces(params?: GetPlacesParams): Promise<Place[]> {
   if (params?.sort) sp.set('sort', params.sort);
   if (params?.limit != null) sp.set('limit', String(params.limit));
   if (params?.offset != null) sp.set('offset', String(params.offset));
+  if (params?.open_now) sp.set('open_now', 'true');
+  if (params?.has_parking) sp.set('has_parking', 'true');
+  if (params?.womens_area) sp.set('womens_area', 'true');
+  if (params?.has_events) sp.set('has_events', 'true');
+  if (params?.top_rated) sp.set('top_rated', 'true');
+
   const qs = sp.toString();
   const url = `${API_BASE}/api/v1/places${qs ? `?${qs}` : ''}`;
   const res = await fetch(url, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch places');
-  return res.json();
+  const data = await res.json();
+  // Server returns { places: [...], filters: { options: [...] } }
+  const rawPlaces = data.places || [];
+  return {
+    places: rawPlaces.map((r: any) => {
+      // Handle both [place, distance] tuple and plain place object formats
+      const isArray = Array.isArray(r);
+      const p = isArray ? r[0] : r;
+      if (isArray && r[1] != null) {
+        p.distance = r[1];
+      }
+      return p;
+    }),
+    filters: data.filters ?? null,
+  };
 }
 
 export interface RegisterBody {

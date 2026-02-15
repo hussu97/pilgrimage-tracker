@@ -67,41 +67,38 @@ function TimingCircle({ item }: { item: PlaceTiming }) {
   const isCurrent = item.status === 'current';
   const isPast = item.status === 'past';
   return (
-    <div className="flex flex-col items-center gap-2 min-w-[80px]">
+    <div className="flex flex-col items-center gap-2 min-w-[84px] group">
       <div
-        className={`w-[76px] h-[76px] rounded-full border-2 flex flex-col items-center justify-center p-1 transition-all ${
-          isCurrent
-            ? 'border-primary bg-primary/10'
+        className={`w-[80px] h-[80px] rounded-full border-2 flex flex-col items-center justify-center p-1 transition-all duration-300 transform group-hover:scale-105 active:scale-95 relative ${isCurrent
+            ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
             : isPast
-            ? 'border-gray-100 bg-white opacity-60'
-            : 'border-gray-200 bg-white'
-        }`}
+              ? 'border-slate-100 bg-white opacity-60'
+              : 'border-slate-200 bg-white shadow-soft'
+          }`}
       >
         <span
-          className={`text-[11px] font-bold capitalize leading-tight text-center ${
-            isCurrent ? 'text-primary' : isPast ? 'text-text-muted' : 'text-text-secondary'
-          }`}
+          className={`text-[10px] font-bold uppercase tracking-tighter leading-tight text-center ${isCurrent ? 'text-primary' : isPast ? 'text-text-muted' : 'text-text-secondary'
+            }`}
         >
-          {item.name.charAt(0).toUpperCase() + item.name.slice(1)}
+          {item.name}
         </span>
         {item.time && (
           <span
-            className={`text-[13px] font-bold leading-tight text-center ${
-              isCurrent ? 'text-primary' : isPast ? 'text-text-muted' : 'text-text-main'
-            }`}
+            className={`text-[14px] font-black leading-tight text-center mt-0.5 ${isCurrent ? 'text-primary' : isPast ? 'text-text-muted' : 'text-text-main'
+              }`}
           >
             {item.time}
           </span>
         )}
         {isCurrent && (
-          <span className="w-1.5 h-1.5 rounded-full bg-primary mt-0.5" />
+          <div className="absolute -bottom-1 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-white shadow-lg" />
         )}
         {isPast && (
-          <span className="material-symbols-outlined text-[10px] text-text-muted mt-0.5">check</span>
+          <span className="material-symbols-outlined text-[12px] text-text-muted mt-0.5">check</span>
         )}
       </div>
       {item.subtitle ? (
-        <span className="text-[10px] text-text-muted uppercase tracking-wide text-center">{item.subtitle}</span>
+        <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest text-center mt-1 scale-90">{item.subtitle}</span>
       ) : null}
     </div>
   );
@@ -109,17 +106,17 @@ function TimingCircle({ item }: { item: PlaceTiming }) {
 
 function DeityCircle({ item }: { item: PlaceTiming }) {
   return (
-    <div className="flex flex-col items-center gap-2 min-w-[80px]">
-      <div className="w-[76px] h-[76px] rounded-full border-2 border-amber-200/60 bg-white overflow-hidden flex items-center justify-center">
+    <div className="flex flex-col items-center gap-2 min-w-[84px] group">
+      <div className="w-[80px] h-[80px] rounded-full border-2 border-amber-200/60 bg-white overflow-hidden flex items-center justify-center transition-all duration-300 transform group-hover:scale-105 shadow-soft">
         {item.image_url ? (
           <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
         ) : (
-          <span className="text-3xl">🛕</span>
+          <span className="text-4xl">🛕</span>
         )}
       </div>
-      <span className="text-[12px] font-semibold text-text-main text-center leading-tight">{item.name}</span>
+      <span className="text-[12px] font-bold text-text-main text-center leading-tight mt-1">{item.name}</span>
       {item.subtitle ? (
-        <span className="text-[10px] text-text-muted uppercase tracking-wide text-center">{item.subtitle}</span>
+        <span className="text-[10px] text-text-muted font-bold uppercase tracking-widest text-center scale-90">{item.subtitle}</span>
       ) : null}
     </div>
   );
@@ -271,6 +268,16 @@ export default function PlaceDetail() {
   const [checkInDone, setCheckInDone] = useState(false);
   const [checkInDate, setCheckInDate] = useState('');
   const [storyExpanded, setStoryExpanded] = useState(false);
+  const [headerVisible, setHeaderVisible] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const show = window.scrollY > 200;
+      if (show !== headerVisible) setHeaderVisible(show);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [headerVisible]);
 
   const fetchPlace = useCallback(async () => {
     if (!placeCode) return;
@@ -408,8 +415,8 @@ export default function PlaceDetail() {
 
   const carouselTitle =
     place.religion === 'islam' ? t('placeDetail.prayerTimes') :
-    place.religion === 'hinduism' ? t('placeDetail.divinePresence') :
-    t('placeDetail.serviceTimes');
+      place.religion === 'hinduism' ? t('placeDetail.divinePresence') :
+        t('placeDetail.serviceTimes');
 
   const renderTimingItem = (item: PlaceTiming, i: number) => {
     if (item.type === 'deity') return <DeityCircle key={i} item={item} />;
@@ -475,6 +482,26 @@ export default function PlaceDetail() {
 
   return (
     <div className="w-full min-h-screen bg-background-light">
+      {/* Sticky Header (Fade in on scroll) */}
+      <div className={`fixed top-0 left-0 right-0 z-[100] bg-white/90 backdrop-blur-xl border-b border-white/20 px-4 pt-14 pb-4 transition-all duration-300 transform ${headerVisible ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0 pointer-events-none'}`}>
+        <div className="flex items-center gap-4 max-w-5xl mx-auto">
+          <button onClick={() => navigate(-1)} className="p-1 rounded-full text-slate-400 hover:text-primary transition-colors">
+            <span className="material-symbols-outlined text-2xl">arrow_back</span>
+          </button>
+          <div className="flex-1 min-w-0">
+            <h2 className="font-bold text-slate-800 truncate">{place.name}</h2>
+            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+              <span className="material-symbols-outlined text-[14px] text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+              {averageRating?.toFixed(1)}
+              <span className="mx-1 opacity-30">•</span>
+              {totalCheckins} check-ins
+            </div>
+          </div>
+          <button onClick={toggleFavorite} className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${place.is_favorite ? 'bg-primary text-white' : 'bg-slate-100 text-slate-400'}`}>
+            <span className="material-symbols-outlined text-[20px]">{place.is_favorite ? 'bookmark' : 'bookmark_border'}</span>
+          </button>
+        </div>
+      </div>
       {/* Hero (fixed behind content) */}
       <div className="fixed top-0 left-0 right-0 h-[300px] md:h-[380px] w-full overflow-hidden bg-[#1a2e2e] z-0">
         {heroImage ? (
@@ -522,11 +549,10 @@ export default function PlaceDetail() {
           <div className="flex items-center gap-2 mb-2.5">
             {place.is_open_now != null && (
               <span
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide border ${
-                  place.is_open_now
-                    ? 'bg-emerald-500/30 border-emerald-400/40 text-white'
-                    : 'bg-red-500/30 border-red-400/40 text-white'
-                }`}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide border ${place.is_open_now
+                  ? 'bg-emerald-500/30 border-emerald-400/40 text-white'
+                  : 'bg-red-500/30 border-red-400/40 text-white'
+                  }`}
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${place.is_open_now ? 'bg-emerald-400' : 'bg-red-400'}`}

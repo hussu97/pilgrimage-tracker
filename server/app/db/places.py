@@ -61,6 +61,7 @@ def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
 
 
 def create_place(
+    place_code: str,
     name: str,
     religion: Religion,
     place_type: str,
@@ -74,7 +75,6 @@ def create_place(
     website_url: Optional[str] = None,
 ) -> Place:
     with Session(engine) as session:
-        place_code = _generate_place_code()
         place = Place(
             place_code=place_code,
             name=name,
@@ -93,6 +93,45 @@ def create_place(
         session.commit()
         session.refresh(place)
         return place
+
+
+def update_place(
+    place_code: str,
+    name: Optional[str] = None,
+    religion: Optional[Religion] = None,
+    place_type: Optional[str] = None,
+    lat: Optional[float] = None,
+    lng: Optional[float] = None,
+    address: Optional[str] = None,
+    opening_hours: Optional[Dict[str, str]] = None,
+    image_urls: Optional[List[str]] = None,
+    description: Optional[str] = None,
+    religion_specific: Optional[Dict[str, Any]] = None,
+    website_url: Optional[str] = None,
+) -> Optional[Place]:
+    with Session(engine) as session:
+        place = session.exec(select(Place).where(Place.place_code == place_code)).first()
+        if not place:
+            return None
+        
+        if name is not None: place.name = name
+        if religion is not None: place.religion = religion
+        if place_type is not None: place.place_type = place_type
+        if lat is not None: place.lat = lat
+        if lng is not None: place.lng = lng
+        if address is not None: place.address = address
+        if opening_hours is not None: place.opening_hours = opening_hours
+        if image_urls is not None: place.image_urls = image_urls
+        if description is not None: place.description = description
+        if religion_specific is not None: place.religion_specific = religion_specific
+        if website_url is not None: place.website_url = website_url
+        
+        session.add(place)
+        session.commit()
+        session.refresh(place)
+        return place
+
+
 
 
 def get_place_by_code(place_code: str) -> Optional[Place]:

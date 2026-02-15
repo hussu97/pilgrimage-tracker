@@ -240,6 +240,7 @@ def sync_run_to_server(run_code: str, server_url: str):
             # PlaceCreate: name, religion, place_type, lat, lng, address, opening_hours, image_urls, description, religion_specific, website_url
             
             payload = {
+                "place_code": p.place_code,
                 "name": data.get("name"),
                 "religion": data.get("religion"),
                 "place_type": data.get("place_type"),
@@ -252,6 +253,7 @@ def sync_run_to_server(run_code: str, server_url: str):
                 "religion_specific": data.get("religion_specific") or {},
                 "website_url": data.get("website_url")
             }
+
             
             try:
                 resp = requests.post(f"{server_url}/api/v1/places", json=payload)

@@ -157,40 +157,66 @@ export default function GroupDetail() {
         </h2>
 
         {topThree.length > 0 && (
-          <div className="flex justify-center items-end gap-2 mb-6">
+          <div className="flex justify-center items-end gap-3 mb-8 pt-8 px-2">
+            {/* 2nd Place */}
             {topThree[1] && (
-              <div className="flex flex-col items-center flex-1 order-1">
-                <div className="w-12 h-12 rounded-full bg-amber-200 dark:bg-amber-900/50 flex items-center justify-center text-amber-700 dark:text-amber-400 font-bold text-lg mb-2">
-                  {(topThree[1].display_name || '?').charAt(0)}
+              <div className="flex flex-col items-center flex-1 animate-in slide-in-from-bottom-8 duration-500 delay-150">
+                <div className="relative mb-3">
+                  <div className="w-14 h-14 rounded-full border-2 border-slate-200 p-0.5 bg-white shadow-soft">
+                    <div className="w-full h-full rounded-full bg-slate-50 flex items-center justify-center text-slate-700 font-bold text-lg">
+                      {(topThree[1].display_name || '?').charAt(0)}
+                    </div>
+                  </div>
+                  <div className="absolute -top-2 -right-1 w-6 h-6 rounded-full bg-slate-400 border-2 border-white flex items-center justify-center text-white scale-90">
+                    <span className="text-[10px] font-black">2</span>
+                  </div>
                 </div>
-                <p className="text-sm font-medium text-text-main truncate w-full text-center">{topThree[1].display_name}</p>
-                <p className="text-xs text-text-muted">{topThree[1].places_visited} places</p>
-                <div className="mt-2 h-14 w-full max-w-[80px] rounded-t-lg bg-gray-200 dark:bg-gray-600 flex items-end justify-center pb-1">
-                  <span className="text-2xl font-bold text-text-muted">2</span>
+                <p className="text-xs font-bold text-slate-700 truncate w-full text-center mb-0.5">{topThree[1].display_name}</p>
+                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter">{topThree[1].places_visited} places</p>
+                <div className="mt-3 h-16 w-full max-w-[80px] rounded-t-2xl bg-gradient-to-b from-slate-100 to-slate-50 border-x border-t border-slate-100 flex items-center justify-center shadow-inner">
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
                 </div>
               </div>
             )}
+
+            {/* 1st Place */}
             {topThree[0] && (
-              <div className="flex flex-col items-center flex-1 order-0">
-                <div className="w-14 h-14 rounded-full bg-amber-300 dark:bg-amber-800/60 flex items-center justify-center text-amber-800 dark:text-amber-300 font-bold text-xl mb-2">
-                  {(topThree[0].display_name || '?').charAt(0)}
+              <div className="flex flex-col items-center flex-1 z-10 animate-in slide-in-from-bottom-12 duration-700">
+                <div className="relative mb-4">
+                  <div className="w-20 h-20 rounded-full border-[3px] border-amber-400 p-1 bg-white shadow-lg shadow-amber-100">
+                    <div className="w-full h-full rounded-full bg-amber-50 flex items-center justify-center text-amber-800 font-black text-2xl">
+                      {(topThree[0].display_name || '?').charAt(0)}
+                    </div>
+                  </div>
+                  <div className="absolute -top-3 -right-1 w-8 h-8 rounded-full bg-amber-500 border-[3px] border-white flex items-center justify-center text-white shadow-md">
+                    <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>emoji_events</span>
+                  </div>
                 </div>
-                <p className="text-sm font-medium text-text-main truncate w-full text-center">{topThree[0].display_name}</p>
-                <p className="text-xs text-text-muted">{topThree[0].places_visited} places</p>
-                <div className="mt-2 h-20 w-full max-w-[80px] rounded-t-lg bg-primary/30 flex items-end justify-center pb-1">
-                  <span className="text-2xl font-bold text-primary">1</span>
+                <p className="text-sm font-black text-slate-800 truncate w-full text-center mb-0.5">{topThree[0].display_name}</p>
+                <p className="text-[11px] font-bold text-amber-600 uppercase tracking-tight">{topThree[0].places_visited} places</p>
+                <div className="mt-3 h-24 w-full max-w-[90px] rounded-t-2xl bg-gradient-to-b from-amber-100 to-amber-50 border-x border-t border-amber-100 flex items-center justify-center shadow-inner">
+                  <div className="w-2 h-2 rounded-full bg-amber-300" />
                 </div>
               </div>
             )}
+
+            {/* 3rd Place */}
             {topThree[2] && (
-              <div className="flex flex-col items-center flex-1 order-2">
-                <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-500 font-bold text-lg mb-2">
-                  {(topThree[2].display_name || '?').charAt(0)}
+              <div className="flex flex-col items-center flex-1 animate-in slide-in-from-bottom-6 duration-500 delay-300">
+                <div className="relative mb-3">
+                  <div className="w-14 h-14 rounded-full border-2 border-orange-200 p-0.5 bg-white shadow-soft">
+                    <div className="w-full h-full rounded-full bg-orange-50 flex items-center justify-center text-orange-700 font-bold text-lg">
+                      {(topThree[2].display_name || '?').charAt(0)}
+                    </div>
+                  </div>
+                  <div className="absolute -top-2 -right-1 w-6 h-6 rounded-full bg-orange-400 border-2 border-white flex items-center justify-center text-white scale-90">
+                    <span className="text-[10px] font-black">3</span>
+                  </div>
                 </div>
-                <p className="text-sm font-medium text-text-main truncate w-full text-center">{topThree[2].display_name}</p>
-                <p className="text-xs text-text-muted">{topThree[2].places_visited} places</p>
-                <div className="mt-2 h-10 w-full max-w-[80px] rounded-t-lg bg-gray-200 dark:bg-gray-600 flex items-end justify-center pb-1">
-                  <span className="text-2xl font-bold text-text-muted">3</span>
+                <p className="text-xs font-bold text-slate-700 truncate w-full text-center mb-0.5">{topThree[2].display_name}</p>
+                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter">{topThree[2].places_visited} places</p>
+                <div className="mt-3 h-12 w-full max-w-[80px] rounded-t-2xl bg-gradient-to-b from-orange-100 to-orange-50 border-x border-t border-orange-100 flex items-center justify-center shadow-inner">
+                  <div className="w-1.5 h-1.5 rounded-full bg-orange-200" />
                 </div>
               </div>
             )}
@@ -237,27 +263,30 @@ export default function GroupDetail() {
         {activity.length === 0 ? (
           <p className="text-text-muted text-sm py-4">No recent activity.</p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="space-y-4">
             {activity.map((item, i) => (
-              <li key={`${item.user_code}-${item.place_code}-${item.checked_in_at}-${i}`}>
+              <li key={`${item.user_code}-${item.place_code}-${item.checked_in_at}-${i}`} className="animate-in fade-in slide-in-from-left duration-300" style={{ animationDelay: `${i * 50}ms` }}>
                 <Link
                   to={`/places/${item.place_code}`}
-                  className="flex items-center gap-3 p-3 rounded-xl border border-input-border bg-surface hover:bg-soft-blue"
+                  className="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 bg-white shadow-subtle hover:bg-slate-50 transition-all group"
                 >
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold shrink-0">
+                  <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold shrink-0 border border-white group-hover:scale-110 transition-transform">
                     {(item.display_name || '?').charAt(0)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-text-main">
-                      <span className="font-medium">{item.display_name}</span>
+                    <p className="text-sm text-slate-600 leading-snug">
+                      <span className="font-bold text-slate-900">{item.display_name}</span>
                       {' checked in at '}
-                      <span className="font-medium">{item.place_name}</span>
                     </p>
-                    <p className="text-xs text-text-muted mt-0.5">
-                      {item.checked_in_at ? new Date(item.checked_in_at).toLocaleString() : ''}
-                    </p>
+                    <p className="font-bold text-primary text-sm truncate">{item.place_name}</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="material-symbols-outlined text-[12px] text-slate-400">schedule</span>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                        {item.checked_in_at ? new Date(item.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                      </p>
+                    </div>
                   </div>
-                  <span className="material-symbols-outlined text-text-muted shrink-0">chevron_right</span>
+                  <span className="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors">arrow_forward</span>
                 </Link>
               </li>
             ))}

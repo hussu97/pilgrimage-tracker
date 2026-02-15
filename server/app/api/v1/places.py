@@ -396,23 +396,41 @@ def create_review(
 @router.post("")
 def create_place(
     body: PlaceCreate,
-    # user: Annotated[any, Depends(get_current_user)], # Admin check later
 ):
     """
-    Create a new place. 
-    Ideally protected by Admin or Service Token.
+    Create a new place or update an existing one if place_code matches.
     """
-    row = places_db.create_place(
-        name=body.name,
-        religion=body.religion,
-        place_type=body.place_type,
-        lat=body.lat,
-        lng=body.lng,
-        address=body.address,
-        opening_hours=body.opening_hours,
-        image_urls=body.image_urls,
-        description=body.description,
-        religion_specific=body.religion_specific,
-        website_url=body.website_url,
-    )
+    existing_place = places_db.get_place_by_code(body.place_code)
+    if existing_place:
+        row = places_db.update_place(
+            place_code=body.place_code,
+            name=body.name,
+            religion=body.religion,
+            place_type=body.place_type,
+            lat=body.lat,
+            lng=body.lng,
+            address=body.address,
+            opening_hours=body.opening_hours,
+            image_urls=body.image_urls,
+            description=body.description,
+            religion_specific=body.religion_specific,
+            website_url=body.website_url,
+        )
+    else:
+        row = places_db.create_place(
+            place_code=body.place_code,
+            name=body.name,
+            religion=body.religion,
+            place_type=body.place_type,
+            lat=body.lat,
+            lng=body.lng,
+            address=body.address,
+            opening_hours=body.opening_hours,
+            image_urls=body.image_urls,
+            description=body.description,
+            religion_specific=body.religion_specific,
+            website_url=body.website_url,
+        )
     return _place_detail(row)
+
+

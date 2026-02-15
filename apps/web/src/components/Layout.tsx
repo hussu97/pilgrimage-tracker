@@ -6,7 +6,7 @@ import { getNotifications } from '@/lib/api/client';
 
 const navItems = [
   { path: '/home', labelKey: 'nav.explore', icon: 'explore' },
-  { path: '/map', labelKey: 'nav.map', icon: 'map' },
+  { path: '/home?view=map', labelKey: 'nav.map', icon: 'map' },
   { path: '/groups', labelKey: 'nav.groups', icon: 'groups' },
   { path: '/profile', labelKey: 'nav.profile', icon: 'person' },
 ];
@@ -21,7 +21,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     if (!user) return;
     getNotifications(1, 0)
       .then((res) => setUnreadCount(res.unread_count ?? 0))
-      .catch(() => {});
+      .catch(() => { });
   }, [user, location.pathname]);
 
   return (
@@ -29,8 +29,8 @@ export default function Layout({ children }: { children: ReactNode }) {
       <header className="hidden md:flex safe-area-top border-b border-input-border dark:border-dark-border bg-background-light dark:bg-dark-surface px-6 py-4">
         <nav className="flex items-center gap-8 w-full max-w-6xl xl:max-w-7xl mx-auto">
           <Link to="/home" className="text-xl font-semibold text-primary hover:text-primary-hover transition-colors" aria-label={t('nav.explore')}>{t('common.appName')}</Link>
-          <Link to="/home" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.pathname === '/home' ? 'page' : undefined}>{t('nav.explore')}</Link>
-          <Link to="/map" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.pathname === '/map' ? 'page' : undefined}>{t('nav.map')}</Link>
+          <Link to="/home" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.pathname === '/home' && !location.search.includes('view=map') ? 'page' : undefined}>{t('nav.explore')}</Link>
+          <Link to="/home?view=map" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.search.includes('view=map') ? 'page' : undefined}>{t('nav.map')}</Link>
           <Link to="/groups" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.pathname.startsWith('/groups') ? 'page' : undefined}>{t('nav.groups')}</Link>
           <span className="ml-auto flex items-center gap-4">
             <Link to="/notifications" className="relative text-text-muted hover:text-primary p-1 -mr-1 dark:text-dark-text-secondary" aria-label={t('nav.notifications')} aria-current={location.pathname === '/notifications' ? 'page' : undefined}>
@@ -54,36 +54,40 @@ export default function Layout({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/70 dark:bg-dark-bg/70 backdrop-blur-2xl backdrop-saturate-150 border-t border-slate-200/30 dark:border-white/10 shadow-[0_-4px_30px_rgba(0,0,0,0.06)] z-40 pb-[env(safe-area-inset-bottom,20px)] pt-2 px-3" aria-label="Main navigation">
-        <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-xl border-t border-slate-200/50 dark:border-white/5 shadow-[0_-8px_32px_rgba(0,0,0,0.06)] z-[500] safe-area-bottom pb-2" aria-label="Main navigation">
+        <div className="grid grid-cols-4 gap-1 max-w-md mx-auto px-2 pt-2">
           {navItems.map(({ path, labelKey, icon }) => {
-            const isActive = location.pathname === path || (path === '/groups' && location.pathname.startsWith('/groups'));
+            const isActive = (path.includes('?')
+              ? (location.pathname + location.search).startsWith(path)
+              : location.pathname === path && !location.search.includes('view=map'))
+              || (path === '/groups' && location.pathname.startsWith('/groups'));
             const showDot = icon === 'person' && unreadCount > 0;
             return (
               <Link
                 key={path}
                 to={path}
                 aria-current={isActive ? 'page' : undefined}
-                className={`flex flex-col items-center justify-center gap-1 pt-2 pb-1 rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
-                  isActive ? 'text-primary' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                }`}
+                className={`flex flex-col items-center justify-center gap-1.5 py-2 rounded-2xl transition-all duration-300 relative group active:scale-90 ${isActive ? 'text-primary' : 'text-slate-400'
+                  }`}
               >
-                {isActive && (
-                  <span className="w-6 h-1 rounded-full bg-primary shadow-[0_0_8px_rgba(0,122,255,0.4)] mb-0.5" aria-hidden />
-                )}
-                <div className="relative p-0.5">
+                <div className="relative p-1">
                   <span
-                    className="material-symbols-outlined text-[24px]"
-                    style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                    className="material-symbols-outlined text-[26px] transition-all duration-300 transform group-hover:scale-110"
+                    style={isActive ? { fontVariationSettings: "'FILL' 1, 'wght' 600" } : { fontVariationSettings: "'wght' 400" }}
                     aria-hidden
                   >
                     {icon}
                   </span>
                   {showDot && (
-                    <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-dark-bg" />
+                    <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-dark-bg transition-transform animate-pulse" />
+                  )}
+                  {isActive && (
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-primary shadow-lg shadow-primary/40 animate-in zoom-in duration-300" />
                   )}
                 </div>
-                <span className="text-[10px] font-medium tracking-wide">{t(labelKey)}</span>
+                <span className={`text-[10px] font-bold tracking-tight transition-all uppercase ${isActive ? 'opacity-100' : 'opacity-60 scale-95'}`}>
+                  {t(labelKey)}
+                </span>
               </Link>
             );
           })}

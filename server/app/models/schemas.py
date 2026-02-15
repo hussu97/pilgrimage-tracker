@@ -125,6 +125,7 @@ class PlaceListItem(BaseModel):
 
 
 class PlaceCreate(BaseModel):
+    place_code: str
     name: str
     religion: Religion
     place_type: str
@@ -136,3 +137,4 @@ class PlaceCreate(BaseModel):
     description: Optional[str] = None
     religion_specific: Optional[dict] = None
     website_url: Optional[str] = None
+

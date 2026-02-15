@@ -65,7 +65,12 @@ def run_seed(seed_path: str | Path | None = None) -> None:
     # Places (order preserved for place_index refs)
     place_codes: list[str] = []
     for p in data.get("places", []):
+        # Generate a stable-ish code for seed places
+        from app.db.places import _generate_place_code
+        p_code = _generate_place_code()
+        
         row = places_db.create_place(
+            place_code=p_code,
             name=p["name"],
             religion=p["religion"],
             place_type=p["place_type"],
@@ -79,6 +84,7 @@ def run_seed(seed_path: str | Path | None = None) -> None:
             website_url=p.get("website_url"),
         )
         place_codes.append(row.place_code)
+
 
     # Groups
     group_codes: list[str] = []
