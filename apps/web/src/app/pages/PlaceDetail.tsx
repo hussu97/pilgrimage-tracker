@@ -7,6 +7,7 @@ import {
   addFavorite,
   removeFavorite,
   deleteReview,
+  checkIn as doCheckIn,
 } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
 import type { PlaceDetail as PlaceDetailType, Review, Religion } from '@/lib/types';
@@ -380,6 +381,9 @@ export default function PlaceDetail() {
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState('');
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [checkInLoading, setCheckInLoading] = useState(false);
+  const [checkInDone, setCheckInDone] = useState(false);
+  const [checkInDate, setCheckInDate] = useState('');
 
   const fetchPlace = useCallback(async () => {
     if (!placeCode) return;
@@ -392,6 +396,7 @@ export default function PlaceDetail() {
         getPlaceReviews(placeCode, 10),
       ]);
       setPlace(placeData);
+      setCheckInDone(placeData.user_has_checked_in === true);
       setReviews(reviewsData.reviews ?? []);
       setAverageRating(reviewsData.average_rating);
       setReviewCount(reviewsData.review_count);
@@ -423,6 +428,102 @@ export default function PlaceDetail() {
       setFavoriteLoading(false);
     }
   }, [placeCode, place]);
+
+  const handleCheckIn = useCallback(async () => {
+    if (!placeCode || checkInLoading || checkInDone) return;
+    setCheckInLoading(true);
+    try {
+      const result = await doCheckIn(placeCode);
+      const date = new Date(result.checked_in_at).toLocaleDateString('en-US', {
+        day: 'numeric', month: 'short', year: 'numeric',
+      });
+      setCheckInDate(date);
+      setTimeout(() => setCheckInDone(true), 430);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Check-in failed. Please try again.');
+    } finally {
+      setCheckInLoading(false);
+    }
+  }, [placeCode, checkInLoading, checkInDone]);
+
+  const checkInWidget = (variant: 'inline' | 'bar' | 'cta' = 'bar') => {
+    if (checkInDone) {
+      if (variant === 'cta') {
+        return (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium py-4 px-8 rounded-full flex items-center gap-3 max-w-sm w-full justify-center">
+            <span className="material-symbols-outlined text-[22px]">check_circle</span>
+            {checkInDate ? `Checked in ${checkInDate}` : 'Checked in'}
+          </div>
+        );
+      }
+      if (variant === 'inline') {
+        return (
+          <div className="flex-1 py-3 px-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold flex items-center justify-center gap-2">
+            <span className="material-symbols-outlined text-xl">check_circle</span>
+            <span className="text-sm">{checkInDate ? `Checked in ${checkInDate}` : 'Checked in'}</span>
+          </div>
+        );
+      }
+      return (
+        <div className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium text-sm">
+          <span className="material-symbols-outlined text-lg">check_circle</span>
+          {checkInDate ? `Checked in ${checkInDate}` : 'Checked in'}
+        </div>
+      );
+    }
+
+    if (variant === 'cta') {
+      return (
+        <button
+          type="button"
+          onClick={handleCheckIn}
+          disabled={checkInLoading}
+          className="bg-primary text-white font-medium py-4 px-8 rounded-full shadow-lg flex items-center gap-3 max-w-sm w-full justify-center hover:bg-primary-hover transition-all disabled:opacity-70"
+        >
+          {checkInLoading ? (
+            <span className="material-symbols-outlined text-[22px] animate-spin">progress_activity</span>
+          ) : (
+            <span className="material-symbols-outlined text-[22px]">hiking</span>
+          )}
+          {checkInLoading ? t('common.loading') : t('placeDetail.startPilgrimage')}
+        </button>
+      );
+    }
+
+    if (variant === 'inline') {
+      return (
+        <button
+          type="button"
+          onClick={handleCheckIn}
+          disabled={checkInLoading}
+          className="flex-1 py-3 px-4 rounded-xl bg-gray-50 text-text-main font-bold flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors disabled:opacity-70"
+        >
+          {checkInLoading ? (
+            <span className="material-symbols-outlined text-xl text-primary animate-spin">progress_activity</span>
+          ) : (
+            <span className="material-symbols-outlined text-xl text-primary">check_circle</span>
+          )}
+          <span className="text-sm">{checkInLoading ? t('common.loading') : t('places.checkIn')}</span>
+        </button>
+      );
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={handleCheckIn}
+        disabled={checkInLoading}
+        className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-white font-medium text-sm hover:bg-primary-hover transition-all disabled:opacity-70"
+      >
+        {checkInLoading ? (
+          <span className="material-symbols-outlined text-lg animate-spin">progress_activity</span>
+        ) : (
+          <span className="material-symbols-outlined text-lg">check_circle</span>
+        )}
+        {checkInLoading ? t('common.loading') : t('places.checkIn')}
+      </button>
+    );
+  };
 
   const directionsUrl = place
     ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.lat + ',' + place.lng)}`
@@ -694,13 +795,7 @@ export default function PlaceDetail() {
           {/* Check-in & Directions */}
           <section className="px-2">
             <div className="w-full bg-white border border-gray-100 p-2 rounded-2xl shadow-card flex gap-2">
-              <Link
-                to={`/places/${place.place_code}/check-in`}
-                className="flex-1 py-3 px-4 rounded-xl bg-gray-50 text-text-main font-bold flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors"
-              >
-                <span className="material-symbols-outlined text-xl text-primary">check_circle</span>
-                <span className="text-sm">{t('places.checkIn')}</span>
-              </Link>
+              {checkInWidget('inline')}
               <a
                 href={directionsUrl}
                 target="_blank"
@@ -881,7 +976,7 @@ export default function PlaceDetail() {
         </div>
         <div className="fixed bottom-0 left-0 right-0 z-50 max-w-md mx-auto bg-white border-t border-slate-200 px-6 py-3 flex items-center gap-2">
           <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-input-border text-text-main hover:bg-gray-50 font-medium text-sm">{t('placeDetail.directions')}</a>
-          <Link to={`/places/${place.place_code}/check-in`} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-white font-medium text-sm"><span className="material-symbols-outlined text-lg">check_circle</span>{t('places.checkIn')}</Link>
+          {checkInWidget('bar')}
         </div>
       </div>
     );
@@ -991,10 +1086,7 @@ export default function PlaceDetail() {
           </div>
         </div>
         <div className="fixed bottom-0 left-0 right-0 z-20 px-6 pb-8 flex justify-center">
-          <Link to={`/places/${place.place_code}/check-in`} className="bg-primary text-white font-medium py-4 px-8 rounded-full shadow-lg flex items-center gap-3 max-w-sm w-full justify-center">
-            <span className="material-symbols-outlined text-[22px]">hiking</span>
-            {t('placeDetail.startPilgrimage')}
-          </Link>
+          {checkInWidget('cta')}
         </div>
       </div>
     );
@@ -1076,13 +1168,7 @@ export default function PlaceDetail() {
           <span className="material-symbols-outlined text-lg">directions</span>
           Get Directions
         </a>
-        <Link
-          to={`/places/${place.place_code}/check-in`}
-          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-white hover:bg-primary-hover font-medium text-sm"
-        >
-          <span className="material-symbols-outlined text-lg">check_circle</span>
-          {t('places.checkIn')}
-        </Link>
+        {checkInWidget('bar')}
         <SharePlaceButton placeName={place.name} placeCode={place.place_code} />
         <button
           type="button"
