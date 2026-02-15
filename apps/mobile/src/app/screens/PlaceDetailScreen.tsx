@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Animated,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -20,6 +21,7 @@ import {
   addFavorite,
   removeFavorite,
   deleteReview,
+  checkIn as doCheckIn,
 } from '../../lib/api/client';
 import { shareUrl, openDirections } from '../../lib/share';
 import { useAuth } from '../providers';
@@ -47,6 +49,10 @@ export default function PlaceDetailScreen() {
   const [notFound, setNotFound] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [deletingCode, setDeletingCode] = useState<string | null>(null);
+  const [checkInLoading, setCheckInLoading] = useState(false);
+  const [checkInDone, setCheckInDone] = useState(false);
+  const [checkInDate, setCheckInDate] = useState('');
+  const checkInScale = useRef(new Animated.Value(1)).current;
 
   const fetchPlace = useCallback(async () => {
     if (!placeCode) return;
@@ -59,6 +65,7 @@ export default function PlaceDetailScreen() {
         getPlaceReviews(placeCode, 10),
       ]);
       setPlace(placeData);
+      setCheckInDone(placeData.user_has_checked_in === true);
       setReviews(reviewsData.reviews ?? []);
       setAverageRating(reviewsData.average_rating);
       setReviewCount(reviewsData.review_count);
@@ -118,6 +125,75 @@ export default function PlaceDetailScreen() {
 
   const handleDirections = () => {
     if (place) openDirections(place.lat, place.lng, place.name);
+  };
+
+  const handleCheckIn = useCallback(async () => {
+    if (!placeCode || checkInLoading || checkInDone) return;
+    setCheckInLoading(true);
+    try {
+      const result = await doCheckIn(placeCode);
+      Animated.sequence([
+        Animated.timing(checkInScale, { toValue: 0.92, duration: 80, useNativeDriver: true }),
+        Animated.timing(checkInScale, { toValue: 1.06, duration: 200, useNativeDriver: true }),
+        Animated.timing(checkInScale, { toValue: 1, duration: 150, useNativeDriver: true }),
+      ]).start();
+      const date = new Date(result.checked_in_at).toLocaleDateString('en-US', {
+        day: 'numeric', month: 'short', year: 'numeric',
+      });
+      setCheckInDate(date);
+      setTimeout(() => setCheckInDone(true), 430);
+    } catch (err) {
+      Alert.alert('Check-in failed', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setCheckInLoading(false);
+    }
+  }, [placeCode, checkInLoading, checkInDone, checkInScale]);
+
+  const renderCheckInBtn = (btnBg?: string, isCta = false) => {
+    if (checkInDone) {
+      return (
+        <View style={isCta ? styles.checkedInCtaBadge : styles.checkedInBadge}>
+          <MaterialIcons name="check-circle" size={16} color="#059669" />
+          <Text style={isCta ? styles.checkedInCtaText : styles.checkedInText} numberOfLines={1}>
+            {checkInDate ? `Checked in ${checkInDate}` : 'Checked in'}
+          </Text>
+        </View>
+      );
+    }
+    if (isCta) {
+      return (
+        <Animated.View style={[variantStyles.ctaButton, { transform: [{ scale: checkInScale }] }]}>
+          <TouchableOpacity
+            style={{ width: '100%', alignItems: 'center' }}
+            onPress={handleCheckIn}
+            disabled={checkInLoading}
+            activeOpacity={0.8}
+          >
+            {checkInLoading ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={variantStyles.ctaButtonText}>{t('placeDetail.startPilgrimage')}</Text>
+            )}
+          </TouchableOpacity>
+        </Animated.View>
+      );
+    }
+    return (
+      <Animated.View style={[styles.footerBtnPrimary, btnBg ? { backgroundColor: btnBg } : {}, { transform: [{ scale: checkInScale }] }]}>
+        <TouchableOpacity
+          style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}
+          onPress={handleCheckIn}
+          disabled={checkInLoading}
+          activeOpacity={0.8}
+        >
+          {checkInLoading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.footerBtnPrimaryText}>{t('places.checkIn')}</Text>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
+    );
   };
 
   const userReview = user ? reviews.find((r) => r.user_code === user.user_code) : null;
@@ -363,9 +439,7 @@ export default function PlaceDetailScreen() {
             <MaterialIcons name="directions" size={16} color={tokens.colors.textMain} />
             <Text style={[styles.footerBtnText, { color: tokens.colors.textMain, marginLeft: 6 }]}>{t('placeDetail.directions')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.footerBtnPrimary, { backgroundColor: tokens.colors.primary }]} onPress={() => navigation.navigate('CheckIn', { placeCode })} activeOpacity={0.8}>
-            <Text style={styles.footerBtnPrimaryText}>{t('places.checkIn')}</Text>
-          </TouchableOpacity>
+          {renderCheckInBtn(tokens.colors.primary)}
         </View>
       </View>
     );
@@ -453,7 +527,7 @@ export default function PlaceDetailScreen() {
         </ScrollView>
         <View style={[styles.footer, { paddingBottom: insets.bottom + 12, paddingTop: 12, paddingHorizontal: 24, backgroundColor: tokens.colors.surface, borderTopColor: tokens.colors.inputBorder }]}>
           <TouchableOpacity style={[styles.footerBtn, { borderColor: tokens.colors.inputBorder }]} onPress={() => handleDirections()}><Text style={[styles.footerBtnText, { color: tokens.colors.textMain }]}>{t('placeDetail.directions')}</Text></TouchableOpacity>
-          <TouchableOpacity style={[styles.footerBtnPrimary, { backgroundColor: tokens.colors.primary }]} onPress={() => navigation.navigate('CheckIn', { placeCode })}><Text style={styles.footerBtnPrimaryText}>{t('places.checkIn')}</Text></TouchableOpacity>
+          {renderCheckInBtn(tokens.colors.primary)}
         </View>
       </View>
     );
@@ -504,9 +578,7 @@ export default function PlaceDetailScreen() {
           </View>
         </ScrollView>
         <View style={[variantStyles.ctaFooter, { paddingBottom: insets.bottom + 12 }]}>
-          <TouchableOpacity style={variantStyles.ctaButton} onPress={() => navigation.navigate('CheckIn', { placeCode })}>
-            <Text style={variantStyles.ctaButtonText}>{t('placeDetail.startPilgrimage')}</Text>
-          </TouchableOpacity>
+          {renderCheckInBtn(undefined, true)}
         </View>
       </View>
     );
@@ -687,13 +759,7 @@ export default function PlaceDetailScreen() {
         >
           <Text style={styles.footerBtnText}>Directions</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.footerBtnPrimary}
-          onPress={() => navigation.navigate('CheckIn', { placeCode })}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.footerBtnPrimaryText}>{t('places.checkIn')}</Text>
-        </TouchableOpacity>
+        {renderCheckInBtn()}
         <TouchableOpacity
           style={styles.footerIconBtn}
           onPress={() => shareUrl(place.name, `places/${placeCode}`)}
@@ -836,6 +902,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   footerIconText: { fontSize: 12, color: '#374151' },
+  checkedInBadge: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  checkedInText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#059669',
+  },
+  checkedInCtaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 999,
+    minWidth: 200,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  checkedInCtaText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#059669',
+  },
 });
 
 const mosqueStyles = StyleSheet.create({

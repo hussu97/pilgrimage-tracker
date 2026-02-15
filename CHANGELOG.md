@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Inline Check-In: PlaceDetail (Mobile + Web)
+
+### Frontend (mobile)
+
+- **PlaceDetailScreen — Inline check-in widget:** Removed navigation to the empty `CheckInScreen`. The Check In button is now an inline widget in the PlaceDetail footer that calls the API directly. While the request is in flight, the button shows a spinner. On success, a spring scale animation plays, then the button transitions to a non-interactive "Checked in {date}" badge (green, with check-circle icon). If the user already visited the place, the badge renders immediately on load.
+- **PlaceDetailScreen — All religion layouts updated:** The inline widget is used in all four layout variants (Mosque, Temple, Church CTA, and the generic default footer).
+- **CheckInScreen removed:** `CheckInScreen.tsx` deleted; `CheckIn` removed from `RootStackParamList` and the stack navigator.
+
+### Frontend (web)
+
+- **PlaceDetail — Inline check-in widget:** Removed the `Link` to `/places/:placeCode/check-in`. All layout variants (Mosque inline card, Temple bottom bar, Church CTA, generic footer) now use an inline `checkInWidget()` that calls the API directly. Loading state shows a spinning icon. The success state transitions to an emerald-green "Checked in {date}" display. On initial load, already-visited places show the badge immediately.
+- **CheckIn page removed:** `CheckIn.tsx` deleted; `/places/:placeCode/check-in` route removed from the router.
+
+---
+
 ## Mobile: PlaceCard Full-Image Redesign
 
 ### Frontend (mobile)
