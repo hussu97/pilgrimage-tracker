@@ -4,6 +4,46 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## PlaceDetail: Unified Layout (Mobile + Web)
+
+### Frontend (mobile)
+
+- **PlaceDetailScreen — Single unified layout:** Replaced the four religion-specific layout variants (Mosque, Temple, Church, Generic) with a single unified screen for all place types. The layout is driven by the backend-supplied `timings` and `specifications` arrays, so the same component handles all religions without branching.
+- **PlaceDetailScreen — Parallax hero:** Full-bleed hero image (300px) with `Animated.Image` parallax (30% translation on scroll). Sticky header with place name fades in as the user scrolls past the hero.
+- **PlaceDetailScreen — Card overlap:** White card with rounded top corners (borderRadius 28) slides up 32px over the hero via negative margin.
+- **PlaceDetailScreen — Scorecards:** Three scorecards in a bordered row below the hero: Distance (tappable, opens Google Maps), Crowd Level (colour-coded green/amber/red), Check-in count.
+- **PlaceDetailScreen — The Story:** Description section with 5-line clamp and Read more / Read less toggle.
+- **PlaceDetailScreen — Religion carousel:** Horizontal scrollable carousel renders `TimingCircle` (prayers / service times with past / current / upcoming state styling) or `DeityCircle` (deity image or 🛕 placeholder) sub-components from the `place.timings` array. Carousel title adapts to religion.
+- **PlaceDetailScreen — Facilities grid:** 2-column grid of `specCard` tiles, each with a Material Icon, translated label, and value from the `place.specifications` array.
+- **PlaceDetailScreen — Sticky footer:** Two-button footer: outlined Directions button (opens maps) + Check In widget (spinner → scale-bounce → Checked-in badge).
+
+### Frontend (web)
+
+- **PlaceDetail — Single unified layout:** Replaced four religion-specific return branches with one unified layout. Timings and specifications are rendered from backend-supplied arrays.
+- **PlaceDetail — Hero:** Full-bleed hero (300px mobile / 380px desktop) with gradient overlays, glass Open/Closed and rating badges, place name, and address. Back, Share, and Favourite buttons in top bar.
+- **PlaceDetail — Card overlap:** Content card with rounded top corners (`rounded-t-[2rem]`) slides 32px over the hero via `-mt-8`.
+- **PlaceDetail — Scorecards:** Distance (links to Google Maps), Crowd Level (emerald/amber/red colour classes), Check-in count in a divided row.
+- **PlaceDetail — The Story:** Description with `line-clamp-5` and Read more / Read less toggle.
+- **PlaceDetail — Religion carousel:** Horizontal scrollable row of `TimingCircle` or `DeityCircle` components from `place.timings`. Carousel title adapts to religion.
+- **PlaceDetail — Specifications grid:** 2-column grid on mobile, 2–3 columns on desktop, using `place.specifications` array.
+- **PlaceDetail — Desktop 2-column layout:** `lg:grid lg:grid-cols-[1fr_360px]` with main content on the left and a sticky sidebar containing scorecards + action buttons on the right.
+- **PlaceDetail — Mobile sticky footer:** Directions + Check-in buttons pinned to the bottom.
+
+### Backend
+
+- **`_build_timings()` — Unified timings format:** Returns a typed array (`type`, `name`, `time`, `status`, `subtitle`, `image_url`) for all religions:
+  - **Islam:** Prayer circles with `past` / `current` / `upcoming` status computed from current UTC time.
+  - **Hinduism:** Deity circles with `type: "deity"`, `name`, `subtitle`, `image_url`.
+  - **Christianity:** Service time circles from `service_times_array` (preferred) or `service_times` dict, with today's status logic.
+- **`_build_specifications()` — Unified specifications format:** Returns icon + i18n label + value for all religion-specific metadata (Islam: capacity, wudu_area, parking, womens_area; Hinduism: architecture, dress_code, next_festival, festival_dates; Christianity: denomination, founded_year, style, notable_features).
+- **Seed data:** Added `crowd_level: "Low"` to all 6 places; `wudu_area`, `womens_area` fields to Islam places; `service_times_array` to Christianity places; `description` text to all places.
+
+### Types (mobile + web)
+
+- **`PlaceTiming`:** Extended with `status?: 'past' | 'current' | 'upcoming'`, `type?: 'prayer' | 'service' | 'deity'`, `subtitle?: string`, `image_url?: string`.
+
+---
+
 ## Inline Check-In: PlaceDetail (Mobile + Web)
 
 ### Frontend (mobile)

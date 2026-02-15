@@ -46,6 +46,10 @@ export interface PlaceTiming {
   name: string;
   time: string;
   is_current: boolean;
+  status?: 'past' | 'current' | 'upcoming';
+  type?: 'prayer' | 'service' | 'deity';
+  subtitle?: string;
+  image_url?: string;
 }
 
 export interface PlaceSpecification {
