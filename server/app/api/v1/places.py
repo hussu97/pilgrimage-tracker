@@ -1,4 +1,5 @@
 from typing import Annotated, List, Literal, Optional
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -51,34 +52,172 @@ def _place_to_item(place, distance: Optional[float] = None, include_rating: bool
 
 def _build_timings(place) -> list:
     rs = getattr(place, "religion_specific", {}) or {}
+    religion = getattr(place, "religion", "")
     result = []
+
+    # Hinduism: deity circles
+    if religion == "hinduism":
+        deities = rs.get("deities", [])
+        if isinstance(deities, list):
+            for d in deities:
+                if isinstance(d, dict):
+                    result.append({
+                        "type": "deity",
+                        "name": d.get("name", ""),
+                        "subtitle": d.get("subtitle", ""),
+                        "image_url": d.get("image_url", ""),
+                        "time": "",
+                        "is_current": False,
+                        "status": "upcoming",
+                    })
+        return result
+
+    # Islam: prayer times with past/current/upcoming status
     prayer_times = rs.get("prayer_times", {})
     if prayer_times and isinstance(prayer_times, dict):
-        for key in ["fajr", "dhuhr", "asr", "maghrib", "isha"]:
+        now = datetime.now(timezone.utc)
+        now_mins = now.hour * 60 + now.minute
+        prayer_order = ["fajr", "dhuhr", "asr", "maghrib", "isha"]
+        times_mins: dict = {}
+        for key in prayer_order:
+            t = prayer_times.get(key) or prayer_times.get(key.capitalize())
+            if t and isinstance(t, str) and ":" in t:
+                parts = t.split(":")
+                try:
+                    times_mins[key] = int(parts[0]) * 60 + int(parts[1])
+                except (ValueError, IndexError):
+                    pass
+        next_prayer = next((k for k in prayer_order if times_mins.get(k, -1) > now_mins), None)
+        if next_prayer is None and prayer_order:
+            next_prayer = prayer_order[0]
+        for key in prayer_order:
             t = prayer_times.get(key) or prayer_times.get(key.capitalize())
             if t:
-                result.append({"name": key, "time": t, "is_current": False})
-    if not result:
-        service_times = rs.get("service_times", {})
-        if service_times and isinstance(service_times, dict):
-            for day, time in service_times.items():
-                result.append({"name": day, "time": time, "is_current": False})
+                mins = times_mins.get(key, -1)
+                if key == next_prayer:
+                    status = "current"
+                elif mins != -1 and mins < now_mins:
+                    status = "past"
+                else:
+                    status = "upcoming"
+                result.append({
+                    "type": "prayer",
+                    "name": key,
+                    "subtitle": "",
+                    "image_url": "",
+                    "time": t,
+                    "is_current": key == next_prayer,
+                    "status": status,
+                })
+        return result
+
+    # Christianity: service_times_array preferred, then service_times dict
+    service_times_array = rs.get("service_times_array", [])
+    if service_times_array and isinstance(service_times_array, list):
+        now = datetime.now(timezone.utc)
+        today_name = now.strftime("%A")
+        now_mins = now.hour * 60 + now.minute
+        next_idx = None
+        for i, svc in enumerate(service_times_array):
+            if not isinstance(svc, dict):
+                continue
+            if svc.get("day", "") == today_name:
+                svc_time = svc.get("time", "")
+                if svc_time and ":" in svc_time:
+                    try:
+                        h, m = svc_time.split(":")[:2]
+                        if int(h) * 60 + int(m) > now_mins:
+                            next_idx = i
+                            break
+                    except (ValueError, IndexError):
+                        pass
+        for i, svc in enumerate(service_times_array):
+            if not isinstance(svc, dict):
+                continue
+            svc_day = svc.get("day", "")
+            svc_time = svc.get("time", "")
+            is_past = False
+            if svc_day == today_name and svc_time and ":" in svc_time:
+                try:
+                    h, m = svc_time.split(":")[:2]
+                    is_past = int(h) * 60 + int(m) < now_mins
+                except (ValueError, IndexError):
+                    pass
+            if i == next_idx:
+                status = "current"
+            elif svc_day == today_name and is_past:
+                status = "past"
+            else:
+                status = "upcoming"
+            result.append({
+                "type": "service",
+                "name": svc.get("name") or svc_day,
+                "subtitle": svc_day,
+                "image_url": "",
+                "time": svc_time,
+                "is_current": i == next_idx,
+                "status": status,
+            })
+        return result
+    service_times = rs.get("service_times", {})
+    if service_times and isinstance(service_times, dict):
+        for day, time_str in service_times.items():
+            result.append({
+                "type": "service",
+                "name": day,
+                "subtitle": "",
+                "image_url": "",
+                "time": time_str if isinstance(time_str, str) else "",
+                "is_current": False,
+                "status": "upcoming",
+            })
     return result
 
 
 def _build_specifications(place) -> list:
     rs = getattr(place, "religion_specific", {}) or {}
+    religion = getattr(place, "religion", "")
     specs = []
-    if rs.get("capacity"):
-        specs.append({"icon": "groups", "label": "placeDetail.capacity", "value": str(rs["capacity"])})
-    if rs.get("wudu_area"):
-        specs.append({"icon": "water_drop", "label": "placeDetail.wuduArea", "value": "Available"})
-    if rs.get("parking"):
-        specs.append({"icon": "local_parking", "label": "placeDetail.parking", "value": str(rs["parking"])})
-    if rs.get("womens_area"):
-        specs.append({"icon": "escalator_warning", "label": "placeDetail.womensArea", "value": "Separate"})
-    if rs.get("dress_code"):
-        specs.append({"icon": "checkroom", "label": "placeDetail.dressCode", "value": str(rs["dress_code"])})
+
+    if religion == "islam":
+        if rs.get("capacity"):
+            specs.append({"icon": "groups", "label": "placeDetail.capacity", "value": str(rs["capacity"])})
+        facs = rs.get("facilities", [])
+        if isinstance(facs, list):
+            facs_lower = [str(f).lower() for f in facs]
+        else:
+            facs_lower = []
+        has_wudu = rs.get("wudu_area") or any("wudu" in f or "ablution" in f for f in facs_lower)
+        if has_wudu:
+            specs.append({"icon": "water_drop", "label": "placeDetail.wuduArea", "value": "Available"})
+        has_parking = rs.get("parking") or any("parking" in f for f in facs_lower)
+        if has_parking:
+            specs.append({"icon": "local_parking", "label": "placeDetail.parking", "value": str(rs.get("parking", "Available"))})
+        has_womens = rs.get("womens_area") or any("women" in f for f in facs_lower)
+        if has_womens:
+            specs.append({"icon": "escalator_warning", "label": "placeDetail.womensArea", "value": "Separate"})
+
+    elif religion == "hinduism":
+        if rs.get("architecture"):
+            specs.append({"icon": "account_balance", "label": "placeDetail.architecture", "value": str(rs["architecture"])})
+        if rs.get("dress_code"):
+            specs.append({"icon": "checkroom", "label": "placeDetail.dressCode", "value": str(rs["dress_code"])})
+        if rs.get("next_festival"):
+            specs.append({"icon": "celebration", "label": "placeDetail.nextFestival", "value": str(rs["next_festival"])})
+        if rs.get("festival_dates") and isinstance(rs["festival_dates"], list) and rs["festival_dates"]:
+            specs.append({"icon": "event", "label": "placeDetail.festivalDates", "value": ", ".join(str(d) for d in rs["festival_dates"])})
+
+    elif religion == "christianity":
+        if rs.get("denomination"):
+            specs.append({"icon": "church", "label": "placeDetail.denomination", "value": str(rs["denomination"])})
+        if rs.get("founded_year"):
+            specs.append({"icon": "history", "label": "placeDetail.foundedYear", "value": str(rs["founded_year"])})
+        if rs.get("style"):
+            specs.append({"icon": "architecture", "label": "placeDetail.style", "value": str(rs["style"])})
+        notable = rs.get("notable_features", [])
+        if isinstance(notable, list) and notable:
+            specs.append({"icon": "star", "label": "placeDetail.notableFeatures", "value": ", ".join(str(f) for f in notable)})
+
     return specs
 
 
