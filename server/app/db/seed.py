@@ -1,11 +1,8 @@
-"""
-Central seed runner. Loads seed_data.json and populates all in-memory stores.
-Run on app startup (main.py) or via: python -m app.db.seed
-"""
 import json
 from datetime import datetime
 from pathlib import Path
 
+from sqlmodel import SQLModel
 from app.core.security import hash_password
 from app.db import i18n as i18n_db
 from app.db import store
@@ -15,26 +12,13 @@ from app.db import reviews as reviews_db
 from app.db import check_ins as check_ins_db
 from app.db import notifications as notifications_db
 from app.db import favorites as favorites_db
+from app.db.session import engine, create_db_and_tables
 
 
 def _clear_stores() -> None:
-    store.users.clear()
-    store.users_by_email.clear()
-    store.password_resets.clear()
-    store.user_settings.clear()
-    places_db.places.clear()
-    groups_db.groups_by_code.clear()
-    groups_db.members_by_group.clear()
-    groups_db.invites_by_code.clear()
-    groups_db.invite_code_to_group.clear()
-    reviews_db.reviews_by_code.clear()
-    reviews_db.reviews_by_place.clear()
-    reviews_db.reviews_by_user.clear()
-    check_ins_db.check_ins_by_code.clear()
-    check_ins_db.check_ins_by_user.clear()
-    notifications_db.notifications_by_code.clear()
-    notifications_db.notifications_by_user.clear()
-    favorites_db.favorites.clear()
+    # Drop and recreate all tables for a fresh start with seed
+    SQLModel.metadata.drop_all(engine)
+    create_db_and_tables()
 
 
 def run_seed(seed_path: str | Path | None = None) -> None:

@@ -109,7 +109,7 @@ def sync_run(
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
     
-    server_url = os.getenv("MAIN_SERVER_URL", "http://localhost:3000")
+    server_url = os.getenv("MAIN_SERVER_URL", "http://127.0.0.1:3000")
     
     background_tasks.add_task(sync_run_to_server, run.run_code, server_url)
     

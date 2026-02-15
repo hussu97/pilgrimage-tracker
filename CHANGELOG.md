@@ -18,8 +18,11 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - **Sync Mechanism:** Added background sync to push enriched data directly to the Main Server via the new `POST /api/v1/places` endpoint.
 
 ### Main Server (`server/`)
+- **Database Migration:** Migrated from in-memory stores to a permanent **SQLite database** (`pilgrimage.db`) using **SQLModel**.
+- **Data Integrity:** Added primary keys, unique constraints, and foreign keys across all models (Users, Places, Reviews, Groups, etc.).
+- **Automatic Refresh:** Maintained the "refresh from seed" policy on startup, now clearing the persistent database and re-populating it from `seed_data.json`.
 - **New Sync Endpoint:** Added `POST /api/v1/places` to accept `PlaceCreate` schema data from the scraper service.
-- **Schema Update:** Added `PlaceCreate` to `app/models/schemas.py`.
+- **Schema Update:** Added `PlaceCreate` and updated existing schemas for SQLModel compatibility.
 
 ---
 

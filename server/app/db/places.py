@@ -1,24 +1,16 @@
-"""
-In-memory places store for local dev.
-
-religion_specific (optional dict) shapes for faith-specific UI:
-- Islam: prayer_times (map: fajr, dhuhr, asr, maghrib, isha -> "HH:MM"), capacity,
-  wudu_area, parking, womens_area; jummah_times or prayer_times for Friday filter.
-- Hindu: deities ([{name, subtitle?, image_url}]), architecture, next_festival,
-  dress_code, dress_code_notes, crowd_level? (Low/Medium/High).
-- Christian: service_times ([{day, name, location?, time}]), founded_year, style,
-  website_url (or use place.website_url).
-"""
 import math
 import secrets
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 
+from sqlmodel import Session, select, or_
+from app.db.models import Place
+from app.db.session import engine
+
 Religion = Literal["islam", "hinduism", "christianity"]
 
 
 def _parse_time(s: str) -> Optional[tuple]:
-    """Parse 'HH:MM' or 'HH:MM:SS' to (hour, minute). Returns None if invalid."""
     if not s or not isinstance(s, str):
         return None
     parts = s.strip().split(":")
@@ -33,11 +25,6 @@ def _parse_time(s: str) -> Optional[tuple]:
 
 
 def _is_open_now_from_hours(opening_hours: Optional[Dict[str, Any]]) -> Optional[bool]:
-    """
-    Compute is_open_now from opening_hours using server UTC time.
-    Supports: {"opens": "09:00", "closes": "17:00"} (24h).
-    Returns None if unknown (no hours or can't parse); True/False otherwise.
-    """
     if not opening_hours or not isinstance(opening_hours, dict):
         return None
     opens = opening_hours.get("opens")
@@ -49,10 +36,8 @@ def _is_open_now_from_hours(opening_hours: Optional[Dict[str, Any]]) -> Optional
     close_t = _parse_time(closes) if closes else (23, 59)
     if open_t is None and close_t is None:
         return None
-    if open_t is None:
-        open_t = (0, 0)
-    if close_t is None:
-        close_t = (23, 59)
+    if open_t is None: open_t = (0, 0)
+    if close_t is None: close_t = (23, 59)
     now_min = now.hour * 60 + now.minute
     open_min = open_t[0] * 60 + open_t[1]
     close_min = close_t[0] * 60 + close_t[1]
@@ -61,53 +46,16 @@ def _is_open_now_from_hours(opening_hours: Optional[Dict[str, Any]]) -> Optional
     return now_min >= open_min or now_min <= close_min
 
 
-class PlaceRow:
-    def __init__(
-        self,
-        place_code: str,
-        name: str,
-        religion: Religion,
-        place_type: str,
-        lat: float,
-        lng: float,
-        address: str,
-        opening_hours: Optional[Dict[str, str]],
-        image_urls: List[str],
-        description: Optional[str],
-        created_at: str,
-        religion_specific: Optional[Dict[str, Any]] = None,
-        website_url: Optional[str] = None,
-    ):
-        self.place_code = place_code
-        self.name = name
-        self.religion = religion
-        self.place_type = place_type
-        self.lat = lat
-        self.lng = lng
-        self.address = address
-        self.opening_hours = opening_hours
-        self.image_urls = image_urls or []
-        self.description = description
-        self.created_at = created_at
-        self.religion_specific = religion_specific or {}
-        self.website_url = website_url
-
-
-places: dict[str, PlaceRow] = {}
-
-
 def _generate_place_code() -> str:
     return "plc_" + secrets.token_hex(8)
 
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-    R = 6371  # km
+    R = 6371
     dlat = math.radians(lat2 - lat1)
     dlng = math.radians(lng2 - lng1)
-    a = (
-        math.sin(dlat / 2) ** 2
-        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
-    )
+    a = (math.sin(dlat / 2) ** 2 + 
+         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
 
@@ -124,37 +72,38 @@ def create_place(
     description: Optional[str] = None,
     religion_specific: Optional[Dict[str, Any]] = None,
     website_url: Optional[str] = None,
-) -> PlaceRow:
-    place_code = _generate_place_code()
-    now = datetime.utcnow().isoformat() + "Z"
-    row = PlaceRow(
-        place_code=place_code,
-        name=name,
-        religion=religion,
-        place_type=place_type,
-        lat=lat,
-        lng=lng,
-        address=address,
-        opening_hours=opening_hours,
-        image_urls=image_urls or [],
-        description=description,
-        created_at=now,
-        religion_specific=religion_specific or {},
-        website_url=website_url,
-    )
-    places[place_code] = row
-    return row
+) -> Place:
+    with Session(engine) as session:
+        place_code = _generate_place_code()
+        place = Place(
+            place_code=place_code,
+            name=name,
+            religion=religion,
+            place_type=place_type,
+            lat=lat,
+            lng=lng,
+            address=address,
+            opening_hours=opening_hours,
+            image_urls=image_urls or [],
+            description=description,
+            religion_specific=religion_specific or {},
+            website_url=website_url,
+        )
+        session.add(place)
+        session.commit()
+        session.refresh(place)
+        return place
 
 
-def get_place_by_code(place_code: str) -> Optional[PlaceRow]:
-    return places.get(place_code)
+def get_place_by_code(place_code: str) -> Optional[Place]:
+    with Session(engine) as session:
+        return session.exec(select(Place).where(Place.place_code == place_code)).first()
 
 
-def _place_has_jummah(p: PlaceRow) -> bool:
-    """True if place (Islam) has Jummah / Friday prayer data."""
+def _place_has_jummah(p: Place) -> bool:
     if p.religion != "islam":
         return False
-    rs = getattr(p, "religion_specific", None) or {}
+    rs = p.religion_specific or {}
     if rs.get("jummah_times"):
         return True
     pt = rs.get("prayer_times")
@@ -163,24 +112,21 @@ def _place_has_jummah(p: PlaceRow) -> bool:
     return False
 
 
-def _place_has_events(p: PlaceRow) -> bool:
-    """True if place has events (religion_specific.events non-empty or has_events true)."""
-    rs = getattr(p, "religion_specific", None) or {}
+def _place_has_events(p: Place) -> bool:
+    rs = p.religion_specific or {}
     if rs.get("has_events") is True:
         return True
     ev = rs.get("events")
     return isinstance(ev, list) and len(ev) > 0
 
 
-def _place_has_parking(p: PlaceRow) -> bool:
-    """True if place has parking available (from religion_specific.parking)."""
-    rs = getattr(p, "religion_specific", None) or {}
+def _place_has_parking(p: Place) -> bool:
+    rs = p.religion_specific or {}
     return bool(rs.get("parking"))
 
 
-def _place_has_womens_area(p: PlaceRow) -> bool:
-    """True if place has a women's area (from religion_specific.womens_area)."""
-    rs = getattr(p, "religion_specific", None) or {}
+def _place_has_womens_area(p: Place) -> bool:
+    rs = p.religion_specific or {}
     return bool(rs.get("womens_area"))
 
 
@@ -202,65 +148,75 @@ def list_places(
     top_rated: Optional[bool] = None,
     _reviews_agg_fn=None,
 ) -> dict:
-    """Returns {"rows": [(PlaceRow, dist)...], "filters": {...metadata...}}."""
-    result: List[tuple] = []
-    for p in places.values():
-        if religions and p.religion not in religions:
-            continue
-        if place_type and p.place_type != place_type:
-            continue
-        if jummah is True and not _place_has_jummah(p):
-            continue
-        if has_events is True and not _place_has_events(p):
-            continue
+    with Session(engine) as session:
+        statement = select(Place)
+        
+        if religions:
+            statement = statement.where(Place.religion.in_(religions))
+        if place_type:
+            statement = statement.where(Place.place_type == place_type)
         if search:
-            q = search.lower()
-            if q not in (p.name or "").lower() and q not in (p.address or "").lower() and q not in (p.description or "").lower():
+            q = f"%{search.lower()}%"
+            statement = statement.where(
+                or_(
+                    Place.name.ilike(q),
+                    Place.address.ilike(q),
+                    Place.description.ilike(q)
+                )
+            )
+            
+        all_places = session.exec(statement).all()
+        
+        result: List[tuple] = []
+        for p in all_places:
+            if jummah is True and not _place_has_jummah(p):
                 continue
-        dist = None
-        if lat is not None and lng is not None:
-            dist = _haversine_km(lat, lng, p.lat, p.lng)
-        if radius_km is not None and dist is not None and dist > radius_km:
-            continue
-        result.append((p, dist))
+            if has_events is True and not _place_has_events(p):
+                continue
+                
+            dist = None
+            if lat is not None and lng is not None:
+                dist = _haversine_km(lat, lng, p.lat, p.lng)
+            
+            if radius_km is not None and dist is not None and dist > radius_km:
+                continue
+                
+            result.append((p, dist))
 
-    if sort == "rating":
-        pass
-    if lat is not None and lng is not None and sort != "rating":
-        result.sort(key=lambda x: (x[1] or 0))
+        if sort == "rating":
+            # Rating sort handled later if _reviews_agg_fn exists
+            pass
+        elif lat is not None and lng is not None:
+            result.sort(key=lambda x: (x[1] or 0))
 
-    # Snapshot after base filters (religion/type/search/radius) for counting
-    base_results = result[:]
+        base_results = result[:]
 
-    def _get_avg(place_code: str) -> float:
-        if _reviews_agg_fn:
-            agg = _reviews_agg_fn(place_code)
-            return agg["average"] if agg else 0.0
-        return 0.0
+        def _get_avg(place_code: str) -> float:
+            if _reviews_agg_fn:
+                agg = _reviews_agg_fn(place_code)
+                return agg["average"] if agg else 0.0
+            return 0.0
 
-    def count_filter(fn) -> int:
-        return sum(1 for p, _ in base_results if fn(p))
+        def count_filter(fn) -> int:
+            return sum(1 for p, _ in base_results if fn(p))
 
-    filters_meta = {
-        "options": [
-            {"key": "open_now",    "label": "Open Now",    "icon": "schedule",      "count": count_filter(lambda p: bool(_is_open_now_from_hours(p.opening_hours)))},
-            {"key": "has_parking", "label": "Has Parking", "icon": "local_parking", "count": count_filter(_place_has_parking)},
-            {"key": "womens_area", "label": "Women's Area","icon": "wc",            "count": count_filter(_place_has_womens_area)},
-            {"key": "has_events",  "label": "Has Events",  "icon": "event",         "count": count_filter(_place_has_events)},
-            {"key": "top_rated",   "label": "Top Rated",   "icon": "star",          "count": count_filter(lambda p: _get_avg(p.place_code) >= 4.0)},
-        ]
-    }
+        filters_meta = {
+            "options": [
+                {"key": "open_now",    "label": "Open Now",    "icon": "schedule",      "count": count_filter(lambda p: bool(_is_open_now_from_hours(p.opening_hours)))},
+                {"key": "has_parking", "label": "Has Parking", "icon": "local_parking", "count": count_filter(_place_has_parking)},
+                {"key": "womens_area", "label": "Women's Area","icon": "wc",            "count": count_filter(_place_has_womens_area)},
+                {"key": "has_events",  "label": "Has Events",  "icon": "event",         "count": count_filter(_place_has_events)},
+                {"key": "top_rated",   "label": "Top Rated",   "icon": "star",          "count": count_filter(lambda p: _get_avg(p.place_code) >= 4.0)},
+            ]
+        }
 
-    # Apply new boolean filters after counting
-    if open_now is True:
-        result = [(p, d) for p, d in result if _is_open_now_from_hours(p.opening_hours) is True]
-    if has_parking is True:
-        result = [(p, d) for p, d in result if _place_has_parking(p)]
-    if womens_area is True:
-        result = [(p, d) for p, d in result if _place_has_womens_area(p)]
-    if top_rated is True:
-        result = [(p, d) for p, d in result if _get_avg(p.place_code) >= 4.0]
+        if open_now is True:
+            result = [(p, d) for p, d in result if _is_open_now_from_hours(p.opening_hours) is True]
+        if has_parking is True:
+            result = [(p, d) for p, d in result if _place_has_parking(p)]
+        if womens_area is True:
+            result = [(p, d) for p, d in result if _place_has_womens_area(p)]
+        if top_rated is True:
+            result = [(p, d) for p, d in result if _get_avg(p.place_code) >= 4.0]
 
-    return {"rows": result[offset: offset + limit], "filters": filters_meta}
-
-
+        return {"rows": result[offset: offset + limit], "filters": filters_meta}

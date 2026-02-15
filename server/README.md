@@ -16,12 +16,14 @@ uvicorn app.main:app --reload --port 3000
 The API will be at `http://localhost:3000`. The web and mobile apps proxy `/api` to this port when running in dev.
 
 ## Seed data
-
-In-memory data (users, places, groups, reviews, check-ins, notifications, favorites, and i18n languages/translations) is loaded from a **central seed file** on startup:
-
-- **File:** `app/db/seed_data.json` (relative to `server/`). It contains `languages`, `translations` (en, ar, hi), and sample data for all stores.
-- **Runner:** `app/db/seed.py` — `run_seed(seed_path)` loads the JSON and populates all in-memory stores. It is invoked automatically on app startup (see `app/main.py` lifespan).
-- **Reset:** Restart the server to clear and re-run the seed. Optionally run from the repo: `cd server && source .venv/bin/activate && python -m app.db.seed` to run the seed script once (e.g. in a fresh shell without starting the API).
+The server uses **SQLModel** with a persistent **SQLite database** (`pilgrimage.db`). Data is loaded from a **central seed file** on startup:
+ 
+ - **File:** `app/db/seed_data.json` (relative to `server/`). It contains `languages`, `translations` (en, ar, hi), and sample data for all stores.
+ - **Runner:** `app/db/seed.py` — `run_seed(seed_path)` drops all tables, recreates them, and populates the database from the JSON. It is invoked automatically on app startup (see `app/main.py` lifespan).
+ - **Reset:** Restart the server to clear and re-run the seed from scratch. Optionally run from the repo: `cd server && source .venv/bin/activate && python -m app.db.seed` to run the seed script once.
+ 
+ ### Why SQLModel?
+ By using SQLModel, we maintain Pydantic-like schemas for the API while gaining full SQL persistence, foreign key constraints, and performance-optimized queries.
 
 ## Endpoints (v1)
 

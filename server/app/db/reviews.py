@@ -1,37 +1,10 @@
-"""
-In-memory reviews store for local dev.
-"""
 import secrets
 from datetime import datetime
 from typing import List, Optional
 
-reviews_by_code: dict = {}
-reviews_by_place: dict = {}  # place_code -> list of review_code
-reviews_by_user: dict = {}  # user_code -> list of review_code (for stats)
-
-
-class ReviewRow:
-    def __init__(
-        self,
-        review_code: str,
-        user_code: str,
-        place_code: str,
-        rating: int,
-        title: Optional[str],
-        body: Optional[str],
-        created_at: str,
-        is_anonymous: bool = False,
-        photo_urls: Optional[List[str]] = None,
-    ):
-        self.review_code = review_code
-        self.user_code = user_code
-        self.place_code = place_code
-        self.rating = rating
-        self.title = title
-        self.body = body
-        self.created_at = created_at
-        self.is_anonymous = is_anonymous
-        self.photo_urls = photo_urls or []
+from sqlmodel import Session, select, func
+from app.db.models import Review
+from app.db.session import engine
 
 
 def _generate_review_code() -> str:
@@ -46,50 +19,47 @@ def create_review(
     body: Optional[str] = None,
     is_anonymous: bool = False,
     photo_urls: Optional[List[str]] = None,
-) -> ReviewRow:
-    review_code = _generate_review_code()
-    now = datetime.utcnow().isoformat() + "Z"
-    row = ReviewRow(
-        review_code=review_code,
-        user_code=user_code,
-        place_code=place_code,
-        rating=rating,
-        title=title,
-        body=body,
-        created_at=now,
-        is_anonymous=is_anonymous,
-        photo_urls=photo_urls or [],
-    )
-    reviews_by_code[review_code] = row
-    if place_code not in reviews_by_place:
-        reviews_by_place[place_code] = []
-    reviews_by_place[place_code].append(review_code)
-    if user_code not in reviews_by_user:
-        reviews_by_user[user_code] = []
-    reviews_by_user[user_code].append(review_code)
-    return row
+) -> Review:
+    with Session(engine) as session:
+        review_code = _generate_review_code()
+        review = Review(
+            review_code=review_code,
+            user_code=user_code,
+            place_code=place_code,
+            rating=rating,
+            title=title,
+            body=body,
+            is_anonymous=is_anonymous,
+            photo_urls=photo_urls or [],
+        )
+        session.add(review)
+        session.commit()
+        session.refresh(review)
+        return review
 
 
-def get_reviews_by_place(place_code: str, limit: int = 5, offset: int = 0) -> List[ReviewRow]:
-    codes = reviews_by_place.get(place_code, [])
-    # newest first (we don't store order; use created_at from row)
-    rows = [reviews_by_code[c] for c in codes if c in reviews_by_code]
-    rows.sort(key=lambda r: r.created_at, reverse=True)
-    return rows[offset : offset + limit]
+def get_reviews_by_place(place_code: str, limit: int = 5, offset: int = 0) -> List[Review]:
+    with Session(engine) as session:
+        statement = select(Review).where(Review.place_code == place_code).order_by(Review.created_at.desc()).offset(offset).limit(limit)
+        return session.exec(statement).all()
 
 
-def get_review_by_code(review_code: str) -> Optional[ReviewRow]:
-    return reviews_by_code.get(review_code)
+def get_review_by_code(review_code: str) -> Optional[Review]:
+    with Session(engine) as session:
+        return session.exec(select(Review).where(Review.review_code == review_code)).first()
 
 
 def get_aggregate_rating(place_code: str) -> Optional[dict]:
-    codes = reviews_by_place.get(place_code, [])
-    rows = [reviews_by_code[c] for c in codes if c in reviews_by_code]
-    if not rows:
-        return None
-    avg = sum(r.rating for r in rows) / len(rows)
-    return {"average": round(avg * 10) / 10, "count": len(rows)}
+    with Session(engine) as session:
+        # We can use func.avg and func.count for efficiency
+        statement = select(func.avg(Review.rating), func.count(Review.id)).where(Review.place_code == place_code)
+        avg, count = session.exec(statement).first()
+        if count == 0:
+            return None
+        return {"average": round(avg * 10) / 10, "count": count}
 
 
 def count_reviews_by_user(user_code: str) -> int:
-    return len(reviews_by_user.get(user_code, []))
+    with Session(engine) as session:
+        statement = select(func.count(Review.id)).where(Review.user_code == user_code)
+        return session.exec(statement).one()
