@@ -4,6 +4,29 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## PlaceDetail UX + Real Sites + Glass Nav (2026-02-15)
+
+### Frontend (mobile)
+
+- **PlaceDetailScreen — Fixed hero scroll:** Hero image now stays fixed behind content. Card with content slides smoothly over the hero as user scrolls (parallax effect preserved).
+- **Layout — Apple glass tab bar:** Custom tab bar using `expo-blur` BlurView with frosted glass effect, pill-shaped active indicator with primary color glow.
+
+### Frontend (web)
+
+- **PlaceDetail — Fixed hero scroll:** Hero section now uses `position: fixed` with a spacer div, allowing content card to slide over it naturally.
+- **Layout — Enhanced glass nav:** Mobile bottom nav updated with `backdrop-blur-2xl backdrop-saturate-150`, subtle shadow, and pill indicator with glow effect.
+
+### Backend
+
+- **Seed data — 10 real pilgrimage sites:** Replaced placeholder places with actual world-famous sites:
+  - **Islamic (4):** Al-Masjid al-Haram (Mecca), Al-Masjid an-Nabawi (Medina), Al-Aqsa Mosque (Jerusalem), Sultan Ahmed Mosque (Istanbul)
+  - **Hindu (3):** Kashi Vishwanath Temple (Varanasi), Tirumala Venkateswara Temple (Tirupati), Kedarnath Temple (Uttarakhand)
+  - **Christian (3):** St. Peter's Basilica (Vatican), Church of the Holy Sepulchre (Jerusalem), Sanctuary of Our Lady of Lourdes (France)
+- **Seed data — New translations:** Added `common.readLess`, `notifications.emptyDesc`, `places.closed`, `places.places`, `placeDetail.visits` to all 3 languages (en/ar/hi).
+- **Fixed Material Icons:** Replaced invalid icons (`water_drop` → `opacity`, `access_time` → `schedule`, `escalator_warning` → `wc`) in places API.
+
+---
+
 ## PlaceDetail: Unified Layout (Mobile + Web)
 
 ### Frontend (mobile)
