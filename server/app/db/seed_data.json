@@ -120,6 +120,8 @@
       "places.favorite": "Favorite",
       "places.unfavorite": "Remove from favorites",
       "places.openNow": "Open Now",
+      "places.closed": "Closed",
+      "places.places": "places",
       "places.visited": "Visited",
       "placeDetail.prayerTimes": "Prayer Times",
       "placeDetail.about": "About",
@@ -161,6 +163,7 @@
       "placeDetail.hinduTemple": "Hindu Temple",
       "placeDetail.reviewsCount": "Reviews",
       "common.readMore": "Read more",
+      "common.readLess": "Read less",
       "favorites.title": "Favorites",
       "favorites.empty": "No favorites yet.",
       "groups.title": "Groups",
@@ -181,6 +184,7 @@
       "groups.noGroupsDescription": "Create a group or join one with an invite link.",
       "notifications.title": "Notifications",
       "notifications.empty": "No notifications.",
+      "notifications.emptyDesc": "When you get check-ins or group updates, they'll show here.",
       "notifications.markRead": "Mark as read",
       "splash.appName": "Pilgrimage",
       "splash.welcome": "Welcome to Pilgrimage Tracker",
@@ -236,6 +240,7 @@
       "home.filterTemples": "Temples",
       "home.filterChurches": "Churches",
       "placeDetail.totalCheckins": "Visits",
+      "placeDetail.visits": "Visits",
       "placeDetail.sacredTimings": "Sacred Timings",
       "placeDetail.specifications": "Specifications",
       "placeDetail.theStory": "The Story",
@@ -377,6 +382,8 @@
       "places.favorite": "\u0645\u0641\u0636\u0644\u0629",
       "places.unfavorite": "\u0625\u0632\u0627\u0644\u0629 \u0645\u0646 \u0627\u0644\u0645\u0641\u0636\u0644\u0629",
       "places.openNow": "\u0645\u0641\u062a\u0648\u062d \u0627\u0644\u0622\u0646",
+      "places.closed": "\u0645\u063a\u0644\u0642",
+      "places.places": "\u0623\u0645\u0627\u0643\u0646",
       "places.visited": "\u062a\u0645\u062a \u0627\u0644\u0632\u064a\u0627\u0631\u0629",
       "placeDetail.prayerTimes": "\u0623\u0648\u0642\u0627\u062a \u0627\u0644\u0635\u0644\u0627\u0629",
       "placeDetail.about": "\u0646\u0628\u0630\u0629",
@@ -418,6 +425,7 @@
       "placeDetail.hinduTemple": "\u0645\u0639\u0628\u062f \u0647\u0646\u062f\u0648\u0633\u064a",
       "placeDetail.reviewsCount": "\u0627\u0644\u062a\u0642\u064a\u064a\u0645\u0627\u062a",
       "common.readMore": "\u0627\u0642\u0631\u0623 \u0627\u0644\u0645\u0632\u064a\u062f",
+      "common.readLess": "\u0639\u0631\u0636 \u0623\u0642\u0644",
       "favorites.title": "\u0627\u0644\u0645\u0641\u0636\u0644\u0629",
       "favorites.empty": "\u0644\u0627 \u0645\u0641\u0636\u0644\u0627\u062a \u0628\u0639\u062f.",
       "groups.title": "\u0627\u0644\u0645\u062c\u0645\u0648\u0639\u0627\u062a",
@@ -438,6 +446,7 @@
       "groups.noGroupsDescription": "\u0623\u0646\u0634\u0626 \u0645\u062c\u0645\u0648\u0639\u0629 \u0623\u0648 \u0627\u0646\u0636\u0645 \u0628\u0648\u0627\u0633\u0637\u0629 \u0631\u0627\u0628\u0637 \u062f\u0639\u0648\u0629.",
       "notifications.title": "\u0627\u0644\u0625\u0634\u0639\u0627\u0631\u0627\u062a",
       "notifications.empty": "\u0644\u0627 \u0625\u0634\u0639\u0627\u0631\u0627\u062a.",
+      "notifications.emptyDesc": "\u0639\u0646\u062f\u0645\u0627 \u062a\u062d\u0635\u0644 \u0639\u0644\u0649 \u062a\u0633\u062c\u064a\u0644\u0627\u062a \u062f\u062e\u0648\u0644 \u0623\u0648 \u062a\u062d\u062f\u064a\u062b\u0627\u062a \u0627\u0644\u0645\u062c\u0645\u0648\u0639\u0629\u060c \u0633\u062a\u0638\u0647\u0631 \u0647\u0646\u0627.",
       "notifications.markRead": "\u062a\u0639\u0644\u064a\u0645 \u0643\u0645\u0642\u0631\u0648\u0621",
       "splash.appName": "Pilgrimage",
       "splash.welcome": "\u0645\u0631\u062d\u0628\u0627\u064b \u0628\u0643 \u0641\u064a Pilgrimage Tracker",
@@ -493,6 +502,7 @@
       "home.filterTemples": "\u0627\u0644\u0645\u0639\u0627\u0628\u062f",
       "home.filterChurches": "\u0627\u0644\u0643\u0646\u0627\u0626\u0633",
       "placeDetail.totalCheckins": "\u0627\u0644\u0632\u064a\u0627\u0631\u0627\u062a",
+      "placeDetail.visits": "\u0627\u0644\u0632\u064a\u0627\u0631\u0627\u062a",
       "placeDetail.sacredTimings": "\u0627\u0644\u0645\u0648\u0627\u0642\u064a\u062a \u0627\u0644\u0645\u0642\u062f\u0633\u0629",
       "placeDetail.specifications": "\u0627\u0644\u0645\u0648\u0627\u0635\u0641\u0627\u062a",
       "placeDetail.theStory": "\u0627\u0644\u0642\u0635\u0629",
@@ -634,6 +644,8 @@
       "places.favorite": "\u092a\u0938\u0902\u0926\u0940\u0926\u093e",
       "places.unfavorite": "\u092a\u0938\u0902\u0926\u0940\u0926\u093e \u0938\u0947 \u0939\u091f\u093e\u090f\u0902",
       "places.openNow": "\u0905\u092d\u0940 \u0916\u0941\u0932\u093e \u0939\u0948",
+      "places.closed": "\u092c\u0902\u0926",
+      "places.places": "\u0938\u094d\u0925\u093e\u0928",
       "places.visited": "\u0926\u0947\u0916\u093e \u0917\u092f\u093e",
       "placeDetail.prayerTimes": "\u092a\u094d\u0930\u093e\u0930\u094d\u0925\u0928\u093e \u0938\u092e\u092f",
       "placeDetail.about": "\u0915\u0947 \u092c\u093e\u0930\u0947 \u092e\u0947\u0902",
@@ -675,6 +687,7 @@
       "placeDetail.hinduTemple": "\u0939\u093f\u0902\u0926\u0942 \u092e\u0902\u0926\u093f\u0930",
       "placeDetail.reviewsCount": "\u0938\u092e\u0940\u0915\u094d\u0937\u093e\u090f\u0902",
       "common.readMore": "\u0914\u0930 \u092a\u0922\u093c\u0947\u0902",
+      "common.readLess": "\u0915\u092e \u092a\u0922\u093c\u0947\u0902",
       "favorites.title": "\u092a\u0938\u0902\u0926\u0940\u0926\u093e",
       "favorites.empty": "\u0905\u092d\u0940 \u0915\u094b\u0908 \u092a\u0938\u0902\u0926\u0940\u0926\u093e \u0928\u0939\u0940\u0902\u0964",
       "groups.title": "\u0938\u092e\u0942\u0939",
@@ -695,6 +708,7 @@
       "groups.noGroupsDescription": "\u0938\u092e\u0942\u0939 \u092c\u0928\u093e\u090f\u0902 \u092f\u093e \u0928\u093f\u092e\u0902\u0924\u094d\u0930\u0923 \u0932\u093f\u0902\u0915 \u0938\u0947 \u091c\u0941\u0921\u093c\u0947\u0902\u0964",
       "notifications.title": "\u0938\u0942\u091a\u0928\u093e\u090f\u0902",
       "notifications.empty": "\u0915\u094b\u0908 \u0938\u0942\u091a\u0928\u093e \u0928\u0939\u0940\u0902\u0964",
+      "notifications.emptyDesc": "\u091c\u092c \u0906\u092a\u0915\u094b \u091a\u0947\u0915-\u0907\u0928 \u092f\u093e \u0917\u094d\u0930\u0941\u092a \u0905\u092a\u0921\u0947\u091f \u092e\u093f\u0932\u0947\u0902\u0917\u0947, \u0935\u0947 \u092f\u0939\u093e\u0902 \u0926\u093f\u0916\u0947\u0902\u0917\u0947\u0964",
       "notifications.markRead": "\u092a\u0922\u093c\u093e \u0939\u0941\u0906 \u091a\u093f\u0939\u094d\u0928\u093f\u0924 \u0915\u0930\u0947\u0902",
       "splash.appName": "Pilgrimage",
       "splash.welcome": "Pilgrimage Tracker \u092e\u0947\u0902 \u0906\u092a\u0915\u093e \u0938\u094d\u0935\u093e\u0917\u0924 \u0939\u0948",
@@ -750,6 +764,7 @@
       "home.filterTemples": "\u092e\u0902\u0926\u093f\u0930",
       "home.filterChurches": "\u091a\u0930\u094d\u091a",
       "placeDetail.totalCheckins": "\u0935\u093f\u091c\u093c\u093f\u091f",
+      "placeDetail.visits": "\u0926\u0930\u094d\u0936\u0928",
       "placeDetail.sacredTimings": "\u092a\u0935\u093f\u0924\u094d\u0930 \u0938\u092e\u092f",
       "placeDetail.specifications": "\u0935\u093f\u0936\u093f\u0937\u094d\u091f\u0924\u093e\u090f\u0902",
       "placeDetail.theStory": "\u0915\u0939\u093e\u0928\u0940",
@@ -833,6 +848,101 @@
   ],
   "places": [
     {
+      "name": "Al-Masjid al-Haram",
+      "religion": "islam",
+      "place_type": "mosque",
+      "lat": 21.4225,
+      "lng": 39.8262,
+      "address": "Mecca, Saudi Arabia",
+      "opening_hours": {
+        "opens": "00:00",
+        "closes": "23:59"
+      },
+      "image_urls": [
+        "https://images.unsplash.com/photo-1591604129938-1e2e1a3dd963?w=800",
+        "https://images.unsplash.com/photo-1565018054866-968e244671af?w=800"
+      ],
+      "description": "The holiest mosque in Islam, surrounding the Kaaba. Every Muslim who is able must perform Hajj here at least once in their lifetime. The mosque can accommodate up to 4 million worshippers during Hajj.",
+      "website_url": "https://www.gph.gov.sa",
+      "religion_specific": {
+        "prayer_times": {
+          "fajr": "05:00",
+          "dhuhr": "12:30",
+          "asr": "15:45",
+          "maghrib": "18:30",
+          "isha": "20:00"
+        },
+        "capacity": 4000000,
+        "facilities": ["ablution", "wudu area", "women's section", "parking"],
+        "crowd_level": "High",
+        "wudu_area": "Available",
+        "womens_area": "Separate"
+      }
+    },
+    {
+      "name": "Al-Masjid an-Nabawi",
+      "religion": "islam",
+      "place_type": "mosque",
+      "lat": 24.4672,
+      "lng": 39.6111,
+      "address": "Medina, Saudi Arabia",
+      "opening_hours": {
+        "opens": "00:00",
+        "closes": "23:59"
+      },
+      "image_urls": [
+        "https://images.unsplash.com/photo-1542816417-0983c9c9ad53?w=800",
+        "https://images.unsplash.com/photo-1564769625905-50e93615e5d2?w=800"
+      ],
+      "description": "The Prophet's Mosque, built by Prophet Muhammad and containing his tomb. It is the second holiest site in Islam and a major pilgrimage destination, especially during Hajj and Umrah.",
+      "website_url": "https://www.gph.gov.sa",
+      "religion_specific": {
+        "prayer_times": {
+          "fajr": "05:10",
+          "dhuhr": "12:25",
+          "asr": "15:40",
+          "maghrib": "18:25",
+          "isha": "19:55"
+        },
+        "capacity": 1000000,
+        "facilities": ["ablution", "wudu area", "women's section", "parking"],
+        "crowd_level": "Medium",
+        "wudu_area": "Available",
+        "womens_area": "Separate"
+      }
+    },
+    {
+      "name": "Al-Aqsa Mosque",
+      "religion": "islam",
+      "place_type": "mosque",
+      "lat": 31.7761,
+      "lng": 35.2358,
+      "address": "Jerusalem, Palestine",
+      "opening_hours": {
+        "opens": "04:00",
+        "closes": "22:00"
+      },
+      "image_urls": [
+        "https://images.unsplash.com/photo-1547483238-2cbf881a559f?w=800",
+        "https://images.unsplash.com/photo-1544967082-d9d25d867d66?w=800"
+      ],
+      "description": "The third holiest site in Islam, located on the Temple Mount in Jerusalem. It is believed to be the place from which Prophet Muhammad ascended to heaven during the Night Journey (Isra and Mi'raj).",
+      "religion_specific": {
+        "prayer_times": {
+          "fajr": "04:45",
+          "dhuhr": "12:35",
+          "asr": "16:00",
+          "maghrib": "18:45",
+          "isha": "20:15"
+        },
+        "capacity": 5000,
+        "facilities": ["ablution", "wudu area", "women's section"],
+        "crowd_level": "Medium",
+        "wudu_area": "Available",
+        "womens_area": "Separate"
+      }
+    },
+    {
       "name": "Sultan Ahmed Mosque",
       "religion": "islam",
       "place_type": "mosque",
@@ -844,10 +954,10 @@
         "closes": "21:00"
       },
       "image_urls": [
-        "https://images.unsplash.com/photo-1548013146-72479768bada?w=800",
-        "https://images.unsplash.com/photo-1564769625905-50e93615e5d2?w=800"
+        "https://images.unsplash.com/photo-1541432901042-2d8bd64b4a9b?w=800",
+        "https://images.unsplash.com/photo-1559030623-0226b1241edd?w=800"
       ],
-      "description": "The Blue Mosque, an iconic Ottoman-era mosque with six minarets and hand-painted blue tiles.",
+      "description": "Known as the Blue Mosque for its stunning interior adorned with over 20,000 handmade blue Iznik tiles. Built between 1609-1616, it is an iconic example of Ottoman architecture with six minarets and 260 windows.",
       "website_url": "https://www.sultanahmetcamii.org",
       "religion_specific": {
         "prayer_times": {
@@ -858,147 +968,197 @@
           "isha": "19:45"
         },
         "capacity": 10000,
-        "facilities": [
-          "ablution",
-          "wudu area",
-          "women's section"
-        ],
+        "facilities": ["ablution", "wudu area", "women's section", "parking"],
         "crowd_level": "Low",
         "wudu_area": "Available",
         "womens_area": "Separate"
       }
     },
     {
-      "name": "Masjid Al-Noor",
-      "religion": "islam",
-      "place_type": "mosque",
-      "lat": 40.71,
-      "lng": -74.01,
-      "address": "Downtown District",
-      "image_urls": [
-        "https://images.unsplash.com/photo-1591604129938-1e2e1a3dd963?w=800"
-      ],
-      "religion_specific": {
-        "prayer_times": {},
-        "capacity": 500,
-        "facilities": [
-          "ablution"
-        ],
-        "crowd_level": "Low",
-        "wudu_area": "Available"
-      },
-      "description": "A revered mosque serving the local community for prayer, reflection, and spiritual growth."
-    },
-    {
-      "name": "Kapaleeshwarar Temple",
+      "name": "Kashi Vishwanath Temple",
       "religion": "hinduism",
       "place_type": "temple",
-      "lat": 13.0342,
-      "lng": 80.2676,
-      "address": "Mylapore, Chennai, India",
+      "lat": 25.3109,
+      "lng": 83.0107,
+      "address": "Varanasi, Uttar Pradesh, India",
       "opening_hours": {
-        "opens": "06:00",
-        "closes": "20:00"
+        "opens": "03:00",
+        "closes": "23:00"
       },
       "image_urls": [
-        "https://images.unsplash.com/photo-1548013146-72479768bada?w=800",
-        "https://images.unsplash.com/photo-1580327342882-640e2c4d1b20?w=800"
+        "https://images.unsplash.com/photo-1561361513-2d000a50f0dc?w=800",
+        "https://images.unsplash.com/photo-1570458436416-b8fcccfe883f?w=800"
       ],
-      "description": "A historic Shiva temple with Dravidian architecture and a towering gopuram.",
+      "description": "One of the most famous Hindu temples dedicated to Lord Shiva. Located in the holy city of Varanasi on the banks of the Ganges, it is one of the twelve Jyotirlingas and a key pilgrimage site for Hindus.",
       "religion_specific": {
         "deities": [
           {
             "name": "Lord Shiva",
-            "subtitle": "Kapaleeshwarar",
-            "image_url": "https://images.unsplash.com/photo-1580327342882-640e2c4d1b20?w=400"
+            "subtitle": "Vishwanath",
+            "image_url": "https://images.unsplash.com/photo-1567591370504-80f8e9870a54?w=400"
           }
         ],
-        "festival_dates": [
-          "Maha Shivaratri"
-        ],
-        "dress_code": "Traditional attire preferred",
-        "architecture": "Dravidian",
-        "crowd_level": "Low"
+        "festival_dates": ["Maha Shivaratri", "Dev Deepawali"],
+        "dress_code": "Traditional attire preferred, remove footwear",
+        "architecture": "Nagara",
+        "crowd_level": "High"
       }
     },
     {
-      "name": "Sample Temple",
+      "name": "Tirumala Venkateswara Temple",
       "religion": "hinduism",
       "place_type": "temple",
-      "lat": 40.72,
-      "lng": -74.0,
-      "address": "456 Oak Ave",
-      "image_urls": [
-        "https://picsum.photos/800/600?random=4"
-      ],
-      "religion_specific": {
-        "deities": [],
-        "festival_dates": [],
-        "dress_code": "",
-        "crowd_level": "Low"
+      "lat": 13.6833,
+      "lng": 79.3472,
+      "address": "Tirumala, Andhra Pradesh, India",
+      "opening_hours": {
+        "opens": "02:30",
+        "closes": "23:30"
       },
-      "description": "An ancient Hindu temple dedicated to its presiding deity, drawing devotees and pilgrims throughout the year."
+      "image_urls": [
+        "https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=800",
+        "https://images.unsplash.com/photo-1609619385076-36a873425636?w=800"
+      ],
+      "description": "The richest and most visited religious site in the world. Dedicated to Lord Venkateswara (Vishnu), the temple is located on the seventh peak of Tirumala Hills and receives over 50,000 pilgrims daily.",
+      "website_url": "https://www.tirumala.org",
+      "religion_specific": {
+        "deities": [
+          {
+            "name": "Lord Venkateswara",
+            "subtitle": "Balaji",
+            "image_url": "https://images.unsplash.com/photo-1609619385076-36a873425636?w=400"
+          }
+        ],
+        "festival_dates": ["Brahmotsavam", "Vaikunta Ekadashi"],
+        "dress_code": "Traditional attire required, no leather items",
+        "architecture": "Dravidian",
+        "crowd_level": "High"
+      }
     },
     {
-      "name": "Notre Dame",
-      "religion": "christianity",
-      "place_type": "church",
-      "lat": 48.853,
-      "lng": 2.3499,
-      "address": "Paris, France",
+      "name": "Kedarnath Temple",
+      "religion": "hinduism",
+      "place_type": "temple",
+      "lat": 30.7352,
+      "lng": 79.0669,
+      "address": "Kedarnath, Uttarakhand, India",
       "opening_hours": {
-        "opens": "08:00",
-        "closes": "18:45"
+        "opens": "04:00",
+        "closes": "21:00"
       },
       "image_urls": [
-        "https://images.unsplash.com/photo-1548013146-72479768bada?w=800",
-        "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800"
+        "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=800",
+        "https://images.unsplash.com/photo-1600100397608-e1f6f0ff02f9?w=800"
       ],
-      "description": "Medieval Catholic cathedral on the \u00cele de la Cit\u00e9, famous for its French Gothic architecture.",
-      "website_url": "https://www.notredamedeparis.fr",
+      "description": "One of the holiest Hindu temples dedicated to Lord Shiva, located at 3,583m in the Himalayas. Part of the Char Dham pilgrimage, accessible only by a 16km trek. The temple remains open only six months a year.",
+      "religion_specific": {
+        "deities": [
+          {
+            "name": "Lord Shiva",
+            "subtitle": "Kedareshwar",
+            "image_url": "https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?w=400"
+          }
+        ],
+        "festival_dates": ["Maha Shivaratri", "Shravan Month"],
+        "dress_code": "Warm traditional clothing, remove footwear",
+        "architecture": "Stone",
+        "crowd_level": "Medium"
+      }
+    },
+    {
+      "name": "St. Peter's Basilica",
+      "religion": "christianity",
+      "place_type": "church",
+      "lat": 41.9022,
+      "lng": 12.4539,
+      "address": "Vatican City",
+      "opening_hours": {
+        "opens": "07:00",
+        "closes": "19:00"
+      },
+      "image_urls": [
+        "https://images.unsplash.com/photo-1531572753322-ad063cecc140?w=800",
+        "https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=800"
+      ],
+      "description": "The largest church in the world and center of Christianity. Built over the tomb of Saint Peter, it features Michelangelo's dome and Bernini's baldachin. A masterpiece of Renaissance architecture.",
+      "website_url": "https://www.vatican.va",
       "religion_specific": {
         "denomination": "Roman Catholic",
         "service_times": {
-          "Sunday": "10:00, 18:00"
+          "Sunday": "09:00, 10:30, 12:00, 17:00"
         },
-        "notable_features": [
-          "Gothic architecture",
-          "Rose windows"
-        ],
-        "founded_year": 1345,
-        "style": "French Gothic",
-        "crowd_level": "Low",
+        "notable_features": ["Michelangelo's Pieta", "Bernini's Baldachin", "Michelangelo's Dome"],
+        "founded_year": 1626,
+        "style": "Renaissance/Baroque",
+        "crowd_level": "High",
         "service_times_array": [
-          {
-            "day": "Sunday",
-            "name": "Mass",
-            "time": "10:00"
-          },
-          {
-            "day": "Sunday",
-            "name": "Mass",
-            "time": "18:00"
-          }
+          {"day": "Sunday", "name": "Papal Mass", "time": "10:30"},
+          {"day": "Daily", "name": "Mass", "time": "09:00"}
         ]
       }
     },
     {
-      "name": "Sample Church",
+      "name": "Church of the Holy Sepulchre",
       "religion": "christianity",
       "place_type": "church",
-      "lat": 40.708,
-      "lng": -74.009,
-      "address": "123 Main St",
-      "image_urls": [
-        "https://picsum.photos/800/600?random=6"
-      ],
-      "religion_specific": {
-        "denomination": "Interdenominational",
-        "service_times": {},
-        "notable_features": [],
-        "crowd_level": "Low"
+      "lat": 31.7785,
+      "lng": 35.2296,
+      "address": "Jerusalem, Israel",
+      "opening_hours": {
+        "opens": "05:00",
+        "closes": "21:00"
       },
-      "description": "A historic place of worship welcoming pilgrims and visitors from around the world."
+      "image_urls": [
+        "https://images.unsplash.com/photo-1547483238-2cbf881a559f?w=800",
+        "https://images.unsplash.com/photo-1529079018732-bdb88456f8c2?w=800"
+      ],
+      "description": "The holiest site in Christianity, built on the site where Jesus was crucified (Golgotha), buried, and resurrected. Shared by six Christian denominations, it contains the Edicule over Jesus's tomb.",
+      "religion_specific": {
+        "denomination": "Ecumenical",
+        "service_times": {
+          "Sunday": "Multiple services throughout the day"
+        },
+        "notable_features": ["Calvary/Golgotha", "Edicule (Jesus's Tomb)", "Stone of Anointing"],
+        "founded_year": 335,
+        "style": "Romanesque/Byzantine",
+        "crowd_level": "High",
+        "service_times_array": [
+          {"day": "Daily", "name": "Catholic Mass", "time": "06:00"},
+          {"day": "Daily", "name": "Greek Orthodox", "time": "07:00"}
+        ]
+      }
+    },
+    {
+      "name": "Sanctuary of Our Lady of Lourdes",
+      "religion": "christianity",
+      "place_type": "church",
+      "lat": 43.0969,
+      "lng": -0.0581,
+      "address": "Lourdes, France",
+      "opening_hours": {
+        "opens": "06:00",
+        "closes": "22:00"
+      },
+      "image_urls": [
+        "https://images.unsplash.com/photo-1597212618440-806262de4f6b?w=800",
+        "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=800"
+      ],
+      "description": "A major Catholic pilgrimage site where the Virgin Mary appeared to Bernadette Soubirous in 1858. The grotto and healing spring attract over 6 million pilgrims annually, many seeking miraculous cures.",
+      "website_url": "https://www.lourdes-france.org",
+      "religion_specific": {
+        "denomination": "Roman Catholic",
+        "service_times": {
+          "Daily": "Multiple masses throughout the day"
+        },
+        "notable_features": ["Grotto of Massabielle", "Healing Baths", "Basilica of the Immaculate Conception"],
+        "founded_year": 1858,
+        "style": "Neo-Gothic/Neo-Byzantine",
+        "crowd_level": "Medium",
+        "service_times_array": [
+          {"day": "Daily", "name": "International Mass", "time": "09:30"},
+          {"day": "Daily", "name": "Torchlight Procession", "time": "21:00"}
+        ]
+      }
     }
   ],
   "groups": [

@@ -189,13 +189,13 @@ def _build_specifications(place) -> list:
             facs_lower = []
         has_wudu = rs.get("wudu_area") or any("wudu" in f or "ablution" in f for f in facs_lower)
         if has_wudu:
-            specs.append({"icon": "water_drop", "label": "placeDetail.wuduArea", "value": "Available"})
+            specs.append({"icon": "opacity", "label": "placeDetail.wuduArea", "value": "Available"})
         has_parking = rs.get("parking") or any("parking" in f for f in facs_lower)
         if has_parking:
             specs.append({"icon": "local_parking", "label": "placeDetail.parking", "value": str(rs.get("parking", "Available"))})
         has_womens = rs.get("womens_area") or any("women" in f for f in facs_lower)
         if has_womens:
-            specs.append({"icon": "escalator_warning", "label": "placeDetail.womensArea", "value": "Separate"})
+            specs.append({"icon": "wc", "label": "placeDetail.womensArea", "value": "Separate"})
 
     elif religion == "hinduism":
         if rs.get("architecture"):

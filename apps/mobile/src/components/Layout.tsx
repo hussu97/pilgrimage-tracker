@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, StyleSheet } from 'react-native';
+import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { View, StyleSheet, TouchableOpacity, Text, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
 import HomeScreen from '../app/screens/HomeScreen';
 import GroupsScreen from '../app/screens/GroupsScreen';
 import ProfileScreen from '../app/screens/ProfileScreen';
@@ -42,6 +43,86 @@ function TabIcon({
   );
 }
 
+function GlassTabBar({ state, descriptors, navigation, insets, isDark, unreadCount }: BottomTabBarProps & { insets: { bottom: number }, isDark: boolean, unreadCount: number }) {
+  return (
+    <BlurView
+      intensity={Platform.OS === 'ios' ? 80 : 100}
+      tint={isDark ? 'dark' : 'light'}
+      style={[
+        styles.glassTabBar,
+        {
+          paddingBottom: insets.bottom || 20,
+          borderTopColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+        },
+      ]}
+    >
+      <View style={styles.glassTabBarShadow} />
+      <View style={styles.tabBarContent}>
+        {state.routes.map((route, index) => {
+          const { options } = descriptors[route.key];
+          const label = typeof options.tabBarLabel === 'string'
+            ? options.tabBarLabel
+            : route.name;
+          const isFocused = state.index === index;
+
+          const iconKey = route.name === 'Home' ? 'explore' : route.name === 'Groups' ? 'groups' : 'person';
+          const showDot = route.name === 'Profile' && unreadCount > 0;
+
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
+
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name);
+            }
+          };
+
+          return (
+            <TouchableOpacity
+              key={route.key}
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              accessibilityLabel={options.tabBarAccessibilityLabel}
+              onPress={onPress}
+              style={styles.tabItem}
+              activeOpacity={0.7}
+            >
+              {isFocused && (
+                <View style={styles.activePill} />
+              )}
+              <View style={styles.iconContainer}>
+                <MaterialIcons
+                  name={TAB_ICONS[iconKey] ?? 'circle'}
+                  size={24}
+                  color={isFocused ? tokens.colors.primary : (isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted)}
+                />
+                {showDot && <View style={styles.notificationDot} />}
+              </View>
+              <Text
+                style={[
+                  styles.tabLabel,
+                  {
+                    color: isFocused
+                      ? tokens.colors.primary
+                      : isDark
+                      ? tokens.colors.darkTextSecondary
+                      : tokens.colors.textMuted,
+                  },
+                ]}
+              >
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </BlurView>
+  );
+}
+
 export default function Layout() {
   const insets = useSafeAreaInsets();
   const { t } = useI18n();
@@ -58,19 +139,11 @@ export default function Layout() {
 
   return (
     <Tab.Navigator
+      tabBar={(props) => (
+        <GlassTabBar {...props} insets={insets} isDark={isDark} unreadCount={unreadCount} />
+      )}
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          paddingBottom: insets.bottom,
-          paddingTop: 4,
-          backgroundColor: isDark ? 'rgba(30,30,30,0.95)' : 'rgba(255,255,255,0.92)',
-          borderTopColor: isDark ? tokens.colors.darkBorder : '#F1F5F9',
-          borderTopWidth: 1,
-          height: 56 + insets.bottom,
-        },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '500', marginTop: 2 },
-        tabBarActiveTintColor: tokens.colors.primary,
-        tabBarInactiveTintColor: isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted,
       }}
     >
       <Tab.Screen
@@ -78,7 +151,6 @@ export default function Layout() {
         component={HomeScreen}
         options={{
           tabBarLabel: t('nav.explore'),
-          tabBarIcon: ({ focused }) => <TabIcon iconKey="explore" focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -86,7 +158,6 @@ export default function Layout() {
         component={GroupsScreen}
         options={{
           tabBarLabel: t('nav.groups'),
-          tabBarIcon: ({ focused }) => <TabIcon iconKey="groups" focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -94,9 +165,6 @@ export default function Layout() {
         component={ProfileScreen}
         options={{
           tabBarLabel: t('nav.profile'),
-          tabBarIcon: ({ focused }) => (
-            <TabIcon iconKey="person" focused={focused} showDot={unreadCount > 0} />
-          ),
         }}
       />
     </Tab.Navigator>
@@ -104,6 +172,60 @@ export default function Layout() {
 }
 
 const styles = StyleSheet.create({
+  glassTabBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopWidth: 0.5,
+    overflow: 'hidden',
+  },
+  glassTabBarShadow: {
+    position: 'absolute',
+    top: -10,
+    left: 0,
+    right: 0,
+    height: 10,
+    backgroundColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  tabBarContent: {
+    flexDirection: 'row',
+    paddingTop: 8,
+    paddingHorizontal: 16,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+    gap: 2,
+  },
+  iconContainer: {
+    position: 'relative',
+  },
+  activePill: {
+    position: 'absolute',
+    top: -4,
+    width: 24,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: tokens.colors.primary,
+    shadowColor: tokens.colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 2,
+  },
   tabIconWrapper: {
     alignItems: 'center',
     justifyContent: 'center',

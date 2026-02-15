@@ -475,8 +475,8 @@ export default function PlaceDetail() {
 
   return (
     <div className="w-full min-h-screen bg-background-light">
-      {/* Hero */}
-      <div className="relative h-[300px] md:h-[380px] w-full overflow-hidden bg-[#1a2e2e]">
+      {/* Hero (fixed behind content) */}
+      <div className="fixed top-0 left-0 right-0 h-[300px] md:h-[380px] w-full overflow-hidden bg-[#1a2e2e] z-0">
         {heroImage ? (
           <img
             src={heroImage}
@@ -553,8 +553,11 @@ export default function PlaceDetail() {
         </div>
       </div>
 
+      {/* Spacer to push content below fixed hero */}
+      <div className="h-[300px] md:h-[380px]" aria-hidden="true" />
+
       {/* Main content */}
-      <div className="relative -mt-8 max-w-5xl mx-auto">
+      <div className="relative z-10 -mt-8 max-w-5xl mx-auto">
         {/* Mobile layout */}
         <div className="lg:hidden">
           <div className="bg-background-light rounded-t-[2rem] pt-6 pb-28 px-4 space-y-6">

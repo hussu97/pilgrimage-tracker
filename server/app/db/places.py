@@ -243,7 +243,7 @@ def list_places(
 
     filters_meta = {
         "options": [
-            {"key": "open_now",    "label": "Open Now",    "icon": "access_time",   "count": count_filter(lambda p: bool(_is_open_now_from_hours(p.opening_hours)))},
+            {"key": "open_now",    "label": "Open Now",    "icon": "schedule",      "count": count_filter(lambda p: bool(_is_open_now_from_hours(p.opening_hours)))},
             {"key": "has_parking", "label": "Has Parking", "icon": "local_parking", "count": count_filter(_place_has_parking)},
             {"key": "womens_area", "label": "Women's Area","icon": "wc",            "count": count_filter(_place_has_womens_area)},
             {"key": "has_events",  "label": "Has Events",  "icon": "event",         "count": count_filter(_place_has_events)},

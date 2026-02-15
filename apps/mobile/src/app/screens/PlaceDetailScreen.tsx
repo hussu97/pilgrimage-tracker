@@ -321,6 +321,49 @@ export default function PlaceDetailScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Hero (fixed behind content) */}
+      <Animated.View
+        style={[
+          styles.heroFixed,
+          { transform: [{ translateY: heroTranslateY }] },
+        ]}
+      >
+        {heroImage ? (
+          <Image source={{ uri: heroImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, styles.heroPlaceholder]}>
+            <MaterialIcons name="location-city" size={64} color="rgba(255,255,255,0.5)" />
+          </View>
+        )}
+        {/* gradient overlay */}
+        <View style={styles.heroGradientTop} pointerEvents="none" />
+        <View style={styles.heroGradientBottom} pointerEvents="none" />
+
+        {/* Hero bottom info */}
+        <View style={styles.heroBottom}>
+          <View style={styles.heroBadgeRow}>
+            {place.is_open_now != null && (
+              <View style={[styles.heroBadge, place.is_open_now ? styles.heroBadgeOpen : styles.heroBadgeClosed]}>
+                <View style={[styles.heroBadgeDot, { backgroundColor: place.is_open_now ? '#4ade80' : '#f87171' }]} />
+                <Text style={styles.heroBadgeText}>
+                  {place.is_open_now ? t('places.openNow') : t('places.closed')}
+                </Text>
+              </View>
+            )}
+            {averageRating != null && (
+              <View style={[styles.heroBadge, styles.heroBadgeRating]}>
+                <MaterialIcons name="star" size={12} color="#fbbf24" />
+                <Text style={styles.heroBadgeText}>{averageRating.toFixed(1)}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.heroName}>{place.name}</Text>
+          {place.address ? (
+            <Text style={styles.heroAddress}>{place.address}</Text>
+          ) : null}
+        </View>
+      </Animated.View>
+
       {/* Sticky Header (fades in as user scrolls past hero) */}
       <Animated.View
         style={[styles.stickyHeader, { opacity: headerOpacity, paddingTop: insets.top }]}
@@ -358,51 +401,8 @@ export default function PlaceDetailScreen() {
           { useNativeDriver: true }
         )}
       >
-        {/* Hero */}
-        <View style={styles.heroContainer}>
-          <Animated.View
-            style={[
-              StyleSheet.absoluteFill,
-              { transform: [{ translateY: heroTranslateY }] },
-            ]}
-          >
-            {heroImage ? (
-              <Image source={{ uri: heroImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-            ) : (
-              <View style={[StyleSheet.absoluteFill, styles.heroPlaceholder]}>
-                <MaterialIcons name="location-city" size={64} color="rgba(255,255,255,0.5)" />
-              </View>
-            )}
-          </Animated.View>
-
-          {/* gradient overlay */}
-          <View style={styles.heroGradientTop} pointerEvents="none" />
-          <View style={styles.heroGradientBottom} pointerEvents="none" />
-
-          {/* Hero bottom info */}
-          <View style={styles.heroBottom}>
-            <View style={styles.heroBadgeRow}>
-              {place.is_open_now != null && (
-                <View style={[styles.heroBadge, place.is_open_now ? styles.heroBadgeOpen : styles.heroBadgeClosed]}>
-                  <View style={[styles.heroBadgeDot, { backgroundColor: place.is_open_now ? '#4ade80' : '#f87171' }]} />
-                  <Text style={styles.heroBadgeText}>
-                    {place.is_open_now ? t('places.openNow') : t('places.closed')}
-                  </Text>
-                </View>
-              )}
-              {averageRating != null && (
-                <View style={[styles.heroBadge, styles.heroBadgeRating]}>
-                  <MaterialIcons name="star" size={12} color="#fbbf24" />
-                  <Text style={styles.heroBadgeText}>{averageRating.toFixed(1)}</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.heroName}>{place.name}</Text>
-            {place.address ? (
-              <Text style={styles.heroAddress}>{place.address}</Text>
-            ) : null}
-          </View>
-        </View>
+        {/* Spacer to push card below hero */}
+        <View style={styles.heroSpacer} />
 
         {/* Card */}
         <View style={styles.card}>
@@ -730,11 +730,18 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.2)',
   },
 
-  /* Hero */
-  heroContainer: {
+  /* Hero (fixed behind scroll content) */
+  heroFixed: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     height: HERO_HEIGHT,
     backgroundColor: '#1a2e2e',
-    overflow: 'hidden',
+    zIndex: 0,
+  },
+  heroSpacer: {
+    height: HERO_HEIGHT - CARD_OVERLAP,
   },
   heroPlaceholder: {
     backgroundColor: '#1a2e2e',

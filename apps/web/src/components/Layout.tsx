@@ -54,7 +54,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-dark-bg/90 backdrop-blur-xl border-t border-slate-100 dark:border-dark-border z-40 pb-[env(safe-area-inset-bottom,20px)] pt-1 px-2" aria-label="Main navigation">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/70 dark:bg-dark-bg/70 backdrop-blur-2xl backdrop-saturate-150 border-t border-slate-200/30 dark:border-white/10 shadow-[0_-4px_30px_rgba(0,0,0,0.06)] z-40 pb-[env(safe-area-inset-bottom,20px)] pt-2 px-3" aria-label="Main navigation">
         <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
           {navItems.map(({ path, labelKey, icon }) => {
             const isActive = location.pathname === path || (path === '/groups' && location.pathname.startsWith('/groups'));
@@ -69,7 +69,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 }`}
               >
                 {isActive && (
-                  <span className="w-5 h-[3px] rounded-full bg-primary mb-0.5" aria-hidden />
+                  <span className="w-6 h-1 rounded-full bg-primary shadow-[0_0_8px_rgba(0,122,255,0.4)] mb-0.5" aria-hidden />
                 )}
                 <div className="relative p-0.5">
                   <span
