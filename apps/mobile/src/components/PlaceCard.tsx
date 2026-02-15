@@ -15,12 +15,16 @@ function formatDistance(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
+function formatCount(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+  return String(n);
+}
+
 export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>>();
   const imageUrl = place.image_urls?.[0] ?? '';
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
-  const showOpenNow = place.is_open_now === true;
 
   if (compact) {
     return (
@@ -71,43 +75,70 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
       onPress={() => navigation.navigate('PlaceDetail', { placeCode: place.place_code })}
       activeOpacity={0.9}
     >
-      <View style={styles.imageWrap}>
-        {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="cover" />
-        ) : (
-          <View style={styles.imagePlaceholder}>
-            <MaterialIcons name="location-on" size={40} color={tokens.colors.textMuted} />
+      {/* Background image */}
+      {imageUrl ? (
+        <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      ) : (
+        <View style={[StyleSheet.absoluteFill, styles.imageFallback]}>
+          <MaterialIcons name="location-on" size={48} color="rgba(255,255,255,0.4)" />
+        </View>
+      )}
+
+      {/* Gradient simulation: subtle full-card dark tint */}
+      <View style={styles.overlayFull} pointerEvents="none" />
+      {/* Gradient simulation: bottom fade for text contrast */}
+      <View style={styles.overlayBottom} pointerEvents="none" />
+
+      {/* Top badges */}
+      <View style={styles.topBadges}>
+        {place.is_open_now != null && (
+          <View style={[styles.glassBadge, !place.is_open_now && styles.glassBadgeClosed]}>
+            {place.is_open_now && <View style={styles.openDot} />}
+            <Text style={styles.glassBadgeText}>
+              {place.is_open_now ? 'Open' : 'Closed'}
+            </Text>
           </View>
         )}
-        <View style={styles.badges}>
-          {showOpenNow && (
-            <View style={styles.openNowBadge}>
-              <View style={styles.openNowDot} />
-              <Text style={styles.openNowText}>Open Now</Text>
-            </View>
-          )}
-          {place.user_has_checked_in && (
-            <View style={styles.visitedBadge}>
-              <MaterialIcons name="check-circle" size={12} color="#fff" />
-              <Text style={styles.visitedText}> Visited</Text>
-            </View>
-          )}
-        </View>
+        {place.user_has_checked_in && (
+          <View style={[styles.glassBadge, styles.glassBadgeVisited]}>
+            <MaterialIcons name="check" size={11} color="#fff" />
+            <Text style={styles.glassBadgeText}>Visited</Text>
+          </View>
+        )}
       </View>
-      <View style={styles.body}>
-        <Text style={styles.name} numberOfLines={2}>{place.name}</Text>
-        <Text style={styles.address} numberOfLines={1}>{place.address || place.place_type}</Text>
-        <View style={styles.footer}>
-          {place.distance != null && (
-            <Text style={styles.distance}>{formatDistance(place.distance)}</Text>
-          )}
-          {rating != null && (
-            <View style={styles.ratingRow}>
-              <Text style={styles.ratingValue}>{rating.toFixed(1)}</Text>
-              {reviewCount > 0 && (
-                <Text style={styles.reviewCount}> ({reviewCount})</Text>
-              )}
-            </View>
+
+      {/* Bottom glass info panel */}
+      <View style={styles.glassPanel}>
+        <Text style={styles.cardName} numberOfLines={1}>{place.name}</Text>
+        <View style={styles.locationRow}>
+          <MaterialIcons name="location-on" size={12} color="rgba(255,255,255,0.75)" />
+          <Text style={styles.locationText} numberOfLines={1}>
+            {place.address || place.place_type || ''}
+          </Text>
+        </View>
+        <View style={styles.glassDivider} />
+        <View style={styles.metaRow}>
+          <View style={styles.metaLeft}>
+            {place.distance != null && (
+              <Text style={styles.distanceText}>{formatDistance(place.distance)}</Text>
+            )}
+            {rating != null && (
+              <View style={styles.ratingPill}>
+                <MaterialIcons name="star" size={10} color="#facc15" />
+                <Text style={styles.ratingText}>
+                  {rating.toFixed(1)}{reviewCount > 0 ? ` (${formatCount(reviewCount)})` : ''}
+                </Text>
+              </View>
+            )}
+          </View>
+          {!place.user_has_checked_in && (
+            <TouchableOpacity
+              style={styles.checkInBtn}
+              onPress={() => navigation.navigate('PlaceDetail', { placeCode: place.place_code })}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.checkInText}>Check In</Text>
+            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -116,6 +147,7 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
 }
 
 const styles = StyleSheet.create({
+  // ── Compact (map scroller) ──────────────────────────────────────────────
   compactCard: {
     flexDirection: 'row',
     height: 128,
@@ -173,92 +205,150 @@ const styles = StyleSheet.create({
     backgroundColor: '#fffbeb',
   },
   chipRatingText: { fontSize: 10, fontWeight: '500', color: '#92400e' },
+
+  // ── Regular (list view) ─────────────────────────────────────────────────
   card: {
-    backgroundColor: tokens.colors.surface,
-    borderRadius: tokens.borderRadius['2xl'],
+    height: 280,
+    borderRadius: tokens.borderRadius['3xl'],
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
     ...tokens.shadow.card,
   },
-  imageWrap: {
-    height: 160,
-    backgroundColor: tokens.colors.softBlue,
-    position: 'relative',
+  imageFallback: {
+    backgroundColor: '#1e293b',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  image: { width: '100%', height: '100%' },
-  imagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  badges: {
+  overlayFull: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.18)',
+  },
+  overlayBottom: {
     position: 'absolute',
-    top: 12,
-    left: 12,
-    right: 12,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 160,
+    backgroundColor: 'rgba(0,0,0,0.48)',
+  },
+  topBadges: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    right: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
-  openNowBadge: {
+  glassBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: tokens.colors.openNowBg,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: tokens.borderRadius.full,
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(255,255,255,0.35)',
+    borderRadius: tokens.borderRadius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  openNowDot: {
+  glassBadgeClosed: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  glassBadgeVisited: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  openDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: tokens.colors.openNow,
+    backgroundColor: '#34d399',
   },
-  openNowText: {
-    color: tokens.colors.openNow,
+  glassBadgeText: {
+    color: '#fff',
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
-  visitedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: tokens.borderRadius.full,
+  glassPanel: {
+    position: 'absolute',
+    bottom: 14,
+    left: 14,
+    right: 14,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: 'rgba(255,255,255,0.25)',
+    borderRadius: tokens.borderRadius['2xl'],
+    padding: 14,
   },
-  visitedText: { color: '#fff', fontSize: 10, fontWeight: '600' },
-  body: { padding: 16 },
-  name: {
-    fontSize: 18,
+  cardName: {
+    fontSize: 16,
     fontWeight: '600',
-    color: tokens.colors.textMain,
-    marginBottom: 4,
+    color: '#fff',
+    marginBottom: 3,
   },
-  address: {
-    fontSize: 14,
-    color: tokens.colors.textSecondary,
-    marginBottom: 8,
-  },
-  footer: {
+  locationRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 4,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: tokens.colors.inputBorder,
+    gap: 3,
   },
-  distance: {
+  locationText: {
     fontSize: 12,
-    color: tokens.colors.textSecondary,
+    color: 'rgba(255,255,255,0.85)',
     fontWeight: '500',
+    flex: 1,
   },
-  ratingRow: { flexDirection: 'row', alignItems: 'baseline' },
-  ratingValue: { fontSize: 14, fontWeight: '600', color: tokens.colors.textMain },
-  reviewCount: { fontSize: 12, color: tokens.colors.textMuted },
+  glassDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginVertical: 10,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  metaLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    minWidth: 0,
+  },
+  distanceText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.75)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  ratingPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  ratingText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  checkInBtn: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: tokens.borderRadius.full,
+    marginLeft: 8,
+    flexShrink: 0,
+  },
+  checkInText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0f172a',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
 });
