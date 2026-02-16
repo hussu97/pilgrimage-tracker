@@ -26,78 +26,17 @@ import { shareUrl, openDirections } from '../../lib/share';
 import { useAuth } from '../providers';
 import { useI18n } from '../providers';
 import type { RootStackParamList } from '../navigation';
-import type { PlaceDetail as PlaceDetailType, Review, PlaceTiming, PlaceSpecification } from '../../lib/types';
+import type { PlaceDetail as PlaceDetailType, Review, PlaceSpecification } from '../../lib/types';
 import { tokens } from '../../lib/theme';
+import TimingCircle from '../../components/places/TimingCircle';
+import DeityCircle from '../../components/places/DeityCircle';
+import { crowdColor } from '../../lib/utils/crowdColor';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>;
 type PlaceDetailRoute = RouteProp<RootStackParamList, 'PlaceDetail'>;
 
 const HERO_HEIGHT = 300;
 const CARD_OVERLAP = 0;
-
-const crowdColor = (level?: string) => {
-  if (!level) return tokens.colors.textMuted;
-  const l = level.toLowerCase();
-  if (l === 'low') return '#059669';
-  if (l === 'medium') return '#d97706';
-  if (l === 'high') return '#dc2626';
-  return tokens.colors.textMain;
-};
-
-function TimingCircle({ item }: { item: PlaceTiming }) {
-  const statusColor =
-    item.status === 'current' ? tokens.colors.primary :
-    item.status === 'past' ? tokens.colors.textMuted : tokens.colors.textSecondary;
-  const borderColor =
-    item.status === 'current' ? tokens.colors.primary :
-    item.status === 'past' ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.15)';
-  const bgColor =
-    item.status === 'current' ? `${tokens.colors.primary}18` : tokens.colors.surface;
-
-  return (
-    <View style={timingStyles.item}>
-      <View style={[timingStyles.circle, { borderColor, backgroundColor: bgColor }]}>
-        <Text style={[timingStyles.name, { color: statusColor }]} numberOfLines={1}>
-          {item.name.charAt(0).toUpperCase() + item.name.slice(1)}
-        </Text>
-        {item.time ? (
-          <Text style={[timingStyles.time, { color: statusColor }]} numberOfLines={1}>
-            {item.time}
-          </Text>
-        ) : null}
-        {item.status === 'past' && (
-          <MaterialIcons name="check" size={10} color={tokens.colors.textMuted} style={{ marginTop: 2 }} />
-        )}
-        {item.status === 'current' && (
-          <View style={timingStyles.currentDot} />
-        )}
-      </View>
-      {item.subtitle ? (
-        <Text style={timingStyles.subtitle} numberOfLines={1}>{item.subtitle}</Text>
-      ) : null}
-    </View>
-  );
-}
-
-function DeityCircle({ item }: { item: PlaceTiming }) {
-  return (
-    <View style={timingStyles.item}>
-      <View style={[timingStyles.circle, timingStyles.deityCircle]}>
-        {item.image_url ? (
-          <Image source={{ uri: item.image_url }} style={timingStyles.deityImage} />
-        ) : (
-          <Text style={timingStyles.deityEmoji}>🛕</Text>
-        )}
-      </View>
-      <Text style={timingStyles.name} numberOfLines={1}>
-        {item.name}
-      </Text>
-      {item.subtitle ? (
-        <Text style={timingStyles.subtitle} numberOfLines={1}>{item.subtitle}</Text>
-      ) : null}
-    </View>
-  );
-}
 
 export default function PlaceDetailScreen() {
   const insets = useSafeAreaInsets();
@@ -616,62 +555,6 @@ export default function PlaceDetailScreen() {
     </View>
   );
 }
-
-const timingStyles = StyleSheet.create({
-  item: {
-    alignItems: 'center',
-    minWidth: 80,
-    maxWidth: 90,
-  },
-  circle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-    padding: 4,
-  },
-  deityCircle: {
-    borderColor: 'rgba(197, 160, 89, 0.4)',
-    backgroundColor: tokens.colors.surface,
-    overflow: 'hidden',
-  },
-  name: {
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
-    color: tokens.colors.textMain,
-    textTransform: 'capitalize',
-  },
-  time: {
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  subtitle: {
-    fontSize: 10,
-    color: tokens.colors.textMuted,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-  },
-  currentDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: tokens.colors.primary,
-    marginTop: 3,
-  },
-  deityImage: {
-    width: '100%',
-    height: '100%',
-  },
-  deityEmoji: {
-    fontSize: 32,
-  },
-});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: tokens.colors.backgroundLight },
