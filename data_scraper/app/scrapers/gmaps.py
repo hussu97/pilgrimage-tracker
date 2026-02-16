@@ -79,8 +79,17 @@ def clean_address(address):
     """Removes Google Plus Codes from address."""
     return re.sub(r'^[A-Z0-9]{4}\+[A-Z0-9]{2,3}\s*(-\s*)?', '', address).strip()
 
-def convert_to_utc_24h(time_str):
-    """Converts local UAE time string (12h) to UTC time string (24h)."""
+def convert_to_utc_24h(time_str, utc_offset_hours=4):
+    """
+    Converts local time string (12h) to UTC time string (24h).
+
+    Args:
+        time_str: Time string in 12h format (e.g., "9:00 AM - 5:00 PM")
+        utc_offset_hours: Hours ahead of UTC (default 4 for UAE/GST)
+
+    TODO: Implement timezone-aware handling using pytz or zoneinfo based on place coordinates.
+    This would require looking up the timezone from lat/lng and converting properly.
+    """
     if "open 24 hours" in time_str.lower():
         return "00:00-23:59"
     if "closed" in time_str.lower():
@@ -94,7 +103,7 @@ def convert_to_utc_24h(time_str):
     for t in times:
         try:
             dt = datetime.strptime(t.strip(), "%I:%M %p")
-            utc_dt = dt - timedelta(hours=4)
+            utc_dt = dt - timedelta(hours=utc_offset_hours)
             utc_times.append(utc_dt.strftime("%H:%M"))
         except ValueError:
             return time_str

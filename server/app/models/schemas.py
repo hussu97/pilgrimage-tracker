@@ -1,6 +1,6 @@
 from typing import Any, List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 
 Religion = Literal["islam", "hinduism", "christianity"]
 
@@ -128,6 +128,13 @@ class PlaceAttributeInput(BaseModel):
     attribute_code: str
     value: Any  # str, number, bool, or dict
 
+    @validator('value')
+    def validate_value_type(cls, v):
+        """Ensure value is one of the allowed types."""
+        if not isinstance(v, (str, int, float, bool, dict, list, type(None))):
+            raise ValueError(f'Invalid value type: {type(v).__name__}. Must be str, number, bool, dict, list, or null.')
+        return v
+
 
 class PlaceCreate(BaseModel):
     place_code: str
@@ -145,4 +152,11 @@ class PlaceCreate(BaseModel):
     source: Optional[str] = None
     attributes: Optional[List[PlaceAttributeInput]] = None
     external_reviews: Optional[List[dict]] = None  # For external reviews during sync
+
+    @validator('image_blobs')
+    def validate_image_sources(cls, v, values):
+        """Ensure only one image source (urls or blobs) is provided, not both."""
+        if v and values.get('image_urls'):
+            raise ValueError('Cannot provide both image_urls and image_blobs. Use one or the other.')
+        return v
 

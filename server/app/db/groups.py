@@ -169,15 +169,29 @@ def get_group_progress(
 def get_activity(group_code: str, check_ins_db, user_store, places_db, limit: int = 20) -> List[dict]:
     members = get_members(group_code)
     user_codes = {m[0] for m in members}
+
+    # Collect all check-ins from all members
     all_check_ins = []
     for uc in user_codes:
         for chk in check_ins_db.get_check_ins_by_user(uc):
             all_check_ins.append((chk, uc))
+
+    # Sort by time and take top N
     all_check_ins.sort(key=lambda x: x[0].checked_in_at, reverse=True)
+    top_check_ins = all_check_ins[:limit]
+
+    # Bulk fetch users and places for the top N check-ins
+    relevant_user_codes = {uc for _, uc in top_check_ins}
+    relevant_place_codes = {chk.place_code for chk, _ in top_check_ins}
+
+    users_map = {uc: user_store.get_user_by_code(uc) for uc in relevant_user_codes}
+    places_map = {pc: places_db.get_place_by_code(pc) for pc in relevant_place_codes}
+
+    # Build output using cached data
     out = []
-    for chk, uc in all_check_ins[:limit]:
-        user = user_store.get_user_by_code(uc)
-        place = places_db.get_place_by_code(chk.place_code)
+    for chk, uc in top_check_ins:
+        user = users_map.get(uc)
+        place = places_map.get(chk.place_code)
         out.append({
             "type": "check_in",
             "user_code": uc,

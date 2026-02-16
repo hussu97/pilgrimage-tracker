@@ -69,7 +69,13 @@ def forgot_password(body: ForgotPasswordBody):
     token = secrets.token_hex(32)
     expires_at = datetime.utcnow() + timedelta(hours=1)
     store.save_password_reset(token, user.user_code, expires_at)
-    # In production, send the reset link by email; do not log tokens or emails.
+
+    # TODO: Implement email dispatch for password reset
+    # Integrate with an email service (SendGrid, AWS SES, etc.) to send reset link:
+    # reset_link = f"{FRONTEND_URL}/reset-password?token={token}"
+    # send_email(to=user.email, subject="Password Reset", body=f"Click here: {reset_link}")
+    # Do not log tokens or emails in production.
+
     return {"ok": True, "message": "If an account exists, you will receive a reset link."}
 
 

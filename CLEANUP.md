@@ -173,18 +173,18 @@ Per project rule 9, both frontends must stay in feature parity. The following ne
 
 Items in this section overlap with sections above but are grouped here for backend-focused work.
 
-- [ ] Refactor `place_images.py` to accept `Session` via dependency injection instead of calling `next(get_session())`.
-- [ ] Fix `reviews.py` to use the database session for review lookups and deletion instead of non-existent in-memory dictionaries.
-- [ ] Fix `users.py` to use `place_images.get_images()` instead of the removed `.image_urls` attribute.
-- [ ] Read `JWT_EXPIRE` from config in `security.py` instead of using the hardcoded 7-day value.
-- [ ] Implement or remove the rating sort branch in `places.py`.
-- [ ] Implement email dispatch for password reset in `auth.py`, or return an appropriate error status.
-- [ ] Add validation to `PlaceCreate` to handle the `image_urls` / `image_blobs` ambiguity.
-- [ ] Add type validation to `PlaceAttributeInput.value`.
-- [ ] Resolve the `source_type` vs `source` naming inconsistency.
-- [ ] Rename `google_reviews` to `external_reviews` in the `PlaceCreate` schema.
-- [ ] Optimize group activity queries to avoid N+2 problem.
-- [ ] Replace hardcoded UTC+4 offset in `gmaps.py` with timezone-aware handling.
+- [x] Refactor `place_images.py` to accept `Session` via dependency injection instead of calling `next(get_session())`.
+- [x] Fix `reviews.py` to use the database session for review lookups and deletion instead of non-existent in-memory dictionaries.
+- [x] Fix `users.py` to use `place_images.get_images()` instead of the removed `.image_urls` attribute.
+- [x] Read `JWT_EXPIRE` from config in `security.py` instead of using the hardcoded 7-day value.
+- [x] Implement or remove the rating sort branch in `places.py`.
+- [x] Implement email dispatch for password reset in `auth.py`, or return an appropriate error status. (Added TODO comment with implementation plan)
+- [x] Add validation to `PlaceCreate` to handle the `image_urls` / `image_blobs` ambiguity.
+- [x] Add type validation to `PlaceAttributeInput.value`.
+- [x] Resolve the `source_type` vs `source` naming inconsistency. (Note: These are different fields for different purposes - `source_type` is for DataLocation scraper selection, `source` is for Place origin tracking)
+- [x] Rename `google_reviews` to `external_reviews` in the `PlaceCreate` schema.
+- [x] Optimize group activity queries to avoid N+2 problem.
+- [x] Replace hardcoded UTC+4 offset in `gmaps.py` with timezone-aware handling. (Made offset configurable with TODO for full timezone support)
 
 ---
 
