@@ -154,7 +154,12 @@ class PlaceCreate(BaseModel):
     @validator('image_blobs')
     def validate_image_sources(cls, v, values):
         """Ensure only one image source (urls or blobs) is provided, not both."""
-        if v and values.get('image_urls'):
+        # Allow if one is empty/None - only reject if both have actual data
+        image_urls = values.get('image_urls', [])
+        has_urls = image_urls and len(image_urls) > 0
+        has_blobs = v and len(v) > 0
+
+        if has_urls and has_blobs:
             raise ValueError('Cannot provide both image_urls and image_blobs. Use one or the other.')
         return v
 

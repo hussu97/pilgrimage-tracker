@@ -105,9 +105,32 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             print(f"    Context: {error['ctx']}")
     print()
 
+    # Serialize errors for JSON response (convert non-serializable objects to strings)
+    serializable_errors = []
+    for error in errors:
+        serializable_error = {
+            "loc": error["loc"],
+            "msg": error["msg"],
+            "type": error["type"],
+        }
+        if "ctx" in error:
+            # Convert context values to strings if they're not JSON-serializable
+            ctx = {}
+            for key, value in error["ctx"].items():
+                try:
+                    # Test if value is JSON serializable
+                    import json
+                    json.dumps(value)
+                    ctx[key] = value
+                except (TypeError, ValueError):
+                    # Not serializable - convert to string
+                    ctx[key] = str(value)
+            serializable_error["ctx"] = ctx
+        serializable_errors.append(serializable_error)
+
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": errors},
+        content={"detail": serializable_errors},
     )
 
 
