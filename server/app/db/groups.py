@@ -1,5 +1,4 @@
 import secrets
-from datetime import datetime
 from typing import List, Optional
 
 from sqlmodel import Session, select, and_
@@ -18,9 +17,9 @@ def create_group(
     name: str,
     description: str,
     created_by_user_code: str,
+    session: Session,
     is_private: bool = False,
     path_place_codes: Optional[List[str]] = None,
-    session: Session = None,
 ) -> Group:
     group_code = _generate_group_code()
     invite_code = _generate_invite_code()
@@ -67,7 +66,7 @@ def is_member(group_code: str, user_code: str, session: Session) -> bool:
     return session.exec(statement).first() is not None
 
 
-def add_member(group_code: str, user_code: str, role: str = "member", session: Session = None) -> bool:
+def add_member(group_code: str, user_code: str, session: Session, role: str = "member") -> bool:
     # Check if group exists
     group = session.exec(select(Group).where(Group.group_code == group_code)).first()
     if not group:

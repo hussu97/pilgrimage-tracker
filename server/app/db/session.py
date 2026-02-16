@@ -30,8 +30,10 @@ engine = create_engine(
     **pool_config
 )
 
+
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
+
 
 def get_db_session():
     """Dependency for database session management.
@@ -46,3 +48,4 @@ def get_db_session():
 # Type alias for FastAPI dependency injection
 # Usage: def my_endpoint(session: SessionDep, ...):
 SessionDep = Annotated[Session, Depends(get_db_session)]
+

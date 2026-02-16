@@ -61,7 +61,7 @@ def join_by_invite_code(body: dict, user: Annotated[Any, Depends(get_current_use
         raise HTTPException(status_code=404, detail="Invalid or expired invite code")
     if groups_db.is_member(g.group_code, user.user_code, session):
         return {"ok": True, "group_code": g.group_code}
-    groups_db.add_member(g.group_code, user.user_code, "member", session)
+    groups_db.add_member(g.group_code, user.user_code, session, "member")
     notifications_db.create_notification(user.user_code, "group_joined", {"group_code": g.group_code, "group_name": g.name}, session)
     return {"ok": True, "group_code": g.group_code}
 
@@ -133,7 +133,7 @@ def join_group(group_code: str, user: Annotated[Any, Depends(get_current_user)],
         raise HTTPException(status_code=404, detail="Group not found")
     if groups_db.is_member(group_code, user.user_code, session):
         return {"ok": True, "message": "Already a member"}
-    groups_db.add_member(group_code, user.user_code, "member", session)
+    groups_db.add_member(group_code, user.user_code, session, "member")
     notifications_db.create_notification(user.user_code, "group_joined", {"group_code": g.group_code, "group_name": g.name}, session)
     return {"ok": True}
 

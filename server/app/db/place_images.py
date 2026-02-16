@@ -4,14 +4,13 @@ from typing import Dict, List, Optional
 from sqlmodel import Session, select
 
 from app.db.models import PlaceImage
-from app.db.session import get_session
 
 
 def add_image_url(
     place_code: str,
     url: str,
-    display_order: int = 0,
     session: Session,
+    display_order: int = 0,
 ) -> PlaceImage:
     """Add a URL-based image for a place."""
     image = PlaceImage(
@@ -30,8 +29,8 @@ def add_image_blob(
     place_code: str,
     data: bytes,
     mime_type: str,
-    display_order: int = 0,
     session: Session,
+    display_order: int = 0,
 ) -> PlaceImage:
     """Add a blob-based image for a place."""
     image = PlaceImage(

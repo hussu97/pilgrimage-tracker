@@ -122,7 +122,7 @@ def run_seed(seed_path: str | Path | None = None) -> None:
 
         for m in data.get("group_members", []):
             gcode = group_codes[m["group_index"]]
-            groups_db.add_member(gcode, m["user_code"], m.get("role", "member"), session)
+            groups_db.add_member(gcode, m["user_code"], session, m.get("role", "member"))
 
         # Notifications
         for n in data.get("notifications", []):

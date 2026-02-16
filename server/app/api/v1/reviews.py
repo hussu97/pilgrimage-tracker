@@ -4,7 +4,6 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from PIL import Image
-from sqlmodel import Session
 
 from app.api.deps import get_current_user
 from app.db import reviews as reviews_db

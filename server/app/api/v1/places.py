@@ -14,7 +14,7 @@ from app.db import favorites as favorites_db
 from app.db import place_attributes as attr_db
 from app.db import place_images
 from app.db import review_images
-from app.models.schemas import CheckInBody, ReviewCreateBody, PlacesListResponse, PlaceCreate
+from app.models.schemas import CheckInBody, ReviewCreateBody, PlaceCreate
 from app.services.place_timings import build_timings
 from app.services.place_specifications import build_specifications
 from app.services.timezone_utils import get_today_name
@@ -185,7 +185,7 @@ def get_place_reviews(
     agg = reviews_db.get_aggregate_rating(place_code, session)
     out = []
     for r in rows:
-            source = getattr(r, "source", "user")
+        source = getattr(r, "source", "user")
 
             # Fetch attached images for this review
             review_image_urls = review_images.get_review_images(r.review_code, session=session)

@@ -1,9 +1,9 @@
-import json
 from typing import Any, Dict, List, Optional
 
 from sqlmodel import Session, select
 
 from app.db.models import PlaceAttribute, PlaceAttributeDefinition
+from app.db.session import engine
 
 
 def upsert_attribute(place_code: str, attribute_code: str, value: Any, session: Session) -> PlaceAttribute:

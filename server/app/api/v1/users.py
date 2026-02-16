@@ -1,7 +1,6 @@
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session
 
 from app.api.deps import get_current_user
 from app.db.session import SessionDep

@@ -92,8 +92,10 @@ def _is_open_now_from_hours(opening_hours: Optional[Dict[str, Any]], utc_offset_
         close_t = _parse_time(closes) if closes else (23, 59)
         if open_t is None and close_t is None:
             return None
-        if open_t is None: open_t = (0, 0)
-        if close_t is None: close_t = (23, 59)
+        if open_t is None:
+            open_t = (0, 0)
+        if close_t is None:
+            close_t = (23, 59)
         now_min = now.hour * 60 + now.minute
         open_min = open_t[0] * 60 + open_t[1]
         close_min = close_t[0] * 60 + close_t[1]
@@ -110,7 +112,7 @@ def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     R = 6371
     dlat = math.radians(lat2 - lat1)
     dlng = math.radians(lng2 - lng1)
-    a = (math.sin(dlat / 2) ** 2 + 
+    a = (math.sin(dlat / 2) ** 2 +
          math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
@@ -170,24 +172,33 @@ def update_place(
     if not place:
         return None
 
-    if name is not None: place.name = name
-    if religion is not None: place.religion = religion
-    if place_type is not None: place.place_type = place_type
-    if lat is not None: place.lat = lat
-    if lng is not None: place.lng = lng
-    if address is not None: place.address = address
-    if opening_hours is not None: place.opening_hours = opening_hours
-    if utc_offset_minutes is not None: place.utc_offset_minutes = utc_offset_minutes
-    if description is not None: place.description = description
-    if website_url is not None: place.website_url = website_url
-    if source is not None: place.source = source
+    if name is not None:
+        place.name = name
+    if religion is not None:
+        place.religion = religion
+    if place_type is not None:
+        place.place_type = place_type
+    if lat is not None:
+        place.lat = lat
+    if lng is not None:
+        place.lng = lng
+    if address is not None:
+        place.address = address
+    if opening_hours is not None:
+        place.opening_hours = opening_hours
+    if utc_offset_minutes is not None:
+        place.utc_offset_minutes = utc_offset_minutes
+    if description is not None:
+        place.description = description
+    if website_url is not None:
+        place.website_url = website_url
+    if source is not None:
+        place.source = source
 
     session.add(place)
     session.commit()
     session.refresh(place)
     return place
-
-
 
 
 def get_place_by_code(place_code: str, session: Session) -> Optional[Place]:

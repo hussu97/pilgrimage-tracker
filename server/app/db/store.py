@@ -13,8 +13,8 @@ def create_user(
     email: str,
     password_hash: str,
     display_name: str,
+    session: Session,
     religion: Optional[Religion] = None,
-    session: Session = None,
 ) -> User:
     user = User(
         user_code=user_code,

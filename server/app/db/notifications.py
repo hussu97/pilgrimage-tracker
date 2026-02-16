@@ -1,6 +1,6 @@
 import secrets
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from sqlmodel import Session, select, func, and_
 from app.db.models import Notification
@@ -41,5 +41,5 @@ def mark_read(notification_code: str, user_code: str, session: Session) -> bool:
 
 
 def count_unread(user_code: str, session: Session) -> int:
-    statement = select(func.count(Notification.id)).where(and_(Notification.user_code == user_code, Notification.read_at == None))
+    statement = select(func.count(Notification.id)).where(and_(Notification.user_code == user_code, Notification.read_at is None))
     return session.exec(statement).one()
