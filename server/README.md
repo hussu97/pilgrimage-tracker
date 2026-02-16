@@ -54,7 +54,7 @@ The server uses **SQLModel** with a persistent **SQLite database** (`pilgrimage.
 - `POST /api/v1/auth/forgot-password` — request reset link
 - `POST /api/v1/auth/reset-password` — reset with token
 - `GET /api/v1/users/me` — current user (Bearer token)
-- `PATCH /api/v1/users/me` — update profile (display_name, avatar_url)
+- `PATCH /api/v1/users/me` — update profile (display_name)
 - `GET /api/v1/users/me/settings` — get settings (theme, language, units, religions, etc.)
 - `PATCH /api/v1/users/me/settings` — update settings
 - `GET /api/v1/users/me/check-ins` — current user's check-ins

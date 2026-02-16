@@ -10,7 +10,6 @@ class UserResponse(BaseModel):
     email: str
     display_name: str
     religions: List[Religion] = []
-    avatar_url: Optional[str] = None
     created_at: str
     updated_at: str
 
@@ -33,7 +32,6 @@ class LoginBody(BaseModel):
 
 class UpdateMeBody(BaseModel):
     display_name: Optional[str] = None
-    avatar_url: Optional[str] = None
 
 
 class ForgotPasswordBody(BaseModel):

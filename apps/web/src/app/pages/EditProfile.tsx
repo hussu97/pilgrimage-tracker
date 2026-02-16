@@ -12,7 +12,6 @@ export default function EditProfile() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState(user?.display_name ?? '');
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatar_url ?? '');
   const [religions, setReligions] = useState<Religion[]>(user?.religions ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -31,7 +30,6 @@ export default function EditProfile() {
     try {
       await updateMe({
         display_name: displayName.trim() || user.display_name,
-        avatar_url: avatarUrl.trim() || undefined,
       });
       await updateSettings({ religions });
       await refreshUser();
@@ -68,18 +66,6 @@ export default function EditProfile() {
             onChange={(e) => setDisplayName(e.target.value)}
             className="w-full border border-input-border rounded-xl px-4 py-3 text-text-main bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-text-main mb-1">Avatar (URL)</label>
-          <input
-            type="url"
-            value={avatarUrl}
-            onChange={(e) => setAvatarUrl(e.target.value)}
-            placeholder="https://..."
-            className="w-full border border-input-border rounded-xl px-4 py-3 text-text-main bg-surface placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-          <p className="text-xs text-text-muted mt-1">Paste an image URL. Upload will be added later.</p>
         </div>
 
         <div>

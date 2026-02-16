@@ -825,8 +825,7 @@
       "email": "alice@test.com",
       "password": "test123",
       "display_name": "Alice",
-      "religion": "islam",
-      "avatar_url": "https://api.dicebear.com/7.x/avataaars/svg?seed=alice"
+      "religion": "islam"
     },
     {
       "user_code": "usr_seed2",

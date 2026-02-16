@@ -46,7 +46,6 @@ def run_seed(seed_path: str | Path | None = None) -> None:
             password_hash=password_hash,
             display_name=u.get("display_name") or u["email"].split("@")[0],
             religion=u.get("religion"),
-            avatar_url=u.get("avatar_url"),
         )
         # Preferred religions (filter): seed from single religion if present
         if u.get("religion"):

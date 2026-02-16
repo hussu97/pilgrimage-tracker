@@ -5,7 +5,6 @@ export interface User {
   email: string;
   display_name: string;
   religions: Religion[];
-  avatar_url?: string;
   created_at?: string;
   updated_at?: string;
 }

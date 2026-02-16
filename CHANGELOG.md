@@ -4,6 +4,25 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## User Avatar Removal (2026-02-16)
+
+### Backend
+
+- **Breaking Change:** Removed `avatar_url` field from User model and all API endpoints
+- Removed `POST /api/v1/users/me/avatar` stub endpoint
+- Updated seed data to remove avatar URLs
+
+### Frontend (web)
+
+- Removed avatar URL input from Edit Profile page
+- Profile now always displays initial-based avatar (first letter of display name)
+
+### Frontend (mobile)
+
+- Removed `avatar_url` from User type (mobile already displayed initials only)
+
+---
+
 ## Bulk Query Optimization for Places List (2026-02-16)
 
 ### Backend

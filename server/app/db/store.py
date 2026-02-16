@@ -15,7 +15,6 @@ def create_user(
     password_hash: str,
     display_name: str,
     religion: Optional[Religion] = None,
-    avatar_url: Optional[str] = None,
 ) -> User:
     with Session(engine) as session:
         user = User(
@@ -23,7 +22,6 @@ def create_user(
             email=email,
             password_hash=password_hash,
             display_name=display_name,
-            avatar_url=avatar_url,
         )
         session.add(user)
         
@@ -78,7 +76,6 @@ def update_user_religion(user_code: str, religion: Optional[Religion]) -> Option
 def update_user(
     user_code: str,
     display_name: Optional[str] = None,
-    avatar_url: Optional[str] = None,
 ) -> Optional[User]:
     with Session(engine) as session:
         user = session.exec(select(User).where(User.user_code == user_code)).first()
@@ -86,8 +83,6 @@ def update_user(
             return None
         if display_name is not None:
             user.display_name = display_name
-        if avatar_url is not None:
-            user.avatar_url = avatar_url
         user.updated_at = datetime.utcnow()
         session.add(user)
         session.commit()

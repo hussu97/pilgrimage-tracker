@@ -121,7 +121,7 @@ export async function getMe(): Promise<User> {
   return data;
 }
 
-export async function updateMe(updates: { display_name?: string; avatar_url?: string }): Promise<User> {
+export async function updateMe(updates: { display_name?: string }): Promise<User> {
   const res = await fetch(`${API_BASE}/api/v1/users/me`, {
     method: 'PATCH',
     headers: await authHeaders(),

@@ -79,17 +79,9 @@ export default function Profile() {
 
         <section className="flex flex-col items-center px-2 pb-6">
           <div className="w-36 h-36 rounded-full p-1 bg-white border border-blue-100 shadow-soft overflow-hidden mb-4">
-            {user.avatar_url ? (
-              <img
-                src={user.avatar_url}
-                alt=""
-                className="w-full h-full object-cover rounded-full"
-              />
-            ) : (
-              <div className="w-full h-full rounded-full bg-primary/20 flex items-center justify-center text-primary text-4xl font-bold">
-                {(displayName || '?').charAt(0).toUpperCase()}
-              </div>
-            )}
+            <div className="w-full h-full rounded-full bg-primary/20 flex items-center justify-center text-primary text-4xl font-bold">
+              {(displayName || '?').charAt(0).toUpperCase()}
+            </div>
           </div>
           <div className="text-center">
             <h2 className="text-2xl font-bold text-text-dark tracking-tight">{displayName}</h2>

@@ -25,9 +25,8 @@ def _to_public_user(user) -> UserResponse:
         email=user.email,
         display_name=user.display_name,
         religions=religions,
-        avatar_url=user.avatar_url,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
+        created_at=user.created_at.isoformat() + "Z",
+        updated_at=user.updated_at.isoformat() + "Z",
     )
 
 
@@ -44,7 +43,6 @@ def register(body: RegisterBody):
         password_hash=password_hash,
         display_name=display_name,
         religion=None,
-        avatar_url=None,
     )
     token = create_access_token(user_code)
     return AuthResponse(user=_to_public_user(user), token=token)
