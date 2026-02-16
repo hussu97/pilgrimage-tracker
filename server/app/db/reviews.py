@@ -44,7 +44,7 @@ def get_reviews_by_place(
     offset: int = 0,
     source: Optional[str] = None,
 ) -> List[Review]:
-    """Get reviews for a place. Optionally filter by source ('user' or 'google')."""
+    """Get reviews for a place. Optionally filter by source ('user' or 'external')."""
     with Session(engine) as session:
         statement = select(Review).where(Review.place_code == place_code)
         if source:
@@ -74,7 +74,7 @@ def count_reviews_by_user(user_code: str) -> int:
         return session.exec(statement).one()
 
 
-def create_google_review(
+def create_external_review(
     place_code: str,
     author_name: str,
     rating: int,
@@ -82,16 +82,16 @@ def create_google_review(
     review_time: int,
     language: str = "en",
 ) -> Review:
-    """Create a review from Google Maps with source='google'."""
+    """Create a review from external sources with source='external'."""
     with Session(engine) as session:
         review_code = _generate_review_code()
         review = Review(
             review_code=review_code,
-            user_code=None,  # No user for Google reviews
+            user_code=None,  # No user for external reviews
             place_code=place_code,
             rating=rating,
             body=text,
-            source="google",
+            source="external",
             author_name=author_name,
             review_time=review_time,
             language=language,
@@ -102,19 +102,19 @@ def create_google_review(
         return review
 
 
-def upsert_google_reviews(place_code: str, reviews_list: List[dict]) -> None:
-    """Delete existing Google reviews for place and insert new ones."""
+def upsert_external_reviews(place_code: str, reviews_list: List[dict]) -> None:
+    """Delete existing external reviews for place and insert new ones."""
     with Session(engine) as session:
-        # Delete existing Google reviews
+        # Delete existing external reviews
         stmt = select(Review).where(
             Review.place_code == place_code,
-            Review.source == "google"
+            Review.source == "external"
         )
         existing = session.exec(stmt).all()
         for review in existing:
             session.delete(review)
 
-        # Insert new Google reviews
+        # Insert new external reviews
         for r in reviews_list:
             review_code = _generate_review_code()
             review = Review(
@@ -123,7 +123,7 @@ def upsert_google_reviews(place_code: str, reviews_list: List[dict]) -> None:
                 place_code=place_code,
                 rating=r.get("rating", 0),
                 body=r.get("text", ""),
-                source="google",
+                source="external",
                 author_name=r.get("author_name", ""),
                 review_time=r.get("time", 0),
                 language=r.get("language", "en"),

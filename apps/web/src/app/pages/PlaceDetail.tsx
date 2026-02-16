@@ -404,7 +404,7 @@ export default function PlaceDetail() {
 
   if (!place) return null;
 
-  const heroImage = place.image_urls?.[0] ?? '';
+  const heroImage = place.images?.[0]?.url ?? '';
   const formatDist = (km: number) => km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.lat + ',' + place.lng)}`;
 
@@ -516,7 +516,7 @@ export default function PlaceDetail() {
           </div>
         )}
         {/* Gradient overlays */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
 
         {/* Top bar */}
         <div className="absolute top-0 left-0 right-0 z-20 p-5 pt-14 flex justify-between items-center">
@@ -583,7 +583,7 @@ export default function PlaceDetail() {
       <div className="h-[300px] md:h-[380px]" aria-hidden="true" />
 
       {/* Main content */}
-      <div className="relative z-10 -mt-8 max-w-5xl mx-auto">
+      <div className="relative max-w-5xl mx-auto">
         {/* Mobile layout */}
         <div className="lg:hidden">
           <div className="bg-background-light rounded-t-[2rem] pt-6 pb-28 px-4 space-y-6">

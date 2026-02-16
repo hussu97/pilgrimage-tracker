@@ -135,9 +135,9 @@ export default function WriteReviewScreen() {
               {place?.address ?? ''}
             </Text>
           </View>
-          {place?.image_urls?.[0] ? (
+          {place?.images?.[0]?.url ? (
             <Image
-              source={{ uri: place.image_urls[0] }}
+              source={{ uri: place.images[0].url }}
               style={styles.placeThumb}
             />
           ) : null}

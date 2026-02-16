@@ -13,7 +13,7 @@ function formatDistance(km: number): string {
 
 export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const { t } = useI18n();
-  const imageUrl = place.image_urls?.[0] ?? '';
+  const imageUrl = place.images?.[0]?.url ?? '';
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
   const showOpenNow = place.is_open_now === true;
@@ -85,7 +85,7 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
             <span className="material-symbols-outlined text-4xl text-text-muted">explore</span>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-70" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
         <div className="absolute top-3 right-3 left-3 flex justify-between items-start z-10">
           {showOpenNow && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-emerald-500/90 text-white border border-emerald-400/30 shadow-sm">

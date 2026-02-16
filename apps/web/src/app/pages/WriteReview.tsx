@@ -121,10 +121,10 @@ export default function WriteReview() {
                 {place?.address ?? ''}
               </p>
             </div>
-            {place?.image_urls?.[0] && (
+            {place?.images?.[0]?.url && (
               <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 opacity-90">
                 <img
-                  src={place.image_urls[0]}
+                  src={place.images[0].url}
                   alt=""
                   className="w-full h-full object-cover"
                 />

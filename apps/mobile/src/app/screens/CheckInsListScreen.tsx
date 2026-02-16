@@ -197,8 +197,8 @@ export default function CheckInsListScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={styles.visitThumb}>
-                    {(c.place_image_url || c.place?.image_urls?.[0]) ? (
-                      <Image source={{ uri: c.place_image_url || c.place?.image_urls?.[0] }} style={styles.visitThumbImg} resizeMode="cover" />
+                    {(c.place_image_url || c.place?.images?.[0]?.url) ? (
+                      <Image source={{ uri: c.place_image_url || c.place?.images?.[0]?.url }} style={styles.visitThumbImg} resizeMode="cover" />
                     ) : (
                       <View style={styles.visitThumbPlaceholder}><Text style={styles.visitThumbIcon}>⊕</Text></View>
                     )}
@@ -277,8 +277,8 @@ export default function CheckInsListScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={styles.visitThumb}>
-                    {(c.place_image_url || c.place?.image_urls?.[0]) ? (
-                      <Image source={{ uri: c.place_image_url || c.place?.image_urls?.[0] }} style={styles.visitThumbImg} resizeMode="cover" />
+                    {(c.place_image_url || c.place?.images?.[0]?.url) ? (
+                      <Image source={{ uri: c.place_image_url || c.place?.images?.[0]?.url }} style={styles.visitThumbImg} resizeMode="cover" />
                     ) : (
                       <View style={styles.visitThumbPlaceholder}><Text style={styles.visitThumbIcon}>⊕</Text></View>
                     )}
@@ -303,10 +303,10 @@ export default function CheckInsListScreen() {
               activeOpacity={0.8}
             >
               <View style={styles.visitThumb}>
-                {(c.place_image_url || c.place?.image_urls?.[0]) ? (
+                {(c.place_image_url || c.place?.images?.[0]?.url) ? (
                   <Image
                     source={{
-                      uri: c.place_image_url || c.place?.image_urls?.[0],
+                      uri: c.place_image_url || c.place?.images?.[0]?.url,
                     }}
                     style={styles.visitThumbImg}
                     resizeMode="cover"

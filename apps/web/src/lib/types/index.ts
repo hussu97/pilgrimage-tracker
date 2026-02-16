@@ -53,17 +53,17 @@ export interface PlaceDetail extends Place {
   total_checkins_count?: number;
   timings?: PlaceTiming[];
   specifications?: PlaceSpecification[];
-  google_reviews?: GoogleReview[];
+  external_reviews?: ExternalReview[];
 }
 
-export interface GoogleReview {
+export interface ExternalReview {
   review_code: string;
   place_code: string;
   display_name: string;
   rating: number;
   body?: string;
   created_at: string;
-  source: 'google';
+  source: 'external';
 }
 
 export interface Review {
@@ -75,7 +75,7 @@ export interface Review {
   title?: string;
   body?: string;
   created_at: string;
-  source: 'user' | 'google';
+  source: 'user' | 'external';
 }
 
 export interface ReviewsResponse {
@@ -90,7 +90,7 @@ export interface CheckIn {
   checked_in_at: string;
   note?: string;
   photo_url?: string;
-  place?: { place_code: string; name: string; address: string; image_urls?: string[] };
+  place?: { place_code: string; name: string; address: string; images?: Array<{url: string; display_order: number}> };
   date?: string;
   time?: string;
   place_name?: string;

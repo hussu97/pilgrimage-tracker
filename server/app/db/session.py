@@ -9,7 +9,24 @@ database_url = os.environ.get("DATABASE_URL", sqlite_url)
 # connect_args={"check_same_thread": False} is required for SQLite
 connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
 
-engine = create_engine(database_url, echo=False, connect_args=connect_args)
+# Connection pool configuration
+pool_config = {}
+if not database_url.startswith("sqlite"):
+    # For PostgreSQL/MySQL, configure connection pool
+    pool_config = {
+        "pool_size": 20,        # Increase from default 5
+        "max_overflow": 30,     # Increase from default 10
+        "pool_timeout": 30,     # Timeout in seconds
+        "pool_recycle": 3600,   # Recycle connections after 1 hour
+        "pool_pre_ping": True,  # Verify connections before using
+    }
+
+engine = create_engine(
+    database_url,
+    echo=False,
+    connect_args=connect_args,
+    **pool_config
+)
 
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)

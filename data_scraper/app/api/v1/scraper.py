@@ -4,13 +4,13 @@ from typing import List, Optional
 import os
 
 from app.db.session import get_session
-from app.db.models import DataLocation, ScraperRun, ScrapedPlace, GeoBoundary
+from app.db.models import DataLocation, ScraperRun, ScrapedPlace, GeoBoundary, PlaceTypeMapping
 from app.models.schemas import (
     DataLocationCreate, DataLocationResponse,
-    ScraperRunCreate, ScraperRunResponse
+    ScraperRunCreate, ScraperRunResponse,
+    PlaceTypeMappingCreate, PlaceTypeMappingUpdate, PlaceTypeMappingResponse
 )
 from app.db.scraper import generate_code, run_scraper_task, sync_run_to_server
-from app.scrapers.gmaps import PLACE_TYPE_MAP
 
 router = APIRouter()
 
@@ -41,12 +41,6 @@ def create_data_location(body: DataLocationCreate, session: Session = Depends(ge
         config = {"sheet_code": sheet_code}
 
     elif body.source_type == "gmaps":
-        # Validate place_type
-        if not body.place_type:
-            raise HTTPException(status_code=400, detail="place_type is required for gmaps source")
-        if body.place_type not in PLACE_TYPE_MAP:
-            raise HTTPException(status_code=400, detail=f"Unsupported place_type. Choose from: {list(PLACE_TYPE_MAP.keys())}")
-
         # Validate either city or country is provided
         if not body.city and not body.country:
             raise HTTPException(status_code=400, detail="Either city or country is required for gmaps source")
@@ -58,7 +52,6 @@ def create_data_location(body: DataLocationCreate, session: Session = Depends(ge
             raise HTTPException(status_code=400, detail=f"Geographic boundary not found: {boundary_name}")
 
         config = {
-            "place_type": body.place_type,
             "max_results": body.max_results or 5  # Default to 5 for testing
         }
 
@@ -166,5 +159,91 @@ def cancel_run(run_code: str, session: Session = Depends(get_session)):
     session.add(run)
     session.commit()
     session.refresh(run)
-    
+
     return {"status": "cancelled", "run_code": run_code}
+
+
+# ===== PlaceTypeMapping CRUD =====
+
+@router.get("/place-type-mappings", response_model=List[PlaceTypeMappingResponse])
+def list_place_type_mappings(
+    religion: Optional[str] = Query(None),
+    source_type: Optional[str] = Query(None),
+    is_active: Optional[bool] = Query(None),
+    session: Session = Depends(get_session)
+):
+    """List all place type mappings with optional filters."""
+    query = select(PlaceTypeMapping)
+
+    if religion:
+        query = query.where(PlaceTypeMapping.religion == religion)
+    if source_type:
+        query = query.where(PlaceTypeMapping.source_type == source_type)
+    if is_active is not None:
+        query = query.where(PlaceTypeMapping.is_active == is_active)
+
+    query = query.order_by(PlaceTypeMapping.religion, PlaceTypeMapping.display_order)
+    mappings = session.exec(query).all()
+    return mappings
+
+
+@router.post("/place-type-mappings", response_model=PlaceTypeMappingResponse)
+def create_place_type_mapping(
+    body: PlaceTypeMappingCreate,
+    session: Session = Depends(get_session)
+):
+    """Create a new place type mapping."""
+    mapping = PlaceTypeMapping(**body.model_dump())
+    session.add(mapping)
+    session.commit()
+    session.refresh(mapping)
+    return mapping
+
+
+@router.get("/place-type-mappings/{mapping_id}", response_model=PlaceTypeMappingResponse)
+def get_place_type_mapping(
+    mapping_id: int,
+    session: Session = Depends(get_session)
+):
+    """Get a single place type mapping by ID."""
+    mapping = session.get(PlaceTypeMapping, mapping_id)
+    if not mapping:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+    return mapping
+
+
+@router.put("/place-type-mappings/{mapping_id}", response_model=PlaceTypeMappingResponse)
+def update_place_type_mapping(
+    mapping_id: int,
+    body: PlaceTypeMappingUpdate,
+    session: Session = Depends(get_session)
+):
+    """Update a place type mapping."""
+    mapping = session.get(PlaceTypeMapping, mapping_id)
+    if not mapping:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+
+    # Update only provided fields
+    update_data = body.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(mapping, key, value)
+
+    session.add(mapping)
+    session.commit()
+    session.refresh(mapping)
+    return mapping
+
+
+@router.delete("/place-type-mappings/{mapping_id}")
+def delete_place_type_mapping(
+    mapping_id: int,
+    session: Session = Depends(get_session)
+):
+    """Delete a place type mapping."""
+    mapping = session.get(PlaceTypeMapping, mapping_id)
+    if not mapping:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+
+    session.delete(mapping)
+    session.commit()
+    return {"status": "deleted", "mapping_id": mapping_id}

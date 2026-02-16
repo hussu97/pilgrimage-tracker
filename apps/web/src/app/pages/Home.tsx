@@ -23,9 +23,9 @@ function PlaceCardUnified({ place, t }: { place: Place; t: (k: string) => string
       className="group relative flex flex-col bg-white dark:bg-dark-surface rounded-3xl overflow-hidden shadow-soft hover:shadow-xl transition-all duration-500 hover:-translate-y-1 border border-slate-100 dark:border-dark-border"
     >
       <div className="relative h-48 overflow-hidden">
-        {place.image_urls?.[0] ? (
+        {place.images?.[0]?.url ? (
           <img
-            src={place.image_urls[0]}
+            src={place.images[0].url}
             alt={place.name}
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
           />
@@ -261,8 +261,8 @@ export default function Home() {
 
                   <div className="flex gap-5">
                     <div className="w-28 h-28 rounded-3xl overflow-hidden shrink-0 shadow-lg">
-                      {selectedPlace.image_urls?.[0] ? (
-                        <img src={selectedPlace.image_urls[0]} alt="" className="w-full h-full object-cover" />
+                      {selectedPlace.images?.[0]?.url ? (
+                        <img src={selectedPlace.images[0].url} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-300">
                           <span className="material-symbols-outlined text-4xl">place</span>

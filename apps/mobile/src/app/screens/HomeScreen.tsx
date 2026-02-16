@@ -753,8 +753,8 @@ export default function HomeScreen() {
                       onPress={() => setSelectedPlace(item)}
                       activeOpacity={0.85}
                     >
-                      {item.image_urls?.[0] ? (
-                        <Image source={{ uri: item.image_urls[0] }} style={styles.scrollerThumb} />
+                      {item.images?.[0]?.url ? (
+                        <Image source={{ uri: item.images[0].url }} style={styles.scrollerThumb} />
                       ) : (
                         <View style={styles.scrollerThumbPlaceholder}>
                           <MaterialIcons name="place" size={24} color={textMutedColor} />
@@ -792,9 +792,9 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                     <View style={styles.sheetRow}>
                       <View style={styles.sheetThumb}>
-                        {selectedPlace.image_urls?.[0] ? (
+                        {selectedPlace.images?.[0]?.url ? (
                           <Image
-                            source={{ uri: selectedPlace.image_urls[0] }}
+                            source={{ uri: selectedPlace.images[0].url }}
                             style={styles.sheetThumbImage}
                             resizeMode="cover"
                           />

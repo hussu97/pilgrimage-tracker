@@ -37,3 +37,14 @@ class GeoBoundary(SQLModel, table=True):
     lat_max: float
     lng_min: float
     lng_max: float
+
+class PlaceTypeMapping(SQLModel, table=True):
+    """Maps religions to Google Maps place types for scraping."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    religion: str = Field(index=True)       # "islam", "christianity", "hinduism"
+    source_type: str = Field(default="gmaps")  # "gmaps" or "gsheet"
+    gmaps_type: str                         # Google Maps API type: "mosque", "church", "cathedral", etc.
+    our_place_type: str                     # Our internal type name: "mosque", "church", "temple"
+    is_active: bool = Field(default=True)   # Enable/disable this mapping
+    display_order: int = Field(default=0)   # For ordering results
+    created_at: datetime = Field(default_factory=datetime.utcnow)

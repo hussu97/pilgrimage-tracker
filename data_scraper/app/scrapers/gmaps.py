@@ -2,22 +2,78 @@ import requests
 import time
 import re
 import os
+import base64
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from sqlmodel import Session, select
-from app.db.models import ScraperRun, ScrapedPlace, GeoBoundary
+from app.db.models import ScraperRun, ScrapedPlace, GeoBoundary, PlaceTypeMapping
 
 # Configuration
 SEARCH_RADIUS = 10000  # 10km radius per grid point
-
-# Place type mappings
-PLACE_TYPE_MAP = {
-    "mosque": {"religion": "islam", "type": "mosque"},
-    "hindu_temple": {"religion": "hinduism", "type": "temple"},
-    "church": {"religion": "christianity", "type": "church"},
-}
-
 STEP = 0.1  # Approx 11km per step to ensure overlap
+
+
+def get_place_type_mappings(session: Session) -> Dict[str, List[str]]:
+    """
+    Query database for active place type mappings.
+    Returns a dict mapping religion to list of Google Maps types.
+    """
+    mappings = session.exec(
+        select(PlaceTypeMapping)
+        .where(PlaceTypeMapping.is_active == True)
+        .where(PlaceTypeMapping.source_type == "gmaps")
+        .order_by(PlaceTypeMapping.religion)
+        .order_by(PlaceTypeMapping.display_order)
+    ).all()
+
+    result = {}
+    for mapping in mappings:
+        if mapping.religion not in result:
+            result[mapping.religion] = []
+        result[mapping.religion].append(mapping.gmaps_type)
+
+    return result
+
+
+def get_gmaps_type_to_our_type(session: Session) -> Dict[str, str]:
+    """
+    Query database for active place type mappings.
+    Returns a dict mapping Google Maps type to our internal type name.
+    """
+    mappings = session.exec(
+        select(PlaceTypeMapping)
+        .where(PlaceTypeMapping.is_active == True)
+        .where(PlaceTypeMapping.source_type == "gmaps")
+    ).all()
+
+    return {m.gmaps_type: m.our_place_type for m in mappings}
+
+
+def get_default_place_type(session: Session, religion: str) -> str:
+    """Get the default place type name for a religion (first active mapping)."""
+    mapping = session.exec(
+        select(PlaceTypeMapping)
+        .where(PlaceTypeMapping.religion == religion)
+        .where(PlaceTypeMapping.is_active == True)
+        .where(PlaceTypeMapping.source_type == "gmaps")
+        .order_by(PlaceTypeMapping.display_order)
+    ).first()
+
+    return mapping.our_place_type if mapping else "place of worship"
+
+
+def detect_religion_from_types(session: Session, gmaps_types: List[str]) -> Optional[str]:
+    """Detect religion from Google Maps types by querying active mappings."""
+    for gmaps_type in gmaps_types:
+        mapping = session.exec(
+            select(PlaceTypeMapping)
+            .where(PlaceTypeMapping.gmaps_type == gmaps_type)
+            .where(PlaceTypeMapping.is_active == True)
+            .where(PlaceTypeMapping.source_type == "gmaps")
+        ).first()
+        if mapping:
+            return mapping.religion
+    return None
 
 def clean_address(address):
     """Removes Google Plus Codes from address."""
@@ -84,11 +140,11 @@ def get_places_in_circle(lat: float, lng: float, place_type: str, api_key: str) 
             break
     return places
 
-def get_place_details(place_id: str, religion: str, api_key: str) -> Dict:
-    """Fetch detailed information for a single place."""
+def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
+    """Fetch detailed information for a single place. Auto-detects religion from types."""
     url = "https://maps.googleapis.com/maps/api/place/details/json"
 
-    fields = "name,formatted_address,vicinity,geometry,opening_hours,wheelchair_accessible_entrance,rating,user_ratings_total,url,photos,business_status,reviews"
+    fields = "name,formatted_address,vicinity,geometry,opening_hours,wheelchair_accessible_entrance,rating,user_ratings_total,url,photos,business_status,reviews,editorial_summary,types"
     params = {
         "place_id": place_id,
         "fields": fields,
@@ -101,9 +157,24 @@ def get_place_details(place_id: str, religion: str, api_key: str) -> Dict:
 
     # Process images (up to 3)
     photo_urls = []
+    image_blobs = []
     for photo in result.get("photos", [])[:3]:
         ref = photo.get("photo_reference")
-        photo_urls.append(f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference={ref}&key={api_key}")
+        url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference={ref}&key={api_key}"
+        photo_urls.append(url)
+
+        # Download the image as blob
+        try:
+            resp = requests.get(url, timeout=15)
+            if resp.status_code == 200:
+                mime = resp.headers.get("Content-Type", "image/jpeg")
+                image_blobs.append({
+                    "data": base64.b64encode(resp.content).decode("ascii"),
+                    "mime_type": mime,
+                })
+        except Exception as e:
+            print(f"Failed to download image {url}: {e}")
+            pass
 
     # Process Google reviews (up to 5)
     google_reviews = []
@@ -125,14 +196,14 @@ def get_place_details(place_id: str, religion: str, api_key: str) -> Dict:
     if wheelchair is not None:
         attributes.append({"attribute_code": "wheelchair_accessible", "value": wheelchair})
 
-    # Google rating and reviews
+    # Rating and reviews
     rating = result.get("rating")
     if rating:
-        attributes.append({"attribute_code": "google_rating", "value": rating})
+        attributes.append({"attribute_code": "rating", "value": rating})
 
     reviews_count = result.get("user_ratings_total")
     if reviews_count:
-        attributes.append({"attribute_code": "google_reviews_count", "value": reviews_count})
+        attributes.append({"attribute_code": "reviews_count", "value": reviews_count})
 
     # Process opening hours
     opening_hours = process_weekly_hours(result.get("opening_hours", {}))
@@ -141,16 +212,43 @@ def get_place_details(place_id: str, religion: str, api_key: str) -> Dict:
     place_code = f"gplc_{place_id}"
 
     # Build place data
+    # Auto-detect religion and place_type from the result's types array
+    result_types = result.get("types", [])
+
+    # Detect religion first
+    religion = detect_religion_from_types(session, result_types)
+    if not religion:
+        # Fallback if no religion detected (shouldn't happen for scraped religious places)
+        print(f"Warning: Could not detect religion for place {place_id} with types: {result_types}")
+        religion = "unknown"
+
+    # Detect our internal place_type name
+    place_type_name = "place of worship"  # default fallback
+    gmaps_type_map = get_gmaps_type_to_our_type(session)
+    for gmaps_type in result_types:
+        if gmaps_type in gmaps_type_map:
+            place_type_name = gmaps_type_map[gmaps_type]
+            break
+
+    # Get editorial summary for better description
+    editorial = result.get("editorial_summary", {}).get("overview", "")
+    if editorial:
+        description = editorial
+    else:
+        # Fallback: generate a basic description
+        description = f"A {place_type_name} located in {clean_address(result.get('formatted_address', ''))}."
+
     place_data = {
         "place_code": place_code,
         "name": result.get("name", "N/A"),
         "religion": religion,
-        "place_type": PLACE_TYPE_MAP.get(result.get("types", [""])[0], {}).get("type", "unknown"),
+        "place_type": place_type_name,
         "lat": result.get("geometry", {}).get("location", {}).get("lat", 0),
         "lng": result.get("geometry", {}).get("location", {}).get("lng", 0),
         "address": clean_address(result.get("formatted_address", "")),
         "image_urls": photo_urls,
-        "description": f"Discovered via Google Maps. Status: {result.get('business_status', 'N/A')}",
+        "image_blobs": image_blobs,
+        "description": description,
         "website_url": result.get("url", ""),
         "opening_hours": opening_hours,
         "attributes": attributes,
@@ -190,16 +288,13 @@ def search_grid(lat_min: float, lat_max: float, lng_min: float, lng_max: float, 
 def run_gmaps_scraper(run_code: str, config: dict, session: Session):
     """
     Runs the Google Maps grid scraper.
-    config must contain ('country' OR 'city') and 'place_type'.
+    Automatically searches for ALL active place types from the database.
+    config must contain ('country' OR 'city').
     Optional: 'max_results' to limit for testing.
     """
     city = config.get("city")
     country = config.get("country")
-    place_type = config.get("place_type")
     max_results = config.get("max_results")
-
-    if not place_type:
-        raise ValueError("place_type required in config")
 
     if not city and not country:
         raise ValueError("Either city or country required in config")
@@ -213,19 +308,72 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
     if not run:
         raise ValueError(f"Run {run_code} not found")
 
-    religion = PLACE_TYPE_MAP[place_type]["religion"]
-
     # Look up geographic boundary from DB
     boundary_name = city if city else country
     boundary = session.exec(select(GeoBoundary).where(GeoBoundary.name == boundary_name)).first()
     if not boundary:
         raise ValueError(f"Geographic boundary not found for: {boundary_name}")
 
-    # Step 1: Grid search for place IDs (with max_results limit)
-    place_ids = search_grid(
-        boundary.lat_min, boundary.lat_max, boundary.lng_min, boundary.lng_max,
-        place_type, api_key, max_results
-    )
+    # Step 1: Query all active place type mappings from DB
+    place_type_mappings = session.exec(
+        select(PlaceTypeMapping)
+        .where(PlaceTypeMapping.is_active == True)
+        .where(PlaceTypeMapping.source_type == "gmaps")
+        .order_by(PlaceTypeMapping.religion)
+        .order_by(PlaceTypeMapping.display_order)
+    ).all()
+
+    if not place_type_mappings:
+        raise ValueError("No active place type mappings found in database. Please seed PlaceTypeMapping table.")
+
+    # Group by religion for logging
+    religion_types_map = {}
+    for mapping in place_type_mappings:
+        if mapping.religion not in religion_types_map:
+            religion_types_map[mapping.religion] = []
+        religion_types_map[mapping.religion].append(mapping.gmaps_type)
+
+    print(f"\n=== Searching for religious places in {boundary_name} ===")
+    for religion, types in religion_types_map.items():
+        print(f"  {religion}: {types}")
+
+    # Step 2: Search for all place types
+    all_place_ids = set()
+    religions_found = {}
+
+    for mapping in place_type_mappings:
+        gmaps_type = mapping.gmaps_type
+        religion = mapping.religion
+
+        print(f"\n--- Searching for {religion} type: {gmaps_type} ---")
+        type_place_ids = search_grid(
+            boundary.lat_min, boundary.lat_max, boundary.lng_min, boundary.lng_max,
+            gmaps_type, api_key, None  # Don't limit per type
+        )
+
+        new_ids = set(type_place_ids) - all_place_ids
+        all_place_ids.update(type_place_ids)
+
+        if religion not in religions_found:
+            religions_found[religion] = 0
+        religions_found[religion] += len(new_ids)
+
+        print(f"Found {len(type_place_ids)} places for {gmaps_type} ({len(new_ids)} new), total unique: {len(all_place_ids)}")
+
+        # Check if we've reached the overall limit
+        if max_results and len(all_place_ids) >= max_results:
+            print(f"Reached max_results limit: {max_results}")
+            break
+
+    # Apply max_results limit if specified
+    place_ids = list(all_place_ids)
+    if max_results and len(place_ids) > max_results:
+        place_ids = place_ids[:max_results]
+
+    print(f"\n=== Summary ===")
+    for religion, count in religions_found.items():
+        print(f"  {religion}: {count} unique places")
+    print(f"Total unique places found: {len(place_ids)}")
 
     run.total_items = len(place_ids)
     session.add(run)
@@ -242,7 +390,7 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
             return
 
         try:
-            details = get_place_details(pid, religion, api_key)
+            details = get_place_details(pid, api_key, session)
 
             scraped_place = ScrapedPlace(
                 run_code=run_code,

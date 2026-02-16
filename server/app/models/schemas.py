@@ -139,6 +139,7 @@ class PlaceCreate(BaseModel):
     address: str
     opening_hours: Optional[dict] = None
     image_urls: List[str] = []  # Still accepted during sync, stored as PlaceImage rows
+    image_blobs: Optional[List[dict]] = None  # [{"data": "base64...", "mime_type": "image/jpeg"}]
     description: Optional[str] = None
     website_url: Optional[str] = None
     source: Optional[str] = None

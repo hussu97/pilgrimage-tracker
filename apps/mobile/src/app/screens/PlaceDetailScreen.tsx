@@ -33,7 +33,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>;
 type PlaceDetailRoute = RouteProp<RootStackParamList, 'PlaceDetail'>;
 
 const HERO_HEIGHT = 300;
-const CARD_OVERLAP = 32;
+const CARD_OVERLAP = 0;
 
 const crowdColor = (level?: string) => {
   if (!level) return tokens.colors.textMuted;
@@ -300,7 +300,7 @@ export default function PlaceDetailScreen() {
 
   if (!place) return null;
 
-  const heroImage = place.image_urls?.[0];
+  const heroImage = place.images?.[0]?.url;
   const formatDist = (km: number) =>
     km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 
@@ -761,8 +761,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: '65%',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    height: '100%',
+    backgroundColor: 'rgba(0,0,0,0.25)',
   },
   heroBottom: {
     position: 'absolute',

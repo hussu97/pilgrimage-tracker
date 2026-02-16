@@ -44,9 +44,9 @@ function CheckInCard({ c }: { c: CheckIn }) {
       className="bg-white dark:bg-dark-surface rounded-[1.5rem] p-4 shadow-subtle border border-slate-100 dark:border-dark-border flex gap-4 items-center group hover:shadow-lg transition-all"
     >
       <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 bg-slate-100 dark:bg-dark-border">
-        {(c.place_image_url || c.place?.image_urls?.[0]) ? (
+        {(c.place_image_url || c.place?.images?.[0]?.url) ? (
           <img
-            src={c.place_image_url || c.place?.image_urls?.[0]}
+            src={c.place_image_url || c.place?.images?.[0]?.url}
             alt=""
             className="w-full h-full object-cover group-hover:scale-105 transition-transform"
           />

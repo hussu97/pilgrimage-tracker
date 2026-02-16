@@ -72,6 +72,7 @@ def sync_run_to_server(run_code: str, server_url: str):
                 "address": data.get("address"),
                 "opening_hours": data.get("opening_hours"),
                 "image_urls": data.get("image_urls") or [],
+                "image_blobs": data.get("image_blobs") or [],
                 "description": data.get("description"),
                 "website_url": data.get("website_url"),
                 "source": data.get("source"),

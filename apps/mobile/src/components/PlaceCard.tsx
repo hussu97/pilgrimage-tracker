@@ -22,7 +22,7 @@ function formatCount(n: number): string {
 
 export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>>();
-  const imageUrl = place.image_urls?.[0] ?? '';
+  const imageUrl = place.images?.[0]?.url ?? '';
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
 
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 160,
-    backgroundColor: 'rgba(0,0,0,0.48)',
+    backgroundColor: 'rgba(0,0,0,0.30)',
   },
   topBadges: {
     position: 'absolute',

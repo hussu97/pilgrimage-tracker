@@ -225,8 +225,8 @@ export default function MapScreen() {
                 <View style={styles.sheetCard}>
                   <View style={styles.sheetRow}>
                     <View style={styles.sheetThumb}>
-                      {selectedPlace.image_urls?.[0] ? (
-                        <Image source={{ uri: selectedPlace.image_urls[0] }} style={styles.sheetThumbImage} resizeMode="cover" />
+                      {selectedPlace.images?.[0]?.url ? (
+                        <Image source={{ uri: selectedPlace.images[0].url }} style={styles.sheetThumbImage} resizeMode="cover" />
                       ) : (
                         <View style={styles.sheetThumbPlaceholder}>
                           <MaterialIcons name="location-on" size={32} color={tokens.colors.textMuted} />
