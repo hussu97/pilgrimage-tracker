@@ -12,7 +12,56 @@ from app.db import reviews as reviews_db
 from app.db import check_ins as check_ins_db
 from app.db import notifications as notifications_db
 from app.db import favorites as favorites_db
+from app.db import place_attributes as attr_db
 from app.db.session import engine, create_db_and_tables
+
+
+def _migrate_religion_specific(place_code: str, religion: str, rs: dict) -> None:
+    """Migrate religion_specific dict fields into PlaceAttribute rows."""
+    if not rs:
+        return
+
+    # Boolean / string / number attributes
+    mapping = {
+        "wudu_area": "has_wudu_area",
+        "womens_area": "has_womens_area",
+        "parking": "has_parking",
+        "capacity": "capacity",
+        "architecture": "architecture_style",
+        "dress_code": "dress_code",
+        "denomination": "denomination",
+        "founded_year": "founded_year",
+        "has_events": "has_events",
+    }
+    for src_key, attr_code in mapping.items():
+        val = rs.get(src_key)
+        if val is not None and val != "" and val is not False:
+            # Normalize booleans: treat truthy strings as True
+            if attr_code in ("has_wudu_area", "has_womens_area", "has_parking", "has_events"):
+                attr_db.upsert_attribute(place_code, attr_code, True)
+            else:
+                attr_db.upsert_attribute(place_code, attr_code, val)
+
+    # Check facilities list for parking / wudu / women
+    facs = rs.get("facilities", [])
+    if isinstance(facs, list):
+        facs_lower = [str(f).lower() for f in facs]
+        if any("parking" in f for f in facs_lower):
+            attr_db.upsert_attribute(place_code, "has_parking", True)
+        if any("wudu" in f or "ablution" in f for f in facs_lower):
+            attr_db.upsert_attribute(place_code, "has_wudu_area", True)
+        if any("women" in f for f in facs_lower):
+            attr_db.upsert_attribute(place_code, "has_womens_area", True)
+
+    # JSON attributes
+    if religion == "islam" and rs.get("prayer_times"):
+        attr_db.upsert_attribute(place_code, "prayer_times", rs["prayer_times"])
+    if religion == "christianity":
+        st = rs.get("service_times_array") or rs.get("service_times")
+        if st:
+            attr_db.upsert_attribute(place_code, "service_times", st)
+    if religion == "hinduism" and rs.get("deities"):
+        attr_db.upsert_attribute(place_code, "deities", rs["deities"])
 
 
 def _clear_stores() -> None:
@@ -35,6 +84,10 @@ def run_seed(seed_path: str | Path | None = None) -> None:
         i18n_db.set_languages(data["languages"])
     if "translations" in data:
         i18n_db.set_translations(data["translations"])
+
+    # Seed attribute definitions before places
+    if "attribute_definitions" in data:
+        attr_db.seed_attribute_definitions(data["attribute_definitions"])
 
     # Users (need user_code for later refs)
     for u in data.get("users", []):
@@ -84,6 +137,11 @@ def run_seed(seed_path: str | Path | None = None) -> None:
             website_url=p.get("website_url"),
         )
         place_codes.append(row.place_code)
+
+        # Migrate religion_specific fields into PlaceAttribute rows
+        rs = p.get("religion_specific") or {}
+        religion = p["religion"]
+        _migrate_religion_specific(row.place_code, religion, rs)
 
 
     # Groups

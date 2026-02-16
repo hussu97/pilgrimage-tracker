@@ -16,7 +16,7 @@ Deploy using Docker and Docker Compose.
   - Base image: `python:3.14-slim` (or `python:3.12-slim` if 3.14 is unavailable in your registry).
   - Copy `server/` (or `app/`), install deps from `requirements.txt`.
   - Run: `uvicorn app.main:app --host 0.0.0.0 --port 3000`.
-- **Environment:** `JWT_SECRET`, `DATABASE_URL` (PostgreSQL), optional `PORT`. For production DB, use a real connection string; do not use in-memory store.
+- **Environment:** `JWT_SECRET`, `DATABASE_URL` (PostgreSQL), optional `PORT`, `GOOGLE_MAPS_API_KEY` (for scraper if used). For production DB, use a real connection string; do not use in-memory store.
 - **Build:** `docker build -t pilgrimage-api -f server/Dockerfile .` (adjust context/path as needed).
 
 ### Database
@@ -51,7 +51,7 @@ Deploy backend and web on free-tier or low-cost services; use a free or cheap Po
   - Connect repo; root or `server/` as working directory.
   - Build: `pip install -r requirements.txt` (or set Python version and use `pip install -r server/requirements.txt` if root).
   - Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Render sets `PORT`.
-  - Env: `JWT_SECRET`, `DATABASE_URL` (e.g. from Render Postgres or external Supabase/Neon).
+  - Env: `JWT_SECRET`, `DATABASE_URL` (e.g. from Render Postgres or external Supabase/Neon), `GOOGLE_MAPS_API_KEY` (for scraper if used).
 - **CORS:** Set allowed origins to the web app URL (e.g. Vercel preview and production).
 - **Database:** Use Render Postgres, or Supabase/Neon free tier; set `DATABASE_URL` in the backend service.
 
@@ -81,7 +81,7 @@ Deploy using GCP services.
 ### Backend (Cloud Run)
 
 - **Container:** Build API image (same as Plan 1 Dockerfile) and push to **Artifact Registry** (e.g. `gcr.io/PROJECT_ID/pilgrimage-api` or Artifact Registry path).
-- **Cloud Run service:** Deploy the image. Set env: `JWT_SECRET`, `DATABASE_URL`. Use **Secret Manager** for secrets. Set min instances 0 for cost savings; scale as needed.
+- **Cloud Run service:** Deploy the image. Set env: `JWT_SECRET`, `DATABASE_URL`, `GOOGLE_MAPS_API_KEY` (for scraper if used). Use **Secret Manager** for secrets. Set min instances 0 for cost savings; scale as needed.
 - **Database:** Use **Cloud SQL (PostgreSQL)**. Create instance; allow Cloud Run to connect (VPC connector or public IP + authorized networks). Set `DATABASE_URL` to Cloud SQL connection (e.g. Unix socket or private IP).
 
 ### Database (Cloud SQL)

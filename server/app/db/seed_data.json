@@ -1284,5 +1284,187 @@
       "user_code": "usr_seed2",
       "place_index": 2
     }
+  ],
+  "attribute_definitions": [
+    {
+      "attribute_code": "has_parking",
+      "name": "Parking Available",
+      "data_type": "boolean",
+      "icon": "local_parking",
+      "label_key": "placeDetail.parking",
+      "is_filterable": true,
+      "is_specification": true,
+      "category": "facility",
+      "religion": null,
+      "display_order": 10
+    },
+    {
+      "attribute_code": "has_wudu_area",
+      "name": "Wudu Area",
+      "data_type": "boolean",
+      "icon": "opacity",
+      "label_key": "placeDetail.wuduArea",
+      "is_filterable": false,
+      "is_specification": true,
+      "category": "facility",
+      "religion": "islam",
+      "display_order": 20
+    },
+    {
+      "attribute_code": "has_womens_area",
+      "name": "Women's Area",
+      "data_type": "boolean",
+      "icon": "wc",
+      "label_key": "placeDetail.womensArea",
+      "is_filterable": true,
+      "is_specification": true,
+      "category": "facility",
+      "religion": "islam",
+      "display_order": 30
+    },
+    {
+      "attribute_code": "capacity",
+      "name": "Capacity",
+      "data_type": "number",
+      "icon": "groups",
+      "label_key": "placeDetail.capacity",
+      "is_filterable": false,
+      "is_specification": true,
+      "category": "info",
+      "religion": null,
+      "display_order": 40
+    },
+    {
+      "attribute_code": "wheelchair_accessible",
+      "name": "Wheelchair Accessible",
+      "data_type": "boolean",
+      "icon": "accessible",
+      "label_key": "placeDetail.wheelchair",
+      "is_filterable": true,
+      "is_specification": true,
+      "category": "facility",
+      "religion": null,
+      "display_order": 50
+    },
+    {
+      "attribute_code": "has_events",
+      "name": "Has Events",
+      "data_type": "boolean",
+      "icon": "event",
+      "label_key": "placeDetail.hasEvents",
+      "is_filterable": true,
+      "is_specification": false,
+      "category": "info",
+      "religion": null,
+      "display_order": 60
+    },
+    {
+      "attribute_code": "denomination",
+      "name": "Denomination",
+      "data_type": "string",
+      "icon": "church",
+      "label_key": "placeDetail.denomination",
+      "is_filterable": false,
+      "is_specification": true,
+      "category": "info",
+      "religion": "christianity",
+      "display_order": 70
+    },
+    {
+      "attribute_code": "founded_year",
+      "name": "Founded Year",
+      "data_type": "string",
+      "icon": "history",
+      "label_key": "placeDetail.foundedYear",
+      "is_filterable": false,
+      "is_specification": true,
+      "category": "info",
+      "religion": null,
+      "display_order": 80
+    },
+    {
+      "attribute_code": "architecture_style",
+      "name": "Architecture Style",
+      "data_type": "string",
+      "icon": "account_balance",
+      "label_key": "placeDetail.architecture",
+      "is_filterable": false,
+      "is_specification": true,
+      "category": "info",
+      "religion": null,
+      "display_order": 90
+    },
+    {
+      "attribute_code": "dress_code",
+      "name": "Dress Code",
+      "data_type": "string",
+      "icon": "checkroom",
+      "label_key": "placeDetail.dressCode",
+      "is_filterable": false,
+      "is_specification": true,
+      "category": "info",
+      "religion": null,
+      "display_order": 100
+    },
+    {
+      "attribute_code": "prayer_times",
+      "name": "Prayer Times",
+      "data_type": "json",
+      "icon": "schedule",
+      "label_key": "placeDetail.prayerTimes",
+      "is_filterable": false,
+      "is_specification": false,
+      "category": "timing",
+      "religion": "islam",
+      "display_order": 110
+    },
+    {
+      "attribute_code": "service_times",
+      "name": "Service Times",
+      "data_type": "json",
+      "icon": "schedule",
+      "label_key": "placeDetail.serviceTimes",
+      "is_filterable": false,
+      "is_specification": false,
+      "category": "timing",
+      "religion": "christianity",
+      "display_order": 120
+    },
+    {
+      "attribute_code": "deities",
+      "name": "Deities",
+      "data_type": "json",
+      "icon": "temple_hindu",
+      "label_key": "placeDetail.deities",
+      "is_filterable": false,
+      "is_specification": false,
+      "category": "timing",
+      "religion": "hinduism",
+      "display_order": 130
+    },
+    {
+      "attribute_code": "google_rating",
+      "name": "Google Rating",
+      "data_type": "number",
+      "icon": "star",
+      "label_key": "placeDetail.googleRating",
+      "is_filterable": false,
+      "is_specification": true,
+      "category": "info",
+      "religion": null,
+      "display_order": 140
+    },
+    {
+      "attribute_code": "google_reviews_count",
+      "name": "Google Reviews Count",
+      "data_type": "number",
+      "icon": "reviews",
+      "label_key": "placeDetail.googleReviews",
+      "is_filterable": false,
+      "is_specification": true,
+      "category": "info",
+      "religion": null,
+      "display_order": 150
+    }
   ]
 }

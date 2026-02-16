@@ -124,6 +124,11 @@ class PlaceListItem(BaseModel):
         from_attributes = True
 
 
+class PlaceAttributeInput(BaseModel):
+    attribute_code: str
+    value: Any  # str, number, bool, or dict
+
+
 class PlaceCreate(BaseModel):
     place_code: str
     name: str
@@ -137,4 +142,5 @@ class PlaceCreate(BaseModel):
     description: Optional[str] = None
     religion_specific: Optional[dict] = None
     website_url: Optional[str] = None
+    attributes: Optional[List[PlaceAttributeInput]] = None
 

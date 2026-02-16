@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Literal, Optional
 from sqlmodel import Session, select, or_
 from app.db.models import Place
 from app.db.session import engine
+from app.db import place_attributes as attr_db
 
 Religion = Literal["islam", "hinduism", "christianity"]
 
@@ -169,6 +170,19 @@ def _place_has_womens_area(p: Place) -> bool:
     return bool(rs.get("womens_area"))
 
 
+def _get_attr_bool(place_code: str, attribute_code: str) -> bool:
+    """Return True if a PlaceAttribute exists and is truthy for the given place."""
+    attrs = attr_db.get_attributes_dict(place_code)
+    val = attrs.get(attribute_code)
+    if val is None:
+        return False
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, str):
+        return val.lower() not in ("false", "0", "")
+    return bool(val)
+
+
 def list_places(
     religions: Optional[List[Religion]] = None,
     lat: Optional[float] = None,
@@ -239,22 +253,55 @@ def list_places(
         def count_filter(fn) -> int:
             return sum(1 for p, _ in base_results if fn(p))
 
-        filters_meta = {
-            "options": [
-                {"key": "open_now",    "label": "Open Now",    "icon": "schedule",      "count": count_filter(lambda p: bool(_is_open_now_from_hours(p.opening_hours)))},
-                {"key": "has_parking", "label": "Has Parking", "icon": "local_parking", "count": count_filter(_place_has_parking)},
-                {"key": "womens_area", "label": "Women's Area","icon": "wc",            "count": count_filter(_place_has_womens_area)},
-                {"key": "has_events",  "label": "Has Events",  "icon": "event",         "count": count_filter(_place_has_events)},
-                {"key": "top_rated",   "label": "Top Rated",   "icon": "star",          "count": count_filter(lambda p: _get_avg(p.place_code) >= 4.0)},
-            ]
-        }
+        # Build filter options: start with static special-cases, then dynamic attribute defs
+        filter_options = [
+            {
+                "key": "open_now",
+                "label": "Open Now",
+                "icon": "schedule",
+                "count": count_filter(lambda p: bool(_is_open_now_from_hours(p.opening_hours))),
+            },
+            {
+                "key": "top_rated",
+                "label": "Top Rated",
+                "icon": "star",
+                "count": count_filter(lambda p: _get_avg(p.place_code) >= 4.0),
+            },
+        ]
+
+        # Add dynamic attribute-based filters
+        filterable_defs = attr_db.get_attribute_definitions(filterable_only=True)
+        for defn in filterable_defs:
+            attr_code = defn.attribute_code
+
+            def _make_attr_counter(code):
+                def _check(p):
+                    attrs = attr_db.get_attributes_dict(p.place_code)
+                    val = attrs.get(code)
+                    if val is None:
+                        return False
+                    if isinstance(val, bool):
+                        return val
+                    if isinstance(val, str):
+                        return val.lower() not in ("false", "0", "")
+                    return bool(val)
+                return _check
+
+            filter_options.append({
+                "key": attr_code,
+                "label": defn.name,
+                "icon": defn.icon or "info",
+                "count": count_filter(_make_attr_counter(attr_code)),
+            })
+
+        filters_meta = {"options": filter_options}
 
         if open_now is True:
             result = [(p, d) for p, d in result if _is_open_now_from_hours(p.opening_hours) is True]
         if has_parking is True:
-            result = [(p, d) for p, d in result if _place_has_parking(p)]
+            result = [(p, d) for p, d in result if _place_has_parking(p) or _get_attr_bool(p.place_code, "has_parking")]
         if womens_area is True:
-            result = [(p, d) for p, d in result if _place_has_womens_area(p)]
+            result = [(p, d) for p, d in result if _place_has_womens_area(p) or _get_attr_bool(p.place_code, "has_womens_area")]
         if top_rated is True:
             result = [(p, d) for p, d in result if _get_avg(p.place_code) >= 4.0]
 

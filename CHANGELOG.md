@@ -4,6 +4,46 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Dynamic Place Attributes + Google Maps Scraper Generalization (2026-02-16)
+
+### Backend
+
+- **Dynamic Attribute System (EAV):** Introduced `PlaceAttributeDefinition` and `PlaceAttribute` tables for flexible, religion-agnostic attribute storage. Adding new scraped fields or attributes now requires only a DB row—not code changes.
+  - `PlaceAttributeDefinition`: Defines available attributes (`has_parking`, `capacity`, `denomination`, etc.) with metadata: data type, icon, i18n label key, filterable/specification flags, religion constraint, display order.
+  - `PlaceAttribute`: Stores actual values per place in `value_text` (booleans/strings/numbers) or `value_json` (complex data like prayer times, service schedules, deities).
+- **Seed Data:** Added 15 attribute definitions to `seed_data.json` (parking, wheelchair, wudu area, women's area, capacity, denomination, founded year, architecture, dress code, prayer times, service times, deities, Google rating/reviews).
+- **Seed Migration:** Existing `religion_specific` data is automatically migrated to `PlaceAttribute` rows on seed for all 10 places.
+- **Dynamic `_build_specifications()`:** Replaced hardcoded per-religion logic with dynamic attribute lookups from `PlaceAttributeDefinition` (spec_only=true). Specifications are now auto-generated and ordered by `display_order`.
+- **Dynamic Filters:** Filter chips in `GET /api/v1/places` are now dynamically generated from `PlaceAttributeDefinition` (filterable=true) + two special cases (`open_now`, `top_rated`).
+- **API Schema:** Added `PlaceAttributeInput` model and optional `attributes` field to `PlaceCreate`. The `POST /api/v1/places` endpoint now accepts and upserts attributes.
+- **Place Detail Response:** Added `attributes` dict (flat key-value) to place detail responses for client consumption.
+- **Backward Compatibility:** Kept `religion_specific` JSON column; new code reads from `PlaceAttribute` first, falls back to `religion_specific`.
+
+### Data Scraper (`data_scraper/`)
+
+- **Google Maps Scraper Generalization:**
+  - **Environment Key:** Moved API key from hardcoded value to `GOOGLE_MAPS_API_KEY` env var. Added `data_scraper/.env.example`.
+  - **Multi-Type/Country:** Renamed functions to be generic (`get_places_in_circle`, `get_place_details`). Added CLI args: `--country` (UAE, India, USA), `--type` (mosque, hindu_temple, church), `--mode` (csv, api).
+  - **Attribute Mapping:** Scraper now maps Google fields to attribute codes (`wheelchair_accessible`, `google_rating`, `google_reviews_count`) and outputs `attributes` array in place payload.
+  - **API Mode:** `--mode api` POSTs scraped places directly to `POST /api/v1/places` with `attributes` for auto-ingestion (no manual CSV import).
+  - **CSV Mode:** Legacy `--mode csv` still works for exporting to CSV with weekly hours, images, reviews.
+  - **Usage Example:** `python data_scraper/gmaps.py --country UAE --type mosque --mode api --api-url http://localhost:8000/api/v1/places`
+
+### Frontend (Web + Mobile)
+
+- **Types:** Added `attributes?: Record<string, unknown>` field to `Place` interface in `apps/web/src/lib/types/index.ts` and `apps/mobile/src/lib/types/index.ts`.
+
+### Docs
+
+- **ARCHITECTURE.md:**
+  - Updated data model section (§4) to include `PlaceAttributeDefinition` and `PlaceAttribute`.
+  - Added "Dynamic Attribute System (EAV Pattern)" subsection explaining benefits and backward compatibility.
+  - Updated "Data Enrichment" section (§8) to document generalized Google Maps scraper with CLI args, env key, and API mode.
+- **PRODUCTION.md:** Added `GOOGLE_MAPS_API_KEY` environment variable to all three deployment plans (Docker, Free services, GCP).
+- **server/README.md:** (Pending update to env vars section.)
+
+---
+
 ## Data Enrichment Scraper API (2026-02-15)
 
 ### Scraper Service (`data_scraper/`)

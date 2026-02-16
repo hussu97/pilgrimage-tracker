@@ -30,6 +30,7 @@ export interface Place {
   description?: string;
   opening_hours?: Record<string, string>;
   religion_specific?: Record<string, unknown>;
+  attributes?: Record<string, unknown>;
   user_has_checked_in?: boolean;
   is_favorite?: boolean;
   average_rating?: number;

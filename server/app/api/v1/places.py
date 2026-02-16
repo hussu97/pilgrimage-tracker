@@ -9,6 +9,7 @@ from app.db import reviews as reviews_db
 from app.db import store as user_store
 from app.db import check_ins as check_ins_db
 from app.db import favorites as favorites_db
+from app.db import place_attributes as attr_db
 from app.models.schemas import CheckInBody, ReviewCreateBody, PlacesListResponse, PlaceCreate
 
 router = APIRouter()
@@ -175,48 +176,55 @@ def _build_timings(place) -> list:
 
 
 def _build_specifications(place) -> list:
-    rs = getattr(place, "religion_specific", {}) or {}
     religion = getattr(place, "religion", "")
+    place_code = getattr(place, "place_code", None)
     specs = []
 
-    if religion == "islam":
-        if rs.get("capacity"):
-            specs.append({"icon": "groups", "label": "placeDetail.capacity", "value": str(rs["capacity"])})
-        facs = rs.get("facilities", [])
-        if isinstance(facs, list):
-            facs_lower = [str(f).lower() for f in facs]
-        else:
-            facs_lower = []
-        has_wudu = rs.get("wudu_area") or any("wudu" in f or "ablution" in f for f in facs_lower)
-        if has_wudu:
-            specs.append({"icon": "opacity", "label": "placeDetail.wuduArea", "value": "Available"})
-        has_parking = rs.get("parking") or any("parking" in f for f in facs_lower)
-        if has_parking:
-            specs.append({"icon": "local_parking", "label": "placeDetail.parking", "value": str(rs.get("parking", "Available"))})
-        has_womens = rs.get("womens_area") or any("women" in f for f in facs_lower)
-        if has_womens:
-            specs.append({"icon": "wc", "label": "placeDetail.womensArea", "value": "Separate"})
+    # Dynamic attribute-based specs (primary source)
+    if place_code:
+        spec_defs = attr_db.get_attribute_definitions(religion=religion, spec_only=True)
+        attrs = attr_db.get_attributes_dict(place_code)
+        for defn in spec_defs:
+            val = attrs.get(defn.attribute_code)
+            if val is None:
+                continue
+            if isinstance(val, bool):
+                if not val:
+                    continue
+                display = "Available" if defn.attribute_code not in ("has_womens_area",) else "Separate"
+            else:
+                display = str(val)
+            if display:
+                specs.append({
+                    "icon": defn.icon or "info",
+                    "label": defn.label_key or defn.name,
+                    "value": display,
+                })
 
-    elif religion == "hinduism":
-        if rs.get("architecture"):
-            specs.append({"icon": "account_balance", "label": "placeDetail.architecture", "value": str(rs["architecture"])})
-        if rs.get("dress_code"):
-            specs.append({"icon": "checkroom", "label": "placeDetail.dressCode", "value": str(rs["dress_code"])})
-        if rs.get("next_festival"):
-            specs.append({"icon": "celebration", "label": "placeDetail.nextFestival", "value": str(rs["next_festival"])})
-        if rs.get("festival_dates") and isinstance(rs["festival_dates"], list) and rs["festival_dates"]:
-            specs.append({"icon": "event", "label": "placeDetail.festivalDates", "value": ", ".join(str(d) for d in rs["festival_dates"])})
-
-    elif religion == "christianity":
-        if rs.get("denomination"):
-            specs.append({"icon": "church", "label": "placeDetail.denomination", "value": str(rs["denomination"])})
-        if rs.get("founded_year"):
-            specs.append({"icon": "history", "label": "placeDetail.foundedYear", "value": str(rs["founded_year"])})
-        if rs.get("style"):
-            specs.append({"icon": "architecture", "label": "placeDetail.style", "value": str(rs["style"])})
-        notable = rs.get("notable_features", [])
-        if isinstance(notable, list) and notable:
-            specs.append({"icon": "star", "label": "placeDetail.notableFeatures", "value": ", ".join(str(f) for f in notable)})
+    # Fallback: derive from religion_specific for backward compatibility
+    if not specs:
+        rs = getattr(place, "religion_specific", {}) or {}
+        if religion == "islam":
+            if rs.get("capacity"):
+                specs.append({"icon": "groups", "label": "placeDetail.capacity", "value": str(rs["capacity"])})
+            facs = rs.get("facilities", [])
+            facs_lower = [str(f).lower() for f in facs] if isinstance(facs, list) else []
+            if rs.get("wudu_area") or any("wudu" in f or "ablution" in f for f in facs_lower):
+                specs.append({"icon": "opacity", "label": "placeDetail.wuduArea", "value": "Available"})
+            if rs.get("parking") or any("parking" in f for f in facs_lower):
+                specs.append({"icon": "local_parking", "label": "placeDetail.parking", "value": str(rs.get("parking", "Available"))})
+            if rs.get("womens_area") or any("women" in f for f in facs_lower):
+                specs.append({"icon": "wc", "label": "placeDetail.womensArea", "value": "Separate"})
+        elif religion == "hinduism":
+            if rs.get("architecture"):
+                specs.append({"icon": "account_balance", "label": "placeDetail.architecture", "value": str(rs["architecture"])})
+            if rs.get("dress_code"):
+                specs.append({"icon": "checkroom", "label": "placeDetail.dressCode", "value": str(rs["dress_code"])})
+        elif religion == "christianity":
+            if rs.get("denomination"):
+                specs.append({"icon": "church", "label": "placeDetail.denomination", "value": str(rs["denomination"])})
+            if rs.get("founded_year"):
+                specs.append({"icon": "history", "label": "placeDetail.foundedYear", "value": str(rs["founded_year"])})
 
     return specs
 
@@ -231,6 +239,7 @@ def _place_detail(place) -> dict:
     out["total_checkins_count"] = check_ins_db.count_check_ins_for_place(place.place_code)
     out["timings"] = _build_timings(place)
     out["specifications"] = _build_specifications(place)
+    out["attributes"] = attr_db.get_attributes_dict(place.place_code)
     return out
 
 
@@ -431,6 +440,12 @@ def create_place(
             religion_specific=body.religion_specific,
             website_url=body.website_url,
         )
+
+    # Store attributes if provided
+    if body.attributes:
+        for attr_input in body.attributes:
+            attr_db.upsert_attribute(body.place_code, attr_input.attribute_code, attr_input.value)
+
     return _place_detail(row)
 
 

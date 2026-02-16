@@ -48,6 +48,7 @@ The server uses **SQLModel** with a persistent **SQLite database** (`pilgrimage.
 
 - `JWT_SECRET` — secret for JWT (default: dev secret)
 - `PORT` — port (default: 3000)
-- `DATABASE_URL` — (optional for production) PostgreSQL connection string; when unset, in-memory stores are used for dev.
+- `DATABASE_URL` — (optional for production) PostgreSQL connection string; when unset, SQLite (`pilgrimage.db`) is used for dev.
+- `GOOGLE_MAPS_API_KEY` — (optional, for scraper) Google Maps API key for `data_scraper/gmaps.py`. Not required for server operation, only for running the scraper to discover new places.
 
 For production deployment options, see [PRODUCTION.md](../PRODUCTION.md) at repo root.

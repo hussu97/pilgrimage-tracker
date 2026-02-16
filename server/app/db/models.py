@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import Column, Field, JSON, SQLModel
 
 
@@ -103,3 +104,27 @@ class PasswordReset(SQLModel, table=True):
     user_code: str = Field(foreign_key="user.user_code")
     expires_at: datetime
     used_at: Optional[datetime] = None
+
+
+class PlaceAttributeDefinition(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    attribute_code: str = Field(index=True, unique=True)
+    name: str
+    data_type: str  # "boolean", "string", "number", "json"
+    icon: Optional[str] = None
+    label_key: Optional[str] = None
+    is_filterable: bool = False
+    is_specification: bool = False
+    category: Optional[str] = None  # "facility", "timing", "info"
+    religion: Optional[str] = None  # null = all, "islam", "hinduism", "christianity"
+    display_order: int = Field(default=0)
+
+
+class PlaceAttribute(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("place_code", "attribute_code"),)
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    place_code: str = Field(index=True, foreign_key="place.place_code")
+    attribute_code: str = Field(index=True, foreign_key="placeattributedefinition.attribute_code")
+    value_text: Optional[str] = None
+    value_json: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
