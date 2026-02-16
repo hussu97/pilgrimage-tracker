@@ -166,18 +166,18 @@ def get_places_in_circle(lat: float, lng: float, radius: float, place_types: Lis
 
     return place_resource_names, is_saturated
 
-def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
+def get_place_details(place_name: str, api_key: str, session: Session) -> Dict:
     """
     Fetch detailed information for a single place using new Places API.
     Auto-detects religion from types.
     Uses field masks to optimize cost: Basic + Contact + Atmosphere tiers.
 
     Args:
-        place_id: Place resource name (format: "places/ChIJ...") from searchNearby
+        place_name: Place resource name (format: "places/ChIJ...") from searchNearby
         api_key: Google Maps API key
         session: Database session for querying place type mappings
     """
-    url = f"https://places.googleapis.com/v1/{place_id}"
+    url = f"https://places.googleapis.com/v1/{place_name}"
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": api_key,
@@ -293,11 +293,11 @@ def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
                         ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
 
     # Extract place_id from resource name (e.g., "places/ChIJ..." -> "ChIJ...")
-    # The place_id parameter is already the resource name from searchNearby
-    if place_id.startswith("places/"):
-        extracted_place_id = place_id[7:]  # Remove "places/" prefix
+    # The place_name parameter is already the resource name from searchNearby
+    if place_name.startswith("places/"):
+        extracted_place_id = place_name[7:]  # Remove "places/" prefix
     else:
-        extracted_place_id = place_id
+        extracted_place_id = place_name
 
     # Generate stable place_code from place_id
     place_code = f"gplc_{extracted_place_id}"
@@ -579,9 +579,9 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
 
     if not force_refresh:
         print(f"Checking for cached places (fresher than {stale_threshold_days} days)...")
-        for pid in place_ids:
+        for place_name in place_ids:
             # Extract place ID from resource name (e.g., "places/ChIJ..." -> "ChIJ...")
-            extracted_id = pid[7:] if pid.startswith("places/") else pid
+            extracted_id = place_name[7:] if place_name.startswith("places/") else place_name
             place_code = f"gplc_{extracted_id}"
             existing = session.exec(
                 select(ScrapedPlace)
@@ -591,14 +591,14 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
             ).first()
 
             if existing:
-                cached_places[pid] = existing
+                cached_places[place_name] = existing
 
         print(f"Found {len(cached_places)} cached places, will fetch {len(place_ids) - len(cached_places)} fresh")
 
     fetched_count = 0
     cached_count = 0
 
-    for i, pid in enumerate(place_ids):
+    for i, place_name in enumerate(place_ids):
         # Check for cancellation
         session.expire(run)
         session.refresh(run)
@@ -608,8 +608,8 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
 
         try:
             # Check if we have a cached version (Phase 3 deduplication)
-            if pid in cached_places and not force_refresh:
-                cached_place = cached_places[pid]
+            if place_name in cached_places and not force_refresh:
+                cached_place = cached_places[place_name]
                 # Reuse cached data but associate with current run
                 scraped_place = ScrapedPlace(
                     run_code=run_code,
@@ -624,7 +624,7 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
                 print(f"  [{i+1}/{len(place_ids)}] {cached_place.name} (cached)")
             else:
                 # Fetch fresh details
-                details = get_place_details(pid, api_key, session)
+                details = get_place_details(place_name, api_key, session)
 
                 scraped_place = ScrapedPlace(
                     run_code=run_code,
