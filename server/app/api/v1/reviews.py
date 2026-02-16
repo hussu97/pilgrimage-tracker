@@ -4,10 +4,12 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from PIL import Image
+from sqlmodel import Session
 
-from app.api.deps import get_current_user, get_db_session
+from app.api.deps import get_current_user
 from app.db import reviews as reviews_db
 from app.db import review_images as review_images_db
+from app.db.session import engine
 from app.models.schemas import ReviewUpdateBody
 
 router = APIRouter()
@@ -56,7 +58,7 @@ def delete_review(
 @router.post("/upload-photo")
 async def upload_review_photo(
     user: Annotated[Any, Depends(get_current_user)],
-    session: Annotated[Any, Depends(get_db_session)],
+    session: Annotated[Session, Depends(lambda: Session(engine))],
     file: UploadFile = File(...),
 ):
     """
@@ -156,7 +158,7 @@ async def upload_review_photo(
 @router.get("/images/{image_id}")
 def get_review_image(
     image_id: int,
-    session: Annotated[Any, Depends(get_db_session)],
+    session: Annotated[Session, Depends(lambda: Session(engine))],
 ):
     """
     Serve a review image by ID.
