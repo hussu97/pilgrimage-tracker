@@ -3,14 +3,15 @@ import time
 import re
 import os
 import base64
+import math
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from sqlmodel import Session, select
 from app.db.models import ScraperRun, ScrapedPlace, GeoBoundary, PlaceTypeMapping
 
 # Configuration
-SEARCH_RADIUS = 10000  # 10km radius per grid point
-STEP = 0.1  # Approx 11km per step to ensure overlap
+MIN_RADIUS = 2000  # 2km minimum radius for quadtree subdivision
+STALE_THRESHOLD_DAYS = 90  # Re-fetch place details if older than this
 
 
 def get_place_type_mappings(session: Session) -> Dict[str, List[str]]:
@@ -122,59 +123,84 @@ def process_weekly_hours(opening_hours_dict):
 
     return schedule
 
-def get_places_in_circle(lat: float, lng: float, place_type: str, api_key: str) -> List[str]:
-    """Find all places of a given type within radius."""
-    url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
-    places = []
-    params = {
-        "location": f"{lat},{lng}",
-        "radius": SEARCH_RADIUS,
-        "type": place_type,
-        "key": api_key
+def get_places_in_circle_v2(lat: float, lng: float, radius: float, place_types: List[str], api_key: str) -> Tuple[List[str], bool]:
+    """
+    Find all places of given types within radius using new Places API.
+    Returns (list of place_ids, is_saturated).
+    is_saturated=True when exactly 20 results returned (API max without pagination).
+    """
+    url = "https://places.googleapis.com/v1/places:searchNearby"
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": api_key,
+        "X-Goog-FieldMask": "places.id"
+    }
+    body = {
+        "includedTypes": place_types,
+        "locationRestriction": {
+            "circle": {
+                "center": {
+                    "latitude": lat,
+                    "longitude": lng
+                },
+                "radius": radius
+            }
+        },
+        "maxResultCount": 20
     }
 
-    while True:
-        response = requests.get(url, params=params).json()
-        if "results" in response:
-            for place in response["results"]:
-                places.append(place["place_id"])
+    response = requests.post(url, json=body, headers=headers).json()
+    places_data = response.get("places", [])
+    place_ids = [p["id"] for p in places_data if "id" in p]
 
-        next_page_token = response.get("next_page_token")
-        if next_page_token:
-            params["pagetoken"] = next_page_token
-            time.sleep(2)
-        else:
-            break
-    return places
+    # Saturated if we got exactly max results (no pagination available)
+    is_saturated = len(place_ids) == 20
 
-def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
-    """Fetch detailed information for a single place. Auto-detects religion from types."""
-    url = "https://maps.googleapis.com/maps/api/place/details/json"
+    return place_ids, is_saturated
 
-    fields = "name,formatted_address,vicinity,geometry,opening_hours,utc_offset,wheelchair_accessible_entrance,rating,user_ratings_total,url,photos,business_status,reviews,editorial_summary,types"
-    params = {
-        "place_id": place_id,
-        "fields": fields,
-        "language": "en",
-        "key": api_key
+def get_place_details_v2(place_id: str, api_key: str, session: Session) -> Dict:
+    """
+    Fetch detailed information for a single place using new Places API.
+    Auto-detects religion from types.
+    Uses field masks to optimize cost: Basic + Contact + Atmosphere tiers.
+    """
+    url = f"https://places.googleapis.com/v1/{place_id}"
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": api_key,
+        "X-Goog-FieldMask": ",".join([
+            # Basic tier (free)
+            "id", "displayName", "formattedAddress", "location", "types",
+            "photos", "businessStatus",
+            # Contact tier ($0.003)
+            "regularOpeningHours", "websiteUri", "utcOffsetMinutes",
+            # Atmosphere tier ($0.005)
+            "rating", "userRatingCount", "reviews", "accessibilityOptions",
+            "editorialSummary"
+        ]),
+        "languageCode": "en"
     }
 
-    response = requests.get(url, params=params).json()
-    result = response.get("result", {})
+    response = requests.get(url, headers=headers).json()
 
     # Process images (up to 3)
+    # New API uses photos[].name as resource path (e.g., "places/ChIJ.../photos/...")
     photo_urls = []
     image_blobs = []
     download_failures = []
 
-    for photo in result.get("photos", [])[:3]:
-        ref = photo.get("photo_reference")
-        url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference={ref}&key={api_key}"
-        photo_urls.append(url)
+    for photo in response.get("photos", [])[:3]:
+        photo_name = photo.get("name")
+        if not photo_name:
+            continue
+
+        # Construct photo URL using new API format
+        photo_url = f"https://places.googleapis.com/v1/{photo_name}/media?maxWidthPx=800&key={api_key}"
+        photo_urls.append(photo_url)
 
         # Download the image as blob
         try:
-            resp = requests.get(url, timeout=15)
+            resp = requests.get(photo_url, timeout=15)
             if resp.status_code == 200:
                 mime = resp.headers.get("Content-Type", "image/jpeg")
                 image_blobs.append({
@@ -182,55 +208,89 @@ def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
                     "mime_type": mime,
                 })
             else:
-                download_failures.append(url)
+                download_failures.append(photo_url)
         except Exception as e:
-            print(f"Failed to download image {url}: {e}")
-            download_failures.append(url)
+            print(f"Failed to download image {photo_url}: {e}")
+            download_failures.append(photo_url)
 
     # Process external reviews (up to 5)
+    # New API format: reviews[].text.text, reviews[].rating, etc.
     external_reviews = []
-    for review in result.get("reviews", [])[:5]:
+    for review in response.get("reviews", [])[:5]:
+        review_text = review.get("text", {})
+        if isinstance(review_text, dict):
+            review_text = review_text.get("text", "")
+
+        author_name = review.get("authorAttribution", {}).get("displayName", "")
+
+        # publishTime is ISO format string, convert to unix timestamp
+        publish_time = review.get("publishTime", "")
+        time_unix = 0
+        try:
+            if publish_time:
+                dt = datetime.fromisoformat(publish_time.replace("Z", "+00:00"))
+                time_unix = int(dt.timestamp())
+        except:
+            pass
+
         external_reviews.append({
-            "author_name": review.get("author_name", ""),
+            "author_name": author_name,
             "rating": review.get("rating", 0),
-            "text": review.get("text", ""),
-            "time": review.get("time", 0),
-            "relative_time_description": review.get("relative_time_description", ""),
-            "language": review.get("language", "en"),
+            "text": review_text,
+            "time": time_unix,
+            "relative_time_description": review.get("relativePublishTimeDescription", ""),
+            "language": "en",  # New API doesn't provide language
         })
 
     # Build attributes for API ingestion
     attributes = []
 
-    # Wheelchair accessibility
-    wheelchair = result.get("wheelchair_accessible_entrance")
+    # Wheelchair accessibility (new API uses accessibilityOptions object)
+    accessibility = response.get("accessibilityOptions", {})
+    wheelchair = accessibility.get("wheelchairAccessibleEntrance")
     if wheelchair is not None:
         attributes.append({"attribute_code": "wheelchair_accessible", "value": wheelchair})
 
     # Rating and reviews
-    rating = result.get("rating")
+    rating = response.get("rating")
     if rating:
         attributes.append({"attribute_code": "rating", "value": rating})
 
-    reviews_count = result.get("user_ratings_total")
+    reviews_count = response.get("userRatingCount")
     if reviews_count:
         attributes.append({"attribute_code": "reviews_count", "value": reviews_count})
 
-    # Process opening hours
-    opening_hours = process_weekly_hours(result.get("opening_hours", {}))
+    # Process opening hours (new API format: regularOpeningHours.weekdayDescriptions)
+    opening_hours_data = response.get("regularOpeningHours", {})
+    opening_hours = {}
+    weekday_descriptions = opening_hours_data.get("weekdayDescriptions", [])
+    if weekday_descriptions:
+        # Convert new format to legacy format for process_weekly_hours
+        legacy_format = {"weekday_text": weekday_descriptions}
+        opening_hours = process_weekly_hours(legacy_format)
+    else:
+        opening_hours = {day: "Hours not available" for day in
+                        ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
+
+    # Extract place_id from resource name (e.g., "places/ChIJ..." -> "ChIJ...")
+    resource_name = response.get("id", "")
+    if resource_name.startswith("places/"):
+        extracted_place_id = resource_name[7:]  # Remove "places/" prefix
+    else:
+        extracted_place_id = resource_name
 
     # Generate stable place_code from place_id
-    place_code = f"gplc_{place_id}"
+    place_code = f"gplc_{extracted_place_id}"
 
     # Build place data
     # Auto-detect religion and place_type from the result's types array
-    result_types = result.get("types", [])
+    result_types = response.get("types", [])
 
     # Detect religion first
     religion = detect_religion_from_types(session, result_types)
     if not religion:
         # Fallback if no religion detected (shouldn't happen for scraped religious places)
-        print(f"Warning: Could not detect religion for place {place_id} with types: {result_types}")
+        print(f"Warning: Could not detect religion for place {extracted_place_id} with types: {result_types}")
         religion = "unknown"
 
     # Detect our internal place_type name
@@ -241,76 +301,173 @@ def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
             place_type_name = gmaps_type_map[gmaps_type]
             break
 
-    # Get editorial summary for better description
-    editorial = result.get("editorial_summary", {}).get("overview", "")
+    # Get editorial summary (new API format: editorialSummary.text)
+    editorial_summary = response.get("editorialSummary", {})
+    if isinstance(editorial_summary, dict):
+        editorial = editorial_summary.get("text", "")
+    else:
+        editorial = ""
+
+    formatted_address = response.get("formattedAddress", "")
     if editorial:
         description = editorial
     else:
         # Fallback: generate a basic description
-        description = f"A {place_type_name} located in {clean_address(result.get('formatted_address', ''))}."
+        description = f"A {place_type_name} located in {clean_address(formatted_address)}."
 
     # Decide whether to use blobs or URLs based on download success
     # Only use blobs if ALL images were successfully downloaded
     use_blobs = len(image_blobs) == len(photo_urls) and len(photo_urls) > 0
 
+    # Extract lat/lng from location object
+    location = response.get("location", {})
+    lat = location.get("latitude", 0)
+    lng = location.get("longitude", 0)
+
+    # Get display name (new API format)
+    display_name = response.get("displayName", {})
+    if isinstance(display_name, dict):
+        name = display_name.get("text", "N/A")
+    else:
+        name = "N/A"
+
+    # Website URI
+    website_url = response.get("websiteUri", "")
+
+    # Business status
+    business_status = response.get("businessStatus", "N/A")
+
+    # UTC offset
+    utc_offset_minutes = response.get("utcOffsetMinutes")
+
     place_data = {
         "place_code": place_code,
-        "name": result.get("name", "N/A"),
+        "name": name,
         "religion": religion,
         "place_type": place_type_name,
-        "lat": result.get("geometry", {}).get("location", {}).get("lat", 0),
-        "lng": result.get("geometry", {}).get("location", {}).get("lng", 0),
-        "address": clean_address(result.get("formatted_address", "")),
+        "lat": lat,
+        "lng": lng,
+        "address": clean_address(formatted_address),
         "image_urls": [] if use_blobs else photo_urls,  # Empty if using blobs
         "image_blobs": image_blobs if use_blobs else [],  # Empty if using URLs
         "description": description,
-        "website_url": result.get("url", ""),
+        "website_url": website_url,
         "opening_hours": opening_hours,
-        "utc_offset_minutes": result.get("utc_offset"),  # int, minutes from UTC
+        "utc_offset_minutes": utc_offset_minutes,
         "attributes": attributes,
         "external_reviews": external_reviews,
         "source": "gmaps",
         # Additional metadata
-        "vicinity": result.get("vicinity", "N/A"),
-        "business_status": result.get("business_status", "N/A"),
-        "google_place_id": place_id,
+        "vicinity": formatted_address,  # New API doesn't have vicinity, use full address
+        "business_status": business_status,
+        "google_place_id": extracted_place_id,
     }
 
     return place_data
 
-def search_grid(lat_min: float, lat_max: float, lng_min: float, lng_max: float, place_type: str, api_key: str, max_results: Optional[int] = None) -> List[str]:
-    """Grid search over a geographic area for a given place type."""
-    print(f"Searching area (lat: {lat_min}-{lat_max}, lng: {lng_min}-{lng_max}) for {place_type}...")
-    unique_place_ids = set()
+def calculate_search_radius(lat_min: float, lat_max: float, lng_min: float, lng_max: float) -> Tuple[float, float, float]:
+    """
+    Calculate the center point and radius to cover a bounding box.
+    Returns (center_lat, center_lng, radius_meters).
+    """
+    center_lat = (lat_min + lat_max) / 2
+    center_lng = (lng_min + lng_max) / 2
 
-    lat = lat_min
-    while lat <= lat_max:
-        lng = lng_min
-        while lng <= lng_max:
-            print('Searching:',lat,':',lng)
-            unique_place_ids.update(get_places_in_circle(lat, lng, place_type, api_key))
-            # Check if we've reached the limit
-            if max_results and len(unique_place_ids) >= max_results:
-                print(f"Reached max_results limit: {max_results}")
-                return list(unique_place_ids)[:max_results]
+    # Calculate diagonal distance in meters (approximation)
+    # 1 degree latitude ≈ 111km, 1 degree longitude varies by latitude
+    lat_diff = abs(lat_max - lat_min) * 111000  # meters
+    lng_diff = abs(lng_max - lng_min) * 111000 * abs(math.cos(math.radians(center_lat)))
 
-            time.sleep(0.5)  # Rate limiting
-            lng += STEP
-        lat += STEP
+    # Diagonal of the box
+    diagonal = math.sqrt(lat_diff**2 + lng_diff**2)
 
-    print(f"Found {len(unique_place_ids)} unique places")
-    return list(unique_place_ids)
+    # Radius is half the diagonal (to cover the entire box from center)
+    radius = diagonal / 2
+
+    return center_lat, center_lng, radius
+
+
+def search_area(
+    lat_min: float,
+    lat_max: float,
+    lng_min: float,
+    lng_max: float,
+    place_types: List[str],
+    api_key: str,
+    existing_ids: set,
+    depth: int = 0
+) -> List[str]:
+    """
+    Recursive quadtree search for places.
+    Returns list of unique place_ids found in this area.
+
+    Args:
+        lat_min, lat_max, lng_min, lng_max: Bounding box
+        place_types: List of Google Maps types to search for
+        api_key: Google Maps API key
+        existing_ids: Set of place IDs already found (for deduplication)
+        depth: Recursion depth for logging
+    """
+    indent = "  " * depth
+    center_lat, center_lng, radius = calculate_search_radius(lat_min, lat_max, lng_min, lng_max)
+
+    print(f"{indent}Searching area (lat: {lat_min:.4f}-{lat_max:.4f}, lng: {lng_min:.4f}-{lng_max:.4f}, radius: {radius:.0f}m, depth: {depth})")
+
+    # Stop recursing if area is too small
+    if radius < MIN_RADIUS:
+        print(f"{indent}Area too small (radius < {MIN_RADIUS}m), stopping recursion")
+        return []
+
+    # Search this area
+    place_ids, is_saturated = get_places_in_circle_v2(center_lat, center_lng, radius, place_types, api_key)
+    time.sleep(0.5)  # Rate limiting
+
+    # Filter out already-known places
+    new_ids = [pid for pid in place_ids if pid not in existing_ids]
+    existing_ids.update(new_ids)
+
+    print(f"{indent}Found {len(place_ids)} places ({len(new_ids)} new), saturated: {is_saturated}")
+
+    # If not saturated, we're done with this area
+    if not is_saturated:
+        return new_ids
+
+    # If saturated, split into 4 quadrants and recurse
+    print(f"{indent}Area saturated, splitting into quadrants...")
+
+    mid_lat = (lat_min + lat_max) / 2
+    mid_lng = (lng_min + lng_max) / 2
+
+    quadrants = [
+        (lat_min, mid_lat, lng_min, mid_lng),  # SW
+        (lat_min, mid_lat, mid_lng, lng_max),  # SE
+        (mid_lat, lat_max, lng_min, mid_lng),  # NW
+        (mid_lat, lat_max, mid_lng, lng_max),  # NE
+    ]
+
+    all_ids = list(new_ids)  # Start with IDs from this level
+
+    for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
+        quadrant_ids = search_area(
+            q_lat_min, q_lat_max, q_lng_min, q_lng_max,
+            place_types, api_key, existing_ids, depth + 1
+        )
+        all_ids.extend(quadrant_ids)
+
+    return all_ids
 
 def run_gmaps_scraper(run_code: str, config: dict, session: Session):
     """
-    Runs the Google Maps grid scraper.
+    Runs the Google Maps scraper with quadtree search and cross-run deduplication.
     Automatically searches for ALL active place types from the database.
     config must contain ('country' OR 'city').
-    Optional: 'max_results' to limit for testing.
+    Optional: 'max_results' to limit for testing, 'force_refresh' to ignore cache.
     """
     city = config.get("city")
     country = config.get("country")
     max_results = config.get("max_results")
+    force_refresh = config.get("force_refresh", False)
+    stale_threshold_days = config.get("stale_threshold_days", STALE_THRESHOLD_DAYS)
 
     if not city and not country:
         raise ValueError("Either city or country required in config")
@@ -342,6 +499,9 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
     if not place_type_mappings:
         raise ValueError("No active place type mappings found in database. Please seed PlaceTypeMapping table.")
 
+    # Collect all gmaps_types into a single list (Phase 1: multi-type search)
+    all_gmaps_types = [m.gmaps_type for m in place_type_mappings]
+
     # Group by religion for logging
     religion_types_map = {}
     for mapping in place_type_mappings:
@@ -350,53 +510,55 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
         religion_types_map[mapping.religion].append(mapping.gmaps_type)
 
     print(f"\n=== Searching for religious places in {boundary_name} ===")
+    print(f"Place types: {all_gmaps_types}")
     for religion, types in religion_types_map.items():
         print(f"  {religion}: {types}")
 
-    # Step 2: Search for all place types
-    all_place_ids = set()
-    religions_found = {}
-
-    for mapping in place_type_mappings:
-        gmaps_type = mapping.gmaps_type
-        religion = mapping.religion
-
-        print(f"\n--- Searching for {religion} type: {gmaps_type} ---")
-        type_place_ids = search_grid(
-            boundary.lat_min, boundary.lat_max, boundary.lng_min, boundary.lng_max,
-            gmaps_type, api_key, None  # Don't limit per type
-        )
-
-        new_ids = set(type_place_ids) - all_place_ids
-        all_place_ids.update(type_place_ids)
-
-        if religion not in religions_found:
-            religions_found[religion] = 0
-        religions_found[religion] += len(new_ids)
-
-        print(f"Found {len(type_place_ids)} places for {gmaps_type} ({len(new_ids)} new), total unique: {len(all_place_ids)}")
-
-        # Check if we've reached the overall limit
-        if max_results and len(all_place_ids) >= max_results:
-            print(f"Reached max_results limit: {max_results}")
-            break
+    # Step 2: Recursive quadtree search for all types at once (Phase 1 + Phase 2)
+    print(f"\n--- Starting recursive quadtree search ---")
+    existing_ids = set()
+    place_ids = search_area(
+        boundary.lat_min, boundary.lat_max, boundary.lng_min, boundary.lng_max,
+        all_gmaps_types, api_key, existing_ids, depth=0
+    )
 
     # Apply max_results limit if specified
-    place_ids = list(all_place_ids)
     if max_results and len(place_ids) > max_results:
         place_ids = place_ids[:max_results]
 
-    print(f"\n=== Summary ===")
-    for religion, count in religions_found.items():
-        print(f"  {religion}: {count} unique places")
+    print(f"\n=== Search Summary ===")
     print(f"Total unique places found: {len(place_ids)}")
 
     run.total_items = len(place_ids)
     session.add(run)
     session.commit()
 
-    # Step 2: Fetch details and store each as ScrapedPlace
-    print(f"Fetching details for {len(place_ids)} places...")
+    # Step 3: Fetch details with cross-run deduplication (Phase 3)
+    print(f"\nFetching details for {len(place_ids)} places...")
+
+    # Build a map of existing places for deduplication
+    stale_cutoff = datetime.now() - timedelta(days=stale_threshold_days)
+    cached_places = {}
+
+    if not force_refresh:
+        print(f"Checking for cached places (fresher than {stale_threshold_days} days)...")
+        for pid in place_ids:
+            place_code = f"gplc_{pid}"
+            existing = session.exec(
+                select(ScrapedPlace)
+                .where(ScrapedPlace.place_code == place_code)
+                .where(ScrapedPlace.created_at >= stale_cutoff)
+                .order_by(ScrapedPlace.created_at.desc())
+            ).first()
+
+            if existing:
+                cached_places[pid] = existing
+
+        print(f"Found {len(cached_places)} cached places, will fetch {len(place_ids) - len(cached_places)} fresh")
+
+    fetched_count = 0
+    cached_count = 0
+
     for i, pid in enumerate(place_ids):
         # Check for cancellation
         session.expire(run)
@@ -406,24 +568,47 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
             return
 
         try:
-            details = get_place_details(pid, api_key, session)
+            # Check if we have a cached version (Phase 3 deduplication)
+            if pid in cached_places and not force_refresh:
+                cached_place = cached_places[pid]
+                # Reuse cached data but associate with current run
+                scraped_place = ScrapedPlace(
+                    run_code=run_code,
+                    place_code=cached_place.place_code,
+                    name=cached_place.name,
+                    raw_data=cached_place.raw_data
+                )
+                session.add(scraped_place)
+                session.commit()
 
-            scraped_place = ScrapedPlace(
-                run_code=run_code,
-                place_code=details["place_code"],
-                name=details["name"],
-                raw_data=details
-            )
-            session.add(scraped_place)
-            session.commit()
+                cached_count += 1
+                print(f"  [{i+1}/{len(place_ids)}] {cached_place.name} (cached)")
+            else:
+                # Fetch fresh details
+                details = get_place_details_v2(pid, api_key, session)
+
+                scraped_place = ScrapedPlace(
+                    run_code=run_code,
+                    place_code=details["place_code"],
+                    name=details["name"],
+                    raw_data=details
+                )
+                session.add(scraped_place)
+                session.commit()
+
+                fetched_count += 1
+                print(f"  [{i+1}/{len(place_ids)}] {details['name']} (fresh)")
+                time.sleep(0.5)  # Rate limiting
 
             run.processed_items = i + 1
             session.add(run)
             session.commit()
 
-            print(f"  [{i+1}/{len(place_ids)}] {details['name']}")
-            time.sleep(0.5)  # Rate limiting
-
         except Exception as e:
             print(f"  [{i+1}/{len(place_ids)}] Error: {e}")
             continue
+
+    print(f"\n=== Details Fetch Summary ===")
+    print(f"Fresh fetches: {fetched_count}")
+    print(f"Cached reuses: {cached_count}")
+    print(f"Total: {len(place_ids)}")

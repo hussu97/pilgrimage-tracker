@@ -4,6 +4,45 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Google Maps Scraper API Cost Optimization (2026-02-16)
+
+### Data Scraper
+
+- **Phase 1: Migrate to Places API (New) - Multi-Type Search + Field Masks**
+  - Replaced legacy Google Places API with new Places API (v1) in `data_scraper/app/scrapers/gmaps.py`
+  - Replaced `get_places_in_circle()` with `get_places_in_circle_v2()` using `POST /v1/places:searchNearby` endpoint
+  - Multi-type search: Now sends all place types (mosque, church, cathedral, chapel, hindu_temple) in a single API request instead of 5 separate requests per grid point
+  - Replaced `get_place_details()` with `get_place_details_v2()` using `GET /v1/places/{id}` with field masks
+  - Field-masked details fetch: Uses Basic (free) + Contact ($0.003) + Atmosphere ($0.005) tiers = $0.008 per call (down from $0.017 legacy)
+  - Updated photo URL construction to use new API format: `places/{placeId}/photos/{photoId}/media`
+  - Updated response field mappings: `displayName`, `formattedAddress`, `regularOpeningHours`, `userRatingCount`, `accessibilityOptions`, `editorialSummary`, etc.
+  - Removed all legacy API code and references
+
+- **Phase 2: Recursive Quadtree Grid Search**
+  - Replaced fixed-step grid loop with recursive quadtree subdivision in new `search_area()` function
+  - Adaptive search: Automatically splits saturated areas (20 results) into 4 quadrants and recurses, leaving sparse areas as single large searches
+  - Added `calculate_search_radius()` helper to compute bounding box center and diagonal radius
+  - Stops recursion at `MIN_RADIUS = 2000` meters to prevent infinite subdivision in dense areas
+  - Removed `STEP = 0.1` constant (no longer needed)
+  - Logs recursion depth and saturation status for debugging
+
+- **Phase 3: Cross-Run Deduplication**
+  - Added deduplication check in `run_gmaps_scraper()` before fetching place details
+  - Queries `ScrapedPlace` table for existing places within `STALE_THRESHOLD_DAYS = 90` days
+  - Reuses cached place data instead of re-fetching from Google Maps API when available
+  - Added `force_refresh` config option to override cache and force fresh fetch
+  - Added `stale_threshold_days` config option to customize cache freshness window
+  - Updated `DataLocationCreate` schema to include `force_refresh: Optional[bool]` and `stale_threshold_days: Optional[int]`
+  - Logs cache hits vs fresh fetches in final summary
+
+- **Cost Impact Estimates (UAE benchmark, ~1,750 grid points)**
+  - **Current (legacy):** ~8,750 Nearby Search + ~5,000 Details = ~$484
+  - **Phase 1 (multi-type + field masks):** ~1,750 Nearby Search + ~5,000 Details = ~$199 (59% reduction)
+  - **Phase 2 (+quadtree):** ~200-500 Nearby Search + ~5,000 Details = ~$50-100 (79-90% reduction)
+  - **Phase 3 (+dedup re-run):** ~200-500 Nearby Search + ~2,500 Details = ~$35-75 (85-93% reduction)
+
+---
+
 ## Fix Missing Images in Places List API (2026-02-16)
 
 ### Backend

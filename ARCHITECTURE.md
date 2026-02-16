@@ -231,7 +231,7 @@ A separate FastAPI application in `data_scraper/` that mirrors the main server's
 - **Core Entities:**
     - **DataLocation:** Stores data source configuration with `source_type` ("gsheet" or "gmaps") and flexible `config` JSON field:
       - gsheet: `{"sheet_code": "1abc..."}`
-      - gmaps: `{"country": "UAE", "place_type": "mosque", "max_results": 5}`
+      - gmaps: `{"country": "UAE", "max_results": 5, "force_refresh": false, "stale_threshold_days": 90}` (searches all active place types from PlaceTypeMapping table)
     - **ScraperRun:** Tracks individual scraping jobs with status (pending, running, completed, cancelled, failed) and progress tracking (`total_items`, `processed_items`).
     - **ScrapedPlace:** Temporary storage for enriched data before sync. Stores `raw_data` JSON with place details, attributes array, and source tag.
 
@@ -250,19 +250,29 @@ Modular architecture with dedicated scrapers:
 - Tags places with `source: "overpass"`
 - Row-level commits for fault tolerance
 
-**`gmaps.py`**: Google Maps API scraper
-- **Grid-based search**: Divides country bounding box into overlapping 10km circles
-- **Supported countries**: UAE, India, USA (configurable bounds)
-- **Supported place types**: mosque, hindu_temple, church (maps to religion/type)
+**`gmaps.py`**: Google Maps Places API (v1) scraper
+- **API**: Uses new Places API (v1) with field masks for cost optimization
+  - Nearby Search: `POST /v1/places:searchNearby` with multi-type support
+  - Place Details: `GET /v1/places/{id}` with field masks (Basic + Contact + Atmosphere tiers)
+  - Cost per place: ~$0.008 (down from $0.017 legacy API)
+- **Search strategy**: Recursive quadtree subdivision
+  - Starts with full bounding box, searches all place types in one request
+  - Splits saturated areas (20 results) into 4 quadrants and recurses
+  - Stops recursion at MIN_RADIUS (2km) to prevent infinite subdivision
+  - Adaptive: 1 call for sparse regions, progressively finer searches for dense areas
+- **Cross-run deduplication**: Checks existing ScrapedPlace records before fetching details
+  - Reuses cached data if fresher than STALE_THRESHOLD_DAYS (default 90 days)
+  - Configurable via `force_refresh` and `stale_threshold_days` options
+- **Supported place types**: mosque, hindu_temple, church, cathedral, chapel (auto-detected from PlaceTypeMapping table)
 - **Deduplication**: Uses stable `gplc_{place_id}` codes (not random) so re-runs update existing places
 - **Attribute extraction**: Maps Google data to attribute codes:
-  - `wheelchair_accessible` (boolean)
-  - `google_rating` (number)
-  - `google_reviews_count` (number)
-- **Opening hours**: Stores local times in 24-hour format (e.g., "09:00-17:00"), preserving the place's local timezone
-- **Timezone**: Extracts `utc_offset` (minutes from UTC) from Google Maps API and stores as `utc_offset_minutes` field
-- **Images**: Extracts up to 3 photo URLs from Google Photos API
-- **Rate limiting**: Built-in delays between API calls
+  - `wheelchair_accessible` (boolean, from accessibilityOptions)
+  - `rating` (number, from rating field)
+  - `reviews_count` (number, from userRatingCount)
+- **Opening hours**: Stores local times in 24-hour format (e.g., "09:00-17:00"), parsed from regularOpeningHours.weekdayDescriptions
+- **Timezone**: Extracts `utcOffsetMinutes` from Places API response
+- **Images**: Extracts up to 3 photos using new API format (`places/{id}/photos/{photoId}/media`)
+- **Rate limiting**: Built-in delays between API calls (0.5s)
 - **Configuration**: Requires `GOOGLE_MAPS_API_KEY` environment variable
 - Tags places with `source: "gmaps"`
 
@@ -274,12 +284,12 @@ Modular architecture with dedicated scrapers:
    {"name": "UAE Places", "source_type": "gsheet", "sheet_url": "https://..."}
 
    // Google Maps
-   {"name": "UAE Mosques", "source_type": "gmaps", "country": "UAE", "place_type": "mosque", "max_results": 5}
+   {"name": "UAE Mosques", "source_type": "gmaps", "country": "UAE", "max_results": 5, "force_refresh": false, "stale_threshold_days": 90}
    ```
 
 2. **Create Run:** Initiates a background task that dispatches to the appropriate scraper based on `source_type`:
    - **gsheet**: Fetches CSV → OSM enrichment → Wikipedia enrichment → ScrapedPlace
-   - **gmaps**: Grid search → Place details → Attribute mapping → ScrapedPlace
+   - **gmaps**: Recursive quadtree search (multi-type) → Cross-run dedup check → Place details (field-masked) → Attribute mapping → ScrapedPlace
    - Progress tracked via `total_items` and `processed_items` fields
    - Cancellation supported: checks run status before processing each item
 

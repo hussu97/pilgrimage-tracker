@@ -11,6 +11,8 @@ class DataLocationCreate(BaseModel):
     country: Optional[str] = None
     city: Optional[str] = None  # More granular than country
     max_results: Optional[int] = None  # Limit results for testing
+    force_refresh: Optional[bool] = False  # Ignore cached places and force fresh fetch
+    stale_threshold_days: Optional[int] = 90  # Re-fetch if cached data older than this
 
 class DataLocationResponse(BaseModel):
     code: str
