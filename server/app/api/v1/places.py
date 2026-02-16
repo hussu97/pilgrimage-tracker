@@ -1,9 +1,12 @@
 from typing import Annotated, List, Literal, Optional
 from datetime import datetime, timezone
+import base64
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from sqlmodel import Session
 
 from app.api.deps import get_current_user, get_optional_user
+from app.db.session import engine
 from app.db import places as places_db
 from app.db import reviews as reviews_db
 from app.db import store as user_store
@@ -18,10 +21,19 @@ router = APIRouter()
 Religion = Literal["islam", "hinduism", "christianity"]
 
 
-def _place_to_item(place, distance: Optional[float] = None, include_rating: bool = False) -> dict:
+def _place_to_item(place, distance: Optional[float] = None, include_rating: bool = False, attrs: Optional[dict] = None, session: Optional[Session] = None) -> dict:
     d = distance
     if d is not None:
         d = round(d * 10) / 10
+
+    # Fetch attributes if not provided
+    if attrs is None:
+        if session is None:
+            with Session(engine) as sess:
+                attrs = attr_db.get_attributes_dict(place.place_code, sess)
+        else:
+            attrs = attr_db.get_attributes_dict(place.place_code, session)
+
     out = {
         "place_code": place.place_code,
         "name": place.name,
@@ -40,7 +52,7 @@ def _place_to_item(place, distance: Optional[float] = None, include_rating: bool
     out["is_open_now"] = is_open
     if getattr(place, "website_url", None):
         out["website_url"] = place.website_url
-    out["has_events"] = places_db._place_has_events(place)
+    out["has_events"] = places_db._place_has_events(place, attrs)
     if include_rating:
         agg = reviews_db.get_aggregate_rating(place.place_code)
         if agg:
@@ -49,8 +61,15 @@ def _place_to_item(place, distance: Optional[float] = None, include_rating: bool
     return out
 
 
-def _build_timings(place) -> list:
-    attrs = attr_db.get_attributes_dict(place.place_code)
+def _build_timings(place, attrs: Optional[dict] = None, session: Optional[Session] = None) -> list:
+    # Fetch attributes if not provided
+    if attrs is None:
+        if session is None:
+            with Session(engine) as sess:
+                attrs = attr_db.get_attributes_dict(place.place_code, sess)
+        else:
+            attrs = attr_db.get_attributes_dict(place.place_code, session)
+
     religion = getattr(place, "religion", "")
     result = []
 
@@ -174,15 +193,29 @@ def _build_timings(place) -> list:
     return result
 
 
-def _build_specifications(place) -> list:
+def _build_specifications(place, attrs: Optional[dict] = None, session: Optional[Session] = None) -> list:
     religion = getattr(place, "religion", "")
     place_code = getattr(place, "place_code", None)
     specs = []
 
     # Dynamic attribute-based specs (primary source)
     if place_code:
-        spec_defs = attr_db.get_attribute_definitions(religion=religion, spec_only=True)
-        attrs = attr_db.get_attributes_dict(place_code)
+        # Fetch attributes if not provided
+        if attrs is None:
+            if session is None:
+                with Session(engine) as sess:
+                    spec_defs = attr_db.get_attribute_definitions(religion=religion, spec_only=True, session=sess)
+                    attrs = attr_db.get_attributes_dict(place_code, sess)
+            else:
+                spec_defs = attr_db.get_attribute_definitions(religion=religion, spec_only=True, session=session)
+                attrs = attr_db.get_attributes_dict(place_code, session)
+        else:
+            # Attributes provided, but we still need spec_defs
+            if session is None:
+                with Session(engine) as sess:
+                    spec_defs = attr_db.get_attribute_definitions(religion=religion, spec_only=True, session=sess)
+            else:
+                spec_defs = attr_db.get_attribute_definitions(religion=religion, spec_only=True, session=session)
         for defn in spec_defs:
             val = attrs.get(defn.attribute_code)
             if val is None:
@@ -204,13 +237,16 @@ def _build_specifications(place) -> list:
 
 
 def _place_detail(place) -> dict:
-    out = _place_to_item(place, include_rating=True)
-    if "distance" in out:
-        del out["distance"]
-    out["total_checkins_count"] = check_ins_db.count_check_ins_for_place(place.place_code)
-    out["timings"] = _build_timings(place)
-    out["specifications"] = _build_specifications(place)
-    out["attributes"] = attr_db.get_attributes_dict(place.place_code)
+    # Fetch attributes once and reuse
+    with Session(engine) as session:
+        attrs = attr_db.get_attributes_dict(place.place_code, session)
+        out = _place_to_item(place, include_rating=True, attrs=attrs, session=session)
+        if "distance" in out:
+            del out["distance"]
+        out["total_checkins_count"] = check_ins_db.count_check_ins_for_place(place.place_code)
+        out["timings"] = _build_timings(place, attrs=attrs, session=session)
+        out["specifications"] = _build_specifications(place, attrs=attrs, session=session)
+        out["attributes"] = attrs
     return out
 
 
@@ -252,7 +288,9 @@ def list_places(
         top_rated=top_rated,
         _reviews_agg_fn=reviews_db.get_aggregate_rating,
     )
-    places_out = [_place_to_item(p, dist, include_rating=include_rating) for p, dist in result["rows"]]
+    # Use bulk-fetched attributes for efficiency
+    all_attrs = result["all_attrs"]
+    places_out = [_place_to_item(p, dist, include_rating=include_rating, attrs=all_attrs.get(p.place_code, {})) for p, dist in result["rows"]]
     return {"places": places_out, "filters": result["filters"]}
 
 
@@ -284,20 +322,20 @@ def get_place_reviews(
     out = []
     for r in rows:
         source = getattr(r, "source", "user")
-        if source == "google":
-            # Google review
+        if source == "external":
+            # External review
             out.append({
                 "review_code": r.review_code,
                 "place_code": r.place_code,
                 "user_code": None,
-                "display_name": getattr(r, "author_name", "Google User"),
+                "display_name": getattr(r, "author_name", "External User"),
                 "rating": r.rating,
                 "title": r.title,
                 "body": r.body,
                 "created_at": r.created_at,
                 "is_anonymous": False,
                 "photo_urls": [],
-                "source": "google",
+                "source": "external",
             })
         else:
             # User review
@@ -429,8 +467,18 @@ def create_place(
             source=body.source,
         )
 
-    # Store images from URLs
-    if body.image_urls:
+    # Store images: prefer blobs over URLs
+    if body.image_blobs:
+        # Download and store image blobs
+        for i, blob in enumerate(body.image_blobs):
+            try:
+                data = base64.b64decode(blob["data"])
+                mime_type = blob.get("mime_type", "image/jpeg")
+                place_images.add_image_blob(body.place_code, data, mime_type, display_order=i)
+            except Exception as e:
+                print(f"Failed to store image blob: {e}")
+    elif body.image_urls:
+        # Fallback to URL-based images if no blobs provided
         place_images.set_images_from_urls(body.place_code, body.image_urls)
 
     # Store attributes if provided
@@ -438,9 +486,9 @@ def create_place(
         for attr_input in body.attributes:
             attr_db.upsert_attribute(body.place_code, attr_input.attribute_code, attr_input.value)
 
-    # Store Google reviews if provided
+    # Store external reviews if provided
     if body.google_reviews:
-        reviews_db.upsert_google_reviews(body.place_code, body.google_reviews)
+        reviews_db.upsert_external_reviews(body.place_code, body.google_reviews)
 
     return _place_detail(row)
 

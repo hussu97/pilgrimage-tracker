@@ -179,32 +179,8 @@ def get_place_by_code(place_code: str) -> Optional[Place]:
         return session.exec(select(Place).where(Place.place_code == place_code)).first()
 
 
-def _place_has_jummah(p: Place) -> bool:
-    """Check if place has Jummah prayer (Friday prayer for Islam)."""
-    if p.religion != "islam":
-        return False
-    # Check if jummah_times attribute exists
-    return _get_attr_bool(p.place_code, "jummah_times")
-
-
-def _place_has_events(p: Place) -> bool:
-    """Check if place has events."""
-    return _get_attr_bool(p.place_code, "has_events")
-
-
-def _place_has_parking(p: Place) -> bool:
-    """Check if place has parking."""
-    return _get_attr_bool(p.place_code, "has_parking")
-
-
-def _place_has_womens_area(p: Place) -> bool:
-    """Check if place has women's area."""
-    return _get_attr_bool(p.place_code, "has_womens_area")
-
-
-def _get_attr_bool(place_code: str, attribute_code: str) -> bool:
-    """Return True if a PlaceAttribute exists and is truthy for the given place."""
-    attrs = attr_db.get_attributes_dict(place_code)
+def _check_attr_bool(attrs: dict, attribute_code: str) -> bool:
+    """Check if an attribute is truthy from pre-fetched attributes dict."""
     val = attrs.get(attribute_code)
     if val is None:
         return False
@@ -213,6 +189,28 @@ def _get_attr_bool(place_code: str, attribute_code: str) -> bool:
     if isinstance(val, str):
         return val.lower() not in ("false", "0", "")
     return bool(val)
+
+
+def _place_has_jummah(p: Place, attrs: dict) -> bool:
+    """Check if place has Jummah prayer (Friday prayer for Islam)."""
+    if p.religion != "islam":
+        return False
+    return _check_attr_bool(attrs, "jummah_times")
+
+
+def _place_has_events(p: Place, attrs: dict) -> bool:
+    """Check if place has events."""
+    return _check_attr_bool(attrs, "has_events")
+
+
+def _place_has_parking(p: Place, attrs: dict) -> bool:
+    """Check if place has parking."""
+    return _check_attr_bool(attrs, "has_parking")
+
+
+def _place_has_womens_area(p: Place, attrs: dict) -> bool:
+    """Check if place has women's area."""
+    return _check_attr_bool(attrs, "has_womens_area")
 
 
 def list_places(
@@ -235,7 +233,7 @@ def list_places(
 ) -> dict:
     with Session(engine) as session:
         statement = select(Place)
-        
+
         if religions:
             statement = statement.where(Place.religion.in_(religions))
         if place_type:
@@ -249,23 +247,32 @@ def list_places(
                     Place.description.ilike(q)
                 )
             )
-            
+
         all_places = session.exec(statement).all()
-        
+
+        # BULK FETCH: Get all attributes for all places in ONE query
+        place_codes = [p.place_code for p in all_places]
+        all_attrs = attr_db.bulk_get_attributes_for_places(place_codes, session)
+
+        # BULK FETCH: Get filterable attribute definitions ONCE
+        filterable_defs = attr_db.get_attribute_definitions(filterable_only=True, session=session)
+
         result: List[tuple] = []
         for p in all_places:
-            if jummah is True and not _place_has_jummah(p):
+            attrs = all_attrs.get(p.place_code, {})
+
+            if jummah is True and not _place_has_jummah(p, attrs):
                 continue
-            if has_events is True and not _place_has_events(p):
+            if has_events is True and not _place_has_events(p, attrs):
                 continue
-                
+
             dist = None
             if lat is not None and lng is not None:
                 dist = _haversine_km(lat, lng, p.lat, p.lng)
-            
+
             if radius_km is not None and dist is not None and dist > radius_km:
                 continue
-                
+
             result.append((p, dist))
 
         if sort == "rating":
@@ -301,22 +308,14 @@ def list_places(
             },
         ]
 
-        # Add dynamic attribute-based filters
-        filterable_defs = attr_db.get_attribute_definitions(filterable_only=True)
+        # Add dynamic attribute-based filters (using pre-fetched data)
         for defn in filterable_defs:
             attr_code = defn.attribute_code
 
             def _make_attr_counter(code):
                 def _check(p):
-                    attrs = attr_db.get_attributes_dict(p.place_code)
-                    val = attrs.get(code)
-                    if val is None:
-                        return False
-                    if isinstance(val, bool):
-                        return val
-                    if isinstance(val, str):
-                        return val.lower() not in ("false", "0", "")
-                    return bool(val)
+                    attrs = all_attrs.get(p.place_code, {})
+                    return _check_attr_bool(attrs, code)
                 return _check
 
             filter_options.append({
@@ -328,13 +327,14 @@ def list_places(
 
         filters_meta = {"options": filter_options}
 
+        # Apply active filters (using pre-fetched data)
         if open_now is True:
             result = [(p, d) for p, d in result if _is_open_now_from_hours(p.opening_hours) is True]
         if has_parking is True:
-            result = [(p, d) for p, d in result if _place_has_parking(p) or _get_attr_bool(p.place_code, "has_parking")]
+            result = [(p, d) for p, d in result if _place_has_parking(p, all_attrs.get(p.place_code, {}))]
         if womens_area is True:
-            result = [(p, d) for p, d in result if _place_has_womens_area(p) or _get_attr_bool(p.place_code, "has_womens_area")]
+            result = [(p, d) for p, d in result if _place_has_womens_area(p, all_attrs.get(p.place_code, {}))]
         if top_rated is True:
             result = [(p, d) for p, d in result if _get_avg(p.place_code) >= 4.0]
 
-        return {"rows": result[offset: offset + limit], "filters": filters_meta}
+        return {"rows": result[offset: offset + limit], "filters": filters_meta, "all_attrs": all_attrs}

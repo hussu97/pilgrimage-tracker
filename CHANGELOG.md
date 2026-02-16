@@ -4,6 +4,24 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Bulk Query Optimization for Places List (2026-02-16)
+
+### Backend
+
+- **Connection Pool Fix:** Resolved SQLAlchemy connection pool exhaustion on `GET /api/v1/places` endpoint caused by N+1 query pattern when fetching place attributes.
+- **Bulk Attribute Fetching:** Added `bulk_get_attributes_for_places()` function in `place_attributes.py` that fetches all attributes for multiple places in a single query using `WHERE place_code IN [...]`.
+- **Session Management:** Made session parameters REQUIRED (no longer optional) in attribute helper functions to enforce proper session reuse. Removed backward compatibility code.
+- **`list_places()` Optimization:** Refactored to use bulk fetching:
+  - Fetches all place attributes in ONE query after retrieving places
+  - Fetches filterable attribute definitions ONCE before building filters
+  - Builds filter counts in Python using pre-fetched data (no DB calls in loops)
+  - Returns `all_attrs` dict in response for API layer to reuse
+- **Helper Function Refactor:** Updated `_place_has_jummah`, `_place_has_events`, `_place_has_parking`, `_place_has_womens_area` to accept pre-fetched attributes dict instead of making individual DB queries.
+- **API Layer Updates:** Modified `_place_to_item()`, `_build_timings()`, `_build_specifications()`, and `_place_detail()` in `places.py` API to accept optional pre-fetched attributes and session, falling back to creating sessions only when needed.
+- **Performance Impact:** Reduced query count from 200+ to ~3 queries for a 50-place list with filters, eliminating connection pool timeouts.
+
+---
+
 ## Dynamic Place Attributes + Google Maps Scraper Generalization (2026-02-16)
 
 ### Backend
