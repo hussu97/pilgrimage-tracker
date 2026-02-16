@@ -258,8 +258,8 @@ export default function PlaceDetailScreen() {
 
   const carouselTitle =
     place.religion === 'islam' ? t('placeDetail.prayerTimes') :
-    place.religion === 'hinduism' ? t('placeDetail.divinePresence') :
-    t('placeDetail.serviceTimes');
+      place.religion === 'hinduism' ? t('placeDetail.divinePresence') :
+        t('placeDetail.serviceTimes');
 
   return (
     <View style={styles.container}>
@@ -591,16 +591,26 @@ export default function PlaceDetailScreen() {
                     </View>
                     {r.title ? <Text style={styles.reviewTitle}>{r.title}</Text> : null}
                     {r.body ? <Text style={styles.reviewBody}>{r.body}</Text> : null}
-                    {r.photo_urls && r.photo_urls.length > 0 && (
+                    {(r.images && r.images.length > 0) || (r.photo_urls && r.photo_urls.length > 0) ? (
                       <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
                         style={styles.reviewPhotos}
                         contentContainerStyle={styles.reviewPhotosContent}
                       >
-                        {r.photo_urls.map((url: string, i: number) => (
+                        {r.images?.map((img, i) => (
                           <ExpoImage
-                            key={i}
+                            key={`img-${i}`}
+                            source={{ uri: getFullImageUrl(img.url) }}
+                            style={styles.reviewPhoto}
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                            transition={200}
+                          />
+                        ))}
+                        {r.photo_urls?.map((url: string, i: number) => (
+                          <ExpoImage
+                            key={`photo-${i}`}
                             source={{ uri: url }}
                             style={styles.reviewPhoto}
                             contentFit="cover"
@@ -609,7 +619,7 @@ export default function PlaceDetailScreen() {
                           />
                         ))}
                       </ScrollView>
-                    )}
+                    ) : null}
                   </View>
                 ))}
               </View>
@@ -843,11 +853,12 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 11,
     fontWeight: '700',
-    color: tokens.colors.textMain,
-    marginBottom: 12,
-    letterSpacing: -0.2,
+    color: tokens.colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    marginBottom: 16,
   },
   description: {
     fontSize: 15,
@@ -1077,16 +1088,22 @@ const styles = StyleSheet.create({
     color: tokens.colors.primary,
   },
   footerBtnPrimary: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 14,
+    flex: 2,
+    paddingVertical: 15,
+    borderRadius: 20,
     backgroundColor: tokens.colors.primary,
     alignItems: 'center',
+    shadowColor: tokens.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
   footerBtnPrimaryText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#fff',
+    letterSpacing: 0.5,
   },
   checkedInBadge: {
     flex: 1,

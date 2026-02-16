@@ -7,6 +7,7 @@ export interface Review {
   title?: string;
   body?: string;
   photo_urls?: string[];
+  images?: { url: string }[];
   created_at: string;
   source: 'user' | 'external';
 }

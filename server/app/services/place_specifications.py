@@ -6,7 +6,7 @@ from sqlmodel import Session
 from app.db import place_attributes as attr_db
 
 
-def build_specifications(place, attrs: Optional[dict] = None, session: Optional[Session] = None) -> list:
+def build_specifications(place, attrs: Optional[dict] = None, session: Session = None) -> list:
     """
     Build specification list for a place based on its religion and attributes.
 
@@ -16,6 +16,8 @@ def build_specifications(place, attrs: Optional[dict] = None, session: Optional[
 
     For boolean attributes, only True values are shown as "Available" or "Separate".
     For other types, the value is displayed as a string.
+
+    Requires session parameter.
     """
     religion = getattr(place, "religion", "")
     place_code = getattr(place, "place_code", None)
@@ -25,22 +27,11 @@ def build_specifications(place, attrs: Optional[dict] = None, session: Optional[
     if place_code:
         # Fetch attributes if not provided
         if attrs is None:
-            if session is None:
-                from app.db.session import engine
-                with Session(engine) as sess:
-                    spec_defs = attr_db.get_attribute_definitions(religion=religion, spec_only=True, session=sess)
-                    attrs = attr_db.get_attributes_dict(place_code, sess)
-            else:
-                spec_defs = attr_db.get_attribute_definitions(religion=religion, spec_only=True, session=session)
-                attrs = attr_db.get_attributes_dict(place_code, session)
+            spec_defs = attr_db.get_attribute_definitions(religion=religion, spec_only=True, session=session)
+            attrs = attr_db.get_attributes_dict(place_code, session)
         else:
             # Attributes provided, but we still need spec_defs
-            if session is None:
-                from app.db.session import engine
-                with Session(engine) as sess:
-                    spec_defs = attr_db.get_attribute_definitions(religion=religion, spec_only=True, session=sess)
-            else:
-                spec_defs = attr_db.get_attribute_definitions(religion=religion, spec_only=True, session=session)
+            spec_defs = attr_db.get_attribute_definitions(religion=religion, spec_only=True, session=session)
         for defn in spec_defs:
             val = attrs.get(defn.attribute_code)
             if val is None:

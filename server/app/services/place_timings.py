@@ -17,15 +17,12 @@ def build_timings(place, attrs: Optional[dict] = None, session: Optional[Session
     - For Hinduism: Returns deity circles (deities attribute)
     - For Islam: Returns prayer times with past/current/upcoming status
     - For Christianity: Returns service times with past/current/upcoming status
+
+    Requires session parameter.
     """
     # Fetch attributes if not provided
     if attrs is None:
-        if session is None:
-            from app.db.session import engine
-            with Session(engine) as sess:
-                attrs = attr_db.get_attributes_dict(place.place_code, sess)
-        else:
-            attrs = attr_db.get_attributes_dict(place.place_code, session)
+        attrs = attr_db.get_attributes_dict(place.place_code, session)
 
     religion = getattr(place, "religion", "")
     result = []

@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { THEME_STORAGE_KEY } from './constants';
 
@@ -7,14 +8,14 @@ export async function getStoredTheme(): Promise<Theme> {
   try {
     const s = await AsyncStorage.getItem(THEME_STORAGE_KEY);
     if (s === 'light' || s === 'dark' || s === 'system') return s;
-  } catch {}
+  } catch { }
   return 'system';
 }
 
 export async function setStoredTheme(theme: Theme): Promise<void> {
   try {
     await AsyncStorage.setItem(THEME_STORAGE_KEY, theme);
-  } catch {}
+  } catch { }
 }
 
 /**
@@ -62,7 +63,7 @@ export const tokens = {
     glass: { shadowColor: '#1F268F', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.07, shadowRadius: 32, elevation: 3 },
   },
   typography: {
-    fontFamily: 'System', // Inter on web; RN uses system.
+    fontFamily: Platform.OS === 'web' ? 'Inter, system-ui, sans-serif' : 'System', // Inter on web; RN uses system.
     weights: { light: '300' as const, normal: '400' as const, medium: '500' as const, semibold: '600' as const, bold: '700' as const },
   },
 } as const;

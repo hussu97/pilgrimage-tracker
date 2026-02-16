@@ -8,6 +8,7 @@ export interface Review {
   body?: string;
   created_at: string;
   source: 'user' | 'external';
+  images?: { url: string }[];
 }
 
 export interface ReviewsResponse {

@@ -7,6 +7,7 @@ from sqlmodel import Session, select, or_
 from app.db.models import Place
 from app.db.session import engine
 from app.db import place_attributes as attr_db
+from app.db import reviews as reviews_db
 from app.services.timezone_utils import get_local_now
 
 Religion = Literal["islam", "hinduism", "christianity"]
@@ -245,7 +246,6 @@ def list_places(
     has_parking: Optional[bool] = None,
     womens_area: Optional[bool] = None,
     top_rated: Optional[bool] = None,
-    _reviews_agg_fn=None,
 ) -> dict:
     with Session(engine) as session:
         statement = select(Place)
@@ -273,6 +273,9 @@ def list_places(
         # BULK FETCH: Get filterable attribute definitions ONCE
         filterable_defs = attr_db.get_attribute_definitions(filterable_only=True, session=session)
 
+        # BULK FETCH: Get all ratings for all places in ONE query
+        all_ratings = reviews_db.get_aggregate_ratings_bulk(place_codes, session)
+
         result: List[tuple] = []
         for p in all_places:
             attrs = all_attrs.get(p.place_code, {})
@@ -292,7 +295,7 @@ def list_places(
             result.append((p, dist))
 
         if sort == "rating":
-            # Rating sort handled later if _reviews_agg_fn exists
+            # Rating sort handled later using bulk-fetched ratings
             pass
         elif lat is not None and lng is not None:
             result.sort(key=lambda x: (x[1] or 0))
@@ -300,10 +303,9 @@ def list_places(
         base_results = result[:]
 
         def _get_avg(place_code: str) -> float:
-            if _reviews_agg_fn:
-                agg = _reviews_agg_fn(place_code)
-                return agg["average"] if agg else 0.0
-            return 0.0
+            """Get rating from bulk-fetched ratings dict."""
+            rating = all_ratings.get(place_code)
+            return rating["average"] if rating else 0.0
 
         def count_filter(fn) -> int:
             return sum(1 for p, _ in base_results if fn(p))
@@ -357,4 +359,4 @@ def list_places(
         if sort == "rating":
             result.sort(key=lambda x: (_get_avg(x[0].place_code), -(x[1] or 0)), reverse=True)
 
-        return {"rows": result[offset: offset + limit], "filters": filters_meta, "all_attrs": all_attrs}
+        return {"rows": result[offset: offset + limit], "filters": filters_meta, "all_attrs": all_attrs, "all_ratings": all_ratings}

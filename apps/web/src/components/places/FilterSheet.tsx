@@ -65,7 +65,7 @@ export default function FilterSheet({
         >
             <div className="space-y-6">
                 <div>
-                    <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-4">
+                    <h3 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-4 ml-1">
                         {t('home.refineSearch') || 'Refine Search'}
                     </h3>
                     <div className="grid grid-cols-1 gap-3">
@@ -76,8 +76,8 @@ export default function FilterSheet({
                                     key={option.key}
                                     onClick={() => toggle(option.key)}
                                     className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-200 ${isActive
-                                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                                            : 'border-slate-100 hover:border-slate-300 bg-white'
+                                        ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                                        : 'border-slate-100 hover:border-slate-300 bg-white'
                                         }`}
                                 >
                                     <div className="flex items-center gap-3">

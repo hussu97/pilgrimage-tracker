@@ -1,6 +1,6 @@
 import secrets
 from datetime import datetime
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from sqlmodel import Session, select, func, and_, extract
 from app.db.models import CheckIn
@@ -57,10 +57,25 @@ def count_check_ins_this_year(user_code: str) -> int:
         return session.exec(statement).one()
 
 
-def count_check_ins_for_place(place_code: str) -> int:
-    with Session(engine) as session:
-        statement = select(func.count(CheckIn.id)).where(CheckIn.place_code == place_code)
-        return session.exec(statement).one()
+def count_check_ins_for_place(place_code: str, session: Session) -> int:
+    """Count check-ins for a place. Requires session parameter."""
+    statement = select(func.count(CheckIn.id)).where(CheckIn.place_code == place_code)
+    return session.exec(statement).one()
+
+
+def count_check_ins_bulk(place_codes: List[str], session: Session) -> Dict[str, int]:
+    """Bulk count check-ins for multiple places."""
+    if not place_codes:
+        return {}
+
+    statement = (
+        select(CheckIn.place_code, func.count(CheckIn.id).label('count'))
+        .where(CheckIn.place_code.in_(place_codes))
+        .group_by(CheckIn.place_code)
+    )
+
+    results = session.exec(statement).all()
+    return {r.place_code: r.count for r in results}
 
 
 def get_check_ins_this_month(user_code: str) -> List[CheckIn]:

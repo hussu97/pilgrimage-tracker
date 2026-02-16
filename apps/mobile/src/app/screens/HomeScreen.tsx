@@ -84,13 +84,13 @@ function makeStyles(isDark: boolean) {
       alignItems: 'center',
     },
     greeting: {
-      fontSize: 22,
-      fontWeight: '400',
+      fontSize: 28,
+      fontWeight: '700',
       color: textMain,
-      letterSpacing: -0.3,
+      letterSpacing: -1,
     },
     greetingName: {
-      fontWeight: '700',
+      color: tokens.colors.primary,
     },
     toggleGroup: {
       flexDirection: 'row',
@@ -461,11 +461,11 @@ export default function HomeScreen() {
         setVisiblePlaceCodes(new Set(
           places
             .filter(p => p.lat >= (south ?? -90) && p.lat <= (north ?? 90) &&
-                         p.lng >= (west ?? -180) && p.lng <= (east ?? 180))
+              p.lng >= (west ?? -180) && p.lng <= (east ?? 180))
             .map(p => p.place_code)
         ));
       }
-    } catch {}
+    } catch { }
   }, [places]);
 
   const visiblePlaces = useMemo(

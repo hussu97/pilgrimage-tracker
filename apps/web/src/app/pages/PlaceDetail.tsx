@@ -34,7 +34,6 @@ function ReviewsSection({
   const [expanded, setExpanded] = useState(false);
   const [deletingCode, setDeletingCode] = useState<string | null>(null);
   const displayReviews = expanded ? reviews : reviews.slice(0, 3);
-  const userReview = currentUserCode ? reviews.find((r) => r.user_code === currentUserCode) : null;
 
   const handleDelete = async (reviewCode: string) => {
     if (!window.confirm('Delete this review?')) return;
@@ -50,106 +49,134 @@ function ReviewsSection({
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-text-main">{t('placeDetail.recentReviews')}</h2>
-        {(averageRating != null || (reviewCount != null && reviewCount > 0)) && (
-          <div className="flex items-center gap-1.5 text-sm">
-            <span className="material-symbols-outlined text-amber-500 text-lg">star</span>
-            <span className="font-bold text-text-main">{averageRating?.toFixed(1) ?? '—'}</span>
-            <span className="text-text-muted">({reviewCount ?? 0})</span>
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-1.5 h-6 bg-primary rounded-full"></div>
+            <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+              {t('placeDetail.reviews')}
+            </h2>
           </div>
-        )}
+          <div className="flex items-baseline gap-3">
+            <span className="text-5xl font-bold text-slate-900 dark:text-white tracking-tighter">
+              {averageRating?.toFixed(1) || '0.0'}
+            </span>
+            <div className="flex flex-col">
+              <div className="flex text-amber-500">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <span
+                    key={s}
+                    className="material-symbols-outlined text-lg"
+                    style={{ fontVariationSettings: `'FILL' ${s <= Math.round(averageRating || 0) ? 1 : 0}` }}
+                  >
+                    star
+                  </span>
+                ))}
+              </div>
+              <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">
+                {reviewCount || 0} {t('placeDetail.feedbackItems')}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <Link
+          to={`/places/${placeCode}/review`}
+          className="bg-primary hover:bg-blue-600 text-white text-[11px] font-bold uppercase tracking-widest px-8 py-3 rounded-2xl shadow-lg shadow-primary/20 transition-all active:scale-95 text-center"
+        >
+          {t('placeDetail.writeAReview')}
+        </Link>
       </div>
 
-      {userReview ? (
-        <Link
-          to={`/places/${placeCode}/review`}
-          state={{ edit: userReview }}
-          className="inline-flex items-center gap-2 text-primary font-medium text-sm mb-4 hover:text-primary-hover"
-        >
-          <span className="material-symbols-outlined text-lg">edit</span>
-          Edit your review
-        </Link>
-      ) : (
-        <Link
-          to={`/places/${placeCode}/review`}
-          className="inline-flex items-center gap-2 text-primary font-medium text-sm mb-4 hover:text-primary-hover"
-        >
-          <span className="material-symbols-outlined text-lg">edit_square</span>
-          {t('places.writeReview')}
-        </Link>
-      )}
-
-      {reviews.length === 0 ? (
-        <p className="text-text-muted text-sm py-3">{t('places.noReviewsYet')}</p>
-      ) : (
-        <div className="space-y-3">
-          {displayReviews.map((r) => (
-            <div key={r.review_code} className="rounded-xl border border-input-border bg-white p-4">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-                  {(r.display_name || '?').charAt(0).toUpperCase()}
+      <div className="space-y-6">
+        {displayReviews.length === 0 ? (
+          <div className="text-center py-12 bg-slate-50 dark:bg-dark-surface rounded-3xl border border-dashed border-slate-200 dark:border-dark-border">
+            <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">rate_review</span>
+            <p className="text-slate-400 font-medium">{t('places.noReviewsYet')}</p>
+          </div>
+        ) : (
+          displayReviews.map((r) => (
+            <div key={r.review_code} className="bg-slate-50 dark:bg-dark-surface p-6 rounded-3xl border border-slate-100 dark:border-dark-border group transition-all hover:bg-white dark:hover:bg-dark-surface hover:shadow-soft">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm uppercase">
+                    {(r.display_name || '?').charAt(0)}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 dark:text-white text-sm leading-tight">
+                      {r.display_name || 'Visitor'}
+                    </h4>
+                    <div className="flex text-amber-500 mt-0.5">
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <span
+                          key={s}
+                          className="material-symbols-outlined text-[14px]"
+                          style={{ fontVariationSettings: `'FILL' ${s <= r.rating ? 1 : 0}` }}
+                        >
+                          star
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-text-main text-sm">{r.display_name || 'Visitor'}</p>
-                  <p className="text-xs text-text-muted">
-                    {r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}
-                  </p>
-                </div>
-                <div className="flex items-center gap-0.5 text-amber-500 shrink-0">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <span key={i} className="material-symbols-outlined text-[16px]">
-                      {i <= r.rating ? 'star' : 'star_border'}
-                    </span>
-                  ))}
-                  {currentUserCode && r.user_code === currentUserCode && (
-                    <div className="flex items-center gap-1 ml-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    {r.created_at ? new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
+                  </span>
+                  {currentUserCode === r.user_code && (
+                    <div className="flex items-center gap-1">
                       <Link
                         to={`/places/${placeCode}/review`}
                         state={{ edit: r }}
-                        className="p-1 rounded text-text-muted hover:text-primary"
+                        className="p-1.5 rounded-lg text-slate-300 hover:text-primary transition-colors"
                       >
-                        <span className="material-symbols-outlined text-[16px]">edit</span>
+                        <span className="material-symbols-outlined text-sm">edit</span>
                       </Link>
                       <button
-                        type="button"
                         onClick={() => handleDelete(r.review_code)}
                         disabled={deletingCode === r.review_code}
-                        className="p-1 rounded text-text-muted hover:text-red-600 disabled:opacity-50"
+                        className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
                       >
-                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                        <span className="material-symbols-outlined text-sm">delete</span>
                       </button>
                     </div>
                   )}
                 </div>
               </div>
-              {r.title && <p className="font-semibold text-text-main text-sm mb-1">{r.title}</p>}
-              {r.body && <p className="text-sm text-text-secondary">{r.body}</p>}
-              {r.photo_urls && r.photo_urls.length > 0 && (
-                <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
-                  {r.photo_urls.map((url, i) => (
-                    <img
-                      key={i}
-                      src={url}
-                      alt={`Review photo ${i + 1}`}
-                      className="w-20 h-20 object-cover rounded-lg shrink-0"
-                    />
+
+              {r.title && <h5 className="font-bold text-slate-900 dark:text-white text-[15px] mb-2">{r.title}</h5>}
+              {r.body && (
+                <p className="text-slate-600 dark:text-slate-300 text-[14px] leading-relaxed">
+                  {r.body}
+                </p>
+              )}
+
+              {r.images && r.images.length > 0 && (
+                <div className="flex gap-3 mt-5 overflow-x-auto no-scrollbar pb-1">
+                  {r.images.map((img, i) => (
+                    <div key={i} className="w-24 h-24 rounded-2xl overflow-hidden shadow-soft shrink-0 border border-slate-200/50">
+                      <img
+                        src={getFullImageUrl(img.url)}
+                        alt=""
+                        className="w-full h-full object-cover transition-transform hover:scale-110 duration-500"
+                      />
+                    </div>
                   ))}
                 </div>
               )}
             </div>
-          ))}
-          {reviews.length > 3 && !expanded && (
-            <button
-              type="button"
-              onClick={() => setExpanded(true)}
-              className="text-primary font-medium text-sm hover:text-primary-hover"
-            >
-              {t('places.viewAllReviews')}
-            </button>
-          )}
-        </div>
+          ))
+        )}
+      </div>
+
+      {reviews.length > 3 && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full py-4 text-[11px] font-bold text-primary uppercase tracking-[0.2em] hover:bg-primary/5 rounded-2xl transition-all border border-dashed border-primary/20"
+        >
+          {expanded ? t('common.showLess') : t('places.viewAllReviews')}
+        </button>
       )}
     </div>
   );
@@ -389,22 +416,22 @@ export default function PlaceDetail() {
   return (
     <div className="w-full min-h-screen bg-background-light">
       {/* Sticky Header (Fade in on scroll) */}
-      <div className={`fixed top-0 left-0 right-0 z-[100] bg-white/90 backdrop-blur-xl border-b border-white/20 px-4 pt-14 pb-4 transition-all duration-300 transform ${headerVisible ? 'translate-y-0 opacity-100' : '-translate-y-10 opacity-0 pointer-events-none'}`}>
+      <div className={`fixed top-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-xl border-b border-slate-100 dark:bg-dark-bg/95 dark:border-dark-border px-4 pt-14 pb-4 transition-all duration-500 transform ${headerVisible ? 'translate-y-0 opacity-100 shadow-xl shadow-black/5' : '-translate-y-full opacity-0 pointer-events-none'}`}>
         <div className="flex items-center gap-4 max-w-5xl mx-auto">
-          <button onClick={() => navigate(-1)} className="p-1 rounded-full text-slate-400 hover:text-primary transition-colors">
-            <span className="material-symbols-outlined text-2xl">arrow_back</span>
+          <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 dark:bg-dark-surface text-slate-400 hover:text-primary transition-all active:scale-95">
+            <span className="material-symbols-outlined text-xl">arrow_back</span>
           </button>
           <div className="flex-1 min-w-0">
-            <h2 className="font-bold text-slate-800 truncate">{place.name}</h2>
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+            <h2 className="font-bold text-slate-900 dark:text-white truncate text-lg leading-tight">{place.name}</h2>
+            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
               <span className="material-symbols-outlined text-[14px] text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
               {averageRating?.toFixed(1)}
               <span className="mx-1 opacity-30">•</span>
               {totalCheckins} check-ins
             </div>
           </div>
-          <button onClick={toggleFavorite} className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${place.is_favorite ? 'bg-primary text-white' : 'bg-slate-100 text-slate-400'}`}>
-            <span className="material-symbols-outlined text-[20px]">{place.is_favorite ? 'bookmark' : 'bookmark_border'}</span>
+          <button onClick={toggleFavorite} className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-90 ${place.is_favorite ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-slate-50 dark:bg-dark-surface text-slate-400 hover:text-primary'}`}>
+            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: `'FILL' ${place.is_favorite ? 1 : 0}` }}>{place.is_favorite ? 'bookmark' : 'bookmark_border'}</span>
           </button>
         </div>
       </div>
@@ -531,26 +558,35 @@ export default function PlaceDetail() {
 
             {/* The Story */}
             {place.description && (
-              <section>
-                <h2 className="text-lg font-bold text-text-main mb-3">{t('placeDetail.theStory')}</h2>
-                <p className={`text-[15px] text-text-secondary leading-relaxed ${storyExpanded ? '' : 'line-clamp-5'}`}>
-                  {place.description}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setStoryExpanded((v) => !v)}
-                  className="mt-2 text-sm font-semibold text-primary hover:text-primary-hover"
-                >
-                  {storyExpanded ? t('common.readLess') : t('common.readMore')}
-                </button>
+              <section className="mb-12">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-1.5 h-6 bg-primary rounded-full"></div>
+                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{t('placeDetail.theStory')}</h2>
+                </div>
+                <div className="bg-white dark:bg-dark-surface rounded-[2rem] p-6 border border-slate-100 dark:border-dark-border shadow-soft">
+                  <p className={`text-[15px] text-slate-600 dark:text-slate-300 leading-relaxed ${storyExpanded ? '' : 'line-clamp-5'}`}>
+                    {place.description}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setStoryExpanded((v) => !v)}
+                    className="mt-4 text-sm font-bold text-primary hover:text-primary-hover flex items-center gap-1"
+                  >
+                    {storyExpanded ? t('common.showLess') : t('common.showMore')}
+                    <span className="material-symbols-outlined text-sm">{storyExpanded ? 'expand_less' : 'expand_more'}</span>
+                  </button>
+                </div>
               </section>
             )}
 
             {/* Opening Hours */}
             {place.opening_hours && Object.keys(place.opening_hours).length > 0 && (
-              <section>
-                <h2 className="text-lg font-bold text-text-main mb-3">{t('places.openingHours')}</h2>
-                <div className="rounded-xl border border-input-border bg-white p-4">
+              <section className="mb-12">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-1.5 h-6 bg-primary rounded-full"></div>
+                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{t('places.openingHours')}</h2>
+                </div>
+                <div className="rounded-[2rem] border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface p-6 shadow-soft">
                   {!hoursExpanded ? (
                     // Collapsed state: Show today's hours
                     <button
@@ -579,9 +615,8 @@ export default function PlaceDetail() {
                         return (
                           <div
                             key={day}
-                            className={`flex items-center justify-between py-2 ${
-                              isToday ? 'font-semibold text-primary' : 'text-text-secondary'
-                            }`}
+                            className={`flex items-center justify-between py-2 ${isToday ? 'font-semibold text-primary' : 'text-text-secondary'
+                              }`}
                           >
                             <span className="text-sm">{day}</span>
                             <span className="text-sm">
@@ -606,8 +641,11 @@ export default function PlaceDetail() {
 
             {/* Carousel */}
             {timings.length > 0 && (
-              <section>
-                <h2 className="text-lg font-bold text-text-main mb-3">{carouselTitle}</h2>
+              <section className="mb-12">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-1.5 h-6 bg-primary rounded-full"></div>
+                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{carouselTitle}</h2>
+                </div>
                 <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
                   {timings.map((item, i) => renderTimingItem(item, i))}
                 </div>
@@ -616,14 +654,19 @@ export default function PlaceDetail() {
 
             {/* Specifications */}
             {specifications.length > 0 && (
-              <section>
-                <h2 className="text-lg font-bold text-text-main mb-3">{t('placeDetail.detailsAndFacilities')}</h2>
-                <div className="grid grid-cols-2 gap-3">
+              <section className="mb-12">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-1.5 h-6 bg-primary rounded-full"></div>
+                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{t('placeDetail.detailsAndFacilities')}</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   {specifications.map((spec, i) => (
-                    <div key={i} className="p-4 rounded-2xl bg-white border border-input-border shadow-sm flex flex-col gap-2">
-                      <span className="material-symbols-outlined text-primary text-[22px]">{spec.icon}</span>
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-text-muted">{t(spec.label)}</p>
-                      <p className="text-sm font-semibold text-text-main">{spec.value}</p>
+                    <div key={i} className="p-4 rounded-3xl bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border shadow-soft flex flex-col gap-2">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-dark-bg flex items-center justify-center text-slate-400 dark:text-slate-500 mb-1">
+                        <span className="material-symbols-outlined text-[20px]">{spec.icon}</span>
+                      </div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">{t(spec.label)}</p>
+                      <p className="text-[13px] font-bold text-slate-800 dark:text-white">{spec.value}</p>
                     </div>
                   ))}
                 </div>
@@ -644,15 +687,15 @@ export default function PlaceDetail() {
           </div>
 
           {/* Mobile sticky footer */}
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-input-border px-4 py-3 flex gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl dark:bg-dark-bg/95 border-t border-slate-100 dark:border-dark-border px-6 py-4 flex gap-3 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] animate-in slide-in-from-bottom-full duration-500 lg:hidden">
             <a
               href={directionsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-[1.5px] border-primary text-primary font-medium text-sm hover:bg-primary/5 transition-colors"
+              className="flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-50 dark:bg-dark-surface text-slate-400 hover:text-primary transition-all active:scale-95 border border-slate-100 dark:border-dark-border"
+              title={t('placeDetail.directions')}
             >
-              <span className="material-symbols-outlined text-lg">directions</span>
-              {t('placeDetail.directions')}
+              <span className="material-symbols-outlined text-2xl">directions</span>
             </a>
             {checkInWidget()}
           </div>
@@ -664,18 +707,24 @@ export default function PlaceDetail() {
           <div className="space-y-8">
             {/* The Story */}
             {place.description && (
-              <section>
-                <h2 className="text-xl font-bold text-text-main mb-4">{t('placeDetail.theStory')}</h2>
-                <p className={`text-[15px] text-text-secondary leading-relaxed ${storyExpanded ? '' : 'line-clamp-5'}`}>
-                  {place.description}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setStoryExpanded((v) => !v)}
-                  className="mt-2 text-sm font-semibold text-primary hover:text-primary-hover"
-                >
-                  {storyExpanded ? t('common.readLess') : t('common.readMore')}
-                </button>
+              <section className="mb-12">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-1.5 h-6 bg-primary rounded-full"></div>
+                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{t('placeDetail.theStory')}</h2>
+                </div>
+                <div className="bg-white dark:bg-dark-surface rounded-[2rem] p-8 border border-slate-100 dark:border-dark-border shadow-soft">
+                  <p className={`text-lg text-slate-600 dark:text-slate-300 leading-relaxed ${storyExpanded ? '' : 'line-clamp-6'}`}>
+                    {place.description}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setStoryExpanded((v) => !v)}
+                    className="mt-6 text-sm font-bold text-primary hover:text-primary-hover flex items-center gap-2 transition-all hover:gap-3"
+                  >
+                    {storyExpanded ? t('common.showLess') : t('common.readMore')}
+                    <span className="material-symbols-outlined text-base">{storyExpanded ? 'expand_less' : 'east'}</span>
+                  </button>
+                </div>
               </section>
             )}
 
@@ -712,9 +761,8 @@ export default function PlaceDetail() {
                         return (
                           <div
                             key={day}
-                            className={`flex items-center justify-between py-2 ${
-                              isToday ? 'font-semibold text-primary' : 'text-text-secondary'
-                            }`}
+                            className={`flex items-center justify-between py-2 ${isToday ? 'font-semibold text-primary' : 'text-text-secondary'
+                              }`}
                           >
                             <span className="text-sm">{day}</span>
                             <span className="text-sm">
@@ -749,14 +797,19 @@ export default function PlaceDetail() {
 
             {/* Specifications */}
             {specifications.length > 0 && (
-              <section>
-                <h2 className="text-xl font-bold text-text-main mb-4">{t('placeDetail.detailsAndFacilities')}</h2>
-                <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+              <section className="mb-12">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-1.5 h-6 bg-primary rounded-full"></div>
+                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{t('placeDetail.detailsAndFacilities')}</h2>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                   {specifications.map((spec, i) => (
-                    <div key={i} className="p-5 rounded-2xl bg-white border border-input-border shadow-sm flex flex-col gap-2">
-                      <span className="material-symbols-outlined text-primary text-[24px]">{spec.icon}</span>
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-text-muted">{t(spec.label)}</p>
-                      <p className="text-sm font-semibold text-text-main">{spec.value}</p>
+                    <div key={i} className="p-4 rounded-3xl bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border shadow-soft flex flex-col gap-2 hover:border-primary/20 hover:shadow-lg transition-all">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-dark-bg flex items-center justify-center text-slate-400 dark:text-slate-500 mb-1">
+                        <span className="material-symbols-outlined text-[20px]">{spec.icon}</span>
+                      </div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">{t(spec.label)}</p>
+                      <p className="text-[13px] font-bold text-slate-800 dark:text-white">{spec.value}</p>
                     </div>
                   ))}
                 </div>

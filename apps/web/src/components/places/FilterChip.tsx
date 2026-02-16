@@ -16,11 +16,10 @@ export default function FilterChip({
       type="button"
       role="tab"
       aria-selected={selected}
-      className={`whitespace-nowrap px-5 py-2.5 rounded-xl text-sm font-medium border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
-        selected
-          ? 'bg-primary text-white border-primary shadow-md'
-          : 'bg-surface dark:bg-gray-800 border-input-border text-text-secondary hover:border-primary/50 hover:text-primary'
-      } ${className}`}
+      className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold border transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${selected
+          ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+          : 'bg-white dark:bg-dark-surface border-slate-200 dark:border-dark-border text-slate-500 hover:border-primary hover:text-primary shadow-sm'
+        } ${className}`}
       {...props}
     >
       {label}

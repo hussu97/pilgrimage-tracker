@@ -24,7 +24,7 @@ router = APIRouter()
 Religion = Literal["islam", "hinduism", "christianity"]
 
 
-def _place_to_item(place, distance: Optional[float] = None, include_rating: bool = False, attrs: Optional[dict] = None, session: Optional[Session] = None, images: Optional[List[dict]] = None) -> dict:
+def _place_to_item(place, distance: Optional[float] = None, include_rating: bool = False, attrs: Optional[dict] = None, session: Optional[Session] = None, images: Optional[List[dict]] = None, rating: Optional[dict] = None) -> dict:
     d = distance
     if d is not None:
         d = round(d * 10) / 10
@@ -72,7 +72,15 @@ def _place_to_item(place, distance: Optional[float] = None, include_rating: bool
         out["website_url"] = place.website_url
     out["has_events"] = places_db._place_has_events(place, attrs)
     if include_rating:
-        agg = reviews_db.get_aggregate_rating(place.place_code)
+        # Use passed rating if provided, otherwise fetch from DB
+        if rating:
+            agg = rating
+        else:
+            if session:
+                agg = reviews_db.get_aggregate_rating(place.place_code, session)
+            else:
+                with Session(engine) as sess:
+                    agg = reviews_db.get_aggregate_rating(place.place_code, sess)
         if agg:
             out["average_rating"] = agg["average"]
             out["review_count"] = agg["count"]
@@ -83,10 +91,11 @@ def _place_detail(place) -> dict:
     # Fetch attributes once and reuse
     with Session(engine) as session:
         attrs = attr_db.get_attributes_dict(place.place_code, session)
-        out = _place_to_item(place, include_rating=True, attrs=attrs, session=session)
+        rating = reviews_db.get_aggregate_rating(place.place_code, session)
+        out = _place_to_item(place, include_rating=True, attrs=attrs, session=session, rating=rating)
         if "distance" in out:
             del out["distance"]
-        out["total_checkins_count"] = check_ins_db.count_check_ins_for_place(place.place_code)
+        out["total_checkins_count"] = check_ins_db.count_check_ins_for_place(place.place_code, session)
         out["timings"] = build_timings(place, attrs=attrs, session=session)
         out["specifications"] = build_specifications(place, attrs=attrs, session=session)
         out["attributes"] = attrs
@@ -129,10 +138,10 @@ def list_places(
         has_parking=has_parking,
         womens_area=womens_area,
         top_rated=top_rated,
-        _reviews_agg_fn=reviews_db.get_aggregate_rating,
     )
-    # Use bulk-fetched attributes and images for efficiency
+    # Use bulk-fetched attributes, ratings, and images for efficiency
     all_attrs = result["all_attrs"]
+    all_ratings = result.get("all_ratings", {})
     place_codes = [p.place_code for p, _ in result["rows"]]
 
     with Session(engine) as session:
@@ -143,7 +152,8 @@ def list_places(
                 dist,
                 include_rating=include_rating,
                 attrs=all_attrs.get(p.place_code, {}),
-                images=all_images.get(p.place_code, [])
+                images=all_images.get(p.place_code, []),
+                rating=all_ratings.get(p.place_code) if include_rating else None
             )
             for p, dist in result["rows"]
         ]
@@ -175,11 +185,11 @@ def get_place_reviews(
     if not places_db.get_place_by_code(place_code):
         raise HTTPException(status_code=404, detail="Place not found")
     rows = reviews_db.get_reviews_by_place(place_code, limit=limit, offset=offset)
-    agg = reviews_db.get_aggregate_rating(place_code)
-    out = []
 
     # Fetch review images for all reviews in batch
     with Session(engine) as session:
+        agg = reviews_db.get_aggregate_rating(place_code, session)
+        out = []
         for r in rows:
             source = getattr(r, "source", "user")
 
@@ -224,11 +234,11 @@ def get_place_reviews(
                     "source": "user",
                 })
 
-    result = {"reviews": out}
-    if agg:
-        result["average_rating"] = agg["average"]
-        result["review_count"] = agg["count"]
-    return result
+        result = {"reviews": out}
+        if agg:
+            result["average_rating"] = agg["average"]
+            result["review_count"] = agg["count"]
+        return result
 
 
 @router.post("/{place_code}/check-in")

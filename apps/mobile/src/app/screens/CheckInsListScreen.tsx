@@ -138,8 +138,8 @@ export default function CheckInsListScreen() {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.backText}>‹ {t('common.back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.label}>{t('profile.myCheckIns')}</Text>
         <Text style={styles.title}>{t('journey.journeyLog')}</Text>
+        <Text style={styles.subtitle}>{t('checkins.historySubtitle') || 'Relive your pilgrimage moments'}</Text>
       </View>
 
       {loading && (
@@ -171,17 +171,18 @@ export default function CheckInsListScreen() {
       {!loading && !error && checkIns.length > 0 && (
         <>
           <View style={styles.statsCard}>
-            <View>
+            <View style={styles.statsLeft}>
               <Text style={styles.statsLabel}>{t('journey.totalVisits')}</Text>
               <View style={styles.statsRow}>
                 <Text style={styles.statsTotal}>{totalCount}</Text>
-                <Text style={styles.statsSuffix}> {t('journey.sacredPlaces')}</Text>
               </View>
+              <Text style={styles.statsSuffix}>{t('journey.sacredPlaces')}</Text>
             </View>
             <View style={styles.statsDivider} />
             <View style={styles.statsRight}>
               <Text style={styles.statsThisMonthLabel}>{t('journey.thisMonth')}</Text>
               <Text style={styles.statsThisMonthValue}>{thisMonth.length}</Text>
+              <Text style={styles.statsThisMonthSuffix}>{t('journey.checkIns') || 'Check-ins'}</Text>
             </View>
           </View>
 
@@ -325,10 +326,10 @@ export default function CheckInsListScreen() {
                 <Text style={styles.visitDate}>
                   {c.checked_in_at
                     ? new Date(c.checked_in_at).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })
                     : c.date ?? ''}
                   {c.time ? ` · ${c.time}` : ''}
                 </Text>
@@ -360,7 +361,8 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 4,
   },
-  title: { fontSize: 24, fontWeight: '600', color: tokens.colors.textDark },
+  title: { fontSize: 32, fontWeight: '700', color: tokens.colors.textDark, letterSpacing: -1 },
+  subtitle: { fontSize: 14, color: tokens.colors.textSecondary, marginTop: 4, fontWeight: '500' },
   loader: { marginVertical: 24, alignSelf: 'center' },
   errorWrap: { paddingHorizontal: 24, marginBottom: 16 },
   errorText: { color: '#b91c1c', marginBottom: 8 },
@@ -400,10 +402,12 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: 'row', alignItems: 'baseline' },
   statsTotal: { fontSize: 40, fontWeight: '300', color: tokens.colors.primaryDark },
   statsSuffix: { fontSize: 14, color: tokens.colors.textMuted },
+  statsLeft: { flex: 1 },
   statsDivider: { width: 1, height: 48, backgroundColor: tokens.colors.inputBorder, marginHorizontal: 16 },
   statsRight: { alignItems: 'flex-end' },
   statsThisMonthLabel: { fontSize: 12, fontWeight: '600', color: tokens.colors.textSecondary, textTransform: 'uppercase', marginBottom: 4 },
   statsThisMonthValue: { fontSize: 24, fontWeight: '600', color: tokens.colors.textDark },
+  statsThisMonthSuffix: { fontSize: 10, color: tokens.colors.textMuted, textTransform: 'uppercase', fontWeight: 'bold' },
   calendarSection: { paddingHorizontal: 24, marginBottom: 24 },
   calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   calendarTitle: { fontSize: 18, fontWeight: '600', color: tokens.colors.textDark },
@@ -449,12 +453,14 @@ const styles = StyleSheet.create({
   dayNumToday: { color: '#fff', fontWeight: '600' },
   sectionWrap: { marginBottom: 8 },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: tokens.colors.textDark,
+    fontSize: 11,
+    fontWeight: '700',
+    color: tokens.colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
     marginHorizontal: 24,
     marginBottom: 8,
-    marginTop: 8,
+    marginTop: 16,
   },
   sectionSubtitle: {
     fontSize: 12,

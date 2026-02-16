@@ -66,10 +66,10 @@ function CheckInCard({ c }: { c: CheckIn }) {
           <span>
             {c.checked_in_at
               ? new Date(c.checked_in_at).toLocaleDateString(undefined, {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
               : c.date ?? ''}
           </span>
           {c.time && (
@@ -88,7 +88,7 @@ function CheckInCard({ c }: { c: CheckIn }) {
           </div>
         )}
       </div>
-      <span className="material-symbols-outlined text-slate-300 group-hover:text-primary flex-shrink-0">
+      <span className="material-symbols-outlined text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all flex-shrink-0">
         chevron_right
       </span>
     </Link>
@@ -170,32 +170,40 @@ export default function CheckInsList() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#EBF5FF] to-white dark:from-dark-bg dark:to-dark-bg">
-      <header className="px-6 pt-6 pb-4">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <button
-              type="button"
-              onClick={() => navigate('/profile')}
-              className="flex items-center gap-2 text-text-muted hover:text-primary mb-2 text-sm"
-            >
-              <span className="material-symbols-outlined text-lg">arrow_back</span>
-              {t('common.back')}
-            </button>
-            <p className="text-xs text-primary font-semibold tracking-[0.2em] uppercase mb-1">
-              {t('profile.myCheckIns')}
-            </p>
-            <h1 className="text-2xl font-semibold text-slate-800 dark:text-white tracking-tight">
+    <div className="min-h-screen bg-slate-50 dark:bg-dark-bg">
+      <div className="absolute top-0 left-0 w-full h-80 bg-gradient-to-b from-blue-50 to-transparent dark:from-primary/5 dark:to-transparent pointer-events-none z-0" />
+
+      <header className="relative z-10 px-8 pt-12 pb-6">
+        <div className="mb-8">
+          <button
+            type="button"
+            onClick={() => navigate('/profile')}
+            className="flex items-center gap-2 text-slate-400 hover:text-primary mb-6 text-sm font-bold uppercase tracking-[0.1em]"
+          >
+            <span className="material-symbols-outlined text-base">arrow_back</span>
+            {t('common.back')}
+          </button>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-1.5 h-6 bg-primary rounded-full"></div>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
               {t('journey.journeyLog')}
             </h1>
           </div>
+          <p className="text-slate-500 dark:text-dark-text-secondary font-medium pl-4">
+            {t('checkins.journeySubtitle') || 'Reflecting on your spiritual milestones'}
+          </p>
         </div>
 
-        {loading && <p className="text-text-muted text-sm py-4">{t('common.loading')}</p>}
+        {loading && (
+          <div className="flex justify-center py-10">
+            <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+          </div>
+        )}
+
         {error && (
-          <div className="py-4">
-            <p className="text-red-600 mb-2 text-sm">{error}</p>
-            <button type="button" onClick={fetchList} className="text-primary font-medium text-sm">
+          <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 p-4 rounded-2xl mb-8">
+            <p className="text-red-600 dark:text-red-400 mb-3 text-sm font-medium">{error}</p>
+            <button type="button" onClick={fetchList} className="text-primary font-bold text-sm underline">
               {t('common.retry')}
             </button>
           </div>
@@ -203,23 +211,23 @@ export default function CheckInsList() {
 
         {/* Stats card */}
         {!loading && !error && (
-          <div className="bg-white dark:bg-dark-surface rounded-[2rem] p-6 shadow-subtle border border-slate-100/50 dark:border-dark-border flex items-center justify-between relative overflow-hidden">
+          <div className="bg-white dark:bg-dark-surface rounded-3xl p-6 shadow-soft border border-slate-100 dark:border-dark-border flex items-center justify-between relative overflow-hidden">
             <div className="absolute -right-6 -top-6 w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none" />
-            <div>
-              <span className="text-xs font-medium text-slate-500 dark:text-dark-text-secondary uppercase tracking-wide">
+            <div className="z-10">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
                 {t('journey.totalVisits')}
               </span>
               <div className="flex items-baseline mt-1 gap-2">
-                <span className="text-5xl font-light text-primary tracking-tighter">{totalCount}</span>
-                <span className="text-sm text-slate-400 font-normal">{t('journey.sacredPlaces')}</span>
+                <span className="text-5xl font-bold text-primary tracking-tighter">{totalCount}</span>
+                <span className="text-sm text-slate-400 dark:text-slate-500 font-medium">{t('journey.sacredPlaces')}</span>
               </div>
             </div>
-            <div className="h-12 w-px bg-slate-100 dark:bg-dark-border mx-4" />
-            <div className="text-right">
-              <span className="text-xs font-medium text-slate-500 dark:text-dark-text-secondary uppercase tracking-wide block mb-1">
+            <div className="h-12 w-px bg-slate-100 dark:bg-dark-border mx-4 z-10" />
+            <div className="text-right z-10">
+              <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] block mb-1">
                 {t('checkins.thisMonth')}
               </span>
-              <span className="text-2xl font-medium text-slate-800 dark:text-white">{thisMonth.length}</span>
+              <span className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{thisMonth.length}</span>
             </div>
           </div>
         )}
@@ -245,11 +253,13 @@ export default function CheckInsList() {
           {/* On This Day */}
           {onThisDay.length > 0 && (
             <section className="px-6 mb-8">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="material-symbols-outlined text-primary text-xl">auto_stories</span>
-                <h2 className="text-lg font-semibold text-slate-800 dark:text-white">{t('checkins.onThisDay')}</h2>
+              <div className="flex items-center gap-3 mb-6">
+                <span className="material-symbols-outlined text-primary text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>auto_stories</span>
+                <div>
+                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1">{t('checkins.onThisDay')}</h2>
+                  <p className="text-[13px] text-slate-500 dark:text-dark-text-secondary font-medium">{t('checkins.onThisDayDescription')}</p>
+                </div>
               </div>
-              <p className="text-xs text-text-muted mb-4">{t('checkins.onThisDayDescription')}</p>
               <div className="space-y-3">
                 {onThisDay.map((c) => (
                   <CheckInCard key={c.check_in_code} c={c} />
@@ -261,7 +271,7 @@ export default function CheckInsList() {
           {/* Calendar */}
           <section className="px-6 mb-8">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-slate-800 dark:text-white">{monthLabel}</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{monthLabel}</h2>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -294,17 +304,15 @@ export default function CheckInsList() {
                   return (
                     <div
                       key={i}
-                      className={`py-2 relative flex items-center justify-center ${
-                        !isCurrent ? 'text-slate-300' : 'text-slate-800 dark:text-white'
-                      }`}
+                      className={`py-2 relative flex items-center justify-center ${!isCurrent ? 'text-slate-300' : 'text-slate-800 dark:text-white'
+                        }`}
                     >
                       {has && (
                         <span
-                          className={`absolute w-8 h-8 rounded-full z-0 ${
-                            today
-                              ? 'bg-primary shadow-md shadow-blue-200'
-                              : 'bg-blue-50 dark:bg-primary/20'
-                          }`}
+                          className={`absolute w-8 h-8 rounded-full z-0 ${today
+                            ? 'bg-primary shadow-md shadow-blue-200'
+                            : 'bg-blue-50 dark:bg-primary/20'
+                            }`}
                         />
                       )}
                       <span
@@ -322,9 +330,9 @@ export default function CheckInsList() {
           {/* This Month */}
           {thisMonth.length > 0 && (
             <section className="px-6 mb-8">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="material-symbols-outlined text-primary text-xl">calendar_month</span>
-                <h2 className="text-lg font-semibold text-slate-800 dark:text-white">{t('checkins.thisMonth')}</h2>
+              <div className="flex items-center gap-3 mb-6">
+                <span className="material-symbols-outlined text-primary text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>calendar_month</span>
+                <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{t('checkins.thisMonth')}</h2>
               </div>
               <div className="space-y-3">
                 {thisMonth.map((c) => (
@@ -336,7 +344,7 @@ export default function CheckInsList() {
 
           {/* All recent visits */}
           <section className="px-6 space-y-3 pb-24">
-            <h2 className="text-lg font-medium text-slate-800 dark:text-white mb-2">
+            <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-6">
               {t('journey.recentVisits')}
             </h2>
             {recentCheckIns.map((c) => (

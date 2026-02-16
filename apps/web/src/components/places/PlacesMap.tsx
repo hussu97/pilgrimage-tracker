@@ -15,13 +15,31 @@ const religionColors: Record<string, string> = {
   christianity: '#2563eb',
 };
 
-function createMarkerIcon(religion: string): L.DivIcon {
-  const color = religionColors[religion] ?? '#6b7280';
+function createMarkerIcon(religion: string, isSelected = false): L.DivIcon {
+  const color = religionColors[religion] ?? '#007AFF';
+  const size = isSelected ? 40 : 32;
   return L.divIcon({
     className: 'place-marker',
-    html: `<div style="width:24px;height:24px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>`,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
+    html: `
+      <div class="relative flex items-center justify-center">
+        <div style="
+          width:${size}px;
+          height:${size}px;
+          border-radius:50%;
+          background:white;
+          border:3px solid ${color};
+          box-shadow:0 8px 24px rgba(0,0,0,0.15);
+          display:flex;
+          align-items:center;
+          justify-center;
+        " class="relative z-10">
+          <div style="width:12px;height:12px;border-radius:50%;background:${color};margin:auto;"></div>
+        </div>
+        ${isSelected ? '<div class="absolute inset-0 rounded-full bg-primary/20 animate-ping"></div>' : ''}
+      </div>
+    `,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   });
 }
 
@@ -48,13 +66,14 @@ interface PlacesMapProps {
   places: Place[];
   center: { lat: number; lng: number } | null;
   onPlaceSelect?: (place: Place) => void;
+  selectedPlaceCode?: string | null;
 }
 
 function formatDistance(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
-export default function PlacesMap({ places, center, onPlaceSelect }: PlacesMapProps) {
+export default function PlacesMap({ places, center, onPlaceSelect, selectedPlaceCode }: PlacesMapProps) {
   const mapCenter: [number, number] = center ? [center.lat, center.lng] : DEFAULT_CENTER;
   const zoom = center ? USER_ZOOM : DEFAULT_ZOOM;
 
@@ -72,30 +91,34 @@ export default function PlacesMap({ places, center, onPlaceSelect }: PlacesMapPr
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {places.length > 0 && <FitBounds places={places} />}
-        {places.map((place) => (
-          <Marker
-            key={place.place_code}
-            position={[place.lat, place.lng]}
-            icon={createMarkerIcon(place.religion)}
-            eventHandlers={onPlaceSelect ? { click: () => onPlaceSelect(place) } : undefined}
-          >
-            {!onPlaceSelect && <Popup>
-              <div className="min-w-[160px]">
-                <p className="font-semibold text-gray-900 mb-1">{place.name}</p>
-                {place.distance != null && (
-                  <p className="text-sm text-gray-600 mb-2">{formatDistance(place.distance)} away</p>
-                )}
-                <Link
-                  to={`/places/${place.place_code}`}
-                  className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-                >
-                  View details
-                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                </Link>
-              </div>
-            </Popup>}
-          </Marker>
-        ))}
+        {places.map((place) => {
+          const isSelected = place.place_code === selectedPlaceCode;
+          return (
+            <Marker
+              key={place.place_code}
+              position={[place.lat, place.lng]}
+              icon={createMarkerIcon(place.religion, isSelected)}
+              eventHandlers={onPlaceSelect ? { click: () => onPlaceSelect(place) } : undefined}
+              zIndexOffset={isSelected ? 1000 : 0}
+            >
+              {!onPlaceSelect && <Popup>
+                <div className="min-w-[160px]">
+                  <p className="font-semibold text-gray-900 mb-1">{place.name}</p>
+                  {place.distance != null && (
+                    <p className="text-sm text-gray-600 mb-2">{formatDistance(place.distance)} away</p>
+                  )}
+                  <Link
+                    to={`/places/${place.place_code}`}
+                    className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                  >
+                    View details
+                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                  </Link>
+                </div>
+              </Popup>}
+            </Marker>
+          );
+        })}
       </MapContainer>
     </div>
   );
