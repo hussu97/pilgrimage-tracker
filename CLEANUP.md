@@ -132,7 +132,7 @@ All customer-facing strings must come from the backend translation API per proje
 
 ### Dark Mode and Styling
 
-- [ ] **ResetPassword.tsx missing dark mode styles** (lines 46, 58, 68): The success state and no-token state do not apply dark mode classes. Background and text colors will be incorrect in dark mode.
+- [x] **ResetPassword.tsx missing dark mode styles** (lines 46, 58, 68): The success state and no-token state do not apply dark mode classes. Background and text colors will be incorrect in dark mode. (Added dark: variants for backgrounds, text colors, inputs, and error messages)
 
 ### Missing UI Patterns
 
