@@ -86,7 +86,7 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 - [x] **`source_type` vs `source`**: The scraper uses `source_type` while the server uses `source` for the same concept. Align on one name across the codebase.
 
-- [ ] **`image_type` vs `images` array**: Backend uses `image_type` ("url"/"blob") but the frontend only sees an `images` array. Clarify the schema so the distinction is transparent or unnecessary on the client side.
+- [x] **`image_type` vs `images` array**: Backend uses `image_type` ("url"/"blob") but the frontend only sees an `images` array. Clarify the schema so the distinction is transparent or unnecessary on the client side. (Added JSDoc comments to frontend types and backend service explaining the abstraction - blob images are automatically served as URLs)
 
 - [x] **`google_reviews` field in PlaceCreate schema**: The field is still named `google_reviews` despite the system renaming the concept to "external reviews". Rename to `external_reviews`.
 

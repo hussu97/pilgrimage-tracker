@@ -18,6 +18,12 @@ export interface Place {
   lat: number;
   lng: number;
   address: string;
+  /**
+   * Place images. Each image has a URL and display order.
+   * Note: The backend stores images as either external URLs or binary blobs.
+   * Blob images are automatically served via /api/v1/places/{code}/images/{id}
+   * so all images appear as URLs to the client. Frontend doesn't need to know the storage type.
+   */
   images?: Array<{url: string; display_order: number}>;
   distance?: number;
   description?: string;

@@ -54,7 +54,15 @@ def add_image_blob(
 
 
 def get_images(place_code: str, session: Session = None) -> List[dict]:
-    """Get all images for a place, returns list of image dicts."""
+    """
+    Get all images for a place, returns list of image dicts.
+
+    Returns a unified format regardless of storage type:
+    - URL-based images: {id, url, display_order} where url is external
+    - Blob-based images: {id, url, display_order} where url is /api/v1/places/{code}/images/{id}
+
+    The frontend receives all images as URLs and doesn't need to know the storage implementation.
+    """
     if session is None:
         raise ValueError("Session is required")
 
