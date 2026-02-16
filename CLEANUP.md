@@ -42,15 +42,15 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 ### Dead Files and References
 
-- [ ] **enriched_places.json deleted**: `data_scraper/enriched_places.json` was deleted (visible in git status). Verify no remaining imports or references to this file exist in the scraper or seed scripts.
+- [x] **enriched_places.json deleted**: `data_scraper/enriched_places.json` was deleted (visible in git status). Verify no remaining imports or references to this file exist in the scraper or seed scripts.
 
-- [ ] **Possible duplicate gmaps.py**: Check whether an old `data_scraper/gmaps.py` exists alongside the proper `data_scraper/app/scrapers/gmaps.py`. If so, remove the old one.
+- [x] **Possible duplicate gmaps.py**: Check whether an old `data_scraper/gmaps.py` exists alongside the proper `data_scraper/app/scrapers/gmaps.py`. If so, remove the old one.
 
-- [ ] **Unused component SearchBar.tsx** (`apps/mobile/src/components/SearchBar.tsx`): Never imported anywhere. Remove or integrate.
+- [x] **Unused component SearchBar.tsx** (`apps/mobile/src/components/SearchBar.tsx`): Never imported anywhere. Remove or integrate.
 
-- [ ] **Unused component PrimaryButton.tsx** (`apps/mobile/src/components/PrimaryButton.tsx`): Never imported anywhere. Remove or integrate.
+- [x] **Unused component PrimaryButton.tsx** (`apps/mobile/src/components/PrimaryButton.tsx`): Never imported anywhere. Remove or integrate.
 
-- [ ] **Unused screen MapScreen.tsx** (`apps/mobile/src/screens/MapScreen.tsx`): Exists but not wired into navigation. Its functionality is duplicated in HomeScreen. Remove or integrate into navigation.
+- [x] **Unused screen MapScreen.tsx** (`apps/mobile/src/screens/MapScreen.tsx`): Exists but not wired into navigation. Its functionality is duplicated in HomeScreen. Remove or integrate into navigation.
 
 ---
 
@@ -124,11 +124,11 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 All customer-facing strings must come from the backend translation API per project rules.
 
-- [ ] **JoinGroup.tsx line 56**: `"No invite code"` -- hardcoded English string.
-- [ ] **JoinGroup.tsx line 57-58**: `"Use a link like /join?code=XXX"` -- hardcoded English string.
-- [ ] **JoinGroup.tsx line 79**: `"You're invited to join"` -- hardcoded English string.
-- [ ] **JoinGroup.tsx line 81**: `"Join with this invite code"` -- hardcoded English string.
-- [ ] **JoinGroup.tsx line 101**: `"Join"` button label -- hardcoded English string.
+- [x] **JoinGroup.tsx line 56**: `"No invite code"` -- hardcoded English string.
+- [x] **JoinGroup.tsx line 57-58**: `"Use a link like /join?code=XXX"` -- hardcoded English string.
+- [x] **JoinGroup.tsx line 79**: `"You're invited to join"` -- hardcoded English string.
+- [x] **JoinGroup.tsx line 81**: `"Join with this invite code"` -- hardcoded English string.
+- [x] **JoinGroup.tsx line 101**: `"Join"` button label -- hardcoded English string.
 
 ### Dark Mode and Styling
 

@@ -26,7 +26,7 @@ export default function JoinGroup() {
 
   const handleJoin = async () => {
     if (!code) {
-      setError('Missing invite code');
+      setError(t('errors.missingInviteCode'));
       return;
     }
     setLoading(true);
@@ -53,9 +53,9 @@ export default function JoinGroup() {
     return (
       <div className="max-w-md mx-auto px-4 py-12 text-center">
         <span className="material-symbols-outlined text-5xl text-text-muted mb-4 block">link_off</span>
-        <h1 className="text-xl font-semibold text-text-main mb-2">No invite code</h1>
+        <h1 className="text-xl font-semibold text-text-main mb-2">{t('groups.noInviteCode')}</h1>
         <p className="text-text-muted text-sm mb-6">
-          Use a link like /join?code=XXX to join a group.
+          {t('groups.inviteCodeHint')}
         </p>
         <button
           type="button"
@@ -76,9 +76,9 @@ export default function JoinGroup() {
         </div>
         <h1 className="text-xl font-semibold text-text-main mb-2">{t('groups.joinGroup')}</h1>
         {groupName ? (
-          <p className="text-text-muted text-sm">You&apos;re invited to join <strong className="text-text-main">{groupName}</strong></p>
+          <p className="text-text-muted text-sm">{t('groups.invitedToJoin')} <strong className="text-text-main">{groupName}</strong></p>
         ) : (
-          <p className="text-text-muted text-sm">Join with this invite code</p>
+          <p className="text-text-muted text-sm">{t('groups.joinWithCode')}</p>
         )}
       </div>
 
@@ -98,7 +98,7 @@ export default function JoinGroup() {
           disabled={loading}
           className="flex-1 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary-hover disabled:opacity-50"
         >
-          {loading ? t('common.loading') : 'Join'}
+          {loading ? t('common.loading') : t('groups.join')}
         </button>
       </div>
     </div>
