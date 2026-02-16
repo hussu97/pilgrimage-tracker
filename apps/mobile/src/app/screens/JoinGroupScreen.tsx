@@ -10,10 +10,10 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getGroupByInviteCode, joinGroupByCode } from '../../lib/api/client';
-import { useI18n } from '../providers';
-import type { RootStackParamList } from '../navigation';
-import { tokens } from '../../lib/theme';
+import { getGroupByInviteCode, joinGroupByCode } from '@/lib/api/client';
+import { useI18n } from '@/app/providers';
+import type { RootStackParamList } from '@/app/navigation';
+import { tokens } from '@/lib/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'JoinGroup'>;
 type JoinGroupRoute = RouteProp<RootStackParamList, 'JoinGroup'>;

@@ -1,4 +1,4 @@
-import { tokens } from '../theme';
+import { tokens } from '@/lib/theme';
 
 export function crowdColor(level?: string): string {
   if (!level) return tokens.colors.textMuted;

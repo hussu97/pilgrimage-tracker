@@ -11,11 +11,11 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { RootStackParamList } from '../navigation';
-import { useI18n } from '../providers';
-import { getMyCheckIns, getOnThisDayCheckIns, getThisMonthCheckIns } from '../../lib/api/client';
-import type { CheckIn } from '../../lib/types';
-import { tokens } from '../../lib/theme';
+import type { RootStackParamList } from '@/app/navigation';
+import { useI18n } from '@/app/providers';
+import { getMyCheckIns, getOnThisDayCheckIns, getThisMonthCheckIns } from '@/lib/api/client';
+import type { CheckIn } from '@/lib/types';
+import { tokens } from '@/lib/theme';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 

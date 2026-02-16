@@ -12,10 +12,10 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { RootStackParamList } from '../navigation';
-import { useAuth, useI18n } from '../providers';
-import { tokens } from '../../lib/theme';
-import * as api from '../../lib/api/client';
+import type { RootStackParamList } from '@/app/navigation';
+import { useAuth, useI18n } from '@/app/providers';
+import { tokens } from '@/lib/theme';
+import * as api from '@/lib/api/client';
 
 type ReligionChip = 'all' | 'islam' | 'hinduism' | 'christianity';
 

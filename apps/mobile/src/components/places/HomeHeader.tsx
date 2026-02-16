@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { tokens } from '../../lib/theme';
+import { tokens } from '@/lib/theme';
 
 interface HomeHeaderProps {
   displayName: string;

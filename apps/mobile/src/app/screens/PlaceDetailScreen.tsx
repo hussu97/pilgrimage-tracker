@@ -22,16 +22,16 @@ import {
   removeFavorite,
   deleteReview,
   checkIn as doCheckIn,
-} from '../../lib/api/client';
-import { shareUrl, openDirections } from '../../lib/share';
-import { useAuth } from '../providers';
-import { useI18n } from '../providers';
-import type { RootStackParamList } from '../navigation';
-import type { PlaceDetail as PlaceDetailType, Review, PlaceSpecification } from '../../lib/types';
-import { tokens } from '../../lib/theme';
-import TimingCircle from '../../components/places/TimingCircle';
-import DeityCircle from '../../components/places/DeityCircle';
-import { crowdColor } from '../../lib/utils/crowdColor';
+} from '@/lib/api/client';
+import { shareUrl, openDirections } from '@/lib/share';
+import { useAuth } from '@/app/providers';
+import { useI18n } from '@/app/providers';
+import type { RootStackParamList } from '@/app/navigation';
+import type { PlaceDetail as PlaceDetailType, Review, PlaceSpecification, PlaceTiming } from '@/lib/types';
+import { tokens } from '@/lib/theme';
+import TimingCircle from '@/components/places/TimingCircle';
+import DeityCircle from '@/components/places/DeityCircle';
+import { crowdColor } from '@/lib/utils/crowdColor';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>;
 type PlaceDetailRoute = RouteProp<RootStackParamList, 'PlaceDetail'>;
@@ -597,7 +597,7 @@ export default function PlaceDetailScreen() {
                         style={styles.reviewPhotos}
                         contentContainerStyle={styles.reviewPhotosContent}
                       >
-                        {r.photo_urls.map((url, i) => (
+                        {r.photo_urls.map((url: string, i: number) => (
                           <ExpoImage
                             key={i}
                             source={{ uri: url }}

@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, I18nProvider, ThemeProvider, useAuth } from './providers';
 import { LocationProvider } from './contexts/LocationContext';
 import { AppNavigationContent } from './navigation';
-import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 
 function AuthGate() {
   const { user, loading } = useAuth();

@@ -9,14 +9,14 @@ import React, {
 } from 'react';
 import { Appearance, I18nManager, NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { User } from '../lib/types';
-import * as api from '../lib/api/client';
+import type { User } from '@/lib/types';
+import * as api from '@/lib/api/client';
 import {
   TOKEN_KEY,
   USER_KEY,
   LOCALE_STORAGE_KEY,
-} from '../lib/constants';
-import { getStoredTheme, setStoredTheme, type Theme } from '../lib/theme';
+} from '@/lib/constants';
+import { getStoredTheme, setStoredTheme, type Theme } from '@/lib/theme';
 
 const SUPPORTED_LOCALES = ['en', 'ar', 'hi'] as const;
 type LocaleCode = (typeof SUPPORTED_LOCALES)[number];

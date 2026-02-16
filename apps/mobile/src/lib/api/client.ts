@@ -19,9 +19,9 @@ import type {
   Notification,
   UserSettings,
   LanguageOption,
-  PlacesListResponse,
-} from '../types';
-import { TOKEN_KEY } from '../constants';
+  PlacesResponse,
+} from '@/lib/types';
+import { TOKEN_KEY } from '@/lib/constants';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:3000';
 
@@ -197,7 +197,7 @@ export interface GetPlacesParams {
   top_rated?: boolean;
 }
 
-export async function getPlaces(params?: GetPlacesParams): Promise<PlacesListResponse> {
+export async function getPlaces(params?: GetPlacesParams): Promise<PlacesResponse> {
   const sp = new URLSearchParams();
   if (params?.religions?.length) params.religions.forEach((r) => sp.append('religion', r));
   if (params?.lat != null) sp.set('lat', String(params.lat));

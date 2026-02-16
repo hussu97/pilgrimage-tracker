@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import * as Location from 'expo-location';
-import { DEFAULT_LAT, DEFAULT_LNG } from '../../lib/constants';
+import { DEFAULT_LAT, DEFAULT_LNG } from '@/lib/constants';
 
 export interface LocationCoords {
   lat: number;

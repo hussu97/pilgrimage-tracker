@@ -14,13 +14,13 @@ import {
   getGroup,
   getGroupLeaderboard,
   getGroupActivity,
-} from '../../lib/api/client';
-import { shareUrl } from '../../lib/share';
-import { INVITE_LINK_BASE_URL } from '../../lib/constants';
-import { useI18n } from '../providers';
-import type { RootStackParamList } from '../navigation';
-import type { Group, LeaderboardEntry, ActivityItem } from '../../lib/types';
-import { tokens } from '../../lib/theme';
+} from '@/lib/api/client';
+import { shareUrl } from '@/lib/share';
+import { INVITE_LINK_BASE_URL } from '@/lib/constants';
+import { useI18n } from '@/app/providers';
+import type { RootStackParamList } from '@/app/navigation';
+import type { Group, LeaderboardEntry, ActivityItem } from '@/lib/types';
+import { tokens } from '@/lib/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'GroupDetail'>;
 type GroupDetailRoute = RouteProp<RootStackParamList, 'GroupDetail'>;

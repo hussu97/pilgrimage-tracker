@@ -10,10 +10,10 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getNotifications, markNotificationRead } from '../../lib/api/client';
-import { useI18n, useTheme } from '../providers';
-import type { Notification } from '../../lib/types';
-import { tokens } from '../../lib/theme';
+import { getNotifications, markNotificationRead } from '@/lib/api/client';
+import { useI18n, useTheme } from '@/app/providers';
+import type { Notification } from '@/lib/types';
+import { tokens } from '@/lib/theme';
 
 function notificationIcon(type: string): 'assignment-turned-in' | 'group' | 'star' | 'notifications' {
   if (type.includes('check') || type.includes('check_in')) return 'assignment-turned-in';

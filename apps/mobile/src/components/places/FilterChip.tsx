@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { tokens } from '../lib/theme';
+import { tokens } from '@/lib/theme';
 
 interface FilterChipProps {
   label: string;

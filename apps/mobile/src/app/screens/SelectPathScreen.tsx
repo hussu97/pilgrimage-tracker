@@ -3,12 +3,12 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-nati
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { RootStackParamList } from '../navigation';
-import { useAuth } from '../providers';
-import { useI18n } from '../providers';
-import { updateSettings } from '../../lib/api/client';
-import type { Religion } from '../../lib/types';
-import { tokens } from '../../lib/theme';
+import type { RootStackParamList } from '@/app/navigation';
+import { useAuth } from '@/app/providers';
+import { useI18n } from '@/app/providers';
+import { updateSettings } from '@/lib/api/client';
+import type { Religion } from '@/lib/types';
+import { tokens } from '@/lib/theme';
 
 const RELIGIONS: {
   code: Religion;

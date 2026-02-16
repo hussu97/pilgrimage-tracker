@@ -6,6 +6,7 @@ export interface Review {
   rating: number;
   title?: string;
   body?: string;
+  photo_urls?: string[];
   created_at: string;
   source: 'user' | 'external';
 }

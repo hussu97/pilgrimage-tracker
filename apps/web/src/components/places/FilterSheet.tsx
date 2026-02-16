@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Modal from './Modal';
+import Modal from '@/components/common/Modal';
 import { useI18n } from '@/app/providers';
 import type { FilterOption } from '@/lib/types';
 

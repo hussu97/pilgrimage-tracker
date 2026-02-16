@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation';
-import { useI18n, useAuth } from '../providers';
-import { tokens } from '../../lib/theme';
+import type { RootStackParamList } from '@/app/navigation';
+import { useI18n, useAuth } from '@/app/providers';
+import { tokens } from '@/lib/theme';
 
 export default function SplashScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Splash'>>();

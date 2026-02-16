@@ -10,10 +10,10 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getGroups } from '../../lib/api/client';
-import type { Group } from '../../lib/types';
-import { useI18n } from '../providers';
-import { tokens } from '../../lib/theme';
+import { getGroups } from '@/lib/api/client';
+import type { Group } from '@/lib/types';
+import { useI18n } from '@/app/providers';
+import { tokens } from '@/lib/theme';
 
 type MainTabParamList = { Home: undefined; Favorites: undefined; Groups: undefined; Profile: undefined };
 

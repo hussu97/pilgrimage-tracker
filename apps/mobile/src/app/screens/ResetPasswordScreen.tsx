@@ -12,10 +12,10 @@ import {
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { RootStackParamList } from '../navigation';
-import { useI18n } from '../providers';
-import { resetPassword } from '../../lib/api/client';
-import { tokens } from '../../lib/theme';
+import type { RootStackParamList } from '@/app/navigation';
+import { useI18n } from '@/app/providers';
+import { resetPassword } from '@/lib/api/client';
+import { tokens } from '@/lib/theme';
 
 export default function ResetPasswordScreen() {
   const insets = useSafeAreaInsets();

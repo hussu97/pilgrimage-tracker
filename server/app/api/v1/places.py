@@ -24,7 +24,7 @@ router = APIRouter()
 Religion = Literal["islam", "hinduism", "christianity"]
 
 
-def _place_to_item(place, distance: Optional[float] = None, include_rating: bool = False, attrs: Optional[dict] = None, session: Optional[Session] = None) -> dict:
+def _place_to_item(place, distance: Optional[float] = None, include_rating: bool = False, attrs: Optional[dict] = None, session: Optional[Session] = None, images: Optional[List[dict]] = None) -> dict:
     d = distance
     if d is not None:
         d = round(d * 10) / 10
@@ -46,7 +46,7 @@ def _place_to_item(place, distance: Optional[float] = None, include_rating: bool
         "lng": place.lng,
         "address": place.address,
         "opening_hours": place.opening_hours,
-        "images": place_images.get_images(place.place_code, session=session) if session else [],
+        "images": images if images is not None else (place_images.get_images(place.place_code, session=session) if session else []),
         "description": place.description,
         "created_at": place.created_at,
         "distance": d,
@@ -131,9 +131,23 @@ def list_places(
         top_rated=top_rated,
         _reviews_agg_fn=reviews_db.get_aggregate_rating,
     )
-    # Use bulk-fetched attributes for efficiency
+    # Use bulk-fetched attributes and images for efficiency
     all_attrs = result["all_attrs"]
-    places_out = [_place_to_item(p, dist, include_rating=include_rating, attrs=all_attrs.get(p.place_code, {})) for p, dist in result["rows"]]
+    place_codes = [p.place_code for p, _ in result["rows"]]
+
+    with Session(engine) as session:
+        all_images = place_images.get_images_bulk(place_codes, session)
+        places_out = [
+            _place_to_item(
+                p,
+                dist,
+                include_rating=include_rating,
+                attrs=all_attrs.get(p.place_code, {}),
+                images=all_images.get(p.place_code, [])
+            )
+            for p, dist in result["rows"]
+        ]
+
     return {"places": places_out, "filters": result["filters"]}
 
 

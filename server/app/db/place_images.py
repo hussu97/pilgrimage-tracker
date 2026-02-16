@@ -1,5 +1,5 @@
 """CRUD operations for PlaceImage model."""
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from sqlmodel import Session, select
 
@@ -86,6 +86,46 @@ def get_images(place_code: str, session: Session = None) -> List[dict]:
             result.append({
                 "id": img.id,
                 "url": f"/api/v1/places/{place_code}/images/{img.id}",
+                "display_order": img.display_order,
+            })
+
+    return result
+
+
+def get_images_bulk(place_codes: List[str], session: Session = None) -> Dict[str, List[dict]]:
+    """
+    Fetch images for multiple places in one query.
+
+    Returns: Dict mapping place_code -> list of image dicts
+    """
+    if session is None:
+        raise ValueError("Session is required")
+
+    if not place_codes:
+        return {}
+
+    stmt = (
+        select(PlaceImage)
+        .where(PlaceImage.place_code.in_(place_codes))
+        .order_by(PlaceImage.place_code, PlaceImage.display_order, PlaceImage.id)
+    )
+    images = session.exec(stmt).all()
+
+    result = {}
+    for img in images:
+        if img.place_code not in result:
+            result[img.place_code] = []
+
+        if img.image_type == "url":
+            result[img.place_code].append({
+                "id": img.id,
+                "url": img.url,
+                "display_order": img.display_order,
+            })
+        elif img.image_type == "blob":
+            result[img.place_code].append({
+                "id": img.id,
+                "url": f"/api/v1/places/{img.place_code}/images/{img.id}",
                 "display_order": img.display_order,
             })
 

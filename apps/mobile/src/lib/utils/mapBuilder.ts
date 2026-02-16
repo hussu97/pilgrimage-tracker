@@ -1,4 +1,4 @@
-import type { Place } from '../types';
+import type { Place } from '@/lib/types';
 
 interface MapMarker {
   lat: number;

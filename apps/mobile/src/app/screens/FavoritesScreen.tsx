@@ -12,11 +12,11 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type MainTabParamList = { Home: undefined; Favorites: undefined; Groups: undefined; Profile: undefined };
-import { useAuth, useI18n } from '../providers';
-import { getMyFavorites, removeFavorite } from '../../lib/api/client';
-import PlaceCard from '../../components/places/PlaceCard';
-import type { Place } from '../../lib/types';
-import { tokens } from '../../lib/theme';
+import { useAuth, useI18n } from '@/app/providers';
+import { getMyFavorites, removeFavorite } from '@/lib/api/client';
+import PlaceCard from '@/components/places/PlaceCard';
+import type { Place } from '@/lib/types';
+import { tokens } from '@/lib/theme';
 
 export default function FavoritesScreen() {
   const insets = useSafeAreaInsets();

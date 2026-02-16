@@ -103,27 +103,6 @@ class PlacesListResponse(BaseModel):
     filters: FiltersMetadata
 
 
-# Place list item (with optional distance)
-class PlaceListItem(BaseModel):
-    place_code: str
-    name: str
-    religion: Religion
-    place_type: str
-    lat: float
-    lng: float
-    address: str
-    opening_hours: Optional[dict] = None
-    utc_offset_minutes: Optional[int] = None
-    opening_hours_today: Optional[str] = None
-    image_urls: List[str] = []
-    description: Optional[str] = None
-    created_at: str
-    distance: Optional[float] = None
-
-    class Config:
-        from_attributes = True
-
-
 class PlaceAttributeInput(BaseModel):
     attribute_code: str
     value: Any  # str, number, bool, or dict

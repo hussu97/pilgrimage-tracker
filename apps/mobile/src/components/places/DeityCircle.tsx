@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
-import { tokens } from '../../lib/theme';
-import type { PlaceTiming } from '../../lib/types';
+import { tokens } from '@/lib/theme';
+import type { PlaceTiming } from '@/lib/types';
 
 interface DeityCircleProps {
   item: PlaceTiming;

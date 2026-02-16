@@ -119,14 +119,6 @@ New capabilities and meaningful UX improvements.
 
 ### User Features
 
-- [ ] **Photo upload for reviews**
-  - The review form UI has a photo attachment area but the image picker is not wired up on either platform.
-  - Implement: open the device image picker, upload the selected image to the server (new `POST /api/v1/uploads/review-image` endpoint), and attach the returned URL to the review payload.
-
-- [ ] **User avatar upload**
-  - The User model has an avatar field but there is no upload endpoint.
-  - Add `POST /api/v1/users/me/avatar` that accepts a multipart image, stores it (local filesystem or cloud storage), and updates the user record. Display the avatar in the profile screen and review cards.
-
 - [ ] **Badges and achievements system**
   - The profile API returns a hardcoded `0` for badges. No badge logic exists.
   - Design badge criteria (e.g., "First Check-in", "10 Reviews", "Visited 5 Countries", "Early Adopter") with icons and descriptions. Create a `badges` table, a badge-evaluation service, and a `GET /api/v1/users/me/badges` endpoint. Show earned badges on the profile screen.
@@ -134,10 +126,6 @@ New capabilities and meaningful UX improvements.
 - [ ] **Place deletion endpoint**
   - There is no way to remove a place from the system. Incorrect or duplicate entries persist forever.
   - Add `DELETE /api/v1/places/:placeCode` (admin-only). Cascade-delete related reviews, images, check-ins, and favorites. Return 204 on success.
-
-- [ ] **Offline support on mobile**
-  - The mobile app is completely non-functional without network connectivity. No data is cached locally.
-  - Cache the most recent place list, user profile, and favorites using AsyncStorage or MMKV. Show cached data with a "You are offline" banner. Queue check-ins and reviews for submission when connectivity returns.
 
 - [ ] **Push notifications**
   - The `Notification` model exists in the database but no push delivery mechanism is implemented.

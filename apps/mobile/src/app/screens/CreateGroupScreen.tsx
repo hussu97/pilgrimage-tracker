@@ -13,12 +13,12 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { createGroup } from '../../lib/api/client';
-import { shareUrl } from '../../lib/share';
-import { INVITE_LINK_BASE_URL } from '../../lib/constants';
-import { useI18n } from '../providers';
-import type { RootStackParamList } from '../navigation';
-import { tokens } from '../../lib/theme';
+import { createGroup } from '@/lib/api/client';
+import { shareUrl } from '@/lib/share';
+import { INVITE_LINK_BASE_URL } from '@/lib/constants';
+import { useI18n } from '@/app/providers';
+import type { RootStackParamList } from '@/app/navigation';
+import { tokens } from '@/lib/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CreateGroup'>;
 

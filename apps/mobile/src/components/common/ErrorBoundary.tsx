@@ -1,6 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { tokens } from '../lib/theme';
+import { tokens } from '@/lib/theme';
 
 interface Props {
   children: ReactNode;

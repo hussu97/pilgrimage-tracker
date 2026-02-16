@@ -4,12 +4,12 @@ import { View, StyleSheet, TouchableOpacity, Text, Platform } from 'react-native
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
-import HomeScreen from '../app/screens/HomeScreen';
-import GroupsScreen from '../app/screens/GroupsScreen';
-import ProfileScreen from '../app/screens/ProfileScreen';
-import { useI18n, useAuth, useTheme } from '../app/providers';
-import { tokens } from '../lib/theme';
-import { getNotifications } from '../lib/api/client';
+import HomeScreen from '@/app/screens/HomeScreen';
+import GroupsScreen from '@/app/screens/GroupsScreen';
+import ProfileScreen from '@/app/screens/ProfileScreen';
+import { useI18n, useAuth, useTheme } from '@/app/providers';
+import { tokens } from '@/lib/theme';
+import { getNotifications } from '@/lib/api/client';
 
 const Tab = createBottomTabNavigator();
 

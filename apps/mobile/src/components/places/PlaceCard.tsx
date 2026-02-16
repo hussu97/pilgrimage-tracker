@@ -4,9 +4,9 @@ import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../app/navigation';
-import type { Place } from '../lib/types';
-import { tokens } from '../lib/theme';
+import type { RootStackParamList } from '@/app/navigation';
+import type { Place } from '@/lib/types';
+import { tokens } from '@/lib/theme';
 
 interface PlaceCardProps {
   place: Place;

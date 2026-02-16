@@ -16,10 +16,10 @@ import Constants from 'expo-constants';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth, useI18n, useTheme } from '../providers';
-import { getMyStats } from '../../lib/api/client';
-import type { UserStats } from '../../lib/types';
-import { tokens } from '../../lib/theme';
+import { useAuth, useI18n, useTheme } from '@/app/providers';
+import { getMyStats } from '@/lib/api/client';
+import type { UserStats } from '@/lib/types';
+import { tokens } from '@/lib/theme';
 
 const APP_VERSION =
   Constants.expoConfig?.version ??
