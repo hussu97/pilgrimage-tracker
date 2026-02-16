@@ -14,6 +14,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 import {
   getPlace,
   getPlaceReviews,
@@ -527,6 +528,25 @@ export default function PlaceDetailScreen() {
                     </View>
                     {r.title ? <Text style={styles.reviewTitle}>{r.title}</Text> : null}
                     {r.body ? <Text style={styles.reviewBody}>{r.body}</Text> : null}
+                    {r.photo_urls && r.photo_urls.length > 0 && (
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.reviewPhotos}
+                        contentContainerStyle={styles.reviewPhotosContent}
+                      >
+                        {r.photo_urls.map((url, i) => (
+                          <ExpoImage
+                            key={i}
+                            source={{ uri: url }}
+                            style={styles.reviewPhoto}
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                            transition={200}
+                          />
+                        ))}
+                      </ScrollView>
+                    )}
                   </View>
                 ))}
               </View>
@@ -890,6 +910,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   reviewBody: { fontSize: 14, color: tokens.colors.textSecondary, lineHeight: 20 },
+  reviewPhotos: { marginTop: 12 },
+  reviewPhotosContent: { gap: 8 },
+  reviewPhoto: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+  },
 
   /* Footer */
   footer: {

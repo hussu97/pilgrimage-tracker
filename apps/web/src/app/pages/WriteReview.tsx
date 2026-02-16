@@ -1,9 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useI18n } from '@/app/providers';
-import { getPlace, createReview, updateReview } from '@/lib/api/client';
+import { getPlace, createReview, updateReview, uploadReviewPhoto } from '@/lib/api/client';
+import { compressImage, validateImageFile } from '@/lib/utils/imageUpload';
 import type { PlaceDetail } from '@/lib/types';
 import type { Review } from '@/lib/types';
+
+interface UploadedImage {
+  id: number;
+  url: string;
+  width: number;
+  height: number;
+  thumbnailUrl: string;
+}
 
 type LocationState = { edit?: Review } | null;
 
@@ -29,6 +38,10 @@ export default function WriteReview() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [photos, setPhotos] = useState<UploadedImage[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!placeCode) return;
@@ -36,6 +49,61 @@ export default function WriteReview() {
       .then(setPlace)
       .catch(() => setPlace(null));
   }, [placeCode]);
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // Check photo limit
+    const MAX_PHOTOS = 5;
+    const remainingSlots = MAX_PHOTOS - photos.length;
+    if (files.length > remainingSlots) {
+      setUploadError(`You can upload up to ${MAX_PHOTOS} photos total`);
+      return;
+    }
+
+    setUploading(true);
+    setUploadError('');
+
+    try {
+      for (const file of files) {
+        // Validate
+        const validation = validateImageFile(file);
+        if (!validation.valid) {
+          setUploadError(validation.error || 'Invalid image');
+          continue;
+        }
+
+        // Compress
+        const { blob } = await compressImage(file);
+
+        // Upload
+        const result = await uploadReviewPhoto(blob);
+
+        // Create thumbnail URL for preview
+        const thumbnailUrl = URL.createObjectURL(blob);
+
+        setPhotos((prev) => [...prev, { ...result, thumbnailUrl }]);
+      }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Failed to upload photo');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemovePhoto = (id: number) => {
+    setPhotos((prev) => {
+      const photo = prev.find((p) => p.id === id);
+      if (photo) {
+        URL.revokeObjectURL(photo.thumbnailUrl);
+      }
+      return prev.filter((p) => p.id !== id);
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,6 +126,7 @@ export default function WriteReview() {
           rating,
           body: body.trim() || undefined,
           is_anonymous: isAnonymous,
+          photo_urls: photos.map((p) => p.url),
         });
       }
       setSuccess(true);
@@ -173,28 +242,50 @@ export default function WriteReview() {
           </section>
 
           <section className="mb-6">
-            {/* TODO: Implement photo upload functionality
-                1. Add state: const [photos, setPhotos] = useState<File[]>([])
-                2. Add file input with accept="image/*" multiple
-                3. Handle file selection and validate (max size, format, count limit)
-                4. Show preview thumbnails with remove option
-                5. Upload images on submit:
-                   - Option A: Create POST /api/v1/reviews/upload-photo endpoint
-                     (accepts FormData, returns photo URL, similar to place images)
-                   - Option B: Upload to external service (Cloudinary, S3, etc.)
-                6. Include photo URLs in createReview/updateReview call
-                7. Handle upload errors and loading states
-            */}
-            <div className="flex items-center gap-4 overflow-x-auto">
-              <button
-                type="button"
-                className="flex-shrink-0 w-16 h-16 border border-dashed border-slate-300 rounded-lg flex items-center justify-center hover:bg-slate-50 transition-colors text-text-muted"
-                aria-label={t('writeReview.addPhoto')}
-                // TODO: onClick={() => fileInputRef.current?.click()}
-              >
-                <span className="material-icons-outlined text-xl">add_a_photo</span>
-              </button>
-              {/* TODO: Add file input ref and preview thumbnails here */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            {uploadError && (
+              <p className="text-red-600 text-sm mb-2">{uploadError}</p>
+            )}
+            <div className="flex items-center gap-4 overflow-x-auto pb-2">
+              {photos.length < 5 && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex-shrink-0 w-16 h-16 border border-dashed border-slate-300 rounded-lg flex items-center justify-center hover:bg-slate-50 transition-colors text-text-muted disabled:opacity-50"
+                  aria-label={t('writeReview.addPhoto')}
+                >
+                  {uploading ? (
+                    <span className="material-icons-outlined text-xl animate-spin">sync</span>
+                  ) : (
+                    <span className="material-icons-outlined text-xl">add_a_photo</span>
+                  )}
+                </button>
+              )}
+              {photos.map((photo) => (
+                <div key={photo.id} className="relative flex-shrink-0">
+                  <img
+                    src={photo.thumbnailUrl}
+                    alt="Review photo"
+                    className="w-16 h-16 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePhoto(photo.id)}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                    aria-label="Remove photo"
+                  >
+                    <span className="material-icons-round text-sm">close</span>
+                  </button>
+                </div>
+              ))}
             </div>
           </section>
 

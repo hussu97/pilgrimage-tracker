@@ -125,6 +125,18 @@ function ReviewsSection({
               </div>
               {r.title && <p className="font-semibold text-text-main text-sm mb-1">{r.title}</p>}
               {r.body && <p className="text-sm text-text-secondary">{r.body}</p>}
+              {r.photo_urls && r.photo_urls.length > 0 && (
+                <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+                  {r.photo_urls.map((url, i) => (
+                    <img
+                      key={i}
+                      src={url}
+                      alt={`Review photo ${i + 1}`}
+                      className="w-20 h-20 object-cover rounded-lg shrink-0"
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           {reviews.length > 3 && !expanded && (

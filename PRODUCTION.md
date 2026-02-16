@@ -60,6 +60,15 @@ Deploy using Docker and Docker Compose.
 - When adding new env vars (e.g. `CORS_ORIGINS`, `SENTRY_DSN`), document them in this section and in the Dockerfile/Compose example.
 - When adding a new service (e.g. Redis, worker), add a container and wire it in Compose; update this doc.
 
+### Scheduled Jobs
+
+- **Orphaned Images Cleanup:** Run `python -m app.jobs.cleanup_orphaned_images` daily to delete review images not attached to any review after 24 hours. Schedule with cron in the API container or as a separate container with shared database access.
+  - Example cron: `0 2 * * * cd /app && python -m app.jobs.cleanup_orphaned_images` (runs at 2 AM daily)
+
+### Dependencies
+
+- **Pillow:** Required for review photo upload image processing (compression, resizing). Included in `requirements.txt` (pillow>=10.0.0)
+
 ---
 
 ## Plan 2: Free online services (Render, Vercel, etc.)
@@ -104,6 +113,17 @@ Deploy backend and web on free-tier or low-cost services; use a free or cheap Po
 - When adding env vars or build steps, update this section.
 - If you add serverless functions or a separate worker, document the service and env here.
 
+### Scheduled Jobs
+
+- **Orphaned Images Cleanup:** Run `python -m app.jobs.cleanup_orphaned_images` daily to delete review images not attached to any review after 24 hours. Options:
+  - Render Cron Jobs (if available on your plan)
+  - External cron service (e.g., cron-job.org) calling a cleanup endpoint
+  - GitHub Actions scheduled workflow that runs the job via API
+
+### Dependencies
+
+- **Pillow:** Required for review photo upload image processing. Included in `requirements.txt` and automatically installed during build
+
 ---
 
 ## Plan 3: Google Cloud Platform (GCP)
@@ -146,6 +166,15 @@ Deploy using GCP services.
 
 - When adding new GCP resources (e.g. Redis, Pub/Sub), document them here.
 - When changing secrets or env vars, update this section and Secret Manager usage.
+
+### Scheduled Jobs
+
+- **Orphaned Images Cleanup:** Run `python -m app.jobs.cleanup_orphaned_images` daily to delete review images not attached to any review after 24 hours. Use **Cloud Scheduler** to trigger a Cloud Run Job or Cloud Function that runs the cleanup script with database access.
+  - Example: Create Cloud Scheduler job that hits `/admin/cleanup-images` endpoint (add auth header) or triggers Cloud Run Job
+
+### Dependencies
+
+- **Pillow:** Required for review photo upload image processing. Included in `requirements.txt` and automatically installed during Cloud Run build
 
 ---
 

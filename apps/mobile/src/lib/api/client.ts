@@ -260,6 +260,36 @@ export async function removeFavorite(placeCode: string): Promise<void> {
   if (!res.ok) throw new Error('Failed to remove favorite');
 }
 
+export async function uploadReviewPhoto(uri: string): Promise<{
+  id: number;
+  url: string;
+  width: number;
+  height: number;
+}> {
+  const formData = new FormData();
+
+  // Create file object for React Native
+  formData.append('file', {
+    uri,
+    type: 'image/jpeg',
+    name: 'photo.jpg',
+  } as any);
+
+  const token = await getToken();
+  const res = await fetch(`${API_BASE}/api/v1/reviews/upload-photo`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      // Don't set Content-Type - FormData will set it with boundary
+    },
+    body: formData,
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? 'Failed to upload photo');
+  return data;
+}
+
 export async function createReview(
   placeCode: string,
   body: { rating: number; title?: string; body?: string; is_anonymous?: boolean; photo_urls?: string[] }

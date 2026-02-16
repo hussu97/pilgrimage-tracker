@@ -1,9 +1,13 @@
+from io import BytesIO
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import Response
+from PIL import Image
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_db_session
 from app.db import reviews as reviews_db
+from app.db import review_images as review_images_db
 from app.models.schemas import ReviewUpdateBody
 
 router = APIRouter()
@@ -50,23 +54,122 @@ def delete_review(
 
 
 @router.post("/upload-photo")
-def upload_review_photo(user: Annotated[Any, Depends(get_current_user)]):
+async def upload_review_photo(
+    user: Annotated[Any, Depends(get_current_user)],
+    session: Annotated[Any, Depends(get_db_session)],
+    file: UploadFile = File(...),
+):
     """
     Upload a photo for use in a review.
 
-    TODO: Implement photo upload handling:
-    1. Accept multipart/form-data with File type
-    2. Validate image type (JPEG, PNG, WebP), size (max 5MB), dimensions
-    3. Resize/compress image (e.g., max 1200px width)
-    4. Store options:
-       - Option A: Store in database as blob (like PlaceImage)
-       - Option B: Upload to cloud storage (S3, GCS, Cloudinary)
-    5. Return the image URL that can be included in photo_urls array
-    6. Consider adding cleanup for orphaned images (uploaded but never used in a review)
-
-    For now, reviews can only include external photo URLs via the photo_urls field.
+    Accepts JPEG, PNG, or WebP images up to 5MB.
+    Images are resized to max 1200px width and compressed to 85% JPEG quality.
+    Returns image ID and URL for inclusion in review photo_urls.
     """
-    raise HTTPException(
-        status_code=501,
-        detail="Photo upload not implemented. Include photo URLs directly in createReview."
+    # Validate file type
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    allowed_types = ["image/jpeg", "image/png", "image/webp"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only JPEG, PNG, and WebP images are allowed. Got: {file.content_type}"
+        )
+
+    # Read file data
+    file_data = await file.read()
+    file_size = len(file_data)
+
+    # Validate file size (max 5MB)
+    MAX_SIZE = 5 * 1024 * 1024  # 5MB
+    if file_size > MAX_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File size {file_size} bytes exceeds maximum of {MAX_SIZE} bytes (5MB)"
+        )
+
+    # Process image with Pillow
+    try:
+        img = Image.open(BytesIO(file_data))
+
+        # Validate dimensions (max 4000x4000)
+        MAX_DIMENSION = 4000
+        if img.width > MAX_DIMENSION or img.height > MAX_DIMENSION:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Image dimensions {img.width}x{img.height} exceed maximum of {MAX_DIMENSION}x{MAX_DIMENSION}"
+            )
+
+        # Convert to RGB if needed (handles RGBA, P, etc.)
+        if img.mode in ("RGBA", "LA", "P"):
+            # Create white background for transparency
+            background = Image.new("RGB", img.size, (255, 255, 255))
+            if img.mode == "P":
+                img = img.convert("RGBA")
+            background.paste(img, mask=img.split()[-1] if img.mode in ("RGBA", "LA") else None)
+            img = background
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+
+        # Resize if width > 1200px, maintaining aspect ratio
+        MAX_WIDTH = 1200
+        if img.width > MAX_WIDTH:
+            ratio = MAX_WIDTH / img.width
+            new_height = int(img.height * ratio)
+            img = img.resize((MAX_WIDTH, new_height), Image.Resampling.LANCZOS)
+
+        # Save as JPEG with 85% quality
+        output = BytesIO()
+        img.save(output, format="JPEG", quality=85, optimize=True)
+        compressed_data = output.getvalue()
+
+        final_width, final_height = img.width, img.height
+        final_size = len(compressed_data)
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to process image: {str(e)}")
+
+    # Store in database
+    try:
+        review_image = review_images_db.create_review_image(
+            uploaded_by_user_code=user.user_code,
+            blob_data=compressed_data,
+            mime_type="image/jpeg",
+            file_size=final_size,
+            width=final_width,
+            height=final_height,
+            display_order=0,
+            session=session,
+        )
+
+        return {
+            "id": review_image.id,
+            "url": f"/api/v1/reviews/images/{review_image.id}",
+            "width": final_width,
+            "height": final_height,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to store image: {str(e)}")
+
+
+@router.get("/images/{image_id}")
+def get_review_image(
+    image_id: int,
+    session: Annotated[Any, Depends(get_db_session)],
+):
+    """
+    Serve a review image by ID.
+    Returns the image blob with aggressive caching (1 year).
+    """
+    image = review_images_db.get_image_by_id(image_id, session=session)
+    if image is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    return Response(
+        content=image.blob_data,
+        media_type=image.mime_type,
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+        }
     )

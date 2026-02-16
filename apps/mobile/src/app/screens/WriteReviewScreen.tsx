@@ -15,11 +15,20 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getPlace, createReview, updateReview } from '../../lib/api/client';
+import { getPlace, createReview, updateReview, uploadReviewPhoto } from '../../lib/api/client';
+import { pickImages, compressImage, validateImage } from '../../lib/utils/imageUpload';
 import { useI18n } from '../providers';
 import type { RootStackParamList } from '../navigation';
 import type { PlaceDetail } from '../../lib/types';
 import { tokens } from '../../lib/theme';
+
+interface UploadedImage {
+  id: number;
+  url: string;
+  width: number;
+  height: number;
+  thumbnailUri: string;
+}
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'WriteReview'>;
 type WriteReviewRoute = RouteProp<RootStackParamList, 'WriteReview'>;
@@ -41,6 +50,9 @@ export default function WriteReviewScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [photos, setPhotos] = useState<UploadedImage[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   const isEdit = Boolean(reviewCode);
 
@@ -50,6 +62,53 @@ export default function WriteReviewScreen() {
       .then(setPlace)
       .catch(() => setPlace(null));
   }, [placeCode]);
+
+  const handlePickImages = async () => {
+    const MAX_PHOTOS = 5;
+    const remainingSlots = MAX_PHOTOS - photos.length;
+
+    if (remainingSlots <= 0) {
+      setUploadError(`You can upload up to ${MAX_PHOTOS} photos total`);
+      return;
+    }
+
+    setUploading(true);
+    setUploadError('');
+
+    try {
+      const picked = await pickImages(remainingSlots);
+      if (picked.length === 0) return;
+
+      for (const image of picked) {
+        // Validate
+        const validation = validateImage(image);
+        if (!validation.valid) {
+          setUploadError(validation.error || 'Invalid image');
+          continue;
+        }
+
+        // Compress
+        const compressed = await compressImage(image.uri);
+
+        // Upload
+        const result = await uploadReviewPhoto(compressed.uri);
+
+        setPhotos((prev) => [...prev, { ...result, thumbnailUri: compressed.uri }]);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('Permission')) {
+        setUploadError('Permission to access photos was denied');
+      } else {
+        setUploadError(err instanceof Error ? err.message : 'Failed to upload photo');
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemovePhoto = (id: number) => {
+    setPhotos((prev) => prev.filter((p) => p.id !== id));
+  };
 
   const handleSubmit = async () => {
     if (!placeCode) return;
@@ -72,6 +131,7 @@ export default function WriteReviewScreen() {
           title: title.trim() || undefined,
           body: body.trim() || undefined,
           is_anonymous: isAnonymous,
+          photo_urls: photos.map((p) => p.url),
         });
       }
       setSuccess(true);
@@ -172,32 +232,44 @@ export default function WriteReviewScreen() {
           textAlignVertical="top"
         />
 
-        {/* TODO: Implement photo upload functionality
-            1. Install: npx expo install expo-image-picker
-            2. Add state: const [photos, setPhotos] = useState<string[]>([]) // URIs
-            3. Implement pickImage using expo-image-picker:
-               - Request permissions (ImagePicker.requestMediaLibraryPermissionsAsync)
-               - Launch picker (ImagePicker.launchImageLibraryAsync with allowsMultipleSelection)
-               - Validate selected images (count limit, size)
-            4. Show preview thumbnails with remove option
-            5. Upload images on submit:
-               - Option A: Create POST /api/v1/reviews/upload-photo endpoint
-                 (accepts FormData, returns photo URL)
-               - Option B: Upload to external service (Cloudinary, S3, etc.)
-               - Use FormData with fetch/axios for multipart upload
-            6. Include photo URLs in createReview/updateReview call
-            7. Handle upload errors and loading states
-        */}
-        <View style={styles.photoRow}>
-          <TouchableOpacity
-            style={styles.addPhotoBtn}
-            // TODO: onPress={pickImage}
-          >
-            <Text style={styles.addPhotoIcon}>+</Text>
-            <Text style={styles.addPhotoLabel}>{t('writeReview.addPhoto')}</Text>
-          </TouchableOpacity>
-          {/* TODO: Map photos state to render preview thumbnails */}
-        </View>
+        {uploadError ? <Text style={styles.errorText}>{uploadError}</Text> : null}
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.photoScroll}
+          contentContainerStyle={styles.photoRow}
+        >
+          {photos.length < 5 && (
+            <TouchableOpacity
+              style={styles.addPhotoBtn}
+              onPress={handlePickImages}
+              disabled={uploading}
+              activeOpacity={0.8}
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color={tokens.colors.textMuted} />
+              ) : (
+                <>
+                  <Text style={styles.addPhotoIcon}>+</Text>
+                  <Text style={styles.addPhotoLabel}>{t('writeReview.addPhoto')}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+          {photos.map((photo) => (
+            <View key={photo.id} style={styles.photoThumbWrap}>
+              <Image source={{ uri: photo.thumbnailUri }} style={styles.photoThumb} />
+              <TouchableOpacity
+                style={styles.photoRemoveBtn}
+                onPress={() => handleRemovePhoto(photo.id)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.photoRemoveIcon}>×</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </ScrollView>
 
         <View style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>{t('writeReview.postAnonymously')}</Text>
@@ -316,7 +388,8 @@ const styles = StyleSheet.create({
     padding: 0,
     marginBottom: 24,
   },
-  photoRow: { flexDirection: 'row', marginBottom: 24 },
+  photoScroll: { marginBottom: 24 },
+  photoRow: { flexDirection: 'row', gap: 16, paddingRight: 24 },
   addPhotoBtn: {
     width: 64,
     height: 64,
@@ -329,6 +402,33 @@ const styles = StyleSheet.create({
   },
   addPhotoIcon: { fontSize: 20, color: tokens.colors.textMuted, marginBottom: 2 },
   addPhotoLabel: { fontSize: 10, color: tokens.colors.textMuted },
+  photoThumbWrap: {
+    position: 'relative',
+    width: 64,
+    height: 64,
+  },
+  photoThumb: {
+    width: 64,
+    height: 64,
+    borderRadius: 8,
+  },
+  photoRemoveBtn: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#ef4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoRemoveIcon: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',

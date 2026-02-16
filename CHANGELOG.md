@@ -4,6 +4,42 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Review Photo Upload & Image Caching (2026-02-16)
+
+### Backend
+
+- **ReviewImage Model:** Added `ReviewImage` table for storing review photos as database blobs with metadata (dimensions, file size, MIME type)
+- **Photo Upload Endpoint:** Implemented `POST /api/v1/reviews/upload-photo` that validates, compresses (max 1200px width, 85% JPEG quality), and stores images
+- **Image Serving Endpoint:** Added `GET /api/v1/reviews/images/{id}` with 1-year cache headers (`Cache-Control: public, max-age=31536000, immutable`)
+- **Review Creation:** Updated review creation to parse internal image URLs (`/api/v1/reviews/images/{id}`), attach uploaded images to reviews, and validate ownership
+- **Review Fetching:** Modified review fetching to merge attached images with external URLs in `photo_urls` field
+- **Orphan Cleanup Job:** Created `cleanup_orphaned_images.py` to delete unattached images older than 24 hours (prevents database bloat)
+- **Dependencies:** Added Pillow 10.0+ for server-side image processing
+
+### Frontend (web)
+
+- **Image Upload Utility:** Created `imageUpload.ts` with client-side image validation and Canvas API compression
+- **API Client:** Added `uploadReviewPhoto()` function for multipart photo uploads
+- **Write Review UI:** Implemented photo picker with thumbnail previews, remove buttons, and 5-photo limit
+- **Photo Display:** Added photo galleries to review cards in PlaceDetail page
+- **Caching:** Browser HTTP cache automatically handles 1-year cache headers
+
+### Frontend (mobile)
+
+- **Dependencies:** Added `expo-image-picker` (16.0.6), `expo-image-manipulator` (14.0.3), and `expo-image` (2.1.0)
+- **Image Upload Utility:** Created `imageUpload.ts` with permission handling, expo-image-picker integration, and compression
+- **API Client:** Added `uploadReviewPhoto()` function with FormData support for React Native
+- **Write Review UI:** Implemented photo picker with horizontal scroll, thumbnail previews, remove buttons, and 5-photo limit
+- **Photo Display:** Added photo galleries to review cards in PlaceDetailScreen
+- **Caching:** Replaced `<Image>` with `<ExpoImage>` component with `cachePolicy="memory-disk"` for automatic disk caching
+
+### Documentation
+
+- Updated ARCHITECTURE.md with ReviewImage model
+- Updated PRODUCTION.md with Pillow dependency and cleanup job setup for all deployment plans
+
+---
+
 ## User Avatar Removal (2026-02-16)
 
 ### Backend

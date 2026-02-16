@@ -13,6 +13,7 @@ from app.db import check_ins as check_ins_db
 from app.db import favorites as favorites_db
 from app.db import place_attributes as attr_db
 from app.db import place_images
+from app.db import review_images
 from app.models.schemas import CheckInBody, ReviewCreateBody, PlacesListResponse, PlaceCreate
 from app.services.place_timings import build_timings
 from app.services.place_specifications import build_specifications
@@ -146,40 +147,53 @@ def get_place_reviews(
     rows = reviews_db.get_reviews_by_place(place_code, limit=limit, offset=offset)
     agg = reviews_db.get_aggregate_rating(place_code)
     out = []
-    for r in rows:
-        source = getattr(r, "source", "user")
-        if source == "external":
-            # External review
-            out.append({
-                "review_code": r.review_code,
-                "place_code": r.place_code,
-                "user_code": None,
-                "display_name": getattr(r, "author_name", "External User"),
-                "rating": r.rating,
-                "title": r.title,
-                "body": r.body,
-                "created_at": r.created_at,
-                "is_anonymous": False,
-                "photo_urls": [],
-                "source": "external",
-            })
-        else:
-            # User review
-            is_anon = getattr(r, "is_anonymous", False)
-            user = user_store.get_user_by_code(r.user_code) if r.user_code and not is_anon else None
-            out.append({
-                "review_code": r.review_code,
-                "place_code": r.place_code,
-                "user_code": r.user_code if not is_anon else None,
-                "display_name": "Anonymous" if is_anon else (user.display_name if user else "Unknown"),
-                "rating": r.rating,
-                "title": r.title,
-                "body": r.body,
-                "created_at": r.created_at,
-                "is_anonymous": is_anon,
-                "photo_urls": getattr(r, "photo_urls", []) or [],
-                "source": "user",
-            })
+
+    # Fetch review images for all reviews in batch
+    with Session(engine) as session:
+        for r in rows:
+            source = getattr(r, "source", "user")
+
+            # Fetch attached images for this review
+            review_image_urls = review_images.get_review_images(r.review_code, session=session)
+            attached_urls = [img["url"] for img in review_image_urls]
+
+            # Merge with external photo URLs
+            external_urls = getattr(r, "photo_urls", []) or []
+            all_photo_urls = attached_urls + external_urls
+
+            if source == "external":
+                # External review
+                out.append({
+                    "review_code": r.review_code,
+                    "place_code": r.place_code,
+                    "user_code": None,
+                    "display_name": getattr(r, "author_name", "External User"),
+                    "rating": r.rating,
+                    "title": r.title,
+                    "body": r.body,
+                    "created_at": r.created_at,
+                    "is_anonymous": False,
+                    "photo_urls": all_photo_urls,
+                    "source": "external",
+                })
+            else:
+                # User review
+                is_anon = getattr(r, "is_anonymous", False)
+                user = user_store.get_user_by_code(r.user_code) if r.user_code and not is_anon else None
+                out.append({
+                    "review_code": r.review_code,
+                    "place_code": r.place_code,
+                    "user_code": r.user_code if not is_anon else None,
+                    "display_name": "Anonymous" if is_anon else (user.display_name if user else "Unknown"),
+                    "rating": r.rating,
+                    "title": r.title,
+                    "body": r.body,
+                    "created_at": r.created_at,
+                    "is_anonymous": is_anon,
+                    "photo_urls": all_photo_urls,
+                    "source": "user",
+                })
+
     result = {"reviews": out}
     if agg:
         result["average_rating"] = agg["average"]
@@ -235,6 +249,24 @@ def create_review(
         raise HTTPException(status_code=404, detail="Place not found")
     if not (1 <= body.rating <= 5):
         raise HTTPException(status_code=400, detail="Rating must be 1-5")
+
+    # Parse photo_urls to extract internal image IDs and external URLs
+    image_ids = []
+    external_urls = []
+    if body.photo_urls:
+        for url in body.photo_urls:
+            # Check if it's an internal image URL: /api/v1/reviews/images/{id}
+            if url.startswith("/api/v1/reviews/images/"):
+                try:
+                    image_id = int(url.split("/")[-1])
+                    image_ids.append(image_id)
+                except (ValueError, IndexError):
+                    raise HTTPException(status_code=400, detail=f"Invalid image URL: {url}")
+            else:
+                # External URL
+                external_urls.append(url)
+
+    # Create the review with external URLs only
     row = reviews_db.create_review(
         user.user_code,
         place_code,
@@ -242,8 +274,29 @@ def create_review(
         title=body.title,
         body=body.body,
         is_anonymous=body.is_anonymous or False,
-        photo_urls=body.photo_urls,
+        photo_urls=external_urls,
     )
+
+    # Attach uploaded images to the review
+    if image_ids:
+        with Session(engine) as session:
+            try:
+                review_images.attach_images_to_review(
+                    review_code=row.review_code,
+                    image_ids=image_ids,
+                    user_code=user.user_code,
+                    session=session,
+                )
+            except ValueError as e:
+                # Clean up the review if image attachment fails
+                reviews_db.delete_review(row.review_code)
+                raise HTTPException(status_code=400, detail=str(e))
+
+    # Fetch full photo URLs (including attached images)
+    with Session(engine) as session:
+        review_image_urls = review_images.get_review_images(row.review_code, session=session)
+        all_photo_urls = [img["url"] for img in review_image_urls] + external_urls
+
     return {
         "review_code": row.review_code,
         "place_code": row.place_code,
@@ -252,7 +305,7 @@ def create_review(
         "body": row.body,
         "created_at": row.created_at,
         "is_anonymous": row.is_anonymous,
-        "photo_urls": row.photo_urls,
+        "photo_urls": all_photo_urls,
     }
 
 

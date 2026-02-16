@@ -68,6 +68,20 @@ class Review(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class ReviewImage(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    review_code: Optional[str] = Field(default=None, index=True, foreign_key="review.review_code")
+    uploaded_by_user_code: str = Field(index=True, foreign_key="user.user_code")
+    blob_data: bytes = Field(sa_column=Column(LargeBinary))
+    mime_type: str  # "image/jpeg", "image/png", "image/webp"
+    file_size: int
+    width: int
+    height: int
+    display_order: int = Field(default=0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    attached_at: Optional[datetime] = None
+
+
 class CheckIn(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     check_in_code: str = Field(index=True, unique=True)

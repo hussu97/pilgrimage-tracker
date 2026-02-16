@@ -12,7 +12,7 @@ Both frontend apps use the **same API base URL** for `/api/v1`. No shared `packa
 
 ## Prerequisites
 
-- **Backend:** Python 3.14 (or 3.11+). On macOS with Homebrew: `brew install python` for the latest; use `python3 -m venv .venv` in `server/` to create the virtual environment.
+- **Backend:** Python 3.14 (or 3.11+). On macOS with Homebrew: `brew install python` for the latest; use `python3 -m venv .venv` in `server/` to create the virtual environment. Pillow (image processing library) is required and will be installed via `requirements.txt`.
 - **Frontend:** Node.js 18+, npm (or pnpm/yarn)
 
 ## Setup

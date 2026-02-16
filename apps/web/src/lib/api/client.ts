@@ -243,6 +243,30 @@ export async function getMyFavorites(): Promise<Place[]> {
   return res.json();
 }
 
+export async function uploadReviewPhoto(file: Blob): Promise<{
+  id: number;
+  url: string;
+  width: number;
+  height: number;
+}> {
+  const formData = new FormData();
+  formData.append('file', file, 'photo.jpg');
+
+  const token = getToken();
+  const res = await fetch(`${API_BASE}/api/v1/reviews/upload-photo`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      // Don't set Content-Type - browser will set it with boundary for multipart/form-data
+    },
+    body: formData,
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? 'Failed to upload photo');
+  return data;
+}
+
 export async function createReview(
   placeCode: string,
   body: { rating: number; title?: string; body?: string; is_anonymous?: boolean; photo_urls?: string[] }
