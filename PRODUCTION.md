@@ -10,19 +10,40 @@ Current system: **Backend** (Python FastAPI in `server/`), **Web app** (Vite + R
 
 Deploy using Docker and Docker Compose.
 
-### Backend (API)
+### Backend (Main API)
 
 - **Dockerfile** (in `server/` or repo root):
   - Base image: `python:3.14-slim` (or `python:3.12-slim` if 3.14 is unavailable in your registry).
   - Copy `server/` (or `app/`), install deps from `requirements.txt`.
   - Run: `uvicorn app.main:app --host 0.0.0.0 --port 3000`.
-- **Environment:** `JWT_SECRET`, `DATABASE_URL` (PostgreSQL), optional `PORT`, `GOOGLE_MAPS_API_KEY` (for scraper if used). For production DB, use a real connection string; do not use in-memory store.
+- **Environment:**
+  - `JWT_SECRET` - Required for auth
+  - `DATABASE_URL` - PostgreSQL connection (for production; dev uses SQLite)
+  - `PORT` - Optional, defaults to 3000
+  - `CORS_ORIGINS` - Comma-separated allowed origins
 - **Build:** `docker build -t pilgrimage-api -f server/Dockerfile .` (adjust context/path as needed).
+
+### Data Scraper Service (Optional)
+
+- **Dockerfile** (in `data_scraper/` or separate):
+  - Base image: `python:3.14-slim`
+  - Copy `data_scraper/`, install deps from `requirements.txt`
+  - Run: `uvicorn app.main:app --host 0.0.0.0 --port 8001`
+- **Environment:**
+  - `MAIN_SERVER_URL` - URL of main API (e.g., `http://pilgrimage-api:3000` or public URL)
+  - `GOOGLE_MAPS_API_KEY` - Required for gmaps scraper
+- **Build:** `docker build -t pilgrimage-scraper -f data_scraper/Dockerfile .`
+- **Note:** This service is optional and only needed if you want to run data scraping in production
 
 ### Database
 
 - Use **PostgreSQL** in production. Option A: run Postgres in Docker Compose. Option B: use a managed Postgres (e.g. Supabase, Neon) and set `DATABASE_URL` in the API container.
-- **Docker Compose example:** Define services `api` (build from server Dockerfile), `db` (postgres:15), set `DATABASE_URL` for api pointing to `db`.
+- **Docker Compose example:** Define services:
+  - `api` - Main server (build from server Dockerfile)
+  - `scraper` - Optional scraper service (build from data_scraper Dockerfile)
+  - `db` - PostgreSQL 15
+  - Set `DATABASE_URL` for api pointing to `db`
+  - Set `MAIN_SERVER_URL` for scraper pointing to `api`
 
 ### Web frontend
 
@@ -45,15 +66,26 @@ Deploy using Docker and Docker Compose.
 
 Deploy backend and web on free-tier or low-cost services; use a free or cheap Postgres and optional file storage.
 
-### Backend (Render, Railway, Fly.io, etc.)
+### Main Backend (Render, Railway, Fly.io, etc.)
 
 - **Render (Web Service):**
   - Connect repo; root or `server/` as working directory.
   - Build: `pip install -r requirements.txt` (or set Python version and use `pip install -r server/requirements.txt` if root).
   - Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Render sets `PORT`.
-  - Env: `JWT_SECRET`, `DATABASE_URL` (e.g. from Render Postgres or external Supabase/Neon), `GOOGLE_MAPS_API_KEY` (for scraper if used).
+  - Env: `JWT_SECRET`, `DATABASE_URL` (e.g. from Render Postgres or external Supabase/Neon), `CORS_ORIGINS`.
 - **CORS:** Set allowed origins to the web app URL (e.g. Vercel preview and production).
 - **Database:** Use Render Postgres, or Supabase/Neon free tier; set `DATABASE_URL` in the backend service.
+
+### Data Scraper Service (Optional)
+
+- **Render (Background Worker or Web Service):**
+  - Connect repo; `data_scraper/` as working directory
+  - Build: `pip install -r requirements.txt`
+  - Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+  - Env:
+    - `MAIN_SERVER_URL` - URL of main backend (e.g., `https://your-api.onrender.com`)
+    - `GOOGLE_MAPS_API_KEY` - For gmaps scraper
+- **Note:** Only deploy if you need automated data scraping. Can be run locally or on-demand instead.
 
 ### Web frontend (Vercel, Netlify)
 
@@ -78,11 +110,19 @@ Deploy backend and web on free-tier or low-cost services; use a free or cheap Po
 
 Deploy using GCP services.
 
-### Backend (Cloud Run)
+### Main Backend (Cloud Run)
 
 - **Container:** Build API image (same as Plan 1 Dockerfile) and push to **Artifact Registry** (e.g. `gcr.io/PROJECT_ID/pilgrimage-api` or Artifact Registry path).
-- **Cloud Run service:** Deploy the image. Set env: `JWT_SECRET`, `DATABASE_URL`, `GOOGLE_MAPS_API_KEY` (for scraper if used). Use **Secret Manager** for secrets. Set min instances 0 for cost savings; scale as needed.
+- **Cloud Run service:** Deploy the image. Set env: `JWT_SECRET`, `DATABASE_URL`, `CORS_ORIGINS`. Use **Secret Manager** for secrets. Set min instances 0 for cost savings; scale as needed.
 - **Database:** Use **Cloud SQL (PostgreSQL)**. Create instance; allow Cloud Run to connect (VPC connector or public IP + authorized networks). Set `DATABASE_URL` to Cloud SQL connection (e.g. Unix socket or private IP).
+
+### Data Scraper Service (Optional, Cloud Run)
+
+- **Container:** Build scraper image and push to Artifact Registry
+- **Cloud Run service:** Deploy with env:
+  - `MAIN_SERVER_URL` - URL of main Cloud Run service
+  - `GOOGLE_MAPS_API_KEY` - From Secret Manager
+- **Note:** Can run as separate Cloud Run service or as Cloud Run Job for scheduled scraping
 
 ### Database (Cloud SQL)
 
@@ -113,15 +153,40 @@ Deploy using GCP services.
 
 ## Data Strategy
 
-### Data Enrichment (Scraper)
+### Data Enrichment (Scraper Service)
 
-The project includes a data scraper in `data_scraper/` to enrich place data from OpenStreetMap and Wikidata.
+The project includes a unified scraper service in `data_scraper/` that supports multiple data sources:
 
-- **To update data:**
-  1. Run `python enrich_places.py` locally in `data_scraper/`.
-  2. Commit the generated `enriched_places.json`.
-  3. Update `server/app/db/seed_data.json` (or import script) with the new data.
-  4. Deploy the updated seed file to production.
+**Sources:**
+- **Google Sheets** - CSV export with OSM/Wikipedia enrichment
+- **Google Maps API** - Grid-based search with attribute extraction
+
+**Deployment Options:**
+
+1. **Local/On-Demand** (Recommended for development):
+   - Run scraper service locally on port 8001
+   - Create data locations and runs via API
+   - Sync to main server when ready
+   - No production deployment needed
+
+2. **Deployed Service** (For automated scraping):
+   - Deploy as separate service (Render/Cloud Run)
+   - Expose API for scheduled or webhook-triggered scraping
+   - Auto-sync to main server
+
+3. **Cloud Run Job** (For scheduled batch updates):
+   - Package scraper as Cloud Run Job
+   - Schedule via Cloud Scheduler
+   - Run specific scraping tasks on a schedule
+
+**Environment Variables:**
+- `MAIN_SERVER_URL` - URL of main API
+- `GOOGLE_MAPS_API_KEY` - Required for gmaps scraper
+
+**Data Flow:**
+1. Create data location (gsheet or gmaps config)
+2. Create run → background scraping task
+3. Sync to main server → places created/updated with attributes and source tag
 
 ---
 

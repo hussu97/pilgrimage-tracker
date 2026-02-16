@@ -217,45 +217,87 @@ The web app uses a TypeScript architecture with clear separation of concerns und
 
 ## 8. Data Enrichment
 
- ### 8.1 Overview
+### 8.1 Overview
 
-To provide rich content without heavy manual data entry, the system uses scrapers in `data_scraper/` to fetch details from public APIs and sync them to the main server.
+To provide rich content without heavy manual data entry, the system uses a unified scraper service in `data_scraper/` that supports multiple data sources and syncs enriched data to the main server.
 
-### 8.2 Google Maps Scraper (`data_scraper/gmaps.py`)
+### 8.2 Scraper API Service Architecture
 
-A standalone Python script for discovering places via Google Maps Places API:
-
-- **Generalized:** Supports multiple place types (`mosque`, `hindu_temple`, `church`) and countries (UAE, India, USA) via CLI arguments.
-- **Configuration:** API key from `GOOGLE_MAPS_API_KEY` environment variable (see `data_scraper/.env.example`).
-- **Grid Search:** Divides country bounding box into overlapping circles, queries Google Places API for each, deduplicates by `place_id`.
-- **Details Fetch:** For each place, fetches name, address, coords, hours, rating, photos, wheelchair accessibility, reviews. Maps fields to attribute codes (e.g., `wheelchair_accessible`, `google_rating`, `google_reviews_count`).
-- **Export Modes:**
-  - `--mode csv`: Exports to CSV with weekly hours, images, reviews (legacy).
-  - `--mode api`: POSTs directly to `POST /api/v1/places` with `attributes` array for auto-ingestion.
-- **Usage:** `python data_scraper/gmaps.py --country UAE --type mosque --mode api --api-url http://localhost:8000/api/v1/places`
-
-### 8.3 Scraper API Service (OSM/Wikipedia)
-
-A separate FastAPI application in `data_scraper/` that mirrors the main server's directory structure (`app/api/v1`, `app/db`, `app/models`).
+A separate FastAPI application in `data_scraper/` that mirrors the main server's directory structure (`app/api/v1`, `app/db`, `app/models`) with a modular scraper system.
 
 - **Stack:** Python 3.14, FastAPI, SQLModel (ORM), SQLite.
 - **Core Entities:**
-    - **DataLocation:** Stores metadata and the unique **Google Sheet ID** (code) for data sources.
-    - **ScraperRun:** Tracks individual scraping jobs, their status (pending, running, completed, cancelled, failed), and progress.
-    - **ScrapedPlace:** Temporary storage for enriched data before it is synced to the main server.
+    - **DataLocation:** Stores data source configuration with `source_type` ("gsheet" or "gmaps") and flexible `config` JSON field:
+      - gsheet: `{"sheet_code": "1abc..."}`
+      - gmaps: `{"country": "UAE", "place_type": "mosque", "max_results": 5}`
+    - **ScraperRun:** Tracks individual scraping jobs with status (pending, running, completed, cancelled, failed) and progress tracking (`total_items`, `processed_items`).
+    - **ScrapedPlace:** Temporary storage for enriched data before sync. Stores `raw_data` JSON with place details, attributes array, and source tag.
+
+### 8.3 Scrapers Package (`app/scrapers/`)
+
+Modular architecture with dedicated scrapers:
+
+**`base.py`**: Shared utilities
+- `generate_code(prefix)`: Creates stable codes for entities
+- `make_request_with_backoff()`: HTTP requests with exponential backoff on rate limits
+
+**`gsheet.py`**: Google Sheet scraper with OSM/Wikipedia enrichment
+- Fetches CSV from Google Sheets export URL
+- Queries **OpenStreetMap (Overpass API)** for place amenities and architecture
+- Queries **Wikipedia** for descriptions and images
+- Tags places with `source: "overpass"`
+- Row-level commits for fault tolerance
+
+**`gmaps.py`**: Google Maps API scraper
+- **Grid-based search**: Divides country bounding box into overlapping 10km circles
+- **Supported countries**: UAE, India, USA (configurable bounds)
+- **Supported place types**: mosque, hindu_temple, church (maps to religion/type)
+- **Deduplication**: Uses stable `gplc_{place_id}` codes (not random) so re-runs update existing places
+- **Attribute extraction**: Maps Google data to attribute codes:
+  - `wheelchair_accessible` (boolean)
+  - `google_rating` (number)
+  - `google_reviews_count` (number)
+- **Opening hours**: Converts local times to UTC 24-hour format
+- **Images**: Extracts up to 3 photo URLs from Google Photos API
+- **Rate limiting**: Built-in delays between API calls
+- **Configuration**: Requires `GOOGLE_MAPS_API_KEY` environment variable
+- Tags places with `source: "gmaps"`
 
 ### 8.4 Data Flow & Integration
 
-1. **Registration:** Users register a Google Sheet URL. The service extracts the unique ID and stores it as `sheet_code`.
-2. **Scraping:** Tracing a run initiates a background task (`BackgroundTasks`):
-    - Fetches the sheet as CSV.
-    - Queries **OpenStreetMap (Overpass API)** for amenities and architecture.
-    - Queries **Wikipedia/Wikidata** for descriptions and image URLs.
-    - Saves partial progress (row-level commits) to `ScrapedPlace`.
-3. **Cancellation:** Runs can be cancelled via API. The background task checks for a `cancelled` status in each iteration and stops safely.
-4. **Syncing:** Once scraping is complete (or partially complete), the user triggers a sync:
-    - The service pushes data to the **Main Server** via the `POST /api/v1/places` endpoint (with optional `attributes` array).
-    - The Main Server validates the data against its `PlaceCreate` schema and persists it.
+1. **Create Data Location:** Register a data source via API with source-specific config:
+   ```json
+   // Google Sheet
+   {"name": "UAE Places", "source_type": "gsheet", "sheet_url": "https://..."}
+
+   // Google Maps
+   {"name": "UAE Mosques", "source_type": "gmaps", "country": "UAE", "place_type": "mosque", "max_results": 5}
+   ```
+
+2. **Create Run:** Initiates a background task that dispatches to the appropriate scraper based on `source_type`:
+   - **gsheet**: Fetches CSV → OSM enrichment → Wikipedia enrichment → ScrapedPlace
+   - **gmaps**: Grid search → Place details → Attribute mapping → ScrapedPlace
+   - Progress tracked via `total_items` and `processed_items` fields
+   - Cancellation supported: checks run status before processing each item
+
+3. **Syncing:** Trigger sync to push data to Main Server:
+   - Transforms `ScrapedPlace.raw_data` to `PlaceCreate` payload
+   - Includes `attributes` array (e.g., `[{attribute_code: "wheelchair_accessible", value: true}]`)
+   - Includes `source` field ("gmaps", "overpass", or "manual")
+   - Main Server's `POST /api/v1/places` endpoint:
+     - Checks if `place_code` exists (upsert)
+     - Creates/updates Place record
+     - Upserts attributes to PlaceAttribute table (EAV)
+   - All places tagged with their data source for tracking and auditing
+
+### 8.5 Source Tracking
+
+All places in the main server include a `source` field:
+- **`gmaps`**: Scraped from Google Maps API
+- **`overpass`**: Scraped from OpenStreetMap/Wikipedia
+- **`manual`**: Seeded from `seed_data.json`
+
+This enables data provenance tracking and helps identify which places need manual review or re-scraping.
 
 ---
 
