@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.deps import get_current_user
 from app.db import notifications as notifications_db
+from app.db.session import SessionDep
 
 router = APIRouter()
 
@@ -11,10 +12,11 @@ router = APIRouter()
 @router.get("")
 def list_notifications(
     user: Annotated[Any, Depends(get_current_user)],
+    session: SessionDep,
     limit: int = Query(20),
     offset: int = Query(0),
 ):
-    rows = notifications_db.get_notifications_for_user(user.user_code, limit=limit, offset=offset)
+    rows = notifications_db.get_notifications_for_user(user.user_code, session, limit=limit, offset=offset)
     return {
         "notifications": [
             {
@@ -26,13 +28,13 @@ def list_notifications(
             }
             for r in rows
         ],
-        "unread_count": notifications_db.count_unread(user.user_code),
+        "unread_count": notifications_db.count_unread(user.user_code, session),
     }
 
 
 @router.patch("/{notification_code}/read")
-def mark_notification_read(notification_code: str, user: Annotated[Any, Depends(get_current_user)]):
-    ok = notifications_db.mark_read(notification_code, user.user_code)
+def mark_notification_read(notification_code: str, user: Annotated[Any, Depends(get_current_user)], session: SessionDep):
+    ok = notifications_db.mark_read(notification_code, user.user_code, session)
     if not ok:
         raise HTTPException(status_code=404, detail="Notification not found")
     return {"ok": True}

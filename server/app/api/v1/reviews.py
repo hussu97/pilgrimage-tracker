@@ -9,7 +9,7 @@ from sqlmodel import Session
 from app.api.deps import get_current_user
 from app.db import reviews as reviews_db
 from app.db import review_images as review_images_db
-from app.db.session import engine
+from app.db.session import SessionDep
 from app.models.schemas import ReviewUpdateBody
 
 router = APIRouter()
@@ -20,8 +20,9 @@ def update_review(
     review_code: str,
     body: ReviewUpdateBody,
     user: Annotated[Any, Depends(get_current_user)],
+    session: SessionDep,
 ):
-    row = reviews_db.get_review_by_code(review_code)
+    row = reviews_db.get_review_by_code(review_code, session)
     if not row:
         raise HTTPException(status_code=404, detail="Review not found")
     if row.user_code != user.user_code:
@@ -34,6 +35,8 @@ def update_review(
         row.title = body.title
     if body.body is not None:
         row.body = body.body
+    session.add(row)
+    session.commit()
     return {"review_code": row.review_code, "rating": row.rating, "title": row.title, "body": row.body, "created_at": row.created_at}
 
 
@@ -41,14 +44,15 @@ def update_review(
 def delete_review(
     review_code: str,
     user: Annotated[Any, Depends(get_current_user)],
+    session: SessionDep,
 ):
-    row = reviews_db.get_review_by_code(review_code)
+    row = reviews_db.get_review_by_code(review_code, session)
     if not row:
         raise HTTPException(status_code=404, detail="Review not found")
     if row.user_code != user.user_code:
         raise HTTPException(status_code=403, detail="Not the author")
 
-    deleted = reviews_db.delete_review(review_code)
+    deleted = reviews_db.delete_review(review_code, session)
     if not deleted:
         raise HTTPException(status_code=500, detail="Failed to delete review")
 
@@ -58,7 +62,7 @@ def delete_review(
 @router.post("/upload-photo")
 async def upload_review_photo(
     user: Annotated[Any, Depends(get_current_user)],
-    session: Annotated[Session, Depends(lambda: Session(engine))],
+    session: SessionDep,
     file: UploadFile = File(...),
 ):
     """
@@ -158,13 +162,13 @@ async def upload_review_photo(
 @router.get("/images/{image_id}")
 def get_review_image(
     image_id: int,
-    session: Annotated[Session, Depends(lambda: Session(engine))],
+    session: SessionDep,
 ):
     """
     Serve a review image by ID.
     Returns the image blob with aggressive caching (1 year).
     """
-    image = review_images_db.get_image_by_id(image_id, session=session)
+    image = review_images_db.get_image_by_id(image_id, session)
     if image is None:
         raise HTTPException(status_code=404, detail="Image not found")
 

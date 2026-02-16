@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.core.security import hash_password, verify_password, create_access_token
 from app.db import store
+from app.db.session import SessionDep
 from app.models.schemas import (
     RegisterBody,
     LoginBody,
@@ -17,8 +18,8 @@ from app.models.schemas import (
 router = APIRouter()
 
 
-def _to_public_user(user) -> UserResponse:
-    settings = store.get_user_settings(user.user_code)
+def _to_public_user(user, session) -> UserResponse:
+    settings = store.get_user_settings(user.user_code, session)
     religions = settings.get("religions", [])
     return UserResponse(
         user_code=user.user_code,
@@ -31,8 +32,8 @@ def _to_public_user(user) -> UserResponse:
 
 
 @router.post("/register", response_model=AuthResponse)
-def register(body: RegisterBody):
-    if store.get_user_by_email(body.email):
+def register(body: RegisterBody, session: SessionDep):
+    if store.get_user_by_email(body.email, session):
         raise HTTPException(status_code=400, detail="Email already registered")
     user_code = "usr_" + secrets.token_hex(8)
     password_hash = hash_password(body.password)
@@ -43,30 +44,31 @@ def register(body: RegisterBody):
         password_hash=password_hash,
         display_name=display_name,
         religion=None,
+        session=session,
     )
     token = create_access_token(user_code)
-    return AuthResponse(user=_to_public_user(user), token=token)
+    return AuthResponse(user=_to_public_user(user, session), token=token)
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(body: LoginBody):
-    user = store.get_user_by_email(body.email)
+def login(body: LoginBody, session: SessionDep):
+    user = store.get_user_by_email(body.email, session)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_access_token(user.user_code)
-    return AuthResponse(user=_to_public_user(user), token=token)
+    return AuthResponse(user=_to_public_user(user, session), token=token)
 
 
 @router.post("/forgot-password")
-def forgot_password(body: ForgotPasswordBody):
-    user = store.get_user_by_email(body.email)
+def forgot_password(body: ForgotPasswordBody, session: SessionDep):
+    user = store.get_user_by_email(body.email, session)
     if not user:
         return {"ok": True, "message": "If an account exists, you will receive a reset link."}
     token = secrets.token_hex(32)
     expires_at = datetime.utcnow() + timedelta(hours=1)
-    store.save_password_reset(token, user.user_code, expires_at)
+    store.save_password_reset(token, user.user_code, expires_at, session)
 
     # TODO: Implement email dispatch for password reset
     # Integrate with an email service (SendGrid, AWS SES, etc.) to send reset link:
@@ -78,12 +80,12 @@ def forgot_password(body: ForgotPasswordBody):
 
 
 @router.post("/reset-password")
-def reset_password(body: ResetPasswordBody):
-    user_code = store.consume_password_reset(body.token)
+def reset_password(body: ResetPasswordBody, session: SessionDep):
+    user_code = store.consume_password_reset(body.token, session)
     if not user_code:
         raise HTTPException(status_code=400, detail="Invalid or expired token")
-    user = store.get_user_by_code(user_code)
+    user = store.get_user_by_code(user_code, session)
     if not user:
         raise HTTPException(status_code=400, detail="User not found")
-    user.password_hash = hash_password(body.newPassword)
+    store.update_user_password(user.user_code, hash_password(body.newPassword), session)
     return {"ok": True}

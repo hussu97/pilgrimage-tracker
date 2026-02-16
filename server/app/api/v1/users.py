@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
 from app.api.deps import get_current_user
-from app.db.session import engine
+from app.db.session import SessionDep
 from app.db import store
 from app.db import check_ins as check_ins_db
 from app.db import places as places_db
@@ -16,8 +16,8 @@ from app.models.schemas import UserResponse, UpdateMeBody, SettingsBody
 router = APIRouter()
 
 
-def _to_public_user(user) -> UserResponse:
-    settings = store.get_user_settings(user.user_code)
+def _to_public_user(user, session) -> UserResponse:
+    settings = store.get_user_settings(user.user_code, session)
     religions = settings.get("religions", [])
     return UserResponse(
         user_code=user.user_code,
@@ -30,22 +30,24 @@ def _to_public_user(user) -> UserResponse:
 
 
 @router.get("/me", response_model=UserResponse)
-def get_me(user: Annotated[Any, Depends(get_current_user)]):
-    return _to_public_user(user)
+def get_me(user: Annotated[Any, Depends(get_current_user)], session: SessionDep):
+    return _to_public_user(user, session)
 
 
 @router.patch("/me", response_model=UserResponse)
 def update_me(
     body: UpdateMeBody,
     user: Annotated[Any, Depends(get_current_user)],
+    session: SessionDep,
 ):
     updated = store.update_user(
         user.user_code,
+        session,
         display_name=body.display_name,
     )
     if not updated:
         raise HTTPException(status_code=404, detail="User not found")
-    return _to_public_user(updated)
+    return _to_public_user(updated, session)
 
 
 def _parse_iso_datetime(iso_str: str):
@@ -65,12 +67,12 @@ def _parse_iso_datetime(iso_str: str):
 def _format_check_ins(rows, session) -> list:
     out = []
     for r in rows:
-        place = places_db.get_place_by_code(r.place_code)
+        place = places_db.get_place_by_code(r.place_code, session)
         date_str, time_str = _parse_iso_datetime(r.checked_in_at)
         place_image_url = None
         images = []
         if place:
-            images = place_images.get_images(place.place_code, session=session)
+            images = place_images.get_images(place.place_code, session)
             if images and len(images) > 0:
                 place_image_url = images[0]["url"]
         place_payload = None
@@ -101,37 +103,37 @@ def _format_check_ins(rows, session) -> list:
 @router.get("/me/check-ins")
 def get_my_check_ins(
     user: Annotated[Any, Depends(get_current_user)],
-    session: Annotated[Session, Depends(lambda: Session(engine))],
+    session: SessionDep,
 ):
-    rows = check_ins_db.get_check_ins_by_user(user.user_code)
+    rows = check_ins_db.get_check_ins_by_user(user.user_code, session)
     return _format_check_ins(rows, session)
 
 
 @router.get("/me/check-ins/this-month")
 def get_my_check_ins_this_month(
     user: Annotated[Any, Depends(get_current_user)],
-    session: Annotated[Session, Depends(lambda: Session(engine))],
+    session: SessionDep,
 ):
-    rows = check_ins_db.get_check_ins_this_month(user.user_code)
+    rows = check_ins_db.get_check_ins_this_month(user.user_code, session)
     return _format_check_ins(rows, session)
 
 
 @router.get("/me/check-ins/on-this-day")
 def get_my_check_ins_on_this_day(
     user: Annotated[Any, Depends(get_current_user)],
-    session: Annotated[Session, Depends(lambda: Session(engine))],
+    session: SessionDep,
 ):
-    rows = check_ins_db.get_check_ins_on_this_day(user.user_code)
+    rows = check_ins_db.get_check_ins_on_this_day(user.user_code, session)
     return _format_check_ins(rows, session)
 
 
 @router.get("/me/stats")
-def get_my_stats(user: Annotated[Any, Depends(get_current_user)]):
-    check_in_count = len(check_ins_db.get_check_ins_by_user(user.user_code))
-    review_count = reviews_db.count_reviews_by_user(user.user_code)
+def get_my_stats(user: Annotated[Any, Depends(get_current_user)], session: SessionDep):
+    check_in_count = len(check_ins_db.get_check_ins_by_user(user.user_code, session))
+    review_count = reviews_db.count_reviews_by_user(user.user_code, session)
     return {
-        "placesVisited": check_ins_db.count_places_visited(user.user_code),
-        "checkInsThisYear": check_ins_db.count_check_ins_this_year(user.user_code),
+        "placesVisited": check_ins_db.count_places_visited(user.user_code, session),
+        "checkInsThisYear": check_ins_db.count_check_ins_this_year(user.user_code, session),
         "visits": check_in_count,
         "reviews": review_count,
         # TODO: Implement badges system when ready
@@ -143,14 +145,14 @@ def get_my_stats(user: Annotated[Any, Depends(get_current_user)]):
 @router.get("/me/favorites")
 def get_my_favorites(
     user: Annotated[Any, Depends(get_current_user)],
-    session: Annotated[Session, Depends(lambda: Session(engine))],
+    session: SessionDep,
 ):
-    place_codes = favorites_db.get_favorite_place_codes(user.user_code)
+    place_codes = favorites_db.get_favorite_place_codes(user.user_code, session)
     places_list = []
     for pc in place_codes:
-        place = places_db.get_place_by_code(pc)
+        place = places_db.get_place_by_code(pc, session)
         if place:
-            images = place_images.get_images(place.place_code, session=session)
+            images = place_images.get_images(place.place_code, session)
             places_list.append({
                 "place_code": place.place_code,
                 "name": place.name,
@@ -166,12 +168,12 @@ def get_my_favorites(
 
 
 @router.get("/me/settings")
-def get_my_settings(user: Annotated[Any, Depends(get_current_user)]):
-    return store.get_user_settings(user.user_code)
+def get_my_settings(user: Annotated[Any, Depends(get_current_user)], session: SessionDep):
+    return store.get_user_settings(user.user_code, session)
 
 
 @router.patch("/me/settings")
-def update_my_settings(body: SettingsBody, user: Annotated[Any, Depends(get_current_user)]):
+def update_my_settings(body: SettingsBody, user: Annotated[Any, Depends(get_current_user)], session: SessionDep):
     kwargs = {}
     if body.notifications_on is not None:
         kwargs["notifications_on"] = body.notifications_on
@@ -183,5 +185,5 @@ def update_my_settings(body: SettingsBody, user: Annotated[Any, Depends(get_curr
         kwargs["language"] = body.language
     if body.religions is not None:
         kwargs["religions"] = body.religions
-    updated = store.update_user_settings(user.user_code, **kwargs)
+    updated = store.update_user_settings(user.user_code, session, **kwargs)
     return updated
