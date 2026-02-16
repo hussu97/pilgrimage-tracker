@@ -90,7 +90,7 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 - [x] **`google_reviews` field in PlaceCreate schema**: The field is still named `google_reviews` despite the system renaming the concept to "external reviews". Rename to `external_reviews`.
 
-- [ ] **Inconsistent styling patterns (mobile)**: Some screens use `makeStyles(isDark)`, others use inline conditional styles. Pick one pattern and apply it consistently.
+- [x] **Inconsistent styling patterns (mobile)**: Some screens use `makeStyles(isDark)`, others use inline conditional styles. Pick one pattern and apply it consistently. (Fixed: NotificationsScreen and ProfileScreen now use useMemo to memoize styles, matching HomeScreen pattern)
 
 - [ ] **Inconsistent className patterns (web)**: Mix of template literals and conditional joins for `className`. Standardize on one approach (recommendation: template literals with a `cn()` utility).
 

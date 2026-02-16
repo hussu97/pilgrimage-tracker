@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -141,7 +141,7 @@ export default function NotificationsScreen() {
   const navigation = useNavigation();
   const { t } = useI18n();
   const { isDark } = useTheme();
-  const styles = makeStyles(isDark);
+  const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

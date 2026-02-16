@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -321,7 +321,7 @@ export default function ProfileScreen() {
   const [error, setError] = useState('');
   const [langSheetOpen, setLangSheetOpen] = useState(false);
 
-  const styles = makeStyles(isDark);
+  const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
