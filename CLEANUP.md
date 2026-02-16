@@ -22,7 +22,7 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 ### File Size and Extraction
 
-- [ ] **places.py is 513 lines** (`server/app/api/v1/places.py`): The largest API file. Extract `_build_timings()` (129 lines, lines 64-193) and `_build_specifications()` (40 lines) into dedicated service modules under `server/app/services/`.
+- [x] **places.py is 513 lines** (`server/app/api/v1/places.py`): The largest API file. Extract `_build_timings()` (129 lines, lines 64-193) and `_build_specifications()` (40 lines) into dedicated service modules under `server/app/services/`. (Created place_timings.py and place_specifications.py services, reduced places.py to ~350 lines)
 
 - [ ] **PlaceDetail.tsx is ~750 lines** (`apps/web/src/pages/PlaceDetail.tsx`): Split into sub-components (header, timings panel, reviews section, photo gallery, specifications list).
 
