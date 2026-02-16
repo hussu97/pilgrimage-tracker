@@ -90,7 +90,7 @@ export default function WriteReviewScreen() {
     return (
       <View style={[styles.centered, { paddingTop: insets.top + 24 }]}>
         <Text style={styles.muted}>Missing place.</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Main' as never)}>
+        <TouchableOpacity onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] })}>
           <Text style={styles.link}>Home</Text>
         </TouchableOpacity>
       </View>

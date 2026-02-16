@@ -107,13 +107,7 @@ export default function SelectPath() {
               {loading ? t('common.loading') : t('selectPath.continue')}
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => {}}
-            className="text-[15px] font-medium text-slate-500 hover:text-slate-800 transition-colors py-2 px-6 tracking-tight"
-          >
-            {t('selectPath.viewMoreFaiths')}
-          </button>
+          {/* "View More Faiths" button removed - only 3 religions currently supported */}
           <button
             type="button"
             onClick={handleSkip}

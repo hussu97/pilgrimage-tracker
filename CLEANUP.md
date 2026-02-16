@@ -66,25 +66,25 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 - [x] **Lowercase `any` type hint** (`server/app/api/v1/users.py` line 31): Uses Python's built-in `any` instead of `Any` from `typing`. This is a type error that linters may miss.
 
-- [ ] **PlaceAttributeInput.value is `Any`** (`server/app/schemas/`): No validation on attribute values. Add a constrained union type or validator.
+- [x] **PlaceAttributeInput.value is `Any`** (`server/app/schemas/`): No validation on attribute values. Add a constrained union type or validator.
 
-- [ ] **Force cast `navigate('Main' as never)`** (`apps/mobile/src/screens/WriteReviewScreen.tsx` line 93): Type assertion masks a navigation typing issue. Fix the navigation type definitions so the cast is unnecessary.
+- [x] **Force cast `navigate('Main' as never)`** (`apps/mobile/src/screens/WriteReviewScreen.tsx` line 93): Type assertion masks a navigation typing issue. Fix the navigation type definitions so the cast is unnecessary.
 
 ### Empty and Stub Implementations
 
 - [x] **Rating sort is a no-op** (`server/app/api/v1/places.py` lines 278-280): `if sort == "rating": pass` -- the sort branch does nothing. Implement or remove the sort option from the API.
 
-- [ ] **Password reset sends no email** (`server/app/api/v1/auth.py` lines 79-80): Endpoint exists but the email dispatch is stubbed out. Either implement with a mail service or return 501 Not Implemented.
+- [x] **Password reset sends no email** (`server/app/api/v1/auth.py` lines 79-80): Endpoint exists but the email dispatch is stubbed out. Either implement with a mail service or return 501 Not Implemented.
 
-- [ ] **Badges system returns hardcoded 0**: Badge counts are always zero. Either implement the badges feature or remove the field from API responses to avoid confusion.
+- [x] **Badges system returns hardcoded 0**: Badge counts are always zero. Either implement the badges feature or remove the field from API responses to avoid confusion.
 
 - [ ] **Photo upload UI with no implementation** (web: `WriteReview` component; mobile: `WriteReviewScreen`): Upload button is rendered but no file picker or upload logic exists. Wire up image picker and upload to the backend.
 
-- [ ] **"View More Faiths" button is a no-op** (web: `SelectPath` component; mobile: `SelectPathScreen`): Button renders but the `onPress`/`onClick` handler is empty. Implement or hide the button.
+- [x] **"View More Faiths" button is a no-op** (web: `SelectPath` component; mobile: `SelectPathScreen`): Button renders but the `onPress`/`onClick` handler is empty. Implement or hide the button.
 
 ### Naming Inconsistencies
 
-- [ ] **`source_type` vs `source`**: The scraper uses `source_type` while the server uses `source` for the same concept. Align on one name across the codebase.
+- [x] **`source_type` vs `source`**: The scraper uses `source_type` while the server uses `source` for the same concept. Align on one name across the codebase.
 
 - [ ] **`image_type` vs `images` array**: Backend uses `image_type` ("url"/"blob") but the frontend only sees an `images` array. Clarify the schema so the distinction is transparent or unnecessary on the client side.
 
@@ -96,7 +96,7 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 ### Schema and Validation
 
-- [ ] **PlaceCreate accepts both `image_urls` and `image_blobs`**: No documented precedence for which wins if both are provided. Add validation that rejects requests with both, or document the priority.
+- [x] **PlaceCreate accepts both `image_urls` and `image_blobs`**: No documented precedence for which wins if both are provided. Add validation that rejects requests with both, or document the priority.
 
 - [ ] **No place deletion endpoint**: Places can be created and updated but not deleted. Add `DELETE /api/v1/places/:placeCode` or document why deletion is intentionally omitted.
 
@@ -104,11 +104,11 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 ### Performance
 
-- [ ] **Groups activity N+2 query problem** (`server/app/api/v1/groups.py`): Activity calculation uses complex nested loops with additional queries per iteration. Refactor to use joined/eager loading or a single aggregated query.
+- [x] **Groups activity N+2 query problem** (`server/app/api/v1/groups.py`): Activity calculation uses complex nested loops with additional queries per iteration. Refactor to use joined/eager loading or a single aggregated query.
 
-- [ ] **Hardcoded UTC offset in gmaps.py** (`data_scraper/app/scrapers/gmaps.py` line 97): Opening hours conversion is hardcoded for UAE (+4). Use timezone-aware datetime handling (e.g., `pytz` or `zoneinfo`) based on the place's location.
+- [x] **Hardcoded UTC offset in gmaps.py** (`data_scraper/app/scrapers/gmaps.py` line 97): Opening hours conversion is hardcoded for UAE (+4). Use timezone-aware datetime handling (e.g., `pytz` or `zoneinfo`) based on the place's location.
 
-- [ ] **`makeStyles()` recreated on every render** (`apps/mobile/src/screens/HomeScreen.tsx`): The style object is regenerated each render cycle. Wrap in `useMemo` with `isDark` as a dependency.
+- [x] **`makeStyles()` recreated on every render** (`apps/mobile/src/screens/HomeScreen.tsx`): The style object is regenerated each render cycle. Wrap in `useMemo` with `isDark` as a dependency.
 
 - [x] **PlaceCard not memoized** (`apps/mobile/src/components/PlaceCard.tsx`): Not wrapped in `React.memo()`. Since it renders in lists, memoization would prevent unnecessary re-renders.
 

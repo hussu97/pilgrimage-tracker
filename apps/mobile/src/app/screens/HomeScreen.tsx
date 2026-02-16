@@ -483,7 +483,7 @@ export default function HomeScreen() {
   const [visiblePlaceCodes, setVisiblePlaceCodes] = useState<Set<string>>(new Set());
   const panelAnim = useRef(new Animated.Value(0)).current;
 
-  const styles = makeStyles(isDark);
+  const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const fetchPlaces = useCallback(async () => {
     setLoading(true);

@@ -136,8 +136,9 @@ def get_my_stats(user: Annotated[Any, Depends(get_current_user)]):
         "checkInsThisYear": check_ins_db.count_check_ins_this_year(user.user_code),
         "visits": check_in_count,
         "reviews": review_count,
-        "badges_count": 0,
-        "badges": [],
+        # TODO: Implement badges system when ready
+        # "badges_count": 0,
+        # "badges": [],
     }
 
 

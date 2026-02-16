@@ -117,9 +117,7 @@ export default function SelectPathScreen() {
             </Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity onPress={() => {}} style={styles.textButton} activeOpacity={0.8}>
-          <Text style={styles.textButtonPrimary}>{t('selectPath.viewMoreFaiths')}</Text>
-        </TouchableOpacity>
+        {/* "View More Faiths" button removed - only 3 religions currently supported */}
         <TouchableOpacity onPress={handleSkip} style={styles.textButton} activeOpacity={0.8}>
           <Text style={styles.textButtonSecondary}>{t('selectPath.skip')}</Text>
         </TouchableOpacity>
