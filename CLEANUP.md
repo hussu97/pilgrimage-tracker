@@ -136,7 +136,7 @@ All customer-facing strings must come from the backend translation API per proje
 
 ### Missing UI Patterns
 
-- [ ] **No React Error Boundary**: The web app has no error boundary component. A crash in any component will unmount the entire app. Add an error boundary at the router level at minimum.
+- [x] **No React Error Boundary**: The web app has no error boundary component. A crash in any component will unmount the entire app. Add an error boundary at the router level at minimum. (Created ErrorBoundary component with fallback UI and wrapped App at the root level)
 
 - [ ] **No loading skeletons**: Most pages show plain "Loading..." text instead of skeleton placeholders. Add skeleton components for place cards, lists, and detail views.
 
