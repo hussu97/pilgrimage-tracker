@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -20,7 +21,7 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
+function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>>();
   const imageUrl = place.images?.[0]?.url ?? '';
   const rating = place.average_rating;
@@ -145,6 +146,8 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
     </TouchableOpacity>
   );
 }
+
+export default React.memo(PlaceCard);
 
 const styles = StyleSheet.create({
   // ── Compact (map scroller) ──────────────────────────────────────────────

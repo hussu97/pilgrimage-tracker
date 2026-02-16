@@ -181,12 +181,12 @@ export default function PlaceDetailScreen() {
 
   const handleDeleteReview = (reviewCode: string) => {
     Alert.alert(
-      'Delete review?',
-      'This cannot be undone.',
+      t('reviews.deleteTitle'),
+      t('reviews.deleteWarning'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             setDeletingCode(reviewCode);
@@ -232,7 +232,7 @@ export default function PlaceDetailScreen() {
         <View style={styles.checkedInBadge}>
           <MaterialIcons name="check-circle" size={16} color="#059669" />
           <Text style={styles.checkedInText} numberOfLines={1}>
-            {checkInDate ? `Checked in ${checkInDate}` : 'Checked in'}
+            {checkInDate ? `${t('places.checkedIn')} ${checkInDate}` : t('places.checkedIn')}
           </Text>
         </View>
       );

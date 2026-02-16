@@ -110,9 +110,9 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 - [ ] **`makeStyles()` recreated on every render** (`apps/mobile/src/screens/HomeScreen.tsx`): The style object is regenerated each render cycle. Wrap in `useMemo` with `isDark` as a dependency.
 
-- [ ] **PlaceCard not memoized** (`apps/mobile/src/components/PlaceCard.tsx`): Not wrapped in `React.memo()`. Since it renders in lists, memoization would prevent unnecessary re-renders.
+- [x] **PlaceCard not memoized** (`apps/mobile/src/components/PlaceCard.tsx`): Not wrapped in `React.memo()`. Since it renders in lists, memoization would prevent unnecessary re-renders.
 
-- [ ] **FilterChip not memoized** (`apps/mobile/src/components/FilterChip.tsx`): Same issue as PlaceCard. Wrap in `React.memo()`.
+- [x] **FilterChip not memoized** (`apps/mobile/src/components/FilterChip.tsx`): Same issue as PlaceCard. Wrap in `React.memo()`.
 
 - [ ] **No image caching library (mobile)**: The mobile app loads images without a caching layer. Integrate `react-native-fast-image` or equivalent to reduce network usage and improve scroll performance.
 
@@ -146,14 +146,14 @@ All customer-facing strings must come from the backend translation API per proje
 
 ### Internationalization (i18n) Violations
 
-- [ ] **PlaceDetailScreen.tsx line 183**: `"Delete review?"` -- hardcoded English string.
-- [ ] **PlaceDetailScreen.tsx line 184**: `"This cannot be undone."` -- hardcoded English string.
-- [ ] **PlaceDetailScreen.tsx line 235**: `"Checked in"` -- hardcoded English string.
-- [ ] **CreateGroupScreen.tsx line 88**: `"Group created"` -- hardcoded English string.
-- [ ] **CreateGroupScreen.tsx line 89**: `"Share this link"` -- hardcoded English string.
-- [ ] **CreateGroupScreen.tsx line 147**: `"Private group (invite only)"` -- hardcoded English string.
-- [ ] **JoinGroupScreen.tsx lines 98-101, 127, 142**: Multiple hardcoded English strings across the join flow.
-- [ ] **GroupDetailScreen.tsx lines 215, 218, 220, 236**: Multiple hardcoded English strings in the group detail view.
+- [x] **PlaceDetailScreen.tsx line 183**: `"Delete review?"` -- hardcoded English string.
+- [x] **PlaceDetailScreen.tsx line 184**: `"This cannot be undone."` -- hardcoded English string.
+- [x] **PlaceDetailScreen.tsx line 235**: `"Checked in"` -- hardcoded English string.
+- [x] **CreateGroupScreen.tsx line 88**: `"Group created"` -- hardcoded English string.
+- [x] **CreateGroupScreen.tsx line 89**: `"Share this link"` -- hardcoded English string.
+- [x] **CreateGroupScreen.tsx line 147**: `"Private group (invite only)"` -- hardcoded English string.
+- [x] **JoinGroupScreen.tsx lines 98-101, 127, 142**: Multiple hardcoded English strings across the join flow.
+- [x] **GroupDetailScreen.tsx lines 215, 218, 220, 236**: Multiple hardcoded English strings in the group detail view.
 
 ### Missing UI Patterns
 

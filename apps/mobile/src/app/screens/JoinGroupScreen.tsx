@@ -95,15 +95,15 @@ export default function JoinGroupScreen() {
         >
           <Text style={styles.backText}>‹ {t('common.back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.noCodeTitle}>No invite code</Text>
+        <Text style={styles.noCodeTitle}>{t('groups.noInviteCode')}</Text>
         <Text style={styles.noCodeDesc}>
-          Open an invite link or enter a code below to join a group.
+          {t('groups.inviteCodeHint')}
         </Text>
         <TextInput
           style={styles.input}
           value={codeInput}
           onChangeText={setCodeInput}
-          placeholder="Invite code"
+          placeholder={t('groups.inviteCodePlaceholder')}
           placeholderTextColor={tokens.colors.textMuted}
           autoCapitalize="none"
           autoCorrect={false}
@@ -124,12 +124,12 @@ export default function JoinGroupScreen() {
       >
         <Text style={styles.backText}>‹ {t('common.back')}</Text>
       </TouchableOpacity>
-      <Text style={styles.title}>Join group</Text>
+      <Text style={styles.title}>{t('groups.joinGroup')}</Text>
       <TextInput
         style={styles.input}
         value={codeInput}
         onChangeText={setCodeInput}
-        placeholder="Invite code"
+        placeholder={t('groups.inviteCodePlaceholder')}
         placeholderTextColor={tokens.colors.textMuted}
         autoCapitalize="none"
         autoCorrect={false}
@@ -139,7 +139,7 @@ export default function JoinGroupScreen() {
         <ActivityIndicator size="small" color={tokens.colors.primary} style={styles.loader} />
       ) : preview && code ? (
         <View style={styles.previewBox}>
-          <Text style={styles.previewLabel}>You're joining</Text>
+          <Text style={styles.previewLabel}>{t('groups.youreJoining')}</Text>
           <Text style={styles.previewName}>{preview.name}</Text>
         </View>
       ) : null}

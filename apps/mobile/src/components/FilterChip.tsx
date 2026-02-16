@@ -1,3 +1,4 @@
+import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { tokens } from '../lib/theme';
 
@@ -7,7 +8,7 @@ interface FilterChipProps {
   onPress: () => void;
 }
 
-export default function FilterChip({ label, selected = false, onPress }: FilterChipProps) {
+function FilterChip({ label, selected = false, onPress }: FilterChipProps) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -20,6 +21,8 @@ export default function FilterChip({ label, selected = false, onPress }: FilterC
     </TouchableOpacity>
   );
 }
+
+export default React.memo(FilterChip);
 
 const styles = StyleSheet.create({
   chip: {

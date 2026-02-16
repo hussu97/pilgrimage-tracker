@@ -85,13 +85,13 @@ export default function CreateGroupScreen() {
         <View style={styles.successIconWrap}>
           <Text style={styles.successIcon}>✓</Text>
         </View>
-        <Text style={styles.successTitle}>Group created</Text>
-        <Text style={styles.successSub}>Share this link to invite others:</Text>
+        <Text style={styles.successTitle}>{t('groups.created')}</Text>
+        <Text style={styles.successSub}>{t('groups.shareInviteLink')}</Text>
         <View style={styles.inviteRow}>
           <Text style={styles.inviteCode} numberOfLines={1}>{inviteMessage}</Text>
         </View>
         <TouchableOpacity style={styles.shareButton} onPress={handleShare} activeOpacity={0.8}>
-          <Text style={styles.shareButtonText}>Share</Text>
+          <Text style={styles.shareButtonText}>{t('common.share')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.goButton} onPress={handleGoToGroup} activeOpacity={0.8}>
           <Text style={styles.goButtonText}>Go to group</Text>
@@ -144,7 +144,7 @@ export default function CreateGroupScreen() {
           <View style={[styles.checkbox, isPrivate && styles.checkboxChecked]}>
             {isPrivate ? <Text style={styles.checkMark}>✓</Text> : null}
           </View>
-          <Text style={styles.checkLabel}>Private group (invite only)</Text>
+          <Text style={styles.checkLabel}>{t('groups.privateGroupLabel')}</Text>
         </TouchableOpacity>
         <View style={styles.actions}>
           <TouchableOpacity

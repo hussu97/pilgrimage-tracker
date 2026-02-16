@@ -193,7 +193,7 @@ export default function GroupDetailScreen() {
           style={styles.viewFull}
         >
           <Text style={styles.viewFullText}>
-            {showFullLeaderboard ? 'Show less' : 'View full leaderboard'}
+            {showFullLeaderboard ? t('groups.showLess') : t('groups.viewFullLeaderboard')}
           </Text>
         </TouchableOpacity>
       ) : null}
@@ -212,12 +212,12 @@ export default function GroupDetailScreen() {
         </View>
       ) : null}
       {leaderboard.length === 0 ? (
-        <Text style={styles.muted}>No leaderboard data yet.</Text>
+        <Text style={styles.muted}>{t('groups.noLeaderboardData')}</Text>
       ) : null}
 
-      <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Recently visited</Text>
+      <Text style={[styles.sectionTitle, { marginTop: 24 }]}>{t('groups.recentlyVisited')}</Text>
       {activity.length === 0 ? (
-        <Text style={styles.muted}>No recent activity.</Text>
+        <Text style={styles.muted}>{t('groups.noRecentActivity')}</Text>
       ) : (
         <View style={styles.activityList}>
           {activity.map((item, i) => (
@@ -233,7 +233,7 @@ export default function GroupDetailScreen() {
               <View style={styles.activityBody}>
                 <Text style={styles.activityText}>
                   <Text style={styles.activityBold}>{item.display_name}</Text>
-                  {' checked in at '}
+                  {' ' + t('groups.checkedInAt') + ' '}
                   <Text style={styles.activityBold}>{item.place_name}</Text>
                 </Text>
                 <Text style={styles.activityTime}>
