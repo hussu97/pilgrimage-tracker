@@ -1,0 +1,102 @@
+"""Seed geographic boundaries for scraping."""
+from sqlmodel import Session, select
+from app.db.models import GeoBoundary
+from app.db.session import get_session
+
+
+# Geographic boundaries for countries and cities
+GEO_BOUNDARIES = [
+    # Countries
+    {"name": "UAE", "boundary_type": "country", "country": None, "lat_min": 22.5, "lat_max": 26.0, "lng_min": 51.5, "lng_max": 56.5},
+    {"name": "India", "boundary_type": "country", "country": None, "lat_min": 8.0, "lat_max": 35.5, "lng_min": 68.0, "lng_max": 97.5},
+    {"name": "USA", "boundary_type": "country", "country": None, "lat_min": 24.5, "lat_max": 49.0, "lng_min": -125.0, "lng_max": -66.0},
+
+    # UAE Cities
+    {"name": "Dubai", "boundary_type": "city", "country": "UAE", "lat_min": 24.8, "lat_max": 25.4, "lng_min": 54.9, "lng_max": 55.6},
+    {"name": "Abu Dhabi", "boundary_type": "city", "country": "UAE", "lat_min": 24.3, "lat_max": 24.6, "lng_min": 54.3, "lng_max": 54.7},
+    {"name": "Sharjah", "boundary_type": "city", "country": "UAE", "lat_min": 25.2, "lat_max": 25.5, "lng_min": 55.3, "lng_max": 55.6},
+    {"name": "Ajman", "boundary_type": "city", "country": "UAE", "lat_min": 25.38, "lat_max": 25.43, "lng_min": 55.42, "lng_max": 55.48},
+    {"name": "Ras Al Khaimah", "boundary_type": "city", "country": "UAE", "lat_min": 25.75, "lat_max": 25.85, "lng_min": 55.9, "lng_max": 56.0},
+    {"name": "Fujairah", "boundary_type": "city", "country": "UAE", "lat_min": 25.1, "lat_max": 25.2, "lng_min": 56.3, "lng_max": 56.4},
+    {"name": "Umm Al Quwain", "boundary_type": "city", "country": "UAE", "lat_min": 25.54, "lat_max": 25.58, "lng_min": 55.52, "lng_max": 55.58},
+    {"name": "Al Ain", "boundary_type": "city", "country": "UAE", "lat_min": 24.1, "lat_max": 24.3, "lng_min": 55.6, "lng_max": 55.9},
+
+    # India Cities (Top ~50)
+    {"name": "Mumbai", "boundary_type": "city", "country": "India", "lat_min": 18.9, "lat_max": 19.3, "lng_min": 72.8, "lng_max": 73.0},
+    {"name": "Delhi", "boundary_type": "city", "country": "India", "lat_min": 28.4, "lat_max": 28.9, "lng_min": 76.8, "lng_max": 77.4},
+    {"name": "Bangalore", "boundary_type": "city", "country": "India", "lat_min": 12.8, "lat_max": 13.1, "lng_min": 77.5, "lng_max": 77.8},
+    {"name": "Hyderabad", "boundary_type": "city", "country": "India", "lat_min": 17.3, "lat_max": 17.6, "lng_min": 78.3, "lng_max": 78.6},
+    {"name": "Chennai", "boundary_type": "city", "country": "India", "lat_min": 12.9, "lat_max": 13.2, "lng_min": 80.1, "lng_max": 80.3},
+    {"name": "Kolkata", "boundary_type": "city", "country": "India", "lat_min": 22.4, "lat_max": 22.7, "lng_min": 88.3, "lng_max": 88.5},
+    {"name": "Pune", "boundary_type": "city", "country": "India", "lat_min": 18.4, "lat_max": 18.7, "lng_min": 73.7, "lng_max": 74.0},
+    {"name": "Ahmedabad", "boundary_type": "city", "country": "India", "lat_min": 22.9, "lat_max": 23.2, "lng_min": 72.5, "lng_max": 72.7},
+    {"name": "Jaipur", "boundary_type": "city", "country": "India", "lat_min": 26.8, "lat_max": 27.0, "lng_min": 75.7, "lng_max": 75.9},
+    {"name": "Lucknow", "boundary_type": "city", "country": "India", "lat_min": 26.7, "lat_max": 26.9, "lng_min": 80.8, "lng_max": 81.0},
+    {"name": "Kanpur", "boundary_type": "city", "country": "India", "lat_min": 26.4, "lat_max": 26.5, "lng_min": 80.3, "lng_max": 80.4},
+    {"name": "Nagpur", "boundary_type": "city", "country": "India", "lat_min": 21.0, "lat_max": 21.3, "lng_min": 79.0, "lng_max": 79.2},
+    {"name": "Indore", "boundary_type": "city", "country": "India", "lat_min": 22.6, "lat_max": 22.8, "lng_min": 75.8, "lng_max": 76.0},
+    {"name": "Thane", "boundary_type": "city", "country": "India", "lat_min": 19.1, "lat_max": 19.3, "lng_min": 72.9, "lng_max": 73.1},
+    {"name": "Bhopal", "boundary_type": "city", "country": "India", "lat_min": 23.1, "lat_max": 23.4, "lng_min": 77.3, "lng_max": 77.5},
+    {"name": "Visakhapatnam", "boundary_type": "city", "country": "India", "lat_min": 17.6, "lat_max": 17.8, "lng_min": 83.1, "lng_max": 83.4},
+    {"name": "Patna", "boundary_type": "city", "country": "India", "lat_min": 25.5, "lat_max": 25.7, "lng_min": 85.0, "lng_max": 85.2},
+    {"name": "Vadodara", "boundary_type": "city", "country": "India", "lat_min": 22.2, "lat_max": 22.4, "lng_min": 73.1, "lng_max": 73.3},
+    {"name": "Ghaziabad", "boundary_type": "city", "country": "India", "lat_min": 28.6, "lat_max": 28.7, "lng_min": 77.4, "lng_max": 77.5},
+    {"name": "Ludhiana", "boundary_type": "city", "country": "India", "lat_min": 30.8, "lat_max": 31.0, "lng_min": 75.8, "lng_max": 76.0},
+    {"name": "Agra", "boundary_type": "city", "country": "India", "lat_min": 27.1, "lat_max": 27.3, "lng_min": 77.9, "lng_max": 78.1},
+    {"name": "Nashik", "boundary_type": "city", "country": "India", "lat_min": 19.9, "lat_max": 20.1, "lng_min": 73.7, "lng_max": 73.9},
+    {"name": "Faridabad", "boundary_type": "city", "country": "India", "lat_min": 28.3, "lat_max": 28.5, "lng_min": 77.2, "lng_max": 77.4},
+    {"name": "Meerut", "boundary_type": "city", "country": "India", "lat_min": 28.9, "lat_max": 29.1, "lng_min": 77.6, "lng_max": 77.8},
+    {"name": "Rajkot", "boundary_type": "city", "country": "India", "lat_min": 22.2, "lat_max": 22.4, "lng_min": 70.7, "lng_max": 70.9},
+    {"name": "Varanasi", "boundary_type": "city", "country": "India", "lat_min": 25.2, "lat_max": 25.4, "lng_min": 82.9, "lng_max": 83.1},
+    {"name": "Srinagar", "boundary_type": "city", "country": "India", "lat_min": 34.0, "lat_max": 34.2, "lng_min": 74.7, "lng_max": 74.9},
+    {"name": "Aurangabad", "boundary_type": "city", "country": "India", "lat_min": 19.8, "lat_max": 19.9, "lng_min": 75.2, "lng_max": 75.4},
+    {"name": "Dhanbad", "boundary_type": "city", "country": "India", "lat_min": 23.7, "lat_max": 23.9, "lng_min": 86.3, "lng_max": 86.5},
+    {"name": "Amritsar", "boundary_type": "city", "country": "India", "lat_min": 31.5, "lat_max": 31.7, "lng_min": 74.8, "lng_max": 75.0},
+    {"name": "Allahabad", "boundary_type": "city", "country": "India", "lat_min": 25.4, "lat_max": 25.5, "lng_min": 81.8, "lng_max": 81.9},
+    {"name": "Ranchi", "boundary_type": "city", "country": "India", "lat_min": 23.3, "lat_max": 23.4, "lng_min": 85.2, "lng_max": 85.4},
+    {"name": "Howrah", "boundary_type": "city", "country": "India", "lat_min": 22.5, "lat_max": 22.7, "lng_min": 88.2, "lng_max": 88.4},
+    {"name": "Coimbatore", "boundary_type": "city", "country": "India", "lat_min": 10.9, "lat_max": 11.1, "lng_min": 76.9, "lng_max": 77.1},
+    {"name": "Jabalpur", "boundary_type": "city", "country": "India", "lat_min": 23.1, "lat_max": 23.2, "lng_min": 79.9, "lng_max": 80.0},
+    {"name": "Gwalior", "boundary_type": "city", "country": "India", "lat_min": 26.2, "lat_max": 26.3, "lng_min": 78.1, "lng_max": 78.2},
+    {"name": "Vijayawada", "boundary_type": "city", "country": "India", "lat_min": 16.4, "lat_max": 16.6, "lng_min": 80.5, "lng_max": 80.7},
+    {"name": "Jodhpur", "boundary_type": "city", "country": "India", "lat_min": 26.2, "lat_max": 26.4, "lng_min": 73.0, "lng_max": 73.1},
+    {"name": "Madurai", "boundary_type": "city", "country": "India", "lat_min": 9.9, "lat_max": 10.0, "lng_min": 78.0, "lng_max": 78.2},
+    {"name": "Raipur", "boundary_type": "city", "country": "India", "lat_min": 21.2, "lat_max": 21.3, "lng_min": 81.5, "lng_max": 81.7},
+    {"name": "Kota", "boundary_type": "city", "country": "India", "lat_min": 25.1, "lat_max": 25.3, "lng_min": 75.8, "lng_max": 76.0},
+    {"name": "Chandigarh", "boundary_type": "city", "country": "India", "lat_min": 30.6, "lat_max": 30.8, "lng_min": 76.7, "lng_max": 76.9},
+    {"name": "Guwahati", "boundary_type": "city", "country": "India", "lat_min": 26.1, "lat_max": 26.3, "lng_min": 91.7, "lng_max": 91.9},
+    {"name": "Solapur", "boundary_type": "city", "country": "India", "lat_min": 17.6, "lat_max": 17.7, "lng_min": 75.9, "lng_max": 76.0},
+    {"name": "Hubli", "boundary_type": "city", "country": "India", "lat_min": 15.3, "lat_max": 15.4, "lng_min": 75.1, "lng_max": 75.2},
+    {"name": "Mysore", "boundary_type": "city", "country": "India", "lat_min": 12.2, "lat_max": 12.4, "lng_min": 76.6, "lng_max": 76.7},
+    {"name": "Tiruchirappalli", "boundary_type": "city", "country": "India", "lat_min": 10.7, "lat_max": 10.9, "lng_min": 78.6, "lng_max": 78.8},
+    {"name": "Bareilly", "boundary_type": "city", "country": "India", "lat_min": 28.3, "lat_max": 28.4, "lng_min": 79.4, "lng_max": 79.5},
+    {"name": "Aligarh", "boundary_type": "city", "country": "India", "lat_min": 27.8, "lat_max": 28.0, "lng_min": 78.0, "lng_max": 78.2},
+    {"name": "Tiruppur", "boundary_type": "city", "country": "India", "lat_min": 11.0, "lat_max": 11.2, "lng_min": 77.3, "lng_max": 77.4},
+]
+
+
+def seed_geo_boundaries(session: Session = None):
+    """Seed geographic boundaries if not already present."""
+    if session is None:
+        session = next(get_session())
+
+    # Check if already seeded
+    existing = session.exec(select(GeoBoundary)).first()
+    if existing:
+        print("Geographic boundaries already seeded.")
+        return
+
+    print(f"Seeding {len(GEO_BOUNDARIES)} geographic boundaries...")
+    for boundary_data in GEO_BOUNDARIES:
+        boundary = GeoBoundary(**boundary_data)
+        session.add(boundary)
+
+    session.commit()
+    print("Geographic boundaries seeded successfully.")
+
+
+if __name__ == "__main__":
+    from app.db.session import engine
+    from sqlmodel import Session
+    with Session(engine) as session:
+        seed_geo_boundaries(session)

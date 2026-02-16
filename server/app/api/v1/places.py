@@ -1,7 +1,7 @@
 from typing import Annotated, List, Literal, Optional
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from app.api.deps import get_current_user, get_optional_user
 from app.db import places as places_db
@@ -10,6 +10,7 @@ from app.db import store as user_store
 from app.db import check_ins as check_ins_db
 from app.db import favorites as favorites_db
 from app.db import place_attributes as attr_db
+from app.db import place_images
 from app.models.schemas import CheckInBody, ReviewCreateBody, PlacesListResponse, PlaceCreate
 
 router = APIRouter()
@@ -30,14 +31,11 @@ def _place_to_item(place, distance: Optional[float] = None, include_rating: bool
         "lng": place.lng,
         "address": place.address,
         "opening_hours": place.opening_hours,
-        "image_urls": place.image_urls,
+        "images": place_images.get_images(place.place_code),
         "description": place.description,
         "created_at": place.created_at,
         "distance": d,
     }
-    rs = getattr(place, "religion_specific", None)
-    if rs:
-        out["religion_specific"] = rs
     is_open = places_db._is_open_now_from_hours(place.opening_hours)
     out["is_open_now"] = is_open
     if getattr(place, "website_url", None):
@@ -52,13 +50,13 @@ def _place_to_item(place, distance: Optional[float] = None, include_rating: bool
 
 
 def _build_timings(place) -> list:
-    rs = getattr(place, "religion_specific", {}) or {}
+    attrs = attr_db.get_attributes_dict(place.place_code)
     religion = getattr(place, "religion", "")
     result = []
 
     # Hinduism: deity circles
     if religion == "hinduism":
-        deities = rs.get("deities", [])
+        deities = attrs.get("deities", [])
         if isinstance(deities, list):
             for d in deities:
                 if isinstance(d, dict):
@@ -74,7 +72,7 @@ def _build_timings(place) -> list:
         return result
 
     # Islam: prayer times with past/current/upcoming status
-    prayer_times = rs.get("prayer_times", {})
+    prayer_times = attrs.get("prayer_times", {})
     if prayer_times and isinstance(prayer_times, dict):
         now = datetime.now(timezone.utc)
         now_mins = now.hour * 60 + now.minute
@@ -112,8 +110,9 @@ def _build_timings(place) -> list:
                 })
         return result
 
-    # Christianity: service_times_array preferred, then service_times dict
-    service_times_array = rs.get("service_times_array", [])
+    # Christianity: service_times preferred (it's stored in attributes as either array or dict)
+    service_times = attrs.get("service_times")
+    service_times_array = service_times if isinstance(service_times, list) else []
     if service_times_array and isinstance(service_times_array, list):
         now = datetime.now(timezone.utc)
         today_name = now.strftime("%A")
@@ -160,7 +159,7 @@ def _build_timings(place) -> list:
                 "status": status,
             })
         return result
-    service_times = rs.get("service_times", {})
+    # Fallback for dict format service_times
     if service_times and isinstance(service_times, dict):
         for day, time_str in service_times.items():
             result.append({
@@ -201,41 +200,13 @@ def _build_specifications(place) -> list:
                     "value": display,
                 })
 
-    # Fallback: derive from religion_specific for backward compatibility
-    if not specs:
-        rs = getattr(place, "religion_specific", {}) or {}
-        if religion == "islam":
-            if rs.get("capacity"):
-                specs.append({"icon": "groups", "label": "placeDetail.capacity", "value": str(rs["capacity"])})
-            facs = rs.get("facilities", [])
-            facs_lower = [str(f).lower() for f in facs] if isinstance(facs, list) else []
-            if rs.get("wudu_area") or any("wudu" in f or "ablution" in f for f in facs_lower):
-                specs.append({"icon": "opacity", "label": "placeDetail.wuduArea", "value": "Available"})
-            if rs.get("parking") or any("parking" in f for f in facs_lower):
-                specs.append({"icon": "local_parking", "label": "placeDetail.parking", "value": str(rs.get("parking", "Available"))})
-            if rs.get("womens_area") or any("women" in f for f in facs_lower):
-                specs.append({"icon": "wc", "label": "placeDetail.womensArea", "value": "Separate"})
-        elif religion == "hinduism":
-            if rs.get("architecture"):
-                specs.append({"icon": "account_balance", "label": "placeDetail.architecture", "value": str(rs["architecture"])})
-            if rs.get("dress_code"):
-                specs.append({"icon": "checkroom", "label": "placeDetail.dressCode", "value": str(rs["dress_code"])})
-        elif religion == "christianity":
-            if rs.get("denomination"):
-                specs.append({"icon": "church", "label": "placeDetail.denomination", "value": str(rs["denomination"])})
-            if rs.get("founded_year"):
-                specs.append({"icon": "history", "label": "placeDetail.foundedYear", "value": str(rs["founded_year"])})
-
     return specs
 
 
 def _place_detail(place) -> dict:
     out = _place_to_item(place, include_rating=True)
-    out["religion_specific"] = getattr(place, "religion_specific", None) or {}
     if "distance" in out:
         del out["distance"]
-    rs = out["religion_specific"]
-    out["crowd_level"] = rs.get("crowd_level") or getattr(place, "crowd_level", None)
     out["total_checkins_count"] = check_ins_db.count_check_ins_for_place(place.place_code)
     out["timings"] = _build_timings(place)
     out["specifications"] = _build_specifications(place)
@@ -312,20 +283,39 @@ def get_place_reviews(
     agg = reviews_db.get_aggregate_rating(place_code)
     out = []
     for r in rows:
-        is_anon = getattr(r, "is_anonymous", False)
-        user = user_store.get_user_by_code(r.user_code) if not is_anon else None
-        out.append({
-            "review_code": r.review_code,
-            "place_code": r.place_code,
-            "user_code": r.user_code if not is_anon else None,
-            "display_name": "Anonymous" if is_anon else (user.display_name if user else "Unknown"),
-            "rating": r.rating,
-            "title": r.title,
-            "body": r.body,
-            "created_at": r.created_at,
-            "is_anonymous": is_anon,
-            "photo_urls": getattr(r, "photo_urls", []) or [],
-        })
+        source = getattr(r, "source", "user")
+        if source == "google":
+            # Google review
+            out.append({
+                "review_code": r.review_code,
+                "place_code": r.place_code,
+                "user_code": None,
+                "display_name": getattr(r, "author_name", "Google User"),
+                "rating": r.rating,
+                "title": r.title,
+                "body": r.body,
+                "created_at": r.created_at,
+                "is_anonymous": False,
+                "photo_urls": [],
+                "source": "google",
+            })
+        else:
+            # User review
+            is_anon = getattr(r, "is_anonymous", False)
+            user = user_store.get_user_by_code(r.user_code) if r.user_code and not is_anon else None
+            out.append({
+                "review_code": r.review_code,
+                "place_code": r.place_code,
+                "user_code": r.user_code if not is_anon else None,
+                "display_name": "Anonymous" if is_anon else (user.display_name if user else "Unknown"),
+                "rating": r.rating,
+                "title": r.title,
+                "body": r.body,
+                "created_at": r.created_at,
+                "is_anonymous": is_anon,
+                "photo_urls": getattr(r, "photo_urls", []) or [],
+                "source": "user",
+            })
     result = {"reviews": out}
     if agg:
         result["average_rating"] = agg["average"]
@@ -420,9 +410,7 @@ def create_place(
             lng=body.lng,
             address=body.address,
             opening_hours=body.opening_hours,
-            image_urls=body.image_urls,
             description=body.description,
-            religion_specific=body.religion_specific,
             website_url=body.website_url,
             source=body.source,
         )
@@ -436,18 +424,41 @@ def create_place(
             lng=body.lng,
             address=body.address,
             opening_hours=body.opening_hours,
-            image_urls=body.image_urls,
             description=body.description,
-            religion_specific=body.religion_specific,
             website_url=body.website_url,
             source=body.source,
         )
+
+    # Store images from URLs
+    if body.image_urls:
+        place_images.set_images_from_urls(body.place_code, body.image_urls)
 
     # Store attributes if provided
     if body.attributes:
         for attr_input in body.attributes:
             attr_db.upsert_attribute(body.place_code, attr_input.attribute_code, attr_input.value)
 
+    # Store Google reviews if provided
+    if body.google_reviews:
+        reviews_db.upsert_google_reviews(body.place_code, body.google_reviews)
+
     return _place_detail(row)
 
 
+@router.get("/{place_code}/images/{image_id}")
+def get_place_image(
+    place_code: str,
+    image_id: int,
+):
+    """Serve a blob image for a place."""
+    image = place_images.get_image_by_id(image_id)
+    if not image or image.place_code != place_code:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    if image.image_type != "blob" or not image.blob_data:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    return Response(
+        content=image.blob_data,
+        media_type=image.mime_type or "image/jpeg",
+    )

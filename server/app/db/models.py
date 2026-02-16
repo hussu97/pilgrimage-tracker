@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import Column, LargeBinary, UniqueConstraint
 from sqlmodel import Column, Field, JSON, SQLModel
 
 
@@ -35,24 +35,37 @@ class Place(SQLModel, table=True):
     lng: float
     address: str
     opening_hours: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
-    image_urls: List[str] = Field(default=[], sa_column=Column(JSON))
     description: Optional[str] = None
-    religion_specific: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
     website_url: Optional[str] = None
     source: Optional[str] = None  # gmaps, overpass, manual
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PlaceImage(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    place_code: str = Field(index=True, foreign_key="place.place_code")
+    image_type: str = Field(default="url")  # "url" or "blob"
+    url: Optional[str] = None
+    blob_data: Optional[bytes] = Field(default=None, sa_column=Column(LargeBinary))
+    mime_type: Optional[str] = None  # "image/jpeg", "image/png"
+    display_order: int = Field(default=0)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class Review(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     review_code: str = Field(index=True, unique=True)
-    user_code: str = Field(index=True, foreign_key="user.user_code")
+    user_code: Optional[str] = Field(default=None, index=True, foreign_key="user.user_code")
     place_code: str = Field(index=True, foreign_key="place.place_code")
     rating: int
     title: Optional[str] = None
     body: Optional[str] = None
     is_anonymous: bool = Field(default=False)
     photo_urls: List[str] = Field(default=[], sa_column=Column(JSON))
+    source: str = Field(default="user")  # "user" or "google"
+    author_name: Optional[str] = None  # For Google reviews
+    review_time: Optional[int] = None  # Unix timestamp from Google
+    language: Optional[str] = None  # Review language from Google
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

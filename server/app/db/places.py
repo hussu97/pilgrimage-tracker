@@ -28,23 +28,66 @@ def _parse_time(s: str) -> Optional[tuple]:
 def _is_open_now_from_hours(opening_hours: Optional[Dict[str, Any]]) -> Optional[bool]:
     if not opening_hours or not isinstance(opening_hours, dict):
         return None
-    opens = opening_hours.get("opens")
-    closes = opening_hours.get("closes")
-    if opens is None and closes is None:
-        return None
-    now = datetime.now(timezone.utc).time()
-    open_t = _parse_time(opens) if opens else (0, 0)
-    close_t = _parse_time(closes) if closes else (23, 59)
-    if open_t is None and close_t is None:
-        return None
-    if open_t is None: open_t = (0, 0)
-    if close_t is None: close_t = (23, 59)
-    now_min = now.hour * 60 + now.minute
-    open_min = open_t[0] * 60 + open_t[1]
-    close_min = close_t[0] * 60 + close_t[1]
-    if open_min <= close_min:
-        return open_min <= now_min <= close_min
-    return now_min >= open_min or now_min <= close_min
+
+    # Detect format: per-day (Monday-Sunday keys) vs legacy (opens/closes keys)
+    day_names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    is_per_day_format = any(day in opening_hours for day in day_names)
+
+    if is_per_day_format:
+        # Per-day format: {"Monday": "04:00-23:59", "Tuesday": "Closed", ...}
+        now = datetime.now(timezone.utc)
+        current_day = now.strftime("%A")  # e.g., "Monday"
+        today_hours = opening_hours.get(current_day)
+
+        if not today_hours or not isinstance(today_hours, str):
+            return None
+
+        # Check for closed status
+        if today_hours.lower() in ["closed", "hours not available"]:
+            return False
+
+        # Parse "HH:MM-HH:MM" format
+        if "-" not in today_hours:
+            return None
+
+        parts = today_hours.split("-")
+        if len(parts) != 2:
+            return None
+
+        open_t = _parse_time(parts[0].strip())
+        close_t = _parse_time(parts[1].strip())
+
+        if open_t is None or close_t is None:
+            return None
+
+        now_min = now.hour * 60 + now.minute
+        open_min = open_t[0] * 60 + open_t[1]
+        close_min = close_t[0] * 60 + close_t[1]
+
+        # Handle midnight crossover (e.g., "20:00-04:00")
+        if open_min <= close_min:
+            return open_min <= now_min <= close_min
+        return now_min >= open_min or now_min <= close_min
+
+    else:
+        # Legacy format: {"opens": "HH:MM", "closes": "HH:MM"}
+        opens = opening_hours.get("opens")
+        closes = opening_hours.get("closes")
+        if opens is None and closes is None:
+            return None
+        now = datetime.now(timezone.utc).time()
+        open_t = _parse_time(opens) if opens else (0, 0)
+        close_t = _parse_time(closes) if closes else (23, 59)
+        if open_t is None and close_t is None:
+            return None
+        if open_t is None: open_t = (0, 0)
+        if close_t is None: close_t = (23, 59)
+        now_min = now.hour * 60 + now.minute
+        open_min = open_t[0] * 60 + open_t[1]
+        close_min = close_t[0] * 60 + close_t[1]
+        if open_min <= close_min:
+            return open_min <= now_min <= close_min
+        return now_min >= open_min or now_min <= close_min
 
 
 def _generate_place_code() -> str:
@@ -70,9 +113,7 @@ def create_place(
     lng: float,
     address: str,
     opening_hours: Optional[Dict[str, str]] = None,
-    image_urls: Optional[List[str]] = None,
     description: Optional[str] = None,
-    religion_specific: Optional[Dict[str, Any]] = None,
     website_url: Optional[str] = None,
     source: Optional[str] = None,
 ) -> Place:
@@ -86,9 +127,7 @@ def create_place(
             lng=lng,
             address=address,
             opening_hours=opening_hours,
-            image_urls=image_urls or [],
             description=description,
-            religion_specific=religion_specific or {},
             website_url=website_url,
             source=source,
         )
@@ -107,9 +146,7 @@ def update_place(
     lng: Optional[float] = None,
     address: Optional[str] = None,
     opening_hours: Optional[Dict[str, str]] = None,
-    image_urls: Optional[List[str]] = None,
     description: Optional[str] = None,
-    religion_specific: Optional[Dict[str, Any]] = None,
     website_url: Optional[str] = None,
     source: Optional[str] = None,
 ) -> Optional[Place]:
@@ -125,9 +162,7 @@ def update_place(
         if lng is not None: place.lng = lng
         if address is not None: place.address = address
         if opening_hours is not None: place.opening_hours = opening_hours
-        if image_urls is not None: place.image_urls = image_urls
         if description is not None: place.description = description
-        if religion_specific is not None: place.religion_specific = religion_specific
         if website_url is not None: place.website_url = website_url
         if source is not None: place.source = source
 

@@ -73,10 +73,10 @@ def sync_run_to_server(run_code: str, server_url: str):
                 "opening_hours": data.get("opening_hours"),
                 "image_urls": data.get("image_urls") or [],
                 "description": data.get("description"),
-                "religion_specific": data.get("religion_specific") or {},
                 "website_url": data.get("website_url"),
                 "source": data.get("source"),
                 "attributes": data.get("attributes") or [],
+                "google_reviews": data.get("google_reviews") or [],
             }
 
             try:

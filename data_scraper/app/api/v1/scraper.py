@@ -4,13 +4,13 @@ from typing import List, Optional
 import os
 
 from app.db.session import get_session
-from app.db.models import DataLocation, ScraperRun, ScrapedPlace
+from app.db.models import DataLocation, ScraperRun, ScrapedPlace, GeoBoundary
 from app.models.schemas import (
     DataLocationCreate, DataLocationResponse,
     ScraperRunCreate, ScraperRunResponse
 )
 from app.db.scraper import generate_code, run_scraper_task, sync_run_to_server
-from app.scrapers.gmaps import COUNTRY_BOUNDS, PLACE_TYPE_MAP
+from app.scrapers.gmaps import PLACE_TYPE_MAP
 
 router = APIRouter()
 
@@ -41,18 +41,32 @@ def create_data_location(body: DataLocationCreate, session: Session = Depends(ge
         config = {"sheet_code": sheet_code}
 
     elif body.source_type == "gmaps":
-        if not body.country or not body.place_type:
-            raise HTTPException(status_code=400, detail="country and place_type are required for gmaps source")
-        if body.country not in COUNTRY_BOUNDS:
-            raise HTTPException(status_code=400, detail=f"Unsupported country. Choose from: {list(COUNTRY_BOUNDS.keys())}")
+        # Validate place_type
+        if not body.place_type:
+            raise HTTPException(status_code=400, detail="place_type is required for gmaps source")
         if body.place_type not in PLACE_TYPE_MAP:
             raise HTTPException(status_code=400, detail=f"Unsupported place_type. Choose from: {list(PLACE_TYPE_MAP.keys())}")
 
+        # Validate either city or country is provided
+        if not body.city and not body.country:
+            raise HTTPException(status_code=400, detail="Either city or country is required for gmaps source")
+
+        # Validate the boundary exists in DB
+        boundary_name = body.city if body.city else body.country
+        boundary = session.exec(select(GeoBoundary).where(GeoBoundary.name == boundary_name)).first()
+        if not boundary:
+            raise HTTPException(status_code=400, detail=f"Geographic boundary not found: {boundary_name}")
+
         config = {
-            "country": body.country,
             "place_type": body.place_type,
             "max_results": body.max_results or 5  # Default to 5 for testing
         }
+
+        # Add city or country to config
+        if body.city:
+            config["city"] = body.city
+        else:
+            config["country"] = body.country
 
     loc = DataLocation(
         code=generate_code("loc"),

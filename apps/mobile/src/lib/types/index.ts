@@ -25,11 +25,10 @@ export interface Place {
   lat: number;
   lng: number;
   address: string;
-  image_urls: string[];
+  images?: Array<{url: string; display_order: number}>;
   distance?: number;
   description?: string;
   opening_hours?: Record<string, string>;
-  religion_specific?: Record<string, unknown>;
   attributes?: Record<string, unknown>;
   user_has_checked_in?: boolean;
   is_favorite?: boolean;
@@ -60,24 +59,34 @@ export interface PlaceSpecification {
 }
 
 export interface PlaceDetail extends Place {
-  religion_specific?: Record<string, unknown>;
   user_has_checked_in?: boolean;
   is_favorite?: boolean;
-  crowd_level?: string;
   total_checkins_count?: number;
   timings?: PlaceTiming[];
   specifications?: PlaceSpecification[];
+  google_reviews?: GoogleReview[];
+}
+
+export interface GoogleReview {
+  review_code: string;
+  place_code: string;
+  display_name: string;
+  rating: number;
+  body?: string;
+  created_at: string;
+  source: 'google';
 }
 
 export interface Review {
   review_code: string;
   place_code: string;
-  user_code: string;
+  user_code?: string;
   display_name: string;
   rating: number;
   title?: string;
   body?: string;
   created_at: string;
+  source: 'user' | 'google';
 }
 
 export interface ReviewsResponse {

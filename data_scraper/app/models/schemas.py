@@ -9,6 +9,7 @@ class DataLocationCreate(BaseModel):
     sheet_url: Optional[str] = None
     # gmaps fields
     country: Optional[str] = None
+    city: Optional[str] = None  # More granular than country
     place_type: Optional[str] = None
     max_results: Optional[int] = None
 

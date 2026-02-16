@@ -138,10 +138,10 @@ class PlaceCreate(BaseModel):
     lng: float
     address: str
     opening_hours: Optional[dict] = None
-    image_urls: List[str] = []
+    image_urls: List[str] = []  # Still accepted during sync, stored as PlaceImage rows
     description: Optional[str] = None
-    religion_specific: Optional[dict] = None
     website_url: Optional[str] = None
     source: Optional[str] = None
     attributes: Optional[List[PlaceAttributeInput]] = None
+    google_reviews: Optional[List[dict]] = None  # For Google reviews during sync
 

@@ -5,17 +5,10 @@ import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from sqlmodel import Session, select
-from app.db.models import ScraperRun, ScrapedPlace
+from app.db.models import ScraperRun, ScrapedPlace, GeoBoundary
 
 # Configuration
 SEARCH_RADIUS = 10000  # 10km radius per grid point
-
-# Country bounding boxes
-COUNTRY_BOUNDS = {
-    "UAE": {"lat_min": 22.5, "lat_max": 26.0, "lng_min": 51.5, "lng_max": 56.5},
-    "India": {"lat_min": 8.0, "lat_max": 35.5, "lng_min": 68.0, "lng_max": 97.5},
-    "USA": {"lat_min": 24.5, "lat_max": 49.0, "lng_min": -125.0, "lng_max": -66.0},
-}
 
 # Place type mappings
 PLACE_TYPE_MAP = {
@@ -95,7 +88,7 @@ def get_place_details(place_id: str, religion: str, api_key: str) -> Dict:
     """Fetch detailed information for a single place."""
     url = "https://maps.googleapis.com/maps/api/place/details/json"
 
-    fields = "name,formatted_address,vicinity,geometry,opening_hours,wheelchair_accessible_entrance,rating,user_ratings_total,url,photos,business_status"
+    fields = "name,formatted_address,vicinity,geometry,opening_hours,wheelchair_accessible_entrance,rating,user_ratings_total,url,photos,business_status,reviews"
     params = {
         "place_id": place_id,
         "fields": fields,
@@ -111,6 +104,18 @@ def get_place_details(place_id: str, religion: str, api_key: str) -> Dict:
     for photo in result.get("photos", [])[:3]:
         ref = photo.get("photo_reference")
         photo_urls.append(f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference={ref}&key={api_key}")
+
+    # Process Google reviews (up to 5)
+    google_reviews = []
+    for review in result.get("reviews", [])[:5]:
+        google_reviews.append({
+            "author_name": review.get("author_name", ""),
+            "rating": review.get("rating", 0),
+            "text": review.get("text", ""),
+            "time": review.get("time", 0),
+            "relative_time_description": review.get("relative_time_description", ""),
+            "language": review.get("language", "en"),
+        })
 
     # Build attributes for API ingestion
     attributes = []
@@ -149,6 +154,7 @@ def get_place_details(place_id: str, religion: str, api_key: str) -> Dict:
         "website_url": result.get("url", ""),
         "opening_hours": opening_hours,
         "attributes": attributes,
+        "google_reviews": google_reviews,
         "source": "gmaps",
         # Additional metadata
         "vicinity": result.get("vicinity", "N/A"),
@@ -158,22 +164,17 @@ def get_place_details(place_id: str, religion: str, api_key: str) -> Dict:
 
     return place_data
 
-def search_grid(country: str, place_type: str, api_key: str, max_results: Optional[int] = None) -> List[str]:
-    """Grid search over a country for a given place type."""
-    bounds = COUNTRY_BOUNDS.get(country)
-    if not bounds:
-        print(f"Unknown country: {country}")
-        return []
-
-    print(f"Searching {country} for {place_type}...")
+def search_grid(lat_min: float, lat_max: float, lng_min: float, lng_max: float, place_type: str, api_key: str, max_results: Optional[int] = None) -> List[str]:
+    """Grid search over a geographic area for a given place type."""
+    print(f"Searching area (lat: {lat_min}-{lat_max}, lng: {lng_min}-{lng_max}) for {place_type}...")
     unique_place_ids = set()
 
-    lat = bounds["lat_min"]
-    while lat <= bounds["lat_max"]:
-        lng = bounds["lng_min"]
-        while lng <= bounds["lng_max"]:
+    lat = lat_min
+    while lat <= lat_max:
+        lng = lng_min
+        while lng <= lng_max:
+            print('Searching:',lat,':',lng)
             unique_place_ids.update(get_places_in_circle(lat, lng, place_type, api_key))
-
             # Check if we've reached the limit
             if max_results and len(unique_place_ids) >= max_results:
                 print(f"Reached max_results limit: {max_results}")
@@ -189,15 +190,19 @@ def search_grid(country: str, place_type: str, api_key: str, max_results: Option
 def run_gmaps_scraper(run_code: str, config: dict, session: Session):
     """
     Runs the Google Maps grid scraper.
-    config must contain 'country' and 'place_type'.
+    config must contain ('country' OR 'city') and 'place_type'.
     Optional: 'max_results' to limit for testing.
     """
+    city = config.get("city")
     country = config.get("country")
     place_type = config.get("place_type")
     max_results = config.get("max_results")
 
-    if not country or not place_type:
-        raise ValueError("country and place_type required in config")
+    if not place_type:
+        raise ValueError("place_type required in config")
+
+    if not city and not country:
+        raise ValueError("Either city or country required in config")
 
     # Get API key from environment
     api_key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
@@ -210,8 +215,17 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
 
     religion = PLACE_TYPE_MAP[place_type]["religion"]
 
+    # Look up geographic boundary from DB
+    boundary_name = city if city else country
+    boundary = session.exec(select(GeoBoundary).where(GeoBoundary.name == boundary_name)).first()
+    if not boundary:
+        raise ValueError(f"Geographic boundary not found for: {boundary_name}")
+
     # Step 1: Grid search for place IDs (with max_results limit)
-    place_ids = search_grid(country, place_type, api_key, max_results)
+    place_ids = search_grid(
+        boundary.lat_min, boundary.lat_max, boundary.lng_min, boundary.lng_max,
+        place_type, api_key, max_results
+    )
 
     run.total_items = len(place_ids)
     session.add(run)

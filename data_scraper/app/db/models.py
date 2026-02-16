@@ -27,3 +27,13 @@ class ScrapedPlace(SQLModel, table=True):
     name: str
     raw_data: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+class GeoBoundary(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)          # "UAE", "Dubai", "Mumbai"
+    boundary_type: str                      # "country" or "city"
+    country: Optional[str] = None           # parent country for cities (e.g., "UAE", "India")
+    lat_min: float
+    lat_max: float
+    lng_min: float
+    lng_max: float

@@ -38,9 +38,18 @@ def create_review(
         return review
 
 
-def get_reviews_by_place(place_code: str, limit: int = 5, offset: int = 0) -> List[Review]:
+def get_reviews_by_place(
+    place_code: str,
+    limit: int = 5,
+    offset: int = 0,
+    source: Optional[str] = None,
+) -> List[Review]:
+    """Get reviews for a place. Optionally filter by source ('user' or 'google')."""
     with Session(engine) as session:
-        statement = select(Review).where(Review.place_code == place_code).order_by(Review.created_at.desc()).offset(offset).limit(limit)
+        statement = select(Review).where(Review.place_code == place_code)
+        if source:
+            statement = statement.where(Review.source == source)
+        statement = statement.order_by(Review.created_at.desc()).offset(offset).limit(limit)
         return session.exec(statement).all()
 
 
@@ -63,3 +72,62 @@ def count_reviews_by_user(user_code: str) -> int:
     with Session(engine) as session:
         statement = select(func.count(Review.id)).where(Review.user_code == user_code)
         return session.exec(statement).one()
+
+
+def create_google_review(
+    place_code: str,
+    author_name: str,
+    rating: int,
+    text: str,
+    review_time: int,
+    language: str = "en",
+) -> Review:
+    """Create a review from Google Maps with source='google'."""
+    with Session(engine) as session:
+        review_code = _generate_review_code()
+        review = Review(
+            review_code=review_code,
+            user_code=None,  # No user for Google reviews
+            place_code=place_code,
+            rating=rating,
+            body=text,
+            source="google",
+            author_name=author_name,
+            review_time=review_time,
+            language=language,
+        )
+        session.add(review)
+        session.commit()
+        session.refresh(review)
+        return review
+
+
+def upsert_google_reviews(place_code: str, reviews_list: List[dict]) -> None:
+    """Delete existing Google reviews for place and insert new ones."""
+    with Session(engine) as session:
+        # Delete existing Google reviews
+        stmt = select(Review).where(
+            Review.place_code == place_code,
+            Review.source == "google"
+        )
+        existing = session.exec(stmt).all()
+        for review in existing:
+            session.delete(review)
+
+        # Insert new Google reviews
+        for r in reviews_list:
+            review_code = _generate_review_code()
+            review = Review(
+                review_code=review_code,
+                user_code=None,
+                place_code=place_code,
+                rating=r.get("rating", 0),
+                body=r.get("text", ""),
+                source="google",
+                author_name=r.get("author_name", ""),
+                review_time=r.get("time", 0),
+                language=r.get("language", "en"),
+            )
+            session.add(review)
+
+        session.commit()
