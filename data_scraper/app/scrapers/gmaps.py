@@ -411,7 +411,8 @@ def search_area(
     place_types: List[str],
     api_key: str,
     existing_ids: set,
-    depth: int = 0
+    depth: int = 0,
+    max_results: Optional[int] = None
 ) -> List[str]:
     """
     Recursive quadtree search for places.
@@ -423,11 +424,17 @@ def search_area(
         api_key: Google Maps API key
         existing_ids: Set of place IDs already found (for deduplication)
         depth: Recursion depth for logging
+        max_results: Optional limit on total results (stops recursion when reached)
     """
     indent = "  " * depth
     center_lat, center_lng, radius = calculate_search_radius(lat_min, lat_max, lng_min, lng_max)
 
-    print(f"{indent}Searching area (lat: {lat_min:.4f}-{lat_max:.4f}, lng: {lng_min:.4f}-{lng_max:.4f}, radius: {radius:.0f}m, depth: {depth})")
+    print(f"{indent}Searching area (lat: {lat_min:.4f}-{lat_max:.4f}, lng: {lng_min:.4f}-{lng_max:.4f}, radius: {radius:.0f}m, depth: {depth}, total: {len(existing_ids)})")
+
+    # Stop recursing if we've reached the max_results limit
+    if max_results and len(existing_ids) >= max_results:
+        print(f"{indent}Reached max_results limit ({max_results}), stopping recursion")
+        return []
 
     # Stop recursing if area is too small
     if radius < MIN_RADIUS:
@@ -442,7 +449,12 @@ def search_area(
     new_ids = [pid for pid in place_ids if pid not in existing_ids]
     existing_ids.update(new_ids)
 
-    print(f"{indent}Found {len(place_ids)} places ({len(new_ids)} new), saturated: {is_saturated}")
+    print(f"{indent}Found {len(place_ids)} places ({len(new_ids)} new), saturated: {is_saturated}, total: {len(existing_ids)}")
+
+    # Check if we've exceeded max_results after this search
+    if max_results and len(existing_ids) >= max_results:
+        print(f"{indent}Reached max_results limit ({max_results}) after this search")
+        return new_ids
 
     # If not saturated, we're done with this area
     if not is_saturated:
@@ -464,9 +476,14 @@ def search_area(
     all_ids = list(new_ids)  # Start with IDs from this level
 
     for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
+        # Stop recursing into more quadrants if we've hit the limit
+        if max_results and len(existing_ids) >= max_results:
+            print(f"{indent}Stopping quadrant recursion - max_results ({max_results}) reached")
+            break
+
         quadrant_ids = search_area(
             q_lat_min, q_lat_max, q_lng_min, q_lng_max,
-            place_types, api_key, existing_ids, depth + 1
+            place_types, api_key, existing_ids, depth + 1, max_results
         )
         all_ids.extend(quadrant_ids)
 
@@ -532,18 +549,18 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
 
     # Step 2: Recursive quadtree search for all types at once (Phase 1 + Phase 2)
     print(f"\n--- Starting recursive quadtree search ---")
+    if max_results:
+        print(f"Max results limit: {max_results}")
     existing_ids = set()
     place_ids = search_area(
         boundary.lat_min, boundary.lat_max, boundary.lng_min, boundary.lng_max,
-        all_gmaps_types, api_key, existing_ids, depth=0
+        all_gmaps_types, api_key, existing_ids, depth=0, max_results=max_results
     )
-
-    # Apply max_results limit if specified
-    if max_results and len(place_ids) > max_results:
-        place_ids = place_ids[:max_results]
 
     print(f"\n=== Search Summary ===")
     print(f"Total unique places found: {len(place_ids)}")
+    if max_results and len(place_ids) >= max_results:
+        print(f"Stopped early due to max_results limit ({max_results})")
 
     run.total_items = len(place_ids)
     session.add(run)
