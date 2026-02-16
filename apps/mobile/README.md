@@ -60,3 +60,22 @@ Configure `app.json` / `app.config.js` (icons, splash, scheme). Submit to App St
 - `screens/` – Screen components (e.g. `SettingsScreen` with language picker; add auth, home, places, groups, profile to match web flows).
 
 Design reference: `DESIGN_FILE.html` at repo root. Use the same translation keys and API shapes as `apps/web` (see `.cursor/rules/i18n-translations.mdc` and `.cursor/rules/frontend-replication.mdc`).
+
+## Performance Optimization
+
+### TODO: Image Caching
+
+The app currently loads images without a caching layer, which can impact scroll performance and increase network usage. Consider integrating one of these solutions:
+
+- **expo-image** (recommended for Expo SDK 54+) - Built-in image component with caching
+- **react-native-fast-image** - Fast image loading with disk and memory caching
+- **@react-native-community/image** - Community-maintained image component
+
+To integrate:
+```bash
+npx expo install expo-image
+# or
+npm install react-native-fast-image
+```
+
+Then replace `<Image>` components in PlaceCard, HomeScreen, PlaceDetailScreen, etc. with the cached version.

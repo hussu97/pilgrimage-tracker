@@ -494,6 +494,29 @@ def create_place(
     return _place_detail(row)
 
 
+@router.delete("/{place_code}")
+def delete_place(place_code: str):
+    """
+    Delete a place by code.
+
+    NOTE: This is a hard delete. Consider implementing soft deletes in the future
+    to preserve historical data (check-ins, reviews, etc.) associated with the place.
+    """
+    place = places_db.get_place_by_code(place_code)
+    if not place:
+        raise HTTPException(status_code=404, detail="Place not found")
+
+    # TODO: Add authorization check - only admins should be able to delete places
+    # TODO: Consider soft delete instead of hard delete to preserve references
+    # TODO: Handle cascade deletion of related data (images, reviews, check-ins, etc.)
+
+    # For now, document that deletion is intentionally not fully implemented
+    raise HTTPException(
+        status_code=501,
+        detail="Place deletion not implemented. Contact administrator to remove places."
+    )
+
+
 @router.get("/{place_code}/images/{image_id}")
 def get_place_image(
     place_code: str,

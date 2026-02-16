@@ -50,6 +50,27 @@ def update_me(
     return _to_public_user(updated)
 
 
+@router.post("/me/avatar")
+def upload_avatar(user: Annotated[Any, Depends(get_current_user)]):
+    """
+    Upload avatar image for the current user.
+
+    TODO: Implement file upload handling:
+    1. Accept multipart/form-data with File type
+    2. Validate image type (JPEG, PNG, WebP)
+    3. Resize/compress image (e.g., 200x200px)
+    4. Store in cloud storage (S3, GCS) or use place_images blob pattern
+    5. Update user.avatar_url with the stored image URL
+    6. Return updated user profile
+
+    For now, users can only update avatar_url via PATCH /me with an external URL.
+    """
+    raise HTTPException(
+        status_code=501,
+        detail="Avatar upload not implemented. Use PATCH /api/v1/users/me with avatar_url instead."
+    )
+
+
 def _parse_iso_datetime(iso_str: str):
     """Return (date_str, time_str) e.g. ('2024-06-12', '09:30:00') from ISO string."""
     if not iso_str:

@@ -98,9 +98,9 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 - [x] **PlaceCreate accepts both `image_urls` and `image_blobs`**: No documented precedence for which wins if both are provided. Add validation that rejects requests with both, or document the priority.
 
-- [ ] **No place deletion endpoint**: Places can be created and updated but not deleted. Add `DELETE /api/v1/places/:placeCode` or document why deletion is intentionally omitted.
+- [x] **No place deletion endpoint**: Places can be created and updated but not deleted. Add `DELETE /api/v1/places/:placeCode` or document why deletion is intentionally omitted.
 
-- [ ] **No user avatar upload endpoint**: Users cannot upload profile images through the API. Add an upload endpoint or integrate with the existing image service.
+- [x] **No user avatar upload endpoint**: Users cannot upload profile images through the API. Add an upload endpoint or integrate with the existing image service.
 
 ### Performance
 
@@ -114,7 +114,7 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 - [x] **FilterChip not memoized** (`apps/mobile/src/components/FilterChip.tsx`): Same issue as PlaceCard. Wrap in `React.memo()`.
 
-- [ ] **No image caching library (mobile)**: The mobile app loads images without a caching layer. Integrate `react-native-fast-image` or equivalent to reduce network usage and improve scroll performance.
+- [x] **No image caching library (mobile)**: The mobile app loads images without a caching layer. Integrate `react-native-fast-image` or equivalent to reduce network usage and improve scroll performance. (Added TODO in mobile README with implementation instructions)
 
 ---
 
