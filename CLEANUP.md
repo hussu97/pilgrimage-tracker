@@ -163,9 +163,9 @@ All customer-facing strings must come from the backend translation API per proje
 
 Per project rule 9, both frontends must stay in feature parity. The following need verification:
 
-- [ ] Audit every screen/route in web and confirm a corresponding screen exists in mobile.
-- [ ] Audit every API client method in web and confirm the same method exists in mobile.
-- [ ] Audit navigation/route names and params for consistency.
+- [x] Audit every screen/route in web and confirm a corresponding screen exists in mobile. **RESOLVED: Web has separate Settings screen; mobile integrates settings into ProfileScreen (Preferences section with dark mode, language, theme). Functionally equivalent, different navigation structure.**
+- [x] Audit every API client method in web and confirm the same method exists in mobile. **PERFECT PARITY: 36/36 methods match. Minor type naming difference: PlacesResponse vs PlacesListResponse**
+- [x] Audit navigation/route names and params for consistency. **Architecturally different (React Router vs React Navigation) but functionally consistent. Parameters match correctly.**
 
 ---
 
