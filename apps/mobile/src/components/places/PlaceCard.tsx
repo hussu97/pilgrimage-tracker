@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -36,7 +37,13 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
       >
         <View style={styles.compactImageWrap}>
           {imageUrl ? (
-            <Image source={{ uri: imageUrl }} style={styles.compactImage} resizeMode="cover" />
+            <Image
+              source={{ uri: imageUrl }}
+              style={styles.compactImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
+            />
           ) : (
             <View style={styles.compactImagePlaceholder}>
               <MaterialIcons name="location-on" size={32} color={tokens.colors.textMuted} />
@@ -78,7 +85,13 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
     >
       {/* Background image */}
       {imageUrl ? (
-        <Image source={{ uri: imageUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image
+          source={{ uri: imageUrl }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={200}
+        />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.imageFallback]}>
           <MaterialIcons name="location-on" size={48} color="rgba(255,255,255,0.4)" />

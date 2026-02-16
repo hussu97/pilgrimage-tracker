@@ -63,19 +63,12 @@ Design reference: `DESIGN_FILE.html` at repo root. Use the same translation keys
 
 ## Performance Optimization
 
-### TODO: Image Caching
+### Image Caching
 
-The app currently loads images without a caching layer, which can impact scroll performance and increase network usage. Consider integrating one of these solutions:
+The app uses **expo-image** for all place and review images with aggressive memory-disk caching enabled. This provides:
+- Fast image loading with disk and memory cache
+- Smooth fade-in transitions (200ms)
+- Reduced network usage and improved scroll performance
+- Automatic cache management
 
-- **expo-image** (recommended for Expo SDK 54+) - Built-in image component with caching
-- **react-native-fast-image** - Fast image loading with disk and memory caching
-- **@react-native-community/image** - Community-maintained image component
-
-To integrate:
-```bash
-npx expo install expo-image
-# or
-npm install react-native-fast-image
-```
-
-Then replace `<Image>` components in PlaceCard, HomeScreen, PlaceDetailScreen, etc. with the cached version.
+All place images (PlaceCard, PlaceDetailScreen hero, DeityCircle) and review photos use `ExpoImage` with `cachePolicy="memory-disk"` for optimal performance.

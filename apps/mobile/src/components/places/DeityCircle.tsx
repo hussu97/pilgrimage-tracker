@@ -1,4 +1,5 @@
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { tokens } from '../../lib/theme';
 import type { PlaceTiming } from '../../lib/types';
 
@@ -11,7 +12,13 @@ export default function DeityCircle({ item }: DeityCircleProps) {
     <View style={styles.item}>
       <View style={[styles.circle, styles.deityCircle]}>
         {item.image_url ? (
-          <Image source={{ uri: item.image_url }} style={styles.deityImage} />
+          <Image
+            source={{ uri: item.image_url }}
+            style={styles.deityImage}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={200}
+          />
         ) : (
           <Text style={styles.deityEmoji}>🛕</Text>
         )}

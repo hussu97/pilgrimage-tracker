@@ -269,7 +269,13 @@ export default function PlaceDetailScreen() {
         ]}
       >
         {heroImage ? (
-          <Image source={{ uri: heroImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          <ExpoImage
+            source={{ uri: heroImage }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={200}
+          />
         ) : (
           <View style={[StyleSheet.absoluteFill, styles.heroPlaceholder]}>
             <MaterialIcons name="location-city" size={64} color="rgba(255,255,255,0.5)" />

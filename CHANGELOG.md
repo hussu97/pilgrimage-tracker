@@ -4,6 +4,22 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Place Image Caching Optimization - Mobile (2026-02-16)
+
+### Frontend (mobile)
+
+- **ExpoImage Migration:** Replaced React Native's basic `Image` component with `ExpoImage` for all place-related images
+- **Aggressive Caching:** Added `cachePolicy="memory-disk"` to place images (PlaceCard, PlaceDetailScreen hero, DeityCircle)
+- **Smooth Transitions:** Added 200ms fade-in transitions for better UX
+- **Components Updated:**
+  - PlaceCard: Both compact (96x96) and regular (full-card background) image variants
+  - PlaceDetailScreen: Hero image (300px height)
+  - DeityCircle: Deity/timing carousel images (76x76 circular)
+- **Performance Impact:** Significant reduction in network usage and improved scroll performance, especially for place lists and map scrollers
+- **Documentation:** Updated apps/mobile/README.md to reflect image caching implementation (removed TODO)
+
+---
+
 ## Review Photo Upload & Image Caching (2026-02-16)
 
 ### Backend
