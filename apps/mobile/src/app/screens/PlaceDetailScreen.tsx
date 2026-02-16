@@ -60,6 +60,7 @@ export default function PlaceDetailScreen() {
   const [checkInDone, setCheckInDone] = useState(false);
   const [checkInDate, setCheckInDate] = useState('');
   const [storyExpanded, setStoryExpanded] = useState(false);
+  const [hoursExpanded, setHoursExpanded] = useState(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const checkInScale = useRef(new Animated.Value(1)).current;
@@ -406,6 +407,61 @@ export default function PlaceDetailScreen() {
                   {storyExpanded ? t('common.readLess') : t('common.readMore')}
                 </Text>
               </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {/* Opening Hours */}
+          {place.opening_hours && Object.keys(place.opening_hours).length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>{t('places.openingHours')}</Text>
+              <View style={styles.hoursCard}>
+                {!hoursExpanded ? (
+                  // Collapsed state: Show today's hours
+                  <TouchableOpacity
+                    onPress={() => setHoursExpanded(true)}
+                    activeOpacity={0.7}
+                    style={styles.hoursCollapsed}
+                  >
+                    <View style={styles.hoursCollapsedLeft}>
+                      <MaterialIcons name="schedule" size={18} color={tokens.colors.primary} />
+                      <Text style={styles.hoursToday}>
+                        {t('places.today')}:
+                      </Text>
+                      <Text style={styles.hoursTodayValue}>
+                        {place.opening_hours_today || t('places.hoursNotAvailable')}
+                      </Text>
+                    </View>
+                    <MaterialIcons name="expand-more" size={20} color={tokens.colors.textMuted} />
+                  </TouchableOpacity>
+                ) : (
+                  // Expanded state: Show full weekly schedule
+                  <View style={styles.hoursExpanded}>
+                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
+                      const hours = place.opening_hours?.[day];
+                      const isToday = place.opening_hours_today && place.opening_hours?.[day] === place.opening_hours_today;
+
+                      return (
+                        <View key={day} style={styles.hoursRow}>
+                          <Text style={[styles.hoursDay, isToday && styles.hoursDayToday]}>
+                            {day}
+                          </Text>
+                          <Text style={[styles.hoursValue, isToday && styles.hoursValueToday]}>
+                            {hours === 'Closed' ? t('places.closed') : hours === '00:00-23:59' ? t('places.open24Hours') : hours || t('places.hoursNotAvailable')}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                    <TouchableOpacity
+                      onPress={() => setHoursExpanded(false)}
+                      activeOpacity={0.7}
+                      style={styles.hoursCollapseBtn}
+                    >
+                      <Text style={styles.hoursCollapseBtnText}>{t('common.showLess')}</Text>
+                      <MaterialIcons name="expand-less" size={20} color={tokens.colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
             </View>
           ) : null}
 
@@ -800,6 +856,72 @@ const styles = StyleSheet.create({
   readMore: {
     marginTop: 8,
     fontSize: 13,
+    fontWeight: '600',
+    color: tokens.colors.primary,
+  },
+
+  /* Opening Hours */
+  hoursCard: {
+    backgroundColor: tokens.colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: tokens.colors.inputBorder,
+    padding: 16,
+  },
+  hoursCollapsed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  hoursCollapsedLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  hoursToday: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: tokens.colors.textMain,
+  },
+  hoursTodayValue: {
+    fontSize: 14,
+    color: tokens.colors.textSecondary,
+  },
+  hoursExpanded: {
+    gap: 12,
+  },
+  hoursRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+  },
+  hoursDay: {
+    fontSize: 14,
+    color: tokens.colors.textSecondary,
+  },
+  hoursDayToday: {
+    fontWeight: '600',
+    color: tokens.colors.primary,
+  },
+  hoursValue: {
+    fontSize: 14,
+    color: tokens.colors.textSecondary,
+  },
+  hoursValueToday: {
+    fontWeight: '600',
+    color: tokens.colors.primary,
+  },
+  hoursCollapseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingTop: 8,
+  },
+  hoursCollapseBtnText: {
+    fontSize: 14,
     fontWeight: '600',
     color: tokens.colors.primary,
   },

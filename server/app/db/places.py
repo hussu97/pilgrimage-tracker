@@ -7,6 +7,7 @@ from sqlmodel import Session, select, or_
 from app.db.models import Place
 from app.db.session import engine
 from app.db import place_attributes as attr_db
+from app.services.timezone_utils import get_local_now
 
 Religion = Literal["islam", "hinduism", "christianity"]
 
@@ -25,7 +26,7 @@ def _parse_time(s: str) -> Optional[tuple]:
     return None
 
 
-def _is_open_now_from_hours(opening_hours: Optional[Dict[str, Any]]) -> Optional[bool]:
+def _is_open_now_from_hours(opening_hours: Optional[Dict[str, Any]], utc_offset_minutes: Optional[int] = None) -> Optional[bool]:
     if not opening_hours or not isinstance(opening_hours, dict):
         return None
 
@@ -35,7 +36,12 @@ def _is_open_now_from_hours(opening_hours: Optional[Dict[str, Any]]) -> Optional
 
     if is_per_day_format:
         # Per-day format: {"Monday": "04:00-23:59", "Tuesday": "Closed", ...}
-        now = datetime.now(timezone.utc)
+        # Use local time if offset is available, otherwise fall back to UTC
+        if utc_offset_minutes is not None:
+            now = get_local_now(utc_offset_minutes)
+        else:
+            now = datetime.now(timezone.utc)  # fallback for legacy data
+
         current_day = now.strftime("%A")  # e.g., "Monday"
         today_hours = opening_hours.get(current_day)
 
@@ -75,7 +81,13 @@ def _is_open_now_from_hours(opening_hours: Optional[Dict[str, Any]]) -> Optional
         closes = opening_hours.get("closes")
         if opens is None and closes is None:
             return None
-        now = datetime.now(timezone.utc).time()
+
+        # Use local time if offset is available, otherwise fall back to UTC
+        if utc_offset_minutes is not None:
+            now = get_local_now(utc_offset_minutes).time()
+        else:
+            now = datetime.now(timezone.utc).time()  # fallback for legacy data
+
         open_t = _parse_time(opens) if opens else (0, 0)
         close_t = _parse_time(closes) if closes else (23, 59)
         if open_t is None and close_t is None:
@@ -113,6 +125,7 @@ def create_place(
     lng: float,
     address: str,
     opening_hours: Optional[Dict[str, str]] = None,
+    utc_offset_minutes: Optional[int] = None,
     description: Optional[str] = None,
     website_url: Optional[str] = None,
     source: Optional[str] = None,
@@ -127,6 +140,7 @@ def create_place(
             lng=lng,
             address=address,
             opening_hours=opening_hours,
+            utc_offset_minutes=utc_offset_minutes,
             description=description,
             website_url=website_url,
             source=source,
@@ -146,6 +160,7 @@ def update_place(
     lng: Optional[float] = None,
     address: Optional[str] = None,
     opening_hours: Optional[Dict[str, str]] = None,
+    utc_offset_minutes: Optional[int] = None,
     description: Optional[str] = None,
     website_url: Optional[str] = None,
     source: Optional[str] = None,
@@ -162,6 +177,7 @@ def update_place(
         if lng is not None: place.lng = lng
         if address is not None: place.address = address
         if opening_hours is not None: place.opening_hours = opening_hours
+        if utc_offset_minutes is not None: place.utc_offset_minutes = utc_offset_minutes
         if description is not None: place.description = description
         if website_url is not None: place.website_url = website_url
         if source is not None: place.source = source
@@ -298,7 +314,7 @@ def list_places(
                 "key": "open_now",
                 "label": "Open Now",
                 "icon": "schedule",
-                "count": count_filter(lambda p: bool(_is_open_now_from_hours(p.opening_hours))),
+                "count": count_filter(lambda p: bool(_is_open_now_from_hours(p.opening_hours, p.utc_offset_minutes))),
             },
             {
                 "key": "top_rated",
@@ -329,7 +345,7 @@ def list_places(
 
         # Apply active filters (using pre-fetched data)
         if open_now is True:
-            result = [(p, d) for p, d in result if _is_open_now_from_hours(p.opening_hours) is True]
+            result = [(p, d) for p, d in result if _is_open_now_from_hours(p.opening_hours, p.utc_offset_minutes) is True]
         if has_parking is True:
             result = [(p, d) for p, d in result if _place_has_parking(p, all_attrs.get(p.place_code, {}))]
         if womens_area is True:

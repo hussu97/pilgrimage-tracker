@@ -18,6 +18,8 @@ export interface Place {
   distance?: number;
   description?: string;
   opening_hours?: Record<string, string>;
+  utc_offset_minutes?: number;
+  opening_hours_today?: string;
   attributes?: Record<string, unknown>;
   user_has_checked_in?: boolean;
   is_favorite?: boolean;

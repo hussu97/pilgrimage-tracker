@@ -5,6 +5,7 @@ from typing import Optional
 from sqlmodel import Session
 
 from app.db import place_attributes as attr_db
+from app.services.timezone_utils import get_local_now
 
 
 def build_timings(place, attrs: Optional[dict] = None, session: Optional[Session] = None) -> list:
@@ -49,7 +50,12 @@ def build_timings(place, attrs: Optional[dict] = None, session: Optional[Session
     # Islam: prayer times with past/current/upcoming status
     prayer_times = attrs.get("prayer_times", {})
     if prayer_times and isinstance(prayer_times, dict):
-        now = datetime.now(timezone.utc)
+        # Use place's local time if offset is available
+        utc_offset = getattr(place, "utc_offset_minutes", None)
+        if utc_offset is not None:
+            now = get_local_now(utc_offset)
+        else:
+            now = datetime.now(timezone.utc)  # fallback for legacy data
         now_mins = now.hour * 60 + now.minute
         prayer_order = ["fajr", "dhuhr", "asr", "maghrib", "isha"]
         times_mins: dict = {}
@@ -89,7 +95,12 @@ def build_timings(place, attrs: Optional[dict] = None, session: Optional[Session
     service_times = attrs.get("service_times")
     service_times_array = service_times if isinstance(service_times, list) else []
     if service_times_array and isinstance(service_times_array, list):
-        now = datetime.now(timezone.utc)
+        # Use place's local time if offset is available
+        utc_offset = getattr(place, "utc_offset_minutes", None)
+        if utc_offset is not None:
+            now = get_local_now(utc_offset)
+        else:
+            now = datetime.now(timezone.utc)  # fallback for legacy data
         today_name = now.strftime("%A")
         now_mins = now.hour * 60 + now.minute
         next_idx = None

@@ -79,16 +79,15 @@ def clean_address(address):
     """Removes Google Plus Codes from address."""
     return re.sub(r'^[A-Z0-9]{4}\+[A-Z0-9]{2,3}\s*(-\s*)?', '', address).strip()
 
-def convert_to_utc_24h(time_str, utc_offset_hours=4):
+def normalize_to_24h(time_str):
     """
-    Converts local time string (12h) to UTC time string (24h).
+    Converts local time string from 12h format to 24h format, keeping it in local time.
 
     Args:
         time_str: Time string in 12h format (e.g., "9:00 AM - 5:00 PM")
-        utc_offset_hours: Hours ahead of UTC (default 4 for UAE/GST)
 
-    TODO: Implement timezone-aware handling using pytz or zoneinfo based on place coordinates.
-    This would require looking up the timezone from lat/lng and converting properly.
+    Returns:
+        Time string in 24h format (e.g., "09:00-17:00") in local time
     """
     if "open 24 hours" in time_str.lower():
         return "00:00-23:59"
@@ -99,19 +98,18 @@ def convert_to_utc_24h(time_str, utc_offset_hours=4):
     if len(times) != 2:
         return time_str
 
-    utc_times = []
+    local_times = []
     for t in times:
         try:
             dt = datetime.strptime(t.strip(), "%I:%M %p")
-            utc_dt = dt - timedelta(hours=utc_offset_hours)
-            utc_times.append(utc_dt.strftime("%H:%M"))
+            local_times.append(dt.strftime("%H:%M"))
         except ValueError:
             return time_str
 
-    return f"{utc_times[0]}-{utc_times[1]}"
+    return f"{local_times[0]}-{local_times[1]}"
 
 def process_weekly_hours(opening_hours_dict):
-    """Returns a dictionary with a key for each day of the week in UTC."""
+    """Returns a dictionary with a key for each day of the week in local time (24h format)."""
     schedule = {day: "Hours not available" for day in
                 ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
 
@@ -120,7 +118,7 @@ def process_weekly_hours(opening_hours_dict):
         parts = day_string.split(": ", 1)
         if len(parts) == 2:
             day, hours_str = parts[0], parts[1]
-            schedule[day] = convert_to_utc_24h(hours_str)
+            schedule[day] = normalize_to_24h(hours_str)
 
     return schedule
 
@@ -153,7 +151,7 @@ def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
     """Fetch detailed information for a single place. Auto-detects religion from types."""
     url = "https://maps.googleapis.com/maps/api/place/details/json"
 
-    fields = "name,formatted_address,vicinity,geometry,opening_hours,wheelchair_accessible_entrance,rating,user_ratings_total,url,photos,business_status,reviews,editorial_summary,types"
+    fields = "name,formatted_address,vicinity,geometry,opening_hours,utc_offset,wheelchair_accessible_entrance,rating,user_ratings_total,url,photos,business_status,reviews,editorial_summary,types"
     params = {
         "place_id": place_id,
         "fields": fields,
@@ -268,6 +266,7 @@ def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
         "description": description,
         "website_url": result.get("url", ""),
         "opening_hours": opening_hours,
+        "utc_offset_minutes": result.get("utc_offset"),  # int, minutes from UTC
         "attributes": attributes,
         "external_reviews": external_reviews,
         "source": "gmaps",

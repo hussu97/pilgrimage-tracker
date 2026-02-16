@@ -4,6 +4,69 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Timezone-Aware Opening Hours & Timings (2026-02-16)
+
+### Backend
+
+- **Timezone Utilities:** Created `server/app/services/timezone_utils.py` with offset-based time utilities (`get_local_now()`, `get_today_name()`, `format_utc_offset()`) using Python stdlib only
+- **Place Model:** Added `utc_offset_minutes` field (integer) to `Place` model to store UTC offset in minutes (e.g., 240 for UTC+4, 330 for UTC+5:30)
+- **Opening Hours Storage:** Changed to store **local times** (not UTC) in 24-hour format (e.g., "09:00-17:00") to preserve place's local timezone
+- **Scraper Updates:**
+  - Added `utc_offset` field to Google Maps API request to extract UTC offset from API response
+  - Renamed `convert_to_utc_24h()` to `normalize_to_24h()` and removed UTC conversion logic
+  - Updated `process_weekly_hours()` to return local times instead of UTC times
+  - Modified `get_place_details()` to extract and include `utc_offset_minutes` in place data
+- **is_open_now Calculation:** Rewrote `_is_open_now_from_hours()` to accept `utc_offset_minutes` parameter and compute using place's local time
+- **Timings Calculation:** Updated `build_timings()` to use place's UTC offset for prayer/service time status (past/current/upcoming)
+- **API Response Changes:**
+  - Added `utc_offset_minutes` field to place responses
+  - Added `opening_hours_today` computed field showing today's hours in local time
+  - `opening_hours` now contains local times instead of UTC times
+  - Updated `_place_to_item()` to compute today's day name based on place's local time
+- **Place Creation:** Updated `create_place()` and `update_place()` functions to accept and store `utc_offset_minutes`
+- **Schemas:** Added `utc_offset_minutes` and `opening_hours_today` fields to `PlaceListItem` and `PlaceCreate` schemas
+- **Backfill Script:** Created `server/app/jobs/backfill_timezones.py` to migrate existing places (set offset=240 for UAE, convert UTC hours to local time)
+
+### Data Scraper
+
+- **Google Maps Integration:** Now extracts `utc_offset` field from Google Maps Places API (no additional API calls needed)
+- **Local Time Storage:** Opening hours stored in local time as provided by Google Maps, no UTC conversion
+- **Place Data:** Scraper includes `utc_offset_minutes` when creating/updating places via ingestion API
+
+### Frontend (web)
+
+- **TypeScript Types:** Added `utc_offset_minutes?: number` and `opening_hours_today?: string` fields to `Place` interface
+- **Opening Hours Display:** Added collapsible "Opening Hours" section to PlaceDetail page:
+  - Collapsed state: Shows today's hours inline ("Today: 08:00 - 00:00")
+  - Expanded state: Shows full weekly schedule with today highlighted
+  - Handles special cases: "Closed", "Open 24 Hours", missing hours
+- **UI Components:** Uses Material Icons for schedule icon and expand/collapse controls
+
+### Frontend (mobile)
+
+- **TypeScript Types:** Added `utc_offset_minutes?: number` and `opening_hours_today?: string` fields to `Place` interface
+- **Opening Hours Display:** Added collapsible "Opening Hours" section to PlaceDetailScreen:
+  - Collapsed state: Shows today's hours inline with schedule icon
+  - Expanded state: Shows full weekly schedule with today highlighted
+  - Matches web design with React Native primitives (View, Text, TouchableOpacity)
+- **Styling:** Added comprehensive styles for opening hours card, rows, and collapse button
+
+### Translations
+
+- **i18n Keys Added:**
+  - `places.openingHours` — "Opening Hours" / "ساعات العمل" / "खुलने का समय"
+  - `places.today` — "Today" / "اليوم" / "आज"
+  - `places.open24Hours` — "Open 24 Hours" / "مفتوح 24 ساعة" / "24 घंटे खुला"
+  - `places.hoursNotAvailable` — "Hours not available" / "الساعات غير متوفرة" / "समय उपलब्ध नहीं"
+  - `common.showLess` — "Show less" / "إظهار أقل" / "कम दिखाएं"
+
+### Docs
+
+- **ARCHITECTURE.md:** Added section 8.6 "Timezone Handling" documenting design decision, API response changes, DST limitations, and upgrade path
+- **Place Model Documentation:** Updated to include `utc_offset_minutes` field description
+
+---
+
 ## Place Image Caching Optimization - Mobile (2026-02-16)
 
 ### Frontend (mobile)
