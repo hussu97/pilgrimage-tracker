@@ -17,6 +17,7 @@ from app.db import review_images
 from app.models.schemas import CheckInBody, ReviewCreateBody, PlacesListResponse, PlaceCreate
 from app.services.place_timings import build_timings
 from app.services.place_specifications import build_specifications
+from app.services.timezone_utils import get_today_name
 
 router = APIRouter()
 
@@ -50,8 +51,23 @@ def _place_to_item(place, distance: Optional[float] = None, include_rating: bool
         "created_at": place.created_at,
         "distance": d,
     }
-    is_open = places_db._is_open_now_from_hours(place.opening_hours)
+
+    # Add UTC offset
+    utc_offset_minutes = getattr(place, "utc_offset_minutes", None)
+    if utc_offset_minutes is not None:
+        out["utc_offset_minutes"] = utc_offset_minutes
+
+    # Compute is_open_now using place's local time
+    is_open = places_db._is_open_now_from_hours(place.opening_hours, utc_offset_minutes)
     out["is_open_now"] = is_open
+
+    # Add opening_hours_today - today's hours in local time
+    if place.opening_hours and isinstance(place.opening_hours, dict):
+        today_name = get_today_name(utc_offset_minutes)
+        today_hours = place.opening_hours.get(today_name)
+        if today_hours:
+            out["opening_hours_today"] = today_hours
+
     if getattr(place, "website_url", None):
         out["website_url"] = place.website_url
     out["has_events"] = places_db._place_has_events(place, attrs)
@@ -328,6 +344,7 @@ def create_place(
             lng=body.lng,
             address=body.address,
             opening_hours=body.opening_hours,
+            utc_offset_minutes=getattr(body, "utc_offset_minutes", None),
             description=body.description,
             website_url=body.website_url,
             source=body.source,
@@ -342,6 +359,7 @@ def create_place(
             lng=body.lng,
             address=body.address,
             opening_hours=body.opening_hours,
+            utc_offset_minutes=getattr(body, "utc_offset_minutes", None),
             description=body.description,
             website_url=body.website_url,
             source=body.source,

@@ -113,6 +113,8 @@ class PlaceListItem(BaseModel):
     lng: float
     address: str
     opening_hours: Optional[dict] = None
+    utc_offset_minutes: Optional[int] = None
+    opening_hours_today: Optional[str] = None
     image_urls: List[str] = []
     description: Optional[str] = None
     created_at: str
@@ -143,6 +145,7 @@ class PlaceCreate(BaseModel):
     lng: float
     address: str
     opening_hours: Optional[dict] = None
+    utc_offset_minutes: Optional[int] = None
     image_urls: List[str] = []  # Still accepted during sync, stored as PlaceImage rows
     image_blobs: Optional[List[dict]] = None  # [{"data": "base64...", "mime_type": "image/jpeg"}]
     description: Optional[str] = None

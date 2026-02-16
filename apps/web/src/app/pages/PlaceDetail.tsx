@@ -172,6 +172,7 @@ export default function PlaceDetail() {
   const [checkInDone, setCheckInDone] = useState(false);
   const [checkInDate, setCheckInDate] = useState('');
   const [storyExpanded, setStoryExpanded] = useState(false);
+  const [hoursExpanded, setHoursExpanded] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(false);
 
   useEffect(() => {
@@ -544,6 +545,64 @@ export default function PlaceDetail() {
               </section>
             )}
 
+            {/* Opening Hours */}
+            {place.opening_hours && Object.keys(place.opening_hours).length > 0 && (
+              <section>
+                <h2 className="text-lg font-bold text-text-main mb-3">{t('places.openingHours')}</h2>
+                <div className="rounded-xl border border-input-border bg-white p-4">
+                  {!hoursExpanded ? (
+                    // Collapsed state: Show today's hours
+                    <button
+                      type="button"
+                      onClick={() => setHoursExpanded(true)}
+                      className="w-full flex items-center justify-between text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary text-[20px]">schedule</span>
+                        <span className="text-sm font-semibold text-text-main">
+                          {t('places.today')}:
+                        </span>
+                        <span className="text-sm text-text-secondary">
+                          {place.opening_hours_today || t('places.hoursNotAvailable')}
+                        </span>
+                      </div>
+                      <span className="material-symbols-outlined text-text-muted text-[20px]">expand_more</span>
+                    </button>
+                  ) : (
+                    // Expanded state: Show full weekly schedule
+                    <div className="space-y-3">
+                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
+                        const hours = place.opening_hours?.[day];
+                        const isToday = place.opening_hours_today && place.opening_hours?.[day] === place.opening_hours_today;
+
+                        return (
+                          <div
+                            key={day}
+                            className={`flex items-center justify-between py-2 ${
+                              isToday ? 'font-semibold text-primary' : 'text-text-secondary'
+                            }`}
+                          >
+                            <span className="text-sm">{day}</span>
+                            <span className="text-sm">
+                              {hours === 'Closed' ? t('places.closed') : hours === '00:00-23:59' ? t('places.open24Hours') : hours || t('places.hoursNotAvailable')}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={() => setHoursExpanded(false)}
+                        className="w-full flex items-center justify-center gap-2 pt-2 text-sm font-semibold text-primary hover:text-primary-hover"
+                      >
+                        <span>{t('common.showLess')}</span>
+                        <span className="material-symbols-outlined text-[20px]">expand_less</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
             {/* Carousel */}
             {timings.length > 0 && (
               <section>
@@ -616,6 +675,64 @@ export default function PlaceDetail() {
                 >
                   {storyExpanded ? t('common.readLess') : t('common.readMore')}
                 </button>
+              </section>
+            )}
+
+            {/* Opening Hours */}
+            {place.opening_hours && Object.keys(place.opening_hours).length > 0 && (
+              <section>
+                <h2 className="text-xl font-bold text-text-main mb-4">{t('places.openingHours')}</h2>
+                <div className="rounded-xl border border-input-border bg-white p-5">
+                  {!hoursExpanded ? (
+                    // Collapsed state: Show today's hours
+                    <button
+                      type="button"
+                      onClick={() => setHoursExpanded(true)}
+                      className="w-full flex items-center justify-between text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-primary text-[22px]">schedule</span>
+                        <span className="text-sm font-semibold text-text-main">
+                          {t('places.today')}:
+                        </span>
+                        <span className="text-sm text-text-secondary">
+                          {place.opening_hours_today || t('places.hoursNotAvailable')}
+                        </span>
+                      </div>
+                      <span className="material-symbols-outlined text-text-muted text-[22px]">expand_more</span>
+                    </button>
+                  ) : (
+                    // Expanded state: Show full weekly schedule
+                    <div className="space-y-3">
+                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
+                        const hours = place.opening_hours?.[day];
+                        const isToday = place.opening_hours_today && place.opening_hours?.[day] === place.opening_hours_today;
+
+                        return (
+                          <div
+                            key={day}
+                            className={`flex items-center justify-between py-2 ${
+                              isToday ? 'font-semibold text-primary' : 'text-text-secondary'
+                            }`}
+                          >
+                            <span className="text-sm">{day}</span>
+                            <span className="text-sm">
+                              {hours === 'Closed' ? t('places.closed') : hours === '00:00-23:59' ? t('places.open24Hours') : hours || t('places.hoursNotAvailable')}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={() => setHoursExpanded(false)}
+                        className="w-full flex items-center justify-center gap-2 pt-2 text-sm font-semibold text-primary hover:text-primary-hover"
+                      >
+                        <span>{t('common.showLess')}</span>
+                        <span className="material-symbols-outlined text-[22px]">expand_less</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </section>
             )}
 

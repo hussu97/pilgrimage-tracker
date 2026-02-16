@@ -34,6 +34,7 @@ class Place(SQLModel, table=True):
     lng: float
     address: str
     opening_hours: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
+    utc_offset_minutes: Optional[int] = None  # e.g., 240 for UTC+4 (UAE), 330 for UTC+5:30 (India)
     description: Optional[str] = None
     website_url: Optional[str] = None
     source: Optional[str] = None  # gmaps, overpass, manual
