@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/app/providers';
 import { useI18n } from '@/app/providers';
 import { getMyStats } from '@/lib/api/client';
-import ErrorState from '@/components/ErrorState';
+import ErrorState from '@/components/common/ErrorState';
 import type { UserStats } from '@/lib/types';
 
 const APP_VERSION = '2.4.0';

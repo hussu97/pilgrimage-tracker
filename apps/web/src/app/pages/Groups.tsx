@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useI18n } from '@/app/providers';
 import { getGroups } from '@/lib/api/client';
-import EmptyState from '@/components/EmptyState';
-import ErrorState from '@/components/ErrorState';
+import EmptyState from '@/components/common/EmptyState';
+import ErrorState from '@/components/common/ErrorState';
 import type { Group } from '@/lib/types';
 
 function formatRelative(iso: string | null | undefined): string {

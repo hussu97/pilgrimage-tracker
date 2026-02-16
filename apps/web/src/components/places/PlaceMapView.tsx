@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { Place } from '@/lib/types';
-import PlacesMap from '@/components/PlacesMap';
+import PlacesMap from '@/components/places/PlacesMap';
 
 interface PlaceMapViewProps {
   places: Place[];

@@ -23,7 +23,7 @@ import { getPlaces } from '../../lib/api/client';
 import type { Place, FilterOption } from '../../lib/types';
 import type { RootStackParamList } from '../navigation';
 import { tokens } from '../../lib/theme';
-import PlaceCard from '../../components/PlaceCard';
+import PlaceCard from '../../components/places/PlaceCard';
 import HomeHeader from '../../components/places/HomeHeader';
 import SearchFilterBar from '../../components/places/SearchFilterBar';
 import FilterChipsList from '../../components/places/FilterChipsList';

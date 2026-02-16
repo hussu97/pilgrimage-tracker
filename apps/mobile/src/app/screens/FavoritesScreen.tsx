@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 type MainTabParamList = { Home: undefined; Favorites: undefined; Groups: undefined; Profile: undefined };
 import { useAuth, useI18n } from '../providers';
 import { getMyFavorites, removeFavorite } from '../../lib/api/client';
-import PlaceCard from '../../components/PlaceCard';
+import PlaceCard from '../../components/places/PlaceCard';
 import type { Place } from '../../lib/types';
 import { tokens } from '../../lib/theme';
 

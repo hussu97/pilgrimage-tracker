@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useI18n } from '@/app/providers';
 import { getMyFavorites, removeFavorite } from '@/lib/api/client';
-import PlaceCard from '@/components/PlaceCard';
-import EmptyState from '@/components/EmptyState';
-import ErrorState from '@/components/ErrorState';
+import PlaceCard from '@/components/places/PlaceCard';
+import EmptyState from '@/components/common/EmptyState';
+import ErrorState from '@/components/common/ErrorState';
 import type { Place } from '@/lib/types';
 
 export default function Favorites() {

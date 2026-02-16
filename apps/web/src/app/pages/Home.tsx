@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
 import { getPlaces } from '@/lib/api/client';
-import FilterSheet from '@/components/FilterSheet';
+import FilterSheet from '@/components/places/FilterSheet';
 import HomeHeader from '@/components/places/HomeHeader';
 import PlaceListView from '@/components/places/PlaceListView';
 import PlaceMapView from '@/components/places/PlaceMapView';

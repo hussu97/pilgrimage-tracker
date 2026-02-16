@@ -1,7 +1,7 @@
 import { useSearchParams } from 'react-router-dom';
 import type { Place } from '@/lib/types';
-import EmptyState from '@/components/EmptyState';
-import ErrorState from '@/components/ErrorState';
+import EmptyState from '@/components/common/EmptyState';
+import ErrorState from '@/components/common/ErrorState';
 import PlaceCardUnified from './PlaceCardUnified';
 
 interface PlaceListViewProps {

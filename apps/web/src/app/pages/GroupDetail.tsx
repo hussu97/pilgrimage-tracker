@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useI18n } from '@/app/providers';
 import { getGroup, getGroupLeaderboard, getGroupActivity } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
-import ErrorState from '@/components/ErrorState';
+import ErrorState from '@/components/common/ErrorState';
 import type { Group, LeaderboardEntry, ActivityItem } from '@/lib/types';
 
 export default function GroupDetail() {
