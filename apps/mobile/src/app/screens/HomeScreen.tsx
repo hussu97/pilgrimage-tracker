@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -25,6 +24,10 @@ import type { Place, FilterOption } from '../../lib/types';
 import type { RootStackParamList } from '../navigation';
 import { tokens } from '../../lib/theme';
 import PlaceCard from '../../components/PlaceCard';
+import HomeHeader from '../../components/places/HomeHeader';
+import SearchFilterBar from '../../components/places/SearchFilterBar';
+import FilterChipsList from '../../components/places/FilterChipsList';
+import { buildMapHtml, formatDistance } from '../../lib/utils/mapBuilder';
 import { shareUrl, openDirections } from '../../lib/share';
 
 type ViewMode = 'list' | 'map';
@@ -40,88 +43,6 @@ interface ActiveFilters {
 
 function toCamel(s: string): string {
   return s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
-}
-
-function formatDistance(km: number): string {
-  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
-}
-
-function buildMapHtml(places: Place[], centerLat: number, centerLng: number): string {
-  const markers = places.map((p) => ({
-    lat: p.lat,
-    lng: p.lng,
-    name: p.name,
-    placeCode: p.place_code,
-    address: p.address || p.place_type || '',
-  }));
-
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body, #map { width: 100%; height: 100%; }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
-  <script>
-    var map = L.map('map', { zoomControl: true }).setView([${centerLat}, ${centerLng}], 13);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19
-    }).addTo(map);
-
-    var blueIcon = L.divIcon({
-      className: '',
-      html: '<div style="background:#007AFF;width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>',
-      iconSize: [32, 32],
-      iconAnchor: [16, 32],
-      popupAnchor: [0, -36]
-    });
-
-    var markers = ${JSON.stringify(markers)};
-
-    markers.forEach(function(m) {
-      var marker = L.marker([m.lat, m.lng], { icon: blueIcon }).addTo(map);
-      marker.bindPopup('<strong>' + m.name + '</strong><br/><small>' + m.address + '</small>');
-      marker.on('click', function() {
-        if (window.ReactNativeWebView) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ placeCode: m.placeCode }));
-        }
-      });
-    });
-
-    L.circleMarker([${centerLat}, ${centerLng}], {
-      radius: 8,
-      fillColor: '#007AFF',
-      color: '#fff',
-      weight: 3,
-      opacity: 1,
-      fillOpacity: 1
-    }).addTo(map).bindPopup('Your location');
-
-    function postBounds() {
-      if (!window.ReactNativeWebView) return;
-      var b = map.getBounds();
-      window.ReactNativeWebView.postMessage(JSON.stringify({
-        type: 'boundsChanged',
-        north: b.getNorth(),
-        south: b.getSouth(),
-        east: b.getEast(),
-        west: b.getWest()
-      }));
-    }
-    map.on('moveend', postBounds);
-    map.whenReady(function() { setTimeout(postBounds, 300); });
-  </script>
-</body>
-</html>`;
 }
 
 function makeStyles(isDark: boolean) {
@@ -579,75 +500,33 @@ export default function HomeScreen() {
 
       {/* Always-visible header area */}
       <View style={styles.headerArea}>
-        {/* Header row: greeting + toggle buttons */}
-        <View style={styles.header}>
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.greeting}>
-                {t('home.greeting')} <Text style={styles.greetingName}>{displayName}</Text>
-              </Text>
-            </View>
-            {/* List / Map toggle */}
-            <View style={styles.toggleGroup}>
-              <TouchableOpacity
-                style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
-                onPress={() => setViewMode('list')}
-                activeOpacity={0.8}
-              >
-                <MaterialIcons
-                  name="format-list-bulleted"
-                  size={20}
-                  color={viewMode === 'list' ? '#fff' : textSecondaryColor}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.toggleBtn, viewMode === 'map' && styles.toggleBtnActive]}
-                onPress={() => setViewMode('map')}
-                activeOpacity={0.8}
-              >
-                <MaterialIcons
-                  name="map"
-                  size={20}
-                  color={viewMode === 'map' ? '#fff' : textSecondaryColor}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* Search bar */}
-        <View style={styles.searchWrap}>
-          <MaterialIcons
-            name="search"
-            size={20}
-            color={textMutedColor}
-            style={styles.searchIconStyle}
-          />
-          <TextInput
-            style={styles.searchInput}
-            placeholder={t('home.findPlace')}
-            placeholderTextColor={textMutedColor}
-            value={search}
-            onChangeText={setSearch}
-          />
-          {search.length > 0 && (
-            <TouchableOpacity onPress={() => setSearch('')} style={{ marginRight: 4 }}>
-              <MaterialIcons name="close" size={18} color={textMutedColor} />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={[styles.filterIconBtn, hasActiveFilters && styles.filterIconBtnActive]}
-            onPress={() => { setPendingFilters(activeFilters); setFilterSheetOpen(true); }}
-            activeOpacity={0.75}
-          >
-            <MaterialIcons
-              name="tune"
-              size={20}
-              color={hasActiveFilters ? tokens.colors.primary : textMutedColor}
-            />
-            {hasActiveFilters && <View style={styles.filterDot} />}
-          </TouchableOpacity>
-        </View>
+        <HomeHeader
+          displayName={displayName}
+          viewMode={viewMode}
+          onViewModeToggle={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
+          isDark={isDark}
+          t={t}
+        />
+        <SearchFilterBar
+          search={search}
+          onSearchChange={setSearch}
+          onFilterPress={() => { setPendingFilters(activeFilters); setFilterSheetOpen(true); }}
+          hasActiveFilters={hasActiveFilters}
+          isDark={isDark}
+          t={t}
+        />
+        <FilterChipsList
+          activeFilters={activeFilters}
+          placeTypes={['Mosque', 'Temple', 'Church', 'Shrine', 'Monastery']}
+          onFilterToggle={(key, value) => {
+            if (key === 'placeType') {
+              setActiveFilters(prev => ({ ...prev, placeType: value }));
+            }
+          }}
+          onClearAll={() => setActiveFilters({})}
+          isDark={isDark}
+          t={t}
+        />
       </View>
 
       {/* Conditional content area */}
