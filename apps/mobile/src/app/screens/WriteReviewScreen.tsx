@@ -21,6 +21,7 @@ import { useI18n } from '@/app/providers';
 import type { RootStackParamList } from '@/app/navigation';
 import type { PlaceDetail } from '@/lib/types';
 import { tokens } from '@/lib/theme';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 
 interface UploadedImage {
   id: number;
@@ -197,7 +198,7 @@ export default function WriteReviewScreen() {
           </View>
           {place?.images?.[0]?.url ? (
             <Image
-              source={{ uri: place.images[0].url }}
+              source={{ uri: getFullImageUrl(place.images[0].url) }}
               style={styles.placeThumb}
             />
           ) : null}

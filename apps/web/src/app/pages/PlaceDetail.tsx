@@ -13,6 +13,7 @@ import type { PlaceDetail as PlaceDetailType, Review, PlaceTiming, PlaceSpecific
 import { useAuth } from '@/app/providers';
 import { SharePlaceButton, TimingCircle, DeityCircle } from '@/components/places';
 import { crowdColorClass } from '@/lib/utils/place-utils';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 
 function ReviewsSection({
   placeCode,
@@ -309,7 +310,7 @@ export default function PlaceDetail() {
 
   if (!place) return null;
 
-  const heroImage = place.images?.[0]?.url ?? '';
+  const heroImage = getFullImageUrl(place.images?.[0]?.url);
   const formatDist = (km: number) => km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.lat + ',' + place.lng)}`;
 

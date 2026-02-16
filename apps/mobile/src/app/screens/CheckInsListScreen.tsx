@@ -16,6 +16,7 @@ import { useI18n } from '@/app/providers';
 import { getMyCheckIns, getOnThisDayCheckIns, getThisMonthCheckIns } from '@/lib/api/client';
 import type { CheckIn } from '@/lib/types';
 import { tokens } from '@/lib/theme';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -198,7 +199,7 @@ export default function CheckInsListScreen() {
                 >
                   <View style={styles.visitThumb}>
                     {(c.place_image_url || c.place?.images?.[0]?.url) ? (
-                      <Image source={{ uri: c.place_image_url || c.place?.images?.[0]?.url }} style={styles.visitThumbImg} resizeMode="cover" />
+                      <Image source={{ uri: getFullImageUrl(c.place_image_url || c.place?.images?.[0]?.url) }} style={styles.visitThumbImg} resizeMode="cover" />
                     ) : (
                       <View style={styles.visitThumbPlaceholder}><Text style={styles.visitThumbIcon}>⊕</Text></View>
                     )}
@@ -278,7 +279,7 @@ export default function CheckInsListScreen() {
                 >
                   <View style={styles.visitThumb}>
                     {(c.place_image_url || c.place?.images?.[0]?.url) ? (
-                      <Image source={{ uri: c.place_image_url || c.place?.images?.[0]?.url }} style={styles.visitThumbImg} resizeMode="cover" />
+                      <Image source={{ uri: getFullImageUrl(c.place_image_url || c.place?.images?.[0]?.url) }} style={styles.visitThumbImg} resizeMode="cover" />
                     ) : (
                       <View style={styles.visitThumbPlaceholder}><Text style={styles.visitThumbIcon}>⊕</Text></View>
                     )}
@@ -306,7 +307,7 @@ export default function CheckInsListScreen() {
                 {(c.place_image_url || c.place?.images?.[0]?.url) ? (
                   <Image
                     source={{
-                      uri: c.place_image_url || c.place?.images?.[0]?.url,
+                      uri: getFullImageUrl(c.place_image_url || c.place?.images?.[0]?.url),
                     }}
                     style={styles.visitThumbImg}
                     resizeMode="cover"

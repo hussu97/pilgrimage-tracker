@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useI18n } from '@/app/providers';
 import { getPlace, createReview, updateReview, uploadReviewPhoto } from '@/lib/api/client';
 import { compressImage, validateImageFile } from '@/lib/utils/imageUpload';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { PlaceDetail } from '@/lib/types';
 import type { Review } from '@/lib/types';
 
@@ -193,7 +194,7 @@ export default function WriteReview() {
             {place?.images?.[0]?.url && (
               <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 opacity-90">
                 <img
-                  src={place.images[0].url}
+                  src={getFullImageUrl(place.images[0].url)}
                   alt=""
                   className="w-full h-full object-cover"
                 />

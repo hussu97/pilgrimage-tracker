@@ -7,8 +7,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/app/navigation';
 import type { Place } from '@/lib/types';
 import { tokens } from '@/lib/theme';
-
-const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:3000';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 
 interface PlaceCardProps {
   place: Place;
@@ -22,14 +21,6 @@ function formatDistance(km: number): string {
 function formatCount(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
   return String(n);
-}
-
-function getFullImageUrl(url?: string): string {
-  if (!url) return '';
-  // If it's a relative URL (blob image), prepend API_BASE
-  if (url.startsWith('/')) return `${API_BASE}${url}`;
-  // Otherwise it's an external URL, return as-is
-  return url;
 }
 
 function PlaceCard({ place, compact = false }: PlaceCardProps) {

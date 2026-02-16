@@ -28,6 +28,7 @@ import { useAuth } from '@/app/providers';
 import { useI18n } from '@/app/providers';
 import type { RootStackParamList } from '@/app/navigation';
 import type { PlaceDetail as PlaceDetailType, Review, PlaceSpecification, PlaceTiming } from '@/lib/types';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import { tokens } from '@/lib/theme';
 import TimingCircle from '@/components/places/TimingCircle';
 import DeityCircle from '@/components/places/DeityCircle';
@@ -241,7 +242,7 @@ export default function PlaceDetailScreen() {
 
   if (!place) return null;
 
-  const heroImage = place.images?.[0]?.url;
+  const heroImage = getFullImageUrl(place.images?.[0]?.url);
   const formatDist = (km: number) =>
     km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 

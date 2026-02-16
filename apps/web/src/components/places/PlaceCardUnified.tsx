@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { Place } from '@/lib/types';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 
 interface PlaceCardUnifiedProps {
   place: Place;
@@ -20,7 +21,7 @@ export default function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
       <div className="relative h-48 overflow-hidden">
         {place.images?.[0]?.url ? (
           <img
-            src={place.images[0].url}
+            src={getFullImageUrl(place.images[0].url)}
             alt={place.name}
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
           />

@@ -23,12 +23,23 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ### Frontend (Web)
 
-- **Image URL Fix:** Added `getFullImageUrl()` helper in `PlaceCard.tsx` to convert relative blob image URLs (e.g., `/api/v1/places/{code}/images/{id}`) to absolute URLs with API base
+- **Image URL Utility:** Created `apps/web/src/lib/utils/imageUtils.ts` with `getFullImageUrl()` helper to convert relative blob image URLs to absolute URLs
+- **Updated Components:** Applied image URL fix to all components rendering place images:
+  - `PlaceCard.tsx` - place card images
+  - `PlaceDetail.tsx` - hero image
+  - `WriteReview.tsx` - place thumbnail
+  - `CheckInsList.tsx` - check-in thumbnails
+  - `PlaceCardUnified.tsx` - unified card images
 - Fixes blob images not rendering because `<img>` requires full URLs
 
 ### Frontend (Mobile)
 
-- **Image URL Fix:** Added `getFullImageUrl()` helper in `PlaceCard.tsx` to convert relative blob image URLs to absolute URLs with API base
+- **Image URL Utility:** Created `apps/mobile/src/lib/utils/imageUtils.ts` with `getFullImageUrl()` helper to convert relative blob image URLs to absolute URLs
+- **Updated Components:** Applied image URL fix to all components rendering place images:
+  - `PlaceCard.tsx` - place card images
+  - `PlaceDetailScreen.tsx` - hero image
+  - `WriteReviewScreen.tsx` - place thumbnail
+  - `CheckInsListScreen.tsx` - check-in thumbnails (3 instances)
 - Fixes blob images not rendering in `expo-image` component
 
 ### Performance Impact

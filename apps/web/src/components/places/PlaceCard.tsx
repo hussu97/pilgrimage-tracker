@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom';
 import type { Place } from '@/lib/types';
 import { useI18n } from '@/app/providers';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:3000';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 
 interface PlaceCardProps {
   place: Place;
@@ -11,14 +10,6 @@ interface PlaceCardProps {
 
 function formatDistance(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
-}
-
-function getFullImageUrl(url?: string): string {
-  if (!url) return '';
-  // If it's a relative URL (blob image), prepend API_BASE
-  if (url.startsWith('/')) return `${API_BASE}${url}`;
-  // Otherwise it's an external URL, return as-is
-  return url;
 }
 
 export default function PlaceCard({ place, compact = false }: PlaceCardProps) {

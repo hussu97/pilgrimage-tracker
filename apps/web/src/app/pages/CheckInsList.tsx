@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useI18n } from '@/app/providers';
 import { getMyCheckIns, getOnThisDayCheckIns, getThisMonthCheckIns } from '@/lib/api/client';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { CheckIn } from '@/lib/types';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -46,7 +47,7 @@ function CheckInCard({ c }: { c: CheckIn }) {
       <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 bg-slate-100 dark:bg-dark-border">
         {(c.place_image_url || c.place?.images?.[0]?.url) ? (
           <img
-            src={c.place_image_url || c.place?.images?.[0]?.url}
+            src={getFullImageUrl(c.place_image_url || c.place?.images?.[0]?.url)}
             alt=""
             className="w-full h-full object-cover group-hover:scale-105 transition-transform"
           />
