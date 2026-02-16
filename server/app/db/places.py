@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Literal, Optional
 
 from sqlmodel import Session, select, or_
 from app.db.models import Place
-from app.db.session import engine
 from app.db import place_attributes as attr_db
 from app.db import reviews as reviews_db
 from app.services.timezone_utils import get_local_now
@@ -119,6 +118,7 @@ def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
 
 def create_place(
     place_code: str,
+    session: Session,
     name: str,
     religion: Religion,
     place_type: str,
@@ -131,29 +131,29 @@ def create_place(
     website_url: Optional[str] = None,
     source: Optional[str] = None,
 ) -> Place:
-    with Session(engine) as session:
-        place = Place(
-            place_code=place_code,
-            name=name,
-            religion=religion,
-            place_type=place_type,
-            lat=lat,
-            lng=lng,
-            address=address,
-            opening_hours=opening_hours,
-            utc_offset_minutes=utc_offset_minutes,
-            description=description,
-            website_url=website_url,
-            source=source,
-        )
-        session.add(place)
-        session.commit()
-        session.refresh(place)
-        return place
+    place = Place(
+        place_code=place_code,
+        name=name,
+        religion=religion,
+        place_type=place_type,
+        lat=lat,
+        lng=lng,
+        address=address,
+        opening_hours=opening_hours,
+        utc_offset_minutes=utc_offset_minutes,
+        description=description,
+        website_url=website_url,
+        source=source,
+    )
+    session.add(place)
+    session.commit()
+    session.refresh(place)
+    return place
 
 
 def update_place(
     place_code: str,
+    session: Session,
     name: Optional[str] = None,
     religion: Optional[Religion] = None,
     place_type: Optional[str] = None,
@@ -166,34 +166,32 @@ def update_place(
     website_url: Optional[str] = None,
     source: Optional[str] = None,
 ) -> Optional[Place]:
-    with Session(engine) as session:
-        place = session.exec(select(Place).where(Place.place_code == place_code)).first()
-        if not place:
-            return None
+    place = session.exec(select(Place).where(Place.place_code == place_code)).first()
+    if not place:
+        return None
 
-        if name is not None: place.name = name
-        if religion is not None: place.religion = religion
-        if place_type is not None: place.place_type = place_type
-        if lat is not None: place.lat = lat
-        if lng is not None: place.lng = lng
-        if address is not None: place.address = address
-        if opening_hours is not None: place.opening_hours = opening_hours
-        if utc_offset_minutes is not None: place.utc_offset_minutes = utc_offset_minutes
-        if description is not None: place.description = description
-        if website_url is not None: place.website_url = website_url
-        if source is not None: place.source = source
+    if name is not None: place.name = name
+    if religion is not None: place.religion = religion
+    if place_type is not None: place.place_type = place_type
+    if lat is not None: place.lat = lat
+    if lng is not None: place.lng = lng
+    if address is not None: place.address = address
+    if opening_hours is not None: place.opening_hours = opening_hours
+    if utc_offset_minutes is not None: place.utc_offset_minutes = utc_offset_minutes
+    if description is not None: place.description = description
+    if website_url is not None: place.website_url = website_url
+    if source is not None: place.source = source
 
-        session.add(place)
-        session.commit()
-        session.refresh(place)
-        return place
-
+    session.add(place)
+    session.commit()
+    session.refresh(place)
+    return place
 
 
 
-def get_place_by_code(place_code: str) -> Optional[Place]:
-    with Session(engine) as session:
-        return session.exec(select(Place).where(Place.place_code == place_code)).first()
+
+def get_place_by_code(place_code: str, session: Session) -> Optional[Place]:
+    return session.exec(select(Place).where(Place.place_code == place_code)).first()
 
 
 def _check_attr_bool(attrs: dict, attribute_code: str) -> bool:
@@ -231,6 +229,7 @@ def _place_has_womens_area(p: Place, attrs: dict) -> bool:
 
 
 def list_places(
+    session: Session,
     religions: Optional[List[Religion]] = None,
     lat: Optional[float] = None,
     lng: Optional[float] = None,
@@ -247,116 +246,115 @@ def list_places(
     womens_area: Optional[bool] = None,
     top_rated: Optional[bool] = None,
 ) -> dict:
-    with Session(engine) as session:
-        statement = select(Place)
+    statement = select(Place)
 
-        if religions:
-            statement = statement.where(Place.religion.in_(religions))
-        if place_type:
-            statement = statement.where(Place.place_type == place_type)
-        if search:
-            q = f"%{search.lower()}%"
-            statement = statement.where(
-                or_(
-                    Place.name.ilike(q),
-                    Place.address.ilike(q),
-                    Place.description.ilike(q)
-                )
+    if religions:
+        statement = statement.where(Place.religion.in_(religions))
+    if place_type:
+        statement = statement.where(Place.place_type == place_type)
+    if search:
+        q = f"%{search.lower()}%"
+        statement = statement.where(
+            or_(
+                Place.name.ilike(q),
+                Place.address.ilike(q),
+                Place.description.ilike(q)
             )
+        )
 
-        all_places = session.exec(statement).all()
+    all_places = session.exec(statement).all()
 
-        # BULK FETCH: Get all attributes for all places in ONE query
-        place_codes = [p.place_code for p in all_places]
-        all_attrs = attr_db.bulk_get_attributes_for_places(place_codes, session)
+    # BULK FETCH: Get all attributes for all places in ONE query
+    place_codes = [p.place_code for p in all_places]
+    all_attrs = attr_db.bulk_get_attributes_for_places(place_codes, session)
 
-        # BULK FETCH: Get filterable attribute definitions ONCE
-        filterable_defs = attr_db.get_attribute_definitions(filterable_only=True, session=session)
+    # BULK FETCH: Get filterable attribute definitions ONCE
+    filterable_defs = attr_db.get_attribute_definitions(filterable_only=True, session=session)
 
-        # BULK FETCH: Get all ratings for all places in ONE query
-        all_ratings = reviews_db.get_aggregate_ratings_bulk(place_codes, session)
+    # BULK FETCH: Get all ratings for all places in ONE query
+    all_ratings = reviews_db.get_aggregate_ratings_bulk(place_codes, session)
 
-        result: List[tuple] = []
-        for p in all_places:
-            attrs = all_attrs.get(p.place_code, {})
+    result: List[tuple] = []
+    for p in all_places:
+        attrs = all_attrs.get(p.place_code, {})
 
-            if jummah is True and not _place_has_jummah(p, attrs):
-                continue
-            if has_events is True and not _place_has_events(p, attrs):
-                continue
+        if jummah is True and not _place_has_jummah(p, attrs):
+            continue
+        if has_events is True and not _place_has_events(p, attrs):
+            continue
 
-            dist = None
-            if lat is not None and lng is not None:
-                dist = _haversine_km(lat, lng, p.lat, p.lng)
+        dist = None
+        if lat is not None and lng is not None:
+            dist = _haversine_km(lat, lng, p.lat, p.lng)
 
-            if radius_km is not None and dist is not None and dist > radius_km:
-                continue
+        if radius_km is not None and dist is not None and dist > radius_km:
+            continue
 
-            result.append((p, dist))
+        result.append((p, dist))
 
-        if sort == "rating":
-            # Rating sort handled later using bulk-fetched ratings
-            pass
-        elif lat is not None and lng is not None:
-            result.sort(key=lambda x: (x[1] or 0))
+    if sort == "rating":
+        # Rating sort handled later using bulk-fetched ratings
+        pass
+    elif lat is not None and lng is not None:
+        result.sort(key=lambda x: (x[1] or 0))
 
-        base_results = result[:]
+    base_results = result[:]
 
-        def _get_avg(place_code: str) -> float:
-            """Get rating from bulk-fetched ratings dict."""
-            rating = all_ratings.get(place_code)
-            return rating["average"] if rating else 0.0
+    def _get_avg(place_code: str) -> float:
+        """Get rating from bulk-fetched ratings dict."""
+        rating = all_ratings.get(place_code)
+        return rating["average"] if rating else 0.0
 
-        def count_filter(fn) -> int:
-            return sum(1 for p, _ in base_results if fn(p))
+    def count_filter(fn) -> int:
+        return sum(1 for p, _ in base_results if fn(p))
 
-        # Build filter options: start with static special-cases, then dynamic attribute defs
-        filter_options = [
-            {
-                "key": "open_now",
-                "label": "Open Now",
-                "icon": "schedule",
-                "count": count_filter(lambda p: bool(_is_open_now_from_hours(p.opening_hours, p.utc_offset_minutes))),
-            },
-            {
-                "key": "top_rated",
-                "label": "Top Rated",
-                "icon": "star",
-                "count": count_filter(lambda p: _get_avg(p.place_code) >= 4.0),
-            },
-        ]
+    # Build filter options: start with static special-cases, then dynamic attribute defs
+    filter_options = [
+        {
+            "key": "open_now",
+            "label": "Open Now",
+            "icon": "schedule",
+            "count": count_filter(lambda p: bool(_is_open_now_from_hours(p.opening_hours, p.utc_offset_minutes))),
+        },
+        {
+            "key": "top_rated",
+            "label": "Top Rated",
+            "icon": "star",
+            "count": count_filter(lambda p: _get_avg(p.place_code) >= 4.0),
+        },
+    ]
 
-        # Add dynamic attribute-based filters (using pre-fetched data)
-        for defn in filterable_defs:
-            attr_code = defn.attribute_code
+    # Add dynamic attribute-based filters (using pre-fetched data)
+    for defn in filterable_defs:
+        attr_code = defn.attribute_code
 
-            def _make_attr_counter(code):
-                def _check(p):
-                    attrs = all_attrs.get(p.place_code, {})
-                    return _check_attr_bool(attrs, code)
-                return _check
+        def _make_attr_counter(code):
+            def _check(p):
+                attrs = all_attrs.get(p.place_code, {})
+                return _check_attr_bool(attrs, code)
+            return _check
 
-            filter_options.append({
-                "key": attr_code,
-                "label": defn.name,
-                "icon": defn.icon or "info",
-                "count": count_filter(_make_attr_counter(attr_code)),
-            })
+        filter_options.append({
+            "key": attr_code,
+            "label": defn.name,
+            "icon": defn.icon or "info",
+            "count": count_filter(_make_attr_counter(attr_code)),
+        })
 
-        filters_meta = {"options": filter_options}
+    filters_meta = {"options": filter_options}
 
-        # Apply active filters (using pre-fetched data)
-        if open_now is True:
-            result = [(p, d) for p, d in result if _is_open_now_from_hours(p.opening_hours, p.utc_offset_minutes) is True]
-        if has_parking is True:
-            result = [(p, d) for p, d in result if _place_has_parking(p, all_attrs.get(p.place_code, {}))]
-        if womens_area is True:
-            result = [(p, d) for p, d in result if _place_has_womens_area(p, all_attrs.get(p.place_code, {}))]
-        if top_rated is True:
-            result = [(p, d) for p, d in result if _get_avg(p.place_code) >= 4.0]
+    # Apply active filters (using pre-fetched data)
+    if open_now is True:
+        result = [(p, d) for p, d in result if _is_open_now_from_hours(p.opening_hours, p.utc_offset_minutes) is True]
+    if has_parking is True:
+        result = [(p, d) for p, d in result if _place_has_parking(p, all_attrs.get(p.place_code, {}))]
+    if womens_area is True:
+        result = [(p, d) for p, d in result if _place_has_womens_area(p, all_attrs.get(p.place_code, {}))]
+    if top_rated is True:
+        result = [(p, d) for p, d in result if _get_avg(p.place_code) >= 4.0]
 
-        # Apply rating sort if requested (sort by rating descending, then by distance)
-        if sort == "rating":
-            result.sort(key=lambda x: (_get_avg(x[0].place_code), -(x[1] or 0)), reverse=True)
+    # Apply rating sort if requested (sort by rating descending, then by distance)
+    if sort == "rating":
+        result.sort(key=lambda x: (_get_avg(x[0].place_code), -(x[1] or 0)), reverse=True)
 
-        return {"rows": result[offset: offset + limit], "filters": filters_meta, "all_attrs": all_attrs, "all_ratings": all_ratings}
+    return {"rows": result[offset: offset + limit], "filters": filters_meta, "all_attrs": all_attrs, "all_ratings": all_ratings}

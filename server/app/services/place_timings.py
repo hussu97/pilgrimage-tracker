@@ -8,7 +8,7 @@ from app.db import place_attributes as attr_db
 from app.services.timezone_utils import get_local_now
 
 
-def build_timings(place, attrs: Optional[dict] = None, session: Optional[Session] = None) -> list:
+def build_timings(place, session: Session, attrs: Optional[dict] = None) -> list:
     """
     Build timing/schedule information for a place based on its religion and attributes.
 

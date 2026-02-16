@@ -1,4 +1,6 @@
 import os
+from typing import Annotated
+from fastapi import Depends
 from sqlmodel import create_engine, SQLModel, Session
 
 # Use DATABASE_URL from environment or fallback to local sqlite
@@ -31,6 +33,16 @@ engine = create_engine(
 def create_db_and_tables():
     SQLModel.metadata.create_all(engine)
 
-def get_session():
+def get_db_session():
+    """Dependency for database session management.
+
+    Creates one database session per HTTP request and automatically
+    closes it when the request completes. This prevents connection
+    pool exhaustion by reusing a single session throughout the request.
+    """
     with Session(engine) as session:
         yield session
+
+# Type alias for FastAPI dependency injection
+# Usage: def my_endpoint(session: SessionDep, ...):
+SessionDep = Annotated[Session, Depends(get_db_session)]

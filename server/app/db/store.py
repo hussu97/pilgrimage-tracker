@@ -37,9 +37,8 @@ def create_user(
         return user
 
 
-def get_user_by_code(user_code: str) -> Optional[User]:
-    with Session(engine) as session:
-        return session.exec(select(User).where(User.user_code == user_code)).first()
+def get_user_by_code(user_code: str, session: Session) -> Optional[User]:
+    return session.exec(select(User).where(User.user_code == user_code)).first()
 
 
 def get_user_by_email(email: str) -> Optional[User]:

@@ -11,12 +11,9 @@ def add_image_url(
     place_code: str,
     url: str,
     display_order: int = 0,
-    session: Session = None,
+    session: Session,
 ) -> PlaceImage:
     """Add a URL-based image for a place."""
-    if session is None:
-        raise ValueError("Session is required")
-
     image = PlaceImage(
         place_code=place_code,
         image_type="url",
@@ -34,12 +31,9 @@ def add_image_blob(
     data: bytes,
     mime_type: str,
     display_order: int = 0,
-    session: Session = None,
+    session: Session,
 ) -> PlaceImage:
     """Add a blob-based image for a place."""
-    if session is None:
-        raise ValueError("Session is required")
-
     image = PlaceImage(
         place_code=place_code,
         image_type="blob",
@@ -53,7 +47,7 @@ def add_image_blob(
     return image
 
 
-def get_images(place_code: str, session: Session = None) -> List[dict]:
+def get_images(place_code: str, session: Session) -> List[dict]:
     """
     Get all images for a place, returns list of image dicts.
 
@@ -63,9 +57,6 @@ def get_images(place_code: str, session: Session = None) -> List[dict]:
 
     The frontend receives all images as URLs and doesn't need to know the storage implementation.
     """
-    if session is None:
-        raise ValueError("Session is required")
-
     stmt = (
         select(PlaceImage)
         .where(PlaceImage.place_code == place_code)
@@ -92,15 +83,12 @@ def get_images(place_code: str, session: Session = None) -> List[dict]:
     return result
 
 
-def get_images_bulk(place_codes: List[str], session: Session = None) -> Dict[str, List[dict]]:
+def get_images_bulk(place_codes: List[str], session: Session) -> Dict[str, List[dict]]:
     """
     Fetch images for multiple places in one query.
 
     Returns: Dict mapping place_code -> list of image dicts
     """
-    if session is None:
-        raise ValueError("Session is required")
-
     if not place_codes:
         return {}
 
@@ -132,23 +120,17 @@ def get_images_bulk(place_codes: List[str], session: Session = None) -> Dict[str
     return result
 
 
-def get_image_by_id(image_id: int, session: Session = None) -> Optional[PlaceImage]:
+def get_image_by_id(image_id: int, session: Session) -> Optional[PlaceImage]:
     """Get a single image by ID."""
-    if session is None:
-        raise ValueError("Session is required")
-
     return session.get(PlaceImage, image_id)
 
 
 def set_images_from_urls(
     place_code: str,
     urls: List[str],
-    session: Session = None,
+    session: Session,
 ) -> None:
     """Delete existing images and bulk insert from URL list (used during sync)."""
-    if session is None:
-        raise ValueError("Session is required")
-
     # Delete existing images
     stmt = select(PlaceImage).where(PlaceImage.place_code == place_code)
     existing = session.exec(stmt).all()

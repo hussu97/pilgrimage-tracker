@@ -4,44 +4,42 @@ from typing import Any, Dict, List, Optional
 from sqlmodel import Session, select
 
 from app.db.models import PlaceAttribute, PlaceAttributeDefinition
-from app.db.session import engine
 
 
-def upsert_attribute(place_code: str, attribute_code: str, value: Any) -> PlaceAttribute:
+def upsert_attribute(place_code: str, attribute_code: str, value: Any, session: Session) -> PlaceAttribute:
     """Insert or update a PlaceAttribute row. Auto-detects text vs json storage."""
-    with Session(engine) as session:
-        existing = session.exec(
-            select(PlaceAttribute).where(
-                PlaceAttribute.place_code == place_code,
-                PlaceAttribute.attribute_code == attribute_code,
-            )
-        ).first()
+    existing = session.exec(
+        select(PlaceAttribute).where(
+            PlaceAttribute.place_code == place_code,
+            PlaceAttribute.attribute_code == attribute_code,
+        )
+    ).first()
 
-        if isinstance(value, (dict, list)):
-            value_text = None
-            value_json = value
-        else:
-            value_text = str(value) if value is not None else None
-            value_json = None
+    if isinstance(value, (dict, list)):
+        value_text = None
+        value_json = value
+    else:
+        value_text = str(value) if value is not None else None
+        value_json = None
 
-        if existing:
-            existing.value_text = value_text
-            existing.value_json = value_json
-            session.add(existing)
-            session.commit()
-            session.refresh(existing)
-            return existing
-        else:
-            attr = PlaceAttribute(
-                place_code=place_code,
-                attribute_code=attribute_code,
-                value_text=value_text,
-                value_json=value_json,
-            )
-            session.add(attr)
-            session.commit()
-            session.refresh(attr)
-            return attr
+    if existing:
+        existing.value_text = value_text
+        existing.value_json = value_json
+        session.add(existing)
+        session.commit()
+        session.refresh(existing)
+        return existing
+    else:
+        attr = PlaceAttribute(
+            place_code=place_code,
+            attribute_code=attribute_code,
+            value_text=value_text,
+            value_json=value_json,
+        )
+        session.add(attr)
+        session.commit()
+        session.refresh(attr)
+        return attr
 
 
 def get_attributes_for_place(place_code: str, session: Session) -> List[PlaceAttribute]:

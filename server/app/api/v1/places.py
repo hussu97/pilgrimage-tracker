@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlmodel import Session
 
 from app.api.deps import get_current_user, get_optional_user
-from app.db.session import engine
+from app.db.session import SessionDep
 from app.db import places as places_db
 from app.db import reviews as reviews_db
 from app.db import store as user_store
@@ -24,18 +24,14 @@ router = APIRouter()
 Religion = Literal["islam", "hinduism", "christianity"]
 
 
-def _place_to_item(place, distance: Optional[float] = None, include_rating: bool = False, attrs: Optional[dict] = None, session: Optional[Session] = None, images: Optional[List[dict]] = None, rating: Optional[dict] = None) -> dict:
+def _place_to_item(place, session: Session, distance: Optional[float] = None, include_rating: bool = False, attrs: Optional[dict] = None, images: Optional[List[dict]] = None, rating: Optional[dict] = None) -> dict:
     d = distance
     if d is not None:
         d = round(d * 10) / 10
 
     # Fetch attributes if not provided
     if attrs is None:
-        if session is None:
-            with Session(engine) as sess:
-                attrs = attr_db.get_attributes_dict(place.place_code, sess)
-        else:
-            attrs = attr_db.get_attributes_dict(place.place_code, session)
+        attrs = attr_db.get_attributes_dict(place.place_code, session)
 
     out = {
         "place_code": place.place_code,
@@ -46,7 +42,7 @@ def _place_to_item(place, distance: Optional[float] = None, include_rating: bool
         "lng": place.lng,
         "address": place.address,
         "opening_hours": place.opening_hours,
-        "images": images if images is not None else (place_images.get_images(place.place_code, session=session) if session else []),
+        "images": images if images is not None else place_images.get_images(place.place_code, session=session),
         "description": place.description,
         "created_at": place.created_at,
         "distance": d,
@@ -76,34 +72,30 @@ def _place_to_item(place, distance: Optional[float] = None, include_rating: bool
         if rating:
             agg = rating
         else:
-            if session:
-                agg = reviews_db.get_aggregate_rating(place.place_code, session)
-            else:
-                with Session(engine) as sess:
-                    agg = reviews_db.get_aggregate_rating(place.place_code, sess)
+            agg = reviews_db.get_aggregate_rating(place.place_code, session)
         if agg:
             out["average_rating"] = agg["average"]
             out["review_count"] = agg["count"]
     return out
 
 
-def _place_detail(place) -> dict:
+def _place_detail(place, session: Session) -> dict:
     # Fetch attributes once and reuse
-    with Session(engine) as session:
-        attrs = attr_db.get_attributes_dict(place.place_code, session)
-        rating = reviews_db.get_aggregate_rating(place.place_code, session)
-        out = _place_to_item(place, include_rating=True, attrs=attrs, session=session, rating=rating)
-        if "distance" in out:
-            del out["distance"]
-        out["total_checkins_count"] = check_ins_db.count_check_ins_for_place(place.place_code, session)
-        out["timings"] = build_timings(place, attrs=attrs, session=session)
-        out["specifications"] = build_specifications(place, attrs=attrs, session=session)
-        out["attributes"] = attrs
+    attrs = attr_db.get_attributes_dict(place.place_code, session)
+    rating = reviews_db.get_aggregate_rating(place.place_code, session)
+    out = _place_to_item(place, session, include_rating=True, attrs=attrs, rating=rating)
+    if "distance" in out:
+        del out["distance"]
+    out["total_checkins_count"] = check_ins_db.count_check_ins_for_place(place.place_code, session)
+    out["timings"] = build_timings(place, attrs=attrs, session=session)
+    out["specifications"] = build_specifications(place, attrs=attrs, session=session)
+    out["attributes"] = attrs
     return out
 
 
 @router.get("")
 def list_places(
+    session: SessionDep,
     religion: Optional[List[Religion]] = Query(None, description="Filter by religion(s); repeat for multiple; omit for all"),
     lat: Optional[float] = Query(None),
     lng: Optional[float] = Query(None),
@@ -123,6 +115,7 @@ def list_places(
 ):
     religions = religion
     result = places_db.list_places(
+        session=session,
         religions=religions,
         lat=lat,
         lng=lng,
@@ -144,19 +137,19 @@ def list_places(
     all_ratings = result.get("all_ratings", {})
     place_codes = [p.place_code for p, _ in result["rows"]]
 
-    with Session(engine) as session:
-        all_images = place_images.get_images_bulk(place_codes, session)
-        places_out = [
-            _place_to_item(
-                p,
-                dist,
-                include_rating=include_rating,
-                attrs=all_attrs.get(p.place_code, {}),
-                images=all_images.get(p.place_code, []),
-                rating=all_ratings.get(p.place_code) if include_rating else None
-            )
-            for p, dist in result["rows"]
-        ]
+    all_images = place_images.get_images_bulk(place_codes, session)
+    places_out = [
+        _place_to_item(
+            p,
+            session,
+            dist,
+            include_rating=include_rating,
+            attrs=all_attrs.get(p.place_code, {}),
+            images=all_images.get(p.place_code, []),
+            rating=all_ratings.get(p.place_code) if include_rating else None
+        )
+        for p, dist in result["rows"]
+    ]
 
     return {"places": places_out, "filters": result["filters"]}
 
@@ -164,33 +157,34 @@ def list_places(
 @router.get("/{place_code}")
 def get_place(
     place_code: str,
+    session: SessionDep,
     user: Annotated[Any, Depends(get_optional_user)] = None,
 ):
-    place = places_db.get_place_by_code(place_code)
+    place = places_db.get_place_by_code(place_code, session)
     if not place:
         raise HTTPException(status_code=404, detail="Place not found")
-    out = _place_detail(place)
+    out = _place_detail(place, session)
     if user:
-        out["user_has_checked_in"] = check_ins_db.has_checked_in(user.user_code, place_code)
-        out["is_favorite"] = favorites_db.is_favorite(user.user_code, place_code)
+        out["user_has_checked_in"] = check_ins_db.has_checked_in(user.user_code, place_code, session)
+        out["is_favorite"] = favorites_db.is_favorite(user.user_code, place_code, session)
     return out
 
 
 @router.get("/{place_code}/reviews")
 def get_place_reviews(
     place_code: str,
+    session: SessionDep,
     limit: int = Query(5),
     offset: int = Query(0),
 ):
-    if not places_db.get_place_by_code(place_code):
+    if not places_db.get_place_by_code(place_code, session):
         raise HTTPException(status_code=404, detail="Place not found")
-    rows = reviews_db.get_reviews_by_place(place_code, limit=limit, offset=offset)
+    rows = reviews_db.get_reviews_by_place(place_code, session, limit=limit, offset=offset)
 
     # Fetch review images for all reviews in batch
-    with Session(engine) as session:
-        agg = reviews_db.get_aggregate_rating(place_code, session)
-        out = []
-        for r in rows:
+    agg = reviews_db.get_aggregate_rating(place_code, session)
+    out = []
+    for r in rows:
             source = getattr(r, "source", "user")
 
             # Fetch attached images for this review
@@ -219,7 +213,7 @@ def get_place_reviews(
             else:
                 # User review
                 is_anon = getattr(r, "is_anonymous", False)
-                user = user_store.get_user_by_code(r.user_code) if r.user_code and not is_anon else None
+                user = user_store.get_user_by_code(r.user_code, session) if r.user_code and not is_anon else None
                 out.append({
                     "review_code": r.review_code,
                     "place_code": r.place_code,
@@ -234,22 +228,23 @@ def get_place_reviews(
                     "source": "user",
                 })
 
-        result = {"reviews": out}
-        if agg:
-            result["average_rating"] = agg["average"]
-            result["review_count"] = agg["count"]
-        return result
+    result = {"reviews": out}
+    if agg:
+        result["average_rating"] = agg["average"]
+        result["review_count"] = agg["count"]
+    return result
 
 
 @router.post("/{place_code}/check-in")
 def check_in(
     place_code: str,
     body: CheckInBody,
+    session: SessionDep,
     user: Annotated[Any, Depends(get_current_user)],
 ):
-    if not places_db.get_place_by_code(place_code):
+    if not places_db.get_place_by_code(place_code, session):
         raise HTTPException(status_code=404, detail="Place not found")
-    row = check_ins_db.create_check_in(user.user_code, place_code, note=body.note, photo_url=body.photo_url)
+    row = check_ins_db.create_check_in(user.user_code, place_code, session, note=body.note, photo_url=body.photo_url)
     return {
         "check_in_code": row.check_in_code,
         "place_code": row.place_code,
@@ -262,20 +257,22 @@ def check_in(
 @router.post("/{place_code}/favorite")
 def add_favorite(
     place_code: str,
+    session: SessionDep,
     user: Annotated[Any, Depends(get_current_user)],
 ):
-    if not places_db.get_place_by_code(place_code):
+    if not places_db.get_place_by_code(place_code, session):
         raise HTTPException(status_code=404, detail="Place not found")
-    favorites_db.add_favorite(user.user_code, place_code)
+    favorites_db.add_favorite(user.user_code, place_code, session)
     return {"ok": True}
 
 
 @router.delete("/{place_code}/favorite")
 def remove_favorite(
     place_code: str,
+    session: SessionDep,
     user: Annotated[Any, Depends(get_current_user)],
 ):
-    favorites_db.remove_favorite(user.user_code, place_code)
+    favorites_db.remove_favorite(user.user_code, place_code, session)
     return {"ok": True}
 
 
@@ -283,9 +280,10 @@ def remove_favorite(
 def create_review(
     place_code: str,
     body: ReviewCreateBody,
+    session: SessionDep,
     user: Annotated[Any, Depends(get_current_user)],
 ):
-    if not places_db.get_place_by_code(place_code):
+    if not places_db.get_place_by_code(place_code, session):
         raise HTTPException(status_code=404, detail="Place not found")
     if not (1 <= body.rating <= 5):
         raise HTTPException(status_code=400, detail="Rating must be 1-5")
@@ -311,6 +309,7 @@ def create_review(
         user.user_code,
         place_code,
         body.rating,
+        session,
         title=body.title,
         body=body.body,
         is_anonymous=body.is_anonymous or False,
@@ -319,23 +318,21 @@ def create_review(
 
     # Attach uploaded images to the review
     if image_ids:
-        with Session(engine) as session:
-            try:
-                review_images.attach_images_to_review(
-                    review_code=row.review_code,
-                    image_ids=image_ids,
-                    user_code=user.user_code,
-                    session=session,
-                )
-            except ValueError as e:
-                # Clean up the review if image attachment fails
-                reviews_db.delete_review(row.review_code)
-                raise HTTPException(status_code=400, detail=str(e))
+        try:
+            review_images.attach_images_to_review(
+                review_code=row.review_code,
+                image_ids=image_ids,
+                user_code=user.user_code,
+                session=session,
+            )
+        except ValueError as e:
+            # Clean up the review if image attachment fails
+            reviews_db.delete_review(row.review_code, session)
+            raise HTTPException(status_code=400, detail=str(e))
 
     # Fetch full photo URLs (including attached images)
-    with Session(engine) as session:
-        review_image_urls = review_images.get_review_images(row.review_code, session=session)
-        all_photo_urls = [img["url"] for img in review_image_urls] + external_urls
+    review_image_urls = review_images.get_review_images(row.review_code, session=session)
+    all_photo_urls = [img["url"] for img in review_image_urls] + external_urls
 
     return {
         "review_code": row.review_code,
@@ -352,15 +349,16 @@ def create_review(
 @router.post("")
 def create_place(
     body: PlaceCreate,
-    session: Annotated[Session, Depends(lambda: Session(engine))],
+    session: SessionDep,
 ):
     """
     Create a new place or update an existing one if place_code matches.
     """
-    existing_place = places_db.get_place_by_code(body.place_code)
+    existing_place = places_db.get_place_by_code(body.place_code, session)
     if existing_place:
         row = places_db.update_place(
             place_code=body.place_code,
+            session=session,
             name=body.name,
             religion=body.religion,
             place_type=body.place_type,
@@ -376,6 +374,7 @@ def create_place(
     else:
         row = places_db.create_place(
             place_code=body.place_code,
+            session=session,
             name=body.name,
             religion=body.religion,
             place_type=body.place_type,
@@ -406,24 +405,24 @@ def create_place(
     # Store attributes if provided
     if body.attributes:
         for attr_input in body.attributes:
-            attr_db.upsert_attribute(body.place_code, attr_input.attribute_code, attr_input.value)
+            attr_db.upsert_attribute(body.place_code, attr_input.attribute_code, attr_input.value, session)
 
     # Store external reviews if provided
     if body.external_reviews:
-        reviews_db.upsert_external_reviews(body.place_code, body.external_reviews)
+        reviews_db.upsert_external_reviews(body.place_code, body.external_reviews, session)
 
-    return _place_detail(row)
+    return _place_detail(row, session)
 
 
 @router.delete("/{place_code}")
-def delete_place(place_code: str):
+def delete_place(place_code: str, session: SessionDep):
     """
     Delete a place by code.
 
     NOTE: This is a hard delete. Consider implementing soft deletes in the future
     to preserve historical data (check-ins, reviews, etc.) associated with the place.
     """
-    place = places_db.get_place_by_code(place_code)
+    place = places_db.get_place_by_code(place_code, session)
     if not place:
         raise HTTPException(status_code=404, detail="Place not found")
 
@@ -442,7 +441,7 @@ def delete_place(place_code: str):
 def get_place_image(
     place_code: str,
     image_id: int,
-    session: Annotated[Session, Depends(lambda: Session(engine))],
+    session: SessionDep,
 ):
     """Serve a blob image for a place."""
     image = place_images.get_image_by_id(image_id, session=session)

@@ -6,7 +6,7 @@ from sqlmodel import Session
 from app.db import place_attributes as attr_db
 
 
-def build_specifications(place, attrs: Optional[dict] = None, session: Session = None) -> list:
+def build_specifications(place, session: Session, attrs: Optional[dict] = None) -> list:
     """
     Build specification list for a place based on its religion and attributes.
 
