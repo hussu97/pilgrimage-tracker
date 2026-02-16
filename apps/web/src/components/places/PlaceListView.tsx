@@ -1,7 +1,7 @@
-import { useSearchParams } from 'react-router-dom';
 import type { Place } from '@/lib/types';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
+import SkeletonList from '@/components/common/SkeletonList';
 import PlaceCardUnified from './PlaceCardUnified';
 
 interface PlaceListViewProps {
@@ -22,12 +22,7 @@ export default function PlaceListView({
   t,
 }: PlaceListViewProps) {
   if (loading && places.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32 gap-4">
-        <div className="w-12 h-12 border-[3px] border-slate-200 border-t-primary rounded-full animate-spin" />
-        <p className="text-slate-500 text-sm font-bold uppercase tracking-widest">{t('home.loadingPlaces')}</p>
-      </div>
-    );
+    return <SkeletonList count={6} />;
   }
 
   if (error) {
