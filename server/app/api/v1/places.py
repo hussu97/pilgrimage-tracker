@@ -195,38 +195,38 @@ def get_place_reviews(
         external_urls = getattr(r, "photo_urls", []) or []
         all_photo_urls = attached_urls + external_urls
 
-            if source == "external":
-                # External review
-                out.append({
-                    "review_code": r.review_code,
-                    "place_code": r.place_code,
-                    "user_code": None,
-                    "display_name": getattr(r, "author_name", "External User"),
-                    "rating": r.rating,
-                    "title": r.title,
-                    "body": r.body,
-                    "created_at": r.created_at,
-                    "is_anonymous": False,
-                    "photo_urls": all_photo_urls,
-                    "source": "external",
-                })
-            else:
-                # User review
-                is_anon = getattr(r, "is_anonymous", False)
-                user = user_store.get_user_by_code(r.user_code, session) if r.user_code and not is_anon else None
-                out.append({
-                    "review_code": r.review_code,
-                    "place_code": r.place_code,
-                    "user_code": r.user_code if not is_anon else None,
-                    "display_name": "Anonymous" if is_anon else (user.display_name if user else "Unknown"),
-                    "rating": r.rating,
-                    "title": r.title,
-                    "body": r.body,
-                    "created_at": r.created_at,
-                    "is_anonymous": is_anon,
-                    "photo_urls": all_photo_urls,
-                    "source": "user",
-                })
+        if source == "external":
+            # External review
+            out.append({
+                "review_code": r.review_code,
+                "place_code": r.place_code,
+                "user_code": None,
+                "display_name": getattr(r, "author_name", "External User"),
+                "rating": r.rating,
+                "title": r.title,
+                "body": r.body,
+                "created_at": r.created_at,
+                "is_anonymous": False,
+                "photo_urls": all_photo_urls,
+                "source": "external",
+            })
+        else:
+            # User review
+            is_anon = getattr(r, "is_anonymous", False)
+            user = user_store.get_user_by_code(r.user_code, session) if r.user_code and not is_anon else None
+            out.append({
+                "review_code": r.review_code,
+                "place_code": r.place_code,
+                "user_code": r.user_code if not is_anon else None,
+                "display_name": "Anonymous" if is_anon else (user.display_name if user else "Unknown"),
+                "rating": r.rating,
+                "title": r.title,
+                "body": r.body,
+                "created_at": r.created_at,
+                "is_anonymous": is_anon,
+                "photo_urls": all_photo_urls,
+                "source": "user",
+            })
 
     result = {"reviews": out}
     if agg:
