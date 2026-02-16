@@ -180,33 +180,26 @@ def get_place_by_code(place_code: str) -> Optional[Place]:
 
 
 def _place_has_jummah(p: Place) -> bool:
+    """Check if place has Jummah prayer (Friday prayer for Islam)."""
     if p.religion != "islam":
         return False
-    rs = p.religion_specific or {}
-    if rs.get("jummah_times"):
-        return True
-    pt = rs.get("prayer_times")
-    if isinstance(pt, dict) and (pt.get("dhuhr") or pt.get("jummah") or pt.get("friday")):
-        return True
-    return False
+    # Check if jummah_times attribute exists
+    return _get_attr_bool(p.place_code, "jummah_times")
 
 
 def _place_has_events(p: Place) -> bool:
-    rs = p.religion_specific or {}
-    if rs.get("has_events") is True:
-        return True
-    ev = rs.get("events")
-    return isinstance(ev, list) and len(ev) > 0
+    """Check if place has events."""
+    return _get_attr_bool(p.place_code, "has_events")
 
 
 def _place_has_parking(p: Place) -> bool:
-    rs = p.religion_specific or {}
-    return bool(rs.get("parking"))
+    """Check if place has parking."""
+    return _get_attr_bool(p.place_code, "has_parking")
 
 
 def _place_has_womens_area(p: Place) -> bool:
-    rs = p.religion_specific or {}
-    return bool(rs.get("womens_area"))
+    """Check if place has women's area."""
+    return _get_attr_bool(p.place_code, "has_womens_area")
 
 
 def _get_attr_bool(place_code: str, attribute_code: str) -> bool:
