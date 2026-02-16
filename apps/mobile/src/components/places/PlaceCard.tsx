@@ -8,6 +8,8 @@ import type { RootStackParamList } from '@/app/navigation';
 import type { Place } from '@/lib/types';
 import { tokens } from '@/lib/theme';
 
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:3000';
+
 interface PlaceCardProps {
   place: Place;
   compact?: boolean;
@@ -22,9 +24,17 @@ function formatCount(n: number): string {
   return String(n);
 }
 
+function getFullImageUrl(url?: string): string {
+  if (!url) return '';
+  // If it's a relative URL (blob image), prepend API_BASE
+  if (url.startsWith('/')) return `${API_BASE}${url}`;
+  // Otherwise it's an external URL, return as-is
+  return url;
+}
+
 function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>>();
-  const imageUrl = place.images?.[0]?.url ?? '';
+  const imageUrl = getFullImageUrl(place.images?.[0]?.url);
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
 

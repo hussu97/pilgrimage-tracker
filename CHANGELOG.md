@@ -17,6 +17,20 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - **Schema Cleanup:** Removed unused `PlaceListItem` schema from `server/app/models/schemas.py` (had incorrect field names and wasn't being enforced)
 - **Seed Data:** Added place and place_image seeding support in `server/app/db/seed.py` with test data including both URL and blob image types
 
+### Data Scraper
+
+- **Bug Fix:** Added missing `utc_offset_minutes` field to place sync payload in `data_scraper/app/db/scraper.py`
+
+### Frontend (Web)
+
+- **Image URL Fix:** Added `getFullImageUrl()` helper in `PlaceCard.tsx` to convert relative blob image URLs (e.g., `/api/v1/places/{code}/images/{id}`) to absolute URLs with API base
+- Fixes blob images not rendering because `<img>` requires full URLs
+
+### Frontend (Mobile)
+
+- **Image URL Fix:** Added `getFullImageUrl()` helper in `PlaceCard.tsx` to convert relative blob image URLs to absolute URLs with API base
+- Fixes blob images not rendering in `expo-image` component
+
 ### Performance Impact
 - **Before:** 50 places = 51 queries (1 place query + 50 individual image queries)
 - **After:** 50 places = 2 queries (1 place query + 1 bulk image query)
