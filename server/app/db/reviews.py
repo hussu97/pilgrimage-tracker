@@ -104,10 +104,17 @@ def create_external_review(
 
 def delete_review(review_code: str) -> bool:
     """Delete a review by code. Returns True if deleted, False if not found."""
+    from app.db.models import ReviewImage
     with Session(engine) as session:
         review = session.exec(select(Review).where(Review.review_code == review_code)).first()
         if not review:
             return False
+
+        # Delete associated images
+        images = session.exec(select(ReviewImage).where(ReviewImage.review_code == review_code)).all()
+        for img in images:
+            session.delete(img)
+
         session.delete(review)
         session.commit()
         return True

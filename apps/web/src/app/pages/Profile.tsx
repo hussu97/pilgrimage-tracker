@@ -77,93 +77,90 @@ export default function Profile() {
           </Link>
         </header>
 
-        <section className="flex flex-col items-center px-2 pb-6">
-          <div className="w-36 h-36 rounded-full p-1 bg-white border border-blue-100 shadow-soft overflow-hidden mb-4">
-            <div className="w-full h-full rounded-full bg-primary/20 flex items-center justify-center text-primary text-4xl font-bold">
+        <section className="flex flex-col items-center px-2 pb-8 pt-4">
+          <div className="w-32 h-32 rounded-full p-1 bg-white border border-blue-100 shadow-xl shadow-blue-50 overflow-hidden mb-6">
+            <div className="w-full h-full rounded-full bg-primary/10 flex items-center justify-center text-primary text-4xl font-bold">
               {(displayName || '?').charAt(0).toUpperCase()}
             </div>
           </div>
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-text-dark tracking-tight">{displayName}</h2>
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{displayName}</h2>
             {joinedStr && (
-              <p className="inline-flex items-center gap-1.5 mt-2 text-text-muted text-xs font-medium">
-                <span className="material-icons-outlined text-[14px]">calendar_today</span>
+              <p className="inline-flex items-center gap-1.5 mt-2.5 text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                <span className="material-symbols-outlined text-[16px]">calendar_today</span>
                 {t('profile.joined').replace('{date}', joinedStr)}
               </p>
             )}
           </div>
         </section>
 
-        <section className="px-2 mb-8">
-          <div className="flex justify-between items-center px-4 py-3 border-b border-slate-50 bg-white rounded-2xl border border-slate-100 shadow-subtle">
-            <div className="flex flex-col items-center flex-1 border-r border-slate-100">
-              <span className="text-2xl font-bold text-text-dark">{visits}</span>
-              <span className="text-[10px] uppercase tracking-wider font-medium text-text-muted mt-1">
+        <section className="px-2 mb-10">
+          <div className="flex justify-between items-center bg-white rounded-3xl border border-slate-100 shadow-soft overflow-hidden">
+            <div className="flex flex-col items-center py-5 flex-1 border-r border-slate-50">
+              <span className="text-2xl font-bold text-slate-900 leading-none">{visits}</span>
+              <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400 mt-2">
                 {t('profile.visits')}
               </span>
             </div>
-            <div className="flex flex-col items-center flex-1 border-r border-slate-100">
-              <span className="text-2xl font-bold text-text-dark">{reviews}</span>
-              <span className="text-[10px] uppercase tracking-wider font-medium text-text-muted mt-1">
+            <div className="flex flex-col items-center py-5 flex-1 border-r border-slate-50">
+              <span className="text-2xl font-bold text-slate-900 leading-none">{reviews}</span>
+              <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400 mt-2">
                 {t('profile.reviews')}
               </span>
             </div>
-            <div className="flex flex-col items-center flex-1">
-              <span className="text-2xl font-bold text-text-dark">{badges}</span>
-              <span className="text-[10px] uppercase tracking-wider font-medium text-text-muted mt-1">
+            <div className="flex flex-col items-center py-5 flex-1">
+              <span className="text-2xl font-bold text-slate-900 leading-none">{badges}</span>
+              <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400 mt-2">
                 {t('profile.badges')}
               </span>
             </div>
           </div>
         </section>
 
-        <section className="px-2 mb-8">
-          <div className="bg-slate-50 rounded-2xl p-1.5 flex items-center shadow-inner-light">
+        <section className="px-2 mb-10">
+          <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-3 ml-2">
+            {t('profile.pilgrimagePath')}
+          </label>
+          <div className="bg-slate-50 dark:bg-dark-surface/50 rounded-[2rem] p-1.5 flex items-center shadow-inner-light border border-slate-100/50">
             <Link
               to="/select-path"
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-2 rounded-xl transition-all ${
-                primaryReligion === 'islam'
-                  ? 'bg-white shadow-sm border border-slate-200/60 text-text-dark font-semibold'
-                  : 'text-text-muted font-medium hover:text-text-secondary'
-              }`}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 py-3.5 px-2 rounded-[1.5rem] transition-all ${primaryReligion === 'islam'
+                  ? 'bg-white shadow-sm border border-slate-200/60 text-primary'
+                  : 'text-slate-400 hover:text-slate-600'
+                }`}
             >
-              <span className="material-symbols-outlined text-xl text-accent">mosque</span>
-              <span className="text-sm">{t('common.islam')}</span>
+              <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: primaryReligion === 'islam' ? "'FILL' 1" : "" }}>mosque</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">{t('common.islam')}</span>
             </Link>
             <Link
               to="/select-path"
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-2 rounded-xl transition-all ${
-                primaryReligion === 'christianity'
-                  ? 'bg-white shadow-sm border border-slate-200/60 text-text-dark font-semibold'
-                  : 'text-text-muted font-medium hover:text-text-secondary'
-              }`}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 py-3.5 px-2 rounded-[1.5rem] transition-all ${primaryReligion === 'christianity'
+                  ? 'bg-white shadow-sm border border-slate-200/60 text-primary'
+                  : 'text-slate-400 hover:text-slate-600'
+                }`}
             >
-              <span className="material-symbols-outlined text-xl">church</span>
-              <span className="text-sm">{t('common.christianity')}</span>
+              <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: primaryReligion === 'christianity' ? "'FILL' 1" : "" }}>church</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">{t('common.christianity')}</span>
             </Link>
             <Link
               to="/select-path"
-              className={`flex-1 flex items-center justify-center gap-2 py-3 px-2 rounded-xl transition-all ${
-                primaryReligion === 'hinduism'
-                  ? 'bg-white shadow-sm border border-slate-200/60 text-text-dark font-semibold'
-                  : 'text-text-muted font-medium hover:text-text-secondary'
-              }`}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 py-3.5 px-2 rounded-[1.5rem] transition-all ${primaryReligion === 'hinduism'
+                  ? 'bg-white shadow-sm border border-slate-200/60 text-primary'
+                  : 'text-slate-400 hover:text-slate-600'
+                }`}
             >
-              <span className="material-symbols-outlined text-xl">temple_hindu</span>
-              <span className="text-sm">{t('common.hinduism')}</span>
+              <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: primaryReligion === 'hinduism' ? "'FILL' 1" : "" }}>temple_hindu</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider">{t('common.hinduism')}</span>
             </Link>
           </div>
-          <p className="text-center text-[10px] text-text-muted mt-2 font-medium tracking-wide">
-            {t('profile.selectPilgrimagePath')}
-          </p>
         </section>
 
-        <section className="px-2 mb-6">
+        <section className="px-2 mb-8">
           <Link
             to="/profile/edit"
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-medium py-3.5 px-4 rounded-xl transition-all shadow-lg shadow-slate-200 flex items-center justify-center gap-2"
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-4 rounded-2xl transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-2 group"
           >
-            <span className="material-icons-outlined text-lg">edit</span>
+            <span className="material-symbols-outlined text-xl group-hover:scale-110 transition-transform">edit</span>
             {t('profile.editProfile')}
           </Link>
         </section>

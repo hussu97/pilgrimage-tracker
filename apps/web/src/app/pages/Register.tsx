@@ -28,7 +28,7 @@ export default function Register() {
     try {
       await register(email, password, displayName.trim() || undefined);
       if (selectedReligion !== 'all') {
-        await api.updateSettings({ religions: [selectedReligion] }).catch(() => {});
+        await api.updateSettings({ religions: [selectedReligion] }).catch(() => { });
       }
       navigate('/home');
     } catch (err) {
@@ -39,95 +39,123 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-dark-bg flex flex-col safe-area-top safe-area-bottom">
-      <div className="max-w-md w-full mx-auto px-6 pt-4 pb-10">
-        {/* Back button */}
-        <Link
-          to="/"
-          className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 dark:bg-dark-surface text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-colors mb-8"
-          aria-label={t('common.back')}
-        >
-          <span className="material-symbols-outlined text-[20px]">arrow_back</span>
-        </Link>
+    <div className="min-h-screen bg-white dark:bg-dark-bg flex flex-col relative overflow-hidden">
+      {/* Background Gradient Panel */}
+      <div className="absolute top-0 left-0 w-full h-80 bg-gradient-to-b from-blue-50 to-transparent dark:from-primary/5 dark:to-transparent pointer-events-none z-0" />
 
+      <div className="relative z-10 max-w-sm w-full mx-auto px-8 pt-20 flex-1 flex flex-col">
         {/* Logo icon */}
-        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
-          <span className="material-symbols-outlined text-primary text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+        <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-200 dark:shadow-none">
+          <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
             auto_awesome
           </span>
         </div>
 
-        <h1 className="text-2xl font-bold text-text-dark dark:text-white mb-1">{t('auth.registerTitle')}</h1>
-        <p className="text-text-muted dark:text-dark-text-secondary text-sm mb-8">{t('auth.registerSubtitle')}</p>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">
+          {t('auth.registerTitle')}
+        </h1>
+        <p className="text-slate-500 dark:text-dark-text-secondary font-medium mb-10">
+          {t('auth.registerSubtitle')}
+        </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            placeholder={t('auth.fullName')}
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full px-4 py-3.5 border border-input-border dark:border-dark-border rounded-2xl bg-white dark:bg-dark-surface text-text-main dark:text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-          />
-          <input
-            type="email"
-            placeholder={t('auth.email')}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-3.5 border border-input-border dark:border-dark-border rounded-2xl bg-white dark:bg-dark-surface text-text-main dark:text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-            required
-          />
-          <input
-            type="password"
-            placeholder={t('auth.password')}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-3.5 border border-input-border dark:border-dark-border rounded-2xl bg-white dark:bg-dark-surface text-text-main dark:text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-            required
-            minLength={6}
-          />
-          <input
-            type="password"
-            placeholder={t('auth.confirmPassword')}
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            className="w-full px-4 py-3.5 border border-input-border dark:border-dark-border rounded-2xl bg-white dark:bg-dark-surface text-text-main dark:text-white placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-            required
-          />
-
-          {/* Religion chip selector */}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-            {religionChips.map((chip) => (
-              <button
-                key={chip}
-                type="button"
-                onClick={() => setSelectedReligion(chip)}
-                className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
-                  selectedReligion === chip
-                    ? 'bg-primary text-white border-primary'
-                    : 'border-slate-200 dark:border-dark-border text-text-secondary dark:text-dark-text-secondary hover:border-primary hover:text-primary'
-                }`}
-              >
-                {t(`register.religionChip.${chip}`)}
-              </button>
-            ))}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-2 ml-1">
+              {t('auth.fullName')}
+            </label>
+            <input
+              type="text"
+              placeholder="John Doe"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className="w-full px-5 py-4 border border-slate-200 dark:border-dark-border rounded-2xl bg-white dark:bg-dark-surface text-slate-800 dark:text-white placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-50 dark:focus:ring-primary/10 focus:border-primary transition-all outline-none"
+            />
           </div>
 
-          {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-2 ml-1">
+              {t('auth.email')}
+            </label>
+            <input
+              type="email"
+              placeholder="name@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-5 py-4 border border-slate-200 dark:border-dark-border rounded-2xl bg-white dark:bg-dark-surface text-slate-800 dark:text-white placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-50 dark:focus:ring-primary/10 focus:border-primary transition-all outline-none"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-2 ml-1">
+              {t('auth.password')}
+            </label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-5 py-4 border border-slate-200 dark:border-dark-border rounded-2xl bg-white dark:bg-dark-surface text-slate-800 dark:text-white placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-50 dark:focus:ring-primary/10 focus:border-primary transition-all outline-none"
+              required
+              minLength={6}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-2 ml-1">
+              {t('auth.confirmPassword')}
+            </label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              className="w-full px-5 py-4 border border-slate-200 dark:border-dark-border rounded-2xl bg-white dark:bg-dark-surface text-slate-800 dark:text-white placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-50 dark:focus:ring-primary/10 focus:border-primary transition-all outline-none"
+              required
+            />
+          </div>
+
+          {/* Religion chip selector */}
+          <div className="pt-2">
+            <label className="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-3 ml-1">
+              {t('profile.pilgrimagePath')}
+            </label>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+              {religionChips.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => setSelectedReligion(chip)}
+                  className={`whitespace-nowrap px-5 py-2.5 rounded-full text-xs font-bold border transition-all ${selectedReligion === chip
+                      ? 'bg-primary text-white border-primary shadow-md shadow-blue-100 dark:shadow-none'
+                      : 'border-slate-200 dark:border-dark-border text-slate-500 dark:text-dark-text-secondary hover:border-primary hover:text-primary bg-white dark:bg-dark-surface'
+                    }`}
+                >
+                  {t(`register.religionChip.${chip}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {error && <p className="text-red-500 text-sm font-medium ml-1">{error}</p>}
+
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-primary hover:bg-primary-hover disabled:opacity-60 text-white font-semibold py-4 rounded-2xl transition-all active:scale-[0.98]"
+            className="w-full bg-primary hover:bg-blue-600 disabled:opacity-60 text-white font-bold py-4 rounded-2xl shadow-xl shadow-blue-100 dark:shadow-none transition-all active:scale-[0.98] mt-4"
           >
             {submitting ? t('common.loading') : t('auth.registerTitle')}
           </button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-text-muted dark:text-dark-text-secondary">
-          {t('auth.alreadyHaveAccount')}{' '}
-          <Link to="/login" className="text-primary font-semibold hover:text-primary-hover">
-            {t('auth.login')}
-          </Link>
-        </p>
+        <div className="mt-8 pb-10 text-center">
+          <p className="text-sm text-slate-500 dark:text-dark-text-secondary font-medium">
+            {t('auth.alreadyHaveAccount')}{' '}
+            <Link to="/login" className="text-primary font-bold ml-1 hover:underline">
+              {t('auth.login')}
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );
