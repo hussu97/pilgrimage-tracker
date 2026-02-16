@@ -5,13 +5,6 @@ from fastapi import APIRouter, HTTPException
 
 from app.core.security import hash_password, verify_password, create_access_token
 from app.db import store
-from app.db.store import (
-    get_user_by_email,
-    create_user,
-    save_password_reset,
-    consume_password_reset,
-    get_user_by_code,
-)
 from app.models.schemas import (
     RegisterBody,
     LoginBody,
@@ -40,12 +33,12 @@ def _to_public_user(user) -> UserResponse:
 
 @router.post("/register", response_model=AuthResponse)
 def register(body: RegisterBody):
-    if get_user_by_email(body.email):
+    if store.get_user_by_email(body.email):
         raise HTTPException(status_code=400, detail="Email already registered")
     user_code = "usr_" + secrets.token_hex(8)
     password_hash = hash_password(body.password)
     display_name = (body.display_name or body.email.split("@")[0]).strip()
-    user = create_user(
+    user = store.create_user(
         user_code=user_code,
         email=body.email.strip().lower(),
         password_hash=password_hash,
@@ -59,7 +52,7 @@ def register(body: RegisterBody):
 
 @router.post("/login", response_model=AuthResponse)
 def login(body: LoginBody):
-    user = get_user_by_email(body.email)
+    user = store.get_user_by_email(body.email)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not verify_password(body.password, user.password_hash):
@@ -70,22 +63,22 @@ def login(body: LoginBody):
 
 @router.post("/forgot-password")
 def forgot_password(body: ForgotPasswordBody):
-    user = get_user_by_email(body.email)
+    user = store.get_user_by_email(body.email)
     if not user:
         return {"ok": True, "message": "If an account exists, you will receive a reset link."}
     token = secrets.token_hex(32)
     expires_at = datetime.utcnow() + timedelta(hours=1)
-    save_password_reset(token, user.user_code, expires_at)
+    store.save_password_reset(token, user.user_code, expires_at)
     # In production, send the reset link by email; do not log tokens or emails.
     return {"ok": True, "message": "If an account exists, you will receive a reset link."}
 
 
 @router.post("/reset-password")
 def reset_password(body: ResetPasswordBody):
-    user_code = consume_password_reset(body.token)
+    user_code = store.consume_password_reset(body.token)
     if not user_code:
         raise HTTPException(status_code=400, detail="Invalid or expired token")
-    user = get_user_by_code(user_code)
+    user = store.get_user_by_code(user_code)
     if not user:
         raise HTTPException(status_code=400, detail="User not found")
     user.password_hash = hash_password(body.newPassword)

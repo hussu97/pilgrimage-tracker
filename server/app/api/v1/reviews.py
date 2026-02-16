@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -13,7 +13,7 @@ router = APIRouter()
 def update_review(
     review_code: str,
     body: ReviewUpdateBody,
-    user: Annotated[any, Depends(get_current_user)],
+    user: Annotated[Any, Depends(get_current_user)],
 ):
     row = reviews_db.get_review_by_code(review_code)
     if not row:
@@ -34,17 +34,16 @@ def update_review(
 @router.delete("/{review_code}")
 def delete_review(
     review_code: str,
-    user: Annotated[any, Depends(get_current_user)],
+    user: Annotated[Any, Depends(get_current_user)],
 ):
     row = reviews_db.get_review_by_code(review_code)
     if not row:
         raise HTTPException(status_code=404, detail="Review not found")
     if row.user_code != user.user_code:
         raise HTTPException(status_code=403, detail="Not the author")
-    if review_code in reviews_db.reviews_by_code:
-        del reviews_db.reviews_by_code[review_code]
-    if row.place_code in reviews_db.reviews_by_place:
-        reviews_db.reviews_by_place[row.place_code] = [c for c in reviews_db.reviews_by_place[row.place_code] if c != review_code]
-    if row.user_code in reviews_db.reviews_by_user:
-        reviews_db.reviews_by_user[row.user_code] = [c for c in reviews_db.reviews_by_user[row.user_code] if c != review_code]
+
+    deleted = reviews_db.delete_review(review_code)
+    if not deleted:
+        raise HTTPException(status_code=500, detail="Failed to delete review")
+
     return {"ok": True}

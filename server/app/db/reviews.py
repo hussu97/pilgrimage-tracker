@@ -102,6 +102,17 @@ def create_external_review(
         return review
 
 
+def delete_review(review_code: str) -> bool:
+    """Delete a review by code. Returns True if deleted, False if not found."""
+    with Session(engine) as session:
+        review = session.exec(select(Review).where(Review.review_code == review_code)).first()
+        if not review:
+            return False
+        session.delete(review)
+        session.commit()
+        return True
+
+
 def upsert_external_reviews(place_code: str, reviews_list: List[dict]) -> None:
     """Delete existing external reviews for place and insert new ones."""
     with Session(engine) as session:

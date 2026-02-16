@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -10,7 +10,7 @@ router = APIRouter()
 
 @router.get("")
 def list_notifications(
-    user: Annotated[any, Depends(get_current_user)],
+    user: Annotated[Any, Depends(get_current_user)],
     limit: int = Query(20),
     offset: int = Query(0),
 ):
@@ -31,7 +31,7 @@ def list_notifications(
 
 
 @router.patch("/{notification_code}/read")
-def mark_notification_read(notification_code: str, user: Annotated[any, Depends(get_current_user)]):
+def mark_notification_read(notification_code: str, user: Annotated[Any, Depends(get_current_user)]):
     ok = notifications_db.mark_read(notification_code, user.user_code)
     if not ok:
         raise HTTPException(status_code=404, detail="Notification not found")

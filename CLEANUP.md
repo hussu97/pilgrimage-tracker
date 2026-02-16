@@ -8,13 +8,13 @@ This document tracks all known issues, technical debt, and cleanup tasks across 
 
 These issues will cause runtime crashes or incorrect behavior in production.
 
-- [ ] **reviews.py runtime crash** (`server/app/api/v1/reviews.py` lines 44-49): `delete_review` references non-existent attributes `reviews_db.reviews_by_code`, `.reviews_by_place`, and `.reviews_by_user`. These are leftover from a previous in-memory caching approach and will crash at runtime when any review deletion is attempted.
+- [x] **reviews.py runtime crash** (`server/app/api/v1/reviews.py` lines 44-49): `delete_review` references non-existent attributes `reviews_db.reviews_by_code`, `.reviews_by_place`, and `.reviews_by_user`. These are leftover from a previous in-memory caching approach and will crash at runtime when any review deletion is attempted.
 
-- [ ] **users.py attribute error** (`server/app/api/v1/users.py` lines 70-71, 78, 144): Code accesses `.image_urls` on the `Place` model, but that attribute does not exist on the current model. Should use `place_images.get_images()` instead.
+- [x] **users.py attribute error** (`server/app/api/v1/users.py` lines 70-71, 78, 144): Code accesses `.image_urls` on the `Place` model, but that attribute does not exist on the current model. Should use `place_images.get_images()` instead.
 
-- [ ] **JWT expiration ignores config** (`server/app/core/security.py` line 18): Token expiration is hardcoded to 7 days. The `JWT_EXPIRE` config variable is defined but never read, so changing the config has no effect.
+- [x] **JWT expiration ignores config** (`server/app/core/security.py` line 18): Token expiration is hardcoded to 7 days. The `JWT_EXPIRE` config variable is defined but never read, so changing the config has no effect.
 
-- [ ] **Dangerous session handling** (`server/app/services/place_images.py` lines 18, 41, 59, 90): Uses `next(get_session())` outside the FastAPI dependency-injection context. This bypasses proper session lifecycle management, risks leaked connections, and will not roll back on errors. Should accept a `Session` parameter injected by FastAPI `Depends()`.
+- [x] **Dangerous session handling** (`server/app/services/place_images.py` lines 18, 41, 59, 90): Uses `next(get_session())` outside the FastAPI dependency-injection context. This bypasses proper session lifecycle management, risks leaked connections, and will not roll back on errors. Should accept a `Session` parameter injected by FastAPI `Depends()`.
 
 ---
 
@@ -58,13 +58,13 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 ### Duplicate and Redundant Imports
 
-- [ ] **Duplicate Column import** (`server/app/models/models.py` lines 4-5): `Column` is imported from both `sqlalchemy` and `sqlmodel`. Remove the redundant import.
+- [x] **Duplicate Column import** (`server/app/models/models.py` lines 4-5): `Column` is imported from both `sqlalchemy` and `sqlmodel`. Remove the redundant import.
 
-- [ ] **Redundant auth imports** (`server/app/api/v1/auth.py`): Functions are imported both as a module reference and individually. Consolidate to one style.
+- [x] **Redundant auth imports** (`server/app/api/v1/auth.py`): Functions are imported both as a module reference and individually. Consolidate to one style.
 
 ### Type Safety
 
-- [ ] **Lowercase `any` type hint** (`server/app/api/v1/users.py` line 31): Uses Python's built-in `any` instead of `Any` from `typing`. This is a type error that linters may miss.
+- [x] **Lowercase `any` type hint** (`server/app/api/v1/users.py` line 31): Uses Python's built-in `any` instead of `Any` from `typing`. This is a type error that linters may miss.
 
 - [ ] **PlaceAttributeInput.value is `Any`** (`server/app/schemas/`): No validation on attribute values. Add a constrained union type or validator.
 
@@ -72,7 +72,7 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 ### Empty and Stub Implementations
 
-- [ ] **Rating sort is a no-op** (`server/app/api/v1/places.py` lines 278-280): `if sort == "rating": pass` -- the sort branch does nothing. Implement or remove the sort option from the API.
+- [x] **Rating sort is a no-op** (`server/app/api/v1/places.py` lines 278-280): `if sort == "rating": pass` -- the sort branch does nothing. Implement or remove the sort option from the API.
 
 - [ ] **Password reset sends no email** (`server/app/api/v1/auth.py` lines 79-80): Endpoint exists but the email dispatch is stubbed out. Either implement with a mail service or return 501 Not Implemented.
 
@@ -88,7 +88,7 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 - [ ] **`image_type` vs `images` array**: Backend uses `image_type` ("url"/"blob") but the frontend only sees an `images` array. Clarify the schema so the distinction is transparent or unnecessary on the client side.
 
-- [ ] **`google_reviews` field in PlaceCreate schema**: The field is still named `google_reviews` despite the system renaming the concept to "external reviews". Rename to `external_reviews`.
+- [x] **`google_reviews` field in PlaceCreate schema**: The field is still named `google_reviews` despite the system renaming the concept to "external reviews". Rename to `external_reviews`.
 
 - [ ] **Inconsistent styling patterns (mobile)**: Some screens use `makeStyles(isDark)`, others use inline conditional styles. Pick one pattern and apply it consistently.
 

@@ -337,4 +337,8 @@ def list_places(
         if top_rated is True:
             result = [(p, d) for p, d in result if _get_avg(p.place_code) >= 4.0]
 
+        # Apply rating sort if requested (sort by rating descending, then by distance)
+        if sort == "rating":
+            result.sort(key=lambda x: (_get_avg(x[0].place_code), -(x[1] or 0)), reverse=True)
+
         return {"rows": result[offset: offset + limit], "filters": filters_meta, "all_attrs": all_attrs}

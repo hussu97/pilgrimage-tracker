@@ -11,11 +11,11 @@ def add_image_url(
     place_code: str,
     url: str,
     display_order: int = 0,
-    session: Optional[Session] = None,
+    session: Session = None,
 ) -> PlaceImage:
     """Add a URL-based image for a place."""
     if session is None:
-        session = next(get_session())
+        raise ValueError("Session is required")
 
     image = PlaceImage(
         place_code=place_code,
@@ -34,11 +34,11 @@ def add_image_blob(
     data: bytes,
     mime_type: str,
     display_order: int = 0,
-    session: Optional[Session] = None,
+    session: Session = None,
 ) -> PlaceImage:
     """Add a blob-based image for a place."""
     if session is None:
-        session = next(get_session())
+        raise ValueError("Session is required")
 
     image = PlaceImage(
         place_code=place_code,
@@ -53,10 +53,10 @@ def add_image_blob(
     return image
 
 
-def get_images(place_code: str, session: Optional[Session] = None) -> List[dict]:
+def get_images(place_code: str, session: Session = None) -> List[dict]:
     """Get all images for a place, returns list of image dicts."""
     if session is None:
-        session = next(get_session())
+        raise ValueError("Session is required")
 
     stmt = (
         select(PlaceImage)
@@ -84,10 +84,10 @@ def get_images(place_code: str, session: Optional[Session] = None) -> List[dict]
     return result
 
 
-def get_image_by_id(image_id: int, session: Optional[Session] = None) -> Optional[PlaceImage]:
+def get_image_by_id(image_id: int, session: Session = None) -> Optional[PlaceImage]:
     """Get a single image by ID."""
     if session is None:
-        session = next(get_session())
+        raise ValueError("Session is required")
 
     return session.get(PlaceImage, image_id)
 
@@ -95,11 +95,11 @@ def get_image_by_id(image_id: int, session: Optional[Session] = None) -> Optiona
 def set_images_from_urls(
     place_code: str,
     urls: List[str],
-    session: Optional[Session] = None,
+    session: Session = None,
 ) -> None:
     """Delete existing images and bulk insert from URL list (used during sync)."""
     if session is None:
-        session = next(get_session())
+        raise ValueError("Session is required")
 
     # Delete existing images
     stmt = select(PlaceImage).where(PlaceImage.place_code == place_code)

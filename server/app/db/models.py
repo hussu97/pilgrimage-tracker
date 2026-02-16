@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Column, LargeBinary, UniqueConstraint
+from sqlalchemy import LargeBinary, UniqueConstraint
 from sqlmodel import Column, Field, JSON, SQLModel
 
 

@@ -176,10 +176,10 @@ def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
             print(f"Failed to download image {url}: {e}")
             pass
 
-    # Process Google reviews (up to 5)
-    google_reviews = []
+    # Process external reviews (up to 5)
+    external_reviews = []
     for review in result.get("reviews", [])[:5]:
-        google_reviews.append({
+        external_reviews.append({
             "author_name": review.get("author_name", ""),
             "rating": review.get("rating", 0),
             "text": review.get("text", ""),
@@ -252,7 +252,7 @@ def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
         "website_url": result.get("url", ""),
         "opening_hours": opening_hours,
         "attributes": attributes,
-        "google_reviews": google_reviews,
+        "external_reviews": external_reviews,
         "source": "gmaps",
         # Additional metadata
         "vicinity": result.get("vicinity", "N/A"),

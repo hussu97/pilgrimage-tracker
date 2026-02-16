@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 @router.get("")
-def list_groups(user: Annotated[any, Depends(get_current_user)]):
+def list_groups(user: Annotated[Any, Depends(get_current_user)]):
     group_list = groups_db.get_groups_for_user(user.user_code)
     out = []
     for i, g in enumerate(group_list):
@@ -41,7 +41,7 @@ def list_groups(user: Annotated[any, Depends(get_current_user)]):
 
 
 @router.get("/by-invite/{invite_code}")
-def get_group_by_invite(invite_code: str, user: Annotated[any, Depends(get_current_user)]):
+def get_group_by_invite(invite_code: str, user: Annotated[Any, Depends(get_current_user)]):
     """Resolve group_code from invite code (for join flow)."""
     g = groups_db.get_group_by_invite_code(invite_code)
     if not g:
@@ -50,7 +50,7 @@ def get_group_by_invite(invite_code: str, user: Annotated[any, Depends(get_curre
 
 
 @router.post("/join-by-code")
-def join_by_invite_code(body: dict, user: Annotated[any, Depends(get_current_user)]):
+def join_by_invite_code(body: dict, user: Annotated[Any, Depends(get_current_user)]):
     """Join a group using invite code (from /join?code=xxx)."""
     invite_code = body.get("invite_code") or body.get("code")
     if not invite_code:
@@ -66,7 +66,7 @@ def join_by_invite_code(body: dict, user: Annotated[any, Depends(get_current_use
 
 
 @router.post("")
-def create_group(body: GroupCreateBody, user: Annotated[any, Depends(get_current_user)]):
+def create_group(body: GroupCreateBody, user: Annotated[Any, Depends(get_current_user)]):
     g = groups_db.create_group(
         name=body.name,
         description=body.description or "",
@@ -85,7 +85,7 @@ def create_group(body: GroupCreateBody, user: Annotated[any, Depends(get_current
 
 
 @router.get("/{group_code}")
-def get_group(group_code: str, user: Annotated[any, Depends(get_current_user)]):
+def get_group(group_code: str, user: Annotated[Any, Depends(get_current_user)]):
     g = groups_db.get_group_by_code(group_code)
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -105,7 +105,7 @@ def get_group(group_code: str, user: Annotated[any, Depends(get_current_user)]):
 
 
 @router.patch("/{group_code}")
-def update_group(group_code: str, body: GroupUpdateBody, user: Annotated[any, Depends(get_current_user)]):
+def update_group(group_code: str, body: GroupUpdateBody, user: Annotated[Any, Depends(get_current_user)]):
     g = groups_db.get_group_by_code(group_code)
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -123,7 +123,7 @@ def update_group(group_code: str, body: GroupUpdateBody, user: Annotated[any, De
 
 
 @router.post("/{group_code}/join")
-def join_group(group_code: str, user: Annotated[any, Depends(get_current_user)]):
+def join_group(group_code: str, user: Annotated[Any, Depends(get_current_user)]):
     g = groups_db.get_group_by_code(group_code)
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -135,7 +135,7 @@ def join_group(group_code: str, user: Annotated[any, Depends(get_current_user)])
 
 
 @router.get("/{group_code}/members")
-def get_group_members(group_code: str, user: Annotated[any, Depends(get_current_user)]):
+def get_group_members(group_code: str, user: Annotated[Any, Depends(get_current_user)]):
     g = groups_db.get_group_by_code(group_code)
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -155,7 +155,7 @@ def get_group_members(group_code: str, user: Annotated[any, Depends(get_current_
 
 
 @router.get("/{group_code}/leaderboard")
-def get_leaderboard(group_code: str, user: Annotated[any, Depends(get_current_user)]):
+def get_leaderboard(group_code: str, user: Annotated[Any, Depends(get_current_user)]):
     g = groups_db.get_group_by_code(group_code)
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -177,7 +177,7 @@ def get_leaderboard(group_code: str, user: Annotated[any, Depends(get_current_us
 @router.get("/{group_code}/activity")
 def get_activity(
     group_code: str,
-    user: Annotated[any, Depends(get_current_user)],
+    user: Annotated[Any, Depends(get_current_user)],
     limit: int = Query(20),
 ):
     g = groups_db.get_group_by_code(group_code)
@@ -189,7 +189,7 @@ def get_activity(
 
 
 @router.post("/{group_code}/invite")
-def create_invite(group_code: str, user: Annotated[any, Depends(get_current_user)]):
+def create_invite(group_code: str, user: Annotated[Any, Depends(get_current_user)]):
     g = groups_db.get_group_by_code(group_code)
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")

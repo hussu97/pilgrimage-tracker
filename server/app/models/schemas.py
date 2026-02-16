@@ -144,5 +144,5 @@ class PlaceCreate(BaseModel):
     website_url: Optional[str] = None
     source: Optional[str] = None
     attributes: Optional[List[PlaceAttributeInput]] = None
-    google_reviews: Optional[List[dict]] = None  # For Google reviews during sync
+    external_reviews: Optional[List[dict]] = None  # For external reviews during sync
 

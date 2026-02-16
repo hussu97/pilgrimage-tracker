@@ -77,7 +77,7 @@ def sync_run_to_server(run_code: str, server_url: str):
                 "website_url": data.get("website_url"),
                 "source": data.get("source"),
                 "attributes": data.get("attributes") or [],
-                "google_reviews": data.get("google_reviews") or [],
+                "external_reviews": data.get("external_reviews") or [],
             }
 
             try:

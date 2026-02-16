@@ -1,4 +1,4 @@
-from typing import Annotated, List, Literal, Optional
+from typing import Annotated, Any, List, Literal, Optional
 from datetime import datetime, timezone
 import base64
 
@@ -43,7 +43,7 @@ def _place_to_item(place, distance: Optional[float] = None, include_rating: bool
         "lng": place.lng,
         "address": place.address,
         "opening_hours": place.opening_hours,
-        "images": place_images.get_images(place.place_code),
+        "images": place_images.get_images(place.place_code, session=session) if session else [],
         "description": place.description,
         "created_at": place.created_at,
         "distance": d,
@@ -297,7 +297,7 @@ def list_places(
 @router.get("/{place_code}")
 def get_place(
     place_code: str,
-    user: Annotated[any, Depends(get_optional_user)] = None,
+    user: Annotated[Any, Depends(get_optional_user)] = None,
 ):
     place = places_db.get_place_by_code(place_code)
     if not place:
@@ -365,7 +365,7 @@ def get_place_reviews(
 def check_in(
     place_code: str,
     body: CheckInBody,
-    user: Annotated[any, Depends(get_current_user)],
+    user: Annotated[Any, Depends(get_current_user)],
 ):
     if not places_db.get_place_by_code(place_code):
         raise HTTPException(status_code=404, detail="Place not found")
@@ -382,7 +382,7 @@ def check_in(
 @router.post("/{place_code}/favorite")
 def add_favorite(
     place_code: str,
-    user: Annotated[any, Depends(get_current_user)],
+    user: Annotated[Any, Depends(get_current_user)],
 ):
     if not places_db.get_place_by_code(place_code):
         raise HTTPException(status_code=404, detail="Place not found")
@@ -393,7 +393,7 @@ def add_favorite(
 @router.delete("/{place_code}/favorite")
 def remove_favorite(
     place_code: str,
-    user: Annotated[any, Depends(get_current_user)],
+    user: Annotated[Any, Depends(get_current_user)],
 ):
     favorites_db.remove_favorite(user.user_code, place_code)
     return {"ok": True}
@@ -403,7 +403,7 @@ def remove_favorite(
 def create_review(
     place_code: str,
     body: ReviewCreateBody,
-    user: Annotated[any, Depends(get_current_user)],
+    user: Annotated[Any, Depends(get_current_user)],
 ):
     if not places_db.get_place_by_code(place_code):
         raise HTTPException(status_code=404, detail="Place not found")
@@ -433,6 +433,7 @@ def create_review(
 @router.post("")
 def create_place(
     body: PlaceCreate,
+    session: Annotated[Session, Depends(lambda: Session(engine))],
 ):
     """
     Create a new place or update an existing one if place_code matches.
@@ -474,12 +475,12 @@ def create_place(
             try:
                 data = base64.b64decode(blob["data"])
                 mime_type = blob.get("mime_type", "image/jpeg")
-                place_images.add_image_blob(body.place_code, data, mime_type, display_order=i)
+                place_images.add_image_blob(body.place_code, data, mime_type, display_order=i, session=session)
             except Exception as e:
                 print(f"Failed to store image blob: {e}")
     elif body.image_urls:
         # Fallback to URL-based images if no blobs provided
-        place_images.set_images_from_urls(body.place_code, body.image_urls)
+        place_images.set_images_from_urls(body.place_code, body.image_urls, session=session)
 
     # Store attributes if provided
     if body.attributes:
@@ -487,8 +488,8 @@ def create_place(
             attr_db.upsert_attribute(body.place_code, attr_input.attribute_code, attr_input.value)
 
     # Store external reviews if provided
-    if body.google_reviews:
-        reviews_db.upsert_external_reviews(body.place_code, body.google_reviews)
+    if body.external_reviews:
+        reviews_db.upsert_external_reviews(body.place_code, body.external_reviews)
 
     return _place_detail(row)
 
@@ -497,9 +498,10 @@ def create_place(
 def get_place_image(
     place_code: str,
     image_id: int,
+    session: Annotated[Session, Depends(lambda: Session(engine))],
 ):
     """Serve a blob image for a place."""
-    image = place_images.get_image_by_id(image_id)
+    image = place_images.get_image_by_id(image_id, session=session)
     if not image or image.place_code != place_code:
         raise HTTPException(status_code=404, detail="Image not found")
 
