@@ -52,3 +52,13 @@ After every frontend task, verify:
 - [ ] Same navigation/route names and params?
 
 **What may differ:** React DOM + Tailwind vs React Native + Expo primitives, app-specific config, env variable loading, and build/deployment scripts.
+
+## 10. Testing and Verification
+When testing or verifying changes to backend services (`server/` or `data_scraper/`):
+- **Follow the README:** Use the exact setup and run commands from the respective `README.md` file
+- **Virtual environment:** Always activate the virtual environment (`.venv`) before running or testing
+- **Install dependencies:** Ensure all `requirements.txt` modules are installed via `pip install -r requirements.txt`
+- **Use 127.0.0.1:** When testing endpoints with curl or requests, use `127.0.0.1` instead of `localhost` for consistency
+- **Example:** `curl -s http://127.0.0.1:3000/health` (not `localhost:3000`)
+
+This ensures consistent behavior across different network configurations and DNS resolution.
