@@ -167,6 +167,8 @@ def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
     # Process images (up to 3)
     photo_urls = []
     image_blobs = []
+    download_failures = []
+
     for photo in result.get("photos", [])[:3]:
         ref = photo.get("photo_reference")
         url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference={ref}&key={api_key}"
@@ -181,9 +183,11 @@ def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
                     "data": base64.b64encode(resp.content).decode("ascii"),
                     "mime_type": mime,
                 })
+            else:
+                download_failures.append(url)
         except Exception as e:
             print(f"Failed to download image {url}: {e}")
-            pass
+            download_failures.append(url)
 
     # Process external reviews (up to 5)
     external_reviews = []
@@ -247,6 +251,10 @@ def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
         # Fallback: generate a basic description
         description = f"A {place_type_name} located in {clean_address(result.get('formatted_address', ''))}."
 
+    # Decide whether to use blobs or URLs based on download success
+    # Only use blobs if ALL images were successfully downloaded
+    use_blobs = len(image_blobs) == len(photo_urls) and len(photo_urls) > 0
+
     place_data = {
         "place_code": place_code,
         "name": result.get("name", "N/A"),
@@ -255,8 +263,8 @@ def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
         "lat": result.get("geometry", {}).get("location", {}).get("lat", 0),
         "lng": result.get("geometry", {}).get("location", {}).get("lng", 0),
         "address": clean_address(result.get("formatted_address", "")),
-        "image_urls": photo_urls,
-        "image_blobs": image_blobs,
+        "image_urls": [] if use_blobs else photo_urls,  # Empty if using blobs
+        "image_blobs": image_blobs if use_blobs else [],  # Empty if using URLs
         "description": description,
         "website_url": result.get("url", ""),
         "opening_hours": opening_hours,
