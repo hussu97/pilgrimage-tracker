@@ -142,5 +142,6 @@ class PlaceCreate(BaseModel):
     description: Optional[str] = None
     religion_specific: Optional[dict] = None
     website_url: Optional[str] = None
+    source: Optional[str] = None
     attributes: Optional[List[PlaceAttributeInput]] = None
 

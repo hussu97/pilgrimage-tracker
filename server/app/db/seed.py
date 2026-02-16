@@ -135,6 +135,7 @@ def run_seed(seed_path: str | Path | None = None) -> None:
             description=p.get("description"),
             religion_specific=p.get("religion_specific"),
             website_url=p.get("website_url"),
+            source="manual",
         )
         place_codes.append(row.place_code)
 

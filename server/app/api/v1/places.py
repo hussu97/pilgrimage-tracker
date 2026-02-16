@@ -424,6 +424,7 @@ def create_place(
             description=body.description,
             religion_specific=body.religion_specific,
             website_url=body.website_url,
+            source=body.source,
         )
     else:
         row = places_db.create_place(
@@ -439,6 +440,7 @@ def create_place(
             description=body.description,
             religion_specific=body.religion_specific,
             website_url=body.website_url,
+            source=body.source,
         )
 
     # Store attributes if provided

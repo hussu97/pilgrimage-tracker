@@ -39,6 +39,7 @@ class Place(SQLModel, table=True):
     description: Optional[str] = None
     religion_specific: Optional[Dict[str, Any]] = Field(default=None, sa_column=Column(JSON))
     website_url: Optional[str] = None
+    source: Optional[str] = None  # gmaps, overpass, manual
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

@@ -74,6 +74,7 @@ def create_place(
     description: Optional[str] = None,
     religion_specific: Optional[Dict[str, Any]] = None,
     website_url: Optional[str] = None,
+    source: Optional[str] = None,
 ) -> Place:
     with Session(engine) as session:
         place = Place(
@@ -89,6 +90,7 @@ def create_place(
             description=description,
             religion_specific=religion_specific or {},
             website_url=website_url,
+            source=source,
         )
         session.add(place)
         session.commit()
@@ -109,12 +111,13 @@ def update_place(
     description: Optional[str] = None,
     religion_specific: Optional[Dict[str, Any]] = None,
     website_url: Optional[str] = None,
+    source: Optional[str] = None,
 ) -> Optional[Place]:
     with Session(engine) as session:
         place = session.exec(select(Place).where(Place.place_code == place_code)).first()
         if not place:
             return None
-        
+
         if name is not None: place.name = name
         if religion is not None: place.religion = religion
         if place_type is not None: place.place_type = place_type
@@ -126,7 +129,8 @@ def update_place(
         if description is not None: place.description = description
         if religion_specific is not None: place.religion_specific = religion_specific
         if website_url is not None: place.website_url = website_url
-        
+        if source is not None: place.source = source
+
         session.add(place)
         session.commit()
         session.refresh(place)
