@@ -21,7 +21,7 @@ def get_place_type_mappings(session: Session) -> Dict[str, List[str]]:
     """
     mappings = session.exec(
         select(PlaceTypeMapping)
-        .where(PlaceTypeMapping.is_active == True)
+        .where(PlaceTypeMapping.is_active)
         .where(PlaceTypeMapping.source_type == "gmaps")
         .order_by(PlaceTypeMapping.religion)
         .order_by(PlaceTypeMapping.display_order)
@@ -43,7 +43,7 @@ def get_gmaps_type_to_our_type(session: Session) -> Dict[str, str]:
     """
     mappings = session.exec(
         select(PlaceTypeMapping)
-        .where(PlaceTypeMapping.is_active == True)
+        .where(PlaceTypeMapping.is_active)
         .where(PlaceTypeMapping.source_type == "gmaps")
     ).all()
 
@@ -55,7 +55,7 @@ def get_default_place_type(session: Session, religion: str) -> str:
     mapping = session.exec(
         select(PlaceTypeMapping)
         .where(PlaceTypeMapping.religion == religion)
-        .where(PlaceTypeMapping.is_active == True)
+        .where(PlaceTypeMapping.is_active)
         .where(PlaceTypeMapping.source_type == "gmaps")
         .order_by(PlaceTypeMapping.display_order)
     ).first()
@@ -69,7 +69,7 @@ def detect_religion_from_types(session: Session, gmaps_types: List[str]) -> Opti
         mapping = session.exec(
             select(PlaceTypeMapping)
             .where(PlaceTypeMapping.gmaps_type == gmaps_type)
-            .where(PlaceTypeMapping.is_active == True)
+            .where(PlaceTypeMapping.is_active)
             .where(PlaceTypeMapping.source_type == "gmaps")
         ).first()
         if mapping:
@@ -250,7 +250,7 @@ def get_place_details(place_name: str, api_key: str, session: Session) -> Dict:
             if publish_time:
                 dt = datetime.fromisoformat(publish_time.replace("Z", "+00:00"))
                 time_unix = int(dt.timestamp())
-        except:
+        except Exception:
             pass
 
         external_reviews.append({
@@ -527,7 +527,7 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
     # Step 1: Query all active place type mappings from DB
     place_type_mappings = session.exec(
         select(PlaceTypeMapping)
-        .where(PlaceTypeMapping.is_active == True)
+        .where(PlaceTypeMapping.is_active)
         .where(PlaceTypeMapping.source_type == "gmaps")
         .order_by(PlaceTypeMapping.religion)
         .order_by(PlaceTypeMapping.display_order)

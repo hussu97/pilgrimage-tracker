@@ -38,11 +38,11 @@ def get_wikipedia_info(wiki_tag: str) -> Dict[str, Any]:
             "original_image": None
         }
         if "thumbnail" in data:
-             info["image_url"] = data["thumbnail"].get("source")
+            info["image_url"] = data["thumbnail"].get("source")
         if "originalimage" in data:
             info["original_image"] = data["originalimage"].get("source")
             if info["original_image"]:
-                 info["image_url"] = info["original_image"]
+                info["image_url"] = info["original_image"]
         return info
     except Exception as e:
         print(f"Error parsing Wikipedia for {wiki_tag}: {e}")
