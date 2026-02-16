@@ -6,7 +6,7 @@ import base64
 import math
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
-from sqlmodel import Session, select
+from sqlmodel import Session, select, desc
 from app.db.models import ScraperRun, ScrapedPlace, GeoBoundary, PlaceTypeMapping
 
 # Configuration
@@ -126,14 +126,14 @@ def process_weekly_hours(opening_hours_dict):
 def get_places_in_circle(lat: float, lng: float, radius: float, place_types: List[str], api_key: str) -> Tuple[List[str], bool]:
     """
     Find all places of given types within radius using new Places API.
-    Returns (list of place_ids, is_saturated).
+    Returns (list of place resource names, is_saturated).
     is_saturated=True when exactly 20 results returned (API max without pagination).
     """
     url = "https://places.googleapis.com/v1/places:searchNearby"
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": api_key,
-        "X-Goog-FieldMask": "places.id"
+        "X-Goog-FieldMask": "places.name"  # Request resource name (e.g., "places/ChIJ...")
     }
     body = {
         "includedTypes": place_types,
@@ -159,18 +159,23 @@ def get_places_in_circle(lat: float, lng: float, radius: float, place_types: Lis
 
     response = resp.json()
     places_data = response.get("places", [])
-    place_ids = [p["id"] for p in places_data if "id" in p]
+    place_resource_names = [p["name"] for p in places_data if "name" in p]  # Extract resource name
 
     # Saturated if we got exactly max results (no pagination available)
-    is_saturated = len(place_ids) == 20
+    is_saturated = len(place_resource_names) == 20
 
-    return place_ids, is_saturated
+    return place_resource_names, is_saturated
 
 def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
     """
     Fetch detailed information for a single place using new Places API.
     Auto-detects religion from types.
     Uses field masks to optimize cost: Basic + Contact + Atmosphere tiers.
+
+    Args:
+        place_id: Place resource name (format: "places/ChIJ...") from searchNearby
+        api_key: Google Maps API key
+        session: Database session for querying place type mappings
     """
     url = f"https://places.googleapis.com/v1/{place_id}"
     headers = {
@@ -178,7 +183,7 @@ def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
         "X-Goog-Api-Key": api_key,
         "X-Goog-FieldMask": ",".join([
             # Basic tier (free)
-            "id", "displayName", "formattedAddress", "location", "types",
+            "name", "id", "displayName", "formattedAddress", "location", "types",
             "photos", "businessStatus",
             # Contact tier ($0.003)
             "regularOpeningHours", "websiteUri", "utcOffsetMinutes",
@@ -188,7 +193,6 @@ def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
         ]),
         "languageCode": "en"
     }
-
     resp = requests.get(url, headers=headers)
 
     # Check for errors
@@ -289,11 +293,11 @@ def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
                         ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
 
     # Extract place_id from resource name (e.g., "places/ChIJ..." -> "ChIJ...")
-    resource_name = response.get("id", "")
-    if resource_name.startswith("places/"):
-        extracted_place_id = resource_name[7:]  # Remove "places/" prefix
+    # The place_id parameter is already the resource name from searchNearby
+    if place_id.startswith("places/"):
+        extracted_place_id = place_id[7:]  # Remove "places/" prefix
     else:
-        extracted_place_id = resource_name
+        extracted_place_id = place_id
 
     # Generate stable place_code from place_id
     place_code = f"gplc_{extracted_place_id}"
@@ -576,12 +580,14 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
     if not force_refresh:
         print(f"Checking for cached places (fresher than {stale_threshold_days} days)...")
         for pid in place_ids:
-            place_code = f"gplc_{pid}"
+            # Extract place ID from resource name (e.g., "places/ChIJ..." -> "ChIJ...")
+            extracted_id = pid[7:] if pid.startswith("places/") else pid
+            place_code = f"gplc_{extracted_id}"
             existing = session.exec(
                 select(ScrapedPlace)
                 .where(ScrapedPlace.place_code == place_code)
                 .where(ScrapedPlace.created_at >= stale_cutoff)
-                .order_by(ScrapedPlace.created_at.desc())
+                .order_by(desc(ScrapedPlace.created_at))
             ).first()
 
             if existing:
