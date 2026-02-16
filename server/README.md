@@ -15,6 +15,27 @@ uvicorn app.main:app --reload --port 3000
 
 The API will be at `http://localhost:3000`. The web and mobile apps proxy `/api` to this port when running in dev.
 
+## Troubleshooting
+
+### Port 3000 Already in Use
+
+If you get an "Address already in use" error, the port is still occupied by a previous process. Kill it with:
+
+```bash
+# Find and kill the process on port 3000
+lsof -ti :3000 | xargs kill -9
+```
+
+Or find the process ID first, then kill it:
+
+```bash
+# Find the process
+lsof -i :3000
+
+# Kill it (replace PID with the actual process ID)
+kill -9 PID
+```
+
 ## Seed data
 The server uses **SQLModel** with a persistent **SQLite database** (`pilgrimage.db`). Data is loaded from a **central seed file** on startup:
  

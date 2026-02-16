@@ -32,6 +32,27 @@ A FastAPI service to manage data scraping for pilgrimage sites from multiple sou
     uvicorn app.main:app --reload --port 8001
     ```
 
+## Troubleshooting
+
+### Port 8001 Already in Use
+
+If you get an "Address already in use" error, the port is still occupied by a previous process. Kill it with:
+
+```bash
+# Find and kill the process on port 8001
+lsof -ti :8001 | xargs kill -9
+```
+
+Or find the process ID first, then kill it:
+
+```bash
+# Find the process
+lsof -i :8001
+
+# Kill it (replace PID with the actual process ID)
+kill -9 PID
+```
+
 ## Usage
 
 ### 1. Create a Data Location
