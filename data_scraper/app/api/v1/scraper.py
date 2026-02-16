@@ -112,9 +112,9 @@ def get_run(run_code: str, session: SessionDep):
 
 @router.get("/runs/{run_code}/data")
 def view_data(
-    run_code: str, 
-    search: Optional[str] = Query(None), 
-    session: SessionDep
+    run_code: str,
+    session: SessionDep,
+    search: Optional[str] = Query(None)
 ):
     query = select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
     if search:
@@ -167,10 +167,10 @@ def cancel_run(run_code: str, session: SessionDep):
 
 @router.get("/place-type-mappings", response_model=List[PlaceTypeMappingResponse])
 def list_place_type_mappings(
+    session: SessionDep,
     religion: Optional[str] = Query(None),
     source_type: Optional[str] = Query(None),
-    is_active: Optional[bool] = Query(None),
-    session: SessionDep
+    is_active: Optional[bool] = Query(None)
 ):
     """List all place type mappings with optional filters."""
     query = select(PlaceTypeMapping)
