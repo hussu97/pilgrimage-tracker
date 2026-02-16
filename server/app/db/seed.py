@@ -9,7 +9,9 @@ from app.db import store
 from app.db import groups as groups_db
 from app.db import notifications as notifications_db
 from app.db import place_attributes as attr_db
-from app.db.session import engine, create_db_and_tables
+from app.db import places as places_db
+from app.db import place_images
+from app.db.session import engine, create_db_and_tables, Session
 
 
 def _clear_stores() -> None:
@@ -36,6 +38,45 @@ def run_seed(seed_path: str | Path | None = None) -> None:
     # Seed attribute definitions before places
     if "attribute_definitions" in data:
         attr_db.seed_attribute_definitions(data["attribute_definitions"])
+
+    # Seed places
+    for p in data.get("places", []):
+        places_db.create_place(
+            place_code=p["place_code"],
+            name=p["name"],
+            religion=p["religion"],
+            place_type=p["place_type"],
+            lat=p["lat"],
+            lng=p["lng"],
+            address=p["address"],
+            opening_hours=p.get("opening_hours"),
+            utc_offset_minutes=p.get("utc_offset_minutes"),
+            description=p.get("description"),
+            website_url=p.get("website_url"),
+            source=p.get("source", "manual"),
+        )
+
+    # Seed place images
+    import base64
+    with Session(engine) as session:
+        for img in data.get("place_images", []):
+            if img["image_type"] == "url":
+                place_images.add_image_url(
+                    place_code=img["place_code"],
+                    url=img["url"],
+                    display_order=img.get("display_order", 0),
+                    session=session,
+                )
+            elif img["image_type"] == "blob" and img.get("blob_data_base64"):
+                # Decode base64 blob data for testing
+                blob_data = base64.b64decode(img["blob_data_base64"])
+                place_images.add_image_blob(
+                    place_code=img["place_code"],
+                    data=blob_data,
+                    mime_type=img.get("mime_type", "image/jpeg"),
+                    display_order=img.get("display_order", 0),
+                    session=session,
+                )
 
     # Users (need user_code for later refs)
     for u in data.get("users", []):

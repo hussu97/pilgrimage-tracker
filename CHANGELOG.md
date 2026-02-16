@@ -4,6 +4,25 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Fix Missing Images in Places List API (2026-02-16)
+
+### Backend
+
+- **Critical Bug Fix:** Fixed missing images in `GET /api/v1/places` endpoint - images were returning as empty arrays because no database session was passed to `_place_to_item()`
+- **Performance Optimization:** Added `get_images_bulk()` function in `server/app/db/place_images.py` to fetch images for multiple places in one query, eliminating N+1 query problem
+- **API Changes:**
+  - Updated `list_places()` in `server/app/api/v1/places.py` to create database session and bulk-fetch images
+  - Modified `_place_to_item()` to accept optional pre-fetched `images` parameter for performance
+  - Both URL-based and blob-based images now correctly returned in list responses
+- **Schema Cleanup:** Removed unused `PlaceListItem` schema from `server/app/models/schemas.py` (had incorrect field names and wasn't being enforced)
+- **Seed Data:** Added place and place_image seeding support in `server/app/db/seed.py` with test data including both URL and blob image types
+
+### Performance Impact
+- **Before:** 50 places = 51 queries (1 place query + 50 individual image queries)
+- **After:** 50 places = 2 queries (1 place query + 1 bulk image query)
+
+---
+
 ## Timezone-Aware Opening Hours & Timings (2026-02-16)
 
 ### Backend
