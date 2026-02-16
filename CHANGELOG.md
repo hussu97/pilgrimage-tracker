@@ -8,6 +8,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ### Data Scraper
 
+- **Performance: max_results Early Exit**
+  - Moved max_results check inside recursive search_area() function
+  - Stops API calls immediately when limit is reached instead of searching entire area
+  - Checks limit at 3 points: before area search, after finding places, before each quadrant
+  - Dramatically reduces API calls for testing: max_results=100 uses ~20-30 calls instead of ~350-500
+  - Slight overshoot acceptable (e.g., 100 limit might return 118 places)
+  - Added running total to search logging
+
+- **Bug Fix: 404 Error in get_place_details**
+  - Fixed searchNearby to request "places.name" (resource name) instead of "places.id" (legacy Place ID)
+  - Resource names have format "places/ChIJ..." which is required by GET place details endpoint
+  - Updated place_id extraction logic to handle resource names correctly
+  - Fixed deduplication cache to extract place ID from resource name before building place_code
+  - Added import for `desc()` function from sqlmodel for proper order_by usage
+
 - **Bug Fix: API Error Handling**
   - Added HTTP status code checking to `get_places_in_circle()` in `data_scraper/app/scrapers/gmaps.py:152-158`
   - Added HTTP status code checking to `get_place_details()` in `data_scraper/app/scrapers/gmaps.py:192-198`
