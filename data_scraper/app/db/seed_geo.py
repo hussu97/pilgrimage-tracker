@@ -1,7 +1,6 @@
 """Seed geographic boundaries for scraping."""
 from sqlmodel import Session, select
 from app.db.models import GeoBoundary
-from app.db.session import get_session
 
 
 # Geographic boundaries for countries and cities
@@ -75,11 +74,8 @@ GEO_BOUNDARIES = [
 ]
 
 
-def seed_geo_boundaries(session: Session = None):
+def seed_geo_boundaries(session: Session):
     """Seed geographic boundaries if not already present."""
-    if session is None:
-        session = next(get_session())
-
     # Check if already seeded
     existing = session.exec(select(GeoBoundary)).first()
     if existing:

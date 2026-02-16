@@ -1,8 +1,6 @@
 """Seed place type mappings for scraping."""
-from typing import Optional
 from sqlmodel import Session, select
 from app.db.models import PlaceTypeMapping
-from app.db.session import get_session
 
 
 # Place type mappings: religion -> Google Maps types -> our internal type names
@@ -22,11 +20,8 @@ PLACE_TYPE_MAPPINGS = [
 ]
 
 
-def seed_place_type_mappings(session: Optional[Session] = None):
+def seed_place_type_mappings(session: Session):
     """Seed place type mappings if not already present."""
-    if session is None:
-        session = next(get_session())
-
     # Check if already seeded
     existing = session.exec(select(PlaceTypeMapping)).first()
     if existing:
