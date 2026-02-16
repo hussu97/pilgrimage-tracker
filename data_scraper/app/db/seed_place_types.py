@@ -6,14 +6,16 @@ from app.db.session import get_session
 
 
 # Place type mappings: religion -> Google Maps types -> our internal type names
+# Note: Using Places API (New) supported types only:
+# https://developers.google.com/maps/documentation/places/web-service/place-types
+# Supported places of worship: buddhist_temple, church, hindu_temple, mosque, shinto_shrine, synagogue
 PLACE_TYPE_MAPPINGS = [
     # Islam
     {"religion": "islam", "source_type": "gmaps", "gmaps_type": "mosque", "our_place_type": "mosque", "is_active": True, "display_order": 1},
 
     # Christianity
+    # Note: "cathedral" and "chapel" are not supported by new Places API - use "church" for all Christian places
     {"religion": "christianity", "source_type": "gmaps", "gmaps_type": "church", "our_place_type": "church", "is_active": True, "display_order": 1},
-    {"religion": "christianity", "source_type": "gmaps", "gmaps_type": "cathedral", "our_place_type": "church", "is_active": True, "display_order": 2},
-    {"religion": "christianity", "source_type": "gmaps", "gmaps_type": "chapel", "our_place_type": "church", "is_active": True, "display_order": 3},
 
     # Hinduism
     {"religion": "hinduism", "source_type": "gmaps", "gmaps_type": "hindu_temple", "our_place_type": "temple", "is_active": True, "display_order": 1},

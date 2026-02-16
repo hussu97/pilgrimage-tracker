@@ -4,15 +4,41 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Fix Google Maps Scraper API Errors and Invalid Place Types (2026-02-17)
+
+### Data Scraper
+
+- **Bug Fix: API Error Handling**
+  - Added HTTP status code checking to `get_places_in_circle()` in `data_scraper/app/scrapers/gmaps.py:152-158`
+  - Added HTTP status code checking to `get_place_details()` in `data_scraper/app/scrapers/gmaps.py:192-198`
+  - API errors (400, 404, etc.) now properly raise exceptions with error messages instead of silently failing
+  - Fixes issue where 400 errors from invalid place types were not logged
+
+- **Bug Fix: Invalid Place Types**
+  - Removed unsupported place types `cathedral` and `chapel` from `data_scraper/app/db/seed_place_types.py`
+  - New Places API only supports: `buddhist_temple`, `church`, `hindu_temple`, `mosque`, `shinto_shrine`, `synagogue`
+  - Now using only valid types: `church` (Christianity), `mosque` (Islam), `hindu_temple` (Hinduism)
+  - Added documentation comments with API reference link
+  - Created `data_scraper/app/db/update_place_types.py` migration script to update existing databases:
+    - Deactivates `cathedral` and `chapel` entries (sets `is_active=False`)
+    - Ensures valid types are active and properly configured
+    - Safe to run multiple times (idempotent)
+
+- **Migration Instructions**
+  - For existing databases, run: `cd data_scraper && python -m app.db.update_place_types`
+  - For new databases, the seed script already uses only valid types
+
+---
+
 ## Google Maps Scraper API Cost Optimization (2026-02-16)
 
 ### Data Scraper
 
 - **Phase 1: Migrate to Places API (New) - Multi-Type Search + Field Masks**
   - Replaced legacy Google Places API with new Places API (v1) in `data_scraper/app/scrapers/gmaps.py`
-  - Replaced `get_places_in_circle()` with `get_places_in_circle_v2()` using `POST /v1/places:searchNearby` endpoint
+  - Replaced `get_places_in_circle()` with `get_places_in_circle()` using `POST /v1/places:searchNearby` endpoint
   - Multi-type search: Now sends all place types (mosque, church, cathedral, chapel, hindu_temple) in a single API request instead of 5 separate requests per grid point
-  - Replaced `get_place_details()` with `get_place_details_v2()` using `GET /v1/places/{id}` with field masks
+  - Replaced `get_place_details()` with `get_place_details()` using `GET /v1/places/{id}` with field masks
   - Field-masked details fetch: Uses Basic (free) + Contact ($0.003) + Atmosphere ($0.005) tiers = $0.008 per call (down from $0.017 legacy)
   - Updated photo URL construction to use new API format: `places/{placeId}/photos/{photoId}/media`
   - Updated response field mappings: `displayName`, `formattedAddress`, `regularOpeningHours`, `userRatingCount`, `accessibilityOptions`, `editorialSummary`, etc.

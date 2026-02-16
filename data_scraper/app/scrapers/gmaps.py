@@ -123,7 +123,7 @@ def process_weekly_hours(opening_hours_dict):
 
     return schedule
 
-def get_places_in_circle_v2(lat: float, lng: float, radius: float, place_types: List[str], api_key: str) -> Tuple[List[str], bool]:
+def get_places_in_circle(lat: float, lng: float, radius: float, place_types: List[str], api_key: str) -> Tuple[List[str], bool]:
     """
     Find all places of given types within radius using new Places API.
     Returns (list of place_ids, is_saturated).
@@ -149,7 +149,15 @@ def get_places_in_circle_v2(lat: float, lng: float, radius: float, place_types: 
         "maxResultCount": 20
     }
 
-    response = requests.post(url, json=body, headers=headers).json()
+    resp = requests.post(url, json=body, headers=headers)
+
+    # Check for errors
+    if resp.status_code != 200:
+        error_data = resp.json() if resp.content else {}
+        error_msg = error_data.get("error", {}).get("message", "Unknown error")
+        raise Exception(f"Places API searchNearby failed (HTTP {resp.status_code}): {error_msg}")
+
+    response = resp.json()
     places_data = response.get("places", [])
     place_ids = [p["id"] for p in places_data if "id" in p]
 
@@ -158,7 +166,7 @@ def get_places_in_circle_v2(lat: float, lng: float, radius: float, place_types: 
 
     return place_ids, is_saturated
 
-def get_place_details_v2(place_id: str, api_key: str, session: Session) -> Dict:
+def get_place_details(place_id: str, api_key: str, session: Session) -> Dict:
     """
     Fetch detailed information for a single place using new Places API.
     Auto-detects religion from types.
@@ -181,7 +189,15 @@ def get_place_details_v2(place_id: str, api_key: str, session: Session) -> Dict:
         "languageCode": "en"
     }
 
-    response = requests.get(url, headers=headers).json()
+    resp = requests.get(url, headers=headers)
+
+    # Check for errors
+    if resp.status_code != 200:
+        error_data = resp.json() if resp.content else {}
+        error_msg = error_data.get("error", {}).get("message", "Unknown error")
+        raise Exception(f"Places API get place details failed (HTTP {resp.status_code}): {error_msg}")
+
+    response = resp.json()
 
     # Process images (up to 3)
     # New API uses photos[].name as resource path (e.g., "places/ChIJ.../photos/...")
@@ -419,7 +435,7 @@ def search_area(
         return []
 
     # Search this area
-    place_ids, is_saturated = get_places_in_circle_v2(center_lat, center_lng, radius, place_types, api_key)
+    place_ids, is_saturated = get_places_in_circle(center_lat, center_lng, radius, place_types, api_key)
     time.sleep(0.5)  # Rate limiting
 
     # Filter out already-known places
@@ -585,7 +601,7 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
                 print(f"  [{i+1}/{len(place_ids)}] {cached_place.name} (cached)")
             else:
                 # Fetch fresh details
-                details = get_place_details_v2(pid, api_key, session)
+                details = get_place_details(pid, api_key, session)
 
                 scraped_place = ScrapedPlace(
                     run_code=run_code,
