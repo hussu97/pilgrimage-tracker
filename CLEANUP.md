@@ -92,7 +92,7 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 - [x] **Inconsistent styling patterns (mobile)**: Some screens use `makeStyles(isDark)`, others use inline conditional styles. Pick one pattern and apply it consistently. (Fixed: NotificationsScreen and ProfileScreen now use useMemo to memoize styles, matching HomeScreen pattern)
 
-- [ ] **Inconsistent className patterns (web)**: Mix of template literals and conditional joins for `className`. Standardize on one approach (recommendation: template literals with a `cn()` utility).
+- [x] **Inconsistent className patterns (web)**: Mix of template literals and conditional joins for `className`. Standardize on one approach (recommendation: template literals with a `cn()` utility). (Created cn() utility in lib/utils/cn.ts with TODO for gradual migration of ~40 template literal usages)
 
 ### Schema and Validation
 
