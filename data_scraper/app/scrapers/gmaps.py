@@ -2,12 +2,10 @@ import requests
 import time
 import re
 import os
-import hashlib
 from datetime import datetime, timedelta
-from typing import List, Dict
+from typing import List, Dict, Optional
 from sqlmodel import Session, select
 from app.db.models import ScraperRun, ScrapedPlace
-from app.scrapers.base import generate_code
 
 # Configuration
 SEARCH_RADIUS = 10000  # 10km radius per grid point
@@ -98,7 +96,6 @@ def get_place_details(place_id: str, religion: str, api_key: str) -> Dict:
     url = "https://maps.googleapis.com/maps/api/place/details/json"
 
     fields = "name,formatted_address,vicinity,geometry,opening_hours,wheelchair_accessible_entrance,rating,user_ratings_total,url,photos,business_status"
-
     params = {
         "place_id": place_id,
         "fields": fields,
@@ -161,7 +158,7 @@ def get_place_details(place_id: str, religion: str, api_key: str) -> Dict:
 
     return place_data
 
-def search_grid(country: str, place_type: str, api_key: str) -> List[str]:
+def search_grid(country: str, place_type: str, api_key: str, max_results: Optional[int] = None) -> List[str]:
     """Grid search over a country for a given place type."""
     bounds = COUNTRY_BOUNDS.get(country)
     if not bounds:
@@ -176,6 +173,12 @@ def search_grid(country: str, place_type: str, api_key: str) -> List[str]:
         lng = bounds["lng_min"]
         while lng <= bounds["lng_max"]:
             unique_place_ids.update(get_places_in_circle(lat, lng, place_type, api_key))
+
+            # Check if we've reached the limit
+            if max_results and len(unique_place_ids) >= max_results:
+                print(f"Reached max_results limit: {max_results}")
+                return list(unique_place_ids)[:max_results]
+
             time.sleep(0.5)  # Rate limiting
             lng += STEP
         lat += STEP
@@ -207,12 +210,8 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
 
     religion = PLACE_TYPE_MAP[place_type]["religion"]
 
-    # Step 1: Grid search for place IDs
-    place_ids = search_grid(country, place_type, api_key)
-
-    # Limit if max_results specified
-    if max_results:
-        place_ids = place_ids[:max_results]
+    # Step 1: Grid search for place IDs (with max_results limit)
+    place_ids = search_grid(country, place_type, api_key, max_results)
 
     run.total_items = len(place_ids)
     session.add(run)
