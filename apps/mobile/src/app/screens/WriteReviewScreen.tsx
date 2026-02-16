@@ -172,11 +172,31 @@ export default function WriteReviewScreen() {
           textAlignVertical="top"
         />
 
+        {/* TODO: Implement photo upload functionality
+            1. Install: npx expo install expo-image-picker
+            2. Add state: const [photos, setPhotos] = useState<string[]>([]) // URIs
+            3. Implement pickImage using expo-image-picker:
+               - Request permissions (ImagePicker.requestMediaLibraryPermissionsAsync)
+               - Launch picker (ImagePicker.launchImageLibraryAsync with allowsMultipleSelection)
+               - Validate selected images (count limit, size)
+            4. Show preview thumbnails with remove option
+            5. Upload images on submit:
+               - Option A: Create POST /api/v1/reviews/upload-photo endpoint
+                 (accepts FormData, returns photo URL)
+               - Option B: Upload to external service (Cloudinary, S3, etc.)
+               - Use FormData with fetch/axios for multipart upload
+            6. Include photo URLs in createReview/updateReview call
+            7. Handle upload errors and loading states
+        */}
         <View style={styles.photoRow}>
-          <TouchableOpacity style={styles.addPhotoBtn}>
+          <TouchableOpacity
+            style={styles.addPhotoBtn}
+            // TODO: onPress={pickImage}
+          >
             <Text style={styles.addPhotoIcon}>+</Text>
             <Text style={styles.addPhotoLabel}>{t('writeReview.addPhoto')}</Text>
           </TouchableOpacity>
+          {/* TODO: Map photos state to render preview thumbnails */}
         </View>
 
         <View style={styles.toggleRow}>

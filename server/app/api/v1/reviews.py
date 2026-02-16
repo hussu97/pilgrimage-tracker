@@ -47,3 +47,26 @@ def delete_review(
         raise HTTPException(status_code=500, detail="Failed to delete review")
 
     return {"ok": True}
+
+
+@router.post("/upload-photo")
+def upload_review_photo(user: Annotated[Any, Depends(get_current_user)]):
+    """
+    Upload a photo for use in a review.
+
+    TODO: Implement photo upload handling:
+    1. Accept multipart/form-data with File type
+    2. Validate image type (JPEG, PNG, WebP), size (max 5MB), dimensions
+    3. Resize/compress image (e.g., max 1200px width)
+    4. Store options:
+       - Option A: Store in database as blob (like PlaceImage)
+       - Option B: Upload to cloud storage (S3, GCS, Cloudinary)
+    5. Return the image URL that can be included in photo_urls array
+    6. Consider adding cleanup for orphaned images (uploaded but never used in a review)
+
+    For now, reviews can only include external photo URLs via the photo_urls field.
+    """
+    raise HTTPException(
+        status_code=501,
+        detail="Photo upload not implemented. Include photo URLs directly in createReview."
+    )

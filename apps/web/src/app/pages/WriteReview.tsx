@@ -173,14 +173,28 @@ export default function WriteReview() {
           </section>
 
           <section className="mb-6">
+            {/* TODO: Implement photo upload functionality
+                1. Add state: const [photos, setPhotos] = useState<File[]>([])
+                2. Add file input with accept="image/*" multiple
+                3. Handle file selection and validate (max size, format, count limit)
+                4. Show preview thumbnails with remove option
+                5. Upload images on submit:
+                   - Option A: Create POST /api/v1/reviews/upload-photo endpoint
+                     (accepts FormData, returns photo URL, similar to place images)
+                   - Option B: Upload to external service (Cloudinary, S3, etc.)
+                6. Include photo URLs in createReview/updateReview call
+                7. Handle upload errors and loading states
+            */}
             <div className="flex items-center gap-4 overflow-x-auto">
               <button
                 type="button"
                 className="flex-shrink-0 w-16 h-16 border border-dashed border-slate-300 rounded-lg flex items-center justify-center hover:bg-slate-50 transition-colors text-text-muted"
                 aria-label={t('writeReview.addPhoto')}
+                // TODO: onClick={() => fileInputRef.current?.click()}
               >
                 <span className="material-icons-outlined text-xl">add_a_photo</span>
               </button>
+              {/* TODO: Add file input ref and preview thumbnails here */}
             </div>
           </section>
 

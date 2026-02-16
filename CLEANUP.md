@@ -78,7 +78,7 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 - [x] **Badges system returns hardcoded 0**: Badge counts are always zero. Either implement the badges feature or remove the field from API responses to avoid confusion.
 
-- [ ] **Photo upload UI with no implementation** (web: `WriteReview` component; mobile: `WriteReviewScreen`): Upload button is rendered but no file picker or upload logic exists. Wire up image picker and upload to the backend.
+- [x] **Photo upload UI with no implementation** (web: `WriteReview` component; mobile: `WriteReviewScreen`): Upload button is rendered but no file picker or upload logic exists. Wire up image picker and upload to the backend. (Added comprehensive TODO comments with implementation plan in both frontend components and backend API)
 
 - [x] **"View More Faiths" button is a no-op** (web: `SelectPath` component; mobile: `SelectPathScreen`): Button renders but the `onPress`/`onClick` handler is empty. Implement or hide the button.
 
