@@ -83,7 +83,13 @@ def sync_run_to_server(run_code: str, server_url: str):
             try:
                 resp = requests.post(f"{server_url}/api/v1/places", json=payload)
                 if resp.status_code not in [200, 201]:
-                    print(f"Failed to sync {p.place_code}: {resp.status_code} - {resp.text}")
+                    print(f"Failed to sync {p.place_code}: {resp.status_code}")
+                    print(f"Error response: {resp.text}")
+                    if resp.status_code == 422:
+                        # Print payload for debugging validation errors
+                        print(f"Payload that caused 422:")
+                        import json
+                        print(json.dumps(payload, indent=2, default=str))
                 else:
                     print(f"Synced {p.place_code}")
             except Exception as e:
