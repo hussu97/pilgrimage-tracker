@@ -187,13 +187,13 @@ def get_place_reviews(
     for r in rows:
         source = getattr(r, "source", "user")
 
-            # Fetch attached images for this review
-            review_image_urls = review_images.get_review_images(r.review_code, session=session)
-            attached_urls = [img["url"] for img in review_image_urls]
+        # Fetch attached images for this review
+        review_image_urls = review_images.get_review_images(r.review_code, session=session)
+        attached_urls = [img["url"] for img in review_image_urls]
 
-            # Merge with external photo URLs
-            external_urls = getattr(r, "photo_urls", []) or []
-            all_photo_urls = attached_urls + external_urls
+        # Merge with external photo URLs
+        external_urls = getattr(r, "photo_urls", []) or []
+        all_photo_urls = attached_urls + external_urls
 
             if source == "external":
                 # External review
