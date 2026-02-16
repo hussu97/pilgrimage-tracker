@@ -1,6 +1,7 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, Dict, Any
 from datetime import datetime
 from sqlmodel import Field, SQLModel, JSON, Column
+
 
 class DataLocation(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -11,6 +12,7 @@ class DataLocation(SQLModel, table=True):
     sheet_code: Optional[str] = Field(default=None)  # backward compat
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+
 class ScraperRun(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     run_code: str = Field(index=True, unique=True)
@@ -20,6 +22,7 @@ class ScraperRun(SQLModel, table=True):
     processed_items: int = Field(default=0)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+
 class ScrapedPlace(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     run_code: str = Field(foreign_key="scraperrun.run_code", index=True)
@@ -27,6 +30,7 @@ class ScrapedPlace(SQLModel, table=True):
     name: str
     raw_data: Dict[str, Any] = Field(default={}, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
 
 class GeoBoundary(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -37,6 +41,7 @@ class GeoBoundary(SQLModel, table=True):
     lat_max: float
     lng_min: float
     lng_max: float
+
 
 class PlaceTypeMapping(SQLModel, table=True):
     """Maps religions to Google Maps place types for scraping."""

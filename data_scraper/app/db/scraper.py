@@ -2,9 +2,9 @@ import requests
 from sqlmodel import Session, select
 from app.db.models import DataLocation, ScraperRun, ScrapedPlace
 from app.db.session import engine
-from app.scrapers.base import generate_code
 from app.scrapers.gsheet import run_gsheet_scraper
 from app.scrapers.gmaps import run_gmaps_scraper
+
 
 def run_scraper_task(run_code: str):
     """
@@ -49,6 +49,7 @@ def run_scraper_task(run_code: str):
             session.add(run)
             session.commit()
 
+
 def sync_run_to_server(run_code: str, server_url: str):
     """
     Syncs scraped places to the main server.
@@ -88,7 +89,7 @@ def sync_run_to_server(run_code: str, server_url: str):
                     print(f"Error response: {resp.text}")
                     if resp.status_code == 422:
                         # Print payload for debugging validation errors
-                        print(f"Payload that caused 422:")
+                        print("Payload that caused 422:")
                         import json
                         print(json.dumps(payload, indent=2, default=str))
                 else:

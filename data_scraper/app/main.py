@@ -17,12 +17,14 @@ load_dotenv()
 
 app = FastAPI(title="Pilgrimage Data Scraper API")
 
+
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
     with Session(engine) as session:
         seed_geo_boundaries(session)
         seed_place_type_mappings(session)
+
 
 app.include_router(api_router)
 

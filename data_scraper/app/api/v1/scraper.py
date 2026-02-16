@@ -14,6 +14,7 @@ from app.db.scraper import generate_code, run_scraper_task, sync_run_to_server
 
 router = APIRouter()
 
+
 @router.post("/data-locations", response_model=DataLocationResponse)
 def create_data_location(body: DataLocationCreate, session: SessionDep):
     config = {}
@@ -73,15 +74,17 @@ def create_data_location(body: DataLocationCreate, session: SessionDep):
     session.refresh(loc)
     return loc
 
+
 @router.get("/data-locations", response_model=List[DataLocationResponse])
 def list_locations(session: SessionDep):
     locs = session.exec(select(DataLocation)).all()
     return locs
 
+
 @router.post("/runs", response_model=ScraperRunResponse)
 def create_run(
-    body: ScraperRunCreate, 
-    background_tasks: BackgroundTasks, 
+    body: ScraperRunCreate,
+    background_tasks: BackgroundTasks,
     session: SessionDep
 ):
     # Verify location exists
@@ -103,12 +106,14 @@ def create_run(
 
     return run
 
+
 @router.get("/runs/{run_code}", response_model=ScraperRunResponse)
 def get_run(run_code: str, session: SessionDep):
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
     return run
+
 
 @router.get("/runs/{run_code}/data")
 def view_data(
@@ -120,7 +125,7 @@ def view_data(
     if search:
         # Simple wildcard search
         query = query.where(ScrapedPlace.name.contains(search))
-    
+
     results = session.exec(query).all()
     # Return as list of raw_data enriched with our ID
     out = []
@@ -132,18 +137,18 @@ def view_data(
 
 @router.post("/runs/{run_code}/sync")
 def sync_run(
-    run_code: str, 
-    background_tasks: BackgroundTasks, 
+    run_code: str,
+    background_tasks: BackgroundTasks,
     session: SessionDep
 ):
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
-    
+
     server_url = os.getenv("MAIN_SERVER_URL", "http://127.0.0.1:3000")
-    
+
     background_tasks.add_task(sync_run_to_server, run.run_code, server_url)
-    
+
     return {"status": "sync_started", "run_code": run_code, "target_server": server_url}
 
 @router.post("/runs/{run_code}/cancel")
@@ -151,10 +156,10 @@ def cancel_run(run_code: str, session: SessionDep):
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
-    
+
     if run.status not in ["pending", "running"]:
         raise HTTPException(status_code=400, detail=f"Cannot cancel run with status: {run.status}")
-    
+
     run.status = "cancelled"
     session.add(run)
     session.commit()

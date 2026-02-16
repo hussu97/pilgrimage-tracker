@@ -1,6 +1,7 @@
 from pydantic import BaseModel
-from typing import Optional, List, Dict, Any, Literal
+from typing import Optional, Dict, Any, Literal
 from datetime import datetime
+
 
 class DataLocationCreate(BaseModel):
     name: str
@@ -14,6 +15,7 @@ class DataLocationCreate(BaseModel):
     force_refresh: Optional[bool] = False  # Ignore cached places and force fresh fetch
     stale_threshold_days: Optional[int] = 90  # Re-fetch if cached data older than this
 
+
 class DataLocationResponse(BaseModel):
     code: str
     name: str
@@ -22,8 +24,10 @@ class DataLocationResponse(BaseModel):
     sheet_code: Optional[str] = None
     created_at: datetime
 
+
 class ScraperRunCreate(BaseModel):
     location_code: str
+
 
 class ScraperRunResponse(BaseModel):
     run_code: str
@@ -32,6 +36,7 @@ class ScraperRunResponse(BaseModel):
     total_items: Optional[int] = None
     processed_items: int = 0
     created_at: datetime
+
 
 class SyncRequest(BaseModel):
     run_code: str

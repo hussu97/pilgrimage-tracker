@@ -39,6 +39,5 @@ def seed_place_type_mappings(session: Session):
 
 if __name__ == "__main__":
     from app.db.session import engine
-    from sqlmodel import Session
     with Session(engine) as session:
         seed_place_type_mappings(session)

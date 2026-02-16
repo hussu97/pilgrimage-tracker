@@ -93,6 +93,5 @@ def seed_geo_boundaries(session: Session):
 
 if __name__ == "__main__":
     from app.db.session import engine
-    from sqlmodel import Session
     with Session(engine) as session:
         seed_geo_boundaries(session)
