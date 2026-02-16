@@ -60,15 +60,3 @@ Configure `app.json` / `app.config.js` (icons, splash, scheme). Submit to App St
 - `screens/` – Screen components (e.g. `SettingsScreen` with language picker; add auth, home, places, groups, profile to match web flows).
 
 Design reference: `DESIGN_FILE.html` at repo root. Use the same translation keys and API shapes as `apps/web` (see `.cursor/rules/i18n-translations.mdc` and `.cursor/rules/frontend-replication.mdc`).
-
-## Performance Optimization
-
-### Image Caching
-
-The app uses **expo-image** for all place and review images with aggressive memory-disk caching enabled. This provides:
-- Fast image loading with disk and memory cache
-- Smooth fade-in transitions (200ms)
-- Reduced network usage and improved scroll performance
-- Automatic cache management
-
-All place images (PlaceCard, PlaceDetailScreen hero, DeityCircle) and review photos use `ExpoImage` with `cachePolicy="memory-disk"` for optimal performance.

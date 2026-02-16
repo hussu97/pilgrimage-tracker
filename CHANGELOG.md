@@ -16,7 +16,6 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
   - PlaceDetailScreen: Hero image (300px height)
   - DeityCircle: Deity/timing carousel images (76x76 circular)
 - **Performance Impact:** Significant reduction in network usage and improved scroll performance, especially for place lists and map scrollers
-- **Documentation:** Updated apps/mobile/README.md to reflect image caching implementation (removed TODO)
 
 ---
 

@@ -1,9 +1,16 @@
-from fastapi import FastAPI
+import traceback
+from datetime import datetime
+
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from dotenv import load_dotenv
+
 from app.db.session import create_db_and_tables
 from app.db.seed_geo import seed_geo_boundaries
 from app.db.seed_place_types import seed_place_type_mappings
 from app.api.v1 import api_router
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -16,6 +23,98 @@ def on_startup():
     seed_place_type_mappings()
 
 app.include_router(api_router)
+
+
+# ===== Global Exception Handlers =====
+
+def log_error(request: Request, status_code: int, error_type: str, detail: str, exc: Exception = None):
+    """Log error details to console"""
+    timestamp = datetime.utcnow().isoformat()
+    print(f"\n{'='*80}")
+    print(f"[{timestamp}] {error_type} - {status_code}")
+    print(f"Path: {request.method} {request.url.path}")
+    if request.query_params:
+        print(f"Query: {dict(request.query_params)}")
+    print(f"Detail: {detail}")
+    if exc:
+        print(f"Exception: {type(exc).__name__}: {str(exc)}")
+        if status_code >= 500:
+            print(f"Traceback:\n{traceback.format_exc()}")
+    print(f"{'='*80}\n")
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """Handle HTTP exceptions (400, 401, 403, 404, etc.)"""
+    error_type = "HTTP Error"
+    if exc.status_code == 400:
+        error_type = "Bad Request"
+    elif exc.status_code == 401:
+        error_type = "Unauthorized"
+    elif exc.status_code == 403:
+        error_type = "Forbidden"
+    elif exc.status_code == 404:
+        error_type = "Not Found"
+    elif exc.status_code >= 500:
+        error_type = "Server Error"
+
+    log_error(request, exc.status_code, error_type, str(exc.detail), exc)
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle 422 validation errors with detailed logging"""
+    errors = exc.errors()
+
+    # Log validation errors
+    log_error(
+        request,
+        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        "Validation Error",
+        f"{len(errors)} validation error(s)",
+        exc
+    )
+
+    # Print detailed validation errors
+    print("Validation Errors:")
+    for error in errors:
+        print(f"  - Field: {' -> '.join(str(loc) for loc in error['loc'])}")
+        print(f"    Error: {error['msg']}")
+        print(f"    Type: {error['type']}")
+        if 'ctx' in error:
+            print(f"    Context: {error['ctx']}")
+    print()
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": errors},
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Catch-all handler for unhandled exceptions"""
+    log_error(
+        request,
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+        "Internal Server Error",
+        "An unexpected error occurred",
+        exc
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "detail": "Internal server error",
+            "error_type": type(exc).__name__,
+        },
+    )
+
 
 @app.get("/health")
 def health():

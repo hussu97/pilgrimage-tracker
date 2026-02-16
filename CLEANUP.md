@@ -78,7 +78,7 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 - [x] **Badges system returns hardcoded 0**: Badge counts are always zero. Either implement the badges feature or remove the field from API responses to avoid confusion.
 
-- [x] **Photo upload UI with no implementation** (web: `WriteReview` component; mobile: `WriteReviewScreen`): Upload button is rendered but no file picker or upload logic exists. Wire up image picker and upload to the backend. (Added comprehensive TODO comments with implementation plan in both frontend components and backend API)
+- [x] **Photo upload UI with no implementation** (web: `WriteReview` component; mobile: `WriteReviewScreen`): Upload button is rendered but no file picker or upload logic exists. Wire up image picker and upload to the backend.
 
 - [x] **"View More Faiths" button is a no-op** (web: `SelectPath` component; mobile: `SelectPathScreen`): Button renders but the `onPress`/`onClick` handler is empty. Implement or hide the button.
 
@@ -114,7 +114,7 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 - [x] **FilterChip not memoized** (`apps/mobile/src/components/FilterChip.tsx`): Same issue as PlaceCard. Wrap in `React.memo()`.
 
-- [x] **No image caching library (mobile)**: The mobile app loads images without a caching layer. Integrate `react-native-fast-image` or equivalent to reduce network usage and improve scroll performance. (Added TODO in mobile README with implementation instructions)
+- [x] **No image caching library (mobile)**: The mobile app loads images without a caching layer. Integrate `react-native-fast-image` or equivalent to reduce network usage and improve scroll performance.
 
 ---
 
