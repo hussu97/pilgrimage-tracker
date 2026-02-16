@@ -26,19 +26,19 @@ These issues will cause runtime crashes or incorrect behavior in production.
 
 - [x] **PlaceDetail.tsx is ~750 lines** (`apps/web/src/pages/PlaceDetail.tsx`): Split into sub-components (header, timings panel, reviews section, photo gallery, specifications list). (Phase 1 complete: Extracted SharePlaceButton, TimingCircle, DeityCircle, and crowdColorClass utility. Reduced from 765 to 657 lines. Further extraction possible: Hero section, Score cards, Story section, Specifications grid)
 
-- [ ] **Home.tsx is ~450 lines** (`apps/web/src/pages/Home.tsx`): Extract map view, filter bar, and place list into separate components.
+- [x] **Home.tsx is ~450 lines** (`apps/web/src/pages/Home.tsx`): Extract map view, filter bar, and place list into separate components. (COMPLETE: Reduced from 327 to 135 lines (59% reduction). Extracted PlaceCardUnified, HomeHeader, PlaceListView, PlaceMapView)
 
-- [ ] **HomeScreen.tsx is 925 lines** (`apps/mobile/src/screens/HomeScreen.tsx`): Split into sub-components mirroring the web breakdown.
+- [x] **HomeScreen.tsx is 925 lines** (`apps/mobile/src/screens/HomeScreen.tsx`): Split into sub-components mirroring the web breakdown. (COMPLETE: Reduced from 924 to 803 lines (13% reduction). Extracted map utilities, HomeHeader, SearchFilterBar, FilterChipsList)
 
-- [ ] **PlaceDetailScreen.tsx is 1070 lines** (`apps/mobile/src/screens/PlaceDetailScreen.tsx`): Split into sub-components mirroring the web breakdown.
+- [x] **PlaceDetailScreen.tsx is 1070 lines** (`apps/mobile/src/screens/PlaceDetailScreen.tsx`): Split into sub-components mirroring the web breakdown. (COMPLETE: Reduced from 1069 to 952 lines (11% reduction). Extracted TimingCircle, DeityCircle, crowdColor utility)
 
 ### Folder Organization
 
-- [ ] **Web components flat structure** (`apps/web/src/components/`): No subdirectories. Organize into `components/places/`, `components/groups/`, `components/reviews/`, `components/common/`, etc.
+- [x] **Web components flat structure** (`apps/web/src/components/`): No subdirectories. Organize into `components/places/`, `components/groups/`, `components/reviews/`, `components/common/`, etc. (COMPLETE: Created common/, layout/, places/ subdirectories and moved all components)
 
-- [ ] **Mobile components flat structure** (`apps/mobile/src/components/`): Same issue as web. Organize into domain-based subdirectories.
+- [x] **Mobile components flat structure** (`apps/mobile/src/components/`): Same issue as web. Organize into domain-based subdirectories. (COMPLETE: Created common/, layout/, places/ subdirectories and moved all components)
 
-- [ ] **Types files** (`apps/web/src/lib/types/index.ts` and `apps/mobile/src/lib/types/index.ts`): Single monolithic type file. Split by domain: `places.ts`, `users.ts`, `groups.ts`, `reviews.ts`, `translations.ts`.
+- [x] **Types files** (`apps/web/src/lib/types/index.ts` and `apps/mobile/src/lib/types/index.ts`): Single monolithic type file. Split by domain: `places.ts`, `users.ts`, `groups.ts`, `reviews.ts`, `translations.ts`. (COMPLETE: Split into 5 domain-specific files with index.ts re-exporting all types)
 
 ### Dead Files and References
 
@@ -138,7 +138,7 @@ All customer-facing strings must come from the backend translation API per proje
 
 - [x] **No React Error Boundary**: The web app has no error boundary component. A crash in any component will unmount the entire app. Add an error boundary at the router level at minimum. (Created ErrorBoundary component with fallback UI and wrapped App at the root level)
 
-- [ ] **No loading skeletons**: Most pages show plain "Loading..." text instead of skeleton placeholders. Add skeleton components for place cards, lists, and detail views.
+- [x] **No loading skeletons**: Most pages show plain "Loading..." text instead of skeleton placeholders. Add skeleton components for place cards, lists, and detail views. (COMPLETE: Created SkeletonCard, SkeletonList, and SkeletonDetail components. Integrated SkeletonList into PlaceListView)
 
 ---
 
