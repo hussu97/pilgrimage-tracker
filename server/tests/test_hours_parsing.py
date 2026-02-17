@@ -136,7 +136,9 @@ class TestIsOpenNow:
         assert result in (True, False)
 
     def test_utc_offset_applied(self):
-        # With a UTC offset, results should still be bool|None (not raise)
-        hours = self._hours("05:00-22:00")
+        # Cover all days so a UTC↔local day boundary mismatch cannot cause None.
+        # (self._hours() uses the UTC day, but the function looks up by local day.)
+        days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        hours = {day: "05:00-22:00" for day in days}
         result = _is_open_now_from_hours(hours, utc_offset_minutes=240)
         assert result in (True, False)

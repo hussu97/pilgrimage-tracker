@@ -63,8 +63,15 @@ class TestJwtTokens:
 
     def test_decode_tampered_token_returns_none(self):
         token = create_access_token("usr_real")
-        # Flip the last character
-        tampered = token[:-1] + ("A" if token[-1] != "A" else "B")
+        header, payload, sig = token.split(".")
+        # Modify a character in the middle of the signature.
+        # Avoid the last 1-2 chars: in a 43-char base64url signature the final
+        # character only encodes 4 meaningful bits (2 are padding), so flipping
+        # the last char can leave the decoded bytes unchanged.
+        mid = len(sig) // 2
+        tampered_char = "B" if sig[mid] != "B" else "A"
+        tampered_sig = sig[:mid] + tampered_char + sig[mid + 1:]
+        tampered = f"{header}.{payload}.{tampered_sig}"
         assert decode_token(tampered) is None
 
     def test_different_users_get_different_tokens(self):
