@@ -396,7 +396,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [pageOffset, setPageOffset] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [searchDebounced, setSearchDebounced] = useState('');
@@ -412,12 +412,12 @@ export default function HomeScreen() {
 
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
-  const buildParams = useCallback((offset: number) => ({
+  const buildParams = useCallback((cursor: string | null) => ({
     religions: user?.religions?.length ? user.religions : undefined,
     search: searchDebounced || undefined,
     sort: 'distance' as const,
     limit: PAGE_SIZE,
-    offset,
+    cursor: cursor ?? undefined,
     lat: coords.lat,
     lng: coords.lng,
     place_type: activeFilters.placeType,
@@ -434,10 +434,10 @@ export default function HomeScreen() {
     setError('');
     setHasMore(true);
     try {
-      const data = await getPlaces(buildParams(0));
+      const data = await getPlaces(buildParams(null));
       setPlaces(data.places);
-      setPageOffset(PAGE_SIZE);
-      setHasMore(data.places.length >= PAGE_SIZE);
+      setNextCursor(data.next_cursor ?? null);
+      setHasMore(data.next_cursor != null);
       setFilterOptions(data.filters?.options ?? []);
       const centerLat = coords.lat ?? 21.3891;
       const centerLng = coords.lng ?? 39.8579;
@@ -455,18 +455,18 @@ export default function HomeScreen() {
     if (loadingMore || !hasMore || loading) return;
     setLoadingMore(true);
     try {
-      const data = await getPlaces(buildParams(pageOffset));
+      const data = await getPlaces(buildParams(nextCursor));
       if (data.places.length > 0) {
         setPlaces(prev => [...prev, ...data.places]);
-        setPageOffset(prev => prev + PAGE_SIZE);
+        setNextCursor(data.next_cursor ?? null);
       }
-      setHasMore(data.places.length >= PAGE_SIZE);
+      setHasMore(data.next_cursor != null);
     } catch {
       // silently skip — user can scroll again
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, loading, buildParams, pageOffset]);
+  }, [loadingMore, hasMore, loading, buildParams, nextCursor]);
 
   useEffect(() => {
     fetchPlaces();

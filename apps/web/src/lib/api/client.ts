@@ -54,7 +54,7 @@ export interface GetPlacesParams {
   search?: string;
   sort?: string;
   limit?: number;
-  offset?: number;
+  cursor?: string;
   open_now?: boolean;
   has_parking?: boolean;
   womens_area?: boolean;
@@ -72,7 +72,7 @@ export async function getPlaces(params?: GetPlacesParams): Promise<PlacesRespons
   if (params?.search) sp.set('search', params.search);
   if (params?.sort) sp.set('sort', params.sort);
   if (params?.limit != null) sp.set('limit', String(params.limit));
-  if (params?.offset != null) sp.set('offset', String(params.offset));
+  if (params?.cursor) sp.set('cursor', params.cursor);
   if (params?.open_now) sp.set('open_now', 'true');
   if (params?.has_parking) sp.set('has_parking', 'true');
   if (params?.womens_area) sp.set('womens_area', 'true');
@@ -97,6 +97,7 @@ export async function getPlaces(params?: GetPlacesParams): Promise<PlacesRespons
       return p;
     }),
     filters: data.filters ?? null,
+    next_cursor: data.next_cursor ?? null,
   };
 }
 

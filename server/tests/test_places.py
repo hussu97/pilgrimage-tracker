@@ -93,7 +93,7 @@ class TestListPlaces:
     def test_list_pagination(self, client):
         for i in range(3):
             _create_place(client, f"plc_page{i:04d}", name=f"Pager Place {i}")
-        resp = client.get(PLACES_URL, params={"limit": 2, "offset": 0})
+        resp = client.get(PLACES_URL, params={"limit": 2})
         assert resp.status_code == 200
         assert len(resp.json()["places"]) <= 2
 

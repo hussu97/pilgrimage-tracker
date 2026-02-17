@@ -32,14 +32,14 @@ export default function Home() {
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
   const [activeFilters, setActiveFilters] = useState<Record<string, boolean>>({});
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-  const offsetRef = useRef(0);
+  const nextCursorRef = useRef<string | null>(null);
 
-  const buildParams = useCallback((offset: number) => ({
+  const buildParams = useCallback((cursor: string | null) => ({
     religions: user?.religions?.length ? user.religions : undefined,
     search: search || undefined,
     sort: 'distance',
     limit: PAGE_SIZE,
-    offset,
+    cursor: cursor ?? undefined,
     lat: coords.lat,
     lng: coords.lng,
     open_now: activeFilters.open_now,
@@ -55,10 +55,10 @@ export default function Home() {
     setError('');
     setHasMore(true);
     try {
-      const response = await getPlaces(buildParams(0));
+      const response = await getPlaces(buildParams(null));
       setPlaces(response.places);
-      offsetRef.current = PAGE_SIZE;
-      setHasMore(response.places.length >= PAGE_SIZE);
+      nextCursorRef.current = response.next_cursor ?? null;
+      setHasMore(response.next_cursor != null);
       if (response.filters?.options) {
         setFilterOptions(response.filters.options);
       }
@@ -75,12 +75,12 @@ export default function Home() {
     if (loadingMore || !hasMore || loading) return;
     setLoadingMore(true);
     try {
-      const response = await getPlaces(buildParams(offsetRef.current));
+      const response = await getPlaces(buildParams(nextCursorRef.current));
       if (response.places.length > 0) {
         setPlaces(prev => [...prev, ...response.places]);
-        offsetRef.current += PAGE_SIZE;
+        nextCursorRef.current = response.next_cursor ?? null;
       }
-      setHasMore(response.places.length >= PAGE_SIZE);
+      setHasMore(response.next_cursor != null);
     } catch {
       // silently skip
     } finally {
