@@ -10,17 +10,17 @@ Bugs that crash or break core functionality. These must be resolved before any o
 
 ### Server Crashes and Data Corruption
 
-- [ ] **Fix `delete_review` crash in reviews endpoint**
+- [x] **Fix `delete_review` crash in reviews endpoint**
   - File: `server/app/api/v1/reviews.py` (lines 44-49)
   - The delete handler references in-memory caches (`reviews_by_code`, `reviews_by_place`, `reviews_by_user`) that do not exist. The function will raise a `NameError` on every call.
   - Fix: Replace the in-memory cache logic with a proper SQLModel `session.delete()` call followed by `session.commit()`, consistent with how other delete operations work in the codebase.
 
-- [ ] **Fix `image_urls` attribute access on Place model**
+- [x] **Fix `image_urls` attribute access on Place model**
   - File: `server/app/api/v1/users.py` (lines 70-71, 78, 144)
   - Code accesses `.image_urls` on the `Place` model, but that attribute does not exist on the SQLModel schema. This will raise an `AttributeError` whenever user profile data includes visited places.
   - Fix: Use `place_images.get_images(place_code)` to retrieve image URLs, or add image data through the proper PlaceImage relationship.
 
-- [ ] **Fix JWT expiration ignoring configuration**
+- [x] **Fix JWT expiration ignoring configuration**
   - File: `server/app/core/security.py` (line 18)
   - Token expiration is hardcoded to 7 days regardless of what `JWT_EXPIRE` is set to in the environment or settings.
   - Fix: Parse the `JWT_EXPIRE` setting (support formats like `"7d"`, `"24h"`, or integer minutes) and use the parsed value when computing the `exp` claim.
@@ -33,32 +33,32 @@ Issues that do not crash the app but significantly affect security, reliability,
 
 ### Security
 
-- [ ] **Implement actual email sending for password reset**
+- [x] **Implement actual email sending for password reset**
   - File: `server/app/api/v1/auth.py`
   - The forgot-password endpoint generates a reset token but only prints it to the console. No email is ever sent.
-  - Integrate an email provider (SendGrid, AWS SES, or SMTP) and send the token in a password-reset link. Add `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `RESET_URL_BASE` to the server config.
+  - Integrated Resend.com (`resend` library). Sends a password-reset link via `RESEND_API_KEY` / `RESEND_FROM_EMAIL`. Falls back to console log when `RESEND_API_KEY` is unset (dev). Added `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `RESET_URL_BASE` to config and `.env.example`.
 
-- [ ] **Add rate limiting to auth endpoints**
+- [x] **Add rate limiting to auth endpoints**
   - Endpoints: `/api/v1/auth/login`, `/api/v1/auth/register`, `/api/v1/auth/forgot-password`
   - There is no rate limiting, making brute-force and credential-stuffing attacks trivial.
-  - Add a rate limiter (e.g., `slowapi` with Redis or in-memory backend). Suggested limits: 5 login attempts per minute per IP, 3 registration attempts per minute per IP, 2 forgot-password requests per minute per email.
+  - Added `slowapi` (in-memory, per-IP): 5 req/min on login, 3 req/min on register, 2 req/min on forgot-password.
 
-- [ ] **Validate untyped input fields**
+- [x] **Validate untyped input fields**
   - `PlaceAttributeInput.value` accepts `Any` with no validation. Malicious payloads could be stored directly.
   - `PlaceCreate.google_reviews` accepts `List[dict]` with no schema enforcement.
-  - Define a `GoogleReviewInput` Pydantic model with explicit fields (`author`, `rating`, `text`, `time`). Constrain `PlaceAttributeInput.value` to `str | int | float | bool | list[str]`.
+  - Added `ExternalReviewInput` Pydantic model with explicit typed fields (`author_name`, `rating`, `text`, `time`, `language`). Constrained `PlaceAttributeInput.value` to `str | int | float | bool | list[str]` (dict rejected).
 
-- [ ] **Review and tighten CORS configuration**
+- [x] **Review and tighten CORS configuration**
   - The server currently allows all origins (`*`) in development mode. This is acceptable for local dev but must not reach production.
-  - Add environment-aware CORS: restrict `allow_origins` to the deployed frontend URLs in production. Document the required `CORS_ORIGINS` env var.
+  - Already environment-aware: `CORS_ORIGINS` env var restricts origins; defaults to localhost only. Documented in `.env.example`.
 
-- [ ] **Add refresh token rotation**
+- [x] **Add refresh token rotation**
   - Current JWT tokens last 7 days with no refresh mechanism. If a token is stolen, it is valid for the entire duration.
-  - Implement a short-lived access token (15-30 minutes) plus a long-lived refresh token (7-30 days) stored in an HTTP-only cookie. Rotate the refresh token on each use and invalidate the old one.
+  - Implemented: short-lived access tokens (30 min, configurable via `JWT_EXPIRE`), long-lived refresh tokens (30 days, configurable via `REFRESH_EXPIRE`) stored in HTTP-only `SameSite=Strict` cookies. Added `RefreshToken` DB model, `POST /auth/refresh` (rotates on use), and `POST /auth/logout` (revokes token + clears cookie).
 
-- [ ] **Enforce password strength on the backend**
+- [x] **Enforce password strength on the backend**
   - The web frontend enforces a minimum of 6 characters, but the backend has no validation at all. A single-character password is accepted.
-  - Add server-side validation: minimum 8 characters, at least one uppercase letter, one lowercase letter, and one digit. Return a clear 422 error with the requirements.
+  - Added server-side validation to `RegisterBody` and `ResetPasswordBody`: minimum 8 characters, at least one uppercase letter, one lowercase letter, and one digit. Returns 422 with clear message.
 
 ### Reliability
 

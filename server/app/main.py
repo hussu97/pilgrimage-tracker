@@ -7,6 +7,9 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import api_router
@@ -20,6 +23,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Pilgrimage Tracker API", version="1.0", lifespan=lifespan)
+
+# Rate limiter (in-memory, per-IP)
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # allow_origins=["*"] with allow_credentials=True is invalid per CORS spec. Use explicit origins.
 _DEFAULT_CORS_ORIGINS = [

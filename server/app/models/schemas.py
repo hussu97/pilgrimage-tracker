@@ -1,8 +1,26 @@
-from typing import Any, List, Literal, Optional
+import re
+from typing import List, Literal, Optional, Union
 
 from pydantic import BaseModel, validator
 
 Religion = Literal["islam", "hinduism", "christianity"]
+
+_PASSWORD_REQUIREMENTS = (
+    "Password must be at least 8 characters and contain at least one uppercase letter, "
+    "one lowercase letter, and one digit."
+)
+
+
+def _validate_password(v: str) -> str:
+    if len(v) < 8:
+        raise ValueError(_PASSWORD_REQUIREMENTS)
+    if not re.search(r"[A-Z]", v):
+        raise ValueError(_PASSWORD_REQUIREMENTS)
+    if not re.search(r"[a-z]", v):
+        raise ValueError(_PASSWORD_REQUIREMENTS)
+    if not re.search(r"\d", v):
+        raise ValueError(_PASSWORD_REQUIREMENTS)
+    return v
 
 
 class UserResponse(BaseModel):
@@ -17,12 +35,17 @@ class UserResponse(BaseModel):
 class AuthResponse(BaseModel):
     user: UserResponse
     token: str
+    refresh_token: Optional[str] = None
 
 
 class RegisterBody(BaseModel):
     email: str
     password: str
     display_name: Optional[str] = None
+
+    @validator("password")
+    def validate_password_strength(cls, v):
+        return _validate_password(v)
 
 
 class LoginBody(BaseModel):
@@ -41,6 +64,10 @@ class ForgotPasswordBody(BaseModel):
 class ResetPasswordBody(BaseModel):
     token: str
     newPassword: str
+
+    @validator("newPassword")
+    def validate_new_password_strength(cls, v):
+        return _validate_password(v)
 
 
 class CheckInBody(BaseModel):
@@ -99,19 +126,46 @@ class FiltersMetadata(BaseModel):
 
 
 class PlacesListResponse(BaseModel):
-    places: List[Any]  # list of place dicts (dynamic fields)
+    places: List  # list of place dicts (dynamic fields)
     filters: FiltersMetadata
+
+
+# Allowed scalar types for place attribute values (no arbitrary dict/object)
+_AllowedAttributeValue = Union[str, int, float, bool, List[str]]
 
 
 class PlaceAttributeInput(BaseModel):
     attribute_code: str
-    value: Any  # str, number, bool, or dict
+    value: _AllowedAttributeValue
 
-    @validator('value')
+    @validator("value")
     def validate_value_type(cls, v):
         """Ensure value is one of the allowed types."""
-        if not isinstance(v, (str, int, float, bool, dict, list, type(None))):
-            raise ValueError(f'Invalid value type: {type(v).__name__}. Must be str, number, bool, dict, list, or null.')
+        if isinstance(v, list):
+            for item in v:
+                if not isinstance(item, str):
+                    raise ValueError(
+                        "List values must contain only strings."
+                    )
+        elif not isinstance(v, (str, int, float, bool)):
+            raise ValueError(
+                "Value must be a string, number, boolean, or list of strings."
+            )
+        return v
+
+
+class ExternalReviewInput(BaseModel):
+    """Typed schema for external (e.g. Google) reviews imported during sync."""
+    author_name: str
+    rating: int
+    text: str
+    time: int  # Unix timestamp
+    language: str = "en"
+
+    @validator("rating")
+    def validate_rating(cls, v):
+        if not (1 <= v <= 5):
+            raise ValueError("Rating must be between 1 and 5.")
         return v
 
 
@@ -131,16 +185,14 @@ class PlaceCreate(BaseModel):
     website_url: Optional[str] = None
     source: Optional[str] = None
     attributes: Optional[List[PlaceAttributeInput]] = None
-    external_reviews: Optional[List[dict]] = None  # For external reviews during sync
+    external_reviews: Optional[List[ExternalReviewInput]] = None
 
-    @validator('image_blobs')
+    @validator("image_blobs")
     def validate_image_sources(cls, v, values):
         """Ensure only one image source (urls or blobs) is provided, not both."""
-        # Allow if one is empty/None - only reject if both have actual data
-        image_urls = values.get('image_urls', [])
+        image_urls = values.get("image_urls", [])
         has_urls = image_urls and len(image_urls) > 0
         has_blobs = v and len(v) > 0
-
         if has_urls and has_blobs:
-            raise ValueError('Cannot provide both image_urls and image_blobs. Use one or the other.')
+            raise ValueError("Cannot provide both image_urls and image_blobs. Use one or the other.")
         return v

@@ -4,6 +4,48 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Security Hardening – P0 Critical Fixes + P1 Security (2026-02-17)
+
+### Backend
+
+- **Fix: JWT expiration format parsing** (`server/app/core/config.py`)
+  - `JWT_EXPIRE` / `REFRESH_EXPIRE` env vars now accept `"7d"`, `"24h"`, `"30m"`, or integer minutes via `_parse_jwt_expire()`. Previously `int()` would crash on the `"7d"` format shown in `.env.example`.
+
+- **Fix: `delete_review` crash** – already resolved (proper `session.delete()` in `reviews_db.delete_review`); confirmed and marked done in ROADMAP.
+
+- **Fix: `image_urls` AttributeError on Place model** – already resolved (uses `place_images.get_images()`); confirmed and marked done in ROADMAP.
+
+- **Fix: `get_current_user` missing session argument** (`server/app/api/deps.py`)
+  - `get_current_user` and `get_optional_user` now inject `SessionDep` and pass it to `store.get_user_by_code()`, preventing a `TypeError` on every authenticated request.
+
+- **Security: Password strength enforcement** (`server/app/models/schemas.py`)
+  - `RegisterBody` and `ResetPasswordBody` now validate passwords server-side: minimum 8 characters, at least one uppercase letter, one lowercase letter, and one digit. Returns a 422 with a clear message on failure.
+
+- **Security: Input validation** (`server/app/models/schemas.py`)
+  - Added `ExternalReviewInput` Pydantic model with explicit typed fields (`author_name`, `rating` 1–5, `text`, `time`, `language`). `PlaceCreate.external_reviews` now uses `List[ExternalReviewInput]` instead of `List[dict]`.
+  - `PlaceAttributeInput.value` constrained to `str | int | float | bool | list[str]`; arbitrary `dict` payloads are rejected.
+
+- **Security: Rate limiting on auth endpoints** (`server/app/main.py`, `server/app/api/v1/auth.py`)
+  - Added `slowapi` (in-memory, per-IP). Limits: `POST /auth/login` → 5/min, `POST /auth/register` → 3/min, `POST /auth/forgot-password` → 2/min.
+
+- **Security: Password reset emails via Resend.com** (`server/app/api/v1/auth.py`, `server/app/core/config.py`)
+  - `POST /auth/forgot-password` now sends a reset link via the Resend.com API. Falls back to console logging when `RESEND_API_KEY` is unset (dev). Added `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `RESET_URL_BASE` env vars.
+
+- **Security: Refresh token rotation** (`server/app/db/models.py`, `server/app/db/store.py`, `server/app/core/security.py`, `server/app/api/v1/auth.py`)
+  - Access tokens are now short-lived (default 30 min, configurable via `JWT_EXPIRE`).
+  - Opaque refresh tokens (96-char hex, stored in `RefreshToken` DB table) are issued on login/register, set as HTTP-only `SameSite=Strict` cookies (30 days, configurable via `REFRESH_EXPIRE`).
+  - `POST /api/v1/auth/refresh` – validates and rotates the refresh token, issues a new access token.
+  - `POST /api/v1/auth/logout` – revokes the refresh token and clears the cookie.
+  - Old refresh token is revoked on every use (rotation); stolen tokens cannot be reused.
+
+- **CORS** – already environment-aware (`CORS_ORIGINS` env var, no wildcard `*`); confirmed and marked done in ROADMAP.
+
+- **Dependencies**: added `slowapi>=0.1.9` and `resend>=2.0.0` to `server/requirements.txt`.
+
+- **Docs**: updated `server/.env.example` with `JWT_EXPIRE`, `REFRESH_EXPIRE`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESET_URL_BASE`.
+
+---
+
 ## Fix Google Maps Scraper API Errors and Invalid Place Types (2026-02-17)
 
 ### Data Scraper

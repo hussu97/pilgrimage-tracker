@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Literal, Optional
 
 from sqlmodel import Session, select
-from app.db.models import User, UserSettings, PasswordReset
+from app.core.config import REFRESH_EXPIRE
+from app.db.models import User, UserSettings, PasswordReset, RefreshToken
 
 Religion = Literal["islam", "hinduism", "christianity"]
 VALID_RELIGIONS = ("islam", "hinduism", "christianity")
@@ -155,4 +156,44 @@ def update_user_password(user_code: str, password_hash: str, session: Session) -
         user.password_hash = password_hash
         user.updated_at = datetime.utcnow()
         session.add(user)
+        session.commit()
+
+
+# ─── Refresh token helpers ─────────────────────────────────────────────────────
+
+def save_refresh_token(token: str, user_code: str, session: Session) -> None:
+    """Persist a new refresh token for the given user."""
+    row = RefreshToken(
+        token=token,
+        user_code=user_code,
+        expires_at=datetime.utcnow() + timedelta(minutes=REFRESH_EXPIRE),
+    )
+    session.add(row)
+    session.commit()
+
+
+def consume_refresh_token(token: str, session: Session) -> Optional[str]:
+    """Validate and revoke a refresh token. Returns user_code on success, None on failure."""
+    row = session.exec(
+        select(RefreshToken).where(RefreshToken.token == token)
+    ).first()
+    if not row or row.revoked_at is not None:
+        return None
+    if row.expires_at < datetime.utcnow():
+        return None
+    # Revoke (rotate) the old token
+    row.revoked_at = datetime.utcnow()
+    session.add(row)
+    session.commit()
+    return row.user_code
+
+
+def revoke_refresh_token(token: str, session: Session) -> None:
+    """Revoke a specific refresh token (used on logout)."""
+    row = session.exec(
+        select(RefreshToken).where(RefreshToken.token == token)
+    ).first()
+    if row and row.revoked_at is None:
+        row.revoked_at = datetime.utcnow()
+        session.add(row)
         session.commit()

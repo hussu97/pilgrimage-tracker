@@ -134,6 +134,15 @@ class PasswordReset(SQLModel, table=True):
     used_at: Optional[datetime] = None
 
 
+class RefreshToken(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    token: str = Field(index=True, unique=True)
+    user_code: str = Field(index=True, foreign_key="user.user_code")
+    expires_at: datetime
+    revoked_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class PlaceAttributeDefinition(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     attribute_code: str = Field(index=True, unique=True)

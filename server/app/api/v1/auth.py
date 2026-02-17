@@ -1,21 +1,35 @@
 import secrets
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, HTTPException
+import resend
+from fastapi import APIRouter, HTTPException, Request, Response
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
-from app.core.security import hash_password, verify_password, create_access_token
+from app.core.config import RESEND_API_KEY, RESEND_FROM_EMAIL, RESET_URL_BASE
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    hash_password,
+    verify_password,
+)
 from app.db import store
 from app.db.session import SessionDep
 from app.models.schemas import (
-    RegisterBody,
-    LoginBody,
-    ForgotPasswordBody,
-    ResetPasswordBody,
     AuthResponse,
+    ForgotPasswordBody,
+    LoginBody,
+    RegisterBody,
+    ResetPasswordBody,
     UserResponse,
 )
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
+
+# ─── helpers ──────────────────────────────────────────────────────────────────
+
+_REFRESH_COOKIE_MAX_AGE = 30 * 24 * 60 * 60  # 30 days in seconds
 
 
 def _to_public_user(user, session) -> UserResponse:
@@ -31,8 +45,49 @@ def _to_public_user(user, session) -> UserResponse:
     )
 
 
+def _set_refresh_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        key="refresh_token",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=_REFRESH_COOKIE_MAX_AGE,
+        path="/api/v1/auth",
+    )
+
+
+def _send_reset_email(to_email: str, reset_token: str) -> None:
+    """Send password-reset email via Resend.com. Falls back to console in dev."""
+    reset_link = f"{RESET_URL_BASE}/reset-password?token={reset_token}"
+
+    if not RESEND_API_KEY:
+        # Development fallback – never log tokens in production
+        print(f"[DEV] Password reset link for {to_email}: {reset_link}")
+        return
+
+    resend.api_key = RESEND_API_KEY
+    try:
+        resend.Emails.send({
+            "from": RESEND_FROM_EMAIL,
+            "to": [to_email],
+            "subject": "Reset your Pilgrimage Tracker password",
+            "html": (
+                "<p>You requested a password reset for your Pilgrimage Tracker account.</p>"
+                f"<p><a href='{reset_link}'>Click here to reset your password</a></p>"
+                "<p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>"
+            ),
+        })
+    except Exception as exc:
+        # Log but don't surface internal details to the caller
+        print(f"[ERROR] Failed to send password reset email to {to_email}: {exc}")
+
+
+# ─── routes ───────────────────────────────────────────────────────────────────
+
 @router.post("/register", response_model=AuthResponse)
-def register(body: RegisterBody, session: SessionDep):
+@limiter.limit("3/minute")
+def register(request: Request, body: RegisterBody, session: SessionDep):
     if store.get_user_by_email(body.email, session):
         raise HTTPException(status_code=400, detail="Email already registered")
     user_code = "usr_" + secrets.token_hex(8)
@@ -46,36 +101,76 @@ def register(body: RegisterBody, session: SessionDep):
         religion=None,
         session=session,
     )
-    token = create_access_token(user_code)
-    return AuthResponse(user=_to_public_user(user, session), token=token)
+    access_token = create_access_token(user_code)
+    refresh = create_refresh_token(user_code)
+    store.save_refresh_token(refresh, user_code, session)
+    payload = AuthResponse(user=_to_public_user(user, session), token=access_token)
+    resp = Response(content=payload.model_dump_json(), media_type="application/json")
+    _set_refresh_cookie(resp, refresh)
+    return resp
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(body: LoginBody, session: SessionDep):
+@limiter.limit("5/minute")
+def login(request: Request, body: LoginBody, session: SessionDep):
     user = store.get_user_by_email(body.email, session)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    token = create_access_token(user.user_code)
-    return AuthResponse(user=_to_public_user(user, session), token=token)
+    access_token = create_access_token(user.user_code)
+    refresh = create_refresh_token(user.user_code)
+    store.save_refresh_token(refresh, user.user_code, session)
+    payload = AuthResponse(user=_to_public_user(user, session), token=access_token)
+    resp = Response(content=payload.model_dump_json(), media_type="application/json")
+    _set_refresh_cookie(resp, refresh)
+    return resp
+
+
+@router.post("/refresh")
+def refresh_token(request: Request, session: SessionDep):
+    """Issue a new access token using the refresh token stored in an HTTP-only cookie."""
+    token = request.cookies.get("refresh_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing refresh token")
+
+    user_code = store.consume_refresh_token(token, session)
+    if not user_code:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+
+    new_access = create_access_token(user_code)
+    new_refresh = create_refresh_token(user_code)
+    store.save_refresh_token(new_refresh, user_code, session)
+
+    resp = Response(
+        content=f'{{"token":"{new_access}"}}',
+        media_type="application/json",
+    )
+    _set_refresh_cookie(resp, new_refresh)
+    return resp
+
+
+@router.post("/logout")
+def logout(request: Request, session: SessionDep):
+    """Revoke the refresh token and clear the cookie."""
+    token = request.cookies.get("refresh_token")
+    if token:
+        store.revoke_refresh_token(token, session)
+    resp = Response(content='{"ok":true}', media_type="application/json")
+    resp.delete_cookie(key="refresh_token", path="/api/v1/auth")
+    return resp
 
 
 @router.post("/forgot-password")
-def forgot_password(body: ForgotPasswordBody, session: SessionDep):
+@limiter.limit("2/minute")
+def forgot_password(request: Request, body: ForgotPasswordBody, session: SessionDep):
     user = store.get_user_by_email(body.email, session)
     if not user:
         return {"ok": True, "message": "If an account exists, you will receive a reset link."}
     token = secrets.token_hex(32)
     expires_at = datetime.utcnow() + timedelta(hours=1)
     store.save_password_reset(token, user.user_code, expires_at, session)
-
-    # TODO: Implement email dispatch for password reset
-    # Integrate with an email service (SendGrid, AWS SES, etc.) to send reset link:
-    # reset_link = f"{FRONTEND_URL}/reset-password?token={token}"
-    # send_email(to=user.email, subject="Password Reset", body=f"Click here: {reset_link}")
-    # Do not log tokens or emails in production.
-
+    _send_reset_email(user.email, token)
     return {"ok": True, "message": "If an account exists, you will receive a reset link."}
 
 

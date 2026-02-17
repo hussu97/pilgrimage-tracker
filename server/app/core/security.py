@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta
 
 import bcrypt
@@ -16,8 +17,13 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def create_access_token(sub: str) -> str:
     expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE)
-    to_encode = {"sub": sub, "exp": expire}
+    to_encode = {"sub": sub, "exp": expire, "type": "access"}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_refresh_token(_sub: str) -> str:
+    """Return a cryptographically random opaque refresh token (stored in DB)."""
+    return secrets.token_hex(48)
 
 
 def decode_token(token: str):
