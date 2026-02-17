@@ -63,6 +63,18 @@ function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
   });
 }
 
+/**
+ * Calls map.remove() when this component unmounts so Leaflet clears its
+ * internal _leaflet_id from the container div.  Without this, React Strict
+ * Mode's double-mount (unmount → remount) causes "Map container is already
+ * initialized" because the id is still stamped on the DOM node.
+ */
+function MapCleanup() {
+  const map = useMap();
+  useEffect(() => () => { map.remove(); }, [map]);
+  return null;
+}
+
 function FitBounds({ places }: { places: Place[] }) {
   const map = useMap();
   const bounds = useMemo(() => {
@@ -106,6 +118,7 @@ export default function PlacesMap({ places, center, onPlaceSelect, selectedPlace
         scrollWheelZoom
         style={{ minHeight: 400 }}
       >
+        <MapCleanup />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
