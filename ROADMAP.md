@@ -403,43 +403,43 @@ For each screen, compare the current implementation against both the light and d
 
 ### Component-Level Design Tasks
 
-- [ ] **Glass morphism panels**
+- [x] **Glass morphism panels**
   - Ensure all glass panels use `backdrop-blur-md` (or equivalent), correct background opacity (`bg-white/70` light, `bg-gray-900/70` dark), and a subtle border (`border-white/20`).
 
-- [ ] **Badge system styling**
+- [x] **Badge system styling**
   - Status badges (Open/Closed): pill shape, green for open, red for closed, white text
   - Rating pills: star icon + number, yellow background
   - Visited indicators: checkmark overlay on place cards the user has visited
 
-- [ ] **Card styling**
+- [x] **Card styling**
   - Shadow: `shadow-md` or equivalent elevation
   - Border radius: 16px for cards, 12px for inner elements
   - Padding: 16px internal padding, 12px gap between cards in lists
 
-- [ ] **Button variants**
+- [x] **Button variants**
   - Primary: solid fill with primary color, white text, 12px border radius
   - Secondary: lighter fill with primary color at 10% opacity, primary color text
   - Outline: transparent fill, 1px border in primary color, primary color text
   - Glass: backdrop-blur with semi-transparent background, white text
 
-- [ ] **Input field styling**
+- [x] **Input field styling**
   - Border radius: 12px
   - Border: 1px solid with muted color, transitions to primary color on focus
   - Placeholder: muted text color, correct font size
   - Focus state: primary color border with subtle glow/ring
 
-- [ ] **Bottom navigation bar**
+- [x] **Bottom navigation bar**
   - Glass effect: `backdrop-blur-lg`, semi-transparent background
   - Active tab: primary color icon, label visible
   - Inactive tab: muted color icon, no label (or smaller label)
   - Safe area spacing on devices with home indicators
 
-- [ ] **Overlay gradients**
+- [x] **Overlay gradients**
   - Hero image gradient: `linear-gradient(to bottom, transparent 40%, background-color 100%)`
   - Match gradient stops and colors exactly between light and dark modes
   - Gradient should be strong enough to ensure text readability over any image
 
-- [ ] **Animation and motion**
+- [x] **Animation and motion**
   - Check-in: spring physics animation (scale up then settle) with haptic feedback
   - Favorite toggle: heart icon scale animation on press
   - Parallax scroll: hero image moves at 0.5x scroll speed on detail pages

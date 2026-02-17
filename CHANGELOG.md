@@ -4,6 +4,76 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P4 Design Alignment – Component-Level (2026-02-17)
+
+### Frontend (web)
+
+- **Design tokens: border radius alignment** (`apps/web/tailwind.config.js`)
+  - Aligned border radius values with design reference: `2xl` = 16px (cards), `3xl` = 24px (large panels), `4xl` = 32px (hero sections), `xl` = 12px (inputs, inner elements).
+
+- **Animation & motion utilities** (`apps/web/tailwind.config.js`, `apps/web/src/index.css`)
+  - Added `shimmer` (1.5s skeleton), `checkInSpring` (spring physics scale), `heartPop` (favorite toggle), `slideUp`, and `fadeIn` keyframe animations.
+  - Added `.skeleton-shimmer`, `.animate-check-in`, `.animate-heart-pop`, `.animate-slide-up` CSS utility classes.
+
+- **Glass morphism** (`apps/web/src/index.css`)
+  - Updated `.glass-card` to `rgba(255,255,255,0.70)` + `blur(12px)` + `border-white/20` (light mode).
+  - Updated `.glass-card-dark` to `rgba(18,18,18,0.70)` + `blur(12px)` + `border-white/10` (dark mode).
+  - Added `.glass-btn` for hero image overlay controls.
+
+- **Badge system** (`apps/web/src/index.css`)
+  - `.badge-open`: primary blue pill with pulse dot (matches design reference).
+  - `.badge-closed`: red pill, white text.
+  - `.badge-visited`: glass morphism pill with backdrop-blur.
+  - `.badge-rating`: dark glass pill with star + rating number.
+
+- **Overlay gradients** (`apps/web/src/index.css`)
+  - `.hero-gradient`: `from-black/40 → transparent → to-black/80` (matches design reference three-stop gradient).
+  - `.hero-gradient-bottom`: `transparent 40% → black/80 100%` for card images.
+
+- **Button variants** (`apps/web/src/components/common/PrimaryButton.tsx`)
+  - Added `outline` variant: transparent fill, 1px primary border, primary text.
+  - Added `glass` variant: backdrop-blur semi-transparent, white text.
+  - Updated `secondary` variant: `primary/10` opacity fill, primary text (was outline-ish border).
+
+- **PlaceCard** (`apps/web/src/components/places/PlaceCard.tsx`)
+  - Hero image gradient updated to three-stop `.hero-gradient`.
+  - Open badge uses `.badge-open` (primary blue pill with pulse dot).
+  - Closed badge uses `.badge-closed` (red pill).
+  - Visited badge uses `.badge-visited` (glass morphism).
+  - Card border radius: `rounded-2xl` (16px). Inner image: `rounded-xl` (12px). Consistent 16px padding.
+  - Shadow: `shadow-card` on rest, `shadow-card-md` on hover.
+
+- **Bottom navigation** (`apps/web/src/components/layout/Layout.tsx`)
+  - Switched to layered glass: `bg-white/80` + `backdrop-blur-lg` background layer + `border-white/30` separator.
+  - Active icon: filled + bold weight (`wght 600`). Inactive icon: lighter weight (`wght 300`).
+  - Active indicator: small primary dot above icon. Inactive label: smaller and 50% opacity.
+  - Safe area inset handled via `env(safe-area-inset-bottom)`.
+
+- **Skeleton shimmer** (`apps/web/src/components/common/SkeletonCard.tsx`)
+  - Replaced `animate-pulse` with `.skeleton-shimmer` left-to-right gradient at 1.5s interval.
+
+### Frontend (mobile)
+
+- **Design tokens: border radius alignment** (`apps/mobile/src/lib/theme.ts`)
+  - Aligned `borderRadius` with design reference: `2xl` = 16px, `3xl` = 24px, `4xl` = 32px.
+  - Added `closedNow` / `closedNowBg` color tokens (red).
+  - Changed `openNow` from green `#059669` to primary blue `#007AFF` (matches design reference badge).
+  - Added `cardMd` shadow token.
+
+- **PlaceCard badges & gradients** (`apps/mobile/src/components/places/PlaceCard.tsx`)
+  - Open badge: solid primary blue with white text (matches design reference).
+  - Closed badge: solid red with white text.
+  - Visited badge: glass morphism (unchanged, correct).
+  - Hero gradient: `overlayTop` (rgba 0,0,0,0.40) + `overlayBottom` (rgba 0,0,0,0.50), matching design reference three-stop pattern.
+  - Compact card inner image radius: `tokens.borderRadius.xl` (12px). Card radius: `tokens.borderRadius['2xl']` (16px).
+  - Rating pill updated to rounded-full glass style.
+
+- **Bottom navigation** (`apps/mobile/src/components/layout/Layout.tsx`)
+  - Inactive tab labels hidden; only active tab shows its label (cleaner per design spec).
+  - Active indicator pill widened to 28px, shadow intensity increased.
+
+---
+
 ## Security Hardening – P0 Critical Fixes + P1 Security (2026-02-17)
 
 ### Backend
