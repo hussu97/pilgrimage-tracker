@@ -8,6 +8,7 @@ import type { RootStackParamList } from '@/app/navigation';
 import type { Place } from '@/lib/types';
 import { tokens } from '@/lib/theme';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
+import { useI18n } from '@/app/providers';
 
 interface PlaceCardProps {
   place: Place;
@@ -25,11 +26,14 @@ function formatCount(n: number): string {
 
 function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>>();
+  const { t } = useI18n();
   const imageUrl = getFullImageUrl(place.images?.[0]?.url);
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
-  const isOpen = place.is_open_now === true;
-  const isClosed = place.is_open_now === false;
+  const openStatus = place.open_status ?? (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : 'unknown');
+  const isOpen = openStatus === 'open';
+  const isClosed = openStatus === 'closed';
+  const isUnknown = openStatus === 'unknown';
 
   if (compact) {
     return (
@@ -61,12 +65,17 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
           <View style={styles.compactChips}>
             {isOpen && (
               <View style={styles.chipOpen}>
-                <Text style={styles.chipOpenText}>Open</Text>
+                <Text style={styles.chipOpenText}>{t('places.open')}</Text>
               </View>
             )}
             {isClosed && (
               <View style={styles.chipClosed}>
-                <Text style={styles.chipClosedText}>Closed</Text>
+                <Text style={styles.chipClosedText}>{t('places.closed')}</Text>
+              </View>
+            )}
+            {isUnknown && (
+              <View style={styles.chipUnknown}>
+                <Text style={styles.chipUnknownText}>{t('places.unknown')}</Text>
               </View>
             )}
             {place.distance != null && (
@@ -119,12 +128,17 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
           {isOpen && (
             <View style={styles.badgeOpen}>
               <View style={styles.openDot} />
-              <Text style={styles.badgeText}>Open</Text>
+              <Text style={styles.badgeText}>{t('places.open')}</Text>
             </View>
           )}
           {isClosed && (
             <View style={styles.badgeClosed}>
-              <Text style={styles.badgeText}>Closed</Text>
+              <Text style={styles.badgeText}>{t('places.closed')}</Text>
+            </View>
+          )}
+          {isUnknown && (
+            <View style={styles.badgeUnknown}>
+              <Text style={styles.badgeText}>{t('places.unknown')}</Text>
             </View>
           )}
         </View>
@@ -231,6 +245,14 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.closedNow,
   },
   chipClosedText: { fontSize: 9, fontWeight: '700', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 },
+  // Unknown badge – grey pill
+  chipUnknown: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: tokens.borderRadius.full,
+    backgroundColor: tokens.colors.unknownStatus,
+  },
+  chipUnknownText: { fontSize: 9, fontWeight: '700', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 },
   chipDist: {
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -292,14 +314,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
   },
-  // Open badge – primary blue, solid (matches design reference)
+  // Open badge – green, solid
   badgeOpen: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     backgroundColor: tokens.colors.openNow,
     borderWidth: 1,
-    borderColor: 'rgba(0,122,255,0.50)',
+    borderColor: 'rgba(22,163,74,0.50)',
     borderRadius: tokens.borderRadius.full,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -311,6 +333,17 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.closedNow,
     borderWidth: 1,
     borderColor: 'rgba(239,68,68,0.50)',
+    borderRadius: tokens.borderRadius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  // Unknown badge – grey
+  badgeUnknown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: tokens.colors.unknownStatus,
+    borderWidth: 1,
+    borderColor: 'rgba(148,163,184,0.50)',
     borderRadius: tokens.borderRadius.full,
     paddingHorizontal: 10,
     paddingVertical: 5,

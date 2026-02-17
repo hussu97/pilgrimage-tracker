@@ -17,8 +17,10 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const imageUrl = getFullImageUrl(place.images?.[0]?.url);
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
-  const isOpen = place.is_open_now === true;
-  const isClosed = place.is_open_now === false;
+  const openStatus = place.open_status ?? (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : 'unknown');
+  const isOpen = openStatus === 'open';
+  const isClosed = openStatus === 'closed';
+  const isUnknown = openStatus === 'unknown';
 
   if (compact) {
     return (
@@ -50,12 +52,17 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
             {isOpen && (
               <span className="badge-open">
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                {t('places.openNow')}
+                {t('places.open')}
               </span>
             )}
             {isClosed && (
               <span className="badge-closed">
                 {t('places.closed')}
+              </span>
+            )}
+            {isUnknown && (
+              <span className="badge-unknown">
+                {t('places.unknown')}
               </span>
             )}
             {place.distance != null && (
@@ -103,12 +110,17 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
             {isOpen && (
               <span className="badge-open">
                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                {t('places.openNow')}
+                {t('places.open')}
               </span>
             )}
             {isClosed && (
               <span className="badge-closed">
                 {t('places.closed')}
+              </span>
+            )}
+            {isUnknown && (
+              <span className="badge-unknown">
+                {t('places.unknown')}
               </span>
             )}
           </div>

@@ -43,10 +43,12 @@ export const tokens = {
     inputBorder: '#e2e8f0',
     blueTint: '#f0f9ff',
     iconGrey: '#475569',
-    openNow: '#007AFF',         // primary blue – matches design reference badge
-    openNowBg: 'rgba(0, 122, 255, 0.15)',
+    openNow: '#16a34a',         // green for open
+    openNowBg: 'rgba(22, 163, 74, 0.15)',
     closedNow: '#EF4444',       // red for closed
     closedNowBg: 'rgba(239, 68, 68, 0.15)',
+    unknownStatus: '#94a3b8',   // grey for unknown
+    unknownStatusBg: 'rgba(148, 163, 184, 0.15)',
     // Dark mode tokens
     darkBg: '#121212',
     darkSurface: '#1E1E1E',

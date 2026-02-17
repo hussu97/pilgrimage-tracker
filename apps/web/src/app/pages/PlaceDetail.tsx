@@ -477,19 +477,27 @@ export default function PlaceDetail() {
         {/* Hero bottom info */}
         <div className="absolute bottom-0 left-0 right-0 p-6 pb-10 z-10">
           <div className="flex items-center gap-2 mb-2.5">
-            {place.is_open_now != null && (
-              <span
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wide border ${place.is_open_now
-                  ? 'bg-emerald-500/30 border-emerald-400/40 text-white'
-                  : 'bg-red-500/30 border-red-400/40 text-white'
-                  }`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 rounded-full ${place.is_open_now ? 'bg-emerald-400' : 'bg-red-400'}`}
-                />
-                {place.is_open_now ? t('places.openNow') : t('places.closed')}
-              </span>
-            )}
+            {(() => {
+              const status = place.open_status ?? (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : null);
+              if (status === 'open') return (
+                <span className="badge-open-glass">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  {t('places.open')}
+                </span>
+              );
+              if (status === 'closed') return (
+                <span className="badge-closed-glass">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                  {t('places.closed')}
+                </span>
+              );
+              if (status === 'unknown') return (
+                <span className="badge-unknown-glass">
+                  {t('places.unknown')}
+                </span>
+              );
+              return null;
+            })()}
             {averageRating != null && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-black/25 border border-white/15 text-white">
                 <span className="material-symbols-outlined text-amber-400 text-[14px]">star</span>

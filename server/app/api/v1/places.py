@@ -57,12 +57,29 @@ def _place_to_item(place, session: Session, distance: Optional[float] = None, in
     is_open = places_db._is_open_now_from_hours(place.opening_hours, utc_offset_minutes)
     out["is_open_now"] = is_open
 
-    # Add opening_hours_today - today's hours in local time
+    # Derive open_status string: "open" | "closed" | "unknown"
+    if is_open is True:
+        out["open_status"] = "open"
+    elif is_open is False:
+        out["open_status"] = "closed"
+    else:
+        out["open_status"] = "unknown"
+
+    # Add opening_hours_today - today's hours in local time (normalize 24h marker)
     if place.opening_hours and isinstance(place.opening_hours, dict):
         today_name = get_today_name(utc_offset_minutes)
         today_hours = place.opening_hours.get(today_name)
         if today_hours:
-            out["opening_hours_today"] = today_hours
+            normalized_today = today_hours if today_hours != "00:00-23:59" else "OPEN_24_HOURS"
+            out["opening_hours_today"] = normalized_today
+
+    # Normalize full opening_hours dict: replace "00:00-23:59" with "OPEN_24_HOURS" marker
+    if place.opening_hours and isinstance(place.opening_hours, dict):
+        normalized_hours = {
+            k: ("OPEN_24_HOURS" if v == "00:00-23:59" else v)
+            for k, v in place.opening_hours.items()
+        }
+        out["opening_hours"] = normalized_hours
 
     if getattr(place, "website_url", None):
         out["website_url"] = place.website_url

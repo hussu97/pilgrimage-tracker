@@ -14,8 +14,9 @@ function PlaceOpeningHours({ opening_hours, opening_hours_today, t, compact = fa
 
   const formatHours = (hours: string | undefined) => {
     if (!hours) return t('places.hoursNotAvailable');
-    if (hours === 'Closed') return t('places.closed');
-    if (hours === '00:00-23:59') return t('places.open24Hours');
+    if (hours.toLowerCase() === 'closed') return t('places.closed');
+    if (hours === 'OPEN_24_HOURS' || hours === '00:00-23:59') return t('places.open24Hours');
+    if (hours.toLowerCase() === 'hours not available') return t('places.hoursNotAvailable');
     return hours;
   };
 
@@ -38,8 +39,8 @@ function PlaceOpeningHours({ opening_hours, opening_hours_today, t, compact = fa
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-[20px]">schedule</span>
                 <span className="text-sm font-semibold text-text-main">{t('places.today')}:</span>
-                <span className="text-sm text-text-secondary">
-                  {opening_hours_today || t('places.hoursNotAvailable')}
+                <span className="text-sm text-text-secondary truncate min-w-0">
+                  {formatHours(opening_hours_today ?? undefined)}
                 </span>
               </div>
               <span className="material-symbols-outlined text-text-muted text-[20px]">expand_more</span>
@@ -54,7 +55,7 @@ function PlaceOpeningHours({ opening_hours, opening_hours_today, t, compact = fa
                     className={`flex items-center justify-between py-2 ${isToday ? 'font-semibold text-primary' : 'text-text-secondary'}`}
                   >
                     <span className="text-sm">{day}</span>
-                    <span className="text-sm">{formatHours(opening_hours[day])}</span>
+                    <span className="text-sm text-right max-w-[50%] truncate">{formatHours(opening_hours[day])}</span>
                   </div>
                 );
               })}

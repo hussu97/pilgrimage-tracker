@@ -45,35 +45,56 @@ def _is_open_now_from_hours(opening_hours: Optional[Dict[str, Any]], utc_offset_
         current_day = now.strftime("%A")  # e.g., "Monday"
         today_hours = opening_hours.get(current_day)
 
+        # Handle list type by joining to comma-separated string
+        if isinstance(today_hours, list):
+            today_hours = ", ".join(today_hours)
+
         if not today_hours or not isinstance(today_hours, str):
             return None
 
-        # Check for closed status
-        if today_hours.lower() in ["closed", "hours not available"]:
+        # Check for closed status (distinct from unknown)
+        if today_hours.lower() == "closed":
             return False
 
-        # Parse "HH:MM-HH:MM" format
-        if "-" not in today_hours:
-            return None
-
-        parts = today_hours.split("-")
-        if len(parts) != 2:
-            return None
-
-        open_t = _parse_time(parts[0].strip())
-        close_t = _parse_time(parts[1].strip())
-
-        if open_t is None or close_t is None:
+        # "hours not available" is unknown, not closed
+        if today_hours.lower() == "hours not available":
             return None
 
         now_min = now.hour * 60 + now.minute
-        open_min = open_t[0] * 60 + open_t[1]
-        close_min = close_t[0] * 60 + close_t[1]
 
-        # Handle midnight crossover (e.g., "20:00-04:00")
-        if open_min <= close_min:
-            return open_min <= now_min <= close_min
-        return now_min >= open_min or now_min <= close_min
+        # Multi-slot support: split on commas, check if current time falls in ANY slot
+        slots = [s.strip() for s in today_hours.split(",")]
+        any_parseable = False
+
+        for slot in slots:
+            if "-" not in slot:
+                continue
+
+            parts = slot.split("-")
+            if len(parts) != 2:
+                continue
+
+            open_t = _parse_time(parts[0].strip())
+            close_t = _parse_time(parts[1].strip())
+
+            if open_t is None or close_t is None:
+                continue
+
+            any_parseable = True
+            open_min = open_t[0] * 60 + open_t[1]
+            close_min = close_t[0] * 60 + close_t[1]
+
+            # Handle midnight crossover (e.g., "20:00-04:00")
+            if open_min <= close_min:
+                if open_min <= now_min <= close_min:
+                    return True
+            else:
+                if now_min >= open_min or now_min <= close_min:
+                    return True
+
+        if any_parseable:
+            return False
+        return None
 
     else:
         # Legacy format: {"opens": "HH:MM", "closes": "HH:MM"}

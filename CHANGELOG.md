@@ -4,6 +4,49 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Opening Hours Overhaul (2026-02-17)
+
+### Backend
+
+- **`server/app/db/places.py`** — Fixed `_is_open_now_from_hours()`:
+  - Bug fix: `"hours not available"` now returns `None` (unknown) instead of `False` (closed).
+  - Multi-slot support: handles comma-separated time ranges (e.g. `"05:00-12:00, 14:00-22:00"`); returns `True` if current time falls in ANY slot.
+  - Handles `list` type for `today_hours` by joining to comma-separated string.
+
+- **`server/app/api/v1/places.py`** — Added `open_status` field (`"open"` | `"closed"` | `"unknown"`) to all place API responses; normalized `"00:00-23:59"` → `"OPEN_24_HOURS"` marker in `opening_hours_today` and `opening_hours` dict.
+
+- **`server/app/db/seed_data.json`** — Added `places.open` and `places.unknown` translation keys for English, Arabic, and Hindi.
+
+- **`data_scraper/app/scrapers/gmaps.py`** — Updated `normalize_to_24h()` to handle comma-separated multi-slot hours from Google Maps (e.g. `"9:00 AM - 12:00 PM, 2:00 PM - 6:00 PM"` → `"09:00-12:00, 14:00-18:00"`).
+
+### Frontend (web)
+
+- **`apps/web/src/lib/types/places.ts`** — Added `open_status?: 'open' | 'closed' | 'unknown'`; changed `is_open_now` to `boolean | null`.
+
+- **`apps/web/src/index.css`** — Changed `.badge-open` from blue to green (`bg-emerald-600`); added `.badge-unknown` (grey); added glass variants (`.badge-open-glass`, `.badge-closed-glass`, `.badge-unknown-glass`) for hero overlay use.
+
+- **`apps/web/src/components/places/PlaceCard.tsx`** — Three-state open/closed/unknown pill; uses `t('places.open')` instead of `t('places.openNow')`.
+
+- **`apps/web/src/app/pages/PlaceDetail.tsx`** — Hero pill uses glass badge CSS classes with three-state logic.
+
+- **`apps/web/src/components/places/PlaceOpeningHours.tsx`** — `formatHours()` handles `OPEN_24_HOURS` marker and case-insensitive `"hours not available"`; applied to collapsed view; added `truncate`/`min-w-0` overflow protection.
+
+- **`apps/web/src/components/places/PlacesMap.tsx`** — Map pins now use open-status colors (green/red/grey) instead of religion-based colors.
+
+### Frontend (mobile)
+
+- **`apps/mobile/src/lib/types/places.ts`** — Same type changes as web.
+
+- **`apps/mobile/src/lib/theme.ts`** — `openNow` changed from blue to green (`#16a34a`); added `unknownStatus: '#94a3b8'` and `unknownStatusBg`.
+
+- **`apps/mobile/src/components/places/PlaceCard.tsx`** — Three-state pill with `useI18n` translations; added `chipUnknown`/`badgeUnknown` grey styles; updated border color for open badge.
+
+- **`apps/mobile/src/app/screens/PlaceDetailScreen.tsx`** — Hero pill three-state with `heroBadgeUnknown` style; added `formatHoursDisplay()` helper; applied to collapsed/expanded views; added `numberOfLines={1}` and `flexShrink: 1` overflow fixes.
+
+- **`apps/mobile/src/lib/utils/mapBuilder.ts`** — Map pins use open-status colors via per-marker `openStatus` field; replaces single blue icon.
+
+---
+
 ## P1 Performance Improvements (2026-02-17)
 
 ### Backend

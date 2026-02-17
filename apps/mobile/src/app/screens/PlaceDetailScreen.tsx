@@ -40,6 +40,14 @@ type PlaceDetailRoute = RouteProp<RootStackParamList, 'PlaceDetail'>;
 const HERO_HEIGHT = 300;
 const CARD_OVERLAP = 0;
 
+function formatHoursDisplay(hours: string | undefined, t: (key: string) => string): string {
+  if (!hours) return t('places.hoursNotAvailable');
+  if (hours.toLowerCase() === 'closed') return t('places.closed');
+  if (hours === 'OPEN_24_HOURS' || hours === '00:00-23:59') return t('places.open24Hours');
+  if (hours.toLowerCase() === 'hours not available') return t('places.hoursNotAvailable');
+  return hours;
+}
+
 export default function PlaceDetailScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
@@ -259,14 +267,27 @@ export default function PlaceDetailScreen() {
         {/* Hero bottom info */}
         <View style={styles.heroBottom}>
           <View style={styles.heroBadgeRow}>
-            {place.is_open_now != null && (
-              <View style={[styles.heroBadge, place.is_open_now ? styles.heroBadgeOpen : styles.heroBadgeClosed]}>
-                <View style={[styles.heroBadgeDot, { backgroundColor: place.is_open_now ? '#4ade80' : '#f87171' }]} />
-                <Text style={styles.heroBadgeText}>
-                  {place.is_open_now ? t('places.openNow') : t('places.closed')}
-                </Text>
-              </View>
-            )}
+            {(() => {
+              const status = place.open_status ?? (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : null);
+              if (status === 'open') return (
+                <View style={[styles.heroBadge, styles.heroBadgeOpen]}>
+                  <View style={[styles.heroBadgeDot, { backgroundColor: '#4ade80' }]} />
+                  <Text style={styles.heroBadgeText}>{t('places.open')}</Text>
+                </View>
+              );
+              if (status === 'closed') return (
+                <View style={[styles.heroBadge, styles.heroBadgeClosed]}>
+                  <View style={[styles.heroBadgeDot, { backgroundColor: '#f87171' }]} />
+                  <Text style={styles.heroBadgeText}>{t('places.closed')}</Text>
+                </View>
+              );
+              if (status === 'unknown') return (
+                <View style={[styles.heroBadge, styles.heroBadgeUnknown]}>
+                  <Text style={styles.heroBadgeText}>{t('places.unknown')}</Text>
+                </View>
+              );
+              return null;
+            })()}
             {averageRating != null && (
               <View style={[styles.heroBadge, styles.heroBadgeRating]}>
                 <MaterialIcons name="star" size={12} color="#fbbf24" />
@@ -366,8 +387,8 @@ export default function PlaceDetailScreen() {
                       <Text style={styles.hoursToday}>
                         {t('places.today')}:
                       </Text>
-                      <Text style={styles.hoursTodayValue}>
-                        {place.opening_hours_today || t('places.hoursNotAvailable')}
+                      <Text style={styles.hoursTodayValue} numberOfLines={1}>
+                        {formatHoursDisplay(place.opening_hours_today, t)}
                       </Text>
                     </View>
                     <MaterialIcons name="expand-more" size={20} color={tokens.colors.textMuted} />
@@ -384,8 +405,8 @@ export default function PlaceDetailScreen() {
                           <Text style={[styles.hoursDay, isToday && styles.hoursDayToday]}>
                             {day}
                           </Text>
-                          <Text style={[styles.hoursValue, isToday && styles.hoursValueToday]}>
-                            {hours === 'Closed' ? t('places.closed') : hours === '00:00-23:59' ? t('places.open24Hours') : hours || t('places.hoursNotAvailable')}
+                          <Text style={[styles.hoursValue, isToday && styles.hoursValueToday, { flexShrink: 1 }]} numberOfLines={1}>
+                            {formatHoursDisplay(hours, t)}
                           </Text>
                         </View>
                       );
@@ -569,6 +590,10 @@ const styles = StyleSheet.create({
   heroBadgeClosed: {
     backgroundColor: 'rgba(185, 28, 28, 0.3)',
     borderColor: 'rgba(248, 113, 113, 0.4)',
+  },
+  heroBadgeUnknown: {
+    backgroundColor: 'rgba(148, 163, 184, 0.3)',
+    borderColor: 'rgba(148, 163, 184, 0.4)',
   },
   heroBadgeRating: {},
   heroBadgeDot: {

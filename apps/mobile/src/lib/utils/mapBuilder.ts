@@ -6,7 +6,14 @@ interface MapMarker {
   name: string;
   placeCode: string;
   address: string;
+  openStatus: string;
 }
+
+const OPEN_STATUS_COLORS: Record<string, string> = {
+  open: 'rgba(22, 163, 74, 0.85)',
+  closed: 'rgba(220, 38, 38, 0.85)',
+  unknown: 'rgba(148, 163, 184, 0.85)',
+};
 
 export function buildMapHtml(places: Place[], centerLat: number, centerLng: number): string {
   const markers: MapMarker[] = places.map((p) => ({
@@ -15,6 +22,7 @@ export function buildMapHtml(places: Place[], centerLat: number, centerLng: numb
     name: p.name,
     placeCode: p.place_code,
     address: p.address || p.place_type || '',
+    openStatus: p.open_status ?? (p.is_open_now === true ? 'open' : p.is_open_now === false ? 'closed' : 'unknown'),
   }));
 
   return `<!DOCTYPE html>
@@ -39,18 +47,23 @@ export function buildMapHtml(places: Place[], centerLat: number, centerLng: numb
       maxZoom: 19
     }).addTo(map);
 
-    var blueIcon = L.divIcon({
-      className: '',
-      html: '<div style="background:#007AFF;width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>',
-      iconSize: [32, 32],
-      iconAnchor: [16, 32],
-      popupAnchor: [0, -36]
-    });
+    var openStatusColors = ${JSON.stringify(OPEN_STATUS_COLORS)};
+
+    function createIcon(openStatus) {
+      var color = openStatusColors[openStatus] || openStatusColors['unknown'];
+      return L.divIcon({
+        className: '',
+        html: '<div style="background:' + color + ';width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>',
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -36]
+      });
+    }
 
     var markers = ${JSON.stringify(markers)};
 
     markers.forEach(function(m) {
-      var marker = L.marker([m.lat, m.lng], { icon: blueIcon }).addTo(map);
+      var marker = L.marker([m.lat, m.lng], { icon: createIcon(m.openStatus) }).addTo(map);
       marker.bindPopup('<strong>' + m.name + '</strong><br/><small>' + m.address + '</small>');
       marker.on('click', function() {
         if (window.ReactNativeWebView) {

@@ -9,14 +9,14 @@ const DEFAULT_CENTER: [number, number] = [25, 0];
 const DEFAULT_ZOOM = 3;
 const USER_ZOOM = 11;
 
-const religionColors: Record<string, string> = {
-  islam: '#16a34a',
-  hinduism: '#ea580c',
-  christianity: '#2563eb',
+const openStatusColors: Record<string, string> = {
+  open: 'rgba(22, 163, 74, 0.85)',
+  closed: 'rgba(220, 38, 38, 0.85)',
+  unknown: 'rgba(148, 163, 184, 0.85)',
 };
 
-function createMarkerIcon(religion: string, isSelected = false): L.DivIcon {
-  const color = religionColors[religion] ?? '#007AFF';
+function createMarkerIcon(openStatus: string | undefined, isSelected = false): L.DivIcon {
+  const color = openStatusColors[openStatus ?? 'unknown'] ?? openStatusColors.unknown;
   const size = isSelected ? 40 : 32;
   return L.divIcon({
     className: 'place-marker',
@@ -97,7 +97,7 @@ export default function PlacesMap({ places, center, onPlaceSelect, selectedPlace
             <Marker
               key={place.place_code}
               position={[place.lat, place.lng]}
-              icon={createMarkerIcon(place.religion, isSelected)}
+              icon={createMarkerIcon(place.open_status, isSelected)}
               eventHandlers={onPlaceSelect ? { click: () => onPlaceSelect(place) } : undefined}
               zIndexOffset={isSelected ? 1000 : 0}
             >

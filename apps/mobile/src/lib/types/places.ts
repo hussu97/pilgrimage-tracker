@@ -26,7 +26,8 @@ export interface Place {
   /** From API when include_rating=true */
   average_rating?: number;
   review_count?: number;
-  is_open_now?: boolean;
+  is_open_now?: boolean | null;
+  open_status?: 'open' | 'closed' | 'unknown';
 }
 
 export interface PlaceTiming {

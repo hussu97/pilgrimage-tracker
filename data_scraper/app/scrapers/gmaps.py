@@ -83,31 +83,40 @@ def clean_address(address):
 def normalize_to_24h(time_str):
     """
     Converts local time string from 12h format to 24h format, keeping it in local time.
+    Supports comma-separated multi-slot ranges (e.g., "9:00 AM - 12:00 PM, 2:00 PM - 6:00 PM").
 
     Args:
         time_str: Time string in 12h format (e.g., "9:00 AM - 5:00 PM")
 
     Returns:
-        Time string in 24h format (e.g., "09:00-17:00") in local time
+        Time string in 24h format (e.g., "09:00-17:00") in local time,
+        or comma-separated slots (e.g., "09:00-12:00, 14:00-18:00") for multi-slot days.
     """
     if "open 24 hours" in time_str.lower():
         return "00:00-23:59"
     if "closed" in time_str.lower():
         return "Closed"
 
-    times = re.split(r' – | - | to ', time_str.replace('\u202f', ' ').strip())
-    if len(times) != 2:
-        return time_str
+    # Split on commas to handle multi-slot days
+    segments = [s.strip() for s in time_str.split(",")]
+    normalized_segments = []
 
-    local_times = []
-    for t in times:
-        try:
-            dt = datetime.strptime(t.strip(), "%I:%M %p")
-            local_times.append(dt.strftime("%H:%M"))
-        except ValueError:
-            return time_str
+    for segment in segments:
+        times = re.split(r' – | - | to ', segment.replace('\u202f', ' ').strip())
+        if len(times) != 2:
+            return time_str  # Return original if any segment is unparseable
 
-    return f"{local_times[0]}-{local_times[1]}"
+        local_times = []
+        for t in times:
+            try:
+                dt = datetime.strptime(t.strip(), "%I:%M %p")
+                local_times.append(dt.strftime("%H:%M"))
+            except ValueError:
+                return time_str  # Return original if any time is unparseable
+
+        normalized_segments.append(f"{local_times[0]}-{local_times[1]}")
+
+    return ", ".join(normalized_segments)
 
 def process_weekly_hours(opening_hours_dict):
     """Returns a dictionary with a key for each day of the week in local time (24h format)."""
