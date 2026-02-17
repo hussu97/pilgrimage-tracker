@@ -55,7 +55,7 @@ export function AppRoutes() {
           <Route path="/home" element={<Layout><Home /></Layout>} />
           <Route path="/places/:placeCode" element={<Layout><PlaceDetail /></Layout>} />
           <Route path="/places/:placeCode/review" element={<Layout><ProtectedRoute><WriteReview /></ProtectedRoute></Layout>} />
-          <Route path="/profile" element={<Layout><ProtectedRoute><Profile /></ProtectedRoute></Layout>} />
+          <Route path="/profile" element={<Layout><Profile /></Layout>} />
           <Route path="/profile/edit" element={<Layout><ProtectedRoute><EditProfile /></ProtectedRoute></Layout>} />
           <Route path="/profile/check-ins" element={<Layout><ProtectedRoute><CheckInsList /></ProtectedRoute></Layout>} />
           <Route path="/favorites" element={<Layout><ProtectedRoute><Favorites /></ProtectedRoute></Layout>} />

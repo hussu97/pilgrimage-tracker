@@ -4,6 +4,24 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P4 Design Alignment: Web/Mobile Parity (2026-02-17)
+
+### Frontend (web)
+
+- **`apps/web/src/components/layout/Layout.tsx`** — Reduced bottom nav from 4 tabs to 3 (removed Map tab). Map is accessed via the Home screen toggle, matching mobile's 3-tab structure (Explore, Groups, Profile). Desktop header also removes the standalone Map link.
+
+- **`apps/web/src/app/pages/Profile.tsx`** — Major overhaul to match mobile `ProfileScreen`: (1) added `LoginLanding` component for unauthenticated users (Hero image + Get Started/Sign In buttons); (2) stats grid changed from 3 columns (visits, reviews, badges) to 2 columns (check-ins, reviews) matching mobile; (3) added **Preferences section** with My Path, Language picker (modal bottom sheet), Notifications, and Dark Mode toggle; (4) added **Logout button** in red at the bottom; (5) full dark mode support via `dark:` Tailwind classes throughout; (6) language selection now opens an animated modal sheet instead of linking to Settings.
+
+- **`apps/web/src/app/routes.tsx`** — Removed `ProtectedRoute` wrapper from `/profile` route; unauthenticated state is now handled within the component (shows `LoginLanding`), matching mobile behavior.
+
+- **`apps/web/src/app/pages/Settings.tsx`** — Fixed all hardcoded English strings: "Preferences", "Support", "Account", "Delete account" and its confirmation text now use `t()` calls. Added icons to theme buttons, full dark mode `dark:` classes, back button linking to Profile, and improved visual consistency with mobile's settings UI.
+
+### Backend
+
+- **`server/app/db/seed_data.json`** — Added 3 new translation keys (`settings.support`, `settings.deleteAccount`, `settings.deleteAccountConfirm`) in English, Arabic, and Hindi.
+
+---
+
 ## P2 Features: Timezone, Cursor Pagination, Map Clustering (2026-02-17)
 
 ### Backend

@@ -370,12 +370,13 @@ For each screen, compare the current implementation against both the light and d
   - Input fields: same styling as sign-in, consistent vertical spacing
   - Password requirements hint text below password field
 
-- [ ] **Home / Explore screen**
+- [x] **Home / Explore screen**
   - Greeting: "Salam, {name}" with correct font size and weight (Lexend)
   - Search bar: glass morphism effect, search icon, placeholder text
   - Filter chips: horizontal scroll, selected chip uses primary color fill, unselected uses outline
   - Map view: map fills available space, glass panel overlays bottom portion with place cards
   - Bottom navigation: glass effect background, active tab indicator, correct icon set (Material Symbols)
+  - Web: reduced from 4 to 3 bottom nav tabs (Explore, Groups, Profile) to match mobile; map accessed via Home screen toggle
 
 - [ ] **Check-ins History screen**
   - Stats card: total check-ins, current streak, longest streak in a glass card

@@ -6,7 +6,6 @@ import { getNotifications } from '@/lib/api/client';
 
 const navItems = [
   { path: '/home', labelKey: 'nav.explore', icon: 'explore' },
-  { path: '/home?view=map', labelKey: 'nav.map', icon: 'map' },
   { path: '/groups', labelKey: 'nav.groups', icon: 'groups' },
   { path: '/profile', labelKey: 'nav.profile', icon: 'person' },
 ];
@@ -29,8 +28,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <header className="hidden md:flex safe-area-top border-b border-input-border dark:border-dark-border bg-background-light dark:bg-dark-surface px-6 py-4">
         <nav className="flex items-center gap-8 w-full max-w-6xl xl:max-w-7xl mx-auto">
           <Link to="/home" className="text-xl font-semibold text-primary hover:text-primary-hover transition-colors" aria-label={t('nav.explore')}>{t('common.appName')}</Link>
-          <Link to="/home" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.pathname === '/home' && !location.search.includes('view=map') ? 'page' : undefined}>{t('nav.explore')}</Link>
-          <Link to="/home?view=map" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.search.includes('view=map') ? 'page' : undefined}>{t('nav.map')}</Link>
+          <Link to="/home" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.pathname === '/home' ? 'page' : undefined}>{t('nav.explore')}</Link>
           <Link to="/groups" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.pathname.startsWith('/groups') ? 'page' : undefined}>{t('nav.groups')}</Link>
           <span className="ml-auto flex items-center gap-4">
             <Link to="/notifications" className="relative text-text-muted hover:text-primary p-1 -mr-1 dark:text-dark-text-secondary" aria-label={t('nav.notifications')} aria-current={location.pathname === '/notifications' ? 'page' : undefined}>
@@ -64,11 +62,9 @@ export default function Layout({ children }: { children: ReactNode }) {
         {/* Subtle top shadow */}
         <div className="absolute top-0 left-0 right-0 h-px bg-slate-200/60 dark:bg-white/8" />
 
-        <div className="relative grid grid-cols-4 gap-1 max-w-md mx-auto px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <div className="relative grid grid-cols-3 gap-1 max-w-md mx-auto px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           {navItems.map(({ path, labelKey, icon }) => {
-            const isActive = (path.includes('?')
-              ? (location.pathname + location.search).startsWith(path)
-              : location.pathname === path && !location.search.includes('view=map'))
+            const isActive = (location.pathname === path)
               || (path === '/groups' && location.pathname.startsWith('/groups'));
             const showDot = icon === 'person' && unreadCount > 0;
             return (

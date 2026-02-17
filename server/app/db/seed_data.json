@@ -287,7 +287,10 @@
       "home.filter_mosque": "Mosque",
       "home.filter_shrine": "Shrine",
       "home.filter_temple": "Temple",
-      "notifications.updatesLabel": "Updates"
+      "notifications.updatesLabel": "Updates",
+      "settings.support": "Support",
+      "settings.deleteAccount": "Delete Account",
+      "settings.deleteAccountConfirm": "Delete your account and all data? This cannot be undone."
     },
     "ar": {
       "auth.login": "تسجيل الدخول",
@@ -562,7 +565,10 @@
       "home.filter_mosque": "مسجد",
       "home.filter_shrine": "ضريح",
       "home.filter_temple": "معبد",
-      "notifications.updatesLabel": "التحديثات"
+      "notifications.updatesLabel": "التحديثات",
+      "settings.support": "الدعم",
+      "settings.deleteAccount": "حذف الحساب",
+      "settings.deleteAccountConfirm": "هل تريد حذف حسابك وجميع بياناتك؟ لا يمكن التراجع عن هذا الإجراء."
     },
     "hi": {
       "auth.login": "लॉग इन करें",
@@ -837,7 +843,10 @@
       "home.filter_mosque": "मस्जिद",
       "home.filter_shrine": "दरगाह",
       "home.filter_temple": "मंदिर",
-      "notifications.updatesLabel": "अपडेट"
+      "notifications.updatesLabel": "अपडेट",
+      "settings.support": "सहायता",
+      "settings.deleteAccount": "खाता हटाएं",
+      "settings.deleteAccountConfirm": "अपना खाता और सभी डेटा हटाएं? इसे पूर्ववत नहीं किया जा सकता।"
     }
   },
   "users": [

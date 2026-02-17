@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '@/app/providers';
-import { useI18n } from '@/app/providers';
-import { getMyStats } from '@/lib/api/client';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth, useI18n, useTheme } from '@/app/providers';
+import { getMyStats, getSettings, updateSettings } from '@/lib/api/client';
 import ErrorState from '@/components/common/ErrorState';
+import { applyTheme } from '@/lib/theme';
 import type { UserStats } from '@/lib/types';
 
 const APP_VERSION = '2.4.0';
@@ -18,19 +18,66 @@ function formatJoinedDate(createdAt: string | undefined): string {
   }
 }
 
-export default function Profile() {
-  const { user } = useAuth();
+/** Shown to unauthenticated visitors on the Profile tab */
+function LoginLanding() {
   const { t } = useI18n();
+  const navigate = useNavigate();
+  return (
+    <div className="min-h-screen flex flex-col bg-background-light dark:bg-dark-bg">
+      <div className="h-[55%] relative overflow-hidden">
+        <img
+          src="https://images.unsplash.com/photo-1548013146-72479768bada?w=800&auto=format&fit=crop"
+          alt=""
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/10" />
+      </div>
+      <div className="flex-1 px-7 pt-7 pb-6 flex flex-col justify-between">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold text-text-dark leading-tight tracking-tight">
+            {t('splash.heroTitle') || t('splash.welcome')}
+          </h1>
+          <p className="text-base text-text-secondary leading-relaxed">{t('splash.tagline')}</p>
+        </div>
+        <div className="space-y-3 mt-6">
+          <button
+            type="button"
+            onClick={() => navigate('/register')}
+            className="w-full flex items-center justify-center gap-2 bg-primary text-white font-semibold py-4 rounded-3xl shadow-glass active:scale-95 transition-transform"
+          >
+            {t('splash.getStarted')}
+            <span className="material-icons text-lg">arrow_forward</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            className="w-full flex items-center justify-center border-2 border-primary text-primary font-semibold py-4 rounded-3xl active:scale-95 transition-transform"
+          >
+            {t('splash.signIn') || t('auth.login')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Profile() {
+  const { user, logout } = useAuth();
+  const { t, locale, languages, setLocale } = useI18n();
+  const { isDark, setTheme } = useTheme();
   const [stats, setStats] = useState<UserStats | null>(null);
-  const [, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [langOpen, setLangOpen] = useState(false);
+  const [, setNotifOn] = useState(true);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const s = await getMyStats();
+      const [s, sett] = await Promise.all([getMyStats(), getSettings()]);
       setStats(s);
+      if (sett.notifications_on != null) setNotifOn(!!sett.notifications_on);
     } catch (e) {
       setStats(null);
       setError(e instanceof Error ? e.message : t('common.error'));
@@ -40,53 +87,72 @@ export default function Profile() {
   }, [t]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (user) fetchData();
+    else setLoading(false);
+  }, [user, fetchData]);
 
-  if (!user) return null;
+  if (!user) return <LoginLanding />;
 
   const displayName = user.display_name?.trim() || user.email?.split('@')[0] || '';
   const visits = stats?.visits ?? stats?.placesVisited ?? 0;
   const reviews = stats?.reviews ?? 0;
-  const badges = stats?.badges_count ?? 0;
   const joinedStr = formatJoinedDate(user.created_at);
   const religions = user.religions ?? [];
-  const primaryReligion = religions[0] ?? 'islam';
+  const pathSubtext = religions.length > 0
+    ? religions.map((r) => r.charAt(0).toUpperCase() + r.slice(1)).join(', ')
+    : t('profile.myPathSubtext');
+
+  const handleLangSelect = async (code: string) => {
+    setLangOpen(false);
+    await setLocale(code);
+    try { await updateSettings({ language: code }); } catch { /* ignore */ }
+  };
+
+  const handleThemeToggle = (on: boolean) => {
+    const t2 = on ? 'dark' : 'light';
+    setTheme(t2);
+    applyTheme(t2);
+    updateSettings({ theme: t2 }).catch(() => {});
+  };
 
   return (
-    <div className="min-h-screen bg-background-light relative">
-      <div className="absolute top-0 left-0 w-full h-80 bg-gradient-to-b from-blue-50 to-transparent pointer-events-none z-0" />
-      <div className="relative z-10 max-w-sm mx-auto px-4 py-6 pb-24">
+    <div className="min-h-screen bg-background-light dark:bg-dark-bg">
+      {/* gradient header bg */}
+      <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-blue-50 to-transparent dark:from-dark-surface/30 dark:to-transparent pointer-events-none z-0" />
+
+      <div className="relative z-10 max-w-sm mx-auto px-4 py-6 pb-28">
         {error && (
           <div className="mb-6">
             <ErrorState message={error} onRetry={fetchData} retryLabel={t('common.retry')} />
           </div>
         )}
 
+        {/* Header */}
         <header className="flex justify-between items-center py-4 pt-6">
           <div className="w-10" />
-          <h1 className="text-sm font-medium uppercase tracking-widest text-text-muted">
+          <h1 className="text-sm font-bold uppercase tracking-widest text-text-muted dark:text-dark-text-secondary">
             {t('profile.title')}
           </h1>
           <Link
             to="/settings"
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/50 backdrop-blur-md hover:bg-white border border-slate-200/50 text-text-secondary"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/50 dark:bg-dark-surface/50 backdrop-blur-md hover:bg-white dark:hover:bg-dark-surface border border-slate-200/50 dark:border-dark-border text-text-secondary dark:text-dark-text-secondary"
             aria-label={t('settings.title')}
           >
-            <span className="material-icons-outlined">settings</span>
+            <span className="material-icons-outlined text-xl">settings</span>
           </Link>
         </header>
 
+        {/* Avatar + name */}
         <section className="flex flex-col items-center px-2 pb-8 pt-4">
-          <div className="w-32 h-32 rounded-full p-1 bg-white border border-blue-100 shadow-xl shadow-blue-50 overflow-hidden mb-6">
+          <div className="w-28 h-28 rounded-full p-1 bg-white dark:bg-dark-surface border border-blue-100 dark:border-dark-border shadow-xl shadow-blue-50 dark:shadow-none overflow-hidden mb-5">
             <div className="w-full h-full rounded-full bg-primary/10 flex items-center justify-center text-primary text-4xl font-bold">
               {(displayName || '?').charAt(0).toUpperCase()}
             </div>
           </div>
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{displayName}</h2>
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{displayName}</h2>
             {joinedStr && (
-              <p className="inline-flex items-center gap-1.5 mt-2.5 text-slate-400 text-xs font-semibold uppercase tracking-wider">
+              <p className="inline-flex items-center gap-1.5 mt-2.5 text-slate-400 dark:text-dark-text-secondary text-xs font-semibold uppercase tracking-wider">
                 <span className="material-symbols-outlined text-[16px]">calendar_today</span>
                 {t('profile.joined').replace('{date}', joinedStr)}
               </p>
@@ -94,132 +160,209 @@ export default function Profile() {
           </div>
         </section>
 
-        <section className="px-2 mb-10">
-          <div className="flex justify-between items-center bg-white rounded-3xl border border-slate-100 shadow-soft overflow-hidden">
-            <div className="flex flex-col items-center py-5 flex-1 border-r border-slate-50">
-              <span className="text-2xl font-bold text-slate-900 leading-none">{visits}</span>
-              <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400 mt-2">
-                {t('profile.visits')}
-              </span>
-            </div>
-            <div className="flex flex-col items-center py-5 flex-1 border-r border-slate-50">
-              <span className="text-2xl font-bold text-slate-900 leading-none">{reviews}</span>
-              <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400 mt-2">
-                {t('profile.reviews')}
-              </span>
-            </div>
-            <div className="flex flex-col items-center py-5 flex-1">
-              <span className="text-2xl font-bold text-slate-900 leading-none">{badges}</span>
-              <span className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400 mt-2">
-                {t('profile.badges')}
-              </span>
-            </div>
-          </div>
-        </section>
-
-        <section className="px-2 mb-10">
-          <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-3 ml-2">
-            {t('profile.pilgrimagePath')}
-          </label>
-          <div className="bg-slate-50 dark:bg-dark-surface/50 rounded-[2rem] p-1.5 flex items-center shadow-inner-light border border-slate-100/50">
-            <Link
-              to="/select-path"
-              className={`flex-1 flex flex-col items-center justify-center gap-1 py-3.5 px-2 rounded-[1.5rem] transition-all ${primaryReligion === 'islam'
-                  ? 'bg-white shadow-sm border border-slate-200/60 text-primary'
-                  : 'text-slate-400 hover:text-slate-600'
-                }`}
-            >
-              <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: primaryReligion === 'islam' ? "'FILL' 1" : "" }}>mosque</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider">{t('common.islam')}</span>
-            </Link>
-            <Link
-              to="/select-path"
-              className={`flex-1 flex flex-col items-center justify-center gap-1 py-3.5 px-2 rounded-[1.5rem] transition-all ${primaryReligion === 'christianity'
-                  ? 'bg-white shadow-sm border border-slate-200/60 text-primary'
-                  : 'text-slate-400 hover:text-slate-600'
-                }`}
-            >
-              <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: primaryReligion === 'christianity' ? "'FILL' 1" : "" }}>church</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider">{t('common.christianity')}</span>
-            </Link>
-            <Link
-              to="/select-path"
-              className={`flex-1 flex flex-col items-center justify-center gap-1 py-3.5 px-2 rounded-[1.5rem] transition-all ${primaryReligion === 'hinduism'
-                  ? 'bg-white shadow-sm border border-slate-200/60 text-primary'
-                  : 'text-slate-400 hover:text-slate-600'
-                }`}
-            >
-              <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: primaryReligion === 'hinduism' ? "'FILL' 1" : "" }}>temple_hindu</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider">{t('common.hinduism')}</span>
-            </Link>
-          </div>
-        </section>
-
+        {/* Stats — 2 col matching mobile */}
         <section className="px-2 mb-8">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white dark:bg-dark-surface rounded-3xl border border-slate-100 dark:border-dark-border p-5 shadow-subtle">
+              {loading ? (
+                <div className="h-8 w-10 bg-slate-100 dark:bg-dark-border rounded animate-pulse mb-2" />
+              ) : (
+                <span className="text-[30px] font-bold text-slate-900 dark:text-white leading-none">{visits}</span>
+              )}
+              <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400 dark:text-dark-text-secondary mt-1">
+                {t('profile.myCheckIns')}
+              </p>
+            </div>
+            <div className="bg-white dark:bg-dark-surface rounded-3xl border border-slate-100 dark:border-dark-border p-5 shadow-subtle">
+              {loading ? (
+                <div className="h-8 w-10 bg-slate-100 dark:bg-dark-border rounded animate-pulse mb-2" />
+              ) : (
+                <span className="text-[30px] font-bold text-slate-900 dark:text-white leading-none">{reviews}</span>
+              )}
+              <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400 dark:text-dark-text-secondary mt-1">
+                {t('profile.reviews')}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Preferences section */}
+        <section className="px-2 mb-6">
+          <h3 className="text-[11px] font-bold text-slate-400 dark:text-dark-text-secondary uppercase tracking-[0.2em] mb-3 ml-2">
+            {t('profile.preferences')}
+          </h3>
+          <div className="bg-white dark:bg-dark-surface rounded-3xl border border-slate-100 dark:border-dark-border shadow-subtle overflow-hidden">
+            {/* My Path */}
+            <Link
+              to="/select-path"
+              className="w-full flex items-center justify-between p-4 pl-5 hover:bg-slate-50 dark:hover:bg-dark-border/30 transition-colors border-b border-slate-50 dark:border-dark-border"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                  <span className="material-icons text-xl text-primary">map</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-text-main dark:text-white text-sm">{t('profile.myPath')}</p>
+                  <p className="text-xs text-text-muted dark:text-dark-text-secondary mt-0.5">{pathSubtext}</p>
+                </div>
+              </div>
+              <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">chevron_right</span>
+            </Link>
+
+            {/* Language */}
+            <button
+              type="button"
+              onClick={() => setLangOpen(true)}
+              className="w-full flex items-center justify-between p-4 pl-5 hover:bg-slate-50 dark:hover:bg-dark-border/30 transition-colors border-b border-slate-50 dark:border-dark-border text-left"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                  <span className="material-icons text-xl text-primary">language</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-text-main dark:text-white text-sm">{t('profile.language')}</p>
+                  <p className="text-xs text-text-muted dark:text-dark-text-secondary mt-0.5">
+                    {languages.find((l) => l.code === locale)?.name ?? locale.toUpperCase()}
+                  </p>
+                </div>
+              </div>
+              <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">chevron_right</span>
+            </button>
+
+            {/* Notifications */}
+            <Link
+              to="/notifications"
+              className="w-full flex items-center justify-between p-4 pl-5 hover:bg-slate-50 dark:hover:bg-dark-border/30 transition-colors border-b border-slate-50 dark:border-dark-border"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                  <span className="material-icons text-xl text-primary">notifications</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-text-main dark:text-white text-sm">{t('profile.notifications')}</p>
+                  <p className="text-xs text-text-muted dark:text-dark-text-secondary mt-0.5">{t('profile.notificationsSubtext')}</p>
+                </div>
+              </div>
+              <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">chevron_right</span>
+            </Link>
+
+            {/* Dark Mode toggle */}
+            <div className="flex items-center justify-between p-4 pl-5">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                  <span className="material-icons text-xl text-primary">dark_mode</span>
+                </div>
+                <p className="font-semibold text-text-main dark:text-white text-sm">{t('settings.darkMode')}</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isDark}
+                onClick={() => handleThemeToggle(!isDark)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                  isDark ? 'bg-primary' : 'bg-slate-200'
+                }`}
+              >
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isDark ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Account section */}
+        <section className="px-2 mb-6">
+          <h3 className="text-[11px] font-bold text-slate-400 dark:text-dark-text-secondary uppercase tracking-[0.2em] mb-3 ml-2">
+            {t('profile.account')}
+          </h3>
+          <div className="bg-white dark:bg-dark-surface rounded-3xl border border-slate-100 dark:border-dark-border shadow-subtle overflow-hidden">
+            <Link
+              to="/profile/check-ins"
+              className="w-full flex items-center justify-between p-4 pl-5 hover:bg-slate-50 dark:hover:bg-dark-border/30 transition-colors border-b border-slate-50 dark:border-dark-border"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 flex items-center justify-center">
+                  <span className="material-icons-round text-lg">history_edu</span>
+                </div>
+                <span className="font-semibold text-text-main dark:text-white text-sm">{t('profile.myCheckIns')}</span>
+              </div>
+              <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">chevron_right</span>
+            </Link>
+            <Link
+              to="/favorites"
+              className="w-full flex items-center justify-between p-4 pl-5 hover:bg-slate-50 dark:hover:bg-dark-border/30 transition-colors"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 flex items-center justify-center">
+                  <span className="material-icons-round text-lg">favorite</span>
+                </div>
+                <span className="font-semibold text-text-main dark:text-white text-sm">{t('profile.favorites')}</span>
+              </div>
+              <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">chevron_right</span>
+            </Link>
+          </div>
+        </section>
+
+        {/* Edit profile button */}
+        <section className="px-2 mb-6">
           <Link
             to="/profile/edit"
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-4 rounded-2xl transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-2 group"
+            className="w-full bg-slate-900 dark:bg-white/10 hover:bg-slate-800 dark:hover:bg-white/20 text-white font-bold py-4 px-4 rounded-2xl transition-all shadow-xl shadow-slate-200 dark:shadow-none flex items-center justify-center gap-2 group"
           >
             <span className="material-symbols-outlined text-xl group-hover:scale-110 transition-transform">edit</span>
             {t('profile.editProfile')}
           </Link>
         </section>
 
-        <section className="flex-1 px-1 pb-4">
-          <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-3 ml-2">
-            {t('profile.account')}
-          </h3>
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-subtle overflow-hidden">
-            <Link
-              to="/profile/check-ins"
-              className="w-full flex items-center justify-between p-4 pl-5 hover:bg-slate-50 transition-colors group border-b border-slate-50"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                  <span className="material-icons-round text-lg">history_edu</span>
-                </div>
-                <span className="font-medium text-text-main text-sm">
-                  {t('profile.myCheckIns')}
-                </span>
-              </div>
-              <span className="material-icons-round text-text-muted text-lg">chevron_right</span>
-            </Link>
-            <Link
-              to="/favorites"
-              className="w-full flex items-center justify-between p-4 pl-5 hover:bg-slate-50 transition-colors group border-b border-slate-50"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-9 h-9 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
-                  <span className="material-icons-round text-lg">favorite</span>
-                </div>
-                <span className="font-medium text-text-main text-sm">
-                  {t('profile.favoritePlaces')}
-                </span>
-              </div>
-              <span className="material-icons-round text-text-muted text-lg">chevron_right</span>
-            </Link>
-            <Link
-              to="/groups"
-              className="w-full flex items-center justify-between p-4 pl-5 hover:bg-slate-50 transition-colors group"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                  <span className="material-icons-round text-lg">groups</span>
-                </div>
-                <span className="font-medium text-text-main text-sm">
-                  {t('profile.groupActivity')}
-                </span>
-              </div>
-              <span className="material-icons-round text-text-muted text-lg">chevron_right</span>
-            </Link>
-          </div>
-          <div className="mt-8 mb-4 flex justify-center">
-            <p className="text-[10px] font-medium text-text-muted">
-              {t('profile.version').replace('{version}', APP_VERSION)}
-            </p>
-          </div>
-        </section>
+        {/* Logout */}
+        <div className="px-2 mb-4">
+          <button
+            type="button"
+            onClick={async () => { await logout(); }}
+            className="w-full flex items-center justify-center gap-2 py-4 text-red-500 font-semibold hover:text-red-600 transition-colors"
+          >
+            <span className="material-icons text-lg">logout</span>
+            {t('auth.logout')}
+          </button>
+        </div>
+
+        {/* Version */}
+        <div className="flex justify-center">
+          <p className="text-[10px] font-medium text-text-muted dark:text-dark-text-secondary">
+            {t('profile.version').replace('{version}', APP_VERSION)}
+          </p>
+        </div>
       </div>
+
+      {/* Language picker modal sheet */}
+      {langOpen && (
+        <div className="fixed inset-0 z-[600] flex items-end" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setLangOpen(false)}
+            aria-label="Close"
+          />
+          <div className="relative w-full bg-white dark:bg-dark-surface rounded-t-3xl px-6 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] max-h-[60vh] overflow-y-auto">
+            <div className="w-10 h-1 bg-slate-200 dark:bg-dark-border rounded-full mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-text-dark dark:text-white mb-3">{t('profile.language')}</h2>
+            {languages.map((lang) => (
+              <button
+                key={lang.code}
+                type="button"
+                onClick={() => handleLangSelect(lang.code)}
+                className="w-full flex items-center justify-between py-3.5 border-b border-slate-100 dark:border-dark-border last:border-0 text-left"
+              >
+                <span className={`text-base ${locale === lang.code ? 'text-primary font-semibold' : 'text-text-dark dark:text-white'}`}>
+                  {lang.name}
+                </span>
+                {locale === lang.code && (
+                  <span className="material-icons text-lg text-primary">check</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
