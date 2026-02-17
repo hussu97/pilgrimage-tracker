@@ -1,9 +1,14 @@
+import secrets
 import requests
 from sqlmodel import Session, select
 from app.db.models import DataLocation, ScraperRun, ScrapedPlace
 from app.db.session import engine
 from app.scrapers.gsheet import run_gsheet_scraper
 from app.scrapers.gmaps import run_gmaps_scraper
+
+
+def generate_code(prefix: str) -> str:
+    return f"{prefix}_{secrets.token_hex(4)}"
 
 
 def run_scraper_task(run_code: str):
