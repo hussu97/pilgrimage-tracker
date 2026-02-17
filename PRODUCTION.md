@@ -606,9 +606,21 @@ gcloud run services update pilgrimage-api \
 
 #### 6a. Install Firebase CLI and initialise the project
 
+> **Prerequisite — add Firebase to your GCP project (one-time, required):**
+> A GCP project and a Firebase project are separate things. Firebase Hosting will return a 404 until Firebase is explicitly enabled on the project.
+>
+> ```bash
+> npm install -g firebase-tools
+> firebase login
+> firebase projects:addfirebase PROJECT_ID
+> ```
+>
+> If the CLI command fails, do it via the web console instead:
+> [console.firebase.google.com](https://console.firebase.google.com) → **Add project** → **"Add Firebase to a Google Cloud Platform project"** → select `PROJECT_ID` → skip Google Analytics → **Add Firebase**.
+
+Once Firebase is enabled on the project:
+
 ```bash
-npm install -g firebase-tools
-firebase login
 firebase init hosting
 ```
 
@@ -619,7 +631,7 @@ When prompted:
 - **Set up automatic builds with GitHub:** `No` (`.github/workflows/deploy.yml` handles this via Firebase token)
 - **Overwrite `dist/index.html`:** `No`
 
-This creates `firebase.json` and `.firebaserc` at the repo root.
+This creates `firebase.json` and `.firebaserc` at the repo root (both are already checked in — skip this step if they exist).
 
 #### 6b. Build and deploy
 
