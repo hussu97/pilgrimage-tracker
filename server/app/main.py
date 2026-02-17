@@ -13,7 +13,7 @@ from slowapi.util import get_remote_address
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import api_router
-from app.db.seed import run_seed
+from app.db.seed import run_seed_system
 from app.db.session import run_migrations
 
 
@@ -21,8 +21,10 @@ from app.db.session import run_migrations
 async def lifespan(app: FastAPI):
     # Always apply pending migrations first (safe to call repeatedly; idempotent).
     run_migrations()
-    # Seed dev data if seed_data.json is present (no-op in production).
-    run_seed()
+    # Seed reference data (languages, translations, attribute definitions).
+    # Demo data (places, users, groups) is never loaded automatically — use
+    # scripts/reset_db.py --with-demo-data for that.
+    run_seed_system()
     yield
 
 

@@ -4,6 +4,22 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Seed Split: System vs Demo Data + Reset CLI (2026-02-17)
+
+### Backend
+
+- **`server/app/db/seed.py`** — Split `run_seed()` into two focused functions:
+  - `run_seed_system()` — seeds only reference/system data (languages, translations, attribute definitions). Idempotent, safe on every startup.
+  - `run_seed_demo()` — seeds demo records (places, place images, users, user settings, groups, group members, notifications, password resets). Must be called explicitly.
+  - `_clear_stores()` and `__main__` block retained for direct dev use (`python -m app.db.seed` still does a full reset + seed).
+- **`server/app/main.py`** — Startup now calls `run_seed_system()` only. Demo data (places, users, etc.) is never loaded automatically.
+- **`server/scripts/reset_db.py`** — New CLI tool for resetting the DB:
+  - `python scripts/reset_db.py` → drop all tables → run migrations → seed reference data only.
+  - `python scripts/reset_db.py --with-demo-data` → same + seed demo data (places, users, groups, etc.).
+- **`data_scraper/app/main.py`** — No change; geo boundaries and place-type mappings continue to seed automatically on startup.
+
+---
+
 ## Scraper DB Persistence — All Plans (2026-02-17)
 
 ### Backend

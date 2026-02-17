@@ -13,6 +13,15 @@ from app.db import places as places_db
 from app.db import place_images
 from app.db.session import engine, Session
 
+_DEFAULT_SEED_PATH = Path(__file__).parent / "seed_data.json"
+
+
+def _load_seed_data(seed_path: str | Path | None) -> dict | None:
+    path = Path(seed_path) if seed_path is not None else _DEFAULT_SEED_PATH
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
 
 def _clear_stores() -> None:
     # Drop and immediately recreate all tables for a clean dev seed.
@@ -24,27 +33,36 @@ def _clear_stores() -> None:
     SQLModel.metadata.create_all(engine)
 
 
-def run_seed(seed_path: str | Path | None = None) -> None:
-    if seed_path is None:
-        seed_path = Path(__file__).parent / "seed_data.json"
-    path = Path(seed_path)
-    if not path.exists():
+def run_seed_system(seed_path: str | Path | None = None) -> None:
+    """Seed reference/system data: languages, translations, attribute definitions.
+
+    Safe to call on every startup — no table drops, all operations are upserts
+    or in-memory replacements. This is the only seeding that runs automatically.
+    """
+    data = _load_seed_data(seed_path)
+    if data is None:
         return
-    data = json.loads(path.read_text(encoding="utf-8"))
 
-    _clear_stores()
+    if "languages" in data:
+        i18n_db.set_languages(data["languages"])
+    if "translations" in data:
+        i18n_db.set_translations(data["translations"])
+    if "attribute_definitions" in data:
+        attr_db.seed_attribute_definitions(data["attribute_definitions"])
 
-    # Create a single session for all seed operations
+
+def run_seed_demo(seed_path: str | Path | None = None) -> None:
+    """Seed demo/sample data: places, users, groups, notifications, etc.
+
+    Does NOT drop tables — the caller must ensure the DB is in the desired
+    state first (e.g. via _clear_stores() or a full migration reset).
+    Only invoke this explicitly (e.g. via scripts/reset_db.py --with-demo-data).
+    """
+    data = _load_seed_data(seed_path)
+    if data is None:
+        return
+
     with Session(engine) as session:
-        if "languages" in data:
-            i18n_db.set_languages(data["languages"])
-        if "translations" in data:
-            i18n_db.set_translations(data["translations"])
-
-        # Seed attribute definitions before places
-        if "attribute_definitions" in data:
-            attr_db.seed_attribute_definitions(data["attribute_definitions"])
-
         # Seed places
         for p in data.get("places", []):
             places_db.create_place(
@@ -74,7 +92,6 @@ def run_seed(seed_path: str | Path | None = None) -> None:
                     display_order=img.get("display_order", 0),
                 )
             elif img["image_type"] == "blob" and img.get("blob_data_base64"):
-                # Decode base64 blob data for testing
                 blob_data = base64.b64decode(img["blob_data_base64"])
                 place_images.add_image_blob(
                     place_code=img["place_code"],
@@ -84,7 +101,7 @@ def run_seed(seed_path: str | Path | None = None) -> None:
                     session=session,
                 )
 
-        # Users (need user_code for later refs)
+        # Seed users
         for u in data.get("users", []):
             password_hash = hash_password(u["password"]) if u.get("password") else u.get("password_hash", "")
             store.create_user(
@@ -95,7 +112,6 @@ def run_seed(seed_path: str | Path | None = None) -> None:
                 religion=u.get("religion"),
                 session=session,
             )
-            # Preferred religions (filter): seed from single religion if present
             if u.get("religion"):
                 store.update_user_settings(u["user_code"], session, religions=[u["religion"]])
 
@@ -110,7 +126,7 @@ def run_seed(seed_path: str | Path | None = None) -> None:
             expires_at = datetime.fromisoformat(pr["expires_at"].replace("Z", "+00:00"))
             store.save_password_reset(pr["token"], pr["user_code"], expires_at, session)
 
-        # Groups
+        # Seed groups
         group_codes: list[str] = []
         for g in data.get("groups", []):
             path_place_codes = g.get("path_place_codes")
@@ -128,7 +144,7 @@ def run_seed(seed_path: str | Path | None = None) -> None:
             gcode = group_codes[m["group_index"]]
             groups_db.add_member(gcode, m["user_code"], session, m.get("role", "member"))
 
-        # Notifications
+        # Seed notifications
         for n in data.get("notifications", []):
             notifications_db.create_notification(
                 user_code=n["user_code"],
@@ -139,5 +155,9 @@ def run_seed(seed_path: str | Path | None = None) -> None:
 
 
 if __name__ == "__main__":
-    run_seed()
+    # Direct invocation: full reset + seed (dev convenience).
+    # Use scripts/reset_db.py for more control.
+    _clear_stores()
+    run_seed_system()
+    run_seed_demo()
     print("Seed completed.")

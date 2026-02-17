@@ -63,7 +63,7 @@ def client(test_engine):
     """
     FastAPI TestClient backed by the in-memory test DB.
 
-    - Patches out run_migrations() and run_seed() (lifespan hooks).
+    - Patches out run_migrations() and run_seed_system() (lifespan hooks).
     - Disables slowapi rate limiting on both the app-level and auth-router
       limiter instances so tests are not constrained by per-IP request rates.
     """
@@ -79,7 +79,7 @@ def client(test_engine):
 
     with (
         patch("app.main.run_migrations"),
-        patch("app.main.run_seed"),
+        patch("app.main.run_seed_system"),
     ):
         with TestClient(app, raise_server_exceptions=True) as c:
             # Disable rate limiting on both limiter instances AFTER app startup
