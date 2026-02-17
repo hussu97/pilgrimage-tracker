@@ -122,6 +122,7 @@ def list_places(
     sort: Optional[str] = Query(None, description="proximity or rating"),
     limit: int = Query(50),
     offset: int = Query(0),
+    cursor: Optional[str] = Query(None, description="place_code of the last seen item for cursor-based pagination; overrides offset when provided"),
     jummah: Optional[bool] = Query(None, description="If true, only places with Jummah / Friday prayer (Islam)"),
     has_events: Optional[bool] = Query(None, description="If true, only places that have events"),
     include_rating: bool = Query(True, description="Include average_rating and review_count in list items"),
@@ -142,6 +143,7 @@ def list_places(
         sort=sort,
         limit=limit,
         offset=offset,
+        cursor=cursor,
         jummah=jummah,
         has_events=has_events,
         open_now=open_now,
@@ -168,7 +170,7 @@ def list_places(
         for p, dist in result["rows"]
     ]
 
-    return {"places": places_out, "filters": result["filters"]}
+    return {"places": places_out, "filters": result["filters"], "next_cursor": result.get("next_cursor")}
 
 
 @router.get("/{place_code}")

@@ -123,10 +123,6 @@ New capabilities and meaningful UX improvements.
   - The profile API returns a hardcoded `0` for badges. No badge logic exists.
   - Design badge criteria (e.g., "First Check-in", "10 Reviews", "Visited 5 Countries", "Early Adopter") with icons and descriptions. Create a `badges` table, a badge-evaluation service, and a `GET /api/v1/users/me/badges` endpoint. Show earned badges on the profile screen.
 
-- [ ] **Place deletion endpoint**
-  - There is no way to remove a place from the system. Incorrect or duplicate entries persist forever.
-  - Add `DELETE /api/v1/places/:placeCode` (admin-only). Cascade-delete related reviews, images, check-ins, and favorites. Return 204 on success.
-
 - [ ] **Push notifications**
   - The `Notification` model exists in the database but no push delivery mechanism is implemented.
   - Integrate Expo Push Notifications (mobile) and Web Push API (web). Send notifications for: new review on a favorited place, badge earned, check-in streak reminder.
@@ -134,10 +130,6 @@ New capabilities and meaningful UX improvements.
 - [ ] **Social sharing with rich previews**
   - Share buttons exist but produce plain text links with no preview metadata.
   - Generate Open Graph meta tags for place pages (title, description, image). On mobile, use the Share API with a pre-formatted message including the place name, rating, and a deep link.
-
-- [ ] **Edit profile photo**
-  - There is currently no UI flow to change the user avatar after account creation.
-  - Add an edit icon overlay on the profile photo. Tapping it opens the image picker, uploads the new photo, and refreshes the profile display.
 
 - [ ] **Search history and suggestions**
   - The search bar has no memory. Users re-type the same queries repeatedly.
@@ -163,17 +155,13 @@ New capabilities and meaningful UX improvements.
   - No gamification around consecutive daily check-ins.
   - Track the current streak and longest streak on the user profile. Display a flame icon with the streak count. Send a push notification reminder if the streak is about to break. Award a badge at 7, 30, and 100 day streaks.
 
-- [ ] **Place suggestions and corrections**
-  - Users cannot report inaccurate information about a place.
-  - Add a "Suggest an edit" button on the detail page. Create a `place_suggestions` table and `POST /api/v1/places/:placeCode/suggestions` endpoint. Build an admin review queue for suggestions.
-
 ### Backend Features
 
-- [ ] **Configurable timezone for scrapers**
+- [x] **Configurable timezone for scrapers**
   - The scraper hardcodes a UTC+4 offset (UAE timezone). Running it from another region produces incorrect timestamps.
-  - Add a `SCRAPER_TIMEZONE` environment variable (e.g., `Asia/Dubai`). Use `pytz` or `zoneinfo` to localize timestamps.
+  - Added `SCRAPER_TIMEZONE` env var (IANA name, e.g. `Asia/Dubai`). When Google Maps returns no `utcOffsetMinutes`, falls back to `zoneinfo.ZoneInfo(SCRAPER_TIMEZONE)` to compute offset in minutes. Documented in `data_scraper/.env.example`.
 
-- [ ] **Batch place creation endpoint**
+- [x] **Batch place creation endpoint**
   - For efficient scraper sync (see P1 batch sync item).
   - `POST /api/v1/places/batch` accepts `{"places": [...]}`, validates each, inserts in a single transaction, and returns a result summary with successes and failures.
 
@@ -193,17 +181,9 @@ New capabilities and meaningful UX improvements.
   - No mechanism for real-time notifications or external integrations.
   - Implement an internal event bus. When key actions occur (new review, check-in, badge earned), publish events. Consumers can send push notifications, update caches, or call external webhooks.
 
-- [ ] **Place verification system**
-  - No way to distinguish verified places from user-submitted or scraped data.
-  - Add a `verified` boolean and `verified_by` field to the Place model. Allow trusted users or admins to mark places as verified. Display a verification badge on the detail page.
-
-- [ ] **Review moderation**
-  - All reviews are published immediately with no oversight.
-  - Add a `status` field to reviews (`pending`, `approved`, `rejected`). New reviews from users below a trust threshold start as `pending`. Build a moderation queue in the admin panel.
-
-- [ ] **API pagination improvements**
+- [x] **API pagination improvements**
   - Some list endpoints use simple limit/offset which performs poorly on large datasets.
-  - Implement cursor-based pagination using the `place_code` or `created_at` as the cursor. Return `next_cursor` in the response. Update the frontend to pass the cursor on subsequent requests.
+  - Added cursor-based pagination to `GET /api/v1/places`: accepts optional `cursor` query param (a `place_code`); when provided, starts the page after that place. Response now includes `next_cursor` (last item's `place_code`) when more results exist, `null` otherwise. Backward-compatible: `offset` still works when no cursor given. Frontend types updated (`PlacesResponse.next_cursor`).
 
 - [ ] **Geographic boundary management API**
   - Geographic boundaries (cities, regions) are seed-only. There is no CRUD API for managing them at runtime.
@@ -231,9 +211,10 @@ New capabilities and meaningful UX improvements.
   - Check-in and favorite toggle have no tactile feedback.
   - Use `expo-haptics` to trigger a light impact on favorite toggle, a medium impact on check-in, and a success notification on badge earned.
 
-- [ ] **Map marker clustering**
+- [x] **Map marker clustering**
   - When zoomed out, overlapping markers create an unreadable mess.
-  - Use `react-native-map-clustering` on mobile and a clustering library (e.g., Supercluster) on web. Show cluster count badges that expand on tap.
+  - Web: added `react-leaflet-cluster` (`MarkerClusterGroup`) wrapping all markers; custom green cluster icon shows count badge; expands on click, spiderfies on max zoom.
+  - Mobile: embedded `leaflet.markercluster@1.5.3` via CDN in the WebView HTML; all markers added to `L.markerClusterGroup()` with matching green cluster icon.
 
 - [ ] **Directions integration**
   - Users cannot get navigation directions to a place from within the app.

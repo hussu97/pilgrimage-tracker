@@ -31,10 +31,24 @@ export function buildMapHtml(places: Place[], centerLat: number, centerLng: numb
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #map { width: 100%; height: 100%; }
+    .place-cluster-icon {
+      background: rgba(22,163,74,0.9);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      border: 3px solid #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
   </style>
 </head>
 <body>
@@ -60,17 +74,37 @@ export function buildMapHtml(places: Place[], centerLat: number, centerLng: numb
       });
     }
 
+    var clusterGroup = L.markerClusterGroup({
+      maxClusterRadius: 60,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      iconCreateFunction: function(cluster) {
+        var count = cluster.getChildCount();
+        var size = count < 10 ? 36 : count < 100 ? 44 : 52;
+        return L.divIcon({
+          className: 'place-cluster-icon',
+          html: '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:rgba(22,163,74,0.9);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:' + (count < 100 ? 13 : 11) + 'px;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,0.2);">' + count + '</div>',
+          iconSize: [size, size],
+          iconAnchor: [size / 2, size / 2]
+        });
+      }
+    });
+
     var markers = ${JSON.stringify(markers)};
 
     markers.forEach(function(m) {
-      var marker = L.marker([m.lat, m.lng], { icon: createIcon(m.openStatus) }).addTo(map);
+      var marker = L.marker([m.lat, m.lng], { icon: createIcon(m.openStatus) });
       marker.bindPopup('<strong>' + m.name + '</strong><br/><small>' + m.address + '</small>');
       marker.on('click', function() {
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify({ placeCode: m.placeCode }));
         }
       });
+      clusterGroup.addLayer(marker);
     });
+
+    map.addLayer(clusterGroup);
 
     L.circleMarker([${centerLat}, ${centerLng}], {
       radius: 8,

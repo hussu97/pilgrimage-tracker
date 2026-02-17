@@ -1,6 +1,7 @@
 import { useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import type { Place } from '@/lib/types';
 import 'leaflet/dist/leaflet.css';
@@ -37,6 +38,25 @@ function createMarkerIcon(openStatus: string | undefined, isSelected = false): L
         </div>
         ${isSelected ? '<div class="absolute inset-0 rounded-full bg-primary/20 animate-ping"></div>' : ''}
       </div>
+    `,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
+
+function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
+  const count = cluster.getChildCount();
+  const size = count < 10 ? 36 : count < 100 ? 44 : 52;
+  return L.divIcon({
+    className: 'place-cluster',
+    html: `
+      <div style="
+        width:${size}px;height:${size}px;border-radius:50%;
+        background:rgba(22,163,74,0.9);color:#fff;
+        display:flex;align-items:center;justify-content:center;
+        font-weight:700;font-size:${count < 100 ? 13 : 11}px;
+        border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,0.2);
+      ">${count}</div>
     `,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
@@ -91,34 +111,43 @@ export default function PlacesMap({ places, center, onPlaceSelect, selectedPlace
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {places.length > 0 && <FitBounds places={places} />}
-        {places.map((place) => {
-          const isSelected = place.place_code === selectedPlaceCode;
-          return (
-            <Marker
-              key={place.place_code}
-              position={[place.lat, place.lng]}
-              icon={createMarkerIcon(place.open_status, isSelected)}
-              eventHandlers={onPlaceSelect ? { click: () => onPlaceSelect(place) } : undefined}
-              zIndexOffset={isSelected ? 1000 : 0}
-            >
-              {!onPlaceSelect && <Popup>
-                <div className="min-w-[160px]">
-                  <p className="font-semibold text-gray-900 mb-1">{place.name}</p>
-                  {place.distance != null && (
-                    <p className="text-sm text-gray-600 mb-2">{formatDistance(place.distance)} away</p>
-                  )}
-                  <Link
-                    to={`/places/${place.place_code}`}
-                    className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
-                  >
-                    View details
-                    <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                  </Link>
-                </div>
-              </Popup>}
-            </Marker>
-          );
-        })}
+        <MarkerClusterGroup
+          iconCreateFunction={createClusterIcon}
+          maxClusterRadius={60}
+          spiderfyOnMaxZoom
+          showCoverageOnHover={false}
+          zoomToBoundsOnClick
+          chunkedLoading
+        >
+          {places.map((place) => {
+            const isSelected = place.place_code === selectedPlaceCode;
+            return (
+              <Marker
+                key={place.place_code}
+                position={[place.lat, place.lng]}
+                icon={createMarkerIcon(place.open_status, isSelected)}
+                eventHandlers={onPlaceSelect ? { click: () => onPlaceSelect(place) } : undefined}
+                zIndexOffset={isSelected ? 1000 : 0}
+              >
+                {!onPlaceSelect && <Popup>
+                  <div className="min-w-[160px]">
+                    <p className="font-semibold text-gray-900 mb-1">{place.name}</p>
+                    {place.distance != null && (
+                      <p className="text-sm text-gray-600 mb-2">{formatDistance(place.distance)} away</p>
+                    )}
+                    <Link
+                      to={`/places/${place.place_code}`}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                    >
+                      View details
+                      <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                    </Link>
+                  </div>
+                </Popup>}
+              </Marker>
+            );
+          })}
+        </MarkerClusterGroup>
       </MapContainer>
     </div>
   );

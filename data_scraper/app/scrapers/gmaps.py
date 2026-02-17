@@ -366,8 +366,17 @@ def get_place_details(place_name: str, api_key: str, session: Session) -> Dict:
     # Business status
     business_status = response.get("businessStatus", "N/A")
 
-    # UTC offset
+    # UTC offset — use Google's value; fall back to SCRAPER_TIMEZONE env var if absent
     utc_offset_minutes = response.get("utcOffsetMinutes")
+    if utc_offset_minutes is None:
+        scraper_tz = os.environ.get("SCRAPER_TIMEZONE")
+        if scraper_tz:
+            try:
+                from zoneinfo import ZoneInfo
+                from datetime import datetime as _dt
+                utc_offset_minutes = int(_dt.now(ZoneInfo(scraper_tz)).utcoffset().total_seconds() / 60)
+            except Exception:
+                pass
 
     place_data = {
         "place_code": place_code,

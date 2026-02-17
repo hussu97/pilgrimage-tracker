@@ -4,6 +4,32 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P2 Features: Timezone, Cursor Pagination, Map Clustering (2026-02-17)
+
+### Backend
+
+- **`data_scraper/app/scrapers/gmaps.py`** — Added `SCRAPER_TIMEZONE` fallback: when Google Maps doesn't return `utcOffsetMinutes` for a place, the scraper now reads the `SCRAPER_TIMEZONE` env var (IANA name, e.g. `Asia/Dubai`) and uses `zoneinfo.ZoneInfo` to compute the UTC offset in minutes. No external dependencies — uses stdlib `zoneinfo` (Python 3.9+).
+
+- **`data_scraper/.env.example`** — Documented new `SCRAPER_TIMEZONE` env var with example value `Asia/Dubai`.
+
+- **`server/app/db/places.py`** — Added cursor-based pagination to `list_places()`: new optional `cursor` parameter (a `place_code`). When provided, the page starts after that item in the sorted/filtered result set; otherwise `offset` is used as before. Returns `next_cursor` (last item's `place_code` when more results exist, `None` otherwise).
+
+- **`server/app/api/v1/places.py`** — Exposed `cursor` query param on `GET /api/v1/places` and included `next_cursor` in the response body.
+
+### Frontend (web)
+
+- **`apps/web/src/components/places/PlacesMap.tsx`** — Added `react-leaflet-cluster` (`MarkerClusterGroup`) to cluster overlapping map markers. Green cluster icons show item count and expand on click; spiderfies at max zoom. `react-leaflet-cluster` + `@types/leaflet.markercluster` added to `package.json`.
+
+- **`apps/web/src/lib/types/places.ts`** — Added `next_cursor?: string | null` to `PlacesResponse`.
+
+### Frontend (mobile)
+
+- **`apps/mobile/src/lib/utils/mapBuilder.ts`** — Embedded `leaflet.markercluster@1.5.3` via CDN in the WebView HTML. All markers now added to `L.markerClusterGroup()` with matching green cluster icons; click and postMessage behavior preserved.
+
+- **`apps/mobile/src/lib/types/places.ts`** — Added `next_cursor?: string | null` to `PlacesResponse`.
+
+---
+
 ## Pytest Test Suite + AM/PM Parsing Fix (2026-02-17)
 
 ### Backend

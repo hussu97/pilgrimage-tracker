@@ -91,4 +91,5 @@ export interface PlacesResponse {
   filters?: {
     options: FilterOption[];
   };
+  next_cursor?: string | null;
 }
