@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react';
+import { useMemo, useEffect, useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
@@ -64,14 +64,21 @@ function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
 }
 
 /**
- * Calls map.remove() when this component unmounts so Leaflet clears its
- * internal _leaflet_id from the container div.  Without this, React Strict
- * Mode's double-mount (unmount → remount) causes "Map container is already
- * initialized" because the id is still stamped on the DOM node.
+ * Destroys the Leaflet map instance synchronously on unmount.
+ *
+ * Why useLayoutEffect (not useEffect):
+ * React Strict Mode simulates the future "offscreen → visible" pattern:
+ *   1. Mount  → Leaflet useLayoutEffect fires, map is created
+ *   2. "Offscreen" → React runs LAYOUT cleanups only (useEffect cleanups are skipped)
+ *   3. "Visible" → reappearLayoutEffects → Leaflet tries to init again → crash
+ *   4. (async) → useEffect cleanup finally runs — too late
+ *
+ * useLayoutEffect cleanup fires synchronously in step 2, so map.remove()
+ * clears _leaflet_id from the div before step 3 re-initialises it.
  */
 function MapCleanup() {
   const map = useMap();
-  useEffect(() => () => { map.remove(); }, [map]);
+  useLayoutEffect(() => () => { map.remove(); }, [map]);
   return null;
 }
 
