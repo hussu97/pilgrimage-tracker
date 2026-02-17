@@ -4,6 +4,23 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## GCP Auto-Deploy Workflow (2026-02-18)
+
+### Infrastructure
+
+- **`.github/workflows/deploy.yml`** — New GitHub Actions workflow that runs on every push to `main`:
+  1. Runs server `pytest` and web `tsc + vite build` in parallel as a gate.
+  2. On success, deploys API to Cloud Run (build → push to Artifact Registry → `gcloud run deploy`).
+  3. On success, deploys web to Firebase Hosting (`npm run build` → `firebase-tools deploy`).
+  - Uses `concurrency` group to cancel stale in-flight deploys on rapid pushes.
+  - Required GitHub secrets: `GCP_SA_KEY` (service account JSON), `VITE_API_URL`, `FIREBASE_TOKEN`.
+
+### Docs
+
+- **`PRODUCTION.md` Plan 3, Step 6a** — Updated Firebase init note: "Set up automatic builds with GitHub: No" now references `deploy.yml` for clarity.
+
+---
+
 ## Seed Split: System vs Demo Data + Reset CLI (2026-02-17)
 
 ### Backend

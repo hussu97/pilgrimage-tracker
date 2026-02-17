@@ -601,7 +601,7 @@ When prompted:
 - **Use an existing project** → select your GCP project ID
 - **Public directory:** `apps/web/dist`
 - **Single-page app (rewrite all URLs to /index.html):** `Yes`
-- **Set up automatic builds with GitHub:** `No` (CI handles this)
+- **Set up automatic builds with GitHub:** `No` (`.github/workflows/deploy.yml` handles this via Firebase token)
 - **Overwrite `dist/index.html`:** `No`
 
 This creates `firebase.json` and `.firebaserc` at the repo root.
