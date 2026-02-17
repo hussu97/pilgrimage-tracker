@@ -521,22 +521,31 @@ To update a secret value later:
 echo -n "new-value" | gcloud secrets versions add JWT_SECRET --data-file=-
 ```
 
-#### Grant Cloud Run access to secrets
+#### Grant Cloud Run the required IAM roles
+
+The default Cloud Run compute service account needs two roles — **both are required** or the service will crash on startup:
+
+| Role | Why it's needed |
+|---|---|
+| `roles/secretmanager.secretAccessor` | Reads `JWT_SECRET`, `DATABASE_URL`, etc. from Secret Manager at startup |
+| `roles/cloudsql.client` | Allows the Cloud SQL Auth Proxy sidecar (mounted via `--add-cloudsql-instances`) to authenticate and open the Unix socket. Without this the socket exists but every connection attempt is refused. |
 
 ```bash
 PROJECT_NUMBER=$(gcloud projects describe PROJECT_ID --format="value(projectNumber)")
 SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
+# Required: read secrets mounted via --set-secrets
 gcloud projects add-iam-policy-binding PROJECT_ID \
   --member="serviceAccount:${SERVICE_ACCOUNT}" \
   --role="roles/secretmanager.secretAccessor"
 
+# Required: connect to Cloud SQL via the proxy socket (--add-cloudsql-instances)
 gcloud projects add-iam-policy-binding PROJECT_ID \
   --member="serviceAccount:${SERVICE_ACCOUNT}" \
   --role="roles/cloudsql.client"
 ```
 
-> Both roles are required: `secretmanager.secretAccessor` to read secrets at startup, and `cloudsql.client` to open the Cloud SQL proxy socket that `--add-cloudsql-instances` mounts.
+> **Symptom if `cloudsql.client` is missing:** the app starts, the socket path `/cloudsql/PROJECT_ID:REGION:instance/.s.PGSQL.5432` is created, but every connection attempt returns `psycopg2.OperationalError: Connection refused`. Adding the role and redeploying fixes it immediately.
 
 ---
 
