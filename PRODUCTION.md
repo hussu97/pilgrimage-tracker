@@ -538,7 +538,7 @@ gcloud projects add-iam-policy-binding PROJECT_ID \
 
 **Option A — build locally (requires Docker):**
 ```bash
-docker build -t REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/api:latest ./server
+docker build --platform linux/amd64 -t REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/api:latest ./server
 docker push REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/api:latest
 ```
 

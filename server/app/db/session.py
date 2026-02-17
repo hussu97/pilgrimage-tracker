@@ -22,7 +22,6 @@ if not database_url.startswith("sqlite"):
         "pool_recycle": 3600,   # Recycle connections after 1 hour
         "pool_pre_ping": True,  # Verify connections before using
     }
-
 engine = create_engine(
     database_url,
     echo=False,
