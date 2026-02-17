@@ -17,6 +17,12 @@ Update the relevant plan(s) when adding new env vars, services, DB migrations, o
 ## 4. Git Commit After Feature Changes
 After any feature change (or coherent set of changes), commit the work with a clear, descriptive message. One logical change per commit where practical. Do not leave implemented work uncommitted.
 
+Every commit **must** be authored by Hussain Abbasi. Always pass `--author` explicitly:
+```
+git commit --author="Hussain Abbasi <h_abbasi97@hotmail.com>" -m "..."
+```
+The `Co-Authored-By` trailer for Claude should still be included in the commit body.
+
 ## 5. Design File Inspiration
 For any frontend UI/UX changes in `apps/web` or `apps/mobile`, use **FRONTEND_REWAMP_LIGHT.html** (light mode) and **FRONTEND_REWAMP_DARK.html** (dark mode) as the primary visual and layout reference. Align structure, spacing, typography (Lexend), colors, and icons (Material Icons/Symbols) with the design.
 
