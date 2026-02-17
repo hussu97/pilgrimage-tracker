@@ -1,3 +1,4 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
 import type { Place } from '@/lib/types';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
@@ -12,7 +13,7 @@ function formatDistance(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
-export default function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
+function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
   return (
     <Link
       to={`/places/${place.place_code}`}
@@ -81,3 +82,5 @@ export default function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
     </Link>
   );
 }
+
+export default React.memo(PlaceCardUnified);

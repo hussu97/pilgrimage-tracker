@@ -4,6 +4,53 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P1 Performance Improvements (2026-02-17)
+
+### Backend
+
+- **Batch place sync endpoint** (`server/app/api/v1/places.py`, `server/app/models/schemas.py`)
+  - Added `PlaceBatch` Pydantic model wrapping `List[PlaceCreate]`.
+  - New `POST /api/v1/places/batch` endpoint (declared before single-place route to avoid path conflict) that iterates the list, upserts each place with images/attributes/reviews, and returns `{total, synced, failed, results[]}`.
+  - Reduces N HTTP requests to `ceil(N/25)` requests during sync.
+
+- **Rating sort for places** — already implemented; verified in `server/app/db/places.py` (sort applied after filters with `_get_avg` per place). Marked done in ROADMAP.
+
+- **Scraper batch sync** (`data_scraper/app/db/scraper.py`)
+  - Added `BATCH_SIZE = 25` constant.
+  - `sync_run_to_server` builds all payloads up front, POSTs in batches of 25 to `/api/v1/places/batch`.
+  - Falls back to individual `POST /api/v1/places` calls if batch endpoint returns non-200.
+  - Maintains per-place `[OK]` / `[FAIL]` logging and final summary.
+
+### Frontend (web)
+
+- **React.memo for PlaceCardUnified and FilterChip** (`apps/web/src/components/places/`)
+  - Wrapped `PlaceCardUnified` and `FilterChip` in `React.memo()` to prevent unnecessary re-renders on parent state changes.
+
+- **Lazy-loaded routes** (`apps/web/src/app/routes.tsx`)
+  - Converted all 18 page imports to `React.lazy()` with dynamic `import()`.
+  - Wrapped `<Routes>` in `<Suspense fallback={<PageLoader />}>` (spinner). Enables per-route code splitting; first load no longer downloads all page bundles.
+
+- **Extracted PlaceDetail sub-components** (`apps/web/src/components/places/`)
+  - `PlaceOpeningHours` — collapsible opening hours section with `compact` prop for mobile/desktop variants; eliminates duplicated JSX between layouts.
+  - `PlaceTimingsCarousel` — horizontal carousel of `TimingCircle`/`DeityCircle` items with `compact` prop.
+  - `PlaceSpecificationsGrid` — 2/3-column specifications grid with `compact` prop.
+  - `PlaceDetail.tsx` reduced from 840 → ~550 lines; `hoursExpanded` state and `renderTimingItem` helper removed from page component.
+
+### Frontend (mobile)
+
+- **Image caching** — already implemented via `expo-image` with `cachePolicy="memory-disk"` in `PlaceCard.tsx`. Marked done in ROADMAP.
+
+- **React.memo for PlaceCard and FilterChip** — already applied in mobile components. Marked done in ROADMAP.
+
+- **Extracted PlaceDetailScreen sub-components** (`apps/mobile/src/components/places/`)
+  - `PlaceScorecardRow` — tappable distance/crowd/visits scorecard row.
+  - `PlaceTimingsCarousel` — horizontal ScrollView of religion-specific timing circles.
+  - `PlaceSpecificationsGrid` — wrapped specs grid with icon, label, value.
+  - `PlaceReviewsList` — full reviews section with write/edit/delete actions, owns `deletingCode` state and uses `useNavigation` internally.
+  - `PlaceDetailScreen.tsx` reduced from 1129 → ~600 lines; removed `handleDeleteReview`, `deletingCode`, `userReview`, and related style blocks from screen.
+
+---
+
 ## P1 Reliability Improvements (2026-02-17)
 
 ### Backend

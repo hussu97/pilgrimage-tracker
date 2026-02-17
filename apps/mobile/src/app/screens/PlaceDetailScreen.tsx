@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
@@ -21,19 +20,19 @@ import {
   getPlaceReviews,
   addFavorite,
   removeFavorite,
-  deleteReview,
   checkIn as doCheckIn,
 } from '@/lib/api/client';
 import { shareUrl, openDirections } from '@/lib/share';
 import { useAuth } from '@/app/providers';
 import { useI18n } from '@/app/providers';
 import type { RootStackParamList } from '@/app/navigation';
-import type { PlaceDetail as PlaceDetailType, Review, PlaceSpecification, PlaceTiming } from '@/lib/types';
+import type { PlaceDetail as PlaceDetailType, Review } from '@/lib/types';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import { tokens } from '@/lib/theme';
-import TimingCircle from '@/components/places/TimingCircle';
-import DeityCircle from '@/components/places/DeityCircle';
-import { crowdColor } from '@/lib/utils/crowdColor';
+import PlaceScorecardRow from '@/components/places/PlaceScorecardRow';
+import PlaceTimingsCarousel from '@/components/places/PlaceTimingsCarousel';
+import PlaceSpecificationsGrid from '@/components/places/PlaceSpecificationsGrid';
+import PlaceReviewsList from '@/components/places/PlaceReviewsList';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>;
 type PlaceDetailRoute = RouteProp<RootStackParamList, 'PlaceDetail'>;
@@ -57,7 +56,6 @@ export default function PlaceDetailScreen() {
   const [error, setError] = useState('');
   const [notFound, setNotFound] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
-  const [deletingCode, setDeletingCode] = useState<string | null>(null);
   const [checkInLoading, setCheckInLoading] = useState(false);
   const [checkInDone, setCheckInDone] = useState(false);
   const [checkInDate, setCheckInDate] = useState('');
@@ -123,31 +121,6 @@ export default function PlaceDetailScreen() {
     }
   }, [placeCode, place]);
 
-  const handleDeleteReview = (reviewCode: string) => {
-    Alert.alert(
-      t('reviews.deleteTitle'),
-      t('reviews.deleteWarning'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            setDeletingCode(reviewCode);
-            try {
-              await deleteReview(reviewCode);
-              fetchPlace();
-            } catch {
-              // ignore
-            } finally {
-              setDeletingCode(null);
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const handleCheckIn = useCallback(async () => {
     if (!placeCode || checkInLoading || checkInDone) return;
     setCheckInLoading(true);
@@ -203,8 +176,6 @@ export default function PlaceDetailScreen() {
     );
   };
 
-  const userReview = user ? reviews.find((r) => r.user_code === user.user_code) : null;
-
   if (!placeCode) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
@@ -253,11 +224,6 @@ export default function PlaceDetailScreen() {
   const specifications: PlaceSpecification[] = place.specifications ?? [];
   const crowdLevel = (place as PlaceDetailType & { crowd_level?: string }).crowd_level;
   const totalCheckins = (place as PlaceDetailType & { total_checkins_count?: number }).total_checkins_count;
-
-  const renderTimingItem = (item: PlaceTiming, i: number) => {
-    if (item.type === 'deity') return <DeityCircle key={i} item={item} />;
-    return <TimingCircle key={i} item={item} />;
-  };
 
   const carouselTitle =
     place.religion === 'islam' ? t('placeDetail.prayerTimes') :
@@ -358,43 +324,12 @@ export default function PlaceDetailScreen() {
         {/* Card */}
         <View style={styles.card}>
           {/* Scorecards */}
-          <View style={styles.scorecardRow}>
-            <TouchableOpacity
-              style={styles.scorecard}
-              onPress={() => place && openDirections(place.lat, place.lng, place.name)}
-              activeOpacity={0.7}
-            >
-              <MaterialIcons name="directions" size={20} color={tokens.colors.primary} />
-              <Text style={styles.scorecardValue}>
-                {place.distance != null ? formatDist(place.distance) : '—'}
-              </Text>
-              <Text style={styles.scorecardLabel}>{t('placeDetail.distance')}</Text>
-            </TouchableOpacity>
-
-            <View style={styles.scorecardDivider} />
-
-            <View style={styles.scorecard}>
-              <MaterialIcons
-                name="people"
-                size={20}
-                color={crowdColor(crowdLevel)}
-              />
-              <Text style={[styles.scorecardValue, { color: crowdColor(crowdLevel) }]}>
-                {crowdLevel ?? '—'}
-              </Text>
-              <Text style={styles.scorecardLabel}>{t('placeDetail.crowd')}</Text>
-            </View>
-
-            <View style={styles.scorecardDivider} />
-
-            <View style={styles.scorecard}>
-              <MaterialIcons name="check-circle-outline" size={20} color={tokens.colors.primary} />
-              <Text style={styles.scorecardValue}>
-                {totalCheckins != null ? totalCheckins.toString() : '—'}
-              </Text>
-              <Text style={styles.scorecardLabel}>{t('placeDetail.visits')}</Text>
-            </View>
-          </View>
+          <PlaceScorecardRow
+            place={place}
+            crowdLevel={crowdLevel}
+            totalCheckins={totalCheckins}
+            t={t}
+          />
 
           {/* The Story */}
           {place.description ? (
@@ -471,163 +406,23 @@ export default function PlaceDetailScreen() {
 
           {/* Religion-specific carousel */}
           {timings.length > 0 ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{carouselTitle}</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.carouselContent}
-              >
-                {timings.map((item, i) => renderTimingItem(item, i))}
-              </ScrollView>
-            </View>
+            <PlaceTimingsCarousel timings={timings} title={carouselTitle} />
           ) : null}
 
           {/* Facilities / Specifications */}
           {specifications.length > 0 ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t('placeDetail.detailsAndFacilities')}</Text>
-              <View style={styles.specsGrid}>
-                {specifications.map((spec, i) => (
-                  <View key={i} style={styles.specCard}>
-                    <MaterialIcons
-                      name={spec.icon as any}
-                      size={20}
-                      color={tokens.colors.primary}
-                      style={{ marginBottom: 6 }}
-                    />
-                    <Text style={styles.specLabel}>{t(spec.label)}</Text>
-                    <Text style={styles.specValue}>{spec.value}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
+            <PlaceSpecificationsGrid specifications={specifications} t={t} />
           ) : null}
 
           {/* Reviews */}
-          <View style={styles.section}>
-            <View style={styles.reviewHeader}>
-              <Text style={styles.sectionTitle}>{t('placeDetail.recentReviews')}</Text>
-              {(averageRating != null || (reviewCount != null && reviewCount > 0)) && (
-                <View style={styles.reviewMeta}>
-                  <MaterialIcons name="star" size={14} color="#f59e0b" />
-                  <Text style={styles.reviewMetaText}>{averageRating?.toFixed(1) ?? '—'}</Text>
-                  <Text style={styles.reviewMetaMuted}>({reviewCount ?? 0})</Text>
-                </View>
-              )}
-            </View>
-
-            {userReview ? (
-              <TouchableOpacity
-                onPress={() => navigation.navigate('WriteReview', {
-                  placeCode,
-                  reviewCode: userReview.review_code,
-                  rating: userReview.rating,
-                  title: userReview.title ?? '',
-                  body: userReview.body ?? '',
-                })}
-                style={styles.writeReviewLink}
-              >
-                <Text style={styles.writeReviewLinkText}>Edit your review</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                onPress={() => navigation.navigate('WriteReview', { placeCode })}
-                style={styles.writeReviewLink}
-              >
-                <Text style={styles.writeReviewLinkText}>{t('places.writeReview')}</Text>
-              </TouchableOpacity>
-            )}
-
-            {reviews.length === 0 ? (
-              <Text style={styles.muted}>{t('places.noReviewsYet')}</Text>
-            ) : (
-              <View style={styles.reviewList}>
-                {reviews.slice(0, 5).map((r) => (
-                  <View key={r.review_code} style={styles.reviewCard}>
-                    <View style={styles.reviewCardHeader}>
-                      <View style={styles.reviewAvatar}>
-                        <Text style={styles.reviewAvatarText}>
-                          {(r.display_name || '?').charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                      <View style={styles.reviewCardMeta}>
-                        <Text style={styles.reviewAuthor}>{r.display_name || 'Visitor'}</Text>
-                        <Text style={styles.reviewDate}>
-                          {r.created_at ? new Date(r.created_at).toLocaleDateString() : ''}
-                        </Text>
-                      </View>
-                      <View style={styles.reviewCardRight}>
-                        <View style={styles.starRow}>
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <Text key={i} style={styles.star}>
-                              {i <= r.rating ? '★' : '☆'}
-                            </Text>
-                          ))}
-                        </View>
-                        {user && r.user_code === user.user_code && (
-                          <View style={styles.reviewActions}>
-                            <TouchableOpacity
-                              onPress={() =>
-                                navigation.navigate('WriteReview', {
-                                  placeCode,
-                                  reviewCode: r.review_code,
-                                  rating: r.rating,
-                                  title: r.title ?? '',
-                                  body: r.body ?? '',
-                                })
-                              }
-                              style={styles.reviewActionBtn}
-                            >
-                              <Text style={styles.reviewActionEdit}>Edit</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              onPress={() => handleDeleteReview(r.review_code)}
-                              disabled={deletingCode === r.review_code}
-                              style={styles.reviewActionBtn}
-                            >
-                              <Text style={styles.reviewActionDelete}>Delete</Text>
-                            </TouchableOpacity>
-                          </View>
-                        )}
-                      </View>
-                    </View>
-                    {r.title ? <Text style={styles.reviewTitle}>{r.title}</Text> : null}
-                    {r.body ? <Text style={styles.reviewBody}>{r.body}</Text> : null}
-                    {(r.images && r.images.length > 0) || (r.photo_urls && r.photo_urls.length > 0) ? (
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.reviewPhotos}
-                        contentContainerStyle={styles.reviewPhotosContent}
-                      >
-                        {r.images?.map((img, i) => (
-                          <ExpoImage
-                            key={`img-${i}`}
-                            source={{ uri: getFullImageUrl(img.url) }}
-                            style={styles.reviewPhoto}
-                            contentFit="cover"
-                            cachePolicy="memory-disk"
-                            transition={200}
-                          />
-                        ))}
-                        {r.photo_urls?.map((url: string, i: number) => (
-                          <ExpoImage
-                            key={`photo-${i}`}
-                            source={{ uri: url }}
-                            style={styles.reviewPhoto}
-                            contentFit="cover"
-                            cachePolicy="memory-disk"
-                            transition={200}
-                          />
-                        ))}
-                      </ScrollView>
-                    ) : null}
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
+          <PlaceReviewsList
+            placeCode={placeCode}
+            reviews={reviews}
+            userCode={user?.user_code}
+            averageRating={averageRating}
+            reviewCount={reviewCount}
+            onRefresh={fetchPlace}
+          />
         </View>
       </Animated.ScrollView>
 

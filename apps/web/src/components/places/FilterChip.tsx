@@ -1,3 +1,4 @@
+import React from 'react';
 import type { ButtonHTMLAttributes } from 'react';
 
 interface FilterChipProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -5,7 +6,7 @@ interface FilterChipProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   selected?: boolean;
 }
 
-export default function FilterChip({
+function FilterChip({
   label,
   selected = false,
   className = '',
@@ -26,3 +27,5 @@ export default function FilterChip({
     </button>
   );
 }
+
+export default React.memo(FilterChip);

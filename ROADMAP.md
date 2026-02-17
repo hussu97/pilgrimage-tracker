@@ -86,30 +86,30 @@ Issues that do not crash the app but significantly affect security, reliability,
 
 ### Performance
 
-- [ ] **Implement rating sort for places**
+- [x] **Implement rating sort for places**
   - File: `server/app/api/v1/places.py` (lines 278-280)
   - The `sort=rating` query parameter is accepted but the implementation body is empty. Results are returned unsorted.
-  - Query the average rating from the reviews table (or a denormalized `avg_rating` column on the place) and apply `ORDER BY avg_rating DESC`.
+  - Already implemented in `server/app/db/places.py`: `pass` at sort decision point skips proximity sort; rating sort applied after all filters via `result.sort(key=lambda x: (_get_avg(x[0].place_code), -(x[1] or 0)), reverse=True)`.
 
-- [ ] **Batch sync for scraper**
+- [x] **Batch sync for scraper**
   - The scraper currently POSTs one place at a time, resulting in N HTTP requests for N places. This is slow and generates excessive overhead.
-  - Create a `POST /api/v1/places/batch` endpoint that accepts a list of places. Update the scraper to send places in batches of 25-50.
+  - Added `POST /api/v1/places/batch` endpoint (`server/app/api/v1/places.py`) accepting `PlaceBatch` (list of `PlaceCreate`). Returns `{total, synced, failed, results}`. Updated `sync_run_to_server` in `data_scraper/app/db/scraper.py` to send in batches of 25 (`BATCH_SIZE=25`) with fallback to individual POSTs.
 
-- [ ] **Add image caching on mobile**
+- [x] **Add image caching on mobile**
   - Every scroll of a list reloads images from the network. This wastes bandwidth and causes visible flicker.
-  - Replace `<Image>` with `expo-image` or `react-native-fast-image` which provide disk and memory caching out of the box.
+  - Already implemented: `apps/mobile/src/components/places/PlaceCard.tsx` uses `expo-image` with `cachePolicy="memory-disk"` and `transition={200}`.
 
-- [ ] **Memoize expensive React components**
+- [x] **Memoize expensive React components**
   - `PlaceCard` and `FilterChip` re-render on every parent state change even when their props have not changed.
-  - Wrap both components in `React.memo()` with appropriate comparison functions. Do this in both `apps/web` and `apps/mobile`.
+  - Mobile: `PlaceCard` and `FilterChip` already export `React.memo()`. Web: wrapped `PlaceCardUnified` and `FilterChip` in `React.memo()`.
 
-- [ ] **Break up oversized screen components**
+- [x] **Break up oversized screen components**
   - `HomeScreen.tsx` (mobile, 925 lines), `PlaceDetailScreen.tsx` (mobile, 1070 lines), and `PlaceDetail.tsx` (web, 750 lines) are too large to maintain or test.
-  - Extract logical sections into sub-components: `HeroSection`, `ReviewsList`, `TimingsCarousel`, `SpecificationsGrid`, `PlaceScorecard`, etc.
+  - Mobile: extracted `PlaceScorecardRow`, `PlaceTimingsCarousel`, `PlaceSpecificationsGrid`, `PlaceReviewsList` into `apps/mobile/src/components/places/`. Web: extracted `PlaceOpeningHours`, `PlaceTimingsCarousel`, `PlaceSpecificationsGrid` into `apps/web/src/components/places/`. Eliminated code duplication between mobile/desktop layouts in `PlaceDetail.tsx`.
 
-- [ ] **Lazy load web routes**
+- [x] **Lazy load web routes**
   - The web app bundles all page components into a single chunk. First load downloads code for every route.
-  - Use `React.lazy()` and `<Suspense>` for each route in the router config. This enables code splitting so users only download the code for the page they visit.
+  - Converted all 18 page imports in `apps/web/src/app/routes.tsx` to `React.lazy()`. Wrapped `<Routes>` in `<Suspense fallback={<PageLoader />}>` with a spinner fallback.
 
 ---
 

@@ -14,7 +14,7 @@ from app.db import favorites as favorites_db
 from app.db import place_attributes as attr_db
 from app.db import place_images
 from app.db import review_images
-from app.models.schemas import CheckInBody, ReviewCreateBody, PlaceCreate
+from app.models.schemas import CheckInBody, ReviewCreateBody, PlaceCreate, PlaceBatch
 from app.services.place_timings import build_timings
 from app.services.place_specifications import build_specifications
 from app.services.timezone_utils import get_today_name
@@ -343,6 +343,83 @@ def create_review(
         "created_at": row.created_at,
         "is_anonymous": row.is_anonymous,
         "photo_urls": all_photo_urls,
+    }
+
+
+@router.post("/batch")
+def batch_create_places(
+    body: PlaceBatch,
+    session: SessionDep,
+):
+    """
+    Create or update multiple places in a single request.
+    Returns a summary of successes and failures.
+    """
+    results = []
+    for place_data in body.places:
+        try:
+            existing = places_db.get_place_by_code(place_data.place_code, session)
+            if existing:
+                row = places_db.update_place(
+                    place_code=place_data.place_code,
+                    session=session,
+                    name=place_data.name,
+                    religion=place_data.religion,
+                    place_type=place_data.place_type,
+                    lat=place_data.lat,
+                    lng=place_data.lng,
+                    address=place_data.address,
+                    opening_hours=place_data.opening_hours,
+                    utc_offset_minutes=getattr(place_data, "utc_offset_minutes", None),
+                    description=place_data.description,
+                    website_url=place_data.website_url,
+                    source=place_data.source,
+                )
+            else:
+                row = places_db.create_place(
+                    place_code=place_data.place_code,
+                    session=session,
+                    name=place_data.name,
+                    religion=place_data.religion,
+                    place_type=place_data.place_type,
+                    lat=place_data.lat,
+                    lng=place_data.lng,
+                    address=place_data.address,
+                    opening_hours=place_data.opening_hours,
+                    utc_offset_minutes=getattr(place_data, "utc_offset_minutes", None),
+                    description=place_data.description,
+                    website_url=place_data.website_url,
+                    source=place_data.source,
+                )
+
+            if place_data.image_blobs:
+                for i, blob in enumerate(place_data.image_blobs):
+                    try:
+                        data = base64.b64decode(blob["data"])
+                        mime_type = blob.get("mime_type", "image/jpeg")
+                        place_images.add_image_blob(place_data.place_code, data, mime_type, display_order=i, session=session)
+                    except Exception as e:
+                        print(f"Failed to store image blob for {place_data.place_code}: {e}")
+            elif place_data.image_urls:
+                place_images.set_images_from_urls(place_data.place_code, place_data.image_urls, session=session)
+
+            if place_data.attributes:
+                for attr_input in place_data.attributes:
+                    attr_db.upsert_attribute(place_data.place_code, attr_input.attribute_code, attr_input.value, session)
+
+            if place_data.external_reviews:
+                reviews_db.upsert_external_reviews(place_data.place_code, place_data.external_reviews, session)
+
+            results.append({"place_code": place_data.place_code, "ok": True})
+        except Exception as e:
+            results.append({"place_code": place_data.place_code, "ok": False, "error": str(e)})
+
+    success = sum(1 for r in results if r["ok"])
+    return {
+        "total": len(results),
+        "synced": success,
+        "failed": len(results) - success,
+        "results": results,
     }
 
 

@@ -11,7 +11,10 @@ import {
 } from '@/lib/api/client';
 import type { PlaceDetail as PlaceDetailType, Review, PlaceTiming, PlaceSpecification } from '@/lib/types';
 import { useAuth } from '@/app/providers';
-import { SharePlaceButton, TimingCircle, DeityCircle } from '@/components/places';
+import { SharePlaceButton } from '@/components/places';
+import PlaceOpeningHours from '@/components/places/PlaceOpeningHours';
+import PlaceTimingsCarousel from '@/components/places/PlaceTimingsCarousel';
+import PlaceSpecificationsGrid from '@/components/places/PlaceSpecificationsGrid';
 import { crowdColorClass } from '@/lib/utils/place-utils';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 
@@ -200,7 +203,6 @@ export default function PlaceDetail() {
   const [checkInDone, setCheckInDone] = useState(false);
   const [checkInDate, setCheckInDate] = useState('');
   const [storyExpanded, setStoryExpanded] = useState(false);
-  const [hoursExpanded, setHoursExpanded] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(false);
 
   useEffect(() => {
@@ -350,11 +352,6 @@ export default function PlaceDetail() {
     place.religion === 'islam' ? t('placeDetail.prayerTimes') :
       place.religion === 'hinduism' ? t('placeDetail.divinePresence') :
         t('placeDetail.serviceTimes');
-
-  const renderTimingItem = (item: PlaceTiming, i: number) => {
-    if (item.type === 'deity') return <DeityCircle key={i} item={item} />;
-    return <TimingCircle key={i} item={item} />;
-  };
 
   /* Shared sidebar content (used in desktop 2-col layout) */
   const SidebarActions = () => (
@@ -581,96 +578,22 @@ export default function PlaceDetail() {
 
             {/* Opening Hours */}
             {place.opening_hours && Object.keys(place.opening_hours).length > 0 && (
-              <section className="mb-12">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{t('places.openingHours')}</h2>
-                </div>
-                <div className="rounded-[2rem] border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface p-6 shadow-soft">
-                  {!hoursExpanded ? (
-                    // Collapsed state: Show today's hours
-                    <button
-                      type="button"
-                      onClick={() => setHoursExpanded(true)}
-                      className="w-full flex items-center justify-between text-left"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary text-[20px]">schedule</span>
-                        <span className="text-sm font-semibold text-text-main">
-                          {t('places.today')}:
-                        </span>
-                        <span className="text-sm text-text-secondary">
-                          {place.opening_hours_today || t('places.hoursNotAvailable')}
-                        </span>
-                      </div>
-                      <span className="material-symbols-outlined text-text-muted text-[20px]">expand_more</span>
-                    </button>
-                  ) : (
-                    // Expanded state: Show full weekly schedule
-                    <div className="space-y-3">
-                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
-                        const hours = place.opening_hours?.[day];
-                        const isToday = place.opening_hours_today && place.opening_hours?.[day] === place.opening_hours_today;
-
-                        return (
-                          <div
-                            key={day}
-                            className={`flex items-center justify-between py-2 ${isToday ? 'font-semibold text-primary' : 'text-text-secondary'
-                              }`}
-                          >
-                            <span className="text-sm">{day}</span>
-                            <span className="text-sm">
-                              {hours === 'Closed' ? t('places.closed') : hours === '00:00-23:59' ? t('places.open24Hours') : hours || t('places.hoursNotAvailable')}
-                            </span>
-                          </div>
-                        );
-                      })}
-                      <button
-                        type="button"
-                        onClick={() => setHoursExpanded(false)}
-                        className="w-full flex items-center justify-center gap-2 pt-2 text-sm font-semibold text-primary hover:text-primary-hover"
-                      >
-                        <span>{t('common.showLess')}</span>
-                        <span className="material-symbols-outlined text-[20px]">expand_less</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </section>
+              <PlaceOpeningHours
+                opening_hours={place.opening_hours}
+                opening_hours_today={place.opening_hours_today}
+                t={t}
+                compact
+              />
             )}
 
             {/* Carousel */}
             {timings.length > 0 && (
-              <section className="mb-12">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{carouselTitle}</h2>
-                </div>
-                <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
-                  {timings.map((item, i) => renderTimingItem(item, i))}
-                </div>
-              </section>
+              <PlaceTimingsCarousel timings={timings} title={carouselTitle} compact />
             )}
 
             {/* Specifications */}
             {specifications.length > 0 && (
-              <section className="mb-12">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{t('placeDetail.detailsAndFacilities')}</h2>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  {specifications.map((spec, i) => (
-                    <div key={i} className="p-4 rounded-3xl bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border shadow-soft flex flex-col gap-2">
-                      <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-dark-bg flex items-center justify-center text-slate-400 dark:text-slate-500 mb-1">
-                        <span className="material-symbols-outlined text-[20px]">{spec.icon}</span>
-                      </div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">{t(spec.label)}</p>
-                      <p className="text-[13px] font-bold text-slate-800 dark:text-white">{spec.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              <PlaceSpecificationsGrid specifications={specifications} t={t} compact />
             )}
 
             {/* Reviews */}
@@ -730,90 +653,21 @@ export default function PlaceDetail() {
 
             {/* Opening Hours */}
             {place.opening_hours && Object.keys(place.opening_hours).length > 0 && (
-              <section>
-                <h2 className="text-xl font-bold text-text-main mb-4">{t('places.openingHours')}</h2>
-                <div className="rounded-xl border border-input-border bg-white p-5">
-                  {!hoursExpanded ? (
-                    // Collapsed state: Show today's hours
-                    <button
-                      type="button"
-                      onClick={() => setHoursExpanded(true)}
-                      className="w-full flex items-center justify-between text-left"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-primary text-[22px]">schedule</span>
-                        <span className="text-sm font-semibold text-text-main">
-                          {t('places.today')}:
-                        </span>
-                        <span className="text-sm text-text-secondary">
-                          {place.opening_hours_today || t('places.hoursNotAvailable')}
-                        </span>
-                      </div>
-                      <span className="material-symbols-outlined text-text-muted text-[22px]">expand_more</span>
-                    </button>
-                  ) : (
-                    // Expanded state: Show full weekly schedule
-                    <div className="space-y-3">
-                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
-                        const hours = place.opening_hours?.[day];
-                        const isToday = place.opening_hours_today && place.opening_hours?.[day] === place.opening_hours_today;
-
-                        return (
-                          <div
-                            key={day}
-                            className={`flex items-center justify-between py-2 ${isToday ? 'font-semibold text-primary' : 'text-text-secondary'
-                              }`}
-                          >
-                            <span className="text-sm">{day}</span>
-                            <span className="text-sm">
-                              {hours === 'Closed' ? t('places.closed') : hours === '00:00-23:59' ? t('places.open24Hours') : hours || t('places.hoursNotAvailable')}
-                            </span>
-                          </div>
-                        );
-                      })}
-                      <button
-                        type="button"
-                        onClick={() => setHoursExpanded(false)}
-                        className="w-full flex items-center justify-center gap-2 pt-2 text-sm font-semibold text-primary hover:text-primary-hover"
-                      >
-                        <span>{t('common.showLess')}</span>
-                        <span className="material-symbols-outlined text-[22px]">expand_less</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </section>
+              <PlaceOpeningHours
+                opening_hours={place.opening_hours}
+                opening_hours_today={place.opening_hours_today}
+                t={t}
+              />
             )}
 
             {/* Carousel */}
             {timings.length > 0 && (
-              <section>
-                <h2 className="text-xl font-bold text-text-main mb-4">{carouselTitle}</h2>
-                <div className="flex gap-5 overflow-x-auto no-scrollbar pb-2">
-                  {timings.map((item, i) => renderTimingItem(item, i))}
-                </div>
-              </section>
+              <PlaceTimingsCarousel timings={timings} title={carouselTitle} />
             )}
 
             {/* Specifications */}
             {specifications.length > 0 && (
-              <section className="mb-12">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{t('placeDetail.detailsAndFacilities')}</h2>
-                </div>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                  {specifications.map((spec, i) => (
-                    <div key={i} className="p-4 rounded-3xl bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border shadow-soft flex flex-col gap-2 hover:border-primary/20 hover:shadow-lg transition-all">
-                      <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-dark-bg flex items-center justify-center text-slate-400 dark:text-slate-500 mb-1">
-                        <span className="material-symbols-outlined text-[20px]">{spec.icon}</span>
-                      </div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">{t(spec.label)}</p>
-                      <p className="text-[13px] font-bold text-slate-800 dark:text-white">{spec.value}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
+              <PlaceSpecificationsGrid specifications={specifications} t={t} />
             )}
 
             {/* Reviews */}

@@ -196,3 +196,8 @@ class PlaceCreate(BaseModel):
         if has_urls and has_blobs:
             raise ValueError("Cannot provide both image_urls and image_blobs. Use one or the other.")
         return v
+
+
+class PlaceBatch(BaseModel):
+    """Wraps a list of places for the batch create/update endpoint."""
+    places: List[PlaceCreate]

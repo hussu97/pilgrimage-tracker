@@ -50,24 +50,31 @@ def run_scraper_task(run_code: str):
             session.commit()
 
 
+BATCH_SIZE = 25
+
+
 def sync_run_to_server(run_code: str, server_url: str):
     """
-    Syncs scraped places to the main server.
-    Includes attributes and source in the payload.
+    Syncs scraped places to the main server using batch requests.
+    Places are sent in groups of BATCH_SIZE to reduce HTTP overhead.
+    Falls back to individual POSTs if the batch endpoint is unavailable.
     """
+    import json as _json
+
     with Session(engine) as session:
         places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
 
         total = len(places)
-        print(f"Syncing {total} places to {server_url}")
+        print(f"Syncing {total} places to {server_url} in batches of {BATCH_SIZE}")
 
         synced_count = 0
         failure_details: list[str] = []
 
+        # Build all payloads up front
+        payloads = []
         for p in places:
             data = p.raw_data
-
-            payload = {
+            payloads.append({
                 "place_code": p.place_code,
                 "name": data.get("name"),
                 "religion": data.get("religion"),
@@ -84,25 +91,55 @@ def sync_run_to_server(run_code: str, server_url: str):
                 "source": data.get("source"),
                 "attributes": data.get("attributes") or [],
                 "external_reviews": data.get("external_reviews") or [],
-            }
+            })
+
+        # Send in batches
+        for batch_start in range(0, len(payloads), BATCH_SIZE):
+            batch = payloads[batch_start: batch_start + BATCH_SIZE]
+            batch_codes = [p["place_code"] for p in batch]
+            print(f"  Sending batch {batch_start // BATCH_SIZE + 1}: {len(batch)} places")
 
             try:
-                resp = requests.post(f"{server_url}/api/v1/places", json=payload)
-                if resp.status_code not in [200, 201]:
-                    reason = f"HTTP {resp.status_code}"
-                    failure_details.append(f"{p.place_code}: {reason}")
-                    print(f"[FAIL] {p.place_code}: {reason} — {resp.text[:200]}")
-                    if resp.status_code == 422:
-                        import json
-                        print("Payload that caused 422:")
-                        print(json.dumps(payload, indent=2, default=str))
+                resp = requests.post(
+                    f"{server_url}/api/v1/places/batch",
+                    json={"places": batch},
+                )
+                if resp.status_code in [200, 201]:
+                    data = resp.json()
+                    synced_count += data.get("synced", 0)
+                    for r in data.get("results", []):
+                        if not r.get("ok"):
+                            reason = r.get("error", "unknown error")
+                            failure_details.append(f"{r['place_code']}: {reason}")
+                            print(f"  [FAIL] {r['place_code']}: {reason}")
+                        else:
+                            print(f"  [OK]   {r['place_code']}")
                 else:
-                    synced_count += 1
-                    print(f"[OK]   {p.place_code}")
+                    # Batch endpoint unavailable — fall back to individual POSTs
+                    print(f"  Batch endpoint returned {resp.status_code}, falling back to individual POSTs")
+                    for payload in batch:
+                        place_code = payload["place_code"]
+                        try:
+                            r = requests.post(f"{server_url}/api/v1/places", json=payload)
+                            if r.status_code not in [200, 201]:
+                                reason = f"HTTP {r.status_code}"
+                                failure_details.append(f"{place_code}: {reason}")
+                                print(f"  [FAIL] {place_code}: {reason} — {r.text[:200]}")
+                                if r.status_code == 422:
+                                    print("  Payload that caused 422:")
+                                    print(_json.dumps(payload, indent=2, default=str))
+                            else:
+                                synced_count += 1
+                                print(f"  [OK]   {place_code}")
+                        except Exception as e:
+                            reason = f"{type(e).__name__}: {e}"
+                            failure_details.append(f"{place_code}: {reason}")
+                            print(f"  [FAIL] {place_code}: {reason}")
             except Exception as e:
                 reason = f"{type(e).__name__}: {e}"
-                failure_details.append(f"{p.place_code}: {reason}")
-                print(f"[FAIL] {p.place_code}: {reason}")
+                for code in batch_codes:
+                    failure_details.append(f"{code}: {reason}")
+                print(f"  [FAIL] Batch request failed: {reason}")
 
         # Summary
         failed_count = len(failure_details)
