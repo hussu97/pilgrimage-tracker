@@ -357,8 +357,8 @@ export default function PlaceDetail() {
   const SidebarActions = () => (
     <div className="space-y-3">
       {/* Score cards */}
-      <div className="rounded-2xl border border-input-border bg-white p-4">
-        <div className="flex items-center divide-x divide-input-border">
+      <div className="rounded-2xl border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface p-4">
+        <div className="flex items-center divide-x divide-input-border dark:divide-dark-border">
           <a
             href={directionsUrl}
             target="_blank"
@@ -366,28 +366,28 @@ export default function PlaceDetail() {
             className="flex-1 flex flex-col items-center gap-1 px-2 hover:text-primary transition-colors"
           >
             <span className="material-symbols-outlined text-primary text-[22px]">directions</span>
-            <span className="text-sm font-bold text-text-main">
+            <span className="text-sm font-bold text-text-main dark:text-white">
               {place.distance != null ? formatDist(place.distance) : '—'}
             </span>
-            <span className="text-[10px] uppercase tracking-wide text-text-muted font-semibold">
+            <span className="text-[10px] uppercase tracking-wide text-text-muted dark:text-dark-text-secondary font-semibold">
               {t('placeDetail.distance')}
             </span>
           </a>
           <div className="flex-1 flex flex-col items-center gap-1 px-2">
             <span className={`material-symbols-outlined text-[22px] ${crowdColorClass(crowdLevel) || 'text-text-muted'}`}>people</span>
-            <span className={`text-sm font-bold ${crowdColorClass(crowdLevel) || 'text-text-main'}`}>
+            <span className={`text-sm font-bold ${crowdColorClass(crowdLevel) || 'text-text-main dark:text-white'}`}>
               {crowdLevel ?? '—'}
             </span>
-            <span className="text-[10px] uppercase tracking-wide text-text-muted font-semibold">
+            <span className="text-[10px] uppercase tracking-wide text-text-muted dark:text-dark-text-secondary font-semibold">
               {t('placeDetail.crowd')}
             </span>
           </div>
           <div className="flex-1 flex flex-col items-center gap-1 px-2">
             <span className="material-symbols-outlined text-primary text-[22px]">check_circle_outline</span>
-            <span className="text-sm font-bold text-text-main">
+            <span className="text-sm font-bold text-text-main dark:text-white">
               {totalCheckins != null ? totalCheckins : '—'}
             </span>
-            <span className="text-[10px] uppercase tracking-wide text-text-muted font-semibold">
+            <span className="text-[10px] uppercase tracking-wide text-text-muted dark:text-dark-text-secondary font-semibold">
               {t('placeDetail.visits')}
             </span>
           </div>
@@ -411,7 +411,7 @@ export default function PlaceDetail() {
   );
 
   return (
-    <div className="w-full min-h-screen bg-background-light">
+    <div className="w-full min-h-screen bg-background-light dark:bg-dark-bg">
       {/* Sticky Header (Fade in on scroll) */}
       <div className={`fixed top-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-xl border-b border-slate-100 dark:bg-dark-bg/95 dark:border-dark-border px-4 pt-14 pb-4 transition-all duration-500 transform ${headerVisible ? 'translate-y-0 opacity-100 shadow-xl shadow-black/5' : '-translate-y-full opacity-0 pointer-events-none'}`}>
         <div className="flex items-center gap-4 max-w-5xl mx-auto">
@@ -524,9 +524,9 @@ export default function PlaceDetail() {
       <div className="relative max-w-5xl mx-auto">
         {/* Mobile layout */}
         <div className="lg:hidden">
-          <div className="bg-background-light rounded-t-[2rem] pt-6 pb-28 px-4 space-y-6">
+          <div className="bg-background-light dark:bg-dark-bg rounded-t-[2rem] pt-6 pb-28 px-4 space-y-6">
             {/* Mobile scorecards */}
-            <div className="flex items-center divide-x divide-input-border bg-white rounded-2xl border border-input-border shadow-sm py-4">
+            <div className="flex items-center divide-x divide-input-border dark:divide-dark-border bg-white dark:bg-dark-surface rounded-2xl border border-input-border dark:border-dark-border shadow-sm py-4">
               <a
                 href={directionsUrl}
                 target="_blank"
@@ -534,28 +534,28 @@ export default function PlaceDetail() {
                 className="flex-1 flex flex-col items-center gap-1 px-2 hover:text-primary"
               >
                 <span className="material-symbols-outlined text-primary text-[22px]">directions</span>
-                <span className="text-sm font-bold text-text-main">
+                <span className="text-sm font-bold text-text-main dark:text-white">
                   {place.distance != null ? formatDist(place.distance) : '—'}
                 </span>
-                <span className="text-[10px] uppercase tracking-wide text-text-muted font-semibold">
+                <span className="text-[10px] uppercase tracking-wide text-text-muted dark:text-dark-text-secondary font-semibold">
                   {t('placeDetail.distance')}
                 </span>
               </a>
               <div className="flex-1 flex flex-col items-center gap-1 px-2">
                 <span className={`material-symbols-outlined text-[22px] ${crowdColorClass(crowdLevel) || 'text-text-muted'}`}>people</span>
-                <span className={`text-sm font-bold ${crowdColorClass(crowdLevel) || 'text-text-main'}`}>
+                <span className={`text-sm font-bold ${crowdColorClass(crowdLevel) || 'text-text-main dark:text-white'}`}>
                   {crowdLevel ?? '—'}
                 </span>
-                <span className="text-[10px] uppercase tracking-wide text-text-muted font-semibold">
+                <span className="text-[10px] uppercase tracking-wide text-text-muted dark:text-dark-text-secondary font-semibold">
                   {t('placeDetail.crowd')}
                 </span>
               </div>
               <div className="flex-1 flex flex-col items-center gap-1 px-2">
                 <span className="material-symbols-outlined text-primary text-[22px]">check_circle_outline</span>
-                <span className="text-sm font-bold text-text-main">
+                <span className="text-sm font-bold text-text-main dark:text-white">
                   {totalCheckins != null ? totalCheckins : '—'}
                 </span>
-                <span className="text-[10px] uppercase tracking-wide text-text-muted font-semibold">
+                <span className="text-[10px] uppercase tracking-wide text-text-muted dark:text-dark-text-secondary font-semibold">
                   {t('placeDetail.visits')}
                 </span>
               </div>
@@ -633,7 +633,7 @@ export default function PlaceDetail() {
         </div>
 
         {/* Desktop 2-column layout */}
-        <div className="hidden lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:items-start bg-background-light rounded-t-[2rem] pt-8 pb-16 px-8">
+        <div className="hidden lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:items-start bg-background-light dark:bg-dark-bg rounded-t-[2rem] pt-8 pb-16 px-8">
           {/* Left column: main content */}
           <div className="space-y-8">
             {/* The Story */}

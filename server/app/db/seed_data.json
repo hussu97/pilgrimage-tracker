@@ -290,7 +290,9 @@
       "notifications.updatesLabel": "Updates",
       "settings.support": "Support",
       "settings.deleteAccount": "Delete Account",
-      "settings.deleteAccountConfirm": "Delete your account and all data? This cannot be undone."
+      "settings.deleteAccountConfirm": "Delete your account and all data? This cannot be undone.",
+      "common.showMore": "Show more",
+      "placeDetail.reviews": "Reviews"
     },
     "ar": {
       "auth.login": "تسجيل الدخول",
@@ -568,7 +570,9 @@
       "notifications.updatesLabel": "التحديثات",
       "settings.support": "الدعم",
       "settings.deleteAccount": "حذف الحساب",
-      "settings.deleteAccountConfirm": "هل تريد حذف حسابك وجميع بياناتك؟ لا يمكن التراجع عن هذا الإجراء."
+      "settings.deleteAccountConfirm": "هل تريد حذف حسابك وجميع بياناتك؟ لا يمكن التراجع عن هذا الإجراء.",
+      "common.showMore": "عرض المزيد",
+      "placeDetail.reviews": "التقييمات"
     },
     "hi": {
       "auth.login": "लॉग इन करें",
@@ -846,7 +850,9 @@
       "notifications.updatesLabel": "अपडेट",
       "settings.support": "सहायता",
       "settings.deleteAccount": "खाता हटाएं",
-      "settings.deleteAccountConfirm": "अपना खाता और सभी डेटा हटाएं? इसे पूर्ववत नहीं किया जा सकता।"
+      "settings.deleteAccountConfirm": "अपना खाता और सभी डेटा हटाएं? इसे पूर्ववत नहीं किया जा सकता।",
+      "common.showMore": "और दिखाएं",
+      "placeDetail.reviews": "समीक्षाएं"
     }
   },
   "users": [
