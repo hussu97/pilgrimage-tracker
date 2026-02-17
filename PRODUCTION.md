@@ -530,7 +530,13 @@ SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 gcloud projects add-iam-policy-binding PROJECT_ID \
   --member="serviceAccount:${SERVICE_ACCOUNT}" \
   --role="roles/secretmanager.secretAccessor"
+
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/cloudsql.client"
 ```
+
+> Both roles are required: `secretmanager.secretAccessor` to read secrets at startup, and `cloudsql.client` to open the Cloud SQL proxy socket that `--add-cloudsql-instances` mounts.
 
 ---
 
