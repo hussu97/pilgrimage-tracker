@@ -7,11 +7,29 @@ from any real data files and run without any filesystem side-effects.
 Each test gets a fresh database (function-scoped engine) so there is no
 state leakage between tests.
 """
+import json
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 from unittest.mock import patch
+
+
+# ── i18n seed (session-scoped — loads once, in-memory, no DB needed) ──────────
+
+@pytest.fixture(scope="session", autouse=True)
+def seed_i18n():
+    """Load i18n data from seed_data.json into the in-memory i18n store once."""
+    from app.db import i18n as i18n_db
+    seed_path = Path(__file__).parent.parent / "app" / "db" / "seed_data.json"
+    if seed_path.exists():
+        data = json.loads(seed_path.read_text(encoding="utf-8"))
+        if "languages" in data:
+            i18n_db.set_languages(data["languages"])
+        if "translations" in data:
+            i18n_db.set_translations(data["translations"])
 
 
 # ── DB / session fixtures ──────────────────────────────────────────────────────

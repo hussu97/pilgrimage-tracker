@@ -10,15 +10,27 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 - **`server/app/db/places.py`** — Fixed AM/PM inheritance in `_parse_slot()`: when open time has no AM/PM marker (e.g. `"6:30 – 7:15 AM"`), the period is now inherited from the close time, resolving `open_status: "unknown"` for Google Maps-style partial 12h slots.
 
-- **`server/tests/`** — Added pytest test suite (60 tests):
+- **`server/tests/`** — Expanded pytest test suite (260 tests total):
   - `test_health.py` — health endpoint
   - `test_hours_parsing.py` — 23 unit tests for `_parse_time`, `_parse_time_12h`, `_parse_slot`, `_is_open_now_from_hours`
   - `test_auth.py` — register, login, refresh, logout flows
+  - `test_auth_extended.py` — forgot-password, reset-password flows (valid token, one-time use, expired, weak password)
   - `test_places.py` — list, get, create/upsert, search, filters, reviews, check-ins, favorites
-  - `tests/conftest.py` — in-memory SQLite, patched lifespan, disabled rate limiting, per-test DB isolation
+  - `test_places_db.py` — haversine, `_check_attr_bool`, `_place_has_*` helpers, place code generation, CRUD, list_places filtering
+  - `test_place_attributes.py` — upsert/get/bulk attributes, attribute definitions filtering and ordering
+  - `test_check_ins_db.py` — count queries, bulk counts, has_checked_in, this-month, on-this-day
+  - `test_users.py` — GET/PATCH /users/me, settings, stats, check-ins, favorites HTTP integration tests
+  - `test_reviews_extended.py` — PATCH/DELETE reviews, 403 guards, list with average_rating, anonymous flag
+  - `test_i18n.py` — GET /languages, GET /translations (fallback, all three languages, place keys)
+  - `test_notifications.py` — DB layer create/read/paginate + HTTP API endpoints
+  - `test_security.py` — hash_password, verify_password, JWT encode/decode/tamper, refresh token generation
+  - `test_store.py` — create/get/update user, settings update, password reset, refresh token lifecycle
+  - `test_timezone_utils.py` — get_local_now, get_today_name, format_utc_offset (DST offsets, half-hour zones)
+  - `tests/conftest.py` — session-scoped i18n seeding from `seed_data.json`; per-test DB isolation
 
-- **`data_scraper/tests/`** — Added pytest test suite (20 tests):
+- **`data_scraper/tests/`** — Expanded pytest test suite (40 tests total):
   - `test_normalize.py` — `normalize_to_24h`, `clean_address`, `process_weekly_hours` covering 12h→24h, multi-slot, special keywords, unicode whitespace
+  - `test_gmaps_helpers.py` — `calculate_search_radius`, `detect_religion_from_types` (mocked session), `get_default_place_type`, `get_gmaps_type_to_our_type`, `MIN_RADIUS` constant
 
 - **`server/requirements.txt`** — Added `pytest`, `pytest-asyncio`, `httpx`.
 - **`data_scraper/requirements.txt`** — Added `pytest`.
