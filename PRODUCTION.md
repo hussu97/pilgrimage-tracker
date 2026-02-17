@@ -427,6 +427,7 @@ Throughout this section, replace:
      cloudscheduler.googleapis.com \
      cloudbuild.googleapis.com \
      firebase.googleapis.com \
+     firebasehosting.googleapis.com \
      --project PROJECT_ID
    ```
 
@@ -606,17 +607,24 @@ gcloud run services update pilgrimage-api \
 
 #### 6a. Install Firebase CLI and initialise the project
 
-> **Prerequisite — add Firebase to your GCP project (one-time, required):**
-> A GCP project and a Firebase project are separate things. Firebase Hosting will return a 404 until Firebase is explicitly enabled on the project.
+> **Prerequisite — add Firebase to your GCP project (one-time, required)**
 >
+> A GCP project and a Firebase project are separate things. Firebase Hosting returns a 404 until Firebase is explicitly enabled on the project.
+>
+> **Option A — web console (recommended, always works):**
+> 1. Go to [console.firebase.google.com](https://console.firebase.google.com)
+> 2. Click **Add project** → select **"Add Firebase to a Google Cloud Platform project"**
+> 3. Choose `PROJECT_ID` from the dropdown
+> 4. Skip Google Analytics when prompted
+> 5. Click **Add Firebase** and wait for it to finish
+>
+> **Option B — CLI (may return 403 on projects not originally created via Firebase console):**
 > ```bash
 > npm install -g firebase-tools
 > firebase login
 > firebase projects:addfirebase PROJECT_ID
 > ```
->
-> If the CLI command fails, do it via the web console instead:
-> [console.firebase.google.com](https://console.firebase.google.com) → **Add project** → **"Add Firebase to a Google Cloud Platform project"** → select `PROJECT_ID` → skip Google Analytics → **Add Firebase**.
+> If this returns a 403, use the web console instead (Option A).
 
 Once Firebase is enabled on the project:
 
