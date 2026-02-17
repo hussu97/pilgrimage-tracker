@@ -131,21 +131,21 @@ export default function Home() {
       />
 
       <main className="flex-1 relative overflow-hidden">
-        {viewMode === 'list' ? (
-          <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6">
-            <PlaceListView
-              places={places}
-              loading={loading}
-              loadingMore={loadingMore}
-              hasMore={hasMore}
-              error={error}
-              onRetry={fetchPlaces}
-              onLoadMore={loadMore}
-              onClearFilters={handleClearFilters}
-              t={t}
-            />
-          </div>
-        ) : (
+        {/* Both views stay mounted so Leaflet is never re-initialized */}
+        <div className={viewMode === 'list' ? 'max-w-7xl mx-auto px-4 py-6 sm:px-6' : 'hidden'}>
+          <PlaceListView
+            places={places}
+            loading={loading}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
+            error={error}
+            onRetry={fetchPlaces}
+            onLoadMore={loadMore}
+            onClearFilters={handleClearFilters}
+            t={t}
+          />
+        </div>
+        <div className={viewMode === 'map' ? 'h-full w-full absolute inset-0' : 'hidden'}>
           <PlaceMapView
             places={places}
             center={coords}
@@ -153,7 +153,7 @@ export default function Home() {
             onPlaceSelect={setSelectedPlace}
             t={t}
           />
-        )}
+        </div>
       </main>
 
       <FilterSheet
