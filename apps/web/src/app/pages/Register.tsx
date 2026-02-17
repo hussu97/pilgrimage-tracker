@@ -43,7 +43,15 @@ export default function Register() {
       {/* Background Gradient Panel */}
       <div className="absolute top-0 left-0 w-full h-80 bg-gradient-to-b from-blue-50 to-transparent dark:from-primary/5 dark:to-transparent pointer-events-none z-0" />
 
-      <div className="relative z-10 max-w-sm w-full mx-auto px-8 pt-20 flex-1 flex flex-col">
+      <div className="relative z-10 max-w-sm w-full mx-auto px-8 pt-12 flex-1 flex flex-col">
+        {/* Back button */}
+        <Link
+          to="/login"
+          className="inline-flex items-center gap-1 text-slate-400 dark:text-dark-text-secondary hover:text-primary transition-colors mb-8 text-sm font-medium"
+        >
+          <span className="material-symbols-outlined text-xl">arrow_back</span>
+        </Link>
+
         {/* Logo icon */}
         <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-200 dark:shadow-none">
           <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -99,6 +107,7 @@ export default function Register() {
               required
               minLength={6}
             />
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 ml-1">{t('auth.passwordMinLength')}</p>
           </div>
 
           <div>

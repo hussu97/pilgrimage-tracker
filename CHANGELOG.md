@@ -4,6 +4,27 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P4 Screen-by-Screen Design Parity: Final Items (2026-02-17)
+
+### Frontend (web)
+
+- **`apps/web/src/app/pages/Register.tsx`** — Added `arrow_back` back-link to `/login` at top-left; added password hint text (`auth.passwordMinLength`) below password field.
+- **`apps/web/src/app/pages/CheckInsList.tsx`** — `CheckInCard`: container height fixed at `h-32`, thumbnail enlarged to `w-24 h-24`, rating badge overlay added inside thumbnail (conditional on `place.average_rating`).
+- **`apps/web/src/lib/types/places.ts`** — Added `average_rating?: number` to the embedded `place` shape on `CheckIn`.
+
+### Frontend (mobile)
+
+- **`apps/mobile/src/app/screens/LoginScreen.tsx`** — Replaced `‹` text char with `MaterialIcons` `arrow-back` (20 px) in back button; replaced `✦` text char with `MaterialIcons` `auto-awesome` (24 px) as logo icon.
+- **`apps/mobile/src/app/screens/RegisterScreen.tsx`** — Same icon fixes as Login; added password hint text (`auth.passwordMinLength`) below password field.
+- **`apps/mobile/src/app/screens/CheckInsListScreen.tsx`** — Visit card height fixed at 128, thumbnail enlarged to 96×96, rating badge overlay (text `★ N.N`) added inside thumbnail for all three card lists.
+- **`apps/mobile/src/lib/types/places.ts`** — Added `average_rating?: number` to the embedded `place` shape on `CheckIn`.
+
+### Docs
+
+- **`ROADMAP.md`** — Checked off all three remaining P4 screen items: Place Detail, Sign In/Sign Up, Check-ins History.
+
+---
+
 ## P4 Web/Mobile Parity: Dark Mode & i18n Audit (2026-02-17)
 
 ### Backend

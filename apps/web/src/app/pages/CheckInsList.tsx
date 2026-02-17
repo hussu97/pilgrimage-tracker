@@ -42,9 +42,9 @@ function CheckInCard({ c }: { c: CheckIn }) {
   return (
     <Link
       to={`/places/${c.place_code}`}
-      className="bg-white dark:bg-dark-surface rounded-[1.5rem] p-4 shadow-subtle border border-slate-100 dark:border-dark-border flex gap-4 items-center group hover:shadow-lg transition-all"
+      className="bg-white dark:bg-dark-surface rounded-[1.5rem] p-4 shadow-subtle border border-slate-100 dark:border-dark-border flex gap-4 h-32 items-center group hover:shadow-lg transition-all"
     >
-      <div className="w-20 h-20 rounded-2xl overflow-hidden flex-shrink-0 bg-slate-100 dark:bg-dark-border">
+      <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 relative bg-slate-100 dark:bg-dark-border">
         {(c.place_image_url || c.place?.images?.[0]?.url) ? (
           <img
             src={getFullImageUrl(c.place_image_url || c.place?.images?.[0]?.url)}
@@ -56,6 +56,12 @@ function CheckInCard({ c }: { c: CheckIn }) {
             <span className="material-symbols-outlined text-2xl">place</span>
           </div>
         )}
+        {c.place?.average_rating ? (
+          <div className="absolute bottom-1 right-1 bg-primary px-1.5 py-0.5 rounded-lg flex items-center gap-0.5">
+            <span className="material-symbols-outlined text-white text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+            <span className="text-[10px] font-bold text-white">{c.place.average_rating.toFixed(1)}</span>
+          </div>
+        ) : null}
       </div>
       <div className="flex-1 min-w-0">
         <h3 className="text-base font-medium text-slate-800 dark:text-white leading-tight truncate">

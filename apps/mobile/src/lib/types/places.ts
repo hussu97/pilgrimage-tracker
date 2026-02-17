@@ -71,7 +71,7 @@ export interface CheckIn {
   checked_in_at: string;
   note?: string;
   photo_url?: string;
-  place?: { place_code: string; name: string; address: string; images?: Array<{url: string; display_order: number}> };
+  place?: { place_code: string; name: string; address: string; images?: Array<{url: string; display_order: number}>; average_rating?: number };
   date?: string;
   time?: string;
   place_name?: string;

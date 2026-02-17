@@ -382,17 +382,12 @@ Comprehensive audit and fix to bring both frontends to full dark mode support (u
 - [x] `apps/mobile/src/app/screens/GroupDetailScreen.tsx` — Fixed missingGroup, share, places
 - [x] `apps/mobile/src/app/screens/NotificationsScreen.tsx` — Removed hardcoded emptyDesc fallback
 
-### Batch 8: Documentation
-- [x] `CLAUDE.md` — Added Rule 12 (Dark Mode Compliance) and Rule 13 (Translation Key Parity)
-- [x] `ROADMAP.md` — Replaced P4 section with this plan's completed tasks
-- [x] `CHANGELOG.md` — Added full P4 entry
-
 ### Screen-by-Screen Design Parity (remaining)
 
 - [x] **Home / Explore screen** — 3-tab nav (Explore, Groups, Profile); map via Home screen toggle
-- [ ] **Place Detail screen** — Hero gradient, scorecard layout, timings carousel, sticky footer
-- [ ] **Sign In / Sign Up screens** — Input styling, religion selection pills, password hint
-- [ ] **Check-ins History screen** — Stats card, calendar grid, "On this Day" section
+- [x] **Place Detail screen** — Hero gradient, scorecard layout, timings carousel, sticky footer
+- [x] **Sign In / Sign Up screens** — Input styling, religion selection pills, password hint
+- [x] **Check-ins History screen** — Stats card, calendar grid, "On this Day" section
 
 ### Component-Level Design Tasks
 

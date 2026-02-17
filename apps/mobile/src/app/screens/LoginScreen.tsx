@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -54,12 +55,12 @@ export default function LoginScreen() {
           style={styles.backButton}
           activeOpacity={0.7}
         >
-          <Text style={styles.backIcon}>‹</Text>
+          <MaterialIcons name="arrow-back" size={20} color="#334155" />
         </TouchableOpacity>
 
         {/* Logo icon */}
         <View style={styles.logoIconContainer}>
-          <Text style={styles.logoIconText}>✦</Text>
+          <MaterialIcons name="auto-awesome" size={24} color={tokens.colors.primary} />
         </View>
 
         <Text style={styles.title}>{t('auth.login')}</Text>
@@ -121,7 +122,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 28,
   },
-  backIcon: { fontSize: 24, color: '#334155', lineHeight: 28 },
   logoIconContainer: {
     width: 56, height: 56,
     borderRadius: tokens.borderRadius['2xl'],
@@ -129,7 +129,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 20,
   },
-  logoIconText: { fontSize: 24, color: tokens.colors.primary },
   title: { fontSize: 24, fontWeight: '700', color: tokens.colors.textDark, marginBottom: 4 },
   subtitle: { fontSize: 14, color: tokens.colors.textMuted, marginBottom: 24 },
   input: {

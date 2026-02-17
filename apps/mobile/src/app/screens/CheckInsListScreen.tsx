@@ -213,6 +213,11 @@ export default function CheckInsListScreen() {
                     ) : (
                       <View style={styles.visitThumbPlaceholder}><Text style={styles.visitThumbIcon}>⊕</Text></View>
                     )}
+                    {c.place?.average_rating ? (
+                      <View style={styles.ratingBadge}>
+                        <Text style={styles.ratingBadgeText}>★ {c.place.average_rating.toFixed(1)}</Text>
+                      </View>
+                    ) : null}
                   </View>
                   <View style={styles.visitBody}>
                     <Text style={styles.visitName} numberOfLines={1}>{c.place?.name ?? c.place_name ?? c.place_code}</Text>
@@ -293,6 +298,11 @@ export default function CheckInsListScreen() {
                     ) : (
                       <View style={styles.visitThumbPlaceholder}><Text style={styles.visitThumbIcon}>⊕</Text></View>
                     )}
+                    {c.place?.average_rating ? (
+                      <View style={styles.ratingBadge}>
+                        <Text style={styles.ratingBadgeText}>★ {c.place.average_rating.toFixed(1)}</Text>
+                      </View>
+                    ) : null}
                   </View>
                   <View style={styles.visitBody}>
                     <Text style={styles.visitName} numberOfLines={1}>{c.place?.name ?? c.place_name ?? c.place_code}</Text>
@@ -327,6 +337,11 @@ export default function CheckInsListScreen() {
                     <Text style={styles.visitThumbIcon}>⊕</Text>
                   </View>
                 )}
+                {c.place?.average_rating ? (
+                  <View style={styles.ratingBadge}>
+                    <Text style={styles.ratingBadgeText}>★ {c.place.average_rating.toFixed(1)}</Text>
+                  </View>
+                ) : null}
               </View>
               <View style={styles.visitBody}>
                 <Text style={styles.visitName} numberOfLines={1}>
@@ -483,6 +498,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 24,
     marginBottom: 12,
     padding: 16,
+    height: 128,
     backgroundColor: tokens.colors.surface,
     borderRadius: 20,
     borderWidth: 1,
@@ -490,13 +506,25 @@ const styles = StyleSheet.create({
     ...tokens.shadow.subtle,
   },
   visitThumb: {
-    width: 72,
-    height: 72,
+    width: 96,
+    height: 96,
     borderRadius: 16,
     overflow: 'hidden',
     backgroundColor: tokens.colors.softBlue,
     marginRight: 16,
   },
+  ratingBadge: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: tokens.colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   visitThumbImg: { width: '100%', height: '100%' },
   visitThumbPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   visitThumbIcon: { fontSize: 28, color: tokens.colors.textMuted },
