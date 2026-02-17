@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: pilgrimage
+      POSTGRES_USER: pilgrimage
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pilgrimage"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://pilgrimage:${POSTGRES_PASSWORD:-changeme}@db:5432/pilgrimage
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
+      JWT_EXPIRE: ${JWT_EXPIRE:-30m}
+      REFRESH_EXPIRE: ${REFRESH_EXPIRE:-30d}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@pilgrimage-tracker.app}
+      RESET_URL_BASE: ${RESET_URL_BASE:-http://localhost}
+    ports:
+      - "${API_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required (e.g. https://api.yourdomain.com)}
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # Optional: only starts when you run `docker compose --profile scraper up`
+  scraper:
+    build:
+      context: ./data_scraper
+      dockerfile: Dockerfile
+    environment:
+      MAIN_SERVER_URL: http://api:3000
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      SCRAPER_TIMEZONE: ${SCRAPER_TIMEZONE:-UTC}
+    ports:
+      - "${SCRAPER_PORT:-8001}:8001"
+    depends_on:
+      - api
+    restart: unless-stopped
+    profiles:
+      - scraper
+
+volumes:
+  postgres_data:

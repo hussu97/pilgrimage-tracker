@@ -1,230 +1,387 @@
-# Production deployment plans
+# Production Deployment Plans
 
 This document outlines how to deploy Pilgrimage Tracker to production. **Update the relevant plan(s) whenever deployment-relevant changes are made** (e.g. new env vars, new services, build steps).
 
-Current system: **Backend** (Python FastAPI in `server/`), **Web app** (Vite + React in `apps/web/`), **Mobile app** (Expo / React Native in `apps/mobile/`). API is versioned at `/api/v1`. For production, replace in-memory stores with PostgreSQL (and optional file storage).
+Current system: **Backend** (Python FastAPI in `server/`), **Web app** (Vite + React in `apps/web/`), **Mobile app** (Expo / React Native in `apps/mobile/`), optional **Data Scraper** (`data_scraper/`). API is versioned at `/api/v1`. For production, set `DATABASE_URL` to a PostgreSQL connection string (dev uses SQLite by default).
+
+---
+
+## Environment Variables Reference
+
+### Backend (`server/`)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `JWT_SECRET` | **Yes** | `dev-secret-change-in-production` | JWT signing secret — always override in prod |
+| `JWT_EXPIRE` | No | `30m` | Access token lifetime. Supports `30m`, `1h`, `7d`, or integer minutes |
+| `REFRESH_EXPIRE` | No | `30d` | Refresh token lifetime. Same format as `JWT_EXPIRE` |
+| `DATABASE_URL` | **Yes (prod)** | `sqlite:///pilgrimage.db` | PostgreSQL connection string for production |
+| `CORS_ORIGINS` | No | `http://localhost:5173 http://127.0.0.1:5173` | **Space-separated** list of allowed origins (not comma-separated) |
+| `PORT` | No | `3000` | Server port — Dockerfile uses `${PORT:-3000}` |
+| `RESEND_API_KEY` | No | _(empty)_ | Resend.com API key for password-reset emails |
+| `RESEND_FROM_EMAIL` | No | `noreply@pilgrimage-tracker.app` | From address for transactional emails |
+| `RESET_URL_BASE` | No | `http://localhost:5173` | Frontend base URL for password-reset links |
+
+### Data Scraper (`data_scraper/`)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `MAIN_SERVER_URL` | No | `http://127.0.0.1:3000` | URL of main API (used for data sync) |
+| `GOOGLE_MAPS_API_KEY` | Yes (gmaps scraper) | _(empty)_ | Google Maps API key |
+| `SCRAPER_TIMEZONE` | No | UTC fallback | IANA timezone for places without Google UTC offset (e.g. `Asia/Dubai`) |
+
+### Web frontend (`apps/web/`)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `VITE_API_URL` | **Yes (prod)** | _(relative `/api` in dev)_ | Production API base URL — **baked in at build time** |
+
+### Mobile (`apps/mobile/`)
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `EXPO_PUBLIC_API_URL` | No | `http://127.0.0.1:3000` | API base URL for device/Expo Go |
 
 ---
 
 ## Plan 1: Docker
 
-Deploy using Docker and Docker Compose.
+Deploy the full stack with Docker Compose. Dockerfiles for all services are checked into the repo.
 
-### Backend (Main API)
+### Files
 
-- **Dockerfile** (in `server/` or repo root):
-  - Base image: `python:3.14-slim` (or `python:3.12-slim` if 3.14 is unavailable in your registry).
-  - Copy `server/` (or `app/`), install deps from `requirements.txt`.
-  - Run: `uvicorn app.main:app --host 0.0.0.0 --port 3000`.
-- **Environment:**
-  - `JWT_SECRET` - Required for auth
-  - `DATABASE_URL` - PostgreSQL connection (for production; dev uses SQLite)
-  - `PORT` - Optional, defaults to 3000
-  - `CORS_ORIGINS` - Comma-separated allowed origins
-- **Build:** `docker build -t pilgrimage-api -f server/Dockerfile .` (adjust context/path as needed).
+| File | Description |
+|---|---|
+| `server/Dockerfile` | FastAPI backend — `python:3.12-slim` |
+| `data_scraper/Dockerfile` | Scraper service — `python:3.12-slim` |
+| `apps/web/Dockerfile` | Multi-stage: Node 20 build → nginx:1.27-alpine serve |
+| `apps/web/nginx.conf` | nginx SPA config (copied into web image) |
+| `docker-compose.yml` | Wires all services + PostgreSQL |
 
-### Data Scraper Service (Optional)
+### Quick Start
 
-- **Dockerfile** (in `data_scraper/` or separate):
-  - Base image: `python:3.14-slim`
-  - Copy `data_scraper/`, install deps from `requirements.txt`
-  - Run: `uvicorn app.main:app --host 0.0.0.0 --port 8001`
-- **Environment:**
-  - `MAIN_SERVER_URL` - URL of main API (e.g., `http://pilgrimage-api:3000` or public URL)
-  - `GOOGLE_MAPS_API_KEY` - Required for gmaps scraper
-- **Build:** `docker build -t pilgrimage-scraper -f data_scraper/Dockerfile .`
-- **Note:** This service is optional and only needed if you want to run data scraping in production
+```bash
+# 1. Copy and fill out env vars
+cp .env.example .env   # edit JWT_SECRET, VITE_API_URL, etc.
 
-### Database
+# 2. Build and start (api + db + web)
+docker compose up -d --build
 
-- Use **PostgreSQL** in production. Option A: run Postgres in Docker Compose. Option B: use a managed Postgres (e.g. Supabase, Neon) and set `DATABASE_URL` in the API container.
-- **Docker Compose example:** Define services:
-  - `api` - Main server (build from server Dockerfile)
-  - `scraper` - Optional scraper service (build from data_scraper Dockerfile)
-  - `db` - PostgreSQL 15
-  - Set `DATABASE_URL` for api pointing to `db`
-  - Set `MAIN_SERVER_URL` for scraper pointing to `api`
+# 3. (Optional) start the scraper service too
+docker compose --profile scraper up -d scraper
+```
 
-### Web frontend
+### docker-compose.yml Services
 
-- **Build:** From repo root, `npm run build` for web (or `npm run build -w @pilgrimage-tracker/web`). Output is in `apps/web/dist/`.
-- **Serving:** Option A: Nginx container serving `apps/web/dist` and proxying `/api` to the API. Option B: separate Dockerfile that builds the app and serves with nginx or a static server.
-- **Env:** Set `VITE_API_URL` at **build time** to the public API URL (e.g. `https://api.yourdomain.com`). If API is same-origin, use relative `/api` and configure reverse proxy.
+| Service | Image/Build | Port | Notes |
+|---|---|---|---|
+| `db` | `postgres:15-alpine` | internal | PostgreSQL; data persisted in `postgres_data` volume |
+| `api` | `./server` | `3000` | FastAPI; waits for `db` health; auto-runs Alembic migrations on start |
+| `web` | `./apps/web` | `80` | nginx serving the compiled React SPA |
+| `scraper` | `./data_scraper` | `8001` | Optional; activate with `--profile scraper` |
 
-### Mobile app
+### Required `.env` for Docker
 
-- Not run in Docker. Build locally or in CI: `cd apps/mobile && npx expo export` then build with EAS Build or `expo run:ios` / `expo run:android`. Submit to App Store / Play Store. Set API URL in app config or env (e.g. `EXPO_PUBLIC_API_URL`) to production API.
+```dotenv
+POSTGRES_PASSWORD=changeme_strong_password
+JWT_SECRET=your-long-random-secret
+VITE_API_URL=http://localhost:3000   # or public API URL
+CORS_ORIGINS=http://localhost        # space-separated; add web domain
 
-### Updates
+# Optional
+JWT_EXPIRE=30m
+REFRESH_EXPIRE=30d
+RESEND_API_KEY=
+RESEND_FROM_EMAIL=noreply@pilgrimage-tracker.app
+RESET_URL_BASE=http://localhost
+GOOGLE_MAPS_API_KEY=
+SCRAPER_TIMEZONE=UTC
+API_PORT=3000
+WEB_PORT=80
+SCRAPER_PORT=8001
+```
 
-- When adding new env vars (e.g. `CORS_ORIGINS`, `SENTRY_DSN`), document them in this section and in the Dockerfile/Compose example.
-- When adding a new service (e.g. Redis, worker), add a container and wire it in Compose; update this doc.
+### Build Web Image Manually
+
+`VITE_API_URL` is baked in at build time — the variable must be set before building:
+
+```bash
+docker build \
+  --build-arg VITE_API_URL=https://api.yourdomain.com \
+  -t pilgrimage-web \
+  apps/web/
+```
+
+### Migrations
+
+Alembic migrations run **automatically on API startup** via `alembic upgrade head`. No manual migration step needed.
 
 ### Scheduled Jobs
 
-- **Orphaned Images Cleanup:** Run `python -m app.jobs.cleanup_orphaned_images` daily to delete review images not attached to any review after 24 hours. Schedule with cron in the API container or as a separate container with shared database access.
-  - Example cron: `0 2 * * * cd /app && python -m app.jobs.cleanup_orphaned_images` (runs at 2 AM daily)
+```bash
+# Cleanup orphaned review images (run daily, e.g. 2 AM)
+docker exec <api_container> python -m app.jobs.cleanup_orphaned_images
 
-### Dependencies
+# Backfill place timezones (run once after adding new places)
+docker exec <api_container> python -m app.jobs.backfill_timezones
+```
 
-- **Pillow:** Required for review photo upload image processing (compression, resizing). Included in `requirements.txt` (pillow>=10.0.0)
+Example cron entry (on the host):
+```
+0 2 * * * docker exec pilgrimage-api python -m app.jobs.cleanup_orphaned_images
+```
+
+### Mobile
+
+Not containerised. Build locally or via CI:
+```bash
+cd apps/mobile
+eas build --platform ios
+eas build --platform android
+```
+Set `EXPO_PUBLIC_API_URL` to the production API URL in your EAS build config or `.env`.
 
 ---
 
-## Plan 2: Free online services (Render, Vercel, etc.)
+## Plan 2: Free Online Services (Render, Vercel, etc.)
 
-Deploy backend and web on free-tier or low-cost services; use a free or cheap Postgres and optional file storage.
+### Backend — Render (Web Service)
 
-### Main Backend (Render, Railway, Fly.io, etc.)
+1. Connect GitHub repo to Render.
+2. **Root directory:** `server`
+3. **Build command:** `pip install -r requirements.txt`
+4. **Start command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+5. **Environment variables:**
 
-- **Render (Web Service):**
-  - Connect repo; root or `server/` as working directory.
-  - Build: `pip install -r requirements.txt` (or set Python version and use `pip install -r server/requirements.txt` if root).
-  - Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Render sets `PORT`.
-  - Env: `JWT_SECRET`, `DATABASE_URL` (e.g. from Render Postgres or external Supabase/Neon), `CORS_ORIGINS`.
-- **CORS:** Set allowed origins to the web app URL (e.g. Vercel preview and production).
-- **Database:** Use Render Postgres, or Supabase/Neon free tier; set `DATABASE_URL` in the backend service.
+```
+JWT_SECRET           = <strong random string>
+DATABASE_URL         = <Render Postgres / Supabase / Neon connection string>
+CORS_ORIGINS         = https://your-app.vercel.app  (space-separated if multiple origins)
+JWT_EXPIRE           = 30m
+REFRESH_EXPIRE       = 30d
+RESEND_API_KEY       = <optional, for password reset emails>
+RESEND_FROM_EMAIL    = noreply@yourdomain.com
+RESET_URL_BASE       = https://your-app.vercel.app
+```
 
-### Data Scraper Service (Optional)
+Render automatically sets `$PORT` — the start command picks it up.
 
-- **Render (Background Worker or Web Service):**
-  - Connect repo; `data_scraper/` as working directory
-  - Build: `pip install -r requirements.txt`
-  - Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-  - Env:
-    - `MAIN_SERVER_URL` - URL of main backend (e.g., `https://your-api.onrender.com`)
-    - `GOOGLE_MAPS_API_KEY` - For gmaps scraper
-- **Note:** Only deploy if you need automated data scraping. Can be run locally or on-demand instead.
+Migrations run automatically on startup.
 
-### Web frontend (Vercel, Netlify)
+### Database
 
-- **Vercel:**
-  - Connect repo; set **Root Directory** to `apps/web`.
-  - Build: `npm run build` (or `npm ci && npm run build` from repo root with root as root and build command running in `apps/web` — adjust per monorepo setup). Output directory: `dist`.
-  - Env: `VITE_API_URL` = production API URL (e.g. `https://your-api.onrender.com`).
-- **Netlify:** Same idea: build command and publish directory for `apps/web`, set `VITE_API_URL`.
+- **Render Postgres** — free tier (90-day trial, then paid)
+- **Supabase** / **Neon** — generous free tier; set `DATABASE_URL` in the Render env vars
 
-### Mobile app
+### Web Frontend — Vercel
 
-- Build locally or in CI (e.g. GitHub Actions). Set `EXPO_PUBLIC_API_URL` to production API. Build iOS/Android with Expo (EAS or local) and submit to stores.
+1. Connect repo; set **Root Directory** to `apps/web`.
+2. **Build command:** `npm run build`
+3. **Output directory:** `dist`
+4. **Environment variable:**
+   ```
+   VITE_API_URL = https://your-api.onrender.com
+   ```
 
-### Updates
+> **Note:** `VITE_API_URL` is baked in at build time. Redeploy after changing it.
 
-- When adding env vars or build steps, update this section.
-- If you add serverless functions or a separate worker, document the service and env here.
+### Data Scraper — Render (Optional Web Service)
 
-### Scheduled Jobs
+Only needed for automated data scraping:
 
-- **Orphaned Images Cleanup:** Run `python -m app.jobs.cleanup_orphaned_images` daily to delete review images not attached to any review after 24 hours. Options:
-  - Render Cron Jobs (if available on your plan)
-  - External cron service (e.g., cron-job.org) calling a cleanup endpoint
-  - GitHub Actions scheduled workflow that runs the job via API
+1. **Root directory:** `data_scraper`
+2. **Build command:** `pip install -r requirements.txt`
+3. **Start command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+4. **Environment variables:**
+   ```
+   MAIN_SERVER_URL       = https://your-api.onrender.com
+   GOOGLE_MAPS_API_KEY   = <key>
+   SCRAPER_TIMEZONE      = UTC
+   ```
 
-### Dependencies
+Can be run locally or on-demand instead of deploying.
 
-- **Pillow:** Required for review photo upload image processing. Included in `requirements.txt` and automatically installed during build
+### Mobile
+
+Build locally or via GitHub Actions. Set `EXPO_PUBLIC_API_URL` to production API URL before building:
+```bash
+EXPO_PUBLIC_API_URL=https://your-api.onrender.com eas build --platform ios
+EXPO_PUBLIC_API_URL=https://your-api.onrender.com eas build --platform android
+```
+
+### Scheduled Jobs (Render Cron or External)
+
+```
+# Cleanup orphaned images daily
+python -m app.jobs.cleanup_orphaned_images
+
+# Backfill timezones (run once after adding new place data)
+python -m app.jobs.backfill_timezones
+```
+
+Options:
+- **Render Cron Jobs** — available on paid plans
+- **External cron** (e.g. cron-job.org) — call a cleanup endpoint via HTTP
+- **GitHub Actions** — scheduled workflow that triggers the job via the API
 
 ---
 
 ## Plan 3: Google Cloud Platform (GCP)
 
-Deploy using GCP services.
+### Backend — Cloud Run
 
-### Main Backend (Cloud Run)
+1. Build and push image to **Artifact Registry**:
+   ```bash
+   docker build -t gcr.io/PROJECT_ID/pilgrimage-api ./server
+   docker push gcr.io/PROJECT_ID/pilgrimage-api
+   ```
+2. Deploy to **Cloud Run**:
+   ```bash
+   gcloud run deploy pilgrimage-api \
+     --image gcr.io/PROJECT_ID/pilgrimage-api \
+     --platform managed \
+     --region us-central1 \
+     --allow-unauthenticated \
+     --set-env-vars "DATABASE_URL=...,JWT_SECRET=...,CORS_ORIGINS=https://your-web-url.com"
+   ```
+3. Use **Secret Manager** for `JWT_SECRET`, `DATABASE_URL`, `RESEND_API_KEY`.
+4. Environment variables to set:
+   ```
+   DATABASE_URL         = postgresql://... (Cloud SQL private IP or socket)
+   JWT_SECRET           = (from Secret Manager)
+   CORS_ORIGINS         = https://your-web.web.app  (space-separated)
+   JWT_EXPIRE           = 30m
+   REFRESH_EXPIRE       = 30d
+   RESEND_API_KEY       = (from Secret Manager)
+   RESEND_FROM_EMAIL    = noreply@yourdomain.com
+   RESET_URL_BASE       = https://your-web.web.app
+   ```
 
-- **Container:** Build API image (same as Plan 1 Dockerfile) and push to **Artifact Registry** (e.g. `gcr.io/PROJECT_ID/pilgrimage-api` or Artifact Registry path).
-- **Cloud Run service:** Deploy the image. Set env: `JWT_SECRET`, `DATABASE_URL`, `CORS_ORIGINS`. Use **Secret Manager** for secrets. Set min instances 0 for cost savings; scale as needed.
-- **Database:** Use **Cloud SQL (PostgreSQL)**. Create instance; allow Cloud Run to connect (VPC connector or public IP + authorized networks). Set `DATABASE_URL` to Cloud SQL connection (e.g. Unix socket or private IP).
+Migrations run automatically on container startup.
 
-### Data Scraper Service (Optional, Cloud Run)
+### Database — Cloud SQL (PostgreSQL)
 
-- **Container:** Build scraper image and push to Artifact Registry
-- **Cloud Run service:** Deploy with env:
-  - `MAIN_SERVER_URL` - URL of main Cloud Run service
-  - `GOOGLE_MAPS_API_KEY` - From Secret Manager
-- **Note:** Can run as separate Cloud Run service or as Cloud Run Job for scheduled scraping
+- Create a **PostgreSQL 15** Cloud SQL instance.
+- Enable **Cloud SQL Auth Proxy** or a VPC connector for private IP connectivity.
+- Store the connection string in **Secret Manager**; inject as `DATABASE_URL`.
+- Connection pool configured automatically (pool_size=20, max_overflow=30).
 
-### Database (Cloud SQL)
+### Web Frontend — Firebase Hosting
 
-- Create PostgreSQL instance; run migrations if any. Store connection name and credentials in Secret Manager; inject into Cloud Run as `DATABASE_URL`.
+```bash
+cd apps/web
+VITE_API_URL=https://your-api-url.run.app npm run build
+npx firebase deploy --only hosting
+```
 
-### Web frontend (Firebase Hosting or Cloud Storage + CDN)
+Or **Cloud Storage + Load Balancer:**
+- Upload `apps/web/dist/` to a GCS bucket.
+- Configure a Load Balancer with a CDN backend serving the bucket.
 
-- **Option A – Firebase Hosting:** Build web app (`npm run build` in `apps/web`); deploy with `firebase deploy`. Set `VITE_API_URL` to Cloud Run URL at build time.
-- **Option B – Cloud Storage + Load Balancer:** Build app; upload `dist/` to a GCS bucket; configure Load Balancer and optional CDN to serve the bucket. API URL can be same Load Balancer with path-based routing or a separate Cloud Run URL.
+### Data Scraper — Cloud Run (Optional)
 
-### Mobile app
+```bash
+docker build -t gcr.io/PROJECT_ID/pilgrimage-scraper ./data_scraper
+docker push gcr.io/PROJECT_ID/pilgrimage-scraper
 
-- Build with Expo (EAS or local); set `EXPO_PUBLIC_API_URL` to Cloud Run (or API URL). Submit to App Store / Play Store. Optional: use EAS Update or Firebase App Distribution for beta.
+gcloud run deploy pilgrimage-scraper \
+  --image gcr.io/PROJECT_ID/pilgrimage-scraper \
+  --set-env-vars "MAIN_SERVER_URL=https://your-api.run.app,SCRAPER_TIMEZONE=UTC"
+```
 
-### Optional GCP services
+Can also be deployed as a **Cloud Run Job** for scheduled batch scraping.
 
-- **Storage:** Use **Cloud Storage** for avatars and photos if you add file uploads; configure backend to use GCS (e.g. via bucket name and credentials).
-- **Monitoring:** Cloud Monitoring and Logging for Cloud Run; optional Sentry or similar.
+### Mobile
 
-### Updates
+```bash
+EXPO_PUBLIC_API_URL=https://your-api.run.app eas build --platform ios
+EXPO_PUBLIC_API_URL=https://your-api.run.app eas build --platform android
+```
 
-- When adding new GCP resources (e.g. Redis, Pub/Sub), document them here.
-- When changing secrets or env vars, update this section and Secret Manager usage.
+Optional: **Firebase App Distribution** for beta, **EAS Update** for OTA JS updates.
 
-### Scheduled Jobs
+### Scheduled Jobs — Cloud Scheduler
 
-- **Orphaned Images Cleanup:** Run `python -m app.jobs.cleanup_orphaned_images` daily to delete review images not attached to any review after 24 hours. Use **Cloud Scheduler** to trigger a Cloud Run Job or Cloud Function that runs the cleanup script with database access.
-  - Example: Create Cloud Scheduler job that hits `/admin/cleanup-images` endpoint (add auth header) or triggers Cloud Run Job
+```bash
+# Create daily job to clean up orphaned images
+gcloud scheduler jobs create http cleanup-orphaned-images \
+  --schedule="0 2 * * *" \
+  --uri="https://your-api.run.app/admin/cleanup-images" \
+  --http-method=POST \
+  --headers="Authorization=Bearer <token>"
+```
 
-### Dependencies
+Or deploy a **Cloud Run Job** that executes:
+```bash
+python -m app.jobs.cleanup_orphaned_images
+python -m app.jobs.backfill_timezones  # run once after new data imports
+```
 
-- **Pillow:** Required for review photo upload image processing. Included in `requirements.txt` and automatically installed during Cloud Run build
+### Optional GCP Services
+
+- **Cloud Storage** — for user avatars and review photos (configure backend with bucket name + credentials)
+- **Cloud Monitoring + Cloud Logging** — built-in for Cloud Run; add Sentry for error tracking
 
 ---
 
+## Mobile Production Checklist
+
+Before submitting to App Store / Play Store:
+
+1. **Set bundle identifiers** in `apps/mobile/app.json`:
+   ```json
+   {
+     "expo": {
+       "ios": { "bundleIdentifier": "com.yourcompany.pilgrimagetracker" },
+       "android": { "package": "com.yourcompany.pilgrimagetracker" }
+     }
+   }
+   ```
+2. **Set app name and slug** (`name`, `slug` in `app.json`) to production values.
+3. **Configure EAS** — `eas.json` is already set up with development/preview/production profiles.
+4. **Build:**
+   ```bash
+   cd apps/mobile
+   eas build --platform ios --profile production
+   eas build --platform android --profile production
+   ```
+5. **Submit:**
+   ```bash
+   eas submit --platform ios
+   eas submit --platform android
+   ```
+
 ---
 
-## Data Strategy
+## Data Strategy — Scraper Service
 
-### Data Enrichment (Scraper Service)
-
-The project includes a unified scraper service in `data_scraper/` that supports multiple data sources:
+The `data_scraper/` service enriches pilgrimage place data from multiple sources.
 
 **Sources:**
-- **Google Sheets** - CSV export with OSM/Wikipedia enrichment
-- **Google Maps API** - Grid-based search with attribute extraction
+- **Google Sheets** — CSV export with OSM/Wikipedia enrichment
+- **Google Maps API** — grid-based search with attribute extraction
 
-**Deployment Options:**
+**Deployment options:**
 
-1. **Local/On-Demand** (Recommended for development):
-   - Run scraper service locally on port 8001
-   - Create data locations and runs via API
-   - Sync to main server when ready
-   - No production deployment needed
+| Option | When to Use |
+|---|---|
+| **Local / On-Demand** | Development, one-off data loads |
+| **Render / Cloud Run Service** | Continuous or webhook-triggered scraping |
+| **Cloud Run Job** | Scheduled batch updates via Cloud Scheduler |
 
-2. **Deployed Service** (For automated scraping):
-   - Deploy as separate service (Render/Cloud Run)
-   - Expose API for scheduled or webhook-triggered scraping
-   - Auto-sync to main server
-
-3. **Cloud Run Job** (For scheduled batch updates):
-   - Package scraper as Cloud Run Job
-   - Schedule via Cloud Scheduler
-   - Run specific scraping tasks on a schedule
-
-**Environment Variables:**
-- `MAIN_SERVER_URL` - URL of main API
-- `GOOGLE_MAPS_API_KEY` - Required for gmaps scraper
-
-**Data Flow:**
-1. Create data location (gsheet or gmaps config)
-2. Create run → background scraping task
-3. Sync to main server → places created/updated with attributes and source tag
+**Data flow:**
+1. Create a data location (gsheet or gmaps config via API)
+2. Create a run → background scraping task starts
+3. Sync to main server → places created/updated with attributes
 
 ---
 
 ## Summary
 
-| Plan   | Backend        | DB              | Web frontend      | Mobile        |
-|--------|----------------|-----------------|-------------------|---------------|
-| 1 Docker | Docker container | Postgres (Compose or external) | Nginx/static in Docker or same host | Local/CI build, stores |
-| 2 Free | Render / Railway / Fly | Render Postgres, Supabase, Neon | Vercel / Netlify | Local/CI build, stores |
-| 3 GCP  | Cloud Run      | Cloud SQL       | Firebase Hosting or GCS + LB | Local/CI build, stores |
+| Plan | Backend | DB | Web | Mobile |
+|---|---|---|---|---|
+| **1 Docker** | Docker container (`server/Dockerfile`) | Postgres in Compose or external | nginx Docker image (`apps/web/Dockerfile`) | EAS build, submit to stores |
+| **2 Free** | Render Web Service | Render Postgres / Supabase / Neon | Vercel | EAS build |
+| **3 GCP** | Cloud Run | Cloud SQL (PostgreSQL 15) | Firebase Hosting or GCS + LB | EAS build |
 
-Keep this file in sync with the codebase: when deployment steps or environment change, update the corresponding plan(s).
+Keep this file in sync with the codebase: when deployment steps or environment variables change, update the corresponding plan(s).

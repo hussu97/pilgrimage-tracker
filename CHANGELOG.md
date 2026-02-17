@@ -4,6 +4,29 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Production Deployment Setup (2026-02-17)
+
+### Docs
+
+- **`PRODUCTION.md`** — Full rewrite: corrected CORS format (space-separated), added all missing env vars (`JWT_EXPIRE`, `REFRESH_EXPIRE`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESET_URL_BASE`, `SCRAPER_TIMEZONE`), documented `backfill_timezones` job, added mobile production checklist (bundle IDs, EAS submit), updated Python base image to `python:3.12-slim`, added Docker quick-start guide, added complete env var reference table.
+- **`.env.example`** — New root-level env file for use with `docker-compose.yml`.
+
+### Backend
+
+- **`server/Dockerfile`** — New: `python:3.12-slim`, installs `requirements.txt`, runs uvicorn on `${PORT:-3000}`.
+- **`data_scraper/Dockerfile`** — New: `python:3.12-slim`, runs uvicorn on `${PORT:-8001}`.
+
+### Frontend (web)
+
+- **`apps/web/Dockerfile`** — New: multi-stage (Node 20 build → nginx 1.27 serve); `VITE_API_URL` passed as build arg.
+- **`apps/web/nginx.conf`** — New: SPA routing (`try_files … /index.html`), aggressive static asset caching.
+
+### Infrastructure
+
+- **`docker-compose.yml`** — New: wires `db` (Postgres 15), `api`, `web`, and optional `scraper` (behind `--profile scraper`); includes health-check dependency ordering.
+
+---
+
 ## P4 Screen-by-Screen Design Parity: Final Items (2026-02-17)
 
 ### Frontend (web)
