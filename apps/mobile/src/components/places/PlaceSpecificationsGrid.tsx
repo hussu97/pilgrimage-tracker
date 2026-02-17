@@ -4,6 +4,20 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { tokens } from '@/lib/theme';
 import type { PlaceSpecification } from '@/lib/types';
 
+// Map Material Symbols names (used in seed_data / web) to valid MaterialIcons names.
+// MaterialIcons uses the older Material Design icon font; some newer icons are absent.
+const SYMBOL_TO_ICON: Record<string, string> = {
+  local_parking: 'directions-car',
+  temple_hindu: 'place',
+  checkroom: 'check-circle',
+  church: 'place',
+};
+
+function safeIcon(name: string): React.ComponentProps<typeof MaterialIcons>['name'] {
+  const mapped = SYMBOL_TO_ICON[name] ?? name.replace(/_/g, '-');
+  return mapped as React.ComponentProps<typeof MaterialIcons>['name'];
+}
+
 interface Props {
   specifications: PlaceSpecification[];
   t: (key: string) => string;
@@ -17,7 +31,7 @@ function PlaceSpecificationsGrid({ specifications, t }: Props) {
         {specifications.map((spec, i) => (
           <View key={i} style={styles.specCard}>
             <MaterialIcons
-              name={spec.icon as any}
+              name={safeIcon(spec.icon)}
               size={20}
               color={tokens.colors.primary}
               style={{ marginBottom: 6 }}
