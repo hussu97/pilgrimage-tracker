@@ -4,6 +4,26 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## GCP Deployment Guide — Step-by-Step (2026-02-17)
+
+### Docs
+
+- **`PRODUCTION.md` Plan 3** — Full step-by-step rewrite covering: Prerequisites (gcloud CLI, project creation, billing, API enablement), Artifact Registry setup, Cloud SQL instance + database + user creation, Secret Manager (storing + mounting JWT_SECRET / DATABASE_URL / RESEND_API_KEY), building and pushing Docker images via Cloud Build, Cloud Run deploy with Unix socket Cloud SQL connection, Firebase Hosting init + build + deploy, Cloud Run Jobs for scheduled tasks (cleanup + backfill), Cloud Scheduler wiring, GitHub Actions CI/CD with a dedicated service account, and a cost breakdown table per service.
+
+---
+
+## CI/CD Pipeline + Render/Vercel Deployment Guide (2026-02-17)
+
+### Infrastructure
+
+- **`.github/workflows/deploy.yml`** — New GitHub Actions deploy workflow: runs server tests + web typecheck/build in parallel, then on success triggers Render deploy hook (API) and Vercel CLI deploy (web). Optional scraper deploy behind `DEPLOY_SCRAPER=true` variable. Uses `concurrency` group to cancel stale deploys on rapid pushes.
+
+### Docs
+
+- **`PRODUCTION.md` Plan 2** — Full rewrite with step-by-step instructions: Neon DB creation, Render Web Service setup, env var tables with exact keys, Vercel project config, deploy hook retrieval, GitHub Actions secrets/variables setup, pipeline diagram, scheduled job options (Render Cron vs GitHub Actions).
+
+---
+
 ## Production Deployment Setup (2026-02-17)
 
 ### Docs

@@ -1,0 +1,130 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # allow manual trigger from GitHub UI
+
+# Only run one deploy at a time; cancel in-progress if a newer push arrives
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 1. Run tests first ────────────────────────────────────────────────────
+  test-server:
+    name: Server tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: server/requirements.txt
+
+      - run: pip install -r server/requirements.txt
+
+      - name: pytest
+        working-directory: server
+        run: python -m pytest tests/ -v --tb=short
+
+  test-web:
+    name: Web typecheck + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install deps
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Build (typecheck + vite)
+        working-directory: apps/web
+        run: npm run build
+        env:
+          # Placeholder so the build succeeds; real URL is set in Vercel env vars
+          VITE_API_URL: https://placeholder.example.com
+
+  # ── 2a. Deploy backend to Render ─────────────────────────────────────────
+  deploy-backend:
+    name: Deploy API to Render
+    needs: [test-server, test-web]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Trigger Render deploy hook
+        # Render deploy hook URL: Service -> Settings -> Deploy Hook
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${{ secrets.RENDER_API_DEPLOY_HOOK_URL }}")
+          echo "Render responded: $response"
+          if [ "$response" != "200" ] && [ "$response" != "201" ]; then
+            echo "Deploy hook failed with status $response"
+            exit 1
+          fi
+
+  # ── 2b. Deploy web to Vercel ──────────────────────────────────────────────
+  deploy-web:
+    name: Deploy Web to Vercel
+    needs: [test-server, test-web]
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Pull Vercel project settings
+        working-directory: apps/web
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build (Vercel manages VITE_API_URL from its env vars)
+        working-directory: apps/web
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy prebuilt output
+        working-directory: apps/web
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+  # ── 3. Deploy scraper to Render (opt-in) ─────────────────────────────────
+  deploy-scraper:
+    name: Deploy Scraper to Render
+    needs: [test-server]
+    runs-on: ubuntu-latest
+    environment: production
+    # Only runs when the DEPLOY_SCRAPER variable is set to 'true'
+    if: ${{ vars.DEPLOY_SCRAPER == 'true' }}
+    steps:
+      - name: Trigger Render scraper deploy hook
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${{ secrets.RENDER_SCRAPER_DEPLOY_HOOK_URL }}")
+          echo "Render scraper responded: $response"
+          if [ "$response" != "200" ] && [ "$response" != "201" ]; then
+            echo "Scraper deploy hook failed with status $response"
+            exit 1
+          fi
