@@ -54,8 +54,17 @@ export default function Layout({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-xl border-t border-slate-200/50 dark:border-white/5 shadow-[0_-8px_32px_rgba(0,0,0,0.06)] z-[500] safe-area-bottom pb-2" aria-label="Main navigation">
-        <div className="grid grid-cols-4 gap-1 max-w-md mx-auto px-2 pt-2">
+      {/* Bottom navigation – glass effect with backdrop-blur-lg */}
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-[500]"
+        aria-label="Main navigation"
+      >
+        {/* Glass background layer */}
+        <div className="absolute inset-0 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-lg border-t border-white/30 dark:border-white/5" />
+        {/* Subtle top shadow */}
+        <div className="absolute top-0 left-0 right-0 h-px bg-slate-200/60 dark:bg-white/8" />
+
+        <div className="relative grid grid-cols-4 gap-1 max-w-md mx-auto px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           {navItems.map(({ path, labelKey, icon }) => {
             const isActive = (path.includes('?')
               ? (location.pathname + location.search).startsWith(path)
@@ -67,25 +76,30 @@ export default function Layout({ children }: { children: ReactNode }) {
                 key={path}
                 to={path}
                 aria-current={isActive ? 'page' : undefined}
-                className={`flex flex-col items-center justify-center gap-1.5 py-2 rounded-2xl transition-all duration-300 relative group active:scale-90 ${isActive ? 'text-primary' : 'text-slate-400'
-                  }`}
+                className={`flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all duration-200 relative group active:scale-90 ${
+                  isActive ? 'text-primary' : 'text-slate-400 dark:text-dark-text-secondary'
+                }`}
               >
-                <div className="relative p-1">
+                {/* Active indicator dot */}
+                {isActive && (
+                  <span className="absolute top-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+                )}
+                <div className="relative">
                   <span
-                    className="material-symbols-outlined text-[26px] transition-all duration-300 transform group-hover:scale-110"
-                    style={isActive ? { fontVariationSettings: "'FILL' 1, 'wght' 600" } : { fontVariationSettings: "'wght' 400" }}
+                    className="material-symbols-outlined text-[26px] transition-all duration-200"
+                    style={isActive ? { fontVariationSettings: "'FILL' 1, 'wght' 600" } : { fontVariationSettings: "'wght' 300" }}
                     aria-hidden
                   >
                     {icon}
                   </span>
                   {showDot && (
-                    <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white dark:ring-dark-bg transition-transform animate-pulse" />
-                  )}
-                  {isActive && (
-                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-primary shadow-lg shadow-primary/40 animate-in zoom-in duration-300" />
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full ring-1 ring-white dark:ring-dark-bg" />
                   )}
                 </div>
-                <span className={`text-[10px] font-bold tracking-tight transition-all uppercase ${isActive ? 'opacity-100' : 'opacity-60 scale-95'}`}>
+                {/* Label: visible (bold) when active, muted + smaller when inactive */}
+                <span className={`text-[9px] font-bold tracking-tight uppercase transition-all ${
+                  isActive ? 'opacity-100' : 'opacity-50 text-[8px]'
+                }`}>
                   {t(labelKey)}
                 </span>
               </Link>

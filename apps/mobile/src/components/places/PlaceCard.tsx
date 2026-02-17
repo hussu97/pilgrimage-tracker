@@ -28,6 +28,8 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const imageUrl = getFullImageUrl(place.images?.[0]?.url);
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
+  const isOpen = place.is_open_now === true;
+  const isClosed = place.is_open_now === false;
 
   if (compact) {
     return (
@@ -57,11 +59,16 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
             {place.address || place.place_type || ''}
           </Text>
           <View style={styles.compactChips}>
-            {place.place_type ? (
-              <View style={styles.chipType}>
-                <Text style={styles.chipTypeText}>{place.place_type}</Text>
+            {isOpen && (
+              <View style={styles.chipOpen}>
+                <Text style={styles.chipOpenText}>Open</Text>
               </View>
-            ) : null}
+            )}
+            {isClosed && (
+              <View style={styles.chipClosed}>
+                <Text style={styles.chipClosedText}>Closed</Text>
+              </View>
+            )}
             {place.distance != null && (
               <View style={styles.chipDist}>
                 <Text style={styles.chipDistText}>{formatDistance(place.distance)}</Text>
@@ -69,7 +76,10 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
             )}
             {rating != null && (
               <View style={styles.chipRating}>
-                <Text style={styles.chipRatingText}>★ {rating.toFixed(1)}{reviewCount > 0 ? ` (${reviewCount})` : ''}</Text>
+                <MaterialIcons name="star" size={9} color="#92400e" />
+                <Text style={styles.chipRatingText}>
+                  {rating.toFixed(1)}{reviewCount > 0 ? ` (${reviewCount})` : ''}
+                </Text>
               </View>
             )}
           </View>
@@ -99,25 +109,29 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
         </View>
       )}
 
-      {/* Gradient simulation: subtle full-card dark tint */}
-      <View style={styles.overlayFull} pointerEvents="none" />
-      {/* Gradient simulation: bottom fade for text contrast */}
+      {/* Hero gradient: top fade (black/40) + bottom fade (black/80) */}
+      <View style={styles.overlayTop} pointerEvents="none" />
       <View style={styles.overlayBottom} pointerEvents="none" />
 
       {/* Top badges */}
       <View style={styles.topBadges}>
-        {place.is_open_now != null && (
-          <View style={[styles.glassBadge, !place.is_open_now && styles.glassBadgeClosed]}>
-            {place.is_open_now && <View style={styles.openDot} />}
-            <Text style={styles.glassBadgeText}>
-              {place.is_open_now ? 'Open' : 'Closed'}
-            </Text>
-          </View>
-        )}
+        <View style={styles.topBadgesLeft}>
+          {isOpen && (
+            <View style={styles.badgeOpen}>
+              <View style={styles.openDot} />
+              <Text style={styles.badgeText}>Open</Text>
+            </View>
+          )}
+          {isClosed && (
+            <View style={styles.badgeClosed}>
+              <Text style={styles.badgeText}>Closed</Text>
+            </View>
+          )}
+        </View>
         {place.user_has_checked_in && (
-          <View style={[styles.glassBadge, styles.glassBadgeVisited]}>
+          <View style={styles.badgeVisited}>
             <MaterialIcons name="check" size={11} color="#fff" />
-            <Text style={styles.glassBadgeText}>Visited</Text>
+            <Text style={styles.badgeText}>Visited</Text>
           </View>
         )}
       </View>
@@ -169,18 +183,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     height: 128,
     backgroundColor: tokens.colors.surface,
-    borderRadius: 24,
+    borderRadius: tokens.borderRadius['2xl'], // 16px
     padding: 16,
     gap: 16,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: tokens.colors.inputBorder,
-    ...tokens.shadow.subtle,
+    ...tokens.shadow.card,
   },
   compactImageWrap: {
     width: 96,
     height: 96,
-    borderRadius: 16,
+    borderRadius: tokens.borderRadius.xl, // 12px – inner element
     overflow: 'hidden',
     backgroundColor: tokens.colors.softBlue,
     flexShrink: 0,
@@ -201,13 +215,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   compactChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chipType: {
+  // Open badge – primary blue pill
+  chipOpen: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: tokens.borderRadius.full,
+    backgroundColor: tokens.colors.openNow,
   },
-  chipTypeText: { fontSize: 10, fontWeight: '500', color: tokens.colors.primaryDark },
+  chipOpenText: { fontSize: 9, fontWeight: '700', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 },
+  // Closed badge – red pill
+  chipClosed: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: tokens.borderRadius.full,
+    backgroundColor: tokens.colors.closedNow,
+  },
+  chipClosedText: { fontSize: 9, fontWeight: '700', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 },
   chipDist: {
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -216,6 +239,9 @@ const styles = StyleSheet.create({
   },
   chipDistText: { fontSize: 10, fontWeight: '500', color: tokens.colors.textSecondary },
   chipRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
@@ -226,7 +252,7 @@ const styles = StyleSheet.create({
   // ── Regular (list view) ─────────────────────────────────────────────────
   card: {
     height: 280,
-    borderRadius: tokens.borderRadius['3xl'],
+    borderRadius: tokens.borderRadius['3xl'], // 24px – large card outer
     overflow: 'hidden',
     ...tokens.shadow.card,
   },
@@ -235,17 +261,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  overlayFull: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.18)',
+  // Top fade: matches design ref from-black/40 (top)
+  overlayTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+    backgroundColor: 'rgba(0,0,0,0.40)',
   },
+  // Bottom fade: matches design ref to-black/80 (bottom)
   overlayBottom: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 160,
-    backgroundColor: 'rgba(0,0,0,0.30)',
+    height: 180,
+    backgroundColor: 'rgba(0,0,0,0.50)',
   },
   topBadges: {
     position: 'absolute',
@@ -256,37 +288,59 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  glassBadge: {
+  topBadgesLeft: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  // Open badge – primary blue, solid (matches design reference)
+  badgeOpen: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: tokens.colors.openNow,
+    borderWidth: 1,
+    borderColor: 'rgba(0,122,255,0.50)',
+    borderRadius: tokens.borderRadius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  // Closed badge – red
+  badgeClosed: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: tokens.colors.closedNow,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.50)',
+    borderRadius: tokens.borderRadius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  // Visited badge – glass morphism
+  badgeVisited: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.20)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.35)',
     borderRadius: tokens.borderRadius.full,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  glassBadgeClosed: {
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  glassBadgeVisited: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
   openDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#34d399',
+    backgroundColor: 'rgba(255,255,255,0.85)',
   },
-  glassBadgeText: {
+  badgeText: {
     color: '#fff',
     fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
+  // Glass panel – semi-transparent with subtle border
   glassPanel: {
     position: 'absolute',
     bottom: 14,
@@ -295,7 +349,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
-    borderRadius: tokens.borderRadius['2xl'],
+    borderRadius: tokens.borderRadius['2xl'], // 16px
     padding: 14,
   },
   cardName: {
@@ -317,7 +371,7 @@ const styles = StyleSheet.create({
   },
   glassDivider: {
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.20)',
     marginVertical: 10,
   },
   metaRow: {
@@ -343,10 +397,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    paddingHorizontal: 6,
+    backgroundColor: 'rgba(0,0,0,0.30)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: tokens.borderRadius.full,
   },
   ratingText: {
     fontSize: 10,

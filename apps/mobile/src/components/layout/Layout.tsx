@@ -101,20 +101,17 @@ function GlassTabBar({ state, descriptors, navigation, insets, isDark, unreadCou
                 />
                 {showDot && <View style={styles.notificationDot} />}
               </View>
-              <Text
-                style={[
-                  styles.tabLabel,
-                  {
-                    color: isFocused
-                      ? tokens.colors.primary
-                      : isDark
-                      ? tokens.colors.darkTextSecondary
-                      : tokens.colors.textMuted,
-                  },
-                ]}
-              >
-                {label}
-              </Text>
+              {/* Label: visible when active, hidden when inactive (per design spec) */}
+              {isFocused && (
+                <Text
+                  style={[
+                    styles.tabLabel,
+                    { color: tokens.colors.primary },
+                  ]}
+                >
+                  {label}
+                </Text>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -210,16 +207,16 @@ const styles = StyleSheet.create({
   },
   activePill: {
     position: 'absolute',
-    top: -4,
-    width: 24,
-    height: 4,
+    top: -6,
+    width: 28,
+    height: 3,
     borderRadius: 2,
     backgroundColor: tokens.colors.primary,
     shadowColor: tokens.colors.primary,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.4,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.5,
+    shadowRadius: 6,
+    elevation: 4,
   },
   tabLabel: {
     fontSize: 10,
