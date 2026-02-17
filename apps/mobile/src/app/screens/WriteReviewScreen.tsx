@@ -69,7 +69,7 @@ export default function WriteReviewScreen() {
     const remainingSlots = MAX_PHOTOS - photos.length;
 
     if (remainingSlots <= 0) {
-      setUploadError(`You can upload up to ${MAX_PHOTOS} photos total`);
+      setUploadError(t('reviews.maxPhotos').replace('{count}', String(MAX_PHOTOS)));
       return;
     }
 
@@ -84,7 +84,7 @@ export default function WriteReviewScreen() {
         // Validate
         const validation = validateImage(image);
         if (!validation.valid) {
-          setUploadError(validation.error || 'Invalid image');
+          setUploadError(validation.error || t('reviews.invalidImage'));
           continue;
         }
 
@@ -98,9 +98,9 @@ export default function WriteReviewScreen() {
       }
     } catch (err) {
       if (err instanceof Error && err.message.includes('Permission')) {
-        setUploadError('Permission to access photos was denied');
+        setUploadError(t('reviews.photoPermissionDenied'));
       } else {
-        setUploadError(err instanceof Error ? err.message : 'Failed to upload photo');
+        setUploadError(err instanceof Error ? err.message : t('reviews.uploadFailed'));
       }
     } finally {
       setUploading(false);
@@ -114,7 +114,7 @@ export default function WriteReviewScreen() {
   const handleSubmit = async () => {
     if (!placeCode) return;
     if (rating < 1 || rating > 5) {
-      setError('Please select a rating (1–5 stars).');
+      setError(t('reviews.selectRating'));
       return;
     }
     setSubmitting(true);
@@ -150,9 +150,9 @@ export default function WriteReviewScreen() {
   if (!placeCode) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top + 24 }]}>
-        <Text style={styles.muted}>Missing place.</Text>
+        <Text style={styles.muted}>{t('places.missingCode')}</Text>
         <TouchableOpacity onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] })}>
-          <Text style={styles.link}>Home</Text>
+          <Text style={styles.link}>{t('common.home')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -213,7 +213,7 @@ export default function WriteReviewScreen() {
               onPress={() => setRating(value)}
               style={styles.starBtn}
               activeOpacity={0.8}
-              accessibilityLabel={`${value} stars`}
+              accessibilityLabel={t('reviews.starsAccessibility').replace('{count}', String(value))}
             >
               <Text style={[styles.starIcon, value > rating && styles.starIconOff]}>
                 {value <= rating ? '★' : '☆'}

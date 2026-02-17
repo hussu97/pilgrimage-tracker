@@ -94,7 +94,7 @@ export default function CreateGroupScreen() {
           <Text style={styles.shareButtonText}>{t('common.share')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.goButton} onPress={handleGoToGroup} activeOpacity={0.8}>
-          <Text style={styles.goButtonText}>Go to group</Text>
+          <Text style={styles.goButtonText}>{t('groups.goToGroup')}</Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -114,23 +114,23 @@ export default function CreateGroupScreen() {
         <Text style={styles.title}>{t('groups.createGroup')}</Text>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <View style={styles.field}>
-          <Text style={styles.label}>Name</Text>
+          <Text style={styles.label}>{t('groups.nameLabel')}</Text>
           <TextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="Group name"
+            placeholder={t('groups.groupNamePlaceholder')}
             placeholderTextColor={tokens.colors.textMuted}
             autoCapitalize="words"
           />
         </View>
         <View style={styles.field}>
-          <Text style={styles.label}>Description (optional)</Text>
+          <Text style={styles.label}>{t('groups.descriptionLabel')}</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
             value={description}
             onChangeText={setDescription}
-            placeholder="What's this group about?"
+            placeholder={t('groups.descriptionPlaceholder')}
             placeholderTextColor={tokens.colors.textMuted}
             multiline
             numberOfLines={3}

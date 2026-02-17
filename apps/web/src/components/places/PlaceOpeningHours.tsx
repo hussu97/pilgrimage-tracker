@@ -7,7 +7,8 @@ interface Props {
   compact?: boolean; // true = mobile style, false = desktop style (default: false)
 }
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+const DAY_EN = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 function PlaceOpeningHours({ opening_hours, opening_hours_today, t, compact = false }: Props) {
   const [expanded, setExpanded] = useState(false);
@@ -47,15 +48,16 @@ function PlaceOpeningHours({ opening_hours, opening_hours_today, t, compact = fa
             </button>
           ) : (
             <div className="space-y-3">
-              {DAYS.map((day) => {
-                const isToday = opening_hours_today && opening_hours[day] === opening_hours_today;
+              {DAY_KEYS.map((key, i) => {
+                const dayEn = DAY_EN[i];
+                const isToday = opening_hours_today && opening_hours[dayEn] === opening_hours_today;
                 return (
                   <div
-                    key={day}
-                    className={`flex items-center justify-between py-2 ${isToday ? 'font-semibold text-primary' : 'text-text-secondary'}`}
+                    key={key}
+                    className={`flex items-center justify-between py-2 ${isToday ? 'font-semibold text-primary' : 'text-text-secondary dark:text-dark-text-secondary'}`}
                   >
-                    <span className="text-sm">{day}</span>
-                    <span className="text-sm text-right max-w-[50%] truncate">{formatHours(opening_hours[day])}</span>
+                    <span className="text-sm">{t(`common.${key}`)}</span>
+                    <span className="text-sm text-right max-w-[50%] truncate">{formatHours(opening_hours[dayEn])}</span>
                   </div>
                 );
               })}
@@ -77,7 +79,7 @@ function PlaceOpeningHours({ opening_hours, opening_hours_today, t, compact = fa
   return (
     <section>
       <h2 className="text-xl font-bold text-text-main mb-4">{t('places.openingHours')}</h2>
-      <div className="rounded-xl border border-input-border bg-white p-5">
+      <div className="rounded-xl border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface p-5">
         {!expanded ? (
           <button
             type="button"
@@ -86,24 +88,25 @@ function PlaceOpeningHours({ opening_hours, opening_hours_today, t, compact = fa
           >
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-[22px]">schedule</span>
-              <span className="text-sm font-semibold text-text-main">{t('places.today')}:</span>
-              <span className="text-sm text-text-secondary">
+              <span className="text-sm font-semibold text-text-main dark:text-white">{t('places.today')}:</span>
+              <span className="text-sm text-text-secondary dark:text-dark-text-secondary">
                 {opening_hours_today || t('places.hoursNotAvailable')}
               </span>
             </div>
-            <span className="material-symbols-outlined text-text-muted text-[22px]">expand_more</span>
+            <span className="material-symbols-outlined text-text-muted dark:text-dark-text-secondary text-[22px]">expand_more</span>
           </button>
         ) : (
           <div className="space-y-3">
-            {DAYS.map((day) => {
-              const isToday = opening_hours_today && opening_hours[day] === opening_hours_today;
+            {DAY_KEYS.map((key, i) => {
+              const dayEn = DAY_EN[i];
+              const isToday = opening_hours_today && opening_hours[dayEn] === opening_hours_today;
               return (
                 <div
-                  key={day}
-                  className={`flex items-center justify-between py-2 ${isToday ? 'font-semibold text-primary' : 'text-text-secondary'}`}
+                  key={key}
+                  className={`flex items-center justify-between py-2 ${isToday ? 'font-semibold text-primary' : 'text-text-secondary dark:text-dark-text-secondary'}`}
                 >
-                  <span className="text-sm">{day}</span>
-                  <span className="text-sm">{formatHours(opening_hours[day])}</span>
+                  <span className="text-sm">{t(`common.${key}`)}</span>
+                  <span className="text-sm">{formatHours(opening_hours[dayEn])}</span>
                 </div>
               );
             })}

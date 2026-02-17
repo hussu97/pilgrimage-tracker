@@ -45,15 +45,14 @@ export default function SelectPath() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center antialiased font-sans"
-      style={{ background: 'linear-gradient(180deg, #F0F5FA 0%, #E6EEF5 100%)' }}
+      className="min-h-screen flex flex-col items-center antialiased font-sans bg-gradient-to-b from-[#F0F5FA] to-[#E6EEF5] dark:bg-none dark:bg-dark-bg"
     >
       <div className="w-full max-w-md flex flex-col flex-1 px-8 py-10 mx-auto">
         <header className="mt-14 mb-12 text-center">
-          <h1 className="text-[32px] font-semibold tracking-tight mb-3 text-slate-800">
+          <h1 className="text-[32px] font-semibold tracking-tight mb-3 text-slate-800 dark:text-white">
             {t('selectPath.title')}
           </h1>
-          <p className="text-slate-500 text-base leading-relaxed max-w-[280px] mx-auto font-normal tracking-wide">
+          <p className="text-slate-500 dark:text-dark-text-secondary text-base leading-relaxed max-w-[280px] mx-auto font-normal tracking-wide">
             {t('selectPath.subtitle')}
           </p>
         </header>
@@ -71,7 +70,7 @@ export default function SelectPath() {
                 }`}
               >
                 <div
-                  className={`w-36 h-36 rounded-full bg-white shadow-elevated flex items-center justify-center border-[1.5px] border-white transition-all duration-300 relative overflow-hidden ${hoverClass}`}
+                  className={`w-36 h-36 rounded-full bg-white dark:bg-dark-surface shadow-elevated flex items-center justify-center border-[1.5px] border-white dark:border-dark-border transition-all duration-300 relative overflow-hidden ${hoverClass}`}
                 >
                   <div className="absolute inset-0 bg-transparent group-hover:bg-opacity-30 transition-colors duration-300" />
                   <span
@@ -83,7 +82,7 @@ export default function SelectPath() {
                     {icon}
                   </span>
                 </div>
-                <span className="text-lg font-medium text-slate-700 tracking-tight group-hover:transition-colors group-focus:text-slate-900">
+                <span className="text-lg font-medium text-slate-700 dark:text-dark-text-secondary tracking-tight group-hover:transition-colors group-focus:text-slate-900">
                   {t(labelKey)}
                 </span>
               </button>
@@ -111,7 +110,7 @@ export default function SelectPath() {
           <button
             type="button"
             onClick={handleSkip}
-            className="text-sm font-normal text-slate-400 hover:text-slate-600 transition-colors"
+            className="text-sm font-normal text-slate-400 dark:text-dark-text-secondary hover:text-slate-600 dark:hover:text-white transition-colors"
           >
             {t('selectPath.skip')}
           </button>

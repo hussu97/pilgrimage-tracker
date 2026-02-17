@@ -146,7 +146,7 @@ export default function PlaceDetailScreen() {
       setCheckInDate(date);
       setTimeout(() => setCheckInDone(true), 430);
     } catch (err) {
-      Alert.alert('Check-in failed', err instanceof Error ? err.message : 'Please try again.');
+      Alert.alert(t('places.checkInFailed'), err instanceof Error ? err.message : t('places.tryAgain'));
     } finally {
       setCheckInLoading(false);
     }
@@ -187,9 +187,9 @@ export default function PlaceDetailScreen() {
   if (!placeCode) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
-        <Text style={styles.muted}>Missing place.</Text>
+        <Text style={styles.muted}>{t('places.missingCode')}</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Main')}>
-          <Text style={styles.link}>Home</Text>
+          <Text style={styles.link}>{t('common.home')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -210,13 +210,13 @@ export default function PlaceDetailScreen() {
         style={styles.container}
         contentContainerStyle={[styles.errorContainer, { paddingTop: insets.top + 24 }]}
       >
-        <Text style={styles.errorTitle}>Place not found</Text>
+        <Text style={styles.errorTitle}>{t('places.notFound')}</Text>
         <Text style={styles.muted}>{error}</Text>
         <TouchableOpacity onPress={fetchPlace} style={styles.retryButton}>
           <Text style={styles.retryText}>{t('common.retry')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate('Main')} style={styles.backButton}>
-          <Text style={styles.backButtonText}>Home</Text>
+          <Text style={styles.backButtonText}>{t('common.home')}</Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -226,7 +226,9 @@ export default function PlaceDetailScreen() {
 
   const heroImage = getFullImageUrl(place.images?.[0]?.url);
   const formatDist = (km: number) =>
-    km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+    km < 1
+      ? t('common.distanceMeters').replace('{count}', String(Math.round(km * 1000)))
+      : t('common.distanceKm').replace('{count}', km.toFixed(1));
 
   const timings: PlaceTiming[] = place.timings ?? [];
   const specifications: PlaceSpecification[] = place.specifications ?? [];
@@ -396,14 +398,15 @@ export default function PlaceDetailScreen() {
                 ) : (
                   // Expanded state: Show full weekly schedule
                   <View style={styles.hoursExpanded}>
-                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
-                      const hours = place.opening_hours?.[day];
-                      const isToday = place.opening_hours_today && place.opening_hours?.[day] === place.opening_hours_today;
+                    {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map((key, i) => {
+                      const dayEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i];
+                      const hours = place.opening_hours?.[dayEn];
+                      const isToday = place.opening_hours_today && place.opening_hours?.[dayEn] === place.opening_hours_today;
 
                       return (
-                        <View key={day} style={styles.hoursRow}>
+                        <View key={key} style={styles.hoursRow}>
                           <Text style={[styles.hoursDay, isToday && styles.hoursDayToday]}>
-                            {day}
+                            {t(`common.${key}`)}
                           </Text>
                           <Text style={[styles.hoursValue, isToday && styles.hoursValueToday, { flexShrink: 1 }]} numberOfLines={1}>
                             {formatHoursDisplay(hours, t)}

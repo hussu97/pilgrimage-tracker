@@ -4,6 +4,50 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P4 Web/Mobile Parity: Dark Mode & i18n Audit (2026-02-17)
+
+### Backend
+
+- **`server/app/db/seed_data.json`** — Added ~51 new translation keys across EN, AR, and HI:
+  - `reviews.*`: confirmDelete, selectRating, maxPhotos, invalidImage, photoPermissionDenied, uploadFailed, starsAccessibility
+  - `places.*`: missingCode, notFound, checkedInDate, checkInFailed, tryAgain
+  - `common.*`: backToHome, home, visitor, share, copy, copied, unexpectedError, timeJustNow/minutesAgo/hoursAgo/daysAgo, distanceMeters/Km, monday–sunday (7 day names)
+  - `groups.*`: groupCreated, shareInviteLink, goToGroup, nameLabel, descriptionLabel, privateGroup, invite, places, viewFullLeaderboard, noLeaderboardData, recentlyVisited, noRecentActivity, checkedInAt, created, level, missingGroup, groupNamePlaceholder, descriptionPlaceholder
+
+### Frontend (web)
+
+- **`apps/web/src/app/pages/ResetPassword.tsx`** — Fixed wrong dark tokens: `dark:bg-gray-900` → `dark:bg-dark-bg`, `dark:bg-gray-800` → `dark:bg-dark-surface`, `dark:text-gray-400` → `dark:text-dark-text-secondary`.
+- **`apps/web/src/app/pages/SelectPath.tsx`** — Added full dark mode (previously none); replaced inline gradient `style={}` with Tailwind `bg-gradient-to-b` + `dark:bg-dark-bg` classes.
+- **`apps/web/src/app/pages/PlaceDetail.tsx`** — Fixed 6 hardcoded English strings via `t()`: confirmDelete, visitor, checkedInDate, missingCode, backToHome (×2), notFound.
+- **`apps/web/src/app/pages/WriteReview.tsx`** — Full dark mode; fixed 8 hardcoded strings (maxPhotos, invalidImage, uploadFailed, selectRating, missingCode, backToHome, starsAccessibility); fixed icon classes (`material-icons-outlined`/`material-icons-round` → `material-symbols-outlined`).
+- **`apps/web/src/app/pages/EditProfile.tsx`** — Added missing dark mode: `dark:bg-dark-bg` on container, `dark:bg-dark-surface dark:border-dark-border` on inputs, `dark:hover:bg-dark-surface` on checkbox labels.
+- **`apps/web/src/app/pages/Favorites.tsx`** — Added `dark:bg-dark-bg` and `dark:text-white` to container and heading.
+- **`apps/web/src/app/pages/Notifications.tsx`** — Fixed `'Updates'` → `t('notifications.updatesLabel')` and hardcoded empty description → `t('notifications.emptyDesc')`; added dark mode to container and notification items.
+- **`apps/web/src/app/pages/Groups.tsx`** — Full dark mode; refactored `formatRelative()` and `progressLevel()` to accept `t` as a parameter, replacing hardcoded time/level strings with translation keys; fixed `'Notifications'` aria-label and `'Created'` prefix; fixed icon classes.
+- **`apps/web/src/app/pages/CreateGroup.tsx`** — Full dark mode; fixed 8 hardcoded strings: groupCreated, shareInviteLink, share, copy, goToGroup, nameLabel, descriptionLabel, privateGroup.
+- **`apps/web/src/app/pages/GroupDetail.tsx`** — Full dark mode; fixed ~15 hardcoded strings: back, share, invite/copied, places (×4), showLess/viewFullLeaderboard, noLeaderboardData, recentlyVisited, noRecentActivity, checkedInAt.
+- **`apps/web/src/app/pages/JoinGroup.tsx`** — Added full dark mode to all render paths.
+- **`apps/web/src/components/common/ErrorBoundary.tsx`** — Fixed wrong dark tokens (`dark:bg-gray-*` → `dark:bg-dark-*`).
+- **`apps/web/src/components/common/EmptyState.tsx`** — Fixed `dark:bg-gray-800/50` → `dark:bg-dark-surface`; added `dark:border-dark-border dark:text-white dark:text-dark-text-secondary`.
+- **`apps/web/src/components/places/PlaceCard.tsx`** — Replaced all `dark:bg-slate-700` → `dark:bg-dark-surface`; `dark:text-slate-400` → `dark:text-dark-text-secondary`.
+- **`apps/web/src/components/places/PlaceOpeningHours.tsx`** — Replaced hardcoded `DAYS` English array with `DAY_KEYS`/`DAY_EN` pattern for i18n day name display; added dark mode to desktop view container.
+- **`apps/web/src/components/layout/ProtectedRoute.tsx`** — Replaced hardcoded `'Loading...'` with `t('common.loading')`; added `dark:text-dark-text-secondary`.
+
+### Frontend (mobile)
+
+- **`apps/mobile/src/app/screens/PlaceDetailScreen.tsx`** — Fixed hardcoded strings: missingCode, home (×2), notFound, checkInFailed, tryAgain; refactored distance formatting to use `t('common.distanceMeters')`/`t('common.distanceKm')` with `.replace()`; refactored day names array to `DAY_KEYS`/`DAY_EN` pattern using `t(\`common.${key}\`)`.
+- **`apps/mobile/src/app/screens/WriteReviewScreen.tsx`** — Fixed 8 hardcoded strings: maxPhotos, invalidImage, photoPermissionDenied, uploadFailed, selectRating, missingCode, home, starsAccessibility.
+- **`apps/mobile/src/app/screens/CreateGroupScreen.tsx`** — Fixed 5 hardcoded strings: goToGroup, nameLabel, groupNamePlaceholder, descriptionLabel, descriptionPlaceholder.
+- **`apps/mobile/src/app/screens/GroupDetailScreen.tsx`** — Fixed hardcoded strings: missingGroup, share, places (×4 occurrences).
+- **`apps/mobile/src/app/screens/NotificationsScreen.tsx`** — Removed hardcoded English fallback for emptyDesc; now exclusively uses `t('notifications.emptyDesc')`.
+
+### Docs
+
+- **`CLAUDE.md`** — Added Rule 12 (Dark Mode Compliance) and Rule 13 (Translation Key Parity) to prevent future disparity.
+- **`ROADMAP.md`** — Replaced P4 "Design Alignment" section with completed task checklist for this parity pass.
+
+---
+
 ## P4 Design Alignment: Web/Mobile Parity (2026-02-17)
 
 ### Frontend (web)

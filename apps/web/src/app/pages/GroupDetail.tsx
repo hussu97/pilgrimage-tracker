@@ -61,10 +61,10 @@ export default function GroupDetail() {
 
   if (!groupCode) {
     return (
-      <div className="p-6 text-center">
-        <p className="text-text-muted">Missing group.</p>
+      <div className="p-6 text-center dark:bg-dark-bg min-h-screen">
+        <p className="text-text-muted dark:text-dark-text-secondary">{t('groups.missingGroup')}</p>
         <button type="button" onClick={() => navigate('/groups')} className="text-primary mt-2">
-          Back to Groups
+          {t('groups.title')}
         </button>
       </div>
     );
@@ -104,22 +104,22 @@ export default function GroupDetail() {
   const displayLeaderboard = showFullLeaderboard ? leaderboard : restLeaderboard;
 
   return (
-    <div className="max-w-md mx-auto px-4 py-6 pb-8">
+    <div className="max-w-md mx-auto px-4 py-6 pb-8 dark:bg-dark-bg min-h-screen">
       <button
         type="button"
         onClick={() => navigate('/groups')}
         aria-label={t('common.back')}
-        className="flex items-center gap-2 text-text-muted hover:text-primary mb-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg"
+        className="flex items-center gap-2 text-text-muted dark:text-dark-text-secondary hover:text-primary mb-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg"
       >
         <span className="material-symbols-outlined" aria-hidden>arrow_back</span>
-        Back
+        {t('common.back')}
       </button>
 
       <header className="mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-text-main">{group.name}</h1>
-            <p className="text-text-muted text-sm mt-1 flex items-center gap-1">
+            <h1 className="text-2xl font-bold text-text-main dark:text-white">{group.name}</h1>
+            <p className="text-text-muted dark:text-dark-text-secondary text-sm mt-1 flex items-center gap-1">
               <span className="material-symbols-outlined text-sm">person</span>
               {group.member_count ?? 0} {t('groups.members')}
             </p>
@@ -129,10 +129,10 @@ export default function GroupDetail() {
               <button
                 type="button"
                 onClick={handleShareInvite}
-                className="inline-flex items-center gap-2 py-2 px-4 rounded-xl border border-input-border text-text-main font-medium text-sm hover:bg-soft-blue"
+                className="inline-flex items-center gap-2 py-2 px-4 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white font-medium text-sm hover:bg-soft-blue dark:hover:bg-dark-surface"
               >
                 <span className="material-symbols-outlined text-lg">share</span>
-                Share
+                {t('common.share')}
               </button>
               <button
                 type="button"
@@ -140,7 +140,7 @@ export default function GroupDetail() {
                 className="inline-flex items-center gap-2 py-2 px-4 rounded-xl border border-primary text-primary font-medium text-sm hover:bg-primary/10"
               >
                 <span className="material-symbols-outlined text-lg">link</span>
-                {inviteCopied ? 'Copied!' : 'Invite'}
+                {inviteCopied ? t('common.copied') : t('groups.invite')}
               </button>
             </div>
           )}
@@ -172,7 +172,7 @@ export default function GroupDetail() {
                   </div>
                 </div>
                 <p className="text-xs font-bold text-slate-700 truncate w-full text-center mb-0.5">{topThree[1].display_name}</p>
-                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter">{topThree[1].places_visited} places</p>
+                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter">{topThree[1].places_visited} {t('groups.places')}</p>
                 <div className="mt-3 h-16 w-full max-w-[80px] rounded-t-2xl bg-gradient-to-b from-slate-100 to-slate-50 border-x border-t border-slate-100 flex items-center justify-center shadow-inner">
                   <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
                 </div>
@@ -193,7 +193,7 @@ export default function GroupDetail() {
                   </div>
                 </div>
                 <p className="text-sm font-black text-slate-800 truncate w-full text-center mb-0.5">{topThree[0].display_name}</p>
-                <p className="text-[11px] font-bold text-amber-600 uppercase tracking-tight">{topThree[0].places_visited} places</p>
+                <p className="text-[11px] font-bold text-amber-600 uppercase tracking-tight">{topThree[0].places_visited} {t('groups.places')}</p>
                 <div className="mt-3 h-24 w-full max-w-[90px] rounded-t-2xl bg-gradient-to-b from-amber-100 to-amber-50 border-x border-t border-amber-100 flex items-center justify-center shadow-inner">
                   <div className="w-2 h-2 rounded-full bg-amber-300" />
                 </div>
@@ -214,7 +214,7 @@ export default function GroupDetail() {
                   </div>
                 </div>
                 <p className="text-xs font-bold text-slate-700 truncate w-full text-center mb-0.5">{topThree[2].display_name}</p>
-                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter">{topThree[2].places_visited} places</p>
+                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter">{topThree[2].places_visited} {t('groups.places')}</p>
                 <div className="mt-3 h-12 w-full max-w-[80px] rounded-t-2xl bg-gradient-to-b from-orange-100 to-orange-50 border-x border-t border-orange-100 flex items-center justify-center shadow-inner">
                   <div className="w-1.5 h-1.5 rounded-full bg-orange-200" />
                 </div>
@@ -229,7 +229,7 @@ export default function GroupDetail() {
             onClick={() => setShowFullLeaderboard((v) => !v)}
             className="text-primary font-medium text-sm mb-4"
           >
-            {showFullLeaderboard ? 'Show less' : 'View full leaderboard'}
+            {showFullLeaderboard ? t('common.showLess') : t('groups.viewFullLeaderboard')}
           </button>
         )}
 
@@ -238,45 +238,45 @@ export default function GroupDetail() {
             {displayLeaderboard.map((entry) => (
               <li
                 key={entry.user_code}
-                className="flex items-center gap-3 p-3 rounded-xl border border-input-border bg-surface"
+                className="flex items-center gap-3 p-3 rounded-xl border border-input-border dark:border-dark-border bg-surface dark:bg-dark-surface"
               >
-                <span className="text-sm font-medium text-text-muted w-6">#{entry.rank}</span>
+                <span className="text-sm font-medium text-text-muted dark:text-dark-text-secondary w-6">#{entry.rank}</span>
                 <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold shrink-0">
                   {(entry.display_name || '?').charAt(0)}
                 </div>
-                <span className="font-medium text-text-main flex-1 truncate">{entry.display_name}</span>
-                <span className="text-sm text-text-muted">{entry.places_visited} places</span>
+                <span className="font-medium text-text-main dark:text-white flex-1 truncate">{entry.display_name}</span>
+                <span className="text-sm text-text-muted dark:text-dark-text-secondary">{entry.places_visited} {t('groups.places')}</span>
               </li>
             ))}
           </ul>
         )}
         {leaderboard.length === 0 && (
-          <p className="text-text-muted text-sm py-4">No leaderboard data yet.</p>
+          <p className="text-text-muted dark:text-dark-text-secondary text-sm py-4">{t('groups.noLeaderboardData')}</p>
         )}
       </section>
 
       <section>
-        <h2 className="text-lg font-semibold text-text-main mb-4 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-text-main dark:text-white mb-4 flex items-center gap-2">
           <span className="material-symbols-outlined text-primary">history</span>
-          Recently visited
+          {t('groups.recentlyVisited')}
         </h2>
         {activity.length === 0 ? (
-          <p className="text-text-muted text-sm py-4">No recent activity.</p>
+          <p className="text-text-muted dark:text-dark-text-secondary text-sm py-4">{t('groups.noRecentActivity')}</p>
         ) : (
           <ul className="space-y-4">
             {activity.map((item, i) => (
               <li key={`${item.user_code}-${item.place_code}-${item.checked_in_at}-${i}`} className="animate-in fade-in slide-in-from-left duration-300" style={{ animationDelay: `${i * 50}ms` }}>
                 <Link
                   to={`/places/${item.place_code}`}
-                  className="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 bg-white shadow-subtle hover:bg-slate-50 transition-all group"
+                  className="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface shadow-subtle hover:bg-slate-50 dark:hover:bg-dark-surface/80 transition-all group"
                 >
-                  <div className="w-11 h-11 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold shrink-0 border border-white group-hover:scale-110 transition-transform">
+                  <div className="w-11 h-11 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-dark-text-secondary font-bold shrink-0 border border-white dark:border-dark-border group-hover:scale-110 transition-transform">
                     {(item.display_name || '?').charAt(0)}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-slate-600 leading-snug">
-                      <span className="font-bold text-slate-900">{item.display_name}</span>
-                      {' checked in at '}
+                    <p className="text-sm text-slate-600 dark:text-slate-300 leading-snug">
+                      <span className="font-bold text-slate-900 dark:text-white">{item.display_name}</span>
+                      {' '}{t('groups.checkedInAt')}{' '}
                     </p>
                     <p className="font-bold text-primary text-sm truncate">{item.place_name}</p>
                     <div className="flex items-center gap-1.5 mt-1">

@@ -342,92 +342,61 @@ Infrastructure, code quality, and optimization work to prepare for production an
 
 ---
 
-## P4 - Design Alignment
+## P4 - Web/Mobile Parity: Dark Mode & i18n
 
-Bring both frontends into visual parity with the design references (`FRONTEND_REWAMP_LIGHT.html` and `FRONTEND_REWAMP_DARK.html`).
+Comprehensive audit and fix to bring both frontends to full dark mode support (using correct design tokens) and zero hardcoded UI strings.
 
-### Screen-by-Screen Design Parity
+### Batch 6: Translation Keys (server)
+- [x] Added ~51 new translation keys to `server/app/db/seed_data.json` (EN, AR, HI)
+  - `reviews.*` (7 keys): confirmDelete, selectRating, maxPhotos, invalidImage, photoPermissionDenied, uploadFailed, starsAccessibility
+  - `places.*` (5 keys): missingCode, notFound, checkedInDate, checkInFailed, tryAgain
+  - `common.*` (21 keys): backToHome, home, visitor, share, copy, copied, unexpectedError, timeJustNow, timeMinutesAgo, timeHoursAgo, timeDaysAgo, distanceMeters, distanceKm, monday–sunday
+  - `groups.*` (18 keys): groupCreated, shareInviteLink, goToGroup, nameLabel, descriptionLabel, privateGroup, invite, places, viewFullLeaderboard, noLeaderboardData, recentlyVisited, noRecentActivity, checkedInAt, created, level, missingGroup, enterInviteCode, groupNamePlaceholder, descriptionPlaceholder, showLess
 
-For each screen, compare the current implementation against both the light and dark design files. Fix discrepancies in layout, spacing, color, typography, and iconography.
+### Batch 1–2: Web Auth & Core Screens
+- [x] `apps/web/src/app/pages/ResetPassword.tsx` — Fixed wrong dark tokens (`dark:bg-gray-*` → `dark:bg-dark-*`)
+- [x] `apps/web/src/app/pages/SelectPath.tsx` — Added full dark mode (was none); replaced inline gradient style with Tailwind classes
+- [x] `apps/web/src/app/pages/PlaceDetail.tsx` — Fixed 6 hardcoded strings via `t()` calls
+- [x] `apps/web/src/app/pages/WriteReview.tsx` — Full dark mode + fixed 8 hardcoded strings + icon class fixes (`material-symbols-outlined`)
 
-- [ ] **Place Detail screen**
-  - Hero image with bottom gradient overlay (linear-gradient from transparent to background color)
-  - Scorecard layout: rating, reviews count, check-ins count in a horizontal row with dividers
-  - Timings carousel: horizontally scrollable day cards with current day highlighted
-  - Specifications grid: 2-column grid of place attributes with icons
-  - Review cards: avatar, name, date, star rating, review text with consistent padding
-  - Sticky footer: check-in button and favorite toggle always visible at bottom
+### Batch 3–4: Web User & Group Screens
+- [x] `apps/web/src/app/pages/EditProfile.tsx` — Added missing dark mode
+- [x] `apps/web/src/app/pages/Favorites.tsx` — Added missing dark mode
+- [x] `apps/web/src/app/pages/Notifications.tsx` — Fixed 2 hardcoded strings + dark mode
+- [x] `apps/web/src/app/pages/Groups.tsx` — Full dark mode + refactored `formatRelative()`/`progressLevel()` to use `t()` + fixed many hardcoded strings
+- [x] `apps/web/src/app/pages/CreateGroup.tsx` — Full dark mode + fixed 8 hardcoded strings
+- [x] `apps/web/src/app/pages/GroupDetail.tsx` — Full dark mode + fixed ~15 hardcoded strings
+- [x] `apps/web/src/app/pages/JoinGroup.tsx` — Added full dark mode
 
-- [ ] **Sign In screen**
-  - Centered logo at top with correct size and spacing
-  - Input fields: rounded corners (12px), border color matching design tokens, proper focus ring
-  - Primary CTA button: full-width, correct background color, font weight, and border radius
-  - "Forgot password" and "Sign up" links positioned and styled per design
+### Batch 5: Web Shared Components
+- [x] `apps/web/src/components/common/ErrorBoundary.tsx` — Fixed wrong dark tokens (`dark:bg-gray-*` → `dark:bg-dark-*`)
+- [x] `apps/web/src/components/common/EmptyState.tsx` — Fixed wrong dark token + added `dark:border-dark-border`
+- [x] `apps/web/src/components/places/PlaceCard.tsx` — Replaced `dark:bg-slate-700` → `dark:bg-dark-surface` throughout
+- [x] `apps/web/src/components/places/PlaceOpeningHours.tsx` — i18n day names (DAY_KEYS pattern) + dark mode for desktop view
+- [x] `apps/web/src/components/layout/ProtectedRoute.tsx` — Replaced hardcoded `'Loading...'` with `t('common.loading')`
 
-- [ ] **Sign Up screen**
-  - Back button: arrow icon in top-left, correct size and tap target
-  - Religion selection: horizontal scrollable pill buttons with selected state (filled vs outlined)
-  - Input fields: same styling as sign-in, consistent vertical spacing
-  - Password requirements hint text below password field
+### Batch 7: Mobile Hardcoded Strings Parity
+- [x] `apps/mobile/src/app/screens/PlaceDetailScreen.tsx` — Fixed missingCode, home, notFound, checkInFailed, tryAgain, day names, distance formatting
+- [x] `apps/mobile/src/app/screens/WriteReviewScreen.tsx` — Fixed maxPhotos, invalidImage, photoPermissionDenied, uploadFailed, selectRating, missingCode, home, starsAccessibility
+- [x] `apps/mobile/src/app/screens/CreateGroupScreen.tsx` — Fixed goToGroup, nameLabel, groupNamePlaceholder, descriptionLabel, descriptionPlaceholder
+- [x] `apps/mobile/src/app/screens/GroupDetailScreen.tsx` — Fixed missingGroup, share, places
+- [x] `apps/mobile/src/app/screens/NotificationsScreen.tsx` — Removed hardcoded emptyDesc fallback
 
-- [x] **Home / Explore screen**
-  - Greeting: "Salam, {name}" with correct font size and weight (Lexend)
-  - Search bar: glass morphism effect, search icon, placeholder text
-  - Filter chips: horizontal scroll, selected chip uses primary color fill, unselected uses outline
-  - Map view: map fills available space, glass panel overlays bottom portion with place cards
-  - Bottom navigation: glass effect background, active tab indicator, correct icon set (Material Symbols)
-  - Web: reduced from 4 to 3 bottom nav tabs (Explore, Groups, Profile) to match mobile; map accessed via Home screen toggle
+### Batch 8: Documentation
+- [x] `CLAUDE.md` — Added Rule 12 (Dark Mode Compliance) and Rule 13 (Translation Key Parity)
+- [x] `ROADMAP.md` — Replaced P4 section with this plan's completed tasks
+- [x] `CHANGELOG.md` — Added full P4 entry
 
-- [ ] **Check-ins History screen**
-  - Stats card: total check-ins, current streak, longest streak in a glass card
-  - Calendar grid: month view with dots on days with check-ins, current day highlighted
-  - Recent visits list: place card with thumbnail, name, date, and time
-  - "On this Day" section: historical check-ins from the same date in previous years
+### Screen-by-Screen Design Parity (remaining)
+
+- [x] **Home / Explore screen** — 3-tab nav (Explore, Groups, Profile); map via Home screen toggle
+- [ ] **Place Detail screen** — Hero gradient, scorecard layout, timings carousel, sticky footer
+- [ ] **Sign In / Sign Up screens** — Input styling, religion selection pills, password hint
+- [ ] **Check-ins History screen** — Stats card, calendar grid, "On this Day" section
 
 ### Component-Level Design Tasks
 
-- [x] **Glass morphism panels**
-  - Ensure all glass panels use `backdrop-blur-md` (or equivalent), correct background opacity (`bg-white/70` light, `bg-gray-900/70` dark), and a subtle border (`border-white/20`).
-
-- [x] **Badge system styling**
-  - Status badges (Open/Closed): pill shape, green for open, red for closed, white text
-  - Rating pills: star icon + number, yellow background
-  - Visited indicators: checkmark overlay on place cards the user has visited
-
-- [x] **Card styling**
-  - Shadow: `shadow-md` or equivalent elevation
-  - Border radius: 16px for cards, 12px for inner elements
-  - Padding: 16px internal padding, 12px gap between cards in lists
-
-- [x] **Button variants**
-  - Primary: solid fill with primary color, white text, 12px border radius
-  - Secondary: lighter fill with primary color at 10% opacity, primary color text
-  - Outline: transparent fill, 1px border in primary color, primary color text
-  - Glass: backdrop-blur with semi-transparent background, white text
-
-- [x] **Input field styling**
-  - Border radius: 12px
-  - Border: 1px solid with muted color, transitions to primary color on focus
-  - Placeholder: muted text color, correct font size
-  - Focus state: primary color border with subtle glow/ring
-
-- [x] **Bottom navigation bar**
-  - Glass effect: `backdrop-blur-lg`, semi-transparent background
-  - Active tab: primary color icon, label visible
-  - Inactive tab: muted color icon, no label (or smaller label)
-  - Safe area spacing on devices with home indicators
-
-- [x] **Overlay gradients**
-  - Hero image gradient: `linear-gradient(to bottom, transparent 40%, background-color 100%)`
-  - Match gradient stops and colors exactly between light and dark modes
-  - Gradient should be strong enough to ensure text readability over any image
-
-- [x] **Animation and motion**
-  - Check-in: spring physics animation (scale up then settle) with haptic feedback
-  - Favorite toggle: heart icon scale animation on press
-  - Parallax scroll: hero image moves at 0.5x scroll speed on detail pages
-  - Screen transitions: smooth slide animations between routes
-  - Skeleton shimmer: left-to-right gradient animation at 1.5s interval
+- [x] **Glass morphism panels**, **Badge system**, **Card styling**, **Button variants**, **Input field styling**, **Bottom navigation bar**, **Overlay gradients**, **Animation and motion**
 
 ---
 

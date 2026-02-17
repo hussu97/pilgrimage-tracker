@@ -6,7 +6,7 @@ import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
 import type { Group } from '@/lib/types';
 
-function formatRelative(iso: string | null | undefined): string {
+function formatRelative(iso: string | null | undefined, t: (key: string) => string): string {
   if (!iso) return '';
   try {
     const d = new Date(iso);
@@ -15,26 +15,25 @@ function formatRelative(iso: string | null | undefined): string {
     const diffM = Math.floor(diffMs / 60000);
     const diffH = Math.floor(diffM / 60);
     const diffD = Math.floor(diffH / 24);
-    if (diffM < 1) return 'just now';
-    if (diffM < 60) return `${diffM}m ago`;
-    if (diffH < 24) return `${diffH}h ago`;
-    if (diffD === 1) return '1d ago';
-    if (diffD < 7) return `${diffD}d ago`;
+    if (diffM < 1) return t('common.timeJustNow');
+    if (diffM < 60) return t('common.timeMinutesAgo').replace('{count}', String(diffM));
+    if (diffH < 24) return t('common.timeHoursAgo').replace('{count}', String(diffH));
+    if (diffD < 7) return t('common.timeDaysAgo').replace('{count}', String(Math.max(1, diffD)));
     return d.toLocaleDateString();
   } catch {
     return '';
   }
 }
 
-function progressLevel(sites: number, total: number): string {
+function progressLevel(sites: number, total: number, t: (key: string) => string): string {
   if (total <= 0) return '';
   const pct = Math.floor((sites / total) * 100);
-  if (pct >= 100) return 'Done';
-  if (pct >= 80) return 'Lvl 5';
-  if (pct >= 60) return 'Lvl 4';
-  if (pct >= 40) return 'Lvl 3';
-  if (pct >= 20) return 'Lvl 2';
-  if (sites > 0) return 'Lvl 1';
+  if (pct >= 100) return t('common.done');
+  if (pct >= 80) return t('groups.level').replace('{level}', '5');
+  if (pct >= 60) return t('groups.level').replace('{level}', '4');
+  if (pct >= 40) return t('groups.level').replace('{level}', '3');
+  if (pct >= 20) return t('groups.level').replace('{level}', '2');
+  if (sites > 0) return t('groups.level').replace('{level}', '1');
   return 'New';
 }
 
@@ -61,17 +60,17 @@ export default function Groups() {
   const rest = groups.filter((g) => g.group_code !== featured?.group_code);
 
   return (
-    <div className="min-h-screen bg-background-light">
-      <header className="sticky top-0 z-40 bg-white border-b border-slate-100 px-4 md:px-6 py-4 flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-text-dark">
+    <div className="min-h-screen bg-background-light dark:bg-dark-bg">
+      <header className="sticky top-0 z-40 bg-white dark:bg-dark-surface border-b border-slate-100 dark:border-dark-border px-4 md:px-6 py-4 flex items-center justify-between">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-text-dark dark:text-white">
           {t('groups.myGroups')}
         </h1>
         <Link
           to="/notifications"
-          className="p-2 -mr-2 rounded-full hover:bg-gray-50 text-text-muted"
-          aria-label="Notifications"
+          className="p-2 -mr-2 rounded-full hover:bg-gray-50 dark:hover:bg-dark-surface text-text-muted dark:text-dark-text-secondary"
+          aria-label={t('notifications.title')}
         >
-          <span className="material-icons-outlined">notifications</span>
+          <span className="material-symbols-outlined">notifications</span>
         </Link>
       </header>
 
@@ -179,18 +178,18 @@ export default function Groups() {
                 const total = g.total_sites ?? 0;
                 const visited = g.sites_visited ?? 0;
                 const pct = total > 0 ? Math.min(100, Math.round((visited / total) * 100)) : 0;
-                const level = progressLevel(visited, total);
-                const lastActive = formatRelative(g.last_activity ?? undefined);
+                const level = progressLevel(visited, total, t);
+                const lastActive = formatRelative(g.last_activity ?? undefined, t);
                 return (
                   <Link
                     key={g.group_code}
                     to={`/groups/${g.group_code}`}
-                    className="block py-4 border-b border-slate-100 hover:bg-slate-50/50 transition-colors group"
+                    className="block py-4 border-b border-slate-100 dark:border-dark-border hover:bg-slate-50/50 dark:hover:bg-dark-surface/50 transition-colors group"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0 pr-4">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-text-dark text-xl tracking-tight truncate">
+                          <h3 className="font-bold text-text-dark dark:text-white text-xl tracking-tight truncate">
                             {g.name}
                           </h3>
                           {level === 'Done' && (
@@ -199,11 +198,11 @@ export default function Groups() {
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-text-muted font-medium">
+                        <p className="text-sm text-text-muted dark:text-dark-text-secondary font-medium">
                           {lastActive
                             ? t('groups.lastActive').replace('{relative}', lastActive)
                             : g.created_at
-                              ? `Created ${new Date(g.created_at).toLocaleDateString()}`
+                              ? `${t('groups.created')} ${new Date(g.created_at).toLocaleDateString()}`
                               : ''}
                         </p>
                       </div>
@@ -211,19 +210,19 @@ export default function Groups() {
                         {[...Array(Math.min(2, g.member_count ?? 0))].map((_, i) => (
                           <div
                             key={i}
-                            className="h-8 w-8 rounded-full border-2 border-white bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary ring-1 ring-slate-100"
+                            className="h-8 w-8 rounded-full border-2 border-white dark:border-dark-bg bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary ring-1 ring-slate-100 dark:ring-dark-border"
                           >
                             {i + 1}
                           </div>
                         ))}
                         {(g.member_count ?? 0) > 2 && (
-                          <div className="h-8 w-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-bold text-text-muted ring-1 ring-slate-100">
+                          <div className="h-8 w-8 rounded-full border-2 border-white dark:border-dark-bg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-text-muted dark:text-dark-text-secondary ring-1 ring-slate-100 dark:ring-dark-border">
                             +{(g.member_count ?? 0) - 2}
                           </div>
                         )}
                       </div>
                     </div>
-                    <div className="flex justify-between items-center text-xs text-text-muted mb-2 font-medium">
+                    <div className="flex justify-between items-center text-xs text-text-muted dark:text-dark-text-secondary mb-2 font-medium">
                       <span>
                         {t('groups.sitesCount')
                           .replace('{visited}', String(visited))
@@ -243,7 +242,7 @@ export default function Groups() {
                         </span>
                       )}
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-[3px] overflow-hidden">
+                    <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-[3px] overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all ${
                           level === 'Done' ? 'bg-green-500' : 'bg-primary'

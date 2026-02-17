@@ -214,7 +214,7 @@ export default function NotificationsScreen() {
           </View>
           <Text style={styles.emptyTitle}>{t('notifications.empty')}</Text>
           <Text style={styles.emptyDesc}>
-            {t('notifications.emptyDesc') || "When you get check-ins or group updates, they'll show here."}
+            {t('notifications.emptyDesc')}
           </Text>
           <TouchableOpacity
             style={styles.emptyCta}

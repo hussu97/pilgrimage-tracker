@@ -80,7 +80,7 @@ export default function GroupDetailScreen() {
   if (!groupCode) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
-        <Text style={styles.muted}>Missing group.</Text>
+        <Text style={styles.muted}>{t('groups.missingGroup')}</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Main')}>
           <Text style={styles.link}>{t('nav.groups')}</Text>
         </TouchableOpacity>
@@ -144,7 +144,7 @@ export default function GroupDetailScreen() {
         </View>
         {inviteUrl ? (
           <TouchableOpacity style={styles.shareBtn} onPress={handleShareInvite} activeOpacity={0.8}>
-            <Text style={styles.shareBtnText}>Share</Text>
+            <Text style={styles.shareBtnText}>{t('common.share')}</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -161,7 +161,7 @@ export default function GroupDetailScreen() {
                 <Text style={styles.avatarText}>{(topThree[1].display_name || '?').charAt(0)}</Text>
               </View>
               <Text style={styles.podiumName} numberOfLines={1}>{topThree[1].display_name}</Text>
-              <Text style={styles.podiumPlaces}>{topThree[1].places_visited} places</Text>
+              <Text style={styles.podiumPlaces}>{topThree[1].places_visited} {t('groups.places')}</Text>
               <View style={[styles.rankBar, styles.rankBar2]}><Text style={styles.rankNum}>2</Text></View>
             </View>
           ) : null}
@@ -171,7 +171,7 @@ export default function GroupDetailScreen() {
                 <Text style={styles.avatarText}>{(topThree[0].display_name || '?').charAt(0)}</Text>
               </View>
               <Text style={styles.podiumName} numberOfLines={1}>{topThree[0].display_name}</Text>
-              <Text style={styles.podiumPlaces}>{topThree[0].places_visited} places</Text>
+              <Text style={styles.podiumPlaces}>{topThree[0].places_visited} {t('groups.places')}</Text>
               <View style={[styles.rankBar, styles.rankBar1]}><Text style={styles.rankNum1}>1</Text></View>
             </View>
           ) : null}
@@ -181,7 +181,7 @@ export default function GroupDetailScreen() {
                 <Text style={styles.avatarText}>{(topThree[2].display_name || '?').charAt(0)}</Text>
               </View>
               <Text style={styles.podiumName} numberOfLines={1}>{topThree[2].display_name}</Text>
-              <Text style={styles.podiumPlaces}>{topThree[2].places_visited} places</Text>
+              <Text style={styles.podiumPlaces}>{topThree[2].places_visited} {t('groups.places')}</Text>
               <View style={[styles.rankBar, styles.rankBar3]}><Text style={styles.rankNum}>3</Text></View>
             </View>
           ) : null}
@@ -206,7 +206,7 @@ export default function GroupDetailScreen() {
                 <Text style={styles.avatarSmallText}>{(entry.display_name || '?').charAt(0)}</Text>
               </View>
               <Text style={styles.leaderName} numberOfLines={1}>{entry.display_name}</Text>
-              <Text style={styles.leaderPlaces}>{entry.places_visited} places</Text>
+              <Text style={styles.leaderPlaces}>{entry.places_visited} {t('groups.places')}</Text>
             </View>
           ))}
         </View>

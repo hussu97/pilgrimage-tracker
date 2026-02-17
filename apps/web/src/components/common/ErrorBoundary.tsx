@@ -46,7 +46,7 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-gray-900 px-6">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-dark-bg px-6">
           <div className="max-w-md w-full text-center">
             <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mx-auto mb-6">
               <span className="material-symbols-outlined text-red-600 dark:text-red-400 text-3xl">
@@ -56,7 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <h1 className="text-2xl font-bold text-text-main dark:text-white mb-2">
               Something went wrong
             </h1>
-            <p className="text-text-muted dark:text-gray-400 mb-6">
+            <p className="text-text-muted dark:text-dark-text-secondary mb-6">
               {this.state.error?.message || 'An unexpected error occurred'}
             </p>
             <div className="flex gap-3 justify-center">
@@ -68,7 +68,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </button>
               <button
                 onClick={() => window.location.href = '/'}
-                className="px-6 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-text-main dark:text-white rounded-xl font-semibold transition-colors"
+                className="px-6 py-3 bg-gray-200 dark:bg-dark-surface hover:bg-gray-300 dark:hover:bg-dark-surface/80 text-text-main dark:text-white rounded-xl font-semibold transition-colors"
               >
                 Go home
               </button>

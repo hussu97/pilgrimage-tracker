@@ -43,18 +43,18 @@ export default function JoinGroup() {
 
   if (previewLoading && code) {
     return (
-      <div className="max-w-md mx-auto px-4 py-12 text-center">
-        <p className="text-text-muted">{t('common.loading')}</p>
+      <div className="max-w-md mx-auto px-4 py-12 text-center dark:bg-dark-bg min-h-screen">
+        <p className="text-text-muted dark:text-dark-text-secondary">{t('common.loading')}</p>
       </div>
     );
   }
 
   if (!code) {
     return (
-      <div className="max-w-md mx-auto px-4 py-12 text-center">
-        <span className="material-symbols-outlined text-5xl text-text-muted mb-4 block">link_off</span>
-        <h1 className="text-xl font-semibold text-text-main mb-2">{t('groups.noInviteCode')}</h1>
-        <p className="text-text-muted text-sm mb-6">
+      <div className="max-w-md mx-auto px-4 py-12 text-center dark:bg-dark-bg min-h-screen">
+        <span className="material-symbols-outlined text-5xl text-text-muted dark:text-dark-text-secondary mb-4 block">link_off</span>
+        <h1 className="text-xl font-semibold text-text-main dark:text-white mb-2">{t('groups.noInviteCode')}</h1>
+        <p className="text-text-muted dark:text-dark-text-secondary text-sm mb-6">
           {t('groups.inviteCodeHint')}
         </p>
         <button
@@ -69,26 +69,26 @@ export default function JoinGroup() {
   }
 
   return (
-    <div className="max-w-md mx-auto px-4 py-8">
+    <div className="max-w-md mx-auto px-4 py-8 dark:bg-dark-bg min-h-screen">
       <div className="text-center mb-8">
         <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
           <span className="material-symbols-outlined text-3xl text-primary">groups</span>
         </div>
-        <h1 className="text-xl font-semibold text-text-main mb-2">{t('groups.joinGroup')}</h1>
+        <h1 className="text-xl font-semibold text-text-main dark:text-white mb-2">{t('groups.joinGroup')}</h1>
         {groupName ? (
-          <p className="text-text-muted text-sm">{t('groups.invitedToJoin')} <strong className="text-text-main">{groupName}</strong></p>
+          <p className="text-text-muted dark:text-dark-text-secondary text-sm">{t('groups.invitedToJoin')} <strong className="text-text-main dark:text-white">{groupName}</strong></p>
         ) : (
-          <p className="text-text-muted text-sm">{t('groups.joinWithCode')}</p>
+          <p className="text-text-muted dark:text-dark-text-secondary text-sm">{t('groups.joinWithCode')}</p>
         )}
       </div>
 
-      {error && <p className="text-red-600 text-sm mb-4 text-center">{error}</p>}
+      {error && <p className="text-red-600 dark:text-red-400 text-sm mb-4 text-center">{error}</p>}
 
       <div className="flex gap-3">
         <button
           type="button"
           onClick={() => navigate('/groups')}
-          className="flex-1 py-3 rounded-xl border border-input-border text-text-main font-medium"
+          className="flex-1 py-3 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white font-medium"
         >
           {t('common.cancel')}
         </button>

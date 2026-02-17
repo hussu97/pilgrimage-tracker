@@ -75,3 +75,25 @@ Every backend change **must** include corresponding pytest coverage. Tests live 
 - Test infrastructure: in-memory SQLite (`StaticPool`), patched `run_migrations`/`run_seed`, disabled rate limiting.
 - Test isolation: each test gets a fresh database (function-scoped `test_engine` fixture).
 - Password fixtures must satisfy the validator: ≥8 chars, one uppercase, one lowercase, one digit.
+
+## 12. Dark Mode Compliance
+Every UI element in both `apps/web` and `apps/mobile` must support dark mode.
+
+**Web (Tailwind):**
+- Backgrounds: `dark:bg-dark-bg` (page), `dark:bg-dark-surface` (cards/panels)
+- Text: `dark:text-white` (primary), `dark:text-dark-text-secondary` (muted)
+- Borders: `dark:border-dark-border`
+- NEVER use `dark:bg-gray-*` or `dark:text-gray-*` — always use the `dark-*` design tokens above
+
+**Mobile (React Native):**
+- Use `makeStyles(isDark)` pattern — dynamic StyleSheet based on `isDark` boolean from `useTheme()`
+- Light colors from `tokens.colors.*`, dark colors from `tokens.colors.dark*`
+- Never hardcode hex colors inline — always reference tokens
+
+## 13. Translation Key Parity
+Web and mobile must use the **same translation keys** for the same UI strings. When adding a new key:
+1. Add to `server/app/db/seed_data.json` under `translations.en`, `translations.ar`, `translations.hi`
+2. Use `t('key.name')` in both `apps/web` and `apps/mobile`
+3. Never add a web-only or mobile-only key unless the UX genuinely differs
+4. Audit both apps when adding new keys to catch any matching hardcoded strings
+5. Interpolation pattern: `.replace('{placeholder}', value)` — the `t()` function is a simple key lookup with no built-in interpolation

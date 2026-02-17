@@ -43,9 +43,9 @@ export default function ResetPassword() {
 
   if (success) {
     return (
-      <div className="max-w-md mx-auto px-6 py-8 safe-area-top safe-area-bottom bg-white dark:bg-gray-900">
+      <div className="max-w-md mx-auto px-6 py-8 safe-area-top safe-area-bottom bg-white dark:bg-dark-bg">
         <h1 className="text-2xl font-bold text-text-main dark:text-white mb-2">{t('auth.passwordUpdated')}</h1>
-        <p className="text-text-muted dark:text-gray-400 mb-6">{t('auth.backToLogin')}</p>
+        <p className="text-text-muted dark:text-dark-text-secondary mb-6">{t('auth.backToLogin')}</p>
         <Link to="/login" className="inline-block bg-primary hover:bg-primary-hover text-white py-3 px-6 rounded-xl font-semibold">
           {t('auth.login')}
         </Link>
@@ -55,7 +55,7 @@ export default function ResetPassword() {
 
   if (!token) {
     return (
-      <div className="max-w-md mx-auto px-6 py-8 safe-area-top safe-area-bottom bg-white dark:bg-gray-900">
+      <div className="max-w-md mx-auto px-6 py-8 safe-area-top safe-area-bottom bg-white dark:bg-dark-bg">
         <p className="text-red-600 dark:text-red-400 mb-4">{t('errors.missingToken')}</p>
         <Link to="/forgot-password" className="text-primary hover:text-primary-hover font-medium">
           {t('auth.sendResetLink')}
@@ -65,16 +65,16 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="max-w-md mx-auto px-6 py-8 safe-area-top safe-area-bottom bg-white dark:bg-gray-900">
+    <div className="max-w-md mx-auto px-6 py-8 safe-area-top safe-area-bottom bg-white dark:bg-dark-bg">
       <h1 className="text-2xl font-bold text-text-main dark:text-white mb-2">{t('auth.setNewPassword')}</h1>
-      <p className="text-text-muted dark:text-gray-400 mb-6">{t('auth.enterNewPassword')}</p>
+      <p className="text-text-muted dark:text-dark-text-secondary mb-6">{t('auth.enterNewPassword')}</p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="password"
           placeholder={t('auth.newPassword')}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full px-4 py-3 border border-input-border rounded-xl bg-background-light text-text-main dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+          className="w-full px-4 py-3 border border-input-border rounded-xl bg-background-light text-text-main dark:bg-dark-surface dark:border-dark-border dark:text-white"
           required
           minLength={6}
         />
@@ -83,7 +83,7 @@ export default function ResetPassword() {
           placeholder={t('auth.confirmPassword')}
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
-          className="w-full px-4 py-3 border border-input-border rounded-xl bg-background-light text-text-main dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+          className="w-full px-4 py-3 border border-input-border rounded-xl bg-background-light text-text-main dark:bg-dark-surface dark:border-dark-border dark:text-white"
           required
         />
         {error && <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>}

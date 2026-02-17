@@ -42,83 +42,83 @@ export default function CreateGroup() {
   if (inviteCode && groupCode) {
     const inviteUrlFull = `${window.location.origin}/join?code=${inviteCode}`;
     return (
-      <div className="max-w-md mx-auto px-4 py-8">
+      <div className="max-w-md mx-auto px-4 py-8 dark:bg-dark-bg min-h-screen">
         <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
           <span className="material-symbols-outlined text-3xl text-primary">check_circle</span>
         </div>
-        <h2 className="text-xl font-semibold text-text-main text-center mb-2">Group created</h2>
-        <p className="text-text-muted text-sm text-center mb-6">Share this link to invite others:</p>
+        <h2 className="text-xl font-semibold text-text-main dark:text-white text-center mb-2">{t('groups.groupCreated')}</h2>
+        <p className="text-text-muted dark:text-dark-text-secondary text-sm text-center mb-6">{t('groups.shareInviteLink')}</p>
         <div className="flex gap-2 mb-4">
           <input
             readOnly
             value={inviteUrlFull}
-            className="flex-1 text-sm border border-input-border rounded-xl px-4 py-3 bg-background-light text-text-main"
+            className="flex-1 text-sm border border-input-border dark:border-dark-border rounded-xl px-4 py-3 bg-background-light dark:bg-dark-surface text-text-main dark:text-white"
           />
           <button
             type="button"
             onClick={() => shareUrl('Join our group', inviteUrlFull)}
-            className="px-4 py-3 rounded-xl border border-input-border text-text-main font-medium shrink-0 hover:bg-soft-blue inline-flex items-center gap-1"
+            className="px-4 py-3 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white font-medium shrink-0 hover:bg-soft-blue dark:hover:bg-dark-surface inline-flex items-center gap-1"
           >
             <span className="material-symbols-outlined">share</span>
-            Share
+            {t('common.share')}
           </button>
           <button
             type="button"
             onClick={() => navigator.clipboard.writeText(inviteUrlFull)}
             className="px-4 py-3 rounded-xl bg-primary text-white font-medium shrink-0 hover:bg-primary-hover"
           >
-            Copy
+            {t('common.copy')}
           </button>
         </div>
         <button
           type="button"
           onClick={handleGoToGroup}
-          className="w-full py-3 rounded-xl border border-input-border text-text-main font-medium hover:bg-soft-blue"
+          className="w-full py-3 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white font-medium hover:bg-soft-blue dark:hover:bg-dark-surface"
         >
-          Go to group
+          {t('groups.goToGroup')}
         </button>
       </div>
     );
   }
 
   return (
-    <div className="max-w-md mx-auto px-4 py-6">
-      <h1 className="text-xl font-bold text-text-main mb-6">{t('groups.createGroup')}</h1>
-      {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+    <div className="max-w-md mx-auto px-4 py-6 dark:bg-dark-bg min-h-screen">
+      <h1 className="text-xl font-bold text-text-main dark:text-white mb-6">{t('groups.createGroup')}</h1>
+      {error && <p className="text-red-600 dark:text-red-400 text-sm mb-4">{error}</p>}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-text-main mb-1">Name</label>
+          <label className="block text-sm font-medium text-text-main dark:text-white mb-1">{t('groups.nameLabel')}</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            className="w-full border border-input-border rounded-xl px-4 py-3 text-text-main bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full border border-input-border dark:border-dark-border rounded-xl px-4 py-3 text-text-main dark:text-white bg-surface dark:bg-dark-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-text-main mb-1">Description (optional)</label>
+          <label className="block text-sm font-medium text-text-main dark:text-white mb-1">{t('groups.descriptionLabel')}</label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            className="w-full border border-input-border rounded-xl px-4 py-3 text-text-main bg-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="w-full border border-input-border dark:border-dark-border rounded-xl px-4 py-3 text-text-main dark:text-white bg-surface dark:bg-dark-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
-        <label className="flex items-center gap-3 p-3 border border-input-border rounded-xl cursor-pointer hover:bg-soft-blue">
+        <label className="flex items-center gap-3 p-3 border border-input-border dark:border-dark-border rounded-xl cursor-pointer hover:bg-soft-blue dark:hover:bg-dark-surface">
           <input
             type="checkbox"
             checked={isPrivate}
             onChange={(e) => setIsPrivate(e.target.checked)}
             className="rounded border-input-border text-primary"
           />
-          <span className="text-text-main text-sm">Private group (invite only)</span>
+          <span className="text-text-main dark:text-white text-sm">{t('groups.privateGroup')}</span>
         </label>
         <div className="flex gap-3 pt-2">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="flex-1 py-3 rounded-xl border border-input-border text-text-main font-medium"
+            className="flex-1 py-3 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white font-medium"
           >
             {t('common.cancel')}
           </button>

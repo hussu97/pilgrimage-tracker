@@ -59,7 +59,7 @@ export default function WriteReview() {
     const MAX_PHOTOS = 5;
     const remainingSlots = MAX_PHOTOS - photos.length;
     if (files.length > remainingSlots) {
-      setUploadError(`You can upload up to ${MAX_PHOTOS} photos total`);
+      setUploadError(t('reviews.maxPhotos').replace('{count}', String(MAX_PHOTOS)));
       return;
     }
 
@@ -71,7 +71,7 @@ export default function WriteReview() {
         // Validate
         const validation = validateImageFile(file);
         if (!validation.valid) {
-          setUploadError(validation.error || 'Invalid image');
+          setUploadError(validation.error || t('reviews.invalidImage'));
           continue;
         }
 
@@ -87,7 +87,7 @@ export default function WriteReview() {
         setPhotos((prev) => [...prev, { ...result, thumbnailUrl }]);
       }
     } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Failed to upload photo');
+      setUploadError(err instanceof Error ? err.message : t('reviews.uploadFailed'));
     } finally {
       setUploading(false);
       if (fileInputRef.current) {
@@ -110,7 +110,7 @@ export default function WriteReview() {
     e.preventDefault();
     if (!placeCode) return;
     if (rating < 1 || rating > 5) {
-      setError('Please select a rating (1–5 stars).');
+      setError(t('reviews.selectRating'));
       return;
     }
     setSubmitting(true);
@@ -145,25 +145,25 @@ export default function WriteReview() {
   if (!placeCode) {
     return (
       <div className="max-w-md mx-auto px-4 py-8">
-        <p className="text-text-muted">Missing place.</p>
+        <p className="text-text-muted dark:text-dark-text-secondary">{t('places.missingCode')}</p>
         <button type="button" onClick={() => navigate('/home')} className="text-primary mt-2">
-          Back to Home
+          {t('common.backToHome')}
         </button>
       </div>
     );
   }
 
   return (
-    <main className="w-full max-w-md mx-auto bg-white min-h-screen flex flex-col">
-      <header className="flex items-center justify-between px-6 pt-6 pb-2 sticky top-0 bg-white z-30 border-b border-slate-100">
+    <main className="w-full max-w-md mx-auto bg-white dark:bg-dark-bg min-h-screen flex flex-col">
+      <header className="flex items-center justify-between px-6 pt-6 pb-2 sticky top-0 bg-white dark:bg-dark-surface z-30 border-b border-slate-100 dark:border-dark-border">
         <button
           type="button"
           onClick={() => navigate(`/places/${placeCode}`)}
-          className="text-text-muted text-sm font-light hover:text-text-main transition-colors"
+          className="text-text-muted dark:text-dark-text-secondary text-sm font-light hover:text-text-main dark:hover:text-white transition-colors"
         >
           {t('common.cancel')}
         </button>
-        <h1 className="text-xs font-medium text-text-main uppercase tracking-wide">
+        <h1 className="text-xs font-medium text-text-main dark:text-white uppercase tracking-wide">
           {t('writeReview.title')}
         </h1>
         {editReview ? (
@@ -184,7 +184,7 @@ export default function WriteReview() {
         <section className="px-6 pt-6 pb-2">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h2 className="text-2xl font-light text-text-dark leading-tight">
+              <h2 className="text-2xl font-light text-text-dark dark:text-white leading-tight">
                 {place?.name ?? '…'}
               </h2>
               <p className="text-xs text-text-muted mt-1 font-light tracking-wide uppercase">
@@ -214,7 +214,7 @@ export default function WriteReview() {
                   type="button"
                   onClick={() => setRating(value)}
                   className="focus:outline-none transition-transform active:scale-95"
-                  aria-label={`${value} stars`}
+                  aria-label={t('reviews.starsAccessibility').replace('{count}', String(value))}
                 >
                   <span
                     className={`material-symbols-outlined text-3xl ${
@@ -260,13 +260,13 @@ export default function WriteReview() {
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="flex-shrink-0 w-16 h-16 border border-dashed border-slate-300 rounded-lg flex items-center justify-center hover:bg-slate-50 transition-colors text-text-muted disabled:opacity-50"
+                  className="flex-shrink-0 w-16 h-16 border border-dashed border-slate-300 dark:border-dark-border rounded-lg flex items-center justify-center hover:bg-slate-50 dark:hover:bg-dark-surface transition-colors text-text-muted dark:text-dark-text-secondary disabled:opacity-50"
                   aria-label={t('writeReview.addPhoto')}
                 >
                   {uploading ? (
-                    <span className="material-icons-outlined text-xl animate-spin">sync</span>
+                    <span className="material-symbols-outlined text-xl animate-spin">sync</span>
                   ) : (
-                    <span className="material-icons-outlined text-xl">add_a_photo</span>
+                    <span className="material-symbols-outlined text-xl">add_a_photo</span>
                   )}
                 </button>
               )}
@@ -283,7 +283,7 @@ export default function WriteReview() {
                     className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
                     aria-label="Remove photo"
                   >
-                    <span className="material-icons-round text-sm">close</span>
+                    <span className="material-symbols-outlined text-sm">close</span>
                   </button>
                 </div>
               ))}
@@ -324,7 +324,7 @@ export default function WriteReview() {
             className="bg-primary hover:bg-primary-hover text-white font-medium py-3 px-6 rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all flex items-center gap-2 disabled:opacity-70"
           >
             <span>{t('writeReview.submit')}</span>
-            <span className="material-icons-round text-base">arrow_forward</span>
+            <span className="material-symbols-outlined text-base">arrow_forward</span>
           </button>
         </div>
       )}
@@ -344,14 +344,14 @@ export default function WriteReview() {
 
       {success && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm p-6">
-          <div className="bg-white w-full max-w-sm rounded-2xl p-8 text-center shadow-xl border border-slate-100">
-            <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="material-icons-round text-2xl text-primary">check</span>
+          <div className="bg-white dark:bg-dark-surface w-full max-w-sm rounded-2xl p-8 text-center shadow-xl border border-slate-100 dark:border-dark-border">
+            <div className="w-12 h-12 bg-blue-50 dark:bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="material-symbols-outlined text-2xl text-primary">check</span>
             </div>
-            <h3 className="text-lg font-medium text-text-main mb-2">
+            <h3 className="text-lg font-medium text-text-main dark:text-white mb-2">
               {t('writeReview.reviewPosted')}
             </h3>
-            <p className="text-text-muted text-sm font-light mb-6">
+            <p className="text-text-muted dark:text-dark-text-secondary text-sm font-light mb-6">
               {t('writeReview.yourVoiceHeard')}
             </p>
             <button

@@ -28,7 +28,7 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
         to={`/places/${place.place_code}`}
         className="flex gap-4 h-32 bg-white dark:bg-dark-surface rounded-2xl p-4 shadow-card border border-slate-100 dark:border-dark-border items-center hover:shadow-card-md transition-shadow group"
       >
-        <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-soft-blue dark:bg-slate-700">
+        <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-soft-blue dark:bg-dark-surface">
           {imageUrl ? (
             <img
               src={imageUrl}
@@ -66,7 +66,7 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
               </span>
             )}
             {place.distance != null && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-dark-surface text-slate-500 dark:text-dark-text-secondary">
                 {formatDistance(place.distance)}
               </span>
             )}
@@ -89,7 +89,7 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
       className="block bg-surface dark:bg-dark-surface rounded-2xl overflow-hidden shadow-card border border-slate-100 dark:border-dark-border hover:shadow-card-md transition-all hover:-translate-y-0.5 group"
     >
       {/* Hero image with gradient overlay */}
-      <div className="relative h-48 w-full overflow-hidden bg-soft-blue dark:bg-slate-700">
+      <div className="relative h-48 w-full overflow-hidden bg-soft-blue dark:bg-dark-surface">
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -146,7 +146,7 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
             </p>
           </div>
           {place.distance != null && (
-            <span className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary bg-blue-tint dark:bg-slate-700 border border-blue-100/50 dark:border-dark-border px-2 py-1 rounded-xl shrink-0">
+            <span className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary bg-blue-tint dark:bg-dark-surface border border-blue-100/50 dark:border-dark-border px-2 py-1 rounded-xl shrink-0">
               {formatDistance(place.distance)}
             </span>
           )}

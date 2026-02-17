@@ -39,7 +39,7 @@ function ReviewsSection({
   const displayReviews = expanded ? reviews : reviews.slice(0, 3);
 
   const handleDelete = async (reviewCode: string) => {
-    if (!window.confirm('Delete this review?')) return;
+    if (!window.confirm(t('reviews.confirmDelete'))) return;
     setDeletingCode(reviewCode);
     try {
       await deleteReview(reviewCode);
@@ -108,7 +108,7 @@ function ReviewsSection({
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-900 dark:text-white text-sm leading-tight">
-                      {r.display_name || 'Visitor'}
+                      {r.display_name || t('common.visitor')}
                     </h4>
                     <div className="flex text-amber-500 mt-0.5">
                       {[1, 2, 3, 4, 5].map((s) => (
@@ -280,7 +280,7 @@ export default function PlaceDetail() {
       return (
         <div className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium text-sm">
           <span className="material-symbols-outlined text-lg">check_circle</span>
-          <span className="truncate">{checkInDate ? `Checked in ${checkInDate}` : 'Checked in'}</span>
+          <span className="truncate">{checkInDate ? t('places.checkedInDate').replace('{date}', checkInDate) : t('places.checkIn')}</span>
         </div>
       );
     }
@@ -303,10 +303,10 @@ export default function PlaceDetail() {
 
   if (!placeCode) {
     return (
-      <div className="p-6 text-center text-text-muted">
-        <p>Missing place code.</p>
+      <div className="p-6 text-center text-text-muted dark:text-dark-text-secondary">
+        <p>{t('places.missingCode')}</p>
         <button type="button" onClick={() => navigate('/home')} className="text-primary mt-2">
-          Back to Home
+          {t('common.backToHome')}
         </button>
       </div>
     );
@@ -324,14 +324,14 @@ export default function PlaceDetail() {
     return (
       <div className="p-6 max-w-md mx-auto text-center">
         <span className="material-symbols-outlined text-5xl text-text-muted mb-4 block">location_off</span>
-        <h1 className="text-xl font-semibold text-text-main mb-2">Place not found</h1>
-        <p className="text-text-muted mb-4">{error}</p>
+        <h1 className="text-xl font-semibold text-text-main dark:text-white mb-2">{t('places.notFound')}</h1>
+        <p className="text-text-muted dark:text-dark-text-secondary mb-4">{error}</p>
         <button
           type="button"
           onClick={() => navigate('/home')}
           className="px-4 py-2 rounded-xl bg-primary text-white font-medium"
         >
-          Back to Home
+          {t('common.backToHome')}
         </button>
       </div>
     );
