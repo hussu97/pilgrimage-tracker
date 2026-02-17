@@ -300,9 +300,10 @@ Infrastructure, code quality, and optimization work to prepare for production an
 
 ### Code Quality
 
-- [ ] **Add backend tests with pytest**
-  - No test files exist anywhere in the server or scraper directories.
-  - Set up pytest with fixtures for database sessions, authenticated clients, and seeded data. Write tests for: auth flow, place CRUD, review CRUD, check-in, favorites, search, and the scraper sync. Target 80% coverage for critical paths.
+- [x] **Add backend tests with pytest**
+  - Test suite added in `server/tests/` (60 tests) and `data_scraper/tests/` (20 tests).
+  - Covers: health check, hours parsing unit tests, auth flow (register/login/refresh/logout), place CRUD + search + filters + reviews + check-ins + favorites, scraper normalize_to_24h + clean_address + process_weekly_hours.
+  - Infrastructure: in-memory SQLite, patched lifespan hooks, disabled rate limiting, per-test DB isolation.
 
 - [ ] **Add frontend tests**
   - No test files exist in either frontend app.

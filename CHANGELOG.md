@@ -4,6 +4,33 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Pytest Test Suite + AM/PM Parsing Fix (2026-02-17)
+
+### Backend
+
+- **`server/app/db/places.py`** — Fixed AM/PM inheritance in `_parse_slot()`: when open time has no AM/PM marker (e.g. `"6:30 – 7:15 AM"`), the period is now inherited from the close time, resolving `open_status: "unknown"` for Google Maps-style partial 12h slots.
+
+- **`server/tests/`** — Added pytest test suite (60 tests):
+  - `test_health.py` — health endpoint
+  - `test_hours_parsing.py` — 23 unit tests for `_parse_time`, `_parse_time_12h`, `_parse_slot`, `_is_open_now_from_hours`
+  - `test_auth.py` — register, login, refresh, logout flows
+  - `test_places.py` — list, get, create/upsert, search, filters, reviews, check-ins, favorites
+  - `tests/conftest.py` — in-memory SQLite, patched lifespan, disabled rate limiting, per-test DB isolation
+
+- **`data_scraper/tests/`** — Added pytest test suite (20 tests):
+  - `test_normalize.py` — `normalize_to_24h`, `clean_address`, `process_weekly_hours` covering 12h→24h, multi-slot, special keywords, unicode whitespace
+
+- **`server/requirements.txt`** — Added `pytest`, `pytest-asyncio`, `httpx`.
+- **`data_scraper/requirements.txt`** — Added `pytest`.
+- **`server/pytest.ini`**, **`data_scraper/pytest.ini`** — pytest configuration files.
+
+### Docs
+
+- **`CLAUDE.md`** — Added Rule 11: backend changes must include or update pytest tests; includes commands, test infrastructure notes.
+- **`ROADMAP.md`** — Marked "Add backend tests with pytest" as complete.
+
+---
+
 ## Opening Hours Overhaul (2026-02-17)
 
 ### Backend

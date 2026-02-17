@@ -5,3 +5,4 @@ pandas
 requests
 tqdm
 python-dotenv
+pytest>=8.0.0

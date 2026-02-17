@@ -65,10 +65,21 @@ def _parse_slot(slot: str) -> Optional[tuple]:
     # 12h: em/en dash or spaced hyphen, e.g. "5:06 AM – 11:02 PM"
     parts_12h = _12H_SPLIT_RE.split(slot)
     if len(parts_12h) == 2:
-        open_t = _parse_time_12h(parts_12h[0])
-        close_t = _parse_time_12h(parts_12h[1])
+        open_str, close_str = parts_12h[0].strip(), parts_12h[1].strip()
+        open_t = _parse_time_12h(open_str)
+        close_t = _parse_time_12h(close_str)
         if open_t is not None and close_t is not None:
             return (open_t, close_t)
+
+        # Google Maps sometimes omits AM/PM on the open time when it matches close's period
+        # e.g. "6:30 – 7:15 AM" → open_str="6:30", close_str="7:15 AM"
+        if close_t is not None and open_t is None:
+            period_match = re.search(r'\b(AM|PM)\b', close_str, re.IGNORECASE)
+            if period_match:
+                period = period_match.group(0).upper()
+                open_t = _parse_time_12h(f"{open_str} {period}")
+                if open_t is not None:
+                    return (open_t, close_t)
 
     return None
 

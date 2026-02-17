@@ -18,7 +18,7 @@ Update the relevant plan(s) when adding new env vars, services, DB migrations, o
 After any feature change (or coherent set of changes), commit the work with a clear, descriptive message. One logical change per commit where practical. Do not leave implemented work uncommitted.
 
 ## 5. Design File Inspiration
-For any frontend UI/UX changes in `apps/web` or `apps/mobile`, use **FRONTEND_REWAMP_LIGHT.html** (light mode) and **FRONTEND_REWAMP_DARK.html** (dark mode) as the primary visual and layout reference. Align structure, spacing, typography (Lexend), colors, and icons (Material Icons/Symbols) with the design. Also reference `app-design-prompt-google-stitch.md` for additional context.
+For any frontend UI/UX changes in `apps/web` or `apps/mobile`, use **FRONTEND_REWAMP_LIGHT.html** (light mode) and **FRONTEND_REWAMP_DARK.html** (dark mode) as the primary visual and layout reference. Align structure, spacing, typography (Lexend), colors, and icons (Material Icons/Symbols) with the design.
 
 ## 6. README Maintenance
 Keep the following READMEs accurate and up to date:
@@ -62,3 +62,16 @@ When testing or verifying changes to backend services (`server/` or `data_scrape
 - **Example:** `curl -s http://127.0.0.1:3000/health` (not `localhost:3000`)
 
 This ensures consistent behavior across different network configurations and DNS resolution.
+
+## 11. Backend Tests (pytest)
+Every backend change **must** include corresponding pytest coverage. Tests live in:
+- `server/tests/` — FastAPI integration tests + unit tests for pure logic
+- `data_scraper/tests/` — Unit tests for scraper utilities
+
+**Rules:**
+- When adding or modifying backend logic, add or update the relevant test file.
+- Run tests before committing: `cd server && source .venv/bin/activate && python -m pytest tests/ -v`
+- Run scraper tests: `cd data_scraper && source .venv/bin/activate && python -m pytest tests/ -v`
+- Test infrastructure: in-memory SQLite (`StaticPool`), patched `run_migrations`/`run_seed`, disabled rate limiting.
+- Test isolation: each test gets a fresh database (function-scoped `test_engine` fixture).
+- Password fixtures must satisfy the validator: ≥8 chars, one uppercase, one lowercase, one digit.
