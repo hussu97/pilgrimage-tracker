@@ -53,21 +53,50 @@ SessionDep = Annotated[Session, Depends(get_db_session)]
 def run_migrations() -> None:
     """Apply all pending Alembic migrations to head.
 
-    Called at server startup instead of SQLModel.metadata.create_all() so that
-    schema changes are tracked and reversible via migration files.
+    Uses a single connection from the application engine for every Alembic
+    operation (bootstrap stamp + upgrade). This avoids the SQLite write-lock
+    contention that occurs when env.py creates its own engine from config while
+    the application engine already holds a connection.
+
+    Bootstrap logic: if the DB already has tables but no alembic_version stamp
+    (e.g. the schema was created via create_all, or a previous startup was
+    interrupted before the stamp committed), the current state is stamped as
+    head so Alembic skips re-creating tables that already exist.
     """
-    import os
     from alembic.config import Config
     from alembic import command
+    from sqlalchemy import inspect, text
 
-    # alembic.ini lives at server/alembic.ini; this file is server/app/db/session.py
-    # __file__ = server/app/db/session.py → dirname = server/app/db → ../.. = server/
-    ini_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../..", "alembic.ini"))
-    # migrations/ dir lives at server/migrations/
-    migrations_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../..", "migrations"))
+    ini_path = os.path.normpath(
+        os.path.join(os.path.dirname(__file__), "../..", "alembic.ini")
+    )
+    migrations_path = os.path.normpath(
+        os.path.join(os.path.dirname(__file__), "../..", "migrations")
+    )
 
     cfg = Config(ini_path)
     cfg.set_main_option("script_location", migrations_path)
     cfg.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(cfg, "head")
 
+    # Open ONE connection and keep it open for the entire operation.
+    # Pass it to env.py via cfg.attributes so env.py reuses it instead of
+    # creating a second engine (which would deadlock on SQLite).
+    with engine.begin() as connection:
+        cfg.attributes["connection"] = connection
+
+        # Bootstrap: stamp head if tables exist with no version row so that
+        # upgrade below is a no-op (doesn't try to re-create existing tables).
+        inspector = inspect(connection)
+        existing_tables = set(inspector.get_table_names())
+        if existing_tables:
+            needs_stamp = "alembic_version" not in existing_tables
+            if not needs_stamp:
+                ver = connection.execute(
+                    text("SELECT version_num FROM alembic_version")
+                ).fetchone()
+                needs_stamp = ver is None
+            if needs_stamp:
+                command.stamp(cfg, "head")
+                return  # Already at current head; upgrade would be a no-op
+
+        command.upgrade(cfg, "head")

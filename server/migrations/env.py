@@ -38,17 +38,33 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations against a live DB connection."""
+    """Run migrations against a live DB connection.
+
+    If a connection was injected via config.attributes["connection"] (the normal
+    path when called from run_migrations() in session.py), reuse it directly.
+    This keeps all Alembic work on a single connection and avoids the SQLite
+    write-lock deadlock that occurs when a second engine is created here while
+    the application engine already holds a connection open.
+
+    When running via the `alembic` CLI (no injected connection), fall back to
+    creating a fresh engine from the config as usual.
+    """
+    provided = config.attributes.get("connection")
+    if provided is not None:
+        # Reuse the caller's connection — no new engine created.
+        context.configure(connection=provided, target_metadata=target_metadata)
+        with context.begin_transaction():
+            context.run_migrations()
+        return
+
+    # CLI fallback: create a temporary engine from alembic.ini / env vars.
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
 
