@@ -607,24 +607,24 @@ gcloud run services update pilgrimage-api \
 
 #### 6a. Install Firebase CLI and initialise the project
 
-> **Prerequisite — add Firebase to your GCP project (one-time, required)**
->
-> A GCP project and a Firebase project are separate things. Firebase Hosting returns a 404 until Firebase is explicitly enabled on the project.
->
-> **Option A — web console (recommended, always works):**
-> 1. Go to [console.firebase.google.com](https://console.firebase.google.com)
-> 2. Click **Add project** → select **"Add Firebase to a Google Cloud Platform project"**
-> 3. Choose `PROJECT_ID` from the dropdown
-> 4. Skip Google Analytics when prompted
-> 5. Click **Add Firebase** and wait for it to finish
->
-> **Option B — CLI (may return 403 on projects not originally created via Firebase console):**
-> ```bash
-> npm install -g firebase-tools
-> firebase login
-> firebase projects:addfirebase PROJECT_ID
-> ```
-> If this returns a 403, use the web console instead (Option A).
+**Prerequisite — add Firebase to your GCP project (one-time, required)**
+
+A GCP project and a Firebase project are separate things. Firebase Hosting returns a 404 until Firebase is explicitly enabled on the project.
+
+**Option A — web console (recommended, always works):**
+1. Go to [console.firebase.google.com](https://console.firebase.google.com)
+2. Click **Add project** → select **"Add Firebase to a Google Cloud Platform project"**
+3. Choose `PROJECT_ID` from the dropdown
+4. Skip Google Analytics when prompted
+5. Click **Add Firebase** and wait for it to finish
+
+**Option B — CLI (may return 403 on projects not originally created via Firebase console):**
+```bash
+npm install -g firebase-tools
+firebase login
+firebase projects:addfirebase PROJECT_ID
+```
+If this returns a 403, use the web console instead (Option A).
 
 Once Firebase is enabled on the project:
 
@@ -781,7 +781,67 @@ eas submit --platform android
 
 Set `EXPO_PUBLIC_API_URL` to your Cloud Run API URL in `apps/mobile/.env` or via EAS secrets before building.
 
-Optional: **Firebase App Distribution** for beta testing, **EAS Update** for OTA JS-layer updates without app store re-review.
+---
+
+### Step 9b — Firebase App Distribution (Beta Testing)
+
+Firebase App Distribution lets you share pre-release builds with testers before submitting to the app stores.
+
+> **Apple Developer account requirement:**
+> - **Android** — not required. Any APK can be distributed freely.
+> - **iOS** — **yes, required** ($99/year). iOS apps must be signed with an ad-hoc provisioning profile tied to tester device UDIDs. Without an Apple Developer account, iOS distribution is not possible outside TestFlight (which also requires the same account).
+
+#### 9b-i. One-time setup
+
+1. In the [Firebase console](https://console.firebase.google.com) → your project → **App Distribution**.
+2. Register your apps:
+   - **Add Android app** → enter your package name (e.g. `com.yourcompany.pilgrimagetracker`) → download `google-services.json` → place it in `apps/mobile/`.
+   - **Add iOS app** → enter your bundle ID (e.g. `com.yourcompany.pilgrimagetracker`) → download `GoogleService-Info.plist` → place it in `apps/mobile/`.
+3. Note the **App ID** for each platform — visible in **Project Settings → Your apps**. Looks like `1:834941457147:android:xxxx`.
+4. Create a tester group: **App Distribution → Testers & Groups → Add group** → name it (e.g. `internal`).
+5. Add tester emails to the group.
+
+#### 9b-ii. Build a distributable binary with EAS
+
+Use the `preview` profile (produces a `.apk` for Android and an ad-hoc signed `.ipa` for iOS) rather than `production` (which produces store-ready builds):
+
+```bash
+cd apps/mobile
+
+# Android — produces a downloadable .apk (no Apple account needed)
+eas build --platform android --profile preview
+
+# iOS — produces an ad-hoc .ipa (requires Apple Developer account)
+eas build --platform ios --profile preview
+```
+
+Once the build finishes, EAS prints a download URL. Download the `.apk` / `.ipa` file.
+
+#### 9b-iii. Upload to Firebase App Distribution
+
+```bash
+# Install Firebase CLI if not already installed
+npm install -g firebase-tools
+firebase login
+
+# Android
+firebase appdistribution:distribute path/to/app.apk \
+  --app YOUR_ANDROID_FIREBASE_APP_ID \
+  --groups "internal" \
+  --release-notes "Short description of what changed"
+
+# iOS
+firebase appdistribution:distribute path/to/app.ipa \
+  --app YOUR_IOS_FIREBASE_APP_ID \
+  --groups "internal" \
+  --release-notes "Short description of what changed"
+```
+
+Testers receive an email with a download link. Android testers install directly; iOS testers must first install the Firebase App Distribution profile on their device (prompted on first download).
+
+#### 9b-iv. Automate via EAS (optional)
+
+EAS can upload to Firebase App Distribution automatically after a successful build by adding a submit profile in `eas.json`. See the [EAS Submit docs](https://docs.expo.dev/submit/introduction/) for configuration.
 
 ---
 
