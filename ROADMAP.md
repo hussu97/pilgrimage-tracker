@@ -62,25 +62,25 @@ Issues that do not crash the app but significantly affect security, reliability,
 
 ### Reliability
 
-- [ ] **Add React Error Boundaries to both frontends**
+- [x] **Add React Error Boundaries to both frontends**
   - Neither `apps/web` nor `apps/mobile` has error boundaries. A single component crash takes down the entire app.
   - Wrap major route-level components in an `ErrorBoundary` that shows a fallback UI ("Something went wrong") and logs the error. On mobile, add a "Retry" button that resets the boundary.
 
-- [ ] **Handle individual place failures in scraper sync**
+- [x] **Handle individual place failures in scraper sync**
   - File: `data_scraper/sync.py`
   - When the scraper POSTs places to the server, a failure on one place silently stops or skips without logging. The operator has no visibility into what failed.
   - Wrap each POST in a try/except, log the place code and error, continue with the remaining places, and print a summary at the end (e.g., "Synced 47/50 places. 3 failures logged.").
 
-- [ ] **Fix unsafe session handling in place_images.py**
+- [x] **Fix unsafe session handling in place_images.py**
   - File: `server/app/services/place_images.py`
   - Uses `next(get_session())` which manually advances a generator without proper cleanup. This can leak database connections under load.
   - Refactor to accept a `Session` parameter via dependency injection, or use a context manager (`with get_session() as session:`).
 
-- [ ] **Add health check endpoint to the scraper service**
+- [x] **Add health check endpoint to the scraper service**
   - The server exposes `/health` but the scraper has no equivalent. Deployment orchestrators (Docker, Cloud Run) need a health probe.
   - Add a `/health` endpoint to the scraper that returns `{"status": "ok"}` and checks database connectivity.
 
-- [ ] **Implement database migrations with Alembic**
+- [x] **Implement database migrations with Alembic**
   - The current seed script drops and recreates all tables, destroying existing data. This is not viable for any environment beyond local dev.
   - Initialize Alembic, generate an initial migration from the current SQLModel metadata, and replace the drop-and-recreate logic with `alembic upgrade head`. Document the migration workflow in `server/README.md`.
 

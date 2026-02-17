@@ -1,4 +1,6 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import Layout from '@/components/layout/Layout';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import Login from '@/app/pages/Login';
@@ -20,8 +22,19 @@ import JoinGroup from '@/app/pages/JoinGroup';
 import Settings from '@/app/pages/Settings';
 import Notifications from '@/app/pages/Notifications';
 
+/**
+ * Wraps children in an ErrorBoundary keyed to the current pathname.
+ * The key prop causes React to mount a fresh ErrorBoundary on every navigation,
+ * so a crash on one route doesn't block access to other routes.
+ */
+function RouteErrorBoundary({ children }: { children: React.ReactNode }) {
+  const { pathname } = useLocation();
+  return <ErrorBoundary key={pathname}>{children}</ErrorBoundary>;
+}
+
 export function AppRoutes() {
   return (
+    <RouteErrorBoundary>
     <Routes>
       <Route path="/" element={<Navigate to="/home" replace />} />
       <Route path="/login" element={<Login />} />
@@ -44,5 +57,6 @@ export function AppRoutes() {
       <Route path="/notifications" element={<Layout><ProtectedRoute><Notifications /></ProtectedRoute></Layout>} />
       <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
+    </RouteErrorBoundary>
   );
 }

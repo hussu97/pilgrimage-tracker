@@ -4,6 +4,43 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P1 Reliability Improvements (2026-02-17)
+
+### Backend
+
+- **Alembic database migrations** (`server/alembic.ini`, `server/migrations/`)
+  - Initialized Alembic with full `env.py` wired to SQLModel metadata and `DATABASE_URL` env override.
+  - Wrote initial migration `0001_initial.py` with `op.create_table()` for all 15 tables (correct `downgrade()` included).
+  - `server/app/db/session.py`: added `run_migrations()` — programmatic `alembic upgrade head` using the correct `alembic.ini` path.
+  - `server/app/main.py`: lifespan now calls `run_migrations()` before `run_seed()`, ensuring schema is always at head on startup.
+  - `server/app/db/seed.py`: `_clear_stores()` replaced `create_db_and_tables()` with `run_migrations()` so the dev seed rebuilds via tracked migrations.
+  - `server/requirements.txt`: added `alembic>=1.13.0`.
+  - `server/README.md`: documented all Alembic commands and the "adding a new model" workflow.
+
+- **Scraper sync summary** (`data_scraper/app/db/scraper.py`)
+  - `sync_run_to_server` now tracks `synced_count` and `failure_details` per place.
+  - Prints `[OK]` / `[FAIL]` per place and a final summary line: `"Sync complete: 47/50 places synced. 3 failure(s)."` with a list of failed place codes and reasons.
+
+- **Unsafe session handling** (`server/app/db/place_images.py`)
+  - Already uses proper `Session` injection — no `next(get_session())` present. Verified and marked done.
+
+- **Scraper health check** (`data_scraper/app/main.py`)
+  - Already implements `GET /health` returning `{"status": "ok"}`. Verified and marked done.
+
+### Frontend (web)
+
+- **Route-level error boundaries** (`apps/web/src/app/routes.tsx`)
+  - Added `RouteErrorBoundary` functional component using `key={location.pathname}`. React mounts a fresh `ErrorBoundary` on every navigation, so a crash on one route doesn't block access to other routes.
+  - Wraps the entire `<Routes>` block in `AppRoutes`.
+
+### Frontend (mobile)
+
+- **Screen-level error boundaries** (`apps/mobile/src/app/navigation.tsx`)
+  - Added `withScreenBoundary` HOC that wraps any screen component in `<ErrorBoundary>`.
+  - Applied to all 15 non-trivial `Stack.Screen` components so a crash on one screen shows the "Try again" fallback without affecting the rest of the navigator.
+
+---
+
 ## Mobile UX Improvements – Pull-to-Refresh, Infinite Scroll, Haptics, Swipe, Skeletons (2026-02-17)
 
 ### Frontend (mobile)

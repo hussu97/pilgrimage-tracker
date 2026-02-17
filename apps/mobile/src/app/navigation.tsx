@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import Layout from '@/components/layout/Layout';
 import SplashScreen from './screens/SplashScreen';
 import LoginScreen from './screens/LoginScreen';
@@ -42,26 +43,40 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+/**
+ * Wraps a screen component in an ErrorBoundary so a crash in one screen
+ * shows a "Retry" fallback without taking down the entire navigator.
+ */
+function withScreenBoundary<T extends object>(Screen: React.ComponentType<T>): React.ComponentType<T> {
+  return function BoundedScreen(props: T) {
+    return (
+      <ErrorBoundary>
+        <Screen {...props} />
+      </ErrorBoundary>
+    );
+  };
+}
+
 /** Single root stack: Splash (loading) then Main (Home). Auth screens are in the same stack for "Sign in" from Home. */
 function RootStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Splash">
       <Stack.Screen name="Splash" component={SplashScreen} />
       <Stack.Screen name="Main" component={Layout} />
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
-      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-      <Stack.Screen name="SelectPath" component={SelectPathScreen} />
-      <Stack.Screen name="PlaceDetail" component={PlaceDetailScreen} />
-      <Stack.Screen name="WriteReview" component={WriteReviewScreen} />
-      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-      <Stack.Screen name="CheckInsList" component={CheckInsListScreen} />
-      <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
-      <Stack.Screen name="GroupDetail" component={GroupDetailScreen} />
-      <Stack.Screen name="JoinGroup" component={JoinGroupScreen} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} />
-      <Stack.Screen name="Favorites" component={FavoritesScreen} />
+      <Stack.Screen name="Login" component={withScreenBoundary(LoginScreen)} />
+      <Stack.Screen name="Register" component={withScreenBoundary(RegisterScreen)} />
+      <Stack.Screen name="ForgotPassword" component={withScreenBoundary(ForgotPasswordScreen)} />
+      <Stack.Screen name="ResetPassword" component={withScreenBoundary(ResetPasswordScreen)} />
+      <Stack.Screen name="SelectPath" component={withScreenBoundary(SelectPathScreen)} />
+      <Stack.Screen name="PlaceDetail" component={withScreenBoundary(PlaceDetailScreen)} />
+      <Stack.Screen name="WriteReview" component={withScreenBoundary(WriteReviewScreen)} />
+      <Stack.Screen name="EditProfile" component={withScreenBoundary(EditProfileScreen)} />
+      <Stack.Screen name="CheckInsList" component={withScreenBoundary(CheckInsListScreen)} />
+      <Stack.Screen name="CreateGroup" component={withScreenBoundary(CreateGroupScreen)} />
+      <Stack.Screen name="GroupDetail" component={withScreenBoundary(GroupDetailScreen)} />
+      <Stack.Screen name="JoinGroup" component={withScreenBoundary(JoinGroupScreen)} />
+      <Stack.Screen name="Notifications" component={withScreenBoundary(NotificationsScreen)} />
+      <Stack.Screen name="Favorites" component={withScreenBoundary(FavoritesScreen)} />
     </Stack.Navigator>
   );
 }

@@ -58,7 +58,11 @@ def sync_run_to_server(run_code: str, server_url: str):
     with Session(engine) as session:
         places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
 
-        print(f"Syncing {len(places)} places to {server_url}")
+        total = len(places)
+        print(f"Syncing {total} places to {server_url}")
+
+        synced_count = 0
+        failure_details: list[str] = []
 
         for p in places:
             data = p.raw_data
@@ -85,14 +89,25 @@ def sync_run_to_server(run_code: str, server_url: str):
             try:
                 resp = requests.post(f"{server_url}/api/v1/places", json=payload)
                 if resp.status_code not in [200, 201]:
-                    print(f"Failed to sync {p.place_code}: {resp.status_code}")
-                    print(f"Error response: {resp.text}")
+                    reason = f"HTTP {resp.status_code}"
+                    failure_details.append(f"{p.place_code}: {reason}")
+                    print(f"[FAIL] {p.place_code}: {reason} — {resp.text[:200]}")
                     if resp.status_code == 422:
-                        # Print payload for debugging validation errors
-                        print("Payload that caused 422:")
                         import json
+                        print("Payload that caused 422:")
                         print(json.dumps(payload, indent=2, default=str))
                 else:
-                    print(f"Synced {p.place_code}")
+                    synced_count += 1
+                    print(f"[OK]   {p.place_code}")
             except Exception as e:
-                print(f"Error syncing {p.place_code}: {e}")
+                reason = f"{type(e).__name__}: {e}"
+                failure_details.append(f"{p.place_code}: {reason}")
+                print(f"[FAIL] {p.place_code}: {reason}")
+
+        # Summary
+        failed_count = len(failure_details)
+        print(f"\nSync complete: {synced_count}/{total} places synced. {failed_count} failure(s).")
+        if failure_details:
+            print("Failed places:")
+            for detail in failure_details:
+                print(f"  - {detail}")

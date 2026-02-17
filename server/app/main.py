@@ -14,10 +14,14 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import api_router
 from app.db.seed import run_seed
+from app.db.session import run_migrations
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Always apply pending migrations first (safe to call repeatedly; idempotent).
+    run_migrations()
+    # Seed dev data if seed_data.json is present (no-op in production).
     run_seed()
     yield
 

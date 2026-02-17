@@ -36,15 +36,48 @@ lsof -i :3000
 kill -9 PID
 ```
 
+## Database Migrations (Alembic)
+
+Schema is managed with **Alembic**. Migrations live in `server/migrations/versions/`. The server runs `alembic upgrade head` automatically on startup so the schema is always up to date.
+
+### Common commands (run from `server/` with venv active)
+
+```bash
+# Apply all pending migrations (done automatically on startup)
+alembic upgrade head
+
+# Roll back one migration
+alembic downgrade -1
+
+# Generate a new migration after changing SQLModel models
+alembic revision --autogenerate -m "describe your change"
+
+# Show current migration state
+alembic current
+
+# Show migration history
+alembic history
+```
+
+### Adding a new model / column
+
+1. Edit `app/db/models.py` with your new model or field.
+2. Run `alembic revision --autogenerate -m "add <thing>"` — Alembic compares your SQLModel metadata against the live schema and writes the migration file.
+3. Review the generated file in `migrations/versions/`.
+4. Apply it: `alembic upgrade head` (or just restart the server).
+
 ## Seed data
+
 The server uses **SQLModel** with a persistent **SQLite database** (`pilgrimage.db`). Data is loaded from a **central seed file** on startup:
- 
- - **File:** `app/db/seed_data.json` (relative to `server/`). It contains `languages`, `translations` (en, ar, hi), and sample data for all stores.
- - **Runner:** `app/db/seed.py` — `run_seed(seed_path)` drops all tables, recreates them, and populates the database from the JSON. It is invoked automatically on app startup (see `app/main.py` lifespan).
- - **Reset:** Restart the server to clear and re-run the seed from scratch. Optionally run from the repo: `cd server && source .venv/bin/activate && python -m app.db.seed` to run the seed script once.
- 
- ### Why SQLModel?
- By using SQLModel, we maintain Pydantic-like schemas for the API while gaining full SQL persistence, foreign key constraints, and performance-optimized queries.
+
+- **File:** `app/db/seed_data.json` (relative to `server/`). It contains `languages`, `translations` (en, ar, hi), and sample data for all stores.
+- **Runner:** `app/db/seed.py` — `run_seed(seed_path)` drops all tables, rebuilds schema via `alembic upgrade head`, then populates the database from the JSON. It is invoked automatically on app startup when `seed_data.json` is present (dev only — no-op in production).
+- **Reset:** Restart the server to clear and re-run the seed from scratch. Or run it directly: `cd server && source .venv/bin/activate && python -m app.db.seed`.
+
+> **Note:** `run_seed()` drops all tables — never run it against a production database. Production schema updates are handled solely by `alembic upgrade head`.
+
+### Why SQLModel?
+By using SQLModel, we maintain Pydantic-like schemas for the API while gaining full SQL persistence, foreign key constraints, and performance-optimized queries.
 
 ## Endpoints (v1)
 

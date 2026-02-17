@@ -11,13 +11,15 @@ from app.db import notifications as notifications_db
 from app.db import place_attributes as attr_db
 from app.db import places as places_db
 from app.db import place_images
-from app.db.session import engine, create_db_and_tables, Session
+from app.db.session import engine, run_migrations, Session
 
 
 def _clear_stores() -> None:
-    # Drop and recreate all tables for a fresh start with seed
+    # Drop all tables for a clean dev seed, then rebuild schema via Alembic migrations.
+    # This ensures the dev seed always starts from a consistent, migration-tracked state.
+    # IMPORTANT: Never run this against a production database.
     SQLModel.metadata.drop_all(engine)
-    create_db_and_tables()
+    run_migrations()
 
 
 def run_seed(seed_path: str | Path | None = None) -> None:

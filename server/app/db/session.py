@@ -49,3 +49,24 @@ def get_db_session():
 # Usage: def my_endpoint(session: SessionDep, ...):
 SessionDep = Annotated[Session, Depends(get_db_session)]
 
+
+def run_migrations() -> None:
+    """Apply all pending Alembic migrations to head.
+
+    Called at server startup instead of SQLModel.metadata.create_all() so that
+    schema changes are tracked and reversible via migration files.
+    """
+    import os
+    from alembic.config import Config
+    from alembic import command
+
+    # alembic.ini lives at server/alembic.ini; this file is server/app/db/session.py
+    ini_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../..", "alembic.ini"))
+    # migrations/ dir lives at server/migrations/
+    migrations_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../..", "migrations"))
+
+    cfg = Config(ini_path)
+    cfg.set_main_option("script_location", migrations_path)
+    cfg.set_main_option("sqlalchemy.url", database_url)
+    command.upgrade(cfg, "head")
+
