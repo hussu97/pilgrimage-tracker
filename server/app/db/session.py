@@ -61,9 +61,10 @@ def run_migrations() -> None:
     from alembic import command
 
     # alembic.ini lives at server/alembic.ini; this file is server/app/db/session.py
-    ini_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../..", "alembic.ini"))
+    # __file__ = server/app/db/session.py → dirname = server/app/db → ../.. = server/
+    ini_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../..", "alembic.ini"))
     # migrations/ dir lives at server/migrations/
-    migrations_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../../..", "migrations"))
+    migrations_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../..", "migrations"))
 
     cfg = Config(ini_path)
     cfg.set_main_option("script_location", migrations_path)
