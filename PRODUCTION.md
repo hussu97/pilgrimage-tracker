@@ -594,11 +594,18 @@ https://pilgrimage-api-xxxxxxxxxxxx-uc.a.run.app
 
 #### Update CORS after deploying the web frontend (Step 6)
 
-After you have the Firebase URL, come back and patch the env vars:
+After you have the Firebase URL, come back and patch the env vars.
+
+> **Important:** Firebase Hosting gives every project **two** default domains — both must be in `CORS_ORIGINS` or you'll get CORS errors depending on which URL the browser uses:
+> - `https://PROJECT_ID.web.app`
+> - `https://PROJECT_ID.firebaseapp.com`
+>
+> `CORS_ORIGINS` is **space-separated** (not comma-separated). The `--update-env-vars` flag uses commas to separate variable assignments, so quote the value carefully:
+
 ```bash
 gcloud run services update pilgrimage-api \
   --region REGION \
-  --update-env-vars "CORS_ORIGINS=https://PROJECT_ID.web.app,RESET_URL_BASE=https://PROJECT_ID.web.app"
+  --update-env-vars "CORS_ORIGINS=https://PROJECT_ID.web.app https://PROJECT_ID.firebaseapp.com,RESET_URL_BASE=https://PROJECT_ID.web.app"
 ```
 
 ---
