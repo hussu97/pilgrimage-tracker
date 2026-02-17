@@ -2,8 +2,13 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import SQLModel, create_engine, Session
 
-sqlite_file_name = "scraper.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
+import os
+
+# SCRAPER_DB_PATH lets you relocate the SQLite file to a persistent volume.
+# Default: scraper.db in the working directory (fine for local dev).
+# Production: set to /data/scraper.db and mount a volume at /data.
+_db_path = os.environ.get("SCRAPER_DB_PATH", "scraper.db")
+sqlite_url = f"sqlite:///{_db_path}"
 
 connect_args = {"check_same_thread": False}
 engine = create_engine(sqlite_url, echo=False, connect_args=connect_args)

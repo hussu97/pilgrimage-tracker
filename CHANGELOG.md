@@ -4,6 +4,23 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Scraper DB Persistence — All Plans (2026-02-17)
+
+### Backend
+
+- **`data_scraper/app/db/session.py`** — Added `SCRAPER_DB_PATH` env var support (defaults to `scraper.db` in cwd; set to `/data/scraper.db` in production with a volume mounted at `/data`).
+- **`data_scraper/Dockerfile`** — Added `RUN mkdir -p /data` so the mount point exists before the volume is attached.
+
+### Infrastructure
+
+- **`docker-compose.yml`** — Scraper service: added `SCRAPER_DB_PATH=/data/scraper.db`, `volumes: scraper_data:/data`, and `scraper_data` named volume declaration.
+
+### Docs
+
+- **`PRODUCTION.md`** — Added scraper DB sections to all 3 plans: Docker (named volume), Render (Persistent Disk vs ephemeral options), GCP (Cloud Run Job recommendation + Cloud SQL path for persistent service). Added `SCRAPER_DB_PATH` to env vars reference table.
+
+---
+
 ## GCP Deployment Guide — Step-by-Step (2026-02-17)
 
 ### Docs

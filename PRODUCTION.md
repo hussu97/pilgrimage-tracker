@@ -29,6 +29,7 @@ Current system: **Backend** (Python FastAPI in `server/`), **Web app** (Vite + R
 | `MAIN_SERVER_URL` | No | `http://127.0.0.1:3000` | URL of main API (used for data sync) |
 | `GOOGLE_MAPS_API_KEY` | Yes (gmaps scraper) | _(empty)_ | Google Maps API key |
 | `SCRAPER_TIMEZONE` | No | UTC fallback | IANA timezone for places without Google UTC offset (e.g. `Asia/Dubai`) |
+| `SCRAPER_DB_PATH` | No | `scraper.db` (cwd) | Path to the SQLite database file — **set to `/data/scraper.db` in production** and mount a persistent volume at `/data` |
 
 ### Web frontend (`apps/web/`)
 
@@ -78,7 +79,9 @@ docker compose --profile scraper up -d scraper
 | `db` | `postgres:15-alpine` | internal | PostgreSQL; data persisted in `postgres_data` volume |
 | `api` | `./server` | `3000` | FastAPI; waits for `db` health; auto-runs Alembic migrations on start |
 | `web` | `./apps/web` | `80` | nginx serving the compiled React SPA |
-| `scraper` | `./data_scraper` | `8001` | Optional; activate with `--profile scraper` |
+| `scraper` | `./data_scraper` | `8001` | Optional; activate with `--profile scraper`; SQLite DB persisted in `scraper_data` volume at `/data/scraper.db` |
+
+> **Scraper database:** The scraper uses its own SQLite database (separate from the main API's PostgreSQL). In `docker-compose.yml`, a named volume `scraper_data` is mounted at `/data` inside the container, and `SCRAPER_DB_PATH=/data/scraper.db` tells the app to write there. Without this, `scraper.db` would be lost on every container restart.
 
 ### Required `.env` for Docker
 
@@ -96,6 +99,7 @@ RESEND_FROM_EMAIL=noreply@pilgrimage-tracker.app
 RESET_URL_BASE=http://localhost
 GOOGLE_MAPS_API_KEY=
 SCRAPER_TIMEZONE=UTC
+# SCRAPER_DB_PATH is set inside docker-compose.yml — no need to set it here
 API_PORT=3000
 WEB_PORT=80
 SCRAPER_PORT=8001
@@ -263,6 +267,26 @@ Only needed if you want the scraper service running in production:
 
 3. Get the scraper's deploy hook (same as Step 3) and save it as `RENDER_SCRAPER_DEPLOY_HOOK_URL` in Step 6.
 
+#### Scraper database persistence on Render
+
+> **Important:** Render's free tier has **ephemeral storage** — the filesystem is wiped on every deploy and restart. The scraper's `scraper.db` will be lost unless you attach a persistent disk.
+
+**Option A — Render Persistent Disk (recommended, ~$0.25/GB/month):**
+
+1. In your scraper service → **Settings → Disks → Add Disk**.
+2. Set **Mount Path** to `/data` and choose a size (1 GB is plenty).
+3. Add the environment variable:
+
+   | Key | Value |
+   |---|---|
+   | `SCRAPER_DB_PATH` | `/data/scraper.db` |
+
+Render will mount the disk at `/data` and the scraper will write its SQLite file there. Data persists across deploys and restarts.
+
+**Option B — Accept ephemeral storage (simpler, free):**
+
+If you're running the scraper on-demand (trigger a scrape, sync data to the main API, then stop), you don't need persistence. The seeded geo/timezone data re-seeds automatically on every startup (idempotent). Only scraping run history is lost on restart. Set no `SCRAPER_DB_PATH` — it defaults to `scraper.db` in the working directory.
+
 ---
 
 ### Step 6 — GitHub Actions: CI/CD Pipeline
@@ -364,8 +388,8 @@ eas submit --platform android
 Services used: **Cloud Run** (API + optional scraper), **Cloud SQL** (PostgreSQL 15), **Firebase Hosting** (web), **Artifact Registry** (Docker images), **Secret Manager** (credentials), **Cloud Scheduler** (cron jobs).
 
 Throughout this section, replace:
-- `PROJECT_ID` → your GCP project ID (e.g. `pilgrimage-tracker-123`)
-- `REGION` → your chosen region (e.g. `us-central1`)
+- `PROJECT_ID` → your GCP project ID (e.g. `project-fa2d7f52-2bc4-4a46-8ae`)
+- `REGION` → your chosen region (e.g. `europe-west1`)
 
 ---
 
@@ -603,6 +627,34 @@ Firebase console → **Hosting** → **Add custom domain** → follow the DNS ve
 
 Only needed for automated place scraping in production.
 
+#### Scraper database on GCP
+
+> **Cloud Run is stateless** — the container filesystem is wiped between instances and on scale-to-zero. The scraper's SQLite `scraper.db` does **not** persist across invocations.
+
+**Recommended approach: run the scraper as a Cloud Run Job, not a long-running Service.**
+
+A Cloud Run Job starts, runs a full scrape-and-sync cycle, then exits cleanly. Within a single job execution the SQLite file exists in `/tmp` or WORKDIR for the duration of the job. The geo and place-type seed data re-seeds automatically on each run (idempotent), so nothing is lost between job runs. Scraping run history lives in the database only for the duration of that job.
+
+This is covered in Step 8 below with Cloud Run Jobs.
+
+**If you do need a long-running scraper Service** (e.g. for a webhook-triggered scraping API), SQLite will reset on every cold start. In that case, use **Cloud SQL** for the scraper's database:
+
+1. Create a second database on the existing Cloud SQL instance:
+   ```bash
+   gcloud sql databases create scraper --instance=pilgrimage-db
+   gcloud sql users create scraper \
+     --instance=pilgrimage-db \
+     --password=SCRAPER_DB_PASSWORD
+   ```
+2. Store the connection string in Secret Manager:
+   ```bash
+   echo -n "postgresql://scraper:SCRAPER_DB_PASSWORD@/scraper?host=/cloudsql/PROJECT_ID:REGION:pilgrimage-db" | \
+     gcloud secrets create SCRAPER_DATABASE_URL --data-file=- --replication-policy=automatic
+   ```
+3. Pass it to the scraper deploy command via `SCRAPER_DB_PATH` is not enough here — you'd need to extend `data_scraper/app/db/session.py` to support `DATABASE_URL` for PostgreSQL if you go this route. For now, the Cloud Run Job approach is recommended.
+
+#### Deploy as a long-running Service (if needed)
+
 ```bash
 # Build and push
 gcloud builds submit ./data_scraper \
@@ -617,6 +669,8 @@ gcloud run deploy pilgrimage-scraper \
   --set-env-vars "MAIN_SERVER_URL=https://pilgrimage-api-xxxxxxxxxxxx-uc.a.run.app,SCRAPER_TIMEZONE=UTC,GOOGLE_MAPS_API_KEY=your-key" \
   --memory 512Mi
 ```
+
+Note: without a persistent volume, the SQLite DB is ephemeral. Geo/place-type seeds will re-run on each cold start (safe). Run history will be lost between cold starts.
 
 ---
 

@@ -55,6 +55,10 @@ services:
       MAIN_SERVER_URL: http://api:3000
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
       SCRAPER_TIMEZONE: ${SCRAPER_TIMEZONE:-UTC}
+      # Persist scraper.db to the named volume below so data survives restarts
+      SCRAPER_DB_PATH: /data/scraper.db
+    volumes:
+      - scraper_data:/data
     ports:
       - "${SCRAPER_PORT:-8001}:8001"
     depends_on:
@@ -65,3 +69,4 @@ services:
 
 volumes:
   postgres_data:
+  scraper_data:
