@@ -11,9 +11,12 @@ concurrency:
 env:
   REGION: europe-west1
   PROJECT_ID: project-fa2d7f52-2bc4-4a46-8ae
+  PROJECT_NUMBER: "834941457147"
   REGISTRY: europe-west1-docker.pkg.dev
   REPO: pilgrimage
   API_SERVICE: pilgrimage-api
+  SA_EMAIL: github-deploy@project-fa2d7f52-2bc4-4a46-8ae.iam.gserviceaccount.com
+  WIF_PROVIDER: projects/834941457147/locations/global/workloadIdentityPools/github-pool/providers/github-provider
 
 jobs:
   # ── Gate: tests must pass before any deployment ────────────────────────────
@@ -61,8 +64,6 @@ jobs:
         working-directory: apps/web
         run: npm run build
         env:
-          # Use a placeholder so the build succeeds in CI; real URL is injected
-          # at deploy time via the Firebase environment or Cloud Run env vars.
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
   # ── Deploy: API → Cloud Run ─────────────────────────────────────────────────
@@ -72,14 +73,18 @@ jobs:
     needs: [test-server, test-web]
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      id-token: write   # required for Workload Identity Federation
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Authenticate with GCP
+      - name: Authenticate with GCP (keyless)
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.SA_EMAIL }}
 
       - name: Set up gcloud CLI
         uses: google-github-actions/setup-gcloud@v2
@@ -108,6 +113,9 @@ jobs:
     needs: [test-server, test-web]
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      id-token: write   # required for Workload Identity Federation
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -128,10 +136,11 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
-      - name: Authenticate with GCP
+      - name: Authenticate with GCP (keyless)
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.SA_EMAIL }}
 
       - name: Deploy to Firebase Hosting
-        run: npx firebase-tools deploy --only hosting --token ${{ secrets.FIREBASE_TOKEN }}
+        run: npx firebase-tools deploy --only hosting --project ${{ env.PROJECT_ID }}
