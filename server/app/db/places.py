@@ -1,4 +1,5 @@
 import math
+import re
 import secrets
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
@@ -13,6 +14,7 @@ Religion = Literal["islam", "hinduism", "christianity"]
 
 
 def _parse_time(s: str) -> Optional[tuple]:
+    """Parse 24h time string 'HH:MM' → (h, m)."""
     if not s or not isinstance(s, str):
         return None
     parts = s.strip().split(":")
@@ -23,6 +25,51 @@ def _parse_time(s: str) -> Optional[tuple]:
                 return (h, m)
         except ValueError:
             pass
+    return None
+
+
+def _parse_time_12h(s: str) -> Optional[tuple]:
+    """Parse 12h time string like '5:06 AM' or '11:02 PM' → (h, m)."""
+    if not s or not isinstance(s, str):
+        return None
+    s = s.strip().replace('\u202f', ' ')  # narrow no-break space → regular space
+    for fmt in ('%I:%M %p', '%I %p'):
+        try:
+            dt = datetime.strptime(s, fmt)
+            return (dt.hour, dt.minute)
+        except ValueError:
+            pass
+    return None
+
+
+# Matches em dash, en dash, or a hyphen surrounded by spaces (12h separator)
+_12H_SPLIT_RE = re.compile(r'\s*[–—]\s*|\s+-\s+')
+
+
+def _parse_slot(slot: str) -> Optional[tuple]:
+    """
+    Parse a single time slot string → (open_t, close_t) as (h, m) tuples.
+    Tries 24h format ("09:00-17:00") first, then 12h format ("5:06 AM – 11:02 PM").
+    Returns None if neither format parses successfully.
+    """
+    slot = slot.strip().replace('\u202f', ' ')
+
+    # 24h: bare hyphen with no surrounding spaces, e.g. "09:00-17:00"
+    parts = slot.split('-')
+    if len(parts) == 2:
+        open_t = _parse_time(parts[0].strip())
+        close_t = _parse_time(parts[1].strip())
+        if open_t is not None and close_t is not None:
+            return (open_t, close_t)
+
+    # 12h: em/en dash or spaced hyphen, e.g. "5:06 AM – 11:02 PM"
+    parts_12h = _12H_SPLIT_RE.split(slot)
+    if len(parts_12h) == 2:
+        open_t = _parse_time_12h(parts_12h[0])
+        close_t = _parse_time_12h(parts_12h[1])
+        if open_t is not None and close_t is not None:
+            return (open_t, close_t)
+
     return None
 
 
@@ -67,20 +114,12 @@ def _is_open_now_from_hours(opening_hours: Optional[Dict[str, Any]], utc_offset_
         any_parseable = False
 
         for slot in slots:
-            if "-" not in slot:
-                continue
-
-            parts = slot.split("-")
-            if len(parts) != 2:
-                continue
-
-            open_t = _parse_time(parts[0].strip())
-            close_t = _parse_time(parts[1].strip())
-
-            if open_t is None or close_t is None:
+            parsed = _parse_slot(slot)
+            if parsed is None:
                 continue
 
             any_parseable = True
+            open_t, close_t = parsed
             open_min = open_t[0] * 60 + open_t[1]
             close_min = close_t[0] * 60 + close_t[1]
 
