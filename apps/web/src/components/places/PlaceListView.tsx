@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { Place } from '@/lib/types';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
@@ -7,8 +8,11 @@ import PlaceCardUnified from './PlaceCardUnified';
 interface PlaceListViewProps {
   places: Place[];
   loading: boolean;
+  loadingMore?: boolean;
+  hasMore?: boolean;
   error: string;
   onRetry: () => void;
+  onLoadMore?: () => void;
   onClearFilters: () => void;
   t: (key: string) => string;
 }
@@ -16,11 +20,30 @@ interface PlaceListViewProps {
 export default function PlaceListView({
   places,
   loading,
+  loadingMore,
+  hasMore,
   error,
   onRetry,
+  onLoadMore,
   onClearFilters,
   t,
 }: PlaceListViewProps) {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!sentinelRef.current || !onLoadMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+          onLoadMore();
+        }
+      },
+      { threshold: 0.1 },
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [onLoadMore, hasMore, loadingMore]);
+
   if (loading && places.length === 0) {
     return <SkeletonList count={6} />;
   }
@@ -48,10 +71,18 @@ export default function PlaceListView({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {places.map((place) => (
-        <PlaceCardUnified key={place.place_code} place={place} t={t} />
-      ))}
+    <div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {places.map((place) => (
+          <PlaceCardUnified key={place.place_code} place={place} t={t} />
+        ))}
+      </div>
+      <div ref={sentinelRef} className="h-4" />
+      {loadingMore && (
+        <div className="flex justify-center py-6">
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
     </div>
   );
 }

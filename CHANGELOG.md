@@ -4,6 +4,43 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Mobile UX Improvements – Pull-to-Refresh, Infinite Scroll, Haptics, Swipe, Skeletons (2026-02-17)
+
+### Frontend (mobile)
+
+- **Skeleton loading screens** (`apps/mobile/src/components/common/SkeletonCard.tsx`)
+  - New `SkeletonCard` component with animated opacity pulse (0.4 → 0.85 at 750ms) matching PlaceCard shape.
+  - Used on HomeScreen (5 skeletons on initial load) and FavoritesScreen (4 skeletons on initial load).
+
+- **SwipeableRow component** (`apps/mobile/src/components/common/SwipeableRow.tsx`)
+  - PanResponder-based swipe-to-reveal-action component; no external gesture library required.
+  - Configurable delete button (label, color, icon); snaps open/closed past 50% threshold.
+
+- **Haptic feedback** (`apps/mobile/src/app/screens/PlaceDetailScreen.tsx`)
+  - `expo-haptics` added to `package.json`.
+  - `notificationAsync(Success)` on successful check-in; `impactAsync(Light)` on favorite toggle.
+
+- **Pull-to-refresh** (`apps/mobile/src/app/screens/CheckInsListScreen.tsx`)
+  - Added `RefreshControl` to the check-ins `ScrollView`.
+  - `HomeScreen` and `FavoritesScreen` already support pull-to-refresh via `FlatList` + `RefreshControl`.
+
+- **Infinite scroll** (`apps/mobile/src/app/screens/HomeScreen.tsx`)
+  - `FlatList` now uses `onEndReached` / `onEndReachedThreshold={0.4}` to load the next page (PAGE_SIZE = 20).
+  - `ListFooterComponent` shows a spinner while `loadingMore` is true.
+
+- **Favorites: FlatList + swipe-to-remove + haptics** (`apps/mobile/src/app/screens/FavoritesScreen.tsx`)
+  - Converted from `ScrollView` to `FlatList` with `RefreshControl`.
+  - Each favorite wrapped in `SwipeableRow`; swipe left to reveal remove button.
+  - `Haptics.impactAsync(Medium)` fires before remove action.
+
+### Frontend (web)
+
+- **Infinite scroll** (`apps/web/src/app/pages/Home.tsx`, `apps/web/src/components/places/PlaceListView.tsx`)
+  - `Home.tsx`: added `PAGE_SIZE = 20`, `loadMore` callback, `offsetRef` for stable offset tracking, passes `loadingMore`/`hasMore`/`onLoadMore` to `PlaceListView`.
+  - `PlaceListView.tsx`: `IntersectionObserver` on a sentinel `<div>` at list bottom triggers `onLoadMore`; spinner shown while `loadingMore` is true.
+
+---
+
 ## P4 Design Alignment – Component-Level (2026-02-17)
 
 ### Frontend (web)

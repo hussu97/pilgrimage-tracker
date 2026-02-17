@@ -15,6 +15,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
+import * as Haptics from 'expo-haptics';
 import {
   getPlace,
   getPlaceReviews,
@@ -110,6 +111,7 @@ export default function PlaceDetailScreen() {
   const toggleFavorite = useCallback(async () => {
     if (!placeCode || !place) return;
     setFavoriteLoading(true);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       if (place.is_favorite) await removeFavorite(placeCode);
       else await addFavorite(placeCode);
@@ -151,6 +153,7 @@ export default function PlaceDetailScreen() {
     setCheckInLoading(true);
     try {
       const result = await doCheckIn(placeCode);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Animated.sequence([
         Animated.timing(checkInScale, { toValue: 0.92, duration: 80, useNativeDriver: true }),
         Animated.timing(checkInScale, { toValue: 1.06, duration: 200, useNativeDriver: true }),

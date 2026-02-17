@@ -24,6 +24,7 @@ import type { Place, FilterOption } from '@/lib/types';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
 import PlaceCard from '@/components/places/PlaceCard';
+import SkeletonCard from '@/components/common/SkeletonCard';
 import HomeHeader from '@/components/places/HomeHeader';
 import SearchFilterBar from '@/components/places/SearchFilterBar';
 import FilterChipsList from '@/components/places/FilterChipsList';
@@ -31,6 +32,8 @@ import { buildMapHtml, formatDistance } from '@/lib/utils/mapBuilder';
 import { shareUrl, openDirections } from '@/lib/share';
 
 type ViewMode = 'list' | 'map';
+
+const PAGE_SIZE = 20;
 
 interface ActiveFilters {
   placeType?: string;
@@ -391,6 +394,9 @@ export default function HomeScreen() {
 
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [pageOffset, setPageOffset] = useState(0);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [searchDebounced, setSearchDebounced] = useState('');
@@ -406,25 +412,32 @@ export default function HomeScreen() {
 
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
+  const buildParams = useCallback((offset: number) => ({
+    religions: user?.religions?.length ? user.religions : undefined,
+    search: searchDebounced || undefined,
+    sort: 'distance' as const,
+    limit: PAGE_SIZE,
+    offset,
+    lat: coords.lat,
+    lng: coords.lng,
+    place_type: activeFilters.placeType,
+    open_now: activeFilters.openNow,
+    has_parking: activeFilters.hasParking,
+    womens_area: activeFilters.womensArea,
+    has_events: activeFilters.hasEvents,
+    top_rated: activeFilters.topRated,
+  }), [user?.religions, searchDebounced, activeFilters, coords]);
+
+  // Initial / refresh fetch — resets pagination
   const fetchPlaces = useCallback(async () => {
     setLoading(true);
     setError('');
+    setHasMore(true);
     try {
-      const data = await getPlaces({
-        religions: user?.religions?.length ? user.religions : undefined,
-        search: searchDebounced || undefined,
-        sort: 'distance' as const,
-        limit: 50,
-        lat: coords.lat,
-        lng: coords.lng,
-        place_type: activeFilters.placeType,
-        open_now: activeFilters.openNow,
-        has_parking: activeFilters.hasParking,
-        womens_area: activeFilters.womensArea,
-        has_events: activeFilters.hasEvents,
-        top_rated: activeFilters.topRated,
-      });
+      const data = await getPlaces(buildParams(0));
       setPlaces(data.places);
+      setPageOffset(PAGE_SIZE);
+      setHasMore(data.places.length >= PAGE_SIZE);
       setFilterOptions(data.filters?.options ?? []);
       const centerLat = coords.lat ?? 21.3891;
       const centerLng = coords.lng ?? 39.8579;
@@ -435,7 +448,25 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user?.religions, searchDebounced, activeFilters, coords, t]);
+  }, [buildParams, coords, t]);
+
+  // Load next page — appends to list
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || loading) return;
+    setLoadingMore(true);
+    try {
+      const data = await getPlaces(buildParams(pageOffset));
+      if (data.places.length > 0) {
+        setPlaces(prev => [...prev, ...data.places]);
+        setPageOffset(prev => prev + PAGE_SIZE);
+      }
+      setHasMore(data.places.length >= PAGE_SIZE);
+    } catch {
+      // silently skip — user can scroll again
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, loading, buildParams, pageOffset]);
 
   useEffect(() => {
     fetchPlaces();
@@ -532,12 +563,7 @@ export default function HomeScreen() {
       {/* Conditional content area */}
       <View style={styles.contentArea}>
         {viewMode === 'list' ? (
-          loading && places.length === 0 ? (
-            <View style={styles.centered}>
-              <ActivityIndicator size="large" color={tokens.colors.primary} />
-              <Text style={styles.loadingText}>{t('home.loadingPlaces')}</Text>
-            </View>
-          ) : error && places.length === 0 ? (
+          error && places.length === 0 ? (
             <View style={styles.centered}>
               <Text style={styles.errorText}>{error}</Text>
               <TouchableOpacity style={styles.retryButton} onPress={fetchPlaces}>
@@ -546,9 +572,15 @@ export default function HomeScreen() {
             </View>
           ) : (
             <FlatList
-              data={places}
+              data={loading && places.length === 0
+                ? (Array.from({ length: 5 }, (_, i) => ({ place_code: `skel-${i}` })) as any)
+                : places}
               keyExtractor={(item) => item.place_code}
-              renderItem={({ item }) => <PlaceCard place={item} />}
+              renderItem={({ item }) =>
+                String(item.place_code).startsWith('skel-')
+                  ? <SkeletonCard isDark={isDark} />
+                  : <PlaceCard place={item} />
+              }
               ListEmptyComponent={
                 showEmpty ? (
                   <View style={styles.centered}>
@@ -568,16 +600,28 @@ export default function HomeScreen() {
                   </View>
                 ) : null
               }
+              ListFooterComponent={
+                loadingMore ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={tokens.colors.primary}
+                    style={{ marginVertical: 16 }}
+                  />
+                ) : null
+              }
               contentContainerStyle={[
                 styles.listContent,
                 { paddingBottom: insets.bottom + 100 },
               ]}
               ItemSeparatorComponent={() => <View style={styles.separator} />}
+              onEndReached={loadMore}
+              onEndReachedThreshold={0.4}
               refreshControl={
                 <RefreshControl
-                  refreshing={loading}
+                  refreshing={loading && places.length > 0}
                   onRefresh={fetchPlaces}
                   colors={[tokens.colors.primary]}
+                  tintColor={tokens.colors.primary}
                 />
               }
             />

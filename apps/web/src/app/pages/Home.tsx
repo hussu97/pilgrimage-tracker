@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
@@ -10,6 +10,8 @@ import PlaceMapView from '@/components/places/PlaceMapView';
 import type { Place, FilterOption } from '@/lib/types';
 
 type ViewMode = 'list' | 'map';
+
+const PAGE_SIZE = 20;
 
 export default function Home() {
   const { user } = useAuth();
@@ -23,30 +25,40 @@ export default function Home() {
 
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
   const [activeFilters, setActiveFilters] = useState<Record<string, boolean>>({});
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const offsetRef = useRef(0);
 
+  const buildParams = useCallback((offset: number) => ({
+    religions: user?.religions?.length ? user.religions : undefined,
+    search: search || undefined,
+    sort: 'distance',
+    limit: PAGE_SIZE,
+    offset,
+    lat: coords.lat,
+    lng: coords.lng,
+    open_now: activeFilters.open_now,
+    has_parking: activeFilters.has_parking,
+    womens_area: activeFilters.womens_area,
+    has_events: activeFilters.has_events,
+    top_rated: activeFilters.top_rated,
+  }), [user?.religions, search, activeFilters, coords]);
+
+  // Initial / refresh — resets pagination
   const fetchPlaces = useCallback(async () => {
     setLoading(true);
     setError('');
+    setHasMore(true);
     try {
-      const response = await getPlaces({
-        religions: user?.religions?.length ? user.religions : undefined,
-        search: search || undefined,
-        sort: 'distance',
-        limit: 50,
-        lat: coords.lat,
-        lng: coords.lng,
-        open_now: activeFilters.open_now,
-        has_parking: activeFilters.has_parking,
-        womens_area: activeFilters.womens_area,
-        has_events: activeFilters.has_events,
-        top_rated: activeFilters.top_rated,
-      });
+      const response = await getPlaces(buildParams(0));
       setPlaces(response.places);
+      offsetRef.current = PAGE_SIZE;
+      setHasMore(response.places.length >= PAGE_SIZE);
       if (response.filters?.options) {
         setFilterOptions(response.filters.options);
       }
@@ -56,7 +68,25 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [user?.religions, search, activeFilters, coords, t]);
+  }, [buildParams, t]);
+
+  // Load next page — appends
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || loading) return;
+    setLoadingMore(true);
+    try {
+      const response = await getPlaces(buildParams(offsetRef.current));
+      if (response.places.length > 0) {
+        setPlaces(prev => [...prev, ...response.places]);
+        offsetRef.current += PAGE_SIZE;
+      }
+      setHasMore(response.places.length >= PAGE_SIZE);
+    } catch {
+      // silently skip
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, loading, buildParams]);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -106,8 +136,11 @@ export default function Home() {
             <PlaceListView
               places={places}
               loading={loading}
+              loadingMore={loadingMore}
+              hasMore={hasMore}
               error={error}
               onRetry={fetchPlaces}
+              onLoadMore={loadMore}
               onClearFilters={handleClearFilters}
               t={t}
             />

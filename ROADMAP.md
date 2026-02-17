@@ -211,23 +211,23 @@ New capabilities and meaningful UX improvements.
 
 ### Frontend Features
 
-- [ ] **Loading skeleton screens**
+- [x] **Loading skeleton screens**
   - All loading states display plain "Loading..." text, which feels unpolished.
   - Create skeleton components that match the shape of the content they replace (card skeletons, detail page skeletons, list item skeletons). Use CSS animation for the shimmer effect.
 
-- [ ] **Pull-to-refresh on mobile**
+- [x] **Pull-to-refresh on mobile**
   - List screens do not support pull-to-refresh. Users must navigate away and back to refresh.
   - Wrap `FlatList` and `ScrollView` components with `RefreshControl`. Trigger the appropriate data fetch on pull.
 
-- [ ] **Infinite scroll for lists**
+- [x] **Infinite scroll for lists**
   - Place lists use a fixed page size with no mechanism to load more.
   - Implement `onEndReached` on mobile `FlatList` and an `IntersectionObserver` on web to trigger loading the next page. Show a spinner at the bottom while loading.
 
-- [ ] **Swipe gestures on mobile**
+- [x] **Swipe gestures on mobile**
   - No swipe interactions exist. Common mobile patterns are missing.
   - Add swipe-to-delete on favorites list, swipe between images in the gallery, and swipe to dismiss the detail page back to the list.
 
-- [ ] **Haptic feedback on mobile**
+- [x] **Haptic feedback on mobile**
   - Check-in and favorite toggle have no tactile feedback.
   - Use `expo-haptics` to trigger a light impact on favorite toggle, a medium impact on check-in, and a success notification on badge earned.
 

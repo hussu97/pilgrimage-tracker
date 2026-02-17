@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  RefreshControl,
   ActivityIndicator,
   Image,
 } from 'react-native';
@@ -133,6 +134,14 @@ export default function CheckInsListScreen() {
       style={[styles.container, { backgroundColor: tokens.colors.surfaceTint }]}
       contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 100 }}
       showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={loading}
+          onRefresh={fetchList}
+          colors={[tokens.colors.primary]}
+          tintColor={tokens.colors.primary}
+        />
+      }
     >
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
