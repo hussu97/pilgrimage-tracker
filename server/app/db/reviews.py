@@ -159,16 +159,28 @@ def upsert_external_reviews(place_code: str, reviews_list: List[dict], session: 
     # Insert new external reviews
     for r in reviews_list:
         review_code = _generate_review_code()
+        if isinstance(r, dict):
+            rating = r.get("rating", 0)
+            body = r.get("text", "")
+            author_name = r.get("author_name", "")
+            review_time = r.get("time", 0)
+            language = r.get("language", "en")
+        else:
+            rating = r.rating
+            body = r.text
+            author_name = r.author_name
+            review_time = r.time
+            language = r.language
         review = Review(
             review_code=review_code,
             user_code=None,
             place_code=place_code,
-            rating=r.get("rating", 0),
-            body=r.get("text", ""),
+            rating=rating,
+            body=body,
             source="external",
-            author_name=r.get("author_name", ""),
-            review_time=r.get("time", 0),
-            language=r.get("language", "en"),
+            author_name=author_name,
+            review_time=review_time,
+            language=language,
         )
         session.add(review)
 
