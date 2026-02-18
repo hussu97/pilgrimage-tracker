@@ -4,6 +4,19 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Place Card Redesign & Status Pill Unification (2026-02-18)
+
+### Frontend (web)
+
+- **`PlaceCardUnified.tsx`** — Full rewrite: full-bleed 280px image, glass panel overlay at the bottom with name/address/distance/rating/check-in button. Removed separate card body (name, type footer, arrow button). Status pill now renders all three states (open/closed/unknown) using `badge-*-glass` CSS classes with coloured dots.
+- **`index.css`** — Reduced `badge-open-glass`, `badge-closed-glass`, `badge-unknown-glass` opacity from 0.85 → 0.3 and updated border colours to match mobile detail screen style. Improves `PlaceDetail.tsx` hero badges as a side-effect.
+
+### Frontend (mobile)
+
+- **`PlaceCard.tsx`** — List-view card badges updated to semi-transparent glass style matching `PlaceDetailScreen` hero. Open dot changed from white to `#4ade80`; closed badge gains a `#f87171` dot. Removed `overlayTop`/`overlayBottom` dark overlays — glass panel reads cleanly over images without them.
+
+---
+
 ## GCP Auto-Deploy Workflow (2026-02-18)
 
 ### Infrastructure
