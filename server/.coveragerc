@@ -7,8 +7,8 @@ omit =
     tests/*
 
 [report]
-# Fail if total coverage drops below 60%
-fail_under = 60
+# Fail if total coverage drops below 85%
+fail_under = 85
 show_missing = true
 skip_covered = false
 

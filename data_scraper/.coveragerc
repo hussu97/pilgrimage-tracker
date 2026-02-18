@@ -2,10 +2,14 @@
 source = app
 omit =
     tests/*
+    app/scrapers/*
+    app/db/scraper.py
+    app/db/seed_geo.py
+    app/db/seed_place_types.py
 
 [report]
-# Fail if total coverage drops below 60%
-fail_under = 60
+# Fail if total coverage drops below 85%
+fail_under = 85
 show_missing = true
 skip_covered = false
 

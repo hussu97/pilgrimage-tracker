@@ -31,7 +31,7 @@ jobs:
 
       - name: Run pytest
         working-directory: server
-        run: python -m pytest tests/ -v --tb=short
+        run: python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
 
   data-scraper:
     name: Data scraper tests
@@ -51,4 +51,46 @@ jobs:
 
       - name: Run pytest
         working-directory: data_scraper
-        run: python -m pytest tests/ -v --tb=short
+        run: python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
+
+  test-web:
+    name: Web frontend tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Run tests with coverage
+        working-directory: apps/web
+        run: npm run test -- --coverage
+
+  test-mobile:
+    name: Mobile frontend tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/mobile
+        run: npm ci
+
+      - name: Run tests with coverage
+        working-directory: apps/mobile
+        run: npm test -- --coverage
