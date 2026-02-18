@@ -4,12 +4,12 @@ import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { getMyStats, getSettings, updateSettings } from '@/lib/api/client';
 import ErrorState from '@/components/common/ErrorState';
 import { applyTheme } from '@/lib/theme';
-import type { UserStats } from '@/lib/types';
+import type { UserStats, Religion } from '@/lib/types';
 
 const RELIGIONS = [
-  { code: 'islam',       emoji: '🕌', labelKey: 'common.islam' },
-  { code: 'hinduism',    emoji: '🛕', labelKey: 'common.hinduism' },
-  { code: 'christianity',emoji: '⛪', labelKey: 'common.christianity' },
+  { code: 'islam' as const,        emoji: '🕌', labelKey: 'common.islam' },
+  { code: 'hinduism' as const,     emoji: '🛕', labelKey: 'common.hinduism' },
+  { code: 'christianity' as const, emoji: '⛪', labelKey: 'common.christianity' },
 ];
 
 const APP_VERSION = '2.4.0';
@@ -34,7 +34,7 @@ export default function Profile() {
   const [error, setError] = useState('');
   const [langOpen, setLangOpen] = useState(false);
   const [pathOpen, setPathOpen] = useState(false);
-  const [selectedReligions, setSelectedReligions] = useState<string[]>([]);
+  const [selectedReligions, setSelectedReligions] = useState<Religion[]>([]);
   const [, setNotifOn] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -73,7 +73,7 @@ export default function Profile() {
     setPathOpen(true);
   };
 
-  const toggleReligion = (code: string) => {
+  const toggleReligion = (code: Religion) => {
     if (code === 'all') {
       setSelectedReligions((prev) => prev.includes('all') ? [] : ['all']);
     } else {
@@ -87,7 +87,7 @@ export default function Profile() {
   const handleSavePath = async () => {
     setPathOpen(false);
     try {
-      await updateSettings({ religions: selectedReligions as string[] });
+      await updateSettings({ religions: selectedReligions });
       // Refresh user to show updated subtext
       await getSettings();
       if (user) fetchData();

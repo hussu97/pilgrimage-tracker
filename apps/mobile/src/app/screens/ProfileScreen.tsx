@@ -17,13 +17,13 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { getMyStats, updateSettings } from '@/lib/api/client';
-import type { UserStats } from '@/lib/types';
+import type { UserStats, Religion } from '@/lib/types';
 import { tokens } from '@/lib/theme';
 
 const RELIGIONS = [
-  { code: 'islam',        emoji: '🕌', labelKey: 'common.islam' },
-  { code: 'hinduism',     emoji: '🛕', labelKey: 'common.hinduism' },
-  { code: 'christianity', emoji: '⛪', labelKey: 'common.christianity' },
+  { code: 'islam' as const,        emoji: '🕌', labelKey: 'common.islam' },
+  { code: 'hinduism' as const,     emoji: '🛕', labelKey: 'common.hinduism' },
+  { code: 'christianity' as const, emoji: '⛪', labelKey: 'common.christianity' },
 ];
 
 const APP_VERSION =
@@ -354,7 +354,7 @@ export default function ProfileScreen() {
   const [error, setError] = useState('');
   const [langSheetOpen, setLangSheetOpen] = useState(false);
   const [pathSheetOpen, setPathSheetOpen] = useState(false);
-  const [selectedReligions, setSelectedReligions] = useState<string[]>([]);
+  const [selectedReligions, setSelectedReligions] = useState<Religion[]>([]);
 
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
@@ -396,7 +396,7 @@ export default function ProfileScreen() {
     setPathSheetOpen(true);
   };
 
-  const toggleReligion = (code: string) => {
+  const toggleReligion = (code: Religion) => {
     if (code === 'all') {
       setSelectedReligions((prev) => prev.includes('all') ? [] : ['all']);
     } else {
