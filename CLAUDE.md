@@ -82,7 +82,20 @@ Every backend change **must** include corresponding pytest coverage. Tests live 
 - Test isolation: each test gets a fresh database (function-scoped `test_engine` fixture).
 - Password fixtures must satisfy the validator: ≥8 chars, one uppercase, one lowercase, one digit.
 
-## 12. Dark Mode Compliance
+## 12. Frontend Tests (Vitest + Jest)
+Every frontend change **must** include corresponding test coverage. Tests live in:
+- `apps/web/src/__tests__/` — Vitest unit tests for web utilities, hooks, and pure logic
+- `apps/mobile/src/__tests__/` — Jest/jest-expo unit tests for mobile utilities and pure logic
+
+**Rules:**
+- When adding or modifying a utility, hook, or pure function, add or update the relevant test file.
+- Run web tests before committing: `cd apps/web && npm test`
+- Run mobile tests before committing: `cd apps/mobile && npm test`
+- Tests must pass the TypeScript typecheck too: `cd apps/web && npx tsc --noEmit` (Vitest does not type-check — only `tsc` does).
+- Test scope: focus on pure logic (utilities, transformers, helpers). Do not test React component rendering unless specifically needed; avoid mocking the entire component tree.
+- Both web and mobile test files for the same logic should cover the same cases — keep them in parity.
+
+## 13. Dark Mode Compliance
 Every UI element in both `apps/web` and `apps/mobile` must support dark mode.
 
 **Web (Tailwind):**
@@ -96,7 +109,7 @@ Every UI element in both `apps/web` and `apps/mobile` must support dark mode.
 - Light colors from `tokens.colors.*`, dark colors from `tokens.colors.dark*`
 - Never hardcode hex colors inline — always reference tokens
 
-## 13. Translation Key Parity
+## 14. Translation Key Parity
 Web and mobile must use the **same translation keys** for the same UI strings. When adding a new key:
 1. Add to `server/app/db/seed_data.json` under `translations.en`, `translations.ar`, `translations.hi`
 2. Use `t('key.name')` in both `apps/web` and `apps/mobile`
