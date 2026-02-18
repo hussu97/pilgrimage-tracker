@@ -118,10 +118,6 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
         </View>
       )}
 
-      {/* Hero gradient: top fade (black/40) + bottom fade (black/80) */}
-      <View style={styles.overlayTop} pointerEvents="none" />
-      <View style={styles.overlayBottom} pointerEvents="none" />
-
       {/* Top badges */}
       <View style={styles.topBadges}>
         <View style={styles.topBadgesLeft}>
@@ -133,6 +129,7 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
           )}
           {isClosed && (
             <View style={styles.badgeClosed}>
+              <View style={styles.closedDot} />
               <Text style={styles.badgeText}>{t('places.closed')}</Text>
             </View>
           )}
@@ -283,24 +280,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // Top fade: matches design ref from-black/40 (top)
-  overlayTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-    backgroundColor: 'rgba(0,0,0,0.40)',
-  },
-  // Bottom fade: matches design ref to-black/80 (bottom)
-  overlayBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 180,
-    backgroundColor: 'rgba(0,0,0,0.50)',
-  },
   topBadges: {
     position: 'absolute',
     top: 14,
@@ -314,36 +293,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
   },
-  // Open badge – green, solid
+  // Open badge – semi-transparent glass
   badgeOpen: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: tokens.colors.openNow,
+    backgroundColor: 'rgba(22, 163, 74, 0.3)',
     borderWidth: 1,
-    borderColor: 'rgba(22,163,74,0.50)',
+    borderColor: 'rgba(74, 222, 128, 0.4)',
     borderRadius: tokens.borderRadius.full,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  // Closed badge – red
+  // Closed badge – semi-transparent glass
   badgeClosed: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: tokens.colors.closedNow,
+    gap: 5,
+    backgroundColor: 'rgba(185, 28, 28, 0.3)',
     borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.50)',
+    borderColor: 'rgba(248, 113, 113, 0.4)',
     borderRadius: tokens.borderRadius.full,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  // Unknown badge – grey
+  // Unknown badge – semi-transparent glass
   badgeUnknown: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: tokens.colors.unknownStatus,
+    backgroundColor: 'rgba(148, 163, 184, 0.3)',
     borderWidth: 1,
-    borderColor: 'rgba(148,163,184,0.50)',
+    borderColor: 'rgba(148, 163, 184, 0.4)',
     borderRadius: tokens.borderRadius.full,
     paddingHorizontal: 10,
     paddingVertical: 5,
@@ -364,7 +344,13 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: '#4ade80',
+  },
+  closedDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#f87171',
   },
   badgeText: {
     color: '#fff',
