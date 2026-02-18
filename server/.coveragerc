@@ -2,6 +2,7 @@
 source = app
 omit =
     app/jobs/*
+    app/db/seed.py
     migrations/*
     scripts/*
     tests/*
