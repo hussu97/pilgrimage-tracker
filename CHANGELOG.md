@@ -4,6 +4,36 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P4 Coverage 85% (2026-02-18)
+
+### Backend
+- **`server/.coveragerc`** — Raised `fail_under` 60 → 85.
+- **`data_scraper/.coveragerc`** — Raised `fail_under` 60 → 85; added `omit` section to exclude untestable external-API scraper files.
+- **`.github/workflows/tests.yml`** — Added `--cov=app --cov-report=term-missing` to both pytest CI steps; added `test-web` (Vitest) and `test-mobile` (Jest) jobs.
+- **`server/tests/test_groups.py`** — New: full CRUD + social flow (create, list, get, update, join, invite, members, leaderboard, activity) covering `app/api/v1/groups.py` and `app/db/groups.py`.
+- **`server/tests/test_groups_db_extra.py`** — New: DB-layer tests for `add_member`, `get_members`, `get_leaderboard`, `get_group_progress`, `get_activity`.
+- **`server/tests/test_place_timings.py`** — New: `build_timings()` tested for Islam (prayer times), Christianity (service times), Hinduism (deities), and UTC fallback.
+- **`server/tests/test_place_specifications.py`** — New: `build_specifications()` with mocked attribute definitions.
+- **`server/tests/test_place_images.py`** — New: `add_image_url`, `set_images_from_urls`, `get_images`, `get_images_bulk`, `get_image_by_id`.
+- **`server/tests/test_review_images.py`** — New: attach images to review, get review images, orphan cleanup (old/recent/attached).
+- **`server/tests/test_reviews_api_extra.py`** — New: upload-photo endpoint (PIL JPEG/PNG), get-image endpoint, invalid type/size/dimension cases.
+- **`server/tests/test_reviews_db_extra.py`** — New: external reviews, upsert, source filter, bulk aggregate ratings.
+- **`data_scraper/tests/conftest.py`** — New: in-memory SQLite `test_engine`, `db_session`, `client`, and `error_client` fixtures.
+- **`data_scraper/tests/test_scraper_api.py`** — New: full API coverage — data-locations (gsheet/gmaps), scraper runs (create/get/view/sync/cancel), place-type-mappings (CRUD + filters), health endpoint, exception handlers.
+- **`data_scraper/tests/test_normalize_extended.py`** — New: extended pure-function tests for `normalize_to_24h`, `clean_address`, `process_weekly_hours`.
+
+### Frontend (web)
+- **`apps/web/vitest.config.ts`** — Raised all four coverage thresholds 60 → 85.
+- **`apps/web/src/__tests__/imageUpload.test.ts`** — New: `validateImageFile` (type/size checks) + `compressImage` (canvas mocks — normal size, resize, ctx-null, toBlob-null, img-error, custom maxWidth).
+- **`apps/web/src/__tests__/theme.test.ts`** — New: `applyTheme` (dark/light/system + localStorage), `getStoredTheme` (valid/invalid/missing), `initTheme` (applies stored theme, registers matchMedia listener). Uses in-memory localStorage mock to work with jsdom 28.
+
+### Frontend (mobile)
+- **`apps/mobile/jest.config.js`** — Raised all four coverage thresholds 60 → 85.
+- **`apps/mobile/src/__tests__/imageUpload.test.ts`** — New: `validateImage` (size/dimension bounds) + `pickImages` (permission denied, cancel, assets mapped, selectionLimit) + `compressImage` (no resize, resize, quality param). Uses `jest.mock` with inline `jest.fn()` for hoisting-safe Expo mocks.
+- **`apps/mobile/src/__tests__/mapBuilder.test.ts`** — New: `formatDistance` (m/km formatting, rounding) + `buildMapHtml` (center coords, Leaflet CDN, markers JSON, place name, open status).
+
+---
+
 ## P3 Code Quality (2026-02-18)
 
 ### Backend
