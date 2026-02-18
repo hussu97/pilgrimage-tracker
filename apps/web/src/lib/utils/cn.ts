@@ -17,10 +17,11 @@
  * Target files: ~40 components with template literal classNames (see grep results)
  */
 
-type ClassValue = string | number | boolean | undefined | null;
-type ClassArray = ClassValue[];
 type ClassDictionary = Record<string, unknown>;
-type ClassProp = ClassValue | ClassArray | ClassDictionary;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+interface ClassArray extends Array<ClassValue> {}
+type ClassValue = string | number | boolean | undefined | null | ClassArray | ClassDictionary;
+type ClassProp = ClassValue;
 
 export function cn(...inputs: ClassProp[]): string {
   const classes: string[] = [];
