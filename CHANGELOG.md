@@ -4,6 +4,29 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Mobile UI Fixes + Dynamic Password Validation (2026-02-18)
+
+### Backend
+- **`server/app/api/v1/auth.py`** — Added `GET /api/v1/auth/field-rules` endpoint returning structured registration validation rules (min_length 8, require_uppercase, require_lowercase, require_digit) without authentication.
+- **`server/app/db/seed_data.json`** — Fixed `auth.passwordMinLength` (was "6 characters", now "8 characters") across en/ar/hi. Added `auth.passwordRuleMinLength`, `auth.passwordRuleUppercase`, `auth.passwordRuleLowercase`, `auth.passwordRuleDigit` translation keys for all three languages.
+- **`server/tests/test_auth.py`** — Added `TestFieldRules` class with 5 tests covering the new endpoint.
+
+### Frontend (web)
+- **`apps/web/src/lib/api/client.ts`** — Added `getFieldRules()` function + `PasswordRule`, `FieldRule`, `FieldRulesResponse` types.
+- **`apps/web/src/app/pages/Register.tsx`** — Fetches field rules on mount; shows per-rule real-time hints below the password field (visible on focus, green tick when each rule is satisfied). Fixed client-side minLength guard from 6 → 8. Falls back to hardcoded defaults if API unavailable.
+
+### Frontend (mobile)
+- **`apps/mobile/src/lib/api/client.ts`** — Added `getFieldRules()` + `PasswordRule`/`FieldRule`/`FieldRulesResponse` types.
+- **`apps/mobile/src/app/screens/GroupsScreen.tsx`** — Removed notification bell icon and `navToNotifications`; added full dark mode via `makeStyles(isDark)`.
+- **`apps/mobile/src/app/screens/CreateGroupScreen.tsx`** — Replaced text back button with circular `MaterialIcons arrow-back` button matching the NotificationsScreen style; added full dark mode.
+- **`apps/mobile/src/app/screens/CheckInsListScreen.tsx`** — Same circular back button upgrade; added full dark mode throughout all cards and calendar.
+- **`apps/mobile/src/app/screens/FavoritesScreen.tsx`** — Added conditional circular back button in the FlatList header (visible only when `stackNav.canGoBack()`).
+- **`apps/mobile/src/app/screens/PlaceDetailScreen.tsx`** — Added `useTheme`; applied dark-mode colours to card background, footer, story/description text, opening-hours card.
+- **`apps/mobile/src/app/screens/WriteReviewScreen.tsx`** — Full dark mode via `makeStyles(isDark)` for container, header, text, toggle, photo controls, and success modal.
+- **`apps/mobile/src/app/screens/RegisterScreen.tsx`** — Fetches field rules on mount; shows per-rule real-time hints on password field focus; fixed minLength guard from 6 → 8.
+
+---
+
 ## Visitor Identity, Auth-Gating & Profile Redesign (2026-02-18)
 
 ### Backend
