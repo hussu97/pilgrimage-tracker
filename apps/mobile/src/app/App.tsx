@@ -1,5 +1,6 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, I18nProvider, ThemeProvider, useAuth } from './providers';
 import { LocationProvider } from './contexts/LocationContext';
 import { AppNavigationContent } from './navigation';
@@ -18,6 +19,7 @@ function AuthGate() {
 
 export default function App() {
   return (
+    <SafeAreaProvider>
     <ErrorBoundary>
       <I18nProvider>
         <ThemeProvider>
@@ -31,5 +33,6 @@ export default function App() {
         </ThemeProvider>
       </I18nProvider>
     </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }
