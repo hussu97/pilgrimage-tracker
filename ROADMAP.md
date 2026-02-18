@@ -249,10 +249,6 @@ Infrastructure, code quality, and optimization work to prepare for production sc
   - No backup strategy. A database failure loses all data.
   - For production PostgreSQL: configure daily automated backups with 30-day retention. Document the restore procedure in PRODUCTION.md.
 
-- [ ] **Proper staging environment**
-  - Changes are tested locally and deployed directly to production.
-  - Set up a staging deployment that mirrors production (same services, same database engine, different values). Gate production deploys behind staging verification.
-
 - [ ] **Load testing**
   - No performance benchmarks exist. Unknown how the API behaves under concurrent load.
   - Write Locust or k6 scripts for critical paths: place listing, place detail, search, check-in, and review submission. Run against a staging environment and document results.
