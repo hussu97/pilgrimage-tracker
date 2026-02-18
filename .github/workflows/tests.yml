@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel any in-progress run for the same branch/PR when a newer push arrives.
+# For PRs each PR gets its own group; for main branch pushes only one run at a time.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   server:
     name: Server tests
