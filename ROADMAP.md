@@ -1,115 +1,139 @@
 # Roadmap
 
-This document tracks all planned features, improvements, and fixes across the pilgrimage-tracker monorepo. Items are organized by priority tier (P0 through P4) and category. Check off items as they are completed.
+This document tracks all planned features, improvements, and fixes across the pilgrimage-tracker monorepo. Items are organized by priority tier (P0 through P3) and category. Check off items as they are completed.
 
 ---
 
 ## P0 - Critical Fixes
 
-Bugs that crash or break core functionality. These must be resolved before any other work.
+Issues that will cause failures, deprecation breakage, or significant performance degradation. Must be resolved before production deployment.
 
-### Server Crashes and Data Corruption
+### Deprecated Code
 
-- [x] **Fix `delete_review` crash in reviews endpoint**
-  - File: `server/app/api/v1/reviews.py` (lines 44-49)
-  - The delete handler references in-memory caches (`reviews_by_code`, `reviews_by_place`, `reviews_by_user`) that do not exist. The function will raise a `NameError` on every call.
-  - Fix: Replace the in-memory cache logic with a proper SQLModel `session.delete()` call followed by `session.commit()`, consistent with how other delete operations work in the codebase.
+- [ ] **Replace all `datetime.utcnow()` calls with `datetime.now(UTC)`**
+  - `datetime.utcnow()` is deprecated in Python 3.12 and removed in Python 3.14. The codebase uses it in 10 files:
+    - `server/app/core/security.py` (JWT expiration)
+    - `server/app/db/store.py` (user updates, visitor timestamps, password resets)
+    - `server/app/db/check_ins.py` (year counts, monthly/daily queries)
+    - `server/app/db/notifications.py` (marking read)
+    - `server/app/db/models.py` (default timestamps)
+    - `server/app/db/review_images.py` (upload timestamps)
+    - `server/app/api/v1/auth.py` (token creation)
+    - `server/app/main.py` (error logging timestamps)
+  - Fix: Import `from datetime import UTC` and replace `datetime.utcnow()` with `datetime.now(UTC)`. Update corresponding test files (`test_store.py`, `test_auth_extended.py`).
 
-- [x] **Fix `image_urls` attribute access on Place model**
-  - File: `server/app/api/v1/users.py` (lines 70-71, 78, 144)
-  - Code accesses `.image_urls` on the `Place` model, but that attribute does not exist on the SQLModel schema. This will raise an `AttributeError` whenever user profile data includes visited places.
-  - Fix: Use `place_images.get_images(place_code)` to retrieve image URLs, or add image data through the proper PlaceImage relationship.
+### Performance
 
-- [x] **Fix JWT expiration ignoring configuration**
-  - File: `server/app/core/security.py` (line 18)
-  - Token expiration is hardcoded to 7 days regardless of what `JWT_EXPIRE` is set to in the environment or settings.
-  - Fix: Parse the `JWT_EXPIRE` setting (support formats like `"7d"`, `"24h"`, or integer minutes) and use the parsed value when computing the `exp` claim.
+- [ ] **Fix N+1 query patterns in group listing**
+  - File: `server/app/api/v1/groups.py` (lines 15-41)
+  - `list_groups` makes 3 separate DB calls per group (members, last activity, progress). With 100 groups this becomes 300+ queries.
+  - Fix: Batch-fetch members, activity, and progress in single queries, then map results in Python.
+
+- [ ] **Fix N+1 query pattern in favorites endpoint**
+  - File: `server/app/api/v1/users.py` (lines 150-167)
+  - `get_my_favorites` fetches each place and its images individually in a loop.
+  - Fix: Use a single query with an `IN` clause for all favorite place codes, then batch-fetch images.
+
+- [ ] **Fix N+1 query pattern in place reviews**
+  - File: `server/app/api/v1/places.py` (line 231)
+  - `get_place_reviews` calls `get_review_images` per review in a loop.
+  - Fix: Batch-fetch all review images for the place's reviews in one query.
+
+### Incomplete Endpoints
+
+- [ ] **Implement place delete endpoint**
+  - File: `server/app/api/v1/places.py` (lines 558-578)
+  - Currently returns 501 Not Implemented. Has 3 TODOs: authorization check (admin only), soft delete vs hard delete decision, and cascade deletion of images/reviews/check-ins.
+  - Fix: Add admin role check, implement soft delete with a `deleted_at` timestamp column, cascade-mark related records.
 
 ---
 
 ## P1 - High Priority Improvements
 
-Issues that do not crash the app but significantly affect security, reliability, or performance.
+Issues that significantly affect code quality, maintainability, user experience, or compliance with project rules.
 
-### Security
+### Backend Quality
 
-- [x] **Implement actual email sending for password reset**
-  - File: `server/app/api/v1/auth.py`
-  - The forgot-password endpoint generates a reset token but only prints it to the console. No email is ever sent.
-  - Integrated Resend.com (`resend` library). Sends a password-reset link via `RESEND_API_KEY` / `RESEND_FROM_EMAIL`. Falls back to console log when `RESEND_API_KEY` is unset (dev). Added `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and `RESET_URL_BASE` to config and `.env.example`.
+- [ ] **Replace `print()` with structured logging**
+  - Multiple files use `print()` for error output and debugging (e.g., `auth.py:66` logs password reset tokens to console, `places.py:455` prints image storage failures).
+  - Fix: Use Python's `logging` module (or `structlog` for JSON output). Configure log levels per environment. Never log sensitive tokens in production.
 
-- [x] **Add rate limiting to auth endpoints**
-  - Endpoints: `/api/v1/auth/login`, `/api/v1/auth/register`, `/api/v1/auth/forgot-password`
-  - There is no rate limiting, making brute-force and credential-stuffing attacks trivial.
-  - Added `slowapi` (in-memory, per-IP): 5 req/min on login, 3 req/min on register, 2 req/min on forgot-password.
+- [ ] **Fix bare `except` clauses**
+  - Files: `server/app/api/v1/auth.py` (lines 127-128, 163-164) — catches `Exception` with `pass` during visitor merge.
+  - Fix: Catch specific exceptions (`ValueError`, `HTTPException`) instead of silencing all errors.
 
-- [x] **Validate untyped input fields**
-  - `PlaceAttributeInput.value` accepts `Any` with no validation. Malicious payloads could be stored directly.
-  - `PlaceCreate.google_reviews` accepts `List[dict]` with no schema enforcement.
-  - Added `ExternalReviewInput` Pydantic model with explicit typed fields (`author_name`, `rating`, `text`, `time`, `language`). Constrained `PlaceAttributeInput.value` to `str | int | float | bool | list[str]` (dict rejected).
+- [ ] **Add Alembic downgrade functions**
+  - Migration files `0001_initial.py` and `0002_add_visitor.py` have `upgrade()` but empty `downgrade()`.
+  - Fix: Implement `downgrade()` with `op.drop_table()` calls for safe rollbacks.
 
-- [x] **Review and tighten CORS configuration**
-  - The server currently allows all origins (`*`) in development mode. This is acceptable for local dev but must not reach production.
-  - Already environment-aware: `CORS_ORIGINS` env var restricts origins; defaults to localhost only. Documented in `.env.example`.
+### Internationalization (i18n)
 
-- [x] **Add refresh token rotation**
-  - Current JWT tokens last 7 days with no refresh mechanism. If a token is stolen, it is valid for the entire duration.
-  - Implemented: short-lived access tokens (30 min, configurable via `JWT_EXPIRE`), long-lived refresh tokens (30 days, configurable via `REFRESH_EXPIRE`) stored in HTTP-only `SameSite=Strict` cookies. Added `RefreshToken` DB model, `POST /auth/refresh` (rotates on use), and `POST /auth/logout` (revokes token + clears cookie).
+- [ ] **Fix remaining hardcoded UI strings on web**
+  - `apps/web/src/app/pages/WriteReview.tsx:20-26` — Rating labels ("Poor", "Fair", "Good", "Very Good", "Excellent")
+  - `apps/web/src/app/pages/Notifications.tsx:19-21` — Notification type labels ("Check-in", "Group update", "Notification")
+  - `apps/web/src/components/common/ErrorBoundary.tsx:58,68,74` — "Something went wrong", "Try again", "Go home"
+  - `apps/web/src/app/pages/CheckInsList.tsx:8` — Weekday labels `['S','M','T','W','T','F','S']`
+  - `apps/web/src/app/pages/Groups.tsx:37` — Progress level "New"
+  - `apps/web/src/app/pages/CreateGroup.tsx:63` — Share message "Join our group"
+  - Fix: Add translation keys to `seed_data.json` for all three languages. Replace hardcoded strings with `t()` calls.
 
-- [x] **Enforce password strength on the backend**
-  - The web frontend enforces a minimum of 6 characters, but the backend has no validation at all. A single-character password is accepted.
-  - Added server-side validation to `RegisterBody` and `ResetPasswordBody`: minimum 8 characters, at least one uppercase letter, one lowercase letter, and one digit. Returns 422 with clear message.
+- [ ] **Fix remaining hardcoded UI strings on mobile**
+  - `apps/mobile/src/components/places/PlaceCard.tsx:150` — "Visited" badge text
+  - `apps/mobile/src/components/places/PlaceCard.tsx:188` — "Check In" button text
+  - `apps/mobile/src/components/common/ErrorBoundary.tsx:56` — "Something went wrong"
+  - `apps/mobile/src/app/screens/GroupsScreen.tsx:34-42` — Relative time strings ("just now", "m ago", "h ago", "d ago")
+  - `apps/mobile/src/app/screens/GroupsScreen.tsx:48` — Progress level labels ("Done", "Lvl 1-5", "New")
+  - Fix: Add corresponding translation keys and use `t()`. Ensure parity with web keys per Rule 14.
 
-### Reliability
+### Dark Mode Compliance
 
-- [x] **Add React Error Boundaries to both frontends**
-  - Neither `apps/web` nor `apps/mobile` has error boundaries. A single component crash takes down the entire app.
-  - Wrap major route-level components in an `ErrorBoundary` that shows a fallback UI ("Something went wrong") and logs the error. On mobile, add a "Retry" button that resets the boundary.
+- [ ] **Fix dark mode token violations on web**
+  - `apps/web/src/components/places/PlacesMap.tsx:186` — uses `dark:bg-gray-800` instead of `dark:bg-dark-surface`
+  - `apps/web/src/components/common/ErrorBoundary.tsx:72` — uses `bg-gray-200 hover:bg-gray-300` instead of design tokens
+  - Fix: Replace all `dark:bg-gray-*` / `dark:text-gray-*` with `dark:bg-dark-*` / `dark:text-dark-*` tokens per Rule 13.
 
-- [x] **Handle individual place failures in scraper sync**
-  - File: `data_scraper/sync.py`
-  - When the scraper POSTs places to the server, a failure on one place silently stops or skips without logging. The operator has no visibility into what failed.
-  - Wrap each POST in a try/except, log the place code and error, continue with the remaining places, and print a summary at the end (e.g., "Synced 47/50 places. 3 failures logged.").
+- [ ] **Fix dark mode compliance on mobile**
+  - `apps/mobile/src/components/common/ErrorBoundary.tsx` — Hardcoded light colors (#fee2e2, #ef4444), no `isDark` support
+  - `apps/mobile/src/components/places/PlaceCard.tsx` — Hardcoded colors (#1e293b, rgba overlays) without dark mode adaptation
+  - `apps/mobile/src/app/screens/LoginScreen.tsx` — Static styles, no `makeStyles(isDark)` pattern
+  - `apps/mobile/src/app/screens/RegisterScreen.tsx` — Same as LoginScreen
+  - Fix: Convert to `makeStyles(isDark)` pattern using `tokens.colors.dark*` values per Rule 13.
 
-- [x] **Fix unsafe session handling in place_images.py**
-  - File: `server/app/services/place_images.py`
-  - Uses `next(get_session())` which manually advances a generator without proper cleanup. This can leak database connections under load.
-  - Refactor to accept a `Session` parameter via dependency injection, or use a context manager (`with get_session() as session:`).
+### Testing
 
-- [x] **Add health check endpoint to the scraper service**
-  - The server exposes `/health` but the scraper has no equivalent. Deployment orchestrators (Docker, Cloud Run) need a health probe.
-  - Add a `/health` endpoint to the scraper that returns `{"status": "ok"}` and checks database connectivity.
+- [ ] **Expand web frontend test coverage**
+  - Currently only 2 test files (96 lines) covering `cn()`, `crowdColorClass()`, and `getFullImageUrl()`.
+  - Add tests for: API client methods, auth context provider, i18n context, theme context, `useAuthRequired` hook, `imageUpload` utility, `share` utility, place-utils transformers.
+  - Target: Match the 60% coverage threshold configured in `vitest.config.ts`.
 
-- [x] **Implement database migrations with Alembic**
-  - The current seed script drops and recreates all tables, destroying existing data. This is not viable for any environment beyond local dev.
-  - Initialize Alembic, generate an initial migration from the current SQLModel metadata, and replace the drop-and-recreate logic with `alembic upgrade head`. Document the migration workflow in `server/README.md`.
+- [ ] **Expand mobile frontend test coverage**
+  - Currently only 1 test file (87 lines) covering `crowdColor()`, `getFullImageUrl()`, and constants.
+  - Add tests for: API client methods, auth provider, i18n provider, theme provider, `useAuthRequired` hook, `imageUpload` utility (compression, validation), `mapBuilder`, `share` utility.
+  - Target: Match the 60% coverage threshold configured in `jest.config.js`.
 
-### Performance
+### Accessibility
 
-- [x] **Implement rating sort for places**
-  - File: `server/app/api/v1/places.py` (lines 278-280)
-  - The `sort=rating` query parameter is accepted but the implementation body is empty. Results are returned unsorted.
-  - Already implemented in `server/app/db/places.py`: `pass` at sort decision point skips proximity sort; rating sort applied after all filters via `result.sort(key=lambda x: (_get_avg(x[0].place_code), -(x[1] or 0)), reverse=True)`.
+- [ ] **Add accessibility attributes on mobile**
+  - Most `TouchableOpacity` buttons lack `accessibilityLabel` and `accessibilityRole`.
+  - Check-in buttons, favorite toggles, filter chips, map controls, and list items need labels.
+  - Modal overlays need `accessibilityRole="dialog"`.
+  - Loading and error states should use live regions for screen reader announcements.
 
-- [x] **Batch sync for scraper**
-  - The scraper currently POSTs one place at a time, resulting in N HTTP requests for N places. This is slow and generates excessive overhead.
-  - Added `POST /api/v1/places/batch` endpoint (`server/app/api/v1/places.py`) accepting `PlaceBatch` (list of `PlaceCreate`). Returns `{total, synced, failed, results}`. Updated `sync_run_to_server` in `data_scraper/app/db/scraper.py` to send in batches of 25 (`BATCH_SIZE=25`) with fallback to individual POSTs.
+- [ ] **Improve web accessibility**
+  - Add `role="dialog"` and `aria-modal="true"` to modal components.
+  - Add `aria-live="assertive"` to ErrorBoundary fallback for screen reader announcements.
+  - Audit all interactive elements for keyboard navigation (tab order, Enter/Space activation).
+  - Add skip-to-content link for keyboard users.
 
-- [x] **Add image caching on mobile**
-  - Every scroll of a list reloads images from the network. This wastes bandwidth and causes visible flicker.
-  - Already implemented: `apps/mobile/src/components/places/PlaceCard.tsx` uses `expo-image` with `cachePolicy="memory-disk"` and `transition={200}`.
+### Error Handling
 
-- [x] **Memoize expensive React components**
-  - `PlaceCard` and `FilterChip` re-render on every parent state change even when their props have not changed.
-  - Mobile: `PlaceCard` and `FilterChip` already export `React.memo()`. Web: wrapped `PlaceCardUnified` and `FilterChip` in `React.memo()`.
+- [ ] **Integrate error tracking service**
+  - Both web and mobile ErrorBoundary components have TODO comments for Sentry/LogRocket integration.
+  - Fix: Add `@sentry/react` (web) and `@sentry/react-native` (mobile). Configure DSN via environment variables. Send caught errors from ErrorBoundary `componentDidCatch`.
 
-- [x] **Break up oversized screen components**
-  - `HomeScreen.tsx` (mobile, 925 lines), `PlaceDetailScreen.tsx` (mobile, 1070 lines), and `PlaceDetail.tsx` (web, 750 lines) are too large to maintain or test.
-  - Mobile: extracted `PlaceScorecardRow`, `PlaceTimingsCarousel`, `PlaceSpecificationsGrid`, `PlaceReviewsList` into `apps/mobile/src/components/places/`. Web: extracted `PlaceOpeningHours`, `PlaceTimingsCarousel`, `PlaceSpecificationsGrid` into `apps/web/src/components/places/`. Eliminated code duplication between mobile/desktop layouts in `PlaceDetail.tsx`.
-
-- [x] **Lazy load web routes**
-  - The web app bundles all page components into a single chunk. First load downloads code for every route.
-  - Converted all 18 page imports in `apps/web/src/app/routes.tsx` to `React.lazy()`. Wrapped `<Routes>` in `<Suspense fallback={<PageLoader />}>` with a spinner fallback.
+- [ ] **Add network error feedback on mobile**
+  - API call failures show no user-facing feedback — loading states persist indefinitely on network errors.
+  - Fix: Add network status detection (`@react-native-community/netinfo`). Show toast or banner when offline. Retry failed requests with exponential backoff.
 
 ---
 
@@ -120,28 +144,26 @@ New capabilities and meaningful UX improvements.
 ### User Features
 
 - [ ] **Badges and achievements system**
-  - The profile API returns a hardcoded `0` for badges. No badge logic exists.
+  - The profile API returns a hardcoded `0` for badges (`server/app/api/v1/users.py:137` has a TODO).
   - Design badge criteria (e.g., "First Check-in", "10 Reviews", "Visited 5 Countries", "Early Adopter") with icons and descriptions. Create a `badges` table, a badge-evaluation service, and a `GET /api/v1/users/me/badges` endpoint. Show earned badges on the profile screen.
 
 - [ ] **Push notifications**
   - The `Notification` model exists in the database but no push delivery mechanism is implemented.
   - Integrate Expo Push Notifications (mobile) and Web Push API (web). Send notifications for: new review on a favorited place, badge earned, check-in streak reminder.
 
-- [ ] **Social sharing with rich previews**
-  - Share buttons exist but produce plain text links with no preview metadata.
-  - Generate Open Graph meta tags for place pages (title, description, image). On mobile, use the Share API with a pre-formatted message including the place name, rating, and a deep link.
+- [ ] **Directions integration**
+  - Add a "Directions" button on the place detail page. On mobile, deep link to Google Maps or Apple Maps with the place coordinates. On web, open Google Maps in a new tab.
+
+- [ ] **Place photo gallery**
+  - The detail page shows a single hero image. Many places have multiple photos in `place_images`.
+  - Display a horizontal scrollable gallery at the top of the detail page. Tapping an image opens a full-screen viewer with swipe navigation.
 
 - [ ] **Search history and suggestions**
   - The search bar has no memory. Users re-type the same queries repeatedly.
-  - Store the last 10 search queries locally (AsyncStorage on mobile, localStorage on web). Display them as suggestions below the search bar when it is focused. Add a "Clear history" option.
+  - Store the last 10 search queries locally (AsyncStorage on mobile, localStorage on web). Display them as suggestions when the search bar is focused. Add a "Clear history" option.
 
 - [ ] **Recently viewed places**
-  - There is no record of which places a user has viewed.
-  - Track the last 20 viewed places in local storage. Display a "Recently Viewed" section on the home screen below the main content. Optionally persist server-side for cross-device sync.
-
-- [ ] **Place photo gallery**
-  - The detail page shows a single hero image. Many places have multiple photos available.
-  - Display a horizontal scrollable gallery at the top of the detail page. Tapping an image opens a full-screen viewer with swipe navigation. Pull images from `place_images`.
+  - Track the last 20 viewed places in local storage. Display a "Recently Viewed" section on the home screen. Optionally persist server-side for cross-device sync.
 
 - [ ] **Religion expansion**
   - The "View More Faiths" button in the UI is non-functional. Only Islam, Christianity, and Hinduism are supported.
@@ -153,17 +175,13 @@ New capabilities and meaningful UX improvements.
 
 - [ ] **Check-in streaks**
   - No gamification around consecutive daily check-ins.
-  - Track the current streak and longest streak on the user profile. Display a flame icon with the streak count. Send a push notification reminder if the streak is about to break. Award a badge at 7, 30, and 100 day streaks.
+  - Track current and longest streak on the user profile. Display a flame icon with the streak count. Send a push notification reminder if the streak is about to break. Award badges at 7, 30, and 100 day streaks.
+
+- [ ] **Social sharing with rich previews**
+  - Share buttons exist but produce plain text links with no preview metadata.
+  - Generate Open Graph meta tags for place pages (title, description, image). On mobile, use the Share API with a pre-formatted message including the place name, rating, and a deep link.
 
 ### Backend Features
-
-- [x] **Configurable timezone for scrapers**
-  - The scraper hardcodes a UTC+4 offset (UAE timezone). Running it from another region produces incorrect timestamps.
-  - Added `SCRAPER_TIMEZONE` env var (IANA name, e.g. `Asia/Dubai`). When Google Maps returns no `utcOffsetMinutes`, falls back to `zoneinfo.ZoneInfo(SCRAPER_TIMEZONE)` to compute offset in minutes. Documented in `data_scraper/.env.example`.
-
-- [x] **Batch place creation endpoint**
-  - For efficient scraper sync (see P1 batch sync item).
-  - `POST /api/v1/places/batch` accepts `{"places": [...]}`, validates each, inserts in a single transaction, and returns a result summary with successes and failures.
 
 - [ ] **Place search autocomplete**
   - Current search uses a basic `LIKE` query which is slow and produces poor results.
@@ -175,54 +193,17 @@ New capabilities and meaningful UX improvements.
 
 - [ ] **Admin panel and dashboard**
   - There is no admin interface. All data management requires direct database queries.
-  - Build a minimal admin UI (can be a separate route group in the web app or a standalone tool). Include: place CRUD, user management, review moderation queue, scraper status, and basic analytics.
+  - Build a minimal admin UI (can be a separate route group in the web app). Include: place CRUD, user management, review moderation queue, scraper status, and basic analytics.
 
 - [ ] **Webhook and event system**
   - No mechanism for real-time notifications or external integrations.
   - Implement an internal event bus. When key actions occur (new review, check-in, badge earned), publish events. Consumers can send push notifications, update caches, or call external webhooks.
 
-- [x] **API pagination improvements**
-  - Some list endpoints use simple limit/offset which performs poorly on large datasets.
-  - Added cursor-based pagination to `GET /api/v1/places`: accepts optional `cursor` query param (a `place_code`); when provided, starts the page after that place. Response now includes `next_cursor` (last item's `place_code`) when more results exist, `null` otherwise. Backward-compatible: `offset` still works when no cursor given. Frontend types updated (`PlacesResponse.next_cursor`).
-
 - [ ] **Geographic boundary management API**
-  - Geographic boundaries (cities, regions) are seed-only. There is no CRUD API for managing them at runtime.
-  - Add `GET/POST/PUT/DELETE /api/v1/geo-boundaries` endpoints. Useful for admin panel and for expanding coverage to new regions.
+  - Geographic boundaries (cities, regions) are seed-only. There is no CRUD API.
+  - Add `GET/POST/PUT/DELETE /api/v1/geo-boundaries` endpoints for the admin panel and for expanding coverage to new regions.
 
 ### Frontend Features
-
-- [x] **Loading skeleton screens**
-  - All loading states display plain "Loading..." text, which feels unpolished.
-  - Create skeleton components that match the shape of the content they replace (card skeletons, detail page skeletons, list item skeletons). Use CSS animation for the shimmer effect.
-
-- [x] **Pull-to-refresh on mobile**
-  - List screens do not support pull-to-refresh. Users must navigate away and back to refresh.
-  - Wrap `FlatList` and `ScrollView` components with `RefreshControl`. Trigger the appropriate data fetch on pull.
-
-- [x] **Infinite scroll for lists**
-  - Place lists use a fixed page size with no mechanism to load more.
-  - Implement `onEndReached` on mobile `FlatList` and an `IntersectionObserver` on web to trigger loading the next page. Show a spinner at the bottom while loading.
-
-- [x] **Swipe gestures on mobile**
-  - No swipe interactions exist. Common mobile patterns are missing.
-  - Add swipe-to-delete on favorites list, swipe between images in the gallery, and swipe to dismiss the detail page back to the list.
-
-- [x] **Haptic feedback on mobile**
-  - Check-in and favorite toggle have no tactile feedback.
-  - Use `expo-haptics` to trigger a light impact on favorite toggle, a medium impact on check-in, and a success notification on badge earned.
-
-- [x] **Map marker clustering**
-  - When zoomed out, overlapping markers create an unreadable mess.
-  - Web: added `react-leaflet-cluster` (`MarkerClusterGroup`) wrapping all markers; custom green cluster icon shows count badge; expands on click, spiderfies on max zoom.
-  - Mobile: embedded `leaflet.markercluster@1.5.3` via CDN in the WebView HTML; all markers added to `L.markerClusterGroup()` with matching green cluster icon.
-
-- [ ] **Directions integration**
-  - Users cannot get navigation directions to a place from within the app.
-  - Add a "Directions" button on the detail page. On mobile, deep link to Google Maps or Apple Maps with the place coordinates. On web, open Google Maps in a new tab.
-
-- [ ] **Accessibility improvements**
-  - No ARIA labels, poor screen reader support, incomplete keyboard navigation.
-  - Audit all interactive elements. Add `aria-label`, `role`, and `tabIndex` attributes on web. Add `accessibilityLabel` and `accessibilityRole` on mobile. Ensure all actions are reachable via keyboard.
 
 - [ ] **Desktop layout optimization**
   - The web app uses a single-column layout on all screen sizes. Wide screens waste space.
@@ -232,159 +213,77 @@ New capabilities and meaningful UX improvements.
   - First-time users see the app with no guidance.
   - Show a brief guided tour on first login: highlight the search bar, explain filter chips, show how to check in, and point to the profile/favorites. Use a tooltip-based overlay. Store a `has_seen_onboarding` flag.
 
+- [ ] **Success feedback for user actions**
+  - Add/remove favorite, group join, check-in — none show a toast or confirmation on web.
+  - Add a lightweight toast notification component. Show brief success messages for key user actions.
+
 ---
 
 ## P3 - Scalability and DevOps
 
-Infrastructure, code quality, and optimization work to prepare for production and growth.
+Infrastructure, code quality, and optimization work to prepare for production scale.
 
 ### Infrastructure
 
-- [ ] **Database migrations with Alembic** (see also P1 reliability)
-  - Initialize Alembic in the `server/` directory. Generate the initial migration. Replace all `SQLModel.metadata.create_all()` calls in seed scripts with migration-based schema management. Document the migration commands in the README.
-
-- [ ] **CI/CD pipeline with GitHub Actions**
-  - No automated checks run on pull requests or merges.
-  - Create workflows for: Python linting and tests (server, scraper), TypeScript linting and build (web, mobile), Docker image build verification. Deploy to staging on merge to `main`. Deploy to production on tagged releases.
-
-- [ ] **Docker Compose for local development**
-  - Starting the full stack requires manually running three services in separate terminals.
-  - Create a `docker-compose.yml` that starts the server, scraper, PostgreSQL, and optionally the web frontend. Map volumes for hot reload. Document the single-command startup in the root README.
-
-- [ ] **Monitoring and logging**
+- [ ] **Monitoring and structured logging**
   - No structured logging. Errors are printed to stdout and lost.
   - Add structured JSON logging with `structlog` or `python-json-logger`. Integrate Sentry for error tracking. Add request ID tracing across services. Set up basic dashboards for request latency, error rate, and database query time.
 
 - [ ] **CDN for images**
-  - Place images are served through the API server, adding load and latency.
+  - Place and review images are stored as database blobs (`LargeBinary` in models.py). This causes database bloat and poor performance at scale.
   - Upload images to cloud storage (GCS, S3, or Cloudflare R2) and serve via CDN. Update image URLs in the database to point to the CDN. Add cache-control headers.
 
 - [ ] **Background job queue**
   - FastAPI `BackgroundTasks` runs in the same process and provides no retry, persistence, or monitoring.
   - Set up Celery with Redis (or a lighter alternative like `arq`). Move email sending, image processing, badge evaluation, and analytics aggregation to background jobs.
 
-- [ ] **API versioning strategy**
-  - All endpoints are under `/api/v1/`. There is no plan for breaking changes.
-  - Document the versioning policy: v1 is supported for 12 months after v2 launch. New features go into the latest version. Breaking changes require a new version. Use URL-based versioning (`/api/v2/`).
+- [ ] **API response compression**
+  - Large JSON responses (place lists with images) are sent uncompressed.
+  - Enable gzip or Brotli compression via FastAPI's `GZipMiddleware`. Expected 60-80% reduction in transfer size for JSON payloads.
 
-- [ ] **Load testing**
-  - No performance benchmarks exist. Unknown how the API behaves under concurrent load.
-  - Write Locust or k6 scripts for the critical paths: place listing, place detail, search, check-in, and review submission. Run against a staging environment and document the results.
+- [ ] **Mobile CI/CD pipeline**
+  - GitHub Actions deploys only the API (Cloud Run) and web (Firebase Hosting). No mobile build/deploy.
+  - Add EAS Build workflow for iOS and Android. Trigger on tagged releases or manual dispatch. Upload to TestFlight / Google Play internal track.
 
 - [ ] **Automated database backups**
   - No backup strategy. A database failure loses all data.
-  - For production PostgreSQL: configure daily automated backups with 30-day retention. For SQLite (dev): add a cron job or script that copies the database file. Document the restore procedure.
+  - For production PostgreSQL: configure daily automated backups with 30-day retention. Document the restore procedure in PRODUCTION.md.
 
 - [ ] **Proper staging environment**
-  - There is no staging environment. Changes are tested locally and deployed directly to production.
-  - Set up a staging deployment that mirrors production (same services, same database engine, same env vars with different values). Gate production deploys behind staging verification.
+  - Changes are tested locally and deployed directly to production.
+  - Set up a staging deployment that mirrors production (same services, same database engine, different values). Gate production deploys behind staging verification.
 
-### Code Quality
+- [ ] **Load testing**
+  - No performance benchmarks exist. Unknown how the API behaves under concurrent load.
+  - Write Locust or k6 scripts for critical paths: place listing, place detail, search, check-in, and review submission. Run against a staging environment and document results.
 
-- [x] **Add backend tests with pytest**
-  - Test suite added in `server/tests/` (60 tests) and `data_scraper/tests/` (20 tests).
-  - Covers: health check, hours parsing unit tests, auth flow (register/login/refresh/logout), place CRUD + search + filters + reviews + check-ins + favorites, scraper normalize_to_24h + clean_address + process_weekly_hours.
-  - Infrastructure: in-memory SQLite, patched lifespan hooks, disabled rate limiting, per-test DB isolation.
-
-- [x] **Add frontend tests**
-  - Vitest configured for `apps/web` (16 tests: cn utility, crowdColorClass, getFullImageUrl). Jest configured for `apps/mobile` (10 tests: crowdColor, getFullImageUrl, ROUTES constants). React Testing Library installed. Test scripts: `npm test`, `npm run test:coverage`. Expo winter runtime compatibility fixed via `moduleNameMapper`.
-
-- [x] **Linting configuration**
-  - ESLint + Prettier installed and configured for `apps/web` and `apps/mobile` (`eslint.config.js` using flat config format). Ruff configured for `server/` and `data_scraper/` via `pyproject.toml`. Shared `.prettierrc` at monorepo root. Lint scripts added to all `package.json` files: `npm run lint`, `npm run lint:fix`, `npm run format`.
-
-- [x] **Type safety improvements**
-  - Python: Added `UserDep` and `OptionalUserDep` type aliases in `deps.py`. Replaced all `Annotated[Any, Depends(get_current_user)]` patterns across 5 endpoint files (28 occurrences). Added return type annotations to `get_current_user` and `get_optional_user`. TypeScript: Fixed `r: any` in web API client (typed as `Place | [Place, number]`); fixed `value?: any` in mobile `FilterChipsList` (typed as `string | boolean`). Both `tsconfig.json` files already had `strict: true`.
-
-- [x] **API documentation refinement**
-  - Added `openapi_tags` metadata with descriptions for all 8 tag groups to `FastAPI` app constructor. Added `summary`, response error examples (400/401/422/429), and docstrings to auth endpoints (`/register`, `/login`, `/forgot-password`, `/reset-password`). Added Pydantic `Field(description=...)` and `model_config json_schema_extra` examples to `RegisterBody`, `LoginBody`, `AuthResponse`, and `UserResponse`.
-
-- [x] **Generate TypeScript types from FastAPI schemas**
-  - Installed `openapi-typescript` at monorepo root. Added `npm run gen:types` script in root `package.json`. Generation script at `scripts/gen-api-types.mjs` fetches from `GET /openapi.json` and writes `api-generated.d.ts` to both `apps/web/src/lib/types/` and `apps/mobile/src/lib/types/`. Usage: start server then run `npm run gen:types` from repo root.
-
-- [x] **Git hooks with pre-commit**
-  - Created `.pre-commit-config.yaml` with hooks for: trailing whitespace, end-of-file fixer, merge conflict detection, YAML/JSON validation, Ruff lint+format (Python), ESLint (TypeScript web + mobile), Prettier (TypeScript/CSS). `pre-commit install` run — hook active at `.git/hooks/pre-commit`.
-
-- [x] **Code coverage tracking**
-  - `pytest-cov` added to `server/requirements.txt` and `data_scraper/requirements.txt`. `.coveragerc` created for both with `fail_under = 60` threshold, HTML+XML reporters, source=`app`. Server currently at **69.8% coverage** (above threshold). Frontend: `vitest run --coverage` (v8 provider, 60% threshold) and `jest --coverage` (60% threshold) configured. Run with `npm run test:coverage` in each app.
+- [ ] **API versioning strategy**
+  - All endpoints are under `/api/v1/`. There is no plan for breaking changes.
+  - Document the versioning policy: v1 is supported for 12 months after v2 launch. Breaking changes require a new version. Use URL-based versioning (`/api/v2/`).
 
 ### Optimization
-
-- [ ] **Database indexing**
-  - No explicit indexes beyond primary keys. Common queries scan full tables.
-  - Add indexes for: `places.religion`, `places.city`, `reviews.place_code`, `reviews.user_code`, `check_ins.user_code`, `check_ins.place_code`, `favorites.user_code`. Measure query performance before and after.
 
 - [ ] **Response caching**
   - Every request hits the database, even for data that changes infrequently.
   - Cache translations (changes only on deploy), place lists (cache for 5 minutes with invalidation on write), and religion/category metadata (cache for 1 hour). Use Redis or in-memory caching with TTL.
 
-- [ ] **Connection pooling optimization**
-  - Default SQLAlchemy pool settings may not be optimal for production PostgreSQL.
-  - Configure `pool_size`, `max_overflow`, `pool_timeout`, and `pool_recycle` based on expected concurrency. Use `pool_pre_ping` to handle stale connections. Document the recommended settings for different deployment sizes.
-
-- [ ] **Frontend bundle optimization**
-  - No code splitting configured. The entire app is in one bundle.
-  - Enable code splitting via dynamic imports (see P1 lazy loading). Configure Vite's `manualChunks` to separate vendor code. Analyze the bundle with `rollup-plugin-visualizer` and eliminate large unused dependencies.
-
 - [ ] **Image optimization pipeline**
   - Images are stored and served at their original size and format.
   - Resize images to standard dimensions (thumbnail: 200px, card: 600px, full: 1200px) on upload. Convert to WebP format. Store multiple sizes and serve the appropriate one based on context.
 
-- [ ] **API response compression**
-  - Large JSON responses (place lists with images) are sent uncompressed.
-  - Enable gzip or Brotli compression in the FastAPI middleware. Verify that the frontend correctly handles compressed responses. Expected 60-80% reduction in transfer size for JSON payloads.
+- [ ] **Frontend bundle optimization**
+  - Routes are lazy-loaded but no further code splitting is configured.
+  - Configure Vite's `manualChunks` to separate vendor code (React, Leaflet, etc.). Analyze the bundle with `rollup-plugin-visualizer` and eliminate large unused dependencies.
 
----
+### Code Quality
 
-## P4 - Web/Mobile Parity: Dark Mode & i18n
+- [ ] **Use enums for magic string literals**
+  - Status strings ("open", "closed", "unknown"), review sources ("user", "external", "google"), and other magic literals are scattered across backend code.
+  - Define Python `StrEnum` types and use them in models and endpoint logic for type safety and autocomplete.
 
-Comprehensive audit and fix to bring both frontends to full dark mode support (using correct design tokens) and zero hardcoded UI strings.
-
-### Batch 6: Translation Keys (server)
-- [x] Added ~51 new translation keys to `server/app/db/seed_data.json` (EN, AR, HI)
-  - `reviews.*` (7 keys): confirmDelete, selectRating, maxPhotos, invalidImage, photoPermissionDenied, uploadFailed, starsAccessibility
-  - `places.*` (5 keys): missingCode, notFound, checkedInDate, checkInFailed, tryAgain
-  - `common.*` (21 keys): backToHome, home, visitor, share, copy, copied, unexpectedError, timeJustNow, timeMinutesAgo, timeHoursAgo, timeDaysAgo, distanceMeters, distanceKm, monday–sunday
-  - `groups.*` (18 keys): groupCreated, shareInviteLink, goToGroup, nameLabel, descriptionLabel, privateGroup, invite, places, viewFullLeaderboard, noLeaderboardData, recentlyVisited, noRecentActivity, checkedInAt, created, level, missingGroup, enterInviteCode, groupNamePlaceholder, descriptionPlaceholder, showLess
-
-### Batch 1–2: Web Auth & Core Screens
-- [x] `apps/web/src/app/pages/ResetPassword.tsx` — Fixed wrong dark tokens (`dark:bg-gray-*` → `dark:bg-dark-*`)
-- [x] `apps/web/src/app/pages/SelectPath.tsx` — Added full dark mode (was none); replaced inline gradient style with Tailwind classes
-- [x] `apps/web/src/app/pages/PlaceDetail.tsx` — Fixed 6 hardcoded strings via `t()` calls
-- [x] `apps/web/src/app/pages/WriteReview.tsx` — Full dark mode + fixed 8 hardcoded strings + icon class fixes (`material-symbols-outlined`)
-
-### Batch 3–4: Web User & Group Screens
-- [x] `apps/web/src/app/pages/EditProfile.tsx` — Added missing dark mode
-- [x] `apps/web/src/app/pages/Favorites.tsx` — Added missing dark mode
-- [x] `apps/web/src/app/pages/Notifications.tsx` — Fixed 2 hardcoded strings + dark mode
-- [x] `apps/web/src/app/pages/Groups.tsx` — Full dark mode + refactored `formatRelative()`/`progressLevel()` to use `t()` + fixed many hardcoded strings
-- [x] `apps/web/src/app/pages/CreateGroup.tsx` — Full dark mode + fixed 8 hardcoded strings
-- [x] `apps/web/src/app/pages/GroupDetail.tsx` — Full dark mode + fixed ~15 hardcoded strings
-- [x] `apps/web/src/app/pages/JoinGroup.tsx` — Added full dark mode
-
-### Batch 5: Web Shared Components
-- [x] `apps/web/src/components/common/ErrorBoundary.tsx` — Fixed wrong dark tokens (`dark:bg-gray-*` → `dark:bg-dark-*`)
-- [x] `apps/web/src/components/common/EmptyState.tsx` — Fixed wrong dark token + added `dark:border-dark-border`
-- [x] `apps/web/src/components/places/PlaceCard.tsx` — Replaced `dark:bg-slate-700` → `dark:bg-dark-surface` throughout
-- [x] `apps/web/src/components/places/PlaceOpeningHours.tsx` — i18n day names (DAY_KEYS pattern) + dark mode for desktop view
-- [x] `apps/web/src/components/layout/ProtectedRoute.tsx` — Replaced hardcoded `'Loading...'` with `t('common.loading')`
-
-### Batch 7: Mobile Hardcoded Strings Parity
-- [x] `apps/mobile/src/app/screens/PlaceDetailScreen.tsx` — Fixed missingCode, home, notFound, checkInFailed, tryAgain, day names, distance formatting
-- [x] `apps/mobile/src/app/screens/WriteReviewScreen.tsx` — Fixed maxPhotos, invalidImage, photoPermissionDenied, uploadFailed, selectRating, missingCode, home, starsAccessibility
-- [x] `apps/mobile/src/app/screens/CreateGroupScreen.tsx` — Fixed goToGroup, nameLabel, groupNamePlaceholder, descriptionLabel, descriptionPlaceholder
-- [x] `apps/mobile/src/app/screens/GroupDetailScreen.tsx` — Fixed missingGroup, share, places
-- [x] `apps/mobile/src/app/screens/NotificationsScreen.tsx` — Removed hardcoded emptyDesc fallback
-
-### Screen-by-Screen Design Parity (remaining)
-
-- [x] **Home / Explore screen** — 3-tab nav (Explore, Groups, Profile); map via Home screen toggle
-- [x] **Place Detail screen** — Hero gradient, scorecard layout, timings carousel, sticky footer
-- [x] **Sign In / Sign Up screens** — Input styling, religion selection pills, password hint
-- [x] **Check-ins History screen** — Stats card, calendar grid, "On this Day" section
-
-### Component-Level Design Tasks
-
-- [x] **Glass morphism panels**, **Badge system**, **Card styling**, **Button variants**, **Input field styling**, **Bottom navigation bar**, **Overlay gradients**, **Animation and motion**
+- [ ] **Migrate web class names to `cn()` utility**
+  - `apps/web/src/lib/utils/cn.ts` has a TODO noting ~40 components use template literal className patterns.
+  - Gradually migrate to the `cn()` utility for cleaner conditional class handling. Low priority but improves maintainability.
 
 ---
 
@@ -392,6 +291,6 @@ Comprehensive audit and fix to bring both frontends to full dark mode support (u
 
 1. Pick items from the highest uncompleted priority tier first (P0 before P1, etc.).
 2. Check off items as they are completed by replacing `[ ]` with `[x]`.
-3. When committing a completed item, reference the roadmap entry in the commit message (e.g., "Fix delete_review crash (ROADMAP P0)").
+3. When committing a completed item, reference the roadmap entry in the commit message (e.g., "Fix N+1 in group listing (ROADMAP P0)").
 4. Review this file during sprint planning to select work items.
 5. Add new items to the appropriate tier as they are discovered.
