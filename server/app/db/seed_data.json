@@ -351,7 +351,20 @@
       "profile.logIn": "Log In",
       "groups.loginRequired": "Sign in to see your groups",
       "groups.loginRequiredDesc": "Join or create pilgrim groups and track your journey together.",
-      "auth.orContinueAsVisitor": "Continue browsing"
+      "auth.orContinueAsVisitor": "Continue browsing",
+      "checkins.journeySubtitle": "Reflecting on your spiritual milestones",
+      "common.apply": "Apply",
+      "common.clear": "Clear",
+      "errors.missingInviteCode": "Please enter an invite code",
+      "groups.inviteCodeHint": "Enter your group invite code to join",
+      "groups.invitedToJoin": "You've been invited to join",
+      "groups.join": "Join",
+      "groups.joinWithCode": "Join with an invite code",
+      "groups.noInviteCode": "No invite code?",
+      "home.places": "places",
+      "home.refineSearch": "Refine Search",
+      "placeDetail.feedbackItems": "reviews",
+      "placeDetail.writeAReview": "Write a Review"
     },
     "ar": {
       "auth.login": "تسجيل الدخول",
@@ -690,7 +703,20 @@
       "profile.logIn": "تسجيل الدخول",
       "groups.loginRequired": "سجّل الدخول لعرض مجموعاتك",
       "groups.loginRequiredDesc": "انضم إلى مجموعات الحجاج أو أنشئها وتتبع رحلتك معًا.",
-      "auth.orContinueAsVisitor": "تصفح كزائر"
+      "auth.orContinueAsVisitor": "تصفح كزائر",
+      "checkins.journeySubtitle": "تأمّل في معالمك الروحية",
+      "common.apply": "تطبيق",
+      "common.clear": "مسح",
+      "errors.missingInviteCode": "الرجاء إدخال رمز الدعوة",
+      "groups.inviteCodeHint": "أدخل رمز دعوة المجموعة للانضمام",
+      "groups.invitedToJoin": "لقد تمت دعوتك للانضمام إلى",
+      "groups.join": "انضم",
+      "groups.joinWithCode": "انضم برمز الدعوة",
+      "groups.noInviteCode": "ليس لديك رمز دعوة؟",
+      "home.places": "أماكن",
+      "home.refineSearch": "تحسين البحث",
+      "placeDetail.feedbackItems": "تقييمات",
+      "placeDetail.writeAReview": "اكتب تقييماً"
     },
     "hi": {
       "auth.login": "लॉग इन करें",
@@ -1029,7 +1055,20 @@
       "profile.logIn": "लॉग इन करें",
       "groups.loginRequired": "अपने समूह देखने के लिए साइन इन करें",
       "groups.loginRequiredDesc": "तीर्थयात्री समूहों में शामिल हों या बनाएं और साथ मिलकर अपनी यात्रा ट्रैक करें।",
-      "auth.orContinueAsVisitor": "आगंतुक के रूप में जारी रखें"
+      "auth.orContinueAsVisitor": "आगंतुक के रूप में जारी रखें",
+      "checkins.journeySubtitle": "अपने आध्यात्मिक पड़ावों पर विचार करें",
+      "common.apply": "लागू करें",
+      "common.clear": "साफ़ करें",
+      "errors.missingInviteCode": "कृपया आमंत्रण कोड दर्ज करें",
+      "groups.inviteCodeHint": "जोड़ने के लिए अपना समूह आमंत्रण कोड दर्ज करें",
+      "groups.invitedToJoin": "आपको शामिल होने के लिए आमंत्रित किया गया है",
+      "groups.join": "शामिल हों",
+      "groups.joinWithCode": "आमंत्रण कोड से शामिल हों",
+      "groups.noInviteCode": "कोई आमंत्रण कोड नहीं?",
+      "home.places": "स्थान",
+      "home.refineSearch": "खोज सुधारें",
+      "placeDetail.feedbackItems": "समीक्षाएं",
+      "placeDetail.writeAReview": "समीक्षा लिखें"
     }
   },
   "users": [
