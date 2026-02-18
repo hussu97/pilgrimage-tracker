@@ -76,10 +76,10 @@ export default function SelectPathScreen() {
         <Text style={styles.backText}>‹ {t('common.back')}</Text>
       </TouchableOpacity>
 
-      <header style={styles.header}>
+      <View style={styles.header}>
         <Text style={styles.title}>{t('selectPath.title')}</Text>
         <Text style={styles.subtitle}>{t('selectPath.subtitle')}</Text>
-      </header>
+      </View>
 
       <View style={styles.main}>
         {RELIGIONS.map(({ code, labelKey, icon, accent, accentBg }) => {
