@@ -3,7 +3,7 @@ from typing import List, Literal, Optional
 
 from sqlmodel import Session, select
 from app.core.config import REFRESH_EXPIRE
-from app.db.models import User, UserSettings, PasswordReset, RefreshToken
+from app.db.models import User, UserSettings, PasswordReset, RefreshToken, Visitor, VisitorSettings
 
 Religion = Literal["islam", "hinduism", "christianity"]
 VALID_RELIGIONS = ("islam", "hinduism", "christianity")
@@ -196,4 +196,106 @@ def revoke_refresh_token(token: str, session: Session) -> None:
     if row and row.revoked_at is None:
         row.revoked_at = datetime.utcnow()
         session.add(row)
+        session.commit()
+
+
+# ─── Visitor helpers ───────────────────────────────────────────────────────────
+
+def create_visitor(visitor_code: str, session: Session) -> Visitor:
+    """Insert a Visitor row + default VisitorSettings row."""
+    visitor = Visitor(visitor_code=visitor_code)
+    session.add(visitor)
+    settings = VisitorSettings(visitor_code=visitor_code)
+    session.add(settings)
+    session.commit()
+    session.refresh(visitor)
+    return visitor
+
+
+def get_visitor(visitor_code: str, session: Session) -> Optional[Visitor]:
+    return session.exec(select(Visitor).where(Visitor.visitor_code == visitor_code)).first()
+
+
+def get_visitor_settings(visitor_code: str, session: Session) -> dict:
+    settings = session.exec(
+        select(VisitorSettings).where(VisitorSettings.visitor_code == visitor_code)
+    ).first()
+    if not settings:
+        return {"theme": "system", "units": "km", "language": "en", "religions": []}
+    return {
+        "theme": settings.theme,
+        "units": settings.units,
+        "language": settings.language,
+        "religions": settings.religions,
+    }
+
+
+def update_visitor_settings(visitor_code: str, session: Session, **kwargs) -> dict:
+    settings = session.exec(
+        select(VisitorSettings).where(VisitorSettings.visitor_code == visitor_code)
+    ).first()
+    if not settings:
+        settings = VisitorSettings(visitor_code=visitor_code)
+        session.add(settings)
+
+    if "theme" in kwargs and kwargs["theme"] is not None:
+        settings.theme = kwargs["theme"]
+    if "units" in kwargs and kwargs["units"] is not None:
+        settings.units = kwargs["units"]
+    if "language" in kwargs and kwargs["language"] is not None:
+        settings.language = kwargs["language"]
+    if "religions" in kwargs and kwargs["religions"] is not None:
+        validated = [r for r in kwargs["religions"] if r in VALID_RELIGIONS]
+        settings.religions = validated
+
+    session.add(settings)
+    session.commit()
+    return get_visitor_settings(visitor_code, session)
+
+
+def touch_visitor(visitor_code: str, session: Session) -> None:
+    """Update last_seen_at for the visitor."""
+    visitor = session.exec(select(Visitor).where(Visitor.visitor_code == visitor_code)).first()
+    if visitor:
+        visitor.last_seen_at = datetime.utcnow()
+        session.add(visitor)
+        session.commit()
+
+
+def merge_visitor_into_user(visitor_code: str, user_code: str, session: Session) -> None:
+    """Copy visitor settings into UserSettings where user fields are still at defaults, then delete visitor."""
+    visitor_s = session.exec(
+        select(VisitorSettings).where(VisitorSettings.visitor_code == visitor_code)
+    ).first()
+    if not visitor_s:
+        return
+
+    user_s = session.exec(select(UserSettings).where(UserSettings.user_code == user_code)).first()
+    if not user_s:
+        return
+
+    # Merge only where user settings are still at defaults
+    if visitor_s.theme not in ("system", "light") and user_s.theme in ("system", "light"):
+        user_s.theme = visitor_s.theme
+    elif visitor_s.theme in ("dark",) and user_s.theme == "light":
+        user_s.theme = visitor_s.theme
+
+    if visitor_s.language != "en" and user_s.language == "en":
+        user_s.language = visitor_s.language
+
+    if visitor_s.units != "km" and user_s.units == "km":
+        user_s.units = visitor_s.units
+
+    if visitor_s.religions and not user_s.religions:
+        user_s.religions = [r for r in visitor_s.religions if r in VALID_RELIGIONS]
+
+    session.add(user_s)
+
+    # Delete visitor settings then visitor
+    session.delete(visitor_s)
+    session.commit()
+
+    visitor = session.exec(select(Visitor).where(Visitor.visitor_code == visitor_code)).first()
+    if visitor:
+        session.delete(visitor)
         session.commit()

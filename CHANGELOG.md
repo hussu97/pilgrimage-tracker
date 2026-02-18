@@ -4,6 +4,50 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Visitor Identity, Auth-Gating & Profile Redesign (2026-02-18)
+
+### Backend
+
+- **`server/app/db/models.py`** — Added `Visitor` and `VisitorSettings` SQLModel tables (visitor_code PK, theme/units/language/religions fields with defaults).
+- **`server/app/db/store.py`** — Added `create_visitor`, `get_visitor`, `get_visitor_settings`, `update_visitor_settings`, `touch_visitor`, and `merge_visitor_into_user` store functions.
+- **`server/app/models/schemas.py`** — Added `VisitorResponse`, `VisitorSettingsResponse`, `VisitorSettingsBody`. Updated `LoginBody` and `RegisterBody` to accept optional `visitor_code` for settings merge on auth upgrade.
+- **`server/app/api/v1/visitors.py`** — New router: `POST /api/v1/visitors` (create), `GET /api/v1/visitors/{code}/settings`, `PATCH /api/v1/visitors/{code}/settings`.
+- **`server/app/api/v1/auth.py`** — On login and register, if `visitor_code` is present, merges visitor settings into the new/existing user's settings then deletes the visitor record.
+- **`server/app/db/seed_data.json`** — Added 7 translation keys across en/ar/hi: `visitor.loginRequired`, `visitor.loginRequiredDesc`, `visitor.createAccount`, `profile.logIn`, `groups.loginRequired`, `groups.loginRequiredDesc`, `auth.orContinueAsVisitor`.
+- **`server/tests/test_visitors.py`** — New test file: create visitor, get/update settings, 404 for unknown, settings merge on register/login.
+
+### Frontend (web)
+
+- **`apps/web/src/lib/types/users.ts`** — Added `Visitor` interface.
+- **`apps/web/src/lib/api/client.ts`** — Added `createVisitor`, `getVisitorSettings`, `updateVisitorSettings` (unauthenticated). Updated `LoginBody`/`RegisterBody` to accept `visitor_code`.
+- **`apps/web/src/components/auth/AuthModal.tsx`** — New compact login/register modal with tab switcher; dark mode compliant.
+- **`apps/web/src/components/auth/AuthGateProvider.tsx`** — New global context provider: `openAuthGate(callback, promptKey?)` — stores pending callback, opens `AuthModal`, calls callback after successful auth.
+- **`apps/web/src/lib/hooks/useAuthRequired.ts`** — New hook: `requireAuth(callback, promptKey?)` wraps actions with auth-gate.
+- **`apps/web/src/app/providers.tsx`** — `AuthProvider` now inits/clears visitor code via `POST /api/v1/visitors`, passes `visitor_code` on login/register, re-inits on logout. `I18nProvider` syncs language to visitor settings.
+- **`apps/web/src/app/pages/Profile.tsx`** — Removed `LoginLanding` splash. Visitors see greeting card + preferences + login/create-account buttons; authenticated users see stats, account section, and logout.
+- **`apps/web/src/app/pages/Register.tsx`** — Removed religion chip selector and post-registration `updateSettings` call.
+- **`apps/web/src/app/pages/Login.tsx`** — Added back/close button.
+- **`apps/web/src/app/pages/Groups.tsx`** — Visitors see a login CTA empty state instead of the groups list.
+- **`apps/web/src/app/pages/PlaceDetail.tsx`** — Check-in and favorite actions now wrapped with `requireAuth()`; visitors are prompted to log in before the action fires.
+- **`apps/web/src/app/routes.tsx`** — Removed `ProtectedRoute` from `/groups` route.
+
+### Frontend (mobile)
+
+- **`apps/mobile/src/lib/types/users.ts`** — Added `Visitor` interface.
+- **`apps/mobile/src/lib/api/client.ts`** — Added `createVisitor`, `getVisitorSettings`, `updateVisitorSettings`.
+- **`apps/mobile/src/lib/hooks/useAuthRequired.ts`** — New hook: `requireAuth(callback, promptKey?)`.
+- **`apps/mobile/src/components/auth/AuthBottomSheet.tsx`** — New `AuthBottomSheetProvider` + `useAuthGate` hook using `@gorhom/bottom-sheet`. Compact login/register tab switcher; pending callback fired after successful auth.
+- **`apps/mobile/src/app/providers.tsx`** — `AuthProvider` inits visitor code via AsyncStorage + `POST /api/v1/visitors`, passes `visitor_code` on login/register, re-inits on logout. `I18nProvider` syncs language to visitor settings via `VISITOR_KEY`.
+- **`apps/mobile/src/app/screens/ProfileScreen.tsx`** — Removed `LoginLanding` component. Visitor greeting card + preferences section for all users; account section + logout only for authenticated users; visitor gets login/create-account buttons.
+- **`apps/mobile/src/app/screens/RegisterScreen.tsx`** — Removed religion chip selector and post-registration `updateSettings` call. Fixed back navigation to use `canGoBack()`.
+- **`apps/mobile/src/app/screens/LoginScreen.tsx`** — Fixed back button to use `canGoBack() ? goBack() : navigate('Main')`.
+- **`apps/mobile/src/app/screens/PlaceDetailScreen.tsx`** — Check-in and favorite actions now wrapped with `requireAuth()`.
+- **`apps/mobile/src/app/screens/GroupsScreen.tsx`** — Visitors see a login CTA empty state; authenticated users see full groups list.
+- **`apps/mobile/src/app/App.tsx`** — Added `GestureHandlerRootView`, `BottomSheetModalProvider`, and `AuthBottomSheetProvider` to root.
+- **`apps/mobile/babel.config.js`** — Added `react-native-reanimated/plugin` (required by `@gorhom/bottom-sheet`).
+
+---
+
 ## Place Card Redesign & Status Pill Unification (2026-02-18)
 
 ### Frontend (web)

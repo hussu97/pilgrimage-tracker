@@ -38,10 +38,30 @@ class AuthResponse(BaseModel):
     refresh_token: Optional[str] = None
 
 
+class VisitorResponse(BaseModel):
+    visitor_code: str
+    created_at: str
+
+
+class VisitorSettingsResponse(BaseModel):
+    theme: str
+    units: str
+    language: str
+    religions: List[Religion]
+
+
+class VisitorSettingsBody(BaseModel):
+    theme: Optional[str] = None
+    units: Optional[str] = None
+    language: Optional[str] = None
+    religions: Optional[List[Religion]] = None
+
+
 class RegisterBody(BaseModel):
     email: str
     password: str
     display_name: Optional[str] = None
+    visitor_code: Optional[str] = None  # for settings merge on upgrade
 
     @validator("password")
     def validate_password_strength(cls, v):
@@ -51,6 +71,7 @@ class RegisterBody(BaseModel):
 class LoginBody(BaseModel):
     email: str
     password: str
+    visitor_code: Optional[str] = None  # for settings merge on upgrade
 
 
 class UpdateMeBody(BaseModel):

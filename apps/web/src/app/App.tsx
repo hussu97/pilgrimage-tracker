@@ -2,6 +2,7 @@ import { AuthProvider, I18nProvider, ThemeProvider, useI18n } from '@/app/provid
 import { LocationProvider } from '@/app/contexts/LocationContext';
 import { AppRoutes } from '@/app/routes';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { AuthGateProvider } from '@/components/auth/AuthGateProvider';
 
 /** Renders children only after initial i18n (locale + translations) has loaded; shows minimal splash until then. */
 function I18nReadyGate({ children }: { children: React.ReactNode }) {
@@ -28,7 +29,9 @@ export default function App() {
           <I18nProvider>
             <I18nReadyGate>
               <LocationProvider>
-                <AppRoutes />
+                <AuthGateProvider>
+                  <AppRoutes />
+                </AuthGateProvider>
               </LocationProvider>
             </I18nReadyGate>
           </I18nProvider>

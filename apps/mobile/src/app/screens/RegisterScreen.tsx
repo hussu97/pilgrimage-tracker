@@ -16,9 +16,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/app/navigation';
 import { useAuth, useI18n } from '@/app/providers';
 import { tokens } from '@/lib/theme';
-import * as api from '@/lib/api/client';
-
-type ReligionChip = 'all' | 'islam' | 'hinduism' | 'christianity';
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
@@ -29,11 +26,8 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [selectedReligion, setSelectedReligion] = useState<ReligionChip>('all');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const religionChips: ReligionChip[] = ['all', 'islam', 'hinduism', 'christianity'];
 
   const handleRegister = async () => {
     setError('');
@@ -42,9 +36,6 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       await register(email, password, displayName.trim() || undefined);
-      if (selectedReligion !== 'all') {
-        await api.updateSettings({ religions: [selectedReligion] }).catch(() => {});
-      }
       navigation.replace('Main');
     } catch (e) {
       setError(e instanceof Error ? e.message : t('errors.registrationFailed'));
@@ -63,7 +54,11 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} activeOpacity={0.7}>
+        <TouchableOpacity
+          onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Login')}
+          style={styles.backButton}
+          activeOpacity={0.7}
+        >
           <MaterialIcons name="arrow-back" size={20} color="#334155" />
         </TouchableOpacity>
 
@@ -79,14 +74,6 @@ export default function RegisterScreen() {
         <TextInput style={styles.input} placeholder={t('auth.password')} value={password} onChangeText={setPassword} secureTextEntry placeholderTextColor={tokens.colors.textMuted} />
         <Text style={styles.passwordHint}>{t('auth.passwordMinLength')}</Text>
         <TextInput style={styles.input} placeholder={t('auth.confirmPassword')} value={confirm} onChangeText={setConfirm} secureTextEntry placeholderTextColor={tokens.colors.textMuted} />
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipContainer}>
-          {religionChips.map((chip) => (
-            <TouchableOpacity key={chip} onPress={() => setSelectedReligion(chip)} style={[styles.chip, selectedReligion === chip && styles.chipActive]} activeOpacity={0.7}>
-              <Text style={[styles.chipText, selectedReligion === chip && styles.chipTextActive]}>{t(`register.religionChip.${chip}`)}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -111,12 +98,6 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 14, color: tokens.colors.textMuted, marginBottom: 24 },
   input: { borderWidth: 1, borderColor: tokens.colors.inputBorder, borderRadius: tokens.borderRadius['2xl'], padding: 14, marginBottom: 12, fontSize: 16, backgroundColor: tokens.colors.surface, color: tokens.colors.textMain },
   passwordHint: { fontSize: 11, color: tokens.colors.textMuted, marginBottom: 4, marginLeft: 4 },
-  chipScroll: { marginBottom: 16 },
-  chipContainer: { flexDirection: 'row', gap: 8 },
-  chip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: tokens.borderRadius.full, borderWidth: 1, borderColor: tokens.colors.inputBorder, backgroundColor: tokens.colors.surface },
-  chipActive: { backgroundColor: tokens.colors.primary, borderColor: tokens.colors.primary },
-  chipText: { fontSize: 14, color: tokens.colors.textSecondary, fontWeight: '500' },
-  chipTextActive: { color: '#fff' },
   error: { color: '#dc2626', fontSize: 14, marginBottom: 12, fontWeight: '500' },
   primaryButton: { backgroundColor: tokens.colors.primary, paddingVertical: 16, borderRadius: tokens.borderRadius['2xl'], alignItems: 'center', marginTop: 4 },
   buttonDisabled: { opacity: 0.6 },

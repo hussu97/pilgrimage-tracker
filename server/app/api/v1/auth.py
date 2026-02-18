@@ -101,6 +101,11 @@ def register(request: Request, body: RegisterBody, session: SessionDep):
         religion=None,
         session=session,
     )
+    if body.visitor_code:
+        try:
+            store.merge_visitor_into_user(body.visitor_code, user_code, session)
+        except Exception:
+            pass  # ignore missing/invalid visitor codes
     access_token = create_access_token(user_code)
     refresh = create_refresh_token(user_code)
     store.save_refresh_token(refresh, user_code, session)
@@ -118,6 +123,11 @@ def login(request: Request, body: LoginBody, session: SessionDep):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    if body.visitor_code:
+        try:
+            store.merge_visitor_into_user(body.visitor_code, user.user_code, session)
+        except Exception:
+            pass  # ignore missing/invalid visitor codes
     access_token = create_access_token(user.user_code)
     refresh = create_refresh_token(user.user_code)
     store.save_refresh_token(refresh, user.user_code, session)

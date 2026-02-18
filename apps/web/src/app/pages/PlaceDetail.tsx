@@ -7,10 +7,11 @@ import {
   addFavorite,
   removeFavorite,
   deleteReview,
-  checkIn as doCheckIn,
+  checkIn as doCheckIn_api,
 } from '@/lib/api/client';
 import type { PlaceDetail as PlaceDetailType, Review, PlaceTiming, PlaceSpecification } from '@/lib/types';
 import { useAuth } from '@/app/providers';
+import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import { SharePlaceButton } from '@/components/places';
 import PlaceOpeningHours from '@/components/places/PlaceOpeningHours';
 import PlaceTimingsCarousel from '@/components/places/PlaceTimingsCarousel';
@@ -190,6 +191,7 @@ export default function PlaceDetail() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const { user } = useAuth();
+  const { requireAuth } = useAuthRequired();
 
   const [place, setPlace] = useState<PlaceDetailType | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -244,7 +246,7 @@ export default function PlaceDetail() {
     fetchPlace();
   }, [fetchPlace]);
 
-  const toggleFavorite = useCallback(async () => {
+  const doToggleFavorite = useCallback(async () => {
     if (!placeCode || !place) return;
     setFavoriteLoading(true);
     try {
@@ -258,11 +260,15 @@ export default function PlaceDetail() {
     }
   }, [placeCode, place]);
 
-  const handleCheckIn = useCallback(async () => {
+  const toggleFavorite = useCallback(() => {
+    requireAuth(() => doToggleFavorite());
+  }, [requireAuth, doToggleFavorite]);
+
+  const doCheckIn = useCallback(async () => {
     if (!placeCode || checkInLoading || checkInDone) return;
     setCheckInLoading(true);
     try {
-      const result = await doCheckIn(placeCode);
+      const result = await doCheckIn_api(placeCode);
       const date = new Date(result.checked_in_at).toLocaleDateString('en-US', {
         day: 'numeric', month: 'short', year: 'numeric',
       });
@@ -274,6 +280,11 @@ export default function PlaceDetail() {
       setCheckInLoading(false);
     }
   }, [placeCode, checkInLoading, checkInDone]);
+
+  const handleCheckIn = useCallback(() => {
+    if (checkInDone) return;
+    requireAuth(() => doCheckIn(), 'visitor.loginRequired');
+  }, [requireAuth, doCheckIn, checkInDone]);
 
   const checkInWidget = () => {
     if (checkInDone) {

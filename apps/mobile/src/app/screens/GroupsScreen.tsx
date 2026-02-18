@@ -12,7 +12,7 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getGroups } from '@/lib/api/client';
 import type { Group } from '@/lib/types';
-import { useI18n } from '@/app/providers';
+import { useAuth, useI18n } from '@/app/providers';
 import { tokens } from '@/lib/theme';
 
 type MainTabParamList = { Home: undefined; Favorites: undefined; Groups: undefined; Profile: undefined };
@@ -53,19 +53,24 @@ export default function GroupsScreen() {
   const insets = useSafeAreaInsets();
   const tabNav = useNavigation<BottomTabNavigationProp<MainTabParamList, 'Groups'>>();
   const stackNav = tabNav.getParent();
+  const { user } = useAuth();
   const { t } = useI18n();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const fetchGroups = useCallback(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError('');
     getGroups()
       .then(setGroups)
       .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
-  }, [t]);
+  }, [user, t]);
 
   useEffect(() => {
     fetchGroups();
@@ -83,6 +88,42 @@ export default function GroupsScreen() {
   const navToNotifications = () => {
     (stackNav as { navigate: (name: 'Notifications') => void })?.navigate('Notifications');
   };
+
+  // Visitor empty state
+  if (!user) {
+    return (
+      <View style={[styles.container, { backgroundColor: tokens.colors.backgroundLight }]}>
+        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+          <Text style={styles.title}>{t('groups.myGroups')}</Text>
+        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: insets.bottom + 100, flexGrow: 1, justifyContent: 'center' }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.emptyWrap}>
+            <Text style={styles.emptyIcon}>◆</Text>
+            <Text style={styles.emptyTitle}>{t('groups.loginRequired')}</Text>
+            <Text style={styles.emptyDesc}>{t('groups.loginRequiredDesc')}</Text>
+            <TouchableOpacity
+              style={styles.emptyCta}
+              onPress={() => (stackNav as { navigate: (name: 'Register') => void })?.navigate('Register')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.emptyCtaText}>{t('splash.getStarted')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.emptyCta, { marginTop: 8, backgroundColor: 'transparent', borderWidth: 1, borderColor: tokens.colors.primary }]}
+              onPress={() => (stackNav as { navigate: (name: 'Login') => void })?.navigate('Login')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.emptyCtaText, { color: tokens.colors.primary }]}>{t('auth.login')}</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: tokens.colors.backgroundLight }]}>

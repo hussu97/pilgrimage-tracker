@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { useI18n } from '@/app/providers';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth, useI18n } from '@/app/providers';
 import { getGroups } from '@/lib/api/client';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
@@ -38,19 +38,25 @@ function progressLevel(sites: number, total: number, t: (key: string) => string)
 }
 
 export default function Groups() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const { t } = useI18n();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   const fetchGroups = useCallback(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError('');
     getGroups()
       .then(setGroups)
       .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
-  }, [t]);
+  }, [t, user]);
 
   useEffect(() => {
     fetchGroups();
@@ -65,21 +71,52 @@ export default function Groups() {
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-text-dark dark:text-white">
           {t('groups.myGroups')}
         </h1>
-        <Link
-          to="/notifications"
-          className="p-2 -mr-2 rounded-full hover:bg-gray-50 dark:hover:bg-dark-surface text-text-muted dark:text-dark-text-secondary"
-          aria-label={t('notifications.title')}
-        >
-          <span className="material-symbols-outlined">notifications</span>
-        </Link>
+        {user && (
+          <Link
+            to="/notifications"
+            className="p-2 -mr-2 rounded-full hover:bg-gray-50 dark:hover:bg-dark-surface text-text-muted dark:text-dark-text-secondary"
+            aria-label={t('notifications.title')}
+          >
+            <span className="material-symbols-outlined">notifications</span>
+          </Link>
+        )}
       </header>
 
       <main className="max-w-md md:max-w-2xl mx-auto px-4 md:px-6 py-6 pb-28">
-        {loading && <p className="text-text-muted">{t('common.loading')}</p>}
-        {error && (
+        {/* Visitor empty state */}
+        {!user && (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+              <span className="material-icons text-4xl text-primary">group</span>
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+              {t('groups.loginRequired')}
+            </h2>
+            <p className="text-slate-500 dark:text-dark-text-secondary text-sm mb-8 max-w-xs">
+              {t('groups.loginRequiredDesc')}
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/register')}
+              className="w-full max-w-xs bg-primary hover:bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-xl shadow-blue-100 dark:shadow-none transition-all mb-3"
+            >
+              {t('splash.getStarted')}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              className="w-full max-w-xs border-2 border-primary text-primary font-semibold py-4 rounded-2xl hover:bg-primary/5 transition-all"
+            >
+              {t('auth.login')}
+            </button>
+          </div>
+        )}
+
+        {user && loading && <p className="text-text-muted">{t('common.loading')}</p>}
+        {user && error && (
           <ErrorState message={error} onRetry={fetchGroups} retryLabel={t('common.retry')} />
         )}
-        {!loading && !error && groups.length === 0 && (
+        {user && !loading && !error && groups.length === 0 && (
           <EmptyState
             icon="groups"
             title={t('groups.noGroupsYet')}
@@ -95,7 +132,7 @@ export default function Groups() {
           />
         )}
 
-        {!loading && !error && groups.length > 0 && (
+        {user && !loading && !error && groups.length > 0 && (
           <>
             {featured && (
               <Link
@@ -125,37 +162,22 @@ export default function Groups() {
                     <span>{t('groups.currentProgress')}</span>
                     <span>
                       {featured.total_sites
-                        ? Math.round(
-                            ((featured.sites_visited ?? 0) / featured.total_sites) * 100
-                          )
-                        : 0}
-                      %
+                        ? Math.round(((featured.sites_visited ?? 0) / featured.total_sites) * 100)
+                        : 0}%
                     </span>
                   </div>
                   <div className="h-1.5 w-full bg-black/10 rounded-full overflow-hidden backdrop-blur-sm">
                     <div
                       className="h-full bg-white rounded-full shadow-sm transition-all"
                       style={{
-                        width: `${
-                          featured.total_sites
-                            ? Math.min(
-                                100,
-                                Math.round(
-                                  ((featured.sites_visited ?? 0) / featured.total_sites) * 100
-                                )
-                              )
-                            : 0
-                        }%`,
+                        width: `${featured.total_sites ? Math.min(100, Math.round(((featured.sites_visited ?? 0) / featured.total_sites) * 100)) : 0}%`,
                       }}
                     />
                   </div>
                   <div className="flex items-center justify-between mt-6">
                     <div className="flex -space-x-3">
                       {[...Array(Math.min(3, featured.member_count ?? 0))].map((_, i) => (
-                        <div
-                          key={i}
-                          className="h-10 w-10 rounded-full border-2 border-blue-400 bg-white/20 flex items-center justify-center text-blue-900 text-xs font-bold"
-                        >
+                        <div key={i} className="h-10 w-10 rounded-full border-2 border-blue-400 bg-white/20 flex items-center justify-center text-blue-900 text-xs font-bold">
                           {i + 1}
                         </div>
                       ))}
@@ -189,13 +211,9 @@ export default function Groups() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0 pr-4">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-text-dark dark:text-white text-xl tracking-tight truncate">
-                            {g.name}
-                          </h3>
+                          <h3 className="font-bold text-text-dark dark:text-white text-xl tracking-tight truncate">{g.name}</h3>
                           {level === 'Done' && (
-                            <span className="material-icons text-green-500 text-sm shrink-0">
-                              check_circle
-                            </span>
+                            <span className="material-icons text-green-500 text-sm shrink-0">check_circle</span>
                           )}
                         </div>
                         <p className="text-sm text-text-muted dark:text-dark-text-secondary font-medium">
@@ -208,10 +226,7 @@ export default function Groups() {
                       </div>
                       <div className="flex -space-x-2 shrink-0">
                         {[...Array(Math.min(2, g.member_count ?? 0))].map((_, i) => (
-                          <div
-                            key={i}
-                            className="h-8 w-8 rounded-full border-2 border-white dark:border-dark-bg bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary ring-1 ring-slate-100 dark:ring-dark-border"
-                          >
+                          <div key={i} className="h-8 w-8 rounded-full border-2 border-white dark:border-dark-bg bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary ring-1 ring-slate-100 dark:ring-dark-border">
                             {i + 1}
                           </div>
                         ))}
@@ -229,24 +244,18 @@ export default function Groups() {
                           .replace('{total}', String(total || '—'))}
                       </span>
                       {level && (
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                            level === 'Done'
-                              ? 'text-green-600 bg-green-50'
-                              : level === 'New'
-                                ? 'text-indigo-600 bg-indigo-50'
-                                : 'text-primary bg-blue-50'
-                          }`}
-                        >
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                          level === 'Done' ? 'text-green-600 bg-green-50'
+                            : level === 'New' ? 'text-indigo-600 bg-indigo-50'
+                            : 'text-primary bg-blue-50'
+                        }`}>
                           {level}
                         </span>
                       )}
                     </div>
                     <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-[3px] overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all ${
-                          level === 'Done' ? 'bg-green-500' : 'bg-primary'
-                        }`}
+                        className={`h-full rounded-full transition-all ${level === 'Done' ? 'bg-green-500' : 'bg-primary'}`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -258,13 +267,15 @@ export default function Groups() {
         )}
       </main>
 
-      <Link
-        to="/groups/new"
-        className="fixed bottom-24 right-4 md:right-6 z-50 h-14 w-14 rounded-full bg-primary text-white shadow-xl shadow-blue-200 flex items-center justify-center hover:bg-primary-hover active:scale-90 transition-all"
-        aria-label={t('groups.createGroup')}
-      >
-        <span className="material-icons text-2xl">add</span>
-      </Link>
+      {user && (
+        <Link
+          to="/groups/new"
+          className="fixed bottom-24 right-4 md:right-6 z-50 h-14 w-14 rounded-full bg-primary text-white shadow-xl shadow-blue-200 flex items-center justify-center hover:bg-primary-hover active:scale-90 transition-all"
+          aria-label={t('groups.createGroup')}
+        >
+          <span className="material-icons text-2xl">add</span>
+        </Link>
+      )}
     </div>
   );
 }

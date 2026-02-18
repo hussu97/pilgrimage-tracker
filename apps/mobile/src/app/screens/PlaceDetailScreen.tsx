@@ -25,6 +25,7 @@ import {
 import { shareUrl, openDirections } from '@/lib/share';
 import { useAuth } from '@/app/providers';
 import { useI18n } from '@/app/providers';
+import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import type { RootStackParamList } from '@/app/navigation';
 import type { PlaceDetail as PlaceDetailType, Review } from '@/lib/types';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
@@ -55,6 +56,7 @@ export default function PlaceDetailScreen() {
   const { placeCode } = route.params;
   const { user } = useAuth();
   const { t } = useI18n();
+  const { requireAuth } = useAuthRequired();
 
   const [place, setPlace] = useState<PlaceDetailType | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -114,7 +116,7 @@ export default function PlaceDetailScreen() {
     fetchPlace();
   }, [fetchPlace]);
 
-  const toggleFavorite = useCallback(async () => {
+  const doActualToggleFavorite = useCallback(async () => {
     if (!placeCode || !place) return;
     setFavoriteLoading(true);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -129,7 +131,11 @@ export default function PlaceDetailScreen() {
     }
   }, [placeCode, place]);
 
-  const handleCheckIn = useCallback(async () => {
+  const toggleFavorite = useCallback(() => {
+    requireAuth(() => doActualToggleFavorite());
+  }, [requireAuth, doActualToggleFavorite]);
+
+  const doActualCheckIn = useCallback(async () => {
     if (!placeCode || checkInLoading || checkInDone) return;
     setCheckInLoading(true);
     try {
@@ -150,7 +156,11 @@ export default function PlaceDetailScreen() {
     } finally {
       setCheckInLoading(false);
     }
-  }, [placeCode, checkInLoading, checkInDone, checkInScale]);
+  }, [placeCode, checkInLoading, checkInDone, checkInScale, t]);
+
+  const handleCheckIn = useCallback(() => {
+    requireAuth(() => doActualCheckIn(), 'visitor.loginRequired');
+  }, [requireAuth, doActualCheckIn]);
 
   const renderCheckInBtn = () => {
     if (checkInDone) {

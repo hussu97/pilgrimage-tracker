@@ -15,6 +15,7 @@ import {
   TOKEN_KEY,
   USER_KEY,
   LOCALE_STORAGE_KEY,
+  VISITOR_KEY,
 } from '@/lib/constants';
 import { getStoredTheme, setStoredTheme, type Theme } from '@/lib/theme';
 
@@ -59,6 +60,7 @@ interface AuthContextValue {
   user: User | null;
   token: string | null;
   loading: boolean;
+  visitorCode: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, display_name?: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -72,6 +74,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [visitorCode, setVisitorCode] = useState<string | null>(null);
+
+  const initVisitor = useCallback(async () => {
+    try {
+      let code = await AsyncStorage.getItem(VISITOR_KEY);
+      if (!code) {
+        const v = await api.createVisitor();
+        code = v.visitor_code;
+        await AsyncStorage.setItem(VISITOR_KEY, code);
+      }
+      setVisitorCode(code);
+    } catch {
+      // visitor init is non-fatal
+    }
+  }, []);
 
   const setUser = useCallback((u: User | null) => {
     setUserState(u);
@@ -102,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setToken(null);
         setUserState(null);
         setLoading(false);
+        await initVisitor();
         return;
       }
       setToken(t);
@@ -116,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setToken(null);
           setUserState(null);
           await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+          await initVisitor();
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -124,29 +143,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initVisitor]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { user: u, token: t } = await api.login({ email, password });
+    const vc = await AsyncStorage.getItem(VISITOR_KEY);
+    const { user: u, token: t } = await api.login({
+      email,
+      password,
+      visitor_code: vc ?? undefined,
+    });
     await AsyncStorage.multiSet([
       [TOKEN_KEY, t],
       [USER_KEY, JSON.stringify(u)],
     ]);
+    await AsyncStorage.removeItem(VISITOR_KEY);
+    setVisitorCode(null);
     setToken(t);
     setUserState(u);
   }, []);
 
   const register = useCallback(
     async (email: string, password: string, display_name?: string) => {
+      const vc = await AsyncStorage.getItem(VISITOR_KEY);
       const { user: u, token: t } = await api.register({
         email,
         password,
         display_name,
+        visitor_code: vc ?? undefined,
       });
       await AsyncStorage.multiSet([
         [TOKEN_KEY, t],
         [USER_KEY, JSON.stringify(u)],
       ]);
+      await AsyncStorage.removeItem(VISITOR_KEY);
+      setVisitorCode(null);
       setToken(t);
       setUserState(u);
     },
@@ -157,20 +187,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
     setToken(null);
     setUserState(null);
-  }, []);
+    await initVisitor();
+  }, [initVisitor]);
 
   const authValue = useMemo<AuthContextValue>(
     () => ({
       user,
       token,
       loading,
+      visitorCode,
       login,
       register,
       logout,
       setUser,
       refreshUser,
     }),
-    [user, token, loading, login, register, logout, setUser, refreshUser]
+    [user, token, loading, visitorCode, login, register, logout, setUser, refreshUser]
   );
 
   return (
@@ -329,10 +361,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         if (I18nManager.isRTL !== isRTL) {
           I18nManager.forceRTL(isRTL);
         }
-        try {
-          await api.updateSettings({ language: next });
-        } catch {
-          // not logged in or request failed
+        const vc = await AsyncStorage.getItem(VISITOR_KEY);
+        if (vc) {
+          api.updateVisitorSettings(vc, { language: next }).catch(() => {});
+        } else {
+          api.updateSettings({ language: next }).catch(() => {});
         }
       } catch {
         // keep new locale

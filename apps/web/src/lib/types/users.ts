@@ -27,3 +27,8 @@ export interface UserSettings {
   language?: string;
   religions?: Religion[];
 }
+
+export interface Visitor {
+  visitor_code: string;
+  created_at?: string;
+}

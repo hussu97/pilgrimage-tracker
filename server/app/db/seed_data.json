@@ -343,7 +343,14 @@
       "groups.enterInviteCode": "Enter an invite code",
       "groups.groupNamePlaceholder": "Group name",
       "groups.descriptionPlaceholder": "What's this group about?",
-      "groups.level": "Level {level}"
+      "groups.level": "Level {level}",
+      "visitor.loginRequired": "Sign in to continue",
+      "visitor.loginRequiredDesc": "Create a free account or log in to unlock this feature.",
+      "visitor.createAccount": "Create Account",
+      "profile.logIn": "Log In",
+      "groups.loginRequired": "Sign in to see your groups",
+      "groups.loginRequiredDesc": "Join or create pilgrim groups and track your journey together.",
+      "auth.orContinueAsVisitor": "Continue browsing"
     },
     "ar": {
       "auth.login": "تسجيل الدخول",
@@ -674,7 +681,14 @@
       "groups.enterInviteCode": "أدخل رمز الدعوة",
       "groups.groupNamePlaceholder": "اسم المجموعة",
       "groups.descriptionPlaceholder": "ما موضوع هذه المجموعة؟",
-      "groups.level": "المستوى {level}"
+      "groups.level": "المستوى {level}",
+      "visitor.loginRequired": "سجّل الدخول للمتابعة",
+      "visitor.loginRequiredDesc": "أنشئ حسابًا مجانيًا أو سجّل الدخول لفتح هذه الميزة.",
+      "visitor.createAccount": "إنشاء حساب",
+      "profile.logIn": "تسجيل الدخول",
+      "groups.loginRequired": "سجّل الدخول لعرض مجموعاتك",
+      "groups.loginRequiredDesc": "انضم إلى مجموعات الحجاج أو أنشئها وتتبع رحلتك معًا.",
+      "auth.orContinueAsVisitor": "تصفح كزائر"
     },
     "hi": {
       "auth.login": "लॉग इन करें",
@@ -1005,7 +1019,14 @@
       "groups.enterInviteCode": "आमंत्रण कोड दर्ज करें",
       "groups.groupNamePlaceholder": "समूह का नाम",
       "groups.descriptionPlaceholder": "यह समूह किस बारे में है?",
-      "groups.level": "स्तर {level}"
+      "groups.level": "स्तर {level}",
+      "visitor.loginRequired": "जारी रखने के लिए साइन इन करें",
+      "visitor.loginRequiredDesc": "इस सुविधा को अनलॉक करने के लिए एक निःशुल्क खाता बनाएं या लॉग इन करें।",
+      "visitor.createAccount": "खाता बनाएं",
+      "profile.logIn": "लॉग इन करें",
+      "groups.loginRequired": "अपने समूह देखने के लिए साइन इन करें",
+      "groups.loginRequiredDesc": "तीर्थयात्री समूहों में शामिल हों या बनाएं और साथ मिलकर अपनी यात्रा ट्रैक करें।",
+      "auth.orContinueAsVisitor": "आगंतुक के रूप में जारी रखें"
     }
   },
   "users": [

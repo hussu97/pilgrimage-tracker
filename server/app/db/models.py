@@ -143,6 +143,22 @@ class RefreshToken(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class Visitor(SQLModel, table=True):
+    __tablename__ = "visitor"
+    visitor_code: str = Field(primary_key=True)  # "vis_" + 16 hex chars
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    last_seen_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class VisitorSettings(SQLModel, table=True):
+    __tablename__ = "visitor_settings"
+    visitor_code: str = Field(primary_key=True, foreign_key="visitor.visitor_code")
+    theme: str = Field(default="system")   # light | dark | system
+    units: str = Field(default="km")       # km | miles
+    language: str = Field(default="en")    # en | ar | hi
+    religions: List[str] = Field(default=[], sa_column=Column(JSON))
+
+
 class PlaceAttributeDefinition(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     attribute_code: str = Field(index=True, unique=True)

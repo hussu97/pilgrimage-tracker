@@ -412,3 +412,30 @@ export async function updateSettings(settings: UserSettings): Promise<UserSettin
   if (!res.ok) throw new Error('Failed to update settings');
   return res.json();
 }
+
+// ─── Visitor API (unauthenticated) ────────────────────────────────────────────
+
+export async function createVisitor(): Promise<{ visitor_code: string; created_at: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/visitors`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) throw new Error('Failed to create visitor');
+  return res.json();
+}
+
+export async function getVisitorSettings(code: string): Promise<UserSettings> {
+  const res = await fetch(`${API_BASE}/api/v1/visitors/${encodeURIComponent(code)}/settings`);
+  if (!res.ok) throw new Error('Failed to fetch visitor settings');
+  return res.json();
+}
+
+export async function updateVisitorSettings(code: string, body: Partial<UserSettings>): Promise<UserSettings> {
+  const res = await fetch(`${API_BASE}/api/v1/visitors/${encodeURIComponent(code)}/settings`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error('Failed to update visitor settings');
+  return res.json();
+}

@@ -1,9 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
-import * as api from '@/lib/api/client';
-
-type ReligionChip = 'all' | 'islam' | 'hinduism' | 'christianity';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -13,11 +10,8 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [selectedReligion, setSelectedReligion] = useState<ReligionChip>('all');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  const religionChips: ReligionChip[] = ['all', 'islam', 'hinduism', 'christianity'];
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,9 +21,6 @@ export default function Register() {
     setSubmitting(true);
     try {
       await register(email, password, displayName.trim() || undefined);
-      if (selectedReligion !== 'all') {
-        await api.updateSettings({ religions: [selectedReligion] }).catch(() => { });
-      }
       navigate('/home');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.registrationFailed'));
@@ -122,28 +113,6 @@ export default function Register() {
               className="w-full px-5 py-4 border border-slate-200 dark:border-dark-border rounded-2xl bg-white dark:bg-dark-surface text-slate-800 dark:text-white placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-50 dark:focus:ring-primary/10 focus:border-primary transition-all outline-none"
               required
             />
-          </div>
-
-          {/* Religion chip selector */}
-          <div className="pt-2">
-            <label className="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] mb-3 ml-1">
-              {t('profile.pilgrimagePath')}
-            </label>
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-              {religionChips.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => setSelectedReligion(chip)}
-                  className={`whitespace-nowrap px-5 py-2.5 rounded-full text-xs font-bold border transition-all ${selectedReligion === chip
-                      ? 'bg-primary text-white border-primary shadow-md shadow-blue-100 dark:shadow-none'
-                      : 'border-slate-200 dark:border-dark-border text-slate-500 dark:text-dark-text-secondary hover:border-primary hover:text-primary bg-white dark:bg-dark-surface'
-                    }`}
-                >
-                  {t(`register.religionChip.${chip}`)}
-                </button>
-              ))}
-            </div>
           </div>
 
           {error && <p className="text-red-500 text-sm font-medium ml-1">{error}</p>}

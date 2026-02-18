@@ -51,7 +51,7 @@ export default function LoginScreen() {
       >
         {/* Back button */}
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Main')}
           style={styles.backButton}
           activeOpacity={0.7}
         >

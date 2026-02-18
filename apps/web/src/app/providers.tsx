@@ -9,7 +9,7 @@ import {
 } from 'react';
 import type { User } from '@/lib/types';
 import * as api from '@/lib/api/client';
-import { TOKEN_KEY, USER_KEY, LOCALE_STORAGE_KEY } from '@/lib/constants';
+import { TOKEN_KEY, USER_KEY, LOCALE_STORAGE_KEY, VISITOR_KEY } from '@/lib/constants';
 
 const SUPPORTED_LOCALES = ['en', 'ar', 'hi'] as const;
 type LocaleCode = (typeof SUPPORTED_LOCALES)[number];
@@ -25,6 +25,7 @@ interface AuthState {
   user: User | null;
   token: string | null;
   loading: boolean;
+  visitorCode: string | null;
 }
 
 interface AuthContextValue extends AuthState {
@@ -33,6 +34,7 @@ interface AuthContextValue extends AuthState {
   logout: () => void;
   setUser: (user: User | null) => void;
   refreshUser: () => Promise<void>;
+  initVisitor: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -48,6 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
   const [loading, setLoading] = useState(true);
+  const [visitorCode, setVisitorCode] = useState<string | null>(
+    () => localStorage.getItem(VISITOR_KEY)
+  );
 
   const setUser = useCallback((u: User | null) => {
     setUserState(u);
@@ -67,27 +72,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [token, setUser]);
 
+  const initVisitor = useCallback(async () => {
+    // Only init if no user and no visitor code yet
+    if (localStorage.getItem(VISITOR_KEY)) return;
+    try {
+      const v = await api.createVisitor();
+      localStorage.setItem(VISITOR_KEY, v.visitor_code);
+      setVisitorCode(v.visitor_code);
+    } catch {
+      // non-critical: visitor may not be created if network is down
+    }
+  }, []);
+
   useEffect(() => {
     if (!token) {
       setUser(null);
       setLoading(false);
+      // Init visitor when no user token exists
+      initVisitor();
       return;
     }
     refreshUser().finally(() => setLoading(false));
   }, [token]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { user: u, token: t } = await api.login({ email, password });
+    const vc = localStorage.getItem(VISITOR_KEY);
+    const { user: u, token: t } = await api.login({ email, password, visitor_code: vc ?? undefined } as any);
     localStorage.setItem(TOKEN_KEY, t);
     localStorage.setItem(USER_KEY, JSON.stringify(u));
+    // Clear visitor code after successful login (merged on server)
+    localStorage.removeItem(VISITOR_KEY);
+    setVisitorCode(null);
     setToken(t);
     setUserState(u);
   }, []);
 
   const register = useCallback(async (email: string, password: string, display_name?: string) => {
-    const { user: u, token: t } = await api.register({ email, password, display_name });
+    const vc = localStorage.getItem(VISITOR_KEY);
+    const { user: u, token: t } = await api.register({ email, password, display_name, visitor_code: vc ?? undefined } as any);
     localStorage.setItem(TOKEN_KEY, t);
     localStorage.setItem(USER_KEY, JSON.stringify(u));
+    // Clear visitor code after successful register (merged on server)
+    localStorage.removeItem(VISITOR_KEY);
+    setVisitorCode(null);
     setToken(t);
     setUserState(u);
   }, []);
@@ -97,11 +124,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(USER_KEY);
     setToken(null);
     setUserState(null);
-  }, []);
+    // Re-init visitor after logout
+    initVisitor();
+  }, [initVisitor]);
 
   const authValue: AuthContextValue = useMemo(
-    () => ({ user, token, loading, login, register, logout, setUser, refreshUser }),
-    [user, token, loading, login, register, logout, setUser, refreshUser],
+    () => ({ user, token, loading, visitorCode, login, register, logout, setUser, refreshUser, initVisitor }),
+    [user, token, loading, visitorCode, login, register, logout, setUser, refreshUser, initVisitor],
   );
 
   return <AuthContext.Provider value={authValue}>{children}</AuthContext.Provider>;
@@ -208,7 +237,7 @@ function resolveInitialLocale(list: { code: string; name: string }[]): LocaleCod
 }
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, visitorCode } = useAuth();
   const [locale, setLocaleState] = useState<LocaleCode>('en');
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const [languages, setLanguages] = useState<{ code: string; name: string }[]>([]);
@@ -263,6 +292,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     };
   }, [loadLanguages, loadTranslations]);
 
+  // Sync language from user settings when logged in
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -280,6 +310,26 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     })();
   }, [user?.user_code, loadTranslations]);
 
+  // Sync language from visitor settings when no user
+  useEffect(() => {
+    if (user || !visitorCode) return;
+    (async () => {
+      try {
+        const settings = await api.getVisitorSettings(visitorCode);
+        if (settings.language && SUPPORTED_LOCALES.includes(settings.language as LocaleCode)) {
+          const next = settings.language as LocaleCode;
+          if (next !== 'en') {
+            setLocaleState(next);
+            localStorage.setItem(LOCALE_STORAGE_KEY, next);
+            await loadTranslations(next);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    })();
+  }, [visitorCode, user, loadTranslations]);
+
   const setLocale = useCallback(
     async (lang: string) => {
       const next = normalizeLocale(lang) as LocaleCode;
@@ -287,12 +337,17 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(LOCALE_STORAGE_KEY, next);
       await loadTranslations(next);
       try {
-        await api.updateSettings({ language: next });
+        if (user) {
+          await api.updateSettings({ language: next });
+        } else {
+          const vc = localStorage.getItem(VISITOR_KEY);
+          if (vc) await api.updateVisitorSettings(vc, { language: next });
+        }
       } catch {
         // not logged in or request failed
       }
     },
-    [loadTranslations],
+    [loadTranslations, user],
   );
 
   useEffect(() => {
