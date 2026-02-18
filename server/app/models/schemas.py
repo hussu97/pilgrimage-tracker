@@ -3,7 +3,7 @@ from typing import List, Literal, Optional, Union
 
 from pydantic import BaseModel, validator
 
-Religion = Literal["islam", "hinduism", "christianity"]
+Religion = Literal["islam", "hinduism", "christianity", "all"]
 
 _PASSWORD_REQUIREMENTS = (
     "Password must be at least 8 characters and contain at least one uppercase letter, "

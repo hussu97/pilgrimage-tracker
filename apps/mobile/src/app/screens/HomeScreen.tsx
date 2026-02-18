@@ -413,7 +413,11 @@ export default function HomeScreen() {
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const buildParams = useCallback((cursor: string | null) => ({
-    religions: user?.religions?.length ? user.religions : undefined,
+    religions: (() => {
+      const r = user?.religions ?? [];
+      if (!r.length || r.includes('all')) return undefined;
+      return r;
+    })(),
     search: searchDebounced || undefined,
     sort: 'distance' as const,
     limit: PAGE_SIZE,

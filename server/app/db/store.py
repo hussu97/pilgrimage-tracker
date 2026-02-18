@@ -5,8 +5,8 @@ from sqlmodel import Session, select
 from app.core.config import REFRESH_EXPIRE
 from app.db.models import User, UserSettings, PasswordReset, RefreshToken, Visitor, VisitorSettings
 
-Religion = Literal["islam", "hinduism", "christianity"]
-VALID_RELIGIONS = ("islam", "hinduism", "christianity")
+Religion = Literal["islam", "hinduism", "christianity", "all"]
+VALID_RELIGIONS = ("islam", "hinduism", "christianity", "all")
 
 
 def create_user(
@@ -139,8 +139,10 @@ def update_user_settings(user_code: str, session: Session, **kwargs) -> dict:
     if "religions" in kwargs:
         raw = kwargs["religions"]
         if raw is not None:
-            validated = [r for r in raw if r in VALID_RELIGIONS]
-            settings.religions = validated
+            if "all" in raw:
+                settings.religions = ["all"]
+            else:
+                settings.religions = [r for r in raw if r in VALID_RELIGIONS]
         else:
             settings.religions = []
 
@@ -245,8 +247,11 @@ def update_visitor_settings(visitor_code: str, session: Session, **kwargs) -> di
     if "language" in kwargs and kwargs["language"] is not None:
         settings.language = kwargs["language"]
     if "religions" in kwargs and kwargs["religions"] is not None:
-        validated = [r for r in kwargs["religions"] if r in VALID_RELIGIONS]
-        settings.religions = validated
+        raw = kwargs["religions"]
+        if "all" in raw:
+            settings.religions = ["all"]
+        else:
+            settings.religions = [r for r in raw if r in VALID_RELIGIONS]
 
     session.add(settings)
     session.commit()
@@ -287,7 +292,10 @@ def merge_visitor_into_user(visitor_code: str, user_code: str, session: Session)
         user_s.units = visitor_s.units
 
     if visitor_s.religions and not user_s.religions:
-        user_s.religions = [r for r in visitor_s.religions if r in VALID_RELIGIONS]
+        if "all" in visitor_s.religions:
+            user_s.religions = ["all"]
+        else:
+            user_s.religions = [r for r in visitor_s.religions if r in VALID_RELIGIONS]
 
     session.add(user_s)
 

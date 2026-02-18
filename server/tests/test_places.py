@@ -62,6 +62,17 @@ class TestListPlaces:
         for p in resp.json()["places"]:
             assert p["religion"] == "islam"
 
+    def test_list_filter_by_religion_all_returns_all_places(self, client):
+        _create_place(client, "plc_all_isl", religion="islam")
+        _create_place(client, "plc_all_hin", name="Test Temple All", religion="hinduism", place_type="temple")
+        _create_place(client, "plc_all_chr", name="Test Church All", religion="christianity", place_type="church")
+        resp = client.get(PLACES_URL, params={"religion": "all"})
+        assert resp.status_code == 200
+        codes = [p["place_code"] for p in resp.json()["places"]]
+        assert "plc_all_isl" in codes
+        assert "plc_all_hin" in codes
+        assert "plc_all_chr" in codes
+
     def test_list_with_radius_filter(self, client):
         _create_place(client, "plc_near0001", lat=25.2048, lng=55.2708)
         _create_place(

@@ -8,7 +8,6 @@ import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import ResetPasswordScreen from './screens/ResetPasswordScreen';
-import SelectPathScreen from './screens/SelectPathScreen';
 import HomeScreen from './screens/HomeScreen';
 import PlaceDetailScreen from './screens/PlaceDetailScreen';
 import WriteReviewScreen from './screens/WriteReviewScreen';
@@ -29,7 +28,6 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   ResetPassword: { token?: string };
   Main: undefined;
-  SelectPath: undefined;
   PlaceDetail: { placeCode: string };
   WriteReview: { placeCode: string; reviewCode?: string; rating?: number; title?: string; body?: string };
   EditProfile: undefined;
@@ -67,7 +65,6 @@ function RootStack() {
       <Stack.Screen name="Register" component={withScreenBoundary(RegisterScreen)} />
       <Stack.Screen name="ForgotPassword" component={withScreenBoundary(ForgotPasswordScreen)} />
       <Stack.Screen name="ResetPassword" component={withScreenBoundary(ResetPasswordScreen)} />
-      <Stack.Screen name="SelectPath" component={withScreenBoundary(SelectPathScreen)} />
       <Stack.Screen name="PlaceDetail" component={withScreenBoundary(PlaceDetailScreen)} />
       <Stack.Screen name="WriteReview" component={withScreenBoundary(WriteReviewScreen)} />
       <Stack.Screen name="EditProfile" component={withScreenBoundary(EditProfileScreen)} />

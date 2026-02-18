@@ -6,6 +6,12 @@ import ErrorState from '@/components/common/ErrorState';
 import { applyTheme } from '@/lib/theme';
 import type { UserStats } from '@/lib/types';
 
+const RELIGIONS = [
+  { code: 'islam',       emoji: '🕌', labelKey: 'common.islam' },
+  { code: 'hinduism',    emoji: '🛕', labelKey: 'common.hinduism' },
+  { code: 'christianity',emoji: '⛪', labelKey: 'common.christianity' },
+];
+
 const APP_VERSION = '2.4.0';
 
 function formatJoinedDate(createdAt: string | undefined): string {
@@ -27,6 +33,8 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [langOpen, setLangOpen] = useState(false);
+  const [pathOpen, setPathOpen] = useState(false);
+  const [selectedReligions, setSelectedReligions] = useState<string[]>([]);
   const [, setNotifOn] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -54,9 +62,37 @@ export default function Profile() {
   const reviews = stats?.reviews ?? 0;
   const joinedStr = user ? formatJoinedDate(user.created_at) : '';
   const religions = user?.religions ?? [];
-  const pathSubtext = religions.length > 0
-    ? religions.map((r) => r.charAt(0).toUpperCase() + r.slice(1)).join(', ')
-    : t('profile.myPathSubtext');
+  const pathSubtext = religions.includes('all')
+    ? t('common.allReligions')
+    : religions.length > 0
+      ? religions.map((r) => r.charAt(0).toUpperCase() + r.slice(1)).join(', ')
+      : t('profile.myPathSubtext');
+
+  const openPathSheet = () => {
+    setSelectedReligions(user?.religions ?? []);
+    setPathOpen(true);
+  };
+
+  const toggleReligion = (code: string) => {
+    if (code === 'all') {
+      setSelectedReligions((prev) => prev.includes('all') ? [] : ['all']);
+    } else {
+      setSelectedReligions((prev) => {
+        const without = prev.filter((r) => r !== 'all' && r !== code);
+        return prev.includes(code) ? without : [...without, code];
+      });
+    }
+  };
+
+  const handleSavePath = async () => {
+    setPathOpen(false);
+    try {
+      await updateSettings({ religions: selectedReligions as string[] });
+      // Refresh user to show updated subtext
+      await getSettings();
+      if (user) fetchData();
+    } catch { /* ignore */ }
+  };
 
   const handleLangSelect = async (code: string) => {
     setLangOpen(false);
@@ -161,9 +197,10 @@ export default function Profile() {
           </h3>
           <div className="bg-white dark:bg-dark-surface rounded-3xl border border-slate-100 dark:border-dark-border shadow-subtle overflow-hidden">
             {/* My Path */}
-            <Link
-              to="/select-path"
-              className="w-full flex items-center justify-between p-4 pl-5 hover:bg-slate-50 dark:hover:bg-dark-border/30 transition-colors border-b border-slate-50 dark:border-dark-border"
+            <button
+              type="button"
+              onClick={openPathSheet}
+              className="w-full flex items-center justify-between p-4 pl-5 hover:bg-slate-50 dark:hover:bg-dark-border/30 transition-colors border-b border-slate-50 dark:border-dark-border text-left"
             >
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
@@ -175,7 +212,7 @@ export default function Profile() {
                 </div>
               </div>
               <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">chevron_right</span>
-            </Link>
+            </button>
 
             {/* Language */}
             <button
@@ -330,6 +367,63 @@ export default function Profile() {
           </p>
         </div>
       </div>
+
+      {/* My Path picker modal sheet */}
+      {pathOpen && (
+        <div className="fixed inset-0 z-[600] flex items-end" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setPathOpen(false)}
+            aria-label="Close"
+          />
+          <div className="relative w-full bg-white dark:bg-dark-surface rounded-t-3xl px-6 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] max-h-[70vh] overflow-y-auto">
+            <div className="w-10 h-1 bg-slate-200 dark:bg-dark-border rounded-full mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-text-dark dark:text-white mb-1">{t('profile.myPath')}</h2>
+            <p className="text-xs text-text-muted dark:text-dark-text-secondary mb-4">{t('selectPath.subtitle')}</p>
+
+            {/* All option */}
+            <button
+              type="button"
+              onClick={() => toggleReligion('all')}
+              className="w-full flex items-center gap-4 py-3.5 border-b border-slate-100 dark:border-dark-border text-left"
+            >
+              <span className="text-2xl">🌍</span>
+              <span className={`flex-1 text-base ${selectedReligions.includes('all') ? 'text-primary font-semibold' : 'text-text-dark dark:text-white'}`}>
+                {t('common.allReligions')}
+              </span>
+              <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedReligions.includes('all') ? 'bg-primary border-primary' : 'border-slate-300 dark:border-dark-border'}`}>
+                {selectedReligions.includes('all') && <span className="material-icons text-white text-[14px]">check</span>}
+              </span>
+            </button>
+
+            {RELIGIONS.map(({ code, emoji, labelKey }) => (
+              <button
+                key={code}
+                type="button"
+                onClick={() => toggleReligion(code)}
+                className="w-full flex items-center gap-4 py-3.5 border-b border-slate-100 dark:border-dark-border last:border-0 text-left"
+              >
+                <span className="text-2xl">{emoji}</span>
+                <span className={`flex-1 text-base ${!selectedReligions.includes('all') && selectedReligions.includes(code) ? 'text-primary font-semibold' : 'text-text-dark dark:text-white'}`}>
+                  {t(labelKey)}
+                </span>
+                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${!selectedReligions.includes('all') && selectedReligions.includes(code) ? 'bg-primary border-primary' : 'border-slate-300 dark:border-dark-border'}`}>
+                  {!selectedReligions.includes('all') && selectedReligions.includes(code) && <span className="material-icons text-white text-[14px]">check</span>}
+                </span>
+              </button>
+            ))}
+
+            <button
+              type="button"
+              onClick={handleSavePath}
+              className="w-full mt-5 bg-primary text-white font-semibold py-3.5 rounded-2xl hover:bg-blue-600 transition-colors"
+            >
+              {t('common.save')}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Language picker modal sheet */}
       {langOpen && (

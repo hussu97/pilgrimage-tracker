@@ -16,9 +16,15 @@ import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
-import { getMyStats } from '@/lib/api/client';
+import { getMyStats, updateSettings } from '@/lib/api/client';
 import type { UserStats } from '@/lib/types';
 import { tokens } from '@/lib/theme';
+
+const RELIGIONS = [
+  { code: 'islam',        emoji: '🕌', labelKey: 'common.islam' },
+  { code: 'hinduism',     emoji: '🛕', labelKey: 'common.hinduism' },
+  { code: 'christianity', emoji: '⛪', labelKey: 'common.christianity' },
+];
 
 const APP_VERSION =
   Constants.expoConfig?.version ??
@@ -308,6 +314,31 @@ function makeStyles(isDark: boolean) {
       color: tokens.colors.primary,
       fontWeight: '600',
     },
+    checkCircle: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      borderWidth: 2,
+      borderColor: isDark ? tokens.colors.darkBorder : '#cbd5e1',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkCircleActive: {
+      backgroundColor: tokens.colors.primary,
+      borderColor: tokens.colors.primary,
+    },
+    saveButton: {
+      backgroundColor: tokens.colors.primary,
+      borderRadius: tokens.borderRadius['2xl'],
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 16,
+    },
+    saveButtonText: {
+      color: '#fff',
+      fontSize: 15,
+      fontWeight: '600',
+    },
   });
 }
 
@@ -322,6 +353,8 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [langSheetOpen, setLangSheetOpen] = useState(false);
+  const [pathSheetOpen, setPathSheetOpen] = useState(false);
+  const [selectedReligions, setSelectedReligions] = useState<string[]>([]);
 
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
@@ -352,10 +385,35 @@ export default function ProfileScreen() {
   const reviews = stats?.reviews ?? 0;
   const joinedStr = user ? formatJoinedDate(user.created_at) : '';
   const religions = user?.religions ?? [];
-  const pathSubtext =
-    religions.length > 0
+  const pathSubtext = religions.includes('all')
+    ? t('common.allReligions')
+    : religions.length > 0
       ? religions.map((r) => r.charAt(0).toUpperCase() + r.slice(1)).join(', ')
       : t('profile.myPathSubtext');
+
+  const openPathSheet = () => {
+    setSelectedReligions(user?.religions ?? []);
+    setPathSheetOpen(true);
+  };
+
+  const toggleReligion = (code: string) => {
+    if (code === 'all') {
+      setSelectedReligions((prev) => prev.includes('all') ? [] : ['all']);
+    } else {
+      setSelectedReligions((prev) => {
+        const without = prev.filter((r) => r !== 'all' && r !== code);
+        return prev.includes(code) ? without : [...without, code];
+      });
+    }
+  };
+
+  const handleSavePath = async () => {
+    setPathSheetOpen(false);
+    try {
+      await updateSettings({ religions: selectedReligions });
+      if (user) fetchData();
+    } catch { /* ignore */ }
+  };
 
   return (
     <View style={[styles.container]}>
@@ -422,7 +480,7 @@ export default function ProfileScreen() {
             {/* My Path */}
             <TouchableOpacity
               style={styles.prefRow}
-              onPress={() => stackNav?.navigate('SelectPath' as never)}
+              onPress={openPathSheet}
               activeOpacity={0.7}
             >
               <View style={styles.rowLeft}>
@@ -568,6 +626,67 @@ export default function ProfileScreen() {
           {t('profile.version').replace('{version}', APP_VERSION)}
         </Text>
       </ScrollView>
+
+      {/* My Path selection bottom sheet */}
+      <Modal visible={pathSheetOpen} transparent animationType="slide">
+        <Pressable style={styles.modalOverlay} onPress={() => setPathSheetOpen(false)}>
+          <Pressable
+            style={[styles.langSheet, { paddingBottom: insets.bottom + 16 }]}
+            onPress={e => e.stopPropagation()}
+          >
+            <View style={styles.sheetHandle} />
+            <Text style={styles.langSheetTitle}>{t('profile.myPath')}</Text>
+            <Text style={[styles.langRowText, { fontSize: 13, marginBottom: 8 }]}>{t('selectPath.subtitle')}</Text>
+
+            {/* All option */}
+            <TouchableOpacity
+              style={styles.langRow}
+              onPress={() => toggleReligion('all')}
+              activeOpacity={0.7}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                <Text style={{ fontSize: 24 }}>🌍</Text>
+                <Text style={[styles.langRowText, selectedReligions.includes('all') && styles.langRowActive]}>
+                  {t('common.allReligions')}
+                </Text>
+              </View>
+              <View style={[styles.checkCircle, selectedReligions.includes('all') && styles.checkCircleActive]}>
+                {selectedReligions.includes('all') && <MaterialIcons name="check" size={14} color="#fff" />}
+              </View>
+            </TouchableOpacity>
+
+            {RELIGIONS.map(({ code, emoji, labelKey }) => {
+              const isActive = !selectedReligions.includes('all') && selectedReligions.includes(code);
+              return (
+                <TouchableOpacity
+                  key={code}
+                  style={styles.langRow}
+                  onPress={() => toggleReligion(code)}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                    <Text style={{ fontSize: 24 }}>{emoji}</Text>
+                    <Text style={[styles.langRowText, isActive && styles.langRowActive]}>
+                      {t(labelKey)}
+                    </Text>
+                  </View>
+                  <View style={[styles.checkCircle, isActive && styles.checkCircleActive]}>
+                    {isActive && <MaterialIcons name="check" size={14} color="#fff" />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={handleSavePath}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.saveButtonText}>{t('common.save')}</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Language selection bottom sheet */}
       <Modal visible={langSheetOpen} transparent animationType="slide">

@@ -134,6 +134,25 @@ class TestUpdateSettings:
         assert resp.status_code == 200
         assert "islam" in resp.json()["religions"]
 
+    def test_update_religions_all(self, client):
+        token, _ = _register(client)
+        resp = client.patch(
+            f"{USERS_URL}/me/settings",
+            json={"religions": ["all"]},
+            headers=_auth(token),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["religions"] == ["all"]
+
+    def test_update_religions_all_overrides_individual(self, client):
+        token, _ = _register(client)
+        # First set individual religions
+        client.patch(f"{USERS_URL}/me/settings", json={"religions": ["islam", "hinduism"]}, headers=_auth(token))
+        # Then set all
+        resp = client.patch(f"{USERS_URL}/me/settings", json={"religions": ["all"]}, headers=_auth(token))
+        assert resp.status_code == 200
+        assert resp.json()["religions"] == ["all"]
+
     def test_update_notifications(self, client):
         token, _ = _register(client)
         resp = client.patch(

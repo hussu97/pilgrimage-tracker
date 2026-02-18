@@ -10,7 +10,7 @@ from app.db import place_attributes as attr_db
 from app.db import reviews as reviews_db
 from app.services.timezone_utils import get_local_now
 
-Religion = Literal["islam", "hinduism", "christianity"]
+Religion = Literal["islam", "hinduism", "christianity", "all"]
 
 
 def _parse_time(s: str) -> Optional[tuple]:
@@ -330,7 +330,7 @@ def list_places(
 ) -> dict:
     statement = select(Place)
 
-    if religions:
+    if religions and "all" not in religions:
         statement = statement.where(Place.religion.in_(religions))
     if place_type:
         statement = statement.where(Place.place_type == place_type)

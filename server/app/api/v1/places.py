@@ -21,7 +21,7 @@ from app.services.timezone_utils import get_today_name
 
 router = APIRouter()
 
-Religion = Literal["islam", "hinduism", "christianity"]
+Religion = Literal["islam", "hinduism", "christianity", "all"]
 
 
 def _place_to_item(place, session: Session, distance: Optional[float] = None, include_rating: bool = False, attrs: Optional[dict] = None, images: Optional[List[dict]] = None, rating: Optional[dict] = None) -> dict:

@@ -35,7 +35,11 @@ export default function Home() {
   const nextCursorRef = useRef<string | null>(null);
 
   const buildParams = useCallback((cursor: string | null) => ({
-    religions: user?.religions?.length ? user.religions : undefined,
+    religions: (() => {
+      const r = user?.religions ?? [];
+      if (!r.length || r.includes('all')) return undefined;
+      return r;
+    })(),
     search: search || undefined,
     sort: 'distance',
     limit: PAGE_SIZE,

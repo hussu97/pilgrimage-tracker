@@ -8,7 +8,6 @@ const Login = lazy(() => import('@/app/pages/Login'));
 const Register = lazy(() => import('@/app/pages/Register'));
 const ForgotPassword = lazy(() => import('@/app/pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('@/app/pages/ResetPassword'));
-const SelectPath = lazy(() => import('@/app/pages/SelectPath'));
 const Home = lazy(() => import('@/app/pages/Home'));
 const PlaceDetail = lazy(() => import('@/app/pages/PlaceDetail'));
 const WriteReview = lazy(() => import('@/app/pages/WriteReview'));
@@ -50,7 +49,6 @@ export function AppRoutes() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/select-path" element={<ProtectedRoute><SelectPath /></ProtectedRoute>} />
           <Route path="/home" element={<Layout><Home /></Layout>} />
           <Route path="/places/:placeCode" element={<Layout><PlaceDetail /></Layout>} />
           <Route path="/places/:placeCode/review" element={<Layout><ProtectedRoute><WriteReview /></ProtectedRoute></Layout>} />
