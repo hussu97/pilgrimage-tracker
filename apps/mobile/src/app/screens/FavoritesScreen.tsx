@@ -75,6 +75,16 @@ function makeStyles(isDark: boolean) {
       borderRadius: tokens.borderRadius.xl,
     },
     signInButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: surface,
+      borderWidth: 1,
+      borderColor: border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
   });
 }
 
@@ -172,6 +182,15 @@ export default function FavoritesScreen() {
       ItemSeparatorComponent={() => <View style={styles.separator} />}
       ListHeaderComponent={() => (
         <View style={{ paddingHorizontal: 24 }}>
+          {stackNav?.canGoBack?.() && (
+            <TouchableOpacity
+              style={[styles.backBtn, { marginBottom: 16 }]}
+              onPress={() => stackNav.goBack()}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="arrow-back" size={20} color={isDark ? '#fff' : tokens.colors.textDark} />
+            </TouchableOpacity>
+          )}
           <Text style={styles.sectionLabel}>{t('nav.saved')}</Text>
           <Text style={styles.title}>{t('favorites.title')}</Text>
           {error ? (

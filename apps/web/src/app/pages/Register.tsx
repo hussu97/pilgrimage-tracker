@@ -1,6 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
+import { getFieldRules } from '@/lib/api/client';
+import type { PasswordRule } from '@/lib/api/client';
+
+function checkRule(rule: PasswordRule, password: string): boolean {
+  switch (rule.type) {
+    case 'min_length':
+      return password.length >= (rule.value ?? 8);
+    case 'require_uppercase':
+      return /[A-Z]/.test(password);
+    case 'require_lowercase':
+      return /[a-z]/.test(password);
+    case 'require_digit':
+      return /\d/.test(password);
+    default:
+      return true;
+  }
+}
+
+function ruleKey(rule: PasswordRule): string {
+  switch (rule.type) {
+    case 'min_length': return 'auth.passwordRuleMinLength';
+    case 'require_uppercase': return 'auth.passwordRuleUppercase';
+    case 'require_lowercase': return 'auth.passwordRuleLowercase';
+    case 'require_digit': return 'auth.passwordRuleDigit';
+    default: return '';
+  }
+}
 
 export default function Register() {
   const navigate = useNavigate();
@@ -12,12 +39,32 @@ export default function Register() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [passwordRules, setPasswordRules] = useState<PasswordRule[]>([]);
+  const [showRules, setShowRules] = useState(false);
+
+  useEffect(() => {
+    getFieldRules()
+      .then((data) => {
+        const pwField = data.fields.find((f) => f.name === 'password');
+        if (pwField) setPasswordRules(pwField.rules);
+      })
+      .catch(() => {
+        setPasswordRules([
+          { type: 'min_length', value: 8 },
+          { type: 'require_uppercase' },
+          { type: 'require_lowercase' },
+          { type: 'require_digit' },
+        ]);
+      });
+  }, []);
+
+  const minLength = passwordRules.find((r) => r.type === 'min_length')?.value ?? 8;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     if (password !== confirm) { setError(t('auth.passwordsDoNotMatch')); return; }
-    if (password.length < 6) { setError(t('auth.passwordMinLength')); return; }
+    if (password.length < minLength) { setError(t('auth.passwordMinLength')); return; }
     setSubmitting(true);
     try {
       await register(email, password, displayName.trim() || undefined);
@@ -94,11 +141,30 @@ export default function Register() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onFocus={() => setShowRules(true)}
               className="w-full px-5 py-4 border border-slate-200 dark:border-dark-border rounded-2xl bg-white dark:bg-dark-surface text-slate-800 dark:text-white placeholder:text-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-50 dark:focus:ring-primary/10 focus:border-primary transition-all outline-none"
               required
-              minLength={6}
+              minLength={minLength}
             />
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1.5 ml-1">{t('auth.passwordMinLength')}</p>
+            {/* Dynamic password rules */}
+            {showRules && passwordRules.length > 0 && (
+              <div className="mt-2 ml-1 space-y-1">
+                {passwordRules.map((rule) => {
+                  const met = password.length > 0 && checkRule(rule, password);
+                  const label = t(ruleKey(rule)).replace('{count}', String(rule.type === 'min_length' ? (rule.value ?? 8) : ''));
+                  return (
+                    <div key={rule.type} className="flex items-center gap-1.5">
+                      <span className={`text-xs font-semibold w-3 ${met ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                        {met ? '✓' : '○'}
+                      </span>
+                      <span className={`text-[11px] ${met ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                        {label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div>

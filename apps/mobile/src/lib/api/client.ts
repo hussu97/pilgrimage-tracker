@@ -53,6 +53,27 @@ export async function getTranslations(lang: string): Promise<Record<string, stri
 }
 
 // Auth
+export interface PasswordRule {
+  type: 'min_length' | 'require_uppercase' | 'require_lowercase' | 'require_digit';
+  value?: number;
+}
+
+export interface FieldRule {
+  name: string;
+  required: boolean;
+  rules: PasswordRule[];
+}
+
+export interface FieldRulesResponse {
+  fields: FieldRule[];
+}
+
+export async function getFieldRules(): Promise<FieldRulesResponse> {
+  const res = await fetch(`${API_BASE}/api/v1/auth/field-rules`);
+  if (!res.ok) throw new Error('Failed to fetch field rules');
+  return res.json();
+}
+
 export interface RegisterBody {
   email: string;
   password: string;

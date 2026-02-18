@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,39 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/app/navigation';
 import { useAuth, useI18n } from '@/app/providers';
+import { getFieldRules } from '@/lib/api/client';
+import type { PasswordRule } from '@/lib/api/client';
 import { tokens } from '@/lib/theme';
+
+function checkRule(rule: PasswordRule, password: string): boolean {
+  switch (rule.type) {
+    case 'min_length':
+      return password.length >= (rule.value ?? 8);
+    case 'require_uppercase':
+      return /[A-Z]/.test(password);
+    case 'require_lowercase':
+      return /[a-z]/.test(password);
+    case 'require_digit':
+      return /\d/.test(password);
+    default:
+      return true;
+  }
+}
+
+function ruleKey(rule: PasswordRule): string {
+  switch (rule.type) {
+    case 'min_length':
+      return 'auth.passwordRuleMinLength';
+    case 'require_uppercase':
+      return 'auth.passwordRuleUppercase';
+    case 'require_lowercase':
+      return 'auth.passwordRuleLowercase';
+    case 'require_digit':
+      return 'auth.passwordRuleDigit';
+    default:
+      return '';
+  }
+}
 
 export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
@@ -28,11 +60,32 @@ export default function RegisterScreen() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [passwordRules, setPasswordRules] = useState<PasswordRule[]>([]);
+  const [showRules, setShowRules] = useState(false);
+
+  useEffect(() => {
+    getFieldRules()
+      .then((data) => {
+        const pwField = data.fields.find((f) => f.name === 'password');
+        if (pwField) setPasswordRules(pwField.rules);
+      })
+      .catch(() => {
+        // Fallback to default rules if endpoint fails
+        setPasswordRules([
+          { type: 'min_length', value: 8 },
+          { type: 'require_uppercase' },
+          { type: 'require_lowercase' },
+          { type: 'require_digit' },
+        ]);
+      });
+  }, []);
+
+  const minLength = passwordRules.find((r) => r.type === 'min_length')?.value ?? 8;
 
   const handleRegister = async () => {
     setError('');
     if (password !== confirm) { setError(t('auth.passwordsDoNotMatch')); return; }
-    if (password.length < 6) { setError(t('auth.passwordMinLength')); return; }
+    if (password.length < minLength) { setError(t('auth.passwordMinLength')); return; }
     setLoading(true);
     try {
       await register(email, password, displayName.trim() || undefined);
@@ -71,8 +124,36 @@ export default function RegisterScreen() {
 
         <TextInput style={styles.input} placeholder={t('auth.fullName')} value={displayName} onChangeText={setDisplayName} placeholderTextColor={tokens.colors.textMuted} />
         <TextInput style={styles.input} placeholder={t('auth.email')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholderTextColor={tokens.colors.textMuted} />
-        <TextInput style={styles.input} placeholder={t('auth.password')} value={password} onChangeText={setPassword} secureTextEntry placeholderTextColor={tokens.colors.textMuted} />
-        <Text style={styles.passwordHint}>{t('auth.passwordMinLength')}</Text>
+        <TextInput
+          style={styles.input}
+          placeholder={t('auth.password')}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          placeholderTextColor={tokens.colors.textMuted}
+          onFocus={() => setShowRules(true)}
+        />
+
+        {/* Dynamic password rules */}
+        {showRules && passwordRules.length > 0 && (
+          <View style={styles.rulesContainer}>
+            {passwordRules.map((rule) => {
+              const met = password.length > 0 && checkRule(rule, password);
+              const label = t(ruleKey(rule)).replace('{count}', String(rule.type === 'min_length' ? (rule.value ?? 8) : ''));
+              return (
+                <View key={rule.type} style={styles.ruleRow}>
+                  <Text style={[styles.ruleIcon, met && styles.ruleIconMet]}>
+                    {met ? '✓' : '○'}
+                  </Text>
+                  <Text style={[styles.ruleText, met && styles.ruleTextMet]}>
+                    {label}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
         <TextInput style={styles.input} placeholder={t('auth.confirmPassword')} value={confirm} onChangeText={setConfirm} secureTextEntry placeholderTextColor={tokens.colors.textMuted} />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -97,7 +178,12 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700', color: tokens.colors.textDark, marginBottom: 4 },
   subtitle: { fontSize: 14, color: tokens.colors.textMuted, marginBottom: 24 },
   input: { borderWidth: 1, borderColor: tokens.colors.inputBorder, borderRadius: tokens.borderRadius['2xl'], padding: 14, marginBottom: 12, fontSize: 16, backgroundColor: tokens.colors.surface, color: tokens.colors.textMain },
-  passwordHint: { fontSize: 11, color: tokens.colors.textMuted, marginBottom: 4, marginLeft: 4 },
+  rulesContainer: { marginBottom: 12, marginTop: -4, paddingHorizontal: 4 },
+  ruleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  ruleIcon: { fontSize: 12, color: tokens.colors.textMuted, marginRight: 6, width: 14 },
+  ruleIconMet: { color: tokens.colors.openNow },
+  ruleText: { fontSize: 11, color: tokens.colors.textMuted },
+  ruleTextMet: { color: tokens.colors.openNow },
   error: { color: '#dc2626', fontSize: 14, marginBottom: 12, fontWeight: '500' },
   primaryButton: { backgroundColor: tokens.colors.primary, paddingVertical: 16, borderRadius: tokens.borderRadius['2xl'], alignItems: 'center', marginTop: 4 },
   buttonDisabled: { opacity: 0.6 },

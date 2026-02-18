@@ -23,8 +23,7 @@ import {
   checkIn as doCheckIn,
 } from '@/lib/api/client';
 import { shareUrl, openDirections } from '@/lib/share';
-import { useAuth } from '@/app/providers';
-import { useI18n } from '@/app/providers';
+import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import type { RootStackParamList } from '@/app/navigation';
 import type { PlaceDetail as PlaceDetailType, Review } from '@/lib/types';
@@ -56,6 +55,7 @@ export default function PlaceDetailScreen() {
   const { placeCode } = route.params;
   const { user } = useAuth();
   const { t } = useI18n();
+  const { isDark } = useTheme();
   const { requireAuth } = useAuthRequired();
 
   const [place, setPlace] = useState<PlaceDetailType | null>(null);
@@ -250,8 +250,15 @@ export default function PlaceDetailScreen() {
       place.religion === 'hinduism' ? t('placeDetail.divinePresence') :
         t('placeDetail.serviceTimes');
 
+  const cardBg = isDark ? tokens.colors.darkBg : tokens.colors.backgroundLight;
+  const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
+  const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
+  const textMain = isDark ? '#ffffff' : tokens.colors.textMain;
+  const textSecondary = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary;
+  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: cardBg }]}>
       {/* Hero (fixed behind content) */}
       <Animated.View
         style={[
@@ -355,7 +362,7 @@ export default function PlaceDetailScreen() {
         <View style={styles.heroSpacer} />
 
         {/* Card */}
-        <View style={styles.card}>
+        <View style={[styles.card, { backgroundColor: cardBg }]}>
           {/* Scorecards */}
           <PlaceScorecardRow
             place={place}
@@ -367,9 +374,9 @@ export default function PlaceDetailScreen() {
           {/* The Story */}
           {place.description ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t('placeDetail.theStory')}</Text>
+              <Text style={[styles.sectionTitle, { color: textMuted }]}>{t('placeDetail.theStory')}</Text>
               <Text
-                style={styles.description}
+                style={[styles.description, { color: textSecondary }]}
                 numberOfLines={storyExpanded ? undefined : 5}
               >
                 {place.description}
@@ -385,8 +392,8 @@ export default function PlaceDetailScreen() {
           {/* Opening Hours */}
           {place.opening_hours && Object.keys(place.opening_hours).length > 0 ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t('places.openingHours')}</Text>
-              <View style={styles.hoursCard}>
+              <Text style={[styles.sectionTitle, { color: textMuted }]}>{t('places.openingHours')}</Text>
+              <View style={[styles.hoursCard, { backgroundColor: surface, borderColor: border }]}>
                 {!hoursExpanded ? (
                   // Collapsed state: Show today's hours
                   <TouchableOpacity
@@ -396,10 +403,10 @@ export default function PlaceDetailScreen() {
                   >
                     <View style={styles.hoursCollapsedLeft}>
                       <MaterialIcons name="schedule" size={18} color={tokens.colors.primary} />
-                      <Text style={styles.hoursToday}>
+                      <Text style={[styles.hoursToday, { color: textMain }]}>
                         {t('places.today')}:
                       </Text>
-                      <Text style={styles.hoursTodayValue} numberOfLines={1}>
+                      <Text style={[styles.hoursTodayValue, { color: textSecondary }]} numberOfLines={1}>
                         {formatHoursDisplay(place.opening_hours_today, t)}
                       </Text>
                     </View>
@@ -415,10 +422,10 @@ export default function PlaceDetailScreen() {
 
                       return (
                         <View key={key} style={styles.hoursRow}>
-                          <Text style={[styles.hoursDay, isToday && styles.hoursDayToday]}>
+                          <Text style={[styles.hoursDay, { color: textSecondary }, isToday && styles.hoursDayToday]}>
                             {t(`common.${key}`)}
                           </Text>
-                          <Text style={[styles.hoursValue, isToday && styles.hoursValueToday, { flexShrink: 1 }]} numberOfLines={1}>
+                          <Text style={[styles.hoursValue, { color: textSecondary }, isToday && styles.hoursValueToday, { flexShrink: 1 }]} numberOfLines={1}>
                             {formatHoursDisplay(hours, t)}
                           </Text>
                         </View>
@@ -464,7 +471,7 @@ export default function PlaceDetailScreen() {
       <View
         style={[
           styles.footer,
-          { paddingBottom: insets.bottom + 12, paddingTop: 12, paddingHorizontal: 16 },
+          { paddingBottom: insets.bottom + 12, paddingTop: 12, paddingHorizontal: 16, backgroundColor: surface, borderTopColor: border },
         ]}
       >
         <TouchableOpacity

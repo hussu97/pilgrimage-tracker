@@ -9,11 +9,12 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/app/navigation';
-import { useI18n } from '@/app/providers';
+import { useI18n, useTheme } from '@/app/providers';
 import { getMyCheckIns, getOnThisDayCheckIns, getThisMonthCheckIns } from '@/lib/api/client';
 import type { CheckIn } from '@/lib/types';
 import { tokens } from '@/lib/theme';
@@ -57,10 +58,185 @@ function getMonthDays(
   return days;
 }
 
+function makeStyles(isDark: boolean) {
+  const bg = isDark ? tokens.colors.darkBg : tokens.colors.surfaceTint;
+  const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
+  const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
+  const textMain = isDark ? '#ffffff' : tokens.colors.textDark;
+  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
+  const textSecondary = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary;
+
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: bg },
+    header: { paddingHorizontal: 24, marginBottom: 24 },
+    backBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: surface,
+      borderWidth: 1,
+      borderColor: border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 16,
+    },
+    title: { fontSize: 32, fontWeight: '700', color: textMain, letterSpacing: -1 },
+    subtitle: { fontSize: 14, color: textSecondary, marginTop: 4, fontWeight: '500' },
+    loader: { marginVertical: 24, alignSelf: 'center' },
+    errorWrap: { paddingHorizontal: 24, marginBottom: 16 },
+    errorText: { color: '#b91c1c', marginBottom: 8 },
+    retryButton: { alignSelf: 'flex-start' },
+    retryText: { color: tokens.colors.primary, fontWeight: '600' },
+    emptyWrap: {
+      marginHorizontal: 24,
+      paddingVertical: 48,
+      alignItems: 'center',
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: border,
+      backgroundColor: surface,
+    },
+    emptyIcon: { fontSize: 48, marginBottom: 16, color: textMuted },
+    emptyTitle: { fontSize: 16, fontWeight: '600', color: textMain, marginBottom: 20 },
+    emptyCta: {
+      backgroundColor: tokens.colors.primary,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 12,
+    },
+    emptyCtaText: { color: '#fff', fontWeight: '600' },
+    statsCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: 24,
+      marginBottom: 24,
+      padding: 24,
+      backgroundColor: surface,
+      borderRadius: 24,
+      borderWidth: 1,
+      borderColor: border,
+      ...tokens.shadow.subtle,
+    },
+    statsLabel: { fontSize: 12, fontWeight: '600', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+    statsRow: { flexDirection: 'row', alignItems: 'baseline' },
+    statsTotal: { fontSize: 40, fontWeight: '300', color: isDark ? tokens.colors.primary : tokens.colors.primaryDark },
+    statsSuffix: { fontSize: 14, color: textMuted },
+    statsLeft: { flex: 1 },
+    statsDivider: { width: 1, height: 48, backgroundColor: border, marginHorizontal: 16 },
+    statsRight: { alignItems: 'flex-end' },
+    statsThisMonthLabel: { fontSize: 12, fontWeight: '600', color: textSecondary, textTransform: 'uppercase', marginBottom: 4 },
+    statsThisMonthValue: { fontSize: 24, fontWeight: '600', color: textMain },
+    statsThisMonthSuffix: { fontSize: 10, color: textMuted, textTransform: 'uppercase', fontWeight: 'bold' },
+    calendarSection: { paddingHorizontal: 24, marginBottom: 24 },
+    calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+    calendarTitle: { fontSize: 18, fontWeight: '600', color: textMain },
+    calendarNav: { flexDirection: 'row', gap: 8 },
+    calendarNavBtn: { padding: 4 },
+    calendarNavIcon: { fontSize: 20, color: textMuted },
+    calendarCard: {
+      backgroundColor: surface,
+      borderRadius: 20,
+      padding: 16,
+      borderWidth: 1,
+      borderColor: border,
+      ...tokens.shadow.subtle,
+    },
+    weekdayRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginBottom: 12,
+    },
+    weekdayLabel: { fontSize: 12, fontWeight: '600', color: textMuted },
+    daysGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    dayCell: {
+      width: '14.28%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 8,
+      position: 'relative',
+    },
+    dayDot: {
+      position: 'absolute',
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: isDark ? '#1a2a4e' : '#eff6ff',
+    },
+    dayDotToday: { backgroundColor: tokens.colors.primary },
+    dayNum: { fontSize: 14, color: textMain },
+    dayNumMuted: { color: textMuted },
+    dayNumBold: { fontWeight: '600', color: isDark ? tokens.colors.primary : tokens.colors.primaryDark },
+    dayNumToday: { color: '#fff', fontWeight: '600' },
+    sectionWrap: { marginBottom: 8 },
+    sectionTitle: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 2,
+      marginHorizontal: 24,
+      marginBottom: 8,
+      marginTop: 16,
+    },
+    sectionSubtitle: {
+      fontSize: 12,
+      color: textMuted,
+      marginHorizontal: 24,
+      marginBottom: 12,
+    },
+    visitCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: 24,
+      marginBottom: 12,
+      padding: 16,
+      height: 128,
+      backgroundColor: surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: border,
+      ...tokens.shadow.subtle,
+    },
+    visitThumb: {
+      width: 96,
+      height: 96,
+      borderRadius: 16,
+      overflow: 'hidden',
+      backgroundColor: isDark ? '#2a3a5e' : tokens.colors.softBlue,
+      marginRight: 16,
+    },
+    ratingBadge: {
+      position: 'absolute',
+      bottom: 4,
+      right: 4,
+      backgroundColor: tokens.colors.primary,
+      borderRadius: 8,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    ratingBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+    visitThumbImg: { width: '100%', height: '100%' },
+    visitThumbPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    visitThumbIcon: { fontSize: 28, color: textMuted },
+    visitBody: { flex: 1, minWidth: 0 },
+    visitName: { fontSize: 16, fontWeight: '600', color: textMain },
+    visitDate: { fontSize: 12, color: textMuted, marginTop: 4 },
+    visitLocation: { fontSize: 11, color: textSecondary, marginTop: 4 },
+    chevron: { fontSize: 20, color: textMuted },
+  });
+}
+
 export default function CheckInsListScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'CheckInsList'>>();
   const { t } = useI18n();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [onThisDay, setOnThisDay] = useState<CheckIn[]>([]);
   const [thisMonth, setThisMonth] = useState<CheckIn[]>([]);
@@ -131,7 +307,7 @@ export default function CheckInsListScreen() {
 
   return (
     <ScrollView
-      style={[styles.container, { backgroundColor: tokens.colors.surfaceTint }]}
+      style={styles.container}
       contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 100 }}
       showsVerticalScrollIndicator={false}
       refreshControl={
@@ -144,8 +320,8 @@ export default function CheckInsListScreen() {
       }
     >
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ {t('common.back')}</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+          <MaterialIcons name="arrow-back" size={20} color={isDark ? '#fff' : tokens.colors.textDark} />
         </TouchableOpacity>
         <Text style={styles.title}>{t('journey.journeyLog')}</Text>
         <Text style={styles.subtitle}>{t('checkins.historySubtitle') || 'Relive your pilgrimage moments'}</Text>
@@ -371,166 +547,3 @@ export default function CheckInsListScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: { paddingHorizontal: 24, marginBottom: 24 },
-  backBtn: { marginBottom: 8 },
-  backText: { fontSize: 14, color: tokens.colors.textMuted },
-  label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: tokens.colors.primaryDark,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 4,
-  },
-  title: { fontSize: 32, fontWeight: '700', color: tokens.colors.textDark, letterSpacing: -1 },
-  subtitle: { fontSize: 14, color: tokens.colors.textSecondary, marginTop: 4, fontWeight: '500' },
-  loader: { marginVertical: 24, alignSelf: 'center' },
-  errorWrap: { paddingHorizontal: 24, marginBottom: 16 },
-  errorText: { color: '#b91c1c', marginBottom: 8 },
-  retryButton: { alignSelf: 'flex-start' },
-  retryText: { color: tokens.colors.primary, fontWeight: '600' },
-  emptyWrap: {
-    marginHorizontal: 24,
-    paddingVertical: 48,
-    alignItems: 'center',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    backgroundColor: tokens.colors.surface,
-  },
-  emptyIcon: { fontSize: 48, marginBottom: 16, color: tokens.colors.textMuted },
-  emptyTitle: { fontSize: 16, fontWeight: '600', color: tokens.colors.textMain, marginBottom: 20 },
-  emptyCta: {
-    backgroundColor: tokens.colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  emptyCtaText: { color: '#fff', fontWeight: '600' },
-  statsCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 24,
-    marginBottom: 24,
-    padding: 24,
-    backgroundColor: tokens.colors.surface,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    ...tokens.shadow.subtle,
-  },
-  statsLabel: { fontSize: 12, fontWeight: '600', color: tokens.colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  statsRow: { flexDirection: 'row', alignItems: 'baseline' },
-  statsTotal: { fontSize: 40, fontWeight: '300', color: tokens.colors.primaryDark },
-  statsSuffix: { fontSize: 14, color: tokens.colors.textMuted },
-  statsLeft: { flex: 1 },
-  statsDivider: { width: 1, height: 48, backgroundColor: tokens.colors.inputBorder, marginHorizontal: 16 },
-  statsRight: { alignItems: 'flex-end' },
-  statsThisMonthLabel: { fontSize: 12, fontWeight: '600', color: tokens.colors.textSecondary, textTransform: 'uppercase', marginBottom: 4 },
-  statsThisMonthValue: { fontSize: 24, fontWeight: '600', color: tokens.colors.textDark },
-  statsThisMonthSuffix: { fontSize: 10, color: tokens.colors.textMuted, textTransform: 'uppercase', fontWeight: 'bold' },
-  calendarSection: { paddingHorizontal: 24, marginBottom: 24 },
-  calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  calendarTitle: { fontSize: 18, fontWeight: '600', color: tokens.colors.textDark },
-  calendarNav: { flexDirection: 'row', gap: 8 },
-  calendarNavBtn: { padding: 4 },
-  calendarNavIcon: { fontSize: 20, color: tokens.colors.textMuted },
-  calendarCard: {
-    backgroundColor: tokens.colors.surface,
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    ...tokens.shadow.subtle,
-  },
-  weekdayRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 12,
-  },
-  weekdayLabel: { fontSize: 12, fontWeight: '600', color: tokens.colors.textMuted },
-  daysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  dayCell: {
-    width: '14.28%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    position: 'relative',
-  },
-  dayDot: {
-    position: 'absolute',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#eff6ff',
-  },
-  dayDotToday: { backgroundColor: tokens.colors.primary },
-  dayNum: { fontSize: 14, color: tokens.colors.textMain },
-  dayNumMuted: { color: tokens.colors.textMuted },
-  dayNumBold: { fontWeight: '600', color: tokens.colors.primaryDark },
-  dayNumToday: { color: '#fff', fontWeight: '600' },
-  sectionWrap: { marginBottom: 8 },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: tokens.colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginHorizontal: 24,
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  sectionSubtitle: {
-    fontSize: 12,
-    color: tokens.colors.textMuted,
-    marginHorizontal: 24,
-    marginBottom: 12,
-  },
-  visitCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 24,
-    marginBottom: 12,
-    padding: 16,
-    height: 128,
-    backgroundColor: tokens.colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    ...tokens.shadow.subtle,
-  },
-  visitThumb: {
-    width: 96,
-    height: 96,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: tokens.colors.softBlue,
-    marginRight: 16,
-  },
-  ratingBadge: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    backgroundColor: tokens.colors.primary,
-    borderRadius: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  visitThumbImg: { width: '100%', height: '100%' },
-  visitThumbPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  visitThumbIcon: { fontSize: 28, color: tokens.colors.textMuted },
-  visitBody: { flex: 1, minWidth: 0 },
-  visitName: { fontSize: 16, fontWeight: '600', color: tokens.colors.textDark },
-  visitDate: { fontSize: 12, color: tokens.colors.textMuted, marginTop: 4 },
-  visitLocation: { fontSize: 11, color: tokens.colors.textSecondary, marginTop: 4 },
-  chevron: { fontSize: 20, color: tokens.colors.textMuted },
-});

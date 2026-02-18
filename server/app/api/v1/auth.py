@@ -194,3 +194,32 @@ def reset_password(body: ResetPasswordBody, session: SessionDep):
         raise HTTPException(status_code=400, detail="User not found")
     store.update_user_password(user.user_code, hash_password(body.newPassword), session)
     return {"ok": True}
+
+
+@router.get("/field-rules")
+def field_rules():
+    """Return registration field validation rules for client-side display and hint generation."""
+    return {
+        "fields": [
+            {
+                "name": "email",
+                "required": True,
+                "rules": [],
+            },
+            {
+                "name": "password",
+                "required": True,
+                "rules": [
+                    {"type": "min_length", "value": 8},
+                    {"type": "require_uppercase"},
+                    {"type": "require_lowercase"},
+                    {"type": "require_digit"},
+                ],
+            },
+            {
+                "name": "display_name",
+                "required": False,
+                "rules": [],
+            },
+        ]
+    }
