@@ -71,15 +71,6 @@ export default function Groups() {
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-text-dark dark:text-white">
           {t('groups.myGroups')}
         </h1>
-        {user && (
-          <Link
-            to="/notifications"
-            className="p-2 -mr-2 rounded-full hover:bg-gray-50 dark:hover:bg-dark-surface text-text-muted dark:text-dark-text-secondary"
-            aria-label={t('notifications.title')}
-          >
-            <span className="material-symbols-outlined">notifications</span>
-          </Link>
-        )}
       </header>
 
       <main className="max-w-md md:max-w-2xl mx-auto px-4 md:px-6 py-6 pb-28">

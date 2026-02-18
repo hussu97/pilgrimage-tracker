@@ -31,14 +31,6 @@ export default function Layout({ children }: { children: ReactNode }) {
           <Link to="/home" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.pathname === '/home' ? 'page' : undefined}>{t('nav.explore')}</Link>
           <Link to="/groups" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.pathname.startsWith('/groups') ? 'page' : undefined}>{t('nav.groups')}</Link>
           <span className="ml-auto flex items-center gap-4">
-            <Link to="/notifications" className="relative text-text-muted hover:text-primary p-1 -mr-1 dark:text-dark-text-secondary" aria-label={t('nav.notifications')} aria-current={location.pathname === '/notifications' ? 'page' : undefined}>
-              <span className="material-symbols-outlined">notifications</span>
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center px-1">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
-              )}
-            </Link>
             {user ? (
               <Link to="/profile" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.pathname === '/profile' ? 'page' : undefined}>{t('nav.profile')}</Link>
             ) : (
