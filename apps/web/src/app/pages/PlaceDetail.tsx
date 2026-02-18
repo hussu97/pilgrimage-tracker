@@ -9,7 +9,12 @@ import {
   deleteReview,
   checkIn as doCheckIn_api,
 } from '@/lib/api/client';
-import type { PlaceDetail as PlaceDetailType, Review, PlaceTiming, PlaceSpecification } from '@/lib/types';
+import type {
+  PlaceDetail as PlaceDetailType,
+  Review,
+  PlaceTiming,
+  PlaceSpecification,
+} from '@/lib/types';
 import { useAuth } from '@/app/providers';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import { SharePlaceButton } from '@/components/places';
@@ -72,7 +77,9 @@ function ReviewsSection({
                   <span
                     key={s}
                     className="material-symbols-outlined text-lg"
-                    style={{ fontVariationSettings: `'FILL' ${s <= Math.round(averageRating || 0) ? 1 : 0}` }}
+                    style={{
+                      fontVariationSettings: `'FILL' ${s <= Math.round(averageRating || 0) ? 1 : 0}`,
+                    }}
                   >
                     star
                   </span>
@@ -96,12 +103,17 @@ function ReviewsSection({
       <div className="space-y-6">
         {displayReviews.length === 0 ? (
           <div className="text-center py-12 bg-slate-50 dark:bg-dark-surface rounded-3xl border border-dashed border-slate-200 dark:border-dark-border">
-            <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">rate_review</span>
+            <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">
+              rate_review
+            </span>
             <p className="text-slate-400 font-medium">{t('places.noReviewsYet')}</p>
           </div>
         ) : (
           displayReviews.map((r) => (
-            <div key={r.review_code} className="bg-slate-50 dark:bg-dark-surface p-6 rounded-3xl border border-slate-100 dark:border-dark-border group transition-all hover:bg-white dark:hover:bg-dark-surface hover:shadow-soft">
+            <div
+              key={r.review_code}
+              className="bg-slate-50 dark:bg-dark-surface p-6 rounded-3xl border border-slate-100 dark:border-dark-border group transition-all hover:bg-white dark:hover:bg-dark-surface hover:shadow-soft"
+            >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm uppercase">
@@ -126,7 +138,12 @@ function ReviewsSection({
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                    {r.created_at ? new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}
+                    {r.created_at
+                      ? new Date(r.created_at).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                        })
+                      : ''}
                   </span>
                   {currentUserCode === r.user_code && (
                     <div className="flex items-center gap-1">
@@ -149,7 +166,11 @@ function ReviewsSection({
                 </div>
               </div>
 
-              {r.title && <h5 className="font-bold text-slate-900 dark:text-white text-[15px] mb-2">{r.title}</h5>}
+              {r.title && (
+                <h5 className="font-bold text-slate-900 dark:text-white text-[15px] mb-2">
+                  {r.title}
+                </h5>
+              )}
               {r.body && (
                 <p className="text-slate-600 dark:text-slate-300 text-[14px] leading-relaxed">
                   {r.body}
@@ -159,7 +180,10 @@ function ReviewsSection({
               {r.images && r.images.length > 0 && (
                 <div className="flex gap-3 mt-5 overflow-x-auto no-scrollbar pb-1">
                   {r.images.map((img, i) => (
-                    <div key={i} className="w-24 h-24 rounded-2xl overflow-hidden shadow-soft shrink-0 border border-slate-200/50">
+                    <div
+                      key={i}
+                      className="w-24 h-24 rounded-2xl overflow-hidden shadow-soft shrink-0 border border-slate-200/50"
+                    >
                       <img
                         src={getFullImageUrl(img.url)}
                         alt=""
@@ -270,7 +294,9 @@ export default function PlaceDetail() {
     try {
       const result = await doCheckIn_api(placeCode);
       const date = new Date(result.checked_in_at).toLocaleDateString('en-US', {
-        day: 'numeric', month: 'short', year: 'numeric',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
       });
       setCheckInDate(date);
       setTimeout(() => setCheckInDone(true), 430);
@@ -291,7 +317,11 @@ export default function PlaceDetail() {
       return (
         <div className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium text-sm">
           <span className="material-symbols-outlined text-lg">check_circle</span>
-          <span className="truncate">{checkInDate ? t('places.checkedInDate').replace('{date}', checkInDate) : t('places.checkIn')}</span>
+          <span className="truncate">
+            {checkInDate
+              ? t('places.checkedInDate').replace('{date}', checkInDate)
+              : t('places.checkIn')}
+          </span>
         </div>
       );
     }
@@ -334,8 +364,12 @@ export default function PlaceDetail() {
   if (notFound || (!place && error)) {
     return (
       <div className="p-6 max-w-md mx-auto text-center">
-        <span className="material-symbols-outlined text-5xl text-text-muted mb-4 block">location_off</span>
-        <h1 className="text-xl font-semibold text-text-main dark:text-white mb-2">{t('places.notFound')}</h1>
+        <span className="material-symbols-outlined text-5xl text-text-muted mb-4 block">
+          location_off
+        </span>
+        <h1 className="text-xl font-semibold text-text-main dark:text-white mb-2">
+          {t('places.notFound')}
+        </h1>
         <p className="text-text-muted dark:text-dark-text-secondary mb-4">{error}</p>
         <button
           type="button"
@@ -351,18 +385,25 @@ export default function PlaceDetail() {
   if (!place) return null;
 
   const heroImage = getFullImageUrl(place.images?.[0]?.url);
-  const formatDist = (km: number) => km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+  const formatDist = (km: number) =>
+    km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.lat + ',' + place.lng)}`;
 
-  const timings: PlaceTiming[] = (place as PlaceDetailType & { timings?: PlaceTiming[] }).timings ?? [];
-  const specifications: PlaceSpecification[] = (place as PlaceDetailType & { specifications?: PlaceSpecification[] }).specifications ?? [];
-  const crowdLevel: string | null = (place as PlaceDetailType & { crowd_level?: string }).crowd_level ?? null;
-  const totalCheckins: number | null = (place as PlaceDetailType & { total_checkins_count?: number }).total_checkins_count ?? null;
+  const timings: PlaceTiming[] =
+    (place as PlaceDetailType & { timings?: PlaceTiming[] }).timings ?? [];
+  const specifications: PlaceSpecification[] =
+    (place as PlaceDetailType & { specifications?: PlaceSpecification[] }).specifications ?? [];
+  const crowdLevel: string | null =
+    (place as PlaceDetailType & { crowd_level?: string }).crowd_level ?? null;
+  const totalCheckins: number | null =
+    (place as PlaceDetailType & { total_checkins_count?: number }).total_checkins_count ?? null;
 
   const carouselTitle =
-    place.religion === 'islam' ? t('placeDetail.prayerTimes') :
-      place.religion === 'hinduism' ? t('placeDetail.divinePresence') :
-        t('placeDetail.serviceTimes');
+    place.religion === 'islam'
+      ? t('placeDetail.prayerTimes')
+      : place.religion === 'hinduism'
+        ? t('placeDetail.divinePresence')
+        : t('placeDetail.serviceTimes');
 
   /* Shared sidebar content (used in desktop 2-col layout) */
   const SidebarActions = () => (
@@ -385,8 +426,14 @@ export default function PlaceDetail() {
             </span>
           </a>
           <div className="flex-1 flex flex-col items-center gap-1 px-2">
-            <span className={`material-symbols-outlined text-[22px] ${crowdColorClass(crowdLevel) || 'text-text-muted'}`}>people</span>
-            <span className={`text-sm font-bold ${crowdColorClass(crowdLevel) || 'text-text-main dark:text-white'}`}>
+            <span
+              className={`material-symbols-outlined text-[22px] ${crowdColorClass(crowdLevel) || 'text-text-muted'}`}
+            >
+              people
+            </span>
+            <span
+              className={`text-sm font-bold ${crowdColorClass(crowdLevel) || 'text-text-main dark:text-white'}`}
+            >
               {crowdLevel ?? '—'}
             </span>
             <span className="text-[10px] uppercase tracking-wide text-text-muted dark:text-dark-text-secondary font-semibold">
@@ -394,7 +441,9 @@ export default function PlaceDetail() {
             </span>
           </div>
           <div className="flex-1 flex flex-col items-center gap-1 px-2">
-            <span className="material-symbols-outlined text-primary text-[22px]">check_circle_outline</span>
+            <span className="material-symbols-outlined text-primary text-[22px]">
+              check_circle_outline
+            </span>
             <span className="text-sm font-bold text-text-main dark:text-white">
               {totalCheckins != null ? totalCheckins : '—'}
             </span>
@@ -424,33 +473,49 @@ export default function PlaceDetail() {
   return (
     <div className="w-full min-h-screen bg-background-light dark:bg-dark-bg">
       {/* Sticky Header (Fade in on scroll) */}
-      <div className={`fixed top-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-xl border-b border-slate-100 dark:bg-dark-bg/95 dark:border-dark-border px-4 pt-14 pb-4 transition-all duration-500 transform ${headerVisible ? 'translate-y-0 opacity-100 shadow-xl shadow-black/5' : '-translate-y-full opacity-0 pointer-events-none'}`}>
+      <div
+        className={`fixed top-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-xl border-b border-slate-100 dark:bg-dark-bg/95 dark:border-dark-border px-4 pt-14 pb-4 transition-all duration-500 transform ${headerVisible ? 'translate-y-0 opacity-100 shadow-xl shadow-black/5' : '-translate-y-full opacity-0 pointer-events-none'}`}
+      >
         <div className="flex items-center gap-4 max-w-5xl mx-auto">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 dark:bg-dark-surface text-slate-400 hover:text-primary transition-all active:scale-95">
+          <button
+            onClick={() => navigate(-1)}
+            className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 dark:bg-dark-surface text-slate-400 hover:text-primary transition-all active:scale-95"
+          >
             <span className="material-symbols-outlined text-xl">arrow_back</span>
           </button>
           <div className="flex-1 min-w-0">
-            <h2 className="font-bold text-slate-900 dark:text-white truncate text-lg leading-tight">{place.name}</h2>
+            <h2 className="font-bold text-slate-900 dark:text-white truncate text-lg leading-tight">
+              {place.name}
+            </h2>
             <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
-              <span className="material-symbols-outlined text-[14px] text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+              <span
+                className="material-symbols-outlined text-[14px] text-amber-500"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                star
+              </span>
               {averageRating?.toFixed(1)}
               <span className="mx-1 opacity-30">•</span>
               {totalCheckins} check-ins
             </div>
           </div>
-          <button onClick={toggleFavorite} className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-90 ${place.is_favorite ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-slate-50 dark:bg-dark-surface text-slate-400 hover:text-primary'}`}>
-            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: `'FILL' ${place.is_favorite ? 1 : 0}` }}>{place.is_favorite ? 'bookmark' : 'bookmark_border'}</span>
+          <button
+            onClick={toggleFavorite}
+            className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-90 ${place.is_favorite ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-slate-50 dark:bg-dark-surface text-slate-400 hover:text-primary'}`}
+          >
+            <span
+              className="material-symbols-outlined text-[20px]"
+              style={{ fontVariationSettings: `'FILL' ${place.is_favorite ? 1 : 0}` }}
+            >
+              {place.is_favorite ? 'bookmark' : 'bookmark_border'}
+            </span>
           </button>
         </div>
       </div>
       {/* Hero (fixed behind content) */}
       <div className="fixed top-0 left-0 right-0 h-[300px] md:h-[380px] w-full overflow-hidden bg-[#1a2e2e] z-0">
         {heroImage ? (
-          <img
-            src={heroImage}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-          />
+          <img src={heroImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="material-symbols-outlined text-7xl text-white/30">location_city</span>
@@ -489,24 +554,29 @@ export default function PlaceDetail() {
         <div className="absolute bottom-0 left-0 right-0 p-6 pb-10 z-10">
           <div className="flex items-center gap-2 mb-2.5">
             {(() => {
-              const status = place.open_status ?? (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : null);
-              if (status === 'open') return (
-                <span className="badge-open-glass">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  {t('places.open')}
-                </span>
-              );
-              if (status === 'closed') return (
-                <span className="badge-closed-glass">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                  {t('places.closed')}
-                </span>
-              );
-              if (status === 'unknown') return (
-                <span className="badge-unknown-glass">
-                  {t('places.unknown')}
-                </span>
-              );
+              const status =
+                place.open_status ??
+                (place.is_open_now === true
+                  ? 'open'
+                  : place.is_open_now === false
+                    ? 'closed'
+                    : null);
+              if (status === 'open')
+                return (
+                  <span className="badge-open-glass">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    {t('places.open')}
+                  </span>
+                );
+              if (status === 'closed')
+                return (
+                  <span className="badge-closed-glass">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                    {t('places.closed')}
+                  </span>
+                );
+              if (status === 'unknown')
+                return <span className="badge-unknown-glass">{t('places.unknown')}</span>;
               return null;
             })()}
             {averageRating != null && (
@@ -544,7 +614,9 @@ export default function PlaceDetail() {
                 rel="noopener noreferrer"
                 className="flex-1 flex flex-col items-center gap-1 px-2 hover:text-primary"
               >
-                <span className="material-symbols-outlined text-primary text-[22px]">directions</span>
+                <span className="material-symbols-outlined text-primary text-[22px]">
+                  directions
+                </span>
                 <span className="text-sm font-bold text-text-main dark:text-white">
                   {place.distance != null ? formatDist(place.distance) : '—'}
                 </span>
@@ -553,8 +625,14 @@ export default function PlaceDetail() {
                 </span>
               </a>
               <div className="flex-1 flex flex-col items-center gap-1 px-2">
-                <span className={`material-symbols-outlined text-[22px] ${crowdColorClass(crowdLevel) || 'text-text-muted'}`}>people</span>
-                <span className={`text-sm font-bold ${crowdColorClass(crowdLevel) || 'text-text-main dark:text-white'}`}>
+                <span
+                  className={`material-symbols-outlined text-[22px] ${crowdColorClass(crowdLevel) || 'text-text-muted'}`}
+                >
+                  people
+                </span>
+                <span
+                  className={`text-sm font-bold ${crowdColorClass(crowdLevel) || 'text-text-main dark:text-white'}`}
+                >
                   {crowdLevel ?? '—'}
                 </span>
                 <span className="text-[10px] uppercase tracking-wide text-text-muted dark:text-dark-text-secondary font-semibold">
@@ -562,7 +640,9 @@ export default function PlaceDetail() {
                 </span>
               </div>
               <div className="flex-1 flex flex-col items-center gap-1 px-2">
-                <span className="material-symbols-outlined text-primary text-[22px]">check_circle_outline</span>
+                <span className="material-symbols-outlined text-primary text-[22px]">
+                  check_circle_outline
+                </span>
                 <span className="text-sm font-bold text-text-main dark:text-white">
                   {totalCheckins != null ? totalCheckins : '—'}
                 </span>
@@ -577,10 +657,14 @@ export default function PlaceDetail() {
               <section className="mb-12">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{t('placeDetail.theStory')}</h2>
+                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+                    {t('placeDetail.theStory')}
+                  </h2>
                 </div>
                 <div className="bg-white dark:bg-dark-surface rounded-[2rem] p-6 border border-slate-100 dark:border-dark-border shadow-soft">
-                  <p className={`text-[15px] text-slate-600 dark:text-slate-300 leading-relaxed ${storyExpanded ? '' : 'line-clamp-5'}`}>
+                  <p
+                    className={`text-[15px] text-slate-600 dark:text-slate-300 leading-relaxed ${storyExpanded ? '' : 'line-clamp-5'}`}
+                  >
                     {place.description}
                   </p>
                   <button
@@ -589,7 +673,9 @@ export default function PlaceDetail() {
                     className="mt-4 text-sm font-bold text-primary hover:text-primary-hover flex items-center gap-1"
                   >
                     {storyExpanded ? t('common.showLess') : t('common.showMore')}
-                    <span className="material-symbols-outlined text-sm">{storyExpanded ? 'expand_less' : 'expand_more'}</span>
+                    <span className="material-symbols-outlined text-sm">
+                      {storyExpanded ? 'expand_less' : 'expand_more'}
+                    </span>
                   </button>
                 </div>
               </section>
@@ -652,10 +738,14 @@ export default function PlaceDetail() {
               <section className="mb-12">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{t('placeDetail.theStory')}</h2>
+                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+                    {t('placeDetail.theStory')}
+                  </h2>
                 </div>
                 <div className="bg-white dark:bg-dark-surface rounded-[2rem] p-8 border border-slate-100 dark:border-dark-border shadow-soft">
-                  <p className={`text-lg text-slate-600 dark:text-slate-300 leading-relaxed ${storyExpanded ? '' : 'line-clamp-6'}`}>
+                  <p
+                    className={`text-lg text-slate-600 dark:text-slate-300 leading-relaxed ${storyExpanded ? '' : 'line-clamp-6'}`}
+                  >
                     {place.description}
                   </p>
                   <button
@@ -664,7 +754,9 @@ export default function PlaceDetail() {
                     className="mt-6 text-sm font-bold text-primary hover:text-primary-hover flex items-center gap-2 transition-all hover:gap-3"
                   >
                     {storyExpanded ? t('common.showLess') : t('common.readMore')}
-                    <span className="material-symbols-outlined text-base">{storyExpanded ? 'expand_less' : 'east'}</span>
+                    <span className="material-symbols-outlined text-base">
+                      {storyExpanded ? 'expand_less' : 'east'}
+                    </span>
                   </button>
                 </div>
               </section>
@@ -680,9 +772,7 @@ export default function PlaceDetail() {
             )}
 
             {/* Carousel */}
-            {timings.length > 0 && (
-              <PlaceTimingsCarousel timings={timings} title={carouselTitle} />
-            )}
+            {timings.length > 0 && <PlaceTimingsCarousel timings={timings} title={carouselTitle} />}
 
             {/* Specifications */}
             {specifications.length > 0 && (

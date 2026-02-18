@@ -17,7 +17,10 @@ export default function SearchBar({
 }: SearchBarProps) {
   return (
     <div className="relative flex items-center border-b border-slate-200 focus-within:border-primary transition-colors pb-2">
-      <span className="material-symbols-outlined text-text-muted text-xl mr-3 font-light pointer-events-none" aria-hidden>
+      <span
+        className="material-symbols-outlined text-text-muted text-xl mr-3 font-light pointer-events-none"
+        aria-hidden
+      >
         search
       </span>
       <input

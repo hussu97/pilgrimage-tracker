@@ -1,5 +1,4 @@
 """CRUD operations for PlaceImage model."""
-from typing import Dict, List, Optional
 
 from sqlmodel import Session, select
 
@@ -46,7 +45,7 @@ def add_image_blob(
     return image
 
 
-def get_images(place_code: str, session: Session) -> List[dict]:
+def get_images(place_code: str, session: Session) -> list[dict]:
     """
     Get all images for a place, returns list of image dicts.
 
@@ -66,23 +65,27 @@ def get_images(place_code: str, session: Session) -> List[dict]:
     result = []
     for img in images:
         if img.image_type == "url":
-            result.append({
-                "id": img.id,
-                "url": img.url,
-                "display_order": img.display_order,
-            })
+            result.append(
+                {
+                    "id": img.id,
+                    "url": img.url,
+                    "display_order": img.display_order,
+                }
+            )
         elif img.image_type == "blob":
             # For blob images, construct a URL to the blob endpoint
-            result.append({
-                "id": img.id,
-                "url": f"/api/v1/places/{place_code}/images/{img.id}",
-                "display_order": img.display_order,
-            })
+            result.append(
+                {
+                    "id": img.id,
+                    "url": f"/api/v1/places/{place_code}/images/{img.id}",
+                    "display_order": img.display_order,
+                }
+            )
 
     return result
 
 
-def get_images_bulk(place_codes: List[str], session: Session) -> Dict[str, List[dict]]:
+def get_images_bulk(place_codes: list[str], session: Session) -> dict[str, list[dict]]:
     """
     Fetch images for multiple places in one query.
 
@@ -104,29 +107,33 @@ def get_images_bulk(place_codes: List[str], session: Session) -> Dict[str, List[
             result[img.place_code] = []
 
         if img.image_type == "url":
-            result[img.place_code].append({
-                "id": img.id,
-                "url": img.url,
-                "display_order": img.display_order,
-            })
+            result[img.place_code].append(
+                {
+                    "id": img.id,
+                    "url": img.url,
+                    "display_order": img.display_order,
+                }
+            )
         elif img.image_type == "blob":
-            result[img.place_code].append({
-                "id": img.id,
-                "url": f"/api/v1/places/{img.place_code}/images/{img.id}",
-                "display_order": img.display_order,
-            })
+            result[img.place_code].append(
+                {
+                    "id": img.id,
+                    "url": f"/api/v1/places/{img.place_code}/images/{img.id}",
+                    "display_order": img.display_order,
+                }
+            )
 
     return result
 
 
-def get_image_by_id(image_id: int, session: Session) -> Optional[PlaceImage]:
+def get_image_by_id(image_id: int, session: Session) -> PlaceImage | None:
     """Get a single image by ID."""
     return session.get(PlaceImage, image_id)
 
 
 def set_images_from_urls(
     place_code: str,
-    urls: List[str],
+    urls: list[str],
     session: Session,
 ) -> None:
     """Delete existing images and bulk insert from URL list (used during sync)."""

@@ -7,7 +7,8 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getGroupByInviteCode, joinGroupByCode } from '@/lib/api/client';
@@ -61,7 +62,9 @@ export default function JoinGroupScreen() {
       .finally(() => {
         if (!cancelled) setLoadingPreview(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [code]);
 
   const handleJoin = async () => {
@@ -96,9 +99,7 @@ export default function JoinGroupScreen() {
           <Text style={styles.backText}>‹ {t('common.back')}</Text>
         </TouchableOpacity>
         <Text style={styles.noCodeTitle}>{t('groups.noInviteCode')}</Text>
-        <Text style={styles.noCodeDesc}>
-          {t('groups.inviteCodeHint')}
-        </Text>
+        <Text style={styles.noCodeDesc}>{t('groups.inviteCodeHint')}</Text>
         <TextInput
           style={styles.input}
           value={codeInput}
@@ -145,11 +146,7 @@ export default function JoinGroupScreen() {
       ) : null}
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
       <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.cancelButton}
-          onPress={goToGroups}
-          activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.cancelButton} onPress={goToGroups} activeOpacity={0.8}>
           <Text style={styles.cancelText}>{t('common.cancel')}</Text>
         </TouchableOpacity>
         <TouchableOpacity

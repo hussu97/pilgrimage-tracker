@@ -20,21 +20,50 @@ export default function Layout({ children }: { children: ReactNode }) {
     if (!user) return;
     getNotifications(1, 0)
       .then((res) => setUnreadCount(res.unread_count ?? 0))
-      .catch(() => { });
+      .catch(() => {});
   }, [user, location.pathname]);
 
   return (
     <div className="min-h-screen flex flex-col font-display dark:bg-dark-bg dark:text-white">
       <header className="hidden md:flex safe-area-top border-b border-input-border dark:border-dark-border bg-background-light dark:bg-dark-surface px-6 py-4">
         <nav className="flex items-center gap-8 w-full max-w-6xl xl:max-w-7xl mx-auto">
-          <Link to="/home" className="text-xl font-semibold text-primary hover:text-primary-hover transition-colors" aria-label={t('nav.explore')}>{t('common.appName')}</Link>
-          <Link to="/home" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.pathname === '/home' ? 'page' : undefined}>{t('nav.explore')}</Link>
-          <Link to="/groups" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.pathname.startsWith('/groups') ? 'page' : undefined}>{t('nav.groups')}</Link>
+          <Link
+            to="/home"
+            className="text-xl font-semibold text-primary hover:text-primary-hover transition-colors"
+            aria-label={t('nav.explore')}
+          >
+            {t('common.appName')}
+          </Link>
+          <Link
+            to="/home"
+            className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary"
+            aria-current={location.pathname === '/home' ? 'page' : undefined}
+          >
+            {t('nav.explore')}
+          </Link>
+          <Link
+            to="/groups"
+            className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary"
+            aria-current={location.pathname.startsWith('/groups') ? 'page' : undefined}
+          >
+            {t('nav.groups')}
+          </Link>
           <span className="ml-auto flex items-center gap-4">
             {user ? (
-              <Link to="/profile" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary" aria-current={location.pathname === '/profile' ? 'page' : undefined}>{t('nav.profile')}</Link>
+              <Link
+                to="/profile"
+                className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary"
+                aria-current={location.pathname === '/profile' ? 'page' : undefined}
+              >
+                {t('nav.profile')}
+              </Link>
             ) : (
-              <Link to="/login" className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary">{t('auth.login')}</Link>
+              <Link
+                to="/login"
+                className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary"
+              >
+                {t('auth.login')}
+              </Link>
             )}
           </span>
         </nav>
@@ -45,10 +74,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       </main>
 
       {/* Bottom navigation – glass effect with backdrop-blur-lg */}
-      <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-[500]"
-        aria-label="Main navigation"
-      >
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-[500]" aria-label="Main navigation">
         {/* Glass background layer */}
         <div className="absolute inset-0 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-lg border-t border-white/30 dark:border-white/5" />
         {/* Subtle top shadow */}
@@ -56,8 +82,9 @@ export default function Layout({ children }: { children: ReactNode }) {
 
         <div className="relative grid grid-cols-3 gap-1 max-w-md mx-auto px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           {navItems.map(({ path, labelKey, icon }) => {
-            const isActive = (location.pathname === path)
-              || (path === '/groups' && location.pathname.startsWith('/groups'));
+            const isActive =
+              location.pathname === path ||
+              (path === '/groups' && location.pathname.startsWith('/groups'));
             const showDot = icon === 'person' && unreadCount > 0;
             return (
               <Link
@@ -75,7 +102,11 @@ export default function Layout({ children }: { children: ReactNode }) {
                 <div className="relative">
                   <span
                     className="material-symbols-outlined text-[26px] transition-all duration-200"
-                    style={isActive ? { fontVariationSettings: "'FILL' 1, 'wght' 600" } : { fontVariationSettings: "'wght' 300" }}
+                    style={
+                      isActive
+                        ? { fontVariationSettings: "'FILL' 1, 'wght' 600" }
+                        : { fontVariationSettings: "'wght' 300" }
+                    }
                     aria-hidden
                   >
                     {icon}
@@ -85,9 +116,11 @@ export default function Layout({ children }: { children: ReactNode }) {
                   )}
                 </div>
                 {/* Label: visible (bold) when active, muted + smaller when inactive */}
-                <span className={`text-[9px] font-bold tracking-tight uppercase transition-all ${
-                  isActive ? 'opacity-100' : 'opacity-50 text-[8px]'
-                }`}>
+                <span
+                  className={`text-[9px] font-bold tracking-tight uppercase transition-all ${
+                    isActive ? 'opacity-100' : 'opacity-50 text-[8px]'
+                  }`}
+                >
                   {t(labelKey)}
                 </span>
               </Link>

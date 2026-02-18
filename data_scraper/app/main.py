@@ -1,17 +1,17 @@
 import traceback
 from datetime import datetime
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlmodel import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from dotenv import load_dotenv
 
-from app.db.session import create_db_and_tables, engine
+from app.api.v1 import api_router
 from app.db.seed_geo import seed_geo_boundaries
 from app.db.seed_place_types import seed_place_type_mappings
-from app.api.v1 import api_router
-from sqlmodel import Session
+from app.db.session import create_db_and_tables, engine
 
 load_dotenv()
 
@@ -31,10 +31,13 @@ app.include_router(api_router)
 
 # ===== Global Exception Handlers =====
 
-def log_error(request: Request, status_code: int, error_type: str, detail: str, exc: Exception = None):
+
+def log_error(
+    request: Request, status_code: int, error_type: str, detail: str, exc: Exception = None
+):
     """Log error details to console"""
     timestamp = datetime.utcnow().isoformat()
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"[{timestamp}] {error_type} - {status_code}")
     print(f"Path: {request.method} {request.url.path}")
     if request.query_params:
@@ -44,7 +47,7 @@ def log_error(request: Request, status_code: int, error_type: str, detail: str, 
         print(f"Exception: {type(exc).__name__}: {str(exc)}")
         if status_code >= 500:
             print(f"Traceback:\n{traceback.format_exc()}")
-    print(f"{'='*80}\n")
+    print(f"{'=' * 80}\n")
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -81,7 +84,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status.HTTP_422_UNPROCESSABLE_ENTITY,
         "Validation Error",
         f"{len(errors)} validation error(s)",
-        exc
+        exc,
     )
 
     # Print detailed validation errors
@@ -90,7 +93,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         print(f"  - Field: {' -> '.join(str(loc) for loc in error['loc'])}")
         print(f"    Error: {error['msg']}")
         print(f"    Type: {error['type']}")
-        if 'ctx' in error:
+        if "ctx" in error:
             print(f"    Context: {error['ctx']}")
     print()
 
@@ -109,6 +112,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
                 try:
                     # Test if value is JSON serializable
                     import json
+
                     json.dumps(value)
                     ctx[key] = value
                 except (TypeError, ValueError):
@@ -131,7 +135,7 @@ async def general_exception_handler(request: Request, exc: Exception):
         status.HTTP_500_INTERNAL_SERVER_ERROR,
         "Internal Server Error",
         "An unexpected error occurred",
-        exc
+        exc,
     )
 
     return JSONResponse(

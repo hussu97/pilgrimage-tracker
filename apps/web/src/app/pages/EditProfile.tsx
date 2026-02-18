@@ -17,9 +17,7 @@ export default function EditProfile() {
   const [error, setError] = useState('');
 
   const toggleReligion = (r: Religion) => {
-    setReligions((prev) =>
-      prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]
-    );
+    setReligions((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -53,13 +51,17 @@ export default function EditProfile() {
         <span className="material-symbols-outlined">arrow_back</span>
         {t('common.back')}
       </button>
-      <h1 className="text-xl font-bold text-text-main dark:text-white mb-6">{t('profile.editProfile')}</h1>
+      <h1 className="text-xl font-bold text-text-main dark:text-white mb-6">
+        {t('profile.editProfile')}
+      </h1>
 
       <form onSubmit={handleSave} className="space-y-5">
         {error && <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>}
 
         <div>
-          <label className="block text-sm font-medium text-text-main dark:text-white mb-1">{t('auth.displayName')}</label>
+          <label className="block text-sm font-medium text-text-main dark:text-white mb-1">
+            {t('auth.displayName')}
+          </label>
           <input
             type="text"
             value={displayName}
@@ -69,7 +71,9 @@ export default function EditProfile() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-text-main dark:text-white mb-2">{t('settings.religionsToShow')}</label>
+          <label className="block text-sm font-medium text-text-main dark:text-white mb-2">
+            {t('settings.religionsToShow')}
+          </label>
           <div className="space-y-2">
             {RELIGIONS.map((r) => (
               <label

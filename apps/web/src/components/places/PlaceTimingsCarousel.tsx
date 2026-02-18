@@ -20,7 +20,11 @@ function PlaceTimingsCarousel({ timings, title, compact = false }: Props) {
         </div>
         <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
           {timings.map((item, i) =>
-            item.type === 'deity' ? <DeityCircle key={i} item={item} /> : <TimingCircle key={i} item={item} />
+            item.type === 'deity' ? (
+              <DeityCircle key={i} item={item} />
+            ) : (
+              <TimingCircle key={i} item={item} />
+            ),
           )}
         </div>
       </section>
@@ -32,7 +36,11 @@ function PlaceTimingsCarousel({ timings, title, compact = false }: Props) {
       <h2 className="text-xl font-bold text-text-main mb-4">{title}</h2>
       <div className="flex gap-5 overflow-x-auto no-scrollbar pb-2">
         {timings.map((item, i) =>
-          item.type === 'deity' ? <DeityCircle key={i} item={item} /> : <TimingCircle key={i} item={item} />
+          item.type === 'deity' ? (
+            <DeityCircle key={i} item={item} />
+          ) : (
+            <TimingCircle key={i} item={item} />
+          ),
         )}
       </div>
     </section>

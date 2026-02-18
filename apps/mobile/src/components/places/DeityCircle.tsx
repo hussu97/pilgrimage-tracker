@@ -27,7 +27,9 @@ export default function DeityCircle({ item }: DeityCircleProps) {
         {item.name}
       </Text>
       {item.subtitle ? (
-        <Text style={styles.subtitle} numberOfLines={1}>{item.subtitle}</Text>
+        <Text style={styles.subtitle} numberOfLines={1}>
+          {item.subtitle}
+        </Text>
       ) : null}
     </View>
   );

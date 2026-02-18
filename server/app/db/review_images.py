@@ -1,6 +1,6 @@
 """CRUD operations for ReviewImage model."""
+
 from datetime import datetime, timedelta
-from typing import List, Optional
 
 from sqlmodel import Session, select
 
@@ -42,7 +42,7 @@ def create_review_image(
 
 def attach_images_to_review(
     review_code: str,
-    image_ids: List[int],
+    image_ids: list[int],
     user_code: str,
     session: Session = None,
 ) -> None:
@@ -75,7 +75,7 @@ def attach_images_to_review(
     session.commit()
 
 
-def get_review_images(review_code: str, session: Session = None) -> List[dict]:
+def get_review_images(review_code: str, session: Session = None) -> list[dict]:
     """
     Get all images for a review.
     Returns list of dicts with id, url, width, height, display_order.
@@ -102,7 +102,7 @@ def get_review_images(review_code: str, session: Session = None) -> List[dict]:
     ]
 
 
-def get_image_by_id(image_id: int, session: Session = None) -> Optional[ReviewImage]:
+def get_image_by_id(image_id: int, session: Session = None) -> ReviewImage | None:
     """Get a single review image by ID."""
     if session is None:
         raise ValueError("Session is required")
@@ -124,8 +124,7 @@ def cleanup_orphaned_images(max_age_hours: int = 24, session: Session = None) ->
     cutoff = datetime.utcnow() - timedelta(hours=max_age_hours)
 
     stmt = select(ReviewImage).where(
-        ReviewImage.review_code.is_(None),
-        ReviewImage.created_at < cutoff
+        ReviewImage.review_code.is_(None), ReviewImage.created_at < cutoff
     )
     orphaned = session.exec(stmt).all()
 

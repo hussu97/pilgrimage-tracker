@@ -1,0 +1,16 @@
+[run]
+source = app
+omit =
+    tests/*
+
+[report]
+# Fail if total coverage drops below 60%
+fail_under = 60
+show_missing = true
+skip_covered = false
+
+[html]
+directory = coverage/html
+
+[xml]
+output = coverage/coverage.xml

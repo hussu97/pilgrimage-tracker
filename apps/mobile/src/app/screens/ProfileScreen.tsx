@@ -21,8 +21,8 @@ import type { UserStats, Religion } from '@/lib/types';
 import { tokens } from '@/lib/theme';
 
 const RELIGIONS = [
-  { code: 'islam' as const,        emoji: '🕌', labelKey: 'common.islam' },
-  { code: 'hinduism' as const,     emoji: '🛕', labelKey: 'common.hinduism' },
+  { code: 'islam' as const, emoji: '🕌', labelKey: 'common.islam' },
+  { code: 'hinduism' as const, emoji: '🛕', labelKey: 'common.hinduism' },
   { code: 'christianity' as const, emoji: '⛪', labelKey: 'common.christianity' },
 ];
 
@@ -46,7 +46,6 @@ function formatJoinedDate(createdAt: string | undefined): string {
     return '';
   }
 }
-
 
 function makeStyles(isDark: boolean) {
   const bg = isDark ? tokens.colors.darkBg : tokens.colors.backgroundLight;
@@ -398,7 +397,7 @@ export default function ProfileScreen() {
 
   const toggleReligion = (code: Religion) => {
     if (code === 'all') {
-      setSelectedReligions((prev) => prev.includes('all') ? [] : ['all']);
+      setSelectedReligions((prev) => (prev.includes('all') ? [] : ['all']));
     } else {
       setSelectedReligions((prev) => {
         const without = prev.filter((r) => r !== 'all' && r !== code);
@@ -412,7 +411,9 @@ export default function ProfileScreen() {
     try {
       await updateSettings({ religions: selectedReligions });
       if (user) fetchData();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   return (
@@ -449,7 +450,11 @@ export default function ProfileScreen() {
             {/* Stats 2-col grid */}
             <View style={styles.statsGrid}>
               {loading ? (
-                <ActivityIndicator size="small" color={tokens.colors.primary} style={styles.loader} />
+                <ActivityIndicator
+                  size="small"
+                  color={tokens.colors.primary}
+                  style={styles.loader}
+                />
               ) : (
                 <>
                   <View style={styles.statCard}>
@@ -478,11 +483,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>{t('profile.preferences')}</Text>
           <View style={styles.card}>
             {/* My Path */}
-            <TouchableOpacity
-              style={styles.prefRow}
-              onPress={openPathSheet}
-              activeOpacity={0.7}
-            >
+            <TouchableOpacity style={styles.prefRow} onPress={openPathSheet} activeOpacity={0.7}>
               <View style={styles.rowLeft}>
                 <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
                   <MaterialIcons name="map" size={20} color={tokens.colors.primary} />
@@ -508,7 +509,7 @@ export default function ProfileScreen() {
                 <View style={styles.rowTexts}>
                   <Text style={styles.rowTitle}>{t('profile.language')}</Text>
                   <Text style={styles.rowSubtext}>
-                    {languages.find(l => l.code === locale)?.name ?? locale.toUpperCase()}
+                    {languages.find((l) => l.code === locale)?.name ?? locale.toUpperCase()}
                   </Text>
                 </View>
               </View>
@@ -594,7 +595,9 @@ export default function ProfileScreen() {
             {/* Logout button */}
             <TouchableOpacity
               style={styles.logoutBtn}
-              onPress={async () => { await logout(); }}
+              onPress={async () => {
+                await logout();
+              }}
               activeOpacity={0.7}
             >
               <MaterialIcons name="logout" size={18} color="#EF4444" />
@@ -622,9 +625,7 @@ export default function ProfileScreen() {
         )}
 
         {/* Version */}
-        <Text style={styles.version}>
-          {t('profile.version').replace('{version}', APP_VERSION)}
-        </Text>
+        <Text style={styles.version}>{t('profile.version').replace('{version}', APP_VERSION)}</Text>
       </ScrollView>
 
       {/* My Path selection bottom sheet */}
@@ -632,11 +633,13 @@ export default function ProfileScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setPathSheetOpen(false)}>
           <Pressable
             style={[styles.langSheet, { paddingBottom: insets.bottom + 16 }]}
-            onPress={e => e.stopPropagation()}
+            onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.sheetHandle} />
             <Text style={styles.langSheetTitle}>{t('profile.myPath')}</Text>
-            <Text style={[styles.langRowText, { fontSize: 13, marginBottom: 8 }]}>{t('selectPath.subtitle')}</Text>
+            <Text style={[styles.langRowText, { fontSize: 13, marginBottom: 8 }]}>
+              {t('selectPath.subtitle')}
+            </Text>
 
             {/* All option */}
             <TouchableOpacity
@@ -646,17 +649,30 @@ export default function ProfileScreen() {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
                 <Text style={{ fontSize: 24 }}>🌍</Text>
-                <Text style={[styles.langRowText, selectedReligions.includes('all') && styles.langRowActive]}>
+                <Text
+                  style={[
+                    styles.langRowText,
+                    selectedReligions.includes('all') && styles.langRowActive,
+                  ]}
+                >
                   {t('common.allReligions')}
                 </Text>
               </View>
-              <View style={[styles.checkCircle, selectedReligions.includes('all') && styles.checkCircleActive]}>
-                {selectedReligions.includes('all') && <MaterialIcons name="check" size={14} color="#fff" />}
+              <View
+                style={[
+                  styles.checkCircle,
+                  selectedReligions.includes('all') && styles.checkCircleActive,
+                ]}
+              >
+                {selectedReligions.includes('all') && (
+                  <MaterialIcons name="check" size={14} color="#fff" />
+                )}
               </View>
             </TouchableOpacity>
 
             {RELIGIONS.map(({ code, emoji, labelKey }) => {
-              const isActive = !selectedReligions.includes('all') && selectedReligions.includes(code);
+              const isActive =
+                !selectedReligions.includes('all') && selectedReligions.includes(code);
               return (
                 <TouchableOpacity
                   key={code}
@@ -693,15 +709,18 @@ export default function ProfileScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setLangSheetOpen(false)}>
           <Pressable
             style={[styles.langSheet, { paddingBottom: insets.bottom + 16 }]}
-            onPress={e => e.stopPropagation()}
+            onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.sheetHandle} />
             <Text style={styles.langSheetTitle}>{t('profile.language')}</Text>
-            {languages.map(lang => (
+            {languages.map((lang) => (
               <TouchableOpacity
                 key={lang.code}
                 style={styles.langRow}
-                onPress={() => { setLocale(lang.code); setLangSheetOpen(false); }}
+                onPress={() => {
+                  setLocale(lang.code);
+                  setLangSheetOpen(false);
+                }}
                 activeOpacity={0.7}
               >
                 <Text style={[styles.langRowText, locale === lang.code && styles.langRowActive]}>
@@ -718,4 +737,3 @@ export default function ProfileScreen() {
     </View>
   );
 }
-

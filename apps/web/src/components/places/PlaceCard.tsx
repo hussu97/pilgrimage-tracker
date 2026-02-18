@@ -17,7 +17,9 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const imageUrl = getFullImageUrl(place.images?.[0]?.url);
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
-  const openStatus = place.open_status ?? (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : 'unknown');
+  const openStatus =
+    place.open_status ??
+    (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : 'unknown');
   const isOpen = openStatus === 'open';
   const isClosed = openStatus === 'closed';
   const isUnknown = openStatus === 'unknown';
@@ -55,16 +57,8 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
                 {t('places.open')}
               </span>
             )}
-            {isClosed && (
-              <span className="badge-closed">
-                {t('places.closed')}
-              </span>
-            )}
-            {isUnknown && (
-              <span className="badge-unknown">
-                {t('places.unknown')}
-              </span>
-            )}
+            {isClosed && <span className="badge-closed">{t('places.closed')}</span>}
+            {isUnknown && <span className="badge-unknown">{t('places.unknown')}</span>}
             {place.distance != null && (
               <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-dark-surface text-slate-500 dark:text-dark-text-secondary">
                 {formatDistance(place.distance)}
@@ -72,7 +66,12 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
             )}
             {rating != null && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-600 border border-amber-100">
-                <span className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                <span
+                  className="material-symbols-outlined text-[10px]"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  star
+                </span>
                 {rating.toFixed(1)}
                 {reviewCount > 0 && <span className="text-amber-500/70">({reviewCount})</span>}
               </span>
@@ -113,16 +112,8 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
                 {t('places.open')}
               </span>
             )}
-            {isClosed && (
-              <span className="badge-closed">
-                {t('places.closed')}
-              </span>
-            )}
-            {isUnknown && (
-              <span className="badge-unknown">
-                {t('places.unknown')}
-              </span>
-            )}
+            {isClosed && <span className="badge-closed">{t('places.closed')}</span>}
+            {isUnknown && <span className="badge-unknown">{t('places.unknown')}</span>}
           </div>
           {place.user_has_checked_in && (
             <span className="badge-visited">
@@ -141,7 +132,9 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
               {place.name}
             </h3>
             <p className="text-sm text-text-secondary dark:text-dark-text-secondary flex items-center mt-1 truncate">
-              <span className="material-symbols-outlined text-icon-grey text-sm mr-1 shrink-0">location_on</span>
+              <span className="material-symbols-outlined text-icon-grey text-sm mr-1 shrink-0">
+                location_on
+              </span>
               <span className="truncate">{place.address || place.place_type}</span>
             </p>
           </div>
@@ -162,15 +155,17 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
               >
                 star
               </span>
-              <span className="text-sm font-semibold text-text-main dark:text-white">{rating.toFixed(1)}</span>
-              {reviewCount > 0 && (
-                <span className="text-xs text-text-muted">({reviewCount})</span>
-              )}
+              <span className="text-sm font-semibold text-text-main dark:text-white">
+                {rating.toFixed(1)}
+              </span>
+              {reviewCount > 0 && <span className="text-xs text-text-muted">({reviewCount})</span>}
             </div>
           ) : (
             <span />
           )}
-          <span className="text-xs font-semibold text-primary uppercase tracking-wide">{t('places.detail')}</span>
+          <span className="text-xs font-semibold text-primary uppercase tracking-wide">
+            {t('places.detail')}
+          </span>
         </div>
       </div>
     </Link>

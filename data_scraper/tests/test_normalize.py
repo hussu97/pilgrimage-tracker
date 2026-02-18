@@ -3,12 +3,14 @@ Unit tests for normalize_to_24h() in data_scraper/app/scrapers/gmaps.py.
 
 These are pure-function tests — no DB or network calls required.
 """
-import sys
+
 import os
+import sys
+
 # Make the data_scraper package importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.scrapers.gmaps import normalize_to_24h, clean_address, process_weekly_hours
+from app.scrapers.gmaps import clean_address, normalize_to_24h, process_weekly_hours
 
 
 class TestNormalizeTo24h:

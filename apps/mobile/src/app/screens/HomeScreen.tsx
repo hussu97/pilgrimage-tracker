@@ -412,25 +412,28 @@ export default function HomeScreen() {
 
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
-  const buildParams = useCallback((cursor: string | null) => ({
-    religions: (() => {
-      const r = user?.religions ?? [];
-      if (!r.length || r.includes('all')) return undefined;
-      return r;
-    })(),
-    search: searchDebounced || undefined,
-    sort: 'distance' as const,
-    limit: PAGE_SIZE,
-    cursor: cursor ?? undefined,
-    lat: coords.lat,
-    lng: coords.lng,
-    place_type: activeFilters.placeType,
-    open_now: activeFilters.openNow,
-    has_parking: activeFilters.hasParking,
-    womens_area: activeFilters.womensArea,
-    has_events: activeFilters.hasEvents,
-    top_rated: activeFilters.topRated,
-  }), [user?.religions, searchDebounced, activeFilters, coords]);
+  const buildParams = useCallback(
+    (cursor: string | null) => ({
+      religions: (() => {
+        const r = user?.religions ?? [];
+        if (!r.length || r.includes('all')) return undefined;
+        return r;
+      })(),
+      search: searchDebounced || undefined,
+      sort: 'distance' as const,
+      limit: PAGE_SIZE,
+      cursor: cursor ?? undefined,
+      lat: coords.lat,
+      lng: coords.lng,
+      place_type: activeFilters.placeType,
+      open_now: activeFilters.openNow,
+      has_parking: activeFilters.hasParking,
+      womens_area: activeFilters.womensArea,
+      has_events: activeFilters.hasEvents,
+      top_rated: activeFilters.topRated,
+    }),
+    [user?.religions, searchDebounced, activeFilters, coords],
+  );
 
   // Initial / refresh fetch — resets pagination
   const fetchPlaces = useCallback(async () => {
@@ -461,7 +464,7 @@ export default function HomeScreen() {
     try {
       const data = await getPlaces(buildParams(nextCursor));
       if (data.places.length > 0) {
-        setPlaces(prev => [...prev, ...data.places]);
+        setPlaces((prev) => [...prev, ...data.places]);
         setNextCursor(data.next_cursor ?? null);
       }
       setHasMore(data.next_cursor != null);
@@ -481,31 +484,44 @@ export default function HomeScreen() {
     return () => clearTimeout(id);
   }, [search]);
 
-  const handleWebViewMessage = useCallback((event: { nativeEvent: { data: string } }) => {
-    try {
-      const msg = JSON.parse(event.nativeEvent.data) as {
-        placeCode?: string;
-        type?: string;
-        north?: number; south?: number; east?: number; west?: number;
-      };
-      if (msg.placeCode) {
-        const found = places.find((p) => p.place_code === msg.placeCode);
-        if (found) setSelectedPlace(found);
-      } else if (msg.type === 'boundsChanged' && msg.north != null) {
-        const { north, south, east, west } = msg;
-        setVisiblePlaceCodes(new Set(
-          places
-            .filter(p => p.lat >= (south ?? -90) && p.lat <= (north ?? 90) &&
-              p.lng >= (west ?? -180) && p.lng <= (east ?? 180))
-            .map(p => p.place_code)
-        ));
-      }
-    } catch { }
-  }, [places]);
+  const handleWebViewMessage = useCallback(
+    (event: { nativeEvent: { data: string } }) => {
+      try {
+        const msg = JSON.parse(event.nativeEvent.data) as {
+          placeCode?: string;
+          type?: string;
+          north?: number;
+          south?: number;
+          east?: number;
+          west?: number;
+        };
+        if (msg.placeCode) {
+          const found = places.find((p) => p.place_code === msg.placeCode);
+          if (found) setSelectedPlace(found);
+        } else if (msg.type === 'boundsChanged' && msg.north != null) {
+          const { north, south, east, west } = msg;
+          setVisiblePlaceCodes(
+            new Set(
+              places
+                .filter(
+                  (p) =>
+                    p.lat >= (south ?? -90) &&
+                    p.lat <= (north ?? 90) &&
+                    p.lng >= (west ?? -180) &&
+                    p.lng <= (east ?? 180),
+                )
+                .map((p) => p.place_code),
+            ),
+          );
+        }
+      } catch {}
+    },
+    [places],
+  );
 
   const visiblePlaces = useMemo(
-    () => places.filter(p => visiblePlaceCodes.has(p.place_code)),
-    [places, visiblePlaceCodes]
+    () => places.filter((p) => visiblePlaceCodes.has(p.place_code)),
+    [places, visiblePlaceCodes],
   );
 
   useEffect(() => {
@@ -545,7 +561,10 @@ export default function HomeScreen() {
         <SearchFilterBar
           search={search}
           onSearchChange={setSearch}
-          onFilterPress={() => { setPendingFilters(activeFilters); setFilterSheetOpen(true); }}
+          onFilterPress={() => {
+            setPendingFilters(activeFilters);
+            setFilterSheetOpen(true);
+          }}
           hasActiveFilters={hasActiveFilters}
           isDark={isDark}
           t={t}
@@ -555,7 +574,7 @@ export default function HomeScreen() {
           placeTypes={['Mosque', 'Temple', 'Church', 'Shrine', 'Monastery']}
           onFilterToggle={(key, value) => {
             if (key === 'placeType') {
-              setActiveFilters(prev => ({ ...prev, placeType: value }));
+              setActiveFilters((prev) => ({ ...prev, placeType: value }));
             }
           }}
           onClearAll={() => setActiveFilters({})}
@@ -576,14 +595,18 @@ export default function HomeScreen() {
             </View>
           ) : (
             <FlatList
-              data={loading && places.length === 0
-                ? (Array.from({ length: 5 }, (_, i) => ({ place_code: `skel-${i}` })) as any)
-                : places}
+              data={
+                loading && places.length === 0
+                  ? (Array.from({ length: 5 }, (_, i) => ({ place_code: `skel-${i}` })) as any)
+                  : places
+              }
               keyExtractor={(item) => item.place_code}
               renderItem={({ item }) =>
-                String(item.place_code).startsWith('skel-')
-                  ? <SkeletonCard isDark={isDark} />
-                  : <PlaceCard place={item} />
+                String(item.place_code).startsWith('skel-') ? (
+                  <SkeletonCard isDark={isDark} />
+                ) : (
+                  <PlaceCard place={item} />
+                )
               }
               ListEmptyComponent={
                 showEmpty ? (
@@ -613,10 +636,7 @@ export default function HomeScreen() {
                   />
                 ) : null
               }
-              contentContainerStyle={[
-                styles.listContent,
-                { paddingBottom: insets.bottom + 100 },
-              ]}
+              contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
               ItemSeparatorComponent={() => <View style={styles.separator} />}
               onEndReached={loadMore}
               onEndReachedThreshold={0.4}
@@ -667,13 +687,20 @@ export default function HomeScreen() {
                 pointerEvents={selectedPlace ? 'none' : 'auto'}
                 style={{
                   opacity: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
-                  transform: [{ translateY: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 80] }) }],
+                  transform: [
+                    {
+                      translateY: panelAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0, 80],
+                      }),
+                    },
+                  ],
                 }}
               >
                 <FlatList
                   horizontal
                   data={visiblePlaces}
-                  keyExtractor={p => p.place_code}
+                  keyExtractor={(p) => p.place_code}
                   renderItem={({ item }) => (
                     <TouchableOpacity
                       style={styles.scrollerCard}
@@ -687,8 +714,12 @@ export default function HomeScreen() {
                           <MaterialIcons name="place" size={24} color={textMutedColor} />
                         </View>
                       )}
-                      <Text style={styles.scrollerCardName} numberOfLines={1}>{item.name}</Text>
-                      <Text style={styles.scrollerCardSub} numberOfLines={1}>{item.place_type}</Text>
+                      <Text style={styles.scrollerCardName} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <Text style={styles.scrollerCardSub} numberOfLines={1}>
+                        {item.place_type}
+                      </Text>
                     </TouchableOpacity>
                   )}
                   contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 10 }}
@@ -706,15 +737,30 @@ export default function HomeScreen() {
               {/* Selected place card */}
               <Animated.View
                 pointerEvents={selectedPlace ? 'auto' : 'none'}
-                style={[styles.placeCard, { paddingBottom: insets.bottom + 12 }, {
-                  opacity: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
-                  transform: [{ translateY: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [80, 0] }) }],
-                }]}
+                style={[
+                  styles.placeCard,
+                  { paddingBottom: insets.bottom + 12 },
+                  {
+                    opacity: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
+                    transform: [
+                      {
+                        translateY: panelAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [80, 0],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
               >
                 {selectedPlace && (
                   <>
                     <View style={styles.sheetHandle} />
-                    <TouchableOpacity style={styles.cardClose} onPress={() => setSelectedPlace(null)} activeOpacity={0.7}>
+                    <TouchableOpacity
+                      style={styles.cardClose}
+                      onPress={() => setSelectedPlace(null)}
+                      activeOpacity={0.7}
+                    >
                       <MaterialIcons name="close" size={18} color={textMutedColor} />
                     </TouchableOpacity>
                     <View style={styles.sheetRow}>
@@ -732,16 +778,22 @@ export default function HomeScreen() {
                         )}
                       </View>
                       <View style={styles.sheetInfo}>
-                        <Text style={styles.sheetName} numberOfLines={2}>{selectedPlace.name}</Text>
+                        <Text style={styles.sheetName} numberOfLines={2}>
+                          {selectedPlace.name}
+                        </Text>
                         <Text style={styles.sheetAddress} numberOfLines={1}>
                           {selectedPlace.address || selectedPlace.place_type || ''}
                         </Text>
                         <View style={styles.sheetMeta}>
                           {selectedPlace.average_rating != null && (
-                            <Text style={styles.sheetRating}>⭐ {selectedPlace.average_rating.toFixed(1)}</Text>
+                            <Text style={styles.sheetRating}>
+                              ⭐ {selectedPlace.average_rating.toFixed(1)}
+                            </Text>
                           )}
                           {selectedPlace.distance != null && (
-                            <Text style={styles.sheetDistance}>{formatDistance(selectedPlace.distance)}</Text>
+                            <Text style={styles.sheetDistance}>
+                              {formatDistance(selectedPlace.distance)}
+                            </Text>
                           )}
                         </View>
                       </View>
@@ -749,13 +801,21 @@ export default function HomeScreen() {
                     <View style={styles.sheetActions}>
                       <TouchableOpacity style={styles.sheetDirections} onPress={handleDirections}>
                         <MaterialIcons name="directions" size={18} color="#fff" />
-                        <Text style={styles.sheetDirectionsText}>{t('placeDetail.directions')}</Text>
+                        <Text style={styles.sheetDirectionsText}>
+                          {t('placeDetail.directions')}
+                        </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={styles.sheetShare}
-                        onPress={() => shareUrl(selectedPlace.name, `places/${selectedPlace.place_code}`)}
+                        onPress={() =>
+                          shareUrl(selectedPlace.name, `places/${selectedPlace.place_code}`)
+                        }
                       >
-                        <MaterialIcons name="share" size={20} color={isDark ? '#fff' : tokens.colors.textMain} />
+                        <MaterialIcons
+                          name="share"
+                          size={20}
+                          color={isDark ? '#fff' : tokens.colors.textMain}
+                        />
                       </TouchableOpacity>
                     </View>
                     <TouchableOpacity
@@ -781,7 +841,7 @@ export default function HomeScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setFilterSheetOpen(false)}>
           <Pressable
             style={[styles.filterSheet, { paddingBottom: insets.bottom + 16 }]}
-            onPress={e => e.stopPropagation()}
+            onPress={(e) => e.stopPropagation()}
           >
             <View style={styles.sheetHandle} />
             <View style={styles.filterSheetHeader}>
@@ -794,14 +854,27 @@ export default function HomeScreen() {
             {/* Place type */}
             <Text style={styles.filterSectionLabel}>{t('home.filterType')}</Text>
             <View style={styles.filterChipsRow}>
-              {(['mosque', 'shrine', 'temple'] as const).map(type => (
+              {(['mosque', 'shrine', 'temple'] as const).map((type) => (
                 <TouchableOpacity
                   key={type}
-                  style={[styles.filterChip, pendingFilters.placeType === type && styles.filterChipActive]}
-                  onPress={() => setPendingFilters(f => ({ ...f, placeType: f.placeType === type ? undefined : type }))}
+                  style={[
+                    styles.filterChip,
+                    pendingFilters.placeType === type && styles.filterChipActive,
+                  ]}
+                  onPress={() =>
+                    setPendingFilters((f) => ({
+                      ...f,
+                      placeType: f.placeType === type ? undefined : type,
+                    }))
+                  }
                   activeOpacity={0.75}
                 >
-                  <Text style={[styles.filterChipText, pendingFilters.placeType === type && styles.filterChipTextActive]}>
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      pendingFilters.placeType === type && styles.filterChipTextActive,
+                    ]}
+                  >
                     {t(`home.filter_${type}`)}
                   </Text>
                 </TouchableOpacity>
@@ -811,14 +884,16 @@ export default function HomeScreen() {
             {/* Feature filters from backend */}
             <Text style={styles.filterSectionLabel}>{t('home.filterFeatures')}</Text>
             <View style={styles.filterChipsRow}>
-              {filterOptions.map(opt => {
+              {filterOptions.map((opt) => {
                 const key = toCamel(opt.key) as keyof ActiveFilters;
                 const isActive = Boolean((pendingFilters as Record<string, unknown>)[key]);
                 return (
                   <TouchableOpacity
                     key={opt.key}
                     style={[styles.filterChip, isActive && styles.filterChipActive]}
-                    onPress={() => setPendingFilters(f => ({ ...f, [key]: isActive ? undefined : true }))}
+                    onPress={() =>
+                      setPendingFilters((f) => ({ ...f, [key]: isActive ? undefined : true }))
+                    }
                     activeOpacity={0.75}
                   >
                     <MaterialIcons
@@ -837,7 +912,10 @@ export default function HomeScreen() {
 
             <TouchableOpacity
               style={styles.applyFiltersBtn}
-              onPress={() => { setActiveFilters(pendingFilters); setFilterSheetOpen(false); }}
+              onPress={() => {
+                setActiveFilters(pendingFilters);
+                setFilterSheetOpen(false);
+              }}
               activeOpacity={0.85}
             >
               <Text style={styles.applyFiltersBtnText}>{t('home.applyFilters')}</Text>
@@ -848,4 +926,3 @@ export default function HomeScreen() {
     </View>
   );
 }
-

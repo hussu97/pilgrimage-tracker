@@ -1,7 +1,8 @@
 import os
 from typing import Annotated
+
 from fastapi import Depends
-from sqlmodel import create_engine, SQLModel, Session
+from sqlmodel import Session, SQLModel, create_engine
 
 # Use DATABASE_URL from environment or fallback to local sqlite
 sqlite_file_name = "pilgrimage.db"
@@ -16,18 +17,13 @@ pool_config = {}
 if not database_url.startswith("sqlite"):
     # For PostgreSQL/MySQL, configure connection pool
     pool_config = {
-        "pool_size": 20,        # Increase from default 5
-        "max_overflow": 30,     # Increase from default 10
-        "pool_timeout": 30,     # Timeout in seconds
-        "pool_recycle": 3600,   # Recycle connections after 1 hour
+        "pool_size": 20,  # Increase from default 5
+        "max_overflow": 30,  # Increase from default 10
+        "pool_timeout": 30,  # Timeout in seconds
+        "pool_recycle": 3600,  # Recycle connections after 1 hour
         "pool_pre_ping": True,  # Verify connections before using
     }
-engine = create_engine(
-    database_url,
-    echo=False,
-    connect_args=connect_args,
-    **pool_config
-)
+engine = create_engine(database_url, echo=False, connect_args=connect_args, **pool_config)
 
 
 def create_db_and_tables():
@@ -43,6 +39,7 @@ def get_db_session():
     """
     with Session(engine) as session:
         yield session
+
 
 # Type alias for FastAPI dependency injection
 # Usage: def my_endpoint(session: SessionDep, ...):
@@ -62,13 +59,11 @@ def run_migrations() -> None:
     interrupted before the stamp committed), the current state is stamped as
     head so Alembic skips re-creating tables that already exist.
     """
-    from alembic.config import Config
     from alembic import command
+    from alembic.config import Config
     from sqlalchemy import inspect, text
 
-    ini_path = os.path.normpath(
-        os.path.join(os.path.dirname(__file__), "../..", "alembic.ini")
-    )
+    ini_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "../..", "alembic.ini"))
     migrations_path = os.path.normpath(
         os.path.join(os.path.dirname(__file__), "../..", "migrations")
     )
@@ -90,9 +85,7 @@ def run_migrations() -> None:
         if existing_tables:
             needs_stamp = "alembic_version" not in existing_tables
             if not needs_stamp:
-                ver = connection.execute(
-                    text("SELECT version_num FROM alembic_version")
-                ).fetchone()
+                ver = connection.execute(text("SELECT version_num FROM alembic_version")).fetchone()
                 needs_stamp = ver is None
             if needs_stamp:
                 command.stamp(cfg, "head")

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlmodel import Session, select
 
@@ -6,7 +6,9 @@ from app.db.models import PlaceAttribute, PlaceAttributeDefinition
 from app.db.session import engine
 
 
-def upsert_attribute(place_code: str, attribute_code: str, value: Any, session: Session) -> PlaceAttribute:
+def upsert_attribute(
+    place_code: str, attribute_code: str, value: Any, session: Session
+) -> PlaceAttribute:
     """Insert or update a PlaceAttribute row. Auto-detects text vs json storage."""
     existing = session.exec(
         select(PlaceAttribute).where(
@@ -15,7 +17,7 @@ def upsert_attribute(place_code: str, attribute_code: str, value: Any, session: 
         )
     ).first()
 
-    if isinstance(value, (dict, list)):
+    if isinstance(value, dict | list):
         value_text = None
         value_json = value
     else:
@@ -42,11 +44,11 @@ def upsert_attribute(place_code: str, attribute_code: str, value: Any, session: 
         return attr
 
 
-def get_attributes_for_place(place_code: str, session: Session) -> List[PlaceAttribute]:
+def get_attributes_for_place(place_code: str, session: Session) -> list[PlaceAttribute]:
     """Get attributes for a place. REQUIRES an active session."""
-    return list(session.exec(
-        select(PlaceAttribute).where(PlaceAttribute.place_code == place_code)
-    ).all())
+    return list(
+        session.exec(select(PlaceAttribute).where(PlaceAttribute.place_code == place_code)).all()
+    )
 
 
 def get_attributes_dict(place_code: str, session: Session) -> dict:
@@ -61,7 +63,7 @@ def get_attributes_dict(place_code: str, session: Session) -> dict:
     return result
 
 
-def bulk_get_attributes_for_places(place_codes: List[str], session: Session) -> Dict[str, dict]:
+def bulk_get_attributes_for_places(place_codes: list[str], session: Session) -> dict[str, dict]:
     """
     Bulk fetch ALL attributes for multiple places in ONE query.
     Returns: {place_code: {attribute_code: value}}
@@ -89,12 +91,13 @@ def bulk_get_attributes_for_places(place_codes: List[str], session: Session) -> 
 
 
 def get_attribute_definitions(
-    religion: Optional[str] = None,
+    religion: str | None = None,
     filterable_only: bool = False,
     spec_only: bool = False,
-    session: Optional[Session] = None,
-) -> List[PlaceAttributeDefinition]:
+    session: Session | None = None,
+) -> list[PlaceAttributeDefinition]:
     """Get attribute definitions. Optionally reuse an existing session."""
+
     def _query(sess):
         stmt = select(PlaceAttributeDefinition)
         if filterable_only:

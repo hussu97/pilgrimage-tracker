@@ -34,24 +34,27 @@ export default function Home() {
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const nextCursorRef = useRef<string | null>(null);
 
-  const buildParams = useCallback((cursor: string | null) => ({
-    religions: (() => {
-      const r = user?.religions ?? [];
-      if (!r.length || r.includes('all')) return undefined;
-      return r;
-    })(),
-    search: search || undefined,
-    sort: 'distance',
-    limit: PAGE_SIZE,
-    cursor: cursor ?? undefined,
-    lat: coords.lat,
-    lng: coords.lng,
-    open_now: activeFilters.open_now,
-    has_parking: activeFilters.has_parking,
-    womens_area: activeFilters.womens_area,
-    has_events: activeFilters.has_events,
-    top_rated: activeFilters.top_rated,
-  }), [user?.religions, search, activeFilters, coords]);
+  const buildParams = useCallback(
+    (cursor: string | null) => ({
+      religions: (() => {
+        const r = user?.religions ?? [];
+        if (!r.length || r.includes('all')) return undefined;
+        return r;
+      })(),
+      search: search || undefined,
+      sort: 'distance',
+      limit: PAGE_SIZE,
+      cursor: cursor ?? undefined,
+      lat: coords.lat,
+      lng: coords.lng,
+      open_now: activeFilters.open_now,
+      has_parking: activeFilters.has_parking,
+      womens_area: activeFilters.womens_area,
+      has_events: activeFilters.has_events,
+      top_rated: activeFilters.top_rated,
+    }),
+    [user?.religions, search, activeFilters, coords],
+  );
 
   // Initial / refresh — resets pagination
   const fetchPlaces = useCallback(async () => {
@@ -81,7 +84,7 @@ export default function Home() {
     try {
       const response = await getPlaces(buildParams(nextCursorRef.current));
       if (response.places.length > 0) {
-        setPlaces(prev => [...prev, ...response.places]);
+        setPlaces((prev) => [...prev, ...response.places]);
         nextCursorRef.current = response.next_cursor ?? null;
       }
       setHasMore(response.next_cursor != null);

@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useMemo,
-  type ReactNode,
-} from 'react';
+import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from 'react';
 import * as Location from 'expo-location';
 import { DEFAULT_LAT, DEFAULT_LNG } from '@/lib/constants';
 
@@ -53,9 +46,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(() => ({ coords }), [coords]);
-  return (
-    <LocationContext.Provider value={value}>{children}</LocationContext.Provider>
-  );
+  return <LocationContext.Provider value={value}>{children}</LocationContext.Provider>;
 }
 
 export function useLocation(): LocationContextValue {

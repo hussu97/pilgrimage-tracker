@@ -3,15 +3,15 @@ from datetime import datetime
 from pathlib import Path
 
 from sqlmodel import SQLModel
+
 from app.core.security import hash_password
-from app.db import i18n as i18n_db
-from app.db import store
 from app.db import groups as groups_db
+from app.db import i18n as i18n_db
 from app.db import notifications as notifications_db
 from app.db import place_attributes as attr_db
+from app.db import place_images, store
 from app.db import places as places_db
-from app.db import place_images
-from app.db.session import engine, Session
+from app.db.session import Session, engine
 
 _DEFAULT_SEED_PATH = Path(__file__).parent / "seed_data.json"
 
@@ -83,6 +83,7 @@ def run_seed_demo(seed_path: str | Path | None = None) -> None:
 
         # Seed place images
         import base64
+
         for img in data.get("place_images", []):
             if img["image_type"] == "url":
                 place_images.add_image_url(
@@ -103,7 +104,9 @@ def run_seed_demo(seed_path: str | Path | None = None) -> None:
 
         # Seed users
         for u in data.get("users", []):
-            password_hash = hash_password(u["password"]) if u.get("password") else u.get("password_hash", "")
+            password_hash = (
+                hash_password(u["password"]) if u.get("password") else u.get("password_hash", "")
+            )
             store.create_user(
                 user_code=u["user_code"],
                 email=u["email"].strip().lower(),

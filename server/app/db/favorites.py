@@ -1,10 +1,13 @@
-from sqlmodel import Session, select, and_
+from sqlmodel import Session, and_, select
+
 from app.db.models import Favorite
 
 
 def add_favorite(user_code: str, place_code: str, session: Session) -> None:
     # Check if already exists
-    statement = select(Favorite).where(and_(Favorite.user_code == user_code, Favorite.place_code == place_code))
+    statement = select(Favorite).where(
+        and_(Favorite.user_code == user_code, Favorite.place_code == place_code)
+    )
     if session.exec(statement).first():
         return
 
@@ -14,7 +17,9 @@ def add_favorite(user_code: str, place_code: str, session: Session) -> None:
 
 
 def remove_favorite(user_code: str, place_code: str, session: Session) -> None:
-    statement = select(Favorite).where(and_(Favorite.user_code == user_code, Favorite.place_code == place_code))
+    statement = select(Favorite).where(
+        and_(Favorite.user_code == user_code, Favorite.place_code == place_code)
+    )
     fav = session.exec(statement).first()
     if fav:
         session.delete(fav)
@@ -22,7 +27,9 @@ def remove_favorite(user_code: str, place_code: str, session: Session) -> None:
 
 
 def is_favorite(user_code: str, place_code: str, session: Session) -> bool:
-    statement = select(Favorite).where(and_(Favorite.user_code == user_code, Favorite.place_code == place_code))
+    statement = select(Favorite).where(
+        and_(Favorite.user_code == user_code, Favorite.place_code == place_code)
+    )
     return session.exec(statement).first() is not None
 
 

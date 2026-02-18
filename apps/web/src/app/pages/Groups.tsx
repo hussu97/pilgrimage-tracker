@@ -131,7 +131,9 @@ export default function Groups() {
                 className="block relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-300 via-blue-400 to-blue-500 shadow-lg shadow-blue-100 p-6 text-white mb-8 transition-transform hover:scale-[0.99] active:scale-[0.98]"
               >
                 <div className="absolute top-0 right-0 p-3 opacity-20 pointer-events-none">
-                  <span className="material-icons text-[120px] -mr-8 -mt-8 rotate-12">landscape</span>
+                  <span className="material-icons text-[120px] -mr-8 -mt-8 rotate-12">
+                    landscape
+                  </span>
                 </div>
                 <div className="relative z-10 flex justify-between items-start mb-6">
                   <div>
@@ -154,7 +156,8 @@ export default function Groups() {
                     <span>
                       {featured.total_sites
                         ? Math.round(((featured.sites_visited ?? 0) / featured.total_sites) * 100)
-                        : 0}%
+                        : 0}
+                      %
                     </span>
                   </div>
                   <div className="h-1.5 w-full bg-black/10 rounded-full overflow-hidden backdrop-blur-sm">
@@ -168,7 +171,10 @@ export default function Groups() {
                   <div className="flex items-center justify-between mt-6">
                     <div className="flex -space-x-3">
                       {[...Array(Math.min(3, featured.member_count ?? 0))].map((_, i) => (
-                        <div key={i} className="h-10 w-10 rounded-full border-2 border-blue-400 bg-white/20 flex items-center justify-center text-blue-900 text-xs font-bold">
+                        <div
+                          key={i}
+                          className="h-10 w-10 rounded-full border-2 border-blue-400 bg-white/20 flex items-center justify-center text-blue-900 text-xs font-bold"
+                        >
                           {i + 1}
                         </div>
                       ))}
@@ -202,9 +208,13 @@ export default function Groups() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0 pr-4">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-bold text-text-dark dark:text-white text-xl tracking-tight truncate">{g.name}</h3>
+                          <h3 className="font-bold text-text-dark dark:text-white text-xl tracking-tight truncate">
+                            {g.name}
+                          </h3>
                           {level === 'Done' && (
-                            <span className="material-icons text-green-500 text-sm shrink-0">check_circle</span>
+                            <span className="material-icons text-green-500 text-sm shrink-0">
+                              check_circle
+                            </span>
                           )}
                         </div>
                         <p className="text-sm text-text-muted dark:text-dark-text-secondary font-medium">
@@ -217,7 +227,10 @@ export default function Groups() {
                       </div>
                       <div className="flex -space-x-2 shrink-0">
                         {[...Array(Math.min(2, g.member_count ?? 0))].map((_, i) => (
-                          <div key={i} className="h-8 w-8 rounded-full border-2 border-white dark:border-dark-bg bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary ring-1 ring-slate-100 dark:ring-dark-border">
+                          <div
+                            key={i}
+                            className="h-8 w-8 rounded-full border-2 border-white dark:border-dark-bg bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary ring-1 ring-slate-100 dark:ring-dark-border"
+                          >
                             {i + 1}
                           </div>
                         ))}
@@ -235,11 +248,15 @@ export default function Groups() {
                           .replace('{total}', String(total || '—'))}
                       </span>
                       {level && (
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                          level === 'Done' ? 'text-green-600 bg-green-50'
-                            : level === 'New' ? 'text-indigo-600 bg-indigo-50'
-                            : 'text-primary bg-blue-50'
-                        }`}>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                            level === 'Done'
+                              ? 'text-green-600 bg-green-50'
+                              : level === 'New'
+                                ? 'text-indigo-600 bg-indigo-50'
+                                : 'text-primary bg-blue-50'
+                          }`}
+                        >
                           {level}
                         </span>
                       )}

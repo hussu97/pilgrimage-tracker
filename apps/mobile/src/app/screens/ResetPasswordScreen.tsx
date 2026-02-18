@@ -19,7 +19,8 @@ import { tokens } from '@/lib/theme';
 
 export default function ResetPasswordScreen() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'ResetPassword'>>();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList, 'ResetPassword'>>();
   const route = useRoute<RouteProp<RootStackParamList, 'ResetPassword'>>();
   const token = route.params?.token ?? '';
   const { t } = useI18n();
@@ -57,10 +58,19 @@ export default function ResetPasswordScreen() {
 
   if (success) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, paddingHorizontal: 24 }]}>
+      <View
+        style={[
+          styles.container,
+          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, paddingHorizontal: 24 },
+        ]}
+      >
         <Text style={styles.title}>{t('auth.passwordUpdated')}</Text>
         <Text style={styles.subtitle}>{t('auth.backToLogin')}</Text>
-        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Login')} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => navigation.navigate('Login')}
+          activeOpacity={0.8}
+        >
           <Text style={styles.buttonText}>{t('auth.login')}</Text>
         </TouchableOpacity>
       </View>
@@ -69,9 +79,17 @@ export default function ResetPasswordScreen() {
 
   if (!token) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, paddingHorizontal: 24 }]}>
+      <View
+        style={[
+          styles.container,
+          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24, paddingHorizontal: 24 },
+        ]}
+      >
         <Text style={styles.error}>{t('errors.missingToken')}</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={styles.linkButton}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('ForgotPassword')}
+          style={styles.linkButton}
+        >
           <Text style={styles.linkText}>{t('auth.sendResetLink')}</Text>
         </TouchableOpacity>
       </View>
@@ -85,7 +103,10 @@ export default function ResetPasswordScreen() {
       keyboardVerticalOffset={0}
     >
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.title}>{t('auth.setNewPassword')}</Text>
@@ -113,7 +134,9 @@ export default function ResetPasswordScreen() {
           disabled={loading}
           activeOpacity={0.8}
         >
-          <Text style={styles.buttonText}>{loading ? t('common.loading') : t('auth.resetPassword')}</Text>
+          <Text style={styles.buttonText}>
+            {loading ? t('common.loading') : t('auth.resetPassword')}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate('Login')} style={styles.secondaryLink}>
           <Text style={styles.secondaryLinkText}>{t('auth.backToLogin')}</Text>

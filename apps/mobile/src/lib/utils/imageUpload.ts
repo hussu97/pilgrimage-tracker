@@ -87,7 +87,7 @@ export function validateImage(image: PickedImage): ValidationResult {
 export async function compressImage(
   uri: string,
   maxWidth: number = 1200,
-  quality: number = 0.85
+  quality: number = 0.85,
 ): Promise<CompressedImage> {
   // Get image dimensions
   const imageInfo = await ImageManipulator.manipulateAsync(uri, [], {
@@ -95,7 +95,7 @@ export async function compressImage(
     format: ImageManipulator.SaveFormat.JPEG,
   });
 
-  let manipulations: ImageManipulator.Action[] = [];
+  const manipulations: ImageManipulator.Action[] = [];
 
   // Resize if width > maxWidth
   if (imageInfo.width > maxWidth) {

@@ -3,11 +3,13 @@ Unit tests for opening-hours parsing logic in app.db.places.
 
 These tests exercise the pure Python helpers directly — no HTTP / DB needed.
 """
-import pytest
-from app.db.places import _parse_time, _parse_time_12h, _parse_slot, _is_open_now_from_hours
 
+from datetime import UTC
+
+from app.db.places import _is_open_now_from_hours, _parse_slot, _parse_time, _parse_time_12h
 
 # ── _parse_time (24h) ──────────────────────────────────────────────────────────
+
 
 class TestParseTime24h:
     def test_valid_24h(self):
@@ -29,10 +31,11 @@ class TestParseTime24h:
 
 # ── _parse_time_12h ────────────────────────────────────────────────────────────
 
+
 class TestParseTime12h:
     def test_am_times(self):
         assert _parse_time_12h("5:06 AM") == (5, 6)
-        assert _parse_time_12h("12:00 AM") == (0, 0)   # midnight
+        assert _parse_time_12h("12:00 AM") == (0, 0)  # midnight
         assert _parse_time_12h("6:30 AM") == (6, 30)
 
     def test_pm_times(self):
@@ -46,13 +49,14 @@ class TestParseTime12h:
         assert _parse_time_12h("11:02\u202fPM") == (23, 2)
 
     def test_invalid(self):
-        assert _parse_time_12h("6:30") is None    # no AM/PM
+        assert _parse_time_12h("6:30") is None  # no AM/PM
         assert _parse_time_12h("") is None
         assert _parse_time_12h(None) is None
         assert _parse_time_12h("abc") is None
 
 
 # ── _parse_slot ────────────────────────────────────────────────────────────────
+
 
 class TestParseSlot:
     def test_24h_slot(self):
@@ -89,11 +93,13 @@ class TestParseSlot:
 
 # ── _is_open_now_from_hours ────────────────────────────────────────────────────
 
+
 class TestIsOpenNow:
     def _hours(self, day_hours: str) -> dict:
         """Build a full per-day opening_hours dict with a single day's value."""
-        from datetime import datetime, timezone
-        day = datetime.now(timezone.utc).strftime("%A")
+        from datetime import datetime
+
+        day = datetime.now(UTC).strftime("%A")
         return {day: day_hours}
 
     def test_always_open_24h(self):
@@ -129,7 +135,7 @@ class TestIsOpenNow:
         # "6:30 – 7:15 AM, 8:30 – 9:30 AM" — AM/PM inheritance across multiple slots
         hours = self._hours("6:30 \u2013 7:15 AM, 8:30 \u2013 9:30 AM")
         result = _is_open_now_from_hours(hours)
-        assert result in (True, False)   # parseable, not None
+        assert result in (True, False)  # parseable, not None
 
     def test_legacy_format(self):
         result = _is_open_now_from_hours({"opens": "09:00", "closes": "17:00"})
@@ -139,6 +145,6 @@ class TestIsOpenNow:
         # Cover all days so a UTC↔local day boundary mismatch cannot cause None.
         # (self._hours() uses the UTC day, but the function looks up by local day.)
         days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        hours = {day: "05:00-22:00" for day in days}
+        hours = dict.fromkeys(days, "05:00-22:00")
         result = _is_open_now_from_hours(hours, utc_offset_minutes=240)
         assert result in (True, False)

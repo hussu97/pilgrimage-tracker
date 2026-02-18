@@ -13,6 +13,7 @@ def _create_visitor(client):
 
 # ── Visitor creation ───────────────────────────────────────────────────────────
 
+
 class TestCreateVisitor:
     def test_create_visitor_returns_code(self, client):
         resp = client.post(VISITORS_URL)
@@ -29,6 +30,7 @@ class TestCreateVisitor:
 
 
 # ── Visitor settings (default) ─────────────────────────────────────────────────
+
 
 class TestGetVisitorSettings:
     def test_get_visitor_settings_defaults(self, client):
@@ -47,6 +49,7 @@ class TestGetVisitorSettings:
 
 
 # ── Visitor settings update ────────────────────────────────────────────────────
+
 
 class TestUpdateVisitorSettings:
     def test_patch_updates_settings(self, client):
@@ -89,6 +92,7 @@ class TestUpdateVisitorSettings:
 
 # ── Visitor merge on login/register ───────────────────────────────────────────
 
+
 class TestMergeVisitorOnRegister:
     def test_merge_visitor_on_register(self, client):
         # Create visitor and set language to Arabic
@@ -106,7 +110,7 @@ class TestMergeVisitorOnRegister:
             },
         )
         assert resp.status_code == 200
-        user_code = resp.json()["user"]["user_code"]
+        _user_code = resp.json()["user"]["user_code"]
 
         # Check user settings were merged (language = ar)
         token = resp.json()["token"]

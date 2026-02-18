@@ -68,16 +68,18 @@ def _send_reset_email(to_email: str, reset_token: str) -> None:
 
     resend.api_key = RESEND_API_KEY
     try:
-        resend.Emails.send({
-            "from": RESEND_FROM_EMAIL,
-            "to": [to_email],
-            "subject": "Reset your Pilgrimage Tracker password",
-            "html": (
-                "<p>You requested a password reset for your Pilgrimage Tracker account.</p>"
-                f"<p><a href='{reset_link}'>Click here to reset your password</a></p>"
-                "<p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>"
-            ),
-        })
+        resend.Emails.send(
+            {
+                "from": RESEND_FROM_EMAIL,
+                "to": [to_email],
+                "subject": "Reset your Pilgrimage Tracker password",
+                "html": (
+                    "<p>You requested a password reset for your Pilgrimage Tracker account.</p>"
+                    f"<p><a href='{reset_link}'>Click here to reset your password</a></p>"
+                    "<p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>"
+                ),
+            }
+        )
     except Exception as exc:
         # Log but don't surface internal details to the caller
         print(f"[ERROR] Failed to send password reset email to {to_email}: {exc}")
@@ -85,9 +87,27 @@ def _send_reset_email(to_email: str, reset_token: str) -> None:
 
 # ─── routes ───────────────────────────────────────────────────────────────────
 
-@router.post("/register", response_model=AuthResponse)
+
+@router.post(
+    "/register",
+    response_model=AuthResponse,
+    summary="Register a new user",
+    responses={
+        400: {"description": "Email already registered"},
+        422: {"description": "Validation error — weak password or missing fields"},
+        429: {"description": "Rate limit exceeded (3 requests/minute per IP)"},
+    },
+)
 @limiter.limit("3/minute")
 def register(request: Request, body: RegisterBody, session: SessionDep):
+    """
+    Create a new user account.
+
+    - **email**: must be unique
+    - **password**: minimum 8 characters with at least one uppercase letter, one lowercase letter, and one digit
+    - **display_name**: optional; defaults to the email prefix
+    - **visitor_code**: optional; merges anonymous visitor settings into the new account
+    """
     if store.get_user_by_email(body.email, session):
         raise HTTPException(status_code=400, detail="Email already registered")
     user_code = "usr_" + secrets.token_hex(8)
@@ -115,9 +135,23 @@ def register(request: Request, body: RegisterBody, session: SessionDep):
     return resp
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post(
+    "/login",
+    response_model=AuthResponse,
+    summary="Log in with email and password",
+    responses={
+        401: {"description": "Invalid credentials"},
+        429: {"description": "Rate limit exceeded (5 requests/minute per IP)"},
+    },
+)
 @limiter.limit("5/minute")
 def login(request: Request, body: LoginBody, session: SessionDep):
+    """
+    Authenticate and receive an access token.
+
+    Returns a short-lived **access token** (Bearer) in the JSON body and a long-lived
+    **refresh token** in an HTTP-only `SameSite=Strict` cookie.
+    """
     user = store.get_user_by_email(body.email, session)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -171,9 +205,22 @@ def logout(request: Request, session: SessionDep):
     return resp
 
 
-@router.post("/forgot-password")
+@router.post(
+    "/forgot-password",
+    summary="Request a password-reset email",
+    responses={
+        429: {"description": "Rate limit exceeded (2 requests/minute per IP)"},
+    },
+)
 @limiter.limit("2/minute")
 def forgot_password(request: Request, body: ForgotPasswordBody, session: SessionDep):
+    """
+    Send a password-reset link to the given email address.
+
+    Always returns a success response — even when the email is not registered —
+    to avoid leaking information about registered accounts.
+    The reset link is valid for 1 hour.
+    """
     user = store.get_user_by_email(body.email, session)
     if not user:
         return {"ok": True, "message": "If an account exists, you will receive a reset link."}
@@ -184,8 +231,21 @@ def forgot_password(request: Request, body: ForgotPasswordBody, session: Session
     return {"ok": True, "message": "If an account exists, you will receive a reset link."}
 
 
-@router.post("/reset-password")
+@router.post(
+    "/reset-password",
+    summary="Reset password using a token from email",
+    responses={
+        400: {"description": "Invalid or expired token"},
+        422: {"description": "Validation error — password does not meet strength requirements"},
+    },
+)
 def reset_password(body: ResetPasswordBody, session: SessionDep):
+    """
+    Reset a user's password.
+
+    Consumes the single-use token from the password-reset email.
+    The new password must meet the same strength requirements as registration.
+    """
     user_code = store.consume_password_reset(body.token, session)
     if not user_code:
         raise HTTPException(status_code=400, detail="Invalid or expired token")

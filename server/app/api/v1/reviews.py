@@ -1,13 +1,12 @@
 from io import BytesIO
-from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from PIL import Image
 
-from app.api.deps import get_current_user
-from app.db import reviews as reviews_db
+from app.api.deps import UserDep
 from app.db import review_images as review_images_db
+from app.db import reviews as reviews_db
 from app.db.session import SessionDep
 from app.models.schemas import ReviewUpdateBody
 
@@ -18,7 +17,7 @@ router = APIRouter()
 def update_review(
     review_code: str,
     body: ReviewUpdateBody,
-    user: Annotated[Any, Depends(get_current_user)],
+    user: UserDep,
     session: SessionDep,
 ):
     row = reviews_db.get_review_by_code(review_code, session)
@@ -36,13 +35,19 @@ def update_review(
         row.body = body.body
     session.add(row)
     session.commit()
-    return {"review_code": row.review_code, "rating": row.rating, "title": row.title, "body": row.body, "created_at": row.created_at}
+    return {
+        "review_code": row.review_code,
+        "rating": row.rating,
+        "title": row.title,
+        "body": row.body,
+        "created_at": row.created_at,
+    }
 
 
 @router.delete("/{review_code}")
 def delete_review(
     review_code: str,
-    user: Annotated[Any, Depends(get_current_user)],
+    user: UserDep,
     session: SessionDep,
 ):
     row = reviews_db.get_review_by_code(review_code, session)
@@ -60,7 +65,7 @@ def delete_review(
 
 @router.post("/upload-photo")
 async def upload_review_photo(
-    user: Annotated[Any, Depends(get_current_user)],
+    user: UserDep,
     session: SessionDep,
     file: UploadFile = File(...),
 ):
@@ -79,7 +84,7 @@ async def upload_review_photo(
     if file.content_type not in allowed_types:
         raise HTTPException(
             status_code=400,
-            detail=f"Only JPEG, PNG, and WebP images are allowed. Got: {file.content_type}"
+            detail=f"Only JPEG, PNG, and WebP images are allowed. Got: {file.content_type}",
         )
 
     # Read file data
@@ -91,7 +96,7 @@ async def upload_review_photo(
     if file_size > MAX_SIZE:
         raise HTTPException(
             status_code=400,
-            detail=f"File size {file_size} bytes exceeds maximum of {MAX_SIZE} bytes (5MB)"
+            detail=f"File size {file_size} bytes exceeds maximum of {MAX_SIZE} bytes (5MB)",
         )
 
     # Process image with Pillow
@@ -103,7 +108,7 @@ async def upload_review_photo(
         if img.width > MAX_DIMENSION or img.height > MAX_DIMENSION:
             raise HTTPException(
                 status_code=400,
-                detail=f"Image dimensions {img.width}x{img.height} exceed maximum of {MAX_DIMENSION}x{MAX_DIMENSION}"
+                detail=f"Image dimensions {img.width}x{img.height} exceed maximum of {MAX_DIMENSION}x{MAX_DIMENSION}",
             )
 
         # Convert to RGB if needed (handles RGBA, P, etc.)
@@ -176,5 +181,5 @@ def get_review_image(
         media_type=image.mime_type,
         headers={
             "Cache-Control": "public, max-age=31536000, immutable",
-        }
+        },
     )

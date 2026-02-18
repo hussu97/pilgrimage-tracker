@@ -185,14 +185,21 @@ export default function CreateGroupScreen() {
     return (
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.successContent, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[
+          styles.successContent,
+          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 },
+        ]}
       >
         <TouchableOpacity
           style={[styles.backBtn, { alignSelf: 'flex-start' }]}
           onPress={() => navigation.goBack()}
           activeOpacity={0.8}
         >
-          <MaterialIcons name="arrow-back" size={20} color={isDark ? '#fff' : tokens.colors.textDark} />
+          <MaterialIcons
+            name="arrow-back"
+            size={20}
+            color={isDark ? '#fff' : tokens.colors.textDark}
+          />
         </TouchableOpacity>
         <View style={styles.successIconWrap}>
           <Text style={styles.successIcon}>✓</Text>
@@ -200,7 +207,9 @@ export default function CreateGroupScreen() {
         <Text style={styles.successTitle}>{t('groups.created')}</Text>
         <Text style={styles.successSub}>{t('groups.shareInviteLink')}</Text>
         <View style={styles.inviteRow}>
-          <Text style={styles.inviteCode} numberOfLines={1}>{inviteMessage}</Text>
+          <Text style={styles.inviteCode} numberOfLines={1}>
+            {inviteMessage}
+          </Text>
         </View>
         <TouchableOpacity style={styles.shareButton} onPress={handleShare} activeOpacity={0.8}>
           <Text style={styles.shareButtonText}>{t('common.share')}</Text>
@@ -220,7 +229,10 @@ export default function CreateGroupScreen() {
     >
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <TouchableOpacity
@@ -228,7 +240,11 @@ export default function CreateGroupScreen() {
           onPress={() => navigation.goBack()}
           activeOpacity={0.8}
         >
-          <MaterialIcons name="arrow-back" size={20} color={isDark ? '#fff' : tokens.colors.textDark} />
+          <MaterialIcons
+            name="arrow-back"
+            size={20}
+            color={isDark ? '#fff' : tokens.colors.textDark}
+          />
         </TouchableOpacity>
 
         <Text style={styles.title}>{t('groups.createGroup')}</Text>

@@ -1,17 +1,16 @@
 """
 In-memory i18n store (languages and translations). Populated from seed.
 """
-from typing import Dict, List
 
-languages: List[Dict[str, str]] = []  # [{"code": "en", "name": "English"}, ...]
-translations: Dict[str, Dict[str, str]] = {}  # lang_code -> { key -> value }
+languages: list[dict[str, str]] = []  # [{"code": "en", "name": "English"}, ...]
+translations: dict[str, dict[str, str]] = {}  # lang_code -> { key -> value }
 
 
-def get_languages() -> List[Dict[str, str]]:
+def get_languages() -> list[dict[str, str]]:
     return list(languages)
 
 
-def get_translations(lang: str) -> Dict[str, str]:
+def get_translations(lang: str) -> dict[str, str]:
     lang = (lang or "en").lower()
     if lang not in translations:
         lang = "en"
@@ -23,12 +22,12 @@ def get_translations(lang: str) -> Dict[str, str]:
     return result
 
 
-def set_languages(data: List[Dict[str, str]]) -> None:
+def set_languages(data: list[dict[str, str]]) -> None:
     languages.clear()
     languages.extend(data)
 
 
-def set_translations(data: Dict[str, Dict[str, str]]) -> None:
+def set_translations(data: dict[str, dict[str, str]]) -> None:
     translations.clear()
     for lang_code, key_values in data.items():
         translations[lang_code] = dict(key_values)

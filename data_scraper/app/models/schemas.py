@@ -1,27 +1,28 @@
-from pydantic import BaseModel
-from typing import Optional, Dict, Any, Literal
 from datetime import datetime
+from typing import Any, Literal
+
+from pydantic import BaseModel
 
 
 class DataLocationCreate(BaseModel):
     name: str
     source_type: Literal["gsheet", "gmaps"] = "gsheet"
     # gsheet fields
-    sheet_url: Optional[str] = None
+    sheet_url: str | None = None
     # gmaps fields
-    country: Optional[str] = None
-    city: Optional[str] = None  # More granular than country
-    max_results: Optional[int] = None  # Limit results for testing
-    force_refresh: Optional[bool] = False  # Ignore cached places and force fresh fetch
-    stale_threshold_days: Optional[int] = 90  # Re-fetch if cached data older than this
+    country: str | None = None
+    city: str | None = None  # More granular than country
+    max_results: int | None = None  # Limit results for testing
+    force_refresh: bool | None = False  # Ignore cached places and force fresh fetch
+    stale_threshold_days: int | None = 90  # Re-fetch if cached data older than this
 
 
 class DataLocationResponse(BaseModel):
     code: str
     name: str
     source_type: str
-    config: Dict[str, Any]
-    sheet_code: Optional[str] = None
+    config: dict[str, Any]
+    sheet_code: str | None = None
     created_at: datetime
 
 
@@ -33,7 +34,7 @@ class ScraperRunResponse(BaseModel):
     run_code: str
     location_code: str
     status: str
-    total_items: Optional[int] = None
+    total_items: int | None = None
     processed_items: int = 0
     created_at: datetime
 
@@ -52,12 +53,12 @@ class PlaceTypeMappingCreate(BaseModel):
 
 
 class PlaceTypeMappingUpdate(BaseModel):
-    religion: Optional[str] = None
-    source_type: Optional[Literal["gmaps", "gsheet"]] = None
-    gmaps_type: Optional[str] = None
-    our_place_type: Optional[str] = None
-    is_active: Optional[bool] = None
-    display_order: Optional[int] = None
+    religion: str | None = None
+    source_type: Literal["gmaps", "gsheet"] | None = None
+    gmaps_type: str | None = None
+    our_place_type: str | None = None
+    is_active: bool | None = None
+    display_order: int | None = None
 
 
 class PlaceTypeMappingResponse(BaseModel):

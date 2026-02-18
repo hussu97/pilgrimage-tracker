@@ -286,33 +286,26 @@ Infrastructure, code quality, and optimization work to prepare for production an
   - Covers: health check, hours parsing unit tests, auth flow (register/login/refresh/logout), place CRUD + search + filters + reviews + check-ins + favorites, scraper normalize_to_24h + clean_address + process_weekly_hours.
   - Infrastructure: in-memory SQLite, patched lifespan hooks, disabled rate limiting, per-test DB isolation.
 
-- [ ] **Add frontend tests**
-  - No test files exist in either frontend app.
-  - Set up Vitest for `apps/web` and Jest for `apps/mobile`. Write tests for: API client functions, utility functions, and critical user flows (login, search, check-in). Add React Testing Library for component tests.
+- [x] **Add frontend tests**
+  - Vitest configured for `apps/web` (16 tests: cn utility, crowdColorClass, getFullImageUrl). Jest configured for `apps/mobile` (10 tests: crowdColor, getFullImageUrl, ROUTES constants). React Testing Library installed. Test scripts: `npm test`, `npm run test:coverage`. Expo winter runtime compatibility fixed via `moduleNameMapper`.
 
-- [ ] **Linting configuration**
-  - No linters are configured for any part of the codebase.
-  - Add ESLint and Prettier for both frontend apps (shared config in the monorepo root). Add Ruff for the Python backend and scraper. Add configs to enforce consistent style.
+- [x] **Linting configuration**
+  - ESLint + Prettier installed and configured for `apps/web` and `apps/mobile` (`eslint.config.js` using flat config format). Ruff configured for `server/` and `data_scraper/` via `pyproject.toml`. Shared `.prettierrc` at monorepo root. Lint scripts added to all `package.json` files: `npm run lint`, `npm run lint:fix`, `npm run format`.
 
-- [ ] **Type safety improvements**
-  - Several Python functions use `Any` type hints. TypeScript code has areas with implicit `any`.
-  - Audit and replace `Any` with specific types in Python. Enable `strict` mode in TypeScript configs. Fix all resulting type errors.
+- [x] **Type safety improvements**
+  - Python: Added `UserDep` and `OptionalUserDep` type aliases in `deps.py`. Replaced all `Annotated[Any, Depends(get_current_user)]` patterns across 5 endpoint files (28 occurrences). Added return type annotations to `get_current_user` and `get_optional_user`. TypeScript: Fixed `r: any` in web API client (typed as `Place | [Place, number]`); fixed `value?: any` in mobile `FilterChipsList` (typed as `string | boolean`). Both `tsconfig.json` files already had `strict: true`.
 
-- [ ] **API documentation refinement**
-  - FastAPI auto-generates OpenAPI docs but the schemas lack descriptions and examples.
-  - Add `description`, `example`, and `summary` to all Pydantic models and endpoint functions. Group endpoints with tags. Add response examples for common error cases.
+- [x] **API documentation refinement**
+  - Added `openapi_tags` metadata with descriptions for all 8 tag groups to `FastAPI` app constructor. Added `summary`, response error examples (400/401/422/429), and docstrings to auth endpoints (`/register`, `/login`, `/forgot-password`, `/reset-password`). Added Pydantic `Field(description=...)` and `model_config json_schema_extra` examples to `RegisterBody`, `LoginBody`, `AuthResponse`, and `UserResponse`.
 
-- [ ] **Generate TypeScript types from FastAPI schemas**
-  - Frontend type definitions are manually maintained and can drift from the backend.
-  - Use `openapi-typescript` or a similar tool to generate TypeScript interfaces from the OpenAPI spec. Add a script to regenerate on schema changes. Replace manually-defined API types.
+- [x] **Generate TypeScript types from FastAPI schemas**
+  - Installed `openapi-typescript` at monorepo root. Added `npm run gen:types` script in root `package.json`. Generation script at `scripts/gen-api-types.mjs` fetches from `GET /openapi.json` and writes `api-generated.d.ts` to both `apps/web/src/lib/types/` and `apps/mobile/src/lib/types/`. Usage: start server then run `npm run gen:types` from repo root.
 
-- [ ] **Git hooks with pre-commit**
-  - No automated checks run before commits. Unformatted or broken code can be committed.
-  - Install `pre-commit` and configure hooks for: Ruff (Python), ESLint (TypeScript), Prettier (TypeScript/JSON/YAML), trailing whitespace, and merge conflict markers.
+- [x] **Git hooks with pre-commit**
+  - Created `.pre-commit-config.yaml` with hooks for: trailing whitespace, end-of-file fixer, merge conflict detection, YAML/JSON validation, Ruff lint+format (Python), ESLint (TypeScript web + mobile), Prettier (TypeScript/CSS). `pre-commit install` run — hook active at `.git/hooks/pre-commit`.
 
-- [ ] **Code coverage tracking**
-  - No coverage data is collected.
-  - Configure pytest-cov for the backend and c8/istanbul for the frontends. Add coverage reports to CI. Set a minimum threshold (e.g., 60%) that fails the build if not met. Track trends over time.
+- [x] **Code coverage tracking**
+  - `pytest-cov` added to `server/requirements.txt` and `data_scraper/requirements.txt`. `.coveragerc` created for both with `fail_under = 60` threshold, HTML+XML reporters, source=`app`. Server currently at **69.8% coverage** (above threshold). Frontend: `vitest run --coverage` (v8 provider, 60% threshold) and `jest --coverage` (60% threshold) configured. Run with `npm run test:coverage` in each app.
 
 ### Optimization
 

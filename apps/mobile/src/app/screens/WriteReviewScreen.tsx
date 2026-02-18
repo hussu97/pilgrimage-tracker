@@ -12,7 +12,8 @@ import {
   Image,
   Modal,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getPlace, createReview, updateReview, uploadReviewPhoto } from '@/lib/api/client';
@@ -80,7 +81,12 @@ function makeStyles(isDark: boolean) {
     },
     placeInfo: { flex: 1, marginRight: 16, minWidth: 0 },
     placeName: { fontSize: 22, fontWeight: '300', color: textDark, marginBottom: 4 },
-    placeAddress: { fontSize: 12, color: textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+    placeAddress: {
+      fontSize: 12,
+      color: textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
     placeThumb: { width: 48, height: 48, borderRadius: 8 },
     errorText: { color: '#b91c1c', fontSize: 14, marginBottom: 12 },
     starRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 24 },
@@ -218,8 +224,13 @@ export default function WriteReviewScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const route = useRoute<WriteReviewRoute>();
-  const { placeCode, reviewCode, rating: initRating, title: initTitle, body: initBody } =
-    route.params;
+  const {
+    placeCode,
+    reviewCode,
+    rating: initRating,
+    title: initTitle,
+    body: initBody,
+  } = route.params;
   const { t } = useI18n();
   const { isDark } = useTheme();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
@@ -328,7 +339,9 @@ export default function WriteReviewScreen() {
     return (
       <View style={[styles.centered, { paddingTop: insets.top + 24 }]}>
         <Text style={styles.muted}>{t('places.missingCode')}</Text>
-        <TouchableOpacity onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] })}>
+        <TouchableOpacity
+          onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] })}
+        >
           <Text style={styles.link}>{t('common.home')}</Text>
         </TouchableOpacity>
       </View>
@@ -347,11 +360,7 @@ export default function WriteReviewScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('writeReview.title')}</Text>
         {isEdit ? (
-          <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={submitting}
-            style={styles.headerBtn}
-          >
+          <TouchableOpacity onPress={handleSubmit} disabled={submitting} style={styles.headerBtn}>
             <Text style={[styles.headerSave, submitting && styles.headerSaveDisabled]}>
               {t('common.save')}
             </Text>

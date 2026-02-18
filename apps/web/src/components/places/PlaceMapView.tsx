@@ -36,7 +36,10 @@ export default function PlaceMapView({
         <div className="absolute bottom-10 left-4 right-4 z-[1000] animate-in slide-in-from-bottom-8 duration-300 max-w-lg mx-auto">
           <div className="bg-white/95 backdrop-blur-xl dark:bg-dark-surface/95 rounded-3xl shadow-2xl p-4 border border-white/50 dark:border-dark-border relative group cursor-pointer transition-transform active:scale-[0.98]">
             <button
-              onClick={(e) => { e.stopPropagation(); onPlaceSelect(null); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPlaceSelect(null);
+              }}
               className="absolute top-2 right-2 w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-dark-bg rounded-full text-slate-400 hover:text-slate-600 transition-colors z-20"
             >
               <span className="material-symbols-outlined text-sm">close</span>
@@ -45,7 +48,11 @@ export default function PlaceMapView({
             <div className="flex gap-4">
               <div className="w-24 h-24 rounded-2xl overflow-hidden shrink-0 shadow-soft bg-slate-100 dark:bg-dark-bg">
                 {selectedPlace.images?.[0]?.url ? (
-                  <img src={selectedPlace.images[0].url} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                  <img
+                    src={selectedPlace.images[0].url}
+                    alt=""
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-300">
                     <span className="material-symbols-outlined text-4xl">place</span>
@@ -67,9 +74,16 @@ export default function PlaceMapView({
                   <div className="flex items-center gap-3">
                     {selectedPlace.average_rating != null && (
                       <div className="flex items-center gap-1 text-slate-900 dark:text-slate-200 font-bold text-xs">
-                        <span className="material-symbols-outlined text-amber-500 text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                        <span
+                          className="material-symbols-outlined text-amber-500 text-[14px]"
+                          style={{ fontVariationSettings: "'FILL' 1" }}
+                        >
+                          star
+                        </span>
                         {selectedPlace.average_rating.toFixed(1)}
-                        <span className="text-slate-400 font-normal ml-0.5">({selectedPlace.review_count || 0})</span>
+                        <span className="text-slate-400 font-normal ml-0.5">
+                          ({selectedPlace.review_count || 0})
+                        </span>
                       </div>
                     )}
                     {selectedPlace.distance != null && (

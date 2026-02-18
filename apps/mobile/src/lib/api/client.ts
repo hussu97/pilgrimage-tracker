@@ -154,20 +154,26 @@ export async function updateMe(updates: { display_name?: string }): Promise<User
 }
 
 export async function getMyCheckIns(): Promise<CheckIn[]> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins`, { headers: await authHeaders() });
+  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins`, {
+    headers: await authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch check-ins');
   const data = await res.json();
   return data;
 }
 
 export async function getThisMonthCheckIns(): Promise<CheckIn[]> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins/this-month`, { headers: await authHeaders() });
+  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins/this-month`, {
+    headers: await authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch this month check-ins');
   return res.json();
 }
 
 export async function getOnThisDayCheckIns(): Promise<CheckIn[]> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins/on-this-day`, { headers: await authHeaders() });
+  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins/on-this-day`, {
+    headers: await authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch on-this-day check-ins');
   return res.json();
 }
@@ -179,7 +185,9 @@ export async function getMyStats(): Promise<UserStats> {
 }
 
 export async function getMyFavorites(): Promise<Place[]> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me/favorites`, { headers: await authHeaders() });
+  const res = await fetch(`${API_BASE}/api/v1/users/me/favorites`, {
+    headers: await authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch favorites');
   return res.json();
 }
@@ -243,7 +251,9 @@ export async function getPlaces(params?: GetPlacesParams): Promise<PlacesRespons
 }
 
 export async function getPlace(placeCode: string): Promise<PlaceDetail> {
-  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}`, { headers: await authHeaders() });
+  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}`, {
+    headers: await authHeaders(),
+  });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail ?? 'Place not found');
   return data;
@@ -255,7 +265,10 @@ export async function getPlaceReviews(placeCode: string, limit = 5): Promise<Rev
   return res.json();
 }
 
-export async function checkIn(placeCode: string, body?: { note?: string; photo_url?: string }): Promise<CheckIn> {
+export async function checkIn(
+  placeCode: string,
+  body?: { note?: string; photo_url?: string },
+): Promise<CheckIn> {
   const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/check-in`, {
     method: 'POST',
     headers: await authHeaders(),
@@ -314,7 +327,13 @@ export async function uploadReviewPhoto(uri: string): Promise<{
 
 export async function createReview(
   placeCode: string,
-  body: { rating: number; title?: string; body?: string; is_anonymous?: boolean; photo_urls?: string[] }
+  body: {
+    rating: number;
+    title?: string;
+    body?: string;
+    is_anonymous?: boolean;
+    photo_urls?: string[];
+  },
 ): Promise<Review> {
   const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/reviews`, {
     method: 'POST',
@@ -329,7 +348,7 @@ export async function createReview(
 // Reviews
 export async function updateReview(
   reviewCode: string,
-  body: { rating?: number; title?: string; body?: string }
+  body: { rating?: number; title?: string; body?: string },
 ): Promise<Review> {
   const res = await fetch(`${API_BASE}/api/v1/reviews/${reviewCode}`, {
     method: 'PATCH',
@@ -375,13 +394,17 @@ export async function createGroup(body: {
 }
 
 export async function getGroup(groupCode: string): Promise<Group> {
-  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}`, { headers: await authHeaders() });
+  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}`, {
+    headers: await authHeaders(),
+  });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail ?? 'Group not found');
   return data;
 }
 
-export async function getGroupByInviteCode(inviteCode: string): Promise<{ group_code: string; name: string }> {
+export async function getGroupByInviteCode(
+  inviteCode: string,
+): Promise<{ group_code: string; name: string }> {
   const res = await fetch(`${API_BASE}/api/v1/groups/by-invite/${inviteCode}`, {
     headers: await authHeaders(),
   });
@@ -390,7 +413,9 @@ export async function getGroupByInviteCode(inviteCode: string): Promise<{ group_
   return data;
 }
 
-export async function joinGroupByCode(inviteCode: string): Promise<{ ok: boolean; group_code: string }> {
+export async function joinGroupByCode(
+  inviteCode: string,
+): Promise<{ ok: boolean; group_code: string }> {
   const res = await fetch(`${API_BASE}/api/v1/groups/join-by-code`, {
     method: 'POST',
     headers: await authHeaders(),
@@ -418,7 +443,7 @@ export async function getGroupMembers(groupCode: string): Promise<GroupMember[]>
 }
 
 export async function createGroupInvite(
-  groupCode: string
+  groupCode: string,
 ): Promise<{ invite_code: string; invite_url: string }> {
   const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/invite`, {
     method: 'POST',
@@ -447,7 +472,7 @@ export async function getGroupActivity(groupCode: string, limit?: number): Promi
 // Notifications
 export async function getNotifications(
   limit?: number,
-  offset?: number
+  offset?: number,
 ): Promise<{ notifications: Notification[]; unread_count: number }> {
   const sp = new URLSearchParams();
   if (limit != null) sp.set('limit', String(limit));
@@ -484,7 +509,10 @@ export async function getVisitorSettings(code: string): Promise<UserSettings> {
   return res.json();
 }
 
-export async function updateVisitorSettings(code: string, body: Partial<UserSettings>): Promise<UserSettings> {
+export async function updateVisitorSettings(
+  code: string,
+  body: Partial<UserSettings>,
+): Promise<UserSettings> {
   const res = await fetch(`${API_BASE}/api/v1/visitors/${encodeURIComponent(code)}/settings`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },

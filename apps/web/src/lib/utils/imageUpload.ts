@@ -19,11 +19,11 @@ export interface ValidationResult {
  */
 export function validateImageFile(file: File): ValidationResult {
   // Check file type
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
   if (!allowedTypes.includes(file.type)) {
     return {
       valid: false,
-      error: "Only JPEG, PNG, and WebP images are allowed",
+      error: 'Only JPEG, PNG, and WebP images are allowed',
     };
   }
 
@@ -32,7 +32,7 @@ export function validateImageFile(file: File): ValidationResult {
   if (file.size > MAX_SIZE) {
     return {
       valid: false,
-      error: "Image size must be less than 5MB",
+      error: 'Image size must be less than 5MB',
     };
   }
 
@@ -46,15 +46,15 @@ export function validateImageFile(file: File): ValidationResult {
 export async function compressImage(
   file: File,
   maxWidth: number = 1200,
-  quality: number = 0.85
+  quality: number = 0.85,
 ): Promise<CompressedImage> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
 
     if (!ctx) {
-      reject(new Error("Failed to get canvas context"));
+      reject(new Error('Failed to get canvas context'));
       return;
     }
 
@@ -78,7 +78,7 @@ export async function compressImage(
       canvas.toBlob(
         (blob) => {
           if (!blob) {
-            reject(new Error("Failed to compress image"));
+            reject(new Error('Failed to compress image'));
             return;
           }
 
@@ -88,13 +88,13 @@ export async function compressImage(
             height,
           });
         },
-        "image/jpeg",
-        quality
+        'image/jpeg',
+        quality,
       );
     };
 
     img.onerror = () => {
-      reject(new Error("Failed to load image"));
+      reject(new Error('Failed to load image'));
     };
 
     // Load the image

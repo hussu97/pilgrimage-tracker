@@ -1,7 +1,7 @@
 import secrets
-from typing import List, Optional
 
-from sqlmodel import Session, select, and_
+from sqlmodel import Session, and_, select
+
 from app.db.models import Group, GroupMember
 
 
@@ -19,7 +19,7 @@ def create_group(
     created_by_user_code: str,
     session: Session,
     is_private: bool = False,
-    path_place_codes: Optional[List[str]] = None,
+    path_place_codes: list[str] | None = None,
 ) -> Group:
     group_code = _generate_group_code()
     invite_code = _generate_invite_code()
@@ -35,11 +35,7 @@ def create_group(
     session.add(group)
 
     # Add creator as admin member
-    member = GroupMember(
-        group_code=group_code,
-        user_code=created_by_user_code,
-        role="admin"
-    )
+    member = GroupMember(group_code=group_code, user_code=created_by_user_code, role="admin")
     session.add(member)
 
     session.commit()
@@ -47,22 +43,29 @@ def create_group(
     return group
 
 
-def get_group_by_code(group_code: str, session: Session) -> Optional[Group]:
+def get_group_by_code(group_code: str, session: Session) -> Group | None:
     return session.exec(select(Group).where(Group.group_code == group_code)).first()
 
 
-def get_group_by_invite_code(invite_code: str, session: Session) -> Optional[Group]:
+def get_group_by_invite_code(invite_code: str, session: Session) -> Group | None:
     return session.exec(select(Group).where(Group.invite_code == invite_code)).first()
 
 
-def get_groups_for_user(user_code: str, session: Session) -> List[Group]:
+def get_groups_for_user(user_code: str, session: Session) -> list[Group]:
     # Join Group and GroupMember
-    statement = select(Group).join(GroupMember).where(GroupMember.user_code == user_code).order_by(Group.created_at.desc())
+    statement = (
+        select(Group)
+        .join(GroupMember)
+        .where(GroupMember.user_code == user_code)
+        .order_by(Group.created_at.desc())
+    )
     return session.exec(statement).all()
 
 
 def is_member(group_code: str, user_code: str, session: Session) -> bool:
-    statement = select(GroupMember).where(and_(GroupMember.group_code == group_code, GroupMember.user_code == user_code))
+    statement = select(GroupMember).where(
+        and_(GroupMember.group_code == group_code, GroupMember.user_code == user_code)
+    )
     return session.exec(statement).first() is not None
 
 
@@ -73,26 +76,24 @@ def add_member(group_code: str, user_code: str, session: Session, role: str = "m
         return False
 
     # Check if already member
-    statement = select(GroupMember).where(and_(GroupMember.group_code == group_code, GroupMember.user_code == user_code))
+    statement = select(GroupMember).where(
+        and_(GroupMember.group_code == group_code, GroupMember.user_code == user_code)
+    )
     if session.exec(statement).first():
         return True
 
-    member = GroupMember(
-        group_code=group_code,
-        user_code=user_code,
-        role=role
-    )
+    member = GroupMember(group_code=group_code, user_code=user_code, role=role)
     session.add(member)
     session.commit()
     return True
 
 
-def get_members(group_code: str, session: Session) -> List[tuple]:
+def get_members(group_code: str, session: Session) -> list[tuple]:
     members = session.exec(select(GroupMember).where(GroupMember.group_code == group_code)).all()
     return [(m.user_code, m.role, m.joined_at.isoformat() + "Z") for m in members]
 
 
-def get_leaderboard(group_code: str, check_ins_db, session: Session) -> List[dict]:
+def get_leaderboard(group_code: str, check_ins_db, session: Session) -> list[dict]:
     members = get_members(group_code, session)
     if not members:
         return []
@@ -106,7 +107,7 @@ def get_leaderboard(group_code: str, check_ins_db, session: Session) -> List[dic
     ]
 
 
-def get_last_activity(group_code: str, check_ins_db, session: Session) -> Optional[str]:
+def get_last_activity(group_code: str, check_ins_db, session: Session) -> str | None:
     members = get_members(group_code, session)
     user_codes = {m[0] for m in members}
     latest = None
@@ -159,7 +160,9 @@ def get_group_progress(
     }
 
 
-def get_activity(group_code: str, check_ins_db, user_store, places_db, session: Session, limit: int = 20) -> List[dict]:
+def get_activity(
+    group_code: str, check_ins_db, user_store, places_db, session: Session, limit: int = 20
+) -> list[dict]:
     members = get_members(group_code, session)
     user_codes = {m[0] for m in members}
 
@@ -185,12 +188,14 @@ def get_activity(group_code: str, check_ins_db, user_store, places_db, session: 
     for chk, uc in top_check_ins:
         user = users_map.get(uc)
         place = places_map.get(chk.place_code)
-        out.append({
-            "type": "check_in",
-            "user_code": uc,
-            "display_name": user.display_name if user else "Unknown",
-            "place_code": chk.place_code,
-            "place_name": place.name if place else chk.place_code,
-            "checked_in_at": chk.checked_in_at.isoformat() + "Z",
-        })
+        out.append(
+            {
+                "type": "check_in",
+                "user_code": uc,
+                "display_name": user.display_name if user else "Unknown",
+                "place_code": chk.place_code,
+                "place_name": place.name if place else chk.place_code,
+                "checked_in_at": chk.checked_in_at.isoformat() + "Z",
+            }
+        )
     return out

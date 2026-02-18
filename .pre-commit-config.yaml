@@ -1,0 +1,61 @@
+repos:
+  # ─── General file hygiene ────────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ".*\\.md$"
+      - id: end-of-file-fixer
+        exclude: ".*\\.(json|svg)$"
+      - id: check-merge-conflict
+      - id: check-yaml
+        exclude: ".*\\.github/.*"
+      - id: check-json
+        exclude: "(seed_data\\.json|package-lock\\.json)"
+      - id: mixed-line-ending
+        args: [--fix=lf]
+        exclude: ".*\\.(bat|ps1)$"
+
+  # ─── Python: Ruff (lint + format) ────────────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^(server|data_scraper)/
+      - id: ruff-format
+        files: ^(server|data_scraper)/
+
+  # ─── JavaScript / TypeScript: ESLint ─────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: eslint-web
+        name: ESLint (web)
+        language: node
+        entry: bash -c 'cd apps/web && npx eslint --fix --ext ts,tsx src/'
+        files: ^apps/web/src/.*\.(ts|tsx)$
+        pass_filenames: false
+
+      - id: eslint-mobile
+        name: ESLint (mobile)
+        language: node
+        entry: bash -c 'cd apps/mobile && npx eslint --fix --ext ts,tsx src/'
+        files: ^apps/mobile/src/.*\.(ts|tsx)$
+        pass_filenames: false
+
+  # ─── JavaScript / TypeScript / JSON / YAML: Prettier ─────────────────────────
+  - repo: local
+    hooks:
+      - id: prettier
+        name: Prettier
+        language: node
+        entry: bash -c 'cd apps/web && npx prettier --write "src/**/*.{ts,tsx,css}"'
+        files: ^apps/web/src/.*\.(ts|tsx|css)$
+        pass_filenames: false
+
+      - id: prettier-mobile
+        name: Prettier (mobile)
+        language: node
+        entry: bash -c 'cd apps/mobile && npx prettier --write "src/**/*.{ts,tsx}"'
+        files: ^apps/mobile/src/.*\.(ts|tsx)$
+        pass_filenames: false

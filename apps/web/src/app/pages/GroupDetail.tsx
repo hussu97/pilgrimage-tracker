@@ -111,7 +111,9 @@ export default function GroupDetail() {
         aria-label={t('common.back')}
         className="flex items-center gap-2 text-text-muted dark:text-dark-text-secondary hover:text-primary mb-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg"
       >
-        <span className="material-symbols-outlined" aria-hidden>arrow_back</span>
+        <span className="material-symbols-outlined" aria-hidden>
+          arrow_back
+        </span>
         {t('common.back')}
       </button>
 
@@ -145,9 +147,7 @@ export default function GroupDetail() {
             </div>
           )}
         </div>
-        {group.description && (
-          <p className="text-text-muted text-sm mt-3">{group.description}</p>
-        )}
+        {group.description && <p className="text-text-muted text-sm mt-3">{group.description}</p>}
       </header>
 
       <section className="mb-8">
@@ -171,8 +171,12 @@ export default function GroupDetail() {
                     <span className="text-[10px] font-black">2</span>
                   </div>
                 </div>
-                <p className="text-xs font-bold text-slate-700 truncate w-full text-center mb-0.5">{topThree[1].display_name}</p>
-                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter">{topThree[1].places_visited} {t('groups.places')}</p>
+                <p className="text-xs font-bold text-slate-700 truncate w-full text-center mb-0.5">
+                  {topThree[1].display_name}
+                </p>
+                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter">
+                  {topThree[1].places_visited} {t('groups.places')}
+                </p>
                 <div className="mt-3 h-16 w-full max-w-[80px] rounded-t-2xl bg-gradient-to-b from-slate-100 to-slate-50 border-x border-t border-slate-100 flex items-center justify-center shadow-inner">
                   <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
                 </div>
@@ -189,11 +193,20 @@ export default function GroupDetail() {
                     </div>
                   </div>
                   <div className="absolute -top-3 -right-1 w-8 h-8 rounded-full bg-amber-500 border-[3px] border-white flex items-center justify-center text-white shadow-md">
-                    <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>emoji_events</span>
+                    <span
+                      className="material-symbols-outlined text-[18px]"
+                      style={{ fontVariationSettings: "'FILL' 1" }}
+                    >
+                      emoji_events
+                    </span>
                   </div>
                 </div>
-                <p className="text-sm font-black text-slate-800 truncate w-full text-center mb-0.5">{topThree[0].display_name}</p>
-                <p className="text-[11px] font-bold text-amber-600 uppercase tracking-tight">{topThree[0].places_visited} {t('groups.places')}</p>
+                <p className="text-sm font-black text-slate-800 truncate w-full text-center mb-0.5">
+                  {topThree[0].display_name}
+                </p>
+                <p className="text-[11px] font-bold text-amber-600 uppercase tracking-tight">
+                  {topThree[0].places_visited} {t('groups.places')}
+                </p>
                 <div className="mt-3 h-24 w-full max-w-[90px] rounded-t-2xl bg-gradient-to-b from-amber-100 to-amber-50 border-x border-t border-amber-100 flex items-center justify-center shadow-inner">
                   <div className="w-2 h-2 rounded-full bg-amber-300" />
                 </div>
@@ -213,8 +226,12 @@ export default function GroupDetail() {
                     <span className="text-[10px] font-black">3</span>
                   </div>
                 </div>
-                <p className="text-xs font-bold text-slate-700 truncate w-full text-center mb-0.5">{topThree[2].display_name}</p>
-                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter">{topThree[2].places_visited} {t('groups.places')}</p>
+                <p className="text-xs font-bold text-slate-700 truncate w-full text-center mb-0.5">
+                  {topThree[2].display_name}
+                </p>
+                <p className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter">
+                  {topThree[2].places_visited} {t('groups.places')}
+                </p>
                 <div className="mt-3 h-12 w-full max-w-[80px] rounded-t-2xl bg-gradient-to-b from-orange-100 to-orange-50 border-x border-t border-orange-100 flex items-center justify-center shadow-inner">
                   <div className="w-1.5 h-1.5 rounded-full bg-orange-200" />
                 </div>
@@ -240,18 +257,26 @@ export default function GroupDetail() {
                 key={entry.user_code}
                 className="flex items-center gap-3 p-3 rounded-xl border border-input-border dark:border-dark-border bg-surface dark:bg-dark-surface"
               >
-                <span className="text-sm font-medium text-text-muted dark:text-dark-text-secondary w-6">#{entry.rank}</span>
+                <span className="text-sm font-medium text-text-muted dark:text-dark-text-secondary w-6">
+                  #{entry.rank}
+                </span>
                 <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold shrink-0">
                   {(entry.display_name || '?').charAt(0)}
                 </div>
-                <span className="font-medium text-text-main dark:text-white flex-1 truncate">{entry.display_name}</span>
-                <span className="text-sm text-text-muted dark:text-dark-text-secondary">{entry.places_visited} {t('groups.places')}</span>
+                <span className="font-medium text-text-main dark:text-white flex-1 truncate">
+                  {entry.display_name}
+                </span>
+                <span className="text-sm text-text-muted dark:text-dark-text-secondary">
+                  {entry.places_visited} {t('groups.places')}
+                </span>
               </li>
             ))}
           </ul>
         )}
         {leaderboard.length === 0 && (
-          <p className="text-text-muted dark:text-dark-text-secondary text-sm py-4">{t('groups.noLeaderboardData')}</p>
+          <p className="text-text-muted dark:text-dark-text-secondary text-sm py-4">
+            {t('groups.noLeaderboardData')}
+          </p>
         )}
       </section>
 
@@ -261,11 +286,17 @@ export default function GroupDetail() {
           {t('groups.recentlyVisited')}
         </h2>
         {activity.length === 0 ? (
-          <p className="text-text-muted dark:text-dark-text-secondary text-sm py-4">{t('groups.noRecentActivity')}</p>
+          <p className="text-text-muted dark:text-dark-text-secondary text-sm py-4">
+            {t('groups.noRecentActivity')}
+          </p>
         ) : (
           <ul className="space-y-4">
             {activity.map((item, i) => (
-              <li key={`${item.user_code}-${item.place_code}-${item.checked_in_at}-${i}`} className="animate-in fade-in slide-in-from-left duration-300" style={{ animationDelay: `${i * 50}ms` }}>
+              <li
+                key={`${item.user_code}-${item.place_code}-${item.checked_in_at}-${i}`}
+                className="animate-in fade-in slide-in-from-left duration-300"
+                style={{ animationDelay: `${i * 50}ms` }}
+              >
                 <Link
                   to={`/places/${item.place_code}`}
                   className="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface shadow-subtle hover:bg-slate-50 dark:hover:bg-dark-surface/80 transition-all group"
@@ -275,18 +306,29 @@ export default function GroupDetail() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-slate-600 dark:text-slate-300 leading-snug">
-                      <span className="font-bold text-slate-900 dark:text-white">{item.display_name}</span>
-                      {' '}{t('groups.checkedInAt')}{' '}
+                      <span className="font-bold text-slate-900 dark:text-white">
+                        {item.display_name}
+                      </span>{' '}
+                      {t('groups.checkedInAt')}{' '}
                     </p>
                     <p className="font-bold text-primary text-sm truncate">{item.place_name}</p>
                     <div className="flex items-center gap-1.5 mt-1">
-                      <span className="material-symbols-outlined text-[12px] text-slate-400">schedule</span>
+                      <span className="material-symbols-outlined text-[12px] text-slate-400">
+                        schedule
+                      </span>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
-                        {item.checked_in_at ? new Date(item.checked_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        {item.checked_in_at
+                          ? new Date(item.checked_in_at).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : ''}
                       </p>
                     </div>
                   </div>
-                  <span className="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors">arrow_forward</span>
+                  <span className="material-symbols-outlined text-slate-300 group-hover:text-primary transition-colors">
+                    arrow_forward
+                  </span>
                 </Link>
               </li>
             ))}

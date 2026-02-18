@@ -59,7 +59,7 @@ export default function SwipeableRow({
         }
       },
       onPanResponderTerminate: () => closeRow(),
-    })
+    }),
   ).current;
 
   const handleAction = () => {
@@ -70,12 +70,7 @@ export default function SwipeableRow({
   return (
     <View style={styles.container}>
       {/* Action button revealed on swipe */}
-      <View
-        style={[
-          styles.actionContainer,
-          { backgroundColor: deleteColor, width: DELETE_WIDTH },
-        ]}
-      >
+      <View style={[styles.actionContainer, { backgroundColor: deleteColor, width: DELETE_WIDTH }]}>
         <TouchableOpacity style={styles.actionButton} onPress={handleAction} activeOpacity={0.8}>
           <MaterialIcons name={deleteIcon as any} size={20} color="#fff" />
           <Text style={styles.actionLabel}>{deleteLabel}</Text>
@@ -83,10 +78,7 @@ export default function SwipeableRow({
       </View>
 
       {/* Swipeable content */}
-      <Animated.View
-        {...panResponder.panHandlers}
-        style={{ transform: [{ translateX }] }}
-      >
+      <Animated.View {...panResponder.panHandlers} style={{ transform: [{ translateX }] }}>
         {children}
       </Animated.View>
     </View>

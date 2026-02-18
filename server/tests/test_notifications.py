@@ -28,6 +28,7 @@ def _auth(token):
 
 # ── DB layer tests (via db_session fixture) ────────────────────────────────────
 
+
 class TestNotificationsDb:
     def test_create_and_list(self, db_session):
         from app.db import notifications as notif_db
@@ -75,6 +76,7 @@ class TestNotificationsDb:
 
 
 # ── API endpoint tests ──────────────────────────────────────────────────────────
+
 
 class TestNotificationsApi:
     def test_list_notifications_requires_auth(self, client):

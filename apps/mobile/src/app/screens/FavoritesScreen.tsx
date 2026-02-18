@@ -1,19 +1,17 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  FlatList,
-  RefreshControl,
-} from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
-type MainTabParamList = { Home: undefined; Favorites: undefined; Groups: undefined; Profile: undefined };
+type MainTabParamList = {
+  Home: undefined;
+  Favorites: undefined;
+  Groups: undefined;
+  Profile: undefined;
+};
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { getMyFavorites, removeFavorite } from '@/lib/api/client';
 import PlaceCard from '@/components/places/PlaceCard';
@@ -116,18 +114,21 @@ export default function FavoritesScreen() {
     fetchFavorites();
   }, [fetchFavorites]);
 
-  const handleRemove = useCallback(async (placeCode: string) => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setRemovingCode(placeCode);
-    try {
-      await removeFavorite(placeCode);
-      setPlaces((prev) => prev.filter((p) => p.place_code !== placeCode));
-    } catch {
-      setError(t('common.error'));
-    } finally {
-      setRemovingCode(null);
-    }
-  }, [t]);
+  const handleRemove = useCallback(
+    async (placeCode: string) => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setRemovingCode(placeCode);
+      try {
+        await removeFavorite(placeCode);
+        setPlaces((prev) => prev.filter((p) => p.place_code !== placeCode));
+      } catch {
+        setError(t('common.error'));
+      } finally {
+        setRemovingCode(null);
+      }
+    },
+    [t],
+  );
 
   if (!user) {
     return (
@@ -151,9 +152,10 @@ export default function FavoritesScreen() {
   }
 
   // Skeleton data while loading
-  const skeletonData = loading && places.length === 0
-    ? Array.from({ length: 4 }, (_, i) => ({ place_code: `skel-${i}` })) as any[]
-    : null;
+  const skeletonData =
+    loading && places.length === 0
+      ? (Array.from({ length: 4 }, (_, i) => ({ place_code: `skel-${i}` })) as any[])
+      : null;
 
   const listData = skeletonData ?? places;
 
@@ -188,12 +190,16 @@ export default function FavoritesScreen() {
               if (stackNav?.canGoBack?.()) {
                 stackNav.goBack();
               } else {
-                tabNav.navigate('Home' as never);
+                tabNav.navigate('Main' as never);
               }
             }}
             activeOpacity={0.8}
           >
-            <MaterialIcons name="arrow-back" size={20} color={isDark ? '#fff' : tokens.colors.textDark} />
+            <MaterialIcons
+              name="arrow-back"
+              size={20}
+              color={isDark ? '#fff' : tokens.colors.textDark}
+            />
           </TouchableOpacity>
           <Text style={styles.sectionLabel}>{t('nav.saved')}</Text>
           <Text style={styles.title}>{t('favorites.title')}</Text>

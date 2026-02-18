@@ -9,7 +9,8 @@ import {
   Alert,
   Animated,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -147,12 +148,17 @@ export default function PlaceDetailScreen() {
         Animated.timing(checkInScale, { toValue: 1, duration: 150, useNativeDriver: true }),
       ]).start();
       const date = new Date(result.checked_in_at).toLocaleDateString('en-US', {
-        day: 'numeric', month: 'short', year: 'numeric',
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
       });
       setCheckInDate(date);
       setTimeout(() => setCheckInDone(true), 430);
     } catch (err) {
-      Alert.alert(t('places.checkInFailed'), err instanceof Error ? err.message : t('places.tryAgain'));
+      Alert.alert(
+        t('places.checkInFailed'),
+        err instanceof Error ? err.message : t('places.tryAgain'),
+      );
     } finally {
       setCheckInLoading(false);
     }
@@ -176,7 +182,14 @@ export default function PlaceDetailScreen() {
     return (
       <Animated.View style={[styles.footerBtnPrimary, { transform: [{ scale: checkInScale }] }]}>
         <TouchableOpacity
-          style={{ flex: 1, width: '100%', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}
+          style={{
+            flex: 1,
+            width: '100%',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'row',
+            gap: 6,
+          }}
           onPress={handleCheckIn}
           disabled={checkInLoading}
           activeOpacity={0.8}
@@ -243,12 +256,15 @@ export default function PlaceDetailScreen() {
   const timings: PlaceTiming[] = place.timings ?? [];
   const specifications: PlaceSpecification[] = place.specifications ?? [];
   const crowdLevel = (place as PlaceDetailType & { crowd_level?: string }).crowd_level;
-  const totalCheckins = (place as PlaceDetailType & { total_checkins_count?: number }).total_checkins_count;
+  const totalCheckins = (place as PlaceDetailType & { total_checkins_count?: number })
+    .total_checkins_count;
 
   const carouselTitle =
-    place.religion === 'islam' ? t('placeDetail.prayerTimes') :
-      place.religion === 'hinduism' ? t('placeDetail.divinePresence') :
-        t('placeDetail.serviceTimes');
+    place.religion === 'islam'
+      ? t('placeDetail.prayerTimes')
+      : place.religion === 'hinduism'
+        ? t('placeDetail.divinePresence')
+        : t('placeDetail.serviceTimes');
 
   const cardBg = isDark ? tokens.colors.darkBg : tokens.colors.backgroundLight;
   const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
@@ -260,12 +276,7 @@ export default function PlaceDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: cardBg }]}>
       {/* Hero (fixed behind content) */}
-      <Animated.View
-        style={[
-          styles.heroFixed,
-          { transform: [{ translateY: heroTranslateY }] },
-        ]}
-      >
+      <Animated.View style={[styles.heroFixed, { transform: [{ translateY: heroTranslateY }] }]}>
         {heroImage ? (
           <ExpoImage
             source={{ uri: heroImage }}
@@ -287,24 +298,33 @@ export default function PlaceDetailScreen() {
         <View style={styles.heroBottom}>
           <View style={styles.heroBadgeRow}>
             {(() => {
-              const status = place.open_status ?? (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : null);
-              if (status === 'open') return (
-                <View style={[styles.heroBadge, styles.heroBadgeOpen]}>
-                  <View style={[styles.heroBadgeDot, { backgroundColor: '#4ade80' }]} />
-                  <Text style={styles.heroBadgeText}>{t('places.open')}</Text>
-                </View>
-              );
-              if (status === 'closed') return (
-                <View style={[styles.heroBadge, styles.heroBadgeClosed]}>
-                  <View style={[styles.heroBadgeDot, { backgroundColor: '#f87171' }]} />
-                  <Text style={styles.heroBadgeText}>{t('places.closed')}</Text>
-                </View>
-              );
-              if (status === 'unknown') return (
-                <View style={[styles.heroBadge, styles.heroBadgeUnknown]}>
-                  <Text style={styles.heroBadgeText}>{t('places.unknown')}</Text>
-                </View>
-              );
+              const status =
+                place.open_status ??
+                (place.is_open_now === true
+                  ? 'open'
+                  : place.is_open_now === false
+                    ? 'closed'
+                    : null);
+              if (status === 'open')
+                return (
+                  <View style={[styles.heroBadge, styles.heroBadgeOpen]}>
+                    <View style={[styles.heroBadgeDot, { backgroundColor: '#4ade80' }]} />
+                    <Text style={styles.heroBadgeText}>{t('places.open')}</Text>
+                  </View>
+                );
+              if (status === 'closed')
+                return (
+                  <View style={[styles.heroBadge, styles.heroBadgeClosed]}>
+                    <View style={[styles.heroBadgeDot, { backgroundColor: '#f87171' }]} />
+                    <Text style={styles.heroBadgeText}>{t('places.closed')}</Text>
+                  </View>
+                );
+              if (status === 'unknown')
+                return (
+                  <View style={[styles.heroBadge, styles.heroBadgeUnknown]}>
+                    <Text style={styles.heroBadgeText}>{t('places.unknown')}</Text>
+                  </View>
+                );
               return null;
             })()}
             {averageRating != null && (
@@ -315,9 +335,7 @@ export default function PlaceDetailScreen() {
             )}
           </View>
           <Text style={styles.heroName}>{place.name}</Text>
-          {place.address ? (
-            <Text style={styles.heroAddress}>{place.address}</Text>
-          ) : null}
+          {place.address ? <Text style={styles.heroAddress}>{place.address}</Text> : null}
         </View>
       </Animated.View>
 
@@ -326,19 +344,34 @@ export default function PlaceDetailScreen() {
         style={[styles.stickyHeader, { opacity: headerOpacity, paddingTop: insets.top }]}
         pointerEvents="none"
       >
-        <Text style={styles.stickyHeaderTitle} numberOfLines={1}>{place.name}</Text>
+        <Text style={styles.stickyHeaderTitle} numberOfLines={1}>
+          {place.name}
+        </Text>
       </Animated.View>
 
       {/* Top bar buttons (always visible) */}
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
-        <TouchableOpacity style={styles.circleBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
+        <TouchableOpacity
+          style={styles.circleBtn}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.8}
+        >
           <MaterialIcons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
         <View style={styles.topBarRight}>
-          <TouchableOpacity style={styles.circleBtn} onPress={() => shareUrl(place.name, `places/${placeCode}`)} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.circleBtn}
+            onPress={() => shareUrl(place.name, `places/${placeCode}`)}
+            activeOpacity={0.8}
+          >
             <MaterialIcons name="share" size={20} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.circleBtn} onPress={toggleFavorite} disabled={favoriteLoading} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.circleBtn}
+            onPress={toggleFavorite}
+            disabled={favoriteLoading}
+            activeOpacity={0.8}
+          >
             <MaterialIcons
               name={place.is_favorite ? 'favorite' : 'favorite-border'}
               size={20}
@@ -353,10 +386,9 @@ export default function PlaceDetailScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+        })}
       >
         {/* Spacer to push card below hero */}
         <View style={styles.heroSpacer} />
@@ -374,7 +406,9 @@ export default function PlaceDetailScreen() {
           {/* The Story */}
           {place.description ? (
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: textMuted }]}>{t('placeDetail.theStory')}</Text>
+              <Text style={[styles.sectionTitle, { color: textMuted }]}>
+                {t('placeDetail.theStory')}
+              </Text>
               <Text
                 style={[styles.description, { color: textSecondary }]}
                 numberOfLines={storyExpanded ? undefined : 5}
@@ -392,7 +426,9 @@ export default function PlaceDetailScreen() {
           {/* Opening Hours */}
           {place.opening_hours && Object.keys(place.opening_hours).length > 0 ? (
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: textMuted }]}>{t('places.openingHours')}</Text>
+              <Text style={[styles.sectionTitle, { color: textMuted }]}>
+                {t('places.openingHours')}
+              </Text>
               <View style={[styles.hoursCard, { backgroundColor: surface, borderColor: border }]}>
                 {!hoursExpanded ? (
                   // Collapsed state: Show today's hours
@@ -406,7 +442,10 @@ export default function PlaceDetailScreen() {
                       <Text style={[styles.hoursToday, { color: textMain }]}>
                         {t('places.today')}:
                       </Text>
-                      <Text style={[styles.hoursTodayValue, { color: textSecondary }]} numberOfLines={1}>
+                      <Text
+                        style={[styles.hoursTodayValue, { color: textSecondary }]}
+                        numberOfLines={1}
+                      >
                         {formatHoursDisplay(place.opening_hours_today, t)}
                       </Text>
                     </View>
@@ -415,17 +454,51 @@ export default function PlaceDetailScreen() {
                 ) : (
                   // Expanded state: Show full weekly schedule
                   <View style={styles.hoursExpanded}>
-                    {(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const).map((key, i) => {
-                      const dayEn = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][i];
+                    {(
+                      [
+                        'monday',
+                        'tuesday',
+                        'wednesday',
+                        'thursday',
+                        'friday',
+                        'saturday',
+                        'sunday',
+                      ] as const
+                    ).map((key, i) => {
+                      const dayEn = [
+                        'Monday',
+                        'Tuesday',
+                        'Wednesday',
+                        'Thursday',
+                        'Friday',
+                        'Saturday',
+                        'Sunday',
+                      ][i];
                       const hours = place.opening_hours?.[dayEn];
-                      const isToday = place.opening_hours_today && place.opening_hours?.[dayEn] === place.opening_hours_today;
+                      const isToday =
+                        place.opening_hours_today &&
+                        place.opening_hours?.[dayEn] === place.opening_hours_today;
 
                       return (
                         <View key={key} style={styles.hoursRow}>
-                          <Text style={[styles.hoursDay, { color: textSecondary }, isToday && styles.hoursDayToday]}>
+                          <Text
+                            style={[
+                              styles.hoursDay,
+                              { color: textSecondary },
+                              isToday && styles.hoursDayToday,
+                            ]}
+                          >
                             {t(`common.${key}`)}
                           </Text>
-                          <Text style={[styles.hoursValue, { color: textSecondary }, isToday && styles.hoursValueToday, { flexShrink: 1 }]} numberOfLines={1}>
+                          <Text
+                            style={[
+                              styles.hoursValue,
+                              { color: textSecondary },
+                              isToday && styles.hoursValueToday,
+                              { flexShrink: 1 },
+                            ]}
+                            numberOfLines={1}
+                          >
                             {formatHoursDisplay(hours, t)}
                           </Text>
                         </View>
@@ -471,7 +544,13 @@ export default function PlaceDetailScreen() {
       <View
         style={[
           styles.footer,
-          { paddingBottom: insets.bottom + 12, paddingTop: 12, paddingHorizontal: 16, backgroundColor: surface, borderTopColor: border },
+          {
+            paddingBottom: insets.bottom + 12,
+            paddingTop: 12,
+            paddingHorizontal: 16,
+            backgroundColor: surface,
+            borderTopColor: border,
+          },
         ]}
       >
         <TouchableOpacity

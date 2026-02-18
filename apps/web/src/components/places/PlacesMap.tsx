@@ -75,7 +75,12 @@ interface PlacesMapProps {
   selectedPlaceCode?: string | null;
 }
 
-export default function PlacesMap({ places, center, onPlaceSelect, selectedPlaceCode }: PlacesMapProps) {
+export default function PlacesMap({
+  places,
+  center,
+  onPlaceSelect,
+  selectedPlaceCode,
+}: PlacesMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -85,7 +90,7 @@ export default function PlacesMap({ places, center, onPlaceSelect, selectedPlace
   useLayoutEffect(() => {
     if (!containerRef.current) return;
 
-    const mapCenter = center ? [center.lat, center.lng] as [number, number] : DEFAULT_CENTER;
+    const mapCenter = center ? ([center.lat, center.lng] as [number, number]) : DEFAULT_CENTER;
     const zoom = center ? USER_ZOOM : DEFAULT_ZOOM;
 
     const map = L.map(containerRef.current, { center: mapCenter, zoom, zoomControl: true });
@@ -137,9 +142,10 @@ export default function PlacesMap({ places, center, onPlaceSelect, selectedPlace
       if (onPlaceSelect) {
         marker.on('click', () => onPlaceSelect(place));
       } else {
-        const distHtml = place.distance != null
-          ? `<p style="font-size:13px;color:#6b7280;margin:2px 0 8px">${formatDistance(place.distance)} away</p>`
-          : '';
+        const distHtml =
+          place.distance != null
+            ? `<p style="font-size:13px;color:#6b7280;margin:2px 0 8px">${formatDistance(place.distance)} away</p>`
+            : '';
         marker.bindPopup(`
           <div style="min-width:160px">
             <p style="font-weight:600;color:#111;margin:0 0 2px">${place.name}</p>

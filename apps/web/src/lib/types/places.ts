@@ -14,7 +14,7 @@ export interface Place {
    * Blob images are automatically served via /api/v1/places/{code}/images/{id}
    * so all images appear as URLs to the client. Frontend doesn't need to know the storage type.
    */
-  images?: Array<{url: string; display_order: number}>;
+  images?: Array<{ url: string; display_order: number }>;
   distance?: number;
   description?: string;
   opening_hours?: Record<string, string>;
@@ -71,7 +71,13 @@ export interface CheckIn {
   checked_in_at: string;
   note?: string;
   photo_url?: string;
-  place?: { place_code: string; name: string; address: string; images?: Array<{url: string; display_order: number}>; average_rating?: number };
+  place?: {
+    place_code: string;
+    name: string;
+    address: string;
+    images?: Array<{ url: string; display_order: number }>;
+    average_rating?: number;
+  };
   date?: string;
   time?: string;
   place_name?: string;

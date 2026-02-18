@@ -50,8 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
   const [loading, setLoading] = useState(true);
-  const [visitorCode, setVisitorCode] = useState<string | null>(
-    () => localStorage.getItem(VISITOR_KEY)
+  const [visitorCode, setVisitorCode] = useState<string | null>(() =>
+    localStorage.getItem(VISITOR_KEY),
   );
 
   const setUser = useCallback((u: User | null) => {
@@ -97,7 +97,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const vc = localStorage.getItem(VISITOR_KEY);
-    const { user: u, token: t } = await api.login({ email, password, visitor_code: vc ?? undefined } as any);
+    const { user: u, token: t } = await api.login({
+      email,
+      password,
+      visitor_code: vc ?? undefined,
+    } as any);
     localStorage.setItem(TOKEN_KEY, t);
     localStorage.setItem(USER_KEY, JSON.stringify(u));
     // Clear visitor code after successful login (merged on server)
@@ -109,7 +113,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (email: string, password: string, display_name?: string) => {
     const vc = localStorage.getItem(VISITOR_KEY);
-    const { user: u, token: t } = await api.register({ email, password, display_name, visitor_code: vc ?? undefined } as any);
+    const { user: u, token: t } = await api.register({
+      email,
+      password,
+      display_name,
+      visitor_code: vc ?? undefined,
+    } as any);
     localStorage.setItem(TOKEN_KEY, t);
     localStorage.setItem(USER_KEY, JSON.stringify(u));
     // Clear visitor code after successful register (merged on server)
@@ -129,7 +138,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [initVisitor]);
 
   const authValue: AuthContextValue = useMemo(
-    () => ({ user, token, loading, visitorCode, login, register, logout, setUser, refreshUser, initVisitor }),
+    () => ({
+      user,
+      token,
+      loading,
+      visitorCode,
+      login,
+      register,
+      logout,
+      setUser,
+      refreshUser,
+      initVisitor,
+    }),
     [user, token, loading, visitorCode, login, register, logout, setUser, refreshUser, initVisitor],
   );
 
@@ -169,20 +189,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } catch {}
     return 'system';
   });
-  const [isDark, setIsDark] = useState(() => applyTheme(
-    (() => {
-      try {
-        const s = localStorage.getItem(THEME_STORAGE_KEY);
-        if (s === 'light' || s === 'dark' || s === 'system') return s as Theme;
-      } catch {}
-      return 'system';
-    })()
-  ));
+  const [isDark, setIsDark] = useState(() =>
+    applyTheme(
+      (() => {
+        try {
+          const s = localStorage.getItem(THEME_STORAGE_KEY);
+          if (s === 'light' || s === 'dark' || s === 'system') return s as Theme;
+        } catch {}
+        return 'system';
+      })(),
+    ),
+  );
 
   useEffect(() => {
     const dark = applyTheme(theme);
     setIsDark(dark);
-    try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch {}
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {}
   }, [theme]);
 
   useEffect(() => {
@@ -200,7 +224,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeState(t);
   }, []);
 
-  const value = useMemo<ThemeContextValue>(() => ({ theme, isDark, setTheme }), [theme, isDark, setTheme]);
+  const value = useMemo<ThemeContextValue>(
+    () => ({ theme, isDark, setTheme }),
+    [theme, isDark, setTheme],
+  );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
@@ -230,7 +257,8 @@ function resolveInitialLocale(list: { code: string; name: string }[]): LocaleCod
     const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
     if (stored && codeSet.has(stored)) return stored as LocaleCode;
   } catch {}
-  if (typeof navigator === 'undefined') return codes.includes('en') ? 'en' : (codes[0] as LocaleCode);
+  if (typeof navigator === 'undefined')
+    return codes.includes('en') ? 'en' : (codes[0] as LocaleCode);
   const device = navigator.language?.toLowerCase().split(/[-_]/)[0] ?? 'en';
   const match = codes.find((c) => c === device || c.split(/[-_]/)[0] === device);
   return (match as LocaleCode) ?? (codes.includes('en') ? 'en' : (codes[0] as LocaleCode));

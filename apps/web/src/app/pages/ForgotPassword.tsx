@@ -29,13 +29,20 @@ export default function ForgotPassword() {
       <div className="min-h-screen bg-background-light dark:bg-dark-bg flex flex-col items-center justify-center px-6 safe-area-top safe-area-bottom">
         <div className="max-w-md w-full text-center space-y-6">
           <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto">
-            <span className="material-symbols-outlined text-emerald-600 text-[32px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+            <span
+              className="material-symbols-outlined text-emerald-600 text-[32px]"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
               check_circle
             </span>
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-text-dark dark:text-white">{t('auth.checkEmail')}</h1>
-            <p className="text-text-muted dark:text-dark-text-secondary text-sm leading-relaxed">{t('auth.resetLinkSent')}</p>
+            <h1 className="text-2xl font-bold text-text-dark dark:text-white">
+              {t('auth.checkEmail')}
+            </h1>
+            <p className="text-text-muted dark:text-dark-text-secondary text-sm leading-relaxed">
+              {t('auth.resetLinkSent')}
+            </p>
           </div>
           <Link
             to="/login"
@@ -63,13 +70,20 @@ export default function ForgotPassword() {
 
         {/* Key icon */}
         <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-6">
-          <span className="material-symbols-outlined text-primary text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+          <span
+            className="material-symbols-outlined text-primary text-[28px]"
+            style={{ fontVariationSettings: "'FILL' 1" }}
+          >
             key
           </span>
         </div>
 
-        <h1 className="text-2xl font-bold text-text-dark dark:text-white mb-1">{t('auth.resetPassword')}</h1>
-        <p className="text-text-muted dark:text-dark-text-secondary text-sm mb-8">{t('auth.enterNewPassword')}</p>
+        <h1 className="text-2xl font-bold text-text-dark dark:text-white mb-1">
+          {t('auth.resetPassword')}
+        </h1>
+        <p className="text-text-muted dark:text-dark-text-secondary text-sm mb-8">
+          {t('auth.enterNewPassword')}
+        </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <input

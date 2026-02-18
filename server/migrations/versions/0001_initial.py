@@ -5,15 +5,16 @@ Revises:
 Create Date: 2026-02-17
 
 """
-from typing import Sequence, Union
+
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0001"
-down_revision: Union[str, None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -123,7 +124,12 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_reviewimage_review_code", "reviewimage", ["review_code"], unique=False)
-    op.create_index("ix_reviewimage_uploaded_by_user_code", "reviewimage", ["uploaded_by_user_code"], unique=False)
+    op.create_index(
+        "ix_reviewimage_uploaded_by_user_code",
+        "reviewimage",
+        ["uploaded_by_user_code"],
+        unique=False,
+    )
 
     op.create_table(
         "checkin",
@@ -192,7 +198,9 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["user_code"], ["user.user_code"]),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_notification_notification_code", "notification", ["notification_code"], unique=True)
+    op.create_index(
+        "ix_notification_notification_code", "notification", ["notification_code"], unique=True
+    )
     op.create_index("ix_notification_user_code", "notification", ["user_code"], unique=False)
 
     op.create_table(
@@ -234,7 +242,12 @@ def upgrade() -> None:
         sa.Column("display_order", sa.Integer(), nullable=False, server_default="0"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_placeattributedefinition_attribute_code", "placeattributedefinition", ["attribute_code"], unique=True)
+    op.create_index(
+        "ix_placeattributedefinition_attribute_code",
+        "placeattributedefinition",
+        ["attribute_code"],
+        unique=True,
+    )
 
     op.create_table(
         "placeattribute",
@@ -249,7 +262,9 @@ def upgrade() -> None:
         sa.UniqueConstraint("place_code", "attribute_code"),
     )
     op.create_index("ix_placeattribute_place_code", "placeattribute", ["place_code"], unique=False)
-    op.create_index("ix_placeattribute_attribute_code", "placeattribute", ["attribute_code"], unique=False)
+    op.create_index(
+        "ix_placeattribute_attribute_code", "placeattribute", ["attribute_code"], unique=False
+    )
 
 
 def downgrade() -> None:

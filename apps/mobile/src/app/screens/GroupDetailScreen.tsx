@@ -7,14 +7,11 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  getGroup,
-  getGroupLeaderboard,
-  getGroupActivity,
-} from '@/lib/api/client';
+import { getGroup, getGroupLeaderboard, getGroupActivity } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
 import { INVITE_LINK_BASE_URL } from '@/lib/constants';
 import { useI18n } from '@/app/providers';
@@ -107,10 +104,7 @@ export default function GroupDetailScreen() {
         <TouchableOpacity onPress={fetchData} style={styles.retryButton}>
           <Text style={styles.retryText}>{t('common.retry')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Main')}
-          style={styles.backButton}
-        >
+        <TouchableOpacity onPress={() => navigation.navigate('Main')} style={styles.backButton}>
           <Text style={styles.backButtonText}>{t('nav.groups')}</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -148,9 +142,7 @@ export default function GroupDetailScreen() {
           </TouchableOpacity>
         ) : null}
       </View>
-      {group.description ? (
-        <Text style={styles.description}>{group.description}</Text>
-      ) : null}
+      {group.description ? <Text style={styles.description}>{group.description}</Text> : null}
 
       <Text style={styles.sectionTitle}>{t('groups.leaderboard')}</Text>
       {topThree.length > 0 ? (
@@ -160,9 +152,15 @@ export default function GroupDetailScreen() {
               <View style={[styles.avatar, styles.avatar2]}>
                 <Text style={styles.avatarText}>{(topThree[1].display_name || '?').charAt(0)}</Text>
               </View>
-              <Text style={styles.podiumName} numberOfLines={1}>{topThree[1].display_name}</Text>
-              <Text style={styles.podiumPlaces}>{topThree[1].places_visited} {t('groups.places')}</Text>
-              <View style={[styles.rankBar, styles.rankBar2]}><Text style={styles.rankNum}>2</Text></View>
+              <Text style={styles.podiumName} numberOfLines={1}>
+                {topThree[1].display_name}
+              </Text>
+              <Text style={styles.podiumPlaces}>
+                {topThree[1].places_visited} {t('groups.places')}
+              </Text>
+              <View style={[styles.rankBar, styles.rankBar2]}>
+                <Text style={styles.rankNum}>2</Text>
+              </View>
             </View>
           ) : null}
           {topThree[0] ? (
@@ -170,9 +168,15 @@ export default function GroupDetailScreen() {
               <View style={[styles.avatar, styles.avatar1]}>
                 <Text style={styles.avatarText}>{(topThree[0].display_name || '?').charAt(0)}</Text>
               </View>
-              <Text style={styles.podiumName} numberOfLines={1}>{topThree[0].display_name}</Text>
-              <Text style={styles.podiumPlaces}>{topThree[0].places_visited} {t('groups.places')}</Text>
-              <View style={[styles.rankBar, styles.rankBar1]}><Text style={styles.rankNum1}>1</Text></View>
+              <Text style={styles.podiumName} numberOfLines={1}>
+                {topThree[0].display_name}
+              </Text>
+              <Text style={styles.podiumPlaces}>
+                {topThree[0].places_visited} {t('groups.places')}
+              </Text>
+              <View style={[styles.rankBar, styles.rankBar1]}>
+                <Text style={styles.rankNum1}>1</Text>
+              </View>
             </View>
           ) : null}
           {topThree[2] ? (
@@ -180,18 +184,21 @@ export default function GroupDetailScreen() {
               <View style={[styles.avatar, styles.avatar3]}>
                 <Text style={styles.avatarText}>{(topThree[2].display_name || '?').charAt(0)}</Text>
               </View>
-              <Text style={styles.podiumName} numberOfLines={1}>{topThree[2].display_name}</Text>
-              <Text style={styles.podiumPlaces}>{topThree[2].places_visited} {t('groups.places')}</Text>
-              <View style={[styles.rankBar, styles.rankBar3]}><Text style={styles.rankNum}>3</Text></View>
+              <Text style={styles.podiumName} numberOfLines={1}>
+                {topThree[2].display_name}
+              </Text>
+              <Text style={styles.podiumPlaces}>
+                {topThree[2].places_visited} {t('groups.places')}
+              </Text>
+              <View style={[styles.rankBar, styles.rankBar3]}>
+                <Text style={styles.rankNum}>3</Text>
+              </View>
             </View>
           ) : null}
         </View>
       ) : null}
       {leaderboard.length > 3 ? (
-        <TouchableOpacity
-          onPress={() => setShowFullLeaderboard((v) => !v)}
-          style={styles.viewFull}
-        >
+        <TouchableOpacity onPress={() => setShowFullLeaderboard((v) => !v)} style={styles.viewFull}>
           <Text style={styles.viewFullText}>
             {showFullLeaderboard ? t('groups.showLess') : t('groups.viewFullLeaderboard')}
           </Text>
@@ -205,8 +212,12 @@ export default function GroupDetailScreen() {
               <View style={styles.avatarSmall}>
                 <Text style={styles.avatarSmallText}>{(entry.display_name || '?').charAt(0)}</Text>
               </View>
-              <Text style={styles.leaderName} numberOfLines={1}>{entry.display_name}</Text>
-              <Text style={styles.leaderPlaces}>{entry.places_visited} {t('groups.places')}</Text>
+              <Text style={styles.leaderName} numberOfLines={1}>
+                {entry.display_name}
+              </Text>
+              <Text style={styles.leaderPlaces}>
+                {entry.places_visited} {t('groups.places')}
+              </Text>
             </View>
           ))}
         </View>
@@ -261,7 +272,13 @@ const styles = StyleSheet.create({
   backLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 },
   backArrow: { fontSize: 20, color: tokens.colors.textMuted },
   backLabel: { fontSize: 16, color: tokens.colors.textMuted },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 8 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 8,
+  },
   headerLeft: { flex: 1, minWidth: 0 },
   groupName: { fontSize: 22, fontWeight: '700', color: tokens.colors.textDark },
   memberCount: { fontSize: 14, color: tokens.colors.textMuted, marginTop: 4 },
@@ -274,10 +291,28 @@ const styles = StyleSheet.create({
   },
   shareBtnText: { fontSize: 14, fontWeight: '600', color: tokens.colors.textMain },
   description: { fontSize: 14, color: tokens.colors.textMuted, marginBottom: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: tokens.colors.textDark, marginBottom: 12 },
-  podium: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', gap: 8, marginBottom: 16 },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: tokens.colors.textDark,
+    marginBottom: 12,
+  },
+  podium: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    gap: 8,
+    marginBottom: 16,
+  },
   podiumItem: { flex: 1, alignItems: 'center', maxWidth: 100 },
-  avatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
   avatar1: { width: 56, height: 56, borderRadius: 28, backgroundColor: tokens.colors.softBlue },
   avatar2: { backgroundColor: 'rgba(251, 191, 36, 0.4)' },
   avatar3: { backgroundColor: 'rgba(251, 191, 36, 0.25)' },
@@ -293,7 +328,14 @@ const styles = StyleSheet.create({
   avatarSmallText: { fontSize: 14, fontWeight: '600', color: tokens.colors.primary },
   podiumName: { fontSize: 12, fontWeight: '600', color: tokens.colors.textDark },
   podiumPlaces: { fontSize: 11, color: tokens.colors.textMuted, marginBottom: 6 },
-  rankBar: { width: '100%', maxWidth: 72, borderRadius: 8, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 4 },
+  rankBar: {
+    width: '100%',
+    maxWidth: 72,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 4,
+  },
   rankBar1: { height: 72, backgroundColor: tokens.colors.blueTint },
   rankBar2: { height: 56, backgroundColor: tokens.colors.inputBorder },
   rankBar3: { height: 44, backgroundColor: tokens.colors.inputBorder },

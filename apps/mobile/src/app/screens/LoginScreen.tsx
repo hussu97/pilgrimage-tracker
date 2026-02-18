@@ -46,12 +46,17 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         {/* Back button */}
         <TouchableOpacity
-          onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Main')}
+          onPress={() =>
+            navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Main')
+          }
           style={styles.backButton}
           activeOpacity={0.7}
         >
@@ -98,7 +103,9 @@ export default function LoginScreen() {
           disabled={loading}
           activeOpacity={0.85}
         >
-          <Text style={styles.primaryButtonText}>{loading ? t('common.loading') : t('auth.login')}</Text>
+          <Text style={styles.primaryButtonText}>
+            {loading ? t('common.loading') : t('auth.login')}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -116,17 +123,21 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: tokens.colors.backgroundLight },
   content: { paddingHorizontal: 24, flexGrow: 1 },
   backButton: {
-    width: 40, height: 40,
+    width: 40,
+    height: 40,
     borderRadius: 20,
     backgroundColor: '#F1F5F9',
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 28,
   },
   logoIconContainer: {
-    width: 56, height: 56,
+    width: 56,
+    height: 56,
     borderRadius: tokens.borderRadius['2xl'],
     backgroundColor: `${tokens.colors.primary}1A`,
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 20,
   },
   title: { fontSize: 24, fontWeight: '700', color: tokens.colors.textDark, marginBottom: 4 },

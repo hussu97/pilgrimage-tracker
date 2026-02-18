@@ -44,8 +44,12 @@ export default function Favorites() {
   return (
     <div className="min-h-screen bg-surface-tint dark:bg-dark-bg max-w-md mx-auto px-4 py-6 md:max-w-4xl pb-24 md:pb-6">
       <header className="mb-6">
-        <p className="text-xs text-primary-dark font-semibold uppercase tracking-wider mb-1">{t('nav.saved')}</p>
-        <h1 className="text-2xl font-semibold text-text-dark dark:text-white">{t('favorites.title')}</h1>
+        <p className="text-xs text-primary-dark font-semibold uppercase tracking-wider mb-1">
+          {t('nav.saved')}
+        </p>
+        <h1 className="text-2xl font-semibold text-text-dark dark:text-white">
+          {t('favorites.title')}
+        </h1>
       </header>
 
       {loading && <p className="text-text-muted">{t('common.loading')}</p>}
@@ -58,7 +62,10 @@ export default function Favorites() {
           title={t('favorites.empty')}
           description={t('home.explorePlaces')}
           action={
-            <Link to="/home" className="inline-block py-2 px-4 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+            <Link
+              to="/home"
+              className="inline-block py-2 px-4 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            >
               {t('profile.exploreCta')}
             </Link>
           }

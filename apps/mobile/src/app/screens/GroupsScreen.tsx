@@ -15,7 +15,12 @@ import type { Group } from '@/lib/types';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { tokens } from '@/lib/theme';
 
-type MainTabParamList = { Home: undefined; Favorites: undefined; Groups: undefined; Profile: undefined };
+type MainTabParamList = {
+  Home: undefined;
+  Favorites: undefined;
+  Groups: undefined;
+  Profile: undefined;
+};
 
 function formatRelative(iso: string | null | undefined): string {
   if (!iso) return '';
@@ -187,7 +192,12 @@ function makeStyles(isDark: boolean) {
       borderBottomWidth: 1,
       borderBottomColor: border,
     },
-    rowTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+    rowTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    },
     rowLeft: { flex: 1, marginRight: 12, minWidth: 0 },
     rowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     rowName: { fontSize: 18, fontWeight: '700', color: textMain, flex: 1 },
@@ -228,7 +238,12 @@ function makeStyles(isDark: boolean) {
     },
     levelBadgeDone: { backgroundColor: isDark ? '#1a3a2e' : '#dcfce7' },
     levelBadgeNew: { backgroundColor: isDark ? '#1a1a3e' : '#eef2ff' },
-    levelBadgeText: { fontSize: 10, fontWeight: '700', color: tokens.colors.primary, textTransform: 'uppercase' },
+    levelBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: tokens.colors.primary,
+      textTransform: 'uppercase',
+    },
     levelBadgeTextDone: { color: '#16a34a' },
     levelBadgeTextNew: { color: '#4f46e5' },
     rowBarBg: {
@@ -291,7 +306,9 @@ export default function GroupsScreen() {
   const rest = groups.filter((g) => g.group_code !== featured?.group_code);
 
   const navToGroup = (groupCode: string) => {
-    (stackNav as { navigate: (name: 'GroupDetail', params: { groupCode: string }) => void })?.navigate('GroupDetail', { groupCode });
+    (
+      stackNav as { navigate: (name: 'GroupDetail', params: { groupCode: string }) => void }
+    )?.navigate('GroupDetail', { groupCode });
   };
   const navToCreate = () => {
     (stackNav as { navigate: (name: 'CreateGroup') => void })?.navigate('CreateGroup');
@@ -312,26 +329,47 @@ export default function GroupsScreen() {
         </View>
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: insets.bottom + 100, flexGrow: 1, justifyContent: 'center' }}
+          contentContainerStyle={{
+            paddingHorizontal: 24,
+            paddingBottom: insets.bottom + 100,
+            flexGrow: 1,
+            justifyContent: 'center',
+          }}
           showsVerticalScrollIndicator={false}
         >
           <View style={[styles.emptyWrap, { backgroundColor: surface, borderColor: border }]}>
             <Text style={[styles.emptyIcon, { color: textMuted }]}>◆</Text>
-            <Text style={[styles.emptyTitle, { color: textMain }]}>{t('groups.loginRequired')}</Text>
-            <Text style={[styles.emptyDesc, { color: textMuted }]}>{t('groups.loginRequiredDesc')}</Text>
+            <Text style={[styles.emptyTitle, { color: textMain }]}>
+              {t('groups.loginRequired')}
+            </Text>
+            <Text style={[styles.emptyDesc, { color: textMuted }]}>
+              {t('groups.loginRequiredDesc')}
+            </Text>
             <TouchableOpacity
               style={styles.emptyCta}
-              onPress={() => (stackNav as { navigate: (name: 'Register') => void })?.navigate('Register')}
+              onPress={() =>
+                (stackNav as { navigate: (name: 'Register') => void })?.navigate('Register')
+              }
               activeOpacity={0.8}
             >
               <Text style={styles.emptyCtaText}>{t('splash.getStarted')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.emptyCta, { marginTop: 8, backgroundColor: 'transparent', borderWidth: 1, borderColor: tokens.colors.primary }]}
+              style={[
+                styles.emptyCta,
+                {
+                  marginTop: 8,
+                  backgroundColor: 'transparent',
+                  borderWidth: 1,
+                  borderColor: tokens.colors.primary,
+                },
+              ]}
               onPress={() => (stackNav as { navigate: (name: 'Login') => void })?.navigate('Login')}
               activeOpacity={0.8}
             >
-              <Text style={[styles.emptyCtaText, { color: tokens.colors.primary }]}>{t('auth.login')}</Text>
+              <Text style={[styles.emptyCtaText, { color: tokens.colors.primary }]}>
+                {t('auth.login')}
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -365,7 +403,9 @@ export default function GroupsScreen() {
           <View style={[styles.emptyWrap, { backgroundColor: surface, borderColor: border }]}>
             <Text style={[styles.emptyIcon, { color: textMuted }]}>◆</Text>
             <Text style={[styles.emptyTitle, { color: textMain }]}>{t('groups.noGroupsYet')}</Text>
-            <Text style={[styles.emptyDesc, { color: textMuted }]}>{t('groups.noGroupsDescription')}</Text>
+            <Text style={[styles.emptyDesc, { color: textMuted }]}>
+              {t('groups.noGroupsDescription')}
+            </Text>
             <TouchableOpacity style={styles.emptyCta} onPress={navToCreate} activeOpacity={0.8}>
               <Text style={styles.emptyCtaText}>{t('groups.createGroup')}</Text>
             </TouchableOpacity>
@@ -393,9 +433,7 @@ export default function GroupsScreen() {
                   <Text style={styles.featuredProgressLabel}>{t('groups.currentProgress')}</Text>
                   <Text style={styles.featuredProgressPct}>
                     {featured.total_sites
-                      ? Math.round(
-                          ((featured.sites_visited ?? 0) / featured.total_sites) * 100
-                        )
+                      ? Math.round(((featured.sites_visited ?? 0) / featured.total_sites) * 100)
                       : 0}
                     %
                   </Text>
@@ -413,7 +451,10 @@ export default function GroupsScreen() {
                 <View style={styles.featuredFooter}>
                   <View style={styles.avatarRow}>
                     {[1, 2, 3].slice(0, Math.min(3, featured.member_count ?? 0)).map((i) => (
-                      <View key={i} style={[styles.featuredAvatar, i >= 1 && { marginLeft: -12 }]} />
+                      <View
+                        key={i}
+                        style={[styles.featuredAvatar, i >= 1 && { marginLeft: -12 }]}
+                      />
                     ))}
                     {(featured.member_count ?? 0) > 3 && (
                       <View style={styles.featuredAvatarPlus}>
@@ -449,9 +490,7 @@ export default function GroupsScreen() {
                         <Text style={styles.rowName} numberOfLines={1}>
                           {g.name}
                         </Text>
-                        {level === 'Done' && (
-                          <Text style={styles.rowDoneIcon}>✓</Text>
-                        )}
+                        {level === 'Done' && <Text style={styles.rowDoneIcon}>✓</Text>}
                       </View>
                       <Text style={styles.rowLastActive}>
                         {lastActive
@@ -467,7 +506,9 @@ export default function GroupsScreen() {
                       ))}
                       {(g.member_count ?? 0) > 2 && (
                         <View style={styles.smallAvatarPlus}>
-                          <Text style={styles.smallAvatarPlusText}>+{(g.member_count ?? 0) - 2}</Text>
+                          <Text style={styles.smallAvatarPlusText}>
+                            +{(g.member_count ?? 0) - 2}
+                          </Text>
                         </View>
                       )}
                     </View>

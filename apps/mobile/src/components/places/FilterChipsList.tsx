@@ -15,7 +15,7 @@ interface ActiveFilters {
 interface FilterChipsListProps {
   activeFilters: ActiveFilters;
   placeTypes: string[];
-  onFilterToggle: (key: string, value?: any) => void;
+  onFilterToggle: (key: string, value?: string | boolean) => void;
   onClearAll: () => void;
   isDark: boolean;
   t: (key: string) => string;
@@ -51,7 +51,9 @@ export default function FilterChipsList({
             key={pt}
             label={pt}
             selected={activeFilters.placeType === pt}
-            onPress={() => onFilterToggle('placeType', activeFilters.placeType === pt ? undefined : pt)}
+            onPress={() =>
+              onFilterToggle('placeType', activeFilters.placeType === pt ? undefined : pt)
+            }
           />
         ))}
         {hasAnyFilter && (

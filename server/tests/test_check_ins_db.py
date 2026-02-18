@@ -3,14 +3,20 @@ Tests for app.db.check_ins — DB-layer functions not covered via the HTTP tests
 count_places_visited, count_check_ins_this_year, count_check_ins_for_place,
 count_check_ins_bulk, get_check_ins_this_month, get_check_ins_on_this_day.
 """
+
 from app.db import check_ins as check_ins_db
 from app.db.models import Place
 
 
 def _make_place(session, code: str):
     place = Place(
-        place_code=code, name="Test", religion="islam",
-        place_type="mosque", lat=0.0, lng=0.0, address="Addr"
+        place_code=code,
+        name="Test",
+        religion="islam",
+        place_type="mosque",
+        lat=0.0,
+        lng=0.0,
+        address="Addr",
     )
     session.add(place)
     session.commit()
@@ -21,6 +27,7 @@ def _check_in(session, user_code: str, place_code: str, note: str = None):
 
 
 # ── count_places_visited ───────────────────────────────────────────────────────
+
 
 class TestCountPlacesVisited:
     def test_zero_when_no_check_ins(self, db_session):
@@ -42,6 +49,7 @@ class TestCountPlacesVisited:
 
 # ── count_check_ins_this_year ─────────────────────────────────────────────────
 
+
 class TestCountCheckInsThisYear:
     def test_counts_current_year(self, db_session):
         _make_place(db_session, "plc_yr0001")
@@ -56,6 +64,7 @@ class TestCountCheckInsThisYear:
 
 # ── count_check_ins_for_place ─────────────────────────────────────────────────
 
+
 class TestCountCheckInsForPlace:
     def test_count_for_specific_place(self, db_session):
         _make_place(db_session, "plc_cf0001")
@@ -69,6 +78,7 @@ class TestCountCheckInsForPlace:
 
 
 # ── count_check_ins_bulk ───────────────────────────────────────────────────────
+
 
 class TestCountCheckInsBulk:
     def test_empty_list(self, db_session):
@@ -91,6 +101,7 @@ class TestCountCheckInsBulk:
 
 
 # ── get_check_ins_by_user / has_checked_in ────────────────────────────────────
+
 
 class TestCheckInQueries:
     def test_get_check_ins_by_user(self, db_session):

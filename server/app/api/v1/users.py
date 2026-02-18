@@ -1,16 +1,13 @@
-from typing import Annotated, Any
+from fastapi import APIRouter, HTTPException
 
-from fastapi import APIRouter, Depends, HTTPException
-
-from app.api.deps import get_current_user
-from app.db.session import SessionDep
-from app.db import store
+from app.api.deps import UserDep
 from app.db import check_ins as check_ins_db
-from app.db import places as places_db
 from app.db import favorites as favorites_db
+from app.db import place_images, store
+from app.db import places as places_db
 from app.db import reviews as reviews_db
-from app.db import place_images
-from app.models.schemas import UserResponse, UpdateMeBody, SettingsBody
+from app.db.session import SessionDep
+from app.models.schemas import SettingsBody, UpdateMeBody, UserResponse
 
 router = APIRouter()
 
@@ -29,14 +26,14 @@ def _to_public_user(user, session) -> UserResponse:
 
 
 @router.get("/me", response_model=UserResponse)
-def get_me(user: Annotated[Any, Depends(get_current_user)], session: SessionDep):
+def get_me(user: UserDep, session: SessionDep):
     return _to_public_user(user, session)
 
 
 @router.patch("/me", response_model=UserResponse)
 def update_me(
     body: UpdateMeBody,
-    user: Annotated[Any, Depends(get_current_user)],
+    user: UserDep,
     session: SessionDep,
 ):
     updated = store.update_user(
@@ -83,25 +80,27 @@ def _format_check_ins(rows, session) -> list:
                 "images": images,
                 "location": place.address,
             }
-        out.append({
-            "check_in_code": r.check_in_code,
-            "place_code": r.place_code,
-            "checked_in_at": r.checked_in_at,
-            "date": date_str,
-            "time": time_str,
-            "note": r.note,
-            "photo_url": r.photo_url,
-            "place": place_payload,
-            "place_name": place.name if place else None,
-            "place_image_url": place_image_url,
-            "location": place.address if place else None,
-        })
+        out.append(
+            {
+                "check_in_code": r.check_in_code,
+                "place_code": r.place_code,
+                "checked_in_at": r.checked_in_at,
+                "date": date_str,
+                "time": time_str,
+                "note": r.note,
+                "photo_url": r.photo_url,
+                "place": place_payload,
+                "place_name": place.name if place else None,
+                "place_image_url": place_image_url,
+                "location": place.address if place else None,
+            }
+        )
     return out
 
 
 @router.get("/me/check-ins")
 def get_my_check_ins(
-    user: Annotated[Any, Depends(get_current_user)],
+    user: UserDep,
     session: SessionDep,
 ):
     rows = check_ins_db.get_check_ins_by_user(user.user_code, session)
@@ -110,7 +109,7 @@ def get_my_check_ins(
 
 @router.get("/me/check-ins/this-month")
 def get_my_check_ins_this_month(
-    user: Annotated[Any, Depends(get_current_user)],
+    user: UserDep,
     session: SessionDep,
 ):
     rows = check_ins_db.get_check_ins_this_month(user.user_code, session)
@@ -119,7 +118,7 @@ def get_my_check_ins_this_month(
 
 @router.get("/me/check-ins/on-this-day")
 def get_my_check_ins_on_this_day(
-    user: Annotated[Any, Depends(get_current_user)],
+    user: UserDep,
     session: SessionDep,
 ):
     rows = check_ins_db.get_check_ins_on_this_day(user.user_code, session)
@@ -127,7 +126,7 @@ def get_my_check_ins_on_this_day(
 
 
 @router.get("/me/stats")
-def get_my_stats(user: Annotated[Any, Depends(get_current_user)], session: SessionDep):
+def get_my_stats(user: UserDep, session: SessionDep):
     check_in_count = len(check_ins_db.get_check_ins_by_user(user.user_code, session))
     review_count = reviews_db.count_reviews_by_user(user.user_code, session)
     return {
@@ -143,7 +142,7 @@ def get_my_stats(user: Annotated[Any, Depends(get_current_user)], session: Sessi
 
 @router.get("/me/favorites")
 def get_my_favorites(
-    user: Annotated[Any, Depends(get_current_user)],
+    user: UserDep,
     session: SessionDep,
 ):
     place_codes = favorites_db.get_favorite_place_codes(user.user_code, session)
@@ -152,27 +151,29 @@ def get_my_favorites(
         place = places_db.get_place_by_code(pc, session)
         if place:
             images = place_images.get_images(place.place_code, session)
-            places_list.append({
-                "place_code": place.place_code,
-                "name": place.name,
-                "religion": place.religion,
-                "place_type": place.place_type,
-                "lat": place.lat,
-                "lng": place.lng,
-                "address": place.address,
-                "images": images,
-                "description": place.description,
-            })
+            places_list.append(
+                {
+                    "place_code": place.place_code,
+                    "name": place.name,
+                    "religion": place.religion,
+                    "place_type": place.place_type,
+                    "lat": place.lat,
+                    "lng": place.lng,
+                    "address": place.address,
+                    "images": images,
+                    "description": place.description,
+                }
+            )
     return places_list
 
 
 @router.get("/me/settings")
-def get_my_settings(user: Annotated[Any, Depends(get_current_user)], session: SessionDep):
+def get_my_settings(user: UserDep, session: SessionDep):
     return store.get_user_settings(user.user_code, session)
 
 
 @router.patch("/me/settings")
-def update_my_settings(body: SettingsBody, user: Annotated[Any, Depends(get_current_user)], session: SessionDep):
+def update_my_settings(body: SettingsBody, user: UserDep, session: SessionDep):
     kwargs = {}
     if body.notifications_on is not None:
         kwargs["notifications_on"] = body.notifications_on

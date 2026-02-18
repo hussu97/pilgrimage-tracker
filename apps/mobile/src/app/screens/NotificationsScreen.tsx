@@ -15,7 +15,9 @@ import { useI18n, useTheme } from '@/app/providers';
 import type { Notification } from '@/lib/types';
 import { tokens } from '@/lib/theme';
 
-function notificationIcon(type: string): 'assignment-turned-in' | 'group' | 'star' | 'notifications' {
+function notificationIcon(
+  type: string,
+): 'assignment-turned-in' | 'group' | 'star' | 'notifications' {
   if (type.includes('check') || type.includes('check_in')) return 'assignment-turned-in';
   if (type.includes('group')) return 'group';
   if (type.includes('review')) return 'star';
@@ -166,8 +168,8 @@ export default function NotificationsScreen() {
         prev.map((n) =>
           n.notification_code === notificationCode
             ? { ...n, read_at: new Date().toISOString() }
-            : n
-        )
+            : n,
+        ),
       );
     } catch {
       // ignore
@@ -187,7 +189,11 @@ export default function NotificationsScreen() {
         onPress={() => navigation.goBack()}
         activeOpacity={0.8}
       >
-        <MaterialIcons name="arrow-back" size={20} color={isDark ? '#fff' : tokens.colors.textDark} />
+        <MaterialIcons
+          name="arrow-back"
+          size={20}
+          color={isDark ? '#fff' : tokens.colors.textDark}
+        />
       </TouchableOpacity>
 
       <Text style={styles.sectionLabel}>{t('notifications.updatesLabel')}</Text>
@@ -213,9 +219,7 @@ export default function NotificationsScreen() {
             <MaterialIcons name="notifications-none" size={28} color={tokens.colors.primary} />
           </View>
           <Text style={styles.emptyTitle}>{t('notifications.empty')}</Text>
-          <Text style={styles.emptyDesc}>
-            {t('notifications.emptyDesc')}
-          </Text>
+          <Text style={styles.emptyDesc}>{t('notifications.emptyDesc')}</Text>
           <TouchableOpacity
             style={styles.emptyCta}
             onPress={() => navigation.navigate('Main' as never)}
@@ -228,10 +232,7 @@ export default function NotificationsScreen() {
       {!loading && !error && notifications.length > 0 && (
         <View style={styles.list}>
           {notifications.map((n) => (
-            <View
-              key={n.notification_code}
-              style={[styles.card, !n.read_at && styles.cardUnread]}
-            >
+            <View key={n.notification_code} style={[styles.card, !n.read_at && styles.cardUnread]}>
               <View style={styles.iconWrap}>
                 <MaterialIcons
                   name={notificationIcon(n.type)}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, StyleSheet, TouchableOpacity, Text, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -43,7 +44,14 @@ function TabIcon({
   );
 }
 
-function GlassTabBar({ state, descriptors, navigation, insets, isDark, unreadCount }: BottomTabBarProps & { insets: { bottom: number }, isDark: boolean, unreadCount: number }) {
+function GlassTabBar({
+  state,
+  descriptors,
+  navigation,
+  insets,
+  isDark,
+  unreadCount,
+}: BottomTabBarProps & { insets: { bottom: number }; isDark: boolean; unreadCount: number }) {
   return (
     <BlurView
       intensity={Platform.OS === 'ios' ? 80 : 100}
@@ -60,12 +68,11 @@ function GlassTabBar({ state, descriptors, navigation, insets, isDark, unreadCou
       <View style={styles.tabBarContent}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
-          const label = typeof options.tabBarLabel === 'string'
-            ? options.tabBarLabel
-            : route.name;
+          const label = typeof options.tabBarLabel === 'string' ? options.tabBarLabel : route.name;
           const isFocused = state.index === index;
 
-          const iconKey = route.name === 'Home' ? 'explore' : route.name === 'Groups' ? 'groups' : 'person';
+          const iconKey =
+            route.name === 'Home' ? 'explore' : route.name === 'Groups' ? 'groups' : 'person';
           const showDot = route.name === 'Profile' && unreadCount > 0;
 
           const onPress = () => {
@@ -90,27 +97,24 @@ function GlassTabBar({ state, descriptors, navigation, insets, isDark, unreadCou
               style={styles.tabItem}
               activeOpacity={0.7}
             >
-              {isFocused && (
-                <View style={styles.activePill} />
-              )}
+              {isFocused && <View style={styles.activePill} />}
               <View style={styles.iconContainer}>
                 <MaterialIcons
                   name={TAB_ICONS[iconKey] ?? 'circle'}
                   size={24}
-                  color={isFocused ? tokens.colors.primary : (isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted)}
+                  color={
+                    isFocused
+                      ? tokens.colors.primary
+                      : isDark
+                        ? tokens.colors.darkTextSecondary
+                        : tokens.colors.textMuted
+                  }
                 />
                 {showDot && <View style={styles.notificationDot} />}
               </View>
               {/* Label: visible when active, hidden when inactive (per design spec) */}
               {isFocused && (
-                <Text
-                  style={[
-                    styles.tabLabel,
-                    { color: tokens.colors.primary },
-                  ]}
-                >
-                  {label}
-                </Text>
+                <Text style={[styles.tabLabel, { color: tokens.colors.primary }]}>{label}</Text>
               )}
             </TouchableOpacity>
           );

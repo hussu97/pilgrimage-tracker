@@ -1,4 +1,12 @@
-import { createContext, useContext, useRef, useState, useCallback, useEffect, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useRef,
+  useState,
+  useCallback,
+  useEffect,
+  type ReactNode,
+} from 'react';
 import { useAuth } from '@/app/providers';
 import AuthModal from './AuthModal';
 
@@ -26,16 +34,19 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  const openAuthGate = useCallback((callback: () => void, key?: string) => {
-    if (user) {
-      callback();
-      return;
-    }
-    pendingCallback.current = callback;
-    wasWaitingForAuth.current = true;
-    setPromptKey(key);
-    setIsOpen(true);
-  }, [user]);
+  const openAuthGate = useCallback(
+    (callback: () => void, key?: string) => {
+      if (user) {
+        callback();
+        return;
+      }
+      pendingCallback.current = callback;
+      wasWaitingForAuth.current = true;
+      setPromptKey(key);
+      setIsOpen(true);
+    },
+    [user],
+  );
 
   const handleClose = useCallback(() => {
     setIsOpen(false);
@@ -46,11 +57,7 @@ export function AuthGateProvider({ children }: { children: ReactNode }) {
   return (
     <AuthGateContext.Provider value={{ openAuthGate }}>
       {children}
-      <AuthModal
-        isOpen={isOpen}
-        onClose={handleClose}
-        promptKey={promptKey}
-      />
+      <AuthModal isOpen={isOpen} onClose={handleClose} promptKey={promptKey} />
     </AuthGateContext.Provider>
   );
 }

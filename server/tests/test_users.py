@@ -46,6 +46,7 @@ def _create_place(client, code: str, **kwargs):
 
 # ── GET /users/me ──────────────────────────────────────────────────────────────
 
+
 class TestGetMe:
     def test_returns_user_profile(self, client):
         token, user = _register(client)
@@ -67,6 +68,7 @@ class TestGetMe:
 
 # ── PATCH /users/me ────────────────────────────────────────────────────────────
 
+
 class TestUpdateMe:
     def test_update_display_name(self, client):
         token, _ = _register(client)
@@ -85,6 +87,7 @@ class TestUpdateMe:
 
 # ── GET /users/me/settings ────────────────────────────────────────────────────
 
+
 class TestGetSettings:
     def test_returns_default_settings(self, client):
         token, _ = _register(client)
@@ -102,6 +105,7 @@ class TestGetSettings:
 
 
 # ── PATCH /users/me/settings ──────────────────────────────────────────────────
+
 
 class TestUpdateSettings:
     def test_update_theme(self, client):
@@ -147,9 +151,15 @@ class TestUpdateSettings:
     def test_update_religions_all_overrides_individual(self, client):
         token, _ = _register(client)
         # First set individual religions
-        client.patch(f"{USERS_URL}/me/settings", json={"religions": ["islam", "hinduism"]}, headers=_auth(token))
+        client.patch(
+            f"{USERS_URL}/me/settings",
+            json={"religions": ["islam", "hinduism"]},
+            headers=_auth(token),
+        )
         # Then set all
-        resp = client.patch(f"{USERS_URL}/me/settings", json={"religions": ["all"]}, headers=_auth(token))
+        resp = client.patch(
+            f"{USERS_URL}/me/settings", json={"religions": ["all"]}, headers=_auth(token)
+        )
         assert resp.status_code == 200
         assert resp.json()["religions"] == ["all"]
 
@@ -179,6 +189,7 @@ class TestUpdateSettings:
 
 
 # ── GET /users/me/stats ────────────────────────────────────────────────────────
+
 
 class TestGetStats:
     def test_returns_stats_structure(self, client):
@@ -218,6 +229,7 @@ class TestGetStats:
 
 # ── GET /users/me/check-ins ────────────────────────────────────────────────────
 
+
 class TestGetCheckIns:
     def test_empty_initially(self, client):
         token, _ = _register(client)
@@ -251,6 +263,7 @@ class TestGetCheckIns:
 
 
 # ── GET /users/me/favorites ────────────────────────────────────────────────────
+
 
 class TestGetFavorites:
     def test_empty_initially(self, client):

@@ -1,5 +1,5 @@
 """Tests for /api/v1/places endpoints: list, get, create, search, filters, reviews, check-ins, favorites."""
-import pytest
+
 from tests.conftest import SAMPLE_PLACE
 
 PLACES_URL = "/api/v1/places"
@@ -24,6 +24,7 @@ def _create_place(client, place_code, **overrides):
 
 
 # ── list places ────────────────────────────────────────────────────────────────
+
 
 class TestListPlaces:
     def test_list_empty(self, client):
@@ -52,7 +53,8 @@ class TestListPlaces:
     def test_list_filter_by_religion(self, client):
         _create_place(client, "plc_islam001", religion="islam")
         _create_place(
-            client, "plc_hindu001",
+            client,
+            "plc_hindu001",
             name="Test Temple",
             religion="hinduism",
             place_type="temple",
@@ -64,8 +66,16 @@ class TestListPlaces:
 
     def test_list_filter_by_religion_all_returns_all_places(self, client):
         _create_place(client, "plc_all_isl", religion="islam")
-        _create_place(client, "plc_all_hin", name="Test Temple All", religion="hinduism", place_type="temple")
-        _create_place(client, "plc_all_chr", name="Test Church All", religion="christianity", place_type="church")
+        _create_place(
+            client, "plc_all_hin", name="Test Temple All", religion="hinduism", place_type="temple"
+        )
+        _create_place(
+            client,
+            "plc_all_chr",
+            name="Test Church All",
+            religion="christianity",
+            place_type="church",
+        )
         resp = client.get(PLACES_URL, params={"religion": "all"})
         assert resp.status_code == 200
         codes = [p["place_code"] for p in resp.json()["places"]]
@@ -76,7 +86,8 @@ class TestListPlaces:
     def test_list_with_radius_filter(self, client):
         _create_place(client, "plc_near0001", lat=25.2048, lng=55.2708)
         _create_place(
-            client, "plc_far00001",
+            client,
+            "plc_far00001",
             name="Far Mosque",
             lat=51.5074,
             lng=-0.1278,
@@ -111,6 +122,7 @@ class TestListPlaces:
 
 # ── get single place ───────────────────────────────────────────────────────────
 
+
 class TestGetPlace:
     def test_get_existing_place(self, client):
         _create_place(client, "plc_get00001")
@@ -126,7 +138,8 @@ class TestGetPlace:
 
     def test_get_place_has_normalized_hours(self, client):
         _create_place(
-            client, "plc_oh000001",
+            client,
+            "plc_oh000001",
             opening_hours={
                 "Monday": "00:00-23:59",
                 "Tuesday": "00:00-23:59",
@@ -154,6 +167,7 @@ class TestGetPlace:
 
 # ── create / upsert place ─────────────────────────────────────────────────────
 
+
 class TestCreatePlace:
     def test_create_success(self, client):
         resp = _create_place(client, "plc_create01")
@@ -172,6 +186,7 @@ class TestCreatePlace:
 
 
 # ── reviews ────────────────────────────────────────────────────────────────────
+
 
 class TestPlaceReviews:
     def test_list_reviews_empty(self, client):
@@ -216,6 +231,7 @@ class TestPlaceReviews:
 
 # ── check-ins ──────────────────────────────────────────────────────────────────
 
+
 class TestCheckIns:
     def test_check_in_creates_record(self, client):
         _create_place(client, "plc_chkin001")
@@ -246,6 +262,7 @@ class TestCheckIns:
 
 
 # ── favorites ──────────────────────────────────────────────────────────────────
+
 
 class TestFavorites:
     def test_add_favorite(self, client):

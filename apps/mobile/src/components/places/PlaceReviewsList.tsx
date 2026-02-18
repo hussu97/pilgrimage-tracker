@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -29,7 +22,14 @@ interface Props {
   onRefresh: () => void;
 }
 
-function PlaceReviewsList({ placeCode, reviews, userCode, averageRating, reviewCount, onRefresh }: Props) {
+function PlaceReviewsList({
+  placeCode,
+  reviews,
+  userCode,
+  averageRating,
+  reviewCount,
+  onRefresh,
+}: Props) {
   const navigation = useNavigation<Nav>();
   const { t } = useI18n();
   const [deletingCode, setDeletingCode] = useState<string | null>(null);
@@ -37,28 +37,24 @@ function PlaceReviewsList({ placeCode, reviews, userCode, averageRating, reviewC
   const userReview = userCode ? reviews.find((r) => r.user_code === userCode) : null;
 
   const handleDeleteReview = (reviewCode: string) => {
-    Alert.alert(
-      t('reviews.deleteTitle'),
-      t('reviews.deleteWarning'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            setDeletingCode(reviewCode);
-            try {
-              await deleteReview(reviewCode);
-              onRefresh();
-            } catch {
-              // ignore
-            } finally {
-              setDeletingCode(null);
-            }
-          },
+    Alert.alert(t('reviews.deleteTitle'), t('reviews.deleteWarning'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.delete'),
+        style: 'destructive',
+        onPress: async () => {
+          setDeletingCode(reviewCode);
+          try {
+            await deleteReview(reviewCode);
+            onRefresh();
+          } catch {
+            // ignore
+          } finally {
+            setDeletingCode(null);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   return (
@@ -76,13 +72,15 @@ function PlaceReviewsList({ placeCode, reviews, userCode, averageRating, reviewC
 
       {userReview ? (
         <TouchableOpacity
-          onPress={() => navigation.navigate('WriteReview', {
-            placeCode,
-            reviewCode: userReview.review_code,
-            rating: userReview.rating,
-            title: userReview.title ?? '',
-            body: userReview.body ?? '',
-          })}
+          onPress={() =>
+            navigation.navigate('WriteReview', {
+              placeCode,
+              reviewCode: userReview.review_code,
+              rating: userReview.rating,
+              title: userReview.title ?? '',
+              body: userReview.body ?? '',
+            })
+          }
           style={styles.writeReviewLink}
         >
           <Text style={styles.writeReviewLinkText}>Edit your review</Text>

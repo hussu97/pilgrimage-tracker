@@ -11,12 +11,7 @@ import { Appearance, I18nManager, NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '@/lib/types';
 import * as api from '@/lib/api/client';
-import {
-  TOKEN_KEY,
-  USER_KEY,
-  LOCALE_STORAGE_KEY,
-  VISITOR_KEY,
-} from '@/lib/constants';
+import { TOKEN_KEY, USER_KEY, LOCALE_STORAGE_KEY, VISITOR_KEY } from '@/lib/constants';
 import { getStoredTheme, setStoredTheme, type Theme } from '@/lib/theme';
 
 const SUPPORTED_LOCALES = ['en', 'ar', 'hi'] as const;
@@ -52,7 +47,7 @@ async function resolveInitialLocale(list: { code: string; name: string }[]): Pro
   } catch {}
   const device = getDeviceLocale().toLowerCase().split(/[-_]/)[0] ?? 'en';
   const match = codes.find((c) => c === device || c.split(/[-_]/)[0] === device);
-  return match ?? (codes.includes('en') ? 'en' : codes[0] ?? 'en');
+  return match ?? (codes.includes('en') ? 'en' : (codes[0] ?? 'en'));
 }
 
 // --- Auth ---
@@ -162,26 +157,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUserState(u);
   }, []);
 
-  const register = useCallback(
-    async (email: string, password: string, display_name?: string) => {
-      const vc = await AsyncStorage.getItem(VISITOR_KEY);
-      const { user: u, token: t } = await api.register({
-        email,
-        password,
-        display_name,
-        visitor_code: vc ?? undefined,
-      });
-      await AsyncStorage.multiSet([
-        [TOKEN_KEY, t],
-        [USER_KEY, JSON.stringify(u)],
-      ]);
-      await AsyncStorage.removeItem(VISITOR_KEY);
-      setVisitorCode(null);
-      setToken(t);
-      setUserState(u);
-    },
-    []
-  );
+  const register = useCallback(async (email: string, password: string, display_name?: string) => {
+    const vc = await AsyncStorage.getItem(VISITOR_KEY);
+    const { user: u, token: t } = await api.register({
+      email,
+      password,
+      display_name,
+      visitor_code: vc ?? undefined,
+    });
+    await AsyncStorage.multiSet([
+      [TOKEN_KEY, t],
+      [USER_KEY, JSON.stringify(u)],
+    ]);
+    await AsyncStorage.removeItem(VISITOR_KEY);
+    setVisitorCode(null);
+    setToken(t);
+    setUserState(u);
+  }, []);
 
   const logout = useCallback(async () => {
     await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
@@ -202,12 +194,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser,
       refreshUser,
     }),
-    [user, token, loading, visitorCode, login, register, logout, setUser, refreshUser]
+    [user, token, loading, visitorCode, login, register, logout, setUser, refreshUser],
   );
 
-  return (
-    <AuthContext.Provider value={authValue}>{children}</AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={authValue}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
@@ -243,7 +233,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setIsDark(resolveIsDark(t));
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -262,12 +254,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<ThemeContextValue>(
     () => ({ theme, isDark, setTheme }),
-    [theme, isDark, setTheme]
+    [theme, isDark, setTheme],
   );
 
-  return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {
@@ -290,9 +280,7 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<string>('en');
   const [translations, setTranslations] = useState<Record<string, string>>({});
-  const [languages, setLanguages] = useState<{ code: string; name: string }[]>(
-    []
-  );
+  const [languages, setLanguages] = useState<{ code: string; name: string }[]>([]);
   const [ready, setReady] = useState(false);
 
   const loadLanguages = useCallback(async () => {
@@ -371,22 +359,17 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         // keep new locale
       }
     },
-    [loadTranslations]
+    [loadTranslations],
   );
 
-  const t = useCallback(
-    (key: string) => translations[key] ?? key,
-    [translations]
-  );
+  const t = useCallback((key: string) => translations[key] ?? key, [translations]);
 
   const value = useMemo<I18nContextValue>(
     () => ({ locale, setLocale, t, languages, ready }),
-    [locale, setLocale, t, languages, ready]
+    [locale, setLocale, t, languages, ready],
   );
 
-  return (
-    <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
-  );
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
 export function useI18n() {

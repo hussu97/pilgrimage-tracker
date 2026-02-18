@@ -79,16 +79,19 @@ export function AuthBottomSheetProvider({ children }: { children: ReactNode }) {
     }
   }, [user, closeSheet]);
 
-  const openAuthGate = useCallback((callback: () => void, key?: string) => {
-    if (user) {
-      callback();
-      return;
-    }
-    pendingCallback.current = callback;
-    wasWaitingForAuth.current = true;
-    setPromptKey(key);
-    openSheet();
-  }, [user, openSheet]);
+  const openAuthGate = useCallback(
+    (callback: () => void, key?: string) => {
+      if (user) {
+        callback();
+        return;
+      }
+      pendingCallback.current = callback;
+      wasWaitingForAuth.current = true;
+      setPromptKey(key);
+      openSheet();
+    },
+    [user, openSheet],
+  );
 
   return (
     <AuthGateContext.Provider value={{ openAuthGate }}>
@@ -236,8 +239,14 @@ function AuthSheetContent({
 
   async function handleRegister() {
     setError('');
-    if (password !== confirm) { setError(t('auth.passwordsDoNotMatch')); return; }
-    if (password.length < 6) { setError(t('auth.passwordMinLength')); return; }
+    if (password !== confirm) {
+      setError(t('auth.passwordsDoNotMatch'));
+      return;
+    }
+    if (password.length < 6) {
+      setError(t('auth.passwordMinLength'));
+      return;
+    }
     setSubmitting(true);
     try {
       await register(email, password, displayName.trim() || undefined);
@@ -262,7 +271,10 @@ function AuthSheetContent({
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={[styles.tab, tab === 'login' && styles.tabActive]}
-          onPress={() => { setTab('login'); setError(''); }}
+          onPress={() => {
+            setTab('login');
+            setError('');
+          }}
           activeOpacity={0.7}
         >
           <Text style={[styles.tabText, tab === 'login' && styles.tabTextActive]}>
@@ -271,7 +283,10 @@ function AuthSheetContent({
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, tab === 'register' && styles.tabActive]}
-          onPress={() => { setTab('register'); setError(''); }}
+          onPress={() => {
+            setTab('register');
+            setError('');
+          }}
           activeOpacity={0.7}
         >
           <Text style={[styles.tabText, tab === 'register' && styles.tabTextActive]}>
@@ -283,22 +298,83 @@ function AuthSheetContent({
       {/* Forms */}
       {tab === 'login' ? (
         <View style={styles.form}>
-          <TextInput style={styles.input} placeholder={t('auth.email')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholderTextColor={tokens.colors.textMuted} />
-          <TextInput style={styles.input} placeholder={t('auth.password')} value={password} onChangeText={setPassword} secureTextEntry placeholderTextColor={tokens.colors.textMuted} />
+          <TextInput
+            style={styles.input}
+            placeholder={t('auth.email')}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            placeholderTextColor={tokens.colors.textMuted}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder={t('auth.password')}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholderTextColor={tokens.colors.textMuted}
+          />
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          <TouchableOpacity style={[styles.primaryButton, submitting && styles.buttonDisabled]} onPress={handleLogin} disabled={submitting} activeOpacity={0.85}>
-            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>{t('auth.login')}</Text>}
+          <TouchableOpacity
+            style={[styles.primaryButton, submitting && styles.buttonDisabled]}
+            onPress={handleLogin}
+            disabled={submitting}
+            activeOpacity={0.85}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.primaryButtonText}>{t('auth.login')}</Text>
+            )}
           </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.form}>
-          <TextInput style={styles.input} placeholder={t('auth.fullName')} value={displayName} onChangeText={setDisplayName} placeholderTextColor={tokens.colors.textMuted} />
-          <TextInput style={styles.input} placeholder={t('auth.email')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholderTextColor={tokens.colors.textMuted} />
-          <TextInput style={styles.input} placeholder={t('auth.password')} value={password} onChangeText={setPassword} secureTextEntry placeholderTextColor={tokens.colors.textMuted} />
-          <TextInput style={styles.input} placeholder={t('auth.confirmPassword')} value={confirm} onChangeText={setConfirm} secureTextEntry placeholderTextColor={tokens.colors.textMuted} />
+          <TextInput
+            style={styles.input}
+            placeholder={t('auth.fullName')}
+            value={displayName}
+            onChangeText={setDisplayName}
+            placeholderTextColor={tokens.colors.textMuted}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder={t('auth.email')}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            placeholderTextColor={tokens.colors.textMuted}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder={t('auth.password')}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholderTextColor={tokens.colors.textMuted}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder={t('auth.confirmPassword')}
+            value={confirm}
+            onChangeText={setConfirm}
+            secureTextEntry
+            placeholderTextColor={tokens.colors.textMuted}
+          />
           {error ? <Text style={styles.error}>{error}</Text> : null}
-          <TouchableOpacity style={[styles.primaryButton, submitting && styles.buttonDisabled]} onPress={handleRegister} disabled={submitting} activeOpacity={0.85}>
-            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>{t('auth.register')}</Text>}
+          <TouchableOpacity
+            style={[styles.primaryButton, submitting && styles.buttonDisabled]}
+            onPress={handleRegister}
+            disabled={submitting}
+            activeOpacity={0.85}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.primaryButtonText}>{t('auth.register')}</Text>
+            )}
           </TouchableOpacity>
         </View>
       )}

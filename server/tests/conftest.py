@@ -7,22 +7,24 @@ from any real data files and run without any filesystem side-effects.
 Each test gets a fresh database (function-scoped engine) so there is no
 state leakage between tests.
 """
+
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
-from unittest.mock import patch
-
 
 # ── i18n seed (session-scoped — loads once, in-memory, no DB needed) ──────────
+
 
 @pytest.fixture(scope="session", autouse=True)
 def seed_i18n():
     """Load i18n data from seed_data.json into the in-memory i18n store once."""
     from app.db import i18n as i18n_db
+
     seed_path = Path(__file__).parent.parent / "app" / "db" / "seed_data.json"
     if seed_path.exists():
         data = json.loads(seed_path.read_text(encoding="utf-8"))
@@ -34,6 +36,7 @@ def seed_i18n():
 
 # ── DB / session fixtures ──────────────────────────────────────────────────────
 
+
 @pytest.fixture()
 def test_engine():
     """Fresh in-memory SQLite engine per test — guarantees data isolation."""
@@ -44,6 +47,7 @@ def test_engine():
     )
     # Import all models so SQLModel.metadata knows about them before create_all
     import app.db.models  # noqa: F401
+
     SQLModel.metadata.create_all(engine)
     yield engine
     SQLModel.metadata.drop_all(engine)
@@ -58,6 +62,7 @@ def db_session(test_engine):
 
 # ── HTTP client fixture ────────────────────────────────────────────────────────
 
+
 @pytest.fixture()
 def client(test_engine):
     """
@@ -67,9 +72,9 @@ def client(test_engine):
     - Disables slowapi rate limiting on both the app-level and auth-router
       limiter instances so tests are not constrained by per-IP request rates.
     """
-    from app.main import app
-    from app.db.session import get_db_session
     import app.api.v1.auth as auth_module
+    from app.db.session import get_db_session
+    from app.main import app
 
     def override_get_db():
         with Session(test_engine) as session:
@@ -94,6 +99,7 @@ def client(test_engine):
 
 
 # ── Auth helper ────────────────────────────────────────────────────────────────
+
 
 @pytest.fixture()
 def auth_client(client):

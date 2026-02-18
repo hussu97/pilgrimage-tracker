@@ -2,7 +2,9 @@
  * Share a URL: use Web Share API when available, otherwise copy to clipboard.
  */
 export async function shareUrl(title: string, url: string): Promise<'shared' | 'copied'> {
-  const fullUrl = url.startsWith('http') ? url : `${typeof window !== 'undefined' ? window.location.origin : ''}${url}`;
+  const fullUrl = url.startsWith('http')
+    ? url
+    : `${typeof window !== 'undefined' ? window.location.origin : ''}${url}`;
   if (typeof navigator !== 'undefined' && navigator.share) {
     try {
       await navigator.share({

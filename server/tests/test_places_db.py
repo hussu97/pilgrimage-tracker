@@ -2,23 +2,23 @@
 Tests for pure-logic helpers in app.db.places:
 _haversine_km, _check_attr_bool, _place_has_*, _generate_place_code, list_places filtering.
 """
-import pytest
+
 from sqlmodel import Session
 
+from app.db.models import Place
 from app.db.places import (
-    _haversine_km,
     _check_attr_bool,
-    _place_has_jummah,
+    _generate_place_code,
+    _haversine_km,
     _place_has_events,
+    _place_has_jummah,
     _place_has_parking,
     _place_has_womens_area,
-    _generate_place_code,
     create_place,
-    update_place,
     get_place_by_code,
     list_places,
+    update_place,
 )
-from app.db.models import Place
 
 
 def _place(session: Session, code: str, **kwargs) -> Place:
@@ -38,6 +38,7 @@ def _place(session: Session, code: str, **kwargs) -> Place:
 
 # ── _haversine_km ──────────────────────────────────────────────────────────────
 
+
 class TestHaversine:
     def test_same_point_is_zero(self):
         assert _haversine_km(0, 0, 0, 0) == 0.0
@@ -45,11 +46,11 @@ class TestHaversine:
     def test_known_distance_dubai_to_abu_dhabi(self):
         # Dubai: 25.2048, 55.2708 / Abu Dhabi: 24.4539, 54.3773
         km = _haversine_km(25.2048, 55.2708, 24.4539, 54.3773)
-        assert 120 < km < 140   # ~130 km
+        assert 120 < km < 140  # ~130 km
 
     def test_antipodal_points(self):
         km = _haversine_km(0, 0, 0, 180)
-        assert abs(km - 20015) < 50   # half Earth circumference ≈ 20015 km
+        assert abs(km - 20015) < 50  # half Earth circumference ≈ 20015 km
 
     def test_symmetric(self):
         d1 = _haversine_km(48.8566, 2.3522, 51.5074, -0.1278)  # Paris → London
@@ -63,6 +64,7 @@ class TestHaversine:
 
 
 # ── _check_attr_bool ───────────────────────────────────────────────────────────
+
 
 class TestCheckAttrBool:
     def test_true_bool(self):
@@ -94,8 +96,10 @@ class TestCheckAttrBool:
 
 # ── _place_has_* helpers ───────────────────────────────────────────────────────
 
+
 class _FakePlace:
     """Minimal stub with only the attributes the helper functions access."""
+
     def __init__(self, religion: str = "islam"):
         self.religion = religion
 
@@ -137,6 +141,7 @@ class TestPlaceHasHelpers:
 
 # ── _generate_place_code ───────────────────────────────────────────────────────
 
+
 class TestGeneratePlaceCode:
     def test_has_plc_prefix(self):
         code = _generate_place_code()
@@ -153,6 +158,7 @@ class TestGeneratePlaceCode:
 
 
 # ── create_place / update_place / get_place_by_code ───────────────────────────
+
 
 class TestPlaceCRUD:
     def test_create_and_retrieve(self, db_session):
@@ -183,6 +189,7 @@ class TestPlaceCRUD:
 
 
 # ── list_places filtering ──────────────────────────────────────────────────────
+
 
 class TestListPlacesFiltering:
     def test_empty_db_returns_empty(self, db_session):
@@ -267,9 +274,12 @@ class TestListPlacesFiltering:
     def test_open_now_filter_excludes_closed(self, db_session):
         # All-closed place
         _place(
-            db_session, "plc_lp_cls01",
-            opening_hours={d: "Closed" for d in
-                          ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]},
+            db_session,
+            "plc_lp_cls01",
+            opening_hours=dict.fromkeys(
+                ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+                "Closed",
+            ),
         )
         result = list_places(db_session, open_now=True)
         codes = [p.place_code for p, _ in result["rows"]]
@@ -277,9 +287,12 @@ class TestListPlacesFiltering:
 
     def test_open_now_filter_includes_always_open(self, db_session):
         _place(
-            db_session, "plc_lp_24h01",
-            opening_hours={d: "00:00-23:59" for d in
-                          ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]},
+            db_session,
+            "plc_lp_24h01",
+            opening_hours=dict.fromkeys(
+                ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+                "00:00-23:59",
+            ),
         )
         result = list_places(db_session, open_now=True)
         codes = [p.place_code for p, _ in result["rows"]]

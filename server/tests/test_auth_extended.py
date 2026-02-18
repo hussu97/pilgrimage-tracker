@@ -1,6 +1,7 @@
 """
 Extended auth tests: forgot-password and reset-password flows.
 """
+
 from unittest.mock import patch
 
 REGISTER_URL = "/api/v1/auth/register"
@@ -30,6 +31,7 @@ def _register(client, password="Pass1234!"):
 
 # ── forgot-password ────────────────────────────────────────────────────────────
 
+
 class TestForgotPassword:
     def test_returns_ok_for_registered_email(self, client):
         email, _ = _register(client)
@@ -58,11 +60,14 @@ class TestForgotPassword:
 
 # ── reset-password ─────────────────────────────────────────────────────────────
 
+
 class TestResetPassword:
     def _get_reset_token(self, client, db_session, user_code):
         """Create a valid reset token directly in the DB."""
         from datetime import datetime, timedelta
+
         from app.db import store
+
         token = "testresettk0001"
         expires = datetime.utcnow() + timedelta(hours=1)
         store.save_password_reset(token, user_code, expires, db_session)

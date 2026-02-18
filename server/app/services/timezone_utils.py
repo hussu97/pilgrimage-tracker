@@ -5,7 +5,7 @@ This module provides offset-based timezone utilities without requiring external 
 Uses Python's stdlib datetime module exclusively.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 
 
 def get_local_now(utc_offset_minutes: int) -> datetime:
@@ -32,7 +32,7 @@ def get_today_name(utc_offset_minutes: int | None) -> str:
     """
     if utc_offset_minutes is not None:
         return get_local_now(utc_offset_minutes).strftime("%A")
-    return datetime.now(timezone.utc).strftime("%A")
+    return datetime.now(UTC).strftime("%A")
 
 
 def format_utc_offset(minutes: int) -> str:

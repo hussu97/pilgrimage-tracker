@@ -2,7 +2,7 @@
 Tests for app.db.place_attributes:
 upsert_attribute, get_attributes_dict, bulk_get_attributes_for_places, get_attribute_definitions.
 """
-import pytest
+
 from sqlmodel import Session
 
 from app.db import place_attributes as attr_db
@@ -42,6 +42,7 @@ def _make_attr_def(session: Session, code: str, **kwargs) -> PlaceAttributeDefin
 
 # ── upsert_attribute ───────────────────────────────────────────────────────────
 
+
 class TestUpsertAttribute:
     def test_insert_text_attribute(self, db_session):
         _make_place(db_session, "plc_attr0001")
@@ -53,7 +54,7 @@ class TestUpsertAttribute:
         _make_place(db_session, "plc_attr0002")
         attr_db.upsert_attribute("plc_attr0002", "has_parking", True, db_session)
         d = attr_db.get_attributes_dict("plc_attr0002", db_session)
-        assert d["has_parking"] == "True"   # booleans stored as text
+        assert d["has_parking"] == "True"  # booleans stored as text
 
     def test_insert_json_attribute(self, db_session):
         _make_place(db_session, "plc_attr0003")
@@ -90,6 +91,7 @@ class TestUpsertAttribute:
 
 # ── bulk_get_attributes_for_places ────────────────────────────────────────────
 
+
 class TestBulkGetAttributes:
     def test_bulk_fetch_multiple_places(self, db_session):
         _make_place(db_session, "plc_blk0001")
@@ -97,9 +99,7 @@ class TestBulkGetAttributes:
         attr_db.upsert_attribute("plc_blk0001", "capacity", "100", db_session)
         attr_db.upsert_attribute("plc_blk0002", "capacity", "200", db_session)
 
-        result = attr_db.bulk_get_attributes_for_places(
-            ["plc_blk0001", "plc_blk0002"], db_session
-        )
+        result = attr_db.bulk_get_attributes_for_places(["plc_blk0001", "plc_blk0002"], db_session)
         assert result["plc_blk0001"]["capacity"] == "100"
         assert result["plc_blk0002"]["capacity"] == "200"
 
@@ -115,6 +115,7 @@ class TestBulkGetAttributes:
 
 
 # ── get_attribute_definitions ─────────────────────────────────────────────────
+
 
 class TestGetAttributeDefinitions:
     def test_returns_empty_when_no_definitions(self, db_session):

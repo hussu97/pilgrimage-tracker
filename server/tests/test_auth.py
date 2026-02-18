@@ -1,6 +1,5 @@
 """Tests for /api/v1/auth endpoints: register, login, refresh, logout, field-rules."""
 
-
 REGISTER_URL = "/api/v1/auth/register"
 LOGIN_URL = "/api/v1/auth/login"
 REFRESH_URL = "/api/v1/auth/refresh"
@@ -9,10 +8,13 @@ FIELD_RULES_URL = "/api/v1/auth/field-rules"
 
 
 def _register(client, email="user@example.com", password="Pass1234!", display_name="Test User"):
-    return client.post(REGISTER_URL, json={"email": email, "password": password, "display_name": display_name})
+    return client.post(
+        REGISTER_URL, json={"email": email, "password": password, "display_name": display_name}
+    )
 
 
 # ── register ───────────────────────────────────────────────────────────────────
+
 
 class TestRegister:
     def test_register_success(self, client):
@@ -38,10 +40,13 @@ class TestRegister:
 
 # ── login ──────────────────────────────────────────────────────────────────────
 
+
 class TestLogin:
     def test_login_success(self, client):
         _register(client, email="login@example.com", password="Mypassw0rd!")
-        resp = client.post(LOGIN_URL, json={"email": "login@example.com", "password": "Mypassw0rd!"})
+        resp = client.post(
+            LOGIN_URL, json={"email": "login@example.com", "password": "Mypassw0rd!"}
+        )
         assert resp.status_code == 200
         assert "token" in resp.json()
 
@@ -56,6 +61,7 @@ class TestLogin:
 
 
 # ── refresh ────────────────────────────────────────────────────────────────────
+
 
 class TestRefresh:
     def test_refresh_with_valid_cookie(self, client):
@@ -79,6 +85,7 @@ class TestRefresh:
 
 # ── logout ─────────────────────────────────────────────────────────────────────
 
+
 class TestLogout:
     def test_logout_clears_cookie(self, client):
         resp = _register(client, email="logout@example.com")
@@ -100,6 +107,7 @@ class TestLogout:
 
 
 # ── field-rules ────────────────────────────────────────────────────────────────
+
 
 class TestFieldRules:
     def test_field_rules_returns_fields(self, client):

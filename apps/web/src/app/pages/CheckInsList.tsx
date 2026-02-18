@@ -12,7 +12,9 @@ function getDatesWithCheckIns(checkIns: CheckIn[]): Set<string> {
   checkIns.forEach((c) => {
     if (c.checked_in_at) {
       const d = new Date(c.checked_in_at);
-      set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+      set.add(
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+      );
     }
   });
   return set;
@@ -45,7 +47,7 @@ function CheckInCard({ c }: { c: CheckIn }) {
       className="bg-white dark:bg-dark-surface rounded-[1.5rem] p-4 shadow-subtle border border-slate-100 dark:border-dark-border flex gap-4 h-32 items-center group hover:shadow-lg transition-all"
     >
       <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 relative bg-slate-100 dark:bg-dark-border">
-        {(c.place_image_url || c.place?.images?.[0]?.url) ? (
+        {c.place_image_url || c.place?.images?.[0]?.url ? (
           <img
             src={getFullImageUrl(c.place_image_url || c.place?.images?.[0]?.url)}
             alt=""
@@ -58,8 +60,15 @@ function CheckInCard({ c }: { c: CheckIn }) {
         )}
         {c.place?.average_rating ? (
           <div className="absolute bottom-1 right-1 bg-primary px-1.5 py-0.5 rounded-lg flex items-center gap-0.5">
-            <span className="material-symbols-outlined text-white text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-            <span className="text-[10px] font-bold text-white">{c.place.average_rating.toFixed(1)}</span>
+            <span
+              className="material-symbols-outlined text-white text-[10px]"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              star
+            </span>
+            <span className="text-[10px] font-bold text-white">
+              {c.place.average_rating.toFixed(1)}
+            </span>
           </div>
         ) : null}
       </div>
@@ -72,11 +81,11 @@ function CheckInCard({ c }: { c: CheckIn }) {
           <span>
             {c.checked_in_at
               ? new Date(c.checked_in_at).toLocaleDateString(undefined, {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })
-              : c.date ?? ''}
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })
+              : (c.date ?? '')}
           </span>
           {c.time && (
             <>
@@ -145,11 +154,11 @@ export default function CheckInsList() {
         month: 'long',
         year: 'numeric',
       }),
-    [calendarMonth]
+    [calendarMonth],
   );
   const monthDays = useMemo(
     () => getMonthDays(calendarMonth.year, calendarMonth.month),
-    [calendarMonth]
+    [calendarMonth],
   );
 
   const goPrevMonth = () => {
@@ -171,8 +180,11 @@ export default function CheckInsList() {
   const isToday = (d: Date) => dateKey(d) === dateKey(now);
 
   const recentCheckIns = useMemo(
-    () => [...checkIns].sort((a, b) => (b.checked_in_at || '').localeCompare(a.checked_in_at || '')).slice(0, 10),
-    [checkIns]
+    () =>
+      [...checkIns]
+        .sort((a, b) => (b.checked_in_at || '').localeCompare(a.checked_in_at || ''))
+        .slice(0, 10),
+    [checkIns],
   );
 
   return (
@@ -209,7 +221,11 @@ export default function CheckInsList() {
         {error && (
           <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 p-4 rounded-2xl mb-8">
             <p className="text-red-600 dark:text-red-400 mb-3 text-sm font-medium">{error}</p>
-            <button type="button" onClick={fetchList} className="text-primary font-bold text-sm underline">
+            <button
+              type="button"
+              onClick={fetchList}
+              className="text-primary font-bold text-sm underline"
+            >
               {t('common.retry')}
             </button>
           </div>
@@ -224,8 +240,12 @@ export default function CheckInsList() {
                 {t('journey.totalVisits')}
               </span>
               <div className="flex items-baseline mt-1 gap-2">
-                <span className="text-5xl font-bold text-primary tracking-tighter">{totalCount}</span>
-                <span className="text-sm text-slate-400 dark:text-slate-500 font-medium">{t('journey.sacredPlaces')}</span>
+                <span className="text-5xl font-bold text-primary tracking-tighter">
+                  {totalCount}
+                </span>
+                <span className="text-sm text-slate-400 dark:text-slate-500 font-medium">
+                  {t('journey.sacredPlaces')}
+                </span>
               </div>
             </div>
             <div className="h-12 w-px bg-slate-100 dark:bg-dark-border mx-4 z-10" />
@@ -233,7 +253,9 @@ export default function CheckInsList() {
               <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] block mb-1">
                 {t('checkins.thisMonth')}
               </span>
-              <span className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{thisMonth.length}</span>
+              <span className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+                {thisMonth.length}
+              </span>
             </div>
           </div>
         )}
@@ -242,7 +264,9 @@ export default function CheckInsList() {
       {!loading && !error && checkIns.length === 0 && (
         <div className="px-6 py-12 text-center">
           <div className="rounded-2xl border border-input-border bg-white dark:bg-dark-surface py-12 shadow-subtle">
-            <span className="material-symbols-outlined text-5xl text-text-muted mb-3 block">location_off</span>
+            <span className="material-symbols-outlined text-5xl text-text-muted mb-3 block">
+              location_off
+            </span>
             <p className="text-text-muted mb-4 text-sm">{t('profile.noCheckInsYet')}</p>
             <Link
               to="/home"
@@ -260,10 +284,19 @@ export default function CheckInsList() {
           {onThisDay.length > 0 && (
             <section className="px-6 mb-8">
               <div className="flex items-center gap-3 mb-6">
-                <span className="material-symbols-outlined text-primary text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>auto_stories</span>
+                <span
+                  className="material-symbols-outlined text-primary text-2xl"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  auto_stories
+                </span>
                 <div>
-                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1">{t('checkins.onThisDay')}</h2>
-                  <p className="text-[13px] text-slate-500 dark:text-dark-text-secondary font-medium">{t('checkins.onThisDayDescription')}</p>
+                  <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-1">
+                    {t('checkins.onThisDay')}
+                  </h2>
+                  <p className="text-[13px] text-slate-500 dark:text-dark-text-secondary font-medium">
+                    {t('checkins.onThisDayDescription')}
+                  </p>
                 </div>
               </div>
               <div className="space-y-3">
@@ -277,7 +310,9 @@ export default function CheckInsList() {
           {/* Calendar */}
           <section className="px-6 mb-8">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{monthLabel}</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                {monthLabel}
+              </h2>
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -285,7 +320,9 @@ export default function CheckInsList() {
                   className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-dark-surface transition-colors"
                   aria-label="Previous month"
                 >
-                  <span className="material-symbols-outlined text-slate-400 text-sm">chevron_left</span>
+                  <span className="material-symbols-outlined text-slate-400 text-sm">
+                    chevron_left
+                  </span>
                 </button>
                 <button
                   type="button"
@@ -293,14 +330,18 @@ export default function CheckInsList() {
                   className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-dark-surface transition-colors"
                   aria-label="Next month"
                 >
-                  <span className="material-symbols-outlined text-slate-400 text-sm">chevron_right</span>
+                  <span className="material-symbols-outlined text-slate-400 text-sm">
+                    chevron_right
+                  </span>
                 </button>
               </div>
             </div>
             <div className="bg-white dark:bg-dark-surface rounded-[1.5rem] p-4 shadow-subtle border border-slate-100 dark:border-dark-border">
               <div className="grid grid-cols-7 gap-y-4 text-center text-xs mb-2">
                 {WEEKDAY_LABELS.map((l, i) => (
-                  <span key={i} className="text-slate-400 font-medium">{l}</span>
+                  <span key={i} className="text-slate-400 font-medium">
+                    {l}
+                  </span>
                 ))}
               </div>
               <div className="grid grid-cols-7 gap-y-3 text-center text-sm">
@@ -310,15 +351,17 @@ export default function CheckInsList() {
                   return (
                     <div
                       key={i}
-                      className={`py-2 relative flex items-center justify-center ${!isCurrent ? 'text-slate-300' : 'text-slate-800 dark:text-white'
-                        }`}
+                      className={`py-2 relative flex items-center justify-center ${
+                        !isCurrent ? 'text-slate-300' : 'text-slate-800 dark:text-white'
+                      }`}
                     >
                       {has && (
                         <span
-                          className={`absolute w-8 h-8 rounded-full z-0 ${today
-                            ? 'bg-primary shadow-md shadow-blue-200'
-                            : 'bg-blue-50 dark:bg-primary/20'
-                            }`}
+                          className={`absolute w-8 h-8 rounded-full z-0 ${
+                            today
+                              ? 'bg-primary shadow-md shadow-blue-200'
+                              : 'bg-blue-50 dark:bg-primary/20'
+                          }`}
                         />
                       )}
                       <span
@@ -337,8 +380,15 @@ export default function CheckInsList() {
           {thisMonth.length > 0 && (
             <section className="px-6 mb-8">
               <div className="flex items-center gap-3 mb-6">
-                <span className="material-symbols-outlined text-primary text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>calendar_month</span>
-                <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{t('checkins.thisMonth')}</h2>
+                <span
+                  className="material-symbols-outlined text-primary text-2xl"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  calendar_month
+                </span>
+                <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+                  {t('checkins.thisMonth')}
+                </h2>
               </div>
               <div className="space-y-3">
                 {thisMonth.map((c) => (

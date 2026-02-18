@@ -42,7 +42,7 @@ export default function SearchFilterBar({
         style={[
           styles.filterBtn,
           hasActiveFilters && styles.filterBtnActive,
-          { backgroundColor: hasActiveFilters ? tokens.colors.primary : surface }
+          { backgroundColor: hasActiveFilters ? tokens.colors.primary : surface },
         ]}
       >
         <MaterialIcons name="tune" size={20} color={hasActiveFilters ? '#fff' : textMain} />

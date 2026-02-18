@@ -31,10 +31,18 @@ def _auth(token: str) -> dict:
 
 
 def _create_place(client, code: str):
-    resp = client.post(PLACES_URL, json={
-        "place_code": code, "name": "Rev Place", "religion": "islam",
-        "place_type": "mosque", "lat": 0.0, "lng": 0.0, "address": "Addr",
-    })
+    resp = client.post(
+        PLACES_URL,
+        json={
+            "place_code": code,
+            "name": "Rev Place",
+            "religion": "islam",
+            "place_type": "mosque",
+            "lat": 0.0,
+            "lng": 0.0,
+            "address": "Addr",
+        },
+    )
     assert resp.status_code in (200, 201)
 
 
@@ -49,6 +57,7 @@ def _create_review(client, token, place_code, rating=5, title="Great", body="Exc
 
 
 # ── PATCH /reviews/{code} ──────────────────────────────────────────────────────
+
 
 class TestUpdateReview:
     def test_update_rating(self, client):
@@ -67,7 +76,9 @@ class TestUpdateReview:
         review = _create_review(client, token, "plc_ur0002")
         code = review["review_code"]
 
-        resp = client.patch(f"{REVIEWS_URL}/{code}", json={"title": "Updated Title"}, headers=_auth(token))
+        resp = client.patch(
+            f"{REVIEWS_URL}/{code}", json={"title": "Updated Title"}, headers=_auth(token)
+        )
         assert resp.status_code == 200
         assert resp.json()["title"] == "Updated Title"
 
@@ -77,7 +88,9 @@ class TestUpdateReview:
         review = _create_review(client, token, "plc_ur0003")
         code = review["review_code"]
 
-        resp = client.patch(f"{REVIEWS_URL}/{code}", json={"body": "New body text"}, headers=_auth(token))
+        resp = client.patch(
+            f"{REVIEWS_URL}/{code}", json={"body": "New body text"}, headers=_auth(token)
+        )
         assert resp.status_code == 200
         assert resp.json()["body"] == "New body text"
 
@@ -111,6 +124,7 @@ class TestUpdateReview:
 
 
 # ── DELETE /reviews/{code} ─────────────────────────────────────────────────────
+
 
 class TestDeleteReview:
     def test_delete_own_review(self, client):
@@ -156,6 +170,7 @@ class TestDeleteReview:
 
 
 # ── Reviews list and aggregate rating ─────────────────────────────────────────
+
 
 class TestReviewsListAndRating:
     def test_reviews_list_includes_rating(self, client):

@@ -46,8 +46,12 @@ export default function CreateGroup() {
         <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
           <span className="material-symbols-outlined text-3xl text-primary">check_circle</span>
         </div>
-        <h2 className="text-xl font-semibold text-text-main dark:text-white text-center mb-2">{t('groups.groupCreated')}</h2>
-        <p className="text-text-muted dark:text-dark-text-secondary text-sm text-center mb-6">{t('groups.shareInviteLink')}</p>
+        <h2 className="text-xl font-semibold text-text-main dark:text-white text-center mb-2">
+          {t('groups.groupCreated')}
+        </h2>
+        <p className="text-text-muted dark:text-dark-text-secondary text-sm text-center mb-6">
+          {t('groups.shareInviteLink')}
+        </p>
         <div className="flex gap-2 mb-4">
           <input
             readOnly
@@ -83,11 +87,15 @@ export default function CreateGroup() {
 
   return (
     <div className="max-w-md mx-auto px-4 py-6 dark:bg-dark-bg min-h-screen">
-      <h1 className="text-xl font-bold text-text-main dark:text-white mb-6">{t('groups.createGroup')}</h1>
+      <h1 className="text-xl font-bold text-text-main dark:text-white mb-6">
+        {t('groups.createGroup')}
+      </h1>
       {error && <p className="text-red-600 dark:text-red-400 text-sm mb-4">{error}</p>}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-text-main dark:text-white mb-1">{t('groups.nameLabel')}</label>
+          <label className="block text-sm font-medium text-text-main dark:text-white mb-1">
+            {t('groups.nameLabel')}
+          </label>
           <input
             type="text"
             value={name}
@@ -97,7 +105,9 @@ export default function CreateGroup() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-text-main dark:text-white mb-1">{t('groups.descriptionLabel')}</label>
+          <label className="block text-sm font-medium text-text-main dark:text-white mb-1">
+            {t('groups.descriptionLabel')}
+          </label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}

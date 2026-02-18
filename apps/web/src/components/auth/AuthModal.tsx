@@ -56,8 +56,14 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (password !== confirm) { setError(t('auth.passwordsDoNotMatch')); return; }
-    if (password.length < 6) { setError(t('auth.passwordMinLength')); return; }
+    if (password !== confirm) {
+      setError(t('auth.passwordsDoNotMatch'));
+      return;
+    }
+    if (password.length < 6) {
+      setError(t('auth.passwordMinLength'));
+      return;
+    }
     setSubmitting(true);
     try {
       await register(email, password, displayName.trim() || undefined);

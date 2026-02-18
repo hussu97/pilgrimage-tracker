@@ -12,7 +12,7 @@ Run this script once after deploying the timezone handling changes.
 import os
 import sys
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Any
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -22,7 +22,7 @@ from sqlmodel import Session, create_engine, select
 from app.db.models import Place
 
 
-def parse_time_range(time_str: str) -> tuple[Optional[str], Optional[str]]:
+def parse_time_range(time_str: str) -> tuple[str | None, str | None]:
     """Parse a time range string like '09:00-17:00' into start and end times."""
     if not time_str or time_str.lower() in ["closed", "open 24 hours"]:
         return None, None
@@ -62,7 +62,7 @@ def add_hours_to_time(time_str: str, hours: int) -> str:
         return time_str
 
 
-def convert_utc_to_local_hours(opening_hours: Dict[str, Any], offset_hours: int) -> Dict[str, Any]:
+def convert_utc_to_local_hours(opening_hours: dict[str, Any], offset_hours: int) -> dict[str, Any]:
     """Convert UTC opening hours to local time by adding offset hours.
 
     Args:

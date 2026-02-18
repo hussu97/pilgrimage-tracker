@@ -4,13 +4,13 @@ Unit tests for app.db.store — user/auth DB layer.
 Tests create_user, get_user_by_code/email, update_user, settings,
 password reset flow, and refresh token lifecycle using the in-memory DB fixture.
 """
+
 from datetime import datetime, timedelta
 
-import pytest
 from app.db import store
 
-
 # ── helpers ────────────────────────────────────────────────────────────────────
+
 
 def _make_user(session, email="user@test.com", user_code="usr_test0001"):
     return store.create_user(
@@ -23,6 +23,7 @@ def _make_user(session, email="user@test.com", user_code="usr_test0001"):
 
 
 # ── create_user ────────────────────────────────────────────────────────────────
+
 
 class TestCreateUser:
     def test_creates_user_with_correct_fields(self, db_session):
@@ -67,6 +68,7 @@ class TestCreateUser:
 
 # ── get_user_by_code / get_user_by_email ──────────────────────────────────────
 
+
 class TestGetUser:
     def test_get_by_code(self, db_session):
         _make_user(db_session)
@@ -94,6 +96,7 @@ class TestGetUser:
 
 # ── update_user ────────────────────────────────────────────────────────────────
 
+
 class TestUpdateUser:
     def test_update_display_name(self, db_session):
         _make_user(db_session)
@@ -111,6 +114,7 @@ class TestUpdateUser:
 
 # ── user settings ──────────────────────────────────────────────────────────────
 
+
 class TestUserSettings:
     def test_update_theme(self, db_session):
         _make_user(db_session)
@@ -124,7 +128,9 @@ class TestUserSettings:
 
     def test_update_religions_valid(self, db_session):
         _make_user(db_session)
-        result = store.update_user_settings("usr_test0001", db_session, religions=["islam", "hinduism"])
+        result = store.update_user_settings(
+            "usr_test0001", db_session, religions=["islam", "hinduism"]
+        )
         assert set(result["religions"]) == {"islam", "hinduism"}
 
     def test_update_religions_filters_invalid(self, db_session):
@@ -145,6 +151,7 @@ class TestUserSettings:
 
 
 # ── password reset ─────────────────────────────────────────────────────────────
+
 
 class TestPasswordReset:
     def test_consume_valid_token(self, db_session):
@@ -179,6 +186,7 @@ class TestPasswordReset:
 
 # ── refresh tokens ─────────────────────────────────────────────────────────────
 
+
 class TestRefreshTokens:
     def test_save_and_consume(self, db_session):
         _make_user(db_session)
@@ -207,6 +215,7 @@ class TestRefreshTokens:
 
 
 # ── update_user_password ───────────────────────────────────────────────────────
+
 
 class TestUpdatePassword:
     def test_password_updated_in_db(self, db_session):

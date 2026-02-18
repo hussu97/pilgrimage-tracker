@@ -1,4 +1,5 @@
-import { Component, ErrorInfo, ReactNode } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
+import { Component } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { tokens } from '@/lib/theme';
 
@@ -56,11 +57,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <Text style={styles.message}>
               {this.state.error?.message || 'An unexpected error occurred'}
             </Text>
-            <TouchableOpacity
-              onPress={this.handleReset}
-              style={styles.button}
-              activeOpacity={0.8}
-            >
+            <TouchableOpacity onPress={this.handleReset} style={styles.button} activeOpacity={0.8}>
               <Text style={styles.buttonText}>Try again</Text>
             </TouchableOpacity>
           </View>

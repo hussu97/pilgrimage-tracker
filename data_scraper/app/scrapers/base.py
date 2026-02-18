@@ -1,13 +1,15 @@
 import secrets
 import time
+
 import requests
-from typing import Optional
+
 
 def generate_code(prefix: str) -> str:
     """Generate a unique code with the given prefix."""
     return f"{prefix}_{secrets.token_hex(4)}"
 
-def make_request_with_backoff(method: str, url: str, **kwargs) -> Optional[requests.Response]:
+
+def make_request_with_backoff(method: str, url: str, **kwargs) -> requests.Response | None:
     """Make HTTP request with exponential backoff on rate limits."""
     wait_time = 5
     retries = 0

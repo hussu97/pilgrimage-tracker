@@ -54,7 +54,10 @@ export default function Login() {
 
         {/* Logo icon */}
         <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-200 dark:shadow-none">
-          <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+          <span
+            className="material-symbols-outlined text-white text-2xl"
+            style={{ fontVariationSettings: "'FILL' 1" }}
+          >
             auto_awesome
           </span>
         </div>
@@ -86,7 +89,11 @@ export default function Login() {
               <label className="block text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] ml-1">
                 {t('auth.password')}
               </label>
-              <Link to="/forgot-password" title={t('auth.forgotPassword')} className="text-xs font-semibold text-primary hover:text-primary-hover transition-colors">
+              <Link
+                to="/forgot-password"
+                title={t('auth.forgotPassword')}
+                className="text-xs font-semibold text-primary hover:text-primary-hover transition-colors"
+              >
                 {t('auth.forgotPassword')}
               </Link>
             </div>

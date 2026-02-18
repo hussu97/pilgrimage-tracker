@@ -24,15 +24,18 @@ export default function HomeHeader({
     <View style={styles.header}>
       <View style={styles.headerRow}>
         <Text style={[styles.greeting, { color: textMain }]}>
-          {t('home.greeting')}{' '}
-          <Text style={styles.greetingName}>{displayName}</Text>
+          {t('home.greeting')} <Text style={styles.greetingName}>{displayName}</Text>
         </Text>
         <View style={[styles.toggleGroup, { backgroundColor: toggleGroupBg }]}>
           <TouchableOpacity
             onPress={onViewModeToggle}
             style={[styles.toggleBtn, viewMode === 'list' && styles.toggleBtnActive]}
           >
-            <MaterialIcons name="view-list" size={18} color={viewMode === 'list' ? '#fff' : textMain} />
+            <MaterialIcons
+              name="view-list"
+              size={18}
+              color={viewMode === 'list' ? '#fff' : textMain}
+            />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={onViewModeToggle}

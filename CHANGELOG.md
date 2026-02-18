@@ -4,6 +4,50 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P3 Code Quality (2026-02-18)
+
+### Backend
+- **`server/app/api/deps.py`** — Added return type annotations to `get_current_user` (→ `User`) and `get_optional_user` (→ `User | None`). Added `UserDep` and `OptionalUserDep` type aliases.
+- **`server/app/api/v1/users.py`, `reviews.py`, `notifications.py`, `groups.py`, `places.py`** — Replaced all 28 `Annotated[Any, Depends(get_current_user)]` occurrences with `UserDep`/`OptionalUserDep`. Removed unused `Any` and `Depends` imports.
+- **`server/app/main.py`** — Added `openapi_tags` metadata for all 8 tag groups (auth, users, places, reviews, groups, notifications, i18n, visitors) and an expanded API description with auth/rate-limiting/identifier docs.
+- **`server/app/api/v1/auth.py`** — Added `summary`, response error schemas (400/401/422/429), and docstrings to `/register`, `/login`, `/forgot-password`, `/reset-password`.
+- **`server/app/models/schemas.py`** — Added `Field(description=...)` and `model_config json_schema_extra` examples to `RegisterBody`, `LoginBody`, `AuthResponse`, and `UserResponse`. Imported `ConfigDict` and `Field` from pydantic.
+- **`server/requirements.txt`** — Added `pytest-cov>=5.0.0` and `ruff>=0.3.0`.
+- **`server/pytest.ini`** — Added `--tb=short` to `addopts` and coverage usage comment.
+- **`server/.coveragerc`** — New file: coverage config with `fail_under = 60`, HTML+XML reporters, source=`app`.
+- **`server/pyproject.toml`** — New file: Ruff configuration (E, W, F, I, B, C4, UP rules; line-length 100).
+- **`data_scraper/requirements.txt`** — Added `pytest-cov>=5.0.0` and `ruff>=0.3.0`.
+- **`data_scraper/pytest.ini`** — Added `--tb=short` and coverage usage comment.
+- **`data_scraper/.coveragerc`** — New file: coverage config with `fail_under = 60`.
+- **`data_scraper/pyproject.toml`** — New file: Ruff configuration.
+
+### Frontend (web)
+- **`apps/web/src/__tests__/utils.test.ts`** — New: 13 tests for `cn()` utility (all input types, nesting, falsy values) and `crowdColorClass()`.
+- **`apps/web/src/__tests__/imageUtils.test.ts`** — New: 3 tests for `getFullImageUrl()` (undefined, external URL, relative path).
+- **`apps/web/vitest.config.ts`** — New: Vitest config with jsdom environment, `@/` path alias, v8 coverage provider, 60% threshold.
+- **`apps/web/src/test/setup.ts`** — New: imports `@testing-library/jest-dom` for Vitest.
+- **`apps/web/eslint.config.js`** — New: ESLint flat config with TypeScript, React, React Hooks, React Refresh, and Prettier rules.
+- **`apps/web/src/lib/api/client.ts`** — Fixed `r: any` type in place list map to `Place | [Place, number]`.
+- **`apps/web/package.json`** — Added `test`, `test:watch`, `test:coverage`, `lint`, `lint:fix`, `format`, `format:check` scripts. Added `vitest`, `@vitest/coverage-v8`, testing libraries, ESLint, Prettier dev dependencies.
+
+### Frontend (mobile)
+- **`apps/mobile/src/__tests__/utils.test.ts`** — New: 10 tests for `crowdColor()`, `getFullImageUrl()`, `ROUTES` constants, and storage keys.
+- **`apps/mobile/jest.config.js`** — New: Jest config with jest-expo preset, AsyncStorage mock, expo winter runtime mock (`^expo/src/winter$`), 60% coverage threshold.
+- **`apps/mobile/src/test/setup.ts`** — New: mocks for expo-constants and expo-haptics.
+- **`apps/mobile/src/test/__mocks__/expo-winter.js`** — New: empty mock preventing expo winter runtime from loading in Jest (avoids import.meta incompatibility).
+- **`apps/mobile/eslint.config.js`** — New: ESLint flat config with TypeScript, React, React Hooks, and Prettier rules.
+- **`apps/mobile/src/components/places/FilterChipsList.tsx`** — Fixed `value?: any` callback param to `value?: string | boolean`.
+- **`apps/mobile/package.json`** — Added test/lint/format scripts. Added jest, jest-expo, ESLint, Prettier dev dependencies.
+
+### Docs
+- **`ROADMAP.md`** — Marked 7 Code Quality tasks as complete.
+- **`.prettierrc`** — New: shared Prettier config (singleQuote, trailingComma all, printWidth 100, LF).
+- **`.pre-commit-config.yaml`** — New: pre-commit hooks for trailing-whitespace, end-of-file-fixer, merge-conflict detection, YAML/JSON validation, Ruff, ESLint, Prettier.
+- **`scripts/gen-api-types.mjs`** — New: script to generate `api-generated.d.ts` in both apps from the running server's OpenAPI spec.
+- **`package.json`** (root) — Added `gen:types` script and `openapi-typescript` dev dependency.
+
+---
+
 ## Mobile UI Fixes + Dynamic Password Validation (2026-02-18)
 
 ### Backend

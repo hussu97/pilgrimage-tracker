@@ -44,9 +44,16 @@ export default function ResetPassword() {
   if (success) {
     return (
       <div className="max-w-md mx-auto px-6 py-8 safe-area-top safe-area-bottom bg-white dark:bg-dark-bg">
-        <h1 className="text-2xl font-bold text-text-main dark:text-white mb-2">{t('auth.passwordUpdated')}</h1>
-        <p className="text-text-muted dark:text-dark-text-secondary mb-6">{t('auth.backToLogin')}</p>
-        <Link to="/login" className="inline-block bg-primary hover:bg-primary-hover text-white py-3 px-6 rounded-xl font-semibold">
+        <h1 className="text-2xl font-bold text-text-main dark:text-white mb-2">
+          {t('auth.passwordUpdated')}
+        </h1>
+        <p className="text-text-muted dark:text-dark-text-secondary mb-6">
+          {t('auth.backToLogin')}
+        </p>
+        <Link
+          to="/login"
+          className="inline-block bg-primary hover:bg-primary-hover text-white py-3 px-6 rounded-xl font-semibold"
+        >
           {t('auth.login')}
         </Link>
       </div>
@@ -66,8 +73,12 @@ export default function ResetPassword() {
 
   return (
     <div className="max-w-md mx-auto px-6 py-8 safe-area-top safe-area-bottom bg-white dark:bg-dark-bg">
-      <h1 className="text-2xl font-bold text-text-main dark:text-white mb-2">{t('auth.setNewPassword')}</h1>
-      <p className="text-text-muted dark:text-dark-text-secondary mb-6">{t('auth.enterNewPassword')}</p>
+      <h1 className="text-2xl font-bold text-text-main dark:text-white mb-2">
+        {t('auth.setNewPassword')}
+      </h1>
+      <p className="text-text-muted dark:text-dark-text-secondary mb-6">
+        {t('auth.enterNewPassword')}
+      </p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="password"
@@ -95,7 +106,10 @@ export default function ResetPassword() {
           {loading ? t('common.loading') : t('auth.resetPassword')}
         </button>
       </form>
-      <Link to="/login" className="block mt-6 text-center text-sm text-text-muted hover:text-primary">
+      <Link
+        to="/login"
+        className="block mt-6 text-center text-sm text-text-muted hover:text-primary"
+      >
         {t('auth.backToLogin')}
       </Link>
     </div>

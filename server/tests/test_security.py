@@ -4,12 +4,13 @@ hash_password, verify_password, create_access_token, decode_token, create_refres
 
 These are pure-function tests — no DB or HTTP needed.
 """
+
 from app.core.security import (
-    hash_password,
-    verify_password,
     create_access_token,
     create_refresh_token,
     decode_token,
+    hash_password,
+    verify_password,
 )
 
 
@@ -70,7 +71,7 @@ class TestJwtTokens:
         # the last char can leave the decoded bytes unchanged.
         mid = len(sig) // 2
         tampered_char = "B" if sig[mid] != "B" else "A"
-        tampered_sig = sig[:mid] + tampered_char + sig[mid + 1:]
+        tampered_sig = sig[:mid] + tampered_char + sig[mid + 1 :]
         tampered = f"{header}.{payload}.{tampered_sig}"
         assert decode_token(tampered) is None
 

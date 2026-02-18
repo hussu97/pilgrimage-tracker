@@ -108,7 +108,7 @@ export async function getPlaces(params?: GetPlacesParams): Promise<PlacesRespons
   // Server returns { places: [...], filters: { options: [...] } }
   const rawPlaces = data.places || [];
   return {
-    places: rawPlaces.map((r: any) => {
+    places: rawPlaces.map((r: Place | [Place, number]) => {
       // Handle both [place, distance] tuple and plain place object formats
       const isArray = Array.isArray(r);
       const p = isArray ? r[0] : r;
@@ -213,7 +213,10 @@ export async function getPlaceReviews(placeCode: string, limit = 5): Promise<Rev
   return res.json();
 }
 
-export async function checkIn(placeCode: string, body?: { note?: string; photo_url?: string }): Promise<CheckIn> {
+export async function checkIn(
+  placeCode: string,
+  body?: { note?: string; photo_url?: string },
+): Promise<CheckIn> {
   const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/check-in`, {
     method: 'POST',
     headers: authHeaders(),
@@ -225,12 +228,18 @@ export async function checkIn(placeCode: string, body?: { note?: string; photo_u
 }
 
 export async function addFavorite(placeCode: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/favorite`, { method: 'POST', headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/favorite`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to add favorite');
 }
 
 export async function removeFavorite(placeCode: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/favorite`, { method: 'DELETE', headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/favorite`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to remove favorite');
 }
 
@@ -242,13 +251,17 @@ export async function getMyCheckIns(): Promise<CheckIn[]> {
 }
 
 export async function getThisMonthCheckIns(): Promise<CheckIn[]> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins/this-month`, { headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins/this-month`, {
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch this month check-ins');
   return res.json();
 }
 
 export async function getOnThisDayCheckIns(): Promise<CheckIn[]> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins/on-this-day`, { headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins/on-this-day`, {
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch on-this-day check-ins');
   return res.json();
 }
@@ -291,7 +304,13 @@ export async function uploadReviewPhoto(file: Blob): Promise<{
 
 export async function createReview(
   placeCode: string,
-  body: { rating: number; title?: string; body?: string; is_anonymous?: boolean; photo_urls?: string[] }
+  body: {
+    rating: number;
+    title?: string;
+    body?: string;
+    is_anonymous?: boolean;
+    photo_urls?: string[];
+  },
 ): Promise<Review> {
   const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/reviews`, {
     method: 'POST',
@@ -303,7 +322,10 @@ export async function createReview(
   return data;
 }
 
-export async function updateReview(reviewCode: string, body: { rating?: number; title?: string; body?: string }): Promise<Review> {
+export async function updateReview(
+  reviewCode: string,
+  body: { rating?: number; title?: string; body?: string },
+): Promise<Review> {
   const res = await fetch(`${API_BASE}/api/v1/reviews/${reviewCode}`, {
     method: 'PATCH',
     headers: authHeaders(),
@@ -331,7 +353,11 @@ export async function getGroups(): Promise<Group[]> {
   return res.json();
 }
 
-export async function createGroup(body: { name: string; description?: string; is_private?: boolean }): Promise<Group & { invite_code: string }> {
+export async function createGroup(body: {
+  name: string;
+  description?: string;
+  is_private?: boolean;
+}): Promise<Group & { invite_code: string }> {
   const res = await fetch(`${API_BASE}/api/v1/groups`, {
     method: 'POST',
     headers: authHeaders(),
@@ -349,14 +375,20 @@ export async function getGroup(groupCode: string): Promise<Group> {
   return data;
 }
 
-export async function getGroupByInviteCode(inviteCode: string): Promise<{ group_code: string; name: string }> {
-  const res = await fetch(`${API_BASE}/api/v1/groups/by-invite/${inviteCode}`, { headers: authHeaders() });
+export async function getGroupByInviteCode(
+  inviteCode: string,
+): Promise<{ group_code: string; name: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/groups/by-invite/${inviteCode}`, {
+    headers: authHeaders(),
+  });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail ?? 'Invalid invite');
   return data;
 }
 
-export async function joinGroupByCode(inviteCode: string): Promise<{ ok: boolean; group_code: string }> {
+export async function joinGroupByCode(
+  inviteCode: string,
+): Promise<{ ok: boolean; group_code: string }> {
   const res = await fetch(`${API_BASE}/api/v1/groups/join-by-code`, {
     method: 'POST',
     headers: authHeaders(),
@@ -368,17 +400,24 @@ export async function joinGroupByCode(inviteCode: string): Promise<{ ok: boolean
 }
 
 export async function joinGroup(groupCode: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/join`, { method: 'POST', headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/join`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to join group');
 }
 
 export async function getGroupMembers(groupCode: string): Promise<GroupMember[]> {
-  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/members`, { headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/members`, {
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch members');
   return res.json();
 }
 
-export async function createGroupInvite(groupCode: string): Promise<{ invite_code: string; invite_url: string }> {
+export async function createGroupInvite(
+  groupCode: string,
+): Promise<{ invite_code: string; invite_url: string }> {
   const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/invite`, {
     method: 'POST',
     headers: authHeaders(),
@@ -389,7 +428,9 @@ export async function createGroupInvite(groupCode: string): Promise<{ invite_cod
 }
 
 export async function getGroupLeaderboard(groupCode: string): Promise<LeaderboardEntry[]> {
-  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/leaderboard`, { headers: authHeaders() });
+  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/leaderboard`, {
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch leaderboard');
   return res.json();
 }
@@ -401,7 +442,10 @@ export async function getGroupActivity(groupCode: string, limit?: number): Promi
   return res.json();
 }
 
-export async function getNotifications(limit?: number, offset?: number): Promise<{ notifications: Notification[]; unread_count: number }> {
+export async function getNotifications(
+  limit?: number,
+  offset?: number,
+): Promise<{ notifications: Notification[]; unread_count: number }> {
   const sp = new URLSearchParams();
   if (limit != null) sp.set('limit', String(limit));
   if (offset != null) sp.set('offset', String(offset));
@@ -451,7 +495,10 @@ export async function getVisitorSettings(code: string): Promise<UserSettings> {
   return res.json();
 }
 
-export async function updateVisitorSettings(code: string, body: Partial<UserSettings>): Promise<UserSettings> {
+export async function updateVisitorSettings(
+  code: string,
+  body: Partial<UserSettings>,
+): Promise<UserSettings> {
   const res = await fetch(`${API_BASE}/api/v1/visitors/${encodeURIComponent(code)}/settings`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },

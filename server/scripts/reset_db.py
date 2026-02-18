@@ -21,6 +21,7 @@ With --with-demo-data it additionally seeds:
   - Notifications
   - Password reset tokens
 """
+
 import argparse
 import sys
 from pathlib import Path
@@ -29,8 +30,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlmodel import SQLModel
+
+from app.db.seed import run_seed_demo, run_seed_system
 from app.db.session import engine, run_migrations
-from app.db.seed import run_seed_system, run_seed_demo
 
 
 def main() -> None:

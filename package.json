@@ -4,5 +4,11 @@
   "description": "Discover, visit, and track religious places",
   "engines": {
     "node": ">=18"
+  },
+  "scripts": {
+    "gen:types": "node scripts/gen-api-types.mjs"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0"
   }
 }

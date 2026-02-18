@@ -7,8 +7,8 @@ import { applyTheme } from '@/lib/theme';
 import type { UserStats, Religion } from '@/lib/types';
 
 const RELIGIONS = [
-  { code: 'islam' as const,        emoji: '🕌', labelKey: 'common.islam' },
-  { code: 'hinduism' as const,     emoji: '🛕', labelKey: 'common.hinduism' },
+  { code: 'islam' as const, emoji: '🕌', labelKey: 'common.islam' },
+  { code: 'hinduism' as const, emoji: '🛕', labelKey: 'common.hinduism' },
   { code: 'christianity' as const, emoji: '⛪', labelKey: 'common.christianity' },
 ];
 
@@ -75,7 +75,7 @@ export default function Profile() {
 
   const toggleReligion = (code: Religion) => {
     if (code === 'all') {
-      setSelectedReligions((prev) => prev.includes('all') ? [] : ['all']);
+      setSelectedReligions((prev) => (prev.includes('all') ? [] : ['all']));
     } else {
       setSelectedReligions((prev) => {
         const without = prev.filter((r) => r !== 'all' && r !== code);
@@ -91,14 +91,20 @@ export default function Profile() {
       // Refresh user to show updated subtext
       await getSettings();
       if (user) fetchData();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleLangSelect = async (code: string) => {
     setLangOpen(false);
     await setLocale(code);
     if (user) {
-      try { await updateSettings({ language: code }); } catch { /* ignore */ }
+      try {
+        await updateSettings({ language: code });
+      } catch {
+        /* ignore */
+      }
     }
   };
 
@@ -139,7 +145,9 @@ export default function Profile() {
               </div>
             </div>
             <div className="text-center">
-              <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{displayName}</h2>
+              <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+                {displayName}
+              </h2>
               {joinedStr && (
                 <p className="inline-flex items-center gap-1.5 mt-2.5 text-slate-400 dark:text-dark-text-secondary text-xs font-semibold uppercase tracking-wider">
                   <span className="material-symbols-outlined text-[16px]">calendar_today</span>
@@ -170,7 +178,9 @@ export default function Profile() {
                 {loading ? (
                   <div className="h-8 w-10 bg-slate-100 dark:bg-dark-border rounded animate-pulse mb-2" />
                 ) : (
-                  <span className="text-[30px] font-bold text-slate-900 dark:text-white leading-none">{visits}</span>
+                  <span className="text-[30px] font-bold text-slate-900 dark:text-white leading-none">
+                    {visits}
+                  </span>
                 )}
                 <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400 dark:text-dark-text-secondary mt-1">
                   {t('profile.myCheckIns')}
@@ -180,7 +190,9 @@ export default function Profile() {
                 {loading ? (
                   <div className="h-8 w-10 bg-slate-100 dark:bg-dark-border rounded animate-pulse mb-2" />
                 ) : (
-                  <span className="text-[30px] font-bold text-slate-900 dark:text-white leading-none">{reviews}</span>
+                  <span className="text-[30px] font-bold text-slate-900 dark:text-white leading-none">
+                    {reviews}
+                  </span>
                 )}
                 <p className="text-[10px] uppercase tracking-[0.15em] font-bold text-slate-400 dark:text-dark-text-secondary mt-1">
                   {t('profile.reviews')}
@@ -207,11 +219,17 @@ export default function Profile() {
                   <span className="material-icons text-xl text-primary">map</span>
                 </div>
                 <div>
-                  <p className="font-semibold text-text-main dark:text-white text-sm">{t('profile.myPath')}</p>
-                  <p className="text-xs text-text-muted dark:text-dark-text-secondary mt-0.5">{pathSubtext}</p>
+                  <p className="font-semibold text-text-main dark:text-white text-sm">
+                    {t('profile.myPath')}
+                  </p>
+                  <p className="text-xs text-text-muted dark:text-dark-text-secondary mt-0.5">
+                    {pathSubtext}
+                  </p>
                 </div>
               </div>
-              <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">chevron_right</span>
+              <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">
+                chevron_right
+              </span>
             </button>
 
             {/* Language */}
@@ -225,13 +243,17 @@ export default function Profile() {
                   <span className="material-icons text-xl text-primary">language</span>
                 </div>
                 <div>
-                  <p className="font-semibold text-text-main dark:text-white text-sm">{t('profile.language')}</p>
+                  <p className="font-semibold text-text-main dark:text-white text-sm">
+                    {t('profile.language')}
+                  </p>
                   <p className="text-xs text-text-muted dark:text-dark-text-secondary mt-0.5">
                     {languages.find((l) => l.code === locale)?.name ?? locale.toUpperCase()}
                   </p>
                 </div>
               </div>
-              <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">chevron_right</span>
+              <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">
+                chevron_right
+              </span>
             </button>
 
             {/* Notifications — only for authenticated users */}
@@ -245,11 +267,17 @@ export default function Profile() {
                     <span className="material-icons text-xl text-primary">notifications</span>
                   </div>
                   <div>
-                    <p className="font-semibold text-text-main dark:text-white text-sm">{t('profile.notifications')}</p>
-                    <p className="text-xs text-text-muted dark:text-dark-text-secondary mt-0.5">{t('profile.notificationsSubtext')}</p>
+                    <p className="font-semibold text-text-main dark:text-white text-sm">
+                      {t('profile.notifications')}
+                    </p>
+                    <p className="text-xs text-text-muted dark:text-dark-text-secondary mt-0.5">
+                      {t('profile.notificationsSubtext')}
+                    </p>
                   </div>
                 </div>
-                <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">chevron_right</span>
+                <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">
+                  chevron_right
+                </span>
               </Link>
             )}
 
@@ -259,7 +287,9 @@ export default function Profile() {
                 <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
                   <span className="material-icons text-xl text-primary">dark_mode</span>
                 </div>
-                <p className="font-semibold text-text-main dark:text-white text-sm">{t('settings.darkMode')}</p>
+                <p className="font-semibold text-text-main dark:text-white text-sm">
+                  {t('settings.darkMode')}
+                </p>
               </div>
               <button
                 type="button"
@@ -270,7 +300,9 @@ export default function Profile() {
                   isDark ? 'bg-primary' : 'bg-slate-200'
                 }`}
               >
-                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isDark ? 'translate-x-6' : 'translate-x-1'}`} />
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isDark ? 'translate-x-6' : 'translate-x-1'}`}
+                />
               </button>
             </div>
           </div>
@@ -291,9 +323,13 @@ export default function Profile() {
                   <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 flex items-center justify-center">
                     <span className="material-icons-round text-lg">history_edu</span>
                   </div>
-                  <span className="font-semibold text-text-main dark:text-white text-sm">{t('profile.myCheckIns')}</span>
+                  <span className="font-semibold text-text-main dark:text-white text-sm">
+                    {t('profile.myCheckIns')}
+                  </span>
                 </div>
-                <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">chevron_right</span>
+                <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">
+                  chevron_right
+                </span>
               </Link>
               <Link
                 to="/favorites"
@@ -303,9 +339,13 @@ export default function Profile() {
                   <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 flex items-center justify-center">
                     <span className="material-icons-round text-lg">favorite</span>
                   </div>
-                  <span className="font-semibold text-text-main dark:text-white text-sm">{t('profile.favorites')}</span>
+                  <span className="font-semibold text-text-main dark:text-white text-sm">
+                    {t('profile.favorites')}
+                  </span>
                 </div>
-                <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">chevron_right</span>
+                <span className="material-icons-round text-text-muted dark:text-dark-text-secondary text-lg">
+                  chevron_right
+                </span>
               </Link>
             </div>
           </section>
@@ -318,7 +358,9 @@ export default function Profile() {
               to="/profile/edit"
               className="w-full bg-slate-900 dark:bg-white/10 hover:bg-slate-800 dark:hover:bg-white/20 text-white font-bold py-4 px-4 rounded-2xl transition-all shadow-xl shadow-slate-200 dark:shadow-none flex items-center justify-center gap-2 group"
             >
-              <span className="material-symbols-outlined text-xl group-hover:scale-110 transition-transform">edit</span>
+              <span className="material-symbols-outlined text-xl group-hover:scale-110 transition-transform">
+                edit
+              </span>
               {t('profile.editProfile')}
             </Link>
           </section>
@@ -329,7 +371,9 @@ export default function Profile() {
           <div className="px-2 mb-4">
             <button
               type="button"
-              onClick={async () => { await logout(); }}
+              onClick={async () => {
+                await logout();
+              }}
               className="w-full flex items-center justify-center gap-2 py-4 text-red-500 font-semibold hover:text-red-600 transition-colors"
             >
               <span className="material-icons text-lg">logout</span>
@@ -379,8 +423,12 @@ export default function Profile() {
           />
           <div className="relative w-full bg-white dark:bg-dark-surface rounded-t-3xl px-6 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] max-h-[70vh] overflow-y-auto">
             <div className="w-10 h-1 bg-slate-200 dark:bg-dark-border rounded-full mx-auto mb-4" />
-            <h2 className="text-lg font-bold text-text-dark dark:text-white mb-1">{t('profile.myPath')}</h2>
-            <p className="text-xs text-text-muted dark:text-dark-text-secondary mb-4">{t('selectPath.subtitle')}</p>
+            <h2 className="text-lg font-bold text-text-dark dark:text-white mb-1">
+              {t('profile.myPath')}
+            </h2>
+            <p className="text-xs text-text-muted dark:text-dark-text-secondary mb-4">
+              {t('selectPath.subtitle')}
+            </p>
 
             {/* All option */}
             <button
@@ -389,11 +437,17 @@ export default function Profile() {
               className="w-full flex items-center gap-4 py-3.5 border-b border-slate-100 dark:border-dark-border text-left"
             >
               <span className="text-2xl">🌍</span>
-              <span className={`flex-1 text-base ${selectedReligions.includes('all') ? 'text-primary font-semibold' : 'text-text-dark dark:text-white'}`}>
+              <span
+                className={`flex-1 text-base ${selectedReligions.includes('all') ? 'text-primary font-semibold' : 'text-text-dark dark:text-white'}`}
+              >
                 {t('common.allReligions')}
               </span>
-              <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedReligions.includes('all') ? 'bg-primary border-primary' : 'border-slate-300 dark:border-dark-border'}`}>
-                {selectedReligions.includes('all') && <span className="material-icons text-white text-[14px]">check</span>}
+              <span
+                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedReligions.includes('all') ? 'bg-primary border-primary' : 'border-slate-300 dark:border-dark-border'}`}
+              >
+                {selectedReligions.includes('all') && (
+                  <span className="material-icons text-white text-[14px]">check</span>
+                )}
               </span>
             </button>
 
@@ -405,11 +459,17 @@ export default function Profile() {
                 className="w-full flex items-center gap-4 py-3.5 border-b border-slate-100 dark:border-dark-border last:border-0 text-left"
               >
                 <span className="text-2xl">{emoji}</span>
-                <span className={`flex-1 text-base ${!selectedReligions.includes('all') && selectedReligions.includes(code) ? 'text-primary font-semibold' : 'text-text-dark dark:text-white'}`}>
+                <span
+                  className={`flex-1 text-base ${!selectedReligions.includes('all') && selectedReligions.includes(code) ? 'text-primary font-semibold' : 'text-text-dark dark:text-white'}`}
+                >
                   {t(labelKey)}
                 </span>
-                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${!selectedReligions.includes('all') && selectedReligions.includes(code) ? 'bg-primary border-primary' : 'border-slate-300 dark:border-dark-border'}`}>
-                  {!selectedReligions.includes('all') && selectedReligions.includes(code) && <span className="material-icons text-white text-[14px]">check</span>}
+                <span
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${!selectedReligions.includes('all') && selectedReligions.includes(code) ? 'bg-primary border-primary' : 'border-slate-300 dark:border-dark-border'}`}
+                >
+                  {!selectedReligions.includes('all') && selectedReligions.includes(code) && (
+                    <span className="material-icons text-white text-[14px]">check</span>
+                  )}
                 </span>
               </button>
             ))}
@@ -436,7 +496,9 @@ export default function Profile() {
           />
           <div className="relative w-full bg-white dark:bg-dark-surface rounded-t-3xl px-6 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] max-h-[60vh] overflow-y-auto">
             <div className="w-10 h-1 bg-slate-200 dark:bg-dark-border rounded-full mx-auto mb-4" />
-            <h2 className="text-lg font-bold text-text-dark dark:text-white mb-3">{t('profile.language')}</h2>
+            <h2 className="text-lg font-bold text-text-dark dark:text-white mb-3">
+              {t('profile.language')}
+            </h2>
             {languages.map((lang) => (
               <button
                 key={lang.code}
@@ -444,7 +506,9 @@ export default function Profile() {
                 onClick={() => handleLangSelect(lang.code)}
                 className="w-full flex items-center justify-between py-3.5 border-b border-slate-100 dark:border-dark-border last:border-0 text-left"
               >
-                <span className={`text-base ${locale === lang.code ? 'text-primary font-semibold' : 'text-text-dark dark:text-white'}`}>
+                <span
+                  className={`text-base ${locale === lang.code ? 'text-primary font-semibold' : 'text-text-dark dark:text-white'}`}
+                >
                   {lang.name}
                 </span>
                 {locale === lang.code && (

@@ -9,13 +9,18 @@ interface TimingCircleProps {
 
 export default function TimingCircle({ item }: TimingCircleProps) {
   const statusColor =
-    item.status === 'current' ? tokens.colors.primary :
-    item.status === 'past' ? tokens.colors.textMuted : tokens.colors.textSecondary;
+    item.status === 'current'
+      ? tokens.colors.primary
+      : item.status === 'past'
+        ? tokens.colors.textMuted
+        : tokens.colors.textSecondary;
   const borderColor =
-    item.status === 'current' ? tokens.colors.primary :
-    item.status === 'past' ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.15)';
-  const bgColor =
-    item.status === 'current' ? `${tokens.colors.primary}18` : tokens.colors.surface;
+    item.status === 'current'
+      ? tokens.colors.primary
+      : item.status === 'past'
+        ? 'rgba(0,0,0,0.08)'
+        : 'rgba(0,0,0,0.15)';
+  const bgColor = item.status === 'current' ? `${tokens.colors.primary}18` : tokens.colors.surface;
 
   return (
     <View style={styles.item}>
@@ -29,14 +34,19 @@ export default function TimingCircle({ item }: TimingCircleProps) {
           </Text>
         ) : null}
         {item.status === 'past' && (
-          <MaterialIcons name="check" size={10} color={tokens.colors.textMuted} style={{ marginTop: 2 }} />
+          <MaterialIcons
+            name="check"
+            size={10}
+            color={tokens.colors.textMuted}
+            style={{ marginTop: 2 }}
+          />
         )}
-        {item.status === 'current' && (
-          <View style={styles.currentDot} />
-        )}
+        {item.status === 'current' && <View style={styles.currentDot} />}
       </View>
       {item.subtitle ? (
-        <Text style={styles.subtitle} numberOfLines={1}>{item.subtitle}</Text>
+        <Text style={styles.subtitle} numberOfLines={1}>
+          {item.subtitle}
+        </Text>
       ) : null}
     </View>
   );

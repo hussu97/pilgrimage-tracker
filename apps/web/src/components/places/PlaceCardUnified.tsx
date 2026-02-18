@@ -19,7 +19,9 @@ function formatCount(n: number): string {
 }
 
 function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
-  const openStatus = place.open_status ?? (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : 'unknown');
+  const openStatus =
+    place.open_status ??
+    (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : 'unknown');
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
 
@@ -56,9 +58,7 @@ function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
             </span>
           )}
           {openStatus === 'unknown' && (
-            <span className="badge-unknown-glass">
-              {t('places.unknown')}
-            </span>
+            <span className="badge-unknown-glass">{t('places.unknown')}</span>
           )}
         </div>
 
@@ -87,9 +87,7 @@ function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
           </h3>
           <div className="flex items-center gap-1 mb-2.5">
             <span className="material-symbols-outlined text-[12px] text-white/75">location_on</span>
-            <p className="text-[11px] text-white/80 truncate font-medium">
-              {place.address || ''}
-            </p>
+            <p className="text-[11px] text-white/80 truncate font-medium">{place.address || ''}</p>
           </div>
           <div className="h-px bg-white/20 mb-2.5" />
           <div className="flex items-center justify-between">
@@ -107,9 +105,15 @@ function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
                     borderColor: 'rgba(255,255,255,0.10)',
                   }}
                 >
-                  <span className="material-symbols-outlined text-amber-400 text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                  <span
+                    className="material-symbols-outlined text-amber-400 text-[10px]"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    star
+                  </span>
                   <span className="text-[10px] font-bold text-white">
-                    {rating.toFixed(1)}{reviewCount > 0 ? ` (${formatCount(reviewCount)})` : ''}
+                    {rating.toFixed(1)}
+                    {reviewCount > 0 ? ` (${formatCount(reviewCount)})` : ''}
                   </span>
                 </div>
               )}

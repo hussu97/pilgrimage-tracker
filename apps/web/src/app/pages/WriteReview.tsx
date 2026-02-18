@@ -251,9 +251,7 @@ export default function WriteReview() {
               onChange={handleFileSelect}
               className="hidden"
             />
-            {uploadError && (
-              <p className="text-red-600 text-sm mb-2">{uploadError}</p>
-            )}
+            {uploadError && <p className="text-red-600 text-sm mb-2">{uploadError}</p>}
             <div className="flex items-center gap-4 overflow-x-auto pb-2">
               {photos.length < 5 && (
                 <button

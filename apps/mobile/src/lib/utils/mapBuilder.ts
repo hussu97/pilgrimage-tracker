@@ -22,7 +22,9 @@ export function buildMapHtml(places: Place[], centerLat: number, centerLng: numb
     name: p.name,
     placeCode: p.place_code,
     address: p.address || p.place_type || '',
-    openStatus: p.open_status ?? (p.is_open_now === true ? 'open' : p.is_open_now === false ? 'closed' : 'unknown'),
+    openStatus:
+      p.open_status ??
+      (p.is_open_now === true ? 'open' : p.is_open_now === false ? 'closed' : 'unknown'),
   }));
 
   return `<!DOCTYPE html>

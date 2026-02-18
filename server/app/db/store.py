@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
-from typing import List, Literal, Optional
+from typing import Literal
 
 from sqlmodel import Session, select
+
 from app.core.config import REFRESH_EXPIRE
-from app.db.models import User, UserSettings, PasswordReset, RefreshToken, Visitor, VisitorSettings
+from app.db.models import PasswordReset, RefreshToken, User, UserSettings, Visitor, VisitorSettings
 
 Religion = Literal["islam", "hinduism", "christianity", "all"]
 VALID_RELIGIONS = ("islam", "hinduism", "christianity", "all")
@@ -15,7 +16,7 @@ def create_user(
     password_hash: str,
     display_name: str,
     session: Session,
-    religion: Optional[Religion] = None,
+    religion: Religion | None = None,
 ) -> User:
     user = User(
         user_code=user_code,
@@ -27,8 +28,7 @@ def create_user(
 
     # Create default settings
     settings = UserSettings(
-        user_code=user_code,
-        religions=[religion] if religion in VALID_RELIGIONS else []
+        user_code=user_code, religions=[religion] if religion in VALID_RELIGIONS else []
     )
     session.add(settings)
 
@@ -37,15 +37,17 @@ def create_user(
     return user
 
 
-def get_user_by_code(user_code: str, session: Session) -> Optional[User]:
+def get_user_by_code(user_code: str, session: Session) -> User | None:
     return session.exec(select(User).where(User.user_code == user_code)).first()
 
 
-def get_user_by_email(email: str, session: Session) -> Optional[User]:
+def get_user_by_email(email: str, session: Session) -> User | None:
     return session.exec(select(User).where(User.email == email.lower())).first()
 
 
-def update_user_religion(user_code: str, religion: Optional[Religion], session: Session) -> Optional[User]:
+def update_user_religion(
+    user_code: str, religion: Religion | None, session: Session
+) -> User | None:
     settings = session.exec(select(UserSettings).where(UserSettings.user_code == user_code)).first()
     if not settings:
         # If settings don't exist for some reason, create them
@@ -73,8 +75,8 @@ def update_user_religion(user_code: str, religion: Optional[Religion], session: 
 def update_user(
     user_code: str,
     session: Session,
-    display_name: Optional[str] = None,
-) -> Optional[User]:
+    display_name: str | None = None,
+) -> User | None:
     user = session.exec(select(User).where(User.user_code == user_code)).first()
     if not user:
         return None
@@ -88,16 +90,12 @@ def update_user(
 
 
 def save_password_reset(token: str, user_code: str, expires_at: datetime, session: Session) -> None:
-    reset = PasswordReset(
-        token=token,
-        user_code=user_code,
-        expires_at=expires_at
-    )
+    reset = PasswordReset(token=token, user_code=user_code, expires_at=expires_at)
     session.add(reset)
     session.commit()
 
 
-def consume_password_reset(token: str, session: Session) -> Optional[str]:
+def consume_password_reset(token: str, session: Session) -> str | None:
     reset = session.exec(select(PasswordReset).where(PasswordReset.token == token)).first()
     if not reset or reset.used_at:
         return None
@@ -118,7 +116,7 @@ def get_user_settings(user_code: str, session: Session) -> dict:
         "theme": settings.theme,
         "units": settings.units,
         "language": settings.language,
-        "religions": settings.religions
+        "religions": settings.religions,
     }
 
 
@@ -163,6 +161,7 @@ def update_user_password(user_code: str, password_hash: str, session: Session) -
 
 # ─── Refresh token helpers ─────────────────────────────────────────────────────
 
+
 def save_refresh_token(token: str, user_code: str, session: Session) -> None:
     """Persist a new refresh token for the given user."""
     row = RefreshToken(
@@ -174,11 +173,9 @@ def save_refresh_token(token: str, user_code: str, session: Session) -> None:
     session.commit()
 
 
-def consume_refresh_token(token: str, session: Session) -> Optional[str]:
+def consume_refresh_token(token: str, session: Session) -> str | None:
     """Validate and revoke a refresh token. Returns user_code on success, None on failure."""
-    row = session.exec(
-        select(RefreshToken).where(RefreshToken.token == token)
-    ).first()
+    row = session.exec(select(RefreshToken).where(RefreshToken.token == token)).first()
     if not row or row.revoked_at is not None:
         return None
     if row.expires_at < datetime.utcnow():
@@ -192,9 +189,7 @@ def consume_refresh_token(token: str, session: Session) -> Optional[str]:
 
 def revoke_refresh_token(token: str, session: Session) -> None:
     """Revoke a specific refresh token (used on logout)."""
-    row = session.exec(
-        select(RefreshToken).where(RefreshToken.token == token)
-    ).first()
+    row = session.exec(select(RefreshToken).where(RefreshToken.token == token)).first()
     if row and row.revoked_at is None:
         row.revoked_at = datetime.utcnow()
         session.add(row)
@@ -202,6 +197,7 @@ def revoke_refresh_token(token: str, session: Session) -> None:
 
 
 # ─── Visitor helpers ───────────────────────────────────────────────────────────
+
 
 def create_visitor(visitor_code: str, session: Session) -> Visitor:
     """Insert a Visitor row + default VisitorSettings row."""
@@ -214,7 +210,7 @@ def create_visitor(visitor_code: str, session: Session) -> Visitor:
     return visitor
 
 
-def get_visitor(visitor_code: str, session: Session) -> Optional[Visitor]:
+def get_visitor(visitor_code: str, session: Session) -> Visitor | None:
     return session.exec(select(Visitor).where(Visitor.visitor_code == visitor_code)).first()
 
 

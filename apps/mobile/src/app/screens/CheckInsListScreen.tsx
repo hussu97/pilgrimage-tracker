@@ -28,17 +28,14 @@ function getDatesWithCheckIns(checkIns: CheckIn[]): Set<string> {
     if (c.checked_in_at) {
       const d = new Date(c.checked_in_at);
       set.add(
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
       );
     }
   });
   return set;
 }
 
-function getMonthDays(
-  year: number,
-  month: number
-): { date: Date; isCurrent: boolean }[] {
+function getMonthDays(year: number, month: number): { date: Date; isCurrent: boolean }[] {
   const first = new Date(year, month, 1);
   const last = new Date(year, month + 1, 0);
   const startPad = first.getDay();
@@ -117,18 +114,45 @@ function makeStyles(isDark: boolean) {
       borderColor: border,
       ...tokens.shadow.subtle,
     },
-    statsLabel: { fontSize: 12, fontWeight: '600', color: textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+    statsLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      marginBottom: 4,
+    },
     statsRow: { flexDirection: 'row', alignItems: 'baseline' },
-    statsTotal: { fontSize: 40, fontWeight: '300', color: isDark ? tokens.colors.primary : tokens.colors.primaryDark },
+    statsTotal: {
+      fontSize: 40,
+      fontWeight: '300',
+      color: isDark ? tokens.colors.primary : tokens.colors.primaryDark,
+    },
     statsSuffix: { fontSize: 14, color: textMuted },
     statsLeft: { flex: 1 },
     statsDivider: { width: 1, height: 48, backgroundColor: border, marginHorizontal: 16 },
     statsRight: { alignItems: 'flex-end' },
-    statsThisMonthLabel: { fontSize: 12, fontWeight: '600', color: textSecondary, textTransform: 'uppercase', marginBottom: 4 },
+    statsThisMonthLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: textSecondary,
+      textTransform: 'uppercase',
+      marginBottom: 4,
+    },
     statsThisMonthValue: { fontSize: 24, fontWeight: '600', color: textMain },
-    statsThisMonthSuffix: { fontSize: 10, color: textMuted, textTransform: 'uppercase', fontWeight: 'bold' },
+    statsThisMonthSuffix: {
+      fontSize: 10,
+      color: textMuted,
+      textTransform: 'uppercase',
+      fontWeight: 'bold',
+    },
     calendarSection: { paddingHorizontal: 24, marginBottom: 24 },
-    calendarHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+    calendarHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
     calendarTitle: { fontSize: 18, fontWeight: '600', color: textMain },
     calendarNav: { flexDirection: 'row', gap: 8 },
     calendarNavBtn: { padding: 4 },
@@ -168,7 +192,10 @@ function makeStyles(isDark: boolean) {
     dayDotToday: { backgroundColor: tokens.colors.primary },
     dayNum: { fontSize: 14, color: textMain },
     dayNumMuted: { color: textMuted },
-    dayNumBold: { fontWeight: '600', color: isDark ? tokens.colors.primary : tokens.colors.primaryDark },
+    dayNumBold: {
+      fontWeight: '600',
+      color: isDark ? tokens.colors.primary : tokens.colors.primaryDark,
+    },
     dayNumToday: { color: '#fff', fontWeight: '600' },
     sectionWrap: { marginBottom: 8 },
     sectionTitle: {
@@ -278,18 +305,22 @@ export default function CheckInsListScreen() {
         month: 'long',
         year: 'numeric',
       }),
-    [calendarMonth]
+    [calendarMonth],
   );
   const monthDays = useMemo(
     () => getMonthDays(calendarMonth.year, calendarMonth.month),
-    [calendarMonth]
+    [calendarMonth],
   );
 
   const goPrevMonth = () => {
-    setCalendarMonth((m) => (m.month === 0 ? { year: m.year - 1, month: 11 } : { year: m.year, month: m.month - 1 }));
+    setCalendarMonth((m) =>
+      m.month === 0 ? { year: m.year - 1, month: 11 } : { year: m.year, month: m.month - 1 },
+    );
   };
   const goNextMonth = () => {
-    setCalendarMonth((m) => (m.month === 11 ? { year: m.year + 1, month: 0 } : { year: m.year, month: m.month + 1 }));
+    setCalendarMonth((m) =>
+      m.month === 11 ? { year: m.year + 1, month: 0 } : { year: m.year, month: m.month + 1 },
+    );
   };
 
   const dateKey = (d: Date) =>
@@ -302,7 +333,7 @@ export default function CheckInsListScreen() {
       [...checkIns]
         .sort((a, b) => (b.checked_in_at || '').localeCompare(a.checked_in_at || ''))
         .slice(0, 10),
-    [checkIns]
+    [checkIns],
   );
 
   return (
@@ -320,11 +351,21 @@ export default function CheckInsListScreen() {
       }
     >
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-          <MaterialIcons name="arrow-back" size={20} color={isDark ? '#fff' : tokens.colors.textDark} />
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.8}
+        >
+          <MaterialIcons
+            name="arrow-back"
+            size={20}
+            color={isDark ? '#fff' : tokens.colors.textDark}
+          />
         </TouchableOpacity>
         <Text style={styles.title}>{t('journey.journeyLog')}</Text>
-        <Text style={styles.subtitle}>{t('checkins.historySubtitle') || 'Relive your pilgrimage moments'}</Text>
+        <Text style={styles.subtitle}>
+          {t('checkins.historySubtitle') || 'Relive your pilgrimage moments'}
+        </Text>
       </View>
 
       {loading && (
@@ -367,7 +408,9 @@ export default function CheckInsListScreen() {
             <View style={styles.statsRight}>
               <Text style={styles.statsThisMonthLabel}>{t('journey.thisMonth')}</Text>
               <Text style={styles.statsThisMonthValue}>{thisMonth.length}</Text>
-              <Text style={styles.statsThisMonthSuffix}>{t('journey.checkIns') || 'Check-ins'}</Text>
+              <Text style={styles.statsThisMonthSuffix}>
+                {t('journey.checkIns') || 'Check-ins'}
+              </Text>
             </View>
           </View>
 
@@ -384,21 +427,45 @@ export default function CheckInsListScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={styles.visitThumb}>
-                    {(c.place_image_url || c.place?.images?.[0]?.url) ? (
-                      <Image source={{ uri: getFullImageUrl(c.place_image_url || c.place?.images?.[0]?.url) }} style={styles.visitThumbImg} resizeMode="cover" />
+                    {c.place_image_url || c.place?.images?.[0]?.url ? (
+                      <Image
+                        source={{
+                          uri: getFullImageUrl(c.place_image_url || c.place?.images?.[0]?.url),
+                        }}
+                        style={styles.visitThumbImg}
+                        resizeMode="cover"
+                      />
                     ) : (
-                      <View style={styles.visitThumbPlaceholder}><Text style={styles.visitThumbIcon}>⊕</Text></View>
+                      <View style={styles.visitThumbPlaceholder}>
+                        <Text style={styles.visitThumbIcon}>⊕</Text>
+                      </View>
                     )}
                     {c.place?.average_rating ? (
                       <View style={styles.ratingBadge}>
-                        <Text style={styles.ratingBadgeText}>★ {c.place.average_rating.toFixed(1)}</Text>
+                        <Text style={styles.ratingBadgeText}>
+                          ★ {c.place.average_rating.toFixed(1)}
+                        </Text>
                       </View>
                     ) : null}
                   </View>
                   <View style={styles.visitBody}>
-                    <Text style={styles.visitName} numberOfLines={1}>{c.place?.name ?? c.place_name ?? c.place_code}</Text>
-                    <Text style={styles.visitDate}>{c.checked_in_at ? new Date(c.checked_in_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : c.date ?? ''}</Text>
-                    {(c.location || c.place?.address) && <Text style={styles.visitLocation} numberOfLines={1}>{(c.location || c.place?.address || '').split(',')[0].trim()}</Text>}
+                    <Text style={styles.visitName} numberOfLines={1}>
+                      {c.place?.name ?? c.place_name ?? c.place_code}
+                    </Text>
+                    <Text style={styles.visitDate}>
+                      {c.checked_in_at
+                        ? new Date(c.checked_in_at).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })
+                        : (c.date ?? '')}
+                    </Text>
+                    {(c.location || c.place?.address) && (
+                      <Text style={styles.visitLocation} numberOfLines={1}>
+                        {(c.location || c.place?.address || '').split(',')[0].trim()}
+                      </Text>
+                    )}
                   </View>
                   <Text style={styles.chevron}>›</Text>
                 </TouchableOpacity>
@@ -432,14 +499,7 @@ export default function CheckInsListScreen() {
                   const today = isCurrent && isToday(date);
                   return (
                     <View key={i} style={styles.dayCell}>
-                      {has && (
-                        <View
-                          style={[
-                            styles.dayDot,
-                            today && styles.dayDotToday,
-                          ]}
-                        />
-                      )}
+                      {has && <View style={[styles.dayDot, today && styles.dayDotToday]} />}
                       <Text
                         style={[
                           styles.dayNum,
@@ -469,21 +529,45 @@ export default function CheckInsListScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={styles.visitThumb}>
-                    {(c.place_image_url || c.place?.images?.[0]?.url) ? (
-                      <Image source={{ uri: getFullImageUrl(c.place_image_url || c.place?.images?.[0]?.url) }} style={styles.visitThumbImg} resizeMode="cover" />
+                    {c.place_image_url || c.place?.images?.[0]?.url ? (
+                      <Image
+                        source={{
+                          uri: getFullImageUrl(c.place_image_url || c.place?.images?.[0]?.url),
+                        }}
+                        style={styles.visitThumbImg}
+                        resizeMode="cover"
+                      />
                     ) : (
-                      <View style={styles.visitThumbPlaceholder}><Text style={styles.visitThumbIcon}>⊕</Text></View>
+                      <View style={styles.visitThumbPlaceholder}>
+                        <Text style={styles.visitThumbIcon}>⊕</Text>
+                      </View>
                     )}
                     {c.place?.average_rating ? (
                       <View style={styles.ratingBadge}>
-                        <Text style={styles.ratingBadgeText}>★ {c.place.average_rating.toFixed(1)}</Text>
+                        <Text style={styles.ratingBadgeText}>
+                          ★ {c.place.average_rating.toFixed(1)}
+                        </Text>
                       </View>
                     ) : null}
                   </View>
                   <View style={styles.visitBody}>
-                    <Text style={styles.visitName} numberOfLines={1}>{c.place?.name ?? c.place_name ?? c.place_code}</Text>
-                    <Text style={styles.visitDate}>{c.checked_in_at ? new Date(c.checked_in_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : c.date ?? ''}</Text>
-                    {(c.location || c.place?.address) && <Text style={styles.visitLocation} numberOfLines={1}>{(c.location || c.place?.address || '').split(',')[0].trim()}</Text>}
+                    <Text style={styles.visitName} numberOfLines={1}>
+                      {c.place?.name ?? c.place_name ?? c.place_code}
+                    </Text>
+                    <Text style={styles.visitDate}>
+                      {c.checked_in_at
+                        ? new Date(c.checked_in_at).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })
+                        : (c.date ?? '')}
+                    </Text>
+                    {(c.location || c.place?.address) && (
+                      <Text style={styles.visitLocation} numberOfLines={1}>
+                        {(c.location || c.place?.address || '').split(',')[0].trim()}
+                      </Text>
+                    )}
                   </View>
                   <Text style={styles.chevron}>›</Text>
                 </TouchableOpacity>
@@ -500,7 +584,7 @@ export default function CheckInsListScreen() {
               activeOpacity={0.8}
             >
               <View style={styles.visitThumb}>
-                {(c.place_image_url || c.place?.images?.[0]?.url) ? (
+                {c.place_image_url || c.place?.images?.[0]?.url ? (
                   <Image
                     source={{
                       uri: getFullImageUrl(c.place_image_url || c.place?.images?.[0]?.url),
@@ -515,7 +599,9 @@ export default function CheckInsListScreen() {
                 )}
                 {c.place?.average_rating ? (
                   <View style={styles.ratingBadge}>
-                    <Text style={styles.ratingBadgeText}>★ {c.place.average_rating.toFixed(1)}</Text>
+                    <Text style={styles.ratingBadgeText}>
+                      ★ {c.place.average_rating.toFixed(1)}
+                    </Text>
                   </View>
                 ) : null}
               </View>
@@ -526,16 +612,17 @@ export default function CheckInsListScreen() {
                 <Text style={styles.visitDate}>
                   {c.checked_in_at
                     ? new Date(c.checked_in_at).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })
-                    : c.date ?? ''}
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                    : (c.date ?? '')}
                   {c.time ? ` · ${c.time}` : ''}
                 </Text>
                 {(c.location || c.place?.address) && (
                   <Text style={styles.visitLocation} numberOfLines={1}>
-                    {(c.location || c.place?.address || '').split(',')[0].trim() || c.place?.address}
+                    {(c.location || c.place?.address || '').split(',')[0].trim() ||
+                      c.place?.address}
                   </Text>
                 )}
               </View>

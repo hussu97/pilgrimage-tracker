@@ -31,9 +31,7 @@ export default function EditProfileScreen() {
   const [error, setError] = useState('');
 
   const toggleReligion = (r: Religion) => {
-    setReligions((prev) =>
-      prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]
-    );
+    setReligions((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
   };
 
   const handleSave = async () => {
@@ -93,7 +91,9 @@ export default function EditProfileScreen() {
           onPress={() => toggleReligion(r)}
           activeOpacity={0.8}
         >
-          <Text style={[styles.religionLabel, religions.includes(r) && styles.religionLabelSelected]}>
+          <Text
+            style={[styles.religionLabel, religions.includes(r) && styles.religionLabelSelected]}
+          >
             {t(`common.${r}`)}
           </Text>
           {religions.includes(r) ? <Text style={styles.check}>✓</Text> : null}
@@ -155,7 +155,10 @@ const styles = StyleSheet.create({
     backgroundColor: tokens.colors.backgroundLight,
     marginBottom: 8,
   },
-  religionRowSelected: { borderColor: tokens.colors.primary, backgroundColor: tokens.colors.blueTint },
+  religionRowSelected: {
+    borderColor: tokens.colors.primary,
+    backgroundColor: tokens.colors.blueTint,
+  },
   religionLabel: { fontSize: 16, color: tokens.colors.textMain },
   religionLabelSelected: { color: tokens.colors.primary, fontWeight: '600' },
   check: { fontSize: 18, color: tokens.colors.primary },

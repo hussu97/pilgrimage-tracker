@@ -19,7 +19,10 @@ export default function Splash() {
           className="w-full h-full object-cover"
           aria-hidden
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60" aria-hidden />
+        <div
+          className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60"
+          aria-hidden
+        />
       </div>
 
       {/* Content */}
@@ -28,9 +31,7 @@ export default function Splash() {
           <h1 className="text-3xl font-bold tracking-tight text-text-dark leading-tight">
             {t('splash.heroTitle') || t('splash.welcome')}
           </h1>
-          <p className="text-text-secondary text-base leading-relaxed">
-            {t('splash.tagline')}
-          </p>
+          <p className="text-text-secondary text-base leading-relaxed">{t('splash.tagline')}</p>
         </div>
 
         <div className="flex flex-col gap-3 max-w-sm mx-auto w-full mt-8">
@@ -50,9 +51,14 @@ export default function Splash() {
       </div>
 
       {/* Decorative faded bottom nav hint */}
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 flex justify-center gap-8 pb-2 opacity-20" aria-hidden>
+      <div
+        className="pointer-events-none absolute bottom-0 left-0 right-0 flex justify-center gap-8 pb-2 opacity-20"
+        aria-hidden
+      >
         {['explore', 'map', 'groups', 'person'].map((icon) => (
-          <span key={icon} className="material-symbols-outlined text-slate-600 text-[22px]">{icon}</span>
+          <span key={icon} className="material-symbols-outlined text-slate-600 text-[22px]">
+            {icon}
+          </span>
         ))}
       </div>
     </div>

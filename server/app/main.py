@@ -6,20 +6,21 @@ from datetime import datetime
 # Load .env before any app module is imported (session.py reads DATABASE_URL
 # at import time, so this must come first).
 from dotenv import load_dotenv
+
 load_dotenv()
 
-from fastapi import FastAPI, Request, status
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
-from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi import FastAPI, Request, status  # noqa: E402
+from fastapi.exceptions import RequestValidationError  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
+from slowapi import Limiter, _rate_limit_exceeded_handler  # noqa: E402
+from slowapi.errors import RateLimitExceeded  # noqa: E402
+from slowapi.util import get_remote_address  # noqa: E402
+from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 
-from app.api.v1 import api_router
-from app.db.seed import run_seed_system
-from app.db.session import run_migrations
+from app.api.v1 import api_router  # noqa: E402
+from app.db.seed import run_seed_system  # noqa: E402
+from app.db.session import run_migrations  # noqa: E402
 
 
 @asynccontextmanager
@@ -33,7 +34,64 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Pilgrimage Tracker API", version="1.0", lifespan=lifespan)
+_OPENAPI_TAGS = [
+    {
+        "name": "auth",
+        "description": "Authentication: register, login, refresh, logout, and password reset.",
+    },
+    {
+        "name": "users",
+        "description": "Current-user profile, settings, stats, and check-in history.",
+    },
+    {
+        "name": "places",
+        "description": (
+            "Pilgrimage site discovery, search, filtering, check-ins, favorites, "
+            "reviews, and image management."
+        ),
+    },
+    {
+        "name": "reviews",
+        "description": "User reviews and ratings for pilgrimage sites.",
+    },
+    {
+        "name": "groups",
+        "description": "Social groups: create, join via invite link, leaderboard, and activity.",
+    },
+    {
+        "name": "notifications",
+        "description": "In-app notification listing and mark-as-read.",
+    },
+    {
+        "name": "i18n",
+        "description": "Available languages and UI translation key-value pairs.",
+    },
+    {
+        "name": "visitors",
+        "description": "Anonymous visitor session management and visitor settings.",
+    },
+]
+
+app = FastAPI(
+    title="Pilgrimage Tracker API",
+    version="1.0.0",
+    description=(
+        "REST API for the Pilgrimage Tracker application. "
+        "Supports discovering pilgrimage sites across religions (Islam, Christianity, Hinduism, and more), "
+        "check-ins, reviews, social groups, favorites, and multi-language UI translations.\n\n"
+        "## Authentication\n"
+        "Most endpoints require a **Bearer token** obtained from `POST /api/v1/auth/login` or "
+        "`POST /api/v1/auth/register`. Pass it as:\n"
+        "```\nAuthorization: Bearer <token>\n```\n"
+        "Refresh tokens are issued as `HttpOnly` cookies and rotated on every `POST /api/v1/auth/refresh` call.\n\n"
+        "## Rate Limiting\n"
+        "Auth endpoints are rate-limited per IP: login (5/min), register (3/min), forgot-password (2/min).\n\n"
+        "## Identifiers\n"
+        "All entities use opaque string codes (e.g. `usr_abc123`, `pl_xyz456`) — never numeric IDs."
+    ),
+    lifespan=lifespan,
+    openapi_tags=_OPENAPI_TAGS,
+)
 
 # Rate limiter (in-memory, per-IP)
 limiter = Limiter(key_func=get_remote_address)
@@ -61,10 +119,13 @@ app.include_router(api_router)
 
 # ===== Global Exception Handlers =====
 
-def log_error(request: Request, status_code: int, error_type: str, detail: str, exc: Exception = None):
+
+def log_error(
+    request: Request, status_code: int, error_type: str, detail: str, exc: Exception = None
+):
     """Log error details to console"""
     timestamp = datetime.utcnow().isoformat()
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"[{timestamp}] {error_type} - {status_code}")
     print(f"Path: {request.method} {request.url.path}")
     if request.query_params:
@@ -74,7 +135,7 @@ def log_error(request: Request, status_code: int, error_type: str, detail: str, 
         print(f"Exception: {type(exc).__name__}: {str(exc)}")
         if status_code >= 500:
             print(f"Traceback:\n{traceback.format_exc()}")
-    print(f"{'='*80}\n")
+    print(f"{'=' * 80}\n")
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -111,7 +172,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status.HTTP_422_UNPROCESSABLE_ENTITY,
         "Validation Error",
         f"{len(errors)} validation error(s)",
-        exc
+        exc,
     )
 
     # Print detailed validation errors
@@ -120,7 +181,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         print(f"  - Field: {' -> '.join(str(loc) for loc in error['loc'])}")
         print(f"    Error: {error['msg']}")
         print(f"    Type: {error['type']}")
-        if 'ctx' in error:
+        if "ctx" in error:
             print(f"    Context: {error['ctx']}")
     print()
 
@@ -139,6 +200,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
                 try:
                     # Test if value is JSON serializable
                     import json
+
                     json.dumps(value)
                     ctx[key] = value
                 except (TypeError, ValueError):
@@ -161,7 +223,7 @@ async def general_exception_handler(request: Request, exc: Exception):
         status.HTTP_500_INTERNAL_SERVER_ERROR,
         "Internal Server Error",
         "An unexpected error occurred",
-        exc
+        exc,
     )
 
     return JSONResponse(

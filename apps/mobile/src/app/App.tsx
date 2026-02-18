@@ -20,19 +20,19 @@ function AuthGate() {
 export default function App() {
   return (
     <SafeAreaProvider>
-    <ErrorBoundary>
-      <I18nProvider>
-        <ThemeProvider>
-          <AuthProvider>
-            <LocationProvider>
-              <AuthBottomSheetProvider>
-                <AuthGate />
-              </AuthBottomSheetProvider>
-            </LocationProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </I18nProvider>
-    </ErrorBoundary>
+      <ErrorBoundary>
+        <I18nProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <LocationProvider>
+                <AuthBottomSheetProvider>
+                  <AuthGate />
+                </AuthBottomSheetProvider>
+              </LocationProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </I18nProvider>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }

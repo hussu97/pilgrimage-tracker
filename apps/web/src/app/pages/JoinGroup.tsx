@@ -52,8 +52,12 @@ export default function JoinGroup() {
   if (!code) {
     return (
       <div className="max-w-md mx-auto px-4 py-12 text-center dark:bg-dark-bg min-h-screen">
-        <span className="material-symbols-outlined text-5xl text-text-muted dark:text-dark-text-secondary mb-4 block">link_off</span>
-        <h1 className="text-xl font-semibold text-text-main dark:text-white mb-2">{t('groups.noInviteCode')}</h1>
+        <span className="material-symbols-outlined text-5xl text-text-muted dark:text-dark-text-secondary mb-4 block">
+          link_off
+        </span>
+        <h1 className="text-xl font-semibold text-text-main dark:text-white mb-2">
+          {t('groups.noInviteCode')}
+        </h1>
         <p className="text-text-muted dark:text-dark-text-secondary text-sm mb-6">
           {t('groups.inviteCodeHint')}
         </p>
@@ -74,11 +78,18 @@ export default function JoinGroup() {
         <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto mb-4">
           <span className="material-symbols-outlined text-3xl text-primary">groups</span>
         </div>
-        <h1 className="text-xl font-semibold text-text-main dark:text-white mb-2">{t('groups.joinGroup')}</h1>
+        <h1 className="text-xl font-semibold text-text-main dark:text-white mb-2">
+          {t('groups.joinGroup')}
+        </h1>
         {groupName ? (
-          <p className="text-text-muted dark:text-dark-text-secondary text-sm">{t('groups.invitedToJoin')} <strong className="text-text-main dark:text-white">{groupName}</strong></p>
+          <p className="text-text-muted dark:text-dark-text-secondary text-sm">
+            {t('groups.invitedToJoin')}{' '}
+            <strong className="text-text-main dark:text-white">{groupName}</strong>
+          </p>
         ) : (
-          <p className="text-text-muted dark:text-dark-text-secondary text-sm">{t('groups.joinWithCode')}</p>
+          <p className="text-text-muted dark:text-dark-text-secondary text-sm">
+            {t('groups.joinWithCode')}
+          </p>
         )}
       </div>
 

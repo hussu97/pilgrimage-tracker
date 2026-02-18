@@ -29,7 +29,13 @@ export type RootStackParamList = {
   ResetPassword: { token?: string };
   Main: undefined;
   PlaceDetail: { placeCode: string };
-  WriteReview: { placeCode: string; reviewCode?: string; rating?: number; title?: string; body?: string };
+  WriteReview: {
+    placeCode: string;
+    reviewCode?: string;
+    rating?: number;
+    title?: string;
+    body?: string;
+  };
   EditProfile: undefined;
   CheckInsList: undefined;
   CreateGroup: undefined;
@@ -45,7 +51,9 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * Wraps a screen component in an ErrorBoundary so a crash in one screen
  * shows a "Retry" fallback without taking down the entire navigator.
  */
-function withScreenBoundary<T extends object>(Screen: React.ComponentType<T>): React.ComponentType<T> {
+function withScreenBoundary<T extends object>(
+  Screen: React.ComponentType<T>,
+): React.ComponentType<T> {
   return function BoundedScreen(props: T) {
     return (
       <ErrorBoundary>
@@ -78,13 +86,7 @@ function RootStack() {
   );
 }
 
-export function AppNavigationContent({
-  user,
-  loading,
-}: {
-  user: unknown;
-  loading: boolean;
-}) {
+export function AppNavigationContent({ user, loading }: { user: unknown; loading: boolean }) {
   if (loading) return null;
   return (
     <NavigationContainer>

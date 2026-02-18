@@ -1,6 +1,6 @@
 """Service for building place timing information (prayer times, services, deities)."""
-from datetime import datetime, timezone
-from typing import Optional
+
+from datetime import UTC, datetime
 
 from sqlmodel import Session
 
@@ -8,7 +8,7 @@ from app.db import place_attributes as attr_db
 from app.services.timezone_utils import get_local_now
 
 
-def build_timings(place, session: Session, attrs: Optional[dict] = None) -> list:
+def build_timings(place, session: Session, attrs: dict | None = None) -> list:
     """
     Build timing/schedule information for a place based on its religion and attributes.
 
@@ -33,15 +33,17 @@ def build_timings(place, session: Session, attrs: Optional[dict] = None) -> list
         if isinstance(deities, list):
             for d in deities:
                 if isinstance(d, dict):
-                    result.append({
-                        "type": "deity",
-                        "name": d.get("name", ""),
-                        "subtitle": d.get("subtitle", ""),
-                        "image_url": d.get("image_url", ""),
-                        "time": "",
-                        "is_current": False,
-                        "status": "upcoming",
-                    })
+                    result.append(
+                        {
+                            "type": "deity",
+                            "name": d.get("name", ""),
+                            "subtitle": d.get("subtitle", ""),
+                            "image_url": d.get("image_url", ""),
+                            "time": "",
+                            "is_current": False,
+                            "status": "upcoming",
+                        }
+                    )
         return result
 
     # Islam: prayer times with past/current/upcoming status
@@ -52,7 +54,7 @@ def build_timings(place, session: Session, attrs: Optional[dict] = None) -> list
         if utc_offset is not None:
             now = get_local_now(utc_offset)
         else:
-            now = datetime.now(timezone.utc)  # fallback for legacy data
+            now = datetime.now(UTC)  # fallback for legacy data
         now_mins = now.hour * 60 + now.minute
         prayer_order = ["fajr", "dhuhr", "asr", "maghrib", "isha"]
         times_mins: dict = {}
@@ -77,15 +79,17 @@ def build_timings(place, session: Session, attrs: Optional[dict] = None) -> list
                     status = "past"
                 else:
                     status = "upcoming"
-                result.append({
-                    "type": "prayer",
-                    "name": key,
-                    "subtitle": "",
-                    "image_url": "",
-                    "time": t,
-                    "is_current": key == next_prayer,
-                    "status": status,
-                })
+                result.append(
+                    {
+                        "type": "prayer",
+                        "name": key,
+                        "subtitle": "",
+                        "image_url": "",
+                        "time": t,
+                        "is_current": key == next_prayer,
+                        "status": status,
+                    }
+                )
         return result
 
     # Christianity: service_times preferred (it's stored in attributes as either array or dict)
@@ -97,7 +101,7 @@ def build_timings(place, session: Session, attrs: Optional[dict] = None) -> list
         if utc_offset is not None:
             now = get_local_now(utc_offset)
         else:
-            now = datetime.now(timezone.utc)  # fallback for legacy data
+            now = datetime.now(UTC)  # fallback for legacy data
         today_name = now.strftime("%A")
         now_mins = now.hour * 60 + now.minute
         next_idx = None
@@ -132,26 +136,30 @@ def build_timings(place, session: Session, attrs: Optional[dict] = None) -> list
                 status = "past"
             else:
                 status = "upcoming"
-            result.append({
-                "type": "service",
-                "name": svc.get("name") or svc_day,
-                "subtitle": svc_day,
-                "image_url": "",
-                "time": svc_time,
-                "is_current": i == next_idx,
-                "status": status,
-            })
+            result.append(
+                {
+                    "type": "service",
+                    "name": svc.get("name") or svc_day,
+                    "subtitle": svc_day,
+                    "image_url": "",
+                    "time": svc_time,
+                    "is_current": i == next_idx,
+                    "status": status,
+                }
+            )
         return result
     # Fallback for dict format service_times
     if service_times and isinstance(service_times, dict):
         for day, time_str in service_times.items():
-            result.append({
-                "type": "service",
-                "name": day,
-                "subtitle": "",
-                "image_url": "",
-                "time": time_str if isinstance(time_str, str) else "",
-                "is_current": False,
-                "status": "upcoming",
-            })
+            result.append(
+                {
+                    "type": "service",
+                    "name": day,
+                    "subtitle": "",
+                    "image_url": "",
+                    "time": time_str if isinstance(time_str, str) else "",
+                    "is_current": False,
+                    "status": "upcoming",
+                }
+            )
     return result

@@ -7,6 +7,7 @@ Deletes review images that:
 
 Run this job daily via cron or scheduler.
 """
+
 from sqlmodel import Session
 
 from app.db import review_images

@@ -21,11 +21,16 @@ function checkRule(rule: PasswordRule, password: string): boolean {
 
 function ruleKey(rule: PasswordRule): string {
   switch (rule.type) {
-    case 'min_length': return 'auth.passwordRuleMinLength';
-    case 'require_uppercase': return 'auth.passwordRuleUppercase';
-    case 'require_lowercase': return 'auth.passwordRuleLowercase';
-    case 'require_digit': return 'auth.passwordRuleDigit';
-    default: return '';
+    case 'min_length':
+      return 'auth.passwordRuleMinLength';
+    case 'require_uppercase':
+      return 'auth.passwordRuleUppercase';
+    case 'require_lowercase':
+      return 'auth.passwordRuleLowercase';
+    case 'require_digit':
+      return 'auth.passwordRuleDigit';
+    default:
+      return '';
   }
 }
 
@@ -63,8 +68,14 @@ export default function Register() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    if (password !== confirm) { setError(t('auth.passwordsDoNotMatch')); return; }
-    if (password.length < minLength) { setError(t('auth.passwordMinLength')); return; }
+    if (password !== confirm) {
+      setError(t('auth.passwordsDoNotMatch'));
+      return;
+    }
+    if (password.length < minLength) {
+      setError(t('auth.passwordMinLength'));
+      return;
+    }
     setSubmitting(true);
     try {
       await register(email, password, displayName.trim() || undefined);
@@ -92,7 +103,10 @@ export default function Register() {
 
         {/* Logo icon */}
         <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-blue-200 dark:shadow-none">
-          <span className="material-symbols-outlined text-white text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+          <span
+            className="material-symbols-outlined text-white text-2xl"
+            style={{ fontVariationSettings: "'FILL' 1" }}
+          >
             auto_awesome
           </span>
         </div>
@@ -151,13 +165,20 @@ export default function Register() {
               <div className="mt-2 ml-1 space-y-1">
                 {passwordRules.map((rule) => {
                   const met = password.length > 0 && checkRule(rule, password);
-                  const label = t(ruleKey(rule)).replace('{count}', String(rule.type === 'min_length' ? (rule.value ?? 8) : ''));
+                  const label = t(ruleKey(rule)).replace(
+                    '{count}',
+                    String(rule.type === 'min_length' ? (rule.value ?? 8) : ''),
+                  );
                   return (
                     <div key={rule.type} className="flex items-center gap-1.5">
-                      <span className={`text-xs font-semibold w-3 ${met ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                      <span
+                        className={`text-xs font-semibold w-3 ${met ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}
+                      >
                         {met ? '✓' : '○'}
                       </span>
-                      <span className={`text-[11px] ${met ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                      <span
+                        className={`text-[11px] ${met ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}
+                      >
                         {label}
                       </span>
                     </div>

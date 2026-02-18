@@ -1,17 +1,18 @@
-import pandas as pd
 import time
 import urllib.parse
-from typing import Dict, Any
+from typing import Any
+
+import pandas as pd
 from sqlmodel import Session, select
-from app.db.models import ScraperRun, ScrapedPlace
+
+from app.db.models import ScrapedPlace, ScraperRun
 from app.scrapers.base import generate_code, make_request_with_backoff
 
 OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter"
-HEADERS = {
-    "User-Agent": "PilgrimageTrackerBot/1.0 (hussain@example.com)"
-}
+HEADERS = {"User-Agent": "PilgrimageTrackerBot/1.0 (hussain@example.com)"}
 
-def get_wikipedia_info(wiki_tag: str) -> Dict[str, Any]:
+
+def get_wikipedia_info(wiki_tag: str) -> dict[str, Any]:
     """Fetch Wikipedia summary for a given tag."""
     if not wiki_tag:
         return {}
@@ -32,11 +33,7 @@ def get_wikipedia_info(wiki_tag: str) -> Dict[str, Any]:
 
     try:
         data = response.json()
-        info = {
-            "description": data.get("extract"),
-            "image_url": None,
-            "original_image": None
-        }
+        info = {"description": data.get("extract"), "image_url": None, "original_image": None}
         if "thumbnail" in data:
             info["image_url"] = data["thumbnail"].get("source")
         if "originalimage" in data:
@@ -48,7 +45,8 @@ def get_wikipedia_info(wiki_tag: str) -> Dict[str, Any]:
         print(f"Error parsing Wikipedia for {wiki_tag}: {e}")
         return {}
 
-def get_osm_info(lat: float, lon: float, radius: int = 200) -> Dict[str, Any]:
+
+def get_osm_info(lat: float, lon: float, radius: int = 200) -> dict[str, Any]:
     """Query OpenStreetMap for place of worship near coordinates."""
     overpass_query = f"""
     [out:json][timeout:25];
@@ -59,7 +57,9 @@ def get_osm_info(lat: float, lon: float, radius: int = 200) -> Dict[str, Any]:
     );
     out center;
     """
-    response = make_request_with_backoff("POST", OVERPASS_ENDPOINT, data=overpass_query, headers=HEADERS)
+    response = make_request_with_backoff(
+        "POST", OVERPASS_ENDPOINT, data=overpass_query, headers=HEADERS
+    )
     if not response:
         return {}
 
@@ -76,7 +76,8 @@ def get_osm_info(lat: float, lon: float, radius: int = 200) -> Dict[str, Any]:
             return element["tags"]
     return {}
 
-def map_to_schema(row: Any, wiki_info: Dict, osm_tags: Dict) -> Dict[str, Any]:
+
+def map_to_schema(row: Any, wiki_info: dict, osm_tags: dict) -> dict[str, Any]:
     """Map CSV row + enriched data to place schema."""
     place_data = {
         "place_code": row.get("overture_id"),
@@ -91,14 +92,10 @@ def map_to_schema(row: Any, wiki_info: Dict, osm_tags: Dict) -> Dict[str, Any]:
         "website_url": row.get("websites") or osm_tags.get("website"),
         "religion_specific": {},
         "source": "overpass",
-        "attributes": []
+        "attributes": [],
     }
 
-    religion_map = {
-        "islam": "islam",
-        "hinduism": "hinduism",
-        "christianity": "christianity"
-    }
+    religion_map = {"islam": "islam", "hinduism": "hinduism", "christianity": "christianity"}
     csv_religion = str(row.get("primary_religion")).lower()
     if csv_religion in religion_map:
         place_data["religion"] = religion_map[csv_religion]
@@ -111,6 +108,7 @@ def map_to_schema(row: Any, wiki_info: Dict, osm_tags: Dict) -> Dict[str, Any]:
 
     place_data["religion_specific"].update(osm_tags)
     return place_data
+
 
 def run_gsheet_scraper(run_code: str, config: dict, session: Session):
     """
@@ -130,7 +128,7 @@ def run_gsheet_scraper(run_code: str, config: dict, session: Session):
 
     print(f"Fetching CSV from {csv_url}")
     df = pd.read_csv(csv_url)
-    df = df.replace({float('nan'): None})
+    df = df.replace({float("nan"): None})
 
     run.total_items = len(df)
     session.add(run)
@@ -166,7 +164,7 @@ def run_gsheet_scraper(run_code: str, config: dict, session: Session):
                 run_code=run_code,
                 place_code=place_obj.get("place_code") or generate_code("plc"),
                 name=place_obj.get("name") or "Unknown",
-                raw_data=place_obj
+                raw_data=place_obj,
             )
             session.add(scraped_place)
             session.commit()

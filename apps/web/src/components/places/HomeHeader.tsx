@@ -54,10 +54,11 @@ export default function HomeHeader({
           </div>
           <button
             onClick={onFilterClick}
-            className={`relative min-w-[56px] h-[56px] flex items-center justify-center rounded-2xl border transition-all duration-300 ${activeFiltersCount > 0
-              ? 'bg-primary border-primary text-white shadow-xl shadow-primary/20'
-              : 'bg-white dark:bg-dark-surface border-slate-200 dark:border-dark-border text-slate-500 hover:text-primary shadow-sm hover:border-primary'
-              }`}
+            className={`relative min-w-[56px] h-[56px] flex items-center justify-center rounded-2xl border transition-all duration-300 ${
+              activeFiltersCount > 0
+                ? 'bg-primary border-primary text-white shadow-xl shadow-primary/20'
+                : 'bg-white dark:bg-dark-surface border-slate-200 dark:border-dark-border text-slate-500 hover:text-primary shadow-sm hover:border-primary'
+            }`}
           >
             <span className="material-symbols-outlined text-xl">tune</span>
             {activeFiltersCount > 0 && (

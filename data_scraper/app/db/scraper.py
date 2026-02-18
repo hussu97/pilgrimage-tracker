@@ -1,10 +1,12 @@
 import secrets
+
 import requests
 from sqlmodel import Session, select
-from app.db.models import DataLocation, ScraperRun, ScrapedPlace
+
+from app.db.models import DataLocation, ScrapedPlace, ScraperRun
 from app.db.session import engine
-from app.scrapers.gsheet import run_gsheet_scraper
 from app.scrapers.gmaps import run_gmaps_scraper
+from app.scrapers.gsheet import run_gsheet_scraper
 
 
 def generate_code(prefix: str) -> str:
@@ -25,7 +27,9 @@ def run_scraper_task(run_code: str):
         session.add(run)
         session.commit()
 
-        location = session.exec(select(DataLocation).where(DataLocation.code == run.location_code)).first()
+        location = session.exec(
+            select(DataLocation).where(DataLocation.code == run.location_code)
+        ).first()
         if not location:
             run.status = "failed"
             session.add(run)
@@ -79,28 +83,30 @@ def sync_run_to_server(run_code: str, server_url: str):
         payloads = []
         for p in places:
             data = p.raw_data
-            payloads.append({
-                "place_code": p.place_code,
-                "name": data.get("name"),
-                "religion": data.get("religion"),
-                "place_type": data.get("place_type"),
-                "lat": data.get("lat"),
-                "lng": data.get("lng"),
-                "address": data.get("address"),
-                "opening_hours": data.get("opening_hours"),
-                "utc_offset_minutes": data.get("utc_offset_minutes"),
-                "image_urls": data.get("image_urls") or [],
-                "image_blobs": data.get("image_blobs") or [],
-                "description": data.get("description"),
-                "website_url": data.get("website_url"),
-                "source": data.get("source"),
-                "attributes": data.get("attributes") or [],
-                "external_reviews": data.get("external_reviews") or [],
-            })
+            payloads.append(
+                {
+                    "place_code": p.place_code,
+                    "name": data.get("name"),
+                    "religion": data.get("religion"),
+                    "place_type": data.get("place_type"),
+                    "lat": data.get("lat"),
+                    "lng": data.get("lng"),
+                    "address": data.get("address"),
+                    "opening_hours": data.get("opening_hours"),
+                    "utc_offset_minutes": data.get("utc_offset_minutes"),
+                    "image_urls": data.get("image_urls") or [],
+                    "image_blobs": data.get("image_blobs") or [],
+                    "description": data.get("description"),
+                    "website_url": data.get("website_url"),
+                    "source": data.get("source"),
+                    "attributes": data.get("attributes") or [],
+                    "external_reviews": data.get("external_reviews") or [],
+                }
+            )
 
         # Send in batches
         for batch_start in range(0, len(payloads), BATCH_SIZE):
-            batch = payloads[batch_start: batch_start + BATCH_SIZE]
+            batch = payloads[batch_start : batch_start + BATCH_SIZE]
             batch_codes = [p["place_code"] for p in batch]
             print(f"  Sending batch {batch_start // BATCH_SIZE + 1}: {len(batch)} places")
 
@@ -121,7 +127,9 @@ def sync_run_to_server(run_code: str, server_url: str):
                             print(f"  [OK]   {r['place_code']}")
                 else:
                     # Batch endpoint unavailable — fall back to individual POSTs
-                    print(f"  Batch endpoint returned {resp.status_code}, falling back to individual POSTs")
+                    print(
+                        f"  Batch endpoint returned {resp.status_code}, falling back to individual POSTs"
+                    )
                     for payload in batch:
                         place_code = payload["place_code"]
                         try:

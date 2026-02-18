@@ -34,7 +34,9 @@ function RouteErrorBoundary({ children }: { children: React.ReactNode }) {
 function PageLoader() {
   return (
     <div className="min-h-[40vh] flex items-center justify-center">
-      <span className="material-symbols-outlined text-3xl text-slate-300 animate-spin">progress_activity</span>
+      <span className="material-symbols-outlined text-3xl text-slate-300 animate-spin">
+        progress_activity
+      </span>
     </div>
   );
 }
@@ -49,18 +51,118 @@ export function AppRoutes() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/home" element={<Layout><Home /></Layout>} />
-          <Route path="/places/:placeCode" element={<Layout><PlaceDetail /></Layout>} />
-          <Route path="/places/:placeCode/review" element={<Layout><ProtectedRoute><WriteReview /></ProtectedRoute></Layout>} />
-          <Route path="/profile" element={<Layout><Profile /></Layout>} />
-          <Route path="/profile/edit" element={<Layout><ProtectedRoute><EditProfile /></ProtectedRoute></Layout>} />
-          <Route path="/profile/check-ins" element={<Layout><ProtectedRoute><CheckInsList /></ProtectedRoute></Layout>} />
-          <Route path="/favorites" element={<Layout><ProtectedRoute><Favorites /></ProtectedRoute></Layout>} />
-          <Route path="/groups" element={<Layout><Groups /></Layout>} />
-          <Route path="/groups/new" element={<Layout><ProtectedRoute><CreateGroup /></ProtectedRoute></Layout>} />
-          <Route path="/groups/:groupCode" element={<Layout><ProtectedRoute><GroupDetail /></ProtectedRoute></Layout>} />
-          <Route path="/join" element={<Layout><ProtectedRoute><JoinGroup /></ProtectedRoute></Layout>} />
-          <Route path="/notifications" element={<Layout><ProtectedRoute><Notifications /></ProtectedRoute></Layout>} />
+          <Route
+            path="/home"
+            element={
+              <Layout>
+                <Home />
+              </Layout>
+            }
+          />
+          <Route
+            path="/places/:placeCode"
+            element={
+              <Layout>
+                <PlaceDetail />
+              </Layout>
+            }
+          />
+          <Route
+            path="/places/:placeCode/review"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <WriteReview />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <Layout>
+                <Profile />
+              </Layout>
+            }
+          />
+          <Route
+            path="/profile/edit"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <EditProfile />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/profile/check-ins"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <CheckInsList />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/favorites"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <Favorites />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/groups"
+            element={
+              <Layout>
+                <Groups />
+              </Layout>
+            }
+          />
+          <Route
+            path="/groups/new"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <CreateGroup />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/groups/:groupCode"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <GroupDetail />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/join"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <JoinGroup />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <Notifications />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
       </Suspense>

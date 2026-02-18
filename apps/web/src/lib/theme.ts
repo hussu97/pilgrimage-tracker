@@ -9,8 +9,7 @@ function getSystemDark(): boolean {
 
 export function applyTheme(theme: Theme): void {
   const root = document.documentElement;
-  const isDark =
-    theme === 'dark' || (theme === 'system' && getSystemDark());
+  const isDark = theme === 'dark' || (theme === 'system' && getSystemDark());
   if (isDark) {
     root.classList.add('dark');
   } else {

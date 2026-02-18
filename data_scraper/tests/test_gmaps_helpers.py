@@ -3,23 +3,23 @@ Additional tests for data_scraper/app/scrapers/gmaps.py:
 calculate_search_radius, detect_religion_from_types (with mocked session),
 get_default_place_type (mocked), and MIN_RADIUS / deduplication logic.
 """
-import sys
+
 import os
-import math
-from unittest.mock import MagicMock, patch
+import sys
+from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.scrapers.gmaps import (
-    calculate_search_radius,
     MIN_RADIUS,
+    calculate_search_radius,
     detect_religion_from_types,
     get_default_place_type,
     get_gmaps_type_to_our_type,
 )
 
-
 # ── calculate_search_radius ────────────────────────────────────────────────────
+
 
 class TestCalculateSearchRadius:
     def test_center_is_midpoint(self):
@@ -64,6 +64,7 @@ class TestCalculateSearchRadius:
 
 
 # ── detect_religion_from_types (mocked session) ───────────────────────────────
+
 
 class TestDetectReligionFromTypes:
     def _make_mapping(self, gmaps_type: str, religion: str):
@@ -112,6 +113,7 @@ class TestDetectReligionFromTypes:
 
 # ── get_default_place_type (mocked session) ───────────────────────────────────
 
+
 class TestGetDefaultPlaceType:
     def _make_session(self, our_type: str = None):
         session = MagicMock()
@@ -138,6 +140,7 @@ class TestGetDefaultPlaceType:
 
 # ── get_gmaps_type_to_our_type (mocked session) ───────────────────────────────
 
+
 class TestGetGmapsTypeToOurType:
     def test_builds_mapping_dict(self):
         m1 = MagicMock()
@@ -161,6 +164,7 @@ class TestGetGmapsTypeToOurType:
 
 
 # ── MIN_RADIUS constant ────────────────────────────────────────────────────────
+
 
 class TestMinRadius:
     def test_min_radius_is_2000_meters(self):

@@ -1,16 +1,20 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query
-from sqlmodel import select
-from typing import List, Optional
 import os
 
-from app.db.session import SessionDep
-from app.db.models import DataLocation, ScraperRun, ScrapedPlace, GeoBoundary, PlaceTypeMapping
-from app.models.schemas import (
-    DataLocationCreate, DataLocationResponse,
-    ScraperRunCreate, ScraperRunResponse,
-    PlaceTypeMappingCreate, PlaceTypeMappingUpdate, PlaceTypeMappingResponse
-)
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from sqlmodel import select
+
+from app.db.models import DataLocation, GeoBoundary, PlaceTypeMapping, ScrapedPlace, ScraperRun
 from app.db.scraper import generate_code, run_scraper_task, sync_run_to_server
+from app.db.session import SessionDep
+from app.models.schemas import (
+    DataLocationCreate,
+    DataLocationResponse,
+    PlaceTypeMappingCreate,
+    PlaceTypeMappingResponse,
+    PlaceTypeMappingUpdate,
+    ScraperRunCreate,
+    ScraperRunResponse,
+)
 
 router = APIRouter()
 
@@ -37,20 +41,28 @@ def create_data_location(body: DataLocationCreate, session: SessionDep):
             if len(sheet_url) > 20 and "/" not in sheet_url:
                 sheet_code = sheet_url
             else:
-                raise HTTPException(status_code=400, detail="Could not extract Google Sheet code from URL")
+                raise HTTPException(
+                    status_code=400, detail="Could not extract Google Sheet code from URL"
+                )
 
         config = {"sheet_code": sheet_code}
 
     elif body.source_type == "gmaps":
         # Validate either city or country is provided
         if not body.city and not body.country:
-            raise HTTPException(status_code=400, detail="Either city or country is required for gmaps source")
+            raise HTTPException(
+                status_code=400, detail="Either city or country is required for gmaps source"
+            )
 
         # Validate the boundary exists in DB
         boundary_name = body.city if body.city else body.country
-        boundary = session.exec(select(GeoBoundary).where(GeoBoundary.name == boundary_name)).first()
+        boundary = session.exec(
+            select(GeoBoundary).where(GeoBoundary.name == boundary_name)
+        ).first()
         if not boundary:
-            raise HTTPException(status_code=400, detail=f"Geographic boundary not found: {boundary_name}")
+            raise HTTPException(
+                status_code=400, detail=f"Geographic boundary not found: {boundary_name}"
+            )
 
         config = {
             "max_results": body.max_results or 5  # Default to 5 for testing
@@ -75,27 +87,21 @@ def create_data_location(body: DataLocationCreate, session: SessionDep):
     return loc
 
 
-@router.get("/data-locations", response_model=List[DataLocationResponse])
+@router.get("/data-locations", response_model=list[DataLocationResponse])
 def list_locations(session: SessionDep):
     locs = session.exec(select(DataLocation)).all()
     return locs
 
 
 @router.post("/runs", response_model=ScraperRunResponse)
-def create_run(
-    body: ScraperRunCreate,
-    background_tasks: BackgroundTasks,
-    session: SessionDep
-):
+def create_run(body: ScraperRunCreate, background_tasks: BackgroundTasks, session: SessionDep):
     # Verify location exists
     loc = session.exec(select(DataLocation).where(DataLocation.code == body.location_code)).first()
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
 
     run = ScraperRun(
-        run_code=generate_code("run"),
-        location_code=body.location_code,
-        status="pending"
+        run_code=generate_code("run"), location_code=body.location_code, status="pending"
     )
     session.add(run)
     session.commit()
@@ -116,11 +122,7 @@ def get_run(run_code: str, session: SessionDep):
 
 
 @router.get("/runs/{run_code}/data")
-def view_data(
-    run_code: str,
-    session: SessionDep,
-    search: Optional[str] = Query(None)
-):
+def view_data(run_code: str, session: SessionDep, search: str | None = Query(None)):
     query = select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
     if search:
         # Simple wildcard search
@@ -135,12 +137,9 @@ def view_data(
         out.append(data)
     return out
 
+
 @router.post("/runs/{run_code}/sync")
-def sync_run(
-    run_code: str,
-    background_tasks: BackgroundTasks,
-    session: SessionDep
-):
+def sync_run(run_code: str, background_tasks: BackgroundTasks, session: SessionDep):
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -150,6 +149,7 @@ def sync_run(
     background_tasks.add_task(sync_run_to_server, run.run_code, server_url)
 
     return {"status": "sync_started", "run_code": run_code, "target_server": server_url}
+
 
 @router.post("/runs/{run_code}/cancel")
 def cancel_run(run_code: str, session: SessionDep):
@@ -170,12 +170,13 @@ def cancel_run(run_code: str, session: SessionDep):
 
 # ===== PlaceTypeMapping CRUD =====
 
-@router.get("/place-type-mappings", response_model=List[PlaceTypeMappingResponse])
+
+@router.get("/place-type-mappings", response_model=list[PlaceTypeMappingResponse])
 def list_place_type_mappings(
     session: SessionDep,
-    religion: Optional[str] = Query(None),
-    source_type: Optional[str] = Query(None),
-    is_active: Optional[bool] = Query(None)
+    religion: str | None = Query(None),
+    source_type: str | None = Query(None),
+    is_active: bool | None = Query(None),
 ):
     """List all place type mappings with optional filters."""
     query = select(PlaceTypeMapping)
@@ -193,10 +194,7 @@ def list_place_type_mappings(
 
 
 @router.post("/place-type-mappings", response_model=PlaceTypeMappingResponse)
-def create_place_type_mapping(
-    body: PlaceTypeMappingCreate,
-    session: SessionDep
-):
+def create_place_type_mapping(body: PlaceTypeMappingCreate, session: SessionDep):
     """Create a new place type mapping."""
     mapping = PlaceTypeMapping(**body.model_dump())
     session.add(mapping)
@@ -206,10 +204,7 @@ def create_place_type_mapping(
 
 
 @router.get("/place-type-mappings/{mapping_id}", response_model=PlaceTypeMappingResponse)
-def get_place_type_mapping(
-    mapping_id: int,
-    session: SessionDep
-):
+def get_place_type_mapping(mapping_id: int, session: SessionDep):
     """Get a single place type mapping by ID."""
     mapping = session.get(PlaceTypeMapping, mapping_id)
     if not mapping:
@@ -218,11 +213,7 @@ def get_place_type_mapping(
 
 
 @router.put("/place-type-mappings/{mapping_id}", response_model=PlaceTypeMappingResponse)
-def update_place_type_mapping(
-    mapping_id: int,
-    body: PlaceTypeMappingUpdate,
-    session: SessionDep
-):
+def update_place_type_mapping(mapping_id: int, body: PlaceTypeMappingUpdate, session: SessionDep):
     """Update a place type mapping."""
     mapping = session.get(PlaceTypeMapping, mapping_id)
     if not mapping:
@@ -240,10 +231,7 @@ def update_place_type_mapping(
 
 
 @router.delete("/place-type-mappings/{mapping_id}")
-def delete_place_type_mapping(
-    mapping_id: int,
-    session: SessionDep
-):
+def delete_place_type_mapping(mapping_id: int, session: SessionDep):
     """Delete a place type mapping."""
     mapping = session.get(PlaceTypeMapping, mapping_id)
     if not mapping:

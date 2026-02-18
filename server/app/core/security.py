@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import bcrypt
 from jose import JWTError, jwt
 
-from app.core.config import SECRET_KEY, JWT_EXPIRE, ALGORITHM
+from app.core.config import ALGORITHM, JWT_EXPIRE, SECRET_KEY
 
 
 def hash_password(password: str) -> str:

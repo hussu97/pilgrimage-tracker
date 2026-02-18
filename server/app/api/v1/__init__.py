@@ -1,5 +1,6 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, users, places, reviews, groups, notifications, i18n, visitors
+
+from app.api.v1 import auth, groups, i18n, notifications, places, reviews, users, visitors
 
 api_router = APIRouter(prefix="/api/v1", tags=["v1"])
 api_router.include_router(i18n.router, tags=["i18n"])

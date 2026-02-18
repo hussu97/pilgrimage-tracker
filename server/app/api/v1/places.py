@@ -1,22 +1,21 @@
-from typing import Annotated, Any, List, Literal, Optional
 import base64
+from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Response
 from sqlmodel import Session
 
-from app.api.deps import get_current_user, get_optional_user
-from app.db.session import SessionDep
-from app.db import places as places_db
-from app.db import reviews as reviews_db
-from app.db import store as user_store
+from app.api.deps import OptionalUserDep, UserDep
 from app.db import check_ins as check_ins_db
 from app.db import favorites as favorites_db
 from app.db import place_attributes as attr_db
-from app.db import place_images
-from app.db import review_images
-from app.models.schemas import CheckInBody, ReviewCreateBody, PlaceCreate, PlaceBatch
-from app.services.place_timings import build_timings
+from app.db import place_images, review_images
+from app.db import places as places_db
+from app.db import reviews as reviews_db
+from app.db import store as user_store
+from app.db.session import SessionDep
+from app.models.schemas import CheckInBody, PlaceBatch, PlaceCreate, ReviewCreateBody
 from app.services.place_specifications import build_specifications
+from app.services.place_timings import build_timings
 from app.services.timezone_utils import get_today_name
 
 router = APIRouter()
@@ -24,7 +23,15 @@ router = APIRouter()
 Religion = Literal["islam", "hinduism", "christianity", "all"]
 
 
-def _place_to_item(place, session: Session, distance: Optional[float] = None, include_rating: bool = False, attrs: Optional[dict] = None, images: Optional[List[dict]] = None, rating: Optional[dict] = None) -> dict:
+def _place_to_item(
+    place,
+    session: Session,
+    distance: float | None = None,
+    include_rating: bool = False,
+    attrs: dict | None = None,
+    images: list[dict] | None = None,
+    rating: dict | None = None,
+) -> dict:
     d = distance
     if d is not None:
         d = round(d * 10) / 10
@@ -42,7 +49,9 @@ def _place_to_item(place, session: Session, distance: Optional[float] = None, in
         "lng": place.lng,
         "address": place.address,
         "opening_hours": place.opening_hours,
-        "images": images if images is not None else place_images.get_images(place.place_code, session=session),
+        "images": images
+        if images is not None
+        else place_images.get_images(place.place_code, session=session),
         "description": place.description,
         "created_at": place.created_at,
         "distance": d,
@@ -113,22 +122,30 @@ def _place_detail(place, session: Session) -> dict:
 @router.get("")
 def list_places(
     session: SessionDep,
-    religion: Optional[List[Religion]] = Query(None, description="Filter by religion(s); repeat for multiple; omit for all"),
-    lat: Optional[float] = Query(None),
-    lng: Optional[float] = Query(None),
-    radius: Optional[float] = Query(None, description="Radius in km"),
-    place_type: Optional[str] = Query(None),
-    search: Optional[str] = Query(None),
-    sort: Optional[str] = Query(None, description="proximity or rating"),
+    religion: list[Religion] | None = Query(
+        None, description="Filter by religion(s); repeat for multiple; omit for all"
+    ),
+    lat: float | None = Query(None),
+    lng: float | None = Query(None),
+    radius: float | None = Query(None, description="Radius in km"),
+    place_type: str | None = Query(None),
+    search: str | None = Query(None),
+    sort: str | None = Query(None, description="proximity or rating"),
     limit: int = Query(50),
-    cursor: Optional[str] = Query(None, description="place_code of the last seen item; omit for the first page"),
-    jummah: Optional[bool] = Query(None, description="If true, only places with Jummah / Friday prayer (Islam)"),
-    has_events: Optional[bool] = Query(None, description="If true, only places that have events"),
-    include_rating: bool = Query(True, description="Include average_rating and review_count in list items"),
-    open_now: Optional[bool] = Query(None, description="If true, only currently open places"),
-    has_parking: Optional[bool] = Query(None, description="If true, only places with parking"),
-    womens_area: Optional[bool] = Query(None, description="If true, only places with a women's area"),
-    top_rated: Optional[bool] = Query(None, description="If true, only places rated 4.0 or above"),
+    cursor: str | None = Query(
+        None, description="place_code of the last seen item; omit for the first page"
+    ),
+    jummah: bool | None = Query(
+        None, description="If true, only places with Jummah / Friday prayer (Islam)"
+    ),
+    has_events: bool | None = Query(None, description="If true, only places that have events"),
+    include_rating: bool = Query(
+        True, description="Include average_rating and review_count in list items"
+    ),
+    open_now: bool | None = Query(None, description="If true, only currently open places"),
+    has_parking: bool | None = Query(None, description="If true, only places with parking"),
+    womens_area: bool | None = Query(None, description="If true, only places with a women's area"),
+    top_rated: bool | None = Query(None, description="If true, only places rated 4.0 or above"),
 ):
     religions = religion
     result = places_db.list_places(
@@ -163,26 +180,32 @@ def list_places(
             include_rating=include_rating,
             attrs=all_attrs.get(p.place_code, {}),
             images=all_images.get(p.place_code, []),
-            rating=all_ratings.get(p.place_code) if include_rating else None
+            rating=all_ratings.get(p.place_code) if include_rating else None,
         )
         for p, dist in result["rows"]
     ]
 
-    return {"places": places_out, "filters": result["filters"], "next_cursor": result.get("next_cursor")}
+    return {
+        "places": places_out,
+        "filters": result["filters"],
+        "next_cursor": result.get("next_cursor"),
+    }
 
 
 @router.get("/{place_code}")
 def get_place(
     place_code: str,
     session: SessionDep,
-    user: Annotated[Any, Depends(get_optional_user)] = None,
+    user: OptionalUserDep = None,
 ):
     place = places_db.get_place_by_code(place_code, session)
     if not place:
         raise HTTPException(status_code=404, detail="Place not found")
     out = _place_detail(place, session)
     if user:
-        out["user_has_checked_in"] = check_ins_db.has_checked_in(user.user_code, place_code, session)
+        out["user_has_checked_in"] = check_ins_db.has_checked_in(
+            user.user_code, place_code, session
+        )
         out["is_favorite"] = favorites_db.is_favorite(user.user_code, place_code, session)
     return out
 
@@ -214,36 +237,46 @@ def get_place_reviews(
 
         if source == "external":
             # External review
-            out.append({
-                "review_code": r.review_code,
-                "place_code": r.place_code,
-                "user_code": None,
-                "display_name": getattr(r, "author_name", "External User"),
-                "rating": r.rating,
-                "title": r.title,
-                "body": r.body,
-                "created_at": r.created_at,
-                "is_anonymous": False,
-                "photo_urls": all_photo_urls,
-                "source": "external",
-            })
+            out.append(
+                {
+                    "review_code": r.review_code,
+                    "place_code": r.place_code,
+                    "user_code": None,
+                    "display_name": getattr(r, "author_name", "External User"),
+                    "rating": r.rating,
+                    "title": r.title,
+                    "body": r.body,
+                    "created_at": r.created_at,
+                    "is_anonymous": False,
+                    "photo_urls": all_photo_urls,
+                    "source": "external",
+                }
+            )
         else:
             # User review
             is_anon = getattr(r, "is_anonymous", False)
-            user = user_store.get_user_by_code(r.user_code, session) if r.user_code and not is_anon else None
-            out.append({
-                "review_code": r.review_code,
-                "place_code": r.place_code,
-                "user_code": r.user_code if not is_anon else None,
-                "display_name": "Anonymous" if is_anon else (user.display_name if user else "Unknown"),
-                "rating": r.rating,
-                "title": r.title,
-                "body": r.body,
-                "created_at": r.created_at,
-                "is_anonymous": is_anon,
-                "photo_urls": all_photo_urls,
-                "source": "user",
-            })
+            user = (
+                user_store.get_user_by_code(r.user_code, session)
+                if r.user_code and not is_anon
+                else None
+            )
+            out.append(
+                {
+                    "review_code": r.review_code,
+                    "place_code": r.place_code,
+                    "user_code": r.user_code if not is_anon else None,
+                    "display_name": "Anonymous"
+                    if is_anon
+                    else (user.display_name if user else "Unknown"),
+                    "rating": r.rating,
+                    "title": r.title,
+                    "body": r.body,
+                    "created_at": r.created_at,
+                    "is_anonymous": is_anon,
+                    "photo_urls": all_photo_urls,
+                    "source": "user",
+                }
+            )
 
     result = {"reviews": out}
     if agg:
@@ -257,11 +290,13 @@ def check_in(
     place_code: str,
     body: CheckInBody,
     session: SessionDep,
-    user: Annotated[Any, Depends(get_current_user)],
+    user: UserDep,
 ):
     if not places_db.get_place_by_code(place_code, session):
         raise HTTPException(status_code=404, detail="Place not found")
-    row = check_ins_db.create_check_in(user.user_code, place_code, session, note=body.note, photo_url=body.photo_url)
+    row = check_ins_db.create_check_in(
+        user.user_code, place_code, session, note=body.note, photo_url=body.photo_url
+    )
     return {
         "check_in_code": row.check_in_code,
         "place_code": row.place_code,
@@ -275,7 +310,7 @@ def check_in(
 def add_favorite(
     place_code: str,
     session: SessionDep,
-    user: Annotated[Any, Depends(get_current_user)],
+    user: UserDep,
 ):
     if not places_db.get_place_by_code(place_code, session):
         raise HTTPException(status_code=404, detail="Place not found")
@@ -287,7 +322,7 @@ def add_favorite(
 def remove_favorite(
     place_code: str,
     session: SessionDep,
-    user: Annotated[Any, Depends(get_current_user)],
+    user: UserDep,
 ):
     favorites_db.remove_favorite(user.user_code, place_code, session)
     return {"ok": True}
@@ -298,7 +333,7 @@ def create_review(
     place_code: str,
     body: ReviewCreateBody,
     session: SessionDep,
-    user: Annotated[Any, Depends(get_current_user)],
+    user: UserDep,
 ):
     if not places_db.get_place_by_code(place_code, session):
         raise HTTPException(status_code=404, detail="Place not found")
@@ -377,7 +412,7 @@ def batch_create_places(
         try:
             existing = places_db.get_place_by_code(place_data.place_code, session)
             if existing:
-                row = places_db.update_place(
+                places_db.update_place(
                     place_code=place_data.place_code,
                     session=session,
                     name=place_data.name,
@@ -393,7 +428,7 @@ def batch_create_places(
                     source=place_data.source,
                 )
             else:
-                row = places_db.create_place(
+                places_db.create_place(
                     place_code=place_data.place_code,
                     session=session,
                     name=place_data.name,
@@ -414,18 +449,26 @@ def batch_create_places(
                     try:
                         data = base64.b64decode(blob["data"])
                         mime_type = blob.get("mime_type", "image/jpeg")
-                        place_images.add_image_blob(place_data.place_code, data, mime_type, display_order=i, session=session)
+                        place_images.add_image_blob(
+                            place_data.place_code, data, mime_type, display_order=i, session=session
+                        )
                     except Exception as e:
                         print(f"Failed to store image blob for {place_data.place_code}: {e}")
             elif place_data.image_urls:
-                place_images.set_images_from_urls(place_data.place_code, place_data.image_urls, session=session)
+                place_images.set_images_from_urls(
+                    place_data.place_code, place_data.image_urls, session=session
+                )
 
             if place_data.attributes:
                 for attr_input in place_data.attributes:
-                    attr_db.upsert_attribute(place_data.place_code, attr_input.attribute_code, attr_input.value, session)
+                    attr_db.upsert_attribute(
+                        place_data.place_code, attr_input.attribute_code, attr_input.value, session
+                    )
 
             if place_data.external_reviews:
-                reviews_db.upsert_external_reviews(place_data.place_code, place_data.external_reviews, session)
+                reviews_db.upsert_external_reviews(
+                    place_data.place_code, place_data.external_reviews, session
+                )
 
             results.append({"place_code": place_data.place_code, "ok": True})
         except Exception as e:
@@ -489,7 +532,9 @@ def create_place(
             try:
                 data = base64.b64decode(blob["data"])
                 mime_type = blob.get("mime_type", "image/jpeg")
-                place_images.add_image_blob(body.place_code, data, mime_type, display_order=i, session=session)
+                place_images.add_image_blob(
+                    body.place_code, data, mime_type, display_order=i, session=session
+                )
             except Exception as e:
                 print(f"Failed to store image blob: {e}")
     elif body.image_urls:
@@ -499,7 +544,9 @@ def create_place(
     # Store attributes if provided
     if body.attributes:
         for attr_input in body.attributes:
-            attr_db.upsert_attribute(body.place_code, attr_input.attribute_code, attr_input.value, session)
+            attr_db.upsert_attribute(
+                body.place_code, attr_input.attribute_code, attr_input.value, session
+            )
 
     # Store external reviews if provided
     if body.external_reviews:
@@ -527,7 +574,7 @@ def delete_place(place_code: str, session: SessionDep):
     # For now, document that deletion is intentionally not fully implemented
     raise HTTPException(
         status_code=501,
-        detail="Place deletion not implemented. Contact administrator to remove places."
+        detail="Place deletion not implemented. Contact administrator to remove places.",
     )
 
 

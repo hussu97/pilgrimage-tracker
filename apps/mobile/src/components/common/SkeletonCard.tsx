@@ -18,7 +18,7 @@ export default function SkeletonCard({ isDark = false }: SkeletonCardProps) {
       Animated.sequence([
         Animated.timing(opacity, { toValue: 0.85, duration: 750, useNativeDriver: true }),
         Animated.timing(opacity, { toValue: 0.4, duration: 750, useNativeDriver: true }),
-      ])
+      ]),
     );
     anim.start();
     return () => anim.stop();

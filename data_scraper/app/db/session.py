@@ -1,8 +1,8 @@
-from typing import Annotated
-from fastapi import Depends
-from sqlmodel import SQLModel, create_engine, Session
-
 import os
+from typing import Annotated
+
+from fastapi import Depends
+from sqlmodel import Session, SQLModel, create_engine
 
 # SCRAPER_DB_PATH lets you relocate the SQLite file to a persistent volume.
 # Default: scraper.db in the working directory (fine for local dev).
@@ -26,6 +26,7 @@ def get_db_session():
     """
     with Session(engine) as session:
         yield session
+
 
 # Type alias for FastAPI dependency injection
 # Usage: def my_endpoint(session: SessionDep, ...):

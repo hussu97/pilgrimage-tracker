@@ -30,7 +30,9 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const imageUrl = getFullImageUrl(place.images?.[0]?.url);
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
-  const openStatus = place.open_status ?? (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : 'unknown');
+  const openStatus =
+    place.open_status ??
+    (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : 'unknown');
   const isOpen = openStatus === 'open';
   const isClosed = openStatus === 'closed';
   const isUnknown = openStatus === 'unknown';
@@ -58,7 +60,9 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
           )}
         </View>
         <View style={styles.compactBody}>
-          <Text style={styles.compactName} numberOfLines={1}>{place.name}</Text>
+          <Text style={styles.compactName} numberOfLines={1}>
+            {place.name}
+          </Text>
           <Text style={styles.compactAddress} numberOfLines={2}>
             {place.address || place.place_type || ''}
           </Text>
@@ -87,7 +91,8 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
               <View style={styles.chipRating}>
                 <MaterialIcons name="star" size={9} color="#92400e" />
                 <Text style={styles.chipRatingText}>
-                  {rating.toFixed(1)}{reviewCount > 0 ? ` (${reviewCount})` : ''}
+                  {rating.toFixed(1)}
+                  {reviewCount > 0 ? ` (${reviewCount})` : ''}
                 </Text>
               </View>
             )}
@@ -149,7 +154,9 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
 
       {/* Bottom glass info panel */}
       <View style={styles.glassPanel}>
-        <Text style={styles.cardName} numberOfLines={1}>{place.name}</Text>
+        <Text style={styles.cardName} numberOfLines={1}>
+          {place.name}
+        </Text>
         <View style={styles.locationRow}>
           <MaterialIcons name="location-on" size={12} color="rgba(255,255,255,0.75)" />
           <Text style={styles.locationText} numberOfLines={1}>
@@ -166,7 +173,8 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
               <View style={styles.ratingPill}>
                 <MaterialIcons name="star" size={10} color="#facc15" />
                 <Text style={styles.ratingText}>
-                  {rating.toFixed(1)}{reviewCount > 0 ? ` (${formatCount(reviewCount)})` : ''}
+                  {rating.toFixed(1)}
+                  {reviewCount > 0 ? ` (${formatCount(reviewCount)})` : ''}
                 </Text>
               </View>
             )}
@@ -233,7 +241,13 @@ const styles = StyleSheet.create({
     borderRadius: tokens.borderRadius.full,
     backgroundColor: tokens.colors.openNow,
   },
-  chipOpenText: { fontSize: 9, fontWeight: '700', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 },
+  chipOpenText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#fff',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   // Closed badge – red pill
   chipClosed: {
     paddingHorizontal: 8,
@@ -241,7 +255,13 @@ const styles = StyleSheet.create({
     borderRadius: tokens.borderRadius.full,
     backgroundColor: tokens.colors.closedNow,
   },
-  chipClosedText: { fontSize: 9, fontWeight: '700', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 },
+  chipClosedText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#fff',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   // Unknown badge – grey pill
   chipUnknown: {
     paddingHorizontal: 8,
@@ -249,7 +269,13 @@ const styles = StyleSheet.create({
     borderRadius: tokens.borderRadius.full,
     backgroundColor: tokens.colors.unknownStatus,
   },
-  chipUnknownText: { fontSize: 9, fontWeight: '700', color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 },
+  chipUnknownText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#fff',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   chipDist: {
     paddingHorizontal: 8,
     paddingVertical: 2,

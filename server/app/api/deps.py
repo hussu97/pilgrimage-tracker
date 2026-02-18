@@ -1,17 +1,18 @@
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.security import decode_token
 from app.db import store
+from app.db.models import User
 from app.db.session import SessionDep
 
 security = HTTPBearer(auto_error=False)
 
 
 def get_current_user_code(
-    credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(security)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
 ) -> str:
     token = credentials.credentials if credentials is not None else None
     if not token:
@@ -25,7 +26,7 @@ def get_current_user_code(
 def get_current_user(
     user_code: Annotated[str, Depends(get_current_user_code)],
     session: SessionDep,
-):
+) -> User:
     user = store.get_user_by_code(user_code, session)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
@@ -33,9 +34,9 @@ def get_current_user(
 
 
 def get_optional_user(
-    credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(security)],
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
     session: SessionDep,
-):
+) -> User | None:
     """Return current user if valid Bearer token present, else None."""
     token = credentials.credentials if credentials is not None else None
     if not token:
@@ -44,3 +45,8 @@ def get_optional_user(
     if not user_code:
         return None
     return store.get_user_by_code(user_code, session)
+
+
+# Convenience type aliases for FastAPI dependency injection
+UserDep = Annotated[User, Depends(get_current_user)]
+OptionalUserDep = Annotated[User | None, Depends(get_optional_user)]
