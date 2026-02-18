@@ -244,8 +244,8 @@ export default function CheckInsListScreen() {
             </View>
             <View style={styles.calendarCard}>
               <View style={styles.weekdayRow}>
-                {WEEKDAY_LABELS.map((l) => (
-                  <Text key={l} style={styles.weekdayLabel}>
+                {WEEKDAY_LABELS.map((l, i) => (
+                  <Text key={i} style={styles.weekdayLabel}>
                     {l}
                   </Text>
                 ))}
