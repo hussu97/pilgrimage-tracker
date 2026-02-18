@@ -20,7 +20,6 @@ const Groups = lazy(() => import('@/app/pages/Groups'));
 const CreateGroup = lazy(() => import('@/app/pages/CreateGroup'));
 const GroupDetail = lazy(() => import('@/app/pages/GroupDetail'));
 const JoinGroup = lazy(() => import('@/app/pages/JoinGroup'));
-const Settings = lazy(() => import('@/app/pages/Settings'));
 const Notifications = lazy(() => import('@/app/pages/Notifications'));
 
 /**
@@ -63,7 +62,6 @@ export function AppRoutes() {
           <Route path="/groups/new" element={<Layout><ProtectedRoute><CreateGroup /></ProtectedRoute></Layout>} />
           <Route path="/groups/:groupCode" element={<Layout><ProtectedRoute><GroupDetail /></ProtectedRoute></Layout>} />
           <Route path="/join" element={<Layout><ProtectedRoute><JoinGroup /></ProtectedRoute></Layout>} />
-          <Route path="/settings" element={<Layout><ProtectedRoute><Settings /></ProtectedRoute></Layout>} />
           <Route path="/notifications" element={<Layout><ProtectedRoute><Notifications /></ProtectedRoute></Layout>} />
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>

@@ -91,13 +91,7 @@ export default function Profile() {
           <h1 className="text-sm font-bold uppercase tracking-widest text-text-muted dark:text-dark-text-secondary">
             {t('profile.title')}
           </h1>
-          <Link
-            to="/settings"
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-white/50 dark:bg-dark-surface/50 backdrop-blur-md hover:bg-white dark:hover:bg-dark-surface border border-slate-200/50 dark:border-dark-border text-text-secondary dark:text-dark-text-secondary"
-            aria-label={t('settings.title')}
-          >
-            <span className="material-icons-outlined text-xl">settings</span>
-          </Link>
+          <div className="w-10" />
         </header>
 
         {/* Avatar + name (only for logged-in users) */}
