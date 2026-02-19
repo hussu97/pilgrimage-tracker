@@ -65,7 +65,7 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
               </span>
             )}
             {rating != null && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-600 border border-amber-100">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-800/30">
                 <span
                   className="material-symbols-outlined text-[10px]"
                   style={{ fontVariationSettings: "'FILL' 1" }}
@@ -139,7 +139,7 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
             </p>
           </div>
           {place.distance != null && (
-            <span className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary bg-blue-tint dark:bg-dark-surface border border-blue-100/50 dark:border-dark-border px-2 py-1 rounded-xl shrink-0">
+            <span className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary bg-blue-tint dark:bg-dark-surface border border-blue-100/50 dark:border-dark-border px-2 py-1 rounded-xl shrink-0 whitespace-nowrap">
               {formatDistance(place.distance)}
             </span>
           )}

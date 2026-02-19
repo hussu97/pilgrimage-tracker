@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -27,7 +27,12 @@ import { shareUrl, openDirections } from '@/lib/share';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import type { RootStackParamList } from '@/app/navigation';
-import type { PlaceDetail as PlaceDetailType, Review } from '@/lib/types';
+import type {
+  PlaceDetail as PlaceDetailType,
+  Review,
+  PlaceTiming,
+  PlaceSpecification,
+} from '@/lib/types';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import { tokens } from '@/lib/theme';
 import PlaceScorecardRow from '@/components/places/PlaceScorecardRow';
@@ -57,6 +62,7 @@ export default function PlaceDetailScreen() {
   const { user } = useAuth();
   const { t } = useI18n();
   const { isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const { requireAuth } = useAuthRequired();
 
   const [place, setPlace] = useState<PlaceDetailType | null>(null);
@@ -523,12 +529,12 @@ export default function PlaceDetailScreen() {
 
           {/* Religion-specific carousel */}
           {timings.length > 0 ? (
-            <PlaceTimingsCarousel timings={timings} title={carouselTitle} />
+            <PlaceTimingsCarousel timings={timings} title={carouselTitle} isDark={isDark} />
           ) : null}
 
           {/* Facilities / Specifications */}
           {specifications.length > 0 ? (
-            <PlaceSpecificationsGrid specifications={specifications} t={t} />
+            <PlaceSpecificationsGrid specifications={specifications} t={t} isDark={isDark} />
           ) : null}
 
           {/* Reviews */}
@@ -539,6 +545,7 @@ export default function PlaceDetailScreen() {
             averageRating={averageRating}
             reviewCount={reviewCount}
             onRefresh={fetchPlace}
+            isDark={isDark}
           />
         </View>
       </Animated.ScrollView>
@@ -570,481 +577,490 @@ export default function PlaceDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: tokens.colors.backgroundLight },
-  scroll: { flex: 1 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
-  errorContainer: { paddingHorizontal: 24, alignItems: 'center' },
-  errorTitle: { fontSize: 18, fontWeight: '600', color: tokens.colors.textMain, marginBottom: 8 },
-  muted: { fontSize: 14, color: tokens.colors.textMuted },
-  link: { color: tokens.colors.primary, fontWeight: '600', marginTop: 8 },
-  retryButton: { marginTop: 12 },
-  retryText: { color: tokens.colors.primary, fontWeight: '600' },
-  backButton: { marginTop: 8 },
-  backButtonText: { color: tokens.colors.textSecondary, fontWeight: '600' },
+function makeStyles(isDark: boolean) {
+  const cardBg = isDark ? tokens.colors.darkBg : tokens.colors.backgroundLight;
+  const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
+  const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
+  const textMain = isDark ? '#ffffff' : tokens.colors.textMain;
+  const textSecondary = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary;
+  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
 
-  /* Sticky header */
-  stickyHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 20,
-    backgroundColor: tokens.colors.primary,
-    paddingBottom: 12,
-    paddingHorizontal: 72,
-    alignItems: 'center',
-  },
-  stickyHeaderTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#fff',
-    textAlign: 'center',
-  },
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: cardBg },
+    scroll: { flex: 1 },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 8 },
+    errorContainer: { paddingHorizontal: 24, alignItems: 'center' },
+    errorTitle: { fontSize: 18, fontWeight: '600', color: textMain, marginBottom: 8 },
+    muted: { fontSize: 14, color: textMuted },
+    link: { color: tokens.colors.primary, fontWeight: '600', marginTop: 8 },
+    retryButton: { marginTop: 12 },
+    retryText: { color: tokens.colors.primary, fontWeight: '600' },
+    backButton: { marginTop: 8 },
+    backButtonText: { color: textSecondary, fontWeight: '600' },
 
-  /* Top bar */
-  topBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 30,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-  },
-  topBarRight: { flexDirection: 'row', gap: 10 },
-  circleBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
+    /* Sticky header */
+    stickyHeader: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 20,
+      backgroundColor: tokens.colors.primary,
+      paddingBottom: 12,
+      paddingHorizontal: 72,
+      alignItems: 'center',
+    },
+    stickyHeaderTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: '#fff',
+      textAlign: 'center',
+    },
 
-  /* Hero (fixed behind scroll content) */
-  heroFixed: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: HERO_HEIGHT,
-    backgroundColor: '#1a2e2e',
-    zIndex: 0,
-  },
-  heroSpacer: {
-    height: HERO_HEIGHT - CARD_OVERLAP,
-  },
-  heroPlaceholder: {
-    backgroundColor: '#1a2e2e',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  heroGradientTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-    backgroundColor: 'transparent',
-  },
-  heroGradientBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '100%',
-    backgroundColor: 'rgba(0,0,0,0.25)',
-  },
-  heroBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 20,
-    paddingBottom: 28,
-  },
-  heroBadgeRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 10,
-  },
-  heroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
-  },
-  heroBadgeOpen: {
-    backgroundColor: 'rgba(22, 163, 74, 0.3)',
-    borderColor: 'rgba(74, 222, 128, 0.4)',
-  },
-  heroBadgeClosed: {
-    backgroundColor: 'rgba(185, 28, 28, 0.3)',
-    borderColor: 'rgba(248, 113, 113, 0.4)',
-  },
-  heroBadgeUnknown: {
-    backgroundColor: 'rgba(148, 163, 184, 0.3)',
-    borderColor: 'rgba(148, 163, 184, 0.4)',
-  },
-  heroBadgeRating: {},
-  heroBadgeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  heroBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#fff',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-  heroName: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: 4,
-    letterSpacing: -0.3,
-  },
-  heroAddress: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-    fontWeight: '400',
-  },
+    /* Top bar */
+    topBar: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 30,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingBottom: 8,
+    },
+    topBarRight: { flexDirection: 'row', gap: 10 },
+    circleBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.2)',
+    },
 
-  /* Card */
-  card: {
-    marginTop: -CARD_OVERLAP,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    backgroundColor: tokens.colors.backgroundLight,
-    paddingTop: 8,
-    minHeight: 600,
-  },
+    /* Hero (fixed behind scroll content) */
+    heroFixed: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: HERO_HEIGHT,
+      backgroundColor: '#1a2e2e',
+      zIndex: 0,
+    },
+    heroSpacer: {
+      height: HERO_HEIGHT - CARD_OVERLAP,
+    },
+    heroPlaceholder: {
+      backgroundColor: '#1a2e2e',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroGradientTop: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 100,
+      backgroundColor: 'transparent',
+    },
+    heroGradientBottom: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: '100%',
+      backgroundColor: 'rgba(0,0,0,0.25)',
+    },
+    heroBottom: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: 20,
+      paddingBottom: 28,
+    },
+    heroBadgeRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginBottom: 10,
+    },
+    heroBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: 999,
+      backgroundColor: 'rgba(255,255,255,0.15)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.25)',
+    },
+    heroBadgeOpen: {
+      backgroundColor: 'rgba(22, 163, 74, 0.3)',
+      borderColor: 'rgba(74, 222, 128, 0.4)',
+    },
+    heroBadgeClosed: {
+      backgroundColor: 'rgba(185, 28, 28, 0.3)',
+      borderColor: 'rgba(248, 113, 113, 0.4)',
+    },
+    heroBadgeUnknown: {
+      backgroundColor: 'rgba(148, 163, 184, 0.3)',
+      borderColor: 'rgba(148, 163, 184, 0.4)',
+    },
+    heroBadgeRating: {},
+    heroBadgeDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 3.5,
+    },
+    heroBadgeText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: '#fff',
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+    },
+    heroName: {
+      fontSize: 26,
+      fontWeight: '700',
+      color: '#fff',
+      marginBottom: 4,
+      letterSpacing: -0.3,
+    },
+    heroAddress: {
+      fontSize: 13,
+      color: 'rgba(255,255,255,0.85)',
+      fontWeight: '400',
+    },
 
-  /* Scorecards */
-  scorecardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 4,
-    backgroundColor: tokens.colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    paddingVertical: 16,
-    ...tokens.shadow.subtle,
-  },
-  scorecard: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  scorecardDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: tokens.colors.inputBorder,
-  },
-  scorecardValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: tokens.colors.textMain,
-    textAlign: 'center',
-  },
-  scorecardLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: tokens.colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    textAlign: 'center',
-  },
+    /* Card */
+    card: {
+      marginTop: -CARD_OVERLAP,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      backgroundColor: cardBg,
+      paddingTop: 8,
+      minHeight: 600,
+    },
 
-  /* Sections */
-  section: {
-    marginHorizontal: 20,
-    marginTop: 24,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: tokens.colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: 16,
-  },
-  description: {
-    fontSize: 15,
-    color: tokens.colors.textSecondary,
-    lineHeight: 24,
-  },
-  readMore: {
-    marginTop: 8,
-    fontSize: 13,
-    fontWeight: '600',
-    color: tokens.colors.primary,
-  },
+    /* Scorecards */
+    scorecardRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginHorizontal: 20,
+      marginTop: 20,
+      marginBottom: 4,
+      backgroundColor: surface,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: border,
+      paddingVertical: 16,
+      ...tokens.shadow.subtle,
+    },
+    scorecard: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 4,
+    },
+    scorecardDivider: {
+      width: 1,
+      height: 40,
+      backgroundColor: border,
+    },
+    scorecardValue: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: textMain,
+      textAlign: 'center',
+    },
+    scorecardLabel: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+      textAlign: 'center',
+    },
 
-  /* Opening Hours */
-  hoursCard: {
-    backgroundColor: tokens.colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    padding: 16,
-  },
-  hoursCollapsed: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  hoursCollapsedLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  hoursToday: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: tokens.colors.textMain,
-  },
-  hoursTodayValue: {
-    fontSize: 14,
-    color: tokens.colors.textSecondary,
-  },
-  hoursExpanded: {
-    gap: 12,
-  },
-  hoursRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-  },
-  hoursDay: {
-    fontSize: 14,
-    color: tokens.colors.textSecondary,
-  },
-  hoursDayToday: {
-    fontWeight: '600',
-    color: tokens.colors.primary,
-  },
-  hoursValue: {
-    fontSize: 14,
-    color: tokens.colors.textSecondary,
-  },
-  hoursValueToday: {
-    fontWeight: '600',
-    color: tokens.colors.primary,
-  },
-  hoursCollapseBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingTop: 8,
-  },
-  hoursCollapseBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: tokens.colors.primary,
-  },
+    /* Sections */
+    section: {
+      marginHorizontal: 20,
+      marginTop: 24,
+    },
+    sectionTitle: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 2,
+      marginBottom: 16,
+    },
+    description: {
+      fontSize: 15,
+      color: textSecondary,
+      lineHeight: 24,
+    },
+    readMore: {
+      marginTop: 8,
+      fontSize: 13,
+      fontWeight: '600',
+      color: tokens.colors.primary,
+    },
 
-  /* Carousel */
-  carouselContent: {
-    flexDirection: 'row',
-    gap: 16,
-    paddingVertical: 8,
-    paddingRight: 8,
-  },
+    /* Opening Hours */
+    hoursCard: {
+      backgroundColor: surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: border,
+      padding: 16,
+    },
+    hoursCollapsed: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    hoursCollapsedLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flex: 1,
+    },
+    hoursToday: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: textMain,
+    },
+    hoursTodayValue: {
+      fontSize: 14,
+      color: textSecondary,
+    },
+    hoursExpanded: {
+      gap: 12,
+    },
+    hoursRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: 8,
+    },
+    hoursDay: {
+      fontSize: 14,
+      color: textSecondary,
+    },
+    hoursDayToday: {
+      fontWeight: '600',
+      color: tokens.colors.primary,
+    },
+    hoursValue: {
+      fontSize: 14,
+      color: textSecondary,
+    },
+    hoursValueToday: {
+      fontWeight: '600',
+      color: tokens.colors.primary,
+    },
+    hoursCollapseBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingTop: 8,
+    },
+    hoursCollapseBtnText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: tokens.colors.primary,
+    },
 
-  /* Specs grid */
-  specsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  specCard: {
-    width: '47%',
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: tokens.colors.surface,
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    ...tokens.shadow.subtle,
-  },
-  specLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: tokens.colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 4,
-  },
-  specValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: tokens.colors.textMain,
-  },
+    /* Carousel */
+    carouselContent: {
+      flexDirection: 'row',
+      gap: 16,
+      paddingVertical: 8,
+      paddingRight: 8,
+    },
 
-  /* Reviews */
-  reviewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  reviewMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  reviewMetaText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: tokens.colors.textMain,
-  },
-  reviewMetaMuted: {
-    fontSize: 12,
-    color: tokens.colors.textMuted,
-  },
-  writeReviewLink: { marginBottom: 12 },
-  writeReviewLinkText: {
-    color: tokens.colors.primary,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  reviewList: { gap: 12 },
-  reviewCard: {
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    backgroundColor: tokens.colors.surface,
-  },
-  reviewCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  reviewAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: `${tokens.colors.primary}22`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  reviewAvatarText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: tokens.colors.primary,
-  },
-  reviewCardMeta: { flex: 1, minWidth: 0 },
-  reviewAuthor: {
-    fontWeight: '600',
-    color: tokens.colors.textMain,
-    fontSize: 14,
-  },
-  reviewDate: { fontSize: 12, color: tokens.colors.textMuted },
-  reviewCardRight: { alignItems: 'flex-end' },
-  starRow: { flexDirection: 'row', gap: 2 },
-  star: { fontSize: 13, color: '#f59e0b' },
-  reviewActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  reviewActionBtn: { paddingVertical: 2 },
-  reviewActionEdit: { fontSize: 13, color: tokens.colors.primary, fontWeight: '600' },
-  reviewActionDelete: { fontSize: 13, color: '#dc2626', fontWeight: '600' },
-  reviewTitle: {
-    fontWeight: '600',
-    color: tokens.colors.textMain,
-    marginBottom: 4,
-    fontSize: 14,
-  },
-  reviewBody: { fontSize: 14, color: tokens.colors.textSecondary, lineHeight: 20 },
-  reviewPhotos: { marginTop: 12 },
-  reviewPhotosContent: { gap: 8 },
-  reviewPhoto: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-  },
+    /* Specs grid */
+    specsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    specCard: {
+      width: '47%',
+      padding: 16,
+      borderRadius: 16,
+      backgroundColor: surface,
+      borderWidth: 1,
+      borderColor: border,
+      ...tokens.shadow.subtle,
+    },
+    specLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+      marginBottom: 4,
+    },
+    specValue: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: textMain,
+    },
 
-  /* Footer */
-  footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: tokens.colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: tokens.colors.inputBorder,
-  },
-  footerBtnSecondary: {
-    flex: 1,
-    paddingVertical: 13,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: tokens.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 6,
-  },
-  footerBtnSecondaryText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: tokens.colors.primary,
-  },
-  footerBtnPrimary: {
-    flex: 2,
-    paddingVertical: 15,
-    borderRadius: 20,
-    backgroundColor: tokens.colors.primary,
-    alignItems: 'center',
-    shadowColor: tokens.colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  footerBtnPrimaryText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#fff',
-    letterSpacing: 0.5,
-  },
-  checkedInBadge: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 13,
-    borderRadius: 14,
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(16, 185, 129, 0.35)',
-  },
-  checkedInText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#059669',
-  },
-});
+    /* Reviews */
+    reviewHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    reviewMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    reviewMetaText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: textMain,
+    },
+    reviewMetaMuted: {
+      fontSize: 12,
+      color: textMuted,
+    },
+    writeReviewLink: { marginBottom: 12 },
+    writeReviewLinkText: {
+      color: tokens.colors.primary,
+      fontWeight: '600',
+      fontSize: 14,
+    },
+    reviewList: { gap: 12 },
+    reviewCard: {
+      padding: 16,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: border,
+      backgroundColor: surface,
+    },
+    reviewCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: 8,
+    },
+    reviewAvatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: `${tokens.colors.primary}22`,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 10,
+    },
+    reviewAvatarText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: tokens.colors.primary,
+    },
+    reviewCardMeta: { flex: 1, minWidth: 0 },
+    reviewAuthor: {
+      fontWeight: '600',
+      color: textMain,
+      fontSize: 14,
+    },
+    reviewDate: { fontSize: 12, color: textMuted },
+    reviewCardRight: { alignItems: 'flex-end' },
+    starRow: { flexDirection: 'row', gap: 2 },
+    star: { fontSize: 13, color: '#f59e0b' },
+    reviewActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
+    reviewActionBtn: { paddingVertical: 2 },
+    reviewActionEdit: { fontSize: 13, color: tokens.colors.primary, fontWeight: '600' },
+    reviewActionDelete: { fontSize: 13, color: '#dc2626', fontWeight: '600' },
+    reviewTitle: {
+      fontWeight: '600',
+      color: textMain,
+      marginBottom: 4,
+      fontSize: 14,
+    },
+    reviewBody: { fontSize: 14, color: textSecondary, lineHeight: 20 },
+    reviewPhotos: { marginTop: 12 },
+    reviewPhotosContent: { gap: 8 },
+    reviewPhoto: {
+      width: 80,
+      height: 80,
+      borderRadius: 8,
+    },
+
+    /* Footer */
+    footer: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: surface,
+      borderTopWidth: 1,
+      borderTopColor: border,
+    },
+    footerBtnSecondary: {
+      flex: 1,
+      paddingVertical: 13,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: tokens.colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 6,
+    },
+    footerBtnSecondaryText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: tokens.colors.primary,
+    },
+    footerBtnPrimary: {
+      flex: 2,
+      paddingVertical: 15,
+      borderRadius: 20,
+      backgroundColor: tokens.colors.primary,
+      alignItems: 'center',
+      shadowColor: tokens.colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 12,
+      elevation: 6,
+    },
+    footerBtnPrimaryText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#fff',
+      letterSpacing: 0.5,
+    },
+    checkedInBadge: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 13,
+      borderRadius: 14,
+      backgroundColor: 'rgba(16, 185, 129, 0.1)',
+      borderWidth: 1.5,
+      borderColor: 'rgba(16, 185, 129, 0.35)',
+    },
+    checkedInText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: '#059669',
+    },
+  }); // end StyleSheet.create
+} // end makeStyles

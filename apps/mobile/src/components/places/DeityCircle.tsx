@@ -5,12 +5,17 @@ import type { PlaceTiming } from '@/lib/types';
 
 interface DeityCircleProps {
   item: PlaceTiming;
+  isDark?: boolean;
 }
 
-export default function DeityCircle({ item }: DeityCircleProps) {
+export default function DeityCircle({ item, isDark = false }: DeityCircleProps) {
+  const bg = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
+  const nameColor = isDark ? '#ffffff' : tokens.colors.textMain;
+  const subtitleColor = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
+
   return (
     <View style={styles.item}>
-      <View style={[styles.circle, styles.deityCircle]}>
+      <View style={[styles.circle, styles.deityCircle, { backgroundColor: bg }]}>
         {item.image_url ? (
           <Image
             source={{ uri: item.image_url }}
@@ -23,11 +28,11 @@ export default function DeityCircle({ item }: DeityCircleProps) {
           <Text style={styles.deityEmoji}>🛕</Text>
         )}
       </View>
-      <Text style={styles.name} numberOfLines={1}>
+      <Text style={[styles.name, { color: nameColor }]} numberOfLines={1}>
         {item.name}
       </Text>
       {item.subtitle ? (
-        <Text style={styles.subtitle} numberOfLines={1}>
+        <Text style={[styles.subtitle, { color: subtitleColor }]} numberOfLines={1}>
           {item.subtitle}
         </Text>
       ) : null}
@@ -53,19 +58,16 @@ const styles = StyleSheet.create({
   },
   deityCircle: {
     borderColor: 'rgba(197, 160, 89, 0.4)',
-    backgroundColor: tokens.colors.surface,
     overflow: 'hidden',
   },
   name: {
     fontSize: 11,
     fontWeight: '700',
     textAlign: 'center',
-    color: tokens.colors.textMain,
     textTransform: 'capitalize',
   },
   subtitle: {
     fontSize: 10,
-    color: tokens.colors.textMuted,
     textAlign: 'center',
     textTransform: 'uppercase',
   },

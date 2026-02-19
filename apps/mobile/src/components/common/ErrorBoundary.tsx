@@ -1,6 +1,6 @@
 import type { ErrorInfo, ReactNode } from 'react';
 import { Component } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Appearance } from 'react-native';
 import { tokens } from '@/lib/theme';
 
 interface Props {
@@ -47,14 +47,20 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      const isDark = Appearance.getColorScheme() === 'dark';
+      const bg = isDark ? tokens.colors.darkBg : tokens.colors.surface;
+      const titleColor = isDark ? '#ffffff' : tokens.colors.textDark;
+      const messageColor = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
+      const iconWrapBg = isDark ? 'rgba(239,68,68,0.15)' : '#fee2e2';
+
       return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: bg }]}>
           <View style={styles.content}>
-            <View style={styles.iconWrap}>
+            <View style={[styles.iconWrap, { backgroundColor: iconWrapBg }]}>
               <Text style={styles.icon}>⚠</Text>
             </View>
-            <Text style={styles.title}>Something went wrong</Text>
-            <Text style={styles.message}>
+            <Text style={[styles.title, { color: titleColor }]}>Something went wrong</Text>
+            <Text style={[styles.message, { color: messageColor }]}>
               {this.state.error?.message || 'An unexpected error occurred'}
             </Text>
             <TouchableOpacity onPress={this.handleReset} style={styles.button} activeOpacity={0.8}>
@@ -72,7 +78,6 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: tokens.colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -86,7 +91,6 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#fee2e2',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
@@ -98,13 +102,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: tokens.colors.textDark,
     marginBottom: 12,
     textAlign: 'center',
   },
   message: {
     fontSize: 15,
-    color: tokens.colors.textMuted,
     marginBottom: 32,
     textAlign: 'center',
     lineHeight: 22,

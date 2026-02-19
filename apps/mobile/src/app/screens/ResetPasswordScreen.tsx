@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,49 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/app/navigation';
-import { useI18n } from '@/app/providers';
+import { useI18n, useTheme } from '@/app/providers';
 import { resetPassword } from '@/lib/api/client';
 import { tokens } from '@/lib/theme';
+
+function makeStyles(isDark: boolean) {
+  const bg = isDark ? tokens.colors.darkBg : tokens.colors.surface;
+  const surface = isDark ? tokens.colors.darkSurface : tokens.colors.backgroundLight;
+  const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
+  const textMain = isDark ? '#ffffff' : tokens.colors.textMain;
+  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
+  const inputText = isDark ? '#ffffff' : tokens.colors.textMain;
+
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: bg },
+    scrollContent: { paddingHorizontal: 24, flexGrow: 1 },
+    title: { fontSize: 24, fontWeight: '700', color: textMain, marginBottom: 8 },
+    subtitle: { fontSize: 16, color: textMuted, marginBottom: 24 },
+    input: {
+      borderWidth: 1,
+      borderColor: border,
+      borderRadius: tokens.borderRadius.xl,
+      padding: 14,
+      marginBottom: 12,
+      fontSize: 16,
+      backgroundColor: surface,
+      color: inputText,
+    },
+    error: { color: '#b91c1c', fontSize: 14, marginBottom: 12 },
+    button: {
+      backgroundColor: tokens.colors.primary,
+      paddingVertical: 14,
+      borderRadius: tokens.borderRadius.xl,
+      alignItems: 'center',
+      marginTop: 8,
+    },
+    buttonDisabled: { opacity: 0.6 },
+    buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+    secondaryLink: { marginTop: 24, alignItems: 'center' },
+    secondaryLinkText: { fontSize: 14, color: textMuted },
+    linkButton: { marginTop: 16 },
+    linkText: { fontSize: 16, color: tokens.colors.primary, fontWeight: '500' },
+  });
+}
 
 export default function ResetPasswordScreen() {
   const insets = useSafeAreaInsets();
@@ -24,6 +64,8 @@ export default function ResetPasswordScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'ResetPassword'>>();
   const token = route.params?.token ?? '';
   const { t } = useI18n();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
@@ -117,7 +159,7 @@ export default function ResetPasswordScreen() {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
-          placeholderTextColor={tokens.colors.textMuted}
+          placeholderTextColor={isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted}
         />
         <TextInput
           style={styles.input}
@@ -125,7 +167,7 @@ export default function ResetPasswordScreen() {
           value={confirm}
           onChangeText={setConfirm}
           secureTextEntry
-          placeholderTextColor={tokens.colors.textMuted}
+          placeholderTextColor={isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted}
         />
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <TouchableOpacity
@@ -145,34 +187,3 @@ export default function ResetPasswordScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: tokens.colors.surface },
-  scrollContent: { paddingHorizontal: 24, flexGrow: 1 },
-  title: { fontSize: 24, fontWeight: '700', color: tokens.colors.textMain, marginBottom: 8 },
-  subtitle: { fontSize: 16, color: tokens.colors.textMuted, marginBottom: 24 },
-  input: {
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    borderRadius: tokens.borderRadius.xl,
-    padding: 14,
-    marginBottom: 12,
-    fontSize: 16,
-    backgroundColor: tokens.colors.backgroundLight,
-    color: tokens.colors.textMain,
-  },
-  error: { color: '#b91c1c', fontSize: 14, marginBottom: 12 },
-  button: {
-    backgroundColor: tokens.colors.primary,
-    paddingVertical: 14,
-    borderRadius: tokens.borderRadius.xl,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  secondaryLink: { marginTop: 24, alignItems: 'center' },
-  secondaryLinkText: { fontSize: 14, color: tokens.colors.textMuted },
-  linkButton: { marginTop: 16 },
-  linkText: { fontSize: 16, color: tokens.colors.primary, fontWeight: '500' },
-});

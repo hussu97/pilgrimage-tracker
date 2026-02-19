@@ -53,7 +53,7 @@ export default function FilterSheet({
         <div className="flex gap-4">
           <button
             onClick={handleClear}
-            className="flex-1 py-3 px-4 rounded-xl border border-input-border text-text-main font-semibold hover:bg-slate-50 transition-colors"
+            className="flex-1 py-3 px-4 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white font-semibold hover:bg-slate-50 dark:hover:bg-dark-bg transition-colors"
           >
             {t('common.clear') || 'Clear'}
           </button>
@@ -81,13 +81,15 @@ export default function FilterSheet({
                   className={`flex items-center justify-between p-4 rounded-2xl border transition-all duration-200 ${
                     isActive
                       ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                      : 'border-slate-100 hover:border-slate-300 bg-white'
+                      : 'border-slate-100 dark:border-dark-border hover:border-slate-300 bg-white dark:bg-dark-surface'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <div
                       className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                        isActive ? 'bg-primary text-white' : 'bg-slate-100 text-slate-500'
+                        isActive
+                          ? 'bg-primary text-white'
+                          : 'bg-slate-100 dark:bg-dark-bg text-slate-500 dark:text-dark-text-secondary'
                       }`}
                     >
                       <span className="material-symbols-outlined text-[20px]">{option.icon}</span>
@@ -107,7 +109,9 @@ export default function FilterSheet({
                   </div>
                   <div
                     className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                      isActive ? 'border-primary bg-primary' : 'border-slate-200'
+                      isActive
+                        ? 'border-primary bg-primary'
+                        : 'border-slate-200 dark:border-dark-border'
                     }`}
                   >
                     {isActive && (

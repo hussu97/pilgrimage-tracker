@@ -5,9 +5,10 @@ import type { PlaceTiming } from '@/lib/types';
 
 interface TimingCircleProps {
   item: PlaceTiming;
+  isDark?: boolean;
 }
 
-export default function TimingCircle({ item }: TimingCircleProps) {
+export default function TimingCircle({ item, isDark = false }: TimingCircleProps) {
   const statusColor =
     item.status === 'current'
       ? tokens.colors.primary
@@ -18,9 +19,19 @@ export default function TimingCircle({ item }: TimingCircleProps) {
     item.status === 'current'
       ? tokens.colors.primary
       : item.status === 'past'
-        ? 'rgba(0,0,0,0.08)'
-        : 'rgba(0,0,0,0.15)';
-  const bgColor = item.status === 'current' ? `${tokens.colors.primary}18` : tokens.colors.surface;
+        ? isDark
+          ? 'rgba(255,255,255,0.1)'
+          : 'rgba(0,0,0,0.08)'
+        : isDark
+          ? 'rgba(255,255,255,0.15)'
+          : 'rgba(0,0,0,0.15)';
+  const bgColor =
+    item.status === 'current'
+      ? `${tokens.colors.primary}18`
+      : isDark
+        ? tokens.colors.darkSurface
+        : tokens.colors.surface;
+  const subtitleColor = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
 
   return (
     <View style={styles.item}>
@@ -44,7 +55,7 @@ export default function TimingCircle({ item }: TimingCircleProps) {
         {item.status === 'current' && <View style={styles.currentDot} />}
       </View>
       {item.subtitle ? (
-        <Text style={styles.subtitle} numberOfLines={1}>
+        <Text style={[styles.subtitle, { color: subtitleColor }]} numberOfLines={1}>
           {item.subtitle}
         </Text>
       ) : null}
@@ -72,7 +83,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     textAlign: 'center',
-    color: tokens.colors.textMain,
     textTransform: 'capitalize',
   },
   time: {
@@ -83,7 +93,6 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 10,
-    color: tokens.colors.textMuted,
     textAlign: 'center',
     textTransform: 'uppercase',
   },

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { tokens } from '@/lib/theme';
 
@@ -6,9 +6,40 @@ interface FilterChipProps {
   label: string;
   selected?: boolean;
   onPress: () => void;
+  isDark?: boolean;
 }
 
-function FilterChip({ label, selected = false, onPress }: FilterChipProps) {
+function makeStyles(isDark: boolean) {
+  const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
+  const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
+  const labelDefault = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary;
+
+  return StyleSheet.create({
+    chip: {
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+      borderRadius: tokens.borderRadius.xl,
+      borderWidth: 1,
+    },
+    chipDefault: {
+      backgroundColor: surface,
+      borderColor: border,
+    },
+    chipSelected: {
+      backgroundColor: tokens.colors.primary,
+      borderColor: tokens.colors.primary,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '500',
+    },
+    labelDefault: { color: labelDefault },
+    labelSelected: { color: '#fff' },
+  });
+}
+
+function FilterChip({ label, selected = false, onPress, isDark = false }: FilterChipProps) {
+  const styles = useMemo(() => makeStyles(isDark), [isDark]);
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -23,26 +54,3 @@ function FilterChip({ label, selected = false, onPress }: FilterChipProps) {
 }
 
 export default React.memo(FilterChip);
-
-const styles = StyleSheet.create({
-  chip: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: tokens.borderRadius.xl,
-    borderWidth: 1,
-  },
-  chipDefault: {
-    backgroundColor: tokens.colors.surface,
-    borderColor: tokens.colors.inputBorder,
-  },
-  chipSelected: {
-    backgroundColor: tokens.colors.primary,
-    borderColor: tokens.colors.primary,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  labelDefault: { color: tokens.colors.textSecondary },
-  labelSelected: { color: '#fff' },
-});

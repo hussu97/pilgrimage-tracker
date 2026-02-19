@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { tokens } from '@/lib/theme';
@@ -21,9 +21,60 @@ function safeIcon(name: string): React.ComponentProps<typeof MaterialIcons>['nam
 interface Props {
   specifications: PlaceSpecification[];
   t: (key: string) => string;
+  isDark?: boolean;
 }
 
-function PlaceSpecificationsGrid({ specifications, t }: Props) {
+function makeStyles(isDark: boolean) {
+  const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
+  const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
+  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
+  const textMain = isDark ? '#ffffff' : tokens.colors.textMain;
+
+  return StyleSheet.create({
+    section: {
+      marginHorizontal: 20,
+      marginTop: 24,
+    },
+    sectionTitle: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 2,
+      marginBottom: 16,
+    },
+    specsGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+    },
+    specCard: {
+      width: '47%',
+      padding: 16,
+      borderRadius: 16,
+      backgroundColor: surface,
+      borderWidth: 1,
+      borderColor: border,
+      ...tokens.shadow.subtle,
+    },
+    specLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+      marginBottom: 4,
+    },
+    specValue: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: textMain,
+    },
+  });
+}
+
+function PlaceSpecificationsGrid({ specifications, t, isDark = false }: Props) {
+  const styles = useMemo(() => makeStyles(isDark), [isDark]);
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{t('placeDetail.detailsAndFacilities')}</Text>
@@ -46,45 +97,3 @@ function PlaceSpecificationsGrid({ specifications, t }: Props) {
 }
 
 export default React.memo(PlaceSpecificationsGrid);
-
-const styles = StyleSheet.create({
-  section: {
-    marginHorizontal: 20,
-    marginTop: 24,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: tokens.colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: 16,
-  },
-  specsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  specCard: {
-    width: '47%',
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: tokens.colors.surface,
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    ...tokens.shadow.subtle,
-  },
-  specLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: tokens.colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    marginBottom: 4,
-  },
-  specValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: tokens.colors.textMain,
-  },
-});

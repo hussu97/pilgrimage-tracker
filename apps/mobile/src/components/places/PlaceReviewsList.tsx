@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -20,6 +20,112 @@ interface Props {
   averageRating?: number;
   reviewCount?: number;
   onRefresh: () => void;
+  isDark?: boolean;
+}
+
+function makeStyles(isDark: boolean) {
+  const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
+  const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
+  const textMain = isDark ? '#ffffff' : tokens.colors.textMain;
+  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
+  const textSecondary = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary;
+
+  return StyleSheet.create({
+    section: {
+      marginHorizontal: 20,
+      marginTop: 24,
+    },
+    sectionTitle: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: textMuted,
+      textTransform: 'uppercase',
+      letterSpacing: 2,
+      marginBottom: 16,
+    },
+    reviewHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    reviewMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    reviewMetaText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: textMain,
+    },
+    reviewMetaMuted: {
+      fontSize: 12,
+      color: textMuted,
+    },
+    writeReviewLink: { marginBottom: 12 },
+    writeReviewLinkText: {
+      color: tokens.colors.primary,
+      fontWeight: '600',
+      fontSize: 14,
+    },
+    muted: { fontSize: 14, color: textMuted },
+    reviewList: { gap: 12 },
+    reviewCard: {
+      padding: 16,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: border,
+      backgroundColor: surface,
+    },
+    reviewCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: 8,
+    },
+    reviewAvatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: `${tokens.colors.primary}22`,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 10,
+    },
+    reviewAvatarText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: tokens.colors.primary,
+    },
+    reviewCardMeta: { flex: 1, minWidth: 0 },
+    reviewAuthor: {
+      fontWeight: '600',
+      color: textMain,
+      fontSize: 14,
+    },
+    reviewDate: { fontSize: 12, color: textMuted },
+    reviewCardRight: { alignItems: 'flex-end' },
+    starRow: { flexDirection: 'row', gap: 2 },
+    star: { fontSize: 13, color: '#f59e0b' },
+    reviewActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
+    reviewActionBtn: { paddingVertical: 2 },
+    reviewActionEdit: { fontSize: 13, color: tokens.colors.primary, fontWeight: '600' },
+    reviewActionDelete: { fontSize: 13, color: '#dc2626', fontWeight: '600' },
+    reviewTitle: {
+      fontWeight: '600',
+      color: textMain,
+      marginBottom: 4,
+      fontSize: 14,
+    },
+    reviewBody: { fontSize: 14, color: textSecondary, lineHeight: 20 },
+    reviewPhotos: { marginTop: 12 },
+    reviewPhotosContent: { gap: 8 },
+    reviewPhoto: {
+      width: 80,
+      height: 80,
+      borderRadius: 8,
+    },
+  });
 }
 
 function PlaceReviewsList({
@@ -29,10 +135,12 @@ function PlaceReviewsList({
   averageRating,
   reviewCount,
   onRefresh,
+  isDark = false,
 }: Props) {
   const navigation = useNavigation<Nav>();
   const { t } = useI18n();
   const [deletingCode, setDeletingCode] = useState<string | null>(null);
+  const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const userReview = userCode ? reviews.find((r) => r.user_code === userCode) : null;
 
@@ -187,100 +295,3 @@ function PlaceReviewsList({
 }
 
 export default React.memo(PlaceReviewsList);
-
-const styles = StyleSheet.create({
-  section: {
-    marginHorizontal: 20,
-    marginTop: 24,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: tokens.colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: 16,
-  },
-  reviewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  reviewMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  reviewMetaText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: tokens.colors.textMain,
-  },
-  reviewMetaMuted: {
-    fontSize: 12,
-    color: tokens.colors.textMuted,
-  },
-  writeReviewLink: { marginBottom: 12 },
-  writeReviewLinkText: {
-    color: tokens.colors.primary,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  muted: { fontSize: 14, color: tokens.colors.textMuted },
-  reviewList: { gap: 12 },
-  reviewCard: {
-    padding: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    backgroundColor: tokens.colors.surface,
-  },
-  reviewCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  reviewAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: `${tokens.colors.primary}22`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-  reviewAvatarText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: tokens.colors.primary,
-  },
-  reviewCardMeta: { flex: 1, minWidth: 0 },
-  reviewAuthor: {
-    fontWeight: '600',
-    color: tokens.colors.textMain,
-    fontSize: 14,
-  },
-  reviewDate: { fontSize: 12, color: tokens.colors.textMuted },
-  reviewCardRight: { alignItems: 'flex-end' },
-  starRow: { flexDirection: 'row', gap: 2 },
-  star: { fontSize: 13, color: '#f59e0b' },
-  reviewActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  reviewActionBtn: { paddingVertical: 2 },
-  reviewActionEdit: { fontSize: 13, color: tokens.colors.primary, fontWeight: '600' },
-  reviewActionDelete: { fontSize: 13, color: '#dc2626', fontWeight: '600' },
-  reviewTitle: {
-    fontWeight: '600',
-    color: tokens.colors.textMain,
-    marginBottom: 4,
-    fontSize: 14,
-  },
-  reviewBody: { fontSize: 14, color: tokens.colors.textSecondary, lineHeight: 20 },
-  reviewPhotos: { marginTop: 12 },
-  reviewPhotosContent: { gap: 8 },
-  reviewPhoto: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-  },
-});

@@ -8,20 +8,22 @@ import type { PlaceTiming } from '@/lib/types';
 interface Props {
   timings: PlaceTiming[];
   title: string;
+  isDark?: boolean;
 }
 
-function PlaceTimingsCarousel({ timings, title }: Props) {
+function PlaceTimingsCarousel({ timings, title, isDark = false }: Props) {
+  const sectionTitleColor = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={[styles.sectionTitle, { color: sectionTitleColor }]}>{title}</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.carouselContent}
       >
         {timings.map((item, i) => {
-          if (item.type === 'deity') return <DeityCircle key={i} item={item} />;
-          return <TimingCircle key={i} item={item} />;
+          if (item.type === 'deity') return <DeityCircle key={i} item={item} isDark={isDark} />;
+          return <TimingCircle key={i} item={item} isDark={isDark} />;
         })}
       </ScrollView>
     </View>
@@ -38,7 +40,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 11,
     fontWeight: '700',
-    color: tokens.colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 2,
     marginBottom: 16,

@@ -54,6 +54,7 @@ export default function FilterChipsList({
             onPress={() =>
               onFilterToggle('placeType', activeFilters.placeType === pt ? undefined : pt)
             }
+            isDark={isDark}
           />
         ))}
         {hasAnyFilter && (

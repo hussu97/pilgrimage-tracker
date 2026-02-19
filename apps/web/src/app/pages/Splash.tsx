@@ -26,12 +26,14 @@ export default function Splash() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex flex-col justify-between px-8 pt-8 pb-10 bg-white safe-area-bottom">
+      <div className="flex-1 flex flex-col justify-between px-8 pt-8 pb-10 bg-white dark:bg-dark-bg safe-area-bottom">
         <div className="space-y-3 max-w-sm mx-auto w-full text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-text-dark leading-tight">
+          <h1 className="text-3xl font-bold tracking-tight text-text-dark dark:text-white leading-tight">
             {t('splash.heroTitle') || t('splash.welcome')}
           </h1>
-          <p className="text-text-secondary text-base leading-relaxed">{t('splash.tagline')}</p>
+          <p className="text-text-secondary dark:text-dark-text-secondary text-base leading-relaxed">
+            {t('splash.tagline')}
+          </p>
         </div>
 
         <div className="flex flex-col gap-3 max-w-sm mx-auto w-full mt-8">

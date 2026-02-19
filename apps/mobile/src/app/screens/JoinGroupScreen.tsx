@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,12 +12,77 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getGroupByInviteCode, joinGroupByCode } from '@/lib/api/client';
-import { useI18n } from '@/app/providers';
+import { useI18n, useTheme } from '@/app/providers';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'JoinGroup'>;
 type JoinGroupRoute = RouteProp<RootStackParamList, 'JoinGroup'>;
+
+function makeStyles(isDark: boolean) {
+  const bg = isDark ? tokens.colors.darkBg : tokens.colors.surfaceTint;
+  const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
+  const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
+  const textDark = isDark ? '#ffffff' : tokens.colors.textDark;
+  const textMain = isDark ? '#ffffff' : tokens.colors.textMain;
+  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
+  const inputText = isDark ? '#ffffff' : tokens.colors.textMain;
+
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: bg },
+    card: { paddingHorizontal: 24 },
+    backButton: { marginBottom: 16 },
+    backText: { fontSize: 16, color: textMuted },
+    title: { fontSize: 20, fontWeight: '700', color: textDark, marginBottom: 16 },
+    input: {
+      borderWidth: 1,
+      borderColor: border,
+      borderRadius: tokens.borderRadius.xl,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 16,
+      backgroundColor: surface,
+      color: inputText,
+      marginBottom: 16,
+    },
+    loader: { marginBottom: 16 },
+    previewBox: {
+      padding: 16,
+      borderRadius: tokens.borderRadius.xl,
+      borderWidth: 1,
+      borderColor: border,
+      backgroundColor: surface,
+      marginBottom: 16,
+      ...tokens.shadow.subtle,
+    },
+    previewLabel: { fontSize: 12, color: textMuted, marginBottom: 4 },
+    previewName: { fontSize: 16, fontWeight: '600', color: textDark },
+    errorText: { color: '#b91c1c', marginBottom: 12, fontSize: 14 },
+    actions: { flexDirection: 'row', gap: 12 },
+    cancelButton: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: tokens.borderRadius.xl,
+      borderWidth: 1,
+      borderColor: border,
+      alignItems: 'center',
+    },
+    cancelText: { color: textMain, fontWeight: '600' },
+    joinButton: {
+      flex: 1,
+      paddingVertical: 14,
+      borderRadius: tokens.borderRadius.xl,
+      backgroundColor: tokens.colors.primary,
+      alignItems: 'center',
+    },
+    joinDisabled: { opacity: 0.6 },
+    joinText: { color: '#fff', fontWeight: '600' },
+    noCodeTitle: { fontSize: 18, fontWeight: '600', color: textDark, marginBottom: 8 },
+    noCodeDesc: { fontSize: 14, color: textMuted, marginBottom: 16 },
+    linkButton: { alignSelf: 'flex-start' },
+    linkButtonText: { color: tokens.colors.primary, fontWeight: '600' },
+  });
+}
 
 export default function JoinGroupScreen() {
   const insets = useSafeAreaInsets();
@@ -25,6 +90,8 @@ export default function JoinGroupScreen() {
   const route = useRoute<JoinGroupRoute>();
   const inviteCodeFromParams = route.params?.inviteCode ?? '';
   const { t } = useI18n();
+  const { isDark } = useTheme();
+  const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const [codeInput, setCodeInput] = useState(inviteCodeFromParams);
   const [preview, setPreview] = useState<{ group_code: string; name: string } | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
@@ -105,7 +172,7 @@ export default function JoinGroupScreen() {
           value={codeInput}
           onChangeText={setCodeInput}
           placeholder={t('groups.inviteCodePlaceholder')}
-          placeholderTextColor={tokens.colors.textMuted}
+          placeholderTextColor={isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted}
           autoCapitalize="none"
           autoCorrect={false}
         />
@@ -131,7 +198,7 @@ export default function JoinGroupScreen() {
         value={codeInput}
         onChangeText={setCodeInput}
         placeholder={t('groups.inviteCodePlaceholder')}
-        placeholderTextColor={tokens.colors.textMuted}
+        placeholderTextColor={isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted}
         autoCapitalize="none"
         autoCorrect={false}
         editable={!joining}
@@ -165,58 +232,3 @@ export default function JoinGroupScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: tokens.colors.surfaceTint },
-  card: { paddingHorizontal: 24 },
-  backButton: { marginBottom: 16 },
-  backText: { fontSize: 16, color: tokens.colors.textMuted },
-  title: { fontSize: 20, fontWeight: '700', color: tokens.colors.textDark, marginBottom: 16 },
-  input: {
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    borderRadius: tokens.borderRadius.xl,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    backgroundColor: tokens.colors.surface,
-    color: tokens.colors.textMain,
-    marginBottom: 16,
-  },
-  loader: { marginBottom: 16 },
-  previewBox: {
-    padding: 16,
-    borderRadius: tokens.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    backgroundColor: tokens.colors.surface,
-    marginBottom: 16,
-    ...tokens.shadow.subtle,
-  },
-  previewLabel: { fontSize: 12, color: tokens.colors.textMuted, marginBottom: 4 },
-  previewName: { fontSize: 16, fontWeight: '600', color: tokens.colors.textDark },
-  errorText: { color: '#b91c1c', marginBottom: 12, fontSize: 14 },
-  actions: { flexDirection: 'row', gap: 12 },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: tokens.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    alignItems: 'center',
-  },
-  cancelText: { color: tokens.colors.textMain, fontWeight: '600' },
-  joinButton: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: tokens.borderRadius.xl,
-    backgroundColor: tokens.colors.primary,
-    alignItems: 'center',
-  },
-  joinDisabled: { opacity: 0.6 },
-  joinText: { color: '#fff', fontWeight: '600' },
-  noCodeTitle: { fontSize: 18, fontWeight: '600', color: tokens.colors.textDark, marginBottom: 8 },
-  noCodeDesc: { fontSize: 14, color: tokens.colors.textMuted, marginBottom: 16 },
-  linkButton: { alignSelf: 'flex-start' },
-  linkButtonText: { color: tokens.colors.primary, fontWeight: '600' },
-});
