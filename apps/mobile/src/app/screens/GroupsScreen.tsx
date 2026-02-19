@@ -405,9 +405,6 @@ export default function GroupsScreen() {
             <Text style={[styles.emptyDesc, { color: textMuted }]}>
               {t('groups.noGroupsDescription')}
             </Text>
-            <TouchableOpacity style={styles.emptyCta} onPress={navToCreate} activeOpacity={0.8}>
-              <Text style={styles.emptyCtaText}>{t('groups.createGroup')}</Text>
-            </TouchableOpacity>
           </View>
         )}
 

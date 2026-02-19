@@ -112,14 +112,6 @@ export default function Groups() {
             icon="groups"
             title={t('groups.noGroupsYet')}
             description={t('groups.noGroupsDescription')}
-            action={
-              <Link
-                to="/groups/new"
-                className="inline-block py-2 px-4 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover"
-              >
-                {t('groups.createGroup')}
-              </Link>
-            }
           />
         )}
 
