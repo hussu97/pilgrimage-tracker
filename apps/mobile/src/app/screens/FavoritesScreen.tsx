@@ -31,14 +31,6 @@ function makeStyles(isDark: boolean) {
     container: { flex: 1, backgroundColor: bg },
     content: { paddingHorizontal: 24 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-    sectionLabel: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: tokens.colors.primaryDark,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: 4,
-    },
     title: { fontSize: 24, fontWeight: '700', color: textMain, marginBottom: 20 },
     errorWrap: { marginBottom: 16 },
     errorText: { color: '#b91c1c', marginBottom: 8 },
@@ -74,12 +66,12 @@ function makeStyles(isDark: boolean) {
     },
     signInButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
     backBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: surface,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: 'rgba(0,0,0,0.08)',
       borderWidth: 1,
-      borderColor: border,
+      borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)',
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -201,7 +193,6 @@ export default function FavoritesScreen() {
               color={isDark ? '#fff' : tokens.colors.textDark}
             />
           </TouchableOpacity>
-          <Text style={styles.sectionLabel}>{t('nav.saved')}</Text>
           <Text style={styles.title}>{t('favorites.title')}</Text>
           {error ? (
             <View style={styles.errorWrap}>

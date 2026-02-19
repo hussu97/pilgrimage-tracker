@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useI18n } from '@/app/providers';
 import { getMyFavorites, removeFavorite } from '@/lib/api/client';
 import PlaceCard from '@/components/places/PlaceCard';
@@ -9,6 +9,7 @@ import type { Place } from '@/lib/types';
 
 export default function Favorites() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,9 +45,15 @@ export default function Favorites() {
   return (
     <div className="min-h-screen bg-surface-tint dark:bg-dark-bg max-w-md mx-auto px-4 py-6 md:max-w-4xl pb-24 md:pb-6">
       <header className="mb-6">
-        <p className="text-xs text-primary-dark font-semibold uppercase tracking-wider mb-1">
-          {t('nav.saved')}
-        </p>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="mb-4 w-10 h-10 rounded-full bg-black/8 dark:bg-white/10 border border-slate-200 dark:border-white/10 flex items-center justify-center active:scale-90 transition-all"
+        >
+          <span className="material-symbols-outlined text-xl text-slate-700 dark:text-white">
+            arrow_back
+          </span>
+        </button>
         <h1 className="text-2xl font-semibold text-text-dark dark:text-white">
           {t('favorites.title')}
         </h1>

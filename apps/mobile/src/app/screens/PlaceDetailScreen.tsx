@@ -174,7 +174,9 @@ export default function PlaceDetailScreen() {
         <View style={styles.checkedInBadge}>
           <MaterialIcons name="check-circle" size={16} color="#059669" />
           <Text style={styles.checkedInText} numberOfLines={1}>
-            {checkInDate ? `${t('places.checkedIn')} ${checkInDate}` : t('places.checkedIn')}
+            {checkInDate
+              ? t('places.checkedInDate').replace('{date}', checkInDate)
+              : t('places.checkedIn')}
           </Text>
         </View>
       );
@@ -401,6 +403,7 @@ export default function PlaceDetailScreen() {
             crowdLevel={crowdLevel}
             totalCheckins={totalCheckins}
             t={t}
+            isDark={isDark}
           />
 
           {/* The Story */}

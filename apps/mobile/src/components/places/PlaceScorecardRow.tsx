@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { openDirections } from '@/lib/share';
 import { crowdColor } from '@/lib/utils/crowdColor';
@@ -11,88 +11,108 @@ interface Props {
   crowdLevel: string | undefined;
   totalCheckins: number | undefined;
   t: (key: string) => string;
+  isDark: boolean;
 }
 
 function formatDist(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
-function PlaceScorecardRow({ place, crowdLevel, totalCheckins, t }: Props) {
+function PlaceScorecardRow({ place, crowdLevel, totalCheckins, t, isDark }: Props) {
+  const bg = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
+  const textMain = isDark ? '#ffffff' : tokens.colors.textMain;
+  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
+  const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
+
   return (
-    <View style={styles.scorecardRow}>
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginHorizontal: 20,
+        marginTop: 20,
+        marginBottom: 4,
+        backgroundColor: bg,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: border,
+        paddingVertical: 16,
+        ...tokens.shadow.subtle,
+      }}
+    >
       <TouchableOpacity
-        style={styles.scorecard}
+        style={{ flex: 1, alignItems: 'center', gap: 4 }}
         onPress={() => openDirections(place.lat, place.lng, place.name)}
         activeOpacity={0.7}
       >
         <MaterialIcons name="directions" size={20} color={tokens.colors.primary} />
-        <Text style={styles.scorecardValue}>
+        <Text style={{ fontSize: 15, fontWeight: '700', color: textMain, textAlign: 'center' }}>
           {place.distance != null ? formatDist(place.distance) : '—'}
         </Text>
-        <Text style={styles.scorecardLabel}>{t('placeDetail.distance')}</Text>
+        <Text
+          style={{
+            fontSize: 10,
+            fontWeight: '600',
+            color: textMuted,
+            textTransform: 'uppercase',
+            letterSpacing: 0.3,
+            textAlign: 'center',
+          }}
+        >
+          {t('placeDetail.distance')}
+        </Text>
       </TouchableOpacity>
 
-      <View style={styles.scorecardDivider} />
+      <View style={{ width: 1, height: 40, backgroundColor: border }} />
 
-      <View style={styles.scorecard}>
+      <View style={{ flex: 1, alignItems: 'center', gap: 4 }}>
         <MaterialIcons name="people" size={20} color={crowdColor(crowdLevel)} />
-        <Text style={[styles.scorecardValue, { color: crowdColor(crowdLevel) }]}>
+        <Text
+          style={{
+            fontSize: 15,
+            fontWeight: '700',
+            color: crowdColor(crowdLevel),
+            textAlign: 'center',
+          }}
+        >
           {crowdLevel ?? '—'}
         </Text>
-        <Text style={styles.scorecardLabel}>{t('placeDetail.crowd')}</Text>
+        <Text
+          style={{
+            fontSize: 10,
+            fontWeight: '600',
+            color: textMuted,
+            textTransform: 'uppercase',
+            letterSpacing: 0.3,
+            textAlign: 'center',
+          }}
+        >
+          {t('placeDetail.crowd')}
+        </Text>
       </View>
 
-      <View style={styles.scorecardDivider} />
+      <View style={{ width: 1, height: 40, backgroundColor: border }} />
 
-      <View style={styles.scorecard}>
+      <View style={{ flex: 1, alignItems: 'center', gap: 4 }}>
         <MaterialIcons name="check-circle-outline" size={20} color={tokens.colors.primary} />
-        <Text style={styles.scorecardValue}>
+        <Text style={{ fontSize: 15, fontWeight: '700', color: textMain, textAlign: 'center' }}>
           {totalCheckins != null ? totalCheckins.toString() : '—'}
         </Text>
-        <Text style={styles.scorecardLabel}>{t('placeDetail.visits')}</Text>
+        <Text
+          style={{
+            fontSize: 10,
+            fontWeight: '600',
+            color: textMuted,
+            textTransform: 'uppercase',
+            letterSpacing: 0.3,
+            textAlign: 'center',
+          }}
+        >
+          {t('placeDetail.visits')}
+        </Text>
       </View>
     </View>
   );
 }
 
 export default React.memo(PlaceScorecardRow);
-
-const styles = StyleSheet.create({
-  scorecardRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 4,
-    backgroundColor: tokens.colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
-    paddingVertical: 16,
-    ...tokens.shadow.subtle,
-  },
-  scorecard: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  scorecardDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: tokens.colors.inputBorder,
-  },
-  scorecardValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: tokens.colors.textMain,
-    textAlign: 'center',
-  },
-  scorecardLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: tokens.colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-    textAlign: 'center',
-  },
-});

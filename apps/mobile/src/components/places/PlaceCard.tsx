@@ -147,7 +147,7 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
         {place.user_has_checked_in && (
           <View style={styles.badgeVisited}>
             <MaterialIcons name="check" size={11} color="#fff" />
-            <Text style={styles.badgeText}>Visited</Text>
+            <Text style={styles.badgeText}>{t('places.visited')}</Text>
           </View>
         )}
       </View>
@@ -185,7 +185,7 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
               onPress={() => navigation.navigate('PlaceDetail', { placeCode: place.place_code })}
               activeOpacity={0.85}
             >
-              <Text style={styles.checkInText}>Check In</Text>
+              <Text style={styles.checkInText}>{t('places.checkIn')}</Text>
             </TouchableOpacity>
           )}
         </View>
