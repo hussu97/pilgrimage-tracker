@@ -32,12 +32,21 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Log error to console in development
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Detect stale-deployment chunk errors and hard-reload once as a safety net.
+    // lazyWithReload() in routes.tsx handles the primary case; this catches anything
+    // that slips through (e.g. dynamic imports outside of route lazy loaders).
+    const isChunkError =
+      error.message.includes('Failed to fetch dynamically imported') ||
+      error.message.includes('Importing a module script failed') ||
+      /Loading chunk \d+ failed/.test(error.message);
 
-    // TODO: In production, send error to logging service (Sentry, LogRocket, etc.)
-    // Example:
-    // logErrorToService(error, errorInfo);
+    if (isChunkError && !sessionStorage.getItem('chunkLoadError')) {
+      sessionStorage.setItem('chunkLoadError', '1');
+      window.location.reload();
+      return;
+    }
+
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 
   handleReset = () => {

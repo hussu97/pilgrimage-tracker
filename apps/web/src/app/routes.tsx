@@ -4,22 +4,50 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import Layout from '@/components/layout/Layout';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 
-const Login = lazy(() => import('@/app/pages/Login'));
-const Register = lazy(() => import('@/app/pages/Register'));
-const ForgotPassword = lazy(() => import('@/app/pages/ForgotPassword'));
-const ResetPassword = lazy(() => import('@/app/pages/ResetPassword'));
-const Home = lazy(() => import('@/app/pages/Home'));
-const PlaceDetail = lazy(() => import('@/app/pages/PlaceDetail'));
-const WriteReview = lazy(() => import('@/app/pages/WriteReview'));
-const Profile = lazy(() => import('@/app/pages/Profile'));
-const EditProfile = lazy(() => import('@/app/pages/EditProfile'));
-const CheckInsList = lazy(() => import('@/app/pages/CheckInsList'));
-const Favorites = lazy(() => import('@/app/pages/Favorites'));
-const Groups = lazy(() => import('@/app/pages/Groups'));
-const CreateGroup = lazy(() => import('@/app/pages/CreateGroup'));
-const GroupDetail = lazy(() => import('@/app/pages/GroupDetail'));
-const JoinGroup = lazy(() => import('@/app/pages/JoinGroup'));
-const Notifications = lazy(() => import('@/app/pages/Notifications'));
+const CHUNK_RELOAD_KEY = 'chunkLoadError';
+
+/**
+ * Wraps React.lazy with a one-shot reload guard for stale-deployment chunk errors.
+ *
+ * When a dynamic import fails (e.g. "Failed to fetch dynamically imported module"),
+ * it means the browser has a cached index.html that references old content-hashed
+ * chunk filenames that no longer exist after a new deploy.  On the first failure we
+ * set a sessionStorage flag and hard-reload — the fresh index.html will reference
+ * the current chunk hashes and the import will succeed.  If the import still fails
+ * after a reload, the flag is already set so we throw the error and let the
+ * ErrorBoundary handle it normally.
+ */
+function lazyWithReload<T extends React.ComponentType<unknown>>(
+  factory: () => Promise<{ default: T }>,
+): React.LazyExoticComponent<T> {
+  return lazy(() =>
+    factory().catch((err: Error) => {
+      if (!sessionStorage.getItem(CHUNK_RELOAD_KEY)) {
+        sessionStorage.setItem(CHUNK_RELOAD_KEY, '1');
+        window.location.reload();
+        return new Promise<{ default: T }>(() => {}); // hang until reload navigates away
+      }
+      throw err;
+    }),
+  );
+}
+
+const Login = lazyWithReload(() => import('@/app/pages/Login'));
+const Register = lazyWithReload(() => import('@/app/pages/Register'));
+const ForgotPassword = lazyWithReload(() => import('@/app/pages/ForgotPassword'));
+const ResetPassword = lazyWithReload(() => import('@/app/pages/ResetPassword'));
+const Home = lazyWithReload(() => import('@/app/pages/Home'));
+const PlaceDetail = lazyWithReload(() => import('@/app/pages/PlaceDetail'));
+const WriteReview = lazyWithReload(() => import('@/app/pages/WriteReview'));
+const Profile = lazyWithReload(() => import('@/app/pages/Profile'));
+const EditProfile = lazyWithReload(() => import('@/app/pages/EditProfile'));
+const CheckInsList = lazyWithReload(() => import('@/app/pages/CheckInsList'));
+const Favorites = lazyWithReload(() => import('@/app/pages/Favorites'));
+const Groups = lazyWithReload(() => import('@/app/pages/Groups'));
+const CreateGroup = lazyWithReload(() => import('@/app/pages/CreateGroup'));
+const GroupDetail = lazyWithReload(() => import('@/app/pages/GroupDetail'));
+const JoinGroup = lazyWithReload(() => import('@/app/pages/JoinGroup'));
+const Notifications = lazyWithReload(() => import('@/app/pages/Notifications'));
 
 /**
  * Wraps children in an ErrorBoundary keyed to the current pathname.
