@@ -5,7 +5,7 @@ Tests create_user, get_user_by_code/email, update_user, settings,
 password reset flow, and refresh token lifecycle using the in-memory DB fixture.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from app.db import store
 
@@ -157,7 +157,7 @@ class TestPasswordReset:
     def test_consume_valid_token(self, db_session):
         _make_user(db_session)
         token = "validresettoken0001"
-        expires = datetime.utcnow() + timedelta(hours=1)
+        expires = datetime.now(UTC) + timedelta(hours=1)
         store.save_password_reset(token, "usr_test0001", expires, db_session)
 
         user_code = store.consume_password_reset(token, db_session)
@@ -166,7 +166,7 @@ class TestPasswordReset:
     def test_token_consumed_only_once(self, db_session):
         _make_user(db_session)
         token = "onetime0000000001"
-        expires = datetime.utcnow() + timedelta(hours=1)
+        expires = datetime.now(UTC) + timedelta(hours=1)
         store.save_password_reset(token, "usr_test0001", expires, db_session)
 
         assert store.consume_password_reset(token, db_session) == "usr_test0001"
@@ -175,7 +175,7 @@ class TestPasswordReset:
     def test_expired_token_returns_none(self, db_session):
         _make_user(db_session)
         token = "expiredtoken00001"
-        expired_at = datetime.utcnow() - timedelta(hours=1)
+        expired_at = datetime.now(UTC) - timedelta(hours=1)
         store.save_password_reset(token, "usr_test0001", expired_at, db_session)
 
         assert store.consume_password_reset(token, db_session) is None

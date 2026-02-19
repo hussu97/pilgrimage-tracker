@@ -1,6 +1,6 @@
 """CRUD operations for ReviewImage model."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlmodel import Session, select
 
@@ -69,7 +69,7 @@ def attach_images_to_review(
 
         # Attach to review
         image.review_code = review_code
-        image.attached_at = datetime.utcnow()
+        image.attached_at = datetime.now(UTC)
         session.add(image)
 
     session.commit()
@@ -102,6 +102,41 @@ def get_review_images(review_code: str, session: Session = None) -> list[dict]:
     ]
 
 
+def get_review_images_bulk(
+    review_codes: list[str], session: Session = None
+) -> dict[str, list[dict]]:
+    """
+    Batch-fetch images for multiple reviews in a single query.
+
+    Returns a dict mapping review_code -> [{"id": ..., "url": ..., ...}, ...].
+    """
+    if session is None:
+        raise ValueError("Session is required")
+    if not review_codes:
+        return {}
+
+    stmt = (
+        select(ReviewImage)
+        .where(ReviewImage.review_code.in_(review_codes))
+        .order_by(ReviewImage.display_order, ReviewImage.id)
+    )
+    images = session.exec(stmt).all()
+
+    result: dict[str, list[dict]] = {rc: [] for rc in review_codes}
+    for img in images:
+        if img.review_code in result:
+            result[img.review_code].append(
+                {
+                    "id": img.id,
+                    "url": f"/api/v1/reviews/images/{img.id}",
+                    "width": img.width,
+                    "height": img.height,
+                    "display_order": img.display_order,
+                }
+            )
+    return result
+
+
 def get_image_by_id(image_id: int, session: Session = None) -> ReviewImage | None:
     """Get a single review image by ID."""
     if session is None:
@@ -121,7 +156,7 @@ def cleanup_orphaned_images(max_age_hours: int = 24, session: Session = None) ->
     if session is None:
         raise ValueError("Session is required")
 
-    cutoff = datetime.utcnow() - timedelta(hours=max_age_hours)
+    cutoff = datetime.now(UTC) - timedelta(hours=max_age_hours)
 
     stmt = select(ReviewImage).where(
         ReviewImage.review_code.is_(None), ReviewImage.created_at < cutoff

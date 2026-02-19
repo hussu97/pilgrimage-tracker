@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import LargeBinary, UniqueConstraint
@@ -11,8 +11,8 @@ class User(SQLModel, table=True):
     email: str = Field(index=True, unique=True)
     password_hash: str
     display_name: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class UserSettings(SQLModel, table=True):
@@ -38,7 +38,7 @@ class Place(SQLModel, table=True):
     description: str | None = None
     website_url: str | None = None
     source: str | None = None  # gmaps, overpass, manual
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class PlaceImage(SQLModel, table=True):
@@ -49,7 +49,7 @@ class PlaceImage(SQLModel, table=True):
     blob_data: bytes | None = Field(default=None, sa_column=Column(LargeBinary))
     mime_type: str | None = None  # "image/jpeg", "image/png"
     display_order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class Review(SQLModel, table=True):
@@ -66,7 +66,7 @@ class Review(SQLModel, table=True):
     author_name: str | None = None  # For Google reviews
     review_time: int | None = None  # Unix timestamp from Google
     language: str | None = None  # Review language from Google
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ReviewImage(SQLModel, table=True):
@@ -79,7 +79,7 @@ class ReviewImage(SQLModel, table=True):
     width: int
     height: int
     display_order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     attached_at: datetime | None = None
 
 
@@ -90,7 +90,7 @@ class CheckIn(SQLModel, table=True):
     place_code: str = Field(index=True, foreign_key="place.place_code")
     note: str | None = None
     photo_url: str | None = None
-    checked_in_at: datetime = Field(default_factory=datetime.utcnow)
+    checked_in_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class Favorite(SQLModel, table=True):
@@ -107,14 +107,14 @@ class Group(SQLModel, table=True):
     invite_code: str = Field(index=True, unique=True)
     is_private: bool = Field(default=False)
     path_place_codes: list[str] = Field(default=[], sa_column=Column(JSON))
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class GroupMember(SQLModel, table=True):
     group_code: str = Field(primary_key=True, foreign_key="group.group_code")
     user_code: str = Field(primary_key=True, foreign_key="user.user_code")
     role: str = Field(default="member")  # admin, member
-    joined_at: datetime = Field(default_factory=datetime.utcnow)
+    joined_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class Notification(SQLModel, table=True):
@@ -124,7 +124,7 @@ class Notification(SQLModel, table=True):
     type: str  # group_invite, check_in_activity, etc.
     payload: dict[str, Any] = Field(default={}, sa_column=Column(JSON))
     read_at: datetime | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class PasswordReset(SQLModel, table=True):
@@ -140,14 +140,14 @@ class RefreshToken(SQLModel, table=True):
     user_code: str = Field(index=True, foreign_key="user.user_code")
     expires_at: datetime
     revoked_at: datetime | None = None
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class Visitor(SQLModel, table=True):
     __tablename__ = "visitor"
     visitor_code: str = Field(primary_key=True)  # "vis_" + 16 hex chars
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    last_seen_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    last_seen_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class VisitorSettings(SQLModel, table=True):

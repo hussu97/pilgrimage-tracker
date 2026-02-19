@@ -281,6 +281,13 @@ def get_place_by_code(place_code: str, session: Session) -> Place | None:
     return session.exec(select(Place).where(Place.place_code == place_code)).first()
 
 
+def get_places_by_codes(place_codes: list[str], session: Session) -> list[Place]:
+    """Batch-fetch places by a list of codes in a single query."""
+    if not place_codes:
+        return []
+    return session.exec(select(Place).where(Place.place_code.in_(place_codes))).all()
+
+
 def _check_attr_bool(attrs: dict, attribute_code: str) -> bool:
     """Check if an attribute is truthy from pre-fetched attributes dict."""
     val = attrs.get(attribute_code)

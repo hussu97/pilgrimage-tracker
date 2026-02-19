@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
 from jose import JWTError, jwt
@@ -16,7 +16,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(sub: str) -> str:
-    expire = datetime.utcnow() + timedelta(minutes=JWT_EXPIRE)
+    expire = datetime.now(UTC) + timedelta(minutes=JWT_EXPIRE)
     to_encode = {"sub": sub, "exp": expire, "type": "access"}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 

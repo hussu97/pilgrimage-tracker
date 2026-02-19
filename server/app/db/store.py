@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from sqlmodel import Session, select
@@ -63,7 +63,7 @@ def update_user_religion(
 
     user = session.exec(select(User).where(User.user_code == user_code)).first()
     if user:
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now(UTC)
         session.add(user)
 
     session.commit()
@@ -82,7 +82,7 @@ def update_user(
         return None
     if display_name is not None:
         user.display_name = display_name
-    user.updated_at = datetime.utcnow()
+    user.updated_at = datetime.now(UTC)
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -99,9 +99,10 @@ def consume_password_reset(token: str, session: Session) -> str | None:
     reset = session.exec(select(PasswordReset).where(PasswordReset.token == token)).first()
     if not reset or reset.used_at:
         return None
-    if reset.expires_at < datetime.utcnow():
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if reset.expires_at < now:
         return None
-    reset.used_at = datetime.utcnow()
+    reset.used_at = datetime.now(UTC).replace(tzinfo=None)
     session.add(reset)
     session.commit()
     return reset.user_code
@@ -154,7 +155,7 @@ def update_user_password(user_code: str, password_hash: str, session: Session) -
     user = session.exec(select(User).where(User.user_code == user_code)).first()
     if user:
         user.password_hash = password_hash
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now(UTC)
         session.add(user)
         session.commit()
 
@@ -167,7 +168,7 @@ def save_refresh_token(token: str, user_code: str, session: Session) -> None:
     row = RefreshToken(
         token=token,
         user_code=user_code,
-        expires_at=datetime.utcnow() + timedelta(minutes=REFRESH_EXPIRE),
+        expires_at=datetime.now(UTC) + timedelta(minutes=REFRESH_EXPIRE),
     )
     session.add(row)
     session.commit()
@@ -178,10 +179,11 @@ def consume_refresh_token(token: str, session: Session) -> str | None:
     row = session.exec(select(RefreshToken).where(RefreshToken.token == token)).first()
     if not row or row.revoked_at is not None:
         return None
-    if row.expires_at < datetime.utcnow():
+    now = datetime.now(UTC).replace(tzinfo=None)
+    if row.expires_at < now:
         return None
     # Revoke (rotate) the old token
-    row.revoked_at = datetime.utcnow()
+    row.revoked_at = datetime.now(UTC).replace(tzinfo=None)
     session.add(row)
     session.commit()
     return row.user_code
@@ -191,7 +193,7 @@ def revoke_refresh_token(token: str, session: Session) -> None:
     """Revoke a specific refresh token (used on logout)."""
     row = session.exec(select(RefreshToken).where(RefreshToken.token == token)).first()
     if row and row.revoked_at is None:
-        row.revoked_at = datetime.utcnow()
+        row.revoked_at = datetime.now(UTC)
         session.add(row)
         session.commit()
 
@@ -258,7 +260,7 @@ def touch_visitor(visitor_code: str, session: Session) -> None:
     """Update last_seen_at for the visitor."""
     visitor = session.exec(select(Visitor).where(Visitor.visitor_code == visitor_code)).first()
     if visitor:
-        visitor.last_seen_at = datetime.utcnow()
+        visitor.last_seen_at = datetime.now(UTC)
         session.add(visitor)
         session.commit()
 

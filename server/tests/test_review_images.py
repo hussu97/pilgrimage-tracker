@@ -5,7 +5,7 @@ Uses db_session fixture directly.
 Creates User and Place rows required by foreign keys, then creates reviews/images.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlmodel import Session
@@ -176,7 +176,7 @@ class TestOrphanCleanup:
             file_size=100,
             width=100,
             height=100,
-            created_at=datetime.utcnow() - timedelta(hours=48),
+            created_at=datetime.now(UTC) - timedelta(hours=48),
         )
         db_session.add(img)
         db_session.commit()
@@ -207,7 +207,7 @@ class TestOrphanCleanup:
             file_size=100,
             width=100,
             height=100,
-            created_at=datetime.utcnow() - timedelta(hours=48),
+            created_at=datetime.now(UTC) - timedelta(hours=48),
         )
         db_session.add(img)
         db_session.commit()

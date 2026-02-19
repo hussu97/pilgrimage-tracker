@@ -146,24 +146,31 @@ def get_my_favorites(
     session: SessionDep,
 ):
     place_codes = favorites_db.get_favorite_place_codes(user.user_code, session)
+    if not place_codes:
+        return []
+
+    # Batch-fetch all favorite places in a single query
+    favorite_places = places_db.get_places_by_codes(list(place_codes), session)
+
+    # Batch-fetch all images for those places in a single query
+    all_images = place_images.get_images_bulk(list(place_codes), session)
+
     places_list = []
-    for pc in place_codes:
-        place = places_db.get_place_by_code(pc, session)
-        if place:
-            images = place_images.get_images(place.place_code, session)
-            places_list.append(
-                {
-                    "place_code": place.place_code,
-                    "name": place.name,
-                    "religion": place.religion,
-                    "place_type": place.place_type,
-                    "lat": place.lat,
-                    "lng": place.lng,
-                    "address": place.address,
-                    "images": images,
-                    "description": place.description,
-                }
-            )
+    for place in favorite_places:
+        images = all_images.get(place.place_code, [])
+        places_list.append(
+            {
+                "place_code": place.place_code,
+                "name": place.name,
+                "religion": place.religion,
+                "place_type": place.place_type,
+                "lat": place.lat,
+                "lng": place.lng,
+                "address": place.address,
+                "images": images,
+                "description": place.description,
+            }
+        )
     return places_list
 
 

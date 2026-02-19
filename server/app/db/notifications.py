@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlmodel import Session, and_, func, select
@@ -44,7 +44,7 @@ def mark_read(notification_code: str, user_code: str, session: Session) -> bool:
     notif = session.exec(statement).first()
     if not notif:
         return False
-    notif.read_at = datetime.utcnow()
+    notif.read_at = datetime.now(UTC)
     session.add(notif)
     session.commit()
     return True
