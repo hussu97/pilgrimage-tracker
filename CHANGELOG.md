@@ -4,6 +4,38 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Dark Mode Compliance & UI Polish (2026-02-20)
+
+Full dark mode compliance sweep across all mobile screens and components, plus targeted web UI polish fixes.
+
+### Frontend (web)
+- **`Splash.tsx`** — Added `dark:bg-dark-bg`, `dark:text-white`, `dark:text-dark-text-secondary` to content panel and headings.
+- **`FilterSheet.tsx`** — Added dark variants to inactive filter option buttons (`dark:border-dark-border dark:bg-dark-surface`), icon containers (`dark:bg-dark-bg dark:text-dark-text-secondary`), radio circles (`dark:border-dark-border`), and clear button (`dark:border-dark-border dark:text-white dark:hover:bg-dark-bg`).
+- **`PlaceCard.tsx`** — Added dark variants to rating badge (`dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/30`) and distance badge border (`dark:border-dark-border`).
+- **`Layout.tsx`** — Bottom nav conditionally hidden on non-main pages (`/home`, `/groups`, `/profile`) so it no longer overlaps action buttons on `/places/:code` and similar detail pages.
+- **`Favorites.tsx`** — Added back button (`navigate(-1)`); removed redundant "Saved" section label.
+
+### Frontend (mobile)
+- **`FilterChip`** — Converted static `StyleSheet` to `makeStyles(isDark)`; chip background/border/label colors now dark-aware.
+- **`FilterChipsList`** — Forwards `isDark` prop to `FilterChip` child.
+- **`TimingCircle`** — Added `isDark` prop; non-current circle background and border colors are now dark-aware; subtitle uses dark text token.
+- **`DeityCircle`** — Added `isDark` prop; circle background, name, and subtitle text all dark-aware.
+- **`PlaceTimingsCarousel`** — Added `isDark` prop; dark `sectionTitle` color; forwards `isDark` to `TimingCircle` and `DeityCircle`.
+- **`PlaceSpecificationsGrid`** — Converted to `makeStyles(isDark)`; spec card bg/border, label, and value text all dark-aware.
+- **`PlaceReviewsList`** — Added `isDark` prop + `makeStyles(isDark)`; review card bg/border, all text colors dark-aware.
+- **`ErrorBoundary`** — Class component (can't use hooks); uses `Appearance.getColorScheme()` for runtime dark bg, title/message text, and error icon tint.
+- **`SplashScreen`** — Converted to `makeStyles(isDark)` via `useTheme()`; spinner background now uses `darkBg` in dark mode.
+- **`EditProfileScreen`** — Converted static `StyleSheet` to `makeStyles(isDark)`; container, inputs, religion row tiles, and all text dark-aware.
+- **`ForgotPasswordScreen`** — Converted to `makeStyles(isDark)`; back button, success icon container, input, container background dark-aware.
+- **`JoinGroupScreen`** — Converted to `makeStyles(isDark)`; container (was `surfaceTint`), input, preview box, and text dark-aware.
+- **`ResetPasswordScreen`** — Converted to `makeStyles(isDark)`; container, inputs, and text colors dark-aware.
+- **`PlaceDetailScreen`** — Converted large static `StyleSheet` to `makeStyles(isDark)` so loading/error states render correctly in dark mode; passes `isDark` to `PlaceTimingsCarousel`, `PlaceSpecificationsGrid`, and `PlaceReviewsList`; fixed missing `PlaceTiming`/`PlaceSpecification` type imports.
+- **`PlaceCard`** — "Visited" badge and "Check In" button text use `t()` translation keys instead of hardcoded English.
+- **`PlaceScorecardRow`** — Rewritten with `isDark` prop and inline dynamic styles for full dark mode support.
+- **`FavoritesScreen`** — Removed "Saved" section label; back button restyled to match `PlaceDetailScreen` circle button.
+
+---
+
 ## Groups Revamp — Social Itinerary Planner & Tracker (2026-02-19)
 
 Full groups revamp transforming the groups feature into a pilgrimage itinerary planner and tracker with shared checklists, member management, collaborative notes, and progress tracking.
