@@ -8,6 +8,7 @@ interface PlaceMapViewProps {
   selectedPlace: Place | null;
   onPlaceSelect: (place: Place | null) => void;
   t: (key: string) => string;
+  isVisible?: boolean;
 }
 
 function formatDistance(km: number): string {
@@ -21,6 +22,7 @@ export default function PlaceMapView({
   selectedPlace,
   onPlaceSelect,
   t,
+  isVisible,
 }: PlaceMapViewProps) {
   return (
     <div className="h-full w-full absolute inset-0">
@@ -29,6 +31,7 @@ export default function PlaceMapView({
         center={center}
         onPlaceSelect={onPlaceSelect}
         selectedPlaceCode={selectedPlace?.place_code}
+        isVisible={isVisible}
       />
 
       {/* Selection Card (Parity with Mobile App) */}

@@ -53,6 +53,20 @@ function createMarkerIcon(openStatus: string | undefined, isSelected = false): L
   });
 }
 
+function createUserMarkerIcon(): L.DivIcon {
+  return L.divIcon({
+    className: '',
+    html: `
+      <div style="position:relative;width:22px;height:22px;display:flex;align-items:center;justify-content:center;">
+        <div style="position:absolute;width:22px;height:22px;border-radius:50%;background:rgba(37,99,235,0.22);"></div>
+        <div style="width:14px;height:14px;border-radius:50%;background:#2563eb;border:3px solid white;box-shadow:0 2px 10px rgba(37,99,235,0.55);position:relative;z-index:1;"></div>
+      </div>
+    `,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+}
+
 function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
   const count = cluster.getChildCount();
   const size = count < 10 ? 36 : count < 100 ? 44 : 52;
@@ -73,6 +87,7 @@ interface PlacesMapProps {
   center: { lat: number; lng: number } | null;
   onPlaceSelect?: (place: Place) => void;
   selectedPlaceCode?: string | null;
+  isVisible?: boolean;
 }
 
 export default function PlacesMap({
@@ -80,10 +95,12 @@ export default function PlacesMap({
   center,
   onPlaceSelect,
   selectedPlaceCode,
+  isVisible,
 }: PlacesMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
+  const userMarkerRef = useRef<L.Marker | null>(null);
   const navigate = useNavigate();
 
   // ── Initialize map once per mount ────────────────────────────────────────
@@ -108,8 +125,42 @@ export default function PlacesMap({
       map.remove();
       mapRef.current = null;
       clusterRef.current = null;
+      userMarkerRef.current = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Invalidate size when map becomes visible ──────────────────────────────
+  // When the map container is hidden (display:none) and then shown, Leaflet
+  // needs to recalculate tile layout. requestAnimationFrame ensures the CSS
+  // display change has been applied before we call invalidateSize.
+  useEffect(() => {
+    if (!isVisible || !mapRef.current) return;
+    const raf = requestAnimationFrame(() => {
+      mapRef.current?.invalidateSize();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [isVisible]);
+
+  // ── User location marker ──────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (userMarkerRef.current) {
+      userMarkerRef.current.remove();
+      userMarkerRef.current = null;
+    }
+
+    if (!center) return;
+
+    const marker = L.marker([center.lat, center.lng], {
+      icon: createUserMarkerIcon(),
+      zIndexOffset: 2000,
+    }).addTo(map);
+
+    marker.bindTooltip('You are here', { permanent: false, direction: 'top', offset: [0, -6] });
+    userMarkerRef.current = marker;
+  }, [center]);
 
   // ── Update markers whenever places or selection changes ───────────────────
   useEffect(() => {

@@ -159,6 +159,7 @@ export default function Home() {
             selectedPlace={selectedPlace}
             onPlaceSelect={setSelectedPlace}
             t={t}
+            isVisible={viewMode === 'map'}
           />
         </div>
       </main>

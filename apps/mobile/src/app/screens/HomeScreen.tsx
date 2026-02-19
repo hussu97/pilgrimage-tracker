@@ -27,7 +27,6 @@ import PlaceCard from '@/components/places/PlaceCard';
 import SkeletonCard from '@/components/common/SkeletonCard';
 import HomeHeader from '@/components/places/HomeHeader';
 import SearchFilterBar from '@/components/places/SearchFilterBar';
-import FilterChipsList from '@/components/places/FilterChipsList';
 import { buildMapHtml, formatDistance } from '@/lib/utils/mapBuilder';
 import { shareUrl, openDirections } from '@/lib/share';
 
@@ -566,18 +565,6 @@ export default function HomeScreen() {
             setFilterSheetOpen(true);
           }}
           hasActiveFilters={hasActiveFilters}
-          isDark={isDark}
-          t={t}
-        />
-        <FilterChipsList
-          activeFilters={activeFilters}
-          placeTypes={['Mosque', 'Temple', 'Church', 'Shrine', 'Monastery']}
-          onFilterToggle={(key, value) => {
-            if (key === 'placeType') {
-              setActiveFilters((prev) => ({ ...prev, placeType: value }));
-            }
-          }}
-          onClearAll={() => setActiveFilters({})}
           isDark={isDark}
           t={t}
         />
