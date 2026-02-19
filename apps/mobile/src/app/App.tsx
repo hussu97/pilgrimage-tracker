@@ -6,12 +6,14 @@ import { LocationProvider } from './contexts/LocationContext';
 import { AppNavigationContent } from './navigation';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { AuthBottomSheetProvider } from '@/components/auth/AuthBottomSheet';
+import OfflineBanner from '@/components/common/OfflineBanner';
 
 function AuthGate() {
   const { user, loading } = useAuth();
   return (
     <>
       <AppNavigationContent user={user} loading={loading} />
+      <OfflineBanner />
       <StatusBar style="auto" />
     </>
   );
