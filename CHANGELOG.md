@@ -4,6 +4,18 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Timezone-aware datetime columns (2026-02-19)
+
+### Backend
+- **`server/app/db/models.py`** — Added `_UTCAwareDateTime` SQLAlchemy `TypeDecorator`. It wraps `DateTime(timezone=True)` (→ `TIMESTAMPTZ` in PostgreSQL) and re-attaches `UTC` on read for SQLite, so every datetime value loaded from the DB is timezone-aware. All 17 datetime columns across 10 models migrated to use the new `_TSTZ()` helper.
+- **`server/app/db/store.py`** — Removed `.replace(tzinfo=None)` workarounds from `consume_password_reset` and `consume_refresh_token`; comparisons now work correctly as `aware < aware`.
+- **`server/migrations/versions/0003_timestamptz_datetimes.py`** — New Alembic migration: alters all 19 datetime columns from `TIMESTAMP` to `TIMESTAMPTZ` in PostgreSQL using `AT TIME ZONE 'UTC'` CAST; skipped for SQLite (no-op dialect guard).
+
+### Docs
+- **`CLAUDE.md`** — Added rule §8 "Datetime Columns" specifying that every new or modified datetime column must use `sa_column=_TSTZ(...)`, with rationale and examples.
+
+---
+
 ## P0 Critical Fixes (2026-02-19)
 
 ### Backend

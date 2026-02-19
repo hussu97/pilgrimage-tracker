@@ -1,8 +1,34 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import LargeBinary, UniqueConstraint
+from sqlalchemy import DateTime, LargeBinary, UniqueConstraint
+from sqlalchemy import types as sa_types
 from sqlmodel import JSON, Column, Field, SQLModel
+
+
+class _UTCAwareDateTime(sa_types.TypeDecorator):
+    """DateTime column that always returns timezone-aware UTC datetimes.
+
+    - PostgreSQL: maps to TIMESTAMPTZ — stores and returns aware datetimes.
+    - SQLite: stores as ISO string (SQLAlchemy behaviour); on read, any naive
+      value is assumed to be UTC and given an explicit UTC tzinfo so that
+      business logic can compare freely with datetime.now(UTC).
+    """
+
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_result_value(self, value: datetime | None, dialect) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value
+
+
+# Shorthand: Column(UTCAwareDateTime, nullable=True/False)
+def _TSTZ(**kw) -> Column:  # noqa: N802
+    return Column(_UTCAwareDateTime(), **kw)
 
 
 class User(SQLModel, table=True):
@@ -11,8 +37,14 @@ class User(SQLModel, table=True):
     email: str = Field(index=True, unique=True)
     password_hash: str
     display_name: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
 
 
 class UserSettings(SQLModel, table=True):
@@ -38,7 +70,10 @@ class Place(SQLModel, table=True):
     description: str | None = None
     website_url: str | None = None
     source: str | None = None  # gmaps, overpass, manual
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
 
 
 class PlaceImage(SQLModel, table=True):
@@ -49,7 +84,10 @@ class PlaceImage(SQLModel, table=True):
     blob_data: bytes | None = Field(default=None, sa_column=Column(LargeBinary))
     mime_type: str | None = None  # "image/jpeg", "image/png"
     display_order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
 
 
 class Review(SQLModel, table=True):
@@ -66,7 +104,10 @@ class Review(SQLModel, table=True):
     author_name: str | None = None  # For Google reviews
     review_time: int | None = None  # Unix timestamp from Google
     language: str | None = None  # Review language from Google
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
 
 
 class ReviewImage(SQLModel, table=True):
@@ -79,8 +120,11 @@ class ReviewImage(SQLModel, table=True):
     width: int
     height: int
     display_order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    attached_at: datetime | None = None
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+    attached_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
 
 
 class CheckIn(SQLModel, table=True):
@@ -90,7 +134,10 @@ class CheckIn(SQLModel, table=True):
     place_code: str = Field(index=True, foreign_key="place.place_code")
     note: str | None = None
     photo_url: str | None = None
-    checked_in_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    checked_in_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
 
 
 class Favorite(SQLModel, table=True):
@@ -107,14 +154,20 @@ class Group(SQLModel, table=True):
     invite_code: str = Field(index=True, unique=True)
     is_private: bool = Field(default=False)
     path_place_codes: list[str] = Field(default=[], sa_column=Column(JSON))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
 
 
 class GroupMember(SQLModel, table=True):
     group_code: str = Field(primary_key=True, foreign_key="group.group_code")
     user_code: str = Field(primary_key=True, foreign_key="user.user_code")
     role: str = Field(default="member")  # admin, member
-    joined_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    joined_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
 
 
 class Notification(SQLModel, table=True):
@@ -123,31 +176,43 @@ class Notification(SQLModel, table=True):
     user_code: str = Field(index=True, foreign_key="user.user_code")
     type: str  # group_invite, check_in_activity, etc.
     payload: dict[str, Any] = Field(default={}, sa_column=Column(JSON))
-    read_at: datetime | None = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    read_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
 
 
 class PasswordReset(SQLModel, table=True):
     token: str = Field(primary_key=True)
     user_code: str = Field(foreign_key="user.user_code")
-    expires_at: datetime
-    used_at: datetime | None = None
+    expires_at: datetime = Field(sa_column=_TSTZ(nullable=False))
+    used_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
 
 
 class RefreshToken(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     token: str = Field(index=True, unique=True)
     user_code: str = Field(index=True, foreign_key="user.user_code")
-    expires_at: datetime
-    revoked_at: datetime | None = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    expires_at: datetime = Field(sa_column=_TSTZ(nullable=False))
+    revoked_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
 
 
 class Visitor(SQLModel, table=True):
     __tablename__ = "visitor"
     visitor_code: str = Field(primary_key=True)  # "vis_" + 16 hex chars
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    last_seen_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+    last_seen_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
 
 
 class VisitorSettings(SQLModel, table=True):

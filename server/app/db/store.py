@@ -99,10 +99,10 @@ def consume_password_reset(token: str, session: Session) -> str | None:
     reset = session.exec(select(PasswordReset).where(PasswordReset.token == token)).first()
     if not reset or reset.used_at:
         return None
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     if reset.expires_at < now:
         return None
-    reset.used_at = datetime.now(UTC).replace(tzinfo=None)
+    reset.used_at = datetime.now(UTC)
     session.add(reset)
     session.commit()
     return reset.user_code
@@ -179,11 +179,11 @@ def consume_refresh_token(token: str, session: Session) -> str | None:
     row = session.exec(select(RefreshToken).where(RefreshToken.token == token)).first()
     if not row or row.revoked_at is not None:
         return None
-    now = datetime.now(UTC).replace(tzinfo=None)
+    now = datetime.now(UTC)
     if row.expires_at < now:
         return None
     # Revoke (rotate) the old token
-    row.revoked_at = datetime.now(UTC).replace(tzinfo=None)
+    row.revoked_at = datetime.now(UTC)
     session.add(row)
     session.commit()
     return row.user_code
