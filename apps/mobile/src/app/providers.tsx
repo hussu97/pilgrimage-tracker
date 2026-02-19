@@ -208,10 +208,15 @@ export function useAuth() {
 }
 
 // --- Theme ---
+const UNITS_STORAGE_KEY = 'units';
+type DistanceUnits = 'km' | 'miles';
+
 interface ThemeContextValue {
   theme: Theme;
   isDark: boolean;
   setTheme: (t: Theme) => Promise<void>;
+  units: DistanceUnits;
+  setUnits: (u: DistanceUnits) => Promise<void>;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -225,15 +230,19 @@ function resolveIsDark(theme: Theme): boolean {
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('system');
   const [isDark, setIsDark] = useState(() => resolveIsDark('system'));
+  const [units, setUnitsState] = useState<DistanceUnits>('km');
 
   useEffect(() => {
     let cancelled = false;
-    getStoredTheme().then((t) => {
-      if (!cancelled) {
-        setThemeState(t);
-        setIsDark(resolveIsDark(t));
-      }
-    });
+    Promise.all([getStoredTheme(), AsyncStorage.getItem(UNITS_STORAGE_KEY)]).then(
+      ([t, storedUnits]) => {
+        if (!cancelled) {
+          setThemeState(t);
+          setIsDark(resolveIsDark(t));
+          if (storedUnits === 'km' || storedUnits === 'miles') setUnitsState(storedUnits);
+        }
+      },
+    );
     return () => {
       cancelled = true;
     };
@@ -253,9 +262,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     await setStoredTheme(t);
   }, []);
 
+  const setUnits = useCallback(async (u: DistanceUnits) => {
+    setUnitsState(u);
+    await AsyncStorage.setItem(UNITS_STORAGE_KEY, u);
+  }, []);
+
   const value = useMemo<ThemeContextValue>(
-    () => ({ theme, isDark, setTheme }),
-    [theme, isDark, setTheme],
+    () => ({ theme, isDark, setTheme, units, setUnits }),
+    [theme, isDark, setTheme, units, setUnits],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

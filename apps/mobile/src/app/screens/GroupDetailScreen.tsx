@@ -677,19 +677,6 @@ export default function GroupDetailScreen() {
               {group.name}
             </Text>
             <View style={styles.headerActions}>
-              {inviteUrl ? (
-                <TouchableOpacity
-                  style={styles.headerIconBtn}
-                  onPress={() => shareUrl(group.name, inviteUrl)}
-                  activeOpacity={0.8}
-                >
-                  <MaterialIcons
-                    name="share"
-                    size={18}
-                    color={isDark ? '#fff' : tokens.colors.textDark}
-                  />
-                </TouchableOpacity>
-              ) : null}
               {isAdmin ? (
                 <TouchableOpacity
                   style={styles.headerIconBtn}

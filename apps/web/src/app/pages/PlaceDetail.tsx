@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useI18n } from '@/app/providers';
 import {
@@ -15,13 +15,13 @@ import type {
   PlaceTiming,
   PlaceSpecification,
 } from '@/lib/types';
-import { useAuth } from '@/app/providers';
+import { useAuth, useTheme } from '@/app/providers';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import { SharePlaceButton } from '@/components/places';
 import PlaceOpeningHours from '@/components/places/PlaceOpeningHours';
 import PlaceTimingsCarousel from '@/components/places/PlaceTimingsCarousel';
 import PlaceSpecificationsGrid from '@/components/places/PlaceSpecificationsGrid';
-import { crowdColorClass } from '@/lib/utils/place-utils';
+import { crowdColorClass, formatDistance } from '@/lib/utils/place-utils';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 
 function ReviewsSection({
@@ -215,6 +215,7 @@ export default function PlaceDetail() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const { user } = useAuth();
+  const { units } = useTheme();
   const { requireAuth } = useAuthRequired();
 
   const [place, setPlace] = useState<PlaceDetailType | null>(null);
@@ -230,6 +231,14 @@ export default function PlaceDetail() {
   const [checkInDate, setCheckInDate] = useState('');
   const [storyExpanded, setStoryExpanded] = useState(false);
   const [headerVisible, setHeaderVisible] = useState(false);
+  const [heroIdx, setHeroIdx] = useState(0);
+  const [heroIsDragging, setHeroIsDragging] = useState(false);
+  const [heroDragStartX, setHeroDragStartX] = useState(0);
+  const heroDidDragRef = useRef(false);
+
+  const heroImages = (place?.images ?? [])
+    .map((img) => getFullImageUrl(img.url))
+    .filter(Boolean) as string[];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -239,6 +248,13 @@ export default function PlaceDetail() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [headerVisible]);
+
+  // Hero carousel auto-swipe
+  useEffect(() => {
+    if (heroImages.length <= 1) return;
+    const id = setInterval(() => setHeroIdx((prev) => (prev + 1) % heroImages.length), 3000);
+    return () => clearInterval(id);
+  }, [heroImages.length]);
 
   const fetchPlace = useCallback(async () => {
     if (!placeCode) return;
@@ -384,9 +400,22 @@ export default function PlaceDetail() {
 
   if (!place) return null;
 
-  const heroImage = getFullImageUrl(place.images?.[0]?.url);
-  const formatDist = (km: number) =>
-    km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+  const handleHeroMouseDown = (e: React.MouseEvent) => {
+    setHeroIsDragging(true);
+    setHeroDragStartX(e.clientX);
+    heroDidDragRef.current = false;
+  };
+  const handleHeroMouseMove = (e: React.MouseEvent) => {
+    if (!heroIsDragging) return;
+    const diff = e.clientX - heroDragStartX;
+    if (Math.abs(diff) >= 40) {
+      setHeroIdx((prev) => (prev + (diff < 0 ? 1 : -1) + heroImages.length) % heroImages.length);
+      setHeroDragStartX(e.clientX);
+      heroDidDragRef.current = true;
+    }
+  };
+  const handleHeroMouseUp = () => setHeroIsDragging(false);
+
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.lat + ',' + place.lng)}`;
 
   const timings: PlaceTiming[] =
@@ -419,7 +448,7 @@ export default function PlaceDetail() {
           >
             <span className="material-symbols-outlined text-primary text-[22px]">directions</span>
             <span className="text-sm font-bold text-text-main dark:text-white">
-              {place.distance != null ? formatDist(place.distance) : '—'}
+              {place.distance != null ? formatDistance(place.distance, units) : '—'}
             </span>
             <span className="text-[10px] uppercase tracking-wide text-text-muted dark:text-dark-text-secondary font-semibold">
               {t('placeDetail.distance')}
@@ -513,16 +542,55 @@ export default function PlaceDetail() {
         </div>
       </div>
       {/* Hero (fixed behind content) */}
-      <div className="fixed top-0 left-0 right-0 h-[300px] md:h-[380px] w-full overflow-hidden bg-[#1a2e2e] z-0">
-        {heroImage ? (
-          <img src={heroImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+      <div
+        className="fixed top-0 left-0 right-0 h-[300px] md:h-[380px] w-full overflow-hidden bg-[#1a2e2e] z-0 select-none"
+        onMouseDown={heroImages.length > 1 ? handleHeroMouseDown : undefined}
+        onMouseMove={heroImages.length > 1 ? handleHeroMouseMove : undefined}
+        onMouseUp={heroImages.length > 1 ? handleHeroMouseUp : undefined}
+        style={{
+          cursor: heroImages.length > 1 ? (heroIsDragging ? 'grabbing' : 'grab') : undefined,
+        }}
+      >
+        {heroImages.length > 0 ? (
+          <div
+            className="flex h-full transition-transform duration-500 ease-in-out absolute inset-0"
+            style={{
+              transform: `translateX(-${heroIdx * 100}%)`,
+              width: `${heroImages.length * 100}%`,
+            }}
+          >
+            {heroImages.map((src, i) => (
+              <img
+                key={i}
+                src={src}
+                alt=""
+                className="h-full object-cover flex-shrink-0"
+                style={{ width: `${100 / heroImages.length}%` }}
+                draggable={false}
+              />
+            ))}
+          </div>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="material-symbols-outlined text-7xl text-white/30">location_city</span>
           </div>
         )}
         {/* Gradient overlays */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40 pointer-events-none" />
+
+        {/* Dot indicators */}
+        {heroImages.length > 1 && (
+          <div className="absolute bottom-24 left-0 right-0 flex justify-center gap-1.5 z-10 pointer-events-none">
+            {heroImages.map((_, i) => (
+              <span
+                key={i}
+                className={`block rounded-full transition-all duration-300 ${
+                  i === heroIdx ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/50'
+                }`}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Top bar */}
         <div className="absolute top-0 left-0 right-0 z-20 p-5 pt-14 flex justify-between items-center">
@@ -618,7 +686,7 @@ export default function PlaceDetail() {
                   directions
                 </span>
                 <span className="text-sm font-bold text-text-main dark:text-white">
-                  {place.distance != null ? formatDist(place.distance) : '—'}
+                  {place.distance != null ? formatDistance(place.distance, units) : '—'}
                 </span>
                 <span className="text-[10px] uppercase tracking-wide text-text-muted dark:text-dark-text-secondary font-semibold">
                   {t('placeDetail.distance')}

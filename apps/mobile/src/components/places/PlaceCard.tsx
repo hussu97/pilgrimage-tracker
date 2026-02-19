@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useRef, useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -8,15 +8,13 @@ import type { RootStackParamList } from '@/app/navigation';
 import type { Place } from '@/lib/types';
 import { tokens } from '@/lib/theme';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
+import { formatDistance } from '@/lib/utils/place-utils';
 import { useI18n, useTheme } from '@/app/providers';
 
 interface PlaceCardProps {
   place: Place;
   compact?: boolean;
-}
-
-function formatDistance(km: number): string {
-  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+  isActive?: boolean;
 }
 
 function formatCount(n: number): string {
@@ -24,10 +22,10 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-function PlaceCard({ place, compact = false }: PlaceCardProps) {
+function PlaceCard({ place, compact = false, isActive = false }: PlaceCardProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>>();
   const { t } = useI18n();
-  const { isDark } = useTheme();
+  const { isDark, units } = useTheme();
 
   const cardBg = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
   const cardBorder = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
@@ -35,7 +33,12 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const addressColor = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
   const ratingBg = isDark ? 'rgba(250,204,21,0.15)' : '#fffbeb';
   const fallbackBg = isDark ? tokens.colors.darkSurface : tokens.colors.textDark;
-  const imageUrl = getFullImageUrl(place.images?.[0]?.url);
+
+  const images = (place.images ?? [])
+    .map((img) => getFullImageUrl(img.url))
+    .filter(Boolean) as string[];
+  const imageUrl = images[0] ?? null;
+
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
   const openStatus =
@@ -44,6 +47,22 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const isOpen = openStatus === 'open';
   const isClosed = openStatus === 'closed';
   const isUnknown = openStatus === 'unknown';
+
+  // Carousel state for regular variant
+  const flatRef = useRef<FlatList>(null);
+  const [imgIdx, setImgIdx] = useState(0);
+
+  useEffect(() => {
+    if (compact || images.length <= 1 || !isActive) return;
+    const id = setInterval(() => {
+      setImgIdx((prev) => {
+        const next = (prev + 1) % images.length;
+        flatRef.current?.scrollToIndex({ index: next, animated: true });
+        return next;
+      });
+    }, 3000);
+    return () => clearInterval(id);
+  }, [compact, images.length, isActive]);
 
   if (compact) {
     return (
@@ -94,7 +113,7 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
             )}
             {place.distance != null && (
               <View style={styles.chipDist}>
-                <Text style={styles.chipDistText}>{formatDistance(place.distance)}</Text>
+                <Text style={styles.chipDistText}>{formatDistance(place.distance, units)}</Text>
               </View>
             )}
             {rating != null && (
@@ -120,10 +139,36 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
       accessibilityRole="button"
       accessibilityLabel={place.name}
     >
-      {/* Background image */}
-      {imageUrl ? (
+      {/* Image carousel (or single image) */}
+      {images.length > 1 ? (
+        <FlatList
+          ref={flatRef}
+          data={images}
+          keyExtractor={(_, i) => String(i)}
+          horizontal
+          pagingEnabled
+          scrollEnabled
+          showsHorizontalScrollIndicator={false}
+          style={StyleSheet.absoluteFill}
+          renderItem={({ item }) => (
+            <Image
+              source={{ uri: item }}
+              style={styles.carouselImage}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={200}
+            />
+          )}
+          onMomentumScrollEnd={(e) => {
+            const newIdx = Math.round(
+              e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width,
+            );
+            setImgIdx(newIdx);
+          }}
+        />
+      ) : images.length === 1 ? (
         <Image
-          source={{ uri: imageUrl }}
+          source={{ uri: images[0] }}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           cachePolicy="memory-disk"
@@ -166,6 +211,18 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
         )}
       </View>
 
+      {/* Dot indicators */}
+      {images.length > 1 && (
+        <View style={styles.dotsContainer}>
+          {images.map((_, i) => (
+            <View
+              key={i}
+              style={[styles.dot, i === imgIdx ? styles.dotActive : styles.dotInactive]}
+            />
+          ))}
+        </View>
+      )}
+
       {/* Bottom glass info panel */}
       <View style={styles.glassPanel}>
         <Text style={styles.cardName} numberOfLines={1}>
@@ -181,7 +238,7 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
         <View style={styles.metaRow}>
           <View style={styles.metaLeft}>
             {place.distance != null && (
-              <Text style={styles.distanceText}>{formatDistance(place.distance)}</Text>
+              <Text style={styles.distanceText}>{formatDistance(place.distance, units)}</Text>
             )}
             {rating != null && (
               <View style={styles.ratingPill}>
@@ -312,6 +369,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...tokens.shadow.card,
   },
+  carouselImage: {
+    width: '100%',
+    height: 280,
+  },
   imageFallback: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -394,6 +455,28 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+  },
+  // Dot indicators
+  dotsContainer: {
+    position: 'absolute',
+    bottom: 80,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  dotActive: {
+    width: 16,
+    backgroundColor: '#ffffff',
+  },
+  dotInactive: {
+    width: 6,
+    backgroundColor: 'rgba(255,255,255,0.5)',
   },
   // Glass panel – semi-transparent with subtle border
   glassPanel: {

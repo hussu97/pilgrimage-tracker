@@ -15,6 +15,7 @@ jest.mock('../lib/theme', () => ({
 import { crowdColor } from '../lib/utils/crowdColor';
 import { getFullImageUrl } from '../lib/utils/imageUtils';
 import { ROUTES, TOKEN_KEY, USER_KEY, VISITOR_KEY } from '../lib/constants';
+import { formatDistance } from '../lib/utils/place-utils';
 
 // ─── crowdColor ──────────────────────────────────────────────────────────────
 
@@ -83,5 +84,36 @@ describe('storage key constants', () => {
     expect(TOKEN_KEY).toBe('token');
     expect(USER_KEY).toBe('user');
     expect(VISITOR_KEY).toBe('visitor_code');
+  });
+});
+
+// ─── formatDistance utility ───────────────────────────────────────────────────
+
+describe('formatDistance()', () => {
+  describe('km units (default)', () => {
+    it('formats sub-km distances as meters', () => {
+      expect(formatDistance(0.5)).toBe('500 m');
+      expect(formatDistance(0.1)).toBe('100 m');
+    });
+
+    it('formats >= 1 km as decimal km', () => {
+      expect(formatDistance(2.5)).toBe('2.5 km');
+      expect(formatDistance(1.0)).toBe('1.0 km');
+    });
+
+    it('km units explicit', () => {
+      expect(formatDistance(0.5, 'km')).toBe('500 m');
+      expect(formatDistance(2.5, 'km')).toBe('2.5 km');
+    });
+  });
+
+  describe('miles units', () => {
+    it('formats >= 0.1 mi as decimal mi', () => {
+      expect(formatDistance(1.0, 'miles')).toBe('0.6 mi');
+    });
+
+    it('formats < 0.1 mi as feet', () => {
+      expect(formatDistance(0.05, 'miles')).toBe('164 ft');
+    });
   });
 });

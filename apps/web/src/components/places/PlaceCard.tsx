@@ -1,20 +1,18 @@
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import type { Place } from '@/lib/types';
-import { useI18n } from '@/app/providers';
+import { useI18n, useTheme } from '@/app/providers';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
+import { formatDistance } from '@/lib/utils/place-utils';
 
 interface PlaceCardProps {
   place: Place;
   compact?: boolean;
 }
 
-function formatDistance(km: number): string {
-  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
-}
-
 export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const { t } = useI18n();
-  const imageUrl = getFullImageUrl(place.images?.[0]?.url);
+  const { units } = useTheme();
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
   const openStatus =
@@ -23,6 +21,72 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const isOpen = openStatus === 'open';
   const isClosed = openStatus === 'closed';
   const isUnknown = openStatus === 'unknown';
+
+  const images = (place.images ?? [])
+    .map((img) => getFullImageUrl(img.url))
+    .filter(Boolean) as string[];
+  const imageUrl = images[0] ?? null;
+
+  // Carousel state (regular variant only)
+  const [imgIdx, setImgIdx] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartX, setDragStartX] = useState(0);
+  const [isInView, setIsInView] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const didDragRef = useRef(false);
+
+  // IntersectionObserver for mobile/mobile-web auto-swipe
+  useEffect(() => {
+    if (compact || images.length <= 1) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => setIsInView(entry.isIntersecting), {
+      threshold: 0.5,
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [compact, images.length]);
+
+  // Auto-swipe timer
+  useEffect(() => {
+    if (compact || images.length <= 1) return;
+    if (!isInView && !isHovered) return;
+    const id = setInterval(() => {
+      setImgIdx((prev) => (prev + 1) % images.length);
+    }, 3000);
+    return () => clearInterval(id);
+  }, [compact, images.length, isInView, isHovered]);
+
+  const advanceCarousel = useCallback(
+    (delta: number) => {
+      setImgIdx((prev) => (prev + delta + images.length) % images.length);
+    },
+    [images.length],
+  );
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragStartX(e.clientX);
+    didDragRef.current = false;
+  }, []);
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isDragging) return;
+      const diff = e.clientX - dragStartX;
+      if (Math.abs(diff) >= 40) {
+        advanceCarousel(diff < 0 ? 1 : -1);
+        setDragStartX(e.clientX);
+        didDragRef.current = true;
+      }
+    },
+    [isDragging, dragStartX, advanceCarousel],
+  );
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
 
   if (compact) {
     return (
@@ -61,7 +125,7 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
             {isUnknown && <span className="badge-unknown">{t('places.unknown')}</span>}
             {place.distance != null && (
               <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-dark-surface text-slate-500 dark:text-dark-text-secondary">
-                {formatDistance(place.distance)}
+                {formatDistance(place.distance, units)}
               </span>
             )}
             {rating != null && (
@@ -86,25 +150,51 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
     <Link
       to={`/places/${place.place_code}`}
       className="block bg-surface dark:bg-dark-surface rounded-2xl overflow-hidden shadow-card border border-slate-100 dark:border-dark-border hover:shadow-card-md transition-all hover:-translate-y-0.5 group"
+      onClick={(e) => {
+        if (didDragRef.current) e.preventDefault();
+      }}
     >
-      {/* Hero image with gradient overlay */}
-      <div className="relative h-48 w-full overflow-hidden bg-soft-blue dark:bg-dark-surface">
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt=""
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
+      {/* Hero image carousel */}
+      <div
+        ref={containerRef}
+        className="relative h-48 w-full overflow-hidden bg-soft-blue dark:bg-dark-surface select-none"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => {
+          setIsHovered(false);
+          setIsDragging(false);
+        }}
+        onMouseDown={images.length > 1 ? handleMouseDown : undefined}
+        onMouseMove={images.length > 1 ? handleMouseMove : undefined}
+        onMouseUp={images.length > 1 ? handleMouseUp : undefined}
+        style={{ cursor: images.length > 1 ? (isDragging ? 'grabbing' : 'grab') : undefined }}
+      >
+        {images.length > 0 ? (
+          <div
+            className="flex h-full transition-transform duration-500 ease-in-out"
+            style={{ transform: `translateX(-${imgIdx * 100}%)`, width: `${images.length * 100}%` }}
+          >
+            {images.map((src, i) => (
+              <img
+                key={i}
+                src={src}
+                alt=""
+                className="h-full object-cover flex-shrink-0"
+                style={{ width: `${100 / images.length}%` }}
+                draggable={false}
+              />
+            ))}
+          </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <span className="material-symbols-outlined text-4xl text-text-muted">explore</span>
           </div>
         )}
-        {/* Hero gradient: top-to-bottom with darkening at both ends for text readability */}
-        <div className="absolute inset-0 hero-gradient" />
+
+        {/* Hero gradient */}
+        <div className="absolute inset-0 hero-gradient pointer-events-none" />
 
         {/* Top badges */}
-        <div className="absolute top-3 right-3 left-3 flex justify-between items-start z-10">
+        <div className="absolute top-3 right-3 left-3 flex justify-between items-start z-10 pointer-events-none">
           <div className="flex items-center gap-2">
             {isOpen && (
               <span className="badge-open">
@@ -122,6 +212,20 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
             </span>
           )}
         </div>
+
+        {/* Dot indicators */}
+        {images.length > 1 && (
+          <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-10 pointer-events-none">
+            {images.map((_, i) => (
+              <span
+                key={i}
+                className={`block rounded-full transition-all duration-300 ${
+                  i === imgIdx ? 'w-4 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/50'
+                }`}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Card body – 16px padding */}
@@ -140,7 +244,7 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
           </div>
           {place.distance != null && (
             <span className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary bg-blue-tint dark:bg-dark-surface border border-blue-100/50 dark:border-dark-border px-2 py-1 rounded-xl shrink-0 whitespace-nowrap">
-              {formatDistance(place.distance)}
+              {formatDistance(place.distance, units)}
             </span>
           )}
         </div>

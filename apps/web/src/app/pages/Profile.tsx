@@ -28,7 +28,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { t, locale, languages, setLocale } = useI18n();
-  const { isDark, setTheme } = useTheme();
+  const { isDark, setTheme, units, setUnits } = useTheme();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -280,6 +280,42 @@ export default function Profile() {
                 </span>
               </Link>
             )}
+
+            {/* Distance Units toggle */}
+            <div className="flex items-center justify-between p-4 pl-5 border-b border-slate-50 dark:border-dark-border">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                  <span className="material-icons text-xl text-primary">straighten</span>
+                </div>
+                <p className="font-semibold text-text-main dark:text-white text-sm">
+                  {t('settings.distanceUnits')}
+                </p>
+              </div>
+              <div className="flex rounded-xl border border-input-border dark:border-dark-border overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setUnits('km')}
+                  className={`px-3 py-1 text-xs font-semibold transition-colors ${
+                    units === 'km'
+                      ? 'bg-primary text-white'
+                      : 'text-text-muted dark:text-dark-text-secondary hover:bg-slate-50 dark:hover:bg-dark-border/30'
+                  }`}
+                >
+                  {t('settings.km')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUnits('miles')}
+                  className={`px-3 py-1 text-xs font-semibold transition-colors ${
+                    units === 'miles'
+                      ? 'bg-primary text-white'
+                      : 'text-text-muted dark:text-dark-text-secondary hover:bg-slate-50 dark:hover:bg-dark-border/30'
+                  }`}
+                >
+                  {t('settings.miles')}
+                </button>
+              </div>
+            </div>
 
             {/* Dark Mode toggle */}
             <div className="flex items-center justify-between p-4 pl-5">

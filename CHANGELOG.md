@@ -4,6 +4,35 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P2 Features: Photo Gallery, Distance Units & Social Sharing (2026-02-20)
+
+### Backend
+- **OG share endpoint** — New `GET /share/places/{place_code}` route (no auth required) returns an HTML page with Open Graph meta tags (`og:title`, `og:description`, `og:image`, `og:url`, `twitter:card`) and a JS redirect to the SPA. Registered at `/share` prefix outside `/api/v1/`.
+- **Config** — Added `FRONTEND_URL` env var (default `http://localhost:5173`) to `config.py` for OG redirect target.
+- **Tests** — Added `server/tests/test_share.py` (2 tests: 200 HTML with `og:title`, 404 for bad code).
+
+### Frontend (web)
+- **Place photo gallery** — `PlaceCard.tsx` (regular variant): `IntersectionObserver` gates auto-swipe (3 s interval); `onMouseEnter/Leave` also activates on desktop; CSS flex strip with `translateX` animation; drag-to-swipe (≥40 px threshold) with `didDragRef` preventing spurious `<Link>` navigation; dot indicators.
+- **Place photo gallery** — `PlaceDetail.tsx` hero: horizontal flex strip auto-swipes every 3 s; drag handlers (`onMouseDown/Move/Up`); dot indicators overlay at bottom.
+- **Distance units** — Added `formatDistance(km, units)` to `place-utils.ts` (km/m or mi/ft); `ThemeProvider` extended with `units` + `setUnits` (persisted to `localStorage`); Profile page gains km/mi toggle row using `settings.distanceUnits` i18n key; `PlaceCard` and `PlaceDetail` now pass `units` to `formatDistance`.
+- **Social sharing** — `SharePlaceButton.tsx` now builds the share URL from `${API_BASE}/share/places/${placeCode}` for rich OG preview.
+- **Group sharing** — Removed redundant header share icon from `GroupDetail.tsx`; replaced invite "Copy" button with native "Share" button using `shareUrl(group.name, inviteUrl)`.
+- **Tests** — Extended `apps/web/src/__tests__/utils.test.ts` with 5 `formatDistance` cases (km/m/mi/ft).
+
+### Frontend (mobile)
+- **Place photo gallery** — `PlaceCard.tsx` (regular variant): `FlatList` with `pagingEnabled`; accepts `isActive` prop; auto-swipe timer (`setInterval` every 3 s) calls `scrollToIndex`; dot indicators; `onMomentumScrollEnd` syncs dot state.
+- **Place photo gallery** — `PlaceDetailScreen.tsx` hero: `FlatList` with `pagingEnabled` auto-swipes when multiple images; dot indicators overlay; parallax `Animated.Value` still drives container.
+- **Active card detection** — `HomeScreen.tsx` and `FavoritesScreen.tsx` use `viewabilityConfig` + `onViewableItemsChanged` to track visible index and pass `isActive={index === activeIndex}` to `PlaceCard`.
+- **Distance units** — New `apps/mobile/src/lib/utils/place-utils.ts` with `formatDistance`; `ThemeProvider` extended with `units` + `setUnits` (persisted to `AsyncStorage`); Profile screen gains km/mi toggle pills; `PlaceCard` and `PlaceDetailScreen` use unit-aware distance.
+- **Social sharing** — `PlaceDetailScreen.tsx` share now uses `${API_BASE}/share/places/${placeCode}` URL with rating in the title.
+- **Group sharing** — Removed header share icon from `GroupDetailScreen.tsx`.
+- **Tests** — Extended `apps/mobile/src/__tests__/utils.test.ts` with 5 `formatDistance` cases (km/m/mi/ft).
+
+### Docs
+- Added `settings.distanceUnits`, `settings.km`, `settings.miles` translation keys to `seed_data.json` (en/ar/hi).
+
+---
+
 ## P1 Roadmap Tasks: Quality, Accessibility & Monitoring (2026-02-20)
 
 ### Backend

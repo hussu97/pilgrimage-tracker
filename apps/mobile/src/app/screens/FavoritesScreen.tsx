@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -91,6 +91,16 @@ export default function FavoritesScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [removingCode, setRemovingCode] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState<number>(0);
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: Array<{ index: number | null }> }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index != null) {
+        setActiveIndex(viewableItems[0].index);
+      }
+    },
+  ).current;
 
   const fetchFavorites = useCallback(() => {
     if (!user) return;
@@ -156,7 +166,7 @@ export default function FavoritesScreen() {
       style={styles.container}
       data={listData}
       keyExtractor={(item) => item.place_code}
-      renderItem={({ item }) => {
+      renderItem={({ item, index }) => {
         if (String(item.place_code).startsWith('skel-')) {
           return <SkeletonCard isDark={isDark} />;
         }
@@ -168,11 +178,13 @@ export default function FavoritesScreen() {
             deleteIcon="favorite-border"
           >
             <View style={{ opacity: removingCode === item.place_code ? 0.5 : 1 }}>
-              <PlaceCard place={item} />
+              <PlaceCard place={item} isActive={index === activeIndex} />
             </View>
           </SwipeableRow>
         );
       }}
+      viewabilityConfig={viewabilityConfig}
+      onViewableItemsChanged={onViewableItemsChanged}
       ItemSeparatorComponent={() => <View style={styles.separator} />}
       ListHeaderComponent={() => (
         <View style={{ paddingHorizontal: 24 }}>

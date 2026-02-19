@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  FlatList,
   ActivityIndicator,
   Alert,
   Animated,
@@ -26,6 +27,7 @@ import {
 import { shareUrl, openDirections } from '@/lib/share';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
+import { formatDistance } from '@/lib/utils/place-utils';
 import type { RootStackParamList } from '@/app/navigation';
 import type {
   PlaceDetail as PlaceDetailType,
@@ -61,7 +63,7 @@ export default function PlaceDetailScreen() {
   const { placeCode } = route.params;
   const { user } = useAuth();
   const { t } = useI18n();
-  const { isDark } = useTheme();
+  const { isDark, units } = useTheme();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const { requireAuth } = useAuthRequired();
 
@@ -78,6 +80,8 @@ export default function PlaceDetailScreen() {
   const [checkInDate, setCheckInDate] = useState('');
   const [storyExpanded, setStoryExpanded] = useState(false);
   const [hoursExpanded, setHoursExpanded] = useState(false);
+  const [heroIdx, setHeroIdx] = useState(0);
+  const heroFlatRef = useRef<FlatList>(null);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const checkInScale = useRef(new Animated.Value(1)).current;
@@ -122,6 +126,20 @@ export default function PlaceDetailScreen() {
   useEffect(() => {
     fetchPlace();
   }, [fetchPlace]);
+
+  // Hero carousel auto-swipe
+  useEffect(() => {
+    const len = place?.images?.length ?? 0;
+    if (len <= 1) return;
+    const id = setInterval(() => {
+      setHeroIdx((prev) => {
+        const next = (prev + 1) % len;
+        heroFlatRef.current?.scrollToIndex({ index: next, animated: true });
+        return next;
+      });
+    }, 3000);
+    return () => clearInterval(id);
+  }, [place?.images?.length]);
 
   const doActualToggleFavorite = useCallback(async () => {
     if (!placeCode || !place) return;
@@ -255,11 +273,10 @@ export default function PlaceDetailScreen() {
 
   if (!place) return null;
 
-  const heroImage = getFullImageUrl(place.images?.[0]?.url);
-  const formatDist = (km: number) =>
-    km < 1
-      ? t('common.distanceMeters').replace('{count}', String(Math.round(km * 1000)))
-      : t('common.distanceKm').replace('{count}', km.toFixed(1));
+  const heroImages = (place.images ?? [])
+    .map((img) => getFullImageUrl(img.url))
+    .filter(Boolean) as string[];
+  const heroImage = heroImages[0] ?? null;
 
   const timings: PlaceTiming[] = place.timings ?? [];
   const specifications: PlaceSpecification[] = place.specifications ?? [];
@@ -285,7 +302,33 @@ export default function PlaceDetailScreen() {
     <View style={[styles.container, { backgroundColor: cardBg }]}>
       {/* Hero (fixed behind content) */}
       <Animated.View style={[styles.heroFixed, { transform: [{ translateY: heroTranslateY }] }]}>
-        {heroImage ? (
+        {heroImages.length > 1 ? (
+          <FlatList
+            ref={heroFlatRef}
+            data={heroImages}
+            keyExtractor={(_, i) => String(i)}
+            horizontal
+            pagingEnabled
+            scrollEnabled
+            showsHorizontalScrollIndicator={false}
+            style={StyleSheet.absoluteFill}
+            renderItem={({ item }) => (
+              <ExpoImage
+                source={{ uri: item }}
+                style={styles.heroCarouselImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={200}
+              />
+            )}
+            onMomentumScrollEnd={(e) => {
+              const newIdx = Math.round(
+                e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width,
+              );
+              setHeroIdx(newIdx);
+            }}
+          />
+        ) : heroImage ? (
           <ExpoImage
             source={{ uri: heroImage }}
             style={StyleSheet.absoluteFill}
@@ -301,6 +344,21 @@ export default function PlaceDetailScreen() {
         {/* gradient overlay */}
         <View style={styles.heroGradientTop} pointerEvents="none" />
         <View style={styles.heroGradientBottom} pointerEvents="none" />
+
+        {/* Dot indicators */}
+        {heroImages.length > 1 && (
+          <View style={styles.heroDots} pointerEvents="none">
+            {heroImages.map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.heroDot,
+                  i === heroIdx ? styles.heroDotActive : styles.heroDotInactive,
+                ]}
+              />
+            ))}
+          </View>
+        )}
 
         {/* Hero bottom info */}
         <View style={styles.heroBottom}>
@@ -369,7 +427,13 @@ export default function PlaceDetailScreen() {
         <View style={styles.topBarRight}>
           <TouchableOpacity
             style={styles.circleBtn}
-            onPress={() => shareUrl(place.name, `places/${placeCode}`)}
+            onPress={() => {
+              const apiBase = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:3000';
+              shareUrl(
+                `${place.name}${averageRating != null ? ` • ${averageRating.toFixed(1)}★` : ''}`,
+                `${apiBase}/share/places/${placeCode}`,
+              );
+            }}
             activeOpacity={0.8}
           >
             <MaterialIcons name="share" size={20} color="#fff" />
@@ -659,6 +723,31 @@ function makeStyles(isDark: boolean) {
       backgroundColor: '#1a2e2e',
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    heroCarouselImage: {
+      width: '100%',
+      height: HERO_HEIGHT,
+    },
+    heroDots: {
+      position: 'absolute',
+      bottom: 90,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 4,
+    },
+    heroDot: {
+      height: 6,
+      borderRadius: 3,
+    },
+    heroDotActive: {
+      width: 20,
+      backgroundColor: '#ffffff',
+    },
+    heroDotInactive: {
+      width: 6,
+      backgroundColor: 'rgba(255,255,255,0.5)',
     },
     heroGradientTop: {
       position: 'absolute',

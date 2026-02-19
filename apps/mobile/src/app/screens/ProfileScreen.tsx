@@ -338,6 +338,34 @@ function makeStyles(isDark: boolean) {
       fontSize: 15,
       fontWeight: '600',
     },
+    // Units toggle pills
+    unitsPills: {
+      flexDirection: 'row',
+      borderWidth: 1,
+      borderColor: isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder,
+      borderRadius: tokens.borderRadius.xl,
+      overflow: 'hidden',
+    },
+    unitsPill: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    unitsPillActive: {
+      backgroundColor: tokens.colors.primary,
+    },
+    unitsPillInactive: {
+      backgroundColor: 'transparent',
+    },
+    unitsPillText: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    unitsPillTextActive: {
+      color: '#ffffff',
+    },
+    unitsPillTextInactive: {
+      color: isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted,
+    },
   });
 }
 
@@ -347,7 +375,7 @@ export default function ProfileScreen() {
   const stackNav = tabNav.getParent();
   const { user, logout } = useAuth();
   const { t, locale, languages, setLocale } = useI18n();
-  const { isDark, setTheme } = useTheme();
+  const { isDark, setTheme, units, setUnits } = useTheme();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -535,6 +563,52 @@ export default function ProfileScreen() {
                 <MaterialIcons name="chevron-right" size={22} color={mutedColor} />
               </TouchableOpacity>
             ) : null}
+
+            {/* Distance Units toggle */}
+            <View style={styles.prefRow}>
+              <View style={styles.rowLeft}>
+                <View style={[styles.iconWrap, { backgroundColor: iconBg }]}>
+                  <MaterialIcons name="straighten" size={20} color={tokens.colors.primary} />
+                </View>
+                <Text style={styles.rowTitle}>{t('settings.distanceUnits')}</Text>
+              </View>
+              <View style={styles.unitsPills}>
+                <TouchableOpacity
+                  onPress={() => setUnits('km')}
+                  style={[
+                    styles.unitsPill,
+                    units === 'km' ? styles.unitsPillActive : styles.unitsPillInactive,
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.unitsPillText,
+                      units === 'km' ? styles.unitsPillTextActive : styles.unitsPillTextInactive,
+                    ]}
+                  >
+                    {t('settings.km')}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setUnits('miles')}
+                  style={[
+                    styles.unitsPill,
+                    units === 'miles' ? styles.unitsPillActive : styles.unitsPillInactive,
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.unitsPillText,
+                      units === 'miles' ? styles.unitsPillTextActive : styles.unitsPillTextInactive,
+                    ]}
+                  >
+                    {t('settings.miles')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
             {/* Dark Mode toggle — last row, no border */}
             <View style={[styles.prefRow, styles.prefRowLast]}>

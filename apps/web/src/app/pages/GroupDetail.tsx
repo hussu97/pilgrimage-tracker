@@ -46,7 +46,6 @@ export default function GroupDetail() {
   const [noteSubmitting, setNoteSubmitting] = useState<Record<string, boolean>>({});
 
   // Invite state
-  const [inviteCopied, setInviteCopied] = useState(false);
   const [showFullLeaderboard, setShowFullLeaderboard] = useState(false);
 
   // Member management state
@@ -89,14 +88,6 @@ export default function GroupDetail() {
   const inviteUrl = group?.invite_code
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/join?code=${group.invite_code}`
     : '';
-
-  const copyInvite = () => {
-    if (inviteUrl) {
-      navigator.clipboard.writeText(inviteUrl);
-      setInviteCopied(true);
-      setTimeout(() => setInviteCopied(false), 2000);
-    }
-  };
 
   const isAdmin = members.some((m) => m.user_code === user?.user_code && m.role === 'admin');
   const isCreator = group?.created_by_user_code === user?.user_code;
@@ -294,16 +285,6 @@ export default function GroupDetail() {
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {inviteUrl && (
-              <button
-                type="button"
-                onClick={() => shareUrl(group.name, inviteUrl)}
-                className="p-2 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white hover:bg-soft-blue dark:hover:bg-dark-surface"
-                aria-label={t('common.share')}
-              >
-                <span className="material-symbols-outlined text-lg">share</span>
-              </button>
-            )}
             {isAdmin && (
               <button
                 type="button"
@@ -847,10 +828,11 @@ export default function GroupDetail() {
                   />
                   <button
                     type="button"
-                    onClick={copyInvite}
-                    className="px-3 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/90"
+                    onClick={() => shareUrl(group.name, inviteUrl)}
+                    className="px-3 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/90 flex items-center gap-1"
                   >
-                    {inviteCopied ? t('common.copied') : t('common.copy')}
+                    <span className="material-symbols-outlined text-sm">share</span>
+                    {t('common.share')}
                   </button>
                 </div>
               </div>

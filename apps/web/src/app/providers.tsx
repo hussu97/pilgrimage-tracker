@@ -164,12 +164,16 @@ export function useAuth(): AuthContextValue {
 
 // --- Theme ---
 const THEME_STORAGE_KEY = 'theme';
+const UNITS_STORAGE_KEY = 'units';
 type Theme = 'light' | 'dark' | 'system';
+type DistanceUnits = 'km' | 'miles';
 
 interface ThemeContextValue {
   theme: Theme;
   isDark: boolean;
   setTheme: (t: Theme) => void;
+  units: DistanceUnits;
+  setUnits: (u: DistanceUnits) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -200,6 +204,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       })(),
     ),
   );
+  const [units, setUnitsState] = useState<DistanceUnits>(() => {
+    try {
+      const stored = localStorage.getItem(UNITS_STORAGE_KEY);
+      if (stored === 'km' || stored === 'miles') return stored;
+    } catch {}
+    return 'km';
+  });
 
   useEffect(() => {
     const dark = applyTheme(theme);
@@ -224,9 +235,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeState(t);
   }, []);
 
+  const setUnits = useCallback((u: DistanceUnits) => {
+    setUnitsState(u);
+    try {
+      localStorage.setItem(UNITS_STORAGE_KEY, u);
+    } catch {}
+  }, []);
+
   const value = useMemo<ThemeContextValue>(
-    () => ({ theme, isDark, setTheme }),
-    [theme, isDark, setTheme],
+    () => ({ theme, isDark, setTheme, units, setUnits }),
+    [theme, isDark, setTheme, units, setUnits],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

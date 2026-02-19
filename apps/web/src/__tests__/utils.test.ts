@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { cn } from '@/lib/utils/cn';
-import { crowdColorClass } from '@/lib/utils/place-utils';
+import { crowdColorClass, formatDistance } from '@/lib/utils/place-utils';
 
 // ─── cn utility ───────────────────────────────────────────────────────────────
 
@@ -65,5 +65,36 @@ describe('crowdColorClass()', () => {
 
   it('returns empty string for unknown level', () => {
     expect(crowdColorClass('extreme')).toBe('');
+  });
+});
+
+// ─── formatDistance utility ───────────────────────────────────────────────────
+
+describe('formatDistance()', () => {
+  describe('km units (default)', () => {
+    it('formats sub-km distances as meters', () => {
+      expect(formatDistance(0.5)).toBe('500 m');
+      expect(formatDistance(0.1)).toBe('100 m');
+    });
+
+    it('formats >= 1 km as decimal km', () => {
+      expect(formatDistance(2.5)).toBe('2.5 km');
+      expect(formatDistance(1.0)).toBe('1.0 km');
+    });
+
+    it('km units explicit', () => {
+      expect(formatDistance(0.5, 'km')).toBe('500 m');
+      expect(formatDistance(2.5, 'km')).toBe('2.5 km');
+    });
+  });
+
+  describe('miles units', () => {
+    it('formats >= 0.1 mi as decimal mi', () => {
+      expect(formatDistance(1.0, 'miles')).toBe('0.6 mi');
+    });
+
+    it('formats < 0.1 mi as feet', () => {
+      expect(formatDistance(0.05, 'miles')).toBe('164 ft');
+    });
   });
 });

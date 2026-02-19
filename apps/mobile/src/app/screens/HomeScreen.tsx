@@ -407,7 +407,17 @@ export default function HomeScreen() {
   const [mapHtml, setMapHtml] = useState<string>('');
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [visiblePlaceCodes, setVisiblePlaceCodes] = useState<Set<string>>(new Set());
+  const [activeIndex, setActiveIndex] = useState<number>(0);
   const panelAnim = useRef(new Animated.Value(0)).current;
+
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: Array<{ index: number | null }> }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index != null) {
+        setActiveIndex(viewableItems[0].index);
+      }
+    },
+  ).current;
 
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
@@ -588,13 +598,15 @@ export default function HomeScreen() {
                   : places
               }
               keyExtractor={(item) => item.place_code}
-              renderItem={({ item }) =>
+              renderItem={({ item, index }) =>
                 String(item.place_code).startsWith('skel-') ? (
                   <SkeletonCard isDark={isDark} />
                 ) : (
-                  <PlaceCard place={item} />
+                  <PlaceCard place={item} isActive={index === activeIndex} />
                 )
               }
+              viewabilityConfig={viewabilityConfig}
+              onViewableItemsChanged={onViewableItemsChanged}
               ListEmptyComponent={
                 showEmpty ? (
                   <View style={styles.centered}>

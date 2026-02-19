@@ -25,6 +25,7 @@ from slowapi.util import get_remote_address  # noqa: E402
 from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 
 from app.api.v1 import api_router  # noqa: E402
+from app.api.v1 import share as share_router_module  # noqa: E402
 from app.db.seed import run_seed_system  # noqa: E402
 from app.db.session import run_migrations  # noqa: E402
 
@@ -121,6 +122,7 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+app.include_router(share_router_module.router, prefix="/share")
 
 
 # ===== Global Exception Handlers =====

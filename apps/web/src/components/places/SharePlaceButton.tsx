@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { shareUrl } from '@/lib/share';
 
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
 interface SharePlaceButtonProps {
   placeName: string;
   placeCode: string;
@@ -15,7 +17,8 @@ export function SharePlaceButton({
   const [status, setStatus] = useState<'idle' | 'shared' | 'copied'>('idle');
 
   const handleShare = async () => {
-    const result = await shareUrl(placeName, `/places/${placeCode}`);
+    const shareBackendUrl = `${API_BASE}/share/places/${placeCode}`;
+    const result = await shareUrl(placeName, shareBackendUrl);
     setStatus(result === 'shared' ? 'shared' : 'copied');
     setTimeout(() => setStatus('idle'), 2000);
   };
