@@ -224,18 +224,6 @@ function PlaceCard({ place, compact = false, isActive = false }: PlaceCardProps)
         )}
       </View>
 
-      {/* Dot indicators */}
-      {images.length > 1 && (
-        <View style={styles.dotsContainer}>
-          {images.map((_, i) => (
-            <View
-              key={i}
-              style={[styles.dot, i === imgIdx ? styles.dotActive : styles.dotInactive]}
-            />
-          ))}
-        </View>
-      )}
-
       {/* Bottom glass info panel */}
       <View style={styles.glassPanel}>
         <Text style={styles.cardName} numberOfLines={1}>
@@ -464,28 +452,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-  },
-  // Dot indicators
-  dotsContainer: {
-    position: 'absolute',
-    bottom: 80,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  dot: {
-    height: 6,
-    borderRadius: 3,
-  },
-  dotActive: {
-    width: 16,
-    backgroundColor: '#ffffff',
-  },
-  dotInactive: {
-    width: 6,
-    backgroundColor: 'rgba(255,255,255,0.5)',
   },
   // Glass panel – semi-transparent with subtle border
   glassPanel: {

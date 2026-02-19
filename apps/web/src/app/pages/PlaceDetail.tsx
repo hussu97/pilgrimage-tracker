@@ -578,20 +578,6 @@ export default function PlaceDetail() {
         {/* Gradient overlays */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40 pointer-events-none" />
 
-        {/* Dot indicators */}
-        {heroImages.length > 1 && (
-          <div className="absolute bottom-24 left-0 right-0 flex justify-center gap-1.5 z-10 pointer-events-none">
-            {heroImages.map((_, i) => (
-              <span
-                key={i}
-                className={`block rounded-full transition-all duration-300 ${
-                  i === heroIdx ? 'w-5 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/50'
-                }`}
-              />
-            ))}
-          </div>
-        )}
-
         {/* Top bar */}
         <div className="absolute top-0 left-0 right-0 z-20 p-5 pt-14 flex justify-between items-center">
           <button

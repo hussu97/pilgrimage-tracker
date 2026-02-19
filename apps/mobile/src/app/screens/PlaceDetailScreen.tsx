@@ -356,21 +356,6 @@ export default function PlaceDetailScreen() {
         <View style={styles.heroGradientTop} pointerEvents="none" />
         <View style={styles.heroGradientBottom} pointerEvents="none" />
 
-        {/* Dot indicators */}
-        {heroImages.length > 1 && (
-          <View style={styles.heroDots} pointerEvents="none">
-            {heroImages.map((_, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.heroDot,
-                  i === heroIdx ? styles.heroDotActive : styles.heroDotInactive,
-                ]}
-              />
-            ))}
-          </View>
-        )}
-
         {/* Hero bottom info */}
         <View style={styles.heroBottom}>
           <View style={styles.heroBadgeRow}>
@@ -734,27 +719,6 @@ function makeStyles(isDark: boolean) {
       backgroundColor: '#1a2e2e',
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    heroDots: {
-      position: 'absolute',
-      bottom: 90,
-      left: 0,
-      right: 0,
-      flexDirection: 'row',
-      justifyContent: 'center',
-      gap: 4,
-    },
-    heroDot: {
-      height: 6,
-      borderRadius: 3,
-    },
-    heroDotActive: {
-      width: 20,
-      backgroundColor: '#ffffff',
-    },
-    heroDotInactive: {
-      width: 6,
-      backgroundColor: 'rgba(255,255,255,0.5)',
     },
     heroGradientTop: {
       position: 'absolute',

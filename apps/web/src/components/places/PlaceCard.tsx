@@ -215,20 +215,6 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
             </span>
           )}
         </div>
-
-        {/* Dot indicators */}
-        {images.length > 1 && (
-          <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-10 pointer-events-none">
-            {images.map((_, i) => (
-              <span
-                key={i}
-                className={`block rounded-full transition-all duration-300 ${
-                  i === imgIdx ? 'w-4 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/50'
-                }`}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Card body – 16px padding */}
