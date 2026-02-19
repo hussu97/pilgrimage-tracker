@@ -234,7 +234,7 @@ export default function PlacesMap({
   }, [places, onPlaceSelect, selectedPlaceCode, navigate]);
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-input-border h-full min-h-[400px] md:min-h-[500px] bg-soft-blue dark:bg-gray-800">
+    <div className="rounded-2xl overflow-hidden border border-input-border h-full min-h-[400px] md:min-h-[500px] bg-soft-blue dark:bg-dark-surface">
       <div ref={containerRef} className="h-full w-full" style={{ minHeight: 400 }} />
     </div>
   );

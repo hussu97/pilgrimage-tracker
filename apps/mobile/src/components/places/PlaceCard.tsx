@@ -8,7 +8,7 @@ import type { RootStackParamList } from '@/app/navigation';
 import type { Place } from '@/lib/types';
 import { tokens } from '@/lib/theme';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
-import { useI18n } from '@/app/providers';
+import { useI18n, useTheme } from '@/app/providers';
 
 interface PlaceCardProps {
   place: Place;
@@ -27,6 +27,14 @@ function formatCount(n: number): string {
 function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>>();
   const { t } = useI18n();
+  const { isDark } = useTheme();
+
+  const cardBg = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
+  const cardBorder = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
+  const nameColor = isDark ? '#ffffff' : tokens.colors.textMain;
+  const addressColor = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
+  const ratingBg = isDark ? 'rgba(250,204,21,0.15)' : '#fffbeb';
+  const fallbackBg = isDark ? tokens.colors.darkSurface : tokens.colors.textDark;
   const imageUrl = getFullImageUrl(place.images?.[0]?.url);
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
@@ -40,7 +48,7 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
   if (compact) {
     return (
       <TouchableOpacity
-        style={styles.compactCard}
+        style={[styles.compactCard, { backgroundColor: cardBg, borderColor: cardBorder }]}
         onPress={() => navigation.navigate('PlaceDetail', { placeCode: place.place_code })}
         activeOpacity={0.88}
       >
@@ -60,10 +68,10 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
           )}
         </View>
         <View style={styles.compactBody}>
-          <Text style={styles.compactName} numberOfLines={1}>
+          <Text style={[styles.compactName, { color: nameColor }]} numberOfLines={1}>
             {place.name}
           </Text>
-          <Text style={styles.compactAddress} numberOfLines={2}>
+          <Text style={[styles.compactAddress, { color: addressColor }]} numberOfLines={2}>
             {place.address || place.place_type || ''}
           </Text>
           <View style={styles.compactChips}>
@@ -88,7 +96,7 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
               </View>
             )}
             {rating != null && (
-              <View style={styles.chipRating}>
+              <View style={[styles.chipRating, { backgroundColor: ratingBg }]}>
                 <MaterialIcons name="star" size={9} color="#92400e" />
                 <Text style={styles.chipRatingText}>
                   {rating.toFixed(1)}
@@ -118,7 +126,9 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
           transition={200}
         />
       ) : (
-        <View style={[StyleSheet.absoluteFill, styles.imageFallback]}>
+        <View
+          style={[StyleSheet.absoluteFill, styles.imageFallback, { backgroundColor: fallbackBg }]}
+        >
           <MaterialIcons name="location-on" size={48} color="rgba(255,255,255,0.4)" />
         </View>
       )}
@@ -201,13 +211,11 @@ const styles = StyleSheet.create({
   compactCard: {
     flexDirection: 'row',
     height: 128,
-    backgroundColor: tokens.colors.surface,
     borderRadius: tokens.borderRadius['2xl'], // 16px
     padding: 16,
     gap: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: tokens.colors.inputBorder,
     ...tokens.shadow.card,
   },
   compactImageWrap: {
@@ -224,12 +232,10 @@ const styles = StyleSheet.create({
   compactName: {
     fontSize: 15,
     fontWeight: '500',
-    color: tokens.colors.textMain,
     marginBottom: 4,
   },
   compactAddress: {
     fontSize: 12,
-    color: tokens.colors.textMuted,
     fontWeight: '300',
     marginBottom: 8,
   },
@@ -290,7 +296,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
-    backgroundColor: '#fffbeb',
   },
   chipRatingText: { fontSize: 10, fontWeight: '500', color: '#92400e' },
 
@@ -302,7 +307,6 @@ const styles = StyleSheet.create({
     ...tokens.shadow.card,
   },
   imageFallback: {
-    backgroundColor: '#1e293b',
     alignItems: 'center',
     justifyContent: 'center',
   },
