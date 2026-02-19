@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlmodel import Session, and_, extract, func, select
 
@@ -53,7 +53,7 @@ def count_places_visited(user_code: str, session: Session) -> int:
 
 
 def count_check_ins_this_year(user_code: str, session: Session) -> int:
-    year = datetime.utcnow().year
+    year = datetime.now(UTC).year
     statement = select(func.count(CheckIn.id)).where(
         and_(CheckIn.user_code == user_code, extract("year", CheckIn.checked_in_at) == year)
     )
@@ -64,6 +64,18 @@ def count_check_ins_for_place(place_code: str, session: Session) -> int:
     """Count check-ins for a place. Requires session parameter."""
     statement = select(func.count(CheckIn.id)).where(CheckIn.place_code == place_code)
     return session.exec(statement).one()
+
+
+def get_check_ins_for_users(user_codes: list[str], session: Session) -> list[CheckIn]:
+    """Batch-fetch all check-ins for multiple users in a single query."""
+    if not user_codes:
+        return []
+    statement = (
+        select(CheckIn)
+        .where(CheckIn.user_code.in_(user_codes))
+        .order_by(CheckIn.checked_in_at.desc())
+    )
+    return session.exec(statement).all()
 
 
 def count_check_ins_bulk(place_codes: list[str], session: Session) -> dict[str, int]:
@@ -82,7 +94,7 @@ def count_check_ins_bulk(place_codes: list[str], session: Session) -> dict[str, 
 
 
 def get_check_ins_this_month(user_code: str, session: Session) -> list[CheckIn]:
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     statement = select(CheckIn).where(
         and_(
             CheckIn.user_code == user_code,
@@ -94,7 +106,7 @@ def get_check_ins_this_month(user_code: str, session: Session) -> list[CheckIn]:
 
 
 def get_check_ins_on_this_day(user_code: str, session: Session) -> list[CheckIn]:
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     statement = select(CheckIn).where(
         and_(
             CheckIn.user_code == user_code,

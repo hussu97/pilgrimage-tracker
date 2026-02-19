@@ -64,12 +64,12 @@ class TestForgotPassword:
 class TestResetPassword:
     def _get_reset_token(self, client, db_session, user_code):
         """Create a valid reset token directly in the DB."""
-        from datetime import datetime, timedelta
+        from datetime import UTC, datetime, timedelta
 
         from app.db import store
 
         token = "testresettk0001"
-        expires = datetime.utcnow() + timedelta(hours=1)
+        expires = datetime.now(UTC) + timedelta(hours=1)
         store.save_password_reset(token, user_code, expires, db_session)
         return token
 

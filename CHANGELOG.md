@@ -4,6 +4,38 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Timezone-aware datetime columns (2026-02-19)
+
+### Backend
+- **`server/app/db/models.py`** — Added `_UTCAwareDateTime` SQLAlchemy `TypeDecorator`. It wraps `DateTime(timezone=True)` (→ `TIMESTAMPTZ` in PostgreSQL) and re-attaches `UTC` on read for SQLite, so every datetime value loaded from the DB is timezone-aware. All 17 datetime columns across 10 models migrated to use the new `_TSTZ()` helper.
+- **`server/app/db/store.py`** — Removed `.replace(tzinfo=None)` workarounds from `consume_password_reset` and `consume_refresh_token`; comparisons now work correctly as `aware < aware`.
+- **`server/migrations/versions/0003_timestamptz_datetimes.py`** — New Alembic migration: alters all 19 datetime columns from `TIMESTAMP` to `TIMESTAMPTZ` in PostgreSQL using `AT TIME ZONE 'UTC'` CAST; skipped for SQLite (no-op dialect guard).
+
+### Docs
+- **`CLAUDE.md`** — Added rule §8 "Datetime Columns" specifying that every new or modified datetime column must use `sa_column=_TSTZ(...)`, with rationale and examples.
+
+---
+
+## P0 Critical Fixes (2026-02-19)
+
+### Backend
+- **`server/app/core/security.py`** — Replaced deprecated `datetime.utcnow()` with `datetime.now(UTC)` in JWT expiry computation. Added `UTC` to import.
+- **`server/app/db/store.py`** — Replaced all `datetime.utcnow()` with `datetime.now(UTC)`. Added `UTC` import. For comparisons against DB-stored naive datetimes (SQLite compatibility), used `.replace(tzinfo=None)` to produce a naive UTC timestamp.
+- **`server/app/db/check_ins.py`** — Replaced `datetime.utcnow()` with `datetime.now(UTC)`. Added `get_check_ins_for_users(user_codes, session)` batch query to eliminate N+1 in group listing.
+- **`server/app/db/notifications.py`** — Replaced `datetime.utcnow()` with `datetime.now(UTC)`.
+- **`server/app/db/models.py`** — Replaced `default_factory=datetime.utcnow` with `default_factory=lambda: datetime.now(UTC)` on all model timestamp fields.
+- **`server/app/db/review_images.py`** — Replaced `datetime.utcnow()` with `datetime.now(UTC)`. Added `get_review_images_bulk(review_codes, session)` to batch-fetch review images in a single query.
+- **`server/app/api/v1/auth.py`** — Replaced `datetime.utcnow()` with `datetime.now(UTC)` for password-reset expiry timestamp.
+- **`server/app/main.py`** — Replaced `datetime.utcnow()` with `datetime.now(UTC)` in error-logging timestamp.
+- **`server/app/db/groups.py`** — Added `get_members_bulk(group_codes, session)` to batch-fetch group members across all groups in a single query, eliminating N+1 in group listing.
+- **`server/app/db/places.py`** — Added `get_places_by_codes(place_codes, session)` to batch-fetch multiple places in a single query.
+- **`server/app/api/v1/groups.py`** — Refactored `list_groups` to use batch queries: fetches all members, all check-ins, and all path places in 3 queries total instead of 3+ queries per group, eliminating the N+1 pattern.
+- **`server/app/api/v1/users.py`** — Refactored `get_my_favorites` to use `get_places_by_codes` + `get_images_bulk`, eliminating per-place individual queries.
+- **`server/app/api/v1/places.py`** — Refactored `get_place_reviews` to use `get_review_images_bulk`, fetching all review images in one query instead of one per review. Removed the stub `DELETE /{place_code}` endpoint (was returning 501 Not Implemented and had no usages).
+- **`server/tests/test_store.py`**, **`server/tests/test_auth_extended.py`**, **`server/tests/test_review_images.py`** — Updated to use `datetime.now(UTC)` instead of `datetime.utcnow()`.
+
+---
+
 ## P4 Coverage 85% (2026-02-18)
 
 ### Backend

@@ -88,6 +88,22 @@ def add_member(group_code: str, user_code: str, session: Session, role: str = "m
     return True
 
 
+def get_members_bulk(group_codes: list[str], session: Session) -> dict[str, list[tuple]]:
+    """Batch-fetch members for multiple groups in a single query.
+
+    Returns a dict mapping group_code -> [(user_code, role, joined_at_iso), ...].
+    """
+    if not group_codes:
+        return {}
+    members = session.exec(
+        select(GroupMember).where(GroupMember.group_code.in_(group_codes))
+    ).all()
+    result: dict[str, list[tuple]] = {gc: [] for gc in group_codes}
+    for m in members:
+        result[m.group_code].append((m.user_code, m.role, m.joined_at.isoformat() + "Z"))
+    return result
+
+
 def get_members(group_code: str, session: Session) -> list[tuple]:
     members = session.exec(select(GroupMember).where(GroupMember.group_code == group_code)).all()
     return [(m.user_code, m.role, m.joined_at.isoformat() + "Z") for m in members]

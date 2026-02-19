@@ -221,14 +221,18 @@ def get_place_reviews(
         raise HTTPException(status_code=404, detail="Place not found")
     rows = reviews_db.get_reviews_by_place(place_code, session, limit=limit, offset=offset)
 
-    # Fetch review images for all reviews in batch
     agg = reviews_db.get_aggregate_rating(place_code, session)
+
+    # Batch-fetch review images for all reviews in a single query
+    review_codes = [r.review_code for r in rows]
+    all_review_images = review_images.get_review_images_bulk(review_codes, session=session)
+
     out = []
     for r in rows:
         source = getattr(r, "source", "user")
 
-        # Fetch attached images for this review
-        review_image_urls = review_images.get_review_images(r.review_code, session=session)
+        # Use pre-fetched images for this review
+        review_image_urls = all_review_images.get(r.review_code, [])
         attached_urls = [img["url"] for img in review_image_urls]
 
         # Merge with external photo URLs
@@ -553,29 +557,6 @@ def create_place(
         reviews_db.upsert_external_reviews(body.place_code, body.external_reviews, session)
 
     return _place_detail(row, session)
-
-
-@router.delete("/{place_code}")
-def delete_place(place_code: str, session: SessionDep):
-    """
-    Delete a place by code.
-
-    NOTE: This is a hard delete. Consider implementing soft deletes in the future
-    to preserve historical data (check-ins, reviews, etc.) associated with the place.
-    """
-    place = places_db.get_place_by_code(place_code, session)
-    if not place:
-        raise HTTPException(status_code=404, detail="Place not found")
-
-    # TODO: Add authorization check - only admins should be able to delete places
-    # TODO: Consider soft delete instead of hard delete to preserve references
-    # TODO: Handle cascade deletion of related data (images, reviews, check-ins, etc.)
-
-    # For now, document that deletion is intentionally not fully implemented
-    raise HTTPException(
-        status_code=501,
-        detail="Place deletion not implemented. Contact administrator to remove places.",
-    )
 
 
 @router.get("/{place_code}/images/{image_id}")
