@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useId } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ModalProps {
@@ -11,6 +11,7 @@ interface ModalProps {
 
 export default function Modal({ isOpen, onClose, title, children, footer }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
     if (isOpen) {
@@ -22,6 +23,15 @@ export default function Modal({ isOpen, onClose, title, children, footer }: Moda
       document.body.style.overflow = 'unset';
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -37,9 +47,16 @@ export default function Modal({ isOpen, onClose, title, children, footer }: Moda
       onClick={handleOverlayClick}
       className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4 transition-all animate-in fade-in duration-200"
     >
-      <div className="bg-white dark:bg-dark-surface w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom duration-300">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-white dark:bg-dark-surface w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom duration-300"
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-dark-border">
-          <h2 className="text-xl font-bold text-text-main dark:text-white">{title}</h2>
+          <h2 id={titleId} className="text-xl font-bold text-text-main dark:text-white">
+            {title}
+          </h2>
           <button
             onClick={onClose}
             className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-dark-border transition-colors text-slate-400"

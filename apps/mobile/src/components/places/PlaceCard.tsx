@@ -51,6 +51,8 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
         style={[styles.compactCard, { backgroundColor: cardBg, borderColor: cardBorder }]}
         onPress={() => navigation.navigate('PlaceDetail', { placeCode: place.place_code })}
         activeOpacity={0.88}
+        accessibilityRole="button"
+        accessibilityLabel={place.name}
       >
         <View style={styles.compactImageWrap}>
           {imageUrl ? (
@@ -115,6 +117,8 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
       style={styles.card}
       onPress={() => navigation.navigate('PlaceDetail', { placeCode: place.place_code })}
       activeOpacity={0.9}
+      accessibilityRole="button"
+      accessibilityLabel={place.name}
     >
       {/* Background image */}
       {imageUrl ? (
@@ -194,6 +198,8 @@ function PlaceCard({ place, compact = false }: PlaceCardProps) {
               style={styles.checkInBtn}
               onPress={() => navigation.navigate('PlaceDetail', { placeCode: place.place_code })}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('places.checkIn')} ${place.name}`}
             >
               <Text style={styles.checkInText}>{t('places.checkIn')}</Text>
             </TouchableOpacity>

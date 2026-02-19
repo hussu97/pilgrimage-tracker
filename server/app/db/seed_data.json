@@ -424,7 +424,8 @@
       "groups.progressNew": "New",
       "groups.progressDone": "Done",
       "groups.shareMessage": "Join our group",
-      "common.noInternet": "No internet connection"
+      "common.noInternet": "No internet connection",
+      "common.skipToContent": "Skip to content"
     },
     "ar": {
       "auth.login": "تسجيل الدخول",
@@ -836,7 +837,8 @@
       "groups.progressNew": "جديد",
       "groups.progressDone": "مكتمل",
       "groups.shareMessage": "انضم إلى مجموعتنا",
-      "common.noInternet": "لا يوجد اتصال بالإنترنت"
+      "common.noInternet": "لا يوجد اتصال بالإنترنت",
+      "common.skipToContent": "تخطى إلى المحتوى"
     },
     "hi": {
       "auth.login": "लॉग इन करें",
@@ -1248,7 +1250,8 @@
       "groups.progressNew": "नया",
       "groups.progressDone": "पूरा",
       "groups.shareMessage": "हमारे ग्रुप में शामिल हों",
-      "common.noInternet": "इंटरनेट कनेक्शन नहीं है"
+      "common.noInternet": "इंटरनेट कनेक्शन नहीं है",
+      "common.skipToContent": "सामग्री पर जाएं"
     }
   },
   "users": [

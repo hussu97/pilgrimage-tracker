@@ -30,6 +30,12 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col font-display dark:bg-dark-bg dark:text-white">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[9999] focus:bg-primary focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-semibold"
+      >
+        {t('common.skipToContent') || 'Skip to content'}
+      </a>
       <header className="hidden md:flex safe-area-top border-b border-input-border dark:border-dark-border bg-background-light dark:bg-dark-surface px-6 py-4">
         <nav className="flex items-center gap-8 w-full max-w-6xl xl:max-w-7xl mx-auto">
           <Link
@@ -75,6 +81,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       </header>
 
       <main
+        id="main-content"
         className={`flex-1 safe-area-top safe-area-bottom ${showBottomNav ? 'pb-20' : 'pb-6'} md:pb-6 w-full max-w-6xl xl:max-w-7xl mx-auto px-0`}
       >
         {children}
