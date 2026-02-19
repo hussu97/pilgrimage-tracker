@@ -176,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    await api.logoutServer();
     await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
     setToken(null);
     setUserState(null);

@@ -4,6 +4,19 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## API Audit — Unused Endpoint Remediation (2026-02-19)
+
+### Frontend (web)
+- **`apps/web/src/lib/api/client.ts`** — Already had `refreshToken`, `logoutServer`, `authFetch` interceptor, and `updateGroup`; confirmed complete.
+- **`apps/web/src/__tests__/client.test.ts`** — New: tests for `refreshToken` (happy path + error), `logoutServer` (happy path + network failure + server error), `updateGroup` (method, return value, Authorization header, error detail, fallback error).
+
+### Frontend (mobile)
+- **`apps/mobile/src/lib/api/client.ts`** — Added `refreshToken()`, `logoutServer()`, and `authFetch()` 401-retry interceptor (mirrors web). Migrated all authenticated `fetch()` calls to `authFetch()`. Added `updateGroup()` for `PATCH /api/v1/groups/{group_code}`.
+- **`apps/mobile/src/app/providers.tsx`** — `logout()` now calls `api.logoutServer()` before clearing AsyncStorage, ensuring the refresh token is revoked server-side on sign-out.
+- **`apps/mobile/src/__tests__/client.test.ts`** — New: tests for `refreshToken`, `logoutServer`, and `updateGroup` (same coverage as web).
+
+---
+
 ## P4 Coverage 85% (2026-02-18)
 
 ### Backend

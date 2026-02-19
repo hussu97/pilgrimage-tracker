@@ -39,6 +39,60 @@ async function authHeaders(): Promise<Record<string, string>> {
   };
 }
 
+// ─── Token refresh & auth interceptor ────────────────────────────────────────
+
+export async function refreshToken(): Promise<{ token: string }> {
+  const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (!res.ok) throw new Error('Token refresh failed');
+  return res.json();
+}
+
+export async function logoutServer(): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/v1/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch {
+    // Best-effort server logout; local state is cleared regardless
+  }
+}
+
+let refreshInFlight: Promise<string> | null = null;
+
+async function authFetch(url: string, init?: RequestInit): Promise<Response> {
+  const res = await fetch(url, { ...init, credentials: 'include' });
+  if (res.status !== 401 || !(await getToken())) return res;
+
+  // Deduplicate concurrent refresh attempts
+  if (!refreshInFlight) {
+    refreshInFlight = refreshToken()
+      .then(async ({ token }) => {
+        await AsyncStorage.setItem(TOKEN_KEY, token);
+        return token;
+      })
+      .catch(async (err) => {
+        await AsyncStorage.removeItem(TOKEN_KEY);
+        throw err;
+      })
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+
+  try {
+    const newToken = await refreshInFlight;
+    const retryHeaders = new Headers(init?.headers as HeadersInit);
+    retryHeaders.set('Authorization', `Bearer ${newToken}`);
+    return fetch(url, { ...init, headers: retryHeaders, credentials: 'include' });
+  } catch {
+    return res; // Return original 401 if refresh failed
+  }
+}
+
 // i18n
 export async function getLanguages(): Promise<LanguageOption[]> {
   const res = await fetch(`${API_BASE}/api/v1/languages`);
@@ -78,11 +132,13 @@ export interface RegisterBody {
   email: string;
   password: string;
   display_name?: string;
+  visitor_code?: string;
 }
 
 export interface LoginBody {
   email: string;
   password: string;
+  visitor_code?: string;
 }
 
 export interface AuthResponse {
@@ -136,14 +192,14 @@ export async function resetPassword(token: string, newPassword: string): Promise
 
 // Users
 export async function getMe(): Promise<User> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me`, { headers: await authHeaders() });
+  const res = await authFetch(`${API_BASE}/api/v1/users/me`, { headers: await authHeaders() });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? 'Failed to fetch user');
   return data;
 }
 
 export async function updateMe(updates: { display_name?: string }): Promise<User> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me`, {
+  const res = await authFetch(`${API_BASE}/api/v1/users/me`, {
     method: 'PATCH',
     headers: await authHeaders(),
     body: JSON.stringify(updates),
@@ -154,7 +210,7 @@ export async function updateMe(updates: { display_name?: string }): Promise<User
 }
 
 export async function getMyCheckIns(): Promise<CheckIn[]> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins`, {
+  const res = await authFetch(`${API_BASE}/api/v1/users/me/check-ins`, {
     headers: await authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch check-ins');
@@ -163,7 +219,7 @@ export async function getMyCheckIns(): Promise<CheckIn[]> {
 }
 
 export async function getThisMonthCheckIns(): Promise<CheckIn[]> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins/this-month`, {
+  const res = await authFetch(`${API_BASE}/api/v1/users/me/check-ins/this-month`, {
     headers: await authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch this month check-ins');
@@ -171,7 +227,7 @@ export async function getThisMonthCheckIns(): Promise<CheckIn[]> {
 }
 
 export async function getOnThisDayCheckIns(): Promise<CheckIn[]> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me/check-ins/on-this-day`, {
+  const res = await authFetch(`${API_BASE}/api/v1/users/me/check-ins/on-this-day`, {
     headers: await authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch on-this-day check-ins');
@@ -179,13 +235,15 @@ export async function getOnThisDayCheckIns(): Promise<CheckIn[]> {
 }
 
 export async function getMyStats(): Promise<UserStats> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me/stats`, { headers: await authHeaders() });
+  const res = await authFetch(`${API_BASE}/api/v1/users/me/stats`, {
+    headers: await authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch stats');
   return res.json();
 }
 
 export async function getMyFavorites(): Promise<Place[]> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me/favorites`, {
+  const res = await authFetch(`${API_BASE}/api/v1/users/me/favorites`, {
     headers: await authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch favorites');
@@ -193,13 +251,15 @@ export async function getMyFavorites(): Promise<Place[]> {
 }
 
 export async function getSettings(): Promise<UserSettings> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me/settings`, { headers: await authHeaders() });
+  const res = await authFetch(`${API_BASE}/api/v1/users/me/settings`, {
+    headers: await authHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch settings');
   return res.json();
 }
 
 export async function updateSettings(settings: UserSettings): Promise<UserSettings> {
-  const res = await fetch(`${API_BASE}/api/v1/users/me/settings`, {
+  const res = await authFetch(`${API_BASE}/api/v1/users/me/settings`, {
     method: 'PATCH',
     headers: await authHeaders(),
     body: JSON.stringify(settings),
@@ -244,14 +304,14 @@ export async function getPlaces(params?: GetPlacesParams): Promise<PlacesRespons
   if (params?.top_rated) sp.set('top_rated', 'true');
   const qs = sp.toString();
   const url = `${API_BASE}/api/v1/places${qs ? `?${qs}` : ''}`;
-  const res = await fetch(url, { headers: await authHeaders() });
+  const res = await authFetch(url, { headers: await authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch places');
   const data = await res.json();
   return { ...data, next_cursor: data.next_cursor ?? null };
 }
 
 export async function getPlace(placeCode: string): Promise<PlaceDetail> {
-  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}`, {
+  const res = await authFetch(`${API_BASE}/api/v1/places/${placeCode}`, {
     headers: await authHeaders(),
   });
   const data = await res.json();
@@ -269,7 +329,7 @@ export async function checkIn(
   placeCode: string,
   body?: { note?: string; photo_url?: string },
 ): Promise<CheckIn> {
-  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/check-in`, {
+  const res = await authFetch(`${API_BASE}/api/v1/places/${placeCode}/check-in`, {
     method: 'POST',
     headers: await authHeaders(),
     body: JSON.stringify(body ?? {}),
@@ -280,7 +340,7 @@ export async function checkIn(
 }
 
 export async function addFavorite(placeCode: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/favorite`, {
+  const res = await authFetch(`${API_BASE}/api/v1/places/${placeCode}/favorite`, {
     method: 'POST',
     headers: await authHeaders(),
   });
@@ -288,7 +348,7 @@ export async function addFavorite(placeCode: string): Promise<void> {
 }
 
 export async function removeFavorite(placeCode: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/favorite`, {
+  const res = await authFetch(`${API_BASE}/api/v1/places/${placeCode}/favorite`, {
     method: 'DELETE',
     headers: await authHeaders(),
   });
@@ -311,7 +371,7 @@ export async function uploadReviewPhoto(uri: string): Promise<{
   } as any);
 
   const token = await getToken();
-  const res = await fetch(`${API_BASE}/api/v1/reviews/upload-photo`, {
+  const res = await authFetch(`${API_BASE}/api/v1/reviews/upload-photo`, {
     method: 'POST',
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -335,7 +395,7 @@ export async function createReview(
     photo_urls?: string[];
   },
 ): Promise<Review> {
-  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/reviews`, {
+  const res = await authFetch(`${API_BASE}/api/v1/places/${placeCode}/reviews`, {
     method: 'POST',
     headers: await authHeaders(),
     body: JSON.stringify(body),
@@ -350,7 +410,7 @@ export async function updateReview(
   reviewCode: string,
   body: { rating?: number; title?: string; body?: string },
 ): Promise<Review> {
-  const res = await fetch(`${API_BASE}/api/v1/reviews/${reviewCode}`, {
+  const res = await authFetch(`${API_BASE}/api/v1/reviews/${reviewCode}`, {
     method: 'PATCH',
     headers: await authHeaders(),
     body: JSON.stringify(body),
@@ -361,7 +421,7 @@ export async function updateReview(
 }
 
 export async function deleteReview(reviewCode: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/v1/reviews/${reviewCode}`, {
+  const res = await authFetch(`${API_BASE}/api/v1/reviews/${reviewCode}`, {
     method: 'DELETE',
     headers: await authHeaders(),
   });
@@ -373,7 +433,7 @@ export async function deleteReview(reviewCode: string): Promise<void> {
 
 // Groups
 export async function getGroups(): Promise<Group[]> {
-  const res = await fetch(`${API_BASE}/api/v1/groups`, { headers: await authHeaders() });
+  const res = await authFetch(`${API_BASE}/api/v1/groups`, { headers: await authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch groups');
   return res.json();
 }
@@ -383,7 +443,7 @@ export async function createGroup(body: {
   description?: string;
   is_private?: boolean;
 }): Promise<Group & { invite_code: string }> {
-  const res = await fetch(`${API_BASE}/api/v1/groups`, {
+  const res = await authFetch(`${API_BASE}/api/v1/groups`, {
     method: 'POST',
     headers: await authHeaders(),
     body: JSON.stringify(body),
@@ -394,7 +454,7 @@ export async function createGroup(body: {
 }
 
 export async function getGroup(groupCode: string): Promise<Group> {
-  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}`, {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}`, {
     headers: await authHeaders(),
   });
   const data = await res.json();
@@ -402,10 +462,24 @@ export async function getGroup(groupCode: string): Promise<Group> {
   return data;
 }
 
+export async function updateGroup(
+  groupCode: string,
+  body: { name?: string; description?: string; is_private?: boolean },
+): Promise<Group> {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}`, {
+    method: 'PATCH',
+    headers: await authHeaders(),
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? 'Failed to update group');
+  return data;
+}
+
 export async function getGroupByInviteCode(
   inviteCode: string,
 ): Promise<{ group_code: string; name: string }> {
-  const res = await fetch(`${API_BASE}/api/v1/groups/by-invite/${inviteCode}`, {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/by-invite/${inviteCode}`, {
     headers: await authHeaders(),
   });
   const data = await res.json();
@@ -416,7 +490,7 @@ export async function getGroupByInviteCode(
 export async function joinGroupByCode(
   inviteCode: string,
 ): Promise<{ ok: boolean; group_code: string }> {
-  const res = await fetch(`${API_BASE}/api/v1/groups/join-by-code`, {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/join-by-code`, {
     method: 'POST',
     headers: await authHeaders(),
     body: JSON.stringify({ invite_code: inviteCode }),
@@ -427,7 +501,7 @@ export async function joinGroupByCode(
 }
 
 export async function joinGroup(groupCode: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/join`, {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/join`, {
     method: 'POST',
     headers: await authHeaders(),
   });
@@ -435,7 +509,7 @@ export async function joinGroup(groupCode: string): Promise<void> {
 }
 
 export async function getGroupMembers(groupCode: string): Promise<GroupMember[]> {
-  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/members`, {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/members`, {
     headers: await authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch members');
@@ -445,7 +519,7 @@ export async function getGroupMembers(groupCode: string): Promise<GroupMember[]>
 export async function createGroupInvite(
   groupCode: string,
 ): Promise<{ invite_code: string; invite_url: string }> {
-  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/invite`, {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/invite`, {
     method: 'POST',
     headers: await authHeaders(),
   });
@@ -455,7 +529,7 @@ export async function createGroupInvite(
 }
 
 export async function getGroupLeaderboard(groupCode: string): Promise<LeaderboardEntry[]> {
-  const res = await fetch(`${API_BASE}/api/v1/groups/${groupCode}/leaderboard`, {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/leaderboard`, {
     headers: await authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch leaderboard');
@@ -464,7 +538,7 @@ export async function getGroupLeaderboard(groupCode: string): Promise<Leaderboar
 
 export async function getGroupActivity(groupCode: string, limit?: number): Promise<ActivityItem[]> {
   const url = `${API_BASE}/api/v1/groups/${groupCode}/activity${limit != null ? `?limit=${limit}` : ''}`;
-  const res = await fetch(url, { headers: await authHeaders() });
+  const res = await authFetch(url, { headers: await authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch activity');
   return res.json();
 }
@@ -477,7 +551,7 @@ export async function getNotifications(
   const sp = new URLSearchParams();
   if (limit != null) sp.set('limit', String(limit));
   if (offset != null) sp.set('offset', String(offset));
-  const res = await fetch(`${API_BASE}/api/v1/notifications?${sp}`, {
+  const res = await authFetch(`${API_BASE}/api/v1/notifications?${sp}`, {
     headers: await authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch notifications');
@@ -485,7 +559,7 @@ export async function getNotifications(
 }
 
 export async function markNotificationRead(notificationCode: string): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/v1/notifications/${notificationCode}/read`, {
+  const res = await authFetch(`${API_BASE}/api/v1/notifications/${notificationCode}/read`, {
     method: 'PATCH',
     headers: await authHeaders(),
   });
