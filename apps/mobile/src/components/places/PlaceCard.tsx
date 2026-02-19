@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -49,20 +49,21 @@ function PlaceCard({ place, compact = false, isActive = false }: PlaceCardProps)
   const isUnknown = openStatus === 'unknown';
 
   // Carousel state for regular variant
-  const flatRef = useRef<FlatList>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const [imgIdx, setImgIdx] = useState(0);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   useEffect(() => {
-    if (compact || images.length <= 1 || !isActive) return;
+    if (compact || images.length <= 1 || !isActive || containerWidth === 0) return;
     const id = setInterval(() => {
       setImgIdx((prev) => {
         const next = (prev + 1) % images.length;
-        flatRef.current?.scrollToIndex({ index: next, animated: true });
+        scrollRef.current?.scrollTo({ x: next * containerWidth, animated: true });
         return next;
       });
     }, 3000);
     return () => clearInterval(id);
-  }, [compact, images.length, isActive]);
+  }, [compact, images.length, isActive, containerWidth]);
 
   if (compact) {
     return (
@@ -141,31 +142,43 @@ function PlaceCard({ place, compact = false, isActive = false }: PlaceCardProps)
     >
       {/* Image carousel (or single image) */}
       {images.length > 1 ? (
-        <FlatList
-          ref={flatRef}
-          data={images}
-          keyExtractor={(_, i) => String(i)}
-          horizontal
-          pagingEnabled
-          scrollEnabled
-          showsHorizontalScrollIndicator={false}
+        <View
           style={StyleSheet.absoluteFill}
-          renderItem={({ item }) => (
+          onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
+        >
+          {containerWidth > 0 ? (
+            <ScrollView
+              ref={scrollRef}
+              horizontal
+              pagingEnabled
+              scrollEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => {
+                if (containerWidth > 0) {
+                  setImgIdx(Math.round(e.nativeEvent.contentOffset.x / containerWidth));
+                }
+              }}
+            >
+              {images.map((src, i) => (
+                <Image
+                  key={i}
+                  source={{ uri: src }}
+                  style={{ width: containerWidth, height: 280 }}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={200}
+                />
+              ))}
+            </ScrollView>
+          ) : (
             <Image
-              source={{ uri: item }}
-              style={styles.carouselImage}
+              source={{ uri: images[0] }}
+              style={StyleSheet.absoluteFill}
               contentFit="cover"
               cachePolicy="memory-disk"
-              transition={200}
             />
           )}
-          onMomentumScrollEnd={(e) => {
-            const newIdx = Math.round(
-              e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width,
-            );
-            setImgIdx(newIdx);
-          }}
-        />
+        </View>
       ) : images.length === 1 ? (
         <Image
           source={{ uri: images[0] }}
@@ -368,10 +381,6 @@ const styles = StyleSheet.create({
     borderRadius: tokens.borderRadius['3xl'], // 24px – large card outer
     overflow: 'hidden',
     ...tokens.shadow.card,
-  },
-  carouselImage: {
-    width: '100%',
-    height: 280,
   },
   imageFallback: {
     alignItems: 'center',

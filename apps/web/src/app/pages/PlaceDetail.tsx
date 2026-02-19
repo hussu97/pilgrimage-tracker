@@ -555,7 +555,7 @@ export default function PlaceDetail() {
           <div
             className="flex h-full transition-transform duration-500 ease-in-out absolute inset-0"
             style={{
-              transform: `translateX(-${heroIdx * 100}%)`,
+              transform: `translateX(-${heroIdx * (100 / heroImages.length)}%)`,
               width: `${heroImages.length * 100}%`,
             }}
           >

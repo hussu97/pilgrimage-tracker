@@ -171,7 +171,10 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
         {images.length > 0 ? (
           <div
             className="flex h-full transition-transform duration-500 ease-in-out"
-            style={{ transform: `translateX(-${imgIdx * 100}%)`, width: `${images.length * 100}%` }}
+            style={{
+              transform: `translateX(-${imgIdx * (100 / images.length)}%)`,
+              width: `${images.length * 100}%`,
+            }}
           >
             {images.map((src, i) => (
               <img

@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  FlatList,
   ActivityIndicator,
   Alert,
   Animated,
@@ -81,7 +80,8 @@ export default function PlaceDetailScreen() {
   const [storyExpanded, setStoryExpanded] = useState(false);
   const [hoursExpanded, setHoursExpanded] = useState(false);
   const [heroIdx, setHeroIdx] = useState(0);
-  const heroFlatRef = useRef<FlatList>(null);
+  const heroScrollRef = useRef<ScrollView>(null);
+  const [heroWidth, setHeroWidth] = useState(0);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const checkInScale = useRef(new Animated.Value(1)).current;
@@ -130,16 +130,16 @@ export default function PlaceDetailScreen() {
   // Hero carousel auto-swipe
   useEffect(() => {
     const len = place?.images?.length ?? 0;
-    if (len <= 1) return;
+    if (len <= 1 || heroWidth === 0) return;
     const id = setInterval(() => {
       setHeroIdx((prev) => {
         const next = (prev + 1) % len;
-        heroFlatRef.current?.scrollToIndex({ index: next, animated: true });
+        heroScrollRef.current?.scrollTo({ x: next * heroWidth, animated: true });
         return next;
       });
     }, 3000);
     return () => clearInterval(id);
-  }, [place?.images?.length]);
+  }, [place?.images?.length, heroWidth]);
 
   const doActualToggleFavorite = useCallback(async () => {
     if (!placeCode || !place) return;
@@ -301,33 +301,44 @@ export default function PlaceDetailScreen() {
   return (
     <View style={[styles.container, { backgroundColor: cardBg }]}>
       {/* Hero (fixed behind content) */}
-      <Animated.View style={[styles.heroFixed, { transform: [{ translateY: heroTranslateY }] }]}>
+      <Animated.View
+        style={[styles.heroFixed, { transform: [{ translateY: heroTranslateY }] }]}
+        onLayout={(e) => setHeroWidth(e.nativeEvent.layout.width)}
+      >
         {heroImages.length > 1 ? (
-          <FlatList
-            ref={heroFlatRef}
-            data={heroImages}
-            keyExtractor={(_, i) => String(i)}
-            horizontal
-            pagingEnabled
-            scrollEnabled
-            showsHorizontalScrollIndicator={false}
-            style={StyleSheet.absoluteFill}
-            renderItem={({ item }) => (
-              <ExpoImage
-                source={{ uri: item }}
-                style={styles.heroCarouselImage}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-                transition={200}
-              />
-            )}
-            onMomentumScrollEnd={(e) => {
-              const newIdx = Math.round(
-                e.nativeEvent.contentOffset.x / e.nativeEvent.layoutMeasurement.width,
-              );
-              setHeroIdx(newIdx);
-            }}
-          />
+          heroWidth > 0 ? (
+            <ScrollView
+              ref={heroScrollRef}
+              horizontal
+              pagingEnabled
+              scrollEnabled
+              showsHorizontalScrollIndicator={false}
+              style={StyleSheet.absoluteFill}
+              onMomentumScrollEnd={(e) => {
+                if (heroWidth > 0) {
+                  setHeroIdx(Math.round(e.nativeEvent.contentOffset.x / heroWidth));
+                }
+              }}
+            >
+              {heroImages.map((src, i) => (
+                <ExpoImage
+                  key={i}
+                  source={{ uri: src }}
+                  style={{ width: heroWidth, height: HERO_HEIGHT }}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={200}
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <ExpoImage
+              source={{ uri: heroImages[0] }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              cachePolicy="memory-disk"
+            />
+          )
         ) : heroImage ? (
           <ExpoImage
             source={{ uri: heroImage }}
@@ -723,10 +734,6 @@ function makeStyles(isDark: boolean) {
       backgroundColor: '#1a2e2e',
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    heroCarouselImage: {
-      width: '100%',
-      height: HERO_HEIGHT,
     },
     heroDots: {
       position: 'absolute',
