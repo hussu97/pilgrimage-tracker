@@ -54,15 +54,15 @@ Issues that significantly affect code quality, maintainability, user experience,
 
 ### Backend Quality
 
-- [ ] **Replace `print()` with structured logging**
+- [x] **Replace `print()` with structured logging**
   - Multiple files use `print()` for error output and debugging (e.g., `auth.py:66` logs password reset tokens to console, `places.py:455` prints image storage failures).
   - Fix: Use Python's `logging` module (or `structlog` for JSON output). Configure log levels per environment. Never log sensitive tokens in production.
 
-- [ ] **Fix bare `except` clauses**
+- [x] **Fix bare `except` clauses**
   - Files: `server/app/api/v1/auth.py` (lines 127-128, 163-164) — catches `Exception` with `pass` during visitor merge.
   - Fix: Catch specific exceptions (`ValueError`, `HTTPException`) instead of silencing all errors.
 
-- [ ] **Add Alembic downgrade functions**
+- [x] **Add Alembic downgrade functions**
   - Migration files `0001_initial.py` and `0002_add_visitor.py` have `upgrade()` but empty `downgrade()`.
   - Fix: Implement `downgrade()` with `op.drop_table()` calls for safe rollbacks.
 
@@ -128,8 +128,8 @@ Issues that significantly affect code quality, maintainability, user experience,
 ### Error Handling
 
 - [ ] **Integrate error tracking service**
-  - Both web and mobile ErrorBoundary components have TODO comments for Sentry/LogRocket integration.
-  - Fix: Add `@sentry/react` (web) and `@sentry/react-native` (mobile). Configure DSN via environment variables. Send caught errors from ErrorBoundary `componentDidCatch`.
+  - Both web and mobile ErrorBoundary components have TODO comments for error tracking integration.
+  - Fix: Self-host **GlitchTip** (open-source, free, Sentry-compatible — https://glitchtip.com). Use `@sentry/react` (web) and `@sentry/react-native` (mobile) pointed at the GlitchTip DSN. Configure DSN via environment variables. Send caught errors from ErrorBoundary `componentDidCatch`.
 
 - [ ] **Add network error feedback on mobile**
   - API call failures show no user-facing feedback — loading states persist indefinitely on network errors.
@@ -227,7 +227,7 @@ Infrastructure, code quality, and optimization work to prepare for production sc
 
 - [ ] **Monitoring and structured logging**
   - No structured logging. Errors are printed to stdout and lost.
-  - Add structured JSON logging with `structlog` or `python-json-logger`. Integrate Sentry for error tracking. Add request ID tracing across services. Set up basic dashboards for request latency, error rate, and database query time.
+  - Add structured JSON logging with `structlog` or `python-json-logger`. Integrate **GlitchTip** (open-source, self-hostable error tracking — https://glitchtip.com) for error tracking. Add request ID tracing across services. Set up basic dashboards for request latency, error rate, and database query time.
 
 - [ ] **CDN for images**
   - Place and review images are stored as database blobs (`LargeBinary` in models.py). This causes database bloat and poor performance at scale.

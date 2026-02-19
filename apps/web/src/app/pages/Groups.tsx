@@ -34,7 +34,7 @@ function progressLevel(sites: number, total: number, t: (key: string) => string)
   if (pct >= 40) return t('groups.level').replace('{level}', '3');
   if (pct >= 20) return t('groups.level').replace('{level}', '2');
   if (sites > 0) return t('groups.level').replace('{level}', '1');
-  return 'New';
+  return t('groups.progressNew');
 }
 
 export default function Groups() {

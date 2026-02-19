@@ -248,7 +248,7 @@ interface I18nContextValue {
   ready: boolean;
 }
 
-const I18nContext = createContext<I18nContextValue | null>(null);
+export const I18nContext = createContext<I18nContextValue | null>(null);
 
 function resolveInitialLocale(list: { code: string; name: string }[]): LocaleCode {
   const codes = list.map((l) => l.code);

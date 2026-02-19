@@ -98,7 +98,7 @@ export default function CreateGroup() {
           />
           <button
             type="button"
-            onClick={() => shareUrl('Join our group', inviteUrlFull)}
+            onClick={() => shareUrl(t('groups.shareMessage'), inviteUrlFull)}
             className="px-4 py-3 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white font-medium shrink-0 hover:bg-soft-blue dark:hover:bg-dark-surface inline-flex items-center gap-1"
           >
             <span className="material-symbols-outlined">share</span>

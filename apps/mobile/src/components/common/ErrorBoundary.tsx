@@ -2,6 +2,7 @@ import type { ErrorInfo, ReactNode } from 'react';
 import { Component } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Appearance } from 'react-native';
 import { tokens } from '@/lib/theme';
+import { I18nContext } from '@/app/providers';
 
 interface Props {
   children: ReactNode;
@@ -54,20 +55,43 @@ export class ErrorBoundary extends Component<Props, State> {
       const iconWrapBg = isDark ? 'rgba(239,68,68,0.15)' : '#fee2e2';
 
       return (
-        <View style={[styles.container, { backgroundColor: bg }]}>
-          <View style={styles.content}>
-            <View style={[styles.iconWrap, { backgroundColor: iconWrapBg }]}>
-              <Text style={styles.icon}>⚠</Text>
-            </View>
-            <Text style={[styles.title, { color: titleColor }]}>Something went wrong</Text>
-            <Text style={[styles.message, { color: messageColor }]}>
-              {this.state.error?.message || 'An unexpected error occurred'}
-            </Text>
-            <TouchableOpacity onPress={this.handleReset} style={styles.button} activeOpacity={0.8}>
-              <Text style={styles.buttonText}>Try again</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <I18nContext.Consumer>
+          {(i18n) => {
+            const t =
+              i18n?.t ??
+              ((key: string) => {
+                const fallback: Record<string, string> = {
+                  'common.somethingWentWrong': 'Something went wrong',
+                  'common.tryAgain': 'Try again',
+                };
+                return fallback[key] ?? key;
+              });
+            return (
+              <View style={[styles.container, { backgroundColor: bg }]}>
+                <View style={styles.content}>
+                  <View style={[styles.iconWrap, { backgroundColor: iconWrapBg }]}>
+                    <Text style={styles.icon}>⚠</Text>
+                  </View>
+                  <Text style={[styles.title, { color: titleColor }]}>
+                    {t('common.somethingWentWrong')}
+                  </Text>
+                  <Text style={[styles.message, { color: messageColor }]}>
+                    {this.state.error?.message || 'An unexpected error occurred'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={this.handleReset}
+                    style={styles.button}
+                    activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.tryAgain')}
+                  >
+                    <Text style={styles.buttonText}>{t('common.tryAgain')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          }}
+        </I18nContext.Consumer>
       );
     }
 

@@ -17,14 +17,6 @@ interface UploadedImage {
 
 type LocationState = { edit?: Review } | null;
 
-const RATING_LABELS: Record<number, string> = {
-  1: 'Poor',
-  2: 'Fair',
-  3: 'Good',
-  4: 'Very Good',
-  5: 'Excellent',
-};
-
 export default function WriteReview() {
   const { placeCode } = useParams<{ placeCode: string }>();
   const navigate = useNavigate();
@@ -227,7 +219,18 @@ export default function WriteReview() {
                 </button>
               ))}
               <span className="ml-3 text-sm text-text-muted font-light italic">
-                {rating ? RATING_LABELS[rating] : ''}
+                {rating
+                  ? t(
+                      [
+                        '',
+                        'writeReview.ratingPoor',
+                        'writeReview.ratingFair',
+                        'writeReview.ratingGood',
+                        'writeReview.ratingVeryGood',
+                        'writeReview.ratingExcellent',
+                      ][rating],
+                    )
+                  : ''}
               </span>
             </div>
           </section>

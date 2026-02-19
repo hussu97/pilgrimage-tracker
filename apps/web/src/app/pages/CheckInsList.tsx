@@ -5,7 +5,13 @@ import { getMyCheckIns, getOnThisDayCheckIns, getThisMonthCheckIns } from '@/lib
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { CheckIn } from '@/lib/types';
 
-const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+/** Get locale-aware single-letter weekday abbreviations starting from Sunday. */
+function getWeekdayLabels(locale: string): string[] {
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(2023, 0, 1 + i); // 2023-01-01 is a Sunday
+    return new Intl.DateTimeFormat(locale, { weekday: 'narrow' }).format(date);
+  });
+}
 
 function getDatesWithCheckIns(checkIns: CheckIn[]): Set<string> {
   const set = new Set<string>();
@@ -111,7 +117,7 @@ function CheckInCard({ c }: { c: CheckIn }) {
 }
 
 export default function CheckInsList() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const navigate = useNavigate();
   const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
   const [onThisDay, setOnThisDay] = useState<CheckIn[]>([]);
@@ -144,6 +150,7 @@ export default function CheckInsList() {
     fetchList();
   }, [fetchList]);
 
+  const weekdayLabels = useMemo(() => getWeekdayLabels(locale), [locale]);
   const datesSet = useMemo(() => getDatesWithCheckIns(checkIns), [checkIns]);
   const totalCount = checkIns.length;
   const now = new Date();
@@ -338,7 +345,7 @@ export default function CheckInsList() {
             </div>
             <div className="bg-white dark:bg-dark-surface rounded-[1.5rem] p-4 shadow-subtle border border-slate-100 dark:border-dark-border">
               <div className="grid grid-cols-7 gap-y-4 text-center text-xs mb-2">
-                {WEEKDAY_LABELS.map((l, i) => (
+                {weekdayLabels.map((l, i) => (
                   <span key={i} className="text-slate-400 font-medium">
                     {l}
                   </span>

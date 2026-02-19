@@ -22,7 +22,7 @@ type MainTabParamList = {
   Profile: undefined;
 };
 
-function formatRelative(iso: string | null | undefined): string {
+function formatRelative(iso: string | null | undefined, t: (key: string) => string): string {
   if (!iso) return '';
   try {
     const d = new Date(iso);
@@ -31,27 +31,26 @@ function formatRelative(iso: string | null | undefined): string {
     const diffM = Math.floor(diffMs / 60000);
     const diffH = Math.floor(diffM / 60);
     const diffD = Math.floor(diffH / 24);
-    if (diffM < 1) return 'just now';
-    if (diffM < 60) return `${diffM}m ago`;
-    if (diffH < 24) return `${diffH}h ago`;
-    if (diffD === 1) return '1d ago';
-    if (diffD < 7) return `${diffD}d ago`;
+    if (diffM < 1) return t('common.timeJustNow');
+    if (diffM < 60) return t('common.timeMinutesAgo').replace('{count}', String(diffM));
+    if (diffH < 24) return t('common.timeHoursAgo').replace('{count}', String(diffH));
+    if (diffD < 7) return t('common.timeDaysAgo').replace('{count}', String(Math.max(1, diffD)));
     return d.toLocaleDateString();
   } catch {
     return '';
   }
 }
 
-function progressLevel(sites: number, total: number): string {
+function progressLevel(sites: number, total: number, t: (key: string) => string): string {
   if (total <= 0) return '';
   const pct = Math.floor((sites / total) * 100);
-  if (pct >= 100) return 'Done';
-  if (pct >= 80) return 'Lvl 5';
-  if (pct >= 60) return 'Lvl 4';
-  if (pct >= 40) return 'Lvl 3';
-  if (pct >= 20) return 'Lvl 2';
-  if (sites > 0) return 'Lvl 1';
-  return 'New';
+  if (pct >= 100) return t('groups.progressDone');
+  if (pct >= 80) return t('groups.level').replace('{level}', '5');
+  if (pct >= 60) return t('groups.level').replace('{level}', '4');
+  if (pct >= 40) return t('groups.level').replace('{level}', '3');
+  if (pct >= 20) return t('groups.level').replace('{level}', '2');
+  if (sites > 0) return t('groups.level').replace('{level}', '1');
+  return t('groups.progressNew');
 }
 
 function makeStyles(isDark: boolean) {
@@ -475,8 +474,8 @@ export default function GroupsScreen() {
               const total = g.total_sites ?? 0;
               const visited = g.sites_visited ?? 0;
               const pct = total > 0 ? Math.min(100, Math.round((visited / total) * 100)) : 0;
-              const level = progressLevel(visited, total);
-              const lastActive = formatRelative(g.last_activity ?? undefined);
+              const level = progressLevel(visited, total, t);
+              const lastActive = formatRelative(g.last_activity ?? undefined, t);
               return (
                 <TouchableOpacity
                   key={g.group_code}

@@ -13,12 +13,12 @@ function notificationIcon(type: string): string {
   return 'notifications';
 }
 
-function notificationTitle(n: Notification): string {
+function notificationTitle(n: Notification, t: (key: string) => string): string {
   const p = n.payload as Record<string, unknown> | undefined;
   if (p && typeof p.title === 'string') return p.title;
-  if (n.type === 'check_in' || n.type?.includes('check')) return 'Check-in';
-  if (n.type?.includes('group')) return 'Group update';
-  return 'Notification';
+  if (n.type === 'check_in' || n.type?.includes('check')) return t('notifications.typeCheckIn');
+  if (n.type?.includes('group')) return t('notifications.typeGroupUpdate');
+  return t('notifications.typeDefault');
 }
 
 function notificationBody(n: Notification): string {
@@ -109,7 +109,7 @@ export default function NotificationsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-text-main dark:text-white">
-                    {notificationTitle(n)}
+                    {notificationTitle(n, t)}
                   </p>
                   {notificationBody(n) && (
                     <p className="text-sm text-text-muted dark:text-dark-text-secondary mt-0.5">
