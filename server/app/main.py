@@ -1,7 +1,7 @@
 import os
 import traceback
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 
 # Load .env before any app module is imported (session.py reads DATABASE_URL
 # at import time, so this must come first).
@@ -124,7 +124,7 @@ def log_error(
     request: Request, status_code: int, error_type: str, detail: str, exc: Exception = None
 ):
     """Log error details to console"""
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now(UTC).isoformat()
     print(f"\n{'=' * 80}")
     print(f"[{timestamp}] {error_type} - {status_code}")
     print(f"Path: {request.method} {request.url.path}")

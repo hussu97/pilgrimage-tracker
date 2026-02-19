@@ -15,11 +15,71 @@ router = APIRouter()
 @router.get("")
 def list_groups(user: UserDep, session: SessionDep):
     group_list = groups_db.get_groups_for_user(user.user_code, session)
+    if not group_list:
+        return []
+
+    group_codes = [g.group_code for g in group_list]
+
+    # Batch-fetch all members for all groups (1 query)
+    all_members = groups_db.get_members_bulk(group_codes, session)
+
+    # Collect all unique user codes across all groups
+    all_user_codes = {uc for members in all_members.values() for uc, _, _ in members}
+
+    # Batch-fetch all check-ins for all member users (1 query)
+    all_check_ins = check_ins_db.get_check_ins_for_users(list(all_user_codes), session)
+
+    # Build per-user check-in lookup
+    check_ins_by_user: dict[str, list] = {}
+    for chk in all_check_ins:
+        check_ins_by_user.setdefault(chk.user_code, []).append(chk)
+
+    # Collect all path place codes across all groups for progress computation
+    all_path_codes = {pc for g in group_list for pc in (g.path_place_codes or [])}
+
+    # Batch-fetch path place names (1 query)
+    path_places: dict[str, object] = {}
+    if all_path_codes:
+        path_place_list = places_db.get_places_by_codes(list(all_path_codes), session)
+        path_places = {p.place_code: p for p in path_place_list}
+
     out = []
     for i, g in enumerate(group_list):
-        members = groups_db.get_members(g.group_code, session)
-        last_activity = groups_db.get_last_activity(g.group_code, check_ins_db, session)
-        progress = groups_db.get_group_progress(g.group_code, check_ins_db, places_db, session)
+        members = all_members.get(g.group_code, [])
+        member_user_codes = {uc for uc, _, _ in members}
+
+        # Compute last_activity: latest check-in timestamp among all group members
+        last_activity = None
+        for uc in member_user_codes:
+            for chk in check_ins_by_user.get(uc, []):
+                chk_time = chk.checked_in_at.isoformat() + "Z"
+                if last_activity is None or chk_time > last_activity:
+                    last_activity = chk_time
+
+        # Compute progress using pre-fetched check-ins
+        visited_by_group = {
+            chk.place_code
+            for uc in member_user_codes
+            for chk in check_ins_by_user.get(uc, [])
+        }
+        path = g.path_place_codes or []
+        if path:
+            sites_visited = sum(1 for pc in path if pc in visited_by_group)
+            total_sites = len(path)
+            next_place_code = None
+            next_place_name = None
+            for pc in path:
+                if pc not in visited_by_group:
+                    next_place_code = pc
+                    place = path_places.get(pc)
+                    next_place_name = place.name if place else pc
+                    break
+        else:
+            sites_visited = len(visited_by_group)
+            total_sites = 0
+            next_place_code = None
+            next_place_name = None
+
         out.append(
             {
                 "group_code": g.group_code,
@@ -31,10 +91,10 @@ def list_groups(user: UserDep, session: SessionDep):
                 "created_at": g.created_at,
                 "member_count": len(members),
                 "last_activity": last_activity,
-                "sites_visited": progress["sites_visited"],
-                "total_sites": progress["total_sites"],
-                "next_place_code": progress["next_place_code"],
-                "next_place_name": progress["next_place_name"],
+                "sites_visited": sites_visited,
+                "total_sites": total_sites,
+                "next_place_code": next_place_code,
+                "next_place_name": next_place_name,
                 "featured": i == 0,
             }
         )

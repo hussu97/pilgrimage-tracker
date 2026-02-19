@@ -10,7 +10,7 @@ Issues that will cause failures, deprecation breakage, or significant performanc
 
 ### Deprecated Code
 
-- [ ] **Replace all `datetime.utcnow()` calls with `datetime.now(UTC)`**
+- [x] **Replace all `datetime.utcnow()` calls with `datetime.now(UTC)`**
   - `datetime.utcnow()` is deprecated in Python 3.12 and removed in Python 3.14. The codebase uses it in 10 files:
     - `server/app/core/security.py` (JWT expiration)
     - `server/app/db/store.py` (user updates, visitor timestamps, password resets)
@@ -24,27 +24,27 @@ Issues that will cause failures, deprecation breakage, or significant performanc
 
 ### Performance
 
-- [ ] **Fix N+1 query patterns in group listing**
+- [x] **Fix N+1 query patterns in group listing**
   - File: `server/app/api/v1/groups.py` (lines 15-41)
   - `list_groups` makes 3 separate DB calls per group (members, last activity, progress). With 100 groups this becomes 300+ queries.
   - Fix: Batch-fetch members, activity, and progress in single queries, then map results in Python.
 
-- [ ] **Fix N+1 query pattern in favorites endpoint**
+- [x] **Fix N+1 query pattern in favorites endpoint**
   - File: `server/app/api/v1/users.py` (lines 150-167)
   - `get_my_favorites` fetches each place and its images individually in a loop.
   - Fix: Use a single query with an `IN` clause for all favorite place codes, then batch-fetch images.
 
-- [ ] **Fix N+1 query pattern in place reviews**
+- [x] **Fix N+1 query pattern in place reviews**
   - File: `server/app/api/v1/places.py` (line 231)
   - `get_place_reviews` calls `get_review_images` per review in a loop.
   - Fix: Batch-fetch all review images for the place's reviews in one query.
 
 ### Incomplete Endpoints
 
-- [ ] **Implement place delete endpoint**
+- [x] **Implement place delete endpoint**
   - File: `server/app/api/v1/places.py` (lines 558-578)
-  - Currently returns 501 Not Implemented. Has 3 TODOs: authorization check (admin only), soft delete vs hard delete decision, and cascade deletion of images/reviews/check-ins.
-  - Fix: Add admin role check, implement soft delete with a `deleted_at` timestamp column, cascade-mark related records.
+  - Was returning 501 Not Implemented with no callers anywhere in the codebase.
+  - Decision: Removed the endpoint entirely rather than implementing it, as it was unused and unimplemented.
 
 ---
 
@@ -104,12 +104,12 @@ Issues that significantly affect code quality, maintainability, user experience,
 - [ ] **Expand web frontend test coverage**
   - Currently only 2 test files (96 lines) covering `cn()`, `crowdColorClass()`, and `getFullImageUrl()`.
   - Add tests for: API client methods, auth context provider, i18n context, theme context, `useAuthRequired` hook, `imageUpload` utility, `share` utility, place-utils transformers.
-  - Target: Match the 60% coverage threshold configured in `vitest.config.ts`.
+  - Target: Match the 85% coverage threshold configured in `vitest.config.ts`.
 
 - [ ] **Expand mobile frontend test coverage**
   - Currently only 1 test file (87 lines) covering `crowdColor()`, `getFullImageUrl()`, and constants.
   - Add tests for: API client methods, auth provider, i18n provider, theme provider, `useAuthRequired` hook, `imageUpload` utility (compression, validation), `mapBuilder`, `share` utility.
-  - Target: Match the 60% coverage threshold configured in `jest.config.js`.
+  - Target: Match the 85% coverage threshold configured in `jest.config.js`.
 
 ### Accessibility
 

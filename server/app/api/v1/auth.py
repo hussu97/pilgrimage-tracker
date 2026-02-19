@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import resend
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -225,7 +225,7 @@ def forgot_password(request: Request, body: ForgotPasswordBody, session: Session
     if not user:
         return {"ok": True, "message": "If an account exists, you will receive a reset link."}
     token = secrets.token_hex(32)
-    expires_at = datetime.utcnow() + timedelta(hours=1)
+    expires_at = datetime.now(UTC) + timedelta(hours=1)
     store.save_password_reset(token, user.user_code, expires_at, session)
     _send_reset_email(user.email, token)
     return {"ok": True, "message": "If an account exists, you will receive a reset link."}

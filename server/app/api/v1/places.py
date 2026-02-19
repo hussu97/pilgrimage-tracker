@@ -221,14 +221,18 @@ def get_place_reviews(
         raise HTTPException(status_code=404, detail="Place not found")
     rows = reviews_db.get_reviews_by_place(place_code, session, limit=limit, offset=offset)
 
-    # Fetch review images for all reviews in batch
     agg = reviews_db.get_aggregate_rating(place_code, session)
+
+    # Batch-fetch review images for all reviews in a single query
+    review_codes = [r.review_code for r in rows]
+    all_review_images = review_images.get_review_images_bulk(review_codes, session=session)
+
     out = []
     for r in rows:
         source = getattr(r, "source", "user")
 
-        # Fetch attached images for this review
-        review_image_urls = review_images.get_review_images(r.review_code, session=session)
+        # Use pre-fetched images for this review
+        review_image_urls = all_review_images.get(r.review_code, [])
         attached_urls = [img["url"] for img in review_image_urls]
 
         # Merge with external photo URLs
