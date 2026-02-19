@@ -55,6 +55,7 @@ Output: `dist/`. For production, set `VITE_API_URL` to the production API base U
 
 - **`VITE_API_URL`** – Optional. When **unset**, the app uses relative URLs (`/api/v1/...`), so in dev the Vite proxy sends them to the backend. When **set** (e.g. for production or a different backend port), all API requests use this base URL. **Use `127.0.0.1` only—not `localhost`** (localhost can resolve to IPv6 on macOS). Restart the dev server after changing env.
 - **`VITE_PROXY_TARGET`** – Optional. Proxy target for `/api` in dev (default `http://127.0.0.1:3000`). Use `127.0.0.1` only—not `localhost`. Restart the dev server after changing.
+- **`VITE_GLITCHTIP_DSN`** – Optional. GlitchTip (Sentry-compatible) DSN for error tracking. When unset, error tracking is disabled. Obtain from your GlitchTip project settings (e.g. `https://<key>@app.glitchtip.com/<project>`).
 
 ## Structure
 

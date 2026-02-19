@@ -37,9 +37,10 @@ export class ErrorBoundary extends Component<Props, State> {
     // Log error to console in development
     console.error('ErrorBoundary caught an error:', error, errorInfo);
 
-    // TODO: In production, send error to logging service (Sentry, Bugsnag, etc.)
-    // Example:
-    // logErrorToService(error, errorInfo);
+    // TODO: GlitchTip/Sentry integration requires a native build (not Expo Go).
+    // After running: npx expo install @sentry/react-native
+    // Uncomment and configure:
+    // Sentry.captureException(error, { extra: { componentStack: errorInfo.componentStack } });
   }
 
   handleReset = () => {

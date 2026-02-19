@@ -60,3 +60,13 @@ Configure `app.json` / `app.config.js` (icons, splash, scheme). Submit to App St
 - `screens/` – Screen components (e.g. `SettingsScreen` with language picker; add auth, home, places, groups, profile to match web flows).
 
 Design reference: `DESIGN_FILE.html` at repo root. Use the same translation keys and API shapes as `apps/web` (see `.cursor/rules/i18n-translations.mdc` and `.cursor/rules/frontend-replication.mdc`).
+
+## Error Tracking (GlitchTip / Sentry)
+
+GlitchTip integration requires native Sentry modules which need a full native build (not Expo Go). To enable:
+
+```bash
+npx expo install @sentry/react-native
+```
+
+Then follow the [Sentry React Native setup guide](https://docs.sentry.io/platforms/react-native/) to configure the DSN and wrap the root component. The `ErrorBoundary` component in `src/components/common/ErrorBoundary.tsx` already has a placeholder comment for `Sentry.captureException(error)` in `componentDidCatch`.
