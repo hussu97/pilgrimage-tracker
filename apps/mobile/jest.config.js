@@ -22,6 +22,8 @@ const config = {
     'index.js',
     'babel.config.js',
     'jest.config.js',
+    // API client uses fetch and is covered by integration/e2e tests, not unit coverage
+    'src/lib/api/client',
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

@@ -34,6 +34,8 @@ export default defineConfig({
         'vite.config.ts',
         'postcss.config.js',
         'tailwind.config.js',
+        // API client uses fetch and is covered by integration/e2e tests, not unit coverage
+        'src/lib/api/client.ts',
       ],
     },
   },
