@@ -104,12 +104,12 @@ Issues that significantly affect code quality, maintainability, user experience,
 - [ ] **Expand web frontend test coverage**
   - Currently only 2 test files (96 lines) covering `cn()`, `crowdColorClass()`, and `getFullImageUrl()`.
   - Add tests for: API client methods, auth context provider, i18n context, theme context, `useAuthRequired` hook, `imageUpload` utility, `share` utility, place-utils transformers.
-  - Target: Match the 60% coverage threshold configured in `vitest.config.ts`.
+  - Target: Match the 85% coverage threshold configured in `vitest.config.ts`.
 
 - [ ] **Expand mobile frontend test coverage**
   - Currently only 1 test file (87 lines) covering `crowdColor()`, `getFullImageUrl()`, and constants.
   - Add tests for: API client methods, auth provider, i18n provider, theme provider, `useAuthRequired` hook, `imageUpload` utility (compression, validation), `mapBuilder`, `share` utility.
-  - Target: Match the 60% coverage threshold configured in `jest.config.js`.
+  - Target: Match the 85% coverage threshold configured in `jest.config.js`.
 
 ### Accessibility
 
