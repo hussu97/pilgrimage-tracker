@@ -68,7 +68,7 @@ Issues that significantly affect code quality, maintainability, user experience,
 
 ### Internationalization (i18n)
 
-- [ ] **Fix remaining hardcoded UI strings on web**
+- [x] **Fix remaining hardcoded UI strings on web**
   - `apps/web/src/app/pages/WriteReview.tsx:20-26` — Rating labels ("Poor", "Fair", "Good", "Very Good", "Excellent")
   - `apps/web/src/app/pages/Notifications.tsx:19-21` — Notification type labels ("Check-in", "Group update", "Notification")
   - `apps/web/src/components/common/ErrorBoundary.tsx:58,68,74` — "Something went wrong", "Try again", "Go home"
@@ -77,7 +77,7 @@ Issues that significantly affect code quality, maintainability, user experience,
   - `apps/web/src/app/pages/CreateGroup.tsx:63` — Share message "Join our group"
   - Fix: Add translation keys to `seed_data.json` for all three languages. Replace hardcoded strings with `t()` calls.
 
-- [ ] **Fix remaining hardcoded UI strings on mobile**
+- [x] **Fix remaining hardcoded UI strings on mobile**
   - `apps/mobile/src/components/places/PlaceCard.tsx:150` — "Visited" badge text
   - `apps/mobile/src/components/places/PlaceCard.tsx:188` — "Check In" button text
   - `apps/mobile/src/components/common/ErrorBoundary.tsx:56` — "Something went wrong"
@@ -87,12 +87,12 @@ Issues that significantly affect code quality, maintainability, user experience,
 
 ### Dark Mode Compliance
 
-- [ ] **Fix dark mode token violations on web**
+- [x] **Fix dark mode token violations on web**
   - `apps/web/src/components/places/PlacesMap.tsx:186` — uses `dark:bg-gray-800` instead of `dark:bg-dark-surface`
   - `apps/web/src/components/common/ErrorBoundary.tsx:72` — uses `bg-gray-200 hover:bg-gray-300` instead of design tokens
   - Fix: Replace all `dark:bg-gray-*` / `dark:text-gray-*` with `dark:bg-dark-*` / `dark:text-dark-*` tokens per Rule 13.
 
-- [ ] **Fix dark mode compliance on mobile**
+- [x] **Fix dark mode compliance on mobile**
   - `apps/mobile/src/components/common/ErrorBoundary.tsx` — Hardcoded light colors (#fee2e2, #ef4444), no `isDark` support
   - `apps/mobile/src/components/places/PlaceCard.tsx` — Hardcoded colors (#1e293b, rgba overlays) without dark mode adaptation
   - `apps/mobile/src/app/screens/LoginScreen.tsx` — Static styles, no `makeStyles(isDark)` pattern
@@ -101,25 +101,25 @@ Issues that significantly affect code quality, maintainability, user experience,
 
 ### Testing
 
-- [ ] **Expand web frontend test coverage**
+- [x] **Expand web frontend test coverage**
   - Currently only 2 test files (96 lines) covering `cn()`, `crowdColorClass()`, and `getFullImageUrl()`.
   - Add tests for: API client methods, auth context provider, i18n context, theme context, `useAuthRequired` hook, `imageUpload` utility, `share` utility, place-utils transformers.
   - Target: Match the 85% coverage threshold configured in `vitest.config.ts`.
 
-- [ ] **Expand mobile frontend test coverage**
+- [x] **Expand mobile frontend test coverage**
   - Currently only 1 test file (87 lines) covering `crowdColor()`, `getFullImageUrl()`, and constants.
   - Add tests for: API client methods, auth provider, i18n provider, theme provider, `useAuthRequired` hook, `imageUpload` utility (compression, validation), `mapBuilder`, `share` utility.
   - Target: Match the 85% coverage threshold configured in `jest.config.js`.
 
 ### Accessibility
 
-- [ ] **Add accessibility attributes on mobile**
+- [x] **Add accessibility attributes on mobile**
   - Most `TouchableOpacity` buttons lack `accessibilityLabel` and `accessibilityRole`.
   - Check-in buttons, favorite toggles, filter chips, map controls, and list items need labels.
   - Modal overlays need `accessibilityRole="dialog"`.
   - Loading and error states should use live regions for screen reader announcements.
 
-- [ ] **Improve web accessibility**
+- [x] **Improve web accessibility**
   - Add `role="dialog"` and `aria-modal="true"` to modal components.
   - Add `aria-live="assertive"` to ErrorBoundary fallback for screen reader announcements.
   - Audit all interactive elements for keyboard navigation (tab order, Enter/Space activation).
@@ -127,11 +127,11 @@ Issues that significantly affect code quality, maintainability, user experience,
 
 ### Error Handling
 
-- [ ] **Integrate error tracking service**
+- [x] **Integrate error tracking service**
   - Both web and mobile ErrorBoundary components have TODO comments for error tracking integration.
   - Fix: Self-host **GlitchTip** (open-source, free, Sentry-compatible — https://glitchtip.com). Use `@sentry/react` (web) and `@sentry/react-native` (mobile) pointed at the GlitchTip DSN. Configure DSN via environment variables. Send caught errors from ErrorBoundary `componentDidCatch`.
 
-- [ ] **Add network error feedback on mobile**
+- [x] **Add network error feedback on mobile**
   - API call failures show no user-facing feedback — loading states persist indefinitely on network errors.
   - Fix: Add network status detection (`@react-native-community/netinfo`). Show toast or banner when offline. Retry failed requests with exponential backoff.
 

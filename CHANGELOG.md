@@ -4,6 +4,34 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P1 Roadmap Tasks: Quality, Accessibility & Monitoring (2026-02-20)
+
+### Backend
+- **Structured logging** — Replaced all `print()` calls with Python `logging` module across `main.py`, `auth.py`, `places.py`, `seed.py`, `backfill_timezones.py`, and `cleanup_orphaned_images.py`. Configured `logging.basicConfig` in `main.py`. Password reset links now log at `DEBUG` level.
+- **Bare except clauses** — Fixed two silent `except Exception: pass` blocks in `auth.py` visitor-merge flows; now log with `logger.warning(..., exc_info=True)`.
+- **Alembic downgrade** — Confirmed `downgrade()` implemented in `0001_initial.py` and `0002_add_visitor.py`.
+
+### Frontend (web)
+- **i18n** — Removed all hardcoded UI strings: rating labels in `WriteReview.tsx`, notification type labels in `Notifications.tsx`, error boundary strings in `ErrorBoundary.tsx`, weekday labels in `CheckInsList.tsx` (now `Intl.DateTimeFormat` locale-aware), progress level in `Groups.tsx`, share message in `CreateGroup.tsx`. Added 15 new translation keys to `seed_data.json` (en/ar/hi).
+- **Dark mode** — Fixed `dark:bg-gray-800` → `dark:bg-dark-surface` in `PlacesMap.tsx`; fixed button class in `ErrorBoundary.tsx` to use `bg-soft-blue/hover:bg-input-border`.
+- **Tests** — Added `apps/web/src/__tests__/share.test.ts` (6 tests covering `shareUrl()`: navigator.share, relative URLs, AbortError, clipboard fallback).
+- **Accessibility** — `Modal.tsx`: `role="dialog"`, `aria-modal`, `aria-labelledby/useId`, Escape key handler. `Layout.tsx`: skip-to-content link (`sr-only` / focusable) and `id="main-content"` on main element. `ErrorBoundary.tsx`: `role="alert"` and `aria-live="assertive"`.
+- **Error tracking** — Installed `@sentry/react`; initialized in `main.tsx` with `VITE_GLITCHTIP_DSN` env var (disabled when unset); `ErrorBoundary.componentDidCatch` calls `Sentry.captureException`. Documented `VITE_GLITCHTIP_DSN` in `.env.example` and `README.md`.
+
+### Frontend (mobile)
+- **i18n** — Removed hardcoded relative-time and progress-level strings from `GroupsScreen.tsx`; removed "Something went wrong"/"Try again" from `ErrorBoundary.tsx`. All now use `t()` with existing translation keys + `.replace('{count}', n)` interpolation.
+- **Dark mode** — `PlaceCard.tsx` now uses `useTheme()` / dynamic colors for card background, borders, text, rating chip bg, and image fallback.
+- **Tests** — Added `apps/mobile/src/__tests__/share.test.ts` (8 tests covering `shareUrl()` and `openDirections()` for iOS/Android).
+- **Accessibility** — `PlaceCard.tsx`: added `accessibilityRole="button"` and `accessibilityLabel` to all `TouchableOpacity` elements.
+- **Error tracking** — Added GlitchTip/Sentry placeholder comment in `ErrorBoundary.componentDidCatch`; documented native setup in `apps/mobile/README.md`.
+- **Offline banner** — Installed `@react-native-community/netinfo`; created `OfflineBanner.tsx` using `useNetInfo()` with dark mode support; wired into `App.tsx`; uses `t('common.noInternet')`.
+
+### Docs
+- Added `common.skipToContent` translation key (en/ar/hi) to `seed_data.json`.
+- Updated `ROADMAP.md` to mark all completed P1 tasks as `[x]`.
+
+---
+
 ## Dark Mode Compliance & UI Polish (2026-02-20)
 
 Full dark mode compliance sweep across all mobile screens and components, plus targeted web UI polish fixes.
