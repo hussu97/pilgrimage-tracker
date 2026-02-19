@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from app.db import place_attributes as attr_db
 from app.db import place_images, store
 from app.db import places as places_db
 from app.db.session import Session, engine
+
+logger = logging.getLogger(__name__)
 
 _DEFAULT_SEED_PATH = Path(__file__).parent / "seed_data.json"
 
@@ -163,4 +166,4 @@ if __name__ == "__main__":
     _clear_stores()
     run_seed_system()
     run_seed_demo()
-    print("Seed completed.")
+    logger.info("Seed completed.")

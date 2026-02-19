@@ -1,4 +1,5 @@
 import base64
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Response
@@ -17,6 +18,8 @@ from app.models.schemas import CheckInBody, PlaceBatch, PlaceCreate, ReviewCreat
 from app.services.place_specifications import build_specifications
 from app.services.place_timings import build_timings
 from app.services.timezone_utils import get_today_name
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -500,7 +503,9 @@ def batch_create_places(
                             place_data.place_code, data, mime_type, display_order=i, session=session
                         )
                     except Exception as e:
-                        print(f"Failed to store image blob for {place_data.place_code}: {e}")
+                        logger.error(
+                            "Failed to store image blob for %s: %s", place_data.place_code, e
+                        )
             elif place_data.image_urls:
                 place_images.set_images_from_urls(
                     place_data.place_code, place_data.image_urls, session=session
@@ -583,7 +588,7 @@ def create_place(
                     body.place_code, data, mime_type, display_order=i, session=session
                 )
             except Exception as e:
-                print(f"Failed to store image blob: {e}")
+                logger.error("Failed to store image blob: %s", e)
     elif body.image_urls:
         # Fallback to URL-based images if no blobs provided
         place_images.set_images_from_urls(body.place_code, body.image_urls, session=session)

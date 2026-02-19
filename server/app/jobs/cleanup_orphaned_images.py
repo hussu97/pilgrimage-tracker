@@ -8,10 +8,14 @@ Deletes review images that:
 Run this job daily via cron or scheduler.
 """
 
+import logging
+
 from sqlmodel import Session
 
 from app.db import review_images
 from app.db.session import engine
+
+logger = logging.getLogger(__name__)
 
 
 def run_cleanup(max_age_hours: int = 24) -> dict:
@@ -38,5 +42,6 @@ def run_cleanup(max_age_hours: int = 24) -> dict:
 
 if __name__ == "__main__":
     # Can be run directly: python -m app.jobs.cleanup_orphaned_images
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     result = run_cleanup()
-    print(f"Cleanup completed. Deleted {result['deleted_count']} orphaned images.")
+    logger.info("Cleanup completed. Deleted %d orphaned images.", result["deleted_count"])

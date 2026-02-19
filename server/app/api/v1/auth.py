@@ -1,3 +1,4 @@
+import logging
 import secrets
 from datetime import UTC, datetime, timedelta
 
@@ -23,6 +24,8 @@ from app.models.schemas import (
     ResetPasswordBody,
     UserResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -63,7 +66,7 @@ def _send_reset_email(to_email: str, reset_token: str) -> None:
 
     if not RESEND_API_KEY:
         # Development fallback – never log tokens in production
-        print(f"[DEV] Password reset link for {to_email}: {reset_link}")
+        logger.debug("[DEV] Password reset link for %s: %s", to_email, reset_link)
         return
 
     resend.api_key = RESEND_API_KEY
@@ -82,7 +85,7 @@ def _send_reset_email(to_email: str, reset_token: str) -> None:
         )
     except Exception as exc:
         # Log but don't surface internal details to the caller
-        print(f"[ERROR] Failed to send password reset email to {to_email}: {exc}")
+        logger.error("Failed to send password reset email to %s: %s", to_email, exc)
 
 
 # ─── routes ───────────────────────────────────────────────────────────────────
@@ -124,8 +127,8 @@ def register(request: Request, body: RegisterBody, session: SessionDep):
     if body.visitor_code:
         try:
             store.merge_visitor_into_user(body.visitor_code, user_code, session)
-        except Exception:
-            pass  # ignore missing/invalid visitor codes
+        except Exception as exc:
+            logger.warning("Visitor merge failed during register: %s", exc, exc_info=True)
     access_token = create_access_token(user_code)
     refresh = create_refresh_token(user_code)
     store.save_refresh_token(refresh, user_code, session)
@@ -160,8 +163,8 @@ def login(request: Request, body: LoginBody, session: SessionDep):
     if body.visitor_code:
         try:
             store.merge_visitor_into_user(body.visitor_code, user.user_code, session)
-        except Exception:
-            pass  # ignore missing/invalid visitor codes
+        except Exception as exc:
+            logger.warning("Visitor merge failed during login: %s", exc, exc_info=True)
     access_token = create_access_token(user.user_code)
     refresh = create_refresh_token(user.user_code)
     store.save_refresh_token(refresh, user.user_code, session)

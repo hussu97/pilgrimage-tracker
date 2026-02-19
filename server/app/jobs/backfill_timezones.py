@@ -9,6 +9,7 @@ This script:
 Run this script once after deploying the timezone handling changes.
 """
 
+import logging
 import os
 import sys
 from datetime import datetime, timedelta
@@ -17,9 +18,11 @@ from typing import Any
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from sqlmodel import Session, create_engine, select
+from sqlmodel import Session, create_engine, select  # noqa: E402
 
-from app.db.models import Place
+from app.db.models import Place  # noqa: E402
+
+logger = logging.getLogger(__name__)
 
 
 def parse_time_range(time_str: str) -> tuple[str | None, str | None]:
@@ -107,7 +110,7 @@ def backfill_timezones(database_url: str):
         statement = select(Place).where(Place.utc_offset_minutes.is_(None))
         places = session.exec(statement).all()
 
-        print(f"Found {len(places)} places without timezone data")
+        logger.info("Found %d places without timezone data", len(places))
 
         updated_count = 0
 
@@ -124,11 +127,11 @@ def backfill_timezones(database_url: str):
             updated_count += 1
 
             if updated_count % 100 == 0:
-                print(f"Processed {updated_count} places...")
+                logger.info("Processed %d places...", updated_count)
 
         # Commit all changes
         session.commit()
-        print(f"Successfully updated {updated_count} places")
+        logger.info("Successfully updated %d places", updated_count)
 
 
 if __name__ == "__main__":
@@ -136,9 +139,10 @@ if __name__ == "__main__":
     database_url = os.getenv("DATABASE_URL")
 
     if not database_url:
-        print("Error: DATABASE_URL environment variable not set")
+        logger.error("DATABASE_URL environment variable not set")
         sys.exit(1)
 
-    print("Starting timezone backfill migration...")
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    logger.info("Starting timezone backfill migration...")
     backfill_timezones(database_url)
-    print("Migration complete!")
+    logger.info("Migration complete!")

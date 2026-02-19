@@ -1,13 +1,19 @@
+import logging
 import os
 import traceback
 from contextlib import asynccontextmanager
-from datetime import UTC, datetime
 
 # Load .env before any app module is imported (session.py reads DATABASE_URL
 # at import time, so this must come first).
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI, Request, status  # noqa: E402
 from fastapi.exceptions import RequestValidationError  # noqa: E402
@@ -123,19 +129,30 @@ app.include_router(api_router)
 def log_error(
     request: Request, status_code: int, error_type: str, detail: str, exc: Exception = None
 ):
-    """Log error details to console"""
-    timestamp = datetime.now(UTC).isoformat()
-    print(f"\n{'=' * 80}")
-    print(f"[{timestamp}] {error_type} - {status_code}")
-    print(f"Path: {request.method} {request.url.path}")
-    if request.query_params:
-        print(f"Query: {dict(request.query_params)}")
-    print(f"Detail: {detail}")
-    if exc:
-        print(f"Exception: {type(exc).__name__}: {str(exc)}")
-        if status_code >= 500:
-            print(f"Traceback:\n{traceback.format_exc()}")
-    print(f"{'=' * 80}\n")
+    """Log error details via the logging module."""
+    query = dict(request.query_params) if request.query_params else None
+    if status_code >= 500:
+        logger.error(
+            "%s (%d) — %s %s | query=%s | detail=%s | exc=%s\n%s",
+            error_type,
+            status_code,
+            request.method,
+            request.url.path,
+            query,
+            detail,
+            f"{type(exc).__name__}: {exc}" if exc else None,
+            traceback.format_exc() if exc else "",
+        )
+    else:
+        logger.warning(
+            "%s (%d) — %s %s | query=%s | detail=%s",
+            error_type,
+            status_code,
+            request.method,
+            request.url.path,
+            query,
+            detail,
+        )
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -174,16 +191,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         f"{len(errors)} validation error(s)",
         exc,
     )
-
-    # Print detailed validation errors
-    print("Validation Errors:")
-    for error in errors:
-        print(f"  - Field: {' -> '.join(str(loc) for loc in error['loc'])}")
-        print(f"    Error: {error['msg']}")
-        print(f"    Type: {error['type']}")
-        if "ctx" in error:
-            print(f"    Context: {error['ctx']}")
-    print()
 
     # Serialize errors for JSON response (convert non-serializable objects to strings)
     serializable_errors = []
