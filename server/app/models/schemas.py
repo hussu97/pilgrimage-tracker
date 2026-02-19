@@ -137,6 +137,7 @@ class ResetPasswordBody(BaseModel):
 class CheckInBody(BaseModel):
     note: str | None = None
     photo_url: str | None = None
+    group_code: str | None = None
 
 
 class ReviewCreateBody(BaseModel):
@@ -158,12 +159,27 @@ class GroupCreateBody(BaseModel):
     description: str | None = None
     is_private: bool | None = False
     path_place_codes: list[str] | None = None
+    cover_image_url: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
 
 
 class GroupUpdateBody(BaseModel):
     name: str | None = None
     description: str | None = None
     is_private: bool | None = None
+    path_place_codes: list[str] | None = None
+    cover_image_url: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+
+
+class GroupPlaceNoteBody(BaseModel):
+    text: str
+
+
+class UpdateMemberRoleBody(BaseModel):
+    role: str
 
 
 class GroupInviteBody(BaseModel):

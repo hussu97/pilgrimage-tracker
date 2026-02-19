@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import DateTime, LargeBinary, UniqueConstraint
@@ -132,6 +132,7 @@ class CheckIn(SQLModel, table=True):
     check_in_code: str = Field(index=True, unique=True)
     user_code: str = Field(index=True, foreign_key="user.user_code")
     place_code: str = Field(index=True, foreign_key="place.place_code")
+    group_code: str | None = Field(default=None, index=True, foreign_key="group.group_code")
     note: str | None = None
     photo_url: str | None = None
     checked_in_at: datetime = Field(
@@ -154,7 +155,14 @@ class Group(SQLModel, table=True):
     invite_code: str = Field(index=True, unique=True)
     is_private: bool = Field(default=False)
     path_place_codes: list[str] = Field(default=[], sa_column=Column(JSON))
+    cover_image_url: str | None = None
+    start_date: date | None = None
+    end_date: date | None = None
     created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+    updated_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
     )
@@ -165,6 +173,19 @@ class GroupMember(SQLModel, table=True):
     user_code: str = Field(primary_key=True, foreign_key="user.user_code")
     role: str = Field(default="member")  # admin, member
     joined_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+
+
+class GroupPlaceNote(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    note_code: str = Field(index=True, unique=True)
+    group_code: str = Field(index=True, foreign_key="group.group_code")
+    place_code: str = Field(index=True, foreign_key="place.place_code")
+    user_code: str = Field(foreign_key="user.user_code")
+    text: str
+    created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
     )

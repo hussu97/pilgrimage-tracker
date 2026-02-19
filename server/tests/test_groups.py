@@ -4,6 +4,7 @@ Integration tests for the Groups API.
 Covers app/api/v1/groups.py and app/db/groups.py.
 """
 
+from app.db.models import Place
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -32,6 +33,22 @@ def _register_and_login(client, email="user@example.com", password="Testpass123!
 
 def _auth_headers(token):
     return {"Authorization": f"Bearer {token}"}
+
+
+def _make_place(db_session, code: str = "plc_tst00001", name: str = "Test Place"):
+    """Insert a Place row directly into the test DB."""
+    place = Place(
+        place_code=code,
+        name=name,
+        religion="islam",
+        place_type="mosque",
+        lat=25.0,
+        lng=55.0,
+        address="Test St",
+    )
+    db_session.add(place)
+    db_session.commit()
+    return place
 
 
 def _create_group(client, token, name="Test Group", description="A test group"):
@@ -438,6 +455,434 @@ class TestCreateInvite:
         created = _create_group(client, token1)
         resp = client.post(
             f"/api/v1/groups/{created['group_code']}/invite",
+            headers=_auth_headers(token2),
+        )
+        assert resp.status_code == 403
+
+
+# ── TestDeleteGroup ────────────────────────────────────────────────────────────
+
+
+class TestDeleteGroup:
+    def test_admin_can_delete_group(self, client):
+        token, _ = _register_and_login(client, email="delg_admin@example.com")
+        group = _create_group(client, token, name="Delete Me")
+        group_code = group["group_code"]
+
+        resp = client.delete(f"/api/v1/groups/{group_code}", headers=_auth_headers(token))
+        assert resp.status_code == 200
+
+        # Group should no longer be accessible
+        resp2 = client.get(f"/api/v1/groups/{group_code}", headers=_auth_headers(token))
+        assert resp2.status_code == 404
+
+    def test_non_admin_member_cannot_delete_group(self, client):
+        token1, _ = _register_and_login(client, email="delg_owner@example.com")
+        token2, _ = _register_and_login(client, email="delg_member@example.com")
+        group = _create_group(client, token1, name="Delete Me 2")
+        group_code = group["group_code"]
+
+        # token2 joins as member
+        client.post(f"/api/v1/groups/{group_code}/join", headers=_auth_headers(token2))
+
+        resp = client.delete(f"/api/v1/groups/{group_code}", headers=_auth_headers(token2))
+        assert resp.status_code == 403
+
+    def test_delete_nonexistent_group_returns_404(self, client):
+        token, _ = _register_and_login(client, email="delg_404@example.com")
+        resp = client.delete("/api/v1/groups/grp_nonexistent", headers=_auth_headers(token))
+        assert resp.status_code == 404
+
+
+# ── TestLeaveGroup ─────────────────────────────────────────────────────────────
+
+
+class TestLeaveGroup:
+    def test_member_can_leave_group(self, client):
+        token1, _ = _register_and_login(client, email="leave_owner@example.com")
+        token2, _ = _register_and_login(client, email="leave_member@example.com")
+        group = _create_group(client, token1, name="Leave Group")
+        group_code = group["group_code"]
+
+        client.post(f"/api/v1/groups/{group_code}/join", headers=_auth_headers(token2))
+
+        resp = client.post(f"/api/v1/groups/{group_code}/leave", headers=_auth_headers(token2))
+        assert resp.status_code == 200
+
+        # Confirm member is no longer in members list
+        members_resp = client.get(
+            f"/api/v1/groups/{group_code}/members", headers=_auth_headers(token1)
+        )
+        assert all("leave_member" not in m.get("display_name", "") for m in members_resp.json())
+
+    def test_creator_cannot_leave_group(self, client):
+        token, _ = _register_and_login(client, email="leave_creator@example.com")
+        group = _create_group(client, token, name="Creator Leave")
+        group_code = group["group_code"]
+
+        resp = client.post(f"/api/v1/groups/{group_code}/leave", headers=_auth_headers(token))
+        assert resp.status_code == 400
+
+    def test_non_member_cannot_leave(self, client):
+        token1, _ = _register_and_login(client, email="leave_nm_owner@example.com")
+        token2, _ = _register_and_login(client, email="leave_nm_other@example.com")
+        group = _create_group(client, token1, name="Non Member Leave")
+        group_code = group["group_code"]
+
+        resp = client.post(f"/api/v1/groups/{group_code}/leave", headers=_auth_headers(token2))
+        assert resp.status_code == 403
+
+
+# ── TestRemoveMember ───────────────────────────────────────────────────────────
+
+
+class TestRemoveMember:
+    def test_admin_can_remove_member(self, client):
+        token1, _ = _register_and_login(client, email="rm_admin@example.com")
+        token2, user2_code = _register_and_login(client, email="rm_member@example.com")
+        group = _create_group(client, token1, name="Remove Member Group")
+        group_code = group["group_code"]
+
+        client.post(f"/api/v1/groups/{group_code}/join", headers=_auth_headers(token2))
+
+        resp = client.delete(
+            f"/api/v1/groups/{group_code}/members/{user2_code}",
+            headers=_auth_headers(token1),
+        )
+        assert resp.status_code == 200
+
+    def test_non_admin_cannot_remove_member(self, client):
+        token1, _ = _register_and_login(client, email="rm_owner@example.com")
+        token2, _ = _register_and_login(client, email="rm_m1@example.com")
+        token3, user3_code = _register_and_login(client, email="rm_m2@example.com")
+        group = _create_group(client, token1, name="Remove Member 2")
+        group_code = group["group_code"]
+
+        client.post(f"/api/v1/groups/{group_code}/join", headers=_auth_headers(token2))
+        client.post(f"/api/v1/groups/{group_code}/join", headers=_auth_headers(token3))
+
+        resp = client.delete(
+            f"/api/v1/groups/{group_code}/members/{user3_code}",
+            headers=_auth_headers(token2),
+        )
+        assert resp.status_code == 403
+
+    def test_remove_nonexistent_member_returns_404(self, client):
+        token, _ = _register_and_login(client, email="rm_404@example.com")
+        group = _create_group(client, token, name="Remove 404 Group")
+        group_code = group["group_code"]
+
+        resp = client.delete(
+            f"/api/v1/groups/{group_code}/members/usr_nonexistent",
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+
+
+# ── TestUpdateMemberRole ───────────────────────────────────────────────────────
+
+
+class TestUpdateMemberRole:
+    def test_admin_can_promote_member(self, client):
+        token1, _ = _register_and_login(client, email="role_admin@example.com")
+        token2, user2_code = _register_and_login(client, email="role_member@example.com")
+        group = _create_group(client, token1, name="Role Group")
+        group_code = group["group_code"]
+
+        client.post(f"/api/v1/groups/{group_code}/join", headers=_auth_headers(token2))
+
+        resp = client.patch(
+            f"/api/v1/groups/{group_code}/members/{user2_code}",
+            json={"role": "admin"},
+            headers=_auth_headers(token1),
+        )
+        assert resp.status_code == 200
+
+        # Verify role changed
+        members_resp = client.get(
+            f"/api/v1/groups/{group_code}/members", headers=_auth_headers(token1)
+        )
+        member = next(m for m in members_resp.json() if m["user_code"] == user2_code)
+        assert member["role"] == "admin"
+
+    def test_admin_can_demote_admin(self, client):
+        token1, _ = _register_and_login(client, email="role_demote_owner@example.com")
+        token2, user2_code = _register_and_login(client, email="role_demote_m@example.com")
+        group = _create_group(client, token1, name="Role Demote Group")
+        group_code = group["group_code"]
+
+        client.post(f"/api/v1/groups/{group_code}/join", headers=_auth_headers(token2))
+        # Promote first
+        client.patch(
+            f"/api/v1/groups/{group_code}/members/{user2_code}",
+            json={"role": "admin"},
+            headers=_auth_headers(token1),
+        )
+        # Then demote
+        resp = client.patch(
+            f"/api/v1/groups/{group_code}/members/{user2_code}",
+            json={"role": "member"},
+            headers=_auth_headers(token1),
+        )
+        assert resp.status_code == 200
+
+    def test_invalid_role_rejected(self, client):
+        token1, _ = _register_and_login(client, email="role_inv_owner@example.com")
+        token2, user2_code = _register_and_login(client, email="role_inv_m@example.com")
+        group = _create_group(client, token1, name="Invalid Role Group")
+        group_code = group["group_code"]
+
+        client.post(f"/api/v1/groups/{group_code}/join", headers=_auth_headers(token2))
+
+        resp = client.patch(
+            f"/api/v1/groups/{group_code}/members/{user2_code}",
+            json={"role": "superuser"},
+            headers=_auth_headers(token1),
+        )
+        assert resp.status_code == 400
+
+
+# ── TestUpdateGroupPath ────────────────────────────────────────────────────────
+
+
+class TestUpdateGroupPath:
+    def test_admin_can_set_path_place_codes(self, client, db_session):
+        token, _ = _register_and_login(client, email="path_admin@example.com")
+        group = _create_group(client, token, name="Path Group")
+        group_code = group["group_code"]
+        _make_place(db_session, "plc_path0001", "Path Place")
+
+        resp = client.patch(
+            f"/api/v1/groups/{group_code}",
+            json={"name": "Path Group", "path_place_codes": ["plc_path0001"]},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        assert "plc_path0001" in resp.json().get("path_place_codes", [])
+
+    def test_admin_can_set_start_end_dates(self, client):
+        token, _ = _register_and_login(client, email="dates_admin@example.com")
+        group = _create_group(client, token, name="Dates Group")
+        group_code = group["group_code"]
+
+        resp = client.patch(
+            f"/api/v1/groups/{group_code}",
+            json={"name": "Dates Group", "start_date": "2025-03-15", "end_date": "2025-03-22"},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["start_date"] == "2025-03-15"
+        assert data["end_date"] == "2025-03-22"
+
+    def test_non_admin_cannot_update_group(self, client):
+        token1, _ = _register_and_login(client, email="path_owner@example.com")
+        token2, _ = _register_and_login(client, email="path_member@example.com")
+        group = _create_group(client, token1, name="Path Owner Group")
+        group_code = group["group_code"]
+
+        client.post(f"/api/v1/groups/{group_code}/join", headers=_auth_headers(token2))
+
+        resp = client.patch(
+            f"/api/v1/groups/{group_code}",
+            json={"name": "Hacked"},
+            headers=_auth_headers(token2),
+        )
+        assert resp.status_code == 403
+
+
+# ── TestGroupChecklist ─────────────────────────────────────────────────────────
+
+
+class TestGroupChecklist:
+    def test_checklist_returns_empty_for_no_places(self, client):
+        token, _ = _register_and_login(client, email="chk_empty@example.com")
+        group = _create_group(client, token, name="Empty Checklist")
+        group_code = group["group_code"]
+
+        resp = client.get(f"/api/v1/groups/{group_code}/checklist", headers=_auth_headers(token))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["places"] == []
+        assert data["total_places"] == 0
+
+    def test_checklist_includes_place_with_check_in_status(self, client, db_session):
+        token, _ = _register_and_login(client, email="chk_with@example.com")
+        group = _create_group(client, token, name="Checklist With Place")
+        group_code = group["group_code"]
+        _make_place(db_session, "plc_chk0001", "Checklist Place")
+
+        # Set path
+        client.patch(
+            f"/api/v1/groups/{group_code}",
+            json={"name": "Checklist With Place", "path_place_codes": ["plc_chk0001"]},
+            headers=_auth_headers(token),
+        )
+
+        resp = client.get(f"/api/v1/groups/{group_code}/checklist", headers=_auth_headers(token))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["places"]) == 1
+        assert data["places"][0]["place_code"] == "plc_chk0001"
+        assert data["places"][0]["user_checked_in"] is False
+        assert data["total_places"] == 1
+
+    def test_checklist_non_member_forbidden(self, client):
+        token1, _ = _register_and_login(client, email="chk_owner@example.com")
+        token2, _ = _register_and_login(client, email="chk_other@example.com")
+        group = _create_group(client, token1, name="Checklist Forbidden")
+        group_code = group["group_code"]
+
+        resp = client.get(f"/api/v1/groups/{group_code}/checklist", headers=_auth_headers(token2))
+        assert resp.status_code == 403
+
+
+# ── TestGroupCheckIn ───────────────────────────────────────────────────────────
+
+
+class TestGroupCheckIn:
+    def test_check_in_with_group_code_success(self, client, db_session):
+        token, _ = _register_and_login(client, email="gci_user@example.com")
+        group = _create_group(client, token, name="Check In Group")
+        group_code = group["group_code"]
+        _make_place(db_session, "plc_gci0001", "GCI Place")
+
+        # Add place to group itinerary
+        client.patch(
+            f"/api/v1/groups/{group_code}",
+            json={"name": "Check In Group", "path_place_codes": ["plc_gci0001"]},
+            headers=_auth_headers(token),
+        )
+
+        resp = client.post(
+            "/api/v1/places/plc_gci0001/check-in",
+            json={"group_code": group_code},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data.get("group_code") == group_code
+
+    def test_check_in_with_group_code_place_not_in_itinerary(self, client, db_session):
+        token, _ = _register_and_login(client, email="gci_notpath@example.com")
+        group = _create_group(client, token, name="Check In Not Path")
+        group_code = group["group_code"]
+        _make_place(db_session, "plc_gci0002", "Not Path Place")
+        _make_place(db_session, "plc_gci0004", "Itinerary Place")
+
+        # Add a DIFFERENT place to the itinerary
+        client.patch(
+            f"/api/v1/groups/{group_code}",
+            json={"name": "Check In Not Path", "path_place_codes": ["plc_gci0004"]},
+            headers=_auth_headers(token),
+        )
+
+        # Try to check in at plc_gci0002 which is NOT in the itinerary
+        resp = client.post(
+            "/api/v1/places/plc_gci0002/check-in",
+            json={"group_code": group_code},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 400
+
+    def test_check_in_without_group_code_still_works(self, client, db_session):
+        token, _ = _register_and_login(client, email="gci_nogc@example.com")
+        _make_place(db_session, "plc_gci0003", "No GC Place")
+
+        resp = client.post(
+            "/api/v1/places/plc_gci0003/check-in",
+            json={},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        assert resp.json().get("group_code") is None
+
+
+# ── TestPlaceNotes ─────────────────────────────────────────────────────────────
+
+
+class TestPlaceNotes:
+    def test_member_can_add_and_list_note(self, client, db_session):
+        token, _ = _register_and_login(client, email="note_user@example.com")
+        group = _create_group(client, token, name="Notes Group")
+        group_code = group["group_code"]
+        _make_place(db_session, "plc_note001", "Notes Place")
+
+        # Add place to group
+        client.patch(
+            f"/api/v1/groups/{group_code}",
+            json={"name": "Notes Group", "path_place_codes": ["plc_note001"]},
+            headers=_auth_headers(token),
+        )
+
+        # Add note
+        resp = client.post(
+            f"/api/v1/groups/{group_code}/places/plc_note001/notes",
+            json={"text": "Meet at 9am"},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        note = resp.json()
+        assert note["text"] == "Meet at 9am"
+
+        # List notes
+        list_resp = client.get(
+            f"/api/v1/groups/{group_code}/places/plc_note001/notes",
+            headers=_auth_headers(token),
+        )
+        assert list_resp.status_code == 200
+        notes = list_resp.json()
+        assert any(n["text"] == "Meet at 9am" for n in notes)
+
+    def test_author_can_delete_note(self, client, db_session):
+        token, _ = _register_and_login(client, email="note_del@example.com")
+        group = _create_group(client, token, name="Notes Del Group")
+        group_code = group["group_code"]
+        _make_place(db_session, "plc_note002", "Notes Del Place")
+
+        client.patch(
+            f"/api/v1/groups/{group_code}",
+            json={"name": "Notes Del Group", "path_place_codes": ["plc_note002"]},
+            headers=_auth_headers(token),
+        )
+
+        note_resp = client.post(
+            f"/api/v1/groups/{group_code}/places/plc_note002/notes",
+            json={"text": "Delete me"},
+            headers=_auth_headers(token),
+        )
+        note_code = note_resp.json()["note_code"]
+
+        del_resp = client.delete(
+            f"/api/v1/groups/{group_code}/notes/{note_code}",
+            headers=_auth_headers(token),
+        )
+        assert del_resp.status_code == 200
+
+        # Verify deleted
+        list_resp = client.get(
+            f"/api/v1/groups/{group_code}/places/plc_note002/notes",
+            headers=_auth_headers(token),
+        )
+        notes = list_resp.json()
+        assert not any(n["note_code"] == note_code for n in notes)
+
+    def test_non_member_cannot_add_note(self, client, db_session):
+        token1, _ = _register_and_login(client, email="note_owner@example.com")
+        token2, _ = _register_and_login(client, email="note_outsider@example.com")
+        group = _create_group(client, token1, name="Notes Non Member")
+        group_code = group["group_code"]
+        _make_place(db_session, "plc_note003", "Notes NM Place")
+
+        client.patch(
+            f"/api/v1/groups/{group_code}",
+            json={"name": "Notes Non Member", "path_place_codes": ["plc_note003"]},
+            headers=_auth_headers(token1),
+        )
+
+        resp = client.post(
+            f"/api/v1/groups/{group_code}/places/plc_note003/notes",
+            json={"text": "Unauthorized"},
             headers=_auth_headers(token2),
         )
         assert resp.status_code == 403

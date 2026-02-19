@@ -47,6 +47,7 @@ const Groups = lazyWithReload(() => import('@/app/pages/Groups'));
 const CreateGroup = lazyWithReload(() => import('@/app/pages/CreateGroup'));
 const GroupDetail = lazyWithReload(() => import('@/app/pages/GroupDetail'));
 const JoinGroup = lazyWithReload(() => import('@/app/pages/JoinGroup'));
+const EditGroup = lazyWithReload(() => import('@/app/pages/EditGroup'));
 const Notifications = lazyWithReload(() => import('@/app/pages/Notifications'));
 
 /**
@@ -167,6 +168,16 @@ export function AppRoutes() {
               <Layout>
                 <ProtectedRoute>
                   <GroupDetail />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/groups/:groupCode/edit"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <EditGroup />
                 </ProtectedRoute>
               </Layout>
             }

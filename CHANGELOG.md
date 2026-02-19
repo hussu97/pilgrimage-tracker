@@ -4,6 +4,42 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Groups Revamp — Social Itinerary Planner & Tracker (2026-02-19)
+
+Full groups revamp transforming the groups feature into a pilgrimage itinerary planner and tracker with shared checklists, member management, collaborative notes, and progress tracking.
+
+### Backend
+- **Schema (migration `0004_groups_revamp`)** — Added `group_code` (nullable FK) to `CheckIn`; added `cover_image_url`, `start_date`, `end_date`, `updated_at` to `Group`; new `GroupPlaceNote` model for per-place collaborative notes.
+- **New endpoints** — `DELETE /groups/:code` (admin), `POST /groups/:code/leave`, `DELETE /groups/:code/members/:userCode` (admin), `PATCH /groups/:code/members/:userCode` (role change), `GET/POST /groups/:code/places/:placeCode/notes`, `DELETE /groups/:code/notes/:noteCode`, `GET /groups/:code/checklist`.
+- **Checklist endpoint** — Returns ordered itinerary places with per-place check-in status, member avatars, collaborative notes, and aggregate group + personal progress percentages.
+- **Group check-in** — `POST /places/:placeCode/check-in` accepts optional `group_code`; validates membership and itinerary inclusion; creates `group_check_in` notifications for other members.
+- **New DB modules** — `server/app/db/group_place_notes.py` (CRUD for place notes); `get_check_ins_for_users_at_places()` batch query in `check_ins.py`.
+- **Tests** — Added `TestDeleteGroup`, `TestLeaveGroup`, `TestRemoveMember`, `TestUpdateMemberRole`, `TestGroupChecklist`, `TestGroupCheckIn`, `TestUpdateGroupPath`, `TestPlaceNotes` (22 new tests, 58 total in test_groups.py).
+
+### Frontend (web)
+- **Types** — Updated `Group` (cover_image_url, start_date, end_date, path_place_codes, updated_at), `GroupMember` (is_creator), `ActivityItem` (note, photo_url, group_code); new `PlaceNote`, `ChecklistCheckIn`, `ChecklistPlace`, `ChecklistResponse`.
+- **API client** — Added `deleteGroup`, `leaveGroup`, `removeGroupMember`, `updateMemberRole`, `getGroupChecklist`, `getPlaceNotes`, `addPlaceNote`, `deletePlaceNote`; updated `checkIn` / `createGroup` / `updateGroup` with new fields.
+- **`PlaceSelector` component** — Multi-select place picker with search, religion filter chips, ordered selected-places list with reorder (↑↓) and remove buttons.
+- **`GroupCheckInModal` component** — Modal for checking in at a specific place within a group's itinerary.
+- **`CreateGroup` page** — Rewritten as multi-step wizard: Details → Places (PlaceSelector) → Review, with preserved invite-link success state.
+- **`GroupDetail` page** — Rewritten as 4-tab layout (Itinerary, Activity, Leaderboard, Members); itinerary tab shows progress bars, ordered place checklist with expand/collapse, check-in modal, and per-place notes; members tab includes role badges and admin actions.
+- **`EditGroup` page** — New admin-only page with PlaceSelector for managing itinerary; routed at `/groups/:groupCode/edit`.
+- **Tests** — `groupUtils.ts` utility (getProgressLevel, formatRelativeTime); `groups.test.ts` (11 unit tests).
+
+### Frontend (mobile)
+- **Types & API client** — Full parity with web: same type additions and 8 new API functions.
+- **`PlaceSelector` component** — FlatList-based place picker with TextInput search, religion filter chips, reorder with ↑↓ buttons.
+- **`GroupCheckInSheet` component** — Bottom-sheet modal for group check-in.
+- **`CreateGroupScreen`** — Multi-step wizard matching web feature parity.
+- **`EditGroupScreen`** — New admin-only screen registered in navigation.
+- **`GroupDetailScreen`** — Rewritten with 4-tab layout (Itinerary, Activity, Leaderboard, Members); itinerary tab with progress bars, checklist, GroupCheckInSheet, per-place notes; members tab with role management and leave/delete.
+- **Tests** — `groupUtils.ts` utility; `groups.test.ts` (11 unit tests).
+
+### i18n
+- Added 36 new translation keys for en/ar/hi covering itinerary, progress, member management, notes, trip dates, and check-in flows.
+
+---
+
 ## API Audit — Unused Endpoint Remediation (2026-02-19)
 
 ### Frontend (web)

@@ -120,6 +120,8 @@ docker build \
 
 Alembic migrations run **automatically on API startup** via `alembic upgrade head`. No manual migration step needed.
 
+Migration `0004_groups_revamp` adds: `checkin.group_code` (nullable FK, indexed), `group.cover_image_url / start_date / end_date / updated_at`, and the new `groupplacenote` table. No new environment variables or external services are required.
+
 ### Scheduled Jobs
 
 ```bash

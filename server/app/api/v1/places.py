@@ -296,17 +296,60 @@ def check_in(
     session: SessionDep,
     user: UserDep,
 ):
-    if not places_db.get_place_by_code(place_code, session):
+    from app.db import groups as groups_db
+    from app.db import notifications as notifications_db
+
+    place = places_db.get_place_by_code(place_code, session)
+    if not place:
         raise HTTPException(status_code=404, detail="Place not found")
+
+    group_code = body.group_code
+    if group_code:
+        group = groups_db.get_group_by_code(group_code, session)
+        if not group:
+            raise HTTPException(status_code=404, detail="Group not found")
+        if not groups_db.is_member(group_code, user.user_code, session):
+            raise HTTPException(status_code=403, detail="Not a member of this group")
+        path = group.path_place_codes or []
+        if path and place_code not in path:
+            raise HTTPException(status_code=400, detail="Place is not in this group's itinerary")
+
     row = check_ins_db.create_check_in(
-        user.user_code, place_code, session, note=body.note, photo_url=body.photo_url
+        user.user_code,
+        place_code,
+        session,
+        note=body.note,
+        photo_url=body.photo_url,
+        group_code=group_code,
     )
+
+    # Notify other group members of the check-in
+    if group_code and group:
+        members = groups_db.get_members(group_code, session)
+        for member_code, _role, _joined in members:
+            if member_code == user.user_code:
+                continue
+            notifications_db.create_notification(
+                member_code,
+                "group_check_in",
+                {
+                    "group_code": group_code,
+                    "group_name": group.name,
+                    "place_code": place_code,
+                    "place_name": place.name,
+                    "user_code": user.user_code,
+                    "display_name": user.display_name,
+                },
+                session,
+            )
+
     return {
         "check_in_code": row.check_in_code,
         "place_code": row.place_code,
         "checked_in_at": row.checked_in_at,
         "note": row.note,
         "photo_url": row.photo_url,
+        "group_code": row.group_code,
     }
 
 

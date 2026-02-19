@@ -16,6 +16,7 @@ def create_check_in(
     session: Session,
     note: str | None = None,
     photo_url: str | None = None,
+    group_code: str | None = None,
 ) -> CheckIn:
     code = _generate_code()
     check_in = CheckIn(
@@ -24,6 +25,7 @@ def create_check_in(
         place_code=place_code,
         note=note,
         photo_url=photo_url,
+        group_code=group_code,
     )
     session.add(check_in)
     session.commit()
@@ -101,6 +103,25 @@ def get_check_ins_this_month(user_code: str, session: Session) -> list[CheckIn]:
             extract("month", CheckIn.checked_in_at) == now.month,
             extract("year", CheckIn.checked_in_at) == now.year,
         )
+    )
+    return session.exec(statement).all()
+
+
+def get_check_ins_for_users_at_places(
+    user_codes: list[str], place_codes: list[str], session: Session
+) -> list[CheckIn]:
+    """Batch-fetch check-ins for multiple users filtered to specific place codes."""
+    if not user_codes or not place_codes:
+        return []
+    statement = (
+        select(CheckIn)
+        .where(
+            and_(
+                CheckIn.user_code.in_(user_codes),
+                CheckIn.place_code.in_(place_codes),
+            )
+        )
+        .order_by(CheckIn.checked_in_at.desc())
     )
     return session.exec(statement).all()
 

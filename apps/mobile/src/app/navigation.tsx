@@ -19,6 +19,7 @@ import GroupsScreen from './screens/GroupsScreen';
 import CreateGroupScreen from './screens/CreateGroupScreen';
 import GroupDetailScreen from './screens/GroupDetailScreen';
 import JoinGroupScreen from './screens/JoinGroupScreen';
+import EditGroupScreen from './screens/EditGroupScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 
 export type RootStackParamList = {
@@ -40,6 +41,7 @@ export type RootStackParamList = {
   CheckInsList: undefined;
   CreateGroup: undefined;
   GroupDetail: { groupCode: string };
+  EditGroup: { groupCode: string };
   JoinGroup: { inviteCode?: string };
   Notifications: undefined;
   Favorites: undefined;
@@ -79,6 +81,7 @@ function RootStack() {
       <Stack.Screen name="CheckInsList" component={withScreenBoundary(CheckInsListScreen)} />
       <Stack.Screen name="CreateGroup" component={withScreenBoundary(CreateGroupScreen)} />
       <Stack.Screen name="GroupDetail" component={withScreenBoundary(GroupDetailScreen)} />
+      <Stack.Screen name="EditGroup" component={withScreenBoundary(EditGroupScreen)} />
       <Stack.Screen name="JoinGroup" component={withScreenBoundary(JoinGroupScreen)} />
       <Stack.Screen name="Notifications" component={withScreenBoundary(NotificationsScreen)} />
       <Stack.Screen name="Favorites" component={withScreenBoundary(FavoritesScreen)} />

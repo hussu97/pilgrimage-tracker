@@ -16,6 +16,7 @@ import type {
   LanguageOption,
   PlacesResponse,
 } from '@/lib/types';
+import type { ChecklistResponse, PlaceNote } from '@/lib/types/groups';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 const TOKEN_STORAGE_KEY = 'token';
@@ -272,7 +273,7 @@ export async function getPlaceReviews(placeCode: string, limit = 5): Promise<Rev
 
 export async function checkIn(
   placeCode: string,
-  body?: { note?: string; photo_url?: string },
+  body?: { note?: string; photo_url?: string; group_code?: string },
 ): Promise<CheckIn> {
   const res = await authFetch(`${API_BASE}/api/v1/places/${placeCode}/check-in`, {
     method: 'POST',
@@ -414,6 +415,10 @@ export async function createGroup(body: {
   name: string;
   description?: string;
   is_private?: boolean;
+  path_place_codes?: string[];
+  cover_image_url?: string;
+  start_date?: string;
+  end_date?: string;
 }): Promise<Group & { invite_code: string }> {
   const res = await authFetch(`${API_BASE}/api/v1/groups`, {
     method: 'POST',
@@ -434,7 +439,15 @@ export async function getGroup(groupCode: string): Promise<Group> {
 
 export async function updateGroup(
   groupCode: string,
-  body: { name?: string; description?: string; is_private?: boolean },
+  body: {
+    name?: string;
+    description?: string;
+    is_private?: boolean;
+    path_place_codes?: string[];
+    cover_image_url?: string;
+    start_date?: string;
+    end_date?: string;
+  },
 ): Promise<Group> {
   const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}`, {
     method: 'PATCH',
@@ -511,6 +524,87 @@ export async function getGroupActivity(groupCode: string, limit?: number): Promi
   const res = await authFetch(url, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch activity');
   return res.json();
+}
+
+export async function deleteGroup(groupCode: string): Promise<void> {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? 'Failed to delete group');
+}
+
+export async function leaveGroup(groupCode: string): Promise<void> {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/leave`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? 'Failed to leave group');
+}
+
+export async function removeGroupMember(groupCode: string, userCode: string): Promise<void> {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/members/${userCode}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? 'Failed to remove member');
+}
+
+export async function updateMemberRole(
+  groupCode: string,
+  userCode: string,
+  role: 'admin' | 'member',
+): Promise<void> {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/members/${userCode}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ role }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? 'Failed to update role');
+}
+
+export async function getGroupChecklist(groupCode: string): Promise<ChecklistResponse> {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/checklist`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch checklist');
+  return res.json();
+}
+
+export async function getPlaceNotes(groupCode: string, placeCode: string): Promise<PlaceNote[]> {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/places/${placeCode}/notes`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch notes');
+  return res.json();
+}
+
+export async function addPlaceNote(
+  groupCode: string,
+  placeCode: string,
+  text: string,
+): Promise<PlaceNote> {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/places/${placeCode}/notes`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ text }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? 'Failed to add note');
+  return data;
+}
+
+export async function deletePlaceNote(groupCode: string, noteCode: string): Promise<void> {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/notes/${noteCode}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? 'Failed to delete note');
 }
 
 export async function getNotifications(

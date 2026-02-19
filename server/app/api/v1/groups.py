@@ -1,13 +1,21 @@
+from datetime import date
+
 from fastapi import APIRouter, HTTPException, Query
 
 from app.api.deps import UserDep
 from app.db import check_ins as check_ins_db
+from app.db import group_place_notes as notes_db
 from app.db import groups as groups_db
 from app.db import notifications as notifications_db
 from app.db import places as places_db
 from app.db import store as user_store
 from app.db.session import SessionDep
-from app.models.schemas import GroupCreateBody, GroupUpdateBody
+from app.models.schemas import (
+    GroupCreateBody,
+    GroupPlaceNoteBody,
+    GroupUpdateBody,
+    UpdateMemberRoleBody,
+)
 
 router = APIRouter()
 
@@ -58,9 +66,7 @@ def list_groups(user: UserDep, session: SessionDep):
 
         # Compute progress using pre-fetched check-ins
         visited_by_group = {
-            chk.place_code
-            for uc in member_user_codes
-            for chk in check_ins_by_user.get(uc, [])
+            chk.place_code for uc in member_user_codes for chk in check_ins_by_user.get(uc, [])
         }
         path = g.path_place_codes or []
         if path:
@@ -88,7 +94,12 @@ def list_groups(user: UserDep, session: SessionDep):
                 "created_by_user_code": g.created_by_user_code,
                 "invite_code": g.invite_code,
                 "is_private": g.is_private,
+                "path_place_codes": g.path_place_codes or [],
+                "cover_image_url": g.cover_image_url,
+                "start_date": g.start_date.isoformat() if g.start_date else None,
+                "end_date": g.end_date.isoformat() if g.end_date else None,
                 "created_at": g.created_at,
+                "updated_at": g.updated_at,
                 "member_count": len(members),
                 "last_activity": last_activity,
                 "sites_visited": sites_visited,
@@ -130,12 +141,30 @@ def join_by_invite_code(body: dict, user: UserDep, session: SessionDep):
 
 @router.post("")
 def create_group(body: GroupCreateBody, user: UserDep, session: SessionDep):
+    start_date = None
+    end_date = None
+    if body.start_date:
+        try:
+            start_date = date.fromisoformat(body.start_date)
+        except ValueError:
+            raise HTTPException(
+                status_code=400, detail="Invalid start_date format (use YYYY-MM-DD)"
+            )
+    if body.end_date:
+        try:
+            end_date = date.fromisoformat(body.end_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format (use YYYY-MM-DD)")
+
     g = groups_db.create_group(
         name=body.name,
         description=body.description or "",
         created_by_user_code=user.user_code,
         is_private=body.is_private or False,
         path_place_codes=body.path_place_codes,
+        cover_image_url=body.cover_image_url,
+        start_date=start_date,
+        end_date=end_date,
         session=session,
     )
     return {
@@ -144,7 +173,12 @@ def create_group(body: GroupCreateBody, user: UserDep, session: SessionDep):
         "description": g.description,
         "invite_code": g.invite_code,
         "is_private": g.is_private,
+        "path_place_codes": g.path_place_codes or [],
+        "cover_image_url": g.cover_image_url,
+        "start_date": g.start_date.isoformat() if g.start_date else None,
+        "end_date": g.end_date.isoformat() if g.end_date else None,
         "created_at": g.created_at,
+        "updated_at": g.updated_at,
     }
 
 
@@ -163,13 +197,20 @@ def get_group(group_code: str, user: UserDep, session: SessionDep):
         "created_by_user_code": g.created_by_user_code,
         "invite_code": g.invite_code,
         "is_private": g.is_private,
+        "path_place_codes": g.path_place_codes or [],
+        "cover_image_url": g.cover_image_url,
+        "start_date": g.start_date.isoformat() if g.start_date else None,
+        "end_date": g.end_date.isoformat() if g.end_date else None,
         "created_at": g.created_at,
+        "updated_at": g.updated_at,
         "member_count": len(members),
     }
 
 
 @router.patch("/{group_code}")
 def update_group(group_code: str, body: GroupUpdateBody, user: UserDep, session: SessionDep):
+    from datetime import UTC, datetime
+
     g = groups_db.get_group_by_code(group_code, session)
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -183,6 +224,23 @@ def update_group(group_code: str, body: GroupUpdateBody, user: UserDep, session:
         g.description = body.description
     if body.is_private is not None:
         g.is_private = body.is_private
+    if body.path_place_codes is not None:
+        g.path_place_codes = body.path_place_codes
+    if body.cover_image_url is not None:
+        g.cover_image_url = body.cover_image_url
+    if body.start_date is not None:
+        try:
+            g.start_date = date.fromisoformat(body.start_date)
+        except ValueError:
+            raise HTTPException(
+                status_code=400, detail="Invalid start_date format (use YYYY-MM-DD)"
+            )
+    if body.end_date is not None:
+        try:
+            g.end_date = date.fromisoformat(body.end_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid end_date format (use YYYY-MM-DD)")
+    g.updated_at = datetime.now(UTC)
     session.add(g)
     session.commit()
     return {
@@ -190,7 +248,24 @@ def update_group(group_code: str, body: GroupUpdateBody, user: UserDep, session:
         "name": g.name,
         "description": g.description,
         "is_private": g.is_private,
+        "path_place_codes": g.path_place_codes or [],
+        "cover_image_url": g.cover_image_url,
+        "start_date": g.start_date.isoformat() if g.start_date else None,
+        "end_date": g.end_date.isoformat() if g.end_date else None,
+        "updated_at": g.updated_at,
     }
+
+
+@router.delete("/{group_code}")
+def delete_group(group_code: str, user: UserDep, session: SessionDep):
+    g = groups_db.get_group_by_code(group_code, session)
+    if not g:
+        raise HTTPException(status_code=404, detail="Group not found")
+    member = groups_db.get_member(group_code, user.user_code, session)
+    if not member or member.role != "admin":
+        raise HTTPException(status_code=403, detail="Not an admin")
+    groups_db.delete_group(group_code, session)
+    return {"ok": True}
 
 
 @router.post("/{group_code}/join")
@@ -204,6 +279,19 @@ def join_group(group_code: str, user: UserDep, session: SessionDep):
     notifications_db.create_notification(
         user.user_code, "group_joined", {"group_code": g.group_code, "group_name": g.name}, session
     )
+    return {"ok": True}
+
+
+@router.post("/{group_code}/leave")
+def leave_group(group_code: str, user: UserDep, session: SessionDep):
+    g = groups_db.get_group_by_code(group_code, session)
+    if not g:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if not groups_db.is_member(group_code, user.user_code, session):
+        raise HTTPException(status_code=403, detail="Not a member")
+    if g.created_by_user_code == user.user_code:
+        raise HTTPException(status_code=400, detail="Creator cannot leave the group")
+    groups_db.remove_member(group_code, user.user_code, session)
     return {"ok": True}
 
 
@@ -224,9 +312,48 @@ def get_group_members(group_code: str, user: UserDep, session: SessionDep):
                 "display_name": u.display_name if u else "Unknown",
                 "role": role,
                 "joined_at": joined_at,
+                "is_creator": uc == g.created_by_user_code,
             }
         )
     return out
+
+
+@router.delete("/{group_code}/members/{target_user_code}")
+def remove_member(group_code: str, target_user_code: str, user: UserDep, session: SessionDep):
+    g = groups_db.get_group_by_code(group_code, session)
+    if not g:
+        raise HTTPException(status_code=404, detail="Group not found")
+    admin_member = groups_db.get_member(group_code, user.user_code, session)
+    if not admin_member or admin_member.role != "admin":
+        raise HTTPException(status_code=403, detail="Not an admin")
+    if target_user_code == g.created_by_user_code:
+        raise HTTPException(status_code=400, detail="Cannot remove the group creator")
+    if not groups_db.is_member(group_code, target_user_code, session):
+        raise HTTPException(status_code=404, detail="User is not a member")
+    groups_db.remove_member(group_code, target_user_code, session)
+    return {"ok": True}
+
+
+@router.patch("/{group_code}/members/{target_user_code}")
+def update_member_role(
+    group_code: str,
+    target_user_code: str,
+    body: UpdateMemberRoleBody,
+    user: UserDep,
+    session: SessionDep,
+):
+    if body.role not in ("admin", "member"):
+        raise HTTPException(status_code=400, detail="Role must be 'admin' or 'member'")
+    g = groups_db.get_group_by_code(group_code, session)
+    if not g:
+        raise HTTPException(status_code=404, detail="Group not found")
+    admin_member = groups_db.get_member(group_code, user.user_code, session)
+    if not admin_member or admin_member.role != "admin":
+        raise HTTPException(status_code=403, detail="Not an admin")
+    if not groups_db.is_member(group_code, target_user_code, session):
+        raise HTTPException(status_code=404, detail="User is not a member")
+    groups_db.update_member_role(group_code, target_user_code, body.role, session)
+    return {"ok": True, "user_code": target_user_code, "role": body.role}
 
 
 @router.get("/{group_code}/leaderboard")
@@ -266,6 +393,201 @@ def get_activity(
     return groups_db.get_activity(
         group_code, check_ins_db, user_store, places_db, session, limit=limit
     )
+
+
+@router.get("/{group_code}/checklist")
+def get_checklist(group_code: str, user: UserDep, session: SessionDep):
+    """Return the shared itinerary checklist with per-place check-in status and notes."""
+    g = groups_db.get_group_by_code(group_code, session)
+    if not g:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if not groups_db.is_member(group_code, user.user_code, session):
+        raise HTTPException(status_code=403, detail="Not a member")
+
+    path = g.path_place_codes or []
+    if not path:
+        return {
+            "places": [],
+            "total_places": 0,
+            "group_visited": 0,
+            "personal_visited": 0,
+            "group_progress": 0,
+            "personal_progress": 0,
+        }
+
+    # Fetch place details
+    place_list = places_db.get_places_by_codes(path, session)
+    places_map = {p.place_code: p for p in place_list}
+
+    # Get first image for each place
+    from app.db import place_images as place_images_db
+
+    images_bulk = place_images_db.get_images_bulk(path, session)
+    images_map: dict[str, str | None] = {}
+    for pc in path:
+        img_list = images_bulk.get(pc, [])
+        images_map[pc] = img_list[0]["url"] if img_list and img_list[0].get("url") else None
+
+    # Get all group members
+    members = groups_db.get_members(group_code, session)
+    member_codes = [uc for uc, _, _ in members]
+
+    # Batch fetch check-ins for all members at these places
+    all_check_ins = check_ins_db.get_check_ins_for_users_at_places(member_codes, path, session)
+
+    # Build per-place check-in lookup: place_code -> list of check-ins
+    checkins_by_place: dict[str, list] = {pc: [] for pc in path}
+    for chk in all_check_ins:
+        if chk.place_code in checkins_by_place:
+            checkins_by_place[chk.place_code].append(chk)
+
+    # Batch fetch notes for all places
+    notes_by_place = notes_db.get_notes_bulk(group_code, path, session)
+
+    # Build user display name map
+    user_display_names: dict[str, str] = {}
+    for uc in member_codes:
+        u = user_store.get_user_by_code(uc, session)
+        user_display_names[uc] = u.display_name if u else "Unknown"
+
+    # Build per-place note display name map
+    note_user_codes = set()
+    for note_list in notes_by_place.values():
+        for note in note_list:
+            note_user_codes.add(note.user_code)
+    for uc in note_user_codes - set(member_codes):
+        u = user_store.get_user_by_code(uc, session)
+        user_display_names[uc] = u.display_name if u else "Unknown"
+
+    group_visited = 0
+    personal_visited = 0
+    places_out = []
+
+    for pc in path:
+        place = places_map.get(pc)
+        checkins = checkins_by_place.get(pc, [])
+
+        # Deduplicate by user (each user counts once per place)
+        seen_users: set[str] = set()
+        checked_in_by = []
+        for chk in checkins:
+            if chk.user_code not in seen_users:
+                seen_users.add(chk.user_code)
+                checked_in_by.append(
+                    {
+                        "user_code": chk.user_code,
+                        "display_name": user_display_names.get(chk.user_code, "Unknown"),
+                        "checked_in_at": chk.checked_in_at.isoformat() + "Z",
+                    }
+                )
+
+        user_checked_in = user.user_code in seen_users
+        if seen_users:
+            group_visited += 1
+        if user_checked_in:
+            personal_visited += 1
+
+        note_list = notes_by_place.get(pc, [])
+        notes_out = [
+            {
+                "note_code": n.note_code,
+                "user_code": n.user_code,
+                "display_name": user_display_names.get(n.user_code, "Unknown"),
+                "text": n.text,
+                "created_at": n.created_at.isoformat() + "Z",
+            }
+            for n in note_list
+        ]
+
+        places_out.append(
+            {
+                "place_code": pc,
+                "name": place.name if place else pc,
+                "religion": place.religion if place else None,
+                "address": place.address if place else None,
+                "image_url": images_map.get(pc),
+                "checked_in_by": checked_in_by,
+                "user_checked_in": user_checked_in,
+                "check_in_count": len(seen_users),
+                "notes": notes_out,
+            }
+        )
+
+    total = len(path)
+    return {
+        "places": places_out,
+        "total_places": total,
+        "group_visited": group_visited,
+        "personal_visited": personal_visited,
+        "group_progress": round(group_visited / total * 100) if total else 0,
+        "personal_progress": round(personal_visited / total * 100) if total else 0,
+    }
+
+
+@router.get("/{group_code}/places/{place_code}/notes")
+def get_place_notes(group_code: str, place_code: str, user: UserDep, session: SessionDep):
+    g = groups_db.get_group_by_code(group_code, session)
+    if not g:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if not groups_db.is_member(group_code, user.user_code, session):
+        raise HTTPException(status_code=403, detail="Not a member")
+    note_list = notes_db.get_notes(group_code, place_code, session)
+    return [
+        {
+            "note_code": n.note_code,
+            "user_code": n.user_code,
+            "group_code": n.group_code,
+            "place_code": n.place_code,
+            "text": n.text,
+            "created_at": n.created_at.isoformat() + "Z",
+        }
+        for n in note_list
+    ]
+
+
+@router.post("/{group_code}/places/{place_code}/notes")
+def add_place_note(
+    group_code: str,
+    place_code: str,
+    body: GroupPlaceNoteBody,
+    user: UserDep,
+    session: SessionDep,
+):
+    g = groups_db.get_group_by_code(group_code, session)
+    if not g:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if not groups_db.is_member(group_code, user.user_code, session):
+        raise HTTPException(status_code=403, detail="Not a member")
+    if not places_db.get_place_by_code(place_code, session):
+        raise HTTPException(status_code=404, detail="Place not found")
+    note = notes_db.create_note(group_code, place_code, user.user_code, body.text, session)
+    return {
+        "note_code": note.note_code,
+        "user_code": note.user_code,
+        "group_code": note.group_code,
+        "place_code": note.place_code,
+        "text": note.text,
+        "created_at": note.created_at.isoformat() + "Z",
+    }
+
+
+@router.delete("/{group_code}/notes/{note_code}")
+def delete_place_note(group_code: str, note_code: str, user: UserDep, session: SessionDep):
+    g = groups_db.get_group_by_code(group_code, session)
+    if not g:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if not groups_db.is_member(group_code, user.user_code, session):
+        raise HTTPException(status_code=403, detail="Not a member")
+    note = notes_db.get_note_by_code(note_code, session)
+    if not note or note.group_code != group_code:
+        raise HTTPException(status_code=404, detail="Note not found")
+    # Only author or admin can delete
+    admin_member = groups_db.get_member(group_code, user.user_code, session)
+    is_admin = admin_member and admin_member.role == "admin"
+    if note.user_code != user.user_code and not is_admin:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this note")
+    notes_db.delete_note(note_code, session)
+    return {"ok": True}
 
 
 @router.post("/{group_code}/invite")

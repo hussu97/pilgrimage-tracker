@@ -2,7 +2,7 @@ import secrets
 
 from sqlmodel import Session, and_, select
 
-from app.db.models import Group, GroupMember
+from app.db.models import Group, GroupMember, GroupPlaceNote
 
 
 def _generate_group_code() -> str:
@@ -20,6 +20,9 @@ def create_group(
     session: Session,
     is_private: bool = False,
     path_place_codes: list[str] | None = None,
+    cover_image_url: str | None = None,
+    start_date=None,
+    end_date=None,
 ) -> Group:
     group_code = _generate_group_code()
     invite_code = _generate_invite_code()
@@ -31,6 +34,9 @@ def create_group(
         invite_code=invite_code,
         is_private=is_private,
         path_place_codes=path_place_codes or [],
+        cover_image_url=cover_image_url,
+        start_date=start_date,
+        end_date=end_date,
     )
     session.add(group)
 
@@ -95,9 +101,7 @@ def get_members_bulk(group_codes: list[str], session: Session) -> dict[str, list
     """
     if not group_codes:
         return {}
-    members = session.exec(
-        select(GroupMember).where(GroupMember.group_code.in_(group_codes))
-    ).all()
+    members = session.exec(select(GroupMember).where(GroupMember.group_code.in_(group_codes))).all()
     result: dict[str, list[tuple]] = {gc: [] for gc in group_codes}
     for m in members:
         result[m.group_code].append((m.user_code, m.role, m.joined_at.isoformat() + "Z"))
@@ -176,6 +180,58 @@ def get_group_progress(
     }
 
 
+def remove_member(group_code: str, user_code: str, session: Session) -> bool:
+    statement = select(GroupMember).where(
+        and_(GroupMember.group_code == group_code, GroupMember.user_code == user_code)
+    )
+    member = session.exec(statement).first()
+    if not member:
+        return False
+    session.delete(member)
+    session.commit()
+    return True
+
+
+def update_member_role(group_code: str, user_code: str, role: str, session: Session) -> bool:
+    statement = select(GroupMember).where(
+        and_(GroupMember.group_code == group_code, GroupMember.user_code == user_code)
+    )
+    member = session.exec(statement).first()
+    if not member:
+        return False
+    member.role = role
+    session.add(member)
+    session.commit()
+    return True
+
+
+def get_member(group_code: str, user_code: str, session: Session) -> GroupMember | None:
+    return session.exec(
+        select(GroupMember).where(
+            and_(GroupMember.group_code == group_code, GroupMember.user_code == user_code)
+        )
+    ).first()
+
+
+def delete_group(group_code: str, session: Session) -> bool:
+    group = get_group_by_code(group_code, session)
+    if not group:
+        return False
+    # Delete all group place notes
+    notes = session.exec(
+        select(GroupPlaceNote).where(GroupPlaceNote.group_code == group_code)
+    ).all()
+    for note in notes:
+        session.delete(note)
+    # Delete all members
+    members = session.exec(select(GroupMember).where(GroupMember.group_code == group_code)).all()
+    for m in members:
+        session.delete(m)
+    session.delete(group)
+    session.commit()
+    return True
+
+
 def get_activity(
     group_code: str, check_ins_db, user_store, places_db, session: Session, limit: int = 20
 ) -> list[dict]:
@@ -212,6 +268,9 @@ def get_activity(
                 "place_code": chk.place_code,
                 "place_name": place.name if place else chk.place_code,
                 "checked_in_at": chk.checked_in_at.isoformat() + "Z",
+                "note": chk.note,
+                "photo_url": chk.photo_url,
+                "group_code": chk.group_code,
             }
         )
     return out
