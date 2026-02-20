@@ -89,7 +89,7 @@ export default function Groups() {
             <button
               type="button"
               onClick={() => navigate('/register')}
-              className="w-full max-w-xs bg-primary hover:bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-xl shadow-blue-100 dark:shadow-none transition-all mb-3"
+              className="w-full max-w-xs bg-primary hover:bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-md transition-all mb-3"
             >
               {t('splash.getStarted')}
             </button>
@@ -120,7 +120,7 @@ export default function Groups() {
             {featured && (
               <Link
                 to={`/groups/${featured.group_code}`}
-                className="block relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-300 via-blue-400 to-blue-500 shadow-lg shadow-blue-100 p-6 text-white mb-8 transition-transform hover:scale-[0.99] active:scale-[0.98]"
+                className="block relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-300 via-blue-400 to-blue-500 shadow-md p-6 text-white mb-8 transition-transform hover:scale-[0.99] active:scale-[0.98]"
               >
                 <div className="absolute top-0 right-0 p-3 opacity-20 pointer-events-none">
                   <span className="material-icons text-[120px] -mr-8 -mt-8 rotate-12">
@@ -270,7 +270,7 @@ export default function Groups() {
       {user && (
         <Link
           to="/groups/new"
-          className="fixed bottom-24 right-4 md:right-6 z-50 h-14 w-14 rounded-full bg-primary text-white shadow-xl shadow-blue-200 flex items-center justify-center hover:bg-primary-hover active:scale-90 transition-all"
+          className="fixed bottom-24 right-4 md:right-6 z-50 h-14 w-14 rounded-full bg-primary text-white shadow-lg flex items-center justify-center hover:bg-primary-hover active:scale-90 transition-all"
           aria-label={t('groups.createGroup')}
         >
           <span className="material-icons text-2xl">add</span>
