@@ -282,3 +282,23 @@ class PlaceAttribute(SQLModel, table=True):
     attribute_code: str = Field(index=True, foreign_key="placeattributedefinition.attribute_code")
     value_text: str | None = None
     value_json: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+
+
+class AppVersionConfig(SQLModel, table=True):
+    """Per-platform app version requirements.
+
+    Rows: one for "ios", one for "android".
+    Used by GET /api/v1/app-version to decide soft/hard update banners.
+    Falls back to env vars when no row exists.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    platform: str = Field(index=True, unique=True)  # "ios" | "android"
+    min_version_hard: str = Field(default="")  # e.g. "1.0.0" — blocks below this
+    min_version_soft: str = Field(default="")  # e.g. "1.1.0" — banner below this
+    latest_version: str = Field(default="")  # e.g. "1.2.0"
+    store_url: str = Field(default="")  # App Store / Play Store URL
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )

@@ -21,6 +21,13 @@ Current system: **Backend** (Python FastAPI in `server/`), **Web app** (Vite + R
 | `RESEND_API_KEY` | No | _(empty)_ | Resend.com API key for password-reset emails |
 | `RESEND_FROM_EMAIL` | No | `noreply@pilgrimage-tracker.app` | From address for transactional emails |
 | `RESET_URL_BASE` | No | `http://localhost:5173` | Frontend base URL for password-reset links |
+| `MIN_APP_VERSION_SOFT` | No | _(empty)_ | Semver (e.g. `1.1.0`) — mobile clients below this see a soft-update banner. Empty = disabled |
+| `MIN_APP_VERSION_HARD` | No | _(empty)_ | Semver (e.g. `1.0.0`) — mobile clients below this are blocked with HTTP 426. Empty = disabled |
+| `LATEST_APP_VERSION` | No | _(empty)_ | Current latest release (e.g. `1.2.0`) — returned by `GET /api/v1/app-version` |
+| `APP_STORE_URL_IOS` | No | _(empty)_ | App Store URL for iOS update link |
+| `APP_STORE_URL_ANDROID` | No | _(empty)_ | Play Store URL for Android update link |
+
+> **Note:** Version enforcement can also be configured per-platform via the `AppVersionConfig` DB table (editable at runtime without redeployment). DB values take priority over env vars.
 
 ### Data Scraper (`data_scraper/`)
 

@@ -23,14 +23,26 @@ const TOKEN_STORAGE_KEY = 'token';
 
 export type { LanguageOption };
 
+/** Static client-identification headers sent with every request. */
+export function clientHeaders(): Record<string, string> {
+  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+  return {
+    'X-Content-Type': isMobile ? 'mobile' : 'desktop',
+    'X-App-Type': 'web',
+    'X-Platform': 'web',
+  };
+}
+
 export async function getLanguages(): Promise<LanguageOption[]> {
-  const res = await fetch(`${API_BASE}/api/v1/languages`);
+  const res = await fetch(`${API_BASE}/api/v1/languages`, { headers: clientHeaders() });
   if (!res.ok) throw new Error('Failed to fetch languages');
   return res.json();
 }
 
 export async function getTranslations(lang: string): Promise<Record<string, string>> {
-  const res = await fetch(`${API_BASE}/api/v1/translations?lang=${encodeURIComponent(lang)}`);
+  const res = await fetch(`${API_BASE}/api/v1/translations?lang=${encodeURIComponent(lang)}`, {
+    headers: clientHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch translations');
   return res.json();
 }
@@ -43,6 +55,7 @@ function authHeaders(): HeadersInit {
   const token = getToken();
   return {
     'Content-Type': 'application/json',
+    ...clientHeaders(),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
@@ -53,6 +66,7 @@ export async function refreshToken(): Promise<{ token: string }> {
   const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
     method: 'POST',
     credentials: 'include',
+    headers: clientHeaders(),
   });
   if (!res.ok) throw new Error('Token refresh failed');
   return res.json();
@@ -63,6 +77,7 @@ export async function logoutServer(): Promise<void> {
     await fetch(`${API_BASE}/api/v1/auth/logout`, {
       method: 'POST',
       credentials: 'include',
+      headers: clientHeaders(),
     });
   } catch {
     // Best-effort server logout; local state is cleared regardless
@@ -117,7 +132,7 @@ export interface FieldRulesResponse {
 }
 
 export async function getFieldRules(): Promise<FieldRulesResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/auth/field-rules`);
+  const res = await fetch(`${API_BASE}/api/v1/auth/field-rules`, { headers: clientHeaders() });
   if (!res.ok) throw new Error('Failed to fetch field rules');
   return res.json();
 }
@@ -199,7 +214,7 @@ export interface AuthResponse {
 export async function register(body: RegisterBody): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
     credentials: 'include',
     body: JSON.stringify(body),
   });
@@ -211,7 +226,7 @@ export async function register(body: RegisterBody): Promise<AuthResponse> {
 export async function login(body: LoginBody): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
     credentials: 'include',
     body: JSON.stringify(body),
   });
@@ -241,7 +256,7 @@ export async function updateMe(updates: { display_name?: string }): Promise<User
 export async function forgotPassword(email: string): Promise<{ ok: boolean; message: string }> {
   const res = await fetch(`${API_BASE}/api/v1/auth/forgot-password`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
     body: JSON.stringify({ email }),
   });
   const data = await res.json();
@@ -252,7 +267,7 @@ export async function forgotPassword(email: string): Promise<{ ok: boolean; mess
 export async function resetPassword(token: string, newPassword: string): Promise<{ ok: boolean }> {
   const res = await fetch(`${API_BASE}/api/v1/auth/reset-password`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
     body: JSON.stringify({ token, newPassword }),
   });
   const data = await res.json();
@@ -268,7 +283,9 @@ export async function getPlace(placeCode: string): Promise<PlaceDetail> {
 }
 
 export async function getPlaceReviews(placeCode: string, limit = 5): Promise<ReviewsResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/reviews?limit=${limit}`);
+  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/reviews?limit=${limit}`, {
+    headers: clientHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch reviews');
   return res.json();
 }
@@ -673,14 +690,16 @@ export async function updateSettings(settings: UserSettings): Promise<UserSettin
 export async function createVisitor(): Promise<{ visitor_code: string; created_at: string }> {
   const res = await fetch(`${API_BASE}/api/v1/visitors`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
   });
   if (!res.ok) throw new Error('Failed to create visitor');
   return res.json();
 }
 
 export async function getVisitorSettings(code: string): Promise<UserSettings> {
-  const res = await fetch(`${API_BASE}/api/v1/visitors/${encodeURIComponent(code)}/settings`);
+  const res = await fetch(`${API_BASE}/api/v1/visitors/${encodeURIComponent(code)}/settings`, {
+    headers: clientHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch visitor settings');
   return res.json();
 }
@@ -691,7 +710,7 @@ export async function updateVisitorSettings(
 ): Promise<UserSettings> {
   const res = await fetch(`${API_BASE}/api/v1/visitors/${encodeURIComponent(code)}/settings`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error('Failed to update visitor settings');

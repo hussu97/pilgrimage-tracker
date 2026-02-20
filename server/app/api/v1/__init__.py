@@ -1,9 +1,20 @@
 from fastapi import APIRouter
 
-from app.api.v1 import auth, groups, i18n, notifications, places, reviews, users, visitors
+from app.api.v1 import (
+    app_version,
+    auth,
+    groups,
+    i18n,
+    notifications,
+    places,
+    reviews,
+    users,
+    visitors,
+)
 
 api_router = APIRouter(prefix="/api/v1", tags=["v1"])
 api_router.include_router(i18n.router, tags=["i18n"])
+api_router.include_router(app_version.router, tags=["app-version"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(places.router, prefix="/places", tags=["places"])

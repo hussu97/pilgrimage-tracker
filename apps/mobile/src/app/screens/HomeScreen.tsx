@@ -27,6 +27,7 @@ import PlaceCard from '@/components/places/PlaceCard';
 import SkeletonCard from '@/components/common/SkeletonCard';
 import HomeHeader from '@/components/places/HomeHeader';
 import SearchFilterBar from '@/components/places/SearchFilterBar';
+import UpdateBanner from '@/components/common/UpdateBanner';
 import { buildMapHtml, formatDistance } from '@/lib/utils/mapBuilder';
 import { shareUrl, openDirections } from '@/lib/share';
 
@@ -557,6 +558,9 @@ export default function HomeScreen() {
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <View style={styles.gradientTop} />
       </View>
+
+      {/* Soft update banner */}
+      <UpdateBanner />
 
       {/* Always-visible header area */}
       <View style={styles.headerArea}>

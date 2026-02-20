@@ -337,7 +337,63 @@ This enables data provenance tracking and helps identify which places need manua
 
 ---
 
-## 9. Design Alignment
+## 9. Client Identification & Force Update
+
+### 9.1 Client Headers
+
+Every request from web and mobile includes up to four custom HTTP headers so the
+backend can identify the caller's platform and enforce version requirements:
+
+| Header | Values | Source |
+|---|---|---|
+| `X-Content-Type` | `mobile` \| `desktop` | Web: UA detection; Mobile: always `mobile` |
+| `X-App-Type` | `app` \| `web` | Web: always `web`; Mobile: always `app` |
+| `X-Platform` | `ios` \| `android` \| `web` | Platform.OS (mobile) or `web` |
+| `X-App-Version` | e.g. `1.2.3` | Mobile only — from `Constants.expoConfig.version` |
+
+On the backend these headers are extracted by `client_context_middleware` and stored in
+a `ContextVar` (`app.core.client_context`) accessible from any downstream code.
+
+### 9.2 Force Update Mechanism
+
+Two-tier update enforcement for mobile clients:
+
+**Soft update (banner):**
+- Mobile app calls `GET /api/v1/app-version?platform=ios|android` on startup.
+- If current version < `min_version_soft`, an `UpdateBanner` is shown on HomeScreen.
+- User can dismiss the banner for the session.
+
+**Hard update (full block):**
+- `hard_update_middleware` intercepts every `/api/v1/*` request from `X-App-Type: app`.
+- If `X-App-Version` < `MIN_APP_VERSION_HARD` (env var), returns **HTTP 426 Upgrade Required**:
+  ```json
+  { "detail": "update_required", "min_version": "1.0.0", "store_url": "..." }
+  ```
+- The mobile `authFetch` detects 426 and calls `triggerForceUpdate()` via a registered
+  callback, which shows `ForceUpdateModal` — a full-screen modal with no dismiss option.
+
+**Configuration sources (priority order):**
+1. `AppVersionConfig` DB table (per-platform rows, editable without redeploy).
+2. Environment variables: `MIN_APP_VERSION_HARD`, `MIN_APP_VERSION_SOFT`,
+   `LATEST_APP_VERSION`, `APP_STORE_URL_IOS`, `APP_STORE_URL_ANDROID`.
+
+Web clients are never blocked — the web app always serves the latest bundle.
+
+### 9.3 New Files
+
+| File | Purpose |
+|---|---|
+| `server/app/core/client_context.py` | ContextVar + semver helpers |
+| `server/app/api/v1/app_version.py` | `GET /api/v1/app-version` endpoint |
+| `server/migrations/versions/0006_app_version_config.py` | DB migration |
+| `apps/mobile/src/lib/utils/versionUtils.ts` | Semver comparison utilities |
+| `apps/mobile/src/lib/updateContext.tsx` | React context for update state |
+| `apps/mobile/src/components/common/ForceUpdateModal.tsx` | Hard update modal |
+| `apps/mobile/src/components/common/UpdateBanner.tsx` | Soft update banner |
+
+---
+
+## 10. Design Alignment
 
 - **Screens to implement** (from DESIGN_FILE.html and app-design-prompt): Splash, Create Account, Login, Forgot Password, Preferred religions (multi-select, optional), Home (list + map), Place detail (Islam/Hinduism/Christianity variants), Check-in flow, Profile and stats, Groups list, Group detail and leaderboard, Favorites, Settings, Notifications, Write review. Empty and error states as specified in the design prompt.
 - **Design system:** Lexend, Material Icons/Symbols, Tailwind with tokens from DESIGN_FILE (primary, borders, radii, safe areas). Support light/dark where designs specify (e.g. Place detail Hindu temple).

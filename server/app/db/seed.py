@@ -1,9 +1,9 @@
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, select
 
 from app.core.security import hash_password
 from app.db import groups as groups_db
@@ -12,6 +12,7 @@ from app.db import notifications as notifications_db
 from app.db import place_attributes as attr_db
 from app.db import place_images, store
 from app.db import places as places_db
+from app.db.models import AppVersionConfig
 from app.db.session import Session, engine
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,29 @@ def run_seed_system(seed_path: str | Path | None = None) -> None:
         i18n_db.set_translations(data["translations"])
     if "attribute_definitions" in data:
         attr_db.seed_attribute_definitions(data["attribute_definitions"])
+    if "app_version_config" in data:
+        _seed_app_version_config(data["app_version_config"])
+
+
+def _seed_app_version_config(rows: list[dict]) -> None:
+    """Upsert AppVersionConfig rows from seed data. Safe to call repeatedly."""
+    with Session(engine) as session:
+        for row in rows:
+            existing = session.exec(
+                select(AppVersionConfig).where(AppVersionConfig.platform == row["platform"])
+            ).first()
+            if existing is None:
+                session.add(
+                    AppVersionConfig(
+                        platform=row["platform"],
+                        min_version_hard=row.get("min_version_hard", ""),
+                        min_version_soft=row.get("min_version_soft", ""),
+                        latest_version=row.get("latest_version", ""),
+                        store_url=row.get("store_url", ""),
+                        updated_at=datetime.now(UTC),
+                    )
+                )
+        session.commit()
 
 
 def run_seed_demo(seed_path: str | Path | None = None) -> None:

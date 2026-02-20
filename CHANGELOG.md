@@ -4,6 +4,36 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Force Update System (2026-02-21)
+
+### Backend
+- **Client context middleware** — New `client_context_middleware` extracts `X-Content-Type`, `X-App-Type`, `X-Platform`, `X-App-Version` headers on every request and stores them in a `ContextVar` (`server/app/core/client_context.py`).
+- **Hard-update middleware** — `hard_update_middleware` returns HTTP 426 Upgrade Required for mobile app clients (`X-App-Type: app`) running below `MIN_APP_VERSION_HARD`. Response includes `detail`, `min_version`, and `store_url`.
+- **`GET /api/v1/app-version`** — New unauthenticated endpoint returning `min_version_soft`, `min_version_hard`, `latest_version`, and `store_url` per platform. Reads from `AppVersionConfig` DB table with env-var fallback.
+- **`AppVersionConfig` model** — New SQLModel table for per-platform (`ios`, `android`) version requirements. Editable at runtime without redeployment.
+- **Migration 0006** — Adds `appversionconfig` table.
+- **Translation keys** — Added `update.softBannerTitle`, `update.softBannerMessage`, `update.softBannerButton`, `update.hardTitle`, `update.hardMessage`, `update.hardButton` in all three languages (en, ar, hi).
+- **Tests** — 17 new backend tests covering semver parsing, middleware context, hard-update block/pass conditions, and app-version endpoint (env fallback + DB row).
+
+### Frontend (mobile)
+- **Client headers** — All API calls now include `X-Content-Type: mobile`, `X-App-Type: app`, `X-Platform: ios|android`, `X-App-Version: <version>`.
+- **426 handling** — `authFetch` detects HTTP 426 and calls a registered `triggerForceUpdate` callback.
+- **`UpdateProvider`** (`apps/mobile/src/lib/updateContext.tsx`) — React context holding `forceUpdate`/`softUpdate` state with `triggerForceUpdate`, `triggerSoftUpdate`, and `dismissSoftUpdate` actions.
+- **`ForceUpdateModal`** — Full-screen blocking modal rendered above the navigation container; links to App Store / Play Store via `Linking.openURL`. No dismiss option.
+- **`UpdateBanner`** — Dismissable banner shown at the top of HomeScreen when soft update is available.
+- **Startup version check** — On mount, `UpdateSetup` (in `App.tsx`) calls `GET /api/v1/app-version` and triggers the soft-update banner if current version < `min_version_soft`.
+- **Tests** — 14 new mobile tests for `parseSemver`, `versionMeetsMinimum`, `shouldSoftUpdate`, `shouldHardUpdate`.
+
+### Frontend (web)
+- **Client headers** — `clientHeaders()` added to web API client. Every request includes `X-Content-Type: mobile|desktop` (UA-detected), `X-App-Type: web`, `X-Platform: web`. No force-update UI — web always serves the latest bundle.
+- **Tests** — 8 new web tests for `clientHeaders()` covering desktop UA, mobile UA, and Android UA detection.
+
+### Docs
+- **ARCHITECTURE.md** — New section 9 documenting client headers and force update mechanism.
+- **PRODUCTION.md** — Added `MIN_APP_VERSION_SOFT`, `MIN_APP_VERSION_HARD`, `LATEST_APP_VERSION`, `APP_STORE_URL_IOS`, `APP_STORE_URL_ANDROID` env vars.
+
+---
+
 ## Mobile Group Creation UX Fixes (2026-02-20)
 
 ### Backend

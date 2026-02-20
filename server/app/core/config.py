@@ -38,3 +38,11 @@ RESET_URL_BASE = os.environ.get("RESET_URL_BASE", "http://localhost:5173")
 
 # Frontend URL (for OG share redirect)
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+
+# App version enforcement (mobile only)
+# Set to a semver string like "1.1.0" to enforce; leave empty to disable.
+MIN_APP_VERSION_SOFT = os.environ.get("MIN_APP_VERSION_SOFT", "")
+MIN_APP_VERSION_HARD = os.environ.get("MIN_APP_VERSION_HARD", "")
+LATEST_APP_VERSION = os.environ.get("LATEST_APP_VERSION", "")
+APP_STORE_URL_IOS = os.environ.get("APP_STORE_URL_IOS", "")
+APP_STORE_URL_ANDROID = os.environ.get("APP_STORE_URL_ANDROID", "")

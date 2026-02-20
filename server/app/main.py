@@ -26,6 +26,13 @@ from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa
 
 from app.api.v1 import api_router  # noqa: E402
 from app.api.v1 import share as share_router_module  # noqa: E402
+from app.core import config  # noqa: E402
+from app.core.client_context import (  # noqa: E402
+    ClientContext,
+    reset_client_context,
+    set_client_context,
+    version_meets_minimum,
+)
 from app.db.seed import run_seed_system  # noqa: E402
 from app.db.session import run_migrations  # noqa: E402
 
@@ -120,6 +127,54 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def client_context_middleware(request: Request, call_next):
+    """Extract X-Content-Type / X-App-Type / X-Platform / X-App-Version headers
+    and store them in a ContextVar for the lifetime of the request."""
+    ctx = ClientContext(
+        content_type=request.headers.get("X-Content-Type", "desktop"),
+        app_type=request.headers.get("X-App-Type", "web"),
+        platform=request.headers.get("X-Platform", "web"),
+        app_version=request.headers.get("X-App-Version") or None,
+    )
+    token = set_client_context(ctx)
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        reset_client_context(token)
+
+
+@app.middleware("http")
+async def hard_update_middleware(request: Request, call_next):
+    """Block mobile clients running below MIN_APP_VERSION_HARD with HTTP 426."""
+    if not config.MIN_APP_VERSION_HARD:
+        return await call_next(request)
+
+    app_type = request.headers.get("X-App-Type", "web")
+    if app_type != "app":
+        return await call_next(request)
+
+    app_version = request.headers.get("X-App-Version", "")
+    if not app_version:
+        return await call_next(request)
+
+    if not version_meets_minimum(app_version, config.MIN_APP_VERSION_HARD):
+        platform = request.headers.get("X-Platform", "")
+        store_url = config.APP_STORE_URL_IOS if platform == "ios" else config.APP_STORE_URL_ANDROID
+        return JSONResponse(
+            status_code=426,
+            content={
+                "detail": "update_required",
+                "min_version": config.MIN_APP_VERSION_HARD,
+                "store_url": store_url,
+            },
+        )
+
+    return await call_next(request)
+
 
 app.include_router(api_router)
 app.include_router(share_router_module.router, prefix="/share")

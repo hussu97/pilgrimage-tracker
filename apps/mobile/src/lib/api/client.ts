@@ -3,6 +3,8 @@
  * When unset, defaults to 127.0.0.1:3000 so the simulator can reach the backend.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 import type {
   Place,
   PlaceDetail,
@@ -28,6 +30,18 @@ const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:3000';
 
 export type { LanguageOption };
 
+const APP_VERSION: string = Constants.expoConfig?.version ?? '1.0.0';
+
+/** Static client-identification headers sent with every request. */
+function clientHeaders(): Record<string, string> {
+  return {
+    'X-Content-Type': 'mobile',
+    'X-App-Type': 'app',
+    'X-Platform': Platform.OS === 'ios' ? 'ios' : 'android',
+    'X-App-Version': APP_VERSION,
+  };
+}
+
 async function getToken(): Promise<string | null> {
   return AsyncStorage.getItem(TOKEN_KEY);
 }
@@ -36,8 +50,22 @@ async function authHeaders(): Promise<Record<string, string>> {
   const token = await getToken();
   return {
     'Content-Type': 'application/json',
+    ...clientHeaders(),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
+}
+
+// Callback registered by UpdateProvider to trigger the hard-update modal.
+let _onForceUpdate: ((storeUrl: string) => void) | null = null;
+
+/** Register the force-update callback (called from UpdateProvider). */
+export function registerForceUpdateCallback(cb: (storeUrl: string) => void): void {
+  _onForceUpdate = cb;
+}
+
+/** Deregister the force-update callback (cleanup on unmount). */
+export function unregisterForceUpdateCallback(): void {
+  _onForceUpdate = null;
 }
 
 // ─── Token refresh & auth interceptor ────────────────────────────────────────
@@ -46,6 +74,7 @@ export async function refreshToken(): Promise<{ token: string }> {
   const res = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
     method: 'POST',
     credentials: 'include',
+    headers: clientHeaders(),
   });
   if (!res.ok) throw new Error('Token refresh failed');
   return res.json();
@@ -56,6 +85,7 @@ export async function logoutServer(): Promise<void> {
     await fetch(`${API_BASE}/api/v1/auth/logout`, {
       method: 'POST',
       credentials: 'include',
+      headers: clientHeaders(),
     });
   } catch {
     // Best-effort server logout; local state is cleared regardless
@@ -66,6 +96,20 @@ let refreshInFlight: Promise<string> | null = null;
 
 async function authFetch(url: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(url, { ...init, credentials: 'include' });
+
+  // Hard update: server requires a newer app version
+  if (res.status === 426) {
+    try {
+      const body = await res.clone().json();
+      if (_onForceUpdate && body?.detail === 'update_required') {
+        _onForceUpdate(body.store_url ?? '');
+      }
+    } catch {
+      // Ignore JSON parse errors
+    }
+    return res;
+  }
+
   if (res.status !== 401 || !(await getToken())) return res;
 
   // Deduplicate concurrent refresh attempts
@@ -96,14 +140,33 @@ async function authFetch(url: string, init?: RequestInit): Promise<Response> {
 
 // i18n
 export async function getLanguages(): Promise<LanguageOption[]> {
-  const res = await fetch(`${API_BASE}/api/v1/languages`);
+  const res = await fetch(`${API_BASE}/api/v1/languages`, { headers: clientHeaders() });
   if (!res.ok) throw new Error('Failed to fetch languages');
   return res.json();
 }
 
 export async function getTranslations(lang: string): Promise<Record<string, string>> {
-  const res = await fetch(`${API_BASE}/api/v1/translations?lang=${encodeURIComponent(lang)}`);
+  const res = await fetch(`${API_BASE}/api/v1/translations?lang=${encodeURIComponent(lang)}`, {
+    headers: clientHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch translations');
+  return res.json();
+}
+
+// App version check
+export interface AppVersionResponse {
+  min_version_soft: string;
+  min_version_hard: string;
+  latest_version: string;
+  store_url: string;
+}
+
+export async function getAppVersion(platform: 'ios' | 'android'): Promise<AppVersionResponse> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/app-version?platform=${encodeURIComponent(platform)}`,
+    { headers: clientHeaders() },
+  );
+  if (!res.ok) throw new Error('Failed to fetch app version');
   return res.json();
 }
 
@@ -124,7 +187,7 @@ export interface FieldRulesResponse {
 }
 
 export async function getFieldRules(): Promise<FieldRulesResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/auth/field-rules`);
+  const res = await fetch(`${API_BASE}/api/v1/auth/field-rules`, { headers: clientHeaders() });
   if (!res.ok) throw new Error('Failed to fetch field rules');
   return res.json();
 }
@@ -150,7 +213,7 @@ export interface AuthResponse {
 export async function register(body: RegisterBody): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
     body: JSON.stringify(body),
   });
   const data = await res.json();
@@ -161,7 +224,7 @@ export async function register(body: RegisterBody): Promise<AuthResponse> {
 export async function login(body: LoginBody): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
     body: JSON.stringify(body),
   });
   const data = await res.json();
@@ -172,7 +235,7 @@ export async function login(body: LoginBody): Promise<AuthResponse> {
 export async function forgotPassword(email: string): Promise<{ ok: boolean; message: string }> {
   const res = await fetch(`${API_BASE}/api/v1/auth/forgot-password`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
     body: JSON.stringify({ email }),
   });
   const data = await res.json();
@@ -183,7 +246,7 @@ export async function forgotPassword(email: string): Promise<{ ok: boolean; mess
 export async function resetPassword(token: string, newPassword: string): Promise<{ ok: boolean }> {
   const res = await fetch(`${API_BASE}/api/v1/auth/reset-password`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
     body: JSON.stringify({ token, newPassword }),
   });
   const data = await res.json();
@@ -694,14 +757,16 @@ export async function markNotificationRead(notificationCode: string): Promise<vo
 export async function createVisitor(): Promise<{ visitor_code: string; created_at: string }> {
   const res = await fetch(`${API_BASE}/api/v1/visitors`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
   });
   if (!res.ok) throw new Error('Failed to create visitor');
   return res.json();
 }
 
 export async function getVisitorSettings(code: string): Promise<UserSettings> {
-  const res = await fetch(`${API_BASE}/api/v1/visitors/${encodeURIComponent(code)}/settings`);
+  const res = await fetch(`${API_BASE}/api/v1/visitors/${encodeURIComponent(code)}/settings`, {
+    headers: clientHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch visitor settings');
   return res.json();
 }
@@ -712,7 +777,7 @@ export async function updateVisitorSettings(
 ): Promise<UserSettings> {
   const res = await fetch(`${API_BASE}/api/v1/visitors/${encodeURIComponent(code)}/settings`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...clientHeaders() },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error('Failed to update visitor settings');

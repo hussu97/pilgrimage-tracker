@@ -438,7 +438,13 @@
       "groups.takePhoto": "Take Photo",
       "groups.saveItinerary": "Save Itinerary",
       "common.noInternet": "No internet connection",
-      "common.skipToContent": "Skip to content"
+      "common.skipToContent": "Skip to content",
+      "update.softBannerTitle": "Update Available",
+      "update.softBannerMessage": "A new version is available. Update for the best experience.",
+      "update.softBannerButton": "Update Now",
+      "update.hardTitle": "Update Required",
+      "update.hardMessage": "This version of the app is no longer supported. Please update to continue using the app.",
+      "update.hardButton": "Update App"
     },
     "ar": {
       "auth.login": "تسجيل الدخول",
@@ -864,7 +870,13 @@
       "groups.takePhoto": "التقط صورة",
       "groups.saveItinerary": "حفظ خط السير",
       "common.noInternet": "لا يوجد اتصال بالإنترنت",
-      "common.skipToContent": "تخطى إلى المحتوى"
+      "common.skipToContent": "تخطى إلى المحتوى",
+      "update.softBannerTitle": "تحديث متاح",
+      "update.softBannerMessage": "يتوفر إصدار جديد. قم بالتحديث للحصول على أفضل تجربة.",
+      "update.softBannerButton": "تحديث الآن",
+      "update.hardTitle": "التحديث مطلوب",
+      "update.hardMessage": "هذا الإصدار من التطبيق لم يعد مدعوماً. يرجى التحديث لمواصلة استخدام التطبيق.",
+      "update.hardButton": "تحديث التطبيق"
     },
     "hi": {
       "auth.login": "लॉग इन करें",
@@ -1290,9 +1302,31 @@
       "groups.takePhoto": "फ़ोटो लें",
       "groups.saveItinerary": "यात्रा कार्यक्रम सहेजें",
       "common.noInternet": "इंटरनेट कनेक्शन नहीं है",
-      "common.skipToContent": "सामग्री पर जाएं"
+      "common.skipToContent": "सामग्री पर जाएं",
+      "update.softBannerTitle": "अपडेट उपलब्ध है",
+      "update.softBannerMessage": "एक नया संस्करण उपलब्ध है। बेहतर अनुभव के लिए अपडेट करें।",
+      "update.softBannerButton": "अभी अपडेट करें",
+      "update.hardTitle": "अपडेट आवश्यक है",
+      "update.hardMessage": "ऐप का यह संस्करण अब समर्थित नहीं है। ऐप का उपयोग जारी रखने के लिए कृपया अपडेट करें।",
+      "update.hardButton": "ऐप अपडेट करें"
     }
   },
+  "app_version_config": [
+    {
+      "platform": "ios",
+      "min_version_hard": "",
+      "min_version_soft": "",
+      "latest_version": "1.0.0",
+      "store_url": ""
+    },
+    {
+      "platform": "android",
+      "min_version_hard": "",
+      "min_version_soft": "",
+      "latest_version": "1.0.0",
+      "store_url": ""
+    }
+  ],
   "users": [
     {
       "user_code": "usr_seed1",
