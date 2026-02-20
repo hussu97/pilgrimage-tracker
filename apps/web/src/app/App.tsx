@@ -1,4 +1,10 @@
-import { AuthProvider, I18nProvider, ThemeProvider, useI18n } from '@/app/providers';
+import {
+  AuthProvider,
+  FeedbackProvider,
+  I18nProvider,
+  ThemeProvider,
+  useI18n,
+} from '@/app/providers';
 import { LocationProvider } from '@/app/contexts/LocationContext';
 import { AppRoutes } from '@/app/routes';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -28,11 +34,13 @@ export default function App() {
         <AuthProvider>
           <I18nProvider>
             <I18nReadyGate>
-              <LocationProvider>
-                <AuthGateProvider>
-                  <AppRoutes />
-                </AuthGateProvider>
-              </LocationProvider>
+              <FeedbackProvider>
+                <LocationProvider>
+                  <AuthGateProvider>
+                    <AppRoutes />
+                  </AuthGateProvider>
+                </LocationProvider>
+              </FeedbackProvider>
             </I18nReadyGate>
           </I18nProvider>
         </AuthProvider>

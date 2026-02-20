@@ -12,7 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/app/navigation';
-import { useAuth, useI18n, useTheme } from '@/app/providers';
+import { useAuth, useFeedback, useI18n, useTheme } from '@/app/providers';
 import { updateMe, updateSettings } from '@/lib/api/client';
 import type { Religion } from '@/lib/types';
 import { tokens } from '@/lib/theme';
@@ -94,6 +94,7 @@ export default function EditProfileScreen() {
   const { user, refreshUser } = useAuth();
   const { t } = useI18n();
   const { isDark } = useTheme();
+  const { showSuccess, showError } = useFeedback();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const [displayName, setDisplayName] = useState(user?.display_name ?? '');
   const [religions, setReligions] = useState<Religion[]>(user?.religions ?? []);
@@ -114,9 +115,11 @@ export default function EditProfileScreen() {
       });
       await updateSettings({ religions });
       await refreshUser();
+      showSuccess(t('feedback.profileUpdated'));
       navigation.goBack();
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common.error'));
+      showError(t('feedback.error'));
     } finally {
       setSaving(false);
     }

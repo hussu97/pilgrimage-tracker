@@ -12,7 +12,7 @@ type MainTabParamList = {
   Groups: undefined;
   Profile: undefined;
 };
-import { useAuth, useI18n, useTheme } from '@/app/providers';
+import { useAuth, useFeedback, useI18n, useTheme } from '@/app/providers';
 import { getMyFavorites, removeFavorite } from '@/lib/api/client';
 import PlaceCard from '@/components/places/PlaceCard';
 import SkeletonCard from '@/components/common/SkeletonCard';
@@ -85,6 +85,7 @@ export default function FavoritesScreen() {
   const { user } = useAuth();
   const { t } = useI18n();
   const { isDark } = useTheme();
+  const { showSuccess, showError } = useFeedback();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const [places, setPlaces] = useState<Place[]>([]);
@@ -123,13 +124,14 @@ export default function FavoritesScreen() {
       try {
         await removeFavorite(placeCode);
         setPlaces((prev) => prev.filter((p) => p.place_code !== placeCode));
+        showSuccess(t('feedback.favoriteRemoved'));
       } catch {
-        setError(t('common.error'));
+        showError(t('feedback.error'));
       } finally {
         setRemovingCode(null);
       }
     },
-    [t],
+    [t, showSuccess, showError],
   );
 
   if (!user) {

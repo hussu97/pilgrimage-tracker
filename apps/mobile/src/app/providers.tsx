@@ -3,10 +3,12 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useRef,
   useCallback,
   useMemo,
   type ReactNode,
 } from 'react';
+import FeedbackPopup from '@/components/common/FeedbackPopup';
 import { Appearance, I18nManager, NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '@/lib/types';
@@ -390,5 +392,63 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 export function useI18n() {
   const ctx = useContext(I18nContext);
   if (!ctx) throw new Error('useI18n must be used within I18nProvider');
+  return ctx;
+}
+
+// --- Feedback ---
+interface FeedbackState {
+  visible: boolean;
+  type: 'success' | 'error';
+  message: string;
+}
+
+interface FeedbackContextValue {
+  showSuccess: (msg: string) => void;
+  showError: (msg: string) => void;
+}
+
+const FeedbackContext = createContext<FeedbackContextValue | null>(null);
+
+export function FeedbackProvider({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<FeedbackState>({
+    visible: false,
+    type: 'success',
+    message: '',
+  });
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const show = useCallback((type: 'success' | 'error', message: string) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setState({ visible: true, type, message });
+    timerRef.current = setTimeout(() => {
+      setState((prev) => ({ ...prev, visible: false }));
+    }, 2500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  const showSuccess = useCallback((msg: string) => show('success', msg), [show]);
+  const showError = useCallback((msg: string) => show('error', msg), [show]);
+
+  const value = useMemo<FeedbackContextValue>(
+    () => ({ showSuccess, showError }),
+    [showSuccess, showError],
+  );
+
+  return (
+    <FeedbackContext.Provider value={value}>
+      {children}
+      <FeedbackPopup visible={state.visible} type={state.type} message={state.message} />
+    </FeedbackContext.Provider>
+  );
+}
+
+export function useFeedback(): FeedbackContextValue {
+  const ctx = useContext(FeedbackContext);
+  if (!ctx) throw new Error('useFeedback must be used within FeedbackProvider');
   return ctx;
 }

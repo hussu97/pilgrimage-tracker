@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useI18n } from '@/app/providers';
+import { useI18n, useFeedback } from '@/app/providers';
 import { getPlace, createReview, updateReview, uploadReviewPhoto } from '@/lib/api/client';
 import { compressImage, validateImageFile } from '@/lib/utils/imageUpload';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
@@ -22,6 +22,7 @@ export default function WriteReview() {
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useI18n();
+  const { showSuccess, showError } = useFeedback();
   const editReview = (location.state as LocationState)?.edit;
 
   const [place, setPlace] = useState<PlaceDetail | null>(null);
@@ -114,6 +115,7 @@ export default function WriteReview() {
           title: editReview.title,
           body: body.trim() || undefined,
         });
+        showSuccess(t('feedback.reviewUpdated'));
       } else {
         await createReview(placeCode, {
           rating,
@@ -121,10 +123,12 @@ export default function WriteReview() {
           is_anonymous: isAnonymous,
           photo_urls: photos.map((p) => p.url),
         });
+        showSuccess(t('feedback.reviewSubmitted'));
       }
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
+      showError(t('feedback.error'));
     } finally {
       setSubmitting(false);
     }

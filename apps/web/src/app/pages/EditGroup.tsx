@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useI18n } from '@/app/providers';
+import { useAuth, useFeedback, useI18n } from '@/app/providers';
 import { getGroup, updateGroup, getGroupMembers, uploadGroupCover } from '@/lib/api/client';
-import { useAuth } from '@/app/providers';
 
 export default function EditGroup() {
   const { groupCode } = useParams<{ groupCode: string }>();
   const navigate = useNavigate();
   const { t } = useI18n();
   const { user } = useAuth();
+  const { showSuccess, showError } = useFeedback();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState('');
@@ -92,6 +92,7 @@ export default function EditGroup() {
           finalCoverUrl = result.url;
         } catch (err) {
           setError(err instanceof Error ? err.message : t('common.error'));
+          showError(t('feedback.error'));
           setSubmitting(false);
           return;
         }
@@ -110,9 +111,11 @@ export default function EditGroup() {
         start_date: startDate || undefined,
         end_date: endDate || undefined,
       });
+      showSuccess(t('feedback.groupUpdated'));
       navigate(`/groups/${groupCode}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
+      showError(t('feedback.error'));
     } finally {
       setSubmitting(false);
     }

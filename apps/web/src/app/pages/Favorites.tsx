@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useI18n } from '@/app/providers';
+import { useI18n, useFeedback } from '@/app/providers';
 import { getMyFavorites, removeFavorite } from '@/lib/api/client';
 import PlaceCard from '@/components/places/PlaceCard';
 import EmptyState from '@/components/common/EmptyState';
@@ -9,6 +9,7 @@ import type { Place } from '@/lib/types';
 
 export default function Favorites() {
   const { t } = useI18n();
+  const { showSuccess, showError } = useFeedback();
   const navigate = useNavigate();
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,8 +36,9 @@ export default function Favorites() {
     try {
       await removeFavorite(placeCode);
       setPlaces((prev) => prev.filter((p) => p.place_code !== placeCode));
+      showSuccess(t('feedback.favoriteRemoved'));
     } catch {
-      setError(t('common.error'));
+      showError(t('feedback.error'));
     } finally {
       setRemovingCode(null);
     }

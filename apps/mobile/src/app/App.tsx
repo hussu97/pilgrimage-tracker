@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AuthProvider, I18nProvider, ThemeProvider, useAuth } from './providers';
+import { AuthProvider, FeedbackProvider, I18nProvider, ThemeProvider, useAuth } from './providers';
 import { LocationProvider } from './contexts/LocationContext';
 import { AppNavigationContent } from './navigation';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -68,7 +68,9 @@ export default function App() {
               <AuthProvider>
                 <LocationProvider>
                   <AuthBottomSheetProvider>
-                    <AuthGate />
+                    <FeedbackProvider>
+                      <AuthGate />
+                    </FeedbackProvider>
                   </AuthBottomSheetProvider>
                 </LocationProvider>
               </AuthProvider>

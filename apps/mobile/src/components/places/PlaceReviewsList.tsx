@@ -5,7 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
 import { deleteReview } from '@/lib/api/client';
-import { useI18n } from '@/app/providers';
+import { useI18n, useFeedback } from '@/app/providers';
 import { tokens } from '@/lib/theme';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { Review } from '@/lib/types';
@@ -139,6 +139,7 @@ function PlaceReviewsList({
 }: Props) {
   const navigation = useNavigation<Nav>();
   const { t } = useI18n();
+  const { showSuccess, showError } = useFeedback();
   const [deletingCode, setDeletingCode] = useState<string | null>(null);
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
@@ -155,8 +156,9 @@ function PlaceReviewsList({
           try {
             await deleteReview(reviewCode);
             onRefresh();
+            showSuccess(t('feedback.reviewDeleted'));
           } catch {
-            // ignore
+            showError(t('feedback.error'));
           } finally {
             setDeletingCode(null);
           }

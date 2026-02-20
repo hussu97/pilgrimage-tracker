@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useAuth, useI18n } from '@/app/providers';
+import { useAuth, useFeedback, useI18n } from '@/app/providers';
 import {
   getGroup,
   getGroupLeaderboard,
@@ -28,6 +28,7 @@ export default function GroupDetail() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const { user } = useAuth();
+  const { showSuccess, showError } = useFeedback();
 
   const [group, setGroup] = useState<Group | null>(null);
   const [tab, setTab] = useState<Tab>('itinerary');
@@ -98,9 +99,10 @@ export default function GroupDetail() {
     setActionLoading(true);
     try {
       await leaveGroup(groupCode);
-      navigate('/groups');
+      showSuccess(t('feedback.groupLeft'));
+      setTimeout(() => navigate('/groups'), 400);
     } catch (err) {
-      alert(err instanceof Error ? err.message : t('common.error'));
+      showError(t('feedback.error'));
     } finally {
       setActionLoading(false);
       setConfirmAction(null);
@@ -112,9 +114,10 @@ export default function GroupDetail() {
     setActionLoading(true);
     try {
       await deleteGroup(groupCode);
-      navigate('/groups');
+      showSuccess(t('feedback.groupDeleted'));
+      setTimeout(() => navigate('/groups'), 400);
     } catch (err) {
-      alert(err instanceof Error ? err.message : t('common.error'));
+      showError(t('feedback.error'));
     } finally {
       setActionLoading(false);
       setConfirmAction(null);
@@ -127,8 +130,9 @@ export default function GroupDetail() {
     try {
       await removeGroupMember(groupCode, userCode);
       setMembers((prev) => prev.filter((m) => m.user_code !== userCode));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : t('common.error'));
+      showSuccess(t('feedback.memberRemoved'));
+    } catch {
+      showError(t('feedback.error'));
     } finally {
       setActionLoading(false);
       setConfirmAction(null);
@@ -143,8 +147,9 @@ export default function GroupDetail() {
       setMembers((prev) =>
         prev.map((m) => (m.user_code === userCode ? { ...m, role: newRole } : m)),
       );
-    } catch (err) {
-      alert(err instanceof Error ? err.message : t('common.error'));
+      showSuccess(t('feedback.roleUpdated'));
+    } catch {
+      showError(t('feedback.error'));
     } finally {
       setActionLoading(false);
       setConfirmAction(null);
@@ -169,8 +174,9 @@ export default function GroupDetail() {
           ),
         });
       }
-    } catch (err) {
-      alert(err instanceof Error ? err.message : t('common.error'));
+      showSuccess(t('feedback.noteSaved'));
+    } catch {
+      showError(t('feedback.error'));
     } finally {
       setNoteSubmitting((prev) => ({ ...prev, [placeCode]: false }));
     }
@@ -190,8 +196,9 @@ export default function GroupDetail() {
           ),
         });
       }
-    } catch (err) {
-      alert(err instanceof Error ? err.message : t('common.error'));
+      showSuccess(t('feedback.noteDeleted'));
+    } catch {
+      showError(t('feedback.error'));
     }
   };
 

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useI18n } from '@/app/providers';
+import { useI18n, useFeedback } from '@/app/providers';
 import { getGroupByInviteCode, joinGroupByCode } from '@/lib/api/client';
 
 export default function JoinGroup() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { showSuccess, showError } = useFeedback();
   const code = searchParams.get('code')?.trim() ?? '';
   const [groupName, setGroupName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -33,9 +34,11 @@ export default function JoinGroup() {
     setError('');
     try {
       const { group_code } = await joinGroupByCode(code);
+      showSuccess(t('feedback.groupJoined'));
       navigate(`/groups/${group_code}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
+      showError(t('feedback.error'));
     } finally {
       setLoading(false);
     }

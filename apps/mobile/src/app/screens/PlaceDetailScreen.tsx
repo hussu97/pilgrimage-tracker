@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Alert,
   Animated,
 } from 'react-native';
 import type { RouteProp } from '@react-navigation/native';
@@ -24,7 +23,7 @@ import {
   checkIn as doCheckIn,
 } from '@/lib/api/client';
 import { shareUrl, openDirections } from '@/lib/share';
-import { useAuth, useI18n, useTheme } from '@/app/providers';
+import { useAuth, useFeedback, useI18n, useTheme } from '@/app/providers';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import { formatDistance } from '@/lib/utils/place-utils';
 import type { RootStackParamList } from '@/app/navigation';
@@ -63,6 +62,7 @@ export default function PlaceDetailScreen() {
   const { user } = useAuth();
   const { t } = useI18n();
   const { isDark, units } = useTheme();
+  const { showSuccess, showError } = useFeedback();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const { requireAuth } = useAuthRequired();
 
@@ -145,16 +145,18 @@ export default function PlaceDetailScreen() {
     if (!placeCode || !place) return;
     setFavoriteLoading(true);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const wasFavorite = place.is_favorite;
     try {
-      if (place.is_favorite) await removeFavorite(placeCode);
+      if (wasFavorite) await removeFavorite(placeCode);
       else await addFavorite(placeCode);
       setPlace((p) => (p ? { ...p, is_favorite: !p.is_favorite } : null));
+      showSuccess(t(wasFavorite ? 'feedback.favoriteRemoved' : 'feedback.favoriteAdded'));
     } catch {
-      // keep state
+      showError(t('feedback.error'));
     } finally {
       setFavoriteLoading(false);
     }
-  }, [placeCode, place]);
+  }, [placeCode, place, showSuccess, showError, t]);
 
   const toggleFavorite = useCallback(() => {
     requireAuth(() => doActualToggleFavorite());
@@ -178,15 +180,13 @@ export default function PlaceDetailScreen() {
       });
       setCheckInDate(date);
       setTimeout(() => setCheckInDone(true), 430);
-    } catch (err) {
-      Alert.alert(
-        t('places.checkInFailed'),
-        err instanceof Error ? err.message : t('places.tryAgain'),
-      );
+      showSuccess(t('feedback.checkedIn'));
+    } catch {
+      showError(t('feedback.error'));
     } finally {
       setCheckInLoading(false);
     }
-  }, [placeCode, checkInLoading, checkInDone, checkInScale, t]);
+  }, [placeCode, checkInLoading, checkInDone, checkInScale, t, showSuccess, showError]);
 
   const handleCheckIn = useCallback(() => {
     requireAuth(() => doActualCheckIn(), 'visitor.loginRequired');

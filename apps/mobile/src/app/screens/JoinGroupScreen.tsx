@@ -12,7 +12,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getGroupByInviteCode, joinGroupByCode } from '@/lib/api/client';
-import { useI18n, useTheme } from '@/app/providers';
+import { useFeedback, useI18n, useTheme } from '@/app/providers';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
 
@@ -91,6 +91,7 @@ export default function JoinGroupScreen() {
   const inviteCodeFromParams = route.params?.inviteCode ?? '';
   const { t } = useI18n();
   const { isDark } = useTheme();
+  const { showSuccess, showError } = useFeedback();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const [codeInput, setCodeInput] = useState(inviteCodeFromParams);
   const [preview, setPreview] = useState<{ group_code: string; name: string } | null>(null);
@@ -144,9 +145,11 @@ export default function JoinGroupScreen() {
     try {
       const res = await joinGroupByCode(code);
       setJoining(false);
+      showSuccess(t('feedback.groupJoined'));
       navigation.replace('GroupDetail', { groupCode: res.group_code });
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
+      showError(t('feedback.error'));
       setJoining(false);
     }
   };

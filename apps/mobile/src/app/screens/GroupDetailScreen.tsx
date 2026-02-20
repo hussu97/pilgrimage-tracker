@@ -32,7 +32,7 @@ import {
 } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
 import { INVITE_LINK_BASE_URL } from '@/lib/constants';
-import { useAuth, useI18n, useTheme } from '@/app/providers';
+import { useAuth, useFeedback, useI18n, useTheme } from '@/app/providers';
 import type { RootStackParamList } from '@/app/navigation';
 import type {
   Group,
@@ -407,6 +407,7 @@ export default function GroupDetailScreen() {
   const { t } = useI18n();
   const { isDark } = useTheme();
   const { user } = useAuth();
+  const { showSuccess, showError } = useFeedback();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const [activeTab, setActiveTab] = useState<Tab>('itinerary');
@@ -488,8 +489,9 @@ export default function GroupDetailScreen() {
       await addPlaceNote(groupCode, placeCode, text);
       setNoteInputs((prev) => ({ ...prev, [placeCode]: '' }));
       fetchChecklist();
+      showSuccess(t('feedback.noteSaved'));
     } catch {
-      Alert.alert(t('common.error'), t('common.unexpectedError'));
+      showError(t('feedback.error'));
     } finally {
       setSubmittingNote(null);
     }
@@ -505,8 +507,9 @@ export default function GroupDetailScreen() {
           try {
             await deletePlaceNote(groupCode, noteCode);
             fetchChecklist();
+            showSuccess(t('feedback.noteDeleted'));
           } catch {
-            Alert.alert(t('common.error'), t('common.unexpectedError'));
+            showError(t('feedback.error'));
           }
         },
       },
@@ -522,12 +525,10 @@ export default function GroupDetailScreen() {
         onPress: async () => {
           try {
             await leaveGroup(groupCode);
-            navigation.navigate('Main');
-          } catch (err) {
-            Alert.alert(
-              t('common.error'),
-              err instanceof Error ? err.message : t('common.unexpectedError'),
-            );
+            showSuccess(t('feedback.groupLeft'));
+            setTimeout(() => navigation.navigate('Main'), 400);
+          } catch {
+            showError(t('feedback.error'));
           }
         },
       },
@@ -543,12 +544,10 @@ export default function GroupDetailScreen() {
         onPress: async () => {
           try {
             await deleteGroup(groupCode);
-            navigation.navigate('Main');
-          } catch (err) {
-            Alert.alert(
-              t('common.error'),
-              err instanceof Error ? err.message : t('common.unexpectedError'),
-            );
+            showSuccess(t('feedback.groupDeleted'));
+            setTimeout(() => navigation.navigate('Main'), 400);
+          } catch {
+            showError(t('feedback.error'));
           }
         },
       },
@@ -569,11 +568,9 @@ export default function GroupDetailScreen() {
             try {
               await removeGroupMember(groupCode, targetUserCode);
               setMembers((prev) => prev.filter((m) => m.user_code !== targetUserCode));
-            } catch (err) {
-              Alert.alert(
-                t('common.error'),
-                err instanceof Error ? err.message : t('common.unexpectedError'),
-              );
+              showSuccess(t('feedback.memberRemoved'));
+            } catch {
+              showError(t('feedback.error'));
             } finally {
               setMemberActionLoading(null);
             }
@@ -591,11 +588,9 @@ export default function GroupDetailScreen() {
       setMembers((prev) =>
         prev.map((m) => (m.user_code === targetUserCode ? { ...m, role: newRole } : m)),
       );
-    } catch (err) {
-      Alert.alert(
-        t('common.error'),
-        err instanceof Error ? err.message : t('common.unexpectedError'),
-      );
+      showSuccess(t('feedback.roleUpdated'));
+    } catch {
+      showError(t('feedback.error'));
     } finally {
       setMemberActionLoading(null);
     }

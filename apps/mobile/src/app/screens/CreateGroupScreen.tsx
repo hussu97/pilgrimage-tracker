@@ -22,7 +22,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { createGroup, getPlaces, uploadGroupCover } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
 import { INVITE_LINK_BASE_URL } from '@/lib/constants';
-import { useI18n, useTheme } from '@/app/providers';
+import { useFeedback, useI18n, useTheme } from '@/app/providers';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
 import PlaceSelector from '@/components/groups/PlaceSelector';
@@ -282,6 +282,7 @@ export default function CreateGroupScreen() {
   const navigation = useNavigation<Nav>();
   const { t } = useI18n();
   const { isDark } = useTheme();
+  const { showError } = useFeedback();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const [step, setStep] = useState<Step>('details');
@@ -480,6 +481,7 @@ export default function CreateGroupScreen() {
           coverImageUrl = result.url;
         } catch (err) {
           setError(err instanceof Error ? err.message : t('common.error'));
+          showError(t('feedback.error'));
           setSubmitting(false);
           return;
         }
@@ -498,6 +500,7 @@ export default function CreateGroupScreen() {
       setGroupCode(g.group_code);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
+      showError(t('feedback.error'));
     } finally {
       setSubmitting(false);
     }

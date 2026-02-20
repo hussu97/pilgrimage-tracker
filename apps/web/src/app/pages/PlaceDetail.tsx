@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useI18n } from '@/app/providers';
+import { useI18n, useFeedback } from '@/app/providers';
 import {
   getPlace,
   getPlaceReviews,
@@ -40,6 +40,7 @@ function ReviewsSection({
   onReviewsChange: () => void;
 }) {
   const { t } = useI18n();
+  const { showSuccess, showError } = useFeedback();
   const [expanded, setExpanded] = useState(false);
   const [deletingCode, setDeletingCode] = useState<string | null>(null);
   const displayReviews = expanded ? reviews : reviews.slice(0, 3);
@@ -50,8 +51,9 @@ function ReviewsSection({
     try {
       await deleteReview(reviewCode);
       onReviewsChange();
+      showSuccess(t('feedback.reviewDeleted'));
     } catch {
-      // ignore
+      showError(t('feedback.error'));
     } finally {
       setDeletingCode(null);
     }
@@ -217,6 +219,7 @@ export default function PlaceDetail() {
   const { user } = useAuth();
   const { units } = useTheme();
   const { requireAuth } = useAuthRequired();
+  const { showSuccess, showError } = useFeedback();
 
   const [place, setPlace] = useState<PlaceDetailType | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -289,16 +292,18 @@ export default function PlaceDetail() {
   const doToggleFavorite = useCallback(async () => {
     if (!placeCode || !place) return;
     setFavoriteLoading(true);
+    const wasFavorite = place.is_favorite;
     try {
-      if (place.is_favorite) await removeFavorite(placeCode);
+      if (wasFavorite) await removeFavorite(placeCode);
       else await addFavorite(placeCode);
       setPlace((p) => (p ? { ...p, is_favorite: !p.is_favorite } : null));
+      showSuccess(t(wasFavorite ? 'feedback.favoriteRemoved' : 'feedback.favoriteAdded'));
     } catch {
-      // keep UI state
+      showError(t('feedback.error'));
     } finally {
       setFavoriteLoading(false);
     }
-  }, [placeCode, place]);
+  }, [placeCode, place, showSuccess, showError, t]);
 
   const toggleFavorite = useCallback(() => {
     requireAuth(() => doToggleFavorite());
@@ -316,12 +321,13 @@ export default function PlaceDetail() {
       });
       setCheckInDate(date);
       setTimeout(() => setCheckInDone(true), 430);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Check-in failed. Please try again.');
+      showSuccess(t('feedback.checkedIn'));
+    } catch {
+      showError(t('feedback.error'));
     } finally {
       setCheckInLoading(false);
     }
-  }, [placeCode, checkInLoading, checkInDone]);
+  }, [placeCode, checkInLoading, checkInDone, showSuccess, showError, t]);
 
   const handleCheckIn = useCallback(() => {
     if (checkInDone) return;

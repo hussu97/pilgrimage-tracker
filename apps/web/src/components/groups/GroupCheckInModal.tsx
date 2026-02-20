@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useI18n } from '@/app/providers';
+import { useFeedback, useI18n } from '@/app/providers';
 import { checkIn } from '@/lib/api/client';
 
 interface GroupCheckInModalProps {
@@ -18,6 +18,7 @@ function GroupCheckInModal({
   onSuccess,
 }: GroupCheckInModalProps) {
   const { t } = useI18n();
+  const { showSuccess, showError } = useFeedback();
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,9 +32,11 @@ function GroupCheckInModal({
         note: note.trim() || undefined,
         group_code: groupCode,
       });
+      showSuccess(t('feedback.groupCheckedIn'));
       onSuccess();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('common.unexpectedError'));
+      showError(t('feedback.error'));
     } finally {
       setLoading(false);
     }

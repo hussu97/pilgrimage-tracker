@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useI18n, useTheme } from '@/app/providers';
+import { useFeedback, useI18n, useTheme } from '@/app/providers';
 import { tokens } from '@/lib/theme';
 import { checkIn } from '@/lib/api/client';
 
@@ -95,6 +95,7 @@ export default function GroupCheckInSheet({
 }: GroupCheckInSheetProps) {
   const { t } = useI18n();
   const { isDark } = useTheme();
+  const { showSuccess, showError } = useFeedback();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const [note, setNote] = useState('');
@@ -110,9 +111,11 @@ export default function GroupCheckInSheet({
         group_code: groupCode,
       });
       setNote('');
+      showSuccess(t('feedback.groupCheckedIn'));
       onSuccess();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('common.unexpectedError'));
+      showError(t('feedback.error'));
     } finally {
       setLoading(false);
     }

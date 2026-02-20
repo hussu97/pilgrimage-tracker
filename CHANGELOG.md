@@ -4,6 +4,29 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Success Feedback Popup (2026-02-21)
+
+### Backend
+- **Translation keys** — Added 19 `feedback.*` keys (en, ar, hi) in `server/app/db/seed_data.json`: `checkedIn`, `favoriteAdded`, `favoriteRemoved`, `reviewSubmitted`, `reviewUpdated`, `reviewDeleted`, `groupCreated`, `groupJoined`, `groupLeft`, `groupDeleted`, `profileUpdated`, `groupCheckedIn`, `memberRemoved`, `roleUpdated`, `noteSaved`, `noteDeleted`, `groupUpdated`, `coverUpdated`, `error`.
+
+### Frontend (web)
+- **`FeedbackPopup` component** (`apps/web/src/components/common/FeedbackPopup.tsx`) — Centered overlay using framer-motion `AnimatePresence`. SVG path-draw animation (checkmark / X), dark-mode aware card, `z-[3001]` above modals.
+- **`FeedbackProvider` + `useFeedback`** (`apps/web/src/app/providers.tsx`) — Context providing `showSuccess(msg)` and `showError(msg)`. Auto-dismisses after 2.5 s; calling again replaces the current popup.
+- **`App.tsx`** — `FeedbackProvider` inserted inside `I18nReadyGate`, wrapping `LocationProvider`.
+- **Screen integration** — `useFeedback` wired into: `PlaceDetail` (check-in, favorite toggle, delete review), `Favorites` (remove favorite), `WriteReview` (submit/update), `EditProfile`, `CreateGroup` (errors), `JoinGroup`, `GroupDetail` (leave, delete, remove member, role update, add/delete note), `EditGroup`, `GroupCheckInModal`. Replaced all `alert()` calls.
+- **Pure logic utility** (`apps/web/src/lib/utils/feedbackLogic.ts`) — `createFeedbackStateLogic()` for testing without React.
+- **Tests** — 6 new Vitest tests in `feedbackPopup.test.ts` covering success state, error state, auto-dismiss timing, replacement behavior, and initial state.
+
+### Frontend (mobile)
+- **`FeedbackPopup` component** (`apps/mobile/src/components/common/FeedbackPopup.tsx`) — `Modal` with `transparent`, `Animated` spring scale + opacity for backdrop and card, `MaterialIcons` icon with scale animation, haptic feedback via `expo-haptics`.
+- **`FeedbackProvider` + `useFeedback`** (`apps/mobile/src/app/providers.tsx`) — Same API as web: `showSuccess(msg)` / `showError(msg)`, 2.5 s auto-dismiss.
+- **`App.tsx`** — `FeedbackProvider` inserted inside `AuthBottomSheetProvider`, wrapping `AuthGate`.
+- **Screen integration** — `useFeedback` wired into: `PlaceDetailScreen` (check-in, favorite toggle), `PlaceReviewsList` (delete review), `FavoritesScreen` (remove), `WriteReviewScreen` (submit/update), `EditProfileScreen`, `CreateGroupScreen` (errors), `JoinGroupScreen`, `GroupDetailScreen` (leave, delete, remove member, role toggle, add/delete note), `EditGroupScreen`, `GroupCheckInSheet`. Removed `Alert.alert()` error calls where replaced.
+- **Pure logic utility** (`apps/mobile/src/lib/utils/feedbackLogic.ts`) — `createFeedbackStateLogic()` for testing without native dependencies.
+- **Tests** — 6 new Jest tests in `feedbackPopup.test.ts` mirroring web coverage.
+
+---
+
 ## Force Update System (2026-02-21)
 
 ### Backend

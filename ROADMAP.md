@@ -213,9 +213,8 @@ New capabilities and meaningful UX improvements.
   - First-time users see the app with no guidance.
   - Show a brief guided tour on first login: highlight the search bar, explain filter chips, show how to check in, and point to the profile/favorites. Use a tooltip-based overlay. Store a `has_seen_onboarding` flag.
 
-- [ ] **Success feedback for user actions**
-  - Add/remove favorite, group join, check-in — none show a toast or confirmation on web.
-  - Add a lightweight toast notification component. Show brief success messages for key user actions.
+- [x] **Success feedback for user actions**
+  - Custom-styled centered popup with animated SVG (web) / MaterialIcons (mobile) icon, dark-mode aware, auto-dismisses after 2.5s with haptic feedback on mobile. Integrated across all key actions: check-in, favorites, reviews, profile, group management.
 
 ---
 

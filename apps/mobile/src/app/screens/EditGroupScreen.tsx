@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getGroup, updateGroup, getGroupMembers, uploadGroupCover } from '@/lib/api/client';
-import { useAuth, useI18n, useTheme } from '@/app/providers';
+import { useAuth, useFeedback, useI18n, useTheme } from '@/app/providers';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
 
@@ -201,6 +201,7 @@ export default function EditGroupScreen() {
   const { t } = useI18n();
   const { isDark } = useTheme();
   const { user } = useAuth();
+  const { showSuccess, showError } = useFeedback();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
@@ -317,9 +318,11 @@ export default function EditGroupScreen() {
         start_date: startDate ? formatDate(startDate) : undefined,
         end_date: endDate ? formatDate(endDate) : undefined,
       });
+      showSuccess(t('feedback.groupUpdated'));
       navigation.goBack();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
+      showError(t('feedback.error'));
     } finally {
       setSubmitting(false);
       setCoverUploading(false);

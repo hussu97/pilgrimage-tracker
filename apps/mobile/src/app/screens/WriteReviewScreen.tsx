@@ -18,7 +18,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getPlace, createReview, updateReview, uploadReviewPhoto } from '@/lib/api/client';
 import { pickImages, compressImage, validateImage } from '@/lib/utils/imageUpload';
-import { useI18n, useTheme } from '@/app/providers';
+import { useFeedback, useI18n, useTheme } from '@/app/providers';
 import type { RootStackParamList } from '@/app/navigation';
 import type { PlaceDetail } from '@/lib/types';
 import { tokens } from '@/lib/theme';
@@ -233,6 +233,7 @@ export default function WriteReviewScreen() {
   } = route.params;
   const { t } = useI18n();
   const { isDark } = useTheme();
+  const { showSuccess, showError } = useFeedback();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const [place, setPlace] = useState<PlaceDetail | null>(null);
   const [rating, setRating] = useState(initRating ?? 0);
@@ -312,6 +313,7 @@ export default function WriteReviewScreen() {
           title: title.trim() || undefined,
           body: body.trim() || undefined,
         });
+        showSuccess(t('feedback.reviewUpdated'));
       } else {
         await createReview(placeCode, {
           rating,
@@ -320,10 +322,12 @@ export default function WriteReviewScreen() {
           is_anonymous: isAnonymous,
           photo_urls: photos.map((p) => p.url),
         });
+        showSuccess(t('feedback.reviewSubmitted'));
       }
       setSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
+      showError(t('feedback.error'));
     } finally {
       setSubmitting(false);
     }

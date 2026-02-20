@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/app/providers';
-import { useI18n } from '@/app/providers';
+import { useAuth, useI18n, useFeedback } from '@/app/providers';
 import { updateMe, updateSettings } from '@/lib/api/client';
 import type { Religion } from '@/lib/types';
 
@@ -10,6 +9,7 @@ const RELIGIONS: Religion[] = ['islam', 'hinduism', 'christianity'];
 export default function EditProfile() {
   const { user, refreshUser } = useAuth();
   const { t } = useI18n();
+  const { showSuccess, showError } = useFeedback();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState(user?.display_name ?? '');
   const [religions, setReligions] = useState<Religion[]>(user?.religions ?? []);
@@ -31,9 +31,11 @@ export default function EditProfile() {
       });
       await updateSettings({ religions });
       await refreshUser();
+      showSuccess(t('feedback.profileUpdated'));
       navigate('/profile');
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common.error'));
+      showError(t('feedback.error'));
     } finally {
       setSaving(false);
     }

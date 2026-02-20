@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useI18n } from '@/app/providers';
+import { useI18n, useFeedback } from '@/app/providers';
 import { createGroup, getPlaces, uploadGroupCover } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
 import PlaceSelector from '@/components/groups/PlaceSelector';
@@ -11,6 +11,7 @@ type Step = 'details' | 'places' | 'review';
 export default function CreateGroup() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { showError } = useFeedback();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -98,7 +99,9 @@ export default function CreateGroup() {
           const result = await uploadGroupCover(coverFile);
           finalCoverUrl = result.url;
         } catch (err) {
-          setError(err instanceof Error ? err.message : t('common.error'));
+          const msg = err instanceof Error ? err.message : t('common.error');
+          setError(msg);
+          showError(t('feedback.error'));
           setSubmitting(false);
           setCoverUploading(false);
           return;
@@ -119,6 +122,7 @@ export default function CreateGroup() {
       setGroupCode(g.group_code);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
+      showError(t('feedback.error'));
     } finally {
       setSubmitting(false);
     }
