@@ -1,9 +1,13 @@
 from datetime import date
+from io import BytesIO
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi.responses import Response
+from PIL import Image
 
 from app.api.deps import UserDep
 from app.db import check_ins as check_ins_db
+from app.db import group_cover_images as cover_images_db
 from app.db import group_place_notes as notes_db
 from app.db import groups as groups_db
 from app.db import notifications as notifications_db
@@ -598,3 +602,99 @@ def create_invite(group_code: str, user: UserDep, session: SessionDep):
     if not groups_db.is_member(group_code, user.user_code, session):
         raise HTTPException(status_code=403, detail="Not a member")
     return {"invite_code": g.invite_code, "invite_url": f"/join?code={g.invite_code}"}
+
+
+@router.post("/upload-cover")
+async def upload_group_cover(
+    user: UserDep,
+    session: SessionDep,
+    file: UploadFile = File(...),
+):
+    """Upload a cover image for a group. Returns image_code and URL."""
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image")
+
+    allowed_types = ["image/jpeg", "image/png", "image/webp"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only JPEG, PNG, and WebP images are allowed. Got: {file.content_type}",
+        )
+
+    file_data = await file.read()
+    file_size = len(file_data)
+
+    MAX_SIZE = 5 * 1024 * 1024
+    if file_size > MAX_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File size {file_size} bytes exceeds maximum of {MAX_SIZE} bytes (5MB)",
+        )
+
+    try:
+        img = Image.open(BytesIO(file_data))
+
+        MAX_DIMENSION = 4000
+        if img.width > MAX_DIMENSION or img.height > MAX_DIMENSION:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Image dimensions {img.width}x{img.height} exceed maximum of {MAX_DIMENSION}x{MAX_DIMENSION}",
+            )
+
+        if img.mode in ("RGBA", "LA", "P"):
+            background = Image.new("RGB", img.size, (255, 255, 255))
+            if img.mode == "P":
+                img = img.convert("RGBA")
+            background.paste(img, mask=img.split()[-1] if img.mode in ("RGBA", "LA") else None)
+            img = background
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+
+        MAX_WIDTH = 1200
+        if img.width > MAX_WIDTH:
+            ratio = MAX_WIDTH / img.width
+            new_height = int(img.height * ratio)
+            img = img.resize((MAX_WIDTH, new_height), Image.Resampling.LANCZOS)
+
+        output = BytesIO()
+        img.save(output, format="JPEG", quality=85, optimize=True)
+        compressed_data = output.getvalue()
+        final_width, final_height = img.width, img.height
+        final_size = len(compressed_data)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to process image: {str(e)}")
+
+    try:
+        cover_image = cover_images_db.create_image(
+            uploaded_by_user_code=user.user_code,
+            blob_data=compressed_data,
+            mime_type="image/jpeg",
+            file_size=final_size,
+            width=final_width,
+            height=final_height,
+            session=session,
+        )
+        return {
+            "image_code": cover_image.image_code,
+            "url": f"/api/v1/groups/cover/{cover_image.image_code}",
+            "width": final_width,
+            "height": final_height,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to store image: {str(e)}")
+
+
+@router.get("/cover/{image_code}")
+def get_cover_image(image_code: str, session: SessionDep):
+    """Serve a group cover image by code."""
+    image = cover_images_db.get_by_code(image_code, session)
+    if image is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+    return Response(
+        content=image.blob_data,
+        media_type=image.mime_type,
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )

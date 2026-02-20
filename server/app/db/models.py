@@ -245,6 +245,21 @@ class VisitorSettings(SQLModel, table=True):
     religions: list[str] = Field(default=[], sa_column=Column(JSON))
 
 
+class GroupCoverImage(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    image_code: str = Field(index=True, unique=True)
+    uploaded_by_user_code: str = Field(index=True, foreign_key="user.user_code")
+    blob_data: bytes = Field(sa_column=Column(LargeBinary))
+    mime_type: str  # "image/jpeg"
+    file_size: int
+    width: int
+    height: int
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+
+
 class PlaceAttributeDefinition(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     attribute_code: str = Field(index=True, unique=True)

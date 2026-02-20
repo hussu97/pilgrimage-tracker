@@ -9,12 +9,16 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  Alert,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { createGroup, getPlaces } from '@/lib/api/client';
+import * as ImagePicker from 'expo-image-picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { createGroup, getPlaces, uploadGroupCover } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
 import { INVITE_LINK_BASE_URL } from '@/lib/constants';
 import { useI18n, useTheme } from '@/app/providers';
@@ -25,6 +29,10 @@ import type { Place } from '@/lib/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CreateGroup'>;
 type Step = 'details' | 'places' | 'review';
+
+function formatDate(d: Date): string {
+  return d.toISOString().split('T')[0];
+}
 
 function makeStyles(isDark: boolean) {
   const bg = isDark ? tokens.colors.darkBg : tokens.colors.surfaceTint;
@@ -60,7 +68,6 @@ function makeStyles(isDark: boolean) {
       justifyContent: 'center',
     },
     stepDotActive: { backgroundColor: tokens.colors.primary },
-    stepDotDone: { backgroundColor: tokens.colors.primary },
     stepDotText: { fontSize: 11, fontWeight: '700', color: textMuted },
     stepDotTextActive: { color: '#ffffff' },
     stepLine: {
@@ -69,19 +76,77 @@ function makeStyles(isDark: boolean) {
       backgroundColor: isDark ? tokens.colors.darkBorder : '#e2e8f0',
     },
     stepLineActive: { backgroundColor: tokens.colors.primary },
-    sectionTitle: { fontSize: 14, fontWeight: '600', color: textSecondary, marginBottom: 6 },
+    label: { fontSize: 13, fontWeight: '600', color: textSecondary, marginBottom: 6 },
     field: { marginBottom: 16 },
     input: {
       borderWidth: 1,
       borderColor: border,
       borderRadius: 12,
       paddingHorizontal: 14,
-      paddingVertical: 12,
+      height: 48,
       fontSize: 15,
       backgroundColor: surface,
       color: textMain,
     },
-    textArea: { minHeight: 80, textAlignVertical: 'top' },
+    inputError: { borderColor: '#ef4444' },
+    errorMsg: { fontSize: 12, color: '#ef4444', marginTop: 4 },
+    textArea: { minHeight: 80, textAlignVertical: 'top', paddingVertical: 12, height: undefined },
+    // Cover image
+    coverPlaceholder: {
+      width: '100%',
+      height: 170,
+      borderRadius: 14,
+      borderWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: isDark ? tokens.colors.darkBorder : '#cbd5e1',
+      backgroundColor: isDark ? tokens.colors.darkSurface : '#f8fafc',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      marginBottom: 16,
+    },
+    coverPreview: {
+      width: '100%',
+      height: 170,
+      borderRadius: 14,
+      overflow: 'hidden',
+      marginBottom: 16,
+    },
+    coverImage: { width: '100%', height: '100%' },
+    coverOverlay: {
+      position: 'absolute',
+      bottom: 8,
+      right: 8,
+      flexDirection: 'row',
+      gap: 6,
+    },
+    coverBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 8,
+      backgroundColor: 'rgba(255,255,255,0.9)',
+    },
+    coverBtnText: { fontSize: 11, fontWeight: '600', color: tokens.colors.textDark },
+    coverBtnRemove: { fontSize: 11, fontWeight: '600', color: '#ef4444' },
+    // Date picker field
+    dateField: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      borderWidth: 1,
+      borderColor: border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      height: 48,
+      backgroundColor: surface,
+    },
+    dateText: { fontSize: 15, color: textMain, flex: 1 },
+    datePlaceholder: { fontSize: 15, color: textMuted, flex: 1 },
+    dateRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+    dateCol: { flex: 1 },
     checkRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
     checkbox: {
       width: 22,
@@ -94,24 +159,26 @@ function makeStyles(isDark: boolean) {
       justifyContent: 'center',
     },
     checkboxChecked: { backgroundColor: tokens.colors.primary, borderColor: tokens.colors.primary },
-    checkMark: { color: '#fff', fontWeight: '700', fontSize: 14 },
     checkLabel: { fontSize: 14, color: textMain },
+    optionalTag: { fontSize: 12, color: textMuted, marginLeft: 4 },
     actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
     cancelButton: {
       flex: 1,
-      paddingVertical: 14,
+      height: 48,
       borderRadius: 14,
       borderWidth: 1,
       borderColor: border,
       alignItems: 'center',
+      justifyContent: 'center',
     },
     cancelText: { color: textMain, fontWeight: '600' },
     submitButton: {
       flex: 1,
-      paddingVertical: 14,
+      height: 48,
       borderRadius: 14,
       backgroundColor: tokens.colors.primary,
       alignItems: 'center',
+      justifyContent: 'center',
     },
     submitDisabled: { opacity: 0.7 },
     submitText: { color: '#fff', fontWeight: '600' },
@@ -157,20 +224,22 @@ function makeStyles(isDark: boolean) {
     inviteCode: { fontSize: 12, color: textMuted },
     shareButton: {
       width: '100%',
-      paddingVertical: 14,
+      height: 48,
       borderRadius: 14,
       borderWidth: 1,
       borderColor: border,
       alignItems: 'center',
+      justifyContent: 'center',
       marginBottom: 12,
     },
     shareButtonText: { color: textMain, fontWeight: '600' },
     goButton: {
       width: '100%',
-      paddingVertical: 14,
+      height: 48,
       borderRadius: 14,
       backgroundColor: tokens.colors.primary,
       alignItems: 'center',
+      justifyContent: 'center',
     },
     goButtonText: { color: '#fff', fontWeight: '600' },
   });
@@ -185,11 +254,14 @@ export default function CreateGroupScreen() {
 
   const [step, setStep] = useState<Step>('details');
   const [name, setName] = useState('');
+  const [nameError, setNameError] = useState('');
   const [description, setDescription] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
-  const [coverImageUrl, setCoverImageUrl] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [coverUri, setCoverUri] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
   const [selectedPlaceCodes, setSelectedPlaceCodes] = useState<string[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
   const [placesLoading, setPlacesLoading] = useState(false);
@@ -211,9 +283,58 @@ export default function CreateGroupScreen() {
     }
   }, [step, places.length]);
 
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please grant photo library access.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [16, 9],
+    });
+    if (!result.canceled && result.assets[0]) {
+      setCoverUri(result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please grant camera access.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [16, 9],
+    });
+    if (!result.canceled && result.assets[0]) {
+      setCoverUri(result.assets[0].uri);
+    }
+  };
+
+  const showCoverOptions = () => {
+    Alert.alert(t('groups.coverImage'), '', [
+      { text: t('groups.chooseFromLibrary'), onPress: pickImage },
+      { text: t('groups.takePhoto'), onPress: takePhoto },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
+  };
+
   const goNext = () => {
-    if (step === 'details') setStep('places');
-    else if (step === 'places') setStep('review');
+    if (step === 'details') {
+      if (!name.trim()) {
+        setNameError(t('groups.nameRequired'));
+        return;
+      }
+      setNameError('');
+      setStep('places');
+    } else if (step === 'places') {
+      setStep('review');
+    }
   };
 
   const goBack = () => {
@@ -227,14 +348,26 @@ export default function CreateGroupScreen() {
     setSubmitting(true);
     setError('');
     try {
+      let coverImageUrl: string | undefined;
+      if (coverUri) {
+        try {
+          const result = await uploadGroupCover(coverUri);
+          coverImageUrl = result.url;
+        } catch (err) {
+          setError(err instanceof Error ? err.message : t('common.error'));
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const g = await createGroup({
         name: name.trim(),
         description: description.trim() || undefined,
         is_private: isPrivate,
         path_place_codes: selectedPlaceCodes.length > 0 ? selectedPlaceCodes : undefined,
-        cover_image_url: coverImageUrl.trim() || undefined,
-        start_date: startDate || undefined,
-        end_date: endDate || undefined,
+        cover_image_url: coverImageUrl,
+        start_date: startDate ? formatDate(startDate) : undefined,
+        end_date: endDate ? formatDate(endDate) : undefined,
       });
       setInviteCode(g.invite_code);
       setGroupCode(g.group_code);
@@ -351,19 +484,64 @@ export default function CreateGroupScreen() {
         {/* Step 1: Details */}
         {step === 'details' && (
           <View>
+            {/* Cover Image Picker */}
+            {coverUri ? (
+              <View style={styles.coverPreview}>
+                <Image source={{ uri: coverUri }} style={styles.coverImage} resizeMode="cover" />
+                <View style={styles.coverOverlay}>
+                  <TouchableOpacity
+                    style={styles.coverBtn}
+                    onPress={showCoverOptions}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialIcons name="edit" size={14} color={tokens.colors.textDark} />
+                    <Text style={styles.coverBtnText}>{t('groups.changeCoverPhoto')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.coverBtn}
+                    onPress={() => setCoverUri(null)}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialIcons name="close" size={14} color="#ef4444" />
+                    <Text style={styles.coverBtnRemove}>{t('groups.removeCoverPhoto')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.coverPlaceholder}
+                onPress={showCoverOptions}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="photo-camera" size={32} color={textMuted} />
+                <Text style={{ fontSize: 14, fontWeight: '500', color: textMuted }}>
+                  {t('groups.addCoverPhoto')}
+                </Text>
+                <Text style={{ fontSize: 12, color: textMuted }}>{t('groups.optional')}</Text>
+              </TouchableOpacity>
+            )}
+
             <View style={styles.field}>
-              <Text style={styles.sectionTitle}>{t('groups.nameLabel')} *</Text>
+              <Text style={styles.label}>{t('groups.nameLabel')} *</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, nameError ? styles.inputError : {}]}
                 value={name}
-                onChangeText={setName}
+                onChangeText={(v) => {
+                  setName(v);
+                  if (nameError) setNameError('');
+                }}
                 placeholder={t('groups.groupNamePlaceholder')}
                 placeholderTextColor={textMuted}
                 autoCapitalize="words"
               />
+              {nameError ? <Text style={styles.errorMsg}>{nameError}</Text> : null}
             </View>
+
             <View style={styles.field}>
-              <Text style={styles.sectionTitle}>{t('groups.descriptionLabel')}</Text>
+              <Text style={styles.label}>
+                {t('groups.descriptionLabel')}
+                <Text style={styles.optionalTag}> {t('groups.optional')}</Text>
+              </Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
                 value={description}
@@ -373,50 +551,81 @@ export default function CreateGroupScreen() {
                 multiline
               />
             </View>
-            <View style={styles.field}>
-              <Text style={styles.sectionTitle}>{t('groups.coverImage')}</Text>
-              <TextInput
-                style={styles.input}
-                value={coverImageUrl}
-                onChangeText={setCoverImageUrl}
-                placeholder={t('groups.coverImagePlaceholder')}
-                placeholderTextColor={textMuted}
-                autoCapitalize="none"
-                keyboardType="url"
-              />
+
+            <View style={styles.dateRow}>
+              <View style={styles.dateCol}>
+                <Text style={styles.label}>
+                  {t('groups.startDate')}
+                  <Text style={styles.optionalTag}> {t('groups.optional')}</Text>
+                </Text>
+                <TouchableOpacity
+                  style={styles.dateField}
+                  onPress={() => setShowStartPicker(true)}
+                  activeOpacity={0.8}
+                >
+                  <MaterialIcons name="calendar-today" size={18} color={textMuted} />
+                  {startDate ? (
+                    <Text style={styles.dateText}>{formatDate(startDate)}</Text>
+                  ) : (
+                    <Text style={styles.datePlaceholder}>YYYY-MM-DD</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+              <View style={styles.dateCol}>
+                <Text style={styles.label}>
+                  {t('groups.endDate')}
+                  <Text style={styles.optionalTag}> {t('groups.optional')}</Text>
+                </Text>
+                <TouchableOpacity
+                  style={styles.dateField}
+                  onPress={() => setShowEndPicker(true)}
+                  activeOpacity={0.8}
+                >
+                  <MaterialIcons name="calendar-today" size={18} color={textMuted} />
+                  {endDate ? (
+                    <Text style={styles.dateText}>{formatDate(endDate)}</Text>
+                  ) : (
+                    <Text style={styles.datePlaceholder}>YYYY-MM-DD</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={styles.field}>
-              <Text style={styles.sectionTitle}>{t('groups.startDate')}</Text>
-              <TextInput
-                style={styles.input}
-                value={startDate}
-                onChangeText={setStartDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={textMuted}
-                keyboardType="numeric"
+
+            {showStartPicker && (
+              <DateTimePicker
+                value={startDate ?? new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(_, date) => {
+                  setShowStartPicker(Platform.OS === 'ios');
+                  if (date) setStartDate(date);
+                }}
               />
-            </View>
-            <View style={styles.field}>
-              <Text style={styles.sectionTitle}>{t('groups.endDate')}</Text>
-              <TextInput
-                style={styles.input}
-                value={endDate}
-                onChangeText={setEndDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={textMuted}
-                keyboardType="numeric"
+            )}
+            {showEndPicker && (
+              <DateTimePicker
+                value={endDate ?? new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(_, date) => {
+                  setShowEndPicker(Platform.OS === 'ios');
+                  if (date) setEndDate(date);
+                }}
               />
-            </View>
+            )}
+
             <TouchableOpacity
               style={styles.checkRow}
               onPress={() => setIsPrivate((p) => !p)}
               activeOpacity={0.8}
             >
               <View style={[styles.checkbox, isPrivate && styles.checkboxChecked]}>
-                {isPrivate ? <Text style={styles.checkMark}>✓</Text> : null}
+                {isPrivate ? <MaterialIcons name="check" size={16} color="#fff" /> : null}
               </View>
               <Text style={styles.checkLabel}>{t('groups.privateGroup')}</Text>
+              <Text style={styles.optionalTag}>{t('groups.optional')}</Text>
             </TouchableOpacity>
+
             <View style={styles.actions}>
               <TouchableOpacity
                 style={styles.cancelButton}
@@ -425,12 +634,7 @@ export default function CreateGroupScreen() {
               >
                 <Text style={styles.cancelText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.submitButton, !name.trim() && styles.submitDisabled]}
-                onPress={goNext}
-                disabled={!name.trim()}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={styles.submitButton} onPress={goNext} activeOpacity={0.8}>
                 <Text style={styles.submitText}>{t('common.next')}</Text>
               </TouchableOpacity>
             </View>
@@ -460,24 +664,30 @@ export default function CreateGroupScreen() {
         {/* Step 3: Review */}
         {step === 'review' && (
           <View>
-            <Text style={[styles.sectionTitle, { fontSize: 16, marginBottom: 16 }]}>
+            <Text style={[styles.label, { fontSize: 16, marginBottom: 16 }]}>
               {t('groups.reviewYourGroup')}
             </Text>
             <View style={styles.reviewCard}>
+              {coverUri && (
+                <Image
+                  source={{ uri: coverUri }}
+                  style={{ width: '100%', height: 120, borderRadius: 10, marginBottom: 12 }}
+                  resizeMode="cover"
+                />
+              )}
               <Text style={styles.reviewTitle}>{name}</Text>
               {description ? <Text style={styles.reviewDesc}>{description}</Text> : null}
-              {startDate || endDate ? (
+              {(startDate || endDate) && (
                 <Text style={styles.reviewMeta}>
-                  📅 {startDate} {startDate && endDate ? '–' : ''} {endDate}
+                  📅 {startDate ? formatDate(startDate) : ''} {startDate && endDate ? '–' : ''}{' '}
+                  {endDate ? formatDate(endDate) : ''}
                 </Text>
-              ) : null}
-              {isPrivate ? (
-                <Text style={styles.reviewMeta}>🔒 {t('groups.privateGroup')}</Text>
-              ) : null}
+              )}
+              {isPrivate && <Text style={styles.reviewMeta}>🔒 {t('groups.privateGroup')}</Text>}
             </View>
             {selectedPlaceObjects.length > 0 && (
               <View style={{ marginBottom: 16 }}>
-                <Text style={[styles.sectionTitle, { marginBottom: 8 }]}>
+                <Text style={[styles.label, { marginBottom: 8 }]}>
                   {t('groups.placesInItinerary').replace(
                     '{count}',
                     String(selectedPlaceObjects.length),

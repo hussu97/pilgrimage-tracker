@@ -107,22 +107,25 @@ function makeStyles(isDark: boolean) {
     // Tab bar
     tabBar: {
       flexDirection: 'row',
-      borderBottomWidth: 1,
-      borderBottomColor: border,
-      backgroundColor: surface,
-      marginBottom: 0,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      gap: 4,
     },
     tab: {
       flex: 1,
-      paddingVertical: 12,
+      paddingVertical: 10,
       alignItems: 'center',
+      borderRadius: 10,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 4,
     },
     tabActive: {
-      borderBottomWidth: 2,
-      borderBottomColor: tokens.colors.primary,
+      backgroundColor: isDark ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.08)',
     },
-    tabText: { fontSize: 13, fontWeight: '600', color: textMuted },
+    tabText: { fontSize: 12, fontWeight: '600', color: textMuted },
     tabTextActive: { color: tokens.colors.primary },
+    tabDivider: { height: 1, backgroundColor: border },
 
     // Tab content
     tabContent: { paddingHorizontal: 20, paddingBottom: 32 },
@@ -231,25 +234,27 @@ function makeStyles(isDark: boolean) {
     noteAuthor: { fontSize: 12, fontWeight: '600', color: textMain, marginBottom: 2 },
     noteText: { fontSize: 13, color: textSecondary },
     noteDeleteBtn: { padding: 2 },
-    noteInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+    noteInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
     noteInput: {
       flex: 1,
       borderWidth: 1,
       borderColor: border,
-      borderRadius: 10,
-      paddingHorizontal: 10,
+      borderRadius: 20,
+      paddingHorizontal: 14,
       paddingVertical: 8,
       fontSize: 13,
       color: textMain,
       backgroundColor: bg,
+      height: 40,
     },
     noteAddBtn: {
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
       backgroundColor: tokens.colors.primary,
-      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
-    noteAddBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
 
     // Empty state
     emptyWrap: { alignItems: 'center', paddingVertical: 40 },
@@ -642,11 +647,11 @@ export default function GroupDetailScreen() {
     );
   }
 
-  const TABS: { key: Tab; label: string }[] = [
-    { key: 'itinerary', label: t('groups.itinerary') },
-    { key: 'activity', label: t('groups.recentlyVisited') },
-    { key: 'leaderboard', label: t('groups.leaderboard') },
-    { key: 'members', label: t('groups.membersTab') },
+  const TABS: { key: Tab; label: string; icon: string }[] = [
+    { key: 'itinerary', label: t('groups.itinerary'), icon: 'route' },
+    { key: 'activity', label: t('groups.recentlyVisited'), icon: 'history' },
+    { key: 'leaderboard', label: t('groups.leaderboard'), icon: 'emoji-events' },
+    { key: 'members', label: t('groups.membersTab'), icon: 'group' },
   ];
 
   return (
@@ -723,12 +728,24 @@ export default function GroupDetailScreen() {
               onPress={() => setActiveTab(tab.key)}
               activeOpacity={0.8}
             >
+              <MaterialIcons
+                name={tab.icon as any}
+                size={18}
+                color={
+                  activeTab === tab.key
+                    ? tokens.colors.primary
+                    : isDark
+                      ? tokens.colors.darkTextSecondary
+                      : tokens.colors.textMuted
+                }
+              />
               <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
                 {tab.label}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
+        <View style={styles.tabDivider} />
 
         {/* Tab Content */}
         <View style={styles.tabContent}>
@@ -922,7 +939,7 @@ export default function GroupDetailScreen() {
                                   {submittingNote === place.place_code ? (
                                     <ActivityIndicator color="#fff" size="small" />
                                   ) : (
-                                    <Text style={styles.noteAddBtnText}>{t('groups.addNote')}</Text>
+                                    <MaterialIcons name="send" size={18} color="#fff" />
                                   )}
                                 </TouchableOpacity>
                               </View>
@@ -1110,9 +1127,11 @@ export default function GroupDetailScreen() {
                         {member.display_name}
                         {isSelf ? ' (You)' : ''}
                       </Text>
-                      <Text style={styles.memberJoined}>
-                        {new Date(member.joined_at).toLocaleDateString()}
-                      </Text>
+                      {member.joined_at && !isNaN(new Date(member.joined_at).getTime()) && (
+                        <Text style={styles.memberJoined}>
+                          {new Date(member.joined_at).toLocaleDateString()}
+                        </Text>
+                      )}
                     </View>
                     <View
                       style={[styles.roleBadge, member.role === 'admin' && styles.roleBadgeAdmin]}

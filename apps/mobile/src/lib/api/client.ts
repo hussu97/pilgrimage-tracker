@@ -439,6 +439,33 @@ export async function getGroups(): Promise<Group[]> {
   return res.json();
 }
 
+export async function uploadGroupCover(uri: string): Promise<{
+  image_code: string;
+  url: string;
+  width: number;
+  height: number;
+}> {
+  const formData = new FormData();
+  formData.append('file', {
+    uri,
+    type: 'image/jpeg',
+    name: 'cover.jpg',
+  } as any);
+
+  const token = await getToken();
+  const res = await authFetch(`${API_BASE}/api/v1/groups/upload-cover`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? 'Failed to upload cover image');
+  return data;
+}
+
 export async function createGroup(body: {
   name: string;
   description?: string;

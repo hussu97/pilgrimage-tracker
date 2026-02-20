@@ -7,12 +7,12 @@ import {
   FlatList,
   StyleSheet,
   ActivityIndicator,
+  Image,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useI18n, useTheme } from '@/app/providers';
 import { tokens } from '@/lib/theme';
 import type { Place } from '@/lib/types';
-
-const RELIGION_FILTERS = ['all', 'islam', 'hinduism', 'christianity'] as const;
 
 interface PlaceSelectorProps {
   selectedCodes: string[];
@@ -22,7 +22,6 @@ interface PlaceSelectorProps {
 }
 
 function makeStyles(isDark: boolean) {
-  const bg = isDark ? tokens.colors.darkBg : tokens.colors.backgroundLight;
   const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
   const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
   const textMain = isDark ? '#ffffff' : tokens.colors.textDark;
@@ -30,85 +29,76 @@ function makeStyles(isDark: boolean) {
 
   return StyleSheet.create({
     container: { flex: 1 },
-    selectedBox: {
-      backgroundColor: surface,
+    // Selected chips
+    chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+    chip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.08)',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(59,130,246,0.3)' : 'rgba(59,130,246,0.2)',
+    },
+    chipIndex: { fontSize: 11, fontWeight: '700', color: tokens.colors.primary },
+    chipName: { fontSize: 11, fontWeight: '500', color: textMain },
+    chipBtnWrap: { flexDirection: 'row', gap: 2, marginLeft: 4 },
+    chipBtn: { padding: 2 },
+    chipsHeader: { fontSize: 12, fontWeight: '600', color: textMuted, marginBottom: 8 },
+    // Search
+    searchInput: {
       borderWidth: 1,
       borderColor: border,
       borderRadius: 12,
-      padding: 12,
-      marginBottom: 12,
-    },
-    selectedHeader: { fontSize: 12, fontWeight: '600', color: textMuted, marginBottom: 8 },
-    selectedItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 6,
-      paddingHorizontal: 8,
-      backgroundColor: isDark ? '#1a2e50' : '#f0f4ff',
-      borderRadius: 8,
-      marginBottom: 4,
-    },
-    selectedIndex: { fontSize: 12, fontWeight: '700', color: tokens.colors.primary, width: 20 },
-    selectedName: { flex: 1, fontSize: 13, fontWeight: '500', color: textMain },
-    moveBtn: { padding: 4 },
-    moveBtnText: { fontSize: 16, color: tokens.colors.primary },
-    removeBtn: { padding: 4 },
-    removeBtnText: { fontSize: 16, color: '#ef4444' },
-    searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-    searchInput: {
-      flex: 1,
-      borderWidth: 1,
-      borderColor: border,
-      borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 10,
       fontSize: 14,
       color: textMain,
       backgroundColor: surface,
+      marginBottom: 12,
     },
-    filterRow: { flexDirection: 'row', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
-    chip: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 20,
+    // Place card
+    placeCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 12,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: border,
       backgroundColor: surface,
+      marginBottom: 8,
     },
-    chipSelected: {
-      backgroundColor: tokens.colors.primary,
+    placeCardSelected: {
+      borderWidth: 2,
       borderColor: tokens.colors.primary,
+      backgroundColor: isDark ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.03)',
     },
-    chipText: { fontSize: 12, fontWeight: '600', color: textMuted },
-    chipTextSelected: { color: '#ffffff' },
-    placeItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: 10,
-      paddingHorizontal: 8,
+    placeImage: {
+      width: 52,
+      height: 52,
       borderRadius: 10,
-      marginBottom: 2,
+      backgroundColor: isDark ? tokens.colors.darkBorder : '#f1f5f9',
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
     },
-    placeItemSelected: {
-      backgroundColor: isDark ? '#1a2e50' : '#f0f4ff',
-    },
-    checkbox: {
+    placeImg: { width: 52, height: 52 },
+    placeName: { fontSize: 14, fontWeight: '500', color: textMain },
+    placeAddress: { fontSize: 11, color: textMuted, marginTop: 2 },
+    checkBadge: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
       width: 20,
       height: 20,
-      borderRadius: 4,
-      borderWidth: 2,
-      borderColor: border,
-      marginRight: 10,
+      borderRadius: 10,
+      backgroundColor: tokens.colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    checkboxSelected: {
-      backgroundColor: tokens.colors.primary,
-      borderColor: tokens.colors.primary,
-    },
-    checkmark: { color: '#ffffff', fontSize: 12, fontWeight: '700' },
-    placeName: { fontSize: 13, fontWeight: '500', color: textMain },
-    placeSubtext: { fontSize: 11, color: textMuted, marginTop: 1 },
     emptyText: { textAlign: 'center', color: textMuted, padding: 20 },
   });
 }
@@ -124,16 +114,13 @@ export default function PlaceSelector({
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const [search, setSearch] = useState('');
-  const [religionFilter, setReligionFilter] = useState<string>('all');
 
   const filteredPlaces = useMemo(
     () =>
       places.filter((p) => {
-        const matchesSearch = search === '' || p.name.toLowerCase().includes(search.toLowerCase());
-        const matchesReligion = religionFilter === 'all' || p.religion === religionFilter;
-        return matchesSearch && matchesReligion;
+        return search === '' || p.name.toLowerCase().includes(search.toLowerCase());
       }),
-    [places, search, religionFilter],
+    [places, search],
   );
 
   const togglePlace = useCallback(
@@ -165,37 +152,47 @@ export default function PlaceSelector({
     .map((code) => places.find((p) => p.place_code === code))
     .filter(Boolean) as Place[];
 
+  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
+
   return (
     <View style={styles.container}>
       {selectedPlaces.length > 0 && (
-        <View style={styles.selectedBox}>
-          <Text style={styles.selectedHeader}>
+        <View>
+          <Text style={styles.chipsHeader}>
             {t('groups.placesSelected').replace('{count}', String(selectedPlaces.length))}
           </Text>
-          {selectedPlaces.map((place, i) => (
-            <View key={place.place_code} style={styles.selectedItem}>
-              <Text style={styles.selectedIndex}>{i + 1}</Text>
-              <Text style={styles.selectedName} numberOfLines={1}>
-                {place.name}
-              </Text>
-              <TouchableOpacity style={styles.moveBtn} onPress={() => moveUp(i)} disabled={i === 0}>
-                <Text style={styles.moveBtnText}>↑</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.moveBtn}
-                onPress={() => moveDown(i)}
-                disabled={i === selectedPlaces.length - 1}
-              >
-                <Text style={styles.moveBtnText}>↓</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.removeBtn}
-                onPress={() => togglePlace(place.place_code)}
-              >
-                <Text style={styles.removeBtnText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+          <View style={styles.chipsWrap}>
+            {selectedPlaces.map((place, i) => (
+              <View key={place.place_code} style={styles.chip}>
+                <Text style={styles.chipIndex}>{i + 1}</Text>
+                <Text style={styles.chipName} numberOfLines={1}>
+                  {place.name}
+                </Text>
+                <View style={styles.chipBtnWrap}>
+                  <TouchableOpacity
+                    style={styles.chipBtn}
+                    onPress={() => moveUp(i)}
+                    disabled={i === 0}
+                  >
+                    <MaterialIcons name="arrow-upward" size={12} color={tokens.colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.chipBtn}
+                    onPress={() => moveDown(i)}
+                    disabled={i === selectedPlaces.length - 1}
+                  >
+                    <MaterialIcons name="arrow-downward" size={12} color={tokens.colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.chipBtn}
+                    onPress={() => togglePlace(place.place_code)}
+                  >
+                    <MaterialIcons name="close" size={12} color="#ef4444" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
       )}
 
@@ -204,22 +201,8 @@ export default function PlaceSelector({
         value={search}
         onChangeText={setSearch}
         placeholder={t('groups.searchPlaces')}
-        placeholderTextColor={isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted}
+        placeholderTextColor={textMuted}
       />
-
-      <View style={styles.filterRow}>
-        {RELIGION_FILTERS.map((r) => (
-          <TouchableOpacity
-            key={r}
-            style={[styles.chip, religionFilter === r && styles.chipSelected]}
-            onPress={() => setReligionFilter(r)}
-          >
-            <Text style={[styles.chipText, religionFilter === r && styles.chipTextSelected]}>
-              {r === 'all' ? t('common.allReligions') : t(`common.${r}`)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
 
       {loading ? (
         <ActivityIndicator color={tokens.colors.primary} style={{ marginTop: 20 }} />
@@ -233,20 +216,34 @@ export default function PlaceSelector({
             const checked = selectedCodes.includes(item.place_code);
             return (
               <TouchableOpacity
-                style={[styles.placeItem, checked && styles.placeItemSelected]}
+                style={[styles.placeCard, checked && styles.placeCardSelected]}
                 onPress={() => togglePlace(item.place_code)}
+                activeOpacity={0.9}
               >
-                <View style={[styles.checkbox, checked && styles.checkboxSelected]}>
-                  {checked && <Text style={styles.checkmark}>✓</Text>}
+                <View style={styles.placeImage}>
+                  {item.images?.[0]?.url ? (
+                    <Image
+                      source={{ uri: item.images[0].url }}
+                      style={styles.placeImg}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <MaterialIcons name="place" size={24} color={textMuted} />
+                  )}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.placeName} numberOfLines={1}>
                     {item.name}
                   </Text>
-                  <Text style={styles.placeSubtext} numberOfLines={1}>
-                    {item.religion} · {item.address}
+                  <Text style={styles.placeAddress} numberOfLines={1}>
+                    {item.address}
                   </Text>
                 </View>
+                {checked && (
+                  <View style={styles.checkBadge}>
+                    <MaterialIcons name="check" size={14} color="#fff" />
+                  </View>
+                )}
               </TouchableOpacity>
             );
           }}

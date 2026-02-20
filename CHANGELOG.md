@@ -4,6 +4,34 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Group UX Overhaul (2026-02-20)
+
+### Backend
+- **Cover image upload** — New `POST /api/v1/groups/upload-cover` endpoint accepts JPEG/PNG/WebP (max 5 MB), resizes to 1200 px width, compresses to 85 % JPEG, stores blob in new `GroupCoverImage` model. Served via `GET /api/v1/groups/cover/{image_code}` with 1-year cache header.
+- **Migration** — `0005_group_cover_image.py` creates `groupcoverimage` table.
+- **Translations** — Added 10 new i18n keys (`groups.optional`, `groups.nameRequired`, `groups.addCoverPhoto`, `groups.changeCoverPhoto`, `groups.removeCoverPhoto`, `groups.manageItinerary`, `groups.writeNote`, `groups.chooseFromLibrary`, `groups.takePhoto`, `groups.saveItinerary`) in en/ar/hi. Updated `groups.coverImage` label from "Cover Image URL" to "Cover Photo".
+
+### Frontend (web)
+- **Create Group** — Replaced cover image URL text field with hero image picker (dashed placeholder → file picker → preview with edit/remove overlay). Replaced raw date inputs with styled fields with calendar icons. Added form validation (name required, red border + error message). Optional field labels show "(Optional)" suffix.
+- **Place selector** — Removed religion filter pills. Replaced checkbox list with place cards (image + name + address) with selected state (blue border, checkmark badge, `active:scale-[0.98]` press feedback). Selected places shown as reorderable chips.
+- **Group Detail** — Tab bar now uses Material Icons per tab with animated sliding indicator via `framer-motion` `layoutId`. Notes input redesigned as WhatsApp-style rounded input with circular send button.
+- **Edit Group** — Replaced inline PlaceSelector with cover image picker, native date pickers, and "Manage Itinerary" button linking to new `/groups/:groupCode/edit-places` page.
+- **Edit Group Places** — New full-screen page (`EditGroupPlaces.tsx`) for managing group itinerary with PlaceSelector, save button in header.
+
+### Frontend (mobile)
+- **Create Group** — Cover image picker using `expo-image-picker` (choose from library / take photo). Native date pickers via `@react-native-community/datetimepicker`. Form validation with error state. Optional field labels.
+- **Place selector** — Removed religion filter pills. Place cards with image, name, address, and checkmark badge. Selected places as reorderable chips with up/down/remove buttons.
+- **Group Detail** — Tab bar with Material Icons and rounded pill-style active indicator. Notes input as WhatsApp-style rounded field with circular send button using send icon. Fixed "Invalid Date" in member list by guarding against null/invalid `joined_at`.
+- **Edit Group** — Replaced inline PlaceSelector and URL text field with cover image picker, native date pickers, and "Manage Itinerary" button. New `EditGroupPlacesScreen` for full-screen itinerary editing.
+- **Navigation** — Added `EditGroupPlaces` route to `RootStackParamList` and stack navigator.
+
+### Tests
+- `server/tests/test_group_cover_upload.py` — Upload endpoint tests (valid images, invalid types, oversized files, auth required, image serving).
+- `apps/web/src/__tests__/createGroup.test.ts` — Group name validation tests.
+- `apps/mobile/src/__tests__/createGroup.test.ts` — Group name validation tests.
+
+---
+
 ## UI Fixes & Polish (2026-02-20)
 
 ### Frontend (web)

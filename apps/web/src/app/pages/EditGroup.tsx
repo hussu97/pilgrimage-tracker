@@ -1,28 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useI18n } from '@/app/providers';
-import { getGroup, updateGroup, getGroupMembers, getPlaces } from '@/lib/api/client';
+import { getGroup, updateGroup, getGroupMembers, uploadGroupCover } from '@/lib/api/client';
 import { useAuth } from '@/app/providers';
-import PlaceSelector from '@/components/groups/PlaceSelector';
-import type { Place } from '@/lib/types';
 
 export default function EditGroup() {
   const { groupCode } = useParams<{ groupCode: string }>();
   const navigate = useNavigate();
   const { t } = useI18n();
   const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
   const [coverImageUrl, setCoverImageUrl] = useState('');
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [selectedPlaceCodes, setSelectedPlaceCodes] = useState<string[]>([]);
+  const [placeCount, setPlaceCount] = useState(0);
 
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [placesLoading, setPlacesLoading] = useState(false);
-
+  const [nameError, setNameError] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -43,9 +42,10 @@ export default function EditGroup() {
       setDescription(g.description ?? '');
       setIsPrivate(g.is_private);
       setCoverImageUrl(g.cover_image_url ?? '');
+      if (g.cover_image_url) setCoverPreview(g.cover_image_url);
       setStartDate(g.start_date ?? '');
       setEndDate(g.end_date ?? '');
-      setSelectedPlaceCodes(g.path_place_codes ?? []);
+      setPlaceCount((g.path_place_codes ?? []).length);
     } catch {
       navigate(`/groups/${groupCode}`);
     } finally {
@@ -55,25 +55,58 @@ export default function EditGroup() {
 
   useEffect(() => {
     fetchGroup();
-    setPlacesLoading(true);
-    getPlaces({ limit: 200 })
-      .then((res) => setPlaces(res.places ?? []))
-      .catch(() => {})
-      .finally(() => setPlacesLoading(false));
   }, [fetchGroup]);
+
+  const handleCoverPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCoverFile(file);
+    const reader = new FileReader();
+    reader.onload = () => setCoverPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const removeCover = () => {
+    setCoverFile(null);
+    setCoverPreview(null);
+    setCoverImageUrl('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!groupCode || !name.trim()) return;
+    if (!groupCode) return;
+    if (!name.trim()) {
+      setNameError(t('groups.nameRequired'));
+      return;
+    }
+    setNameError('');
     setSubmitting(true);
     setError('');
     try {
+      let finalCoverUrl = coverImageUrl.trim() || undefined;
+
+      if (coverFile) {
+        try {
+          const result = await uploadGroupCover(coverFile);
+          finalCoverUrl = result.url;
+        } catch (err) {
+          setError(err instanceof Error ? err.message : t('common.error'));
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // If cover was removed, explicitly send empty string
+      if (!coverPreview && !coverFile) {
+        finalCoverUrl = '';
+      }
+
       await updateGroup(groupCode, {
         name: name.trim(),
         description: description.trim() || undefined,
         is_private: isPrivate,
-        path_place_codes: selectedPlaceCodes,
-        cover_image_url: coverImageUrl.trim() || undefined,
+        cover_image_url: finalCoverUrl,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
       });
@@ -112,23 +145,78 @@ export default function EditGroup() {
         </h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Cover Image Picker */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleCoverPick}
+        />
+        {coverPreview ? (
+          <div className="relative w-full h-44 rounded-xl overflow-hidden">
+            <img src={coverPreview} alt="Cover" className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/20 flex items-center justify-center gap-2 opacity-0 hover:opacity-100 transition-opacity">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="px-3 py-1.5 rounded-lg bg-white/90 text-slate-700 text-xs font-semibold flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-sm">edit</span>
+                {t('groups.changeCoverPhoto')}
+              </button>
+              <button
+                type="button"
+                onClick={removeCover}
+                className="px-3 py-1.5 rounded-lg bg-white/90 text-red-600 text-xs font-semibold flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-sm">close</span>
+                {t('groups.removeCoverPhoto')}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full h-44 rounded-xl border-2 border-dashed border-slate-300 dark:border-dark-border bg-slate-50 dark:bg-dark-surface flex flex-col items-center justify-center gap-2 hover:border-primary hover:bg-primary/5 dark:hover:bg-primary/10 transition-all cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-3xl text-slate-400 dark:text-dark-text-secondary">
+              photo_camera
+            </span>
+            <span className="text-sm font-medium text-slate-500 dark:text-dark-text-secondary">
+              {t('groups.addCoverPhoto')}
+            </span>
+            <span className="text-xs text-slate-400 dark:text-dark-text-secondary">
+              {t('groups.optional')}
+            </span>
+          </button>
+        )}
+
         <div>
-          <label className="block text-sm font-medium text-text-main dark:text-white mb-1">
+          <label className="block text-sm font-semibold text-slate-600 dark:text-dark-text-secondary mb-1.5">
             {t('groups.nameLabel')} *
           </label>
           <input
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className="w-full border border-input-border dark:border-dark-border rounded-xl px-4 py-3 text-text-main dark:text-white bg-surface dark:bg-dark-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+            onChange={(e) => {
+              setName(e.target.value);
+              if (nameError) setNameError('');
+            }}
+            className={`w-full h-12 border rounded-xl px-4 text-text-main dark:text-white bg-surface dark:bg-dark-surface focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+              nameError
+                ? 'border-red-400 dark:border-red-500'
+                : 'border-input-border dark:border-dark-border'
+            }`}
           />
+          {nameError && <p className="text-xs text-red-500 mt-1">{nameError}</p>}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-text-main dark:text-white mb-1">
-            {t('groups.descriptionLabel')}
+          <label className="block text-sm font-semibold text-slate-600 dark:text-dark-text-secondary mb-1.5">
+            {t('groups.descriptionLabel')} {t('groups.optional')}
           </label>
           <textarea
             value={description}
@@ -138,41 +226,38 @@ export default function EditGroup() {
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-text-main dark:text-white mb-1">
-            {t('groups.coverImage')}
-          </label>
-          <input
-            type="url"
-            value={coverImageUrl}
-            onChange={(e) => setCoverImageUrl(e.target.value)}
-            placeholder={t('groups.coverImagePlaceholder')}
-            className="w-full border border-input-border dark:border-dark-border rounded-xl px-4 py-3 text-text-main dark:text-white bg-surface dark:bg-dark-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-          />
-        </div>
-
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-text-main dark:text-white mb-1">
-              {t('groups.startDate')}
+            <label className="block text-sm font-semibold text-slate-600 dark:text-dark-text-secondary mb-1.5">
+              {t('groups.startDate')} {t('groups.optional')}
             </label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full border border-input-border dark:border-dark-border rounded-xl px-3 py-3 text-text-main dark:text-white bg-surface dark:bg-dark-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">
+                calendar_today
+              </span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full h-12 border border-input-border dark:border-dark-border rounded-xl pl-10 pr-3 text-text-main dark:text-white bg-surface dark:bg-dark-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-text-main dark:text-white mb-1">
-              {t('groups.endDate')}
+            <label className="block text-sm font-semibold text-slate-600 dark:text-dark-text-secondary mb-1.5">
+              {t('groups.endDate')} {t('groups.optional')}
             </label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full border border-input-border dark:border-dark-border rounded-xl px-3 py-3 text-text-main dark:text-white bg-surface dark:bg-dark-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">
+                calendar_today
+              </span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full h-12 border border-input-border dark:border-dark-border rounded-xl pl-10 pr-3 text-text-main dark:text-white bg-surface dark:bg-dark-surface focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
           </div>
         </div>
 
@@ -186,17 +271,20 @@ export default function EditGroup() {
           <span className="text-text-main dark:text-white text-sm">{t('groups.privateGroup')}</span>
         </label>
 
-        <div>
-          <label className="block text-sm font-medium text-text-main dark:text-white mb-2">
-            {t('groups.itinerary')}
-          </label>
-          <PlaceSelector
-            selectedCodes={selectedPlaceCodes}
-            onChange={setSelectedPlaceCodes}
-            places={places}
-            loading={placesLoading}
-          />
-        </div>
+        {/* Manage Itinerary button */}
+        <button
+          type="button"
+          onClick={() => navigate(`/groups/${groupCode}/edit-places`)}
+          className="w-full h-12 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white font-medium flex items-center justify-center gap-2 hover:bg-soft-blue dark:hover:bg-dark-surface transition-colors"
+        >
+          <span className="material-symbols-outlined text-lg">edit_note</span>
+          {t('groups.manageItinerary')}
+          {placeCount > 0 && (
+            <span className="text-xs text-slate-400 dark:text-dark-text-secondary">
+              ({placeCount})
+            </span>
+          )}
+        </button>
 
         {error && (
           <p className="text-red-600 dark:text-red-400 text-sm bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-lg">
@@ -208,14 +296,14 @@ export default function EditGroup() {
           <button
             type="button"
             onClick={() => navigate(`/groups/${groupCode}`)}
-            className="flex-1 py-3 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white font-medium"
+            className="flex-1 h-12 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white font-medium"
           >
             {t('common.cancel')}
           </button>
           <button
             type="submit"
             disabled={submitting || !name.trim()}
-            className="flex-1 py-3 rounded-xl bg-primary text-white font-medium hover:bg-primary-hover disabled:opacity-50"
+            className="flex-1 h-12 rounded-xl bg-primary text-white font-medium hover:bg-primary-hover disabled:opacity-50"
           >
             {submitting ? t('common.loading') : t('groups.saveChanges')}
           </button>

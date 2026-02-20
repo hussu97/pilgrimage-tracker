@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuth, useI18n } from '@/app/providers';
 import {
   getGroup,
@@ -305,23 +306,35 @@ export default function GroupDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 dark:border-dark-border px-4 overflow-x-auto">
+      <div className="relative flex px-4 overflow-x-auto gap-1">
         {tabs.map((t_) => (
           <button
             key={t_.key}
             type="button"
             onClick={() => setTab(t_.key)}
-            className={`flex items-center gap-1.5 px-3 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${
+            className={`relative flex items-center gap-1.5 px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors rounded-lg z-10 ${
               tab === t_.key
-                ? 'border-primary text-primary'
-                : 'border-transparent text-slate-500 dark:text-dark-text-secondary hover:text-slate-700'
+                ? 'text-primary'
+                : 'text-slate-500 dark:text-dark-text-secondary hover:text-slate-700 dark:hover:text-white'
             }`}
           >
-            <span className="material-symbols-outlined text-base">{t_.icon}</span>
-            {t_.label}
+            <span
+              className={`material-symbols-outlined text-lg transition-transform ${tab === t_.key ? 'scale-110' : ''}`}
+            >
+              {t_.icon}
+            </span>
+            <span className="hidden sm:inline">{t_.label}</span>
+            {tab === t_.key && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute inset-0 bg-primary/10 dark:bg-primary/15 rounded-lg -z-10"
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              />
+            )}
           </button>
         ))}
       </div>
+      <div className="h-px bg-slate-200 dark:bg-dark-border" />
 
       <div className="px-4 pt-5">
         {/* ITINERARY TAB */}
@@ -513,11 +526,8 @@ export default function GroupDetail() {
 
                         {/* Notes */}
                         <div>
-                          <p className="text-xs font-semibold text-slate-500 dark:text-dark-text-secondary mb-1">
-                            {t('groups.notes')}
-                          </p>
-                          {place.notes.length > 0 ? (
-                            <div className="space-y-1.5 mb-2">
+                          {place.notes.length > 0 && (
+                            <div className="space-y-1.5 mb-3">
                               {place.notes.map((note) => (
                                 <div
                                   key={note.note_code}
@@ -551,8 +561,9 @@ export default function GroupDetail() {
                                 </div>
                               ))}
                             </div>
-                          ) : null}
-                          <div className="flex gap-2">
+                          )}
+                          {/* WhatsApp-style note input */}
+                          <div className="flex items-center gap-2">
                             <input
                               type="text"
                               value={noteInputs[place.place_code] ?? ''}
@@ -562,8 +573,8 @@ export default function GroupDetail() {
                                   [place.place_code]: e.target.value,
                                 }))
                               }
-                              placeholder={t('groups.notePlaceholder')}
-                              className="flex-1 text-xs border border-slate-200 dark:border-dark-border rounded-lg px-3 py-2 bg-white dark:bg-dark-bg text-slate-700 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-primary"
+                              placeholder={t('groups.writeNote')}
+                              className="flex-1 h-10 text-xs border border-slate-200 dark:border-dark-border rounded-full px-4 bg-white dark:bg-dark-bg text-slate-700 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-primary"
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') handleAddNote(place.place_code);
                               }}
@@ -575,9 +586,17 @@ export default function GroupDetail() {
                                 noteSubmitting[place.place_code] ||
                                 !noteInputs[place.place_code]?.trim()
                               }
-                              className="px-3 py-2 rounded-lg bg-primary text-white text-xs font-semibold disabled:opacity-50"
+                              className="w-9 h-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0 disabled:opacity-50 hover:bg-primary-hover transition-colors"
                             >
-                              {noteSubmitting[place.place_code] ? '...' : t('groups.addNote')}
+                              {noteSubmitting[place.place_code] ? (
+                                <span className="material-symbols-outlined animate-spin text-white text-sm">
+                                  progress_activity
+                                </span>
+                              ) : (
+                                <span className="material-symbols-outlined text-white text-sm">
+                                  send
+                                </span>
+                              )}
                             </button>
                           </div>
                         </div>
