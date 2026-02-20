@@ -154,7 +154,7 @@ New capabilities and meaningful UX improvements.
 - [ ] **Directions integration**
   - Add a "Directions" button on the place detail page. On mobile, deep link to Google Maps or Apple Maps with the place coordinates. On web, open Google Maps in a new tab.
 
-- [ ] **Place photo gallery**
+- [x] **Place photo gallery**
   - The detail page shows a single hero image. Many places have multiple photos in `place_images`.
   - Display a horizontal scrollable gallery at the top of the detail page. Tapping an image opens a full-screen viewer with swipe navigation.
 
@@ -169,7 +169,7 @@ New capabilities and meaningful UX improvements.
   - The "View More Faiths" button in the UI is non-functional. Only Islam, Christianity, and Hinduism are supported.
   - Add Buddhism, Sikhism, Judaism, Baha'i, and Zoroastrianism. Seed places for each. Update filter chips, scraper religion configs, and translation keys for all three languages.
 
-- [ ] **Multi-unit distance display**
+- [x] **Multi-unit distance display**
   - The user settings model has a `units` field but the app always displays kilometers.
   - Read the user's unit preference and convert distances accordingly (km or mi). Update both frontends and the distance calculation utility.
 
@@ -177,7 +177,7 @@ New capabilities and meaningful UX improvements.
   - No gamification around consecutive daily check-ins.
   - Track current and longest streak on the user profile. Display a flame icon with the streak count. Send a push notification reminder if the streak is about to break. Award badges at 7, 30, and 100 day streaks.
 
-- [ ] **Social sharing with rich previews**
+- [x] **Social sharing with rich previews**
   - Share buttons exist but produce plain text links with no preview metadata.
   - Generate Open Graph meta tags for place pages (title, description, image). On mobile, use the Share API with a pre-formatted message including the place name, rating, and a deep link.
 

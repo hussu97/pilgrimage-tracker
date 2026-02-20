@@ -4,6 +4,19 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## UI Fixes & Polish (2026-02-20)
+
+### Frontend (web)
+- **Carousel fix** — Corrected `translateX` formula in `PlaceCard` and `PlaceDetail` hero: was `-${idx * 100}%` (relative to strip width = N × container), now `-${idx * (100/N)}%` so each step moves exactly one container width. Auto-swipe and drag-to-swipe now work correctly on desktop and mobile web.
+- **Groups page** — Removed duplicate "Create group" button from the empty state; the floating `+` FAB is the sole entry point. Replaced colored shadow utilities (`shadow-blue-100/200`) on the featured group card, FAB, and visitor register button with clean neutral shadows (`shadow-md`, `shadow-lg`) to eliminate the blue glow artifact in light and dark mode.
+
+### Frontend (mobile)
+- **Carousel fix** — Replaced `FlatList` (with `width: '100%'` items that collapsed to 0 px in horizontal mode) with `ScrollView` + `onLayout` in both `PlaceCard` and `PlaceDetailScreen` hero. Images now render correctly at the measured container width; `scrollTo({ x: idx * width })` drives auto-swipe. The FlatList scroll-position indicator is also gone.
+- **Carousel dot indicators removed** — Removed the dot/dash position overlay from `PlaceCard` and `PlaceDetailScreen` hero on both mobile app and mobile web.
+- **Groups screen** — Removed duplicate "Create group" button from the empty state; the floating `+` FAB is the sole entry point.
+
+---
+
 ## P2 Features: Photo Gallery, Distance Units & Social Sharing (2026-02-20)
 
 ### Backend
@@ -20,8 +33,8 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - **Tests** — Extended `apps/web/src/__tests__/utils.test.ts` with 5 `formatDistance` cases (km/m/mi/ft).
 
 ### Frontend (mobile)
-- **Place photo gallery** — `PlaceCard.tsx` (regular variant): `FlatList` with `pagingEnabled`; accepts `isActive` prop; auto-swipe timer (`setInterval` every 3 s) calls `scrollToIndex`; dot indicators; `onMomentumScrollEnd` syncs dot state.
-- **Place photo gallery** — `PlaceDetailScreen.tsx` hero: `FlatList` with `pagingEnabled` auto-swipes when multiple images; dot indicators overlay; parallax `Animated.Value` still drives container.
+- **Place photo gallery** — `PlaceCard.tsx` (regular variant): `ScrollView` + `onLayout` carousel; accepts `isActive` prop; auto-swipe timer (`setInterval` every 3 s) calls `scrollTo`; `onMomentumScrollEnd` syncs index state.
+- **Place photo gallery** — `PlaceDetailScreen.tsx` hero: `ScrollView` + `onLayout` carousel auto-swipes when multiple images; parallax `Animated.Value` still drives container.
 - **Active card detection** — `HomeScreen.tsx` and `FavoritesScreen.tsx` use `viewabilityConfig` + `onViewableItemsChanged` to track visible index and pass `isActive={index === activeIndex}` to `PlaceCard`.
 - **Distance units** — New `apps/mobile/src/lib/utils/place-utils.ts` with `formatDistance`; `ThemeProvider` extended with `units` + `setUnits` (persisted to `AsyncStorage`); Profile screen gains km/mi toggle pills; `PlaceCard` and `PlaceDetailScreen` use unit-aware distance.
 - **Social sharing** — `PlaceDetailScreen.tsx` share now uses `${API_BASE}/share/places/${placeCode}` URL with rating in the title.
