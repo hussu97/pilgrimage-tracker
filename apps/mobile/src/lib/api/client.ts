@@ -285,6 +285,7 @@ export interface GetPlacesParams {
   womens_area?: boolean;
   has_events?: boolean;
   top_rated?: boolean;
+  include_checkins?: boolean;
 }
 
 export async function getPlaces(params?: GetPlacesParams): Promise<PlacesResponse> {
@@ -303,6 +304,7 @@ export async function getPlaces(params?: GetPlacesParams): Promise<PlacesRespons
   if (params?.womens_area) sp.set('womens_area', 'true');
   if (params?.has_events) sp.set('has_events', 'true');
   if (params?.top_rated) sp.set('top_rated', 'true');
+  if (params?.include_checkins) sp.set('include_checkins', 'true');
   const qs = sp.toString();
   const url = `${API_BASE}/api/v1/places${qs ? `?${qs}` : ''}`;
   const res = await authFetch(url, { headers: await authHeaders() });

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -127,6 +127,20 @@ function makeStyles(isDark: boolean) {
     datePlaceholder: { fontSize: 15, color: textMuted, flex: 1 },
     dateRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
     dateCol: { flex: 1 },
+    // DatePicker toolbar (iOS)
+    pickerToolbar: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: surface,
+      borderTopWidth: 1,
+      borderTopColor: border,
+      borderRadius: 12,
+    },
+    pickerToolbarBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+    pickerToolbarCancel: { fontSize: 14, fontWeight: '500', color: textMuted },
+    pickerToolbarDone: { fontSize: 14, fontWeight: '600', color: tokens.colors.primary },
     checkRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
     checkbox: {
       width: 22,
@@ -202,6 +216,8 @@ export default function EditGroupScreen() {
   const [endDate, setEndDate] = useState<Date | null>(null);
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const tempStartDate = useRef<Date | null>(null);
+  const tempEndDate = useRef<Date | null>(null);
   const [placeCount, setPlaceCount] = useState(0);
 
   const [loading, setLoading] = useState(true);
@@ -417,7 +433,11 @@ export default function EditGroupScreen() {
             </Text>
             <TouchableOpacity
               style={styles.dateField}
-              onPress={() => setShowStartPicker(true)}
+              onPress={() => {
+                setShowEndPicker(false);
+                tempStartDate.current = startDate;
+                setShowStartPicker(true);
+              }}
               activeOpacity={0.8}
             >
               {startDate ? (
@@ -427,16 +447,6 @@ export default function EditGroupScreen() {
               )}
               <MaterialIcons name="calendar-today" size={18} color={textMuted} />
             </TouchableOpacity>
-            {showStartPicker && (
-              <DateTimePicker
-                value={startDate ?? new Date()}
-                mode="date"
-                onChange={(_, d) => {
-                  setShowStartPicker(Platform.OS === 'ios');
-                  if (d) setStartDate(d);
-                }}
-              />
-            )}
           </View>
           <View style={styles.dateCol}>
             <Text style={styles.label}>
@@ -445,7 +455,11 @@ export default function EditGroupScreen() {
             </Text>
             <TouchableOpacity
               style={styles.dateField}
-              onPress={() => setShowEndPicker(true)}
+              onPress={() => {
+                setShowStartPicker(false);
+                tempEndDate.current = endDate;
+                setShowEndPicker(true);
+              }}
               activeOpacity={0.8}
             >
               {endDate ? (
@@ -455,18 +469,94 @@ export default function EditGroupScreen() {
               )}
               <MaterialIcons name="calendar-today" size={18} color={textMuted} />
             </TouchableOpacity>
-            {showEndPicker && (
+          </View>
+        </View>
+
+        {showStartPicker &&
+          (Platform.OS === 'ios' ? (
+            <View>
+              <View style={styles.pickerToolbar}>
+                <TouchableOpacity
+                  style={styles.pickerToolbarBtn}
+                  onPress={() => {
+                    setStartDate(tempStartDate.current);
+                    setShowStartPicker(false);
+                  }}
+                >
+                  <Text style={styles.pickerToolbarCancel}>{t('common.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.pickerToolbarBtn}
+                  onPress={() => setShowStartPicker(false)}
+                >
+                  <Text style={styles.pickerToolbarDone}>{t('common.done')}</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker
+                value={startDate ?? new Date()}
+                mode="date"
+                display="spinner"
+                themeVariant={isDark ? 'dark' : 'light'}
+                onChange={(_, d) => {
+                  if (d) setStartDate(d);
+                }}
+              />
+            </View>
+          ) : (
+            <DateTimePicker
+              value={startDate ?? new Date()}
+              mode="date"
+              display="default"
+              themeVariant={isDark ? 'dark' : 'light'}
+              onChange={(_, d) => {
+                setShowStartPicker(false);
+                if (d) setStartDate(d);
+              }}
+            />
+          ))}
+
+        {showEndPicker &&
+          (Platform.OS === 'ios' ? (
+            <View>
+              <View style={styles.pickerToolbar}>
+                <TouchableOpacity
+                  style={styles.pickerToolbarBtn}
+                  onPress={() => {
+                    setEndDate(tempEndDate.current);
+                    setShowEndPicker(false);
+                  }}
+                >
+                  <Text style={styles.pickerToolbarCancel}>{t('common.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.pickerToolbarBtn}
+                  onPress={() => setShowEndPicker(false)}
+                >
+                  <Text style={styles.pickerToolbarDone}>{t('common.done')}</Text>
+                </TouchableOpacity>
+              </View>
               <DateTimePicker
                 value={endDate ?? new Date()}
                 mode="date"
+                display="spinner"
+                themeVariant={isDark ? 'dark' : 'light'}
                 onChange={(_, d) => {
-                  setShowEndPicker(Platform.OS === 'ios');
                   if (d) setEndDate(d);
                 }}
               />
-            )}
-          </View>
-        </View>
+            </View>
+          ) : (
+            <DateTimePicker
+              value={endDate ?? new Date()}
+              mode="date"
+              display="default"
+              themeVariant={isDark ? 'dark' : 'light'}
+              onChange={(_, d) => {
+                setShowEndPicker(false);
+                if (d) setEndDate(d);
+              }}
+            />
+          ))}
 
         {/* Private toggle */}
         <TouchableOpacity

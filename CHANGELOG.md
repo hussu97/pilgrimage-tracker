@@ -4,6 +4,26 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Mobile Group Creation UX Fixes (2026-02-20)
+
+### Backend
+- **`include_checkins` param** — `GET /api/v1/places` now accepts `include_checkins=true` to return `total_checkins_count` per place via bulk query.
+
+### Frontend (mobile)
+- **DatePicker Cancel/Done** — iOS date pickers now show Cancel/Done toolbar buttons. Cancel reverts to previous value. Opening one picker auto-dismisses the other. Applied to both CreateGroup and EditGroup screens.
+- **Step indicator centered** — Removed `flex: 1` from step wrappers; dots are now properly centered with fixed-width connecting lines.
+- **Sticky footer buttons** — Back/Next/Submit buttons moved outside `ScrollView` into a fixed footer bar with top border, so they stay visible when content scrolls.
+- **Place pagination** — PlaceSelector loads 10 places at a time with infinite scroll (`onEndReached`). Search resets cursor and re-fetches. Places step uses PlaceSelector's FlatList directly (no outer ScrollView nesting).
+- **Distance + check-in count** — Uses `expo-location` for user position; passes `lat`, `lng`, `sort: proximity`, `include_checkins: true` to API. Place cards show distance and check-in count below address.
+
+### Frontend (web)
+- **Types parity** — Added `include_checkins` to `GetPlacesParams` and `total_checkins_count` to `Place` interface.
+
+### Tests
+- 3 new backend tests for `include_checkins` param (default false, true returns field, actual check-in count).
+
+---
+
 ## Group UX Overhaul (2026-02-20)
 
 ### Backend

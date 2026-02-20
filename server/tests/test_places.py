@@ -119,6 +119,42 @@ class TestListPlaces:
         assert resp.status_code == 200
         assert len(resp.json()["places"]) <= 2
 
+    def test_list_include_checkins_false_by_default(self, client):
+        _create_place(client, "plc_chk00001")
+        resp = client.get(PLACES_URL, params={"lat": 25.2048, "lng": 55.2708})
+        assert resp.status_code == 200
+        places = resp.json()["places"]
+        if places:
+            assert "total_checkins_count" not in places[0]
+
+    def test_list_include_checkins_true(self, client):
+        _create_place(client, "plc_chk00002")
+        resp = client.get(
+            PLACES_URL, params={"lat": 25.2048, "lng": 55.2708, "include_checkins": "true"}
+        )
+        assert resp.status_code == 200
+        places = resp.json()["places"]
+        if places:
+            assert "total_checkins_count" in places[0]
+            assert isinstance(places[0]["total_checkins_count"], int)
+
+    def test_list_include_checkins_with_actual_checkin(self, client):
+        _create_place(client, "plc_chk00003")
+        token = _register_and_token(client, "checkin_count@example.com")
+        # Do a check-in
+        resp = client.post(
+            f"{PLACES_URL}/plc_chk00003/check-in",
+            json={},
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        # Now list with include_checkins
+        resp = client.get(PLACES_URL, params={"include_checkins": "true"})
+        assert resp.status_code == 200
+        place = next((p for p in resp.json()["places"] if p["place_code"] == "plc_chk00003"), None)
+        assert place is not None
+        assert place["total_checkins_count"] >= 1
+
 
 # ── get single place ───────────────────────────────────────────────────────────
 

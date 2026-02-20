@@ -149,6 +149,9 @@ def list_places(
     has_parking: bool | None = Query(None, description="If true, only places with parking"),
     womens_area: bool | None = Query(None, description="If true, only places with a women's area"),
     top_rated: bool | None = Query(None, description="If true, only places rated 4.0 or above"),
+    include_checkins: bool = Query(
+        False, description="If true, include total_checkins_count per place"
+    ),
 ):
     religions = religion
     result = places_db.list_places(
@@ -175,8 +178,12 @@ def list_places(
     place_codes = [p.place_code for p, _ in result["rows"]]
 
     all_images = place_images.get_images_bulk(place_codes, session)
-    places_out = [
-        _place_to_item(
+    all_checkins = (
+        check_ins_db.count_check_ins_bulk(place_codes, session) if include_checkins else {}
+    )
+    places_out = []
+    for p, dist in result["rows"]:
+        item = _place_to_item(
             p,
             session,
             dist,
@@ -185,8 +192,9 @@ def list_places(
             images=all_images.get(p.place_code, []),
             rating=all_ratings.get(p.place_code) if include_rating else None,
         )
-        for p, dist in result["rows"]
-    ]
+        if include_checkins:
+            item["total_checkins_count"] = all_checkins.get(p.place_code, 0)
+        places_out.append(item)
 
     return {
         "places": places_out,

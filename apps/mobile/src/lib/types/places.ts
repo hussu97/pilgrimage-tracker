@@ -28,6 +28,8 @@ export interface Place {
   review_count?: number;
   is_open_now?: boolean | null;
   open_status?: 'open' | 'closed' | 'unknown';
+  /** From API when include_checkins=true on list endpoint */
+  total_checkins_count?: number;
 }
 
 export interface PlaceTiming {

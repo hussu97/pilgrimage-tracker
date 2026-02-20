@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,11 @@ interface PlaceSelectorProps {
   onChange: (codes: string[]) => void;
   places: Place[];
   loading?: boolean;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onSearchChange?: (text: string) => void;
+  searchValue?: string;
 }
 
 function makeStyles(isDark: boolean) {
@@ -88,6 +93,18 @@ function makeStyles(isDark: boolean) {
     placeImg: { width: 52, height: 52 },
     placeName: { fontSize: 14, fontWeight: '500', color: textMain },
     placeAddress: { fontSize: 11, color: textMuted, marginTop: 2 },
+    placeMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 3,
+    },
+    placeMetaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 2,
+    },
+    placeMetaText: { fontSize: 11, color: textMuted },
     checkBadge: {
       position: 'absolute',
       top: 8,
@@ -103,25 +120,28 @@ function makeStyles(isDark: boolean) {
   });
 }
 
+function formatDistance(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  if (km < 10) return `${km.toFixed(1)} km`;
+  return `${Math.round(km)} km`;
+}
+
 export default function PlaceSelector({
   selectedCodes,
   onChange,
   places,
   loading,
+  onLoadMore,
+  hasMore,
+  loadingMore,
+  onSearchChange,
+  searchValue,
 }: PlaceSelectorProps) {
   const { t } = useI18n();
   const { isDark } = useTheme();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
-  const [search, setSearch] = useState('');
-
-  const filteredPlaces = useMemo(
-    () =>
-      places.filter((p) => {
-        return search === '' || p.name.toLowerCase().includes(search.toLowerCase());
-      }),
-    [places, search],
-  );
+  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
 
   const togglePlace = useCallback(
     (code: string) => {
@@ -152,10 +172,8 @@ export default function PlaceSelector({
     .map((code) => places.find((p) => p.place_code === code))
     .filter(Boolean) as Place[];
 
-  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
-
-  return (
-    <View style={styles.container}>
+  const renderHeader = () => (
+    <View>
       {selectedPlaces.length > 0 && (
         <View>
           <Text style={styles.chipsHeader}>
@@ -198,58 +216,93 @@ export default function PlaceSelector({
 
       <TextInput
         style={styles.searchInput}
-        value={search}
-        onChangeText={setSearch}
+        value={searchValue ?? ''}
+        onChangeText={onSearchChange}
         placeholder={t('groups.searchPlaces')}
         placeholderTextColor={textMuted}
       />
+    </View>
+  );
 
-      {loading ? (
+  const renderFooter = () => {
+    if (loadingMore) {
+      return <ActivityIndicator color={tokens.colors.primary} style={{ marginVertical: 16 }} />;
+    }
+    return null;
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        {renderHeader()}
         <ActivityIndicator color={tokens.colors.primary} style={{ marginTop: 20 }} />
-      ) : filteredPlaces.length === 0 ? (
-        <Text style={styles.emptyText}>{t('home.noPlacesFound')}</Text>
-      ) : (
-        <FlatList
-          data={filteredPlaces}
-          keyExtractor={(item) => item.place_code}
-          renderItem={({ item }) => {
-            const checked = selectedCodes.includes(item.place_code);
-            return (
-              <TouchableOpacity
-                style={[styles.placeCard, checked && styles.placeCardSelected]}
-                onPress={() => togglePlace(item.place_code)}
-                activeOpacity={0.9}
-              >
-                <View style={styles.placeImage}>
-                  {item.images?.[0]?.url ? (
-                    <Image
-                      source={{ uri: item.images[0].url }}
-                      style={styles.placeImg}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <MaterialIcons name="place" size={24} color={textMuted} />
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.placeName} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.placeAddress} numberOfLines={1}>
-                    {item.address}
-                  </Text>
-                </View>
-                {checked && (
-                  <View style={styles.checkBadge}>
-                    <MaterialIcons name="check" size={14} color="#fff" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={places}
+        keyExtractor={(item) => item.place_code}
+        ListHeaderComponent={renderHeader}
+        ListFooterComponent={renderFooter}
+        ListEmptyComponent={<Text style={styles.emptyText}>{t('home.noPlacesFound')}</Text>}
+        onEndReached={hasMore ? onLoadMore : undefined}
+        onEndReachedThreshold={0.5}
+        keyboardShouldPersistTaps="handled"
+        renderItem={({ item }) => {
+          const checked = selectedCodes.includes(item.place_code);
+          return (
+            <TouchableOpacity
+              style={[styles.placeCard, checked && styles.placeCardSelected]}
+              onPress={() => togglePlace(item.place_code)}
+              activeOpacity={0.9}
+            >
+              <View style={styles.placeImage}>
+                {item.images?.[0]?.url ? (
+                  <Image
+                    source={{ uri: item.images[0].url }}
+                    style={styles.placeImg}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <MaterialIcons name="place" size={24} color={textMuted} />
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.placeName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={styles.placeAddress} numberOfLines={1}>
+                  {item.address}
+                </Text>
+                {(item.distance != null || item.total_checkins_count != null) && (
+                  <View style={styles.placeMeta}>
+                    {item.distance != null && (
+                      <View style={styles.placeMetaItem}>
+                        <MaterialIcons name="near-me" size={11} color={textMuted} />
+                        <Text style={styles.placeMetaText}>{formatDistance(item.distance)}</Text>
+                      </View>
+                    )}
+                    {item.total_checkins_count != null && (
+                      <View style={styles.placeMetaItem}>
+                        <MaterialIcons name="check-circle" size={11} color={textMuted} />
+                        <Text style={styles.placeMetaText}>{item.total_checkins_count}</Text>
+                      </View>
+                    )}
                   </View>
                 )}
-              </TouchableOpacity>
-            );
-          }}
-          scrollEnabled={false}
-        />
-      )}
+              </View>
+              {checked && (
+                <View style={styles.checkBadge}>
+                  <MaterialIcons name="check" size={14} color="#fff" />
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        }}
+      />
     </View>
   );
 }
