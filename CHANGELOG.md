@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Bug Fixes — Share Link, Place Images, Edit Group Cover (2026-02-21)
+
+### Backend
+- **Invalid Date fix** — Replaced `.isoformat() + "Z"` with `.isoformat().replace("+00:00", "Z")` across `groups.py`, `auth.py`, `users.py`, `visitors.py`, and `db/groups.py`. UTC-aware datetimes already emit `+00:00`; appending `Z` produced an invalid ISO string that `new Date()` in the browser could not parse.
+
+### Frontend (web)
+- **Place images in itinerary selector** — Wrapped `place.images[0].url` with `getFullImageUrl()` in `PlaceSelector.tsx` so backend-hosted relative URLs resolve correctly.
+
+### Frontend (mobile)
+- **Share link crash** — `Share.share({ url: "..." })` on iOS throws when the value is not a valid `http(s)://` URL. Now the `url` field is only included in the share payload when the value is a proper URL; the invite code is still passed as `message` so sharing still works.
+- **Place images in itinerary selector** — Same `getFullImageUrl()` fix applied to `PlaceSelector.tsx` on mobile.
+- **Edit group cover image** — `coverImageUrl` from the API is a relative URL; it was passed raw into React Native `Image source`. Now wrapped with `getFullImageUrl()` so the existing cover loads correctly on the edit screen.
+
+---
+
 ## Group Card UI Enhancement (2026-02-21)
 
 ### Frontend (web)
