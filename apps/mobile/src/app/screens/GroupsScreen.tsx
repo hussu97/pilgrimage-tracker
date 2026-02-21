@@ -102,91 +102,7 @@ function makeStyles(isDark: boolean) {
       borderRadius: tokens.borderRadius.xl,
     },
     emptyCtaText: { color: '#fff', fontWeight: '600' },
-    featuredCard: {
-      backgroundColor: '#60a5fa',
-      borderRadius: tokens.borderRadius['3xl'],
-      padding: 24,
-      marginBottom: 24,
-      overflow: 'hidden',
-    },
-    featuredBadge: {
-      alignSelf: 'flex-start',
-      paddingHorizontal: 12,
-      paddingVertical: 4,
-      borderRadius: tokens.borderRadius.full,
-      backgroundColor: 'rgba(255,255,255,0.3)',
-      marginBottom: 12,
-    },
-    featuredBadgeText: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: '#fff',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    featuredName: { fontSize: 24, fontWeight: '700', color: '#fff', marginBottom: 4 },
-    featuredNext: { fontSize: 14, color: 'rgba(255,255,255,0.9)', marginBottom: 16 },
-    featuredProgressHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: 8,
-    },
-    featuredProgressLabel: {
-      fontSize: 10,
-      fontWeight: '600',
-      color: 'rgba(255,255,255,0.9)',
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-    },
-    featuredProgressPct: { fontSize: 12, fontWeight: '600', color: '#fff' },
-    featuredBarBg: {
-      height: 4,
-      backgroundColor: 'rgba(0,0,0,0.1)',
-      borderRadius: 2,
-      overflow: 'hidden',
-      marginBottom: 20,
-    },
-    featuredBarFill: {
-      height: '100%',
-      backgroundColor: '#fff',
-      borderRadius: 2,
-    },
-    featuredFooter: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    avatarRow: { flexDirection: 'row' },
     avatarRowSmall: { flexDirection: 'row' },
-    featuredAvatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: 'rgba(255,255,255,0.3)',
-      borderWidth: 2,
-      borderColor: 'rgba(255,255,255,0.5)',
-    },
-    featuredAvatarPlus: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: 'rgba(255,255,255,0.3)',
-      borderWidth: 2,
-      borderColor: 'rgba(255,255,255,0.5)',
-      marginLeft: -12,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    featuredAvatarPlusText: { fontSize: 10, fontWeight: '700', color: '#fff' },
-    featuredArrow: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: 'rgba(255,255,255,0.2)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    featuredArrowText: { fontSize: 24, color: '#fff', fontWeight: '300' },
     rowCard: {
       paddingVertical: 16,
       borderBottomWidth: 1,
@@ -317,9 +233,6 @@ export default function GroupsScreen() {
     }
   }, [user, t]);
 
-  const featured = groups.find((g) => g.featured);
-  const rest = groups.filter((g) => g.group_code !== featured?.group_code);
-
   const navToGroup = (groupCode: string) => {
     (
       stackNav as { navigate: (name: 'GroupDetail', params: { groupCode: string }) => void }
@@ -434,64 +347,7 @@ export default function GroupsScreen() {
 
         {!loading && !error && groups.length > 0 && (
           <>
-            {featured && (
-              <TouchableOpacity
-                style={styles.featuredCard}
-                onPress={() => navToGroup(featured.group_code)}
-                activeOpacity={0.95}
-              >
-                <View style={styles.featuredBadge}>
-                  <Text style={styles.featuredBadgeText}>{t('groups.featured')}</Text>
-                </View>
-                <Text style={styles.featuredName}>{featured.name}</Text>
-                {featured.next_place_name ? (
-                  <Text style={styles.featuredNext}>
-                    {t('groups.next')}: {featured.next_place_name}
-                  </Text>
-                ) : null}
-                <View style={styles.featuredProgressHeader}>
-                  <Text style={styles.featuredProgressLabel}>{t('groups.currentProgress')}</Text>
-                  <Text style={styles.featuredProgressPct}>
-                    {featured.total_sites
-                      ? Math.round(((featured.sites_visited ?? 0) / featured.total_sites) * 100)
-                      : 0}
-                    %
-                  </Text>
-                </View>
-                <View style={styles.featuredBarBg}>
-                  <View
-                    style={[
-                      styles.featuredBarFill,
-                      {
-                        width: `${featured.total_sites ? Math.min(100, Math.round(((featured.sites_visited ?? 0) / featured.total_sites) * 100)) : 0}%`,
-                      },
-                    ]}
-                  />
-                </View>
-                <View style={styles.featuredFooter}>
-                  <View style={styles.avatarRow}>
-                    {[1, 2, 3].slice(0, Math.min(3, featured.member_count ?? 0)).map((i) => (
-                      <View
-                        key={i}
-                        style={[styles.featuredAvatar, i >= 1 && { marginLeft: -12 }]}
-                      />
-                    ))}
-                    {(featured.member_count ?? 0) > 3 && (
-                      <View style={styles.featuredAvatarPlus}>
-                        <Text style={styles.featuredAvatarPlusText}>
-                          +{(featured.member_count ?? 0) - 3}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.featuredArrow}>
-                    <Text style={styles.featuredArrowText}>›</Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            )}
-
-            {rest.map((g) => {
+            {groups.map((g) => {
               const total = g.total_sites ?? 0;
               const visited = g.sites_visited ?? 0;
               const pct = total > 0 ? Math.min(100, Math.round((visited / total) * 100)) : 0;
