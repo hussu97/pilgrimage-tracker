@@ -236,7 +236,7 @@ Infrastructure, code quality, and optimization work to prepare for production sc
   - FastAPI `BackgroundTasks` runs in the same process and provides no retry, persistence, or monitoring.
   - Set up Celery with Redis (or a lighter alternative like `arq`). Move email sending, image processing, badge evaluation, and analytics aggregation to background jobs.
 
-- [ ] **API response compression**
+- [x] **API response compression**
   - Large JSON responses (place lists with images) are sent uncompressed.
   - Enable gzip or Brotli compression via FastAPI's `GZipMiddleware`. Expected 60-80% reduction in transfer size for JSON payloads.
 

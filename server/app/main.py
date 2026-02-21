@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 from fastapi import FastAPI, Request, status  # noqa: E402
 from fastapi.exceptions import RequestValidationError  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
 from fastapi.responses import JSONResponse  # noqa: E402
 from slowapi import Limiter, _rate_limit_exceeded_handler  # noqa: E402
 from slowapi.errors import RateLimitExceeded  # noqa: E402
@@ -134,6 +135,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Compress responses ≥ 1 KB with gzip (60-80% reduction on JSON payloads).
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
 # ===== Middleware =====

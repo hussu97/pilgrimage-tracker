@@ -4,6 +4,13 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## API Response Compression (2026-02-21)
+
+### Backend
+- **`GZipMiddleware`** added to `server/app/main.py` — compresses all responses ≥ 1 KB with gzip. Expected 60–80% transfer size reduction for large JSON payloads (place lists, translations).
+
+---
+
 ## Search Feature — Google Places Autocomplete + Search History (2026-02-21)
 
 ### Backend
