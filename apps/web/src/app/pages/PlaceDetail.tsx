@@ -334,7 +334,7 @@ export default function PlaceDetail() {
     fetchPlace();
   }, [fetchPlace]);
 
-  useEffect(() => {
+  const fetchGroups = useCallback(() => {
     if (!user || !placeCode) return;
     setGroupsLoading(true);
     getGroups()
@@ -342,6 +342,10 @@ export default function PlaceDetail() {
       .catch(() => setGroups([]))
       .finally(() => setGroupsLoading(false));
   }, [user, placeCode]);
+
+  useEffect(() => {
+    fetchGroups();
+  }, [fetchGroups]);
 
   const doToggleFavorite = useCallback(async () => {
     if (!placeCode || !place) return;
@@ -1018,7 +1022,10 @@ export default function PlaceDetail() {
         <AddToGroupSheet
           placeCode={place.place_code}
           placeName={place.name}
-          onClose={() => setAddToGroupOpen(false)}
+          onClose={() => {
+            setAddToGroupOpen(false);
+            fetchGroups();
+          }}
           t={t}
         />
       )}

@@ -148,12 +148,16 @@ export default function PlaceDetailScreen() {
     fetchPlace();
   }, [fetchPlace]);
 
-  useEffect(() => {
+  const fetchGroups = useCallback(() => {
     if (!user || !placeCode) return;
     getGroups()
       .then(setGroups)
       .catch(() => setGroups([]));
   }, [user, placeCode]);
+
+  useEffect(() => {
+    fetchGroups();
+  }, [fetchGroups]);
 
   // Hero carousel auto-swipe
   useEffect(() => {
@@ -736,7 +740,10 @@ export default function PlaceDetailScreen() {
         <AddToGroupSheet
           placeCode={placeCode}
           placeName={place.name}
-          onClose={() => setAddToGroupOpen(false)}
+          onClose={() => {
+            setAddToGroupOpen(false);
+            fetchGroups();
+          }}
         />
       )}
     </View>

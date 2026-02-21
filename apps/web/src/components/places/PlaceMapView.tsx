@@ -44,7 +44,7 @@ export default function PlaceMapView({
 
       {/* Selection Card (Parity with Mobile App) */}
       {selectedPlace && (
-        <div className="absolute bottom-6 left-4 right-4 z-[1000] animate-in slide-in-from-bottom-8 duration-300 max-w-lg mx-auto">
+        <div className="absolute bottom-20 left-4 right-4 z-[1000] animate-in slide-in-from-bottom-8 duration-300 max-w-lg mx-auto md:bottom-6">
           <div className="bg-white/95 backdrop-blur-xl dark:bg-dark-surface/95 rounded-3xl shadow-2xl p-4 border border-white/50 dark:border-dark-border relative group cursor-pointer transition-transform active:scale-[0.98]">
             <button
               onClick={(e) => {
