@@ -6,7 +6,6 @@ from sqlmodel import Session, select
 from app.db.models import DataLocation, ScrapedPlace, ScraperRun
 from app.db.session import engine
 from app.scrapers.gmaps import run_gmaps_scraper
-from app.scrapers.gsheet import run_gsheet_scraper
 
 
 def generate_code(prefix: str) -> str:
@@ -15,7 +14,7 @@ def generate_code(prefix: str) -> str:
 
 def run_scraper_task(run_code: str):
     """
-    Background task dispatcher that runs the appropriate scraper based on source_type.
+    Background task dispatcher that runs the gmaps scraper, then the enrichment pipeline.
     """
     with Session(engine) as session:
         run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
@@ -37,12 +36,13 @@ def run_scraper_task(run_code: str):
             return
 
         try:
-            if location.source_type == "gsheet":
-                run_gsheet_scraper(run_code, location.config, session)
-            elif location.source_type == "gmaps":
-                run_gmaps_scraper(run_code, location.config, session)
-            else:
-                raise ValueError(f"Unknown source_type: {location.source_type}")
+            # Phase 1-3: Discovery + Detail fetching via gmaps
+            run_gmaps_scraper(run_code, location.config, session)
+
+            # Phase 4: Enrichment pipeline
+            from app.pipeline.enrichment import run_enrichment_pipeline
+
+            run_enrichment_pipeline(run_code)
 
             # Final check to ensure we don't overwrite "cancelled" with "completed"
             session.refresh(run)

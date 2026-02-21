@@ -6,9 +6,7 @@ from pydantic import BaseModel
 
 class DataLocationCreate(BaseModel):
     name: str
-    source_type: Literal["gsheet", "gmaps"] = "gsheet"
-    # gsheet fields
-    sheet_url: str | None = None
+    source_type: Literal["gmaps"] = "gmaps"
     # gmaps fields
     country: str | None = None
     city: str | None = None  # More granular than country
@@ -22,7 +20,6 @@ class DataLocationResponse(BaseModel):
     name: str
     source_type: str
     config: dict[str, Any]
-    sheet_code: str | None = None
     created_at: datetime
 
 
@@ -45,7 +42,7 @@ class SyncRequest(BaseModel):
 
 class PlaceTypeMappingCreate(BaseModel):
     religion: str
-    source_type: Literal["gmaps", "gsheet"] = "gmaps"
+    source_type: Literal["gmaps"] = "gmaps"
     gmaps_type: str
     our_place_type: str
     is_active: bool = True
@@ -54,7 +51,7 @@ class PlaceTypeMappingCreate(BaseModel):
 
 class PlaceTypeMappingUpdate(BaseModel):
     religion: str | None = None
-    source_type: Literal["gmaps", "gsheet"] | None = None
+    source_type: Literal["gmaps"] | None = None
     gmaps_type: str | None = None
     our_place_type: str | None = None
     is_active: bool | None = None
@@ -70,6 +67,25 @@ class PlaceTypeMappingResponse(BaseModel):
     is_active: bool
     display_order: int
     created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CollectorStatusResponse(BaseModel):
+    name: str
+    requires_api_key: bool
+    is_available: bool
+    api_key_env_var: str | None = None
+
+
+class RawCollectorDataResponse(BaseModel):
+    place_code: str
+    collector_name: str
+    status: str
+    error_message: str | None = None
+    raw_response: dict[str, Any]
+    collected_at: datetime
 
     class Config:
         from_attributes = True

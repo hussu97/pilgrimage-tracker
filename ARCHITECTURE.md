@@ -225,96 +225,91 @@ The web app uses a TypeScript architecture with clear separation of concerns und
 
 ### 8.1 Overview
 
-To provide rich content without heavy manual data entry, the system uses a unified scraper service in `data_scraper/` that supports multiple data sources and syncs enriched data to the main server.
+The system uses a unified pipeline in `data_scraper/` that discovers places via Google Maps, enriches them from multiple online sources (OSM, Wikipedia, Wikidata, Knowledge Graph, and optional paid APIs), assesses description quality, and syncs the best information to the main server.
 
 ### 8.2 Scraper API Service Architecture
 
-A separate FastAPI application in `data_scraper/` that mirrors the main server's directory structure (`app/api/v1`, `app/db`, `app/models`) with a modular scraper system.
+A separate FastAPI application in `data_scraper/` with three layers: **scrapers** (discovery), **collectors** (per-source data fetching), and **pipeline** (orchestration, quality assessment, merging).
 
-- **Stack:** Python 3.14, FastAPI, SQLModel (ORM), SQLite.
+- **Stack:** Python 3.14, FastAPI, SQLModel (ORM), SQLite, anthropic (optional).
 - **Core Entities:**
-    - **DataLocation:** Stores data source configuration with `source_type` ("gsheet" or "gmaps") and flexible `config` JSON field:
-      - gsheet: `{"sheet_code": "1abc..."}`
-      - gmaps: `{"country": "UAE", "max_results": 5, "force_refresh": false, "stale_threshold_days": 90}` (searches all active place types from PlaceTypeMapping table)
+    - **DataLocation:** Stores source configuration with `source_type` ("gmaps") and flexible `config` JSON field: `{"country": "UAE", "max_results": 5, "force_refresh": false, "stale_threshold_days": 90}`
     - **ScraperRun:** Tracks individual scraping jobs with status (pending, running, completed, cancelled, failed) and progress tracking (`total_items`, `processed_items`).
-    - **ScrapedPlace:** Temporary storage for enriched data before sync. Stores `raw_data` JSON with place details, attributes array, and source tag.
+    - **ScrapedPlace:** Stores enriched data with `raw_data` JSON, `enrichment_status` (pending/enriching/complete/failed), `description_source` (which source won), and `description_score`.
+    - **RawCollectorData:** (NEW) Preserves verbatim JSON from each source per place, enabling re-assessment without re-fetching. Fields: `place_code`, `collector_name`, `run_code`, `raw_response`, `status`, `error_message`, `collected_at`.
 
 ### 8.3 Scrapers Package (`app/scrapers/`)
 
-Modular architecture with dedicated scrapers:
+**`base.py`**: Shared utilities (`generate_code`, `make_request_with_backoff`)
 
-**`base.py`**: Shared utilities
-- `generate_code(prefix)`: Creates stable codes for entities
-- `make_request_with_backoff()`: HTTP requests with exponential backoff on rate limits
+**`gmaps.py`**: Google Maps discovery + detail-fetching
+- Recursive quadtree subdivision for complete area coverage
+- Enhanced field mask: generativeSummary, phone numbers, parking, payment, accessibility, dogs, children, groups, restroom, outdoor seating, Google Maps URL
+- Cross-run deduplication with configurable staleness threshold
+- Raw responses stored in `RawCollectorData` for later re-assessment
 
-**`gsheet.py`**: Google Sheet scraper with OSM/Wikipedia enrichment
-- Fetches CSV from Google Sheets export URL
-- Queries **OpenStreetMap (Overpass API)** for place amenities and architecture
-- Queries **Wikipedia** for descriptions and images
-- Tags places with `source: "overpass"`
-- Row-level commits for fault tolerance
+### 8.4 Collectors Package (`app/collectors/`)
 
-**`gmaps.py`**: Google Maps Places API (v1) scraper
-- **API**: Uses new Places API (v1) with field masks for cost optimization
-  - Nearby Search: `POST /v1/places:searchNearby` with multi-type support
-  - Place Details: `GET /v1/places/{id}` with field masks (Basic + Contact + Atmosphere tiers)
-  - Cost per place: ~$0.008 (down from $0.017 legacy API)
-- **Search strategy**: Recursive quadtree subdivision
-  - Starts with full bounding box, searches all place types in one request
-  - Splits saturated areas (20 results) into 4 quadrants and recurses
-  - Stops recursion at MIN_RADIUS (2km) to prevent infinite subdivision
-  - Adaptive: 1 call for sparse regions, progressively finer searches for dense areas
-- **Cross-run deduplication**: Checks existing ScrapedPlace records before fetching details
-  - Reuses cached data if fresher than STALE_THRESHOLD_DAYS (default 90 days)
-  - Configurable via `force_refresh` and `stale_threshold_days` options
-- **Supported place types**: mosque, hindu_temple, church, cathedral, chapel (auto-detected from PlaceTypeMapping table)
-- **Deduplication**: Uses stable `gplc_{place_id}` codes (not random) so re-runs update existing places
-- **Attribute extraction**: Maps Google data to attribute codes:
-  - `wheelchair_accessible` (boolean, from accessibilityOptions)
-  - `rating` (number, from rating field)
-  - `reviews_count` (number, from userRatingCount)
-- **Opening hours**: Stores local times in 24-hour format (e.g., "09:00-17:00"), parsed from regularOpeningHours.weekdayDescriptions
-- **Timezone**: Extracts `utcOffsetMinutes` from Places API response
-- **Images**: Extracts up to 3 photos using new API format (`places/{id}/photos/{photoId}/media`)
-- **Rate limiting**: Built-in delays between API calls (0.5s)
-- **Configuration**: Requires `GOOGLE_MAPS_API_KEY` environment variable
-- Tags places with `source: "gmaps"`
+Each collector implements `BaseCollector` ABC and returns a `CollectorResult` dataclass with standardised fields: `descriptions`, `attributes`, `contact`, `images`, `reviews`, `tags`, `entity_types`.
 
-### 8.4 Data Flow & Integration
+| Collector | Source | Cost | Key Extracts |
+|-----------|--------|------|-------------|
+| `GmapsCollector` | Google Places API (New) | ~$0.008/place | Details, photos, reviews, accessibility, parking, payment |
+| `OsmCollector` | Overpass API | Free | Amenities, contact, wikipedia/wikidata tags, multilingual names |
+| `WikipediaCollector` | Wikipedia REST API | Free | Descriptions (en/ar/hi), images |
+| `WikidataCollector` | Wikidata API | Free | Founding date, heritage status, social media, multilingual labels |
+| `KnowledgeGraphCollector` | Google KG Search | Free (100k/day) | Entity descriptions, schema.org types, images |
+| `BestTimeCollector` | BestTime API | Paid (optional) | Busyness forecasts, peak hours |
+| `FoursquareCollector` | Foursquare API | Paid (optional) | Tips, popularity |
+| `OutscraperCollector` | Outscraper API | Paid (optional) | Extended Google reviews |
 
-1. **Create Data Location:** Register a data source via API with source-specific config:
+**Registry** (`registry.py`): Auto-discovers collectors, returns them in dependency order (OSM first for tags, then wikipedia/wikidata which use those tags, then independent collectors).
+
+### 8.5 Pipeline Package (`app/pipeline/`)
+
+**`enrichment.py`**: Orchestrator — runs collectors in dependency order for each place, stores raw data, accumulates tags for downstream collectors.
+
+**`quality.py`**: Hybrid heuristic + LLM description assessment:
+- Heuristic scoring (0.0–1.0): source reliability (40%), length/detail (30%), specificity (30%)
+- LLM tie-breaking (optional): when top 2 candidates are within 0.15, Claude Haiku picks or synthesizes the best description
+- Only triggered for ~10-20% of places; disabled without `ANTHROPIC_API_KEY`
+
+**`merger.py`**: Combines all collector outputs with priority rules:
+- **Name**: gmaps (authoritative)
+- **Description**: quality-scored winner
+- **Contact phone**: gmaps > OSM > Wikidata
+- **Contact socials**: Wikidata > OSM
+- **Attributes**: union across sources (True wins over False for booleans)
+- **Reviews**: gmaps base + outscraper extended + foursquare tips (deduplicated)
+- **Images**: gmaps + wikipedia + knowledge graph (deduplicated)
+
+### 8.6 Data Flow & Integration
+
+1. **Create Data Location:** `POST /api/v1/scraper/data-locations`
    ```json
-   // Google Sheet
-   {"name": "UAE Places", "source_type": "gsheet", "sheet_url": "https://..."}
-
-   // Google Maps
-   {"name": "UAE Mosques", "source_type": "gmaps", "country": "UAE", "max_results": 5, "force_refresh": false, "stale_threshold_days": 90}
+   {"name": "UAE Mosques", "source_type": "gmaps", "country": "UAE", "max_results": 5}
    ```
 
-2. **Create Run:** Initiates a background task that dispatches to the appropriate scraper based on `source_type`:
-   - **gsheet**: Fetches CSV → OSM enrichment → Wikipedia enrichment → ScrapedPlace
-   - **gmaps**: Recursive quadtree search (multi-type) → Cross-run dedup check → Place details (field-masked) → Attribute mapping → ScrapedPlace
-   - Progress tracked via `total_items` and `processed_items` fields
-   - Cancellation supported: checks run status before processing each item
+2. **Create Run:** `POST /api/v1/scraper/runs` — triggers background pipeline:
+   - **Discovery**: Quadtree search → dedup check → detail fetch via GmapsCollector
+   - **Enrichment**: OSM → Wikipedia → Wikidata → Knowledge Graph → (paid collectors if configured)
+   - **Quality**: Score all descriptions, merge all data with priority rules
+   - Progress tracked; cancellation supported
 
-3. **Syncing:** Trigger sync to push data to Main Server:
-   - Transforms `ScrapedPlace.raw_data` to `PlaceCreate` payload
-   - Includes `attributes` array (e.g., `[{attribute_code: "wheelchair_accessible", value: true}]`)
-   - Includes `source` field ("gmaps", "overpass", or "manual")
-   - Main Server's `POST /api/v1/places` endpoint:
-     - Checks if `place_code` exists (upsert)
-     - Creates/updates Place record
-     - Upserts attributes to PlaceAttribute table (EAV)
-   - All places tagged with their data source for tracking and auditing
+3. **Additional endpoints:**
+   - `GET /collectors` — list all collectors with enabled/available status
+   - `GET /runs/{run_code}/raw-data` — view raw collector data for debugging
+   - `POST /runs/{run_code}/re-enrich` — re-run enrichment without re-doing discovery
 
-### 8.5 Source Tracking
+4. **Syncing:** `POST /runs/{run_code}/sync` — batch-pushes enriched data to main server
 
-All places in the main server include a `source` field:
-- **`gmaps`**: Scraped from Google Maps API
-- **`overpass`**: Scraped from OpenStreetMap/Wikipedia
+### 8.7 Source Tracking
+
+All places include a `source` field:
+- **`gmaps`**: Discovered via Google Maps API
 - **`manual`**: Seeded from `seed_data.json`
 
-This enables data provenance tracking and helps identify which places need manual review or re-scraping.
+Description provenance tracked via `description_source` (e.g., "wikipedia", "gmaps_editorial", "llm_synthesized").
 
 ### 8.6 Timezone Handling
 

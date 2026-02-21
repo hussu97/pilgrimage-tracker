@@ -4,6 +4,39 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Data Scraper Restructuring: Multi-Source Enrichment Architecture (2026-02-21)
+
+### Backend (data_scraper)
+- **Removed gsheet strategy** — Deleted `scrapers/gsheet.py` and all gsheet references from API, schemas, and dispatcher. The scraper is now gmaps-only for discovery.
+- **Collectors package** — New `app/collectors/` with 8 collectors implementing `BaseCollector` ABC:
+  - **GmapsCollector** — Enhanced field mask (generativeSummary, phone, parking, payment, accessibility, dogs, children, groups, restroom, outdoor seating, Google Maps URI)
+  - **OsmCollector** — Overpass API: amenities, contact, wikipedia/wikidata tags, multilingual names
+  - **WikipediaCollector** — REST API: descriptions in en/ar/hi, images, search fallback
+  - **WikidataCollector** — Structured data: founding date, heritage status, social media, multilingual labels
+  - **KnowledgeGraphCollector** — Google KG Search (free, 100k/day): entity descriptions, schema.org types, images
+  - **BestTimeCollector** — Busyness forecasts and peak hours (optional, paid)
+  - **FoursquareCollector** — Tips and popularity (optional, paid)
+  - **OutscraperCollector** — Extended Google reviews beyond the 5 limit (optional, paid)
+- **Pipeline package** — New `app/pipeline/` with enrichment orchestrator, quality assessment, and merger:
+  - **quality.py** — Heuristic scoring (source reliability, length, specificity) with optional LLM tie-breaking via Claude Haiku
+  - **merger.py** — Priority-based conflict resolution for contact, attributes (boolean True wins), reviews (deduplicated), images (deduplicated)
+  - **enrichment.py** — Runs collectors in dependency order (OSM first for tags, then Wikipedia/Wikidata which use those tags)
+- **New DB model** — `RawCollectorData` preserves verbatim JSON from each source per place for re-assessment without re-fetching
+- **ScrapedPlace enhanced** — Added `enrichment_status`, `description_source`, `description_score` fields
+- **Collector registry** — Auto-discovers and orders collectors, env-based availability detection
+- **New API endpoints** — `GET /collectors`, `GET /runs/{run_code}/raw-data`, `POST /runs/{run_code}/re-enrich`
+- **New dependency** — `anthropic` (optional, for LLM-based description tie-breaking)
+
+### Backend (server)
+- **22 new attribute definitions** in `seed_data.json`: contact category (phone, email, socials, google_maps_url), facility category (restroom, drinking water, toilets, internet, outdoor seating, children, groups, parking details, payment options, accessibility details), info category (busyness forecast, peak hours, heritage status, name_ar, name_hi)
+- **69 new translation keys** (23 per language: en, ar, hi) for all new attribute labels
+
+### Docs
+- Updated `data_scraper/README.md` with new architecture diagram, collector table, and API reference
+- Updated `ARCHITECTURE.md` section 8 with collectors, pipeline, and quality assessment documentation
+
+---
+
 ## Bug Fixes — Share Link, Place Images, Edit Group Cover (2026-02-21)
 
 ### Backend

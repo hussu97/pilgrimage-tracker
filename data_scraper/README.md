@@ -1,12 +1,13 @@
 # Pilgrimage Data Scraper API
 
-A FastAPI service to manage data scraping for pilgrimage sites from multiple sources.
+A FastAPI service that discovers pilgrimage sites via Google Maps, enriches them from multiple online sources, assesses data quality, and syncs the best information to the main server.
 
 ## Features
-- **Multi-Source Support**: Scrape from Google Sheets (OSM/Wikipedia) or Google Maps API
-- **Data Locations**: Manage data sources with flexible configuration
-- **Scraper Runs**: Trigger background scraping tasks with progress tracking
-- **Data Viewer**: View scraped data via API
+
+- **Google Maps Discovery**: Quadtree-based recursive search with cross-run deduplication
+- **Multi-Source Enrichment**: Collectors for OSM, Wikipedia, Wikidata, Knowledge Graph, BestTime, Foursquare, Outscraper
+- **Quality Assessment**: Heuristic scoring of descriptions with optional LLM tie-breaking
+- **Data Merging**: Priority-based conflict resolution across all sources
 - **Sync**: Push enriched data with attributes to the main Pilgrimage Tracker server
 
 ## Setup
@@ -21,67 +22,95 @@ A FastAPI service to manage data scraping for pilgrimage sites from multiple sou
 
 2.  **Environment Variables**:
     Create a `.env` file in `data_scraper/` (copy from `.env.example`):
-    ```
+    ```env
+    # Required
+    GOOGLE_MAPS_API_KEY=your_api_key_here
     MAIN_SERVER_URL=http://localhost:3000
-    GOOGLE_MAPS_API_KEY=your_api_key_here  # Required for gmaps scraper
+    SCRAPER_TIMEZONE=Asia/Dubai
+
+    # Optional collectors (leave blank to disable)
+    BESTTIME_API_KEY=
+    FOURSQUARE_API_KEY=
+    OUTSCRAPER_API_KEY=
+
+    # LLM-based description assessment (leave blank for heuristic-only)
+    ANTHROPIC_API_KEY=
     ```
 
 3.  **Run Server**:
     ```bash
-    # Run on port 8001 to avoid conflict with main server (3000/8000)
     uvicorn app.main:app --reload --port 8001
     ```
 
-## Troubleshooting
+4.  **Run Tests**:
+    ```bash
+    source .venv/bin/activate
+    python -m pytest tests/ -v
+    ```
 
-### Port 8001 Already in Use
+## Architecture
 
-If you get an "Address already in use" error, the port is still occupied by a previous process. Kill it with:
-
-```bash
-# Find and kill the process on port 8001
-lsof -ti :8001 | xargs kill -9
+```
+Discovery (gmaps quadtree)
+    │
+    ▼
+Primary Details (gmaps Places API - enhanced field mask)
+    │
+    ▼
+Enrichment Pipeline (collectors in dependency order)
+    ├── OSM/Overpass     →  amenities, contact, wikipedia/wikidata tags, multilingual names
+    ├── Wikipedia        →  descriptions (en/ar/hi), images
+    ├── Wikidata         →  founding date, heritage status, socials, structured data
+    ├── Knowledge Graph  →  entity descriptions, schema.org types (FREE, 100k/day)
+    ├── BestTime         →  busyness forecasts (optional, paid)
+    ├── Foursquare       →  tips, popularity (optional, paid)
+    └── Outscraper       →  extended Google reviews (optional, paid)
+    │
+    ▼
+Quality Assessment (heuristic + LLM hybrid)
+    │
+    ▼
+Store final merged data → Sync to server
 ```
 
-Or find the process ID first, then kill it:
+### Directory Structure
 
-```bash
-# Find the process
-lsof -i :8001
-
-# Kill it (replace PID with the actual process ID)
-kill -9 PID
+```
+data_scraper/app/
+  scrapers/
+    base.py              # generate_code, make_request_with_backoff
+    gmaps.py             # Discovery (quadtree search, dedup) + detail fetching
+  collectors/
+    __init__.py
+    base.py              # BaseCollector ABC, CollectorResult dataclass
+    gmaps.py             # GmapsCollector (detail extraction)
+    osm.py               # OsmCollector (Overpass API)
+    wikipedia.py         # WikipediaCollector (REST API)
+    wikidata.py          # WikidataCollector (SPARQL)
+    knowledge_graph.py   # KnowledgeGraphCollector (free 100k/day)
+    besttime.py          # BestTimeCollector (optional/paid)
+    foursquare.py        # FoursquareCollector (optional/paid)
+    outscraper.py        # OutscraperCollector (optional/paid)
+    registry.py          # Collector discovery + factory
+  pipeline/
+    __init__.py
+    enrichment.py        # Orchestrator: runs collectors in order
+    quality.py           # Description scoring + LLM tie-breaking
+    merger.py            # Combines all collector outputs into final data
 ```
 
 ## Usage
 
 ### 1. Create a Data Location
-
-#### Google Sheet Source (OSM/Wikipedia enrichment)
 **POST** `/api/v1/scraper/data-locations`
 ```json
 {
-  "name": "UAE Places",
-  "source_type": "gsheet",
-  "sheet_url": "https://docs.google.com/spreadsheets/d/..."
-}
-```
-
-#### Google Maps Source
-**POST** `/api/v1/scraper/data-locations`
-```json
-{
-  "name": "UAE Mosques - Google Maps",
+  "name": "Dubai Mosques",
   "source_type": "gmaps",
-  "country": "UAE",
-  "place_type": "mosque",
-  "max_results": 5
+  "city": "Dubai",
+  "max_results": 10
 }
 ```
-
-**Supported countries**: UAE, India, USA
-**Supported place types**: mosque, hindu_temple, church
-**max_results**: Optional limit for testing (default: 5)
 
 ### 2. Start a Scraper Run
 **POST** `/api/v1/scraper/runs`
@@ -90,78 +119,54 @@ kill -9 PID
   "location_code": "loc_..."
 }
 ```
-Returns a `run_code`. The scraper runs in the background.
+Returns a `run_code`. The scraper runs discovery, detail-fetching, and enrichment in the background.
 
 ### 3. Check Run Status
 **GET** `/api/v1/scraper/runs/{run_code}`
 
-Returns status with progress tracking:
-```json
-{
-  "run_code": "run_xxx",
-  "status": "running",
-  "total_items": 100,
-  "processed_items": 42,
-  "created_at": "..."
-}
-```
-
 ### 4. View Data
 **GET** `/api/v1/scraper/runs/{run_code}/data?search=Mosque`
 
-Returns scraped places with attributes:
-```json
-[
-  {
-    "place_code": "gplc_ChIJxxx",
-    "name": "Grand Mosque",
-    "source": "gmaps",
-    "attributes": [
-      {"attribute_code": "wheelchair_accessible", "value": true},
-      {"attribute_code": "google_rating", "value": 4.8}
-    ],
-    ...
-  }
-]
-```
+### 5. View Raw Collector Data (debugging)
+**GET** `/api/v1/scraper/runs/{run_code}/raw-data?collector=osm&place_code=gplc_xxx`
 
-### 5. Sync to Main Server
+### 6. Re-enrich (without re-discovery)
+**POST** `/api/v1/scraper/runs/{run_code}/re-enrich`
+
+### 7. List Collectors
+**GET** `/api/v1/scraper/collectors`
+
+### 8. Sync to Main Server
 **POST** `/api/v1/scraper/runs/{run_code}/sync`
 
-Triggers a background task to push data (including attributes and source) to the main server.
-Ensure the main server is running and has the `POST /api/v1/places` endpoint.
-
-### 6. Cancel a Run
+### 9. Cancel a Run
 **POST** `/api/v1/scraper/runs/{run_code}/cancel`
 
-Aborts an active run. All data extracted up to the point of cancellation is preserved.
+## Collectors
 
-## Architecture
+| Collector | Source | Cost | Extracts |
+|-----------|--------|------|----------|
+| **gmaps** | Google Places API (New) | ~$0.008/place | Details, photos, reviews, opening hours, accessibility, parking, payment |
+| **osm** | Overpass API | Free | Amenities, contact, wikipedia/wikidata tags, multilingual names |
+| **wikipedia** | Wikipedia REST API | Free | Descriptions (en/ar/hi), images |
+| **wikidata** | Wikidata API | Free | Founding date, heritage status, social media, multilingual labels |
+| **knowledge_graph** | Google KG Search | Free (100k/day) | Entity descriptions, schema.org types, images |
+| **besttime** | BestTime API | Paid | Busyness forecasts, peak hours |
+| **foursquare** | Foursquare API | Paid | User tips, popularity |
+| **outscraper** | Outscraper API | Paid | Extended Google reviews (beyond the 5 limit) |
 
-### Scrapers Package (`app/scrapers/`)
+## Quality Assessment
 
-- **`base.py`**: Shared utilities (code generation, HTTP backoff)
-- **`gsheet.py`**: Google Sheet scraper with OSM/Wikipedia enrichment
-- **`gmaps.py`**: Google Maps grid scraper with attribute extraction
+Descriptions from all sources are scored using heuristics (0.0-1.0):
+- **Source reliability** (40%): Wikipedia > editorial > knowledge graph > wikidata > generative
+- **Length/detail** (30%): Longer descriptions score higher
+- **Specificity** (30%): Place name mentions + relevant keywords
 
-### Data Flow
+When the top 2 candidates are within 0.15, an LLM (Claude Haiku) can optionally break the tie or synthesize a combined description. This is only triggered for ~10-20% of places.
 
-1. **Create Data Location** → Stores source config (sheet_code or country/place_type)
-2. **Create Run** → Background task starts appropriate scraper based on source_type
-3. **Scraping** → Progress tracked via total_items/processed_items
-4. **Sync** → Enriched data with attributes synced to main server
+## Troubleshooting
 
-### Google Maps Scraper Features
-
-- **Grid-based search**: Divides country into overlapping circles for complete coverage
-- **Stable place codes**: Uses `gplc_{place_id}` for deduplication across runs
-- **Attribute extraction**: wheelchair_accessible, google_rating, google_reviews_count
-- **Opening hours**: Converts to UTC 24-hour format
-- **Rate limiting**: Built-in delays and backoff for API limits
-
-### Source Tracking
-
-All places are tagged with their source:
-- `gmaps`: From Google Maps API
-- `overpass`: From OSM/Wikipedia enrichment
-- `manual`: From seed data
+### Port 8001 Already in Use
+```bash
+lsof -ti :8001 | xargs kill -9
+```

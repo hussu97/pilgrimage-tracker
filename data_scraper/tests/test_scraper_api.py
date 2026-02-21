@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.db.models import DataLocation, GeoBoundary, ScraperRun
+from app.db.models import DataLocation, GeoBoundary, RawCollectorData, ScrapedPlace, ScraperRun
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -29,13 +29,12 @@ def _add_geo_boundary(db_session, name="Dubai", boundary_type="city"):
     return boundary
 
 
-def _create_location_in_db(db_session, name="Test", source_type="gsheet"):
+def _create_location_in_db(db_session, name="Test"):
     loc = DataLocation(
         code=f"loc_{name.lower().replace(' ', '_')}",
         name=name,
-        source_type=source_type,
-        config={"sheet_code": "testcode123"},
-        sheet_code="testcode123",
+        source_type="gmaps",
+        config={"city": "Dubai", "max_results": 5},
     )
     db_session.add(loc)
     db_session.commit()
@@ -53,44 +52,24 @@ def _create_run_in_db(db_session, location_code: str, status: str = "pending"):
     return run
 
 
+def _create_place_in_db(
+    db_session, run_code: str, place_code: str = "gplc_test1", name: str = "Test Mosque"
+):
+    place = ScrapedPlace(
+        run_code=run_code,
+        place_code=place_code,
+        name=name,
+        raw_data={"name": name, "lat": 25.2, "lng": 55.3, "description": "A test place"},
+    )
+    db_session.add(place)
+    db_session.commit()
+    return place
+
+
 # ── TestDataLocations ──────────────────────────────────────────────────────────
 
 
 class TestDataLocations:
-    def test_create_gsheet_location(self, client):
-        resp = client.post(
-            "/api/v1/scraper/data-locations",
-            json={
-                "name": "Test Sheet",
-                "source_type": "gsheet",
-                "sheet_url": "https://docs.google.com/spreadsheets/d/abc123XYZ/edit",
-            },
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["name"] == "Test Sheet"
-        assert data["source_type"] == "gsheet"
-        assert "code" in data
-
-    def test_create_gsheet_with_bare_code(self, client):
-        """Providing just a sheet code (no URL) should still work."""
-        resp = client.post(
-            "/api/v1/scraper/data-locations",
-            json={
-                "name": "Bare Code Sheet",
-                "source_type": "gsheet",
-                "sheet_url": "abc123XYZlongenoughcode",
-            },
-        )
-        assert resp.status_code == 200
-
-    def test_create_gsheet_missing_sheet_url_returns_400(self, client):
-        resp = client.post(
-            "/api/v1/scraper/data-locations",
-            json={"name": "No URL", "source_type": "gsheet"},
-        )
-        assert resp.status_code == 400
-
     def test_create_gmaps_missing_boundary_returns_400(self, client):
         """gmaps location requires a GeoBoundary row — none seeded in test DB."""
         resp = client.post(
@@ -111,7 +90,7 @@ class TestDataLocations:
         assert resp.status_code == 400
 
     def test_create_gmaps_with_valid_boundary_city(self, client, db_session):
-        """gmaps location with a city that exists in DB — covers lines 67-75, 44."""
+        """gmaps location with a city that exists in DB."""
         _add_geo_boundary(db_session, "Dubai", "city")
         resp = client.post(
             "/api/v1/scraper/data-locations",
@@ -144,20 +123,22 @@ class TestDataLocations:
         assert resp.status_code == 200
         assert resp.json() == []
 
-    def test_list_locations_after_creation(self, client):
+    def test_list_locations_after_creation(self, client, db_session):
+        _add_geo_boundary(db_session, "Dubai", "city")
         client.post(
             "/api/v1/scraper/data-locations",
             json={
-                "name": "Listed Sheet",
-                "source_type": "gsheet",
-                "sheet_url": "https://docs.google.com/spreadsheets/d/listtest/edit",
+                "name": "Listed GMaps",
+                "source_type": "gmaps",
+                "city": "Dubai",
+                "max_results": 5,
             },
         )
         resp = client.get("/api/v1/scraper/data-locations")
         assert resp.status_code == 200
         locs = resp.json()
         assert len(locs) >= 1
-        assert any(loc["name"] == "Listed Sheet" for loc in locs)
+        assert any(loc["name"] == "Listed GMaps" for loc in locs)
 
 
 # ── TestScraperRuns ────────────────────────────────────────────────────────────
@@ -211,6 +192,71 @@ class TestScraperRuns:
         resp = client.get(f"/api/v1/scraper/runs/{run.run_code}/data?search=mosque")
         assert resp.status_code == 200
 
+    def test_view_raw_data_empty(self, client, db_session):
+        """View raw collector data for a run with no data."""
+        loc = _create_location_in_db(db_session, "Raw Data Test")
+        run = _create_run_in_db(db_session, loc.code, "completed")
+        resp = client.get(f"/api/v1/scraper/runs/{run.run_code}/raw-data")
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    def test_view_raw_data_with_filters(self, client, db_session):
+        """View raw collector data filtered by collector name and place code."""
+        loc = _create_location_in_db(db_session, "Raw Filter Test")
+        run = _create_run_in_db(db_session, loc.code, "completed")
+
+        # Insert a raw collector data record
+        raw = RawCollectorData(
+            place_code="gplc_test1",
+            collector_name="osm",
+            run_code=run.run_code,
+            raw_response={"amenity": "place_of_worship"},
+            status="success",
+        )
+        db_session.add(raw)
+        db_session.commit()
+
+        # Filter by collector
+        resp = client.get(f"/api/v1/scraper/runs/{run.run_code}/raw-data?collector=osm")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["collector_name"] == "osm"
+
+        # Filter by place_code
+        resp = client.get(f"/api/v1/scraper/runs/{run.run_code}/raw-data?place_code=gplc_test1")
+        assert resp.status_code == 200
+        assert len(resp.json()) == 1
+
+        # Filter by non-matching collector
+        resp = client.get(f"/api/v1/scraper/runs/{run.run_code}/raw-data?collector=wikipedia")
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    def test_re_enrich_run_success(self, client, db_session):
+        """Re-enrich a run that has places."""
+        loc = _create_location_in_db(db_session, "Re-enrich Test")
+        run = _create_run_in_db(db_session, loc.code, "completed")
+        _create_place_in_db(db_session, run.run_code)
+
+        with patch("app.pipeline.enrichment.run_enrichment_pipeline"):
+            resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/re-enrich")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "re_enrichment_started"
+        assert data["place_count"] == 1
+
+    def test_re_enrich_run_not_found(self, client):
+        resp = client.post("/api/v1/scraper/runs/run_nonexistent/re-enrich")
+        assert resp.status_code == 404
+
+    def test_re_enrich_run_no_places(self, client, db_session):
+        """Re-enrich a run with no places returns 400."""
+        loc = _create_location_in_db(db_session, "Re-enrich Empty")
+        run = _create_run_in_db(db_session, loc.code, "completed")
+        resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/re-enrich")
+        assert resp.status_code == 400
+
     def test_sync_run_success(self, client, db_session):
         """Sync a run to the main server (patches the sync task)."""
         loc = _create_location_in_db(db_session, "Sync Test")
@@ -242,6 +288,29 @@ class TestScraperRuns:
     def test_cancel_nonexistent_run_returns_404(self, client):
         resp = client.post("/api/v1/scraper/runs/run_nonexistent/cancel")
         assert resp.status_code == 404
+
+
+# ── TestCollectors ────────────────────────────────────────────────────────────
+
+
+class TestCollectors:
+    def test_list_collectors(self, client):
+        """List all collectors with their status."""
+        resp = client.get("/api/v1/scraper/collectors")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert (
+            len(data) == 8
+        )  # gmaps, osm, wikipedia, wikidata, kg, besttime, foursquare, outscraper
+        names = [c["name"] for c in data]
+        assert "gmaps" in names
+        assert "osm" in names
+        assert "wikipedia" in names
+
+        # OSM and Wikipedia should be available (no API key required)
+        osm = next(c for c in data if c["name"] == "osm")
+        assert osm["requires_api_key"] is False
+        assert osm["is_available"] is True
 
 
 # ── TestPlaceTypeMappings ──────────────────────────────────────────────────────

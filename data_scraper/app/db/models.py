@@ -8,9 +8,8 @@ class DataLocation(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     code: str = Field(index=True, unique=True)
     name: str = Field(index=True)
-    source_type: str = Field(default="gsheet")  # "gsheet" or "gmaps"
+    source_type: str = Field(default="gmaps")  # "gmaps"
     config: dict[str, Any] = Field(default={}, sa_column=Column(JSON))
-    sheet_code: str | None = Field(default=None)  # backward compat
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -30,7 +29,29 @@ class ScrapedPlace(SQLModel, table=True):
     place_code: str = Field(index=True)
     name: str
     raw_data: dict[str, Any] = Field(default={}, sa_column=Column(JSON))
+    enrichment_status: str = Field(default="pending")
+    # "pending" | "enriching" | "complete" | "failed"
+    description_source: str | None = Field(default=None)
+    # which source won: "wikipedia", "gmaps_editorial", "gmaps_generative",
+    #                    "wikidata", "knowledge_graph", "llm_synthesized"
+    description_score: float | None = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class RawCollectorData(SQLModel, table=True):
+    """Preserves the verbatim JSON response from each source per place."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    place_code: str = Field(index=True)
+    collector_name: str = Field(index=True)
+    # "gmaps", "osm", "wikipedia", "wikidata", "knowledge_graph",
+    # "besttime", "foursquare", "outscraper"
+    run_code: str = Field(foreign_key="scraperrun.run_code", index=True)
+    raw_response: dict[str, Any] = Field(default={}, sa_column=Column(JSON))
+    status: str = Field(default="success")
+    # "success", "failed", "skipped", "not_configured"
+    error_message: str | None = Field(default=None)
+    collected_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class GeoBoundary(SQLModel, table=True):
@@ -49,7 +70,7 @@ class PlaceTypeMapping(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     religion: str = Field(index=True)  # "islam", "christianity", "hinduism"
-    source_type: str = Field(default="gmaps")  # "gmaps" or "gsheet"
+    source_type: str = Field(default="gmaps")  # "gmaps"
     gmaps_type: str  # Google Maps API type: "mosque", "church", "cathedral", etc.
     our_place_type: str  # Our internal type name: "mosque", "church", "temple"
     is_active: bool = Field(default=True)  # Enable/disable this mapping
