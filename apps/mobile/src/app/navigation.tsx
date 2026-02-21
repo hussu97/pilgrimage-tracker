@@ -24,20 +24,13 @@ import EditGroupPlacesScreen from './screens/EditGroupPlacesScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import SearchScreen from './screens/SearchScreen';
 
-export type SearchLocation = {
-  placeId: string;
-  name: string;
-  lat: number;
-  lng: number;
-};
-
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
   Register: undefined;
   ForgotPassword: undefined;
   ResetPassword: { token?: string };
-  Main: { searchLocation?: SearchLocation } | undefined;
+  Main: undefined;
   Search: undefined;
   PlaceDetail: { placeCode: string };
   WriteReview: {

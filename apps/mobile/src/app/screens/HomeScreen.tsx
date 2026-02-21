@@ -15,15 +15,14 @@ import {
 import { WebView } from 'react-native-webview';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import type { RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useAuth, useI18n, useTheme } from '@/app/providers';
+import { useAuth, useI18n, useTheme, useSearch } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
 import { getPlaces } from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { Place, FilterOption } from '@/lib/types';
-import type { RootStackParamList, SearchLocation } from '@/app/navigation';
+import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
 import PlaceCard from '@/components/places/PlaceCard';
 import SkeletonCard from '@/components/common/SkeletonCard';
@@ -403,20 +402,12 @@ function makeStyles(isDark: boolean) {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>>();
-  const route = useRoute<RouteProp<{ Home: { searchLocation?: SearchLocation } }, 'Home'>>();
   const { user } = useAuth();
   const { t } = useI18n();
   const { isDark } = useTheme();
   const { coords } = useLocation();
+  const { searchLocation, setSearchLocation } = useSearch();
   const webViewRef = useRef<WebView>(null);
-
-  const [searchLocation, setSearchLocation] = useState<SearchLocation | null>(null);
-
-  // Pick up searchLocation passed from SearchScreen via navigation params
-  useEffect(() => {
-    const loc = (route.params as any)?.searchLocation;
-    if (loc) setSearchLocation(loc);
-  }, [route.params]);
 
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);

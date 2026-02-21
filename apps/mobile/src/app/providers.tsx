@@ -459,3 +459,31 @@ export function useFeedback(): FeedbackContextValue {
   if (!ctx) throw new Error('useFeedback must be used within FeedbackProvider');
   return ctx;
 }
+
+// --- Search ---
+import type { SearchLocation } from '@/lib/utils/searchHistory';
+
+interface SearchContextValue {
+  searchLocation: SearchLocation | null;
+  setSearchLocation: (loc: SearchLocation | null) => void;
+}
+
+const SearchContext = createContext<SearchContextValue | null>(null);
+
+export function SearchProvider({ children }: { children: ReactNode }) {
+  const [searchLocation, setSearchLocationState] = useState<SearchLocation | null>(null);
+  const setSearchLocation = useCallback((loc: SearchLocation | null) => {
+    setSearchLocationState(loc);
+  }, []);
+  const value = useMemo<SearchContextValue>(
+    () => ({ searchLocation, setSearchLocation }),
+    [searchLocation, setSearchLocation],
+  );
+  return <SearchContext.Provider value={value}>{children}</SearchContext.Provider>;
+}
+
+export function useSearch(): SearchContextValue {
+  const ctx = useContext(SearchContext);
+  if (!ctx) throw new Error('useSearch must be used within SearchProvider');
+  return ctx;
+}

@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useTheme, useI18n } from '@/app/providers';
+import { useTheme, useI18n, useSearch } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
 import { searchAutocomplete, getSearchPlaceDetails } from '@/lib/api/client';
 import type { SearchSuggestion } from '@/lib/api/client';
@@ -140,6 +140,7 @@ export default function SearchScreen() {
   const { isDark } = useTheme();
   const { t } = useI18n();
   const { coords } = useLocation();
+  const { setSearchLocation } = useSearch();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const [query, setQuery] = useState('');
@@ -202,7 +203,8 @@ export default function SearchScreen() {
         lng: details.lng,
       };
       await addSearchHistory(loc);
-      (navigation as any).navigate('Main', { screen: 'Home', params: { searchLocation: loc } });
+      setSearchLocation(loc);
+      navigation.goBack();
     } catch {
       setError(t('search.error'));
     } finally {
@@ -212,7 +214,8 @@ export default function SearchScreen() {
 
   const handleSelectHistory = async (item: SearchLocation) => {
     await addSearchHistory(item);
-    (navigation as any).navigate('Main', { screen: 'Home', params: { searchLocation: item } });
+    setSearchLocation(item);
+    navigation.goBack();
   };
 
   const handleClearHistory = async () => {
