@@ -4,6 +4,22 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Group Detail UI Parity & Image Fixes (2026-02-21)
+
+### Frontend (web)
+- **Image fix** — Applied `getFullImageUrl()` to group cover image and place thumbnails in `GroupDetail.tsx` so backend-hosted relative URLs resolve correctly.
+
+### Frontend (mobile)
+- **Image fix** — Replaced React Native `Image` with `expo-image` (`ExpoImage`) and wrapped all image URIs with `getFullImageUrl()` in `GroupDetailScreen` (cover image and place thumbnails).
+- **Place item redesign** — Added numbered + check-circle indicator per place row (green when self checked in, blue-tinted when others have, grey when none), matching the web layout.
+- **Inline avatar chips** — Stacked member initials with check-in count now appear in collapsed place rows (same as web).
+- **View Details button** — Expanded place section now shows a "Details" button alongside "Check In", navigating to `PlaceDetailScreen`.
+- **Invite link sharing** — Added invite URL row with share button to the Members tab (was missing entirely).
+- **Leaderboard colors** — Fixed podium avatar and bar colors: rank 1 = amber/gold, rank 2 = silver/neutral, rank 3 = orange/bronze, matching the web design.
+- **Pull-to-refresh** — Added `RefreshControl` to `GroupsScreen` (group list) and `GroupDetailScreen` (group info + checklist); full-screen spinner suppressed during refresh.
+
+---
+
 ## Structured Logging, Monitoring & API Versioning (2026-02-21)
 
 ### Backend
