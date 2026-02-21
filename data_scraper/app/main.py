@@ -1,5 +1,7 @@
 import traceback
-from datetime import datetime
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, status
@@ -15,16 +17,17 @@ from app.db.session import engine, run_migrations
 
 load_dotenv()
 
-app = FastAPI(title="Pilgrimage Data Scraper API")
 
-
-@app.on_event("startup")
-def on_startup():
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     run_migrations()
     with Session(engine) as session:
         seed_geo_boundaries(session)
         seed_place_type_mappings(session)
+    yield
 
+
+app = FastAPI(title="Pilgrimage Data Scraper API", lifespan=lifespan)
 
 app.include_router(api_router)
 
@@ -36,7 +39,7 @@ def log_error(
     request: Request, status_code: int, error_type: str, detail: str, exc: Exception = None
 ):
     """Log error details to console"""
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now(UTC).isoformat()
     print(f"\n{'=' * 80}")
     print(f"[{timestamp}] {error_type} - {status_code}")
     print(f"Path: {request.method} {request.url.path}")
@@ -81,7 +84,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     # Log validation errors
     log_error(
         request,
-        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
         "Validation Error",
         f"{len(errors)} validation error(s)",
         exc,
@@ -122,7 +125,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         serializable_errors.append(serializable_error)
 
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={"detail": serializable_errors},
     )
 

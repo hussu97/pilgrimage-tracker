@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class DataLocationCreate(BaseModel):
@@ -59,6 +59,8 @@ class PlaceTypeMappingUpdate(BaseModel):
 
 
 class PlaceTypeMappingResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     religion: str
     source_type: str
@@ -67,9 +69,6 @@ class PlaceTypeMappingResponse(BaseModel):
     is_active: bool
     display_order: int
     created_at: datetime
-
-    class Config:
-        from_attributes = True
 
 
 class CollectorStatusResponse(BaseModel):
@@ -80,12 +79,11 @@ class CollectorStatusResponse(BaseModel):
 
 
 class RawCollectorDataResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     place_code: str
     collector_name: str
     status: str
     error_message: str | None = None
     raw_response: dict[str, Any]
     collected_at: datetime
-
-    class Config:
-        from_attributes = True

@@ -70,7 +70,8 @@ class TestRefresh:
         refresh_token = resp.cookies.get("refresh_token")
         assert refresh_token
 
-        resp2 = client.post(REFRESH_URL, cookies={"refresh_token": refresh_token})
+        client.cookies.set("refresh_token", refresh_token)
+        resp2 = client.post(REFRESH_URL)
         assert resp2.status_code == 200
         assert "token" in resp2.json()
 
@@ -79,7 +80,8 @@ class TestRefresh:
         assert resp.status_code == 401
 
     def test_refresh_with_invalid_cookie(self, client):
-        resp = client.post(REFRESH_URL, cookies={"refresh_token": "totally-fake-token"})
+        client.cookies.set("refresh_token", "totally-fake-token")
+        resp = client.post(REFRESH_URL)
         assert resp.status_code == 401
 
 
@@ -91,7 +93,8 @@ class TestLogout:
         resp = _register(client, email="logout@example.com")
         refresh_token = resp.cookies.get("refresh_token")
 
-        resp2 = client.post(LOGOUT_URL, cookies={"refresh_token": refresh_token})
+        client.cookies.set("refresh_token", refresh_token)
+        resp2 = client.post(LOGOUT_URL)
         assert resp2.status_code == 200
         assert resp2.json().get("ok") is True
 
@@ -99,10 +102,12 @@ class TestLogout:
         resp = _register(client, email="logout2@example.com")
         refresh_token = resp.cookies.get("refresh_token")
 
-        client.post(LOGOUT_URL, cookies={"refresh_token": refresh_token})
+        client.cookies.set("refresh_token", refresh_token)
+        client.post(LOGOUT_URL)
 
         # After logout, refresh should fail
-        resp3 = client.post(REFRESH_URL, cookies={"refresh_token": refresh_token})
+        client.cookies.set("refresh_token", refresh_token)
+        resp3 = client.post(REFRESH_URL)
         assert resp3.status_code == 401
 
 

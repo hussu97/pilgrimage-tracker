@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlmodel import JSON, Column, Field, SQLModel
@@ -10,7 +10,7 @@ class DataLocation(SQLModel, table=True):
     name: str = Field(index=True)
     source_type: str = Field(default="gmaps")  # "gmaps"
     config: dict[str, Any] = Field(default={}, sa_column=Column(JSON))
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ScraperRun(SQLModel, table=True):
@@ -20,7 +20,7 @@ class ScraperRun(SQLModel, table=True):
     status: str = Field(default="pending")  # pending, running, completed, failed, cancelled
     total_items: int | None = Field(default=None)
     processed_items: int = Field(default=0)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class ScrapedPlace(SQLModel, table=True):
@@ -35,7 +35,7 @@ class ScrapedPlace(SQLModel, table=True):
     # which source won: "wikipedia", "gmaps_editorial", "gmaps_generative",
     #                    "wikidata", "knowledge_graph", "llm_synthesized"
     description_score: float | None = Field(default=None)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class RawCollectorData(SQLModel, table=True):
@@ -51,7 +51,7 @@ class RawCollectorData(SQLModel, table=True):
     status: str = Field(default="success")
     # "success", "failed", "skipped", "not_configured"
     error_message: str | None = Field(default=None)
-    collected_at: datetime = Field(default_factory=datetime.utcnow)
+    collected_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class GeoBoundary(SQLModel, table=True):
@@ -75,4 +75,4 @@ class PlaceTypeMapping(SQLModel, table=True):
     our_place_type: str  # Our internal type name: "mosque", "church", "temple"
     is_active: bool = Field(default=True)  # Enable/disable this mapping
     display_order: int = Field(default=0)  # For ordering results
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

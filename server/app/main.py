@@ -320,7 +320,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     # Log validation errors
     log_error(
         request,
-        status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
         "Validation Error",
         f"{len(errors)} validation error(s)",
         exc,
@@ -351,7 +351,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         serializable_errors.append(serializable_error)
 
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={"detail": serializable_errors},
     )
 

@@ -1,7 +1,7 @@
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 
 Religion = Literal["islam", "hinduism", "christianity", "all"]
 
@@ -100,8 +100,9 @@ class RegisterBody(BaseModel):
         default=None, description="Anonymous visitor code to merge settings on account creation"
     )
 
-    @validator("password")
-    def validate_password_strength(cls, v):
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
         return _validate_password(v)
 
 
@@ -129,8 +130,9 @@ class ResetPasswordBody(BaseModel):
     token: str
     newPassword: str
 
-    @validator("newPassword")
-    def validate_new_password_strength(cls, v):
+    @field_validator("newPassword")
+    @classmethod
+    def validate_new_password_strength(cls, v: str) -> str:
         return _validate_password(v)
 
 
@@ -218,8 +220,9 @@ class PlaceAttributeInput(BaseModel):
     attribute_code: str
     value: _AllowedAttributeValue
 
-    @validator("value")
-    def validate_value_type(cls, v):
+    @field_validator("value")
+    @classmethod
+    def validate_value_type(cls, v: _AllowedAttributeValue) -> _AllowedAttributeValue:
         """Ensure value is one of the allowed types."""
         if isinstance(v, list):
             for item in v:
@@ -239,8 +242,9 @@ class ExternalReviewInput(BaseModel):
     time: int  # Unix timestamp
     language: str = "en"
 
-    @validator("rating")
-    def validate_rating(cls, v):
+    @field_validator("rating")
+    @classmethod
+    def validate_rating(cls, v: int) -> int:
         if not (1 <= v <= 5):
             raise ValueError("Rating must be between 1 and 5.")
         return v
@@ -264,10 +268,13 @@ class PlaceCreate(BaseModel):
     attributes: list[PlaceAttributeInput] | None = None
     external_reviews: list[ExternalReviewInput] | None = None
 
-    @validator("image_blobs")
-    def validate_image_sources(cls, v, values):
+    @field_validator("image_blobs")
+    @classmethod
+    def validate_image_sources(
+        cls, v: list[dict] | None, info: ValidationInfo
+    ) -> list[dict] | None:
         """Ensure only one image source (urls or blobs) is provided, not both."""
-        image_urls = values.get("image_urls", [])
+        image_urls = info.data.get("image_urls", [])
         has_urls = image_urls and len(image_urls) > 0
         has_blobs = v and len(v) > 0
         if has_urls and has_blobs:
