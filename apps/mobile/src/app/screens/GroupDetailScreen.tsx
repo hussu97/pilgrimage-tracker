@@ -10,6 +10,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -501,6 +502,7 @@ export default function GroupDetailScreen() {
   const [submittingNote, setSubmittingNote] = useState<string | null>(null);
   const [showFullLeaderboard, setShowFullLeaderboard] = useState(false);
   const [memberActionLoading, setMemberActionLoading] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const isAdmin = useMemo(
     () => members.some((m) => m.user_code === user?.user_code && m.role === 'admin'),
@@ -542,6 +544,12 @@ export default function GroupDetailScreen() {
       setChecklistLoading(false);
     }
   }, [groupCode]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([fetchData(), fetchChecklist()]);
+    setRefreshing(false);
+  }, [fetchData, fetchChecklist]);
 
   useEffect(() => {
     fetchData();
@@ -689,7 +697,7 @@ export default function GroupDetailScreen() {
     );
   }
 
-  if (loading) {
+  if (loading && !refreshing) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
         <ActivityIndicator size="small" color={tokens.colors.primary} />
@@ -730,6 +738,14 @@ export default function GroupDetailScreen() {
         style={styles.flex}
         contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={tokens.colors.primary}
+            colors={[tokens.colors.primary]}
+          />
+        }
       >
         {/* Header */}
         <View style={[styles.headerWrap, { paddingTop: insets.top + 12 }]}>

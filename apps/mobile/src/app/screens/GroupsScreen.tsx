@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -282,6 +283,7 @@ export default function GroupsScreen() {
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
   const fetchGroups = useCallback(() => {
@@ -300,6 +302,20 @@ export default function GroupsScreen() {
   useEffect(() => {
     fetchGroups();
   }, [fetchGroups]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!user) return;
+    setRefreshing(true);
+    setError('');
+    try {
+      const data = await getGroups();
+      setGroups(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t('common.error'));
+    } finally {
+      setRefreshing(false);
+    }
+  }, [user, t]);
 
   const featured = groups.find((g) => g.featured);
   const rest = groups.filter((g) => g.group_code !== featured?.group_code);
@@ -386,6 +402,14 @@ export default function GroupsScreen() {
         style={styles.scroll}
         contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: insets.bottom + 100 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={tokens.colors.primary}
+            colors={[tokens.colors.primary]}
+          />
+        }
       >
         {loading && (
           <ActivityIndicator size="small" color={tokens.colors.primary} style={styles.loader} />

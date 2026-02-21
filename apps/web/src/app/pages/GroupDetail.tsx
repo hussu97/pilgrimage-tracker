@@ -17,6 +17,7 @@ import {
   deletePlaceNote,
 } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import ErrorState from '@/components/common/ErrorState';
 import GroupCheckInModal from '@/components/groups/GroupCheckInModal';
 import type { Group, LeaderboardEntry, ActivityItem, GroupMember } from '@/lib/types';
@@ -269,7 +270,7 @@ export default function GroupDetail() {
         {group.cover_image_url && (
           <div className="w-full h-36 rounded-2xl overflow-hidden mb-4">
             <img
-              src={group.cover_image_url}
+              src={getFullImageUrl(group.cover_image_url)}
               alt={group.name}
               className="w-full h-full object-cover"
               onError={(e) => {
@@ -445,7 +446,7 @@ export default function GroupDetail() {
                       </div>
                       {place.image_url && (
                         <img
-                          src={place.image_url}
+                          src={getFullImageUrl(place.image_url ?? undefined)}
                           alt={place.name}
                           className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
                         />
