@@ -6,15 +6,6 @@
  *   cn('base-class', condition && 'conditional-class', 'another-class')
  *   cn('px-4 py-2', isActive ? 'bg-blue-500' : 'bg-gray-200')
  *
- * TODO: Gradually migrate all template literal className patterns to use this utility.
- * Current patterns to replace:
- *   - className={`base ${condition ? 'active' : 'inactive'}`}
- *   - className={`base ${isActive && 'active'}`}
- * Should become:
- *   - className={cn('base', condition ? 'active' : 'inactive')}
- *   - className={cn('base', isActive && 'active')}
- *
- * Target files: ~40 components with template literal classNames (see grep results)
  */
 
 type ClassDictionary = Record<string, unknown>;
