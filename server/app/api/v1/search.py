@@ -2,10 +2,14 @@
 Search proxy endpoints — keeps Google Places API key server-side.
 """
 
+import logging
+
 import requests
 from fastapi import APIRouter, Query
 
 from app.core import config
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -22,7 +26,8 @@ def autocomplete(
     """Proxy to Google Places autocomplete. Returns suggestions list."""
     api_key = config.GOOGLE_MAPS_API_KEY
     if not api_key:
-        return {"suggestions": []}
+        logger.warning("GOOGLE_MAPS_API_KEY is not configured — autocomplete disabled")
+        return {"suggestions": [], "error": "search_not_configured"}
 
     payload: dict = {"input": q}
     if lat is not None and lng is not None:
@@ -45,8 +50,9 @@ def autocomplete(
         )
         resp.raise_for_status()
         data = resp.json()
-    except Exception:
-        return {"suggestions": []}
+    except Exception as exc:
+        logger.error("Google Places autocomplete failed: %s", exc)
+        return {"suggestions": [], "error": "search_unavailable"}
 
     suggestions = []
     for item in data.get("suggestions", []):
@@ -74,8 +80,9 @@ def place_details(place_id: str = Query(...)):
     """Proxy to Google Place Details. Returns lat/lng and display info."""
     api_key = config.GOOGLE_MAPS_API_KEY
     if not api_key:
+        logger.warning("GOOGLE_MAPS_API_KEY is not configured — place details disabled")
         return {
-            "error": "Search not configured",
+            "error": "search_not_configured",
             "place_id": place_id,
             "name": "",
             "address": "",
@@ -95,9 +102,10 @@ def place_details(place_id: str = Query(...)):
         )
         resp.raise_for_status()
         data = resp.json()
-    except Exception:
+    except Exception as exc:
+        logger.error("Google Places details failed for %s: %s", place_id, exc)
         return {
-            "error": "Failed to fetch place details",
+            "error": "search_unavailable",
             "place_id": place_id,
             "name": "",
             "address": "",

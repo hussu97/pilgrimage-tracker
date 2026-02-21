@@ -31,6 +31,7 @@ from app.api.v1 import share as share_router_module  # noqa: E402
 from app.core import config  # noqa: E402
 from app.core.client_context import (  # noqa: E402
     ClientContext,
+    get_client_context,
     reset_client_context,
     set_client_context,
     version_meets_minimum,
@@ -43,6 +44,14 @@ from app.core.request_context import (  # noqa: E402
 )
 from app.db.seed import run_seed_system  # noqa: E402
 from app.db.session import run_migrations  # noqa: E402
+
+# Keys that contain large image data and must never appear in log output.
+_IMAGE_LOG_KEYS: frozenset[str] = frozenset({"image_url", "image_blob"})
+
+
+def _sanitize_log_data(data: dict) -> dict:
+    """Strip image fields from a dict before logging to keep output concise."""
+    return {k: v for k, v in data.items() if k not in _IMAGE_LOG_KEYS and "image" not in k.lower()}
 
 
 @asynccontextmanager
@@ -222,16 +231,29 @@ async def request_timing_middleware(request: Request, call_next):
     start = time.perf_counter()
     response = await call_next(request)
     duration_ms = round((time.perf_counter() - start) * 1000, 2)
-    logger.info(
-        "request_complete",
-        extra={
-            "method": request.method,
-            "path": request.url.path,
-            "status_code": response.status_code,
-            "duration_ms": duration_ms,
-            "request_id": get_request_id(),
-        },
-    )
+    status_code = response.status_code
+
+    extra: dict = {
+        "method": request.method,
+        "path": request.url.path,
+        "status_code": status_code,
+        "duration_ms": duration_ms,
+        "request_id": get_request_id(),
+    }
+    if request.query_params:
+        extra["query"] = _sanitize_log_data(dict(request.query_params))
+    client = get_client_context()
+    if client:
+        extra["platform"] = client.platform
+        extra["app_type"] = client.app_type
+
+    if status_code >= 500:
+        logger.error("request_complete", extra=extra)
+    elif status_code >= 400:
+        logger.warning("request_complete", extra=extra)
+    else:
+        logger.info("request_complete", extra=extra)
+
     return response
 
 
@@ -254,7 +276,7 @@ def log_error(
     request: Request, status_code: int, error_type: str, detail: str, exc: Exception = None
 ):
     """Log error details via the logging module."""
-    query = dict(request.query_params) if request.query_params else None
+    query = _sanitize_log_data(dict(request.query_params)) if request.query_params else None
     request_id = get_request_id()
     if status_code >= 500:
         logger.error(

@@ -10,11 +10,13 @@ class TestAutocomplete:
         assert resp.status_code == 422
 
     def test_no_api_key_returns_empty(self, client):
-        """When GOOGLE_MAPS_API_KEY is empty, return empty suggestions."""
+        """When GOOGLE_MAPS_API_KEY is empty, return empty suggestions with error key."""
         with patch("app.api.v1.search.config.GOOGLE_MAPS_API_KEY", ""):
             resp = client.get("/api/v1/search/autocomplete", params={"q": "Mecca"})
         assert resp.status_code == 200
-        assert resp.json() == {"suggestions": []}
+        data = resp.json()
+        assert data["suggestions"] == []
+        assert data["error"] == "search_not_configured"
 
     def test_valid_query_returns_suggestions(self, client):
         """Happy path: Google returns suggestions, we map them correctly."""
@@ -68,7 +70,7 @@ class TestAutocomplete:
         assert "locationBias" in payload
 
     def test_google_api_error_returns_empty(self, client):
-        """When Google API throws, return empty suggestions gracefully."""
+        """When Google API throws, return empty suggestions with error key."""
         with (
             patch("app.api.v1.search.config.GOOGLE_MAPS_API_KEY", "fake-key"),
             patch("app.api.v1.search.requests.post", side_effect=Exception("network error")),
@@ -76,7 +78,9 @@ class TestAutocomplete:
             resp = client.get("/api/v1/search/autocomplete", params={"q": "Mecca"})
 
         assert resp.status_code == 200
-        assert resp.json() == {"suggestions": []}
+        data = resp.json()
+        assert data["suggestions"] == []
+        assert data["error"] == "search_unavailable"
 
     def test_no_results(self, client):
         """Google returns empty suggestions list."""

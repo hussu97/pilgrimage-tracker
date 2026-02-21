@@ -12,6 +12,52 @@ Environment variables:
 import logging
 import os
 
+# Standard LogRecord attributes — anything outside this set is an extra field
+# added by the caller and should be included in text output.
+_STANDARD_LOG_KEYS: frozenset[str] = frozenset(
+    {
+        "name",
+        "msg",
+        "args",
+        "levelname",
+        "levelno",
+        "pathname",
+        "filename",
+        "module",
+        "exc_info",
+        "exc_text",
+        "stack_info",
+        "lineno",
+        "funcName",
+        "created",
+        "msecs",
+        "relativeCreated",
+        "thread",
+        "threadName",
+        "processName",
+        "process",
+        "message",
+        "asctime",
+        "taskName",
+    }
+)
+
+
+class _TextFormatter(logging.Formatter):
+    """Human-readable formatter that appends extra key=value pairs.
+
+    Standard logging.Formatter silently drops ``extra`` fields; this subclass
+    appends them so they're visible during local development.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        base = super().format(record)
+        extras = {k: v for k, v in record.__dict__.items() if k not in _STANDARD_LOG_KEYS}
+        if extras:
+            kv = "  ".join(f"{k}={v!r}" for k, v in extras.items())
+            return f"{base}  |  {kv}"
+        return base
+
 
 def setup_logging() -> None:
     """Configure the root logger based on LOG_LEVEL and LOG_FORMAT env vars."""
@@ -50,13 +96,11 @@ def setup_logging() -> None:
         except ImportError:
             # Fallback to text if python-json-logger is not installed
             handler = logging.StreamHandler()
-            handler.setFormatter(
-                logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
-            )
+            handler.setFormatter(_TextFormatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
     else:
-        # Human-readable format for local development
+        # Human-readable format for local development — includes extra fields
         handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        handler.setFormatter(_TextFormatter("%(asctime)s %(levelname)-8s %(name)s: %(message)s"))
 
     root_logger.setLevel(log_level)
     root_logger.addHandler(handler)
