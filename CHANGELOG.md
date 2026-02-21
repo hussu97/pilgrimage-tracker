@@ -4,6 +4,18 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Data Scraper: Wikipedia Search Relevance Validation (2026-02-21)
+
+### Backend (data_scraper)
+- **Fix: irrelevant Wikipedia search results no longer used** — When no OSM `wikipedia` tag is available, the collector falls back to a Wikipedia keyword search. This search can return unrelated articles (e.g. "Al Futtaim Masjid" → "Dubai Marina"). `WikipediaCollector` now calls `_is_article_relevant()` on every search-based result before accepting it.
+- **Two-layer relevance check:**
+  1. **Token overlap (Jaccard ≥ 0.3)** — normalises both the article title and the place name to token sets, applies synonym mapping (`masjid` → `mosque`, `mandir` → `temple`, etc.) and drops noise words (`al`, `the`, `of`, …). If 30 % or more tokens overlap, the article is accepted.
+  2. **Wikidata short description contradiction** — if the place name implies a religious site (mosque, temple, shrine, …) but the article's Wikidata one-liner says "district", "mall", "waterfront", "road", etc., the result is rejected outright.
+- **OSM-tag path unaffected** — articles resolved via `tags["wikipedia"]` bypass validation because OSM tags are human-curated and already precise.
+- **10 new pytest tests** covering normalisation, synonym mapping, the two validation layers, and the collect()-level skip/accept behaviour.
+
+---
+
 ## Data Scraper: Add Alembic Migrations (2026-02-21)
 
 ### Backend (data_scraper)
