@@ -17,7 +17,12 @@ database_url = os.environ.get("DATABASE_URL")
 if database_url:
     config.set_main_option("sqlalchemy.url", database_url)
 
-if config.config_file_name is not None:
+# Only apply Alembic's logging config when invoked from the CLI.
+# When called programmatically at app startup (connection injected via
+# cfg.attributes["connection"]), the app has already called setup_logging()
+# and fileConfig() would overwrite it with alembic.ini's WARN-level config,
+# silencing all INFO/DEBUG output from the application.
+if config.config_file_name is not None and not config.attributes.get("connection"):
     fileConfig(config.config_file_name)
 
 # Use SQLModel's shared metadata so Alembic sees every table definition.
