@@ -234,6 +234,10 @@ export default function PlaceDetail() {
   const [checkInDone, setCheckInDone] = useState(false);
   const [checkInDate, setCheckInDate] = useState('');
   const [storyExpanded, setStoryExpanded] = useState(false);
+  const [storyOverflowsMobile, setStoryOverflowsMobile] = useState(false);
+  const [storyOverflowsDesktop, setStoryOverflowsDesktop] = useState(false);
+  const storyRefMobile = useRef<HTMLParagraphElement>(null);
+  const storyRefDesktop = useRef<HTMLParagraphElement>(null);
   const [headerVisible, setHeaderVisible] = useState(false);
   const [heroIdx, setHeroIdx] = useState(0);
   const [heroIsDragging, setHeroIsDragging] = useState(false);
@@ -252,6 +256,26 @@ export default function PlaceDetail() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [headerVisible]);
+
+  useEffect(() => {
+    const el = storyRefMobile.current;
+    if (!el || storyExpanded) return;
+    const check = () => setStoryOverflowsMobile(el.scrollHeight > el.clientHeight);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [place?.description, storyExpanded]);
+
+  useEffect(() => {
+    const el = storyRefDesktop.current;
+    if (!el || storyExpanded) return;
+    const check = () => setStoryOverflowsDesktop(el.scrollHeight > el.clientHeight);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [place?.description, storyExpanded]);
 
   // Hero carousel auto-swipe
   useEffect(() => {
@@ -755,6 +779,7 @@ export default function PlaceDetail() {
                 </div>
                 <div className="bg-white dark:bg-dark-surface rounded-[2rem] p-6 border border-slate-100 dark:border-dark-border shadow-soft">
                   <p
+                    ref={storyRefMobile}
                     className={cn(
                       'text-[15px] text-slate-600 dark:text-slate-300 leading-relaxed',
                       !storyExpanded && 'line-clamp-5',
@@ -762,16 +787,18 @@ export default function PlaceDetail() {
                   >
                     {place.description}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setStoryExpanded((v) => !v)}
-                    className="mt-4 text-sm font-bold text-primary hover:text-primary-hover flex items-center gap-1"
-                  >
-                    {storyExpanded ? t('common.showLess') : t('common.showMore')}
-                    <span className="material-symbols-outlined text-sm">
-                      {storyExpanded ? 'expand_less' : 'expand_more'}
-                    </span>
-                  </button>
+                  {(storyOverflowsMobile || storyExpanded) && (
+                    <button
+                      type="button"
+                      onClick={() => setStoryExpanded((v) => !v)}
+                      className="mt-4 text-sm font-bold text-primary hover:text-primary-hover flex items-center gap-1"
+                    >
+                      {storyExpanded ? t('common.showLess') : t('common.showMore')}
+                      <span className="material-symbols-outlined text-sm">
+                        {storyExpanded ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </button>
+                  )}
                 </div>
               </section>
             )}
@@ -830,6 +857,7 @@ export default function PlaceDetail() {
                 </div>
                 <div className="bg-white dark:bg-dark-surface rounded-[2rem] p-8 border border-slate-100 dark:border-dark-border shadow-soft">
                   <p
+                    ref={storyRefDesktop}
                     className={cn(
                       'text-lg text-slate-600 dark:text-slate-300 leading-relaxed',
                       !storyExpanded && 'line-clamp-6',
@@ -837,16 +865,18 @@ export default function PlaceDetail() {
                   >
                     {place.description}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setStoryExpanded((v) => !v)}
-                    className="mt-6 text-sm font-bold text-primary hover:text-primary-hover flex items-center gap-2 transition-all hover:gap-3"
-                  >
-                    {storyExpanded ? t('common.showLess') : t('common.readMore')}
-                    <span className="material-symbols-outlined text-base">
-                      {storyExpanded ? 'expand_less' : 'east'}
-                    </span>
-                  </button>
+                  {(storyOverflowsDesktop || storyExpanded) && (
+                    <button
+                      type="button"
+                      onClick={() => setStoryExpanded((v) => !v)}
+                      className="mt-6 text-sm font-bold text-primary hover:text-primary-hover flex items-center gap-2 transition-all hover:gap-3"
+                    >
+                      {storyExpanded ? t('common.showLess') : t('common.readMore')}
+                      <span className="material-symbols-outlined text-base">
+                        {storyExpanded ? 'expand_less' : 'east'}
+                      </span>
+                    </button>
+                  )}
                 </div>
               </section>
             )}

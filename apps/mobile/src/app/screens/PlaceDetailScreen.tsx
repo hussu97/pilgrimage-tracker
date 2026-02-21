@@ -80,6 +80,7 @@ export default function PlaceDetailScreen() {
   const [checkInDone, setCheckInDone] = useState(false);
   const [checkInDate, setCheckInDate] = useState('');
   const [storyExpanded, setStoryExpanded] = useState(false);
+  const [storyOverflows, setStoryOverflows] = useState(false);
   const [hoursExpanded, setHoursExpanded] = useState(false);
   const [heroIdx, setHeroIdx] = useState(0);
   const heroScrollRef = useRef<ScrollView>(null);
@@ -493,17 +494,30 @@ export default function PlaceDetailScreen() {
               <Text style={[styles.sectionTitle, { color: textMuted }]}>
                 {t('placeDetail.theStory')}
               </Text>
-              <Text
-                style={[styles.description, { color: textSecondary }]}
-                numberOfLines={storyExpanded ? undefined : 5}
-              >
-                {place.description}
-              </Text>
-              <TouchableOpacity onPress={() => setStoryExpanded((v) => !v)} activeOpacity={0.7}>
-                <Text style={styles.readMore}>
-                  {storyExpanded ? t('common.readLess') : t('common.readMore')}
+              <View>
+                {/* Invisible measurer to detect if text exceeds 5 lines */}
+                <View style={{ position: 'absolute', left: 0, right: 0 }} pointerEvents="none">
+                  <Text
+                    style={[styles.description, { opacity: 0 }]}
+                    onTextLayout={(e) => setStoryOverflows(e.nativeEvent.lines.length > 5)}
+                  >
+                    {place.description}
+                  </Text>
+                </View>
+                <Text
+                  style={[styles.description, { color: textSecondary }]}
+                  numberOfLines={storyExpanded ? undefined : 5}
+                >
+                  {place.description}
                 </Text>
-              </TouchableOpacity>
+              </View>
+              {(storyOverflows || storyExpanded) && (
+                <TouchableOpacity onPress={() => setStoryExpanded((v) => !v)} activeOpacity={0.7}>
+                  <Text style={styles.readMore}>
+                    {storyExpanded ? t('common.readLess') : t('common.readMore')}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : null}
 
