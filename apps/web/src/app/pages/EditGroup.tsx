@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth, useFeedback, useI18n } from '@/app/providers';
 import { cn } from '@/lib/utils/cn';
 import { getGroup, updateGroup, getGroupMembers, uploadGroupCover } from '@/lib/api/client';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 
 export default function EditGroup() {
   const { groupCode } = useParams<{ groupCode: string }>();
@@ -43,7 +44,7 @@ export default function EditGroup() {
       setDescription(g.description ?? '');
       setIsPrivate(g.is_private);
       setCoverImageUrl(g.cover_image_url ?? '');
-      if (g.cover_image_url) setCoverPreview(g.cover_image_url);
+      if (g.cover_image_url) setCoverPreview(getFullImageUrl(g.cover_image_url));
       setStartDate(g.start_date ?? '');
       setEndDate(g.end_date ?? '');
       setPlaceCount((g.path_place_codes ?? []).length);

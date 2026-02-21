@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { Place } from '@/lib/types';
 import PlacesMap from '@/components/places/PlacesMap';
 
@@ -52,7 +53,7 @@ export default function PlaceMapView({
               <div className="w-24 h-24 rounded-2xl overflow-hidden shrink-0 shadow-soft bg-slate-100 dark:bg-dark-bg">
                 {selectedPlace.images?.[0]?.url ? (
                   <img
-                    src={selectedPlace.images[0].url}
+                    src={getFullImageUrl(selectedPlace.images[0].url)}
                     alt=""
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />

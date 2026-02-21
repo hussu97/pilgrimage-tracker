@@ -20,6 +20,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
 import { getPlaces } from '@/lib/api/client';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { Place, FilterOption } from '@/lib/types';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
@@ -711,7 +712,10 @@ export default function HomeScreen() {
                       activeOpacity={0.85}
                     >
                       {item.images?.[0]?.url ? (
-                        <Image source={{ uri: item.images[0].url }} style={styles.scrollerThumb} />
+                        <Image
+                          source={{ uri: getFullImageUrl(item.images[0].url) }}
+                          style={styles.scrollerThumb}
+                        />
                       ) : (
                         <View style={styles.scrollerThumbPlaceholder}>
                           <MaterialIcons name="place" size={24} color={textMutedColor} />
