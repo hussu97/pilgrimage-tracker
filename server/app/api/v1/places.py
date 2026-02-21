@@ -1,4 +1,3 @@
-import base64
 import logging
 
 from fastapi import APIRouter, HTTPException, Query, Response
@@ -501,17 +500,12 @@ def batch_create_places(
                 )
 
             if place_data.image_blobs:
-                for i, blob in enumerate(place_data.image_blobs):
-                    try:
-                        data = base64.b64decode(blob["data"])
-                        mime_type = blob.get("mime_type", "image/jpeg")
-                        place_images.add_image_blob(
-                            place_data.place_code, data, mime_type, display_order=i, session=session
-                        )
-                    except Exception as e:
-                        logger.error(
-                            "Failed to store image blob for %s: %s", place_data.place_code, e
-                        )
+                try:
+                    place_images.set_images_from_blobs(
+                        place_data.place_code, place_data.image_blobs, session=session
+                    )
+                except Exception as e:
+                    logger.error("Failed to store image blobs for %s: %s", place_data.place_code, e)
             elif place_data.image_urls:
                 place_images.set_images_from_urls(
                     place_data.place_code, place_data.image_urls, session=session
@@ -583,20 +577,13 @@ def create_place(
             source=body.source,
         )
 
-    # Store images: prefer blobs over URLs
+    # Store images: prefer blobs over URLs; both paths replace existing images.
     if body.image_blobs:
-        # Download and store image blobs
-        for i, blob in enumerate(body.image_blobs):
-            try:
-                data = base64.b64decode(blob["data"])
-                mime_type = blob.get("mime_type", "image/jpeg")
-                place_images.add_image_blob(
-                    body.place_code, data, mime_type, display_order=i, session=session
-                )
-            except Exception as e:
-                logger.error("Failed to store image blob: %s", e)
+        try:
+            place_images.set_images_from_blobs(body.place_code, body.image_blobs, session=session)
+        except Exception as e:
+            logger.error("Failed to store image blobs: %s", e)
     elif body.image_urls:
-        # Fallback to URL-based images if no blobs provided
         place_images.set_images_from_urls(body.place_code, body.image_urls, session=session)
 
     # Store attributes if provided

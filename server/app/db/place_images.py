@@ -132,24 +132,54 @@ def get_image_by_id(image_id: int, session: Session) -> PlaceImage | None:
     return session.get(PlaceImage, image_id)
 
 
+def _clear_images(place_code: str, session: Session) -> None:
+    """Delete all existing images for a place."""
+    stmt = select(PlaceImage).where(PlaceImage.place_code == place_code)
+    for img in session.exec(stmt).all():
+        session.delete(img)
+
+
 def set_images_from_urls(
     place_code: str,
     urls: list[str],
     session: Session,
 ) -> None:
     """Delete existing images and bulk insert from URL list (used during sync)."""
-    # Delete existing images
-    stmt = select(PlaceImage).where(PlaceImage.place_code == place_code)
-    existing = session.exec(stmt).all()
-    for img in existing:
-        session.delete(img)
+    _clear_images(place_code, session)
 
-    # Insert new images
     for i, url in enumerate(urls):
         image = PlaceImage(
             place_code=place_code,
             image_type=ImageType.URL,
             url=url,
+            display_order=i,
+        )
+        session.add(image)
+
+    session.commit()
+
+
+def set_images_from_blobs(
+    place_code: str,
+    blobs: list[dict],
+    session: Session,
+) -> None:
+    """Delete existing images and bulk insert from blob list (used during sync).
+
+    Each blob dict must have 'data' (base64 str) and optionally 'mime_type'.
+    """
+    import base64
+
+    _clear_images(place_code, session)
+
+    for i, blob in enumerate(blobs):
+        data = base64.b64decode(blob["data"])
+        mime_type = blob.get("mime_type", "image/jpeg")
+        image = PlaceImage(
+            place_code=place_code,
+            image_type=ImageType.BLOB,
+            blob_data=data,
+            mime_type=mime_type,
             display_order=i,
         )
         session.add(image)
