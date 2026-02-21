@@ -1030,6 +1030,147 @@ class TestWikipediaCollectorExtended:
         assert result.status == "failed"
         assert "Network failure" in result.error_message
 
+    # ── Relevance validation (search path only) ────────────────────────────────
+
+    def test_search_result_rejected_when_unrelated_article(self):
+        """Searching 'Al Futtaim Masjid' must not accept an article about 'Dubai Marina'."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        # 'Dubai Marina' has a short description that mentions "waterfront district"
+        irrelevant_info = {
+            "title": "Dubai Marina",
+            "description": "Dubai Marina is a canal city in Dubai.",
+            "short_description": "waterfront residential district in Dubai",
+            "image_url": None,
+            "original_image": None,
+        }
+        with patch.object(collector, "_search_wikipedia", return_value=irrelevant_info):
+            result = collector.collect("gplc_test", 25.1, 55.2, "Al Futtaim Masjid")
+
+        assert result.status == "skipped"
+        assert "not relevant" in result.error_message.lower()
+
+    def test_search_result_accepted_when_title_matches(self):
+        """Searching 'Al-Aqsa Mosque' should accept an article titled 'Al-Aqsa Mosque'."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        relevant_info = {
+            "title": "Al-Aqsa Mosque",
+            "description": "Al-Aqsa Mosque is the third holiest site in Islam.",
+            "short_description": "mosque in Jerusalem",
+            "image_url": None,
+            "original_image": None,
+        }
+        with patch.object(collector, "_search_wikipedia", return_value=relevant_info):
+            with patch.object(collector, "_fetch_by_title", return_value=None):
+                result = collector.collect("gplc_test", 31.7, 35.2, "Al-Aqsa Mosque")
+
+        assert result.status == "success"
+
+    def test_osm_tag_path_bypasses_relevance_check(self):
+        """Articles fetched via an OSM tag are accepted without relevance validation."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        # Even an 'unrelated' article title is accepted when OSM tag is present
+        unrelated_info = {
+            "title": "Some Totally Different Article",
+            "description": "Completely unrelated description.",
+            "short_description": "waterfront district",
+            "image_url": None,
+            "original_image": None,
+        }
+        with patch.object(collector, "_fetch_from_tag", return_value=unrelated_info):
+            with patch.object(collector, "_fetch_by_title", return_value=None):
+                result = collector.collect(
+                    "gplc_test",
+                    25.0,
+                    55.0,
+                    "Al Futtaim Masjid",
+                    existing_data={"tags": {"wikipedia": "en:Some_Totally_Different_Article"}},
+                )
+
+        # Must succeed — OSM tag is authoritative, relevance check is skipped
+        assert result.status == "success"
+
+    # ── _normalize_name_tokens unit tests ──────────────────────────────────────
+
+    def test_normalize_maps_masjid_to_mosque(self):
+        from app.collectors.wikipedia import _normalize_name_tokens
+
+        tokens = _normalize_name_tokens("Al Futtaim Masjid")
+        assert "mosque" in tokens
+        assert "futtaim" in tokens
+        assert "al" not in tokens  # noise word
+
+    def test_normalize_strips_noise_and_punctuation(self):
+        from app.collectors.wikipedia import _normalize_name_tokens
+
+        tokens = _normalize_name_tokens("The Grand Mosque of Mecca")
+        assert "the" not in tokens
+        assert "grand" not in tokens
+        assert "of" not in tokens
+        assert "mosque" in tokens
+        assert "mecca" in tokens
+
+    def test_normalize_hyphenated_prefix(self):
+        """'Al-Nabawi' should split into 'al' (noise, dropped) and 'nabawi'."""
+        from app.collectors.wikipedia import _normalize_name_tokens
+
+        tokens = _normalize_name_tokens("Al-Nabawi Mosque")
+        assert "nabawi" in tokens
+        assert "al" not in tokens
+        assert "mosque" in tokens
+
+    # ── _is_article_relevant unit tests ────────────────────────────────────────
+
+    def test_is_article_relevant_high_token_overlap(self):
+        """Matching title tokens → relevant."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        article = {
+            "title": "Al-Aqsa Mosque",
+            "short_description": "mosque in Jerusalem",
+        }
+        assert collector._is_article_relevant(article, "Al-Aqsa Mosque") is True
+
+    def test_is_article_relevant_synonym_overlap(self):
+        """'masjid' in place name and 'mosque' in article title should match via synonym."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        article = {
+            "title": "Nabawi Mosque",
+            "short_description": "mosque in Medina",
+        }
+        assert collector._is_article_relevant(article, "Masjid al-Nabawi") is True
+
+    def test_is_article_relevant_religious_vs_district(self):
+        """Religious place name + 'district' in short desc → not relevant."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        article = {
+            "title": "Dubai Marina",
+            "short_description": "waterfront residential district in Dubai",
+        }
+        assert collector._is_article_relevant(article, "Al Futtaim Masjid") is False
+
+    def test_is_article_relevant_no_short_desc_accepts(self):
+        """Zero token overlap but no short description to contradict → accept."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        article = {
+            "title": "Completely Different Title",
+            "short_description": None,
+        }
+        # No religious token in place name, no short desc → default accept
+        assert collector._is_article_relevant(article, "Unknown Small Shrine X") is True
+
 
 # ── WikidataCollector ─────────────────────────────────────────────────────────
 
