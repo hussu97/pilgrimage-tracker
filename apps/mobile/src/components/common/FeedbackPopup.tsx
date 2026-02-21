@@ -7,16 +7,15 @@ import { Modal, View, Text, Animated, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { tokens } from '@/lib/theme';
-import { useTheme } from '@/app/providers';
 
 interface FeedbackPopupProps {
   visible: boolean;
   type: 'success' | 'error';
   message: string;
+  isDark: boolean;
 }
 
-export default function FeedbackPopup({ visible, type, message }: FeedbackPopupProps) {
-  const { isDark } = useTheme();
+export default function FeedbackPopup({ visible, type, message, isDark }: FeedbackPopupProps) {
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const cardScale = useRef(new Animated.Value(0.85)).current;
   const cardOpacity = useRef(new Animated.Value(0)).current;

@@ -410,6 +410,7 @@ interface FeedbackContextValue {
 const FeedbackContext = createContext<FeedbackContextValue | null>(null);
 
 export function FeedbackProvider({ children }: { children: ReactNode }) {
+  const { isDark } = useTheme();
   const [state, setState] = useState<FeedbackState>({
     visible: false,
     type: 'success',
@@ -442,7 +443,12 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   return (
     <FeedbackContext.Provider value={value}>
       {children}
-      <FeedbackPopup visible={state.visible} type={state.type} message={state.message} />
+      <FeedbackPopup
+        visible={state.visible}
+        type={state.type}
+        message={state.message}
+        isDark={isDark}
+      />
     </FeedbackContext.Provider>
   );
 }
