@@ -7,7 +7,9 @@ import {
   ScrollView,
   ActivityIndicator,
   Animated,
+  Platform,
 } from 'react-native';
+import * as Location from 'expo-location';
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -22,7 +24,7 @@ import {
   removeFavorite,
   checkIn as doCheckIn,
 } from '@/lib/api/client';
-import { shareUrl, openDirections } from '@/lib/share';
+import { shareUrl } from '@/lib/share';
 import { useAuth, useFeedback, useI18n, useTheme } from '@/app/providers';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import { formatDistance } from '@/lib/utils/place-utils';
@@ -103,8 +105,21 @@ export default function PlaceDetailScreen() {
     setError('');
     setNotFound(false);
     try {
+      // Best-effort location fetch for distance computation
+      let coords: { lat: number; lng: number } | undefined;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const pos = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+          coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        }
+      } catch {
+        // silently ignore — distance will show '—' instead
+      }
       const [placeData, reviewsData] = await Promise.all([
-        getPlace(placeCode),
+        getPlace(placeCode, coords),
         getPlaceReviews(placeCode, 10),
       ]);
       setPlace(placeData);
@@ -610,7 +625,7 @@ export default function PlaceDetailScreen() {
         </View>
       </Animated.ScrollView>
 
-      {/* Sticky Footer */}
+      {/* Sticky Footer — check-in only */}
       <View
         style={[
           styles.footer,
@@ -623,14 +638,6 @@ export default function PlaceDetailScreen() {
           },
         ]}
       >
-        <TouchableOpacity
-          style={styles.footerBtnSecondary}
-          onPress={() => place && openDirections(place.lat, place.lng, place.name)}
-          activeOpacity={0.8}
-        >
-          <MaterialIcons name="directions" size={16} color={tokens.colors.primary} />
-          <Text style={styles.footerBtnSecondaryText}>{t('placeDetail.directions')}</Text>
-        </TouchableOpacity>
         {renderCheckInBtn()}
       </View>
     </View>
@@ -1070,22 +1077,6 @@ function makeStyles(isDark: boolean) {
       backgroundColor: surface,
       borderTopWidth: 1,
       borderTopColor: border,
-    },
-    footerBtnSecondary: {
-      flex: 1,
-      paddingVertical: 13,
-      borderRadius: 14,
-      borderWidth: 1.5,
-      borderColor: tokens.colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexDirection: 'row',
-      gap: 6,
-    },
-    footerBtnSecondaryText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: tokens.colors.primary,
     },
     footerBtnPrimary: {
       flex: 2,

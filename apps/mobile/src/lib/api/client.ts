@@ -376,8 +376,15 @@ export async function getPlaces(params?: GetPlacesParams): Promise<PlacesRespons
   return { ...data, next_cursor: data.next_cursor ?? null };
 }
 
-export async function getPlace(placeCode: string): Promise<PlaceDetail> {
-  const res = await authFetch(`${API_BASE}/api/v1/places/${placeCode}`, {
+export async function getPlace(
+  placeCode: string,
+  coords?: { lat: number; lng: number },
+): Promise<PlaceDetail> {
+  const sp = new URLSearchParams();
+  if (coords?.lat != null) sp.set('lat', String(coords.lat));
+  if (coords?.lng != null) sp.set('lng', String(coords.lng));
+  const qs = sp.toString() ? `?${sp.toString()}` : '';
+  const res = await authFetch(`${API_BASE}/api/v1/places/${placeCode}${qs}`, {
     headers: await authHeaders(),
   });
   const data = await res.json();

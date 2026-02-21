@@ -12,6 +12,7 @@ from app.db import places as places_db
 from app.db import reviews as reviews_db
 from app.db import store as user_store
 from app.db.enums import ImageType, NotificationType, OpenStatus, Religion, ReviewSource
+from app.db.places import _haversine_km
 from app.db.session import SessionDep
 from app.models.schemas import CheckInBody, PlaceBatch, PlaceCreate, ReviewCreateBody
 from app.services.place_specifications import build_specifications
@@ -105,13 +106,19 @@ def _place_to_item(
     return out
 
 
-def _place_detail(place, session: Session) -> dict:
+def _place_detail(
+    place, session: Session, lat: float | None = None, lng: float | None = None
+) -> dict:
     # Fetch attributes once and reuse
     attrs = attr_db.get_attributes_dict(place.place_code, session)
     rating = reviews_db.get_aggregate_rating(place.place_code, session)
     out = _place_to_item(place, session, include_rating=True, attrs=attrs, rating=rating)
-    if "distance" in out:
-        del out["distance"]
+    # Include distance only when caller supplies user coordinates
+    if lat is not None and lng is not None:
+        raw_dist = _haversine_km(lat, lng, place.lat, place.lng)
+        out["distance"] = round(raw_dist * 10) / 10
+    else:
+        out.pop("distance", None)
     out["total_checkins_count"] = check_ins_db.count_check_ins_for_place(place.place_code, session)
     out["timings"] = build_timings(place, attrs=attrs, session=session)
     out["specifications"] = build_specifications(place, attrs=attrs, session=session)
@@ -205,11 +212,13 @@ def get_place(
     place_code: str,
     session: SessionDep,
     user: OptionalUserDep = None,
+    lat: float | None = Query(None, description="User latitude for distance computation"),
+    lng: float | None = Query(None, description="User longitude for distance computation"),
 ):
     place = places_db.get_place_by_code(place_code, session)
     if not place:
         raise HTTPException(status_code=404, detail="Place not found")
-    out = _place_detail(place, session)
+    out = _place_detail(place, session, lat=lat, lng=lng)
     if user:
         out["user_has_checked_in"] = check_ins_db.has_checked_in(
             user.user_code, place_code, session

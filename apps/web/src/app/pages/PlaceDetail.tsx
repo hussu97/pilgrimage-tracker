@@ -266,8 +266,22 @@ export default function PlaceDetail() {
     setNotFound(false);
     setError('');
     try {
+      // Grab user's current position for distance computation (best-effort, non-blocking)
+      let coords: { lat: number; lng: number } | undefined;
+      if ('geolocation' in navigator) {
+        await new Promise<void>((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+              resolve();
+            },
+            () => resolve(), // silently ignore errors (permission denied, timeout, etc.)
+            { timeout: 3000, maximumAge: 60_000 },
+          );
+        });
+      }
       const [placeData, reviewsData] = await Promise.all([
-        getPlace(placeCode),
+        getPlace(placeCode, coords),
         getPlaceReviews(placeCode, 10),
       ]);
       setPlace(placeData);
@@ -497,18 +511,7 @@ export default function PlaceDetail() {
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2">
-        <a
-          href={directionsUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-primary text-primary font-medium text-sm hover:bg-primary/5 transition-colors"
-        >
-          <span className="material-symbols-outlined text-lg">directions</span>
-          {t('placeDetail.directions')}
-        </a>
-        {checkInWidget()}
-      </div>
+      <div className="flex gap-2">{checkInWidget()}</div>
     </div>
   );
 
@@ -551,15 +554,15 @@ export default function PlaceDetail() {
             className={cn(
               'w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-90',
               place.is_favorite
-                ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                : 'bg-slate-50 dark:bg-dark-surface text-slate-400 hover:text-primary',
+                ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-500'
+                : 'bg-slate-50 dark:bg-dark-surface text-slate-400 hover:text-rose-400',
             )}
           >
             <span
               className="material-symbols-outlined text-[20px]"
               style={{ fontVariationSettings: `'FILL' ${place.is_favorite ? 1 : 0}` }}
             >
-              {place.is_favorite ? 'bookmark' : 'bookmark_border'}
+              favorite
             </span>
           </button>
         </div>
@@ -617,11 +620,17 @@ export default function PlaceDetail() {
               type="button"
               onClick={toggleFavorite}
               disabled={favoriteLoading}
-              className="w-11 h-11 rounded-full bg-black/35 flex items-center justify-center text-white hover:bg-black/50 transition-all border border-white/20 disabled:opacity-50"
+              className="w-11 h-11 rounded-full bg-black/35 flex items-center justify-center hover:bg-black/50 transition-all border border-white/20 disabled:opacity-50"
               aria-label={place.is_favorite ? t('places.unfavorite') : t('places.favorite')}
             >
-              <span className="material-symbols-outlined">
-                {place.is_favorite ? 'bookmark' : 'bookmark_border'}
+              <span
+                className="material-symbols-outlined"
+                style={{
+                  color: place.is_favorite ? '#f87171' : '#ffffff',
+                  fontVariationSettings: `'FILL' ${place.is_favorite ? 1 : 0}`,
+                }}
+              >
+                favorite
               </span>
             </button>
           </div>
@@ -800,17 +809,8 @@ export default function PlaceDetail() {
             </section>
           </div>
 
-          {/* Mobile sticky footer */}
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl dark:bg-dark-bg/95 border-t border-slate-100 dark:border-dark-border px-6 py-4 flex gap-3 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] animate-in slide-in-from-bottom-full duration-500 lg:hidden">
-            <a
-              href={directionsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-50 dark:bg-dark-surface text-slate-400 hover:text-primary transition-all active:scale-95 border border-slate-100 dark:border-dark-border"
-              title={t('placeDetail.directions')}
-            >
-              <span className="material-symbols-outlined text-2xl">directions</span>
-            </a>
+          {/* Mobile sticky footer — check-in only */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl dark:bg-dark-bg/95 border-t border-slate-100 dark:border-dark-border px-6 py-4 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] animate-in slide-in-from-bottom-full duration-500 lg:hidden">
             {checkInWidget()}
           </div>
         </div>

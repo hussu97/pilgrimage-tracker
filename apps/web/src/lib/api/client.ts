@@ -275,8 +275,17 @@ export async function resetPassword(token: string, newPassword: string): Promise
   return data;
 }
 
-export async function getPlace(placeCode: string): Promise<PlaceDetail> {
-  const res = await authFetch(`${API_BASE}/api/v1/places/${placeCode}`, { headers: authHeaders() });
+export async function getPlace(
+  placeCode: string,
+  coords?: { lat: number; lng: number },
+): Promise<PlaceDetail> {
+  const sp = new URLSearchParams();
+  if (coords?.lat != null) sp.set('lat', String(coords.lat));
+  if (coords?.lng != null) sp.set('lng', String(coords.lng));
+  const qs = sp.toString() ? `?${sp.toString()}` : '';
+  const res = await authFetch(`${API_BASE}/api/v1/places/${placeCode}${qs}`, {
+    headers: authHeaders(),
+  });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail ?? 'Place not found');
   return data;
