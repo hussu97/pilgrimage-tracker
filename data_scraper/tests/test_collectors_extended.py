@@ -1,0 +1,1384 @@
+"""
+Extended unit tests for all collectors — covers branches missed by test_collectors.py.
+
+Focuses on: GmapsCollector, BestTimeCollector, FoursquareCollector,
+OutscraperCollector, WikipediaCollector, WikidataCollector,
+KnowledgeGraphCollector, OsmCollector.
+"""
+
+import os
+import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+
+# ── GmapsCollector ────────────────────────────────────────────────────────────
+
+
+class TestGmapsCollectorExtract:
+    def _full_response(self):
+        return {
+            "editorialSummary": {"text": "A historic mosque in Jerusalem."},
+            "generativeSummary": {"overview": {"text": "Al-Aqsa is the third holiest mosque."}},
+            "nationalPhoneNumber": "+972-2-1234",
+            "internationalPhoneNumber": "+972221234",
+            "googleMapsUri": "https://maps.google.com/?cid=123",
+            "websiteUri": "https://alaqsa.org",
+            "accessibilityOptions": {
+                "wheelchairAccessibleEntrance": True,
+                "wheelchairAccessibleParking": False,
+                "wheelchairAccessibleRestroom": True,
+                "wheelchairAccessibleSeating": False,
+            },
+            "rating": 4.8,
+            "userRatingCount": 12345,
+            "allowsDogs": False,
+            "goodForChildren": True,
+            "goodForGroups": True,
+            "restroom": True,
+            "outdoorSeating": False,
+            "parkingOptions": {"freeParking": True},
+            "paymentOptions": {"acceptsCreditCards": True},
+            "photos": [
+                {"name": "places/ChIJ/photos/photo1"},
+                {"name": "places/ChIJ/photos/photo2"},
+                {"name": "places/ChIJ/photos/photo3"},
+                {"name": "places/ChIJ/photos/photo4"},  # 4th is ignored
+            ],
+            "reviews": [
+                {
+                    "text": {"text": "Amazing place!"},
+                    "authorAttribution": {"displayName": "John Doe"},
+                    "publishTime": "2024-01-15T10:00:00Z",
+                    "rating": 5,
+                    "relativePublishTimeDescription": "a month ago",
+                },
+                {
+                    "text": "Beautiful architecture.",
+                    "authorAttribution": {"displayName": "Jane"},
+                    "publishTime": "bad-date",
+                    "rating": 4,
+                    "relativePublishTimeDescription": "2 months ago",
+                },
+            ],
+        }
+
+    def test_extract_full_response(self):
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        result = collector._extract(self._full_response(), "gplc_ChIJ123", "fake_api_key")
+
+        assert result.status == "success"
+        sources = {d["source"] for d in result.descriptions}
+        assert "gmaps_editorial" in sources
+        assert "gmaps_generative" in sources
+        assert result.contact["phone_national"] == "+972-2-1234"
+        assert result.contact["google_maps_url"] == "https://maps.google.com/?cid=123"
+        assert result.contact["website"] == "https://alaqsa.org"
+
+        attr_codes = {a["attribute_code"] for a in result.attributes}
+        assert "rating" in attr_codes
+        assert "reviews_count" in attr_codes
+        assert "wheelchair_accessible" in attr_codes
+        assert "wheelchair_accessible_parking" in attr_codes
+        assert "has_restroom" in attr_codes
+        assert "parking_details" in attr_codes
+        assert "payment_options" in attr_codes
+        assert "accessibility_details" in attr_codes
+
+        # Photos capped at 3
+        assert len(result.images) == 3
+        assert all(img["source"] == "gmaps" for img in result.images)
+
+        # Reviews
+        assert len(result.reviews) == 2
+        assert result.reviews[0]["author_name"] == "John Doe"
+        assert result.reviews[0]["text"] == "Amazing place!"
+        assert result.reviews[0]["time"] > 0
+        assert result.reviews[1]["time"] == 0  # invalid date → 0
+
+    def test_extract_empty_response(self):
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        result = collector._extract({}, "gplc_test", "key")
+
+        assert result.status == "success"
+        assert result.descriptions == []
+        assert result.contact == {}
+        assert result.images == []
+        assert result.reviews == []
+
+    def test_extract_generative_summary_plain_string(self):
+        """overview that is a plain string (not a dict)."""
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        result = collector._extract(
+            {"generativeSummary": {"overview": "Plain text overview."}},
+            "gplc_test",
+            "key",
+        )
+        gen_descs = [d for d in result.descriptions if d["source"] == "gmaps_generative"]
+        assert len(gen_descs) == 1
+        assert gen_descs[0]["text"] == "Plain text overview."
+
+    def test_extract_generative_overview_non_string_non_dict(self):
+        """overview as integer — should produce empty gen_text, no description added."""
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        result = collector._extract(
+            {"generativeSummary": {"overview": 12345}},
+            "gplc_test",
+            "key",
+        )
+        gen_descs = [d for d in result.descriptions if d["source"] == "gmaps_generative"]
+        assert gen_descs == []
+
+    def test_extract_generative_not_dict(self):
+        """generativeSummary as a raw string should produce no description."""
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        result = collector._extract({"generativeSummary": "raw string"}, "gplc_test", "key")
+        gen_descs = [d for d in result.descriptions if d["source"] == "gmaps_generative"]
+        assert gen_descs == []
+
+    def test_extract_photo_without_name_skipped(self):
+        """Photos without a 'name' field should be skipped."""
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        result = collector._extract(
+            {"photos": [{"description": "no name here"}]},
+            "gplc_test",
+            "key",
+        )
+        assert result.images == []
+
+
+class TestGmapsCollectorCollect:
+    def test_collect_no_api_key(self):
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": ""}, clear=False):
+            result = collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
+        assert result.status == "not_configured"
+
+    def test_collect_invalid_place_code(self):
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "fake_key"}, clear=False):
+            result = collector.collect("invalid_code", 25.0, 55.0, "Test")
+        assert result.status == "skipped"
+
+    def test_collect_success(self):
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        mock_response = {"editorialSummary": {"text": "A fine mosque."}}
+        with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "fake_key"}, clear=False):
+            with patch.object(collector, "_fetch_details", return_value=mock_response):
+                result = collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test Place")
+
+        assert result.status == "success"
+        assert result.raw_response == mock_response
+
+    def test_collect_exception(self):
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "fake_key"}, clear=False):
+            with patch.object(collector, "_fetch_details", side_effect=Exception("API error")):
+                result = collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
+        assert result.status == "failed"
+        assert "API error" in result.error_message
+
+
+class TestGmapsCollectorFetchDetails:
+    def test_fetch_details_success(self):
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"displayName": {"text": "Test"}}
+        with patch("requests.get", return_value=mock_resp):
+            data = collector._fetch_details("places/ChIJ123", "key")
+        assert data == {"displayName": {"text": "Test"}}
+
+    def test_fetch_details_http_error(self):
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 403
+        mock_resp.content = b'{"error": {"message": "API key invalid"}}'
+        mock_resp.json.return_value = {"error": {"message": "API key invalid"}}
+        with patch("requests.get", return_value=mock_resp):
+            with pytest.raises(Exception, match="Places API get place details failed"):
+                collector._fetch_details("places/ChIJ123", "bad_key")
+
+    def test_fetch_details_http_error_empty_body(self):
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+        mock_resp.content = b""
+        mock_resp.json.side_effect = Exception("No content")
+        with patch("requests.get", return_value=mock_resp):
+            with pytest.raises(Exception, match="Places API"):
+                collector._fetch_details("places/ChIJ123", "key")
+
+
+class TestGmapsCollectorBuildPlaceData:
+    def _response(self, **overrides):
+        base = {
+            "displayName": {"text": "Al-Aqsa Mosque"},
+            "formattedAddress": "Temple Mount, Jerusalem",
+            "location": {"latitude": 31.7, "longitude": 35.2},
+            "types": ["mosque", "place_of_worship"],
+            "businessStatus": "OPERATIONAL",
+            "utcOffsetMinutes": 180,
+            "regularOpeningHours": {"weekdayDescriptions": ["Monday: 7:00 AM – 10:00 PM"]},
+            "rating": 4.8,
+            "userRatingCount": 12345,
+            "editorialSummary": {"text": "A historic mosque."},
+            "websiteUri": "https://alaqsa.org",
+            "nationalPhoneNumber": "+972-2-1234",
+            "internationalPhoneNumber": "+972221234",
+            "googleMapsUri": "https://maps.google.com/",
+            "photos": [{"name": "places/ChIJ/photos/photo1"}],
+            "reviews": [
+                {
+                    "text": {"text": "Amazing!"},
+                    "authorAttribution": {"displayName": "Alice"},
+                    "publishTime": "2024-01-15T10:00:00Z",
+                    "rating": 5,
+                    "relativePublishTimeDescription": "a month ago",
+                }
+            ],
+            "accessibilityOptions": {"wheelchairAccessibleEntrance": True},
+            "parkingOptions": {"freeParking": True},
+            "paymentOptions": {"acceptsCreditCards": True},
+            "allowsDogs": False,
+            "goodForChildren": True,
+            "restroom": True,
+        }
+        base.update(overrides)
+        return base
+
+    def _common_patches(self):
+        return [
+            patch("app.collectors.gmaps.detect_religion_from_types", return_value="islam"),
+            patch(
+                "app.collectors.gmaps.get_gmaps_type_to_our_type",
+                return_value={"mosque": "mosque"},
+            ),
+            patch(
+                "app.collectors.gmaps.process_weekly_hours",
+                return_value={"Monday": "7:00 AM – 10:00 PM"},
+            ),
+            patch("app.collectors.gmaps.clean_address", return_value="Temple Mount, Jerusalem"),
+        ]
+
+    def test_build_place_data_success_with_image_download(self):
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        mock_session = MagicMock()
+        response = self._response()
+
+        mock_img_resp = MagicMock()
+        mock_img_resp.status_code = 200
+        mock_img_resp.headers = {"Content-Type": "image/jpeg"}
+        mock_img_resp.content = b"fake_image_data"
+
+        patches = self._common_patches()
+        with patches[0], patches[1], patches[2], patches[3]:
+            with patch("requests.get", return_value=mock_img_resp):
+                place_data = collector.build_place_data(
+                    response, "gplc_ChIJ123", "fake_key", mock_session
+                )
+
+        assert place_data["name"] == "Al-Aqsa Mosque"
+        assert place_data["religion"] == "islam"
+        assert place_data["place_type"] == "mosque"
+        assert place_data["lat"] == 31.7
+        assert place_data["lng"] == 35.2
+        assert place_data["google_place_id"] == "ChIJ123"
+        assert place_data["business_status"] == "OPERATIONAL"
+        assert place_data["description"] == "A historic mosque."
+        assert place_data["website_url"] == "https://alaqsa.org"
+        assert place_data["utc_offset_minutes"] == 180
+        assert len(place_data["image_blobs"]) == 1  # downloaded → use blobs
+        assert place_data["image_urls"] == []
+        assert len(place_data["external_reviews"]) == 1
+        assert place_data["external_reviews"][0]["author_name"] == "Alice"
+
+    def test_build_place_data_image_download_failure(self):
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        mock_session = MagicMock()
+        response = self._response()
+
+        mock_img_resp = MagicMock()
+        mock_img_resp.status_code = 403  # Download fails
+
+        patches = self._common_patches()
+        with patches[0], patches[1], patches[2], patches[3]:
+            with patch("requests.get", return_value=mock_img_resp):
+                place_data = collector.build_place_data(
+                    response, "gplc_ChIJ123", "fake_key", mock_session
+                )
+
+        assert place_data["image_blobs"] == []
+        assert len(place_data["image_urls"]) == 1  # URL used as fallback
+
+    def test_build_place_data_image_exception(self):
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        mock_session = MagicMock()
+        response = self._response()
+
+        patches = self._common_patches()
+        with patches[0], patches[1], patches[2], patches[3]:
+            with patch("requests.get", side_effect=Exception("Network error")):
+                place_data = collector.build_place_data(
+                    response, "gplc_ChIJ123", "fake_key", mock_session
+                )
+
+        assert place_data["image_blobs"] == []
+        assert len(place_data["image_urls"]) == 1
+
+    def test_build_place_data_unknown_religion_fallback(self):
+        """When detect_religion_from_types returns empty, falls back to 'unknown'."""
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        mock_session = MagicMock()
+        response = self._response(editorialSummary={})  # No editorial text
+
+        patches = [
+            patch("app.collectors.gmaps.detect_religion_from_types", return_value=""),
+            patch("app.collectors.gmaps.get_gmaps_type_to_our_type", return_value={}),
+            patch("app.collectors.gmaps.clean_address", return_value="Jerusalem"),
+        ]
+        with patches[0], patches[1], patches[2]:
+            with patch("requests.get", return_value=MagicMock(status_code=404)):
+                place_data = collector.build_place_data(response, "gplc_XYZ", "key", mock_session)
+
+        assert place_data["religion"] == "unknown"
+        # Fallback description (no editorial)
+        assert "place of worship" in place_data["description"]
+
+    def test_build_place_data_no_opening_hours(self):
+        """When no weekdayDescriptions, opening hours default to 'Hours not available'."""
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        mock_session = MagicMock()
+        response = self._response()
+        del response["regularOpeningHours"]  # No opening hours
+
+        patches = self._common_patches()
+        with patches[0], patches[1], patches[2], patches[3]:
+            with patch("requests.get", return_value=MagicMock(status_code=404)):
+                place_data = collector.build_place_data(
+                    response, "gplc_ChIJ123", "key", mock_session
+                )
+
+        assert place_data["opening_hours"]["Monday"] == "Hours not available"
+
+    def test_build_place_data_utc_fallback_from_env(self):
+        """When utcOffsetMinutes is None, falls back to SCRAPER_TIMEZONE."""
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        mock_session = MagicMock()
+        response = self._response()
+        del response["utcOffsetMinutes"]
+
+        patches = self._common_patches()
+        with patches[0], patches[1], patches[2], patches[3]:
+            with patch.dict(os.environ, {"SCRAPER_TIMEZONE": "UTC"}, clear=False):
+                with patch("requests.get", return_value=MagicMock(status_code=404)):
+                    place_data = collector.build_place_data(
+                        response, "gplc_ChIJ123", "key", mock_session
+                    )
+
+        assert place_data["utc_offset_minutes"] == 0  # UTC offset is 0 minutes
+
+    def test_build_place_data_utc_invalid_timezone(self):
+        """Invalid SCRAPER_TIMEZONE should leave utc_offset_minutes as None."""
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        mock_session = MagicMock()
+        response = self._response()
+        del response["utcOffsetMinutes"]
+
+        patches = self._common_patches()
+        with patches[0], patches[1], patches[2], patches[3]:
+            with patch.dict(os.environ, {"SCRAPER_TIMEZONE": "Not/AZone"}, clear=False):
+                with patch("requests.get", return_value=MagicMock(status_code=404)):
+                    place_data = collector.build_place_data(
+                        response, "gplc_ChIJ123", "key", mock_session
+                    )
+
+        assert place_data["utc_offset_minutes"] is None
+
+    def test_build_place_data_review_invalid_date(self):
+        """Reviews with unparsable publishTime should have time=0."""
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        mock_session = MagicMock()
+        response = self._response()
+        response["reviews"] = [
+            {
+                "text": "Good place",
+                "authorAttribution": {"displayName": "Bob"},
+                "publishTime": "not-a-date",
+                "rating": 3,
+                "relativePublishTimeDescription": "a year ago",
+            }
+        ]
+
+        patches = self._common_patches()
+        with patches[0], patches[1], patches[2], patches[3]:
+            with patch("requests.get", return_value=MagicMock(status_code=404)):
+                place_data = collector.build_place_data(
+                    response, "gplc_ChIJ123", "key", mock_session
+                )
+
+        assert place_data["external_reviews"][0]["time"] == 0
+
+    def test_build_place_data_displayname_not_dict(self):
+        """When displayName is not a dict, name should be 'N/A'."""
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        mock_session = MagicMock()
+        response = self._response(displayName="plain string")
+
+        patches = self._common_patches()
+        with patches[0], patches[1], patches[2], patches[3]:
+            with patch("requests.get", return_value=MagicMock(status_code=404)):
+                place_data = collector.build_place_data(
+                    response, "gplc_ChIJ123", "key", mock_session
+                )
+
+        assert place_data["name"] == "N/A"
+
+
+# ── BestTimeCollector ─────────────────────────────────────────────────────────
+
+
+class TestBestTimeCollectorExtended:
+    def test_collect_with_key_no_forecast(self):
+        from app.collectors.besttime import BestTimeCollector
+
+        collector = BestTimeCollector()
+        with patch.dict(os.environ, {"BESTTIME_API_KEY": "test_key"}, clear=False):
+            with patch.object(collector, "_fetch_forecast", return_value=None):
+                result = collector.collect("gplc_test", 25.0, 55.0, "Test")
+        assert result.status == "skipped"
+
+    def test_collect_exception(self):
+        from app.collectors.besttime import BestTimeCollector
+
+        collector = BestTimeCollector()
+        with patch.dict(os.environ, {"BESTTIME_API_KEY": "test_key"}, clear=False):
+            with patch.object(collector, "_fetch_forecast", side_effect=Exception("Timeout")):
+                result = collector.collect("gplc_test", 25.0, 55.0, "Test")
+        assert result.status == "failed"
+        assert "Timeout" in result.error_message
+
+    def test_fetch_forecast_success(self):
+        from app.collectors.besttime import BestTimeCollector
+
+        collector = BestTimeCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"status": "OK", "analysis": {}}
+        with patch("requests.post", return_value=mock_resp):
+            data = collector._fetch_forecast("Test", 25.0, 55.0, "key")
+        assert data == {"status": "OK", "analysis": {}}
+
+    def test_fetch_forecast_non_200(self):
+        from app.collectors.besttime import BestTimeCollector
+
+        collector = BestTimeCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 400
+        with patch("requests.post", return_value=mock_resp):
+            result = collector._fetch_forecast("Test", 25.0, 55.0, "key")
+        assert result is None
+
+    def test_fetch_forecast_not_ok_status(self):
+        from app.collectors.besttime import BestTimeCollector
+
+        collector = BestTimeCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"status": "NOT_FOUND"}
+        with patch("requests.post", return_value=mock_resp):
+            result = collector._fetch_forecast("Test", 25.0, 55.0, "key")
+        assert result is None
+
+    def test_extract_with_week_data(self):
+        from app.collectors.besttime import BestTimeCollector
+
+        collector = BestTimeCollector()
+        data = {
+            "status": "OK",
+            "analysis": {
+                "week_raw": [
+                    {
+                        "day_info": {"day_text": "Monday"},
+                        "hour_analysis": [
+                            {"hour": 9, "intensity_nr": 3},
+                            {"hour": 12, "intensity_nr": 5},
+                        ],
+                        "peak_hours": [12, 13],
+                    },
+                    {
+                        "day_info": {"day_text": "Tuesday"},
+                        "hour_analysis": [{"hour": 10, "intensity_nr": 2}],
+                        "peak_hours": [],
+                    },
+                ]
+            },
+        }
+        result = collector._extract(data)
+
+        assert result.status == "success"
+        attr_codes = {a["attribute_code"] for a in result.attributes}
+        assert "busyness_forecast" in attr_codes
+        assert "peak_hours" in attr_codes
+
+        forecast_attr = next(
+            a for a in result.attributes if a["attribute_code"] == "busyness_forecast"
+        )
+        assert "Monday" in forecast_attr["value"]
+        assert len(forecast_attr["value"]["Monday"]) == 2
+
+    def test_extract_empty_analysis(self):
+        from app.collectors.besttime import BestTimeCollector
+
+        collector = BestTimeCollector()
+        result = collector._extract({"analysis": {}})
+        assert result.status == "success"
+        assert result.attributes == []
+
+    def test_collect_success_full_flow(self):
+        from app.collectors.besttime import BestTimeCollector
+
+        collector = BestTimeCollector()
+        mock_data = {
+            "status": "OK",
+            "analysis": {
+                "week_raw": [
+                    {
+                        "day_info": {"day_text": "Friday"},
+                        "hour_analysis": [{"hour": 14, "intensity_nr": 8}],
+                        "peak_hours": [14],
+                    }
+                ]
+            },
+        }
+        with patch.dict(os.environ, {"BESTTIME_API_KEY": "test_key"}, clear=False):
+            with patch.object(collector, "_fetch_forecast", return_value=mock_data):
+                result = collector.collect("gplc_test", 25.0, 55.0, "Test Mosque")
+
+        assert result.status == "success"
+        assert any(a["attribute_code"] == "busyness_forecast" for a in result.attributes)
+
+
+# ── FoursquareCollector ───────────────────────────────────────────────────────
+
+
+class TestFoursquareCollectorExtended:
+    def test_collect_no_match(self):
+        from app.collectors.foursquare import FoursquareCollector
+
+        collector = FoursquareCollector()
+        with patch.dict(os.environ, {"FOURSQUARE_API_KEY": "test_key"}, clear=False):
+            with patch.object(collector, "_match_place", return_value=None):
+                result = collector.collect("gplc_test", 25.0, 55.0, "Unknown Place")
+        assert result.status == "skipped"
+
+    def test_collect_success(self):
+        from app.collectors.foursquare import FoursquareCollector
+
+        collector = FoursquareCollector()
+        mock_tips = [
+            {"text": "Beautiful mosque!", "lang": "en"},
+            {"text": "Worth visiting", "lang": "en"},
+        ]
+        with patch.dict(os.environ, {"FOURSQUARE_API_KEY": "test_key"}, clear=False):
+            with patch.object(collector, "_match_place", return_value="fsq_abc123"):
+                with patch.object(collector, "_fetch_tips", return_value=mock_tips):
+                    result = collector.collect("gplc_test", 25.0, 55.0, "Test Mosque")
+
+        assert result.status == "success"
+        assert len(result.reviews) == 2
+        assert result.reviews[0]["text"] == "Beautiful mosque!"
+        assert result.reviews[0]["rating"] == 0  # Foursquare tips have no rating
+
+    def test_collect_exception(self):
+        from app.collectors.foursquare import FoursquareCollector
+
+        collector = FoursquareCollector()
+        with patch.dict(os.environ, {"FOURSQUARE_API_KEY": "test_key"}, clear=False):
+            with patch.object(collector, "_match_place", side_effect=Exception("Connection error")):
+                result = collector.collect("gplc_test", 25.0, 55.0, "Test")
+        assert result.status == "failed"
+
+    def test_match_place_success(self):
+        from app.collectors.foursquare import FoursquareCollector
+
+        collector = FoursquareCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"place": {"fsq_id": "fsq_abc123"}}
+        with patch("requests.get", return_value=mock_resp):
+            fsq_id = collector._match_place("Test", 25.0, 55.0, "api_key")
+        assert fsq_id == "fsq_abc123"
+
+    def test_match_place_non_200(self):
+        from app.collectors.foursquare import FoursquareCollector
+
+        collector = FoursquareCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 403
+        with patch("requests.get", return_value=mock_resp):
+            fsq_id = collector._match_place("Test", 25.0, 55.0, "key")
+        assert fsq_id is None
+
+    def test_match_place_no_fsq_id(self):
+        from app.collectors.foursquare import FoursquareCollector
+
+        collector = FoursquareCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"place": {}}  # No fsq_id
+        with patch("requests.get", return_value=mock_resp):
+            fsq_id = collector._match_place("Test", 25.0, 55.0, "key")
+        assert fsq_id is None
+
+    def test_fetch_tips_success(self):
+        from app.collectors.foursquare import FoursquareCollector
+
+        collector = FoursquareCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = [{"text": "Great place"}, {"text": "Very peaceful"}]
+        with patch("requests.get", return_value=mock_resp):
+            tips = collector._fetch_tips("fsq_abc", "api_key")
+        assert len(tips) == 2
+
+    def test_fetch_tips_non_200(self):
+        from app.collectors.foursquare import FoursquareCollector
+
+        collector = FoursquareCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+        with patch("requests.get", return_value=mock_resp):
+            tips = collector._fetch_tips("fsq_abc", "key")
+        assert tips == []
+
+
+# ── OutscraperCollector ───────────────────────────────────────────────────────
+
+
+class TestOutscraperCollectorExtended:
+    def test_collect_with_gplc_code(self):
+        from app.collectors.outscraper import OutscraperCollector
+
+        collector = OutscraperCollector()
+        mock_reviews = [
+            {
+                "author_title": "Test User",
+                "review_rating": 5,
+                "review_text": "Amazing place",
+                "review_datetime_utc": "2024-01-15T10:00:00Z",
+                "review_language": "en",
+            }
+        ]
+        with patch.dict(os.environ, {"OUTSCRAPER_API_KEY": "test_key"}, clear=False):
+            with patch.object(collector, "_fetch_reviews", return_value=mock_reviews):
+                result = collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
+
+        assert result.status == "success"
+        assert len(result.reviews) == 1
+        assert result.reviews[0]["author_name"] == "Test User"
+        assert result.reviews[0]["time"] > 0
+
+    def test_collect_with_existing_data_place_id(self):
+        from app.collectors.outscraper import OutscraperCollector
+
+        collector = OutscraperCollector()
+        mock_reviews = [{"author_title": "User", "review_rating": 4, "review_text": "Nice"}]
+        with patch.dict(os.environ, {"OUTSCRAPER_API_KEY": "test_key"}, clear=False):
+            with patch.object(collector, "_fetch_reviews", return_value=mock_reviews):
+                result = collector.collect(
+                    "custom_code",
+                    25.0,
+                    55.0,
+                    "Test",
+                    existing_data={"google_place_id": "ChIJabc"},
+                )
+        assert result.status == "success"
+
+    def test_collect_no_reviews_returned(self):
+        from app.collectors.outscraper import OutscraperCollector
+
+        collector = OutscraperCollector()
+        with patch.dict(os.environ, {"OUTSCRAPER_API_KEY": "test_key"}, clear=False):
+            with patch.object(collector, "_fetch_reviews", return_value=[]):
+                result = collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
+        assert result.status == "skipped"
+
+    def test_collect_exception(self):
+        from app.collectors.outscraper import OutscraperCollector
+
+        collector = OutscraperCollector()
+        with patch.dict(os.environ, {"OUTSCRAPER_API_KEY": "test_key"}, clear=False):
+            with patch.object(collector, "_fetch_reviews", side_effect=Exception("API error")):
+                result = collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
+        assert result.status == "failed"
+
+    def test_fetch_reviews_success(self):
+        from app.collectors.outscraper import OutscraperCollector
+
+        collector = OutscraperCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "data": [
+                {
+                    "reviews_data": [
+                        {"author_title": "User1", "review_text": "Great!", "review_rating": 5}
+                    ]
+                }
+            ]
+        }
+        with patch("requests.get", return_value=mock_resp):
+            reviews = collector._fetch_reviews("ChIJ123", "api_key")
+        assert len(reviews) == 1
+        assert reviews[0]["author_title"] == "User1"
+
+    def test_fetch_reviews_non_200(self):
+        from app.collectors.outscraper import OutscraperCollector
+
+        collector = OutscraperCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 401
+        with patch("requests.get", return_value=mock_resp):
+            reviews = collector._fetch_reviews("ChIJ123", "key")
+        assert reviews == []
+
+    def test_fetch_reviews_no_data(self):
+        from app.collectors.outscraper import OutscraperCollector
+
+        collector = OutscraperCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"data": []}
+        with patch("requests.get", return_value=mock_resp):
+            reviews = collector._fetch_reviews("ChIJ123", "key")
+        assert reviews == []
+
+    def test_extract_reviews(self):
+        from app.collectors.outscraper import OutscraperCollector
+
+        collector = OutscraperCollector()
+        reviews = [
+            {
+                "author_title": "User1",
+                "review_rating": 5,
+                "review_text": "Amazing place",
+                "review_datetime_utc": "2024-01-15T10:00:00Z",
+                "review_language": "en",
+            },
+            {
+                "author_title": "User2",
+                "review_rating": 3,
+                "review_text": "Okay place",
+                "review_datetime_utc": "bad-date",  # Unparsable
+                "review_language": "ar",
+            },
+        ]
+        result = collector._extract(reviews)
+
+        assert result.status == "success"
+        assert len(result.reviews) == 2
+        assert result.reviews[0]["author_name"] == "User1"
+        assert result.reviews[0]["time"] > 0
+        assert result.reviews[1]["time"] == 0  # Bad date → 0
+        assert result.reviews[1]["language"] == "ar"
+
+
+# ── WikipediaCollector ────────────────────────────────────────────────────────
+
+
+class TestWikipediaCollectorExtended:
+    def test_fetch_from_tag_no_colon(self):
+        """Tag without colon separator defaults to English."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        mock_info = {
+            "title": "Al-Aqsa_Mosque",
+            "description": "Historic mosque",
+            "short_description": None,
+            "image_url": None,
+            "original_image": None,
+        }
+        with patch.object(collector, "_fetch_by_title", return_value=mock_info) as mock_fetch:
+            result = collector._fetch_from_tag("Al-Aqsa_Mosque")
+
+        mock_fetch.assert_called_once_with("Al-Aqsa_Mosque", "en")
+        assert result == mock_info
+
+    def test_fetch_by_title_success_with_thumbnail(self):
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "title": "Al-Aqsa Mosque",
+            "extract": "Al-Aqsa Mosque is the third holiest site in Islam.",
+            "description": "Historic mosque in Jerusalem",
+            "thumbnail": {"source": "https://upload.wikimedia.org/thumb.jpg"},
+        }
+        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=mock_resp):
+            info = collector._fetch_by_title("Al-Aqsa Mosque", "en")
+
+        assert info["title"] == "Al-Aqsa Mosque"
+        assert info["description"] == "Al-Aqsa Mosque is the third holiest site in Islam."
+        assert info["image_url"] == "https://upload.wikimedia.org/thumb.jpg"
+        assert info["original_image"] is None
+
+    def test_fetch_by_title_with_originalimage(self):
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "title": "Test",
+            "extract": "Test description",
+            "thumbnail": {"source": "https://example.com/thumb.jpg"},
+            "originalimage": {"source": "https://example.com/full.jpg"},
+        }
+        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=mock_resp):
+            info = collector._fetch_by_title("Test", "en")
+
+        assert info["image_url"] == "https://example.com/full.jpg"  # Original wins
+        assert info["original_image"] == "https://example.com/full.jpg"
+
+    def test_fetch_by_title_no_response(self):
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=None):
+            result = collector._fetch_by_title("Test", "en")
+        assert result is None
+
+    def test_fetch_by_title_non_200(self):
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=mock_resp):
+            result = collector._fetch_by_title("Unknown", "en")
+        assert result is None
+
+    def test_fetch_by_title_json_exception(self):
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.side_effect = ValueError("Invalid JSON")
+        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=mock_resp):
+            result = collector._fetch_by_title("Test", "en")
+        assert result is None
+
+    def test_search_wikipedia_success(self):
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        mock_search_resp = MagicMock()
+        mock_search_resp.status_code = 200
+        mock_search_resp.json.return_value = {"query": {"search": [{"title": "Al-Aqsa Mosque"}]}}
+        mock_article_info = {
+            "title": "Al-Aqsa Mosque",
+            "description": "Historic mosque",
+            "short_description": None,
+            "image_url": None,
+            "original_image": None,
+        }
+        with patch(
+            "app.collectors.wikipedia.make_request_with_backoff", return_value=mock_search_resp
+        ):
+            with patch.object(collector, "_fetch_by_title", return_value=mock_article_info):
+                result = collector._search_wikipedia("Al-Aqsa Mosque", "en")
+
+        assert result == mock_article_info
+
+    def test_search_wikipedia_no_response(self):
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=None):
+            result = collector._search_wikipedia("Test", "en")
+        assert result is None
+
+    def test_search_wikipedia_non_200(self):
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 500
+        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=mock_resp):
+            result = collector._search_wikipedia("Test", "en")
+        assert result is None
+
+    def test_search_wikipedia_empty_results(self):
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"query": {"search": []}}
+        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=mock_resp):
+            result = collector._search_wikipedia("Unknown Gibberish Place", "en")
+        assert result is None
+
+    def test_collect_multilingual_descriptions(self):
+        """Arabic and Hindi descriptions should be added when available."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        en_info = {
+            "title": "Al-Aqsa Mosque",
+            "description": "Third holiest site in Islam.",
+            "short_description": "Mosque in Jerusalem",
+            "image_url": "https://example.com/img.jpg",
+            "original_image": None,
+        }
+        ar_info = {
+            "title": "المسجد الأقصى",
+            "description": "أقدس المواضع في الإسلام",
+            "short_description": None,
+            "image_url": None,
+            "original_image": None,
+        }
+
+        def fetch_by_title_side_effect(title, lang):
+            if lang == "ar":
+                return ar_info
+            return None  # hi not available
+
+        with patch.object(collector, "_fetch_from_tag", return_value=en_info):
+            with patch.object(collector, "_fetch_by_title", side_effect=fetch_by_title_side_effect):
+                result = collector.collect(
+                    "gplc_test",
+                    31.7,
+                    35.2,
+                    "Al-Aqsa Mosque",
+                    existing_data={"tags": {"wikipedia": "en:Al-Aqsa Mosque"}},
+                )
+
+        assert result.status == "success"
+        langs = {d["lang"] for d in result.descriptions}
+        assert "en" in langs
+        assert "ar" in langs
+        assert "hi" not in langs
+
+    def test_collect_exception_path(self):
+        """Exception during collection should result in failed status."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        with patch.object(
+            collector, "_fetch_from_tag", side_effect=RuntimeError("Network failure")
+        ):
+            result = collector.collect(
+                "gplc_test",
+                25.0,
+                55.0,
+                "Test",
+                existing_data={"tags": {"wikipedia": "en:Test"}},
+            )
+        assert result.status == "failed"
+        assert "Network failure" in result.error_message
+
+
+# ── WikidataCollector ─────────────────────────────────────────────────────────
+
+
+class TestWikidataCollectorExtended:
+    def test_collect_with_valid_qid_success(self):
+        from app.collectors.wikidata import WikidataCollector
+
+        collector = WikidataCollector()
+        entity = {
+            "claims": {
+                "P856": [
+                    {"mainsnak": {"datavalue": {"type": "string", "value": "https://alaqsa.org"}}}
+                ]
+            },
+            "descriptions": {"en": {"value": "Mosque in Jerusalem"}},
+            "labels": {},
+        }
+        with patch.object(collector, "_fetch_entity", return_value=entity):
+            result = collector.collect(
+                "gplc_test",
+                25.0,
+                55.0,
+                "Test",
+                existing_data={"tags": {"wikidata": "Q23731"}},
+            )
+        assert result.status == "success"
+        assert result.contact.get("website") == "https://alaqsa.org"
+
+    def test_collect_entity_not_found(self):
+        from app.collectors.wikidata import WikidataCollector
+
+        collector = WikidataCollector()
+        with patch.object(collector, "_fetch_entity", return_value=None):
+            result = collector.collect(
+                "gplc_test",
+                25.0,
+                55.0,
+                "Test",
+                existing_data={"tags": {"wikidata": "Q99999"}},
+            )
+        assert result.status == "failed"
+
+    def test_collect_exception(self):
+        from app.collectors.wikidata import WikidataCollector
+
+        collector = WikidataCollector()
+        with patch.object(collector, "_fetch_entity", side_effect=Exception("Network error")):
+            result = collector.collect(
+                "gplc_test",
+                25.0,
+                55.0,
+                "Test",
+                existing_data={"tags": {"wikidata": "Q23731"}},
+            )
+        assert result.status == "failed"
+
+    def test_fetch_entity_success(self):
+        from app.collectors.wikidata import WikidataCollector
+
+        collector = WikidataCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "entities": {
+                "Q23731": {
+                    "claims": {},
+                    "descriptions": {"en": {"value": "Mosque"}},
+                    "labels": {},
+                }
+            }
+        }
+        with patch("app.collectors.wikidata.make_request_with_backoff", return_value=mock_resp):
+            entity = collector._fetch_entity("Q23731")
+
+        assert entity is not None
+        assert entity["descriptions"]["en"]["value"] == "Mosque"
+
+    def test_fetch_entity_no_response(self):
+        from app.collectors.wikidata import WikidataCollector
+
+        collector = WikidataCollector()
+        with patch("app.collectors.wikidata.make_request_with_backoff", return_value=None):
+            entity = collector._fetch_entity("Q23731")
+        assert entity is None
+
+    def test_fetch_entity_json_exception(self):
+        from app.collectors.wikidata import WikidataCollector
+
+        collector = WikidataCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.side_effect = ValueError("JSON parse error")
+        with patch("app.collectors.wikidata.make_request_with_backoff", return_value=mock_resp):
+            entity = collector._fetch_entity("Q23731")
+        assert entity is None
+
+    def test_extract_claim_value_none(self):
+        """Claim with missing value should return None."""
+        from app.collectors.wikidata import WikidataCollector
+
+        collector = WikidataCollector()
+        claim = {"mainsnak": {"datavalue": {}}}  # No "value" key
+        result = collector._extract_claim_value(claim)
+        assert result is None
+
+    def test_extract_claim_value_monolingualtext(self):
+        from app.collectors.wikidata import WikidataCollector
+
+        collector = WikidataCollector()
+        claim = {
+            "mainsnak": {
+                "datavalue": {
+                    "type": "monolingualtext",
+                    "value": {"text": "Al-Aqsa Mosque", "language": "en"},
+                }
+            }
+        }
+        result = collector._extract_claim_value(claim)
+        assert result == "Al-Aqsa Mosque"
+
+    def test_extract_claim_value_time_empty(self):
+        """Time with empty time_str should return None."""
+        from app.collectors.wikidata import WikidataCollector
+
+        collector = WikidataCollector()
+        claim = {"mainsnak": {"datavalue": {"type": "time", "value": {"time": ""}}}}
+        result = collector._extract_claim_value(claim)
+        assert result is None
+
+    def test_extract_claim_value_unknown_type(self):
+        """Unknown value type should fall back to str()."""
+        from app.collectors.wikidata import WikidataCollector
+
+        collector = WikidataCollector()
+        claim = {"mainsnak": {"datavalue": {"type": "quantity", "value": {"amount": "+42"}}}}
+        result = collector._extract_claim_value(claim)
+        assert result is not None  # Falls back to str()
+
+    def test_extract_value_none_in_loop(self):
+        """_extract should skip properties where _extract_claim_value returns None."""
+        from app.collectors.wikidata import WikidataCollector
+
+        collector = WikidataCollector()
+        # Claim with no datavalue → _extract_claim_value returns None
+        entity = {
+            "claims": {
+                "P571": [{"mainsnak": {"datavalue": {}}}]  # value key missing → None
+            },
+            "descriptions": {},
+            "labels": {},
+        }
+        result = collector._extract(entity, "Q99999")
+        # P571 (founded_year) should be skipped since value is None
+        attr_codes = {a["attribute_code"] for a in result.attributes}
+        assert "founded_year" not in attr_codes
+
+
+# ── KnowledgeGraphCollector ───────────────────────────────────────────────────
+
+
+class TestKnowledgeGraphCollectorExtended:
+    def test_collect_success(self):
+        from app.collectors.knowledge_graph import KnowledgeGraphCollector
+
+        collector = KnowledgeGraphCollector()
+        element = {
+            "result": {
+                "name": "Al-Aqsa Mosque",
+                "@type": ["Place", "TouristAttraction"],
+                "detailedDescription": {
+                    "articleBody": "Al-Aqsa is the third holiest site in Islam."
+                },
+                "description": "Historic mosque",
+                "image": {"contentUrl": "https://example.com/img.jpg"},
+                "url": "https://alaqsa.org",
+            },
+            "resultScore": 1234.56,
+        }
+        with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "test_key"}, clear=False):
+            with patch.object(collector, "_search", return_value=element):
+                result = collector.collect("gplc_test", 25.0, 55.0, "Al-Aqsa Mosque")
+
+        assert result.status == "success"
+
+    def test_collect_no_results(self):
+        from app.collectors.knowledge_graph import KnowledgeGraphCollector
+
+        collector = KnowledgeGraphCollector()
+        with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "test_key"}, clear=False):
+            with patch.object(collector, "_search", return_value=None):
+                result = collector.collect("gplc_test", 25.0, 55.0, "Unknown Place")
+        assert result.status == "skipped"
+
+    def test_collect_exception(self):
+        from app.collectors.knowledge_graph import KnowledgeGraphCollector
+
+        collector = KnowledgeGraphCollector()
+        with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "test_key"}, clear=False):
+            with patch.object(collector, "_search", side_effect=Exception("API down")):
+                result = collector.collect("gplc_test", 25.0, 55.0, "Test")
+        assert result.status == "failed"
+
+    def test_search_success(self):
+        from app.collectors.knowledge_graph import KnowledgeGraphCollector
+
+        collector = KnowledgeGraphCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "itemListElement": [{"result": {"name": "Al-Aqsa Mosque"}, "resultScore": 1000}]
+        }
+        with patch("requests.get", return_value=mock_resp):
+            element = collector._search("Al-Aqsa Mosque", "key")
+        assert element is not None
+        assert element["result"]["name"] == "Al-Aqsa Mosque"
+
+    def test_search_non_200(self):
+        from app.collectors.knowledge_graph import KnowledgeGraphCollector
+
+        collector = KnowledgeGraphCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 403
+        with patch("requests.get", return_value=mock_resp):
+            result = collector._search("Test", "key")
+        assert result is None
+
+    def test_search_empty_results(self):
+        from app.collectors.knowledge_graph import KnowledgeGraphCollector
+
+        collector = KnowledgeGraphCollector()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"itemListElement": []}
+        with patch("requests.get", return_value=mock_resp):
+            result = collector._search("Unknown", "key")
+        assert result is None
+
+    def test_extract_string_entity_type(self):
+        """@type as a single string should be converted to a list."""
+        from app.collectors.knowledge_graph import KnowledgeGraphCollector
+
+        collector = KnowledgeGraphCollector()
+        element = {
+            "result": {
+                "@type": "Place",  # Single string, not a list
+                "detailedDescription": {"articleBody": "A place."},
+            },
+            "resultScore": 100,
+        }
+        result = collector._extract(element)
+
+        assert result.entity_types == ["Place"]  # Should be a list
+
+    def test_extract_no_detailed_description(self):
+        """When detailedDescription is absent, short desc is still captured."""
+        from app.collectors.knowledge_graph import KnowledgeGraphCollector
+
+        collector = KnowledgeGraphCollector()
+        element = {
+            "result": {
+                "@type": ["Place"],
+                "description": "A mosque",
+            },
+            "resultScore": 50,
+        }
+        result = collector._extract(element)
+
+        sources = {d["source"] for d in result.descriptions}
+        assert "knowledge_graph_short" in sources
+        assert "knowledge_graph" not in sources
+
+
+# ── OsmCollector ──────────────────────────────────────────────────────────────
+
+
+class TestOsmCollectorExtended:
+    def test_collect_with_tags_returned(self):
+        """collect() should call _extract() when tags are returned."""
+        from app.collectors.osm import OsmCollector
+
+        collector = OsmCollector()
+        mock_tags = {
+            "toilets": "yes",
+            "denomination": "sunni",
+            "wikipedia": "en:Test",
+        }
+        with patch.object(collector, "_query_overpass", return_value=mock_tags):
+            result = collector.collect("gplc_test", 25.0, 55.0, "Test Mosque")
+
+        assert result.status == "success"
+        attr_codes = {a["attribute_code"] for a in result.attributes}
+        assert "has_toilets" in attr_codes
+        assert "denomination" in attr_codes
+        assert result.tags["wikipedia"] == "en:Test"
+
+    def test_query_overpass_success(self):
+        from app.collectors.osm import OsmCollector
+
+        collector = OsmCollector()
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "elements": [
+                {"id": 1, "tags": {"amenity": "place_of_worship", "name": "Test Mosque"}},
+                {"id": 2},  # No "tags" key — should be skipped
+            ]
+        }
+        with patch("app.collectors.osm.make_request_with_backoff", return_value=mock_resp):
+            tags = collector._query_overpass(25.0, 55.0)
+
+        assert tags == {"amenity": "place_of_worship", "name": "Test Mosque"}
+
+    def test_query_overpass_no_response(self):
+        from app.collectors.osm import OsmCollector
+
+        collector = OsmCollector()
+        with patch("app.collectors.osm.make_request_with_backoff", return_value=None):
+            tags = collector._query_overpass(25.0, 55.0)
+        assert tags == {}
+
+    def test_query_overpass_no_elements(self):
+        from app.collectors.osm import OsmCollector
+
+        collector = OsmCollector()
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {"elements": []}
+        with patch("app.collectors.osm.make_request_with_backoff", return_value=mock_resp):
+            tags = collector._query_overpass(25.0, 55.0)
+        assert tags == {}
+
+    def test_query_overpass_json_exception(self):
+        from app.collectors.osm import OsmCollector
+
+        collector = OsmCollector()
+        mock_resp = MagicMock()
+        mock_resp.json.side_effect = ValueError("Bad JSON")
+        with patch("app.collectors.osm.make_request_with_backoff", return_value=mock_resp):
+            tags = collector._query_overpass(25.0, 55.0)
+        assert tags == {}
+
+    def test_query_overpass_elements_without_tags(self):
+        """All elements lack 'tags' key → returns empty dict."""
+        from app.collectors.osm import OsmCollector
+
+        collector = OsmCollector()
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "elements": [{"id": 1, "type": "node"}, {"id": 2, "type": "way"}]
+        }
+        with patch("app.collectors.osm.make_request_with_backoff", return_value=mock_resp):
+            tags = collector._query_overpass(25.0, 55.0)
+        assert tags == {}
