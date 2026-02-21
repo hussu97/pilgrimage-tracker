@@ -282,27 +282,25 @@ export default function SearchScreen() {
           <FlatList
             data={suggestions}
             keyExtractor={(s) => s.place_id}
-            renderItem={({ item, index }) => (
-              <>
-                <TouchableOpacity
-                  style={styles.row}
-                  onPress={() => handleSelectSuggestion(item)}
-                  activeOpacity={0.7}
-                >
-                  <MaterialIcons name="location-on" size={20} color={textMuted} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.rowMain} numberOfLines={1}>
-                      {item.main_text}
+            ItemSeparatorComponent={() => <View style={styles.divider} />}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.row}
+                onPress={() => handleSelectSuggestion(item)}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons name="location-on" size={20} color={textMuted} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowMain} numberOfLines={1}>
+                    {item.main_text}
+                  </Text>
+                  {item.secondary_text ? (
+                    <Text style={styles.rowSub} numberOfLines={1}>
+                      {item.secondary_text}
                     </Text>
-                    {item.secondary_text ? (
-                      <Text style={styles.rowSub} numberOfLines={1}>
-                        {item.secondary_text}
-                      </Text>
-                    ) : null}
-                  </View>
-                </TouchableOpacity>
-                {index < suggestions.length - 1 && <View style={styles.divider} />}
-              </>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
             )}
             keyboardShouldPersistTaps="handled"
           />
@@ -325,20 +323,18 @@ export default function SearchScreen() {
               <FlatList
                 data={history}
                 keyExtractor={(item) => item.placeId}
-                renderItem={({ item, index }) => (
-                  <>
-                    <TouchableOpacity
-                      style={styles.row}
-                      onPress={() => handleSelectHistory(item)}
-                      activeOpacity={0.7}
-                    >
-                      <MaterialIcons name="history" size={20} color={textMuted} />
-                      <Text style={styles.rowMain} numberOfLines={1}>
-                        {item.name}
-                      </Text>
-                    </TouchableOpacity>
-                    {index < history.length - 1 && <View style={styles.divider} />}
-                  </>
+                ItemSeparatorComponent={() => <View style={styles.divider} />}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.row}
+                    onPress={() => handleSelectHistory(item)}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialIcons name="history" size={20} color={textMuted} />
+                    <Text style={styles.rowMain} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                  </TouchableOpacity>
                 )}
                 keyboardShouldPersistTaps="handled"
               />
