@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
 import { getFieldRules } from '@/lib/api/client';
+import { cn } from '@/lib/utils/cn';
 import type { PasswordRule } from '@/lib/api/client';
 
 function checkRule(rule: PasswordRule, password: string): boolean {
@@ -172,12 +173,22 @@ export default function Register() {
                   return (
                     <div key={rule.type} className="flex items-center gap-1.5">
                       <span
-                        className={`text-xs font-semibold w-3 ${met ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}
+                        className={cn(
+                          'text-xs font-semibold w-3',
+                          met
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-slate-400 dark:text-slate-500',
+                        )}
                       >
                         {met ? '✓' : '○'}
                       </span>
                       <span
-                        className={`text-[11px] ${met ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}
+                        className={cn(
+                          'text-[11px]',
+                          met
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-slate-400 dark:text-slate-500',
+                        )}
                       >
                         {label}
                       </span>

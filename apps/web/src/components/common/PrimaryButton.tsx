@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { cn } from '@/lib/utils/cn';
 
 interface PrimaryButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
@@ -29,7 +30,7 @@ export default function PrimaryButton({
   return (
     <button
       type="button"
-      className={`${base} ${styles[variant]} ${className}`}
+      className={cn(base, styles[variant], className)}
       disabled={disabled}
       {...props}
     >

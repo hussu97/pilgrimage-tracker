@@ -2,6 +2,7 @@ import secrets
 
 from sqlmodel import Session, and_, select
 
+from app.db.enums import GroupRole, NotificationType
 from app.db.models import Group, GroupMember, GroupPlaceNote
 
 
@@ -41,7 +42,9 @@ def create_group(
     session.add(group)
 
     # Add creator as admin member
-    member = GroupMember(group_code=group_code, user_code=created_by_user_code, role="admin")
+    member = GroupMember(
+        group_code=group_code, user_code=created_by_user_code, role=GroupRole.ADMIN
+    )
     session.add(member)
 
     session.commit()
@@ -75,7 +78,9 @@ def is_member(group_code: str, user_code: str, session: Session) -> bool:
     return session.exec(statement).first() is not None
 
 
-def add_member(group_code: str, user_code: str, session: Session, role: str = "member") -> bool:
+def add_member(
+    group_code: str, user_code: str, session: Session, role: str = GroupRole.MEMBER
+) -> bool:
     # Check if group exists
     group = session.exec(select(Group).where(Group.group_code == group_code)).first()
     if not group:
@@ -262,7 +267,7 @@ def get_activity(
         place = places_map.get(chk.place_code)
         out.append(
             {
-                "type": "check_in",
+                "type": NotificationType.CHECK_IN,
                 "user_code": uc,
                 "display_name": user.display_name if user else "Unknown",
                 "place_code": chk.place_code,

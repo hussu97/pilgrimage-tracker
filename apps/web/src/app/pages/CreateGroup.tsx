@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n, useFeedback } from '@/app/providers';
+import { cn } from '@/lib/utils/cn';
 import { createGroup, getPlaces, uploadGroupCover } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
 import PlaceSelector from '@/components/groups/PlaceSelector';
@@ -212,13 +213,14 @@ export default function CreateGroup() {
           <div key={s} className="flex items-center gap-2 flex-1">
             <div className="flex items-center gap-1.5">
               <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                className={cn(
+                  'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
                   i < stepIndex
                     ? 'bg-primary text-white'
                     : i === stepIndex
                       ? 'bg-primary text-white ring-2 ring-primary/30'
-                      : 'bg-slate-200 dark:bg-dark-border text-slate-400'
-                }`}
+                      : 'bg-slate-200 dark:bg-dark-border text-slate-400',
+                )}
               >
                 {i < stepIndex ? (
                   <span className="material-symbols-outlined text-xs">check</span>
@@ -227,18 +229,20 @@ export default function CreateGroup() {
                 )}
               </div>
               <span
-                className={`text-xs font-semibold ${
-                  i === stepIndex ? 'text-primary' : 'text-slate-400 dark:text-dark-text-secondary'
-                }`}
+                className={cn(
+                  'text-xs font-semibold',
+                  i === stepIndex ? 'text-primary' : 'text-slate-400 dark:text-dark-text-secondary',
+                )}
               >
                 {stepLabels[s]}
               </span>
             </div>
             {i < steps.length - 1 && (
               <div
-                className={`flex-1 h-0.5 ${
-                  i < stepIndex ? 'bg-primary' : 'bg-slate-200 dark:bg-dark-border'
-                }`}
+                className={cn(
+                  'flex-1 h-0.5',
+                  i < stepIndex ? 'bg-primary' : 'bg-slate-200 dark:bg-dark-border',
+                )}
               />
             )}
           </div>
@@ -308,11 +312,12 @@ export default function CreateGroup() {
                 if (nameError) setNameError('');
               }}
               placeholder={t('groups.groupNamePlaceholder')}
-              className={`w-full h-12 border rounded-xl px-4 text-text-main dark:text-white bg-surface dark:bg-dark-surface focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+              className={cn(
+                'w-full h-12 border rounded-xl px-4 text-text-main dark:text-white bg-surface dark:bg-dark-surface focus:outline-none focus:ring-2 focus:ring-primary/30',
                 nameError
                   ? 'border-red-400 dark:border-red-500'
-                  : 'border-input-border dark:border-dark-border'
-              }`}
+                  : 'border-input-border dark:border-dark-border',
+              )}
             />
             {nameError && <p className="text-xs text-red-500 mt-1">{nameError}</p>}
           </div>

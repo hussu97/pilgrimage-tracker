@@ -1,13 +1,12 @@
 from datetime import UTC, datetime, timedelta
-from typing import Literal
 
 from sqlmodel import Session, select
 
 from app.core.config import REFRESH_EXPIRE
+from app.db.enums import Language, Religion, Theme, Units
 from app.db.models import PasswordReset, RefreshToken, User, UserSettings, Visitor, VisitorSettings
 
-Religion = Literal["islam", "hinduism", "christianity", "all"]
-VALID_RELIGIONS = ("islam", "hinduism", "christianity", "all")
+VALID_RELIGIONS = tuple(Religion)
 
 
 def create_user(
@@ -221,7 +220,7 @@ def get_visitor_settings(visitor_code: str, session: Session) -> dict:
         select(VisitorSettings).where(VisitorSettings.visitor_code == visitor_code)
     ).first()
     if not settings:
-        return {"theme": "system", "units": "km", "language": "en", "religions": []}
+        return {"theme": Theme.SYSTEM, "units": Units.KM, "language": Language.EN, "religions": []}
     return {
         "theme": settings.theme,
         "units": settings.units,
@@ -278,15 +277,18 @@ def merge_visitor_into_user(visitor_code: str, user_code: str, session: Session)
         return
 
     # Merge only where user settings are still at defaults
-    if visitor_s.theme not in ("system", "light") and user_s.theme in ("system", "light"):
+    if visitor_s.theme not in (Theme.SYSTEM, Theme.LIGHT) and user_s.theme in (
+        Theme.SYSTEM,
+        Theme.LIGHT,
+    ):
         user_s.theme = visitor_s.theme
-    elif visitor_s.theme in ("dark",) and user_s.theme == "light":
+    elif visitor_s.theme == Theme.DARK and user_s.theme == Theme.LIGHT:
         user_s.theme = visitor_s.theme
 
-    if visitor_s.language != "en" and user_s.language == "en":
+    if visitor_s.language != Language.EN and user_s.language == Language.EN:
         user_s.language = visitor_s.language
 
-    if visitor_s.units != "km" and user_s.units == "km":
+    if visitor_s.units != Units.KM and user_s.units == Units.KM:
         user_s.units = visitor_s.units
 
     if visitor_s.religions and not user_s.religions:

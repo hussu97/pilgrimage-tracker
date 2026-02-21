@@ -2,6 +2,7 @@ import secrets
 
 from sqlmodel import Session, func, select
 
+from app.db.enums import ReviewSource
 from app.db.models import Review
 
 
@@ -118,7 +119,7 @@ def create_external_review(
         place_code=place_code,
         rating=rating,
         body=text,
-        source="external",
+        source=ReviewSource.EXTERNAL,
         author_name=author_name,
         review_time=review_time,
         language=language,
@@ -150,7 +151,9 @@ def delete_review(review_code: str, session: Session) -> bool:
 def upsert_external_reviews(place_code: str, reviews_list: list[dict], session: Session) -> None:
     """Delete existing external reviews for place and insert new ones."""
     # Delete existing external reviews
-    stmt = select(Review).where(Review.place_code == place_code, Review.source == "external")
+    stmt = select(Review).where(
+        Review.place_code == place_code, Review.source == ReviewSource.EXTERNAL
+    )
     existing = session.exec(stmt).all()
     for review in existing:
         session.delete(review)
@@ -176,7 +179,7 @@ def upsert_external_reviews(place_code: str, reviews_list: list[dict], session: 
             place_code=place_code,
             rating=rating,
             body=body,
-            source="external",
+            source=ReviewSource.EXTERNAL,
             author_name=author_name,
             review_time=review_time,
             language=language,

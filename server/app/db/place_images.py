@@ -2,6 +2,7 @@
 
 from sqlmodel import Session, select
 
+from app.db.enums import ImageType
 from app.db.models import PlaceImage
 
 
@@ -14,7 +15,7 @@ def add_image_url(
     """Add a URL-based image for a place."""
     image = PlaceImage(
         place_code=place_code,
-        image_type="url",
+        image_type=ImageType.URL,
         url=url,
         display_order=display_order,
     )
@@ -34,7 +35,7 @@ def add_image_blob(
     """Add a blob-based image for a place."""
     image = PlaceImage(
         place_code=place_code,
-        image_type="blob",
+        image_type=ImageType.BLOB,
         blob_data=data,
         mime_type=mime_type,
         display_order=display_order,
@@ -64,7 +65,7 @@ def get_images(place_code: str, session: Session) -> list[dict]:
 
     result = []
     for img in images:
-        if img.image_type == "url":
+        if img.image_type == ImageType.URL:
             result.append(
                 {
                     "id": img.id,
@@ -72,7 +73,7 @@ def get_images(place_code: str, session: Session) -> list[dict]:
                     "display_order": img.display_order,
                 }
             )
-        elif img.image_type == "blob":
+        elif img.image_type == ImageType.BLOB:
             # For blob images, construct a URL to the blob endpoint
             result.append(
                 {
@@ -106,7 +107,7 @@ def get_images_bulk(place_codes: list[str], session: Session) -> dict[str, list[
         if img.place_code not in result:
             result[img.place_code] = []
 
-        if img.image_type == "url":
+        if img.image_type == ImageType.URL:
             result[img.place_code].append(
                 {
                     "id": img.id,
@@ -114,7 +115,7 @@ def get_images_bulk(place_codes: list[str], session: Session) -> dict[str, list[
                     "display_order": img.display_order,
                 }
             )
-        elif img.image_type == "blob":
+        elif img.image_type == ImageType.BLOB:
             result[img.place_code].append(
                 {
                     "id": img.id,
@@ -147,7 +148,7 @@ def set_images_from_urls(
     for i, url in enumerate(urls):
         image = PlaceImage(
             place_code=place_code,
-            image_type="url",
+            image_type=ImageType.URL,
             url=url,
             display_order=i,
         )

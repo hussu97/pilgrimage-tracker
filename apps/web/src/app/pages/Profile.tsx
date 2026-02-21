@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { getMyStats, getSettings, updateSettings } from '@/lib/api/client';
+import { cn } from '@/lib/utils/cn';
 import ErrorState from '@/components/common/ErrorState';
 import { applyTheme } from '@/lib/theme';
 import type { UserStats, Religion } from '@/lib/types';
@@ -295,22 +296,24 @@ export default function Profile() {
                 <button
                   type="button"
                   onClick={() => setUnits('km')}
-                  className={`px-3 py-1 text-xs font-semibold transition-colors ${
+                  className={cn(
+                    'px-3 py-1 text-xs font-semibold transition-colors',
                     units === 'km'
                       ? 'bg-primary text-white'
-                      : 'text-text-muted dark:text-dark-text-secondary hover:bg-slate-50 dark:hover:bg-dark-border/30'
-                  }`}
+                      : 'text-text-muted dark:text-dark-text-secondary hover:bg-slate-50 dark:hover:bg-dark-border/30',
+                  )}
                 >
                   {t('settings.km')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setUnits('miles')}
-                  className={`px-3 py-1 text-xs font-semibold transition-colors ${
+                  className={cn(
+                    'px-3 py-1 text-xs font-semibold transition-colors',
                     units === 'miles'
                       ? 'bg-primary text-white'
-                      : 'text-text-muted dark:text-dark-text-secondary hover:bg-slate-50 dark:hover:bg-dark-border/30'
-                  }`}
+                      : 'text-text-muted dark:text-dark-text-secondary hover:bg-slate-50 dark:hover:bg-dark-border/30',
+                  )}
                 >
                   {t('settings.miles')}
                 </button>
@@ -332,12 +335,16 @@ export default function Profile() {
                 role="switch"
                 aria-checked={isDark}
                 onClick={() => handleThemeToggle(!isDark)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                  isDark ? 'bg-primary' : 'bg-slate-200'
-                }`}
+                className={cn(
+                  'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                  isDark ? 'bg-primary' : 'bg-slate-200',
+                )}
               >
                 <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${isDark ? 'translate-x-6' : 'translate-x-1'}`}
+                  className={cn(
+                    'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                    isDark ? 'translate-x-6' : 'translate-x-1',
+                  )}
                 />
               </button>
             </div>
@@ -474,12 +481,22 @@ export default function Profile() {
             >
               <span className="text-2xl">🌍</span>
               <span
-                className={`flex-1 text-base ${selectedReligions.includes('all') ? 'text-primary font-semibold' : 'text-text-dark dark:text-white'}`}
+                className={cn(
+                  'flex-1 text-base',
+                  selectedReligions.includes('all')
+                    ? 'text-primary font-semibold'
+                    : 'text-text-dark dark:text-white',
+                )}
               >
                 {t('common.allReligions')}
               </span>
               <span
-                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedReligions.includes('all') ? 'bg-primary border-primary' : 'border-slate-300 dark:border-dark-border'}`}
+                className={cn(
+                  'w-5 h-5 rounded-full border-2 flex items-center justify-center',
+                  selectedReligions.includes('all')
+                    ? 'bg-primary border-primary'
+                    : 'border-slate-300 dark:border-dark-border',
+                )}
               >
                 {selectedReligions.includes('all') && (
                   <span className="material-icons text-white text-[14px]">check</span>
@@ -496,12 +513,22 @@ export default function Profile() {
               >
                 <span className="text-2xl">{emoji}</span>
                 <span
-                  className={`flex-1 text-base ${!selectedReligions.includes('all') && selectedReligions.includes(code) ? 'text-primary font-semibold' : 'text-text-dark dark:text-white'}`}
+                  className={cn(
+                    'flex-1 text-base',
+                    !selectedReligions.includes('all') && selectedReligions.includes(code)
+                      ? 'text-primary font-semibold'
+                      : 'text-text-dark dark:text-white',
+                  )}
                 >
                   {t(labelKey)}
                 </span>
                 <span
-                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${!selectedReligions.includes('all') && selectedReligions.includes(code) ? 'bg-primary border-primary' : 'border-slate-300 dark:border-dark-border'}`}
+                  className={cn(
+                    'w-5 h-5 rounded-full border-2 flex items-center justify-center',
+                    !selectedReligions.includes('all') && selectedReligions.includes(code)
+                      ? 'bg-primary border-primary'
+                      : 'border-slate-300 dark:border-dark-border',
+                  )}
                 >
                   {!selectedReligions.includes('all') && selectedReligions.includes(code) && (
                     <span className="material-icons text-white text-[14px]">check</span>
@@ -543,7 +570,12 @@ export default function Profile() {
                 className="w-full flex items-center justify-between py-3.5 border-b border-slate-100 dark:border-dark-border last:border-0 text-left"
               >
                 <span
-                  className={`text-base ${locale === lang.code ? 'text-primary font-semibold' : 'text-text-dark dark:text-white'}`}
+                  className={cn(
+                    'text-base',
+                    locale === lang.code
+                      ? 'text-primary font-semibold'
+                      : 'text-text-dark dark:text-white',
+                  )}
                 >
                   {lang.name}
                 </span>

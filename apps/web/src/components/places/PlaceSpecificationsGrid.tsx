@@ -1,5 +1,6 @@
 import React from 'react';
 import type { PlaceSpecification } from '@/lib/types';
+import { cn } from '@/lib/utils/cn';
 
 interface Props {
   specifications: PlaceSpecification[];
@@ -27,11 +28,14 @@ function PlaceSpecificationsGrid({ specifications, t, compact = false }: Props) 
   return (
     <section className="mb-12">
       {header}
-      <div className={`grid grid-cols-2 ${compact ? '' : 'lg:grid-cols-3'} gap-4`}>
+      <div className={cn('grid grid-cols-2 gap-4', !compact && 'lg:grid-cols-3')}>
         {specifications.map((spec, i) => (
           <div
             key={i}
-            className={`p-4 rounded-3xl bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border shadow-soft flex flex-col gap-2 ${compact ? '' : 'hover:border-primary/20 hover:shadow-lg transition-all'}`}
+            className={cn(
+              'p-4 rounded-3xl bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border shadow-soft flex flex-col gap-2',
+              !compact && 'hover:border-primary/20 hover:shadow-lg transition-all',
+            )}
           >
             <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-dark-bg flex items-center justify-center text-slate-400 dark:text-slate-500 mb-1">
               <span className="material-symbols-outlined text-[20px]">{spec.icon}</span>

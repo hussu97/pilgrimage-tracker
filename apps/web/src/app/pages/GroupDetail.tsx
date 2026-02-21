@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth, useFeedback, useI18n } from '@/app/providers';
+import { cn } from '@/lib/utils/cn';
 import {
   getGroup,
   getGroupLeaderboard,
@@ -319,14 +320,18 @@ export default function GroupDetail() {
             key={t_.key}
             type="button"
             onClick={() => setTab(t_.key)}
-            className={`relative flex items-center gap-1.5 px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors rounded-lg z-10 ${
+            className={cn(
+              'relative flex items-center gap-1.5 px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors rounded-lg z-10',
               tab === t_.key
                 ? 'text-primary'
-                : 'text-slate-500 dark:text-dark-text-secondary hover:text-slate-700 dark:hover:text-white'
-            }`}
+                : 'text-slate-500 dark:text-dark-text-secondary hover:text-slate-700 dark:hover:text-white',
+            )}
           >
             <span
-              className={`material-symbols-outlined text-lg transition-transform ${tab === t_.key ? 'scale-110' : ''}`}
+              className={cn(
+                'material-symbols-outlined text-lg transition-transform',
+                tab === t_.key && 'scale-110',
+              )}
             >
               {t_.icon}
             </span>
@@ -418,13 +423,14 @@ export default function GroupDetail() {
                           {idx + 1}
                         </span>
                         <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                          className={cn(
+                            'w-6 h-6 rounded-full flex items-center justify-center',
                             place.user_checked_in
                               ? 'bg-emerald-500'
                               : place.check_in_count > 0
                                 ? 'bg-primary/20'
-                                : 'bg-slate-100 dark:bg-dark-border'
-                          }`}
+                                : 'bg-slate-100 dark:bg-dark-border',
+                          )}
                         >
                           {place.user_checked_in ? (
                             <span className="material-symbols-outlined text-white text-xs">
@@ -473,9 +479,10 @@ export default function GroupDetail() {
                         )}
                       </div>
                       <span
-                        className={`material-symbols-outlined text-slate-400 transition-transform ${
-                          expandedPlace === place.place_code ? 'rotate-180' : ''
-                        }`}
+                        className={cn(
+                          'material-symbols-outlined text-slate-400 transition-transform',
+                          expandedPlace === place.place_code && 'rotate-180',
+                        )}
                       >
                         expand_more
                       </span>
@@ -912,11 +919,12 @@ export default function GroupDetail() {
                   else if (confirmAction.type === 'demote' && confirmAction.userCode)
                     handleRoleChange(confirmAction.userCode, 'member');
                 }}
-                className={`flex-1 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-60 ${
+                className={cn(
+                  'flex-1 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-60',
                   confirmAction.type === 'delete' || confirmAction.type === 'remove'
                     ? 'bg-red-500'
-                    : 'bg-primary'
-                }`}
+                    : 'bg-primary',
+                )}
               >
                 {actionLoading ? t('common.loading') : t('common.done')}
               </button>

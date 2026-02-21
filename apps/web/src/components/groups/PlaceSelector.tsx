@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useI18n } from '@/app/providers';
+import { cn } from '@/lib/utils/cn';
 import type { Place } from '@/lib/types';
 
 interface PlaceSelectorProps {
@@ -137,11 +138,12 @@ function PlaceSelector({ selectedCodes, onChange, places, loading }: PlaceSelect
                   key={place.place_code}
                   type="button"
                   onClick={() => togglePlace(place.place_code)}
-                  className={`relative flex items-center gap-3 p-3 rounded-xl text-left transition-all active:scale-[0.98] ${
+                  className={cn(
+                    'relative flex items-center gap-3 p-3 rounded-xl text-left transition-all active:scale-[0.98]',
                     checked
                       ? 'border-2 border-primary bg-primary/5 dark:bg-primary/10'
-                      : 'border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-surface hover:border-slate-300 dark:hover:border-dark-border'
-                  }`}
+                      : 'border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-surface hover:border-slate-300 dark:hover:border-dark-border',
+                  )}
                 >
                   {/* Place image */}
                   <div className="w-14 h-14 rounded-lg bg-slate-100 dark:bg-dark-border flex items-center justify-center flex-shrink-0 overflow-hidden">

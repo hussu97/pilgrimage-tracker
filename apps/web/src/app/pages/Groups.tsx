@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
+import { cn } from '@/lib/utils/cn';
 import { getGroups } from '@/lib/api/client';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
@@ -241,13 +242,14 @@ export default function Groups() {
                       </span>
                       {level && (
                         <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                          className={cn(
+                            'px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider',
                             level === 'Done'
                               ? 'text-green-600 bg-green-50'
                               : level === 'New'
                                 ? 'text-indigo-600 bg-indigo-50'
-                                : 'text-primary bg-blue-50'
-                          }`}
+                                : 'text-primary bg-blue-50',
+                          )}
                         >
                           {level}
                         </span>
@@ -255,7 +257,10 @@ export default function Groups() {
                     </div>
                     <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-[3px] overflow-hidden">
                       <div
-                        className={`h-full rounded-full transition-all ${level === 'Done' ? 'bg-green-500' : 'bg-primary'}`}
+                        className={cn(
+                          'h-full rounded-full transition-all',
+                          level === 'Done' ? 'bg-green-500' : 'bg-primary',
+                        )}
                         style={{ width: `${pct}%` }}
                       />
                     </div>

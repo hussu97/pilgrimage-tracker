@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { cn } from '@/lib/utils/cn';
 
 interface Props {
   opening_hours: Record<string, string>;
@@ -64,7 +65,12 @@ function PlaceOpeningHours({ opening_hours, opening_hours_today, t, compact = fa
                 return (
                   <div
                     key={key}
-                    className={`flex items-center justify-between py-2 ${isToday ? 'font-semibold text-primary' : 'text-text-secondary dark:text-dark-text-secondary'}`}
+                    className={cn(
+                      'flex items-center justify-between py-2',
+                      isToday
+                        ? 'font-semibold text-primary'
+                        : 'text-text-secondary dark:text-dark-text-secondary',
+                    )}
                   >
                     <span className="text-sm">{t(`common.${key}`)}</span>
                     <span className="text-sm text-right max-w-[50%] truncate">
@@ -119,7 +125,12 @@ function PlaceOpeningHours({ opening_hours, opening_hours_today, t, compact = fa
               return (
                 <div
                   key={key}
-                  className={`flex items-center justify-between py-2 ${isToday ? 'font-semibold text-primary' : 'text-text-secondary dark:text-dark-text-secondary'}`}
+                  className={cn(
+                    'flex items-center justify-between py-2',
+                    isToday
+                      ? 'font-semibold text-primary'
+                      : 'text-text-secondary dark:text-dark-text-secondary',
+                  )}
                 >
                   <span className="text-sm">{t(`common.${key}`)}</span>
                   <span className="text-sm">{formatHours(opening_hours[dayEn])}</span>

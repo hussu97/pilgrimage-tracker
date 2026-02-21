@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes } from 'react';
+import { cn } from '@/lib/utils/cn';
 
 interface SearchBarProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
   value: string;
@@ -29,7 +30,10 @@ export default function SearchBar({
         onChange={(e) => onValueChange(e.target.value)}
         placeholder={placeholder}
         aria-label={ariaLabel}
-        className={`flex-1 bg-transparent border-none p-0 text-lg font-light text-text-main placeholder-text-muted focus:ring-0 ${className}`}
+        className={cn(
+          'flex-1 bg-transparent border-none p-0 text-lg font-light text-text-main placeholder-text-muted focus:ring-0',
+          className,
+        )}
         {...props}
       />
     </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth, useFeedback, useI18n } from '@/app/providers';
+import { cn } from '@/lib/utils/cn';
 import { getGroup, updateGroup, getGroupMembers, uploadGroupCover } from '@/lib/api/client';
 
 export default function EditGroup() {
@@ -208,11 +209,12 @@ export default function EditGroup() {
               setName(e.target.value);
               if (nameError) setNameError('');
             }}
-            className={`w-full h-12 border rounded-xl px-4 text-text-main dark:text-white bg-surface dark:bg-dark-surface focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+            className={cn(
+              'w-full h-12 border rounded-xl px-4 text-text-main dark:text-white bg-surface dark:bg-dark-surface focus:outline-none focus:ring-2 focus:ring-primary/30',
               nameError
                 ? 'border-red-400 dark:border-red-500'
-                : 'border-input-border dark:border-dark-border'
-            }`}
+                : 'border-input-border dark:border-dark-border',
+            )}
           />
           {nameError && <p className="text-xs text-red-500 mt-1">{nameError}</p>}
         </div>

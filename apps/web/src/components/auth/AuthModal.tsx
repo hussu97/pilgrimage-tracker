@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
 import Modal from '@/components/common/Modal';
+import { cn } from '@/lib/utils/cn';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -97,22 +98,24 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
           <button
             type="button"
             onClick={() => switchTab('login')}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
+            className={cn(
+              'flex-1 py-2 text-sm font-semibold rounded-lg transition-all',
               tab === 'login'
                 ? 'bg-white dark:bg-dark-surface text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 dark:text-dark-text-secondary'
-            }`}
+                : 'text-slate-500 dark:text-dark-text-secondary',
+            )}
           >
             {t('auth.login')}
           </button>
           <button
             type="button"
             onClick={() => switchTab('register')}
-            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
+            className={cn(
+              'flex-1 py-2 text-sm font-semibold rounded-lg transition-all',
               tab === 'register'
                 ? 'bg-white dark:bg-dark-surface text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 dark:text-dark-text-secondary'
-            }`}
+                : 'text-slate-500 dark:text-dark-text-secondary',
+            )}
           >
             {t('auth.register')}
           </button>

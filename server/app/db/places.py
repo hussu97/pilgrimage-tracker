@@ -2,16 +2,15 @@ import math
 import re
 import secrets
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any
 
 from sqlmodel import Session, or_, select
 
 from app.db import place_attributes as attr_db
 from app.db import reviews as reviews_db
+from app.db.enums import Religion
 from app.db.models import Place
 from app.services.timezone_utils import get_local_now
-
-Religion = Literal["islam", "hinduism", "christianity", "all"]
 
 
 def _parse_time(s: str) -> tuple | None:
@@ -302,7 +301,7 @@ def _check_attr_bool(attrs: dict, attribute_code: str) -> bool:
 
 def _place_has_jummah(p: Place, attrs: dict) -> bool:
     """Check if place has Jummah prayer (Friday prayer for Islam)."""
-    if p.religion != "islam":
+    if p.religion != Religion.ISLAM:
         return False
     return _check_attr_bool(attrs, "jummah_times")
 
@@ -342,7 +341,7 @@ def list_places(
 ) -> dict:
     statement = select(Place)
 
-    if religions and "all" not in religions:
+    if religions and Religion.ALL not in religions:
         statement = statement.where(Place.religion.in_(religions))
     if place_type:
         statement = statement.where(Place.place_type == place_type)

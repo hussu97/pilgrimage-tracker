@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useI18n } from '@/app/providers';
+import { cn } from '@/lib/utils/cn';
 import { getNotifications, markNotificationRead } from '@/lib/api/client';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
@@ -97,11 +98,12 @@ export default function NotificationsPage() {
           {notifications.map((n) => (
             <li
               key={n.notification_code}
-              className={`rounded-2xl border border-input-border dark:border-dark-border overflow-hidden shadow-subtle ${
+              className={cn(
+                'rounded-2xl border border-input-border dark:border-dark-border overflow-hidden shadow-subtle',
                 n.read_at
                   ? 'bg-surface dark:bg-dark-surface'
-                  : 'bg-primary/5 dark:bg-primary/10 border-primary/30'
-              }`}
+                  : 'bg-primary/5 dark:bg-primary/10 border-primary/30',
+              )}
             >
               <div className="flex gap-3 p-4">
                 <div className="w-10 h-10 rounded-full bg-soft-blue flex items-center justify-center text-primary shrink-0">

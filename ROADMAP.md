@@ -272,11 +272,11 @@ Infrastructure, code quality, and optimization work to prepare for production sc
 
 ### Code Quality
 
-- [ ] **Use enums for magic string literals**
+- [x] **Use enums for magic string literals**
   - Status strings ("open", "closed", "unknown"), review sources ("user", "external", "google"), and other magic literals are scattered across backend code.
   - Define Python `StrEnum` types and use them in models and endpoint logic for type safety and autocomplete.
 
-- [ ] **Migrate web class names to `cn()` utility**
+- [x] **Migrate web class names to `cn()` utility**
   - `apps/web/src/lib/utils/cn.ts` has a TODO noting ~40 components use template literal className patterns.
   - Gradually migrate to the `cn()` utility for cleaner conditional class handling. Low priority but improves maintainability.
 

@@ -5,6 +5,8 @@ from sqlalchemy import DateTime, LargeBinary, UniqueConstraint
 from sqlalchemy import types as sa_types
 from sqlmodel import JSON, Column, Field, SQLModel
 
+from app.db.enums import GroupRole, ImageType, Language, ReviewSource, Theme, Units
+
 
 class _UTCAwareDateTime(sa_types.TypeDecorator):
     """DateTime column that always returns timezone-aware UTC datetimes.
@@ -50,9 +52,9 @@ class User(SQLModel, table=True):
 class UserSettings(SQLModel, table=True):
     user_code: str = Field(primary_key=True, foreign_key="user.user_code")
     notifications_on: bool = Field(default=True)
-    theme: str = Field(default="light")  # light, dark, system
-    units: str = Field(default="km")  # km, miles
-    language: str = Field(default="en")  # en, ar, hi
+    theme: str = Field(default=Theme.LIGHT)  # light, dark, system
+    units: str = Field(default=Units.KM)  # km, miles
+    language: str = Field(default=Language.EN)  # en, ar, hi
     religions: list[str] = Field(default=[], sa_column=Column(JSON))
 
 
@@ -79,7 +81,7 @@ class Place(SQLModel, table=True):
 class PlaceImage(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     place_code: str = Field(index=True, foreign_key="place.place_code")
-    image_type: str = Field(default="url")  # "url" or "blob"
+    image_type: str = Field(default=ImageType.URL)  # "url" or "blob"
     url: str | None = None
     blob_data: bytes | None = Field(default=None, sa_column=Column(LargeBinary))
     mime_type: str | None = None  # "image/jpeg", "image/png"
@@ -100,7 +102,7 @@ class Review(SQLModel, table=True):
     body: str | None = None
     is_anonymous: bool = Field(default=False)
     photo_urls: list[str] = Field(default=[], sa_column=Column(JSON))
-    source: str = Field(default="user")  # "user" or "google"
+    source: str = Field(default=ReviewSource.USER)  # "user" or "google"
     author_name: str | None = None  # For Google reviews
     review_time: int | None = None  # Unix timestamp from Google
     language: str | None = None  # Review language from Google
@@ -171,7 +173,7 @@ class Group(SQLModel, table=True):
 class GroupMember(SQLModel, table=True):
     group_code: str = Field(primary_key=True, foreign_key="group.group_code")
     user_code: str = Field(primary_key=True, foreign_key="user.user_code")
-    role: str = Field(default="member")  # admin, member
+    role: str = Field(default=GroupRole.MEMBER)  # admin, member
     joined_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
@@ -239,9 +241,9 @@ class Visitor(SQLModel, table=True):
 class VisitorSettings(SQLModel, table=True):
     __tablename__ = "visitor_settings"
     visitor_code: str = Field(primary_key=True, foreign_key="visitor.visitor_code")
-    theme: str = Field(default="system")  # light | dark | system
-    units: str = Field(default="km")  # km | miles
-    language: str = Field(default="en")  # en | ar | hi
+    theme: str = Field(default=Theme.SYSTEM)  # light | dark | system
+    units: str = Field(default=Units.KM)  # km | miles
+    language: str = Field(default=Language.EN)  # en | ar | hi
     religions: list[str] = Field(default=[], sa_column=Column(JSON))
 
 

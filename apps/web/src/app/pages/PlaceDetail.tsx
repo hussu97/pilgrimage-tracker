@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useI18n, useFeedback } from '@/app/providers';
+import { cn } from '@/lib/utils/cn';
 import {
   getPlace,
   getPlaceReviews,
@@ -462,12 +463,18 @@ export default function PlaceDetail() {
           </a>
           <div className="flex-1 flex flex-col items-center gap-1 px-2">
             <span
-              className={`material-symbols-outlined text-[22px] ${crowdColorClass(crowdLevel) || 'text-text-muted'}`}
+              className={cn(
+                'material-symbols-outlined text-[22px]',
+                crowdColorClass(crowdLevel) || 'text-text-muted',
+              )}
             >
               people
             </span>
             <span
-              className={`text-sm font-bold ${crowdColorClass(crowdLevel) || 'text-text-main dark:text-white'}`}
+              className={cn(
+                'text-sm font-bold',
+                crowdColorClass(crowdLevel) || 'text-text-main dark:text-white',
+              )}
             >
               {crowdLevel ?? '—'}
             </span>
@@ -509,7 +516,12 @@ export default function PlaceDetail() {
     <div className="w-full min-h-screen bg-background-light dark:bg-dark-bg">
       {/* Sticky Header (Fade in on scroll) */}
       <div
-        className={`fixed top-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-xl border-b border-slate-100 dark:bg-dark-bg/95 dark:border-dark-border px-4 pt-14 pb-4 transition-all duration-500 transform ${headerVisible ? 'translate-y-0 opacity-100 shadow-xl shadow-black/5' : '-translate-y-full opacity-0 pointer-events-none'}`}
+        className={cn(
+          'fixed top-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-xl border-b border-slate-100 dark:bg-dark-bg/95 dark:border-dark-border px-4 pt-14 pb-4 transition-all duration-500 transform',
+          headerVisible
+            ? 'translate-y-0 opacity-100 shadow-xl shadow-black/5'
+            : '-translate-y-full opacity-0 pointer-events-none',
+        )}
       >
         <div className="flex items-center gap-4 max-w-5xl mx-auto">
           <button
@@ -536,7 +548,12 @@ export default function PlaceDetail() {
           </div>
           <button
             onClick={toggleFavorite}
-            className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-90 ${place.is_favorite ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'bg-slate-50 dark:bg-dark-surface text-slate-400 hover:text-primary'}`}
+            className={cn(
+              'w-10 h-10 rounded-2xl flex items-center justify-center transition-all active:scale-90',
+              place.is_favorite
+                ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                : 'bg-slate-50 dark:bg-dark-surface text-slate-400 hover:text-primary',
+            )}
           >
             <span
               className="material-symbols-outlined text-[20px]"
@@ -686,12 +703,18 @@ export default function PlaceDetail() {
               </a>
               <div className="flex-1 flex flex-col items-center gap-1 px-2">
                 <span
-                  className={`material-symbols-outlined text-[22px] ${crowdColorClass(crowdLevel) || 'text-text-muted'}`}
+                  className={cn(
+                    'material-symbols-outlined text-[22px]',
+                    crowdColorClass(crowdLevel) || 'text-text-muted',
+                  )}
                 >
                   people
                 </span>
                 <span
-                  className={`text-sm font-bold ${crowdColorClass(crowdLevel) || 'text-text-main dark:text-white'}`}
+                  className={cn(
+                    'text-sm font-bold',
+                    crowdColorClass(crowdLevel) || 'text-text-main dark:text-white',
+                  )}
                 >
                   {crowdLevel ?? '—'}
                 </span>
@@ -723,7 +746,10 @@ export default function PlaceDetail() {
                 </div>
                 <div className="bg-white dark:bg-dark-surface rounded-[2rem] p-6 border border-slate-100 dark:border-dark-border shadow-soft">
                   <p
-                    className={`text-[15px] text-slate-600 dark:text-slate-300 leading-relaxed ${storyExpanded ? '' : 'line-clamp-5'}`}
+                    className={cn(
+                      'text-[15px] text-slate-600 dark:text-slate-300 leading-relaxed',
+                      !storyExpanded && 'line-clamp-5',
+                    )}
                   >
                     {place.description}
                   </p>
@@ -804,7 +830,10 @@ export default function PlaceDetail() {
                 </div>
                 <div className="bg-white dark:bg-dark-surface rounded-[2rem] p-8 border border-slate-100 dark:border-dark-border shadow-soft">
                   <p
-                    className={`text-lg text-slate-600 dark:text-slate-300 leading-relaxed ${storyExpanded ? '' : 'line-clamp-6'}`}
+                    className={cn(
+                      'text-lg text-slate-600 dark:text-slate-300 leading-relaxed',
+                      !storyExpanded && 'line-clamp-6',
+                    )}
                   >
                     {place.description}
                   </p>

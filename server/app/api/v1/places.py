@@ -1,6 +1,5 @@
 import base64
 import logging
-from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from sqlmodel import Session
@@ -13,6 +12,7 @@ from app.db import place_images, review_images
 from app.db import places as places_db
 from app.db import reviews as reviews_db
 from app.db import store as user_store
+from app.db.enums import ImageType, NotificationType, OpenStatus, Religion, ReviewSource
 from app.db.session import SessionDep
 from app.models.schemas import CheckInBody, PlaceBatch, PlaceCreate, ReviewCreateBody
 from app.services.place_specifications import build_specifications
@@ -22,8 +22,6 @@ from app.services.timezone_utils import get_today_name
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-Religion = Literal["islam", "hinduism", "christianity", "all"]
 
 
 def _place_to_item(
@@ -71,11 +69,11 @@ def _place_to_item(
 
     # Derive open_status string: "open" | "closed" | "unknown"
     if is_open is True:
-        out["open_status"] = "open"
+        out["open_status"] = OpenStatus.OPEN
     elif is_open is False:
-        out["open_status"] = "closed"
+        out["open_status"] = OpenStatus.CLOSED
     else:
-        out["open_status"] = "unknown"
+        out["open_status"] = OpenStatus.UNKNOWN
 
     # Add opening_hours_today - today's hours in local time (normalize 24h marker)
     if place.opening_hours and isinstance(place.opening_hours, dict):
@@ -240,7 +238,7 @@ def get_place_reviews(
 
     out = []
     for r in rows:
-        source = getattr(r, "source", "user")
+        source = getattr(r, "source", ReviewSource.USER)
 
         # Use pre-fetched images for this review
         review_image_urls = all_review_images.get(r.review_code, [])
@@ -250,7 +248,7 @@ def get_place_reviews(
         external_urls = getattr(r, "photo_urls", []) or []
         all_photo_urls = attached_urls + external_urls
 
-        if source == "external":
+        if source == ReviewSource.EXTERNAL:
             # External review
             out.append(
                 {
@@ -264,7 +262,7 @@ def get_place_reviews(
                     "created_at": r.created_at,
                     "is_anonymous": False,
                     "photo_urls": all_photo_urls,
-                    "source": "external",
+                    "source": ReviewSource.EXTERNAL,
                 }
             )
         else:
@@ -289,7 +287,7 @@ def get_place_reviews(
                     "created_at": r.created_at,
                     "is_anonymous": is_anon,
                     "photo_urls": all_photo_urls,
-                    "source": "user",
+                    "source": ReviewSource.USER,
                 }
             )
 
@@ -342,7 +340,7 @@ def check_in(
                 continue
             notifications_db.create_notification(
                 member_code,
-                "group_check_in",
+                NotificationType.GROUP_CHECK_IN,
                 {
                     "group_code": group_code,
                     "group_name": group.name,
@@ -626,7 +624,7 @@ def get_place_image(
     if not image or image.place_code != place_code:
         raise HTTPException(status_code=404, detail="Image not found")
 
-    if image.image_type != "blob" or not image.blob_data:
+    if image.image_type != ImageType.BLOB or not image.blob_data:
         raise HTTPException(status_code=404, detail="Image not found")
 
     return Response(

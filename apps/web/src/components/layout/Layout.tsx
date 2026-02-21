@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { useAuth, useI18n } from '@/app/providers';
 import { getNotifications } from '@/lib/api/client';
+import { cn } from '@/lib/utils/cn';
 
 const navItems = [
   { path: '/home', labelKey: 'nav.explore', icon: 'explore' },
@@ -82,7 +83,10 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       <main
         id="main-content"
-        className={`flex-1 safe-area-top safe-area-bottom ${showBottomNav ? 'pb-20' : 'pb-6'} md:pb-6 w-full max-w-6xl xl:max-w-7xl mx-auto px-0`}
+        className={cn(
+          'flex-1 safe-area-top safe-area-bottom md:pb-6 w-full max-w-6xl xl:max-w-7xl mx-auto px-0',
+          showBottomNav ? 'pb-20' : 'pb-6',
+        )}
       >
         {children}
       </main>
@@ -109,9 +113,10 @@ export default function Layout({ children }: { children: ReactNode }) {
                   key={path}
                   to={path}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all duration-200 relative group active:scale-90 ${
-                    isActive ? 'text-primary' : 'text-slate-400 dark:text-dark-text-secondary'
-                  }`}
+                  className={cn(
+                    'flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all duration-200 relative group active:scale-90',
+                    isActive ? 'text-primary' : 'text-slate-400 dark:text-dark-text-secondary',
+                  )}
                 >
                   {/* Active indicator dot */}
                   {isActive && (
@@ -135,9 +140,10 @@ export default function Layout({ children }: { children: ReactNode }) {
                   </div>
                   {/* Label: visible (bold) when active, muted + smaller when inactive */}
                   <span
-                    className={`text-[9px] font-bold tracking-tight uppercase transition-all ${
-                      isActive ? 'opacity-100' : 'opacity-50 text-[8px]'
-                    }`}
+                    className={cn(
+                      'text-[9px] font-bold tracking-tight uppercase transition-all',
+                      isActive ? 'opacity-100' : 'opacity-50 text-[8px]',
+                    )}
                   >
                     {t(labelKey)}
                   </span>

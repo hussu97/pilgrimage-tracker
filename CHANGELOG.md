@@ -4,6 +4,25 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Code Quality: StrEnums + cn() Migration (2026-02-21)
+
+### Backend
+- **`server/app/db/enums.py`** — New centralized module with Python `StrEnum` types: `ReviewSource`, `ImageType`, `GroupRole`, `Theme`, `Units`, `Language`, `Religion`, `AttributeDataType`, `AttributeCategory`, `AppPlatform`, `NotificationType`, `OpenStatus`.
+- **`models.py`** — Updated field defaults to use enum values (`GroupRole.MEMBER`, `ImageType.URL`, `ReviewSource.USER`, `Theme.LIGHT/SYSTEM`, `Units.KM`, `Language.EN`).
+- **`reviews.py`** — Replaced `"external"` string literals with `ReviewSource.EXTERNAL`.
+- **`place_images.py`** — Replaced `"url"` / `"blob"` with `ImageType.URL` / `ImageType.BLOB`.
+- **`groups.py`** — Replaced `"admin"` / `"member"` with `GroupRole.ADMIN` / `GroupRole.MEMBER`; `"check_in"` with `NotificationType.CHECK_IN`.
+- **`store.py`** — Removed local `Religion = Literal[...]`; imported from enums; replaced theme/language/units string literals with enum values.
+- **`places.py`** — Removed local `Religion = Literal[...]`; imported from enums; replaced `"islam"` / `"all"` literals.
+- **`i18n.py`** — Replaced `"en"` fallback literals with `Language.EN`.
+- **`api/v1/places.py`** — Removed local `Religion`; replaced `OpenStatus` literals, `ReviewSource` literals, `NotificationType.GROUP_CHECK_IN`, and `ImageType.BLOB` check.
+- **`api/v1/groups.py`** — Replaced all `"admin"` / `"member"` literals with `GroupRole` values; `"group_joined"` with `NotificationType.GROUP_JOINED`.
+
+### Frontend (web)
+- **cn() migration** — Replaced template literal `className` patterns with `cn()` utility calls across 21 files: `Profile.tsx`, `PlaceDetail.tsx`, `FilterSheet.tsx`, `TimingCircle.tsx`, `WriteReview.tsx`, `Layout.tsx`, `AuthModal.tsx`, `PlaceOpeningHours.tsx`, `CheckInsList.tsx`, `Groups.tsx`, `PlaceSpecificationsGrid.tsx`, `Register.tsx`, `Notifications.tsx`, `FilterChip.tsx`, `HomeHeader.tsx`, `PrimaryButton.tsx`, `SearchBar.tsx`, `CreateGroup.tsx`, `EditGroup.tsx`, `GroupDetail.tsx`, `PlaceSelector.tsx`. Added `import { cn } from '@/lib/utils/cn'` to each file.
+
+---
+
 ## Success Feedback Popup (2026-02-21)
 
 ### Backend

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useI18n, useFeedback } from '@/app/providers';
+import { cn } from '@/lib/utils/cn';
 import { getPlace, createReview, updateReview, uploadReviewPhoto } from '@/lib/api/client';
 import { compressImage, validateImageFile } from '@/lib/utils/imageUpload';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
@@ -213,9 +214,10 @@ export default function WriteReview() {
                   aria-label={t('reviews.starsAccessibility').replace('{count}', String(value))}
                 >
                   <span
-                    className={`material-symbols-outlined text-3xl ${
-                      value <= rating ? 'text-amber-400' : 'text-slate-300'
-                    }`}
+                    className={cn(
+                      'material-symbols-outlined text-3xl',
+                      value <= rating ? 'text-amber-400' : 'text-slate-300',
+                    )}
                     style={{ fontVariationSettings: "'FILL' 1, 'wght' 200" }}
                   >
                     star
@@ -305,14 +307,16 @@ export default function WriteReview() {
                 role="switch"
                 aria-checked={isAnonymous}
                 onClick={() => setIsAnonymous((a) => !a)}
-                className={`relative inline-flex h-5 w-10 shrink-0 rounded-full border transition-colors ${
-                  isAnonymous ? 'bg-primary border-primary' : 'bg-slate-200 border-slate-200'
-                }`}
+                className={cn(
+                  'relative inline-flex h-5 w-10 shrink-0 rounded-full border transition-colors',
+                  isAnonymous ? 'bg-primary border-primary' : 'bg-slate-200 border-slate-200',
+                )}
               >
                 <span
-                  className={`pointer-events-none inline-block h-4 w-4 top-0.5 rounded-full bg-white shadow ring-0 transition-transform absolute ${
-                    isAnonymous ? 'translate-x-5 left-0.5' : 'translate-x-0.5 left-0.5'
-                  }`}
+                  className={cn(
+                    'pointer-events-none inline-block h-4 w-4 top-0.5 rounded-full bg-white shadow ring-0 transition-transform absolute',
+                    isAnonymous ? 'translate-x-5 left-0.5' : 'translate-x-0.5 left-0.5',
+                  )}
                 />
               </button>
             </div>

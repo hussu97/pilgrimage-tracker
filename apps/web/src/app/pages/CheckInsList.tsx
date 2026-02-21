@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useI18n } from '@/app/providers';
+import { cn } from '@/lib/utils/cn';
 import { getMyCheckIns, getOnThisDayCheckIns, getThisMonthCheckIns } from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { CheckIn } from '@/lib/types';
@@ -358,21 +359,27 @@ export default function CheckInsList() {
                   return (
                     <div
                       key={i}
-                      className={`py-2 relative flex items-center justify-center ${
-                        !isCurrent ? 'text-slate-300' : 'text-slate-800 dark:text-white'
-                      }`}
+                      className={cn(
+                        'py-2 relative flex items-center justify-center',
+                        !isCurrent ? 'text-slate-300' : 'text-slate-800 dark:text-white',
+                      )}
                     >
                       {has && (
                         <span
-                          className={`absolute w-8 h-8 rounded-full z-0 ${
+                          className={cn(
+                            'absolute w-8 h-8 rounded-full z-0',
                             today
                               ? 'bg-primary shadow-md shadow-blue-200'
-                              : 'bg-blue-50 dark:bg-primary/20'
-                          }`}
+                              : 'bg-blue-50 dark:bg-primary/20',
+                          )}
                         />
                       )}
                       <span
-                        className={`relative z-10 ${has ? 'font-semibold text-primary' : ''} ${today ? 'text-white' : ''}`}
+                        className={cn(
+                          'relative z-10',
+                          has && 'font-semibold text-primary',
+                          today && 'text-white',
+                        )}
                       >
                         {date.getDate()}
                       </span>

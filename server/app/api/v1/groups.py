@@ -13,6 +13,7 @@ from app.db import groups as groups_db
 from app.db import notifications as notifications_db
 from app.db import places as places_db
 from app.db import store as user_store
+from app.db.enums import GroupRole, NotificationType
 from app.db.session import SessionDep
 from app.models.schemas import (
     GroupCreateBody,
@@ -136,9 +137,12 @@ def join_by_invite_code(body: dict, user: UserDep, session: SessionDep):
         raise HTTPException(status_code=404, detail="Invalid or expired invite code")
     if groups_db.is_member(g.group_code, user.user_code, session):
         return {"ok": True, "group_code": g.group_code}
-    groups_db.add_member(g.group_code, user.user_code, session, "member")
+    groups_db.add_member(g.group_code, user.user_code, session, GroupRole.MEMBER)
     notifications_db.create_notification(
-        user.user_code, "group_joined", {"group_code": g.group_code, "group_name": g.name}, session
+        user.user_code,
+        NotificationType.GROUP_JOINED,
+        {"group_code": g.group_code, "group_name": g.name},
+        session,
     )
     return {"ok": True, "group_code": g.group_code}
 
@@ -219,7 +223,7 @@ def update_group(group_code: str, body: GroupUpdateBody, user: UserDep, session:
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")
     members = groups_db.get_members(group_code, session)
-    is_admin = any(m[0] == user.user_code and m[1] == "admin" for m in members)
+    is_admin = any(m[0] == user.user_code and m[1] == GroupRole.ADMIN for m in members)
     if not is_admin:
         raise HTTPException(status_code=403, detail="Not an admin")
     if body.name is not None:
@@ -266,7 +270,7 @@ def delete_group(group_code: str, user: UserDep, session: SessionDep):
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")
     member = groups_db.get_member(group_code, user.user_code, session)
-    if not member or member.role != "admin":
+    if not member or member.role != GroupRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not an admin")
     groups_db.delete_group(group_code, session)
     return {"ok": True}
@@ -279,9 +283,12 @@ def join_group(group_code: str, user: UserDep, session: SessionDep):
         raise HTTPException(status_code=404, detail="Group not found")
     if groups_db.is_member(group_code, user.user_code, session):
         return {"ok": True, "message": "Already a member"}
-    groups_db.add_member(group_code, user.user_code, session, "member")
+    groups_db.add_member(group_code, user.user_code, session, GroupRole.MEMBER)
     notifications_db.create_notification(
-        user.user_code, "group_joined", {"group_code": g.group_code, "group_name": g.name}, session
+        user.user_code,
+        NotificationType.GROUP_JOINED,
+        {"group_code": g.group_code, "group_name": g.name},
+        session,
     )
     return {"ok": True}
 
@@ -328,7 +335,7 @@ def remove_member(group_code: str, target_user_code: str, user: UserDep, session
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")
     admin_member = groups_db.get_member(group_code, user.user_code, session)
-    if not admin_member or admin_member.role != "admin":
+    if not admin_member or admin_member.role != GroupRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not an admin")
     if target_user_code == g.created_by_user_code:
         raise HTTPException(status_code=400, detail="Cannot remove the group creator")
@@ -346,13 +353,13 @@ def update_member_role(
     user: UserDep,
     session: SessionDep,
 ):
-    if body.role not in ("admin", "member"):
+    if body.role not in (GroupRole.ADMIN, GroupRole.MEMBER):
         raise HTTPException(status_code=400, detail="Role must be 'admin' or 'member'")
     g = groups_db.get_group_by_code(group_code, session)
     if not g:
         raise HTTPException(status_code=404, detail="Group not found")
     admin_member = groups_db.get_member(group_code, user.user_code, session)
-    if not admin_member or admin_member.role != "admin":
+    if not admin_member or admin_member.role != GroupRole.ADMIN:
         raise HTTPException(status_code=403, detail="Not an admin")
     if not groups_db.is_member(group_code, target_user_code, session):
         raise HTTPException(status_code=404, detail="User is not a member")
@@ -587,7 +594,7 @@ def delete_place_note(group_code: str, note_code: str, user: UserDep, session: S
         raise HTTPException(status_code=404, detail="Note not found")
     # Only author or admin can delete
     admin_member = groups_db.get_member(group_code, user.user_code, session)
-    is_admin = admin_member and admin_member.role == "admin"
+    is_admin = admin_member and admin_member.role == GroupRole.ADMIN
     if note.user_code != user.user_code and not is_admin:
         raise HTTPException(status_code=403, detail="Not authorized to delete this note")
     notes_db.delete_note(note_code, session)

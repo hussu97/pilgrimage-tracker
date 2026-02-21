@@ -2,6 +2,8 @@
 In-memory i18n store (languages and translations). Populated from seed.
 """
 
+from app.db.enums import Language
+
 languages: list[dict[str, str]] = []  # [{"code": "en", "name": "English"}, ...]
 translations: dict[str, dict[str, str]] = {}  # lang_code -> { key -> value }
 
@@ -11,10 +13,10 @@ def get_languages() -> list[dict[str, str]]:
 
 
 def get_translations(lang: str) -> dict[str, str]:
-    lang = (lang or "en").lower()
+    lang = (lang or Language.EN).lower()
     if lang not in translations:
-        lang = "en"
-    en_map = translations.get("en", {})
+        lang = Language.EN
+    en_map = translations.get(Language.EN, {})
     lang_map = translations.get(lang, {})
     result = dict(en_map)
     for k, v in lang_map.items():
