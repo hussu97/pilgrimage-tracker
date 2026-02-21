@@ -7,7 +7,9 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,6 +17,7 @@ import { getGroups } from '@/lib/api/client';
 import type { Group } from '@/lib/types';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { tokens } from '@/lib/theme';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 
 type MainTabParamList = {
   Home: undefined;
@@ -52,6 +55,17 @@ function progressLevel(sites: number, total: number, t: (key: string) => string)
   if (pct >= 20) return t('groups.level').replace('{level}', '2');
   if (sites > 0) return t('groups.level').replace('{level}', '1');
   return t('groups.progressNew');
+}
+
+function isRecentlyActive(iso: string | null | undefined): boolean {
+  if (!iso) return false;
+  try {
+    const d = new Date(iso);
+    const diffMs = Date.now() - d.getTime();
+    return diffMs < 24 * 60 * 60 * 1000;
+  } catch {
+    return false;
+  }
 }
 
 function makeStyles(isDark: boolean) {
@@ -104,21 +118,49 @@ function makeStyles(isDark: boolean) {
     emptyCtaText: { color: '#fff', fontWeight: '600' },
     avatarRowSmall: { flexDirection: 'row' },
     rowCard: {
-      paddingVertical: 16,
-      borderBottomWidth: 1,
-      borderBottomColor: border,
+      backgroundColor: surface,
+      borderRadius: tokens.borderRadius['2xl'],
+      padding: 16,
+      borderWidth: 1,
+      borderColor: border,
+      marginBottom: 12,
+      ...tokens.shadow.card,
     },
+    completedCard: { opacity: 0.6 },
     rowTop: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
       marginBottom: 12,
     },
+    coverImage: {
+      width: 48,
+      height: 48,
+      borderRadius: tokens.borderRadius.xl,
+      marginRight: 12,
+    },
+    coverFallback: {
+      width: 48,
+      height: 48,
+      borderRadius: tokens.borderRadius.xl,
+      marginRight: 12,
+      backgroundColor: isDark ? tokens.colors.primaryAlphaDark : tokens.colors.softBlue,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    coverFallbackText: { fontSize: 24, color: tokens.colors.primary },
     rowLeft: { flex: 1, marginRight: 12, minWidth: 0 },
-    rowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    rowName: { fontSize: 18, fontWeight: '700', color: textMain, flex: 1 },
+    rowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+    rowName: { fontSize: 16, fontWeight: '700', color: textMain, flex: 1 },
     rowDoneIcon: { fontSize: 14, color: tokens.colors.openNow },
-    rowLastActive: { fontSize: 13, color: textMuted, marginTop: 2 },
+    activityDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: tokens.colors.activityGreen,
+    },
+    rowDescription: { fontSize: 12, color: textMuted, marginBottom: 2 },
+    rowLastActive: { fontSize: 12, color: textMuted },
     smallAvatar: {
       width: 32,
       height: 32,
@@ -151,9 +193,17 @@ function makeStyles(isDark: boolean) {
       paddingVertical: 2,
       borderRadius: 4,
       backgroundColor: isDark ? '#1a2a4e' : '#eff6ff',
+      borderWidth: 1,
+      borderColor: 'rgba(59,130,246,0.2)',
     },
-    levelBadgeDone: { backgroundColor: isDark ? '#1a3a2e' : '#dcfce7' },
-    levelBadgeNew: { backgroundColor: isDark ? '#1a1a3e' : '#eef2ff' },
+    levelBadgeDone: {
+      backgroundColor: isDark ? '#1a3a2e' : '#dcfce7',
+      borderColor: 'rgba(34,197,94,0.2)',
+    },
+    levelBadgeNew: {
+      backgroundColor: isDark ? '#1a1a3e' : '#eef2ff',
+      borderColor: 'rgba(99,102,241,0.2)',
+    },
     levelBadgeText: {
       fontSize: 10,
       fontWeight: '700',
@@ -313,7 +363,7 @@ export default function GroupsScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: insets.bottom + 100 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -353,29 +403,68 @@ export default function GroupsScreen() {
               const pct = total > 0 ? Math.min(100, Math.round((visited / total) * 100)) : 0;
               const level = progressLevel(visited, total, t);
               const lastActive = formatRelative(g.last_activity ?? undefined, t);
+              const recently = isRecentlyActive(g.last_activity);
+              const isDone = level === t('groups.progressDone');
+              const isNew = level === t('groups.progressNew');
+              const coverUrl = g.cover_image_url ? getFullImageUrl(g.cover_image_url) : null;
               return (
                 <TouchableOpacity
                   key={g.group_code}
-                  style={styles.rowCard}
+                  style={[styles.rowCard, isDone && styles.completedCard]}
                   onPress={() => navToGroup(g.group_code)}
                   activeOpacity={0.8}
                 >
+                  {/* Top row: cover + info + avatars */}
                   <View style={styles.rowTop}>
+                    {/* Cover thumbnail */}
+                    {coverUrl ? (
+                      <ExpoImage
+                        source={{ uri: coverUrl }}
+                        style={styles.coverImage}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <View style={styles.coverFallback}>
+                        <Text style={styles.coverFallbackText}>◆</Text>
+                      </View>
+                    )}
+
+                    {/* Name + description + last active */}
                     <View style={styles.rowLeft}>
                       <View style={styles.rowTitleRow}>
                         <Text style={styles.rowName} numberOfLines={1}>
                           {g.name}
                         </Text>
-                        {level === 'Done' && <Text style={styles.rowDoneIcon}>✓</Text>}
+                        {recently && (
+                          <View
+                            style={[
+                              styles.activityDot,
+                              Platform.OS === 'ios' && {
+                                shadowColor: tokens.colors.activityGreen,
+                                shadowOffset: { width: 0, height: 0 },
+                                shadowOpacity: 0.8,
+                                shadowRadius: 4,
+                              },
+                            ]}
+                          />
+                        )}
+                        {isDone && <Text style={styles.rowDoneIcon}>✓</Text>}
                       </View>
+                      {g.description ? (
+                        <Text style={styles.rowDescription} numberOfLines={1}>
+                          {g.description}
+                        </Text>
+                      ) : null}
                       <Text style={styles.rowLastActive}>
                         {lastActive
                           ? t('groups.lastActive').replace('{relative}', lastActive)
                           : g.created_at
-                            ? `Created ${new Date(g.created_at).toLocaleDateString()}`
+                            ? `${t('groups.created')} ${new Date(g.created_at).toLocaleDateString()}`
                             : ''}
                       </Text>
                     </View>
+
+                    {/* Member avatars */}
                     <View style={styles.avatarRowSmall}>
                       {[1, 2].slice(0, Math.min(2, g.member_count ?? 0)).map((i) => (
                         <View key={i} style={[styles.smallAvatar, i >= 1 && { marginLeft: -8 }]} />
@@ -389,6 +478,8 @@ export default function GroupsScreen() {
                       )}
                     </View>
                   </View>
+
+                  {/* Sites count + level badge */}
                   <View style={styles.rowProgressMeta}>
                     <Text style={styles.rowSitesCount}>
                       {t('groups.sitesCount')
@@ -399,15 +490,15 @@ export default function GroupsScreen() {
                       <View
                         style={[
                           styles.levelBadge,
-                          level === 'Done' && styles.levelBadgeDone,
-                          level === 'New' && styles.levelBadgeNew,
+                          isDone && styles.levelBadgeDone,
+                          isNew && styles.levelBadgeNew,
                         ]}
                       >
                         <Text
                           style={[
                             styles.levelBadgeText,
-                            level === 'Done' && styles.levelBadgeTextDone,
-                            level === 'New' && styles.levelBadgeTextNew,
+                            isDone && styles.levelBadgeTextDone,
+                            isNew && styles.levelBadgeTextNew,
                           ]}
                         >
                           {level}
@@ -415,12 +506,14 @@ export default function GroupsScreen() {
                       </View>
                     ) : null}
                   </View>
+
+                  {/* Progress bar */}
                   <View style={styles.rowBarBg}>
                     <View
                       style={[
                         styles.rowBarFill,
-                        { width: `${pct}%` },
-                        level === 'Done' && styles.rowBarFillDone,
+                        { width: `${pct}%` as `${number}%` },
+                        isDone && styles.rowBarFillDone,
                       ]}
                     />
                   </View>

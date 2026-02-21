@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
 import { cn } from '@/lib/utils/cn';
 import { getGroups } from '@/lib/api/client';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
 import type { Group } from '@/lib/types';
@@ -38,6 +39,17 @@ function progressLevel(sites: number, total: number, t: (key: string) => string)
   return t('groups.progressNew');
 }
 
+function isRecentlyActive(iso: string | null | undefined): boolean {
+  if (!iso) return false;
+  try {
+    const d = new Date(iso);
+    const diffMs = Date.now() - d.getTime();
+    return diffMs < 24 * 60 * 60 * 1000;
+  } catch {
+    return false;
+  }
+}
+
 export default function Groups() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -71,7 +83,7 @@ export default function Groups() {
         </h1>
       </header>
 
-      <main className="max-w-md md:max-w-2xl mx-auto px-4 md:px-6 py-6 pb-28">
+      <main className="max-w-md md:max-w-4xl mx-auto px-4 md:px-6 py-6 pb-28">
         {/* Visitor empty state */}
         {!user && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -114,32 +126,65 @@ export default function Groups() {
         )}
 
         {user && !loading && !error && groups.length > 0 && (
-          <div className="space-y-0">
+          <div className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
             {groups.map((g) => {
               const total = g.total_sites ?? 0;
               const visited = g.sites_visited ?? 0;
               const pct = total > 0 ? Math.min(100, Math.round((visited / total) * 100)) : 0;
               const level = progressLevel(visited, total, t);
               const lastActive = formatRelative(g.last_activity ?? undefined, t);
+              const recently = isRecentlyActive(g.last_activity);
+              const isDone = level === t('common.done') || level === 'Done';
+              const isNew = level === t('groups.progressNew') || level === 'New';
+              const coverUrl = g.cover_image_url ? getFullImageUrl(g.cover_image_url) : null;
               return (
                 <Link
                   key={g.group_code}
                   to={`/groups/${g.group_code}`}
-                  className="block py-4 border-b border-slate-100 dark:border-dark-border hover:bg-slate-50/50 dark:hover:bg-dark-surface/50 transition-colors group"
+                  className={cn(
+                    'block rounded-2xl p-4 border border-slate-100 dark:border-white/5 bg-white dark:bg-dark-surface hover:shadow-md transition-all',
+                    isDone && 'opacity-60 hover:opacity-100',
+                  )}
                 >
+                  {/* Top row: cover + info + avatars */}
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1 min-w-0 pr-4">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-bold text-text-dark dark:text-white text-xl tracking-tight truncate">
+                    {/* Cover thumbnail */}
+                    {coverUrl ? (
+                      <img
+                        src={coverUrl}
+                        alt={g.name}
+                        className="w-12 h-12 rounded-xl object-cover shrink-0 mr-3"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center shrink-0 mr-3">
+                        <span className="material-icons text-primary text-2xl">groups</span>
+                      </div>
+                    )}
+
+                    {/* Name + description + last active */}
+                    <div className="flex-1 min-w-0 pr-3">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h3 className="font-bold text-text-dark dark:text-white text-base tracking-tight truncate">
                           {g.name}
                         </h3>
-                        {level === 'Done' && (
+                        {recently && (
+                          <span
+                            className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"
+                            style={{ boxShadow: '0 0 8px rgba(34,197,94,0.6)' }}
+                          />
+                        )}
+                        {isDone && (
                           <span className="material-icons text-green-500 text-sm shrink-0">
                             check_circle
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-text-muted dark:text-dark-text-secondary font-medium">
+                      {g.description && (
+                        <p className="text-xs text-text-muted dark:text-dark-text-secondary truncate mb-0.5">
+                          {g.description}
+                        </p>
+                      )}
+                      <p className="text-xs text-text-muted dark:text-dark-text-secondary font-medium">
                         {lastActive
                           ? t('groups.lastActive').replace('{relative}', lastActive)
                           : g.created_at
@@ -147,6 +192,8 @@ export default function Groups() {
                             : ''}
                       </p>
                     </div>
+
+                    {/* Member avatars */}
                     <div className="flex -space-x-2 shrink-0">
                       {[...Array(Math.min(2, g.member_count ?? 0))].map((_, i) => (
                         <div
@@ -163,6 +210,8 @@ export default function Groups() {
                       )}
                     </div>
                   </div>
+
+                  {/* Sites count + level badge */}
                   <div className="flex justify-between items-center text-xs text-text-muted dark:text-dark-text-secondary mb-2 font-medium">
                     <span>
                       {t('groups.sitesCount')
@@ -172,23 +221,27 @@ export default function Groups() {
                     {level && (
                       <span
                         className={cn(
-                          'px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider',
-                          level === 'Done'
-                            ? 'text-green-600 bg-green-50'
-                            : level === 'New'
-                              ? 'text-indigo-600 bg-indigo-50'
-                              : 'text-primary bg-blue-50',
+                          'px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border',
+                          isDone
+                            ? 'text-green-600 bg-green-50 dark:bg-green-950/40 border-green-500/20'
+                            : isNew
+                              ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500/20'
+                              : 'text-primary bg-blue-50 dark:bg-blue-950/40 border-blue-500/20',
                         )}
                       >
                         {level}
                       </span>
                     )}
                   </div>
+
+                  {/* Progress bar */}
                   <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-[3px] overflow-hidden">
                     <div
                       className={cn(
                         'h-full rounded-full transition-all',
-                        level === 'Done' ? 'bg-green-500' : 'bg-primary',
+                        isDone
+                          ? 'bg-green-500 dark:shadow-[0_0_8px_rgba(34,197,94,0.5)]'
+                          : 'bg-primary dark:shadow-[0_0_8px_rgba(59,130,246,0.5)]',
                       )}
                       style={{ width: `${pct}%` }}
                     />

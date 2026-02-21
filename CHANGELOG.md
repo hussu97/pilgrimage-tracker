@@ -4,6 +4,28 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Group Card UI Enhancement (2026-02-21)
+
+### Frontend (web)
+- **Card redesign** — Group list items are now elevated `rounded-2xl` cards with border, shadow on hover, and `opacity-60` dimming for completed groups.
+- **2-column desktop grid** — Cards render in a 2-col grid at `md` breakpoint.
+- **Cover thumbnail** — Displays 48×48 rounded thumbnail from `cover_image_url`; falls back to a tinted icon circle.
+- **Activity dot** — Small green dot with glow shadow appears next to the group name when `last_activity` is within 24 hours.
+- **Description line** — Single-line truncated `description` shown below the group name.
+- **Level badge borders** — Added colored border to level badges (`border-blue-500/20`, `border-green-500/20`, `border-indigo-500/20`).
+- **Progress bar dark glow** — Fill bar gets a dark-mode box-shadow glow (blue or green depending on completion).
+
+### Frontend (mobile)
+- **Card redesign** — Group rows are now proper cards: `borderRadius`, `padding`, `borderWidth`, `backgroundColor`, and `tokens.shadow.card` elevation.
+- **Cover thumbnail** — Displays 48×48 `ExpoImage` from `cover_image_url`; falls back to a tinted icon circle.
+- **Activity dot** — Small green dot with iOS shadow glow appears when `last_activity` is within 24 hours.
+- **Description line** — Single-line truncated `description` shown below the group name.
+- **Completed card opacity** — Groups at 100% progress get `opacity: 0.6`.
+- **Level badge borders** — Added `borderWidth: 1` and color-coded `borderColor` to level badges.
+- **New color tokens** — Added `activityGreen` and `activityGreenGlow` to `tokens.colors` in `theme.ts`.
+
+---
+
 ## Remove Featured Group Card (2026-02-21)
 
 ### Frontend (web)
