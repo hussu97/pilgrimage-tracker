@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { getGroup, updateGroup, getGroupMembers, uploadGroupCover } from '@/lib/api/client';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import { useAuth, useFeedback, useI18n, useTheme } from '@/app/providers';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
@@ -291,7 +292,7 @@ export default function EditGroupScreen() {
     setCoverImageUrl('');
   };
 
-  const coverDisplay = coverLocalUri || coverImageUrl;
+  const coverDisplay = coverLocalUri || getFullImageUrl(coverImageUrl);
 
   const handleSubmit = async () => {
     if (!name.trim()) {

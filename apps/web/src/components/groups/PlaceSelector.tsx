@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useI18n } from '@/app/providers';
 import { cn } from '@/lib/utils/cn';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { Place } from '@/lib/types';
 
 interface PlaceSelectorProps {
@@ -149,7 +150,7 @@ function PlaceSelector({ selectedCodes, onChange, places, loading }: PlaceSelect
                   <div className="w-14 h-14 rounded-lg bg-slate-100 dark:bg-dark-border flex items-center justify-center flex-shrink-0 overflow-hidden">
                     {place.images?.[0]?.url ? (
                       <img
-                        src={place.images[0].url}
+                        src={getFullImageUrl(place.images[0].url)}
                         alt={place.name}
                         className="w-full h-full object-cover"
                       />

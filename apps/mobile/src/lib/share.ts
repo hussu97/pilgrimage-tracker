@@ -25,11 +25,11 @@ export function openDirections(lat: number, lng: number, label?: string): void {
 
 export async function shareUrl(title: string, url: string): Promise<'shared' | 'dismissed'> {
   try {
-    const result = await Share.share({
-      title,
-      message: url,
-      url: url,
-    });
+    // On iOS, passing a non-http `url` to Share.share throws. Only include the
+    // `url` field when the value is a proper http/https URL.
+    const sharePayload: { title: string; message: string; url?: string } = { title, message: url };
+    if (url.startsWith('http')) sharePayload.url = url;
+    const result = await Share.share(sharePayload);
     if (result.action === Share.sharedAction) return 'shared';
     return 'dismissed';
   } catch {

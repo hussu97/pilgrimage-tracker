@@ -12,6 +12,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useI18n, useTheme } from '@/app/providers';
 import { tokens } from '@/lib/theme';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { Place } from '@/lib/types';
 
 interface PlaceSelectorProps {
@@ -262,7 +263,7 @@ export default function PlaceSelector({
               <View style={styles.placeImage}>
                 {item.images?.[0]?.url ? (
                   <Image
-                    source={{ uri: item.images[0].url }}
+                    source={{ uri: getFullImageUrl(item.images[0].url) }}
                     style={styles.placeImg}
                     resizeMode="cover"
                   />
