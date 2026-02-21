@@ -61,6 +61,44 @@ def run_scraper_task(run_code: str):
 
 BATCH_SIZE = 25
 
+# Religion values accepted by the server schema.
+_VALID_RELIGIONS = {"islam", "hinduism", "christianity", "all"}
+
+
+def _sanitize_religion(religion: str | None) -> str:
+    """Map unrecognised/unknown religion strings to 'all'."""
+    if religion and religion in _VALID_RELIGIONS:
+        return religion
+    return "all"
+
+
+def _sanitize_attributes(attributes: list[dict]) -> list[dict]:
+    """
+    Drop attributes whose values are not accepted by PlaceAttributeInput on the server.
+    Allowed types: str, int, float, bool, list[str].
+    Dict values (e.g. parking_details, accessibility_details) are filtered out.
+    """
+    result = []
+    for attr in attributes:
+        val = attr.get("value")
+        if isinstance(val, dict):
+            continue  # dict not accepted by server schema
+        if isinstance(val, list):
+            if all(isinstance(item, str) for item in val):
+                result.append(attr)
+            # mixed/non-string lists → skip
+        elif isinstance(val, str | int | float | bool):
+            result.append(attr)
+    return result
+
+
+def _sanitize_reviews(reviews: list[dict]) -> list[dict]:
+    """
+    Drop reviews whose rating is outside the server-validated range 1–5.
+    Foursquare tips use rating=0 (no rating) which would cause a 422.
+    """
+    return [r for r in reviews if isinstance(r.get("rating"), int) and 1 <= r["rating"] <= 5]
+
 
 def sync_run_to_server(run_code: str, server_url: str):
     """
@@ -69,6 +107,11 @@ def sync_run_to_server(run_code: str, server_url: str):
     Falls back to individual POSTs if the batch endpoint is unavailable.
     """
     import json as _json
+
+    # Ensure the URL has an http(s) scheme so requests doesn't raise InvalidSchema.
+    if not server_url.startswith(("http://", "https://")):
+        server_url = f"http://{server_url}"
+    server_url = server_url.rstrip("/")
 
     with Session(engine) as session:
         places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
@@ -79,7 +122,7 @@ def sync_run_to_server(run_code: str, server_url: str):
         synced_count = 0
         failure_details: list[str] = []
 
-        # Build all payloads up front
+        # Build all payloads up front, sanitizing fields to match the server schema.
         payloads = []
         for p in places:
             data = p.raw_data
@@ -87,7 +130,7 @@ def sync_run_to_server(run_code: str, server_url: str):
                 {
                     "place_code": p.place_code,
                     "name": data.get("name"),
-                    "religion": data.get("religion"),
+                    "religion": _sanitize_religion(data.get("religion")),
                     "place_type": data.get("place_type"),
                     "lat": data.get("lat"),
                     "lng": data.get("lng"),
@@ -99,8 +142,8 @@ def sync_run_to_server(run_code: str, server_url: str):
                     "description": data.get("description"),
                     "website_url": data.get("website_url"),
                     "source": data.get("source"),
-                    "attributes": data.get("attributes") or [],
-                    "external_reviews": data.get("external_reviews") or [],
+                    "attributes": _sanitize_attributes(data.get("attributes") or []),
+                    "external_reviews": _sanitize_reviews(data.get("external_reviews") or []),
                 }
             )
 
