@@ -23,6 +23,13 @@ class TestLanguages:
         assert "ar" in codes
         assert "hi" in codes
 
+    def test_includes_telugu(self, client):
+        langs = client.get(LANG_URL).json()
+        codes = [lang["code"] for lang in langs if isinstance(lang, dict)]
+        names = [lang["name"] for lang in langs if isinstance(lang, dict)]
+        assert "te" in codes
+        assert "తెలుగు" in names
+
 
 class TestTranslations:
     def test_returns_dict(self, client):
@@ -48,6 +55,14 @@ class TestTranslations:
         resp = client.get(TRANS_URL, params={"lang": "hi"})
         assert resp.status_code == 200
         assert isinstance(resp.json(), dict)
+
+    def test_telugu_translations(self, client):
+        resp = client.get(TRANS_URL, params={"lang": "te"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, dict)
+        assert data.get("nav.home") == "హోమ్"
+        assert data.get("profile.language") == "భాష"
 
     def test_unknown_lang_falls_back_to_english(self, client):
         resp_unk = client.get(TRANS_URL, params={"lang": "xx"})

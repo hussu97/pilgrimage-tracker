@@ -13,7 +13,7 @@ import type { User } from '@/lib/types';
 import * as api from '@/lib/api/client';
 import { TOKEN_KEY, USER_KEY, LOCALE_STORAGE_KEY, VISITOR_KEY } from '@/lib/constants';
 
-const SUPPORTED_LOCALES = ['en', 'ar', 'hi'] as const;
+const SUPPORTED_LOCALES = ['en', 'ar', 'hi', 'te'] as const;
 type LocaleCode = (typeof SUPPORTED_LOCALES)[number];
 
 function normalizeLocale(lang: string): LocaleCode {
@@ -301,6 +301,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         { code: 'en', name: 'English' },
         { code: 'ar', name: 'العربية' },
         { code: 'hi', name: 'हिन्दी' },
+        { code: 'te', name: 'తెలుగు' },
       ];
       setLanguages(fallback);
       return fallback;

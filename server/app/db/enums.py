@@ -34,6 +34,7 @@ class Language(StrEnum):
     EN = "en"
     AR = "ar"
     HI = "hi"
+    TE = "te"
 
 
 class Religion(StrEnum):
