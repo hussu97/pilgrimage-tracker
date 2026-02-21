@@ -54,6 +54,18 @@ export const tokens = {
     darkSurface: '#1E1E1E',
     darkBorder: '#2C2C2E',
     darkTextSecondary: '#A1A1A1',
+    // Primary with opacity (for partial check-in indicators, chips)
+    primaryAlpha: 'rgba(0,122,255,0.15)',
+    primaryAlphaDark: 'rgba(0,122,255,0.2)',
+    // Leaderboard rank colors (gold / silver / bronze)
+    goldRank: '#f59e0b',
+    goldRankLight: '#fef3c7',
+    goldRankDark: 'rgba(217,119,6,0.25)',
+    goldRankNum: '#d97706',
+    bronzeRank: '#f97316',
+    bronzeRankLight: '#fff7ed',
+    bronzeRankDark: 'rgba(234,88,12,0.15)',
+    silverLight: '#f1f5f9',
   },
   borderRadius: {
     sm: 4,

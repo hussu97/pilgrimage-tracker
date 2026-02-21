@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Remove Featured Group Card (2026-02-21)
+
+### Frontend (web)
+- Removed featured hero card from `Groups.tsx`; all groups now render as a flat list.
+
+### Frontend (mobile)
+- Removed featured hero card from `GroupsScreen.tsx`; all groups now render as a flat list. Deleted all associated `featured*` styles.
+
+---
+
 ## Group Detail UI Parity & Image Fixes (2026-02-21)
 
 ### Frontend (web)
@@ -11,6 +21,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ### Frontend (mobile)
 - **Image fix** — Replaced React Native `Image` with `expo-image` (`ExpoImage`) and wrapped all image URIs with `getFullImageUrl()` in `GroupDetailScreen` (cover image and place thumbnails).
+- **Dark mode token compliance** — Added `primaryAlpha`, `primaryAlphaDark`, `goldRank*`, `bronzeRank*`, `silverLight` tokens to `theme.ts`; replaced all hardcoded hex values introduced in `GroupDetailScreen` with token references.
 - **Place item redesign** — Added numbered + check-circle indicator per place row (green when self checked in, blue-tinted when others have, grey when none), matching the web layout.
 - **Inline avatar chips** — Stacked member initials with check-in count now appear in collapsed place rows (same as web).
 - **View Details button** — Expanded place section now shows a "Details" button alongside "Check In", navigating to `PlaceDetailScreen`.
