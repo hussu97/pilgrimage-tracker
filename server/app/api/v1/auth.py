@@ -43,8 +43,8 @@ def _to_public_user(user, session) -> UserResponse:
         email=user.email,
         display_name=user.display_name,
         religions=religions,
-        created_at=user.created_at.isoformat() + "Z",
-        updated_at=user.updated_at.isoformat() + "Z",
+        created_at=user.created_at.isoformat().replace("+00:00", "Z"),
+        updated_at=user.updated_at.isoformat().replace("+00:00", "Z"),
     )
 
 

@@ -65,7 +65,7 @@ def list_groups(user: UserDep, session: SessionDep):
         last_activity = None
         for uc in member_user_codes:
             for chk in check_ins_by_user.get(uc, []):
-                chk_time = chk.checked_in_at.isoformat() + "Z"
+                chk_time = chk.checked_in_at.isoformat().replace("+00:00", "Z")
                 if last_activity is None or chk_time > last_activity:
                     last_activity = chk_time
 
@@ -488,7 +488,7 @@ def get_checklist(group_code: str, user: UserDep, session: SessionDep):
                     {
                         "user_code": chk.user_code,
                         "display_name": user_display_names.get(chk.user_code, "Unknown"),
-                        "checked_in_at": chk.checked_in_at.isoformat() + "Z",
+                        "checked_in_at": chk.checked_in_at.isoformat().replace("+00:00", "Z"),
                     }
                 )
 
@@ -505,7 +505,7 @@ def get_checklist(group_code: str, user: UserDep, session: SessionDep):
                 "user_code": n.user_code,
                 "display_name": user_display_names.get(n.user_code, "Unknown"),
                 "text": n.text,
-                "created_at": n.created_at.isoformat() + "Z",
+                "created_at": n.created_at.isoformat().replace("+00:00", "Z"),
             }
             for n in note_list
         ]
@@ -550,7 +550,7 @@ def get_place_notes(group_code: str, place_code: str, user: UserDep, session: Se
             "group_code": n.group_code,
             "place_code": n.place_code,
             "text": n.text,
-            "created_at": n.created_at.isoformat() + "Z",
+            "created_at": n.created_at.isoformat().replace("+00:00", "Z"),
         }
         for n in note_list
     ]
@@ -578,7 +578,7 @@ def add_place_note(
         "group_code": note.group_code,
         "place_code": note.place_code,
         "text": note.text,
-        "created_at": note.created_at.isoformat() + "Z",
+        "created_at": note.created_at.isoformat().replace("+00:00", "Z"),
     }
 
 

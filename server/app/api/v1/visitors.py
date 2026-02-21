@@ -16,7 +16,7 @@ def create_visitor(session: SessionDep):
     visitor = store.create_visitor(visitor_code, session)
     return VisitorResponse(
         visitor_code=visitor.visitor_code,
-        created_at=visitor.created_at.isoformat() + "Z",
+        created_at=visitor.created_at.isoformat().replace("+00:00", "Z"),
     )
 
 

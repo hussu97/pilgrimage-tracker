@@ -109,13 +109,15 @@ def get_members_bulk(group_codes: list[str], session: Session) -> dict[str, list
     members = session.exec(select(GroupMember).where(GroupMember.group_code.in_(group_codes))).all()
     result: dict[str, list[tuple]] = {gc: [] for gc in group_codes}
     for m in members:
-        result[m.group_code].append((m.user_code, m.role, m.joined_at.isoformat() + "Z"))
+        result[m.group_code].append(
+            (m.user_code, m.role, m.joined_at.isoformat().replace("+00:00", "Z"))
+        )
     return result
 
 
 def get_members(group_code: str, session: Session) -> list[tuple]:
     members = session.exec(select(GroupMember).where(GroupMember.group_code == group_code)).all()
-    return [(m.user_code, m.role, m.joined_at.isoformat() + "Z") for m in members]
+    return [(m.user_code, m.role, m.joined_at.isoformat().replace("+00:00", "Z")) for m in members]
 
 
 def get_leaderboard(group_code: str, check_ins_db, session: Session) -> list[dict]:
@@ -138,7 +140,7 @@ def get_last_activity(group_code: str, check_ins_db, session: Session) -> str | 
     latest = None
     for uc in user_codes:
         for chk in check_ins_db.get_check_ins_by_user(uc, session):
-            chk_time = chk.checked_in_at.isoformat() + "Z"
+            chk_time = chk.checked_in_at.isoformat().replace("+00:00", "Z")
             if latest is None or chk_time > latest:
                 latest = chk_time
     return latest
@@ -272,7 +274,7 @@ def get_activity(
                 "display_name": user.display_name if user else "Unknown",
                 "place_code": chk.place_code,
                 "place_name": place.name if place else chk.place_code,
-                "checked_in_at": chk.checked_in_at.isoformat() + "Z",
+                "checked_in_at": chk.checked_in_at.isoformat().replace("+00:00", "Z"),
                 "note": chk.note,
                 "photo_url": chk.photo_url,
                 "group_code": chk.group_code,
