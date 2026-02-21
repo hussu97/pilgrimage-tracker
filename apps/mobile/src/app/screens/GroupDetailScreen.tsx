@@ -8,10 +8,10 @@ import {
   ActivityIndicator,
   TextInput,
   Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { RouteProp } from '@react-navigation/native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -42,6 +42,7 @@ import type {
   ChecklistResponse,
 } from '@/lib/types';
 import { tokens } from '@/lib/theme';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import GroupCheckInSheet from '@/components/groups/GroupCheckInSheet';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'GroupDetail'>;
@@ -159,33 +160,60 @@ function makeStyles(isDark: boolean) {
       padding: 12,
       gap: 10,
     },
+    placeIndicator: {
+      flexShrink: 0,
+      alignItems: 'center',
+      gap: 2,
+    },
+    placeIndex: { fontSize: 10, fontWeight: '700', color: textMuted },
+    checkCircle: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkCircleChecked: { backgroundColor: '#22c55e' },
+    checkCirclePartial: {
+      backgroundColor: isDark ? 'rgba(59,130,246,0.2)' : 'rgba(59,130,246,0.15)',
+    },
+    checkCircleEmpty: {
+      backgroundColor: isDark ? tokens.colors.darkBorder : '#f1f5f9',
+    },
     placeThumb: { width: 44, height: 44, borderRadius: 8, backgroundColor: border },
     placeInfo: { flex: 1, minWidth: 0 },
     placeName: { fontSize: 14, fontWeight: '600', color: textMain },
     placeSubtext: { fontSize: 12, color: textMuted, marginTop: 2 },
-    placeStatus: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    checkedBadge: {
-      backgroundColor: isDark ? '#1a3a2a' : '#dcfce7',
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 20,
+    placeAvatarRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4 },
+    placeAvatarChip: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: isDark ? 'rgba(59,130,246,0.2)' : tokens.colors.softBlue,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: -4,
     },
-    checkedText: { fontSize: 11, fontWeight: '600', color: '#16a34a' },
-    uncheckedBadge: {
-      backgroundColor: border,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-      borderRadius: 20,
-    },
-    uncheckedText: { fontSize: 11, fontWeight: '600', color: textMuted },
+    placeAvatarInitial: { fontSize: 8, fontWeight: '700', color: tokens.colors.primary },
+    placeCheckedCount: { fontSize: 10, color: textMuted, marginLeft: 4 },
     placeExpanded: { paddingHorizontal: 12, paddingBottom: 12 },
     divider: { height: 1, backgroundColor: border, marginBottom: 12 },
+    actionRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+    detailsBtn: {
+      flex: 1,
+      paddingVertical: 10,
+      alignItems: 'center',
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: tokens.colors.primary,
+    },
+    detailsBtnText: { color: tokens.colors.primary, fontWeight: '600', fontSize: 14 },
     checkInBtn: {
+      flex: 1,
       backgroundColor: tokens.colors.primary,
       borderRadius: 10,
       paddingVertical: 10,
       alignItems: 'center',
-      marginBottom: 12,
     },
     checkInBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
     alreadyCheckedBtn: {
@@ -306,9 +334,24 @@ function makeStyles(isDark: boolean) {
       justifyContent: 'center',
       marginBottom: 6,
     },
-    avatar1: { width: 56, height: 56, borderRadius: 28, backgroundColor: tokens.colors.softBlue },
-    avatar2: { backgroundColor: isDark ? '#3a2e1a' : 'rgba(251,191,36,0.4)' },
-    avatar3: { backgroundColor: isDark ? '#2a2a1a' : 'rgba(251,191,36,0.25)' },
+    avatar1: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: isDark ? 'rgba(217,119,6,0.3)' : '#fef3c7',
+      borderWidth: 2,
+      borderColor: '#f59e0b',
+    },
+    avatar2: {
+      backgroundColor: isDark ? tokens.colors.darkSurface : '#ffffff',
+      borderWidth: 2,
+      borderColor: isDark ? tokens.colors.darkBorder : '#e2e8f0',
+    },
+    avatar3: {
+      backgroundColor: isDark ? 'rgba(234,88,12,0.15)' : '#fff7ed',
+      borderWidth: 2,
+      borderColor: '#fed7aa',
+    },
     avatarText: { fontSize: 20, fontWeight: '700', color: textMain },
     podiumName: { fontSize: 12, fontWeight: '600', color: textMain },
     podiumPlaces: { fontSize: 11, color: textMuted, marginBottom: 6 },
@@ -320,11 +363,11 @@ function makeStyles(isDark: boolean) {
       justifyContent: 'flex-end',
       paddingBottom: 4,
     },
-    rankBar1: { height: 72, backgroundColor: isDark ? '#1a2e50' : tokens.colors.blueTint },
-    rankBar2: { height: 56, backgroundColor: border },
-    rankBar3: { height: 44, backgroundColor: border },
+    rankBar1: { height: 72, backgroundColor: isDark ? 'rgba(217,119,6,0.2)' : '#fef3c7' },
+    rankBar2: { height: 56, backgroundColor: isDark ? tokens.colors.darkBorder : '#f1f5f9' },
+    rankBar3: { height: 44, backgroundColor: isDark ? 'rgba(234,88,12,0.15)' : '#fff7ed' },
     rankNum: { fontSize: 18, fontWeight: '700', color: textMuted },
-    rankNum1: { fontSize: 18, fontWeight: '700', color: tokens.colors.primary },
+    rankNum1: { fontSize: 18, fontWeight: '700', color: '#d97706' },
     viewFull: { marginBottom: 12 },
     viewFullText: { fontSize: 14, color: tokens.colors.primary, fontWeight: '600' },
     leaderList: { gap: 8 },
@@ -387,6 +430,35 @@ function makeStyles(isDark: boolean) {
       alignItems: 'center',
     },
     dangerBtnText: { color: '#ef4444', fontWeight: '600', fontSize: 14 },
+    inviteSection: {
+      marginTop: 16,
+      paddingTop: 16,
+      borderTopWidth: 1,
+      borderTopColor: border,
+    },
+    inviteLabel: { fontSize: 12, color: textMuted, marginBottom: 8 },
+    inviteRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    inviteUrl: {
+      flex: 1,
+      fontSize: 11,
+      color: textSecondary,
+      borderWidth: 1,
+      borderColor: border,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: surface,
+    },
+    inviteShareBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: tokens.colors.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 10,
+    },
+    inviteShareText: { color: '#fff', fontSize: 12, fontWeight: '600' },
 
     muted: { fontSize: 14, color: textMuted, marginVertical: 8 },
     sectionTitle: {
@@ -694,10 +766,10 @@ export default function GroupDetailScreen() {
           </View>
 
           {group.cover_image_url ? (
-            <Image
-              source={{ uri: group.cover_image_url }}
+            <ExpoImage
+              source={{ uri: getFullImageUrl(group.cover_image_url) }}
               style={styles.coverImage}
-              resizeMode="cover"
+              contentFit="cover"
             />
           ) : null}
 
@@ -791,24 +863,43 @@ export default function GroupDetailScreen() {
                           onPress={() => setExpandedPlaceCode(isExpanded ? null : place.place_code)}
                           activeOpacity={0.8}
                         >
-                          {place.image_url ? (
-                            <Image
-                              source={{ uri: place.image_url }}
-                              style={styles.placeThumb}
-                              resizeMode="cover"
-                            />
-                          ) : (
+                          {/* Number + check circle */}
+                          <View style={styles.placeIndicator}>
+                            <Text style={styles.placeIndex}>{idx + 1}</Text>
                             <View
                               style={[
-                                styles.placeThumb,
-                                { alignItems: 'center', justifyContent: 'center' },
+                                styles.checkCircle,
+                                place.user_checked_in
+                                  ? styles.checkCircleChecked
+                                  : place.check_in_count > 0
+                                    ? styles.checkCirclePartial
+                                    : styles.checkCircleEmpty,
                               ]}
                             >
-                              <Text style={{ fontSize: 18, color: tokens.colors.textMuted }}>
-                                {idx + 1}
-                              </Text>
+                              <MaterialIcons
+                                name={place.user_checked_in ? 'check' : 'radio-button-unchecked'}
+                                size={12}
+                                color={
+                                  place.user_checked_in
+                                    ? '#fff'
+                                    : isDark
+                                      ? tokens.colors.darkTextSecondary
+                                      : tokens.colors.textMuted
+                                }
+                              />
                             </View>
-                          )}
+                          </View>
+
+                          {/* Thumbnail */}
+                          {place.image_url ? (
+                            <ExpoImage
+                              source={{ uri: getFullImageUrl(place.image_url) }}
+                              style={styles.placeThumb}
+                              contentFit="cover"
+                            />
+                          ) : null}
+
+                          {/* Info */}
                           <View style={styles.placeInfo}>
                             <Text style={styles.placeName} numberOfLines={1}>
                               {place.name}
@@ -818,54 +909,70 @@ export default function GroupDetailScreen() {
                                 {place.address}
                               </Text>
                             ) : null}
-                          </View>
-                          <View style={styles.placeStatus}>
-                            {place.user_checked_in ? (
-                              <View style={styles.checkedBadge}>
-                                <Text style={styles.checkedText}>{t('groups.checkedIn')}</Text>
-                              </View>
-                            ) : (
-                              <View style={styles.uncheckedBadge}>
-                                <Text style={styles.uncheckedText}>
-                                  {place.check_in_count > 0 ? `${place.check_in_count}` : '—'}
+                            {place.check_in_count > 0 && (
+                              <View style={styles.placeAvatarRow}>
+                                {place.checked_in_by.slice(0, 3).map((ci) => (
+                                  <View key={ci.user_code} style={styles.placeAvatarChip}>
+                                    <Text style={styles.placeAvatarInitial}>
+                                      {ci.display_name.charAt(0)}
+                                    </Text>
+                                  </View>
+                                ))}
+                                <Text style={styles.placeCheckedCount}>
+                                  {place.check_in_count} {t('groups.checkedIn')}
                                 </Text>
                               </View>
                             )}
-                            <MaterialIcons
-                              name={isExpanded ? 'expand-less' : 'expand-more'}
-                              size={20}
-                              color={
-                                isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted
-                              }
-                            />
                           </View>
+
+                          <MaterialIcons
+                            name={isExpanded ? 'expand-less' : 'expand-more'}
+                            size={20}
+                            color={
+                              isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted
+                            }
+                          />
                         </TouchableOpacity>
 
                         {isExpanded && (
                           <View style={styles.placeExpanded}>
                             <View style={styles.divider} />
 
-                            {/* Check-in button */}
-                            {place.user_checked_in ? (
+                            {/* Action buttons */}
+                            <View style={styles.actionRow}>
+                              <TouchableOpacity
+                                style={styles.detailsBtn}
+                                onPress={() =>
+                                  navigation.navigate('PlaceDetail', {
+                                    placeCode: place.place_code,
+                                  })
+                                }
+                                activeOpacity={0.8}
+                              >
+                                <Text style={styles.detailsBtnText}>{t('home.details')}</Text>
+                              </TouchableOpacity>
+                              {!place.user_checked_in && (
+                                <TouchableOpacity
+                                  style={styles.checkInBtn}
+                                  onPress={() =>
+                                    setCheckInSheet({
+                                      visible: true,
+                                      placeCode: place.place_code,
+                                      placeName: place.name,
+                                    })
+                                  }
+                                  activeOpacity={0.8}
+                                >
+                                  <Text style={styles.checkInBtnText}>{t('groups.checkIn')}</Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                            {place.user_checked_in && (
                               <View style={styles.alreadyCheckedBtn}>
                                 <Text style={styles.alreadyCheckedText}>
                                   ✓ {t('groups.checkedIn')}
                                 </Text>
                               </View>
-                            ) : (
-                              <TouchableOpacity
-                                style={styles.checkInBtn}
-                                onPress={() =>
-                                  setCheckInSheet({
-                                    visible: true,
-                                    placeCode: place.place_code,
-                                    placeName: place.name,
-                                  })
-                                }
-                                activeOpacity={0.8}
-                              >
-                                <Text style={styles.checkInBtnText}>{t('groups.checkIn')}</Text>
-                              </TouchableOpacity>
                             )}
 
                             {/* Who checked in */}
@@ -1179,6 +1286,25 @@ export default function GroupDetailScreen() {
                   </TouchableOpacity>
                 )}
               </View>
+
+              {inviteUrl ? (
+                <View style={styles.inviteSection}>
+                  <Text style={styles.inviteLabel}>{t('groups.shareInviteLink')}</Text>
+                  <View style={styles.inviteRow}>
+                    <Text style={styles.inviteUrl} numberOfLines={1}>
+                      {inviteUrl}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.inviteShareBtn}
+                      onPress={() => shareUrl(group.name, inviteUrl)}
+                      activeOpacity={0.8}
+                    >
+                      <MaterialIcons name="share" size={16} color="#fff" />
+                      <Text style={styles.inviteShareText}>{t('common.share')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : null}
             </View>
           )}
         </View>
