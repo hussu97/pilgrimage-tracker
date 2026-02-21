@@ -495,7 +495,15 @@
       "feedback.noteDeleted": "Note deleted",
       "feedback.groupUpdated": "Group updated",
       "feedback.coverUpdated": "Cover updated",
-      "feedback.error": "Something went wrong. Please try again."
+      "feedback.error": "Something went wrong. Please try again.",
+      "search.recentSearches": "Recent Searches",
+      "search.clearHistory": "Clear History",
+      "search.noResults": "No places found for '{query}'",
+      "search.noPlacesNearby": "No sacred places found near {location}",
+      "search.tryDifferent": "Try a different search",
+      "search.recentEmpty": "Your recent searches will appear here",
+      "search.searchPlaces": "Search for a city, area, or landmark...",
+      "search.error": "Could not load suggestions"
     },
     "ar": {
       "auth.login": "تسجيل الدخول",
@@ -978,7 +986,15 @@
       "feedback.noteDeleted": "تم حذف الملاحظة",
       "feedback.groupUpdated": "تم تحديث المجموعة",
       "feedback.coverUpdated": "تم تحديث الغلاف",
-      "feedback.error": "حدث خطأ ما. يرجى المحاولة مرة أخرى."
+      "feedback.error": "حدث خطأ ما. يرجى المحاولة مرة أخرى.",
+      "search.recentSearches": "عمليات البحث الأخيرة",
+      "search.clearHistory": "مسح السجل",
+      "search.noResults": "لم يتم العثور على أماكن لـ '{query}'",
+      "search.noPlacesNearby": "لم يتم العثور على أماكن مقدسة بالقرب من {location}",
+      "search.tryDifferent": "حاول بحثاً مختلفاً",
+      "search.recentEmpty": "ستظهر عمليات البحث الأخيرة هنا",
+      "search.searchPlaces": "ابحث عن مدينة أو منطقة أو معلم...",
+      "search.error": "تعذر تحميل الاقتراحات"
     },
     "hi": {
       "auth.login": "लॉग इन करें",
@@ -1461,7 +1477,15 @@
       "feedback.noteDeleted": "नोट हटाया गया",
       "feedback.groupUpdated": "ग्रुप अपडेट किया गया",
       "feedback.coverUpdated": "कवर अपडेट किया गया",
-      "feedback.error": "कुछ गलत हो गया। कृपया पुनः प्रयास करें।"
+      "feedback.error": "कुछ गलत हो गया। कृपया पुनः प्रयास करें।",
+      "search.recentSearches": "हाल की खोजें",
+      "search.clearHistory": "इतिहास साफ़ करें",
+      "search.noResults": "'{query}' के लिए कोई स्थान नहीं मिला",
+      "search.noPlacesNearby": "{location} के पास कोई पवित्र स्थान नहीं मिला",
+      "search.tryDifferent": "एक अलग खोज आज़माएं",
+      "search.recentEmpty": "आपकी हाल की खोजें यहाँ दिखाई देंगी",
+      "search.searchPlaces": "शहर, क्षेत्र या स्थलचिह्न खोजें...",
+      "search.error": "सुझाव लोड नहीं हो सके"
     }
   },
   "app_version_config": [

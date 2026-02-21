@@ -4,6 +4,42 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Search Feature — Google Places Autocomplete + Search History (2026-02-21)
+
+### Backend
+- **New `server/app/api/v1/search.py`** — two server-side proxy endpoints:
+  - `GET /api/v1/search/autocomplete?q=&lat=&lng=` — calls Google Places API (New) autocomplete, returns `{ suggestions: [{place_id, main_text, secondary_text}] }`. API key stays server-side; graceful empty response when key missing or Google errors.
+  - `GET /api/v1/search/place-details?place_id=` — fetches lat/lng and display name for a given Google place ID.
+- **`GOOGLE_MAPS_API_KEY`** added to `server/app/core/config.py`
+- **Router registered** in `server/app/api/v1/__init__.py` with prefix `/search`
+- **9 new backend tests** (`server/tests/test_search.py`): short-query rejection, no-API-key, valid autocomplete, lat/lng bias, Google error fallback, no results, place-details happy path, invalid place, error fallback
+
+### Frontend (web)
+- **`SearchOverlay`** full-screen overlay (non-route, rendered from Home.tsx): auto-focused input, debounced (300ms) autocomplete, recent searches section (localStorage, max 10, deduplicated by placeId), clear history, no-results and error states
+- **`searchHistory.ts`** utility: `getSearchHistory`, `addSearchHistory`, `clearSearchHistory` (localStorage-backed)
+- **`HomeHeader`**: search bar is now a read-only pressable button; shows active search location name + clear (×) button; clicking opens SearchOverlay
+- **`Home.tsx`**: new `searchLocation` state; when set, `buildParams` uses search lat/lng + `radius: 10` instead of user coords; renders `<SearchOverlay>` when `showSearch` is true
+- **`PlaceMapView` / `PlacesMap`**: new `searchLocation` prop; renders a distinct orange search pin at the search coordinates; map zooms to the search area on selection
+- **API client**: `searchAutocomplete()`, `getSearchPlaceDetails()` added
+
+### Frontend (mobile)
+- **`SearchScreen`** (new): back arrow + auto-focused TextInput + clear button; recent searches (AsyncStorage); autocomplete (400ms debounce); dark mode compliant (`makeStyles(isDark)` + design tokens)
+- **`searchHistory.ts`** utility (AsyncStorage-backed, same API as web)
+- **`navigation.tsx`**: `Search` screen added to root stack; `Main` params accept `searchLocation`; `SearchLocation` type exported
+- **`HomeScreen`**: search bar replaced with pressable button; navigates to `SearchScreen`; reads `searchLocation` from route params (set by `SearchScreen` via `navigate('Main', { screen: 'Home', params: { searchLocation } })`); `buildParams` uses search lat/lng + `radius: 10` when active; clear (×) button resets to user location; map center follows search location
+- **API client**: `searchAutocomplete()`, `getSearchPlaceDetails()` added
+
+### i18n
+- 8 new translation keys (en/ar/hi): `search.recentSearches`, `search.clearHistory`, `search.noResults`, `search.noPlacesNearby`, `search.tryDifferent`, `search.recentEmpty`, `search.searchPlaces`, `search.error`
+
+### Tests
+- **Backend**: 9 new `test_search.py` tests (all pass)
+- **Web**: `searchHistory.test.ts` — 7 cases covering get, add (prepend, dedup, max-10), clear (all pass; 109 total)
+- **Mobile**: `searchHistory.test.ts` — 7 equivalent cases with AsyncStorage mock (all pass; 109 total)
+- **TypeScript**: `apps/web` passes `tsc --noEmit` with no errors
+
+---
+
 ## Add-to-Itinerary Flow + Map View Improvements (2026-02-21)
 
 ### Backend

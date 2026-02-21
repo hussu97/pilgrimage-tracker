@@ -15,19 +15,19 @@ import {
 import { WebView } from 'react-native-webview';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
 import { getPlaces } from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { Place, FilterOption } from '@/lib/types';
-import type { RootStackParamList } from '@/app/navigation';
+import type { RootStackParamList, SearchLocation } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
 import PlaceCard from '@/components/places/PlaceCard';
 import SkeletonCard from '@/components/common/SkeletonCard';
 import HomeHeader from '@/components/places/HomeHeader';
-import SearchFilterBar from '@/components/places/SearchFilterBar';
 import UpdateBanner from '@/components/common/UpdateBanner';
 import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 import { buildMapHtml, formatDistance } from '@/lib/utils/mapBuilder';
@@ -132,6 +132,11 @@ function makeStyles(isDark: boolean) {
       borderColor: border,
     },
     searchIconStyle: { marginRight: 10 },
+    searchBarBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
     searchInput: {
       flex: 1,
       fontSize: 15,
@@ -398,11 +403,20 @@ function makeStyles(isDark: boolean) {
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>>();
+  const route = useRoute<RouteProp<{ Home: { searchLocation?: SearchLocation } }, 'Home'>>();
   const { user } = useAuth();
   const { t } = useI18n();
   const { isDark } = useTheme();
   const { coords } = useLocation();
   const webViewRef = useRef<WebView>(null);
+
+  const [searchLocation, setSearchLocation] = useState<SearchLocation | null>(null);
+
+  // Pick up searchLocation passed from SearchScreen via navigation params
+  useEffect(() => {
+    const loc = (route.params as any)?.searchLocation;
+    if (loc) setSearchLocation(loc);
+  }, [route.params]);
 
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
@@ -410,8 +424,6 @@ export default function HomeScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
-  const [searchDebounced, setSearchDebounced] = useState('');
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
   const [pendingFilters, setPendingFilters] = useState<ActiveFilters>({});
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
@@ -442,12 +454,12 @@ export default function HomeScreen() {
         if (!r.length || r.includes('all')) return undefined;
         return r;
       })(),
-      search: searchDebounced || undefined,
       sort: 'distance' as const,
       limit: PAGE_SIZE,
       cursor: cursor ?? undefined,
-      lat: coords.lat,
-      lng: coords.lng,
+      lat: searchLocation ? searchLocation.lat : coords.lat,
+      lng: searchLocation ? searchLocation.lng : coords.lng,
+      radius: searchLocation ? 10 : undefined,
       place_type: activeFilters.placeType,
       open_now: activeFilters.openNow,
       has_parking: activeFilters.hasParking,
@@ -455,7 +467,7 @@ export default function HomeScreen() {
       has_events: activeFilters.hasEvents,
       top_rated: activeFilters.topRated,
     }),
-    [user?.religions, searchDebounced, activeFilters, coords],
+    [user?.religions, activeFilters, coords, searchLocation],
   );
 
   // Initial / refresh fetch — resets pagination
@@ -469,8 +481,8 @@ export default function HomeScreen() {
       setNextCursor(data.next_cursor ?? null);
       setHasMore(data.next_cursor != null);
       setFilterOptions(data.filters?.options ?? []);
-      const centerLat = coords.lat ?? 21.3891;
-      const centerLng = coords.lng ?? 39.8579;
+      const centerLat = (searchLocation ? searchLocation.lat : coords.lat) ?? 21.3891;
+      const centerLng = (searchLocation ? searchLocation.lng : coords.lng) ?? 39.8579;
       setMapHtml(buildMapHtml(data.places, centerLat, centerLng));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
@@ -501,11 +513,6 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchPlaces();
   }, [fetchPlaces]);
-
-  useEffect(() => {
-    const id = setTimeout(() => setSearchDebounced(search), 400);
-    return () => clearTimeout(id);
-  }, [search]);
 
   const handleWebViewMessage = useCallback(
     (event: { nativeEvent: { data: string } }) => {
@@ -584,17 +591,61 @@ export default function HomeScreen() {
           isDark={isDark}
           t={t}
         />
-        <SearchFilterBar
-          search={search}
-          onSearchChange={setSearch}
-          onFilterPress={() => {
-            setPendingFilters(activeFilters);
-            setFilterSheetOpen(true);
-          }}
-          hasActiveFilters={hasActiveFilters}
-          isDark={isDark}
-          t={t}
-        />
+        {/* Pressable search bar — opens SearchScreen */}
+        <View style={styles.searchWrap}>
+          <TouchableOpacity
+            style={[styles.searchBarBtn, { flex: 1 }]}
+            onPress={() => navigation.navigate('Search')}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons
+              name="search"
+              size={20}
+              color={textMutedColor}
+              style={styles.searchIconStyle}
+            />
+            {searchLocation ? (
+              <Text
+                style={[
+                  styles.searchInput,
+                  { color: isDark ? '#fff' : tokens.colors.textDark, flex: 1 },
+                ]}
+                numberOfLines={1}
+              >
+                {searchLocation.name}
+              </Text>
+            ) : (
+              <Text
+                style={[styles.searchInput, { color: textMutedColor, flex: 1 }]}
+                numberOfLines={1}
+              >
+                {t('search.searchPlaces')}
+              </Text>
+            )}
+            {searchLocation && (
+              <TouchableOpacity
+                onPress={() => setSearchLocation(null)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <MaterialIcons name="close" size={18} color={textMutedColor} />
+              </TouchableOpacity>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => {
+              setPendingFilters(activeFilters);
+              setFilterSheetOpen(true);
+            }}
+            style={[styles.filterIconBtn, hasActiveFilters && styles.filterIconBtnActive]}
+          >
+            <MaterialIcons
+              name="tune"
+              size={20}
+              color={hasActiveFilters ? tokens.colors.primary : textMutedColor}
+            />
+            {hasActiveFilters && <View style={styles.filterDot} />}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Conditional content area */}

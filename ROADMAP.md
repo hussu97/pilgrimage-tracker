@@ -158,7 +158,7 @@ New capabilities and meaningful UX improvements.
   - The detail page shows a single hero image. Many places have multiple photos in `place_images`.
   - Display a horizontal scrollable gallery at the top of the detail page. Tapping an image opens a full-screen viewer with swipe navigation.
 
-- [ ] **Search history and suggestions**
+- [x] **Search history and suggestions**
   - The search bar has no memory. Users re-type the same queries repeatedly.
   - Store the last 10 search queries locally (AsyncStorage on mobile, localStorage on web). Display them as suggestions when the search bar is focused. Add a "Clear history" option.
 
@@ -183,7 +183,7 @@ New capabilities and meaningful UX improvements.
 
 ### Backend Features
 
-- [ ] **Place search autocomplete**
+- [x] **Place search autocomplete**
   - Current search uses a basic `LIKE` query which is slow and produces poor results.
   - Implement trigram-based search (`pg_trgm` extension) or a prefix index. Return results as the user types with debounced requests (300ms). Rank by relevance and popularity.
 

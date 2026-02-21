@@ -7,7 +7,9 @@ import FilterSheet from '@/components/places/FilterSheet';
 import HomeHeader from '@/components/places/HomeHeader';
 import PlaceListView from '@/components/places/PlaceListView';
 import PlaceMapView from '@/components/places/PlaceMapView';
+import SearchOverlay from '@/components/search/SearchOverlay';
 import type { Place, FilterOption } from '@/lib/types';
+import type { SearchLocation } from '@/lib/utils/searchHistory';
 
 type ViewMode = 'list' | 'map';
 
@@ -19,8 +21,6 @@ export default function Home() {
   const { coords } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // URL synced state
-  const search = searchParams.get('search') ?? '';
   const viewMode = (searchParams.get('view') as ViewMode) || 'list';
 
   const [places, setPlaces] = useState<Place[]>([]);
@@ -32,6 +32,8 @@ export default function Home() {
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
   const [activeFilters, setActiveFilters] = useState<Record<string, boolean>>({});
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const [searchLocation, setSearchLocation] = useState<SearchLocation | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
   const nextCursorRef = useRef<string | null>(null);
 
   const buildParams = useCallback(
@@ -41,19 +43,19 @@ export default function Home() {
         if (!r.length || r.includes('all')) return undefined;
         return r;
       })(),
-      search: search || undefined,
       sort: 'distance',
       limit: PAGE_SIZE,
       cursor: cursor ?? undefined,
-      lat: coords.lat,
-      lng: coords.lng,
+      lat: searchLocation ? searchLocation.lat : coords.lat,
+      lng: searchLocation ? searchLocation.lng : coords.lng,
+      radius: searchLocation ? 10 : undefined,
       open_now: activeFilters.open_now,
       has_parking: activeFilters.has_parking,
       womens_area: activeFilters.womens_area,
       has_events: activeFilters.has_events,
       top_rated: activeFilters.top_rated,
     }),
-    [user?.religions, search, activeFilters, coords],
+    [user?.religions, activeFilters, coords, searchLocation],
   );
 
   // Initial / refresh — resets pagination
@@ -102,13 +104,6 @@ export default function Home() {
     return () => clearTimeout(id);
   }, [fetchPlaces]);
 
-  const handleSearchChange = (value: string) => {
-    const newParams = new URLSearchParams(searchParams);
-    if (value) newParams.set('search', value);
-    else newParams.delete('search');
-    setSearchParams(newParams);
-  };
-
   const toggleViewMode = () => {
     const nextMode = viewMode === 'list' ? 'map' : 'list';
     const newParams = new URLSearchParams(searchParams);
@@ -124,14 +119,24 @@ export default function Home() {
     setSearchParams({});
   };
 
+  const handleSearchSelect = (loc: SearchLocation) => {
+    setSearchLocation(loc);
+    setShowSearch(false);
+  };
+
+  const handleClearSearch = () => {
+    setSearchLocation(null);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-dark-bg">
       <HomeHeader
         displayName={displayName}
         viewMode={viewMode}
-        search={search}
+        searchLocation={searchLocation}
         activeFiltersCount={activeFiltersCount}
-        onSearchChange={handleSearchChange}
+        onSearchClick={() => setShowSearch(true)}
+        onClearSearch={handleClearSearch}
         onViewModeToggle={toggleViewMode}
         onFilterClick={() => setShowFilters(true)}
         t={t}
@@ -156,6 +161,7 @@ export default function Home() {
           <PlaceMapView
             places={places}
             center={coords}
+            searchLocation={searchLocation}
             selectedPlace={selectedPlace}
             onPlaceSelect={setSelectedPlace}
             t={t}
@@ -171,6 +177,16 @@ export default function Home() {
         activeFilters={activeFilters}
         onApply={setActiveFilters}
       />
+
+      {showSearch && (
+        <SearchOverlay
+          onSelect={handleSearchSelect}
+          onClose={() => setShowSearch(false)}
+          userLat={coords.lat}
+          userLng={coords.lng}
+          t={t}
+        />
+      )}
     </div>
   );
 }

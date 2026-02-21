@@ -14,6 +14,7 @@
  */
 import { useLayoutEffect, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import type { SearchLocation } from '@/lib/utils/searchHistory';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
@@ -53,6 +54,22 @@ function createMarkerIcon(openStatus: string | undefined, isSelected = false): L
   });
 }
 
+function createSearchMarkerIcon(): L.DivIcon {
+  return L.divIcon({
+    className: '',
+    html: `
+      <div style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
+        <div style="position:absolute;width:36px;height:36px;border-radius:50%;background:rgba(234,88,12,0.18);"></div>
+        <div style="width:22px;height:22px;border-radius:50%;background:#ea580c;border:3px solid white;box-shadow:0 2px 12px rgba(234,88,12,0.5);position:relative;z-index:1;display:flex;align-items:center;justify-content:center;">
+          <div style="width:8px;height:8px;border-radius:50%;background:white;"></div>
+        </div>
+      </div>
+    `,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+  });
+}
+
 function createUserMarkerIcon(): L.DivIcon {
   return L.divIcon({
     className: '',
@@ -88,6 +105,7 @@ interface PlacesMapProps {
   onPlaceSelect?: (place: Place) => void;
   selectedPlaceCode?: string | null;
   isVisible?: boolean;
+  searchLocation?: SearchLocation | null;
 }
 
 export default function PlacesMap({
@@ -96,11 +114,13 @@ export default function PlacesMap({
   onPlaceSelect,
   selectedPlaceCode,
   isVisible,
+  searchLocation,
 }: PlacesMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
+  const searchMarkerRef = useRef<L.Marker | null>(null);
   const navigate = useNavigate();
 
   // ── Initialize map once per mount ────────────────────────────────────────
@@ -126,6 +146,7 @@ export default function PlacesMap({
       mapRef.current = null;
       clusterRef.current = null;
       userMarkerRef.current = null;
+      searchMarkerRef.current = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -161,6 +182,32 @@ export default function PlacesMap({
     marker.bindTooltip('You are here', { permanent: false, direction: 'top', offset: [0, -6] });
     userMarkerRef.current = marker;
   }, [center]);
+
+  // ── Search location marker ────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (searchMarkerRef.current) {
+      searchMarkerRef.current.remove();
+      searchMarkerRef.current = null;
+    }
+
+    if (!searchLocation) return;
+
+    const marker = L.marker([searchLocation.lat, searchLocation.lng], {
+      icon: createSearchMarkerIcon(),
+      zIndexOffset: 1500,
+    }).addTo(map);
+
+    marker.bindTooltip(searchLocation.name, {
+      permanent: false,
+      direction: 'top',
+      offset: [0, -8],
+    });
+    searchMarkerRef.current = marker;
+    map.setView([searchLocation.lat, searchLocation.lng], 12);
+  }, [searchLocation]);
 
   // ── Update markers whenever places or selection changes ───────────────────
   useEffect(() => {

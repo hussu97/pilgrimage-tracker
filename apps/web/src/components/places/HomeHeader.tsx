@@ -1,11 +1,13 @@
 import { cn } from '@/lib/utils/cn';
+import type { SearchLocation } from '@/lib/utils/searchHistory';
 
 interface HomeHeaderProps {
   displayName: string;
   viewMode: 'list' | 'map';
-  search: string;
+  searchLocation: SearchLocation | null;
   activeFiltersCount: number;
-  onSearchChange: (value: string) => void;
+  onSearchClick: () => void;
+  onClearSearch: () => void;
   onViewModeToggle: () => void;
   onFilterClick: () => void;
   t: (key: string) => string;
@@ -14,9 +16,10 @@ interface HomeHeaderProps {
 export default function HomeHeader({
   displayName,
   viewMode,
-  search,
+  searchLocation,
   activeFiltersCount,
-  onSearchChange,
+  onSearchClick,
+  onClearSearch,
   onViewModeToggle,
   onFilterClick,
   t,
@@ -44,16 +47,34 @@ export default function HomeHeader({
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="flex-1 flex items-center gap-3 bg-white dark:bg-dark-surface border border-slate-200 dark:border-dark-border focus-within:border-primary/30 focus-within:ring-4 focus-within:ring-primary/5 rounded-2xl px-5 py-4 transition-all duration-300 shadow-sm">
+          {/* Search bar — always a clickable button that opens overlay */}
+          <button
+            onClick={onSearchClick}
+            className="flex-1 flex items-center gap-3 bg-white dark:bg-dark-surface border border-slate-200 dark:border-dark-border rounded-2xl px-5 py-4 transition-all duration-300 shadow-sm hover:shadow-md text-left"
+          >
             <span className="material-symbols-outlined text-slate-400 text-xl">search</span>
-            <input
-              type="search"
-              placeholder={t('home.findPlace')}
-              value={search}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="flex-1 bg-transparent border-none p-0 text-base font-medium text-slate-800 dark:text-white placeholder:text-slate-300 focus:ring-0 outline-none"
-            />
-          </div>
+            {searchLocation ? (
+              <span className="flex-1 text-base font-medium text-slate-800 dark:text-white truncate">
+                {searchLocation.name}
+              </span>
+            ) : (
+              <span className="flex-1 text-base font-medium text-slate-300 truncate">
+                {t('search.searchPlaces')}
+              </span>
+            )}
+            {searchLocation && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClearSearch();
+                }}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors shrink-0"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            )}
+          </button>
+
           <button
             onClick={onFilterClick}
             className={cn(

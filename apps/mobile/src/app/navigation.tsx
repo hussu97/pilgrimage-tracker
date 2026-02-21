@@ -22,6 +22,14 @@ import JoinGroupScreen from './screens/JoinGroupScreen';
 import EditGroupScreen from './screens/EditGroupScreen';
 import EditGroupPlacesScreen from './screens/EditGroupPlacesScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
+import SearchScreen from './screens/SearchScreen';
+
+export type SearchLocation = {
+  placeId: string;
+  name: string;
+  lat: number;
+  lng: number;
+};
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -29,7 +37,8 @@ export type RootStackParamList = {
   Register: undefined;
   ForgotPassword: undefined;
   ResetPassword: { token?: string };
-  Main: undefined;
+  Main: { searchLocation?: SearchLocation } | undefined;
+  Search: undefined;
   PlaceDetail: { placeCode: string };
   WriteReview: {
     placeCode: string;
@@ -88,6 +97,7 @@ function RootStack() {
       <Stack.Screen name="JoinGroup" component={withScreenBoundary(JoinGroupScreen)} />
       <Stack.Screen name="Notifications" component={withScreenBoundary(NotificationsScreen)} />
       <Stack.Screen name="Favorites" component={withScreenBoundary(FavoritesScreen)} />
+      <Stack.Screen name="Search" component={withScreenBoundary(SearchScreen)} />
     </Stack.Navigator>
   );
 }

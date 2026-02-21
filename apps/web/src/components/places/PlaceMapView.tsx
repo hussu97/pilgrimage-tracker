@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { Place } from '@/lib/types';
+import type { SearchLocation } from '@/lib/utils/searchHistory';
 import PlacesMap from '@/components/places/PlacesMap';
 import { SharePlaceButton } from '@/components/places';
 import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
@@ -14,6 +15,7 @@ interface PlaceMapViewProps {
   onPlaceSelect: (place: Place | null) => void;
   t: (key: string) => string;
   isVisible?: boolean;
+  searchLocation?: SearchLocation | null;
 }
 
 function formatDistance(km: number): string {
@@ -28,6 +30,7 @@ export default function PlaceMapView({
   onPlaceSelect,
   t,
   isVisible,
+  searchLocation,
 }: PlaceMapViewProps) {
   const { user } = useAuth();
   const [addToGroupOpen, setAddToGroupOpen] = useState(false);
@@ -40,6 +43,7 @@ export default function PlaceMapView({
         onPlaceSelect={onPlaceSelect}
         selectedPlaceCode={selectedPlace?.place_code}
         isVisible={isVisible}
+        searchLocation={searchLocation}
       />
 
       {/* Selection Card (Parity with Mobile App) */}

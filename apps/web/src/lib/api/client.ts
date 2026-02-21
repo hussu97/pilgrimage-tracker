@@ -707,6 +707,46 @@ export async function updateSettings(settings: UserSettings): Promise<UserSettin
   return res.json();
 }
 
+// ─── Search (Google Places proxy) ─────────────────────────────────────────────
+
+export interface SearchSuggestion {
+  place_id: string;
+  main_text: string;
+  secondary_text: string;
+}
+
+export interface SearchPlaceDetails {
+  place_id: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+}
+
+export async function searchAutocomplete(
+  query: string,
+  lat?: number,
+  lng?: number,
+): Promise<{ suggestions: SearchSuggestion[] }> {
+  const sp = new URLSearchParams({ q: query });
+  if (lat != null) sp.set('lat', String(lat));
+  if (lng != null) sp.set('lng', String(lng));
+  const res = await fetch(`${API_BASE}/api/v1/search/autocomplete?${sp}`, {
+    headers: clientHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch autocomplete');
+  return res.json();
+}
+
+export async function getSearchPlaceDetails(placeId: string): Promise<SearchPlaceDetails> {
+  const sp = new URLSearchParams({ place_id: placeId });
+  const res = await fetch(`${API_BASE}/api/v1/search/place-details?${sp}`, {
+    headers: clientHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch place details');
+  return res.json();
+}
+
 // ─── Visitor API (unauthenticated) ────────────────────────────────────────────
 
 export async function createVisitor(): Promise<{ visitor_code: string; created_at: string }> {
