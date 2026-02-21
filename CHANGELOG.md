@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Structured Logging, Monitoring & API Versioning (2026-02-21)
+
+### Backend
+- **Structured JSON logging** — `server/app/core/logging_config.py` added using `python-json-logger`. Set `LOG_FORMAT=text` for human-readable dev output; defaults to JSON in production. Controlled by `LOG_LEVEL` and `LOG_FORMAT` env vars (added to `config.py`).
+- **Per-request UUID tracing** — `server/app/core/request_context.py` stores a UUID4 per request via ContextVar. `X-Request-ID` header is returned on every response; the ID is included in all log entries via `request_id_middleware`.
+- **Request timing logging** — `request_timing_middleware` logs `method`, `path`, `status_code`, `duration_ms`, and `request_id` as a structured `request_complete` event for every response.
+- **Enhanced `/health` endpoint** — Now checks DB connectivity and returns `{"status": "ok"|"degraded", "db": "ok"|"error"}`.
+- **Prometheus metrics** — `GET /metrics` endpoint exposed via `prometheus-fastapi-instrumentator` (excluded from OpenAPI schema). Protect via nginx/firewall in production; scrape with Prometheus, visualise with Grafana.
+- **`X-API-Version: 1` response header** — `api_version_header_middleware` appends this header to all responses.
+- **`server/app/api/v2/__init__.py`** — Skeleton `api_router_v2` for future v2 routes, with versioning policy documented inline.
+- **New packages** — `python-json-logger>=2.0.7`, `prometheus-fastapi-instrumentator>=6.1.0` added to `requirements.txt`.
+- **Tests** — `tests/test_request_id.py` (3 tests: header present, valid UUID, distinct across requests); `tests/test_health.py` updated (2 tests: status+db fields).
+
+---
+
 ## Code Quality: StrEnums + cn() Migration (2026-02-21)
 
 ### Backend

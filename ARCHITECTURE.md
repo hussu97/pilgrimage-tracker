@@ -393,7 +393,34 @@ Web clients are never blocked — the web app always serves the latest bundle.
 
 ---
 
-## 10. Design Alignment
+## 10. API Versioning Policy
+
+All API routes are URL-versioned (e.g. `/api/v1/`, `/api/v2/`). Each version has its own directory under `server/app/api/` with an `__init__.py` that aggregates its routers.
+
+### Stable version
+- **`/api/v1`** is the current stable version. It will be maintained for **12 months after the `/api/v2` general availability date**.
+
+### Breaking vs. non-breaking changes
+- **Breaking changes** (removed fields, changed response shapes, renamed endpoints, changed auth flow) require a new version (`/api/v2`, etc.).
+- **Non-breaking additions** (new optional fields, new endpoints, new query parameters with defaults) may be added to an existing version without a version bump.
+
+### Client migration
+- Mobile clients use `GET /api/v1/app-version` to detect upgrade requirements. Hard-blocking (HTTP 426) is reserved for security-critical or data-integrity breaking changes.
+- Web clients receive the latest bundle on deploy; no client-side version negotiation is needed.
+
+### Response headers
+- All API responses include `X-API-Version: 1` so clients can detect the serving version without inspecting the URL.
+
+### Directory layout
+```
+server/app/api/
+├── v1/          # Current stable — __init__.py aggregates all v1 routers
+└── v2/          # Skeleton — add routers here as v2 endpoints are built
+```
+
+---
+
+## 11. Design Alignment
 
 - **Screens to implement** (from DESIGN_FILE.html and app-design-prompt): Splash, Create Account, Login, Forgot Password, Preferred religions (multi-select, optional), Home (list + map), Place detail (Islam/Hinduism/Christianity variants), Check-in flow, Profile and stats, Groups list, Group detail and leaderboard, Favorites, Settings, Notifications, Write review. Empty and error states as specified in the design prompt.
 - **Design system:** Lexend, Material Icons/Symbols, Tailwind with tokens from DESIGN_FILE (primary, borders, radii, safe areas). Support light/dark where designs specify (e.g. Place detail Hindu temple).

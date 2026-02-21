@@ -224,7 +224,7 @@ Infrastructure, code quality, and optimization work to prepare for production sc
 
 ### Infrastructure
 
-- [ ] **Monitoring and structured logging**
+- [x] **Monitoring and structured logging**
   - No structured logging. Errors are printed to stdout and lost.
   - Add structured JSON logging with `structlog` or `python-json-logger`. Integrate **GlitchTip** (open-source, self-hostable error tracking — https://glitchtip.com) for error tracking. Add request ID tracing across services. Set up basic dashboards for request latency, error rate, and database query time.
 
@@ -252,7 +252,7 @@ Infrastructure, code quality, and optimization work to prepare for production sc
   - No performance benchmarks exist. Unknown how the API behaves under concurrent load.
   - Write Locust or k6 scripts for critical paths: place listing, place detail, search, check-in, and review submission. Run against a staging environment and document results.
 
-- [ ] **API versioning strategy**
+- [x] **API versioning strategy**
   - All endpoints are under `/api/v1/`. There is no plan for breaking changes.
   - Document the versioning policy: v1 is supported for 12 months after v2 launch. Breaking changes require a new version. Use URL-based versioning (`/api/v2/`).
 

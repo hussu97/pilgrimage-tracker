@@ -26,6 +26,8 @@ Current system: **Backend** (Python FastAPI in `server/`), **Web app** (Vite + R
 | `LATEST_APP_VERSION` | No | _(empty)_ | Current latest release (e.g. `1.2.0`) — returned by `GET /api/v1/app-version` |
 | `APP_STORE_URL_IOS` | No | _(empty)_ | App Store URL for iOS update link |
 | `APP_STORE_URL_ANDROID` | No | _(empty)_ | Play Store URL for Android update link |
+| `LOG_LEVEL` | No | `INFO` | Python logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `LOG_FORMAT` | No | `json` | `json` for structured JSON logs (production); `text` for human-readable (dev) |
 
 > **Note:** Version enforcement can also be configured per-platform via the `AppVersionConfig` DB table (editable at runtime without redeployment). DB values take priority over env vars.
 
@@ -49,6 +51,32 @@ Current system: **Backend** (Python FastAPI in `server/`), **Web app** (Vite + R
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `EXPO_PUBLIC_API_URL` | No | `http://127.0.0.1:3000` | API base URL for device/Expo Go |
+
+---
+
+## Observability
+
+### Prometheus Metrics
+
+The backend exposes a `GET /metrics` endpoint (added automatically by `prometheus-fastapi-instrumentator`).
+
+- In production, **restrict access** to `/metrics` via nginx or a firewall rule — allow only from your internal monitoring network.
+- Scrape with Prometheus; visualise with Grafana.
+- No additional env var is needed; the endpoint is enabled at startup.
+
+### GlitchTip Error Tracking
+
+[GlitchTip](https://glitchtip.com) is an open-source, self-hostable Sentry-compatible error tracker.
+
+1. Deploy a GlitchTip instance (Docker image: `glitchtip/glitchtip`).
+2. Create a project and obtain a DSN (e.g. `https://abc@glitchtip.example.com/1`).
+3. Set the DSN as `GLITCHTIP_DSN` in your backend env vars.
+4. When ready, install `sentry-sdk` and add the integration:
+   ```python
+   import sentry_sdk
+   from sentry_sdk.integrations.starlette import StarletteIntegration
+   sentry_sdk.init(dsn=os.environ["GLITCHTIP_DSN"], integrations=[StarletteIntegration()])
+   ```
 
 ---
 

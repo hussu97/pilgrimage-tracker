@@ -46,3 +46,7 @@ MIN_APP_VERSION_HARD = os.environ.get("MIN_APP_VERSION_HARD", "")
 LATEST_APP_VERSION = os.environ.get("LATEST_APP_VERSION", "")
 APP_STORE_URL_IOS = os.environ.get("APP_STORE_URL_IOS", "")
 APP_STORE_URL_ANDROID = os.environ.get("APP_STORE_URL_ANDROID", "")
+
+# Logging
+LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+LOG_FORMAT = os.environ.get("LOG_FORMAT", "json")  # "json" | "text"

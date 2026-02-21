@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 import traceback
 from contextlib import asynccontextmanager
 
@@ -9,10 +10,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
+# Set up structured logging immediately after loading env, before other imports.
+from app.core.logging_config import setup_logging  # noqa: E402
+
+setup_logging()
 logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI, Request, status  # noqa: E402
@@ -32,6 +33,12 @@ from app.core.client_context import (  # noqa: E402
     reset_client_context,
     set_client_context,
     version_meets_minimum,
+)
+from app.core.request_context import (  # noqa: E402
+    generate_request_id,
+    get_request_id,
+    reset_request_id,
+    set_request_id,
 )
 from app.db.seed import run_seed_system  # noqa: E402
 from app.db.session import run_migrations  # noqa: E402
@@ -129,6 +136,14 @@ app.add_middleware(
 )
 
 
+# ===== Middleware =====
+# Starlette applies middleware in reverse declaration order — last declared = outermost
+# (runs first on incoming request, last on outgoing response).
+#
+# Execution order (outermost → innermost):
+#   request_timing → api_version_header → request_id → hard_update → client_context → handler
+
+
 @app.middleware("http")
 async def client_context_middleware(request: Request, call_next):
     """Extract X-Content-Type / X-App-Type / X-Platform / X-App-Version headers
@@ -176,8 +191,57 @@ async def hard_update_middleware(request: Request, call_next):
     return await call_next(request)
 
 
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):
+    """Generate a UUID4 request ID, store it in a ContextVar, and attach it as
+    X-Request-ID to the response."""
+    rid = generate_request_id()
+    token = set_request_id(rid)
+    try:
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = rid
+        return response
+    finally:
+        reset_request_id(token)
+
+
+@app.middleware("http")
+async def api_version_header_middleware(request: Request, call_next):
+    """Attach X-API-Version: 1 to every response."""
+    response = await call_next(request)
+    response.headers["X-API-Version"] = "1"
+    return response
+
+
+@app.middleware("http")
+async def request_timing_middleware(request: Request, call_next):
+    """Log a structured access log entry for every request."""
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = round((time.perf_counter() - start) * 1000, 2)
+    logger.info(
+        "request_complete",
+        extra={
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": duration_ms,
+            "request_id": get_request_id(),
+        },
+    )
+    return response
+
+
 app.include_router(api_router)
 app.include_router(share_router_module.router, prefix="/share")
+
+# Prometheus metrics — exposes GET /metrics (excluded from OpenAPI schema)
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator
+
+    Instrumentator().instrument(app).expose(app, include_in_schema=False)
+except ImportError:
+    logger.warning("prometheus-fastapi-instrumentator not installed; /metrics endpoint disabled")
 
 
 # ===== Global Exception Handlers =====
@@ -188,6 +252,7 @@ def log_error(
 ):
     """Log error details via the logging module."""
     query = dict(request.query_params) if request.query_params else None
+    request_id = get_request_id()
     if status_code >= 500:
         logger.error(
             "%s (%d) — %s %s | query=%s | detail=%s | exc=%s\n%s",
@@ -199,6 +264,12 @@ def log_error(
             detail,
             f"{type(exc).__name__}: {exc}" if exc else None,
             traceback.format_exc() if exc else "",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": status_code,
+            },
         )
     else:
         logger.warning(
@@ -209,6 +280,12 @@ def log_error(
             request.url.path,
             query,
             detail,
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": status_code,
+            },
         )
 
 
@@ -301,4 +378,16 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    from sqlalchemy import text
+
+    from app.db.session import engine
+
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        db_status = "ok"
+    except Exception:
+        db_status = "error"
+
+    overall = "ok" if db_status == "ok" else "degraded"
+    return {"status": overall, "db": db_status}
