@@ -658,6 +658,19 @@ export async function deletePlaceNote(groupCode: string, noteCode: string): Prom
   if (!res.ok) throw new Error(data.detail ?? 'Failed to delete note');
 }
 
+export async function addPlaceToGroup(
+  groupCode: string,
+  placeCode: string,
+): Promise<{ ok: boolean; already_exists: boolean }> {
+  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/places/${placeCode}`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? 'Failed to add place to group');
+  return data;
+}
+
 export async function getNotifications(
   limit?: number,
   offset?: number,

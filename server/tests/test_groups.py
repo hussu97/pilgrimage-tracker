@@ -886,3 +886,81 @@ class TestPlaceNotes:
             headers=_auth_headers(token2),
         )
         assert resp.status_code == 403
+
+
+# ── TestAddPlaceToItinerary ────────────────────────────────────────────────────
+
+
+class TestAddPlaceToItinerary:
+    def test_member_can_add_place(self, client, db_session):
+        token, _ = _register_and_login(client, email="itin_member@example.com")
+        group = _create_group(client, token, name="Itinerary Group")
+        group_code = group["group_code"]
+        _make_place(db_session, "plc_itin001", "Itinerary Place")
+
+        resp = client.post(
+            f"/api/v1/groups/{group_code}/places/plc_itin001",
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ok"] is True
+        assert data["already_exists"] is False
+
+        # Confirm the group now contains the place
+        group_resp = client.get(f"/api/v1/groups/{group_code}", headers=_auth_headers(token))
+        assert "plc_itin001" in group_resp.json()["path_place_codes"]
+
+    def test_adding_duplicate_place_returns_already_exists(self, client, db_session):
+        token, _ = _register_and_login(client, email="itin_dup@example.com")
+        group = _create_group(client, token, name="Dup Group")
+        group_code = group["group_code"]
+        _make_place(db_session, "plc_itin002", "Dup Place")
+
+        # Add once
+        client.post(
+            f"/api/v1/groups/{group_code}/places/plc_itin002",
+            headers=_auth_headers(token),
+        )
+
+        # Add again — should return already_exists=true
+        resp = client.post(
+            f"/api/v1/groups/{group_code}/places/plc_itin002",
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 200
+        assert resp.json()["already_exists"] is True
+
+    def test_non_member_cannot_add_place(self, client, db_session):
+        token1, _ = _register_and_login(client, email="itin_owner@example.com")
+        token2, _ = _register_and_login(client, email="itin_other@example.com")
+        group = _create_group(client, token1, name="Member Only Group")
+        group_code = group["group_code"]
+        _make_place(db_session, "plc_itin003", "Member Only Place")
+
+        resp = client.post(
+            f"/api/v1/groups/{group_code}/places/plc_itin003",
+            headers=_auth_headers(token2),
+        )
+        assert resp.status_code == 403
+
+    def test_invalid_group_returns_404(self, client, db_session):
+        token, _ = _register_and_login(client, email="itin_404g@example.com")
+        _make_place(db_session, "plc_itin004", "404 Place")
+
+        resp = client.post(
+            "/api/v1/groups/grp_nonexistent/places/plc_itin004",
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404
+
+    def test_invalid_place_returns_404(self, client):
+        token, _ = _register_and_login(client, email="itin_404p@example.com")
+        group = _create_group(client, token, name="Bad Place Group")
+        group_code = group["group_code"]
+
+        resp = client.post(
+            f"/api/v1/groups/{group_code}/places/plc_nonexistent",
+            headers=_auth_headers(token),
+        )
+        assert resp.status_code == 404

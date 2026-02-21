@@ -535,6 +535,20 @@ def get_checklist(group_code: str, user: UserDep, session: SessionDep):
     }
 
 
+@router.post("/{group_code}/places/{place_code}")
+def add_place_to_itinerary(group_code: str, place_code: str, user: UserDep, session: SessionDep):
+    """Append a place to the group's itinerary. Any member can call this."""
+    g = groups_db.get_group_by_code(group_code, session)
+    if not g:
+        raise HTTPException(status_code=404, detail="Group not found")
+    if not groups_db.is_member(group_code, user.user_code, session):
+        raise HTTPException(status_code=403, detail="Not a member")
+    if not places_db.get_place_by_code(place_code, session):
+        raise HTTPException(status_code=404, detail="Place not found")
+    added = groups_db.add_place_to_itinerary(group_code, place_code, session)
+    return {"ok": True, "already_exists": not added}
+
+
 @router.get("/{group_code}/places/{place_code}/notes")
 def get_place_notes(group_code: str, place_code: str, user: UserDep, session: SessionDep):
     g = groups_db.get_group_by_code(group_code, session)

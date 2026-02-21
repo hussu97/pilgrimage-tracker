@@ -29,6 +29,7 @@ import SkeletonCard from '@/components/common/SkeletonCard';
 import HomeHeader from '@/components/places/HomeHeader';
 import SearchFilterBar from '@/components/places/SearchFilterBar';
 import UpdateBanner from '@/components/common/UpdateBanner';
+import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 import { buildMapHtml, formatDistance } from '@/lib/utils/mapBuilder';
 import { shareUrl, openDirections } from '@/lib/share';
 
@@ -363,6 +364,16 @@ function makeStyles(isDark: boolean) {
       borderRadius: 12,
     },
     sheetDirectionsText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+    sheetAddToItinerary: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: tokens.colors.primary,
+      paddingVertical: 14,
+      borderRadius: 12,
+    },
+    sheetAddToItineraryText: { color: tokens.colors.primary, fontSize: 13, fontWeight: '600' },
     sheetShare: {
       width: 48,
       backgroundColor: isDark ? tokens.colors.darkSurface : tokens.colors.blueTint,
@@ -408,6 +419,7 @@ export default function HomeScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [mapHtml, setMapHtml] = useState<string>('');
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+  const [addToGroupSheetPlace, setAddToGroupSheetPlace] = useState<Place | null>(null);
   const [visiblePlaceCodes, setVisiblePlaceCodes] = useState<Set<string>>(new Set());
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const panelAnim = useRef(new Animated.Value(0)).current;
@@ -729,7 +741,12 @@ export default function HomeScreen() {
                       </Text>
                     </TouchableOpacity>
                   )}
-                  contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 10 }}
+                  contentContainerStyle={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    gap: 10,
+                    paddingBottom: insets.bottom + 90,
+                  }}
                   showsHorizontalScrollIndicator={false}
                   ListEmptyComponent={
                     !loading ? (
@@ -774,7 +791,7 @@ export default function HomeScreen() {
                       <View style={styles.sheetThumb}>
                         {selectedPlace.images?.[0]?.url ? (
                           <Image
-                            source={{ uri: selectedPlace.images[0].url }}
+                            source={{ uri: getFullImageUrl(selectedPlace.images[0].url) }}
                             style={styles.sheetThumbImage}
                             resizeMode="cover"
                           />
@@ -806,12 +823,27 @@ export default function HomeScreen() {
                       </View>
                     </View>
                     <View style={styles.sheetActions}>
-                      <TouchableOpacity style={styles.sheetDirections} onPress={handleDirections}>
-                        <MaterialIcons name="directions" size={18} color="#fff" />
-                        <Text style={styles.sheetDirectionsText}>
-                          {t('placeDetail.directions')}
-                        </Text>
+                      <TouchableOpacity
+                        style={styles.sheetDirections}
+                        onPress={() => {
+                          setSelectedPlace(null);
+                          navigation.navigate('PlaceDetail', {
+                            placeCode: selectedPlace.place_code,
+                          });
+                        }}
+                      >
+                        <Text style={styles.sheetDirectionsText}>{t('map.viewDetails')}</Text>
                       </TouchableOpacity>
+                      {user && (
+                        <TouchableOpacity
+                          style={styles.sheetAddToItinerary}
+                          onPress={() => setAddToGroupSheetPlace(selectedPlace)}
+                        >
+                          <Text style={styles.sheetAddToItineraryText}>
+                            {t('map.addToItinerary')}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                       <TouchableOpacity
                         style={styles.sheetShare}
                         onPress={() =>
@@ -825,16 +857,6 @@ export default function HomeScreen() {
                         />
                       </TouchableOpacity>
                     </View>
-                    <TouchableOpacity
-                      style={styles.sheetDetail}
-                      onPress={() => {
-                        setSelectedPlace(null);
-                        navigation.navigate('PlaceDetail', { placeCode: selectedPlace.place_code });
-                      }}
-                    >
-                      <Text style={styles.sheetDetailText}>{t('places.detail')}</Text>
-                      <MaterialIcons name="chevron-right" size={16} color={tokens.colors.primary} />
-                    </TouchableOpacity>
                   </>
                 )}
               </Animated.View>
@@ -930,6 +952,14 @@ export default function HomeScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {addToGroupSheetPlace && (
+        <AddToGroupSheet
+          placeCode={addToGroupSheetPlace.place_code}
+          placeName={addToGroupSheetPlace.name}
+          onClose={() => setAddToGroupSheetPlace(null)}
+        />
+      )}
     </View>
   );
 }

@@ -23,6 +23,7 @@ import {
   addFavorite,
   removeFavorite,
   checkIn as doCheckIn,
+  getGroups,
 } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
 import { useAuth, useFeedback, useI18n, useTheme } from '@/app/providers';
@@ -41,6 +42,8 @@ import PlaceScorecardRow from '@/components/places/PlaceScorecardRow';
 import PlaceTimingsCarousel from '@/components/places/PlaceTimingsCarousel';
 import PlaceSpecificationsGrid from '@/components/places/PlaceSpecificationsGrid';
 import PlaceReviewsList from '@/components/places/PlaceReviewsList';
+import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
+import type { Group } from '@/lib/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>;
 type PlaceDetailRoute = RouteProp<RootStackParamList, 'PlaceDetail'>;
@@ -83,6 +86,8 @@ export default function PlaceDetailScreen() {
   const [storyOverflows, setStoryOverflows] = useState(false);
   const [hoursExpanded, setHoursExpanded] = useState(false);
   const [heroIdx, setHeroIdx] = useState(0);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [addToGroupOpen, setAddToGroupOpen] = useState(false);
   const heroScrollRef = useRef<ScrollView>(null);
   const [heroWidth, setHeroWidth] = useState(0);
 
@@ -142,6 +147,13 @@ export default function PlaceDetailScreen() {
   useEffect(() => {
     fetchPlace();
   }, [fetchPlace]);
+
+  useEffect(() => {
+    if (!user || !placeCode) return;
+    getGroups()
+      .then(setGroups)
+      .catch(() => setGroups([]));
+  }, [user, placeCode]);
 
   // Hero carousel auto-swipe
   useEffect(() => {
@@ -626,6 +638,71 @@ export default function PlaceDetailScreen() {
             <PlaceSpecificationsGrid specifications={specifications} t={t} isDark={isDark} />
           ) : null}
 
+          {/* Groups */}
+          {user && (
+            <View style={styles.groupsSection}>
+              <View style={styles.groupsSectionHeader}>
+                <Text style={styles.groupsSectionTitle}>{t('groups.groupsWithPlace')}</Text>
+                <TouchableOpacity onPress={() => setAddToGroupOpen(true)}>
+                  <Text style={styles.groupsAddMore}>{t('groups.addToMoreGroups')}</Text>
+                </TouchableOpacity>
+              </View>
+              {(() => {
+                const matchingGroups = groups.filter((g) =>
+                  g.path_place_codes?.includes(placeCode),
+                );
+                if (matchingGroups.length === 0) {
+                  return (
+                    <View style={styles.groupsEmpty}>
+                      <MaterialIcons
+                        name="group"
+                        size={32}
+                        color={isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted}
+                      />
+                      <Text style={styles.groupsEmptyText}>
+                        {groups.length === 0
+                          ? t('groups.noGroupsYetShort')
+                          : "This place isn't in any of your groups yet"}
+                      </Text>
+                      <TouchableOpacity onPress={() => setAddToGroupOpen(true)}>
+                        <Text style={styles.groupsAddMoreLink}>{t('groups.addPlace')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }
+                return (
+                  <View style={styles.groupsList}>
+                    {matchingGroups.map((g) => (
+                      <TouchableOpacity
+                        key={g.group_code}
+                        style={styles.groupCard}
+                        onPress={() =>
+                          navigation.navigate('GroupDetail', { groupCode: g.group_code })
+                        }
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.groupCardAvatar}>
+                          <MaterialIcons name="group" size={20} color={tokens.colors.primary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.groupCardName} numberOfLines={1}>
+                            {g.name}
+                          </Text>
+                          <Text style={styles.groupCardMeta}>{g.member_count ?? 0} members</Text>
+                        </View>
+                        <MaterialIcons
+                          name="chevron-right"
+                          size={18}
+                          color={isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted}
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                );
+              })()}
+            </View>
+          )}
+
           {/* Reviews */}
           <PlaceReviewsList
             placeCode={placeCode}
@@ -654,6 +731,14 @@ export default function PlaceDetailScreen() {
       >
         {renderCheckInBtn()}
       </View>
+
+      {addToGroupOpen && place && (
+        <AddToGroupSheet
+          placeCode={placeCode}
+          placeName={place.name}
+          onClose={() => setAddToGroupOpen(false)}
+        />
+      )}
     </View>
   );
 }
@@ -1126,6 +1211,73 @@ function makeStyles(isDark: boolean) {
       fontSize: 13,
       fontWeight: '600',
       color: '#059669',
+    },
+    // Groups section
+    groupsSection: {
+      marginTop: 24,
+      paddingHorizontal: 20,
+    },
+    groupsSectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 12,
+    },
+    groupsSectionTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: isDark ? '#ffffff' : tokens.colors.textDark,
+    },
+    groupsAddMore: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: tokens.colors.primary,
+    },
+    groupsEmpty: {
+      alignItems: 'center',
+      paddingVertical: 24,
+      backgroundColor: isDark ? tokens.colors.darkSurface : '#F8FAFC',
+      borderRadius: 16,
+      gap: 8,
+    },
+    groupsEmptyText: {
+      fontSize: 13,
+      color: isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted,
+      textAlign: 'center',
+    },
+    groupsAddMoreLink: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: tokens.colors.primary,
+    },
+    groupsList: { gap: 8 },
+    groupCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 12,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: isDark ? tokens.colors.darkBorder : 'rgba(0,0,0,0.06)',
+      backgroundColor: isDark ? tokens.colors.darkSurface : '#ffffff',
+    },
+    groupCardAvatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.08)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    groupCardName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: isDark ? '#ffffff' : tokens.colors.textDark,
+    },
+    groupCardMeta: {
+      fontSize: 12,
+      color: isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted,
+      marginTop: 2,
     },
   }); // end StyleSheet.create
 } // end makeStyles

@@ -9,6 +9,7 @@ import {
   removeFavorite,
   deleteReview,
   checkIn as doCheckIn_api,
+  getGroups,
 } from '@/lib/api/client';
 import type {
   PlaceDetail as PlaceDetailType,
@@ -16,6 +17,8 @@ import type {
   PlaceTiming,
   PlaceSpecification,
 } from '@/lib/types';
+import type { Group } from '@/lib/types';
+import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 import { useAuth, useTheme } from '@/app/providers';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import { SharePlaceButton } from '@/components/places';
@@ -236,6 +239,9 @@ export default function PlaceDetail() {
   const [storyExpanded, setStoryExpanded] = useState(false);
   const [storyOverflowsMobile, setStoryOverflowsMobile] = useState(false);
   const [storyOverflowsDesktop, setStoryOverflowsDesktop] = useState(false);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [addToGroupOpen, setAddToGroupOpen] = useState(false);
   const storyRefMobile = useRef<HTMLParagraphElement>(null);
   const storyRefDesktop = useRef<HTMLParagraphElement>(null);
   const [headerVisible, setHeaderVisible] = useState(false);
@@ -327,6 +333,15 @@ export default function PlaceDetail() {
   useEffect(() => {
     fetchPlace();
   }, [fetchPlace]);
+
+  useEffect(() => {
+    if (!user || !placeCode) return;
+    setGroupsLoading(true);
+    getGroups()
+      .then(setGroups)
+      .catch(() => setGroups([]))
+      .finally(() => setGroupsLoading(false));
+  }, [user, placeCode]);
 
   const doToggleFavorite = useCallback(async () => {
     if (!placeCode || !place) return;
@@ -898,6 +913,87 @@ export default function PlaceDetail() {
               <PlaceSpecificationsGrid specifications={specifications} t={t} />
             )}
 
+            {/* Groups */}
+            {user && (
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                    {t('groups.groupsWithPlace')}
+                  </h2>
+                  <button
+                    onClick={() => setAddToGroupOpen(true)}
+                    className="text-sm font-semibold text-primary hover:underline"
+                  >
+                    {t('groups.addToMoreGroups')}
+                  </button>
+                </div>
+                {groupsLoading ? (
+                  <div className="h-12 flex items-center">
+                    <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : (
+                  (() => {
+                    const matchingGroups = groups.filter((g) =>
+                      g.path_place_codes?.includes(place.place_code),
+                    );
+                    if (matchingGroups.length === 0) {
+                      return (
+                        <div className="flex flex-col items-center py-6 text-center bg-slate-50 dark:bg-dark-surface rounded-2xl border border-slate-100 dark:border-dark-border">
+                          <span className="material-symbols-outlined text-4xl text-slate-300 mb-2">
+                            group
+                          </span>
+                          <p className="text-sm text-slate-500 dark:text-dark-text-secondary mb-3">
+                            {groups.length === 0
+                              ? t('groups.noGroupsYetShort')
+                              : "This place isn't in any of your groups yet"}
+                          </p>
+                          <button
+                            onClick={() => setAddToGroupOpen(true)}
+                            className="text-sm font-semibold text-primary hover:underline"
+                          >
+                            {t('groups.addPlace')}
+                          </button>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {matchingGroups.map((g) => (
+                          <Link
+                            key={g.group_code}
+                            to={`/groups/${g.group_code}`}
+                            className="flex items-center gap-3 p-3 rounded-2xl border border-slate-100 dark:border-dark-border hover:border-primary bg-white dark:bg-dark-surface transition-colors"
+                          >
+                            {g.cover_image_url ? (
+                              <img
+                                src={g.cover_image_url}
+                                alt=""
+                                className="w-10 h-10 rounded-xl object-cover shrink-0"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                                <span className="material-symbols-outlined text-primary text-xl">
+                                  group
+                                </span>
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-semibold text-slate-900 dark:text-white text-sm truncate">
+                                {g.name}
+                              </p>
+                              <p className="text-xs text-slate-400 dark:text-dark-text-secondary">
+                                {g.member_count ?? 0} members
+                              </p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    );
+                  })()
+                )}
+              </section>
+            )}
+
             {/* Reviews */}
             <section>
               <ReviewsSection
@@ -917,6 +1013,15 @@ export default function PlaceDetail() {
           </div>
         </div>
       </div>
+
+      {addToGroupOpen && place && (
+        <AddToGroupSheet
+          placeCode={place.place_code}
+          placeName={place.name}
+          onClose={() => setAddToGroupOpen(false)}
+          t={t}
+        />
+      )}
     </div>
   );
 }

@@ -220,6 +220,24 @@ def get_member(group_code: str, user_code: str, session: Session) -> GroupMember
     ).first()
 
 
+def add_place_to_itinerary(group_code: str, place_code: str, session: Session) -> bool:
+    """Append place_code to path_place_codes if not present. Returns True if added."""
+    from datetime import UTC, datetime
+
+    group = get_group_by_code(group_code, session)
+    if not group:
+        return False
+    path = list(group.path_place_codes or [])
+    if place_code in path:
+        return False
+    path.append(place_code)
+    group.path_place_codes = path
+    group.updated_at = datetime.now(UTC)
+    session.add(group)
+    session.commit()
+    return True
+
+
 def delete_group(group_code: str, session: Session) -> bool:
     group = get_group_by_code(group_code, session)
     if not group:
