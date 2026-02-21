@@ -118,15 +118,11 @@ function makeStyles(isDark: boolean) {
       paddingVertical: 10,
       alignItems: 'center',
       borderRadius: 10,
-      flexDirection: 'row',
       justifyContent: 'center',
-      gap: 4,
     },
     tabActive: {
       backgroundColor: isDark ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.08)',
     },
-    tabText: { fontSize: 12, fontWeight: '600', color: textMuted },
-    tabTextActive: { color: tokens.colors.primary },
     tabDivider: { height: 1, backgroundColor: border },
 
     // Tab content
@@ -831,9 +827,6 @@ export default function GroupDetailScreen() {
                       : tokens.colors.textMuted
                 }
               />
-              <Text style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}>
-                {tab.label}
-              </Text>
             </TouchableOpacity>
           ))}
         </View>
