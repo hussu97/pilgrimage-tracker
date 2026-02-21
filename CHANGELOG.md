@@ -4,6 +4,35 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Add-to-Itinerary Flow + Map View Improvements (2026-02-21)
+
+### Backend
+- **New endpoint `POST /groups/{group_code}/places/{place_code}`** — lets any group member atomically append a place to the group's itinerary; returns `{ok, already_exists}`
+- **`add_place_to_itinerary()` DB helper** — deduplicating append with `updated_at` bump
+- **5 new backend tests** covering member add, duplicate, non-member 403, invalid group/place 404
+
+### Frontend (web)
+- **PlaceMapView**: fixed bottom card spacing; replaced bare share icon with `SharePlaceButton`; replaced single "Detail" link with two CTAs: **"View Details"** (always) + **"Add to Itinerary"** (logged-in only)
+- **New `AddToGroupSheet`** bottom overlay: multi-select group list, already-in badges, create-group empty state, calls `addPlaceToGroup()` on submit
+- **PlaceDetail**: added **Groups section** between Specifications and Reviews (visible when logged in): shows matching groups as cards, "Add to More Groups" button, empty state
+- **`addPlaceToGroup()` API client function** added
+
+### Frontend (mobile)
+- **HomeScreen**: fixed image bug (was using raw URL, now uses `getFullImageUrl`); replaced "Directions" CTA with **"View Details"** (primary) + **"Add to Itinerary"** (secondary, logged-in only); fixed carousel bottom padding to clear tab bar
+- **PlaceDetailScreen**: added same **Groups section** adapted for React Native with `makeStyles(isDark)` tokens
+- **New `AddToGroupSheet`** mobile component: slide-up Modal animation pattern from AuthBottomSheet, same logic as web
+
+### i18n
+- Added 9 new translation keys (en/ar/hi): `map.viewDetails`, `map.addToItinerary`, `groups.selectGroups`, `groups.addPlace`, `groups.placeAdded`, `groups.placeAlreadyAdded`, `groups.noGroupsYetShort`, `groups.groupsWithPlace`, `groups.addToMoreGroups`
+
+### Tests
+- **Backend**: 63 tests pass (`TestAddPlaceToItinerary` class with 5 cases)
+- **Web**: 102 Vitest tests pass (new `addToGroup.test.ts` with 4 cases)
+- **Mobile**: 4 Jest tests pass (new `addToGroup.test.ts`)
+- Web TypeScript typecheck: clean
+
+---
+
 ## Data Scraper: Wikipedia Search Relevance Validation (2026-02-21)
 
 ### Backend (data_scraper)
