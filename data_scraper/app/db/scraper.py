@@ -137,7 +137,11 @@ def sync_run_to_server(run_code: str, server_url: str):
                     "address": data.get("address"),
                     "opening_hours": data.get("opening_hours"),
                     "utc_offset_minutes": data.get("utc_offset_minutes"),
-                    "image_urls": data.get("image_urls") or [],
+                    # Server rejects payloads with both fields populated.
+                    # Prefer image_blobs (self-contained) over image_urls when both exist.
+                    "image_urls": []
+                    if (data.get("image_blobs") or [])
+                    else (data.get("image_urls") or []),
                     "image_blobs": data.get("image_blobs") or [],
                     "description": data.get("description"),
                     "website_url": data.get("website_url"),
