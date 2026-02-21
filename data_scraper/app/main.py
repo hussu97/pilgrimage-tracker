@@ -11,7 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api.v1 import api_router
 from app.db.seed_geo import seed_geo_boundaries
 from app.db.seed_place_types import seed_place_type_mappings
-from app.db.session import create_db_and_tables, engine
+from app.db.session import engine, run_migrations
 
 load_dotenv()
 
@@ -20,7 +20,7 @@ app = FastAPI(title="Pilgrimage Data Scraper API")
 
 @app.on_event("startup")
 def on_startup():
-    create_db_and_tables()
+    run_migrations()
     with Session(engine) as session:
         seed_geo_boundaries(session)
         seed_place_type_mappings(session)

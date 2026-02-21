@@ -67,7 +67,7 @@ def client(test_engine):
     app.dependency_overrides[get_db_session] = override_get_db
 
     with (
-        patch("app.main.create_db_and_tables"),
+        patch("app.main.run_migrations"),
         patch("app.main.seed_geo_boundaries"),
         patch("app.main.seed_place_type_mappings"),
     ):
@@ -95,7 +95,7 @@ def error_client(test_engine):
     app.dependency_overrides[get_db_session] = override_get_db
 
     with (
-        patch("app.main.create_db_and_tables"),
+        patch("app.main.run_migrations"),
         patch("app.main.seed_geo_boundaries"),
         patch("app.main.seed_place_type_mappings"),
     ):

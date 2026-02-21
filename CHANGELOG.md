@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Data Scraper: Add Alembic Migrations (2026-02-21)
+
+### Backend (data_scraper)
+- **Added Alembic migration support** — Mirrors the `server/` pattern: `alembic.ini`, `migrations/env.py`, `run_migrations()` in `session.py`
+- **Initial migration `0001_initial`** — Creates all 6 tables (`datalocation`, `scraperrun`, `scrapedplace`, `rawcollectordata`, `geoboundary`, `placetypemapping`) including the new enrichment columns
+- **Bootstrap stamp logic** — Existing DBs created via `create_all()` are auto-stamped to head so Alembic doesn't try to re-create tables
+- **Startup uses `run_migrations()`** — Replaces `create_db_and_tables()` in `on_startup()`, ensuring schema changes are applied automatically
+
+---
+
 ## Data Scraper Restructuring: Multi-Source Enrichment Architecture (2026-02-21)
 
 ### Backend (data_scraper)
