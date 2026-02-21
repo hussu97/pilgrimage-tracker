@@ -8,6 +8,7 @@ from app.api.v1 import (
     notifications,
     places,
     reviews,
+    search,
     users,
     visitors,
 )
@@ -22,3 +23,4 @@ api_router.include_router(reviews.router, prefix="/reviews", tags=["reviews"])
 api_router.include_router(groups.router, prefix="/groups", tags=["groups"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(visitors.router, prefix="/visitors", tags=["visitors"])
+api_router.include_router(search.router, prefix="/search", tags=["search"])
