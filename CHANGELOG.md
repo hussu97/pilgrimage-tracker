@@ -4,6 +4,15 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## i18n: Add Malayalam Language Support (2026-02-22)
+
+### Backend
+- Added `ml` (Malayalam / മലയാളം) to the `languages` list in `server/app/db/seed_data.json`
+- Provided full Malayalam translations for all 490 keys across all namespaces (`auth`, `nav`, `settings`, `common`, `home`, `profile`, `places`, `placeDetail`, `groups`, `notifications`, `journey`, `search`, `writeReview`, `reviews`, `feedback`, `map`, `update`, `splash`, `selectPath`, `checkins`, `visitor`, `register`)
+- Malayalam is a non-RTL language; no layout direction changes required
+
+---
+
 ## Map View: Place List Panel / Bottom Sheet (2026-02-22)
 
 ### Frontend (web)
