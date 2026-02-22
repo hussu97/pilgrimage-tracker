@@ -4,6 +4,16 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { LoginPage } from "./pages/LoginPage";
 import { AccessDeniedPage } from "./pages/AccessDeniedPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { UsersListPage } from "./pages/users/UsersListPage";
+import { UserDetailPage } from "./pages/users/UserDetailPage";
+import { PlacesListPage } from "./pages/places/PlacesListPage";
+import { PlaceDetailPage } from "./pages/places/PlaceDetailPage";
+import { CreatePlacePage } from "./pages/places/CreatePlacePage";
+import { ReviewsListPage } from "./pages/reviews/ReviewsListPage";
+import { ReviewDetailPage } from "./pages/reviews/ReviewDetailPage";
+import { CheckInsListPage } from "./pages/check-ins/CheckInsListPage";
+import { GroupsListPage } from "./pages/groups/GroupsListPage";
+import { GroupDetailPage } from "./pages/groups/GroupDetailPage";
 
 /** Redirect to /login if not authenticated. */
 function RequireAuth() {
@@ -35,7 +45,21 @@ export const routes = [
             element: <AdminLayout />,
             children: [
               { path: "/", element: <DashboardPage /> },
-              // Phase 2+ routes will be added here
+              // Users
+              { path: "/users", element: <UsersListPage /> },
+              { path: "/users/:userCode", element: <UserDetailPage /> },
+              // Places
+              { path: "/places", element: <PlacesListPage /> },
+              { path: "/places/new", element: <CreatePlacePage /> },
+              { path: "/places/:placeCode", element: <PlaceDetailPage /> },
+              // Reviews
+              { path: "/reviews", element: <ReviewsListPage /> },
+              { path: "/reviews/:reviewCode", element: <ReviewDetailPage /> },
+              // Check-ins
+              { path: "/check-ins", element: <CheckInsListPage /> },
+              // Groups
+              { path: "/groups", element: <GroupsListPage /> },
+              { path: "/groups/:groupCode", element: <GroupDetailPage /> },
             ],
           },
         ],
