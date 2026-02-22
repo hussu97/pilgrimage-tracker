@@ -75,9 +75,9 @@ def _send_reset_email(to_email: str, reset_token: str) -> None:
             {
                 "from": RESEND_FROM_EMAIL,
                 "to": [to_email],
-                "subject": "Reset your Pilgrimage Tracker password",
+                "subject": "Reset your SoulStep password",
                 "html": (
-                    "<p>You requested a password reset for your Pilgrimage Tracker account.</p>"
+                    "<p>You requested a password reset for your SoulStep account.</p>"
                     f"<p><a href='{reset_link}'>Click here to reset your password</a></p>"
                     "<p>This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>"
                 ),

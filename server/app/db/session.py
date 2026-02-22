@@ -5,7 +5,7 @@ from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine
 
 # Use DATABASE_URL from environment or fallback to local sqlite
-sqlite_file_name = "pilgrimage.db"
+sqlite_file_name = "soulstep.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 database_url = os.environ.get("DATABASE_URL", sqlite_url)
 

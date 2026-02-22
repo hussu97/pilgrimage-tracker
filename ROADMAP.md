@@ -1,6 +1,6 @@
 # Roadmap
 
-This document tracks all planned features, improvements, and fixes across the pilgrimage-tracker monorepo. Items are organized by priority tier (P0 through P3) and category. Check off items as they are completed.
+This document tracks all planned features, improvements, and fixes across the soulstep monorepo. Items are organized by priority tier (P0 through P3) and category. Check off items as they are completed.
 
 ---
 

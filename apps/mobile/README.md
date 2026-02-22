@@ -1,6 +1,6 @@
-# Pilgrimage Tracker – Mobile app (Expo)
+# SoulStep – Mobile app (Expo)
 
-Expo (React Native) app for Pilgrimage Tracker. Builds for iOS and Android. Uses the same API as the web app; feature parity with `apps/web` is maintained (see `.cursor/rules/frontend-replication.mdc`).
+Expo (React Native) app for SoulStep. Builds for iOS and Android. Uses the same API as the web app; feature parity with `apps/web` is maintained (see `.cursor/rules/frontend-replication.mdc`).
 
 ## Prerequisites
 

@@ -104,11 +104,11 @@ _OPENAPI_TAGS = [
 ]
 
 app = FastAPI(
-    title="Pilgrimage Tracker API",
+    title="SoulStep Catalog API",
     version="1.0.0",
     description=(
-        "REST API for the Pilgrimage Tracker application. "
-        "Supports discovering pilgrimage sites across religions (Islam, Christianity, Hinduism, and more), "
+        "REST API for the SoulStep application. "
+        "Supports discovering sacred sites across religions (Islam, Christianity, Hinduism, and more), "
         "check-ins, reviews, social groups, favorites, and multi-language UI translations.\n\n"
         "## Authentication\n"
         "Most endpoints require a **Bearer token** obtained from `POST /api/v1/auth/login` or "

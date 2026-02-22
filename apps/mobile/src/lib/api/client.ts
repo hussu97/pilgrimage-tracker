@@ -1,5 +1,5 @@
 /**
- * API client for Pilgrimage Tracker. Uses EXPO_PUBLIC_API_URL for base URL.
+ * API client for SoulStep. Uses EXPO_PUBLIC_API_URL for base URL.
  * When unset, defaults to 127.0.0.1:3000 so the simulator can reach the backend.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';

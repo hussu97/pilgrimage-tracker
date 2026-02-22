@@ -1,4 +1,4 @@
-# Pilgrimage Tracker
+# SoulStep
 
 Discover, visit, and track religious places. Multi-platform: desktop web, mobile web, and (via Expo) iOS/Android.
 

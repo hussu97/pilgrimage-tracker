@@ -2,13 +2,13 @@ services:
   db:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: pilgrimage
-      POSTGRES_USER: pilgrimage
+      POSTGRES_DB: soulstep
+      POSTGRES_USER: soulstep
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pilgrimage"]
+      test: ["CMD-SHELL", "pg_isready -U soulstep"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -19,13 +19,13 @@ services:
       context: ./server
       dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgresql://pilgrimage:${POSTGRES_PASSWORD:-changeme}@db:5432/pilgrimage
+      DATABASE_URL: postgresql://soulstep:${POSTGRES_PASSWORD:-changeme}@db:5432/soulstep
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
       JWT_EXPIRE: ${JWT_EXPIRE:-30m}
       REFRESH_EXPIRE: ${REFRESH_EXPIRE:-30d}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
-      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@pilgrimage-tracker.app}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@soulstep-tracker.app}
       RESET_URL_BASE: ${RESET_URL_BASE:-http://localhost}
     ports:
       - "${API_PORT:-3000}:3000"

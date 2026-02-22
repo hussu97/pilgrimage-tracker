@@ -1,1 +1,1 @@
-# Pilgrimage Tracker API
+# SoulStep Catalog API

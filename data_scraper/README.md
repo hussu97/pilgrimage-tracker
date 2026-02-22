@@ -8,7 +8,7 @@ A FastAPI service that discovers pilgrimage sites via Google Maps, enriches them
 - **Multi-Source Enrichment**: Collectors for OSM, Wikipedia, Wikidata, Knowledge Graph, BestTime, Foursquare, Outscraper
 - **Quality Assessment**: Heuristic scoring of descriptions with optional LLM tie-breaking
 - **Data Merging**: Priority-based conflict resolution across all sources
-- **Sync**: Push enriched data with attributes to the main Pilgrimage Tracker server
+- **Sync**: Push enriched data with attributes to the main SoulStep server
 
 ## Setup
 

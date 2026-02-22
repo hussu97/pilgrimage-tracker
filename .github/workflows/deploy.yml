@@ -13,8 +13,8 @@ env:
   PROJECT_ID: project-fa2d7f52-2bc4-4a46-8ae
   PROJECT_NUMBER: "834941457147"
   REGISTRY: europe-west1-docker.pkg.dev
-  REPO: pilgrimage
-  API_SERVICE: pilgrimage-api
+  REPO: soulstep
+  API_SERVICE: soulstep-catalog-api
   SA_EMAIL: github-deploy@project-fa2d7f52-2bc4-4a46-8ae.iam.gserviceaccount.com
   WIF_PROVIDER: projects/834941457147/locations/global/workloadIdentityPools/github-pool/providers/github-provider
 

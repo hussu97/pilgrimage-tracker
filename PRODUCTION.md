@@ -1,6 +1,6 @@
 # Production Deployment Plans
 
-This document outlines how to deploy Pilgrimage Tracker to production. **Update the relevant plan(s) whenever deployment-relevant changes are made** (e.g. new env vars, new services, build steps).
+This document outlines how to deploy SoulStep to production. **Update the relevant plan(s) whenever deployment-relevant changes are made** (e.g. new env vars, new services, build steps).
 
 Current system: **Backend** (Python FastAPI in `server/`), **Web app** (Vite + React in `apps/web/`), **Mobile app** (Expo / React Native in `apps/mobile/`), optional **Data Scraper** (`data_scraper/`). API is versioned at `/api/v1`. For production, set `DATABASE_URL` to a PostgreSQL connection string (dev uses SQLite by default).
 
@@ -15,11 +15,11 @@ Current system: **Backend** (Python FastAPI in `server/`), **Web app** (Vite + R
 | `JWT_SECRET` | **Yes** | `dev-secret-change-in-production` | JWT signing secret — always override in prod |
 | `JWT_EXPIRE` | No | `30m` | Access token lifetime. Supports `30m`, `1h`, `7d`, or integer minutes |
 | `REFRESH_EXPIRE` | No | `30d` | Refresh token lifetime. Same format as `JWT_EXPIRE` |
-| `DATABASE_URL` | **Yes (prod)** | `sqlite:///pilgrimage.db` | PostgreSQL connection string for production |
+| `DATABASE_URL` | **Yes (prod)** | `sqlite:///soulstep.db` | PostgreSQL connection string for production |
 | `CORS_ORIGINS` | No | `http://localhost:5173 http://127.0.0.1:5173` | **Space-separated** list of allowed origins (not comma-separated) |
 | `PORT` | No | `3000` | Server port — Dockerfile uses `${PORT:-3000}` |
 | `RESEND_API_KEY` | No | _(empty)_ | Resend.com API key for password-reset emails |
-| `RESEND_FROM_EMAIL` | No | `noreply@pilgrimage-tracker.app` | From address for transactional emails |
+| `RESEND_FROM_EMAIL` | No | `noreply@soulstep.app` | From address for transactional emails |
 | `RESET_URL_BASE` | No | `http://localhost:5173` | Frontend base URL for password-reset links |
 | `MIN_APP_VERSION_SOFT` | No | _(empty)_ | Semver (e.g. `1.1.0`) — mobile clients below this see a soft-update banner. Empty = disabled |
 | `MIN_APP_VERSION_HARD` | No | _(empty)_ | Semver (e.g. `1.0.0`) — mobile clients below this are blocked with HTTP 426. Empty = disabled |
@@ -130,7 +130,7 @@ CORS_ORIGINS=http://localhost        # space-separated; add web domain
 JWT_EXPIRE=30m
 REFRESH_EXPIRE=30d
 RESEND_API_KEY=
-RESEND_FROM_EMAIL=noreply@pilgrimage-tracker.app
+RESEND_FROM_EMAIL=noreply@soulstep.app
 RESET_URL_BASE=http://localhost
 GOOGLE_MAPS_API_KEY=
 SCRAPER_TIMEZONE=UTC
@@ -195,7 +195,7 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
 > **Why Neon over Render Postgres?** Render's free Postgres expires after 90 days. Neon's free tier doesn't expire and gives you 0.5 GB storage.
 
 1. Go to [neon.tech](https://neon.tech) → **Sign up** (GitHub login works).
-2. Click **New Project** → give it a name (e.g. `pilgrimage-tracker`).
+2. Click **New Project** → give it a name (e.g. `soulstep`).
 3. Choose region closest to your Render region (e.g. `us-east-1`).
 4. Click **Create Project**.
 5. On the project dashboard, click **Connection string** → choose **Pooled connection** (psycopg2-compatible).
@@ -212,7 +212,7 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
 ### Step 2 — Deploy the Backend API on Render
 
 1. Go to [render.com](https://render.com) → **New** → **Web Service**.
-2. Connect your GitHub account and select the `pilgrimage-tracker` repo.
+2. Connect your GitHub account and select the `soulstep` repo.
 3. Fill in the service settings:
 
    | Setting | Value |
@@ -257,7 +257,7 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
 
 ### Step 4 — Deploy the Web Frontend on Vercel
 
-1. Go to [vercel.com](https://vercel.com) → **Add New Project** → import the `pilgrimage-tracker` repo.
+1. Go to [vercel.com](https://vercel.com) → **Add New Project** → import the `soulstep` repo.
 2. On the **Configure Project** screen:
 
    | Setting | Value |
@@ -273,7 +273,7 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
    |---|---|
    | `VITE_API_URL` | `https://pilgrimage-api.onrender.com` (your Render API URL from Step 2) |
 
-4. Click **Deploy**. Once deployed, copy your Vercel URL (e.g. `https://pilgrimage-tracker.vercel.app`).
+4. Click **Deploy**. Once deployed, copy your Vercel URL (e.g. `https://soulstep.vercel.app`).
 5. **Go back to Render** → your API service → **Environment** tab → update `CORS_ORIGINS` and `RESET_URL_BASE` to your Vercel URL, then **Save** (Render will redeploy automatically).
 
 > **VITE_API_URL is baked in at build time.** If you ever change the API URL, update this env var in Vercel and redeploy.
@@ -448,7 +448,7 @@ Throughout this section, replace:
 
 3. **Create a GCP project** (skip if you have one):
    ```bash
-   gcloud projects create PROJECT_ID --name="Pilgrimage Tracker"
+   gcloud projects create PROJECT_ID --name="SoulStep"
    gcloud config set project PROJECT_ID
    ```
 
@@ -478,7 +478,7 @@ Docker images need a registry before Cloud Run can pull them.
 gcloud artifacts repositories create pilgrimage \
   --repository-format=docker \
   --location=REGION \
-  --description="Pilgrimage Tracker images"
+  --description="SoulStep images"
 ```
 
 Your image prefix will be: `REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/`

@@ -1,6 +1,6 @@
-# Pilgrimage Tracker – Web app
+# SoulStep – Web app
 
-Vite + React + TypeScript + Tailwind frontend for Pilgrimage Tracker. **All functionality lives in this folder** (`apps/web`): pages, API client, types, and context. It runs in desktop and mobile browsers and talks to the backend API (same contract as the Expo mobile app; see repo root for architecture).
+Vite + React + TypeScript + Tailwind frontend for SoulStep. **All functionality lives in this folder** (`apps/web`): pages, API client, types, and context. It runs in desktop and mobile browsers and talks to the backend API (same contract as the Expo mobile app; see repo root for architecture).
 
 ## Prerequisites
 

@@ -24,8 +24,8 @@ export const ROUTES = {
   NOTIFICATIONS: 'Notifications',
 } as const;
 
-export const LOCALE_STORAGE_KEY = 'pilgrimage-locale';
-export const THEME_STORAGE_KEY = 'pilgrimage-theme';
+export const LOCALE_STORAGE_KEY = 'soulstep-locale';
+export const THEME_STORAGE_KEY = 'soulstep-theme';
 export const TOKEN_KEY = 'token';
 export const USER_KEY = 'user';
 export const VISITOR_KEY = 'visitor_code';

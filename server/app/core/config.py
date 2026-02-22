@@ -33,7 +33,7 @@ ALGORITHM = "HS256"
 
 # Resend.com email integration
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "noreply@pilgrimage-tracker.app")
+RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "noreply@soulstep.app")
 RESET_URL_BASE = os.environ.get("RESET_URL_BASE", "http://localhost:5173")
 
 # Frontend URL (for OG share redirect)

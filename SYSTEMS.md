@@ -1,4 +1,4 @@
-# SYSTEMS.md - Pilgrimage Tracker
+# SYSTEMS.md - SoulStep
 
 Complete reference for all systems, features, and components in the repository.
 

@@ -24,7 +24,7 @@ git commit --author="Hussain Abbasi <h_abbasi97@hotmail.com>" -m "..."
 The `Co-Authored-By` trailer for Claude should still be included in the commit body.
 
 ## 5. Design File Inspiration
-For any frontend UI/UX changes in `apps/web` or `apps/mobile`, use **FRONTEND_REWAMP_LIGHT.html** (light mode) and **FRONTEND_REWAMP_DARK.html** (dark mode) as the primary visual and layout reference. Align structure, spacing, typography (Lexend), colors, and icons (Material Icons/Symbols) with the design.
+For any frontend UI/UX changes in `apps/web` or `apps/mobile`, use **FRONTEND_V3_LIGHT.html** (light mode) and **FRONTEND_V3_DARK.html** (dark mode) as the primary visual and layout reference. Align structure, spacing, typography (Lexend), colors, and icons (Material Icons/Symbols) with the design.
 
 ## 6. README Maintenance
 Keep the following READMEs accurate and up to date:

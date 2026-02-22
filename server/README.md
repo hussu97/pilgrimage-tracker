@@ -1,6 +1,6 @@
-# Pilgrimage Tracker API (Python + FastAPI)
+# SoulStep API (Python + FastAPI)
 
-Backend for Pilgrimage Tracker. Versioned API at `/api/v1`. **Python 3.11+** required. On macOS, use `brew install python@3.12` (or latest) then create the venv with `python3 -m venv .venv`.
+Backend for SoulStep. Versioned API at `/api/v1`. **Python 3.11+** required. On macOS, use `brew install python@3.12` (or latest) then create the venv with `python3 -m venv .venv`.
 
 ## Run
 
@@ -68,7 +68,7 @@ alembic history
 
 ## Seed data
 
-The server uses **SQLModel** with a persistent **SQLite database** (`pilgrimage.db`). Data is loaded from a **central seed file** on startup:
+The server uses **SQLModel** with a persistent **SQLite database** (`soulstep.db`). Data is loaded from a **central seed file** on startup:
 
 - **File:** `app/db/seed_data.json` (relative to `server/`). It contains `languages`, `translations` (en, ar, hi), and sample data for all stores.
 - **Runner:** `app/db/seed.py` — `run_seed(seed_path)` drops all tables, rebuilds schema via `alembic upgrade head`, then populates the database from the JSON. It is invoked automatically on app startup when `seed_data.json` is present (dev only — no-op in production).
@@ -102,7 +102,7 @@ By using SQLModel, we maintain Pydantic-like schemas for the API while gaining f
 
 - `JWT_SECRET` — secret for JWT (default: dev secret)
 - `PORT` — port (default: 3000)
-- `DATABASE_URL` — (optional for production) PostgreSQL connection string; when unset, SQLite (`pilgrimage.db`) is used for dev.
+- `DATABASE_URL` — (optional for production) PostgreSQL connection string; when unset, SQLite (`soulstep.db`) is used for dev.
 - `GOOGLE_MAPS_API_KEY` — (optional, for scraper) Google Maps API key for `data_scraper/gmaps.py`. Not required for server operation, only for running the scraper to discover new places.
 
 For production deployment options, see [PRODUCTION.md](../PRODUCTION.md) at repo root.
