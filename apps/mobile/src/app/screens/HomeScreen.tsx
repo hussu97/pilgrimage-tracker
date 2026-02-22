@@ -447,16 +447,6 @@ export default function HomeScreen() {
     fetchPlaces();
   }, [fetchPlaces]);
 
-  // Snap sheet back to peek whenever the visible set refreshes to a new non-empty batch
-  const prevVisibleCount = useRef(0);
-  useEffect(() => {
-    if (visiblePlaces.length > 0 && prevVisibleCount.current === 0) {
-      sheetHeightAnim.setValue(SHEET_PEEK);
-      gestureStartH.current = SHEET_PEEK;
-    }
-    prevVisibleCount.current = visiblePlaces.length;
-  }, [visiblePlaces.length, sheetHeightAnim]);
-
   const handleWebViewMessage = useCallback(
     (event: { nativeEvent: { data: string } }) => {
       try {
@@ -492,6 +482,16 @@ export default function HomeScreen() {
     () => places.filter((p) => visiblePlaceCodes.has(p.place_code)),
     [places, visiblePlaceCodes],
   );
+
+  // Snap sheet back to peek whenever the visible set refreshes to a new non-empty batch
+  const prevVisibleCount = useRef(0);
+  useEffect(() => {
+    if (visiblePlaces.length > 0 && prevVisibleCount.current === 0) {
+      sheetHeightAnim.setValue(SHEET_PEEK);
+      gestureStartH.current = SHEET_PEEK;
+    }
+    prevVisibleCount.current = visiblePlaces.length;
+  }, [visiblePlaces.length, sheetHeightAnim]);
 
   const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || t('home.title');
   const showEmpty = !loading && !error && places.length === 0;
