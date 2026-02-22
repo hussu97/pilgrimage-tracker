@@ -99,6 +99,13 @@ function formatDistance(km: number): string {
   return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
+export interface MapBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
 interface PlacesMapProps {
   places: Place[];
   center: { lat: number; lng: number } | null;
@@ -106,6 +113,8 @@ interface PlacesMapProps {
   selectedPlaceCode?: string | null;
   isVisible?: boolean;
   searchLocation?: SearchLocation | null;
+  onBoundsChange?: (bounds: MapBounds) => void;
+  className?: string;
 }
 
 export default function PlacesMap({
@@ -115,13 +124,20 @@ export default function PlacesMap({
   selectedPlaceCode,
   isVisible,
   searchLocation,
+  onBoundsChange,
+  className,
 }: PlacesMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const searchMarkerRef = useRef<L.Marker | null>(null);
+  const onBoundsChangeRef = useRef(onBoundsChange);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    onBoundsChangeRef.current = onBoundsChange;
+  }, [onBoundsChange]);
 
   // ── Initialize map once per mount ────────────────────────────────────────
   useLayoutEffect(() => {
@@ -138,6 +154,18 @@ export default function PlacesMap({
     }).addTo(map);
 
     mapRef.current = map;
+
+    // Emit bounds whenever the visible area changes
+    const emitBounds = () => {
+      const b = map.getBounds();
+      onBoundsChangeRef.current?.({
+        north: b.getNorth(),
+        south: b.getSouth(),
+        east: b.getEast(),
+        west: b.getWest(),
+      });
+    };
+    map.on('moveend zoomend', emitBounds);
 
     // Cleanup: runs synchronously during disappearLayoutEffects (Strict Mode
     // offscreen phase) — before reappearLayoutEffects re-fires on the same div.
@@ -278,10 +306,25 @@ export default function PlacesMap({
       [Math.max(...lats), Math.max(...lngs)],
     );
     map.fitBounds(bounds.pad(0.15), { maxZoom: 14 });
+    // Emit bounds after the fitBounds animation finishes
+    map.once('moveend', () => {
+      const b = map.getBounds();
+      onBoundsChangeRef.current?.({
+        north: b.getNorth(),
+        south: b.getSouth(),
+        east: b.getEast(),
+        west: b.getWest(),
+      });
+    });
   }, [places, onPlaceSelect, selectedPlaceCode, navigate]);
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-input-border h-full min-h-[400px] md:min-h-[500px] bg-soft-blue dark:bg-dark-surface">
+    <div
+      className={
+        className ??
+        'rounded-2xl overflow-hidden border border-input-border h-full min-h-[400px] md:min-h-[500px] bg-soft-blue dark:bg-dark-surface'
+      }
+    >
       <div ref={containerRef} className="h-full w-full" style={{ minHeight: 400 }} />
     </div>
   );

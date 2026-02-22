@@ -7,10 +7,9 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Image,
   Modal,
   Pressable,
-  Animated,
+  Dimensions,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -29,13 +28,13 @@ import PlaceCard from '@/components/places/PlaceCard';
 import SkeletonCard from '@/components/common/SkeletonCard';
 import HomeHeader from '@/components/places/HomeHeader';
 import UpdateBanner from '@/components/common/UpdateBanner';
-import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
-import { buildMapHtml, formatDistance } from '@/lib/utils/mapBuilder';
-import { shareUrl, openDirections } from '@/lib/share';
+import { buildMapHtml } from '@/lib/utils/mapBuilder';
 
 type ViewMode = 'list' | 'map';
 
 const PAGE_SIZE = 20;
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+const MAP_SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * 0.45);
 
 interface ActiveFilters {
   placeType?: string;
@@ -148,6 +147,7 @@ function makeStyles(isDark: boolean) {
     },
     mapContainer: {
       flex: 1,
+      flexDirection: 'column',
     },
     centered: {
       flex: 1,
@@ -262,141 +262,45 @@ function makeStyles(isDark: boolean) {
       marginBottom: 8,
     },
     applyFiltersBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-    // Map bottom panel
-    mapBottomPanel: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-    },
-    scrollerCard: {
-      width: 140,
-      backgroundColor: surface,
-      borderRadius: 16,
-      padding: 10,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.12,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    scrollerThumb: { width: '100%', height: 80, borderRadius: 10, marginBottom: 6 },
-    scrollerThumbPlaceholder: {
-      width: '100%',
-      height: 80,
-      borderRadius: 10,
-      backgroundColor: isDark ? tokens.colors.darkSurface : tokens.colors.softBlue,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 6,
-    },
-    scrollerCardName: { fontSize: 13, fontWeight: '600', color: textMain, marginBottom: 2 },
-    scrollerCardSub: { fontSize: 11, color: textMuted, textTransform: 'capitalize' },
-    scrollerEmpty: { paddingHorizontal: 24, paddingVertical: 12 },
-    scrollerEmptyText: { fontSize: 13, color: textMuted },
-    // Inline place card (replaces modal)
-    placeCard: {
+    // Map bottom sheet
+    mapSheet: {
+      height: MAP_SHEET_HEIGHT,
       backgroundColor: surface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
-      paddingHorizontal: 24,
-      paddingTop: 12,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.15,
+      shadowOpacity: isDark ? 0.3 : 0.12,
       shadowRadius: 16,
       elevation: 8,
+      borderTopWidth: 1,
+      borderTopColor: border,
     },
-    cardClose: {
-      position: 'absolute',
-      top: 16,
-      right: 16,
-      zIndex: 1,
-      padding: 4,
-    },
-    sheetHandle: {
+    mapSheetHandle: {
       width: 32,
       height: 4,
       backgroundColor: isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder,
       borderRadius: 2,
       alignSelf: 'center',
-      marginBottom: 16,
+      marginTop: 10,
+      marginBottom: 8,
     },
-    sheetRow: { flexDirection: 'row', marginBottom: 20 },
-    sheetThumb: {
-      width: 96,
-      height: 96,
-      borderRadius: 16,
-      overflow: 'hidden',
-      backgroundColor: isDark ? tokens.colors.darkSurface : tokens.colors.softBlue,
+    mapSheetHeader: {
+      paddingHorizontal: 16,
+      paddingBottom: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: border,
     },
-    sheetThumbImage: { width: 96, height: 96 },
-    sheetThumbPlaceholder: {
-      width: '100%',
-      height: '100%',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    sheetInfo: { flex: 1, marginLeft: 16, minWidth: 0 },
-    sheetName: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: textMain,
-    },
-    sheetAddress: {
-      fontSize: 14,
+    mapSheetCount: {
+      fontSize: 13,
+      fontWeight: '600',
       color: textSecondary,
-      marginTop: 4,
     },
-    sheetMeta: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      marginTop: 8,
+    mapSheetList: {
+      paddingHorizontal: 12,
+      paddingTop: 10,
+      paddingBottom: 8,
     },
-    sheetRating: { fontSize: 14, fontWeight: '600', color: textMain },
-    sheetDistance: { fontSize: 14, color: textMuted },
-    sheetOpen: { fontSize: 12, fontWeight: '600', color: tokens.colors.openNow },
-    sheetActions: { flexDirection: 'row', gap: 12, marginBottom: 12 },
-    sheetDirections: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 6,
-      backgroundColor: tokens.colors.primary,
-      paddingVertical: 14,
-      borderRadius: 12,
-    },
-    sheetDirectionsText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-    sheetAddToItinerary: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1.5,
-      borderColor: tokens.colors.primary,
-      paddingVertical: 14,
-      borderRadius: 12,
-    },
-    sheetAddToItineraryText: { color: tokens.colors.primary, fontSize: 13, fontWeight: '600' },
-    sheetShare: {
-      width: 48,
-      backgroundColor: isDark ? tokens.colors.darkSurface : tokens.colors.blueTint,
-      paddingVertical: 14,
-      borderRadius: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder,
-    },
-    sheetDetail: {
-      paddingVertical: 12,
-      alignItems: 'center',
-      flexDirection: 'row',
-      justifyContent: 'center',
-      gap: 4,
-    },
-    sheetDetailText: { fontSize: 14, fontWeight: '600', color: tokens.colors.primary },
   });
 }
 
@@ -423,11 +327,8 @@ export default function HomeScreen() {
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [mapHtml, setMapHtml] = useState<string>('');
-  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-  const [addToGroupSheetPlace, setAddToGroupSheetPlace] = useState<Place | null>(null);
   const [visiblePlaceCodes, setVisiblePlaceCodes] = useState<Set<string>>(new Set());
   const [activeIndex, setActiveIndex] = useState<number>(0);
-  const panelAnim = useRef(new Animated.Value(0)).current;
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
   const onViewableItemsChanged = useRef(
@@ -511,17 +412,13 @@ export default function HomeScreen() {
     (event: { nativeEvent: { data: string } }) => {
       try {
         const msg = JSON.parse(event.nativeEvent.data) as {
-          placeCode?: string;
           type?: string;
           north?: number;
           south?: number;
           east?: number;
           west?: number;
         };
-        if (msg.placeCode) {
-          const found = places.find((p) => p.place_code === msg.placeCode);
-          if (found) setSelectedPlace(found);
-        } else if (msg.type === 'boundsChanged' && msg.north != null) {
+        if (msg.type === 'boundsChanged' && msg.north != null) {
           const { north, south, east, west } = msg;
           setVisiblePlaceCodes(
             new Set(
@@ -546,18 +443,6 @@ export default function HomeScreen() {
     () => places.filter((p) => visiblePlaceCodes.has(p.place_code)),
     [places, visiblePlaceCodes],
   );
-
-  useEffect(() => {
-    Animated.spring(panelAnim, {
-      toValue: selectedPlace ? 1 : 0,
-      useNativeDriver: true,
-      bounciness: 4,
-    }).start();
-  }, [selectedPlace, panelAnim]);
-
-  const handleDirections = () => {
-    if (selectedPlace) openDirections(selectedPlace.lat, selectedPlace.lng, selectedPlace.name);
-  };
 
   const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || t('home.title');
   const showEmpty = !loading && !error && places.length === 0;
@@ -713,200 +598,65 @@ export default function HomeScreen() {
         ) : (
           /* Map view */
           <View style={styles.mapContainer}>
-            {loading && places.length === 0 ? (
-              <View style={styles.centered}>
-                <ActivityIndicator size="large" color={tokens.colors.primary} />
-                <Text style={styles.loadingText}>{t('common.loading')}</Text>
-              </View>
-            ) : error && places.length === 0 ? (
-              <View style={styles.centered}>
-                <MaterialIcons name="map" size={48} color={textMutedColor} />
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={fetchPlaces}>
-                  <Text style={styles.retryText}>{t('common.retry')}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : mapHtml ? (
-              <WebView
-                ref={webViewRef}
-                style={StyleSheet.absoluteFill}
-                source={{ html: mapHtml }}
-                onMessage={handleWebViewMessage}
-                javaScriptEnabled
-                domStorageEnabled
-                originWhitelist={['*']}
-                mixedContentMode="always"
-                scrollEnabled={false}
-              />
-            ) : null}
-
-            {/* Map bottom panel: scroller ↔ place card — sits above the tab bar */}
-            <View
-              style={[styles.mapBottomPanel, { bottom: tabBarHeight }]}
-              pointerEvents="box-none"
-            >
-              {/* Horizontal place scroller */}
-              <Animated.View
-                pointerEvents={selectedPlace ? 'none' : 'auto'}
-                style={{
-                  opacity: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
-                  transform: [
-                    {
-                      translateY: panelAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, 80],
-                      }),
-                    },
-                  ],
-                }}
-              >
-                <FlatList
-                  horizontal
-                  data={visiblePlaces}
-                  keyExtractor={(p) => p.place_code}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity
-                      style={styles.scrollerCard}
-                      onPress={() => setSelectedPlace(item)}
-                      activeOpacity={0.85}
-                    >
-                      {item.images?.[0]?.url ? (
-                        <Image
-                          source={{ uri: getFullImageUrl(item.images[0].url) }}
-                          style={styles.scrollerThumb}
-                        />
-                      ) : (
-                        <View style={styles.scrollerThumbPlaceholder}>
-                          <MaterialIcons name="place" size={24} color={textMutedColor} />
-                        </View>
-                      )}
-                      <Text style={styles.scrollerCardName} numberOfLines={1}>
-                        {item.name}
-                      </Text>
-                      <Text style={styles.scrollerCardSub} numberOfLines={1}>
-                        {item.place_type}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                  contentContainerStyle={{
-                    paddingHorizontal: 12,
-                    paddingVertical: 8,
-                    gap: 10,
-                    paddingBottom: 8,
-                  }}
-                  showsHorizontalScrollIndicator={false}
-                  ListEmptyComponent={
-                    !loading ? (
-                      <View style={styles.scrollerEmpty}>
-                        <Text style={styles.scrollerEmptyText}>{t('home.noPlacesVisible')}</Text>
-                      </View>
-                    ) : null
-                  }
+            {/* Map fills the space above the sheet */}
+            <View style={{ flex: 1 }}>
+              {loading && places.length === 0 ? (
+                <View style={styles.centered}>
+                  <ActivityIndicator size="large" color={tokens.colors.primary} />
+                  <Text style={styles.loadingText}>{t('common.loading')}</Text>
+                </View>
+              ) : error && places.length === 0 ? (
+                <View style={styles.centered}>
+                  <MaterialIcons name="map" size={48} color={textMutedColor} />
+                  <Text style={styles.errorText}>{error}</Text>
+                  <TouchableOpacity style={styles.retryButton} onPress={fetchPlaces}>
+                    <Text style={styles.retryText}>{t('common.retry')}</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : mapHtml ? (
+                <WebView
+                  ref={webViewRef}
+                  style={StyleSheet.absoluteFill}
+                  source={{ html: mapHtml }}
+                  onMessage={handleWebViewMessage}
+                  javaScriptEnabled
+                  domStorageEnabled
+                  originWhitelist={['*']}
+                  mixedContentMode="always"
+                  scrollEnabled={false}
                 />
-              </Animated.View>
+              ) : null}
+            </View>
 
-              {/* Selected place card */}
-              <Animated.View
-                pointerEvents={selectedPlace ? 'auto' : 'none'}
-                style={[
-                  styles.placeCard,
-                  { paddingBottom: 16 },
-                  {
-                    opacity: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
-                    transform: [
-                      {
-                        translateY: panelAnim.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [80, 0],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              >
-                {selectedPlace && (
-                  <>
-                    <View style={styles.sheetHandle} />
-                    <TouchableOpacity
-                      style={styles.cardClose}
-                      onPress={() => setSelectedPlace(null)}
-                      activeOpacity={0.7}
-                    >
-                      <MaterialIcons name="close" size={18} color={textMutedColor} />
-                    </TouchableOpacity>
-                    <View style={styles.sheetRow}>
-                      <View style={styles.sheetThumb}>
-                        {selectedPlace.images?.[0]?.url ? (
-                          <Image
-                            source={{ uri: getFullImageUrl(selectedPlace.images[0].url) }}
-                            style={styles.sheetThumbImage}
-                            resizeMode="cover"
-                          />
-                        ) : (
-                          <View style={styles.sheetThumbPlaceholder}>
-                            <MaterialIcons name="location-on" size={32} color={textMutedColor} />
-                          </View>
-                        )}
-                      </View>
-                      <View style={styles.sheetInfo}>
-                        <Text style={styles.sheetName} numberOfLines={2}>
-                          {selectedPlace.name}
-                        </Text>
-                        <Text style={styles.sheetAddress} numberOfLines={1}>
-                          {selectedPlace.address || selectedPlace.place_type || ''}
-                        </Text>
-                        <View style={styles.sheetMeta}>
-                          {selectedPlace.average_rating != null && (
-                            <Text style={styles.sheetRating}>
-                              ⭐ {selectedPlace.average_rating.toFixed(1)}
-                            </Text>
-                          )}
-                          {selectedPlace.distance != null && (
-                            <Text style={styles.sheetDistance}>
-                              {formatDistance(selectedPlace.distance)}
-                            </Text>
-                          )}
-                        </View>
-                      </View>
+            {/* Bottom sheet — place list */}
+            <View style={[styles.mapSheet, { paddingBottom: tabBarHeight }]}>
+              {/* Drag handle */}
+              <View style={styles.mapSheetHandle} />
+              {/* Count header */}
+              <View style={styles.mapSheetHeader}>
+                <Text style={styles.mapSheetCount}>
+                  {t('map.placesInView').replace('{count}', String(visiblePlaces.length))}
+                </Text>
+              </View>
+              {/* Place list */}
+              <FlatList
+                data={visiblePlaces}
+                keyExtractor={(p) => p.place_code}
+                renderItem={({ item }) => <PlaceCard place={item} compact />}
+                contentContainerStyle={styles.mapSheetList}
+                ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  !loading ? (
+                    <View style={styles.centered}>
+                      <MaterialIcons name="location-off" size={36} color={textMutedColor} />
+                      <Text style={[styles.emptyTitle, { marginTop: 8 }]}>
+                        {t('home.noPlacesVisible')}
+                      </Text>
                     </View>
-                    <View style={styles.sheetActions}>
-                      <TouchableOpacity
-                        style={styles.sheetDirections}
-                        onPress={() => {
-                          setSelectedPlace(null);
-                          navigation.navigate('PlaceDetail', {
-                            placeCode: selectedPlace.place_code,
-                          });
-                        }}
-                      >
-                        <Text style={styles.sheetDirectionsText}>{t('map.viewDetails')}</Text>
-                      </TouchableOpacity>
-                      {user && (
-                        <TouchableOpacity
-                          style={styles.sheetAddToItinerary}
-                          onPress={() => setAddToGroupSheetPlace(selectedPlace)}
-                        >
-                          <Text style={styles.sheetAddToItineraryText}>
-                            {t('map.addToItinerary')}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                      <TouchableOpacity
-                        style={styles.sheetShare}
-                        onPress={() =>
-                          shareUrl(selectedPlace.name, `places/${selectedPlace.place_code}`)
-                        }
-                      >
-                        <MaterialIcons
-                          name="share"
-                          size={20}
-                          color={isDark ? '#fff' : tokens.colors.textMain}
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                )}
-              </Animated.View>
+                  ) : null
+                }
+              />
             </View>
           </View>
         )}
@@ -999,14 +749,6 @@ export default function HomeScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-
-      {addToGroupSheetPlace && (
-        <AddToGroupSheet
-          placeCode={addToGroupSheetPlace.place_code}
-          placeName={addToGroupSheetPlace.name}
-          onClose={() => setAddToGroupSheetPlace(null)}
-        />
-      )}
     </View>
   );
 }

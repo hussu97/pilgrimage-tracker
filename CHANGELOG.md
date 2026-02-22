@@ -4,6 +4,27 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Map View: Place List Panel / Bottom Sheet (2026-02-22)
+
+### Frontend (web)
+- **`PlacesMap`** — new `onBoundsChange` callback (fires on `moveend`/`zoomend` and after initial `fitBounds`); new `className` prop to override container styles
+- **`PlaceMapView`** fully rewritten:
+  - Desktop (≥ md): left side panel (`w-80`) showing scrollable `PlaceCardUnified` list of places visible in the current map viewport
+  - Mobile (< md): bottom sheet (52% screen height, rounded top, backdrop blur) showing the same list
+  - Both panels refresh automatically as the user pans or zooms the map (client-side bounds filter, zero extra API calls)
+  - Old single selected-place card removed; navigation goes directly to PlaceDetail via card links
+- **`map.placesInView`** translation key added for all 4 languages (en, ar, hi, te)
+
+### Frontend (mobile)
+- **`HomeScreen`** map view fully rewritten:
+  - Horizontal carousel + custom selected-place card removed
+  - New fixed-height bottom sheet (45% of screen height, rounded top) above the tab bar with a vertical `FlatList` of `PlaceCard` (compact variant)
+  - List shows only places visible in the current map viewport via WebView `boundsChanged` messages
+  - `mapContainer` now uses `flexDirection: column`: map fills `flex: 1`, sheet has a fixed height; `tabBarHeight` as `paddingBottom` keeps content above the nav bar
+  - Removed `selectedPlace`, `addToGroupSheetPlace`, `panelAnim`, and `Animated`
+
+---
+
 ## Fix: Map Place Card Sheet Overlapping Bottom Nav Bar (2026-02-22)
 
 ### Frontend (mobile)
