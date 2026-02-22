@@ -43,6 +43,10 @@ class User(SQLModel, table=True):
         default=False,
         sa_column=Column(Boolean, nullable=False, server_default="0"),
     )
+    is_active: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, nullable=False, server_default="1"),
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
@@ -107,6 +111,10 @@ class Review(SQLModel, table=True):
     is_anonymous: bool = Field(default=False)
     photo_urls: list[str] = Field(default=[], sa_column=Column(JSON))
     source: str = Field(default=ReviewSource.USER)  # "user" or "google"
+    is_flagged: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="0"),
+    )
     author_name: str | None = None  # For Google reviews
     review_time: int | None = None  # Unix timestamp from Google
     language: str | None = None  # Review language from Google
