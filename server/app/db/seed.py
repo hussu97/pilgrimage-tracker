@@ -6,6 +6,7 @@ from pathlib import Path
 from sqlmodel import SQLModel, select
 
 from app.core.security import hash_password
+from app.db import content_translations as ct_db
 from app.db import groups as groups_db
 from app.db import i18n as i18n_db
 from app.db import notifications as notifications_db
@@ -53,8 +54,25 @@ def run_seed_system(seed_path: str | Path | None = None) -> None:
         i18n_db.set_translations(data["translations"])
     if "attribute_definitions" in data:
         attr_db.seed_attribute_definitions(data["attribute_definitions"])
+    if "content_translations" in data:
+        _seed_content_translations(data["content_translations"])
     if "app_version_config" in data:
         _seed_app_version_config(data["app_version_config"])
+
+
+def _seed_content_translations(rows: list[dict]) -> None:
+    """Upsert ContentTranslation rows from seed data. Safe to call repeatedly."""
+    with Session(engine) as session:
+        for row in rows:
+            ct_db.upsert_translation(
+                entity_type=row["entity_type"],
+                entity_code=row["entity_code"],
+                field=row["field"],
+                lang=row["lang"],
+                text=row["translated_text"],
+                source=row.get("source", "manual"),
+                session=session,
+            )
 
 
 def _seed_app_version_config(rows: list[dict]) -> None:

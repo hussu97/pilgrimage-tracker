@@ -4,6 +4,33 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Content Localization for Places (2026-02-22)
+
+### Backend
+- **New `ContentTranslation` model** (`server/app/db/models.py`) — `TIMESTAMPTZ`-aware entity/field/lang keyed table for storing scraped/system-generated translations separate from UI string translations
+- **New `server/app/db/content_translations.py`** — CRUD helpers: `upsert_translation`, `get_translation`, `get_translations_for_entity`, and `bulk_get_translations` (single SQL query for list endpoints)
+- **`GET /api/v1/places` + `GET /api/v1/places/{place_code}`** — new `lang` query param; when non-English, overlays translated `name`, `address`, and `description` fields; English fast-path (zero overhead)
+- **`build_specifications()`** in `place_specifications.py` — accepts `lang` and applies translations to specification labels/values
+- **Migration `0007_content_translation.py`** — adds `content_translation` table with composite `UNIQUE(entity_type, entity_code, field, lang)` and index on `(entity_type, lang, entity_code)` for bulk queries
+- **`server/scripts/backfill_translations.py`** — one-off script to backfill translations from existing wikidata/scraper data
+- **`TranslationService`** extended to support entity-content translation sourcing
+- **Data scraper**: `wikidata.py` and `merger.py` updated to collect and store multilingual place content
+
+### Frontend (web)
+- **API client** (`apps/web/src/lib/api/client.ts`) — module-level `_currentLocale` + `setApiLocale()`; `getPlaces()` and `getPlace()` append `lang=` param automatically for non-English locales
+- **`I18nProvider`** (`providers.tsx`) — calls `setApiLocale()` on initial locale resolution and on every locale switch
+
+### Frontend (mobile)
+- **API client** (`apps/mobile/src/lib/api/client.ts`) — same `_currentLocale` + `setApiLocale()` pattern; `getPlaces()` and `getPlace()` inject `lang=` param
+- **`I18nProvider`** (`providers.tsx`) — calls `setApiLocale()` on initial locale resolution and on every locale switch
+
+### Tests
+- **Backend**: `test_content_translations.py` — CRUD helpers (upsert, get, bulk-get, missing fallback); `test_places_localization.py` — list and detail endpoints with `lang=` param, English fast-path, missing-translation fallback (all pass; 500 total)
+- **Web**: `apiLocale.test.ts` — `setApiLocale` + `lang` param injection (6 cases)
+- **Mobile**: `apiLocale.test.ts` — equivalent 6 cases (parity with web)
+
+---
+
 ## API Response Compression (2026-02-21)
 
 ### Backend

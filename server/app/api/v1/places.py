@@ -5,6 +5,7 @@ from sqlmodel import Session
 
 from app.api.deps import OptionalUserDep, UserDep
 from app.db import check_ins as check_ins_db
+from app.db import content_translations as ct_db
 from app.db import favorites as favorites_db
 from app.db import place_attributes as attr_db
 from app.db import place_images, review_images
@@ -32,6 +33,7 @@ def _place_to_item(
     attrs: dict | None = None,
     images: list[dict] | None = None,
     rating: dict | None = None,
+    translations: dict | None = None,
 ) -> dict:
     d = distance
     if d is not None:
@@ -41,19 +43,21 @@ def _place_to_item(
     if attrs is None:
         attrs = attr_db.get_attributes_dict(place.place_code, session)
 
+    # Apply translation overlay for localizable text fields
+    trans = translations or {}
     out = {
         "place_code": place.place_code,
-        "name": place.name,
+        "name": trans.get("name", place.name),
         "religion": place.religion,
         "place_type": place.place_type,
         "lat": place.lat,
         "lng": place.lng,
-        "address": place.address,
+        "address": trans.get("address", place.address),
         "opening_hours": place.opening_hours,
         "images": images
         if images is not None
         else place_images.get_images(place.place_code, session=session),
-        "description": place.description,
+        "description": trans.get("description", place.description),
         "created_at": place.created_at,
         "distance": d,
     }
@@ -107,12 +111,24 @@ def _place_to_item(
 
 
 def _place_detail(
-    place, session: Session, lat: float | None = None, lng: float | None = None
+    place,
+    session: Session,
+    lat: float | None = None,
+    lng: float | None = None,
+    lang: str | None = None,
 ) -> dict:
     # Fetch attributes once and reuse
     attrs = attr_db.get_attributes_dict(place.place_code, session)
     rating = reviews_db.get_aggregate_rating(place.place_code, session)
-    out = _place_to_item(place, session, include_rating=True, attrs=attrs, rating=rating)
+
+    # Resolve translations for non-English locales
+    translations = None
+    if lang and lang != "en":
+        translations = ct_db.get_translations_for_entity("place", place.place_code, lang, session)
+
+    out = _place_to_item(
+        place, session, include_rating=True, attrs=attrs, rating=rating, translations=translations
+    )
     # Include distance only when caller supplies user coordinates
     if lat is not None and lng is not None:
         raw_dist = _haversine_km(lat, lng, place.lat, place.lng)
@@ -121,7 +137,7 @@ def _place_detail(
         out.pop("distance", None)
     out["total_checkins_count"] = check_ins_db.count_check_ins_for_place(place.place_code, session)
     out["timings"] = build_timings(place, attrs=attrs, session=session)
-    out["specifications"] = build_specifications(place, attrs=attrs, session=session)
+    out["specifications"] = build_specifications(place, attrs=attrs, session=session, lang=lang)
     out["attributes"] = attrs
     return out
 
@@ -156,6 +172,9 @@ def list_places(
     include_checkins: bool = Query(
         False, description="If true, include total_checkins_count per place"
     ),
+    lang: str | None = Query(
+        None, description="BCP-47 language code for localized content (e.g. ar, hi, te)"
+    ),
 ):
     religions = religion
     result = places_db.list_places(
@@ -185,6 +204,12 @@ def list_places(
     all_checkins = (
         check_ins_db.count_check_ins_bulk(place_codes, session) if include_checkins else {}
     )
+
+    # Bulk-fetch translations for non-English locales (English fast path: zero overhead)
+    all_translations: dict[str, dict[str, str]] = {}
+    if lang and lang != "en":
+        all_translations = ct_db.bulk_get_translations("place", place_codes, lang, session)
+
     places_out = []
     for p, dist in result["rows"]:
         item = _place_to_item(
@@ -195,6 +220,7 @@ def list_places(
             attrs=all_attrs.get(p.place_code, {}),
             images=all_images.get(p.place_code, []),
             rating=all_ratings.get(p.place_code) if include_rating else None,
+            translations=all_translations.get(p.place_code),
         )
         if include_checkins:
             item["total_checkins_count"] = all_checkins.get(p.place_code, 0)
@@ -214,11 +240,14 @@ def get_place(
     user: OptionalUserDep = None,
     lat: float | None = Query(None, description="User latitude for distance computation"),
     lng: float | None = Query(None, description="User longitude for distance computation"),
+    lang: str | None = Query(
+        None, description="BCP-47 language code for localized content (e.g. ar, hi, te)"
+    ),
 ):
     place = places_db.get_place_by_code(place_code, session)
     if not place:
         raise HTTPException(status_code=404, detail="Place not found")
-    out = _place_detail(place, session, lat=lat, lng=lng)
+    out = _place_detail(place, session, lat=lat, lng=lng, lang=lang)
     if user:
         out["user_has_checked_in"] = check_ins_db.has_checked_in(
             user.user_code, place_code, session
@@ -462,6 +491,32 @@ def create_review(
     }
 
 
+def _persist_place_translations(place_code: str, translations, session: Session) -> None:
+    """Upsert ContentTranslation rows from a PlaceTranslationInput."""
+    from app.models.schemas import PlaceTranslationInput
+
+    if not isinstance(translations, PlaceTranslationInput):
+        return
+    for field, lang_map in [
+        ("name", translations.name),
+        ("description", translations.description),
+        ("address", translations.address),
+    ]:
+        if not lang_map:
+            continue
+        for lang, text in lang_map.items():
+            if lang and text and lang != "en":
+                ct_db.upsert_translation(
+                    entity_type="place",
+                    entity_code=place_code,
+                    field=field,
+                    lang=lang,
+                    text=text,
+                    source="scraper",
+                    session=session,
+                )
+
+
 @router.post("/batch")
 def batch_create_places(
     body: PlaceBatch,
@@ -530,6 +585,10 @@ def batch_create_places(
                 reviews_db.upsert_external_reviews(
                     place_data.place_code, place_data.external_reviews, session
                 )
+
+            # Persist translations provided by the scraper
+            if place_data.translations:
+                _persist_place_translations(place_data.place_code, place_data.translations, session)
 
             results.append({"place_code": place_data.place_code, "ok": True})
         except Exception as e:
@@ -605,6 +664,10 @@ def create_place(
     # Store external reviews if provided
     if body.external_reviews:
         reviews_db.upsert_external_reviews(body.place_code, body.external_reviews, session)
+
+    # Persist translations provided at ingest time
+    if body.translations:
+        _persist_place_translations(body.place_code, body.translations, session)
 
     return _place_detail(row, session)
 

@@ -211,8 +211,8 @@ class WikipediaCollector(BaseCollector):
             # Try to get the article title for other languages
             title = en_info.get("title", name)
 
-            # Arabic and Hindi extracts
-            for lang in ["ar", "hi"]:
+            # Arabic, Hindi, and Telugu extracts
+            for lang in ["ar", "hi", "te"]:
                 lang_info = self._fetch_by_title(title, lang)
                 if lang_info and lang_info.get("description"):
                     result.raw_response[lang] = lang_info

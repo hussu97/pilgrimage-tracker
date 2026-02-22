@@ -52,12 +52,14 @@ def merge_collector_results(
             merged["_description_score"] = assessment["score"]
             merged["_description_method"] = assessment["method"]
 
-        # Store non-English descriptions separately for i18n
+        # Consolidate non-English descriptions into the translations dict
         for desc in all_descriptions:
-            if desc.get("lang") == "ar" and desc.get("text"):
-                merged.setdefault("description_ar", desc["text"])
-            elif desc.get("lang") == "hi" and desc.get("text"):
-                merged.setdefault("description_hi", desc["text"])
+            lang = desc.get("lang")
+            text = desc.get("text")
+            if lang and lang != "en" and text:
+                merged.setdefault("translations", {}).setdefault("description", {}).setdefault(
+                    lang, text
+                )
 
     # --- 2. Contact merging (priority-based) ---
     merged_contact = {}
@@ -106,8 +108,20 @@ def merge_collector_results(
                 # For booleans, True wins over False
                 attr_map[code] = attr_map[code] or value
 
+    # Consolidate multilingual name attributes (name_ar, name_hi, name_te) into translations
+    _NAME_LANG_ATTRS = {"name_ar": "ar", "name_hi": "hi", "name_te": "te"}
+    filtered_attrs = {}
+    for code, value in attr_map.items():
+        if code in _NAME_LANG_ATTRS:
+            lang_code = _NAME_LANG_ATTRS[code]
+            merged.setdefault("translations", {}).setdefault("name", {}).setdefault(
+                lang_code, str(value)
+            )
+        else:
+            filtered_attrs[code] = value
+
     merged["attributes"] = [
-        {"attribute_code": code, "value": value} for code, value in attr_map.items()
+        {"attribute_code": code, "value": value} for code, value in filtered_attrs.items()
     ]
 
     # --- 4. Reviews merging ---

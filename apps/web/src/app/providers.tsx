@@ -11,6 +11,7 @@ import {
 import FeedbackPopup from '@/components/common/FeedbackPopup';
 import type { User } from '@/lib/types';
 import * as api from '@/lib/api/client';
+import { setApiLocale } from '@/lib/api/client';
 import { TOKEN_KEY, USER_KEY, LOCALE_STORAGE_KEY, VISITOR_KEY } from '@/lib/constants';
 
 const SUPPORTED_LOCALES = ['en', 'ar', 'hi', 'te'] as const;
@@ -325,6 +326,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         const initial = resolveInitialLocale(list);
         setLocaleState(initial);
+        setApiLocale(initial);
         await loadTranslations(initial);
         if (cancelled) return;
         setReady(true);
@@ -351,6 +353,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
           const next = settings.language as LocaleCode;
           setLocaleState(next);
           localStorage.setItem(LOCALE_STORAGE_KEY, next);
+          setApiLocale(next);
           await loadTranslations(next);
         }
       } catch {
@@ -384,6 +387,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       const next = normalizeLocale(lang) as LocaleCode;
       setLocaleState(next);
       localStorage.setItem(LOCALE_STORAGE_KEY, next);
+      setApiLocale(next);
       await loadTranslations(next);
       try {
         if (user) {

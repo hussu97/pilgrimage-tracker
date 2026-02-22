@@ -286,6 +286,32 @@ class PlaceAttribute(SQLModel, table=True):
     value_json: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
 
 
+class ContentTranslation(SQLModel, table=True):
+    """Stores translated text for system/scraped content (places, spec values, etc.).
+
+    English is canonical on the source model — this table stores non-English translations only.
+    Keyed by (entity_type, entity_code, field, lang); unique constraint enforced.
+    """
+
+    __table_args__ = (UniqueConstraint("entity_type", "entity_code", "field", "lang"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    entity_type: str = Field(index=True)  # "place", "attribute_def", "spec_value"
+    entity_code: str = Field(index=True)  # place_code, attribute_code, or value key
+    field: str  # "name", "description", "address", "label", "value"
+    lang: str = Field(index=True)  # "ar", "hi", "te" (never "en")
+    translated_text: str
+    source: str = Field(default="scraper")  # "scraper", "google_translate", "manual"
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+
+
 class AppVersionConfig(SQLModel, table=True):
     """Per-platform app version requirements.
 

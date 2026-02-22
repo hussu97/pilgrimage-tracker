@@ -2,6 +2,7 @@
 
 from sqlmodel import Session
 
+from app.db import content_translations as ct_db
 from app.db import place_attributes as attr_db
 
 # Attribute codes that must never appear as standalone specs.
@@ -11,7 +12,9 @@ _EXCLUDED_SPEC_CODES: frozenset[str] = frozenset(
 )
 
 
-def build_specifications(place, session: Session, attrs: dict | None = None) -> list:
+def build_specifications(
+    place, session: Session, attrs: dict | None = None, lang: str | None = None
+) -> list:
     """
     Build specification list for a place based on its religion and attributes.
 
@@ -42,6 +45,19 @@ def build_specifications(place, session: Session, attrs: dict | None = None) -> 
             religion=religion, spec_only=True, session=session
         )
 
+        # Resolve localised spec value labels once per call
+        label_available = "Available"
+        label_separate = "Separate"
+        if lang and lang != "en":
+            avail_text = ct_db.get_translation(
+                "spec_value", "spec.available", "value", lang, session
+            )
+            if avail_text:
+                label_available = avail_text
+            sep_text = ct_db.get_translation("spec_value", "spec.separate", "value", lang, session)
+            if sep_text:
+                label_separate = sep_text
+
         for defn in spec_defs:
             if defn.attribute_code in _EXCLUDED_SPEC_CODES:
                 continue
@@ -53,7 +69,9 @@ def build_specifications(place, session: Session, attrs: dict | None = None) -> 
                 if not val:
                     continue
                 display = (
-                    "Available" if defn.attribute_code not in ("has_womens_area",) else "Separate"
+                    label_available
+                    if defn.attribute_code not in ("has_womens_area",)
+                    else label_separate
                 )
             else:
                 display = str(val)

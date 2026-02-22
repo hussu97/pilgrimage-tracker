@@ -28,6 +28,14 @@ import { TOKEN_KEY } from '@/lib/constants';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:3000';
 
+// ─── Locale tracking for place API calls ──────────────────────────────────────
+let _currentLocale: string = 'en';
+
+/** Update the locale injected into place-related API calls. */
+export function setApiLocale(lang: string): void {
+  _currentLocale = lang;
+}
+
 export type { LanguageOption };
 
 const APP_VERSION: string = Constants.expoConfig?.version ?? '1.0.0';
@@ -368,6 +376,7 @@ export async function getPlaces(params?: GetPlacesParams): Promise<PlacesRespons
   if (params?.has_events) sp.set('has_events', 'true');
   if (params?.top_rated) sp.set('top_rated', 'true');
   if (params?.include_checkins) sp.set('include_checkins', 'true');
+  if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
   const qs = sp.toString();
   const url = `${API_BASE}/api/v1/places${qs ? `?${qs}` : ''}`;
   const res = await authFetch(url, { headers: await authHeaders() });
@@ -383,6 +392,7 @@ export async function getPlace(
   const sp = new URLSearchParams();
   if (coords?.lat != null) sp.set('lat', String(coords.lat));
   if (coords?.lng != null) sp.set('lng', String(coords.lng));
+  if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
   const qs = sp.toString() ? `?${sp.toString()}` : '';
   const res = await authFetch(`${API_BASE}/api/v1/places/${placeCode}${qs}`, {
     headers: await authHeaders(),

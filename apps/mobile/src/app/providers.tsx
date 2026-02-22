@@ -13,6 +13,7 @@ import { Appearance, I18nManager, NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '@/lib/types';
 import * as api from '@/lib/api/client';
+import { setApiLocale } from '@/lib/api/client';
 import { TOKEN_KEY, USER_KEY, LOCALE_STORAGE_KEY, VISITOR_KEY } from '@/lib/constants';
 import { getStoredTheme, setStoredTheme, type Theme } from '@/lib/theme';
 
@@ -335,6 +336,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         const initial = await resolveInitialLocale(list);
         if (cancelled) return;
         setLocaleState(initial);
+        setApiLocale(initial);
         await loadTranslations(initial);
         if (cancelled) return;
         const isRTL = initial === 'ar';
@@ -360,6 +362,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     async (lang: string) => {
       const next = normalizeLocale(lang);
       setLocaleState(next);
+      setApiLocale(next);
       try {
         await AsyncStorage.setItem(LOCALE_STORAGE_KEY, next);
         await loadTranslations(next);

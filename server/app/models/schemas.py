@@ -250,6 +250,14 @@ class ExternalReviewInput(BaseModel):
         return v
 
 
+class PlaceTranslationInput(BaseModel):
+    """Per-field non-English translations provided at ingest time by the scraper."""
+
+    name: dict[str, str] | None = None  # {"ar": "...", "hi": "...", "te": "..."}
+    description: dict[str, str] | None = None
+    address: dict[str, str] | None = None
+
+
 class PlaceCreate(BaseModel):
     place_code: str
     name: str
@@ -267,6 +275,7 @@ class PlaceCreate(BaseModel):
     source: str | None = None
     attributes: list[PlaceAttributeInput] | None = None
     external_reviews: list[ExternalReviewInput] | None = None
+    translations: PlaceTranslationInput | None = None
 
     @field_validator("image_blobs")
     @classmethod

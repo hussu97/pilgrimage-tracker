@@ -61,7 +61,7 @@ class WikidataCollector(BaseCollector):
         url = (
             f"https://www.wikidata.org/w/api.php"
             f"?action=wbgetentities&ids={qid}&format=json"
-            f"&languages=en|ar|hi&props=labels|descriptions|claims"
+            f"&languages=en|ar|hi|te&props=labels|descriptions|claims"
         )
         response = make_request_with_backoff("GET", url, headers=HEADERS)
         if not response or response.status_code != 200:
@@ -97,7 +97,7 @@ class WikidataCollector(BaseCollector):
 
         # --- Multilingual descriptions ---
         descriptions = entity.get("descriptions", {})
-        for lang in ["en", "ar", "hi"]:
+        for lang in ["en", "ar", "hi", "te"]:
             desc_obj = descriptions.get(lang, {})
             desc_text = desc_obj.get("value") if isinstance(desc_obj, dict) else None
             if desc_text:
@@ -112,12 +112,13 @@ class WikidataCollector(BaseCollector):
 
         # --- Multilingual labels (names) ---
         labels = entity.get("labels", {})
-        ar_label = labels.get("ar", {}).get("value") if isinstance(labels.get("ar"), dict) else None
-        hi_label = labels.get("hi", {}).get("value") if isinstance(labels.get("hi"), dict) else None
-        if ar_label:
-            result.attributes.append({"attribute_code": "name_ar", "value": ar_label})
-        if hi_label:
-            result.attributes.append({"attribute_code": "name_hi", "value": hi_label})
+        for lang_code in ("ar", "hi", "te"):
+            label_obj = labels.get(lang_code)
+            label_val = label_obj.get("value") if isinstance(label_obj, dict) else None
+            if label_val:
+                result.attributes.append(
+                    {"attribute_code": f"name_{lang_code}", "value": label_val}
+                )
 
         return result
 

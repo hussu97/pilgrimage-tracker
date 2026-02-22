@@ -21,6 +21,14 @@ import type { ChecklistResponse, PlaceNote } from '@/lib/types/groups';
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 const TOKEN_STORAGE_KEY = 'token';
 
+// ─── Locale tracking for place API calls ──────────────────────────────────────
+let _currentLocale: string = 'en';
+
+/** Update the locale injected into place-related API calls. */
+export function setApiLocale(lang: string): void {
+  _currentLocale = lang;
+}
+
 export type { LanguageOption };
 
 /** Static client-identification headers sent with every request. */
@@ -172,6 +180,7 @@ export async function getPlaces(params?: GetPlacesParams): Promise<PlacesRespons
   if (params?.has_events) sp.set('has_events', 'true');
   if (params?.top_rated) sp.set('top_rated', 'true');
   if (params?.include_checkins) sp.set('include_checkins', 'true');
+  if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
 
   const qs = sp.toString();
   const url = `${API_BASE}/api/v1/places${qs ? `?${qs}` : ''}`;
@@ -282,6 +291,7 @@ export async function getPlace(
   const sp = new URLSearchParams();
   if (coords?.lat != null) sp.set('lat', String(coords.lat));
   if (coords?.lng != null) sp.set('lng', String(coords.lng));
+  if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
   const qs = sp.toString() ? `?${sp.toString()}` : '';
   const res = await authFetch(`${API_BASE}/api/v1/places/${placeCode}${qs}`, {
     headers: authHeaders(),

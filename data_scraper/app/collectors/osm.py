@@ -120,11 +120,9 @@ class OsmCollector(BaseCollector):
             result.tags["wikidata"] = tags["wikidata"]
 
         # --- Multilingual names ---
-        name_ar = tags.get("name:ar")
-        name_hi = tags.get("name:hi")
-        if name_ar:
-            result.attributes.append({"attribute_code": "name_ar", "value": name_ar})
-        if name_hi:
-            result.attributes.append({"attribute_code": "name_hi", "value": name_hi})
+        for lang_code in ("ar", "hi", "te"):
+            name_loc = tags.get(f"name:{lang_code}")
+            if name_loc:
+                result.attributes.append({"attribute_code": f"name_{lang_code}", "value": name_loc})
 
         return result

@@ -148,6 +148,7 @@ def sync_run_to_server(run_code: str, server_url: str):
                     "source": data.get("source"),
                     "attributes": _sanitize_attributes(data.get("attributes") or []),
                     "external_reviews": _sanitize_reviews(data.get("external_reviews") or []),
+                    "translations": data.get("translations") or None,
                 }
             )
 

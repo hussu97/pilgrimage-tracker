@@ -1983,6 +1983,14 @@
       "search.error": "సూచనలు లోడ్ చేయడం సాధ్యం కాలేదు"
     }
   },
+  "content_translations": [
+    {"entity_type": "spec_value", "entity_code": "spec.available", "field": "value", "lang": "ar", "translated_text": "متاح", "source": "manual"},
+    {"entity_type": "spec_value", "entity_code": "spec.available", "field": "value", "lang": "hi", "translated_text": "उपलब्ध", "source": "manual"},
+    {"entity_type": "spec_value", "entity_code": "spec.available", "field": "value", "lang": "te", "translated_text": "అందుబాటులో ఉంది", "source": "manual"},
+    {"entity_type": "spec_value", "entity_code": "spec.separate", "field": "value", "lang": "ar", "translated_text": "منفصل", "source": "manual"},
+    {"entity_type": "spec_value", "entity_code": "spec.separate", "field": "value", "lang": "hi", "translated_text": "अलग", "source": "manual"},
+    {"entity_type": "spec_value", "entity_code": "spec.separate", "field": "value", "lang": "te", "translated_text": "ప్రత్యేకం", "source": "manual"}
+  ],
   "app_version_config": [
     {
       "platform": "ios",
