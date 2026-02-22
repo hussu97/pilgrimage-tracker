@@ -34,7 +34,8 @@ type ViewMode = 'list' | 'map';
 
 const PAGE_SIZE = 20;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-const MAP_SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * 0.45);
+// Sheet overlays the bottom portion of the map — small enough that most of the map stays visible
+const MAP_SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * 0.28);
 
 interface ActiveFilters {
   placeType?: string;
@@ -147,7 +148,6 @@ function makeStyles(isDark: boolean) {
     },
     mapContainer: {
       flex: 1,
-      flexDirection: 'column',
     },
     centered: {
       flex: 1,
@@ -262,9 +262,12 @@ function makeStyles(isDark: boolean) {
       marginBottom: 8,
     },
     applyFiltersBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-    // Map bottom sheet
+    // Map bottom sheet — absolute overlay, does not shrink the map
     mapSheet: {
-      height: MAP_SHEET_HEIGHT,
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      // bottom and height applied inline (depend on tabBarHeight and MAP_SHEET_HEIGHT)
       backgroundColor: surface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
@@ -596,68 +599,59 @@ export default function HomeScreen() {
             />
           )
         ) : (
-          /* Map view */
+          /* Map view — map is full size, sheet overlays it */
           <View style={styles.mapContainer}>
-            {/* Map fills the space above the sheet */}
-            <View style={{ flex: 1 }}>
-              {loading && places.length === 0 ? (
-                <View style={styles.centered}>
-                  <ActivityIndicator size="large" color={tokens.colors.primary} />
-                  <Text style={styles.loadingText}>{t('common.loading')}</Text>
-                </View>
-              ) : error && places.length === 0 ? (
-                <View style={styles.centered}>
-                  <MaterialIcons name="map" size={48} color={textMutedColor} />
-                  <Text style={styles.errorText}>{error}</Text>
-                  <TouchableOpacity style={styles.retryButton} onPress={fetchPlaces}>
-                    <Text style={styles.retryText}>{t('common.retry')}</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : mapHtml ? (
-                <WebView
-                  ref={webViewRef}
-                  style={StyleSheet.absoluteFill}
-                  source={{ html: mapHtml }}
-                  onMessage={handleWebViewMessage}
-                  javaScriptEnabled
-                  domStorageEnabled
-                  originWhitelist={['*']}
-                  mixedContentMode="always"
-                  scrollEnabled={false}
-                />
-              ) : null}
-            </View>
-
-            {/* Bottom sheet — place list */}
-            <View style={[styles.mapSheet, { paddingBottom: tabBarHeight }]}>
-              {/* Drag handle */}
-              <View style={styles.mapSheetHandle} />
-              {/* Count header */}
-              <View style={styles.mapSheetHeader}>
-                <Text style={styles.mapSheetCount}>
-                  {t('map.placesInView').replace('{count}', String(visiblePlaces.length))}
-                </Text>
+            {loading && places.length === 0 ? (
+              <View style={styles.centered}>
+                <ActivityIndicator size="large" color={tokens.colors.primary} />
+                <Text style={styles.loadingText}>{t('common.loading')}</Text>
               </View>
-              {/* Place list */}
-              <FlatList
-                data={visiblePlaces}
-                keyExtractor={(p) => p.place_code}
-                renderItem={({ item }) => <PlaceCard place={item} compact />}
-                contentContainerStyle={styles.mapSheetList}
-                ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={
-                  !loading ? (
-                    <View style={styles.centered}>
-                      <MaterialIcons name="location-off" size={36} color={textMutedColor} />
-                      <Text style={[styles.emptyTitle, { marginTop: 8 }]}>
-                        {t('home.noPlacesVisible')}
-                      </Text>
-                    </View>
-                  ) : null
-                }
+            ) : error && places.length === 0 ? (
+              <View style={styles.centered}>
+                <MaterialIcons name="map" size={48} color={textMutedColor} />
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={fetchPlaces}>
+                  <Text style={styles.retryText}>{t('common.retry')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : mapHtml ? (
+              <WebView
+                ref={webViewRef}
+                style={StyleSheet.absoluteFill}
+                source={{ html: mapHtml }}
+                onMessage={handleWebViewMessage}
+                javaScriptEnabled
+                domStorageEnabled
+                originWhitelist={['*']}
+                mixedContentMode="always"
+                scrollEnabled={false}
               />
-            </View>
+            ) : null}
+
+            {/* Bottom sheet overlay — only shown when places are visible */}
+            {visiblePlaces.length > 0 && (
+              <View
+                style={[styles.mapSheet, { bottom: tabBarHeight, height: MAP_SHEET_HEIGHT }]}
+                pointerEvents="box-none"
+              >
+                <View pointerEvents="auto" style={StyleSheet.absoluteFill}>
+                  <View style={styles.mapSheetHandle} />
+                  <View style={styles.mapSheetHeader}>
+                    <Text style={styles.mapSheetCount}>
+                      {t('map.placesInView').replace('{count}', String(visiblePlaces.length))}
+                    </Text>
+                  </View>
+                  <FlatList
+                    data={visiblePlaces}
+                    keyExtractor={(p) => p.place_code}
+                    renderItem={({ item }) => <PlaceCard place={item} compact />}
+                    contentContainerStyle={styles.mapSheetList}
+                    ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+                    showsVerticalScrollIndicator={false}
+                  />
+                </View>
+              </View>
+            )}
           </View>
         )}
       </View>
