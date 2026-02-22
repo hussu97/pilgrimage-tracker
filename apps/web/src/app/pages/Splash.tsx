@@ -28,6 +28,7 @@ export default function Splash() {
       {/* Content */}
       <div className="flex-1 flex flex-col justify-between px-8 pt-8 pb-10 bg-white dark:bg-dark-bg safe-area-bottom">
         <div className="space-y-3 max-w-sm mx-auto w-full text-center">
+          <img src="/logo.png" className="w-16 h-16 rounded-2xl mx-auto mb-2" alt="SoulStep" />
           <h1 className="text-3xl font-bold tracking-tight text-text-dark dark:text-white leading-tight">
             {t('splash.heroTitle') || t('splash.welcome')}
           </h1>

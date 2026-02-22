@@ -103,14 +103,7 @@ export default function Register() {
         </Link>
 
         {/* Logo icon */}
-        <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-primary/20 dark:shadow-none">
-          <span
-            className="material-symbols-outlined text-white text-2xl"
-            style={{ fontVariationSettings: "'FILL' 1" }}
-          >
-            auto_awesome
-          </span>
-        </div>
+        <img src="/logo.png" className="w-12 h-12 rounded-2xl mb-6" alt="SoulStep" />
 
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight mb-2">
           {t('auth.registerTitle')}

@@ -20,8 +20,8 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         icons: [
-          { src: '/favicon.svg', type: 'image/svg+xml', sizes: 'any', purpose: 'any' },
-          { src: '/favicon.svg', type: 'image/svg+xml', sizes: '192x192', purpose: 'maskable' },
+          { src: '/logo.png', type: 'image/png', sizes: 'any', purpose: 'any' },
+          { src: '/logo.png', type: 'image/png', sizes: '192x192', purpose: 'maskable' },
         ],
       },
       workbox: {

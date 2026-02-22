@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import {
-  View,
   Text,
   TextInput,
   TouchableOpacity,
@@ -8,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -126,9 +126,11 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         {/* Logo icon */}
-        <View style={styles.logoIconContainer}>
-          <MaterialIcons name="auto-awesome" size={24} color={tokens.colors.primary} />
-        </View>
+        <Image
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          source={require('@/../assets/icon.png') as number}
+          style={{ width: 56, height: 56, borderRadius: 16, marginBottom: 20 }}
+        />
 
         <Text style={styles.title}>{t('auth.login')}</Text>
         <Text style={styles.subtitle}>{t('auth.loginWelcome')}</Text>

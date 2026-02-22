@@ -60,8 +60,9 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
         {/* Header */}
         <div className="flex h-14 items-center justify-between px-3 border-b border-input-border dark:border-dark-border">
           {!collapsed && (
-            <span className="text-sm font-semibold text-text-main dark:text-white truncate">
-              Pilgrimage Admin
+            <span className="flex items-center gap-2 text-sm font-semibold text-text-main dark:text-white truncate">
+              <img src="/logo.png" className="w-6 h-6 rounded-md shrink-0" alt="" />
+              SoulStep Admin
             </span>
           )}
           <button

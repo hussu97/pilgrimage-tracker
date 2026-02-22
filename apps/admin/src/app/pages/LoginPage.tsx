@@ -28,11 +28,12 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background-light dark:bg-dark-bg p-4">
       <div className="w-full max-w-sm">
         <div className="bg-white dark:bg-dark-surface rounded-2xl shadow-card p-8">
+          <img src="/logo.png" className="w-14 h-14 mx-auto mb-4 rounded-2xl" alt="SoulStep" />
           <h1 className="text-2xl font-bold text-text-main dark:text-white mb-1">
             Admin Login
           </h1>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-6">
-            Sign in to the Pilgrimage Tracker admin panel.
+            Sign in to the SoulStep admin panel.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">

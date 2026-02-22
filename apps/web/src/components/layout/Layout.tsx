@@ -41,9 +41,10 @@ export default function Layout({ children }: { children: ReactNode }) {
         <nav className="flex items-center gap-8 w-full max-w-6xl xl:max-w-7xl mx-auto">
           <Link
             to="/home"
-            className="text-xl font-semibold text-primary hover:text-primary-hover transition-colors"
+            className="flex items-center gap-2 text-xl font-semibold text-primary hover:text-primary-hover transition-colors"
             aria-label={t('nav.explore')}
           >
+            <img src="/logo.png" className="w-8 h-8 rounded-lg" alt="" />
             {t('common.appName')}
           </Link>
           <Link
