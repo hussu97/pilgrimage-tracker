@@ -4,6 +4,14 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Fix: Map Place Card Sheet Overlapping Bottom Nav Bar (2026-02-22)
+
+### Frontend (mobile)
+- **`HomeScreen`**: imported `useBottomTabBarHeight` from `@react-navigation/bottom-tabs`; map bottom panel now sets `bottom: tabBarHeight` so the place card sheet and horizontal scroller always sit flush against the top edge of the tab bar instead of sliding underneath it
+- Removed over-compensating `insets.bottom + 90` / `insets.bottom + 12` padding from the scroller and place card — no longer needed since the panel is already elevated above the tab bar
+
+---
+
 ## Content Localization for Places (2026-02-22)
 
 ### Backend

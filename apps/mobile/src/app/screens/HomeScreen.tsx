@@ -16,6 +16,7 @@ import { WebView } from 'react-native-webview';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, useI18n, useTheme, useSearch } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
@@ -401,6 +402,7 @@ function makeStyles(isDark: boolean) {
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>>();
   const { user } = useAuth();
   const { t } = useI18n();
@@ -738,8 +740,11 @@ export default function HomeScreen() {
               />
             ) : null}
 
-            {/* Map bottom panel: scroller ↔ place card */}
-            <View style={styles.mapBottomPanel} pointerEvents="box-none">
+            {/* Map bottom panel: scroller ↔ place card — sits above the tab bar */}
+            <View
+              style={[styles.mapBottomPanel, { bottom: tabBarHeight }]}
+              pointerEvents="box-none"
+            >
               {/* Horizontal place scroller */}
               <Animated.View
                 pointerEvents={selectedPlace ? 'none' : 'auto'}
@@ -787,7 +792,7 @@ export default function HomeScreen() {
                     paddingHorizontal: 12,
                     paddingVertical: 8,
                     gap: 10,
-                    paddingBottom: insets.bottom + 90,
+                    paddingBottom: 8,
                   }}
                   showsHorizontalScrollIndicator={false}
                   ListEmptyComponent={
@@ -805,7 +810,7 @@ export default function HomeScreen() {
                 pointerEvents={selectedPlace ? 'auto' : 'none'}
                 style={[
                   styles.placeCard,
-                  { paddingBottom: insets.bottom + 12 },
+                  { paddingBottom: 16 },
                   {
                     opacity: panelAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }),
                     transform: [
