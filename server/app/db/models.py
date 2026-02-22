@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime
 from typing import Any
 
-from sqlalchemy import DateTime, LargeBinary, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, LargeBinary, UniqueConstraint
 from sqlalchemy import types as sa_types
 from sqlmodel import JSON, Column, Field, SQLModel
 
@@ -39,6 +39,10 @@ class User(SQLModel, table=True):
     email: str = Field(index=True, unique=True)
     password_hash: str
     display_name: str
+    is_admin: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="0"),
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),

@@ -47,6 +47,13 @@ def get_optional_user(
     return store.get_user_by_code(user_code, session)
 
 
+def get_admin_user(current_user: Annotated[User, Depends(get_current_user)]) -> User:
+    if not current_user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return current_user
+
+
 # Convenience type aliases for FastAPI dependency injection
 UserDep = Annotated[User, Depends(get_current_user)]
 OptionalUserDep = Annotated[User | None, Depends(get_optional_user)]
+AdminDep = Annotated[User, Depends(get_admin_user)]

@@ -53,3 +53,6 @@ LOG_FORMAT = os.environ.get("LOG_FORMAT", "json")  # "json" | "text"
 
 # Google Places API key (used for search proxy endpoints)
 GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
+
+# Data scraper service URL (used by admin scraper proxy)
+DATA_SCRAPER_URL = os.environ.get("DATA_SCRAPER_URL", "http://localhost:8001")

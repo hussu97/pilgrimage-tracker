@@ -27,6 +27,7 @@ class UserResponse(BaseModel):
     user_code: str = Field(description="Unique opaque user identifier, e.g. usr_abc123")
     email: str
     display_name: str
+    is_admin: bool = Field(default=False, description="Whether the user has admin privileges")
     religions: list[Religion] = Field(default=[], description="User's religion filter preferences")
     created_at: str = Field(description="ISO 8601 UTC timestamp")
     updated_at: str = Field(description="ISO 8601 UTC timestamp")

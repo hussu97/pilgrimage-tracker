@@ -19,6 +19,7 @@ def _to_public_user(user, session) -> UserResponse:
         user_code=user.user_code,
         email=user.email,
         display_name=user.display_name,
+        is_admin=user.is_admin,
         religions=religions,
         created_at=user.created_at.isoformat().replace("+00:00", "Z"),
         updated_at=user.updated_at.isoformat().replace("+00:00", "Z"),

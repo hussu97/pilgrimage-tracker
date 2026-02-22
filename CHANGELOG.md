@@ -4,6 +4,32 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Admin Panel — Phase 1: Foundation (2026-02-22)
+
+### Backend
+- **User model**: added `is_admin: bool` column (`BOOLEAN NOT NULL DEFAULT FALSE`) to the `user` table
+- **Migration `0008_add_is_admin.py`**: adds `is_admin` column to `user` table
+- **`AdminDep`**: new FastAPI dependency in `server/app/api/deps.py` — raises HTTP 403 for non-admins
+- **Admin router**: `server/app/api/v1/admin/` package with scraper proxy stub registered at `/api/v1/admin/`
+- **Scraper proxy**: `scraper_proxy.py` forwards all scraper management requests to `DATA_SCRAPER_URL` (new env var added to `config.py`)
+- **`GET /api/v1/users/me`**: response now includes `is_admin` field via updated `UserResponse` schema
+- **`scripts/create_admin.py`**: CLI to create a new admin user or promote an existing user
+- **Tests**: `tests/test_admin_dep.py` — 8 tests covering auth guard, is_admin in response, and create_admin script logic (all 508 server tests pass)
+
+### Frontend (Admin)
+- **`apps/admin/`**: new Vite + React + TypeScript + Tailwind CSS admin app (port 5174)
+- Same design tokens as `apps/web` (`dark-bg`, `dark-surface`, `dark-border`, `dark-text-secondary`, `primary`, Inter font)
+- **Auth flow**: `AuthProvider` (JWT stored in localStorage), `ThemeProvider` (dark/light with persistence), `RequireAuth`, `RequireAdmin` route guards
+- **Layout**: collapsible sidebar with nav links (Dashboard, Users, Places, Reviews, Check-ins, Groups, Scraper, Content, Audit Log), sticky topbar with breadcrumb, theme toggle, user avatar, logout
+- **Pages**: `LoginPage`, `AccessDeniedPage`, `DashboardPage` (placeholder for Phase 5)
+- **API layer**: `apiClient` (Axios with Bearer token interceptor + auto-redirect on 401), `admin.ts`, `types.ts`
+- Mobile-responsive: sidebar becomes slide-out drawer (hamburger trigger) on `< 768 px`
+
+### Docs
+- `ADMIN_ROADMAP.md`: Phase 1 implementation complete
+
+---
+
 ## i18n: Add Malayalam Language Support (2026-02-22)
 
 ### Backend
