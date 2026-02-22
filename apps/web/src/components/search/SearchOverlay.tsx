@@ -193,7 +193,7 @@ export default function SearchOverlay({
               {history.length > 0 && (
                 <button
                   onClick={handleClearHistory}
-                  className="text-xs text-primary font-semibold hover:text-blue-700 transition-colors"
+                  className="text-xs text-primary font-semibold hover:text-primary-hover transition-colors"
                 >
                   {t('search.clearHistory')}
                 </button>

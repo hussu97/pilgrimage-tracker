@@ -100,7 +100,7 @@ function ReviewsSection({
 
         <Link
           to={`/places/${placeCode}/review`}
-          className="bg-primary hover:bg-blue-600 text-white text-[11px] font-bold uppercase tracking-widest px-8 py-3 rounded-2xl shadow-lg shadow-primary/20 transition-all active:scale-95 text-center"
+          className="bg-primary hover:bg-primary-hover text-white text-[11px] font-bold uppercase tracking-widest px-8 py-3 rounded-2xl shadow-lg shadow-primary/20 transition-all active:scale-95 text-center"
         >
           {t('placeDetail.writeAReview')}
         </Link>

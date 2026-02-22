@@ -99,7 +99,7 @@ export default function Groups() {
             <button
               type="button"
               onClick={() => navigate('/register')}
-              className="w-full max-w-xs bg-primary hover:bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-md transition-all mb-3"
+              className="w-full max-w-xs bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-2xl shadow-md transition-all mb-3"
             >
               {t('splash.getStarted')}
             </button>
@@ -226,7 +226,7 @@ export default function Groups() {
                             ? 'text-green-600 bg-green-50 dark:bg-green-950/40 border-green-500/20'
                             : isNew
                               ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500/20'
-                              : 'text-primary bg-blue-50 dark:bg-blue-950/40 border-blue-500/20',
+                              : 'text-primary bg-soft-blue dark:bg-primary/20 border-primary/20',
                         )}
                       >
                         {level}

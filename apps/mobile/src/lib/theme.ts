@@ -19,7 +19,7 @@ export async function setStoredTheme(theme: Theme): Promise<void> {
 }
 
 /**
- * Design tokens from FRONTEND_REWAMP design files.
+ * Design tokens from V3 design files.
  * Border radius values aligned with design reference:
  *   xl  = 12px  – inputs, inner elements
  *   2xl = 16px  – cards
@@ -29,20 +29,20 @@ export async function setStoredTheme(theme: Theme): Promise<void> {
  */
 export const tokens = {
   colors: {
-    primary: '#007AFF',
-    primaryDark: '#0062CC',
-    accent: '#90CAF9',
-    backgroundLight: '#f8fafc',
+    primary: '#B0563D',
+    primaryDark: '#8E4433',
+    accent: '#D4A08C',
+    backgroundLight: '#F5F0E9',
     surface: '#ffffff',
-    softBlue: '#EBF5FF',
-    surfaceTint: '#EBF5FF',
-    textMain: '#0f172a',
-    textDark: '#1e293b',
-    textSecondary: '#64748b',
-    textMuted: '#94a3b8',
-    inputBorder: '#e2e8f0',
-    blueTint: '#f0f9ff',
-    iconGrey: '#475569',
+    softBlue: '#F2E8E4',
+    surfaceTint: '#EADEC8',
+    textMain: '#2D3E3B',
+    textDark: '#2D3E3B',
+    textSecondary: '#6B7280',
+    textMuted: '#A39C94',
+    inputBorder: '#D1C7BD',
+    blueTint: '#FAF6F0',
+    iconGrey: '#4A5D59',
     openNow: '#16a34a', // green for open
     openNowBg: 'rgba(22, 163, 74, 0.15)',
     closedNow: '#EF4444', // red for closed
@@ -50,13 +50,13 @@ export const tokens = {
     unknownStatus: '#94a3b8', // grey for unknown
     unknownStatusBg: 'rgba(148, 163, 184, 0.15)',
     // Dark mode tokens
-    darkBg: '#121212',
-    darkSurface: '#1E1E1E',
-    darkBorder: '#2C2C2E',
-    darkTextSecondary: '#A1A1A1',
+    darkBg: '#1A1A1A',
+    darkSurface: '#242424',
+    darkBorder: '#333333',
+    darkTextSecondary: '#A39C94',
     // Primary with opacity (for partial check-in indicators, chips)
-    primaryAlpha: 'rgba(0,122,255,0.15)',
-    primaryAlphaDark: 'rgba(0,122,255,0.2)',
+    primaryAlpha: 'rgba(176,86,61,0.15)',
+    primaryAlphaDark: 'rgba(176,86,61,0.2)',
     // Leaderboard rank colors (gold / silver / bronze)
     goldRank: '#f59e0b',
     goldRankLight: '#fef3c7',

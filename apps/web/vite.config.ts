@@ -12,11 +12,11 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Pilgrimage Tracker',
-        short_name: 'Pilgrimage',
-        description: 'Track your pilgrimages and discover places',
-        theme_color: '#0d9488',
-        background_color: '#f8fafc',
+        name: 'SoulStep',
+        short_name: 'SoulStep',
+        description: 'Track your pilgrimages and discover sacred places',
+        theme_color: '#B0563D',
+        background_color: '#F5F0E9',
         display: 'standalone',
         start_url: '/',
         icons: [

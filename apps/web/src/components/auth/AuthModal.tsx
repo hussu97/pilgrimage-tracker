@@ -85,7 +85,7 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
       <div className="py-2">
         {/* Prompt */}
         {promptKey && (
-          <div className="mb-5 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30">
+          <div className="mb-5 p-3 rounded-xl bg-soft-blue dark:bg-primary/10 border border-soft-blue dark:border-primary/30">
             <p className="text-sm font-semibold text-primary">{t(promptKey)}</p>
             <p className="text-xs text-slate-500 dark:text-dark-text-secondary mt-0.5">
               {t('visitor.loginRequiredDesc')}
@@ -152,7 +152,7 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-primary hover:bg-blue-600 disabled:opacity-60 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-100 dark:shadow-none transition-all text-sm"
+              className="w-full bg-primary hover:bg-primary-hover disabled:opacity-60 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/10 dark:shadow-none transition-all text-sm"
             >
               {submitting ? t('common.loading') : t('auth.login')}
             </button>
@@ -195,7 +195,7 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-primary hover:bg-blue-600 disabled:opacity-60 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-100 dark:shadow-none transition-all text-sm"
+              className="w-full bg-primary hover:bg-primary-hover disabled:opacity-60 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/10 dark:shadow-none transition-all text-sm"
             >
               {submitting ? t('common.loading') : t('auth.register')}
             </button>

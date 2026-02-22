@@ -232,7 +232,7 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
             </p>
           </div>
           {place.distance != null && (
-            <span className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary bg-blue-tint dark:bg-dark-surface border border-blue-100/50 dark:border-dark-border px-2 py-1 rounded-xl shrink-0 whitespace-nowrap">
+            <span className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary bg-blue-tint dark:bg-dark-surface border border-soft-blue/50 dark:border-dark-border px-2 py-1 rounded-xl shrink-0 whitespace-nowrap">
               {formatDistance(place.distance, units)}
             </span>
           )}

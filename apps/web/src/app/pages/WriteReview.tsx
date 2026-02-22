@@ -354,7 +354,7 @@ export default function WriteReview() {
       {success && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm p-6">
           <div className="bg-white dark:bg-dark-surface w-full max-w-sm rounded-2xl p-8 text-center shadow-xl border border-slate-100 dark:border-dark-border">
-            <div className="w-12 h-12 bg-blue-50 dark:bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-12 h-12 bg-soft-blue dark:bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="material-symbols-outlined text-2xl text-primary">check</span>
             </div>
             <h3 className="text-lg font-medium text-text-main dark:text-white mb-2">

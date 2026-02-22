@@ -1,0 +1,2020 @@
+<!-- User Profile & Stats -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Profile - SoulStep Dark Mode</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined|Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "soul-terracotta": "#D96B43",
+                        "soul-charcoal-dark": "#1A1A1A",
+                        "soul-charcoal-light": "#242424",
+                        "soul-beige": "#F2E8DC",
+                        "primary": "#D96B43",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "sans": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "3xl": "1.5rem",
+                        "full": "9999px"
+                    }
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        :root {
+            --primary-color: #D96B43;
+            --bg-dark: #1A1A1A;
+            --container-bg: #242424;
+            --text-beige: #F2E8DC;
+        }
+        body {
+            min-height: 100dvh;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        body {
+            min-height: max(812px, 100dvh);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-stone-900 font-sans text-[var(--text-beige)] flex items-center justify-center p-0 sm:p-4">
+<div class="w-full max-w-sm bg-soul-charcoal-dark h-screen sm:h-[812px] relative overflow-hidden flex flex-col shadow-2xl sm:rounded-[40px] border border-white/5">
+<div class="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-soul-terracotta/10 to-transparent pointer-events-none z-0"></div>
+<main class="relative z-10 flex-1 overflow-y-auto no-scrollbar pt-16 pb-24">
+<section class="px-8 mb-10">
+<h1 class="text-3xl font-bold text-soul-beige tracking-tight">Sarah Jenkins</h1>
+<div class="flex items-center gap-1.5 mt-1.5 text-soul-beige/50 text-sm font-medium">
+<span class="material-icons-outlined text-base">calendar_today</span>
+                    Joined Jan 2024
+                </div>
+</section>
+<section class="px-8 mb-10">
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-soul-charcoal-light border border-white/5 p-6 rounded-3xl flex flex-col">
+<span class="text-3xl font-bold text-soul-beige">12</span>
+<span class="text-xs uppercase tracking-widest font-bold text-soul-beige/40 mt-1">Check-ins</span>
+</div>
+<div class="bg-soul-charcoal-light border border-white/5 p-6 rounded-3xl flex flex-col">
+<span class="text-3xl font-bold text-soul-beige">5</span>
+<span class="text-xs uppercase tracking-widest font-bold text-soul-beige/40 mt-1">Reviews</span>
+</div>
+</div>
+</section>
+<section class="px-6 mb-6">
+<h3 class="text-[11px] font-bold text-soul-beige/40 uppercase tracking-[0.15em] mb-3 ml-2">Preferences</h3>
+<div class="bg-soul-charcoal-light rounded-3xl border border-white/5 shadow-lg overflow-hidden">
+<button class="w-full flex items-center justify-between p-5 hover:bg-white/5 transition-colors group border-b border-white/5">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-soul-terracotta/20 text-soul-terracotta flex items-center justify-center group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[22px]">map</span>
+</div>
+<div class="text-left">
+<h3 class="font-semibold text-soul-beige text-sm">My Path</h3>
+<p class="text-xs text-soul-beige/40 font-medium">Islam, Christianity</p>
+</div>
+</div>
+<span class="material-icons-round text-soul-beige/20 group-hover:text-soul-terracotta transition-all text-xl">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-5 hover:bg-white/5 transition-colors group border-b border-white/5">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-soul-terracotta/20 text-soul-terracotta flex items-center justify-center group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[22px]">language</span>
+</div>
+<div class="text-left">
+<h3 class="font-semibold text-soul-beige text-sm">Language</h3>
+<p class="text-xs text-soul-beige/40 font-medium">English (US)</p>
+</div>
+</div>
+<span class="material-icons-round text-soul-beige/20 group-hover:text-soul-terracotta transition-all text-xl">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-5 hover:bg-white/5 transition-colors group border-b border-white/5">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-soul-terracotta/20 text-soul-terracotta flex items-center justify-center group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[22px]">notifications</span>
+</div>
+<div class="text-left">
+<h3 class="font-semibold text-soul-beige text-sm">Notifications</h3>
+<p class="text-xs text-soul-beige/40 font-medium">On</p>
+</div>
+</div>
+<span class="material-icons-round text-soul-beige/20 group-hover:text-soul-terracotta transition-all text-xl">chevron_right</span>
+</button>
+<button class="w-full flex items-center justify-between p-5 hover:bg-white/5 transition-colors group">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-soul-terracotta/20 text-soul-terracotta flex items-center justify-center group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[22px]">favorite</span>
+</div>
+<div class="text-left">
+<h3 class="font-semibold text-soul-beige text-sm">My Wishlist</h3>
+<p class="text-xs text-soul-beige/40 font-medium">8 Saved Places</p>
+</div>
+</div>
+<span class="material-icons-round text-soul-beige/20 group-hover:text-soul-terracotta transition-all text-xl">chevron_right</span>
+</button>
+</div>
+</section>
+<div class="mt-8 mb-4 flex justify-center">
+<p class="text-[10px] font-bold text-soul-beige/20 uppercase tracking-widest">Version 2.4.0</p>
+</div>
+</main>
+<nav class="border-t border-white/10 bg-soul-charcoal-dark/95 backdrop-blur-xl pt-3 pb-8 px-6 flex justify-between items-center z-20 absolute bottom-0 w-full">
+<button class="flex flex-col items-center gap-1.5 text-soul-beige/40 hover:text-soul-terracotta transition-colors flex-1">
+<span class="material-icons-outlined text-[26px]">explore</span>
+<span class="text-[10px] font-bold">Explore</span>
+</button>
+<button class="flex flex-col items-center gap-1.5 text-soul-beige/40 hover:text-soul-terracotta transition-colors flex-1">
+<span class="material-icons-outlined text-[26px]">map</span>
+<span class="text-[10px] font-bold">Map</span>
+</button>
+<button class="flex flex-col items-center gap-1.5 text-soul-beige/40 hover:text-soul-terracotta transition-colors flex-1">
+<span class="material-icons-outlined text-[26px]">groups</span>
+<span class="text-[10px] font-bold">Groups</span>
+</button>
+<button class="flex flex-col items-center gap-1.5 text-soul-terracotta flex-1 relative">
+<span class="absolute -top-3 w-8 h-1 bg-soul-terracotta rounded-b-full shadow-[0_0_10px_rgba(217,107,67,0.4)]"></span>
+<span class="material-icons-round text-[26px]">person</span>
+<span class="text-[10px] font-bold">Profile</span>
+</button>
+</nav>
+</div>
+
+</body></html>
+
+<!-- Place Details - Hindu Temple -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Mosque Details - SoulStep Dark Mode</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "soul-bg": "#1A1A1A",
+                        "soul-sheet": "#242424",
+                        "soul-terracotta": "#D96B43",
+                        "soul-beige": "#F2E8DC",
+                        "soul-charcoal-muted": "#333333",
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"],
+                        "display": ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "3xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        :root {
+            --soul-bg: #1A1A1A;
+            --soul-sheet: #242424;
+            --soul-terracotta: #D96B43;
+            --soul-beige: #F2E8DC;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        body {
+            min-height: max(844px, 100dvh);
+            background-color: var(--soul-bg);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-soul-beige font-sans antialiased selection:bg-soul-terracotta/20">
+<div class="mx-auto max-w-md bg-soul-bg min-h-screen relative shadow-2xl overflow-hidden pb-24">
+<div class="relative h-[30vh] w-full group">
+<img alt="Majestic Modern Mosque" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB_GD7ioNKb_wBwo0sYRbzw3SokfcraY794Iu3mCp1GAiBYazRvh4FPKGrjvlE-G0J13Vvf5p7u7IfzsLL1DXROZ8aUv8c1o8D8B_VkM_GyIw7YqvxLbE5TX0lIBTMzP9Tnuzr4-24LFQhW6bwbXDgHFCAAnbpGVFknPhbj3f-IK8-kCUgZwwxAHDbUC5xPCmuf9mxKkH52d7w3z5MOftR6kPhwTE7Z8esVlmFguA0hQU8PR1tRJjyNbJRhn0w2WkGcvfv9u8n4j7U"/>
+<div class="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-soul-bg/90"></div>
+<div class="absolute top-0 left-0 w-full z-20 pt-12 px-6 flex justify-between items-center text-white">
+<button class="bg-black/20 backdrop-blur-md w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/40 transition border border-white/10">
+<span class="material-icons text-xl">arrow_back</span>
+</button>
+<div class="flex gap-3">
+<button class="bg-black/20 backdrop-blur-md w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/40 transition border border-white/10">
+<span class="material-symbols-outlined text-xl">ios_share</span>
+</button>
+<button class="bg-black/20 backdrop-blur-md w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/40 transition border border-white/10">
+<span class="material-icons text-xl">favorite_border</span>
+</button>
+</div>
+</div>
+<div class="absolute bottom-0 left-0 w-full p-6 pb-12 text-white z-10">
+<div class="flex items-center gap-2 mb-3">
+<span class="px-3 py-1 bg-soul-terracotta backdrop-blur-md shadow-sm rounded-full text-[10px] font-bold tracking-widest uppercase text-white border border-soul-terracotta/50">Open Now</span>
+<div class="flex items-center text-white text-[11px] font-semibold bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10">
+<span class="material-icons text-[12px] mr-1 text-yellow-400">star</span>
+                        4.8 (1.2k)
+                    </div>
+</div>
+<h1 class="text-3xl font-bold mb-1 leading-tight tracking-tight text-white">Grand Al-Masjid</h1>
+<div class="flex items-center text-soul-beige/70 text-xs font-medium">
+<span class="material-icons text-sm mr-1 opacity-80">location_on</span>
+                    Downtown District, Cultural Zone
+                </div>
+</div>
+</div>
+<div class="relative -mt-6 bg-soul-sheet rounded-t-[2rem] shadow-[0_-8px_30px_rgba(0,0,0,0.4)] overflow-hidden min-h-[70vh]">
+<div class="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 bg-soul-beige/10 rounded-full"></div>
+<div class="pt-8 pb-6 px-4 flex justify-between items-center border-b border-white/5">
+<button class="flex flex-col items-center gap-1.5 flex-1 group">
+<div class="w-10 h-10 flex items-center justify-center rounded-full bg-soul-bg text-soul-beige/60 group-hover:text-soul-terracotta transition-colors">
+<span class="material-symbols-outlined text-xl">near_me</span>
+</div>
+<div class="text-center">
+<p class="text-[10px] text-soul-beige/40 uppercase font-bold tracking-wider">Distance</p>
+<p class="text-soul-beige font-semibold text-sm">2.4 km</p>
+</div>
+</button>
+<div class="w-px h-8 bg-white/5"></div>
+<div class="flex flex-col items-center gap-1.5 flex-1">
+<div class="w-10 h-10 flex items-center justify-center rounded-full bg-soul-terracotta text-white shadow-lg shadow-soul-terracotta/20">
+<span class="material-symbols-outlined text-xl">groups</span>
+</div>
+<div class="text-center">
+<p class="text-[10px] text-soul-beige/40 uppercase font-bold tracking-wider">Crowd</p>
+<p class="text-soul-terracotta font-semibold text-sm">Low</p>
+</div>
+</div>
+<div class="w-px h-8 bg-white/5"></div>
+<div class="flex flex-col items-center gap-1.5 flex-1">
+<div class="w-10 h-10 flex items-center justify-center rounded-full bg-soul-bg text-soul-beige/60">
+<span class="material-symbols-outlined text-xl">check_circle</span>
+</div>
+<div class="text-center">
+<p class="text-[10px] text-soul-beige/40 uppercase font-bold tracking-wider">Status</p>
+<p class="text-soul-beige font-semibold text-sm">850 Checked-in</p>
+</div>
+</div>
+</div>
+<div class="px-6 py-6">
+<h2 class="text-lg font-bold text-soul-terracotta mb-3 tracking-tight">The Story</h2>
+<p class="text-soul-beige/80 leading-[1.8] text-[15px] font-normal font-sans">
+                    An architectural marvel inspired by modern Islamic design, this mosque stands as a beacon of peace and community. Its pristine white structure and geometric <span class="text-soul-beige font-semibold">arabesque patterns</span> reflect a harmonious blend of traditional heritage and contemporary aesthetics.
+                    <button class="text-soul-terracotta font-bold ml-1 hover:underline text-sm">Read more</button>
+</p>
+</div>
+<div class="bg-soul-bg/50 py-8 pl-6 border-y border-white/5">
+<div class="flex justify-between items-center mb-5 pr-6">
+<div>
+<h2 class="text-lg font-semibold text-soul-beige tracking-tight">Sacred Timings</h2>
+<p class="text-xs text-soul-beige/40 mt-1 font-normal">Prayer times for today</p>
+</div>
+<div class="text-[10px] font-bold text-soul-terracotta uppercase tracking-widest bg-soul-terracotta/10 px-2 py-1 rounded border border-soul-terracotta/20">
+                        Rajab 14
+                    </div>
+</div>
+<div class="flex gap-3 overflow-x-auto hide-scrollbar pb-2 pr-6">
+<div class="flex-shrink-0 flex flex-col items-center group">
+<div class="w-[72px] h-[72px] rounded-full border border-white/10 bg-soul-sheet/50 flex items-center justify-center relative mb-2 opacity-50">
+<div class="flex flex-col items-center">
+<span class="text-[10px] text-soul-beige/60 font-medium uppercase tracking-wide mb-0.5">Fajr</span>
+<span class="text-sm font-bold text-soul-beige">05:12</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 flex flex-col items-center group">
+<div class="w-[72px] h-[72px] rounded-full border-2 border-soul-terracotta bg-soul-terracotta/20 flex items-center justify-center relative mb-2 shadow-lg shadow-soul-terracotta/10">
+<div class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-soul-terracotta rounded-full border-2 border-soul-sheet"></div>
+<div class="flex flex-col items-center">
+<span class="text-[10px] text-soul-terracotta font-bold uppercase tracking-wide mb-0.5">Dhuhr</span>
+<span class="text-sm font-bold text-soul-beige">12:30</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 flex flex-col items-center group">
+<div class="w-[72px] h-[72px] rounded-full border border-white/10 bg-soul-sheet/50 flex items-center justify-center relative mb-2">
+<div class="flex flex-col items-center">
+<span class="text-[10px] text-soul-beige/60 font-medium uppercase tracking-wide mb-0.5">Asr</span>
+<span class="text-sm font-bold text-soul-beige">03:45</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 flex flex-col items-center group">
+<div class="w-[72px] h-[72px] rounded-full border border-white/10 bg-soul-sheet/50 flex items-center justify-center relative mb-2">
+<div class="flex flex-col items-center">
+<span class="text-[10px] text-soul-beige/60 font-medium uppercase tracking-wide mb-0.5">Maghrib</span>
+<span class="text-sm font-bold text-soul-beige">06:15</span>
+</div>
+</div>
+</div>
+<div class="flex-shrink-0 flex flex-col items-center group">
+<div class="w-[72px] h-[72px] rounded-full border border-white/10 bg-soul-sheet/50 flex items-center justify-center relative mb-2">
+<div class="flex flex-col items-center">
+<span class="text-[10px] text-soul-beige/60 font-medium uppercase tracking-wide mb-0.5">Isha</span>
+<span class="text-sm font-bold text-soul-beige">07:45</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="px-6 py-8">
+<h2 class="text-lg font-semibold text-soul-beige mb-5 tracking-tight">Specifications</h2>
+<div class="grid grid-cols-2 gap-4">
+<div class="p-4 rounded-2xl bg-soul-bg/40 border border-white/5 shadow-sm flex flex-col items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-soul-terracotta/10 flex items-center justify-center text-soul-terracotta">
+<span class="material-symbols-outlined text-xl">water_drop</span>
+</div>
+<div>
+<p class="text-[10px] text-soul-beige/40 uppercase font-bold tracking-wider mb-1">Ablution</p>
+<p class="text-sm font-semibold text-soul-beige">Wudu Area</p>
+</div>
+</div>
+<div class="p-4 rounded-2xl bg-soul-bg/40 border border-white/5 shadow-sm flex flex-col items-start gap-3">
+<div class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-soul-beige/40">
+<span class="material-symbols-outlined text-xl">local_parking</span>
+</div>
+<div>
+<p class="text-[10px] text-soul-beige/40 uppercase font-bold tracking-wider mb-1">Access</p>
+<p class="text-sm font-semibold text-soul-beige">Free Parking</p>
+</div>
+</div>
+</div>
+</div>
+<div class="px-6 pb-32">
+<div class="flex justify-between items-center mb-5">
+<h2 class="text-lg font-semibold text-soul-beige tracking-tight">Reviews</h2>
+<div class="flex items-center gap-1.5 bg-soul-terracotta/10 px-3 py-1 rounded-full border border-soul-terracotta/20">
+<span class="text-soul-terracotta font-bold text-sm">4.8</span>
+<span class="material-icons text-sm text-soul-terracotta">star</span>
+</div>
+</div>
+<div class="p-5 rounded-2xl bg-soul-bg/60 border border-white/5 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-soul-terracotta/5 rounded-bl-[4rem] -mr-6 -mt-6 z-0"></div>
+<div class="relative z-10">
+<div class="flex items-center gap-3 mb-3">
+<img alt="User Avatar" class="w-10 h-10 rounded-full object-cover ring-2 ring-soul-sheet shadow-sm" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWwCrGZ6Cxfew4CIxVrgyAYZPvvNn9t50_qL3dPVaFoKZ6H7KuMGL6S4-Uje7Lvq5k86R0SKz7ubCB1VQ8gc5VX0bAFKWGpuH8iVGleciz1I9J9gE3PbDU7e5bc7FI3ecVG0SfwOCl8eIFmv2ZJmDlla3u1rjZKdrLFm0fhyCnraIWy_w8iF9wJmAedMvaxXbP5n_Z_hyk69dtOc7nPrExDI4C0dqBwMkhZIr9sCIiki3SrFsAYLWD_EpN0ODK5U_SU-uJEHrUg90"/>
+<div>
+<p class="text-sm font-bold text-soul-beige">Omar Farooq</p>
+<p class="text-xs text-soul-beige/40">Visited yesterday</p>
+</div>
+</div>
+<p class="text-sm text-soul-beige/70 italic leading-[1.7]">
+                            "The serenity here is unmatched. Extremely clean wudu areas and the carpet is plush. I recommend coming early for Jummah as it fills up quickly."
+                        </p>
+</div>
+</div>
+</div>
+</div>
+<div class="fixed bottom-0 left-0 w-full bg-soul-sheet/95 backdrop-blur-lg border-t border-white/5 z-50 max-w-md mx-auto right-0 pb-safe pt-2">
+<div class="flex justify-around items-center px-4 h-[70px]">
+<button class="flex flex-col items-center gap-1 w-16 group">
+<span class="material-symbols-outlined text-[24px] text-soul-terracotta">explore</span>
+<span class="text-[10px] font-bold tracking-wide text-soul-terracotta">Explore</span>
+</button>
+<button class="flex flex-col items-center gap-1 w-16 group text-soul-beige/40 hover:text-soul-terracotta transition-colors">
+<span class="material-symbols-outlined text-[24px]">map</span>
+<span class="text-[10px] font-medium tracking-wide">Map</span>
+</button>
+<button class="flex flex-col items-center gap-1 w-16 group text-soul-beige/40 hover:text-soul-terracotta transition-colors">
+<span class="material-symbols-outlined text-[24px]">groups</span>
+<span class="text-[10px] font-medium tracking-wide">Groups</span>
+</button>
+<button class="flex flex-col items-center gap-1 w-16 group text-soul-beige/40 hover:text-soul-terracotta transition-colors">
+<span class="material-symbols-outlined text-[24px]">person</span>
+<span class="text-[10px] font-medium tracking-wide">Profile</span>
+</button>
+</div>
+<div class="h-4 w-full"></div>
+</div>
+</div>
+
+</body></html>
+
+<!-- Explore Sacred Places -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Home - SoulStep Dark Mode</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#D96B43", // Terracotta Orange
+                        "dark-charcoal": "#1A1A1A", // Dark charcoal background
+                        "card-bg": "#242424", // Place cards
+                        "light-beige": "#F2E8DC", // Greeting and ratings
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"],
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "1rem", "2xl": "1.5rem", "3xl": "2rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        :root {
+            --dark-charcoal: #1A1A1A;
+            --card-bg: #242424;
+            --primary-orange: #D96B43;
+            --light-beige: #F2E8DC;
+        }
+        .safe-top {
+            padding-top: env(safe-area-inset-top, 44px);
+        }
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 34px);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        body {
+            background-color: var(--dark-charcoal);
+        }
+        .glass-overlay {
+            background: rgba(36, 36, 36, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-light-beige font-sans antialiased min-h-screen flex flex-col">
+<div class="fixed top-0 w-full z-50 safe-top bg-dark-charcoal/90 backdrop-blur-md">
+<div class="px-6 h-10 flex justify-between items-center text-xs font-semibold text-light-beige/80">
+<span>9:41</span>
+<div class="flex gap-1.5 items-center">
+<span class="material-icons text-[14px]">signal_cellular_alt</span>
+<span class="material-icons text-[14px]">wifi</span>
+<span class="material-icons text-[14px] rotate-90">battery_full</span>
+</div>
+</div>
+</div>
+<main class="flex-1 flex flex-col pt-[calc(env(safe-area-inset-top,44px)+2.5rem)] pb-[calc(env(safe-area-inset-bottom,34px)+5.5rem)]">
+<header class="px-6 mb-8">
+<div class="flex justify-between items-center">
+<h1 class="text-3xl font-semibold text-light-beige tracking-tight leading-tight">
+                    Hello, Ahmed
+                </h1>
+<div class="flex items-center gap-3">
+<button class="bg-card-bg p-2.5 rounded-2xl border border-white/5 flex items-center justify-center text-light-beige/70">
+<span class="material-symbols-outlined text-2xl">format_list_bulleted</span>
+</button>
+<button class="bg-card-bg p-2.5 rounded-2xl border border-white/5 flex items-center justify-center text-light-beige/70">
+<span class="material-symbols-outlined text-2xl">map</span>
+</button>
+</div>
+</div>
+<div class="mt-6 relative">
+<div class="flex items-center bg-card-bg rounded-2xl px-4 py-4 border border-white/5">
+<span class="material-symbols-outlined text-light-beige/30 text-xl mr-3">search</span>
+<input class="w-full bg-transparent border-none p-0 text-base font-normal text-light-beige placeholder-light-beige/30 focus:ring-0" placeholder="Search sacred places..." type="text"/>
+</div>
+</div>
+</header>
+<div class="px-6 space-y-6">
+<div class="bg-card-bg rounded-[2.5rem] overflow-hidden relative shadow-2xl group border border-white/5">
+<div class="relative h-64 overflow-hidden">
+<img alt="Sultan Ahmed Mosque" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAceiAdgf7TzoDBEER5U0kKO5Q8sI1kQ3hakRwCoTvTzFfipflTz-aKyfecSfrgtJ3zze9omlJ0MxrXg97GbxXvBE0uC1kJM9qQ1SCPHo9NuJ1O-dccgzLXde9xYApPpfcyjC2wULiSCBfAAPNCn7lU70LxTk3TPsSvA2A0kfx6Fi9d6WocItKgVd9GJMN6oPYLW_Yre5jqrAcVd6R5QMwVsJnFLLNgmJnFOgUsStpvDjWMX4IGuHJo1mE1I2znBG6LcJRPJLsAyeU"/>
+<div class="absolute inset-0 bg-gradient-to-t from-card-bg via-transparent to-black/30"></div>
+<div class="absolute top-5 left-5 z-10">
+<div class="bg-primary/95 backdrop-blur-md rounded-full px-4 py-1.5 flex items-center gap-1 shadow-lg shadow-primary/20">
+<span class="text-[10px] font-bold text-white uppercase tracking-widest">Open</span>
+</div>
+</div>
+<div class="absolute top-5 right-5 z-10">
+<div class="bg-black/40 backdrop-blur-md border border-white/10 rounded-full px-3 py-1.5 flex items-center gap-1">
+<span class="material-icons text-white text-[12px]">check</span>
+<span class="text-[10px] font-bold text-white uppercase tracking-wider">Visited</span>
+</div>
+</div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-xl font-semibold text-light-beige">Sultan Ahmed Mosque</h3>
+<p class="text-sm text-light-beige/50 font-medium flex items-center mt-1">
+<span class="material-icons text-primary text-[16px] mr-1">location_on</span>
+                                Istanbul, Turkey
+                            </p>
+</div>
+</div>
+<div class="flex items-center justify-between mt-6 pt-5 border-t border-white/5">
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-bold tracking-widest text-light-beige/40 uppercase">2.4 km away</span>
+<div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-lg">
+<span class="material-icons text-[12px] text-primary">star</span>
+<span class="text-[11px] font-bold text-light-beige">4.9</span>
+</div>
+</div>
+<button class="bg-primary text-white px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all shadow-lg shadow-primary/20">
+                            Check In
+                        </button>
+</div>
+</div>
+</div>
+<div class="bg-card-bg rounded-[2.5rem] overflow-hidden relative shadow-2xl group border border-white/5">
+<div class="relative h-64 overflow-hidden">
+<img alt="Cathedral Interior" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwi5In9kMhpWvSYPWM4WIxzzAY2zjRYxkHx6zUVrZoplbsRgIOZQMFW8BaEZDgcFJmaSsaL56TLzj46aXzACxfpOo56VaFH5gcCbCw9lV4VdQGrw_LA6_mxBbzox3vDQtrtZ_hwmRgQ_HOgMRLmgK42sKwIs4HujtHDB_cZE9q-YMIdpKJgTaYhvzNLRqoZU-r6mbwR98TW5mh4lxEuhSbOwNmAFvpU_SD17ZJ4TPwL-yZiVex0-Kdkux45Xif3H8cdMoXJTodUyI"/>
+<div class="absolute inset-0 bg-gradient-to-t from-card-bg via-transparent to-black/30"></div>
+<div class="absolute top-5 left-5 z-10">
+<div class="bg-primary/95 backdrop-blur-md rounded-full px-4 py-1.5 flex items-center gap-1 shadow-lg shadow-primary/20">
+<span class="text-[10px] font-bold text-white uppercase tracking-widest">Open</span>
+</div>
+</div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-xl font-semibold text-light-beige">St. Paul's Cathedral</h3>
+<p class="text-sm text-light-beige/50 font-medium flex items-center mt-1">
+<span class="material-icons text-primary text-[16px] mr-1">location_on</span>
+                                London, United Kingdom
+                            </p>
+</div>
+</div>
+<div class="flex items-center justify-between mt-6 pt-5 border-t border-white/5">
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-bold tracking-widest text-light-beige/40 uppercase">5.1 km away</span>
+<div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-lg">
+<span class="material-icons text-[12px] text-primary">star</span>
+<span class="text-[11px] font-bold text-light-beige">4.8</span>
+</div>
+</div>
+<button class="bg-primary text-white px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all shadow-lg shadow-primary/20">
+                            Check In
+                        </button>
+</div>
+</div>
+</div>
+<div class="bg-card-bg rounded-[2.5rem] overflow-hidden relative shadow-2xl group border border-white/5">
+<div class="relative h-64 overflow-hidden">
+<img alt="Temple Entrance" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-60" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAG00wcY55ctD7fYD-UjCrk2tWt3JcqG9ic8QU3oyIXqUpQ362Z0PG76mXA7d2-IFxfPh-YeSl6-vaIBaXK8K6p5Sgn0kzc8sTKr517_HTzVpi1gVMjfnhsuimI9KSzsI5uqZAg7MmFDCTcnYzM8mFFaMMLczzxqIA8FCo2tyW9KcBWEsTQfJq8JOGezHqApnQqyHMxlk4Fqs_LYBkvvuZ6vUHhk3gp-_YuJCIsec6_Lwi2tZH2mivucffdoq6vRBLUaWHKZqUn7PM"/>
+<div class="absolute inset-0 bg-gradient-to-t from-card-bg via-transparent to-black/30"></div>
+<div class="absolute top-5 left-5 z-10">
+<div class="bg-white/10 backdrop-blur-md rounded-full px-4 py-1.5 flex items-center gap-1">
+<span class="text-[10px] font-bold text-white/70 uppercase tracking-widest">Closed</span>
+</div>
+</div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-xl font-semibold text-light-beige">Lotus Temple</h3>
+<p class="text-sm text-light-beige/50 font-medium flex items-center mt-1">
+<span class="material-icons text-primary text-[16px] mr-1">location_on</span>
+                                New Delhi, India
+                            </p>
+</div>
+</div>
+<div class="flex items-center justify-between mt-6 pt-5 border-t border-white/5">
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-bold tracking-widest text-light-beige/40 uppercase">12.8 km away</span>
+<div class="flex items-center gap-1 bg-white/5 px-2 py-1 rounded-lg">
+<span class="material-icons text-[12px] text-primary">star</span>
+<span class="text-[11px] font-bold text-light-beige">4.7</span>
+</div>
+</div>
+<button class="bg-primary/20 text-primary/40 px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest cursor-not-allowed">
+                            Check In
+                        </button>
+</div>
+</div>
+</div>
+<div class="h-8"></div>
+</div>
+</main>
+<nav class="fixed bottom-0 w-full bg-dark-charcoal/90 backdrop-blur-2xl border-t border-white/5 pb-[env(safe-area-inset-bottom,20px)] pt-3 safe-bottom z-40">
+<div class="grid grid-cols-4 gap-1 px-4">
+<button class="flex flex-col items-center justify-center gap-1 py-1 text-primary">
+<span class="material-symbols-outlined text-[28px] fill-1">explore</span>
+<span class="text-[10px] font-bold tracking-tight">Explore</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 py-1 text-light-beige/30">
+<span class="material-symbols-outlined text-[28px]">map</span>
+<span class="text-[10px] font-medium tracking-tight">Map</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 py-1 text-light-beige/30">
+<span class="material-symbols-outlined text-[28px]">groups</span>
+<span class="text-[10px] font-medium tracking-tight">Groups</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 py-1 text-light-beige/30">
+<span class="material-symbols-outlined text-[28px]">person</span>
+<span class="text-[10px] font-medium tracking-tight">Profile</span>
+</button>
+</div>
+</nav>
+
+</body></html>
+
+<!-- Explore Sacred Places -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SoulStep - Map View Dark</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#D96B43",
+                        "primary-dark": "#B35432",
+                        "soul-dark": "#121212",
+                        "soul-surface": "#242424",
+                        "soul-beige": "#F2E8DC",
+                        "card": "#242424",
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "1rem", "2xl": "1.5rem", "3xl": "2rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        :root {
+            --terracotta: #D96B43;
+            --soul-beige: #F2E8DC;
+            --soul-dark: #121212;
+            --soul-surface: #242424;
+        }
+        .safe-top {
+            padding-top: env(safe-area-inset-top, 44px);
+        }
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 34px);
+        }
+        body {
+            background-color: var(--soul-dark);
+        }
+        .map-bg {
+            background-color: #0F0F0F;
+            background-image:
+                linear-gradient(rgba(217, 107, 67, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(217, 107, 67, 0.05) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+        .pin-glow::before {
+            content: '';
+            position: absolute;
+            height: 100%;
+            width: 100%;
+            border-radius: 50%;
+            background-color: rgba(217, 107, 67, 0.4);
+            animation: pulse-ring 2.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.6); opacity: 0.8; }
+            80%, 100% { opacity: 0; transform: scale(2.5); }
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-soul-beige font-sans antialiased min-h-screen flex flex-col overflow-hidden">
+<div class="fixed inset-0 z-0 map-bg w-full h-full">
+<svg class="absolute inset-0 w-full h-full opacity-20 pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+<path d="M-100,250 Q200,200 400,350 T900,250" fill="none" stroke="#333333" stroke-linecap="round" stroke-width="40"></path>
+<path d="M150,-100 Q200,350 150,850" fill="none" stroke="#333333" stroke-linecap="round" stroke-width="45"></path>
+<path d="M50,450 Q300,500 600,450" fill="none" stroke="#333333" stroke-linecap="round" stroke-width="35"></path>
+</svg>
+<div class="absolute top-[48%] left-[50%] transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-20">
+<div class="relative w-14 h-14 flex items-center justify-center pin-glow">
+<div class="w-6 h-6 rounded-full bg-primary border-[4px] border-[#1A1A1A] shadow-2xl relative z-10"></div>
+</div>
+</div>
+<div class="absolute top-[32%] left-[28%] opacity-60">
+<div class="w-3.5 h-3.5 rounded-full bg-primary/50 border-2 border-white/20 shadow-sm"></div>
+</div>
+<div class="absolute top-[62%] right-[25%] opacity-60">
+<div class="w-3.5 h-3.5 rounded-full bg-primary/50 border-2 border-white/20 shadow-sm"></div>
+</div>
+</div>
+<div class="fixed top-0 w-full z-50 safe-top">
+<div class="px-6 h-10 flex justify-between items-center text-xs font-semibold text-soul-beige/80">
+<span>9:41</span>
+<div class="flex gap-1.5 items-center">
+<span class="material-icons text-[14px]">signal_cellular_alt</span>
+<span class="material-icons text-[14px]">wifi</span>
+<span class="material-icons text-[14px] rotate-90">battery_full</span>
+</div>
+</div>
+</div>
+<main class="flex-1 flex flex-col pt-[calc(env(safe-area-inset-top,44px)+2.5rem)] relative z-30 pointer-events-none">
+<header class="px-6 mb-6 pointer-events-auto">
+<div class="flex justify-between items-center">
+<div>
+<p class="text-[10px] font-bold tracking-[0.2em] text-primary mb-1 uppercase">Explorer Mode</p>
+<h1 class="text-3xl font-bold text-soul-beige tracking-tight leading-tight">
+                    Hello, Ahmed
+                </h1>
+</div>
+<button class="w-12 h-12 flex items-center justify-center rounded-2xl bg-soul-surface/90 backdrop-blur-md shadow-xl border border-white/10 text-soul-beige hover:bg-soul-surface transition-colors">
+<span class="material-symbols-outlined text-2xl">view_list</span>
+</button>
+</div>
+</header>
+<div class="absolute bottom-6 left-0 right-0 px-5 pointer-events-auto pb-[calc(env(safe-area-inset-bottom,34px)+4.5rem)]">
+<div class="w-full bg-soul-surface rounded-[2.5rem] p-5 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.8)] border border-white/5 flex flex-col gap-5">
+<div class="flex gap-4">
+<div class="w-24 h-24 flex-shrink-0 rounded-[1.8rem] overflow-hidden relative bg-black/40 shadow-inner">
+<img alt="Sultan Ahmed Mosque" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAceiAdgf7TzoDBEER5U0kKO5Q8sI1kQ3hakRwCoTvTzFfipflTz-aKyfecSfrgtJ3zze9omlJ0MxrXg97GbxXvBE0uC1kJM9qQ1SCPHo9NuJ1O-dccgzLXde9xYApPpfcyjC2wULiSCBfAAPNCn7lU70LxTk3TPsSvA2A0kfx6Fi9d6WocItKgVd9GJMN6oPYLW_Yre5jqrAcVd6R5QMwVsJnFLLNgmJnFOgUsStpvDjWMX4IGuHJo1mE1I2znBG6LcJRPJLsAyeU"/>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-center py-0.5">
+<div class="flex justify-between items-start">
+<div class="flex-1">
+<h3 class="text-xl font-bold text-soul-beige truncate leading-tight">Sultan Ahmed Mosque</h3>
+<p class="text-sm text-soul-beige/60 font-medium flex items-center mt-1">
+<span class="material-icons text-primary/80 text-base mr-1">location_on</span>
+                                Istanbul, Turkey
+                            </p>
+</div>
+<div class="flex items-center bg-green-500/10 border border-green-500/20 px-2.5 py-1 rounded-full ml-2">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>
+<span class="text-[10px] font-bold text-green-500 uppercase tracking-wider">Open</span>
+</div>
+</div>
+<div class="flex items-center gap-3 mt-3">
+<div class="flex items-center gap-1">
+<span class="material-icons text-primary text-lg">star</span>
+<span class="text-sm font-bold text-soul-beige">4.8</span>
+<span class="text-xs text-soul-beige/40 font-medium ml-0.5">(1.2k)</span>
+</div>
+<div class="w-1 h-1 rounded-full bg-soul-beige/20"></div>
+<span class="text-[10px] font-bold text-soul-beige/50 tracking-wider uppercase">2.4 KM AWAY</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<button class="flex items-center bg-primary hover:bg-primary-dark transition-colors px-6 py-3 rounded-full shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-white text-lg mr-2 font-bold">directions_walk</span>
+<span class="text-xs font-bold text-white uppercase tracking-[0.15em]">Start Journey</span>
+</button>
+<button class="w-11 h-11 flex items-center justify-center rounded-full bg-soul-beige/5 border border-white/5 text-soul-beige/80">
+<span class="material-symbols-outlined text-xl">share</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<nav class="fixed bottom-0 w-full bg-soul-dark/90 backdrop-blur-2xl border-t border-white/5 pb-[env(safe-area-inset-bottom,20px)] pt-3 safe-bottom z-40">
+<div class="grid grid-cols-4 px-2">
+<button class="flex flex-col items-center justify-center gap-1 text-primary">
+<span class="material-symbols-outlined text-[28px] fill-1">explore</span>
+<span class="text-[10px] font-bold tracking-tight">Explore</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 text-soul-beige/40">
+<span class="material-symbols-outlined text-[28px]">map</span>
+<span class="text-[10px] font-medium tracking-tight">Map</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 text-soul-beige/40">
+<span class="material-symbols-outlined text-[28px]">groups</span>
+<span class="text-[10px] font-medium tracking-tight">Groups</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1 text-soul-beige/40">
+<span class="material-symbols-outlined text-[28px]">person</span>
+<span class="text-[10px] font-medium tracking-tight">Profile</span>
+</button>
+</div>
+</nav>
+
+</body></html>
+
+<!-- Sign Up Screen - Light Mode -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sign Up - SoulStep Dark Mode</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          theme: {
+            extend: {
+              colors: {
+                "primary": "#D96B43", // Terracotta orange
+                "dark-charcoal": "#1A1A1A", // Main background
+                "field-bg": "#242424", // Input field background
+                "light-beige": "#F2E8DC", // Primary typography
+                "muted-beige": "#A39C94", // Muted text
+              },
+              fontFamily: {
+                "sans": ["Inter", "sans-serif"]
+              },
+            },
+          },
+        }
+    </script>
+<style type="text/tailwindcss">
+        @layer base {
+            body {
+                @apply font-sans antialiased bg-[#0D0D0D] flex items-center justify-center;
+                -webkit-tap-highlight-color: transparent;
+            }
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="min-h-screen p-4">
+<div class="w-full max-w-[390px] h-[844px] bg-dark-charcoal shadow-2xl rounded-[3rem] overflow-hidden relative flex flex-col border border-white/5">
+<div class="h-12 w-full flex items-center justify-between px-8 pt-4">
+<span class="text-xs font-semibold text-light-beige">9:41</span>
+<div class="flex items-center space-x-1.5 text-light-beige">
+<span class="material-symbols-outlined text-[14px]">signal_cellular_4_bar</span>
+<span class="material-symbols-outlined text-[14px]">wifi</span>
+<span class="material-symbols-outlined text-[18px]">battery_full</span>
+</div>
+</div>
+<header class="px-8 pt-6 pb-4 flex items-center">
+<button class="w-10 h-10 -ml-2 flex items-center justify-center rounded-full hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined text-light-beige">arrow_back_ios</span>
+</button>
+</header>
+<div class="flex-1 overflow-y-auto hide-scrollbar px-8">
+<div class="mt-2 mb-8">
+<h1 class="text-[28px] font-semibold tracking-tight text-light-beige">Create Account</h1>
+<p class="text-muted-beige mt-2 leading-[1.7] font-normal">
+                    Join a global community of spiritual explorers and find your next sacred journey.
+                </p>
+</div>
+<form class="space-y-6" onsubmit="event.preventDefault();">
+<div class="space-y-2">
+<label class="block text-[12px] font-bold text-light-beige ml-1 uppercase tracking-[0.1em]">Full Name</label>
+<input class="w-full h-[52px] px-4 rounded-xl bg-field-bg border border-white/5 focus:border-primary focus:ring-1 focus:ring-primary/20 text-light-beige placeholder:text-muted-beige/40 transition-all outline-none" placeholder="John Doe" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="block text-[12px] font-bold text-light-beige ml-1 uppercase tracking-[0.1em]">Email Address</label>
+<input class="w-full h-[52px] px-4 rounded-xl bg-field-bg border border-white/5 focus:border-primary focus:ring-1 focus:ring-primary/20 text-light-beige placeholder:text-muted-beige/40 transition-all outline-none" placeholder="name@example.com" type="email"/>
+</div>
+<div class="space-y-2">
+<label class="block text-[12px] font-bold text-light-beige ml-1 uppercase tracking-[0.1em]">Password</label>
+<div class="relative">
+<input class="w-full h-[52px] px-4 rounded-xl bg-field-bg border border-white/5 focus:border-primary focus:ring-1 focus:ring-primary/20 text-light-beige placeholder:text-muted-beige/40 transition-all outline-none" placeholder="••••••••" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-muted-beige" type="button">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+</div>
+</div>
+<div class="pt-2">
+<div class="flex items-center justify-between mb-4 ml-1">
+<h2 class="text-[12px] font-bold text-light-beige uppercase tracking-[0.1em]">Select Your Path</h2>
+<span class="text-[10px] text-primary font-bold bg-primary/10 px-2 py-0.5 rounded-md">OPTIONAL</span>
+</div>
+<div class="flex overflow-x-auto gap-2.5 pb-2 hide-scrollbar -mx-8 px-8">
+<button class="flex-shrink-0 px-6 py-2.5 rounded-full bg-primary text-light-beige font-semibold text-[14px] transition-all whitespace-nowrap shadow-lg shadow-primary/20">
+                            All Religions
+                        </button>
+<button class="flex-shrink-0 px-6 py-2.5 rounded-full bg-field-bg text-light-beige/80 font-medium text-[14px] border border-white/5 transition-all whitespace-nowrap hover:bg-white/5">
+                            Islam
+                        </button>
+<button class="flex-shrink-0 px-6 py-2.5 rounded-full bg-field-bg text-light-beige/80 font-medium text-[14px] border border-white/5 transition-all whitespace-nowrap hover:bg-white/5">
+                            Hinduism
+                        </button>
+<button class="flex-shrink-0 px-6 py-2.5 rounded-full bg-field-bg text-light-beige/80 font-medium text-[14px] border border-white/5 transition-all whitespace-nowrap hover:bg-white/5">
+                            Christianity
+                        </button>
+</div>
+</div>
+<div class="pt-4">
+<button class="w-full h-[56px] bg-primary hover:bg-[#C25A36] text-light-beige font-bold text-[16px] rounded-2xl transition-all transform active:scale-[0.98] flex items-center justify-center shadow-xl shadow-primary/20">
+                        Create Account
+                    </button>
+</div>
+</form>
+<div class="mt-8 text-center pb-12">
+<p class="text-muted-beige text-[14px]">
+                    Already have an account?
+                    <a class="text-primary font-bold hover:underline ml-1" href="#">Sign In</a>
+</p>
+</div>
+</div>
+<div class="h-1.5 w-32 bg-white/10 rounded-full mx-auto mb-2 absolute bottom-2 left-1/2 -translate-x-1/2"></div>
+</div>
+
+</body></html>
+
+<!-- User Profile & Stats -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SoulStep - Discover Your Sacred Journey</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "terracotta": "#D96B43",
+                        "terracotta-dark": "#C25936",
+                        "charcoal": "#1A1A1A",
+                        "beige-light": "#F2E8DC",
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "pill": "9999px",
+                        "3xl": "1.5rem",
+                    }
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        :root {
+            --bg-color: #1A1A1A;
+            --text-beige: #F2E8DC;
+            --primary: #D96B43;
+        }
+        body {
+            min-height: 100dvh;
+            -webkit-font-smoothing: antialiased;
+            background-color: #000;
+        }
+        .hero-gradient-overlay {
+            background: linear-gradient(to bottom, rgba(26, 26, 26, 0) 0%, rgba(26, 26, 26, 1) 100%);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+<style>
+        body {
+            min-height: max(812px, 100dvh);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-sans text-beige-light flex items-center justify-center p-0 sm:p-4">
+<div class="w-full max-w-sm bg-charcoal h-screen sm:h-[812px] relative overflow-hidden flex flex-col shadow-2xl sm:rounded-[40px] border border-white/5">
+<main class="relative flex-1 overflow-y-auto no-scrollbar flex flex-col">
+<div class="relative w-full h-[55%] shrink-0 flex items-center justify-center pt-12">
+<div class="relative w-52 h-52 z-10">
+<img alt="SoulStep Logo" class="w-full h-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUPo3Wpj6hrEGtSwmMTHjZOANZIMioXDGQFQFNNWKGl1w1HdBrPNXimqieb5b7DDFs0rcfoJy7OpKXBMFs-uJ1q9XsMs0vZWNNnyn4zLVL0fb2aebz6rnKx8VKLvwqAPjHYMuhUiGsrnN1Q8pj9eIk384o3BebRF7hynSFJW8YvJ7u0hgyCDwx2FpDE4eMV561v3Q1WD0BRDhDeJvPrNRz-yu6U6lxy3bT1U8CSHUY1QmCscihA2YZBOg5Hxixp9WtNSRoOzA00Yk"/>
+</div>
+<div class="absolute inset-0 hero-gradient-overlay"></div>
+</div>
+<section class="px-8 mt-2 relative z-10 flex flex-col items-center text-center">
+<h1 class="text-[34px] leading-tight font-bold text-beige-light tracking-tight mb-4">
+                    Discover Your <br/>Sacred Journey
+                </h1>
+<p class="text-[16px] leading-relaxed text-beige-light/60 font-normal px-2">
+                    Track your pilgrimages, explore ancient trails, and join global communities on a path of spiritual discovery.
+                </p>
+</section>
+<section class="px-8 mt-auto mb-10 space-y-4 w-full">
+<button class="w-full bg-terracotta hover:bg-terracotta-dark text-white font-semibold py-4 rounded-pill shadow-xl shadow-terracotta/10 transition-all active:scale-[0.98]">
+                    Get Started
+                </button>
+<button class="w-full bg-transparent border border-beige-light/30 text-beige-light font-semibold py-4 rounded-pill hover:bg-white/5 transition-all active:scale-[0.98]">
+                    Sign In
+                </button>
+</section>
+</main>
+<nav class="border-t border-white/10 bg-charcoal/80 backdrop-blur-xl pt-3 pb-8 px-6 flex justify-between items-center z-20">
+<button class="flex flex-col items-center gap-1 text-beige-light/30 hover:text-terracotta transition-colors flex-1">
+<span class="material-symbols-outlined text-[26px]">explore</span>
+<span class="text-[10px] font-bold">Explore</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-beige-light/30 hover:text-terracotta transition-colors flex-1">
+<span class="material-symbols-outlined text-[26px]">map</span>
+<span class="text-[10px] font-bold">Map</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-beige-light/30 hover:text-terracotta transition-colors flex-1">
+<span class="material-symbols-outlined text-[26px]">groups</span>
+<span class="text-[10px] font-bold">Groups</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-terracotta flex-1 relative">
+<span class="absolute -top-3 w-8 h-1 bg-terracotta rounded-b-full"></span>
+<span class="material-symbols-outlined text-[26px] fill-1">person</span>
+<span class="text-[10px] font-bold">Profile</span>
+</button>
+</nav>
+</div>
+
+</body></html>
+
+<!-- Explore Sacred Places -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Check-in History - SoulStep Dark Mode</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#D96B43", // Terracotta Orange
+                        "dark-charcoal": "#1A1A1A",
+                        "list-bg": "#242424",
+                        "beige": "#EADEC8",
+                        "charcoal-surface": "#242424",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "1rem", "2xl": "1.5rem", "3xl": "2rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        :root {
+            --primary: #D96B43;
+            --bg-dark: #1A1A1A;
+            --list-item: #242424;
+            --beige: #EADEC8;
+        }
+        .safe-top {
+            padding-top: env(safe-area-inset-top, 44px);
+        }
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 34px);
+        }
+        body {
+            background-color: var(--bg-dark);
+            color: var(--beige);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-display antialiased min-h-screen flex flex-col">
+<div class="fixed top-0 w-full z-50 safe-top bg-dark-charcoal/80 backdrop-blur-md">
+<div class="px-6 pb-2 flex justify-between items-center text-xs font-medium text-beige/80">
+<span>9:41</span>
+<div class="flex gap-1.5 items-center">
+<span class="material-icons text-[14px]">signal_cellular_alt</span>
+<span class="material-icons text-[14px]">wifi</span>
+<span class="material-icons text-[14px] rotate-90">battery_full</span>
+</div>
+</div>
+</div>
+<main class="flex-1 flex flex-col pt-[calc(env(safe-area-inset-top,44px)+1rem)] pb-[calc(env(safe-area-inset-bottom,34px)+5rem)]">
+<header class="px-6 mb-8">
+<div class="relative flex items-center justify-center mb-6">
+<button class="absolute left-0 p-1 text-beige">
+<span class="material-symbols-outlined font-light text-2xl">arrow_back_ios_new</span>
+</button>
+<h1 class="text-xl font-semibold text-beige tracking-tight">Check-Ins</h1>
+</div>
+<div class="bg-charcoal-surface rounded-3xl p-6 shadow-2xl flex items-center justify-between relative overflow-hidden border border-white/5">
+<div class="absolute -right-6 -top-6 w-32 h-32 bg-primary/10 rounded-full blur-2xl"></div>
+<div>
+<span class="text-[10px] font-bold text-beige/40 uppercase tracking-[0.15em]">Total Check-ins</span>
+<div class="flex items-baseline mt-1">
+<span class="text-5xl font-light text-primary tracking-tighter">42</span>
+<span class="ml-2 text-sm text-beige/40 font-normal">entries</span>
+</div>
+</div>
+<div class="h-12 w-[1px] bg-white/5 mx-4"></div>
+<div class="text-right">
+<span class="text-[10px] font-bold text-beige/40 uppercase tracking-[0.15em] block mb-1">This Month</span>
+<span class="text-2xl font-medium text-primary">8</span>
+</div>
+</div>
+</header>
+<section class="px-6 mb-8">
+<div class="flex justify-between items-center mb-4">
+<h2 class="text-lg font-medium text-beige/90">October 2023</h2>
+<div class="flex gap-2">
+<button class="p-1 rounded-full bg-list-bg hover:bg-white/10 transition-colors">
+<span class="material-icons text-beige/60 text-sm">chevron_left</span>
+</button>
+<button class="p-1 rounded-full bg-list-bg hover:bg-white/10 transition-colors">
+<span class="material-icons text-beige/60 text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+<div class="bg-list-bg rounded-3xl p-5 border border-white/5">
+<div class="grid grid-cols-7 gap-y-4 text-center text-[10px] font-bold text-beige/30 mb-2">
+<span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+</div>
+<div class="grid grid-cols-7 gap-y-3 text-center text-sm">
+<span class="text-beige/10 py-2">28</span>
+<span class="text-beige/10 py-2">29</span>
+<span class="text-beige/10 py-2">30</span>
+<span class="text-beige/60 py-2">1</span>
+<span class="text-beige py-2 relative flex items-center justify-center">
+<span class="absolute w-8 h-8 bg-primary/20 rounded-full"></span>
+<span class="relative z-10 text-primary font-semibold">2</span>
+</span>
+<span class="text-beige/60 py-2">3</span>
+<span class="text-beige/60 py-2">4</span>
+<span class="text-beige/60 py-2">5</span>
+<span class="text-beige/60 py-2">6</span>
+<span class="text-beige/60 py-2">7</span>
+<span class="text-beige py-2 relative flex items-center justify-center">
+<span class="absolute w-8 h-8 bg-primary/20 rounded-full"></span>
+<span class="relative z-10 text-primary font-semibold">8</span>
+</span>
+<span class="text-beige/60 py-2">9</span>
+<span class="text-beige/60 py-2">10</span>
+<span class="text-beige/60 py-2">11</span>
+<span class="text-beige py-2 relative flex items-center justify-center">
+<span class="absolute w-8 h-8 bg-primary/20 rounded-full"></span>
+<span class="relative z-10 text-primary font-semibold">12</span>
+</span>
+<span class="text-beige/60 py-2">13</span>
+<span class="text-beige/60 py-2">14</span>
+<span class="text-beige py-2 relative flex items-center justify-center">
+<span class="absolute w-8 h-8 bg-primary/20 rounded-full"></span>
+<span class="relative z-10 text-primary font-semibold">15</span>
+</span>
+<span class="text-beige/60 py-2">16</span>
+<span class="text-beige/60 py-2">17</span>
+<span class="text-beige/60 py-2">18</span>
+<span class="text-beige/60 py-2">19</span>
+<span class="text-beige/60 py-2">20</span>
+<span class="text-beige/60 py-2">21</span>
+<span class="text-beige/60 py-2">22</span>
+<span class="text-beige/60 py-2">23</span>
+<span class="text-beige/60 py-2">24</span>
+<span class="text-white py-2 relative flex items-center justify-center">
+<span class="absolute w-8 h-8 bg-primary rounded-full shadow-lg shadow-primary/40"></span>
+<span class="relative z-10 font-bold">25</span>
+</span>
+<span class="text-beige/60 py-2">26</span>
+<span class="text-beige/60 py-2">27</span>
+<span class="text-beige/60 py-2">28</span>
+<span class="text-beige/60 py-2">29</span>
+<span class="text-beige/60 py-2">30</span>
+<span class="text-beige/60 py-2">31</span>
+</div>
+</div>
+</section>
+<section class="px-6 mb-8">
+<h2 class="text-lg font-medium text-beige mb-4">Recent Check-ins (3)</h2>
+<div class="space-y-4">
+<div class="bg-list-bg rounded-3xl p-4 border border-white/5 flex gap-4 h-32 items-center group cursor-pointer active:scale-95 transition-all duration-200">
+<div class="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 relative">
+<img alt="Sultan Ahmed Mosque" class="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAceiAdgf7TzoDBEER5U0kKO5Q8sI1kQ3hakRwCoTvTzFfipflTz-aKyfecSfrgtJ3zze9omlJ0MxrXg97GbxXvBE0uC1kJM9qQ1SCPHo9NuJ1O-dccgzLXde9xYApPpfcyjC2wULiSCBfAAPNCn7lU70LxTk3TPsSvA2A0kfx6Fi9d6WocItKgVd9GJMN6oPYLW_Yre5jqrAcVd6R5QMwVsJnFLLNgmJnFOgUsStpvDjWMX4IGuHJo1mE1I2znBG6LcJRPJLsAyeU"/>
+<div class="absolute bottom-1 right-1 bg-dark-charcoal/80 backdrop-blur-sm px-1.5 py-0.5 rounded-lg flex items-center gap-0.5">
+<span class="material-icons text-[10px] text-primary">star</span>
+<span class="text-[10px] font-bold text-white">4.8</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col justify-center h-full">
+<h3 class="text-base font-semibold text-beige leading-tight">Sultan Ahmed Mosque</h3>
+<div class="flex items-center gap-1 mt-1 text-xs text-beige/50 font-light">
+<span class="material-icons text-[12px]">calendar_today</span>
+<span>Oct 25, 2023</span>
+</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+<span class="material-icons text-[10px] mr-1">location_on</span> Istanbul
+                            </span>
+</div>
+</div>
+</div>
+<div class="bg-list-bg rounded-3xl p-4 border border-white/5 flex gap-4 h-32 items-center group cursor-pointer active:scale-95 transition-all duration-200">
+<div class="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 relative">
+<img alt="Islamic Cultural Center" class="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAG00wcY55ctD7fYD-UjCrk2tWt3JcqG9ic8QU3oyIXqUpQ362Z0PG76mXA7d2-IFxfPh-YeSl6-vaIBaXK8K6p5Sgn0kzc8sTKr517_HTzVpi1gVMjfnhsuimI9KSzsI5uqZAg7MmFDCTcnYzM8mFFaMMLczzxqIA8FCo2tyW9KcBWEsTQfJq8JOGezHqApnQqyHMxlk4Fqs_LYBkvvuZ6vUHhk3gp-_YuJCIsec6_Lwi2tZH2mivucffdoq6vRBLUaWHKZqUn7PM"/>
+<div class="absolute bottom-1 right-1 bg-dark-charcoal/80 backdrop-blur-sm px-1.5 py-0.5 rounded-lg flex items-center gap-0.5">
+<span class="material-icons text-[10px] text-primary">star</span>
+<span class="text-[10px] font-bold text-white">4.5</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col justify-center h-full">
+<h3 class="text-base font-semibold text-beige leading-tight">Islamic Cultural Center</h3>
+<div class="flex items-center gap-1 mt-1 text-xs text-beige/50 font-light">
+<span class="material-icons text-[12px]">calendar_today</span>
+<span>Oct 15, 2023</span>
+</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+<span class="material-icons text-[10px] mr-1">location_on</span> Community
+                            </span>
+</div>
+</div>
+</div>
+<div class="bg-list-bg rounded-3xl p-4 border border-white/5 flex gap-4 h-32 items-center group cursor-pointer active:scale-95 transition-all duration-200">
+<div class="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 relative">
+<img alt="Masjid Al-Noor" class="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwi5In9kMhpWvSYPWM4WIxzzAY2zjRYxkHx6zUVrZoplbsRgIOZQMFW8BaEZDgcFJmaSsaL56TLzj46aXzACxfpOo56VaFH5gcCbCw9lV4VdQGrw_LA6_mxBbzox3vDQtrtZ_hwmRgQ_HOgMRLmgK42sKwIs4HujtHDB_cZE9q-YMIdpKJgTaYhvzNLRqoZU-r6mbwR98TW5mh4lxEuhSbOwNmAFvpU_SD17ZJ4TPwL-yZiVex0-Kdkux45Xif3H8cdMoXJTodUyI"/>
+<div class="absolute bottom-1 right-1 bg-dark-charcoal/80 backdrop-blur-sm px-1.5 py-0.5 rounded-lg flex items-center gap-0.5">
+<span class="material-icons text-[10px] text-primary">star</span>
+<span class="text-[10px] font-bold text-white">4.7</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col justify-center h-full">
+<h3 class="text-base font-semibold text-beige leading-tight">Masjid Al-Noor</h3>
+<div class="flex items-center gap-1 mt-1 text-xs text-beige/50 font-light">
+<span class="material-icons text-[12px]">calendar_today</span>
+<span>Oct 12, 2023</span>
+</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+<span class="material-icons text-[10px] mr-1">location_on</span> Downtown
+                            </span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<section class="px-6 pb-4">
+<h2 class="text-lg font-medium text-beige mb-4">On this Day</h2>
+<div class="bg-list-bg rounded-3xl p-4 border border-white/5 flex gap-4 h-32 items-center group cursor-pointer active:scale-95 transition-all duration-200">
+<div class="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 relative">
+<img alt="Historical interior" class="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all duration-500" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAceiAdgf7TzoDBEER5U0kKO5Q8sI1kQ3hakRwCoTvTzFfipflTz-aKyfecSfrgtJ3zze9omlJ0MxrXg97GbxXvBE0uC1kJM9qQ1SCPHo9NuJ1O-dccgzLXde9xYApPpfcyjC2wULiSCBfAAPNCn7lU70LxTk3TPsSvA2A0kfx6Fi9d6WocItKgVd9GJMN6oPYLW_Yre5jqrAcVd6R5QMwVsJnFLLNgmJnFOgUsStpvDjWMX4IGuHJo1mE1I2znBG6LcJRPJLsAyeU"/>
+<div class="absolute bottom-1 right-1 bg-dark-charcoal/80 backdrop-blur-sm px-1.5 py-0.5 rounded-lg flex items-center gap-0.5">
+<span class="material-icons text-[10px] text-primary">star</span>
+<span class="text-[10px] font-bold text-white">4.8</span>
+</div>
+</div>
+<div class="flex-1 flex flex-col justify-center h-full">
+<h3 class="text-base font-semibold text-beige leading-tight">Sultan Ahmed Mosque</h3>
+<div class="flex items-center gap-1 mt-1 text-xs text-beige/50 font-light">
+<span class="material-icons text-[12px]">calendar_today</span>
+<span>Oct 25, 2022</span>
+</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-white/5 text-beige/60 border border-white/10">
+<span class="material-icons text-[10px] mr-1">history</span> 1 Year Ago
+                        </span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<nav class="fixed bottom-0 w-full bg-dark-charcoal/85 backdrop-blur-2xl border-t border-white/5 pb-[env(safe-area-inset-bottom,20px)] pt-2 safe-bottom z-40">
+<div class="grid grid-cols-4 gap-1 px-2">
+<button class="flex flex-col items-center justify-center gap-1.5 pt-2 text-beige/40 hover:text-beige transition-colors group">
+<span class="material-symbols-outlined text-[26px] font-light">explore</span>
+<span class="text-[10px] font-medium tracking-wide">Explore</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1.5 pt-2 text-beige/40 hover:text-beige transition-colors group">
+<span class="material-symbols-outlined text-[26px] font-light">map</span>
+<span class="text-[10px] font-medium tracking-wide">Map</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1.5 pt-2 text-beige/40 hover:text-beige transition-colors group">
+<span class="material-symbols-outlined text-[26px] font-light">groups</span>
+<span class="text-[10px] font-medium tracking-wide">Groups</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-1.5 pt-2 text-primary group">
+<div class="relative p-1">
+<span class="material-symbols-outlined text-[26px] fill-1">person</span>
+<span class="absolute top-1 right-0 w-1.5 h-1.5 bg-primary rounded-full ring-2 ring-dark-charcoal"></span>
+</div>
+<span class="text-[10px] font-medium tracking-wide">Profile</span>
+</button>
+</div>
+</nav>
+
+</body></html>
+
+<!-- Write a Review -->
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Write Review - SoulStep</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "soul-terracotta": "#D96B43",
+                        "soul-charcoal": "#1A1A1A",
+                        "soul-input": "#242424",
+                        "soul-beige": "#F2E8DC",
+                    },
+                    fontFamily: {
+                        "sans": ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        @layer base {
+            body {
+                @apply bg-[#121212] text-soul-beige;
+            }
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 48;
+        }
+        .material-symbols-outlined.fill-icon {
+            font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 48;
+        }
+        .toggle-checkbox:checked {
+            right: 0;
+            background-color: #F2E8DC;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #D96B43;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-sans flex justify-center selection:bg-soul-terracotta selection:text-white">
+<main class="w-full max-w-md bg-soul-charcoal relative min-h-screen shadow-2xl overflow-hidden flex flex-col">
+<header class="flex items-center justify-between px-6 pt-14 pb-4 bg-soul-charcoal/80 backdrop-blur-md z-30 border-b border-white/5">
+<button class="text-soul-beige/60 text-[17px] font-normal hover:text-soul-beige transition-colors">Cancel</button>
+<h1 class="text-[17px] font-semibold text-soul-beige tracking-tight">Write Review</h1>
+<button class="text-soul-terracotta font-semibold text-[17px] hover:opacity-80 transition-opacity">Save</button>
+</header>
+<div class="flex-1 overflow-y-auto pb-40 no-scrollbar">
+<section class="px-6 pt-8 pb-4">
+<div class="flex items-center justify-between">
+<div>
+<h2 class="text-2xl font-semibold text-soul-beige leading-tight">Golden Temple</h2>
+<p class="text-sm text-soul-beige/50 mt-1 font-normal tracking-wide">Amritsar, India</p>
+</div>
+<div class="w-14 h-14 rounded-2xl overflow-hidden shadow-xl ring-1 ring-white/10">
+<img alt="Golden Temple Reflection" class="w-full h-full object-cover grayscale-[20%]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCEuM8DqOFvVCFzCcrHPhiOGJoiyr8E9pxzNMS3n3C3KOShCYhzW-2wXVQVZNrNk_oHTjzBQvXoGztRNS-58UtZ4k2ZbN04seXXiGCmPYev-3SH-qlyHPAuszTyjlAPiEA8BMzA3zEfc--9jcuCddjtjrTSGLyfonYbzuaEg17XFKUBOdNLigT5EWpYY86O1xS21jxyp-2Qdwm3OjQrgmn2WtfHnmKxCA8KD-v0ociU94dpAflKF1GTKjHAF2feyp--nbWGEB81DJ0"/>
+</div>
+</div>
+</section>
+<section class="px-6 py-6">
+<div class="flex gap-2 items-center">
+<button class="group focus:outline-none transition-transform active:scale-90">
+<span class="material-symbols-outlined text-4xl text-soul-terracotta fill-icon">star</span>
+</button>
+<button class="group focus:outline-none transition-transform active:scale-90">
+<span class="material-symbols-outlined text-4xl text-soul-terracotta fill-icon">star</span>
+</button>
+<button class="group focus:outline-none transition-transform active:scale-90">
+<span class="material-symbols-outlined text-4xl text-soul-terracotta fill-icon">star</span>
+</button>
+<button class="group focus:outline-none transition-transform active:scale-90">
+<span class="material-symbols-outlined text-4xl text-soul-terracotta fill-icon">star</span>
+</button>
+<button class="group focus:outline-none transition-transform active:scale-90">
+<span class="material-symbols-outlined text-4xl text-soul-beige/20">star</span>
+</button>
+<span class="ml-4 text-[15px] text-soul-beige/40 font-medium italic">Exceptional</span>
+</div>
+</section>
+<section class="px-6 py-4 flex-1">
+<div class="relative min-h-[240px] bg-soul-input rounded-2xl p-5 border border-white/5 shadow-inner">
+<textarea class="w-full h-full bg-transparent border-none p-0 text-[17px] text-soul-beige placeholder-soul-beige/20 focus:ring-0 resize-none font-normal leading-relaxed" id="review-text" placeholder="Share the spiritual essence of your journey..."></textarea>
+</div>
+</section>
+<section class="px-6 pt-8 pb-4">
+<h3 class="text-[13px] font-semibold text-soul-beige/40 uppercase tracking-widest mb-4">Add Photos</h3>
+<div class="flex items-center space-x-3 overflow-x-auto no-scrollbar">
+<button class="flex-shrink-0 w-24 h-24 border border-dashed border-white/10 rounded-2xl flex items-center justify-center bg-soul-input hover:bg-white/5 transition-colors group">
+<span class="material-symbols-outlined text-soul-terracotta text-3xl group-hover:scale-110 transition-transform">add_a_photo</span>
+</button>
+<div class="relative flex-shrink-0 w-24 h-24 group">
+<img alt="Temple entrance view" class="w-full h-full object-cover rounded-2xl shadow-lg brightness-75 group-hover:brightness-100 transition-all" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAiCwVAIb_IJPxcy8aDQZEqjb8syAnByXc9hDbfEK9Q69YBwQp0QgbCanZsV4AJcenDRqBle8pHoAgSKWLcWdUhvyowOECe5WaUnfgfcaIyFBcVpauz2makccxEd47vBt-xZnar_MIlefN3C31L6vMaNRvqcU_wr3pPKCFp9oRyORi54Yw4RB88zO7QWe1A8XUATMMM03hsHl0E2P9-7riNqAzlEjYyFWrEXOB6d6OK3Y4SZPwWy4a5pcJGvmvIFHaan08BGL8cBf8"/>
+<button class="absolute -top-2 -right-2 bg-soul-charcoal border border-white/10 shadow-xl text-soul-beige rounded-full p-1 transform transition-transform hover:scale-110">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+<div class="relative flex-shrink-0 w-24 h-24 group">
+<img alt="Serene prayer hall" class="w-full h-full object-cover rounded-2xl shadow-lg brightness-75 group-hover:brightness-100 transition-all" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA8JX05iAOi0frLyREYgZ4jeHOcLWMoULGa4NxBxLXPSawj0fJokwmwLeCY5ehqVnE_RxhAYkXi6er3KCtFALV_BY3cV40sldXp1aFEqKuJXzyNNO3bmc7hYBKUkd1zqeXbfUZoFSp1YQYKfnd76W0Jjm85ODd8ImfdX0_JtT58Gh_yjXCevKsLDU1d3Xfg3rgsUD8rDY78rQP-RAnrYX7CuTT8MmOx4isne7xjWcdapdRLOGmkjwMb4slluR3ImJ0CXhruKwTxcd0"/>
+<button class="absolute -top-2 -right-2 bg-soul-charcoal border border-white/10 shadow-xl text-soul-beige rounded-full p-1 transform transition-transform hover:scale-110">
+<span class="material-symbols-outlined text-[16px]">close</span>
+</button>
+</div>
+</div>
+</section>
+<section class="px-6 pt-4">
+<div class="flex items-center justify-between py-5 border-t border-white/5">
+<div class="flex flex-col">
+<span class="text-[17px] font-normal text-soul-beige">Post Anonymously</span>
+<span class="text-[13px] text-soul-beige/30">Hide your profile from public view</span>
+</div>
+<div class="relative inline-block w-12 h-7 align-middle select-none">
+<input class="toggle-checkbox absolute block w-7 h-7 rounded-full bg-soul-beige/80 border-none appearance-none cursor-pointer transition-all duration-300 left-0 z-10" id="toggle" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-7 rounded-full bg-soul-beige/10 cursor-pointer transition-colors duration-300" for="toggle"></label>
+</div>
+</div>
+</section>
+</div>
+<div class="absolute bottom-28 right-6 z-40">
+<button class="bg-soul-terracotta hover:brightness-110 text-soul-beige font-semibold py-4 px-8 rounded-full shadow-2xl active:scale-95 transition-all flex items-center space-x-3">
+<span class="text-[17px] tracking-wide">Submit Review</span>
+<span class="material-symbols-outlined text-xl">send</span>
+</button>
+</div>
+<div class="absolute bottom-0 w-full bg-soul-charcoal/95 backdrop-blur-xl border-t border-white/5 px-8 pb-8 pt-4 z-50">
+<nav class="flex justify-between items-center max-w-sm mx-auto">
+<a class="flex flex-col items-center gap-1 text-soul-beige/30 hover:text-soul-terracotta transition-colors group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">explore</span>
+<span class="text-[10px] font-medium tracking-wide">Explore</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-soul-beige/30 hover:text-soul-terracotta transition-colors group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">auto_awesome_motion</span>
+<span class="text-[10px] font-medium tracking-wide">Flow</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-soul-beige/30 hover:text-soul-terracotta transition-colors group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">temple_hindu</span>
+<span class="text-[10px] font-medium tracking-wide">Shrines</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-soul-beige transition-colors group" href="#">
+<span class="material-symbols-outlined text-2xl fill-icon group-hover:scale-110 transition-transform">account_circle</span>
+<span class="text-[10px] font-medium tracking-wide">Profile</span>
+</a>
+</nav>
+</div>
+<div class="hidden absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-6" id="success-overlay">
+<div class="bg-soul-input w-full max-w-xs rounded-3xl p-8 text-center shadow-2xl border border-white/10">
+<div class="w-16 h-16 bg-soul-terracotta/20 rounded-full flex items-center justify-center mx-auto mb-6">
+<span class="material-symbols-outlined text-3xl text-soul-terracotta">check_circle</span>
+</div>
+<h3 class="text-xl font-semibold text-soul-beige mb-2">Review Shared</h3>
+<p class="text-soul-beige/50 text-sm font-normal mb-8 leading-relaxed">Your journey insight has been added to the collective wisdom.</p>
+<button class="w-full bg-soul-terracotta/10 text-soul-terracotta font-semibold py-3 rounded-xl hover:bg-soul-terracotta hover:text-soul-beige transition-all" onclick="document.getElementById('success-overlay').classList.add('hidden')">
+                    Continue
+                </button>
+</div>
+</div>
+</main>
+
+</body></html>
+
+<!-- Temple Details - Standardized Light -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Temple Details - SoulStep Dark Mode</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#D96B43", // Terracotta orange
+                        "primary-dark": "#BF5A36",
+                        "dark-charcoal": "#1A1A1A", // Background charcoal
+                        "light-beige": "#F2E8DC", // Typography beige
+                        "surface-dark": "#242424", // Slightly lighter surface
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "2xl": "2.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        :root {
+            --primary-color: #D96B43;
+            --dark-charcoal: #1A1A1A;
+            --light-beige: #F2E8DC;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background-color: var(--dark-charcoal);
+            color: var(--light-beige);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-display antialiased h-screen overflow-hidden flex flex-col relative">
+<div class="absolute top-0 left-0 w-full h-[35%] z-0">
+<img alt="Temple gopuram" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqlBFXJ28HHc4BNvcEZ5Ht50oE-KFUUlu-C1POWmIj4PjcOYiGxQpf84FLfM87bVqTyZ_WAK9gxeuuo5tXuylQZIO_muctolOLrjybuIdZPKGOKFSGnvLSohG5-qxDbRbL92zYMncq1i2POq_6ppLkqIpQAFZoYGMUFa_5ZKUm20cZ8mJl5M_STRLb0JejlG8bozUPsbiLybW271a4LoivGL9tr6kBFBQEU849bBJhBJtaT26dzpUz4Ck_zpbLSPTHeoDCMP_IuUs"/>
+<div class="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-[var(--dark-charcoal)]"></div>
+</div>
+<div class="absolute top-0 left-0 w-full z-20 pt-12 px-6 flex justify-between items-center text-white">
+<button class="bg-black/40 backdrop-blur-md hover:bg-black/60 transition p-2.5 rounded-full flex items-center justify-center border border-white/10">
+<span class="material-symbols-outlined text-white text-[20px]">arrow_back_ios_new</span>
+</button>
+<div class="flex gap-3">
+<button class="bg-black/40 backdrop-blur-md hover:bg-black/60 transition p-2.5 rounded-full flex items-center justify-center border border-white/10">
+<span class="material-symbols-outlined text-white text-[20px]">favorite</span>
+</button>
+<button class="bg-black/40 backdrop-blur-md hover:bg-black/60 transition p-2.5 rounded-full flex items-center justify-center border border-white/10">
+<span class="material-symbols-outlined text-white text-[20px]">ios_share</span>
+</button>
+</div>
+</div>
+<div class="relative z-10 flex-1 mt-[30vh] bg-[var(--dark-charcoal)] rounded-t-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden border-t border-white/5">
+<div class="w-full flex justify-center pt-3 pb-1">
+<div class="w-12 h-1.5 bg-white/10 rounded-full"></div>
+</div>
+<div class="flex-1 overflow-y-auto no-scrollbar pb-24 px-6">
+<div class="mt-4 mb-6">
+<div class="flex items-start justify-between mb-2">
+<h1 class="text-3xl font-bold text-[var(--light-beige)] leading-tight tracking-tight">Kapaleeshwarar<br/>Temple</h1>
+</div>
+<p class="text-[var(--light-beige)]/60 text-sm font-medium mb-4 flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">place</span>
+                    Mylapore, Chennai, Tamil Nadu
+                </p>
+<div class="flex gap-3 items-center">
+<div class="bg-primary text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                        Open Now
+                    </div>
+<div class="bg-primary/20 text-primary px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 border border-primary/30">
+<span>4.8</span>
+<span class="material-symbols-outlined text-[14px] fill-current">star</span>
+</div>
+</div>
+</div>
+<hr class="border-white/10 mb-6"/>
+<div class="grid grid-cols-3 divide-x divide-white/10 mb-8">
+<div class="flex flex-col items-center justify-center px-2">
+<span class="material-symbols-outlined text-primary mb-1 text-2xl">near_me</span>
+<span class="text-[var(--light-beige)] font-semibold text-sm">1.2 km</span>
+<span class="text-[var(--light-beige)]/40 text-[10px] uppercase tracking-wide">Distance</span>
+</div>
+<div class="flex flex-col items-center justify-center px-2">
+<span class="material-symbols-outlined text-primary mb-1 text-2xl">groups</span>
+<span class="text-[var(--light-beige)] font-semibold text-sm">Medium</span>
+<span class="text-[var(--light-beige)]/40 text-[10px] uppercase tracking-wide">Crowd</span>
+</div>
+<div class="flex flex-col items-center justify-center px-2">
+<span class="material-symbols-outlined text-primary mb-1 text-2xl">verified</span>
+<span class="text-[var(--light-beige)] font-semibold text-sm">12k</span>
+<span class="text-[var(--light-beige)]/40 text-[10px] uppercase tracking-wide">Checked-in</span>
+</div>
+</div>
+<div class="mb-8">
+<h2 class="text-lg font-bold text-[var(--light-beige)] mb-3">The Story</h2>
+<p class="text-[var(--light-beige)]/70 text-base leading-relaxed font-normal">
+                    Built around the 7th century CE by the ruling Pallavas, this temple is a masterpiece of Dravidian architecture. Dedicated to Lord Shiva, the name derives from 'Kapalam' (head) and 'Eeshwarar'. <span class="text-primary font-medium cursor-pointer">Read More</span>
+</p>
+</div>
+<div class="mb-8">
+<div class="flex justify-between items-end mb-4">
+<h2 class="text-lg font-bold text-[var(--light-beige)]">Divine Presence</h2>
+<span class="text-primary text-xs font-semibold cursor-pointer">View All</span>
+</div>
+<div class="flex gap-4 overflow-x-auto no-scrollbar pb-2 -mx-6 px-6">
+<div class="flex flex-col items-center gap-2 min-w-[80px]">
+<div class="w-20 h-20 rounded-full p-1 border-2 border-primary hover:bg-primary/10 transition duration-300 cursor-pointer">
+<img alt="Shiva" class="w-full h-full rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCEULzZ0bXQa6e7ayL0RjAuuzlkEUKE8_lNnuNNr1alESvi6vxYndX8WGDMDT-Vwrqf-at3tu1PN9f2_FW6nOREemWjArpauho_7BWQEq_gvGC5ZDkuomCC_9vvD16q13W7r7iQxodDgW5PjHI3hiZE0Q_HRGG7vNKHJUAwnMxP4rZm-NqUluOjz6MRYQd157A_0iUnpSLkqWQrl7osPF5BPnp0x9yIBuoRmCiQYT1b7TW4-H9iH6A5hDX8_zY2VuIEjaBKvFkbYgk"/>
+</div>
+<span class="text-xs font-medium text-[var(--light-beige)]/80">Shiva</span>
+</div>
+<div class="flex flex-col items-center gap-2 min-w-[80px]">
+<div class="w-20 h-20 rounded-full p-1 border-2 border-primary hover:bg-primary/10 transition duration-300 cursor-pointer">
+<img alt="Karpagambal" class="w-full h-full rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwEfQmyqRwWGqrCwKAPzbQuWylEds0Xz3YZqVxvf4K6OCZB2HeS29YF7Dfnmu2lgyNg15KfBMMvcGz_HxJ4zJnWlXatQYFw0DN-XXJBR5s1_j2KI3pCmzyzamc2ssmpQz8monZP0p28MFZDDdl-lAUJQnGqSFA2tx7q3wYyWT8a_HhjmVUq4u9nDJhJTQ78Rf5mRPTkQkSZEuNiCmROC34fzeHtd0B_7bLztJ2T2E7S-g-8FUg5lvU_GOwJ3N0Cyj57FHjCky_NQ0"/>
+</div>
+<span class="text-xs font-medium text-[var(--light-beige)]/80">Karpagambal</span>
+</div>
+<div class="flex flex-col items-center gap-2 min-w-[80px]">
+<div class="w-20 h-20 rounded-full p-1 border-2 border-primary hover:bg-primary/10 transition duration-300 cursor-pointer">
+<img alt="Ganesha" class="w-full h-full rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBrfdLiHVS1XjPDBC6FpLlFwftB8eM5Vhx6p9nDeWqbMiswcH3KAozWG7Pkm3MP9_GBJJLULkwVMVzxP2QIqE2QeFKfpmbxs_lJwg3iQF8ZiOYFDEACmdGW2U07dA7vWRiNJ9GxulTuiPpq6nF74CsY1llgP0AvzdAqA1dlIjxm_3gXvucLJ2YS2SJ5stcOyrN0408xUkMPod7YOMkb08vjLQAdS1XnDoXGe-5QrIUf7xrLWm_XnR_74Ij6unef4w4DGzL3KMEq8M0"/>
+</div>
+<span class="text-xs font-medium text-[var(--light-beige)]/80">Ganesha</span>
+</div>
+<div class="flex flex-col items-center gap-2 min-w-[80px]">
+<div class="w-20 h-20 rounded-full p-1 border-2 border-primary hover:bg-primary/10 transition duration-300 cursor-pointer">
+<img alt="Murugan" class="w-full h-full rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsaTEyoGhxOW_88mXXzIHgJBb6FCjP62nmO_i5-mGSyCKxiVoM18UBQQSJzzGG0Uf_efx7ZtNcRr_MYlAb3mhnzxXe8BD-vzoLeSdfFhF20vqMGO8ChgS_JifTWQoPjS6bbNZE1f7OUdFNTEkJnTFe_f53ufE7H4uzVAlmVvCKSl7GdnFD5lsk134zUsUxXWBTmX2bV_0XNkIbRZSOXq8c435SlCR-iZIRXLFZNWWVdMg0aJyS9qiTUDnmrXx3JRuwujoWmWX51KM"/>
+</div>
+<span class="text-xs font-medium text-[var(--light-beige)]/80">Murugan</span>
+</div>
+</div>
+</div>
+<div class="mb-8">
+<h2 class="text-lg font-bold text-[var(--light-beige)] mb-4">Specifications</h2>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-white/5 p-4 rounded-xl flex flex-col gap-2 border border-white/5 hover:border-primary/40 transition-colors group">
+<div class="bg-white/10 w-8 h-8 rounded-full flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-primary text-sm group-hover:scale-110 transition-transform">schedule</span>
+</div>
+<div>
+<p class="text-[10px] text-[var(--light-beige)]/40 uppercase font-bold tracking-wider mb-0.5">Timings</p>
+<p class="text-sm font-semibold text-[var(--light-beige)]">05:00 - 12:30</p>
+</div>
+</div>
+<div class="bg-white/5 p-4 rounded-xl flex flex-col gap-2 border border-white/5 hover:border-primary/40 transition-colors group">
+<div class="bg-white/10 w-8 h-8 rounded-full flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-primary text-sm group-hover:scale-110 transition-transform">checkroom</span>
+</div>
+<div>
+<p class="text-[10px] text-[var(--light-beige)]/40 uppercase font-bold tracking-wider mb-0.5">Dress Code</p>
+<p class="text-sm font-semibold text-[var(--light-beige)]">Traditional</p>
+</div>
+</div>
+<div class="bg-white/5 p-4 rounded-xl flex flex-col gap-2 border border-white/5 hover:border-primary/40 transition-colors group">
+<div class="bg-white/10 w-8 h-8 rounded-full flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-primary text-sm group-hover:scale-110 transition-transform">confirmation_number</span>
+</div>
+<div>
+<p class="text-[10px] text-[var(--light-beige)]/40 uppercase font-bold tracking-wider mb-0.5">Entry Fee</p>
+<p class="text-sm font-semibold text-[var(--light-beige)]">Free</p>
+</div>
+</div>
+<div class="bg-white/5 p-4 rounded-xl flex flex-col gap-2 border border-white/5 hover:border-primary/40 transition-colors group">
+<div class="bg-white/10 w-8 h-8 rounded-full flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-primary text-sm group-hover:scale-110 transition-transform">foundation</span>
+</div>
+<div>
+<p class="text-[10px] text-[var(--light-beige)]/40 uppercase font-bold tracking-wider mb-0.5">Built In</p>
+<p class="text-sm font-semibold text-[var(--light-beige)]">7th Century</p>
+</div>
+</div>
+</div>
+</div>
+<div class="mb-4">
+<div class="flex justify-between items-center mb-4">
+<h2 class="text-lg font-bold text-[var(--light-beige)]">What Pilgrims Say</h2>
+</div>
+<div class="bg-white/5 p-4 rounded-xl border border-white/10">
+<div class="flex items-center gap-3 mb-3">
+<div class="w-8 h-8 rounded-full bg-white/10 overflow-hidden">
+<img alt="Reviewer" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwfX9d33_2GLeMTGE-RpIIvNnwPxu11rdXEQUJC84d9AXINjN1SFlDNBcQ4eDv0CBmYPFXe2owEgPZ0Iwp2HC_DC4O1R7TGFCQg9RV-nfDIlNESTrYGRtX33hAd3UnC33I0sZ8nRp6MQtTuOV1tpOj67Bj-JEqAsMgz6gRD2InSrX983WOQn4W852BIVwQcbGkNIZs0-MEpKy0l_WU_ev1_zD4iNODmIjj-fQf8BHYiGwmrGXd-6yM8l_UoG9TfNwYc2cqtEUTWOg"/>
+</div>
+<div class="flex-1">
+<p class="text-sm font-semibold text-[var(--light-beige)]">Ananya Iyer</p>
+<div class="flex text-primary text-[10px]">
+<span class="material-symbols-outlined text-[12px] fill-current">star</span>
+<span class="material-symbols-outlined text-[12px] fill-current">star</span>
+<span class="material-symbols-outlined text-[12px] fill-current">star</span>
+<span class="material-symbols-outlined text-[12px] fill-current">star</span>
+<span class="material-symbols-outlined text-[12px] fill-current">star</span>
+</div>
+</div>
+<span class="text-xs text-[var(--light-beige)]/40">2d ago</span>
+</div>
+<p class="text-sm text-[var(--light-beige)]/70 italic">"The energy here is palpable. Best time to visit is early morning for Abhishekam."</p>
+</div>
+</div>
+</div>
+</div>
+<div class="absolute bottom-0 w-full bg-[var(--dark-charcoal)] border-t border-white/10 shadow-[0_-5px_20px_rgba(0,0,0,0.2)] z-50">
+<div class="flex justify-around items-center h-[88px] px-2 pb-5">
+<button class="flex flex-col items-center gap-1 p-2 w-16">
+<span class="material-symbols-outlined text-primary text-2xl">temple_hindu</span>
+<span class="text-[10px] font-medium text-primary">Explore</span>
+</button>
+<button class="flex flex-col items-center gap-1 p-2 w-16 group">
+<span class="material-symbols-outlined text-[var(--light-beige)]/40 group-hover:text-primary transition-colors text-2xl">map</span>
+<span class="text-[10px] font-medium text-[var(--light-beige)]/40 group-hover:text-primary transition-colors">Map</span>
+</button>
+<button class="flex flex-col items-center gap-1 p-2 w-16 group">
+<span class="material-symbols-outlined text-[var(--light-beige)]/40 group-hover:text-primary transition-colors text-2xl">event_note</span>
+<span class="text-[10px] font-medium text-[var(--light-beige)]/40 group-hover:text-primary transition-colors">Plan</span>
+</button>
+<button class="flex flex-col items-center gap-1 p-2 w-16 group">
+<span class="material-symbols-outlined text-[var(--light-beige)]/40 group-hover:text-primary transition-colors text-2xl">account_circle</span>
+<span class="text-[10px] font-medium text-[var(--light-beige)]/40 group-hover:text-primary transition-colors">Profile</span>
+</button>
+</div>
+</div>
+
+</body></html>
+
+<!-- Church Details - Standardized Light -->
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Church Details - SoulStep Dark Mode</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined|Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#D96B43", // Terracotta Orange
+                        "dark-charcoal": "#1A1A1A", // Dark Mode Background
+                        "light-beige": "#F2E8DC", // Light Beige Typography
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        :root {
+            --primary-color: #D96B43;
+            --bg-color: #1A1A1A;
+            --text-color: #F2E8DC;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        body {
+            min-height: max(884px, 100dvh);
+            background-color: var(--bg-color);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-display bg-dark-charcoal text-light-beige antialiased selection:bg-primary selection:text-white">
+<div class="mx-auto max-w-md w-full min-h-screen relative flex flex-col pb-24 bg-dark-charcoal shadow-2xl overflow-hidden">
+<div class="relative h-[35vh] w-full">
+<img alt="St. Mary's Cathedral" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSrwKHInPTFhcORt8y8mSda1-bPPwYzRZXV8gkSFTMlNbVFMXQSm2aJqMWLk3WFUnvM1KCM3miCxfNIpVFwB-OBSigXWt34MzCmBhHDWRi-JFJW-QNS7OhM66MFdzQv8KpfSpEWc6PdgbGsAbUHRuLLkx3AXPnI8MK0cNupqy3Xo6s7GBdoMz-6d-TCjcSVEZcDFFRVJFRDng-ECz5iROhhUSRcqk6D1hNt5x4eLEFdInwI-wSzl1K5o6uUDIc1bpbXrU6eF9uJXM"/>
+<div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none"></div>
+<div class="absolute top-0 left-0 w-full pt-12 px-6 flex justify-between items-center z-10">
+<button class="w-10 h-10 flex items-center justify-center bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-colors">
+<span class="material-icons-round">arrow_back</span>
+</button>
+<div class="flex gap-3">
+<button class="w-10 h-10 flex items-center justify-center bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-colors">
+<span class="material-icons-outlined">favorite_border</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 transition-colors">
+<span class="material-icons-outlined">ios_share</span>
+</button>
+</div>
+</div>
+</div>
+<div class="relative -mt-8 bg-dark-charcoal rounded-t-lg px-6 pt-8 flex-grow z-10">
+<div class="w-12 h-1 bg-light-beige/10 rounded-full mx-auto mb-6"></div>
+<div class="flex items-center gap-3 mb-4">
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-primary text-white text-xs font-semibold tracking-wide shadow-sm shadow-primary/20">
+                OPEN NOW
+            </span>
+<span class="inline-flex items-center px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-bold gap-1">
+                4.8 <span class="material-icons-round text-[10px]">star</span>
+</span>
+</div>
+<div class="mb-8">
+<h1 class="text-3xl font-bold tracking-tight text-light-beige mb-2 leading-tight">
+                St. Mary's Cathedral
+            </h1>
+<p class="text-light-beige/60 text-sm flex items-center gap-1">
+<span class="material-icons-outlined text-sm">place</span>
+                123 Cathedral Pl, Westminster
+            </p>
+</div>
+<div class="grid grid-cols-3 divide-x divide-light-beige/10 border-y border-light-beige/10 py-5 mb-8">
+<div class="flex flex-col items-center justify-center text-center px-2">
+<span class="text-primary font-bold text-lg">0.8 mi</span>
+<span class="text-[10px] text-light-beige/40 uppercase tracking-widest font-bold mt-1">Distance</span>
+</div>
+<div class="flex flex-col items-center justify-center text-center px-2">
+<span class="text-light-beige font-bold text-lg">Low</span>
+<span class="text-[10px] text-light-beige/40 uppercase tracking-widest font-bold mt-1">Crowd</span>
+</div>
+<div class="flex flex-col items-center justify-center text-center px-2">
+<span class="text-light-beige font-bold text-lg">1.2k</span>
+<span class="text-[10px] text-light-beige/40 uppercase tracking-widest font-bold mt-1">Visits</span>
+</div>
+</div>
+<section class="mb-10">
+<h2 class="text-lg font-bold text-light-beige mb-3 uppercase tracking-tight">The Story</h2>
+<p class="text-light-beige/70 leading-relaxed text-[15px]">
+                Founded in 1850, St. Mary's stands as a beacon of neo-gothic architecture. Its towering spires have watched over the city for nearly two centuries, offering sanctuary and silence amidst the urban bustle. The stained glass windows, imported from Munich, tell vivid biblical narratives that glow in the morning light.
+            </p>
+</section>
+<section class="mb-10">
+<div class="flex items-center justify-between mb-5">
+<h2 class="text-lg font-bold text-light-beige uppercase tracking-tight">Sacred Services</h2>
+<a class="text-primary text-sm font-bold" href="#">View All</a>
+</div>
+<div class="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
+<div class="flex-shrink-0 flex flex-col items-center gap-3">
+<div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-2xl">wb_sunny</span>
+</div>
+<div class="text-center">
+<p class="text-xs font-bold text-light-beige">Morning</p>
+<p class="text-[10px] text-light-beige/40 font-bold">07:00 AM</p>
+</div>
+</div>
+<div class="flex-shrink-0 flex flex-col items-center gap-3">
+<div class="w-16 h-16 rounded-full bg-primary text-white shadow-lg shadow-primary/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-2xl">church</span>
+</div>
+<div class="text-center">
+<p class="text-xs font-bold text-light-beige">High Mass</p>
+<p class="text-[10px] text-light-beige/40 font-bold">10:00 AM</p>
+</div>
+</div>
+<div class="flex-shrink-0 flex flex-col items-center gap-3">
+<div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-2xl">dark_mode</span>
+</div>
+<div class="text-center">
+<p class="text-xs font-bold text-light-beige">Vespers</p>
+<p class="text-[10px] text-light-beige/40 font-bold">06:00 PM</p>
+</div>
+</div>
+<div class="flex-shrink-0 flex flex-col items-center gap-3">
+<div class="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-2xl">music_note</span>
+</div>
+<div class="text-center">
+<p class="text-xs font-bold text-light-beige">Choir</p>
+<p class="text-[10px] text-light-beige/40 font-bold">07:30 PM</p>
+</div>
+</div>
+</div>
+</section>
+<section class="mb-10">
+<h2 class="text-lg font-bold text-light-beige mb-4 uppercase tracking-tight">Specifications</h2>
+<div class="grid grid-cols-2 gap-3">
+<div class="p-4 rounded-2xl bg-light-beige/5 flex flex-col gap-1 border border-light-beige/5">
+<span class="text-[10px] text-light-beige/40 uppercase tracking-widest font-bold">Style</span>
+<span class="font-bold text-light-beige">Gothic Revival</span>
+</div>
+<div class="p-4 rounded-2xl bg-light-beige/5 flex flex-col gap-1 border border-light-beige/5">
+<span class="text-[10px] text-light-beige/40 uppercase tracking-widest font-bold">Capacity</span>
+<span class="font-bold text-light-beige">500 Seated</span>
+</div>
+<div class="p-4 rounded-2xl bg-light-beige/5 flex flex-col gap-1 border border-light-beige/5">
+<span class="text-[10px] text-light-beige/40 uppercase tracking-widest font-bold">Accessibility</span>
+<span class="font-bold text-light-beige">Wheelchair OK</span>
+</div>
+<div class="p-4 rounded-2xl bg-light-beige/5 flex flex-col gap-1 border border-light-beige/5">
+<span class="text-[10px] text-light-beige/40 uppercase tracking-widest font-bold">Confession</span>
+<span class="font-bold text-light-beige">Daily 5PM</span>
+</div>
+</div>
+</section>
+<section class="mb-8">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-lg font-bold text-light-beige uppercase tracking-tight">Reviews</h2>
+<div class="flex items-center gap-1 text-primary">
+<span class="text-sm font-bold">4.8</span>
+<span class="material-icons-round text-sm">star</span>
+</div>
+</div>
+<div class="bg-light-beige/5 p-4 rounded-2xl mb-4 border border-light-beige/5">
+<div class="flex items-center gap-3 mb-3">
+<img alt="User Avatar" class="w-10 h-10 rounded-full object-cover border border-primary/20" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-JavRb0NW8HUjIEHOktARvmk_WtA_Hjrh_xElHtZFEiRtxKEFihIiKGv10Aw5RDYiAeAxI0ozIGFKL5Qfv3nGFK1KJTEx_HuTVQYK_5U-OYEC5uz6YBeGzZWPWK7HBnhKHd-AbCaBQMMIkWgFQiYSHRTPoVjIgnsdolSZntteeHwQ0F6K8cuB2Vszdty13Bze0RoIfVK3_5Qq1r_bdkwm5QjQXCfVYZSStdj8dWh1Fwme7LRihVu5qazejOTtw7ijoODaclAzbnQ"/>
+<div class="flex-1">
+<h4 class="text-sm font-bold text-light-beige">Sarah Jenkins</h4>
+<p class="text-[10px] text-light-beige/40 font-bold uppercase">2 days ago</p>
+</div>
+<div class="flex text-primary text-xs">
+<span class="material-icons-round text-sm">star</span>
+<span class="material-icons-round text-sm">star</span>
+<span class="material-icons-round text-sm">star</span>
+<span class="material-icons-round text-sm">star</span>
+<span class="material-icons-round text-sm">star</span>
+</div>
+</div>
+<p class="text-sm text-light-beige/70 leading-relaxed italic">
+                    "Absolutely breathtaking architecture. The silence inside is exactly what I needed. Highly recommend the morning mass."
+                </p>
+</div>
+<button class="w-full py-4 rounded-full border-2 border-primary text-primary font-bold text-sm hover:bg-primary hover:text-white transition-all duration-300">
+                Read all 124 reviews
+            </button>
+</section>
+</div>
+<nav class="fixed bottom-0 left-0 right-0 bg-dark-charcoal/80 backdrop-blur-xl border-t border-light-beige/10 pb-8 pt-3 px-8 z-50">
+<div class="max-w-md mx-auto w-full flex justify-between items-center">
+<button class="flex flex-col items-center gap-1 text-primary">
+<span class="material-symbols-outlined fill-1">explore</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Explore</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-light-beige/40 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">map</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Map</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-light-beige/40 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">bookmark</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Saved</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-light-beige/40 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">person</span>
+<span class="text-[10px] font-bold uppercase tracking-tighter">Profile</span>
+</button>
+</div>
+</nav>
+</div>
+
+</body></html>

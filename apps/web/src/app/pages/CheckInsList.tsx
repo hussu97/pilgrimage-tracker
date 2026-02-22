@@ -103,7 +103,7 @@ function CheckInCard({ c }: { c: CheckIn }) {
         </div>
         {(c.location || c.place?.address) && (
           <div className="flex items-center gap-2 mt-2">
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 dark:bg-primary/20 text-primary-dark dark:text-primary">
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-soft-blue dark:bg-primary/20 text-primary-dark dark:text-primary">
               <span className="material-symbols-outlined text-[10px] mr-1">location_on</span>
               {(c.location || c.place?.address || '').split(',')[0].trim()}
             </span>
@@ -197,7 +197,7 @@ export default function CheckInsList() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-dark-bg">
-      <div className="absolute top-0 left-0 w-full h-80 bg-gradient-to-b from-blue-50 to-transparent dark:from-primary/5 dark:to-transparent pointer-events-none z-0" />
+      <div className="absolute top-0 left-0 w-full h-80 bg-gradient-to-b from-soft-blue to-transparent dark:from-primary/5 dark:to-transparent pointer-events-none z-0" />
 
       <header className="relative z-10 px-8 pt-12 pb-6">
         <div className="mb-8">
@@ -369,8 +369,8 @@ export default function CheckInsList() {
                           className={cn(
                             'absolute w-8 h-8 rounded-full z-0',
                             today
-                              ? 'bg-primary shadow-md shadow-blue-200'
-                              : 'bg-blue-50 dark:bg-primary/20',
+                              ? 'bg-primary shadow-md shadow-primary/20'
+                              : 'bg-soft-blue dark:bg-primary/20',
                           )}
                         />
                       )}

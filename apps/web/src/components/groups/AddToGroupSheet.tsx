@@ -79,7 +79,7 @@ export default function AddToGroupSheet({
             </p>
             <Link
               to="/groups/create"
-              className="inline-block bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-blue-600 transition-colors"
+              className="inline-block bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors"
               onClick={onClose}
             >
               {t('groups.create')}
@@ -144,7 +144,7 @@ export default function AddToGroupSheet({
             <button
               disabled={selected.size === 0 || submitting}
               onClick={handleAdd}
-              className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
+              className="w-full bg-primary text-white font-bold py-3.5 rounded-2xl hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
             >
               {submitting ? '...' : t('groups.addPlace')}
             </button>

@@ -119,7 +119,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-background-light dark:bg-dark-bg">
       {/* gradient header bg */}
-      <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-blue-50 to-transparent dark:from-dark-surface/30 dark:to-transparent pointer-events-none z-0" />
+      <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-soft-blue to-transparent dark:from-dark-surface/30 dark:to-transparent pointer-events-none z-0" />
 
       <div className="relative z-10 max-w-sm mx-auto px-4 py-6 pb-28">
         {error && user && (
@@ -140,7 +140,7 @@ export default function Profile() {
         {/* Avatar + name (only for logged-in users) */}
         {user && (
           <section className="flex flex-col items-center px-2 pb-8 pt-4">
-            <div className="w-28 h-28 rounded-full p-1 bg-white dark:bg-dark-surface border border-blue-100 dark:border-dark-border shadow-xl shadow-blue-50 dark:shadow-none overflow-hidden mb-5">
+            <div className="w-28 h-28 rounded-full p-1 bg-white dark:bg-dark-surface border border-soft-blue dark:border-dark-border shadow-xl shadow-primary/10 dark:shadow-none overflow-hidden mb-5">
               <div className="w-full h-full rounded-full bg-primary/10 flex items-center justify-center text-primary text-4xl font-bold">
                 {(displayName || '?').charAt(0).toUpperCase()}
               </div>
@@ -216,7 +216,7 @@ export default function Profile() {
               className="w-full flex items-center justify-between p-4 pl-5 hover:bg-slate-50 dark:hover:bg-dark-border/30 transition-colors border-b border-slate-50 dark:border-dark-border text-left"
             >
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-soft-blue dark:bg-primary/10 flex items-center justify-center">
                   <span className="material-icons text-xl text-primary">map</span>
                 </div>
                 <div>
@@ -240,7 +240,7 @@ export default function Profile() {
               className="w-full flex items-center justify-between p-4 pl-5 hover:bg-slate-50 dark:hover:bg-dark-border/30 transition-colors border-b border-slate-50 dark:border-dark-border text-left"
             >
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-soft-blue dark:bg-primary/10 flex items-center justify-center">
                   <span className="material-icons text-xl text-primary">language</span>
                 </div>
                 <div>
@@ -264,7 +264,7 @@ export default function Profile() {
                 className="w-full flex items-center justify-between p-4 pl-5 hover:bg-slate-50 dark:hover:bg-dark-border/30 transition-colors border-b border-slate-50 dark:border-dark-border"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-soft-blue dark:bg-primary/10 flex items-center justify-center">
                     <span className="material-icons text-xl text-primary">notifications</span>
                   </div>
                   <div>
@@ -285,7 +285,7 @@ export default function Profile() {
             {/* Distance Units toggle */}
             <div className="flex items-center justify-between p-4 pl-5 border-b border-slate-50 dark:border-dark-border">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-soft-blue dark:bg-primary/10 flex items-center justify-center">
                   <span className="material-icons text-xl text-primary">straighten</span>
                 </div>
                 <p className="font-semibold text-text-main dark:text-white text-sm">
@@ -323,7 +323,7 @@ export default function Profile() {
             {/* Dark Mode toggle */}
             <div className="flex items-center justify-between p-4 pl-5">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-xl bg-soft-blue dark:bg-primary/10 flex items-center justify-center">
                   <span className="material-icons text-xl text-primary">dark_mode</span>
                 </div>
                 <p className="font-semibold text-text-main dark:text-white text-sm">
@@ -431,7 +431,7 @@ export default function Profile() {
             <button
               type="button"
               onClick={() => navigate('/login')}
-              className="w-full bg-primary hover:bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-xl shadow-blue-100 dark:shadow-none flex items-center justify-center gap-2 transition-all"
+              className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-2xl shadow-xl shadow-primary/10 dark:shadow-none flex items-center justify-center gap-2 transition-all"
             >
               <span className="material-icons text-lg">login</span>
               {t('profile.logIn')}
@@ -540,7 +540,7 @@ export default function Profile() {
             <button
               type="button"
               onClick={handleSavePath}
-              className="w-full mt-5 bg-primary text-white font-semibold py-3.5 rounded-2xl hover:bg-blue-600 transition-colors"
+              className="w-full mt-5 bg-primary text-white font-semibold py-3.5 rounded-2xl hover:bg-primary-hover transition-colors"
             >
               {t('common.save')}
             </button>
