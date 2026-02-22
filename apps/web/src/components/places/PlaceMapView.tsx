@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import type { Place } from '@/lib/types';
 import type { SearchLocation } from '@/lib/utils/searchHistory';
 import type { MapBounds } from '@/components/places/PlacesMap';
@@ -15,6 +15,9 @@ interface PlaceMapViewProps {
   searchLocation?: SearchLocation | null;
 }
 
+const PEEK_RATIO = 0.32; // fraction of viewport height when resting
+const EXPANDED_RATIO = 0.65; // fraction when dragged up
+
 export default function PlaceMapView({
   places,
   center,
@@ -25,6 +28,11 @@ export default function PlaceMapView({
   searchLocation,
 }: PlaceMapViewProps) {
   const [visibleBounds, setVisibleBounds] = useState<MapBounds | null>(null);
+
+  // Mobile bottom-sheet drag state
+  const [sheetPx, setSheetPx] = useState<number | null>(null); // null = CSS percentage
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<{ startY: number; startH: number } | null>(null);
 
   const visiblePlaces = useMemo(() => {
     if (!visibleBounds) return [];
@@ -38,6 +46,36 @@ export default function PlaceMapView({
   }, [places, visibleBounds]);
 
   const countLabel = t('map.placesInView').replace('{count}', String(visiblePlaces.length));
+
+  // ── Mobile sheet drag handlers ────────────────────────────────────────────
+  const onHandlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const currentH = sheetPx ?? window.innerHeight * PEEK_RATIO;
+    dragRef.current = { startY: e.clientY, startH: currentH };
+    setIsDragging(true);
+  };
+
+  const onHandlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    const dy = e.clientY - dragRef.current.startY;
+    const newH = Math.max(
+      80,
+      Math.min(window.innerHeight * EXPANDED_RATIO, dragRef.current.startH - dy),
+    );
+    setSheetPx(newH);
+  };
+
+  const onHandlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    const dy = e.clientY - dragRef.current.startY;
+    const newH = dragRef.current.startH - dy;
+    const peekH = window.innerHeight * PEEK_RATIO;
+    const expandH = window.innerHeight * EXPANDED_RATIO;
+    const mid = (peekH + expandH) / 2;
+    setSheetPx(newH > mid ? expandH : peekH);
+    dragRef.current = null;
+    setIsDragging(false);
+  };
 
   return (
     // Map fills the entire container; panels are absolute overlays on top
@@ -69,13 +107,23 @@ export default function PlaceMapView({
             </div>
           </div>
 
-          {/* ── Mobile: bottom sheet (overlay) ─────────────────────────────── */}
+          {/* ── Mobile: draggable bottom sheet (overlay) ────────────────────── */}
           <div
             className="md:hidden absolute bottom-0 left-0 right-0 z-[1000] flex flex-col bg-white/95 dark:bg-dark-surface backdrop-blur-xl rounded-t-3xl shadow-2xl border-t border-input-border/50 dark:border-dark-border"
-            style={{ height: '32%' }}
+            style={{
+              height: sheetPx ? `${sheetPx}px` : `${PEEK_RATIO * 100}%`,
+              transition: isDragging ? 'none' : 'height 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
           >
-            {/* Handle + count */}
-            <div className="shrink-0 pt-3 pb-2.5 px-4 border-b border-input-border/50 dark:border-dark-border">
+            {/* Drag handle + count — pointer events live here */}
+            <div
+              className="shrink-0 pt-3 pb-2.5 px-4 border-b border-input-border/50 dark:border-dark-border cursor-grab active:cursor-grabbing select-none"
+              style={{ touchAction: 'none' }}
+              onPointerDown={onHandlePointerDown}
+              onPointerMove={onHandlePointerMove}
+              onPointerUp={onHandlePointerUp}
+              onPointerCancel={onHandlePointerUp}
+            >
               <div className="w-10 h-1 rounded-full bg-slate-200 dark:bg-dark-border mx-auto mb-2.5" />
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                 {countLabel}

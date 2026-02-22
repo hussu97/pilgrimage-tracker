@@ -10,6 +10,8 @@ import {
   Modal,
   Pressable,
   Dimensions,
+  Animated,
+  PanResponder,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -34,8 +36,8 @@ type ViewMode = 'list' | 'map';
 
 const PAGE_SIZE = 20;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
-// Sheet overlays the bottom portion of the map — small enough that most of the map stays visible
-const MAP_SHEET_HEIGHT = Math.round(SCREEN_HEIGHT * 0.28);
+const SHEET_PEEK = Math.round(SCREEN_HEIGHT * 0.28); // resting height — most of map visible
+const SHEET_EXPANDED = Math.round(SCREEN_HEIGHT * 0.58); // dragged-up height
 
 interface ActiveFilters {
   placeType?: string;
@@ -267,7 +269,7 @@ function makeStyles(isDark: boolean) {
       position: 'absolute',
       left: 0,
       right: 0,
-      // bottom and height applied inline (depend on tabBarHeight and MAP_SHEET_HEIGHT)
+      // bottom and height applied inline (tabBarHeight + animated height)
       backgroundColor: surface,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
@@ -299,6 +301,9 @@ function makeStyles(isDark: boolean) {
       fontWeight: '600',
       color: textSecondary,
     },
+    mapSheetDragArea: {
+      // Touch target for the pan responder — handle + count row
+    },
     mapSheetList: {
       paddingHorizontal: 12,
       paddingTop: 10,
@@ -317,6 +322,37 @@ export default function HomeScreen() {
   const { coords } = useLocation();
   const { searchLocation, setSearchLocation } = useSearch();
   const webViewRef = useRef<WebView>(null);
+
+  // Draggable bottom sheet
+  const sheetHeightAnim = useRef(new Animated.Value(SHEET_PEEK)).current;
+  const gestureStartH = useRef(SHEET_PEEK);
+  const sheetPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        sheetHeightAnim.stopAnimation((v) => {
+          gestureStartH.current = v;
+        });
+      },
+      onPanResponderMove: (_, { dy }) => {
+        sheetHeightAnim.setValue(
+          Math.max(80, Math.min(SHEET_EXPANDED, gestureStartH.current - dy)),
+        );
+      },
+      onPanResponderRelease: (_, { vy, dy }) => {
+        const cur = gestureStartH.current - dy;
+        const mid = (SHEET_PEEK + SHEET_EXPANDED) / 2;
+        const snapTo = vy < -0.5 || cur > mid ? SHEET_EXPANDED : SHEET_PEEK;
+        Animated.spring(sheetHeightAnim, {
+          toValue: snapTo,
+          useNativeDriver: false,
+          bounciness: 3,
+        }).start((res) => {
+          if (res.finished) gestureStartH.current = snapTo;
+        });
+      },
+    }),
+  ).current;
 
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
@@ -410,6 +446,16 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchPlaces();
   }, [fetchPlaces]);
+
+  // Snap sheet back to peek whenever the visible set refreshes to a new non-empty batch
+  const prevVisibleCount = useRef(0);
+  useEffect(() => {
+    if (visiblePlaces.length > 0 && prevVisibleCount.current === 0) {
+      sheetHeightAnim.setValue(SHEET_PEEK);
+      gestureStartH.current = SHEET_PEEK;
+    }
+    prevVisibleCount.current = visiblePlaces.length;
+  }, [visiblePlaces.length, sheetHeightAnim]);
 
   const handleWebViewMessage = useCallback(
     (event: { nativeEvent: { data: string } }) => {
@@ -628,29 +674,29 @@ export default function HomeScreen() {
               />
             ) : null}
 
-            {/* Bottom sheet overlay — only shown when places are visible */}
+            {/* Bottom sheet overlay — only shown when places are visible, draggable */}
             {visiblePlaces.length > 0 && (
-              <View
-                style={[styles.mapSheet, { bottom: tabBarHeight, height: MAP_SHEET_HEIGHT }]}
-                pointerEvents="box-none"
+              <Animated.View
+                style={[styles.mapSheet, { bottom: tabBarHeight, height: sheetHeightAnim }]}
               >
-                <View pointerEvents="auto" style={StyleSheet.absoluteFill}>
+                {/* Drag handle + header — pan responder lives here, not on the list */}
+                <View {...sheetPanResponder.panHandlers} style={styles.mapSheetDragArea}>
                   <View style={styles.mapSheetHandle} />
                   <View style={styles.mapSheetHeader}>
                     <Text style={styles.mapSheetCount}>
                       {t('map.placesInView').replace('{count}', String(visiblePlaces.length))}
                     </Text>
                   </View>
-                  <FlatList
-                    data={visiblePlaces}
-                    keyExtractor={(p) => p.place_code}
-                    renderItem={({ item }) => <PlaceCard place={item} compact />}
-                    contentContainerStyle={styles.mapSheetList}
-                    ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-                    showsVerticalScrollIndicator={false}
-                  />
                 </View>
-              </View>
+                <FlatList
+                  data={visiblePlaces}
+                  keyExtractor={(p) => p.place_code}
+                  renderItem={({ item }) => <PlaceCard place={item} compact />}
+                  contentContainerStyle={styles.mapSheetList}
+                  ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+                  showsVerticalScrollIndicator={false}
+                />
+              </Animated.View>
             )}
           </View>
         )}
