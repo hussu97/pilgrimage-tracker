@@ -9,6 +9,7 @@ from app.api.v1.admin import (
     places,
     reviews,
     scraper_proxy,
+    stats,
     translations,
     users,
 )
@@ -24,3 +25,4 @@ admin_router.include_router(translations.router, tags=["admin-translations"])
 admin_router.include_router(app_versions.router, tags=["admin-app-versions"])
 admin_router.include_router(content_translations.router, tags=["admin-content-translations"])
 admin_router.include_router(place_attributes.router, tags=["admin-place-attributes"])
+admin_router.include_router(stats.router, tags=["admin-stats"])

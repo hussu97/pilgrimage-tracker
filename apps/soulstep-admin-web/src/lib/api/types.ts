@@ -379,6 +379,55 @@ export interface BulkUpdateAttributesBody {
   attributes: BulkAttributeEntry[];
 }
 
+// ── Dashboard Stats (Phase 5) ─────────────────────────────────────────────────
+
+export interface OverviewStats {
+  total_users: number;
+  total_places: number;
+  total_reviews: number;
+  total_check_ins: number;
+  total_groups: number;
+  active_users_30d: number;
+}
+
+export interface GrowthDataPoint {
+  period: string;
+  count: number;
+}
+
+export interface PopularPlace {
+  place_code: string;
+  name: string;
+  religion: string;
+  check_in_count: number;
+  review_count: number;
+  avg_rating: number | null;
+}
+
+export interface ReligionBreakdownItem {
+  religion: string;
+  place_count: number;
+  check_in_count: number;
+}
+
+export interface RecentActivityItem {
+  type: "check_in" | "review" | "group_join";
+  user_code: string | null;
+  user_display_name: string | null;
+  place_code: string | null;
+  place_name: string | null;
+  group_code: string | null;
+  group_name: string | null;
+  timestamp: string;
+}
+
+export interface ReviewStats {
+  rating_histogram: Record<string, number>;
+  flagged_count: number;
+  avg_rating: number | null;
+  total_reviews: number;
+}
+
 // User check-ins / reviews (for user detail)
 export interface AdminUserCheckIn {
   check_in_code: string;
