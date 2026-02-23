@@ -18,6 +18,37 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Admin Panel — Phase 3: Data Scraper Management (2026-02-23)
+
+### Backend (`soulstep-catalog-api`)
+- **Scraper proxy**: added `GET /api/v1/admin/scraper/stats` endpoint that forwards to the scraper service and returns aggregate counts
+- **`test_scraper_proxy.py`**: comprehensive integration tests covering auth guards (401/403), 503/504 error propagation, and all proxy endpoints for data locations, runs, stats, collectors, and place type mappings
+
+### Backend (`soulstep-scraper-api`)
+- **`GET /api/v1/scraper/runs`**: new paginated list endpoint — filterable by `status` and `location_code`
+- **`DELETE /api/v1/scraper/data-locations/{code}`**: deletes a location and cascades to runs, scraped places, and raw collector data
+- **`DELETE /api/v1/scraper/runs/{run_code}`**: deletes a run and its associated scraped places and raw collector data
+- **`GET /api/v1/scraper/stats`**: returns `total_locations`, `total_runs`, `total_places_scraped`, `last_run_at`, `last_run_status`
+- **`ScraperStatsResponse`**: new Pydantic schema in `schemas.py`
+- **`test_list_runs.py`**: tests pagination, status/location filters, and response shape
+- **`test_delete_location.py`**: tests 404 handling and full cascade deletion
+- **`test_delete_run.py`**: tests 404 handling, cascade deletion, and sibling run preservation
+
+### Frontend (`apps/soulstep-admin-web`)
+- **Scraper API client** (`lib/api/scraper.ts`): full client for data locations, runs, stats, collectors, and place type mappings
+- **Scraper types** (`lib/api/types.ts`): added `DataLocation`, `ScraperRun`, `ScraperStats`, `CollectorStatus`, `PlaceTypeMapping`, `ScrapedPlaceData`, `RawCollectorEntry`, and related request/patch bodies
+- **`usePolling` hook** (`lib/hooks/usePolling.ts`): polls a callback on a configurable interval while `active` is true; stops automatically when inactive
+- **`ScraperOverviewPage`** (`/scraper`): summary stat cards + links to sub-sections
+- **`DataLocationsPage`** (`/scraper/data-locations`): DataTable with create form (city/country/max_results) and delete with cascade confirmation
+- **`ScraperRunsPage`** (`/scraper/runs`): paginated DataTable with status filter, start-run form, progress bars, and per-row actions (cancel, sync, re-enrich, delete)
+- **`RunDetailPage`** (`/scraper/runs/:runCode`): run info card with progress bar + 3-second polling for active runs; tabbed view (Scraped Places DataTable, Raw Data JSON viewer grouped by place)
+- **`CollectorsPage`** (`/scraper/collectors`): card grid showing each collector's availability and API key env var
+- **`PlaceTypeMappingsPage`** (`/scraper/place-type-mappings`): DataTable with inline row editing, active toggle, and create/delete with confirmation
+- **Router**: scraper routes registered under `RequireAdmin` guard
+- **`usePolling.test.ts`**: 6 Vitest tests covering inactive no-call, interval cadence, activation/deactivation toggling, callback reference updates, and custom intervals
+
+---
+
 ## Admin Panel — Phase 1: Foundation (2026-02-22)
 
 ### Backend

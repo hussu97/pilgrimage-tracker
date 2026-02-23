@@ -14,6 +14,12 @@ import { ReviewDetailPage } from "./pages/reviews/ReviewDetailPage";
 import { CheckInsListPage } from "./pages/check-ins/CheckInsListPage";
 import { GroupsListPage } from "./pages/groups/GroupsListPage";
 import { GroupDetailPage } from "./pages/groups/GroupDetailPage";
+import { ScraperOverviewPage } from "./pages/scraper/ScraperOverviewPage";
+import { DataLocationsPage } from "./pages/scraper/DataLocationsPage";
+import { ScraperRunsPage } from "./pages/scraper/ScraperRunsPage";
+import { RunDetailPage } from "./pages/scraper/RunDetailPage";
+import { CollectorsPage } from "./pages/scraper/CollectorsPage";
+import { PlaceTypeMappingsPage } from "./pages/scraper/PlaceTypeMappingsPage";
 
 /** Redirect to /login if not authenticated. */
 function RequireAuth() {
@@ -60,6 +66,13 @@ export const routes = [
               // Groups
               { path: "/groups", element: <GroupsListPage /> },
               { path: "/groups/:groupCode", element: <GroupDetailPage /> },
+              // Scraper
+              { path: "/scraper", element: <ScraperOverviewPage /> },
+              { path: "/scraper/data-locations", element: <DataLocationsPage /> },
+              { path: "/scraper/runs", element: <ScraperRunsPage /> },
+              { path: "/scraper/runs/:runCode", element: <RunDetailPage /> },
+              { path: "/scraper/collectors", element: <CollectorsPage /> },
+              { path: "/scraper/place-type-mappings", element: <PlaceTypeMappingsPage /> },
             ],
           },
         ],

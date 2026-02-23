@@ -1,7 +1,7 @@
 import os
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
-from sqlmodel import select
+from sqlmodel import func, select
 
 from app.db.models import (
     DataLocation,
@@ -23,6 +23,7 @@ from app.models.schemas import (
     RawCollectorDataResponse,
     ScraperRunCreate,
     ScraperRunResponse,
+    ScraperStatsResponse,
 )
 
 router = APIRouter()
@@ -70,6 +71,77 @@ def create_data_location(body: DataLocationCreate, session: SessionDep):
 def list_locations(session: SessionDep):
     locs = session.exec(select(DataLocation)).all()
     return locs
+
+
+@router.delete("/data-locations/{code}")
+def delete_data_location(code: str, session: SessionDep):
+    loc = session.exec(select(DataLocation).where(DataLocation.code == code)).first()
+    if not loc:
+        raise HTTPException(status_code=404, detail="Data location not found")
+
+    runs = session.exec(select(ScraperRun).where(ScraperRun.location_code == code)).all()
+    for run in runs:
+        for place in session.exec(
+            select(ScrapedPlace).where(ScrapedPlace.run_code == run.run_code)
+        ).all():
+            session.delete(place)
+        for rd in session.exec(
+            select(RawCollectorData).where(RawCollectorData.run_code == run.run_code)
+        ).all():
+            session.delete(rd)
+        session.delete(run)
+
+    session.delete(loc)
+    session.commit()
+    return {"status": "deleted", "code": code}
+
+
+@router.get("/stats", response_model=ScraperStatsResponse)
+def get_stats(session: SessionDep):
+    total_locations = session.exec(select(func.count()).select_from(DataLocation)).one()
+    total_runs = session.exec(select(func.count()).select_from(ScraperRun)).one()
+    total_places = session.exec(select(func.count()).select_from(ScrapedPlace)).one()
+    last_run = session.exec(select(ScraperRun).order_by(ScraperRun.created_at.desc())).first()
+    return ScraperStatsResponse(
+        total_locations=total_locations,
+        total_runs=total_runs,
+        total_places_scraped=total_places,
+        last_run_at=last_run.created_at if last_run else None,
+        last_run_status=last_run.status if last_run else None,
+    )
+
+
+@router.get("/runs")
+def list_runs(
+    session: SessionDep,
+    status: str | None = Query(None),
+    location_code: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+):
+    base_query = select(ScraperRun)
+    count_query = select(func.count()).select_from(ScraperRun)
+
+    if status:
+        base_query = base_query.where(ScraperRun.status == status)
+        count_query = count_query.where(ScraperRun.status == status)
+    if location_code:
+        base_query = base_query.where(ScraperRun.location_code == location_code)
+        count_query = count_query.where(ScraperRun.location_code == location_code)
+
+    total = session.exec(count_query).one()
+    runs = session.exec(
+        base_query.order_by(ScraperRun.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+
+    return {
+        "items": [ScraperRunResponse.model_validate(r, from_attributes=True) for r in runs],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
 @router.post("/runs", response_model=ScraperRunResponse)
@@ -194,6 +266,24 @@ def cancel_run(run_code: str, session: SessionDep):
     session.refresh(run)
 
     return {"status": "cancelled", "run_code": run_code}
+
+
+@router.delete("/runs/{run_code}")
+def delete_run(run_code: str, session: SessionDep):
+    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    for place in session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all():
+        session.delete(place)
+    for rd in session.exec(
+        select(RawCollectorData).where(RawCollectorData.run_code == run_code)
+    ).all():
+        session.delete(rd)
+
+    session.delete(run)
+    session.commit()
+    return {"status": "deleted", "run_code": run_code}
 
 
 # ===== Collectors =====

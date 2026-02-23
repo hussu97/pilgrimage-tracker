@@ -87,3 +87,11 @@ class RawCollectorDataResponse(BaseModel):
     error_message: str | None = None
     raw_response: dict[str, Any]
     collected_at: datetime
+
+
+class ScraperStatsResponse(BaseModel):
+    total_locations: int
+    total_runs: int
+    total_places_scraped: int
+    last_run_at: datetime | None = None
+    last_run_status: str | None = None

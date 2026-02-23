@@ -180,6 +180,94 @@ export interface PatchGroupBody {
   is_private?: boolean;
 }
 
+// ── Scraper ───────────────────────────────────────────────────────────────────
+
+export interface DataLocation {
+  code: string;
+  name: string;
+  source_type: string;
+  config: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface CreateDataLocationBody {
+  name: string;
+  source_type?: "gmaps";
+  country?: string;
+  city?: string;
+  max_results?: number;
+}
+
+export interface ScraperRun {
+  run_code: string;
+  location_code: string;
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  total_items: number | null;
+  processed_items: number;
+  created_at: string;
+}
+
+export interface ScraperStats {
+  total_locations: number;
+  total_runs: number;
+  total_places_scraped: number;
+  last_run_at: string | null;
+  last_run_status: string | null;
+}
+
+export interface CollectorStatus {
+  name: string;
+  requires_api_key: boolean;
+  is_available: boolean;
+  api_key_env_var: string | null;
+}
+
+export interface PlaceTypeMapping {
+  id: number;
+  religion: string;
+  source_type: string;
+  gmaps_type: string;
+  our_place_type: string;
+  is_active: boolean;
+  display_order: number;
+  created_at: string;
+}
+
+export interface CreatePlaceTypeMappingBody {
+  religion: string;
+  source_type?: "gmaps";
+  gmaps_type: string;
+  our_place_type: string;
+  is_active?: boolean;
+  display_order?: number;
+}
+
+export interface PatchPlaceTypeMappingBody {
+  religion?: string;
+  gmaps_type?: string;
+  our_place_type?: string;
+  is_active?: boolean;
+  display_order?: number;
+}
+
+export interface ScrapedPlaceData {
+  _scraped_id: string;
+  _enrichment_status: string;
+  _description_source: string | null;
+  _description_score: number | null;
+  name: string;
+  [key: string]: unknown;
+}
+
+export interface RawCollectorEntry {
+  place_code: string;
+  collector_name: string;
+  status: string;
+  error_message: string | null;
+  raw_response: Record<string, unknown>;
+  collected_at: string;
+}
+
 // User check-ins / reviews (for user detail)
 export interface AdminUserCheckIn {
   check_in_code: string;

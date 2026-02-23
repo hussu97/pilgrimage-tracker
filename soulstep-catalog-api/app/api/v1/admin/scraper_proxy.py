@@ -90,6 +90,11 @@ async def delete_run(run_code: str, admin: AdminDep):
     return await _proxy("DELETE", f"/runs/{run_code}")
 
 
+@router.get("/stats")
+async def get_scraper_stats(admin: AdminDep):
+    return await _proxy("GET", "/stats")
+
+
 @router.get("/collectors")
 async def list_collectors(admin: AdminDep):
     return await _proxy("GET", "/collectors")
