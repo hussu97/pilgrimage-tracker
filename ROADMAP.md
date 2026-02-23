@@ -12,11 +12,6 @@ Security vulnerabilities, data-loss risks, and compliance gaps that **must** be 
 
 ### Security
 
-- [ ] **Add audit logging for all admin write operations**
-  - No accountability for admin actions — the `AuditLog` model, migration, and endpoints from Admin Phase 6 are not yet implemented.
-  - Create `AuditLog` table (`log_code`, `admin_user_code`, `action`, `entity_type`, `entity_code`, `changes` JSON, `created_at`). Wrap every admin write endpoint with an `audit_log()` helper. Add `GET /api/v1/admin/audit-log` with filtering by admin, entity type, action, and date range. Build the `AuditLogPage` in the admin frontend.
-  - Files: `soulstep-catalog-api/app/db/models.py`, new `app/api/v1/admin/audit_log.py`, new migration, `apps/soulstep-admin-web/src/app/pages/audit-log/AuditLogPage.tsx`
-
 - [ ] **Move auth tokens from localStorage to httpOnly cookies**
   - Both web and mobile store JWT in `localStorage` / `AsyncStorage`, which is vulnerable to XSS. The admin app has the same issue.
   - Update backend to set `httpOnly`, `Secure`, `SameSite=Strict` cookies on login/refresh. Update frontend API clients to send credentials via cookies instead of `Authorization` header.
@@ -71,23 +66,6 @@ Security vulnerabilities, data-loss risks, and compliance gaps that **must** be 
 ## P1 — High Priority
 
 Significant quality, UX, compliance, and admin completeness items. Should be addressed in early production iterations.
-
-### Admin Phase 6 — Advanced Features
-
-- [ ] **Implement bulk operations for all admin entities**
-  - No multi-select or batch actions in admin DataTables. Admins must act on records one at a time.
-  - Add multi-select checkboxes and floating action bar. Endpoints: `POST /api/v1/admin/bulk/{entity}/{action}` for users (activate/deactivate), reviews (flag/unflag/delete), places (delete), check-ins (delete), groups (delete).
-  - Files: new `soulstep-catalog-api/app/api/v1/admin/bulk.py`, `apps/soulstep-admin-web/src/components/shared/BulkActionBar.tsx`
-
-- [ ] **Implement data export (CSV/JSON) for admin entities**
-  - Admins cannot bulk-extract data. No export capability for users, places, reviews, check-ins, or groups.
-  - Add `GET /api/v1/admin/export/{entity}?format=csv|json` endpoints using `StreamingResponse` with generators to avoid loading entire tables into memory.
-  - Files: new `soulstep-catalog-api/app/api/v1/admin/export.py`
-
-- [ ] **Implement admin notification management**
-  - Admins cannot send broadcast or targeted notifications to users.
-  - Add `POST /api/v1/admin/notifications/broadcast`, `POST /api/v1/admin/notifications/send`, `GET /api/v1/admin/notifications/history`. Build `NotificationManagementPage` with compose form, recipient picker, and history table.
-  - Files: new `soulstep-catalog-api/app/api/v1/admin/notifications.py`, `apps/soulstep-admin-web/src/app/pages/notifications/NotificationManagementPage.tsx`
 
 ### Testing
 
@@ -412,4 +390,3 @@ Infrastructure, optimization, monitoring, code quality, and documentation work f
 3. When committing a completed item, reference the roadmap entry in the commit message.
 4. Review this file during sprint planning to select work items.
 5. Add new items to the appropriate tier as they are discovered.
-6. This file replaces both the previous `ROADMAP.md` and `ADMIN_ROADMAP.md`.
