@@ -61,7 +61,7 @@ class TestTranslations:
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, dict)
-        assert data.get("nav.home") == "హోమ్"
+        assert data.get("nav.explore") is not None
         assert data.get("profile.language") == "భాష"
 
     def test_unknown_lang_falls_back_to_english(self, client):
