@@ -1,9 +1,9 @@
 import { apiClient } from "./client";
 import type {
   AdminCheckIn,
+  AdminContentTranslation,
   AdminGroup,
   AdminGroupDetail,
-
   AdminGroupMemberListResponse,
   AdminPlace,
   AdminPlaceDetail,
@@ -14,14 +14,25 @@ import type {
   AdminUserCheckIn,
   AdminUserDetail,
   AdminUserReview,
+  AppVersionConfig,
   AuthResponse,
+  BulkUpdateAttributesBody,
+  ContentTranslationListResponse,
+  CreateContentTranslationBody,
   CreatePlaceBody,
+  CreateTranslationBody,
   LoginBody,
   PaginatedResponse,
   PatchGroupBody,
   PatchPlaceBody,
   PatchReviewBody,
   PatchUserBody,
+  PlaceAttributeDefinition,
+  PlaceAttributeItem,
+  TranslationEntry,
+  UpdateAppVersionBody,
+  UpdateContentTranslationBody,
+  UpsertTranslationBody,
   User,
 } from "./types";
 
@@ -218,4 +229,119 @@ export async function listGroupMembers(groupCode: string): Promise<AdminGroupMem
 
 export async function removeGroupMember(groupCode: string, userCode: string): Promise<void> {
   await apiClient.delete(`/admin/groups/${groupCode}/members/${userCode}`);
+}
+
+// ── Translations ───────────────────────────────────────────────────────────────
+
+export async function listTranslations(params?: {
+  search?: string;
+}): Promise<TranslationEntry[]> {
+  const res = await apiClient.get<TranslationEntry[]>("/admin/translations", { params });
+  return res.data;
+}
+
+export async function getTranslation(key: string): Promise<TranslationEntry> {
+  const res = await apiClient.get<TranslationEntry>(`/admin/translations/${key}`);
+  return res.data;
+}
+
+export async function upsertTranslation(
+  key: string,
+  body: UpsertTranslationBody
+): Promise<TranslationEntry> {
+  const res = await apiClient.put<TranslationEntry>(`/admin/translations/${key}`, body);
+  return res.data;
+}
+
+export async function deleteTranslationOverrides(key: string): Promise<void> {
+  await apiClient.delete(`/admin/translations/${key}`);
+}
+
+export async function createTranslation(body: CreateTranslationBody): Promise<TranslationEntry> {
+  const res = await apiClient.post<TranslationEntry>("/admin/translations", body);
+  return res.data;
+}
+
+// ── App Versions ───────────────────────────────────────────────────────────────
+
+export async function listAppVersions(): Promise<AppVersionConfig[]> {
+  const res = await apiClient.get<AppVersionConfig[]>("/admin/app-versions");
+  return res.data;
+}
+
+export async function updateAppVersion(
+  platform: string,
+  body: UpdateAppVersionBody
+): Promise<AppVersionConfig> {
+  const res = await apiClient.put<AppVersionConfig>(`/admin/app-versions/${platform}`, body);
+  return res.data;
+}
+
+// ── Content Translations ───────────────────────────────────────────────────────
+
+export async function listContentTranslations(params?: {
+  page?: number;
+  page_size?: number;
+  entity_type?: string;
+  entity_code?: string;
+  lang?: string;
+  field?: string;
+}): Promise<ContentTranslationListResponse> {
+  const res = await apiClient.get<ContentTranslationListResponse>(
+    "/admin/content-translations",
+    { params }
+  );
+  return res.data;
+}
+
+export async function createContentTranslation(
+  body: CreateContentTranslationBody
+): Promise<AdminContentTranslation> {
+  const res = await apiClient.post<AdminContentTranslation>(
+    "/admin/content-translations",
+    body
+  );
+  return res.data;
+}
+
+export async function updateContentTranslation(
+  id: number,
+  body: UpdateContentTranslationBody
+): Promise<AdminContentTranslation> {
+  const res = await apiClient.put<AdminContentTranslation>(
+    `/admin/content-translations/${id}`,
+    body
+  );
+  return res.data;
+}
+
+export async function deleteContentTranslation(id: number): Promise<void> {
+  await apiClient.delete(`/admin/content-translations/${id}`);
+}
+
+// ── Place Attributes ───────────────────────────────────────────────────────────
+
+export async function listPlaceAttributeDefinitions(): Promise<PlaceAttributeDefinition[]> {
+  const res = await apiClient.get<PlaceAttributeDefinition[]>("/admin/place-attributes");
+  return res.data;
+}
+
+export async function listPlaceAttributesByPlace(
+  placeCode: string
+): Promise<PlaceAttributeItem[]> {
+  const res = await apiClient.get<PlaceAttributeItem[]>(
+    `/admin/place-attributes/${placeCode}`
+  );
+  return res.data;
+}
+
+export async function bulkUpdatePlaceAttributes(
+  placeCode: string,
+  body: BulkUpdateAttributesBody
+): Promise<PlaceAttributeItem[]> {
+  const res = await apiClient.put<PlaceAttributeItem[]>(
+    `/admin/place-attributes/${placeCode}`,
+    body
+  );
+  return res.data;
 }

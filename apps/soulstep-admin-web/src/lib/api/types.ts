@@ -268,6 +268,116 @@ export interface RawCollectorEntry {
   collected_at: string;
 }
 
+// ── Content & Configuration (Phase 4) ────────────────────────────────────────
+
+// Translations
+export interface TranslationEntry {
+  key: string;
+  en: string | null;
+  ar: string | null;
+  hi: string | null;
+  overridden_langs: string[];
+}
+
+export interface UpsertTranslationBody {
+  en?: string;
+  ar?: string;
+  hi?: string;
+}
+
+export interface CreateTranslationBody {
+  key: string;
+  en?: string;
+  ar?: string;
+  hi?: string;
+}
+
+// App Versions
+export interface AppVersionConfig {
+  platform: string;
+  min_version_hard: string;
+  min_version_soft: string;
+  latest_version: string;
+  store_url: string;
+  updated_at: string;
+}
+
+export interface UpdateAppVersionBody {
+  min_version_hard?: string;
+  min_version_soft?: string;
+  latest_version?: string;
+  store_url?: string;
+}
+
+// Content Translations
+export interface AdminContentTranslation {
+  id: number;
+  entity_type: string;
+  entity_code: string;
+  field: string;
+  lang: string;
+  translated_text: string;
+  source: string;
+  created_at: string;
+  updated_at: string;
+  place_name?: string | null;
+}
+
+export interface ContentTranslationListResponse {
+  items: AdminContentTranslation[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface CreateContentTranslationBody {
+  entity_type: string;
+  entity_code: string;
+  field: string;
+  lang: string;
+  translated_text: string;
+  source?: string;
+}
+
+export interface UpdateContentTranslationBody {
+  translated_text?: string;
+  source?: string;
+}
+
+// Place Attributes
+export interface PlaceAttributeDefinition {
+  attribute_code: string;
+  name: string;
+  data_type: string;
+  icon: string | null;
+  label_key: string | null;
+  is_filterable: boolean;
+  is_specification: boolean;
+  category: string | null;
+  religion: string | null;
+  display_order: number;
+  usage_count: number;
+}
+
+export interface PlaceAttributeItem {
+  id: number;
+  attribute_code: string;
+  attribute_name: string;
+  data_type: string;
+  value_text: string | null;
+  value_json: Record<string, unknown> | null;
+}
+
+export interface BulkAttributeEntry {
+  attribute_code: string;
+  value_text?: string | null;
+  value_json?: Record<string, unknown> | null;
+}
+
+export interface BulkUpdateAttributesBody {
+  attributes: BulkAttributeEntry[];
+}
+
 // User check-ins / reviews (for user detail)
 export interface AdminUserCheckIn {
   check_in_code: string;

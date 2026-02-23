@@ -342,3 +342,24 @@ class AppVersionConfig(SQLModel, table=True):
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
     )
+
+
+class UITranslation(SQLModel, table=True):
+    """Runtime overrides for UI translation keys.
+
+    Rows in this table override the seed_data.json values at runtime.
+    Keyed by (key, lang); unique constraint enforced.
+    Used by GET /api/v1/i18n/translations to merge on top of seed data.
+    """
+
+    __tablename__ = "ui_translation"
+    __table_args__ = (UniqueConstraint("key", "lang"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    key: str = Field(index=True)  # e.g. "home.title"
+    lang: str  # "en", "ar", "hi"
+    value: str
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )

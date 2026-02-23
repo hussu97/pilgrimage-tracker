@@ -18,6 +18,48 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Admin Panel — Phase 4: Content & Configuration (2026-02-23)
+
+### Backend (`soulstep-catalog-api`)
+- **`UITranslation` model** (`app/db/models.py`): new table `ui_translation` — stores per-(key, lang) runtime overrides for UI translation strings; unique constraint on `(key, lang)`
+- **Migration `0010_ui_translation.py`**: creates `ui_translation` table with index on `key`
+- **`GET /api/v1/translations`** updated: now merges `UITranslation` DB rows on top of seed data for the requested language, giving admin-set overrides immediate effect for mobile/web clients
+- **Admin translations** (`app/api/v1/admin/translations.py`):
+  - `GET /admin/translations` — lists all keys (seed ∪ DB-only), with per-lang values and `overridden_langs` flag; supports `?search=` filter
+  - `GET /admin/translations/{key}` — single key detail
+  - `PUT /admin/translations/{key}` — upserts DB overrides for one or more languages
+  - `DELETE /admin/translations/{key}` — reverts all DB overrides (returns to seed values)
+  - `POST /admin/translations` — creates a brand-new key (must not exist in seed)
+- **Admin app-versions** (`app/api/v1/admin/app_versions.py`):
+  - `GET /admin/app-versions` — lists all `AppVersionConfig` rows
+  - `PUT /admin/app-versions/{platform}` — upserts config for `ios` or `android`
+- **Admin content-translations** (`app/api/v1/admin/content_translations.py`):
+  - `GET /admin/content-translations` — paginated list; filterable by `entity_type`, `entity_code`, `lang`, `field`; enriches place rows with `place_name`
+  - `POST /admin/content-translations` — creates a new `ContentTranslation` row (409 on duplicate)
+  - `PUT /admin/content-translations/{id}` — updates `translated_text` / `source`
+  - `DELETE /admin/content-translations/{id}` — hard-delete
+- **Admin place-attributes** (`app/api/v1/admin/place_attributes.py`):
+  - `GET /admin/place-attributes` — lists all `PlaceAttributeDefinition` rows with live usage counts
+  - `GET /admin/place-attributes/{place_code}` — lists attributes for a specific place with definition metadata
+  - `PUT /admin/place-attributes/{place_code}` — bulk-upserts attributes for a place
+- **Admin router** (`app/api/v1/admin/__init__.py`): registered all four new routers
+- **Tests** (42 new tests, 689 passing total):
+  - `test_admin_translations.py` — 14 tests: CRUD, seed merge, search, i18n endpoint override
+  - `test_admin_app_versions.py` — 7 tests: list, create, update, partial update, platform validation
+  - `test_admin_content_translations.py` — 12 tests: CRUD, duplicate 409, filter by lang, place name enrichment
+  - `test_admin_place_attributes.py` — 9 tests: list definitions with usage counts, list/bulk-update per place, 404s
+
+### Frontend (`apps/soulstep-admin-web`)
+- **Types** (`lib/api/types.ts`): added `TranslationEntry`, `UpsertTranslationBody`, `CreateTranslationBody`, `AppVersionConfig`, `UpdateAppVersionBody`, `AdminContentTranslation`, `ContentTranslationListResponse`, `CreateContentTranslationBody`, `UpdateContentTranslationBody`, `PlaceAttributeDefinition`, `PlaceAttributeItem`, `BulkAttributeEntry`, `BulkUpdateAttributesBody`
+- **API client** (`lib/api/admin.ts`): added `listTranslations`, `getTranslation`, `upsertTranslation`, `deleteTranslationOverrides`, `createTranslation`, `listAppVersions`, `updateAppVersion`, `listContentTranslations`, `createContentTranslation`, `updateContentTranslation`, `deleteContentTranslation`, `listPlaceAttributeDefinitions`, `listPlaceAttributesByPlace`, `bulkUpdatePlaceAttributes`
+- **`TranslationsPage`** (`pages/content/TranslationsPage.tsx`): key/EN/AR/HI table with inline cell editing, "overridden" badge, missing-value highlight, revert-to-seed action, add-new-key form
+- **`AppVersionsPage`** (`pages/content/AppVersionsPage.tsx`): iOS and Android cards with in-place edit for `latest_version`, `min_version_soft`, `min_version_hard`, `store_url`
+- **`ContentTranslationsPage`** (`pages/content/ContentTranslationsPage.tsx`): paginated DataTable with entity type/lang filters, inline text editing, create form, delete with confirmation
+- **`PlaceAttributesPage`** (`pages/content/PlaceAttributesPage.tsx`): attribute definition table with usage counts, category/religion filters
+- **Router** (`app/router.tsx`): registered `/translations`, `/app-versions`, `/content-translations`, `/place-attributes`
+
+---
+
 ## Admin Panel — Phase 3: Data Scraper Management (2026-02-23)
 
 ### Backend (`soulstep-catalog-api`)

@@ -20,6 +20,10 @@ import { ScraperRunsPage } from "./pages/scraper/ScraperRunsPage";
 import { RunDetailPage } from "./pages/scraper/RunDetailPage";
 import { CollectorsPage } from "./pages/scraper/CollectorsPage";
 import { PlaceTypeMappingsPage } from "./pages/scraper/PlaceTypeMappingsPage";
+import { TranslationsPage } from "./pages/content/TranslationsPage";
+import { AppVersionsPage } from "./pages/content/AppVersionsPage";
+import { ContentTranslationsPage } from "./pages/content/ContentTranslationsPage";
+import { PlaceAttributesPage } from "./pages/content/PlaceAttributesPage";
 
 /** Redirect to /login if not authenticated. */
 function RequireAuth() {
@@ -73,6 +77,11 @@ export const routes = [
               { path: "/scraper/runs/:runCode", element: <RunDetailPage /> },
               { path: "/scraper/collectors", element: <CollectorsPage /> },
               { path: "/scraper/place-type-mappings", element: <PlaceTypeMappingsPage /> },
+              // Content & Configuration (Phase 4)
+              { path: "/translations", element: <TranslationsPage /> },
+              { path: "/app-versions", element: <AppVersionsPage /> },
+              { path: "/content-translations", element: <ContentTranslationsPage /> },
+              { path: "/place-attributes", element: <PlaceAttributesPage /> },
             ],
           },
         ],
