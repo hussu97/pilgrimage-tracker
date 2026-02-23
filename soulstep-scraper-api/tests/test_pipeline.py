@@ -189,7 +189,7 @@ class TestMerger:
         # Wikipedia should win over the short original
         assert "Test Mosque" in merged["description"]
         assert merged["_description_source"] == "wikipedia"
-        assert merged.get("description_ar") == "مسجد تاريخي"
+        assert merged["translations"]["description"]["ar"] == "مسجد تاريخي"
 
     def test_merge_contact_priority(self):
         """gmaps contact should take priority over OSM."""
