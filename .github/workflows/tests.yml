@@ -10,8 +10,8 @@ concurrency:
   group: tests-${{ github.ref }}
 
 jobs:
-  server:
-    name: Server tests
+  soulstep-catalog-api:
+    name: soulstep-catalog-api tests
     runs-on: ubuntu-latest
 
     steps:
@@ -30,8 +30,8 @@ jobs:
         working-directory: soulstep-catalog-api
         run: python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
 
-  data-scraper:
-    name: Data scraper tests
+  soulstep-scraper-api:
+    name: soulstep-scraper-api tests
     runs-on: ubuntu-latest
 
     steps:
@@ -50,8 +50,8 @@ jobs:
         working-directory: soulstep-scraper-api
         run: python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
 
-  test-web:
-    name: Web frontend tests
+  soulstep-customer-web:
+    name: Soulstep Customer Web frontend tests
     runs-on: ubuntu-latest
 
     steps:
@@ -71,8 +71,8 @@ jobs:
         working-directory: apps/soulstep-customer-web
         run: npm run test -- --coverage
 
-  test-mobile:
-    name: Mobile frontend tests
+  soulstep-customer-mobile:
+    name: Soulstep Customer Mobile frontend tests
     runs-on: ubuntu-latest
 
     steps:

@@ -21,8 +21,8 @@ env:
 jobs:
   # ── Gate: tests must pass before any deployment ────────────────────────────
 
-  test-server:
-    name: Server tests
+  test-soulstep-catalog-api:
+    name: Soulstep Catalog API tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,8 +40,8 @@ jobs:
         working-directory: soulstep-catalog-api
         run: python -m pytest tests/ -v --tb=short
 
-  test-web:
-    name: Web typecheck + build
+  test-soulstep-customer-web:
+    name: Soulstep Customer Web typecheck + build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,7 +75,7 @@ jobs:
 
   deploy-api:
     name: Deploy API → Cloud Run
-    needs: [test-server, test-web]
+    needs: [test-soulstep-catalog-api, test-soulstep-customer-web]
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -115,7 +115,7 @@ jobs:
 
   deploy-web:
     name: Deploy Web → Firebase Hosting
-    needs: [test-server, test-web]
+    needs: [test-soulstep-catalog-api, test-soulstep-customer-web]
     runs-on: ubuntu-latest
     environment: production
     permissions:

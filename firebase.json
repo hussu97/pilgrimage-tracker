@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "public": "apps/web/dist",
+    "public": "apps/soulstep-customer-web/dist",
     "ignore": [
       "firebase.json",
       "**/.*",
