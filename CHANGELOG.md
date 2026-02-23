@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Unified Roadmap Consolidation (2026-02-23)
+
+### Docs
+- **Replaced `ROADMAP.md`** with a comprehensive unified document merging `ROADMAP.md` and `ADMIN_ROADMAP.md` into a single source of truth
+- Preserved all 29 completed `[x]` items from the previous roadmap (P0–P3)
+- Merged 20 remaining unchecked items from old ROADMAP.md
+- Pulled in Admin Phase 6 features (bulk ops, data export, audit log, notifications) from `ADMIN_ROADMAP.md`
+- Added ~25 new items from a full-system audit (security, reliability, CI/CD, accessibility, testing, infrastructure) across all 5 systems (backend, scraper, web, mobile, admin)
+- Added new user feature ideas: deep linking, offline mode, optimistic UI updates
+- Added 8 monetization strategies: premium subscriptions, sponsored places, B2B partnerships, donations, marketplace, API access, premium groups, analytics-as-a-service
+- Reorganized into 4 priority tiers: P0 (Critical / Pre-Production), P1 (High Priority), P2 (Feature Enhancements), P3 (Scalability & DevOps)
+- Added "Completed Archive" section at bottom for quick reference of all done items
+
+---
+
 ## Monorepo Folder Rename (2026-02-22)
 
 ### Docs
