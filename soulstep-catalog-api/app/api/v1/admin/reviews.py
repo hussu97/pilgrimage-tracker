@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlmodel import col, func, select
 
 from app.api.deps import AdminDep
+from app.api.v1.admin.audit_log import record_audit
 from app.db.models import Place, Review, User
 from app.db.session import SessionDep
 
@@ -140,13 +141,23 @@ def patch_review(review_code: str, body: PatchReviewBody, admin: AdminDep, sessi
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
 
+    changes: dict = {}
     if body.title is not None:
+        changes["title"] = {"old": review.title, "new": body.title}
         review.title = body.title
     if body.body is not None:
+        changes["body"] = {"old": review.body, "new": body.body}
         review.body = body.body
     if body.is_flagged is not None:
+        changes["is_flagged"] = {"old": review.is_flagged, "new": body.is_flagged}
         review.is_flagged = body.is_flagged
 
+    action = (
+        "flag"
+        if (body.is_flagged is True)
+        else ("unflag" if body.is_flagged is False else "update")
+    )
+    record_audit(session, admin, action, "review", review_code, changes or None)
     session.add(review)
     session.commit()
     session.refresh(review)
@@ -178,5 +189,6 @@ def delete_review(review_code: str, admin: AdminDep, session: SessionDep):
     review = session.exec(select(Review).where(Review.review_code == review_code)).first()
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")
+    record_audit(session, admin, "delete", "review", review_code)
     session.delete(review)
     session.commit()

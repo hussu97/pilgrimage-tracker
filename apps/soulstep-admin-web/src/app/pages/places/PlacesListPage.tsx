@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { listPlaces } from "@/lib/api/admin";
+import { listPlaces, bulkDeletePlaces, exportUrl } from "@/lib/api/admin";
 import type { AdminPlace } from "@/lib/api/types";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { Pagination } from "@/components/shared/Pagination";
+import { BulkActionBar } from "@/components/shared/BulkActionBar";
 import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
 import { Plus } from "lucide-react";
@@ -16,6 +17,7 @@ export function PlacesListPage() {
   const [religionFilter, setReligionFilter] = useState("");
   const [data, setData] = useState<{ items: AdminPlace[]; total: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -35,6 +37,12 @@ export function PlacesListPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const handleBulkDelete = async () => {
+    await bulkDeletePlaces(Array.from(selected));
+    setSelected(new Set());
+    void load();
+  };
 
   const columns: Column<AdminPlace>[] = [
     { key: "name", header: "Name", render: (p) => p.name },
@@ -92,6 +100,15 @@ export function PlacesListPage() {
           <option value="hinduism">Hinduism</option>
           <option value="christianity">Christianity</option>
         </select>
+        <div className="relative group">
+          <button className="rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface text-text-main dark:text-white text-sm px-3 py-2 flex items-center gap-1">
+            Export ▾
+          </button>
+          <div className="absolute right-0 top-full mt-1 hidden group-hover:flex flex-col gap-1 bg-white dark:bg-dark-surface border border-input-border dark:border-dark-border rounded-lg shadow-lg p-1 z-10 min-w-[120px]">
+            <a href={exportUrl("places", "csv")} download className="px-3 py-1.5 text-sm text-text-main dark:text-white hover:bg-background-light dark:hover:bg-dark-bg rounded">CSV</a>
+            <a href={exportUrl("places", "json")} download className="px-3 py-1.5 text-sm text-text-main dark:text-white hover:bg-background-light dark:hover:bg-dark-bg rounded">JSON</a>
+          </div>
+        </div>
       </div>
 
       <DataTable
@@ -101,6 +118,9 @@ export function PlacesListPage() {
         rowKey={(p) => p.place_code}
         onRowClick={(p) => navigate(`/places/${p.place_code}`)}
         emptyMessage="No places found."
+        selectable
+        selectedKeys={selected}
+        onSelectionChange={setSelected}
       />
 
       <Pagination
@@ -109,6 +129,14 @@ export function PlacesListPage() {
         total={data?.total ?? 0}
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
+      />
+
+      <BulkActionBar
+        selectedCount={selected.size}
+        actions={[
+          { label: "Delete", onClick: () => { void handleBulkDelete(); }, variant: "danger" },
+        ]}
+        onClear={() => setSelected(new Set())}
       />
     </div>
   );

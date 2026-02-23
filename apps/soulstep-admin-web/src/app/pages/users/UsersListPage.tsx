@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { listUsers } from "@/lib/api/admin";
+import { listUsers, bulkDeactivateUsers, bulkActivateUsers, exportUrl } from "@/lib/api/admin";
 import type { AdminUser } from "@/lib/api/types";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { Pagination } from "@/components/shared/Pagination";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { BulkActionBar } from "@/components/shared/BulkActionBar";
 import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ export function UsersListPage() {
   const [isAdminFilter, setIsAdminFilter] = useState<string>("");
   const [data, setData] = useState<{ items: AdminUser[]; total: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -37,6 +39,18 @@ export function UsersListPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const handleBulkDeactivate = async () => {
+    await bulkDeactivateUsers(Array.from(selected));
+    setSelected(new Set());
+    void load();
+  };
+
+  const handleBulkActivate = async () => {
+    await bulkActivateUsers(Array.from(selected));
+    setSelected(new Set());
+    void load();
+  };
 
   const columns: Column<AdminUser>[] = [
     {
@@ -115,6 +129,15 @@ export function UsersListPage() {
           <option value="true">Admins only</option>
           <option value="false">Non-admins</option>
         </select>
+        <div className="relative group">
+          <button className="rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface text-text-main dark:text-white text-sm px-3 py-2 flex items-center gap-1">
+            Export ▾
+          </button>
+          <div className="absolute right-0 top-full mt-1 hidden group-hover:flex flex-col gap-1 bg-white dark:bg-dark-surface border border-input-border dark:border-dark-border rounded-lg shadow-lg p-1 z-10 min-w-[120px]">
+            <a href={exportUrl("users", "csv")} download className="px-3 py-1.5 text-sm text-text-main dark:text-white hover:bg-background-light dark:hover:bg-dark-bg rounded">CSV</a>
+            <a href={exportUrl("users", "json")} download className="px-3 py-1.5 text-sm text-text-main dark:text-white hover:bg-background-light dark:hover:bg-dark-bg rounded">JSON</a>
+          </div>
+        </div>
       </div>
 
       <DataTable
@@ -124,6 +147,9 @@ export function UsersListPage() {
         rowKey={(u) => u.user_code}
         onRowClick={(u) => navigate(`/users/${u.user_code}`)}
         emptyMessage="No users found."
+        selectable
+        selectedKeys={selected}
+        onSelectionChange={setSelected}
       />
 
       <Pagination
@@ -132,6 +158,15 @@ export function UsersListPage() {
         total={data?.total ?? 0}
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
+      />
+
+      <BulkActionBar
+        selectedCount={selected.size}
+        actions={[
+          { label: "Deactivate", onClick: () => { void handleBulkDeactivate(); } },
+          { label: "Activate", onClick: () => { void handleBulkActivate(); } },
+        ]}
+        onClear={() => setSelected(new Set())}
       />
     </div>
   );

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from sqlmodel import col, func, select
 
 from app.api.deps import AdminDep
+from app.api.v1.admin.audit_log import record_audit
 from app.db.models import CheckIn, Place, PlaceImage, Review
 from app.db.session import SessionDep
 
@@ -166,6 +167,8 @@ def create_place(body: CreatePlaceBody, admin: AdminDep, session: SessionDep):
         source=body.source,
     )
     session.add(place)
+    session.flush()  # get the place_code before audit
+    record_audit(session, admin, "create", "place", place.place_code)
     session.commit()
     session.refresh(place)
 
@@ -221,9 +224,14 @@ def patch_place(place_code: str, body: PatchPlaceBody, admin: AdminDep, session:
     if not place:
         raise HTTPException(status_code=404, detail="Place not found")
 
+    changes = {
+        field: {"old": getattr(place, field), "new": value}
+        for field, value in body.model_dump(exclude_unset=True).items()
+    }
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(place, field, value)
 
+    record_audit(session, admin, "update", "place", place_code, changes or None)
     session.add(place)
     session.commit()
     session.refresh(place)
@@ -254,6 +262,7 @@ def delete_place(place_code: str, admin: AdminDep, session: SessionDep):
     place = session.exec(select(Place).where(Place.place_code == place_code)).first()
     if not place:
         raise HTTPException(status_code=404, detail="Place not found")
+    record_audit(session, admin, "delete", "place", place_code)
     session.delete(place)
     session.commit()
 

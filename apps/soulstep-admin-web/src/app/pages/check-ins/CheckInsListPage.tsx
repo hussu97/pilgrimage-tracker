@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
-import { listCheckIns, deleteCheckIn } from "@/lib/api/admin";
+import { listCheckIns, deleteCheckIn, bulkDeleteCheckIns, exportUrl } from "@/lib/api/admin";
 import type { AdminCheckIn } from "@/lib/api/types";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { Pagination } from "@/components/shared/Pagination";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { BulkActionBar } from "@/components/shared/BulkActionBar";
 import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDateTime } from "@/lib/utils";
 import { Trash2 } from "lucide-react";
@@ -13,6 +14,7 @@ export function CheckInsListPage() {
   const [data, setData] = useState<{ items: AdminCheckIn[]; total: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -34,6 +36,12 @@ export function CheckInsListPage() {
     if (!deleteTarget) return;
     await deleteCheckIn(deleteTarget);
     setDeleteTarget(null);
+    void load();
+  };
+
+  const handleBulkDelete = async () => {
+    await bulkDeleteCheckIns(Array.from(selected));
+    setSelected(new Set());
     void load();
   };
 
@@ -91,7 +99,18 @@ export function CheckInsListPage() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-xl font-semibold text-text-main dark:text-white">Check-ins</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-text-main dark:text-white">Check-ins</h1>
+        <div className="relative group">
+          <button className="rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface text-text-main dark:text-white text-sm px-3 py-2 flex items-center gap-1">
+            Export ▾
+          </button>
+          <div className="absolute right-0 top-full mt-1 hidden group-hover:flex flex-col gap-1 bg-white dark:bg-dark-surface border border-input-border dark:border-dark-border rounded-lg shadow-lg p-1 z-10 min-w-[120px]">
+            <a href={exportUrl("check-ins", "csv")} download className="px-3 py-1.5 text-sm text-text-main dark:text-white hover:bg-background-light dark:hover:bg-dark-bg rounded">CSV</a>
+            <a href={exportUrl("check-ins", "json")} download className="px-3 py-1.5 text-sm text-text-main dark:text-white hover:bg-background-light dark:hover:bg-dark-bg rounded">JSON</a>
+          </div>
+        </div>
+      </div>
 
       <DataTable
         columns={columns}
@@ -99,6 +118,9 @@ export function CheckInsListPage() {
         loading={loading}
         rowKey={(ci) => ci.check_in_code}
         emptyMessage="No check-ins found."
+        selectable
+        selectedKeys={selected}
+        onSelectionChange={setSelected}
       />
 
       <Pagination
@@ -107,6 +129,14 @@ export function CheckInsListPage() {
         total={data?.total ?? 0}
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
+      />
+
+      <BulkActionBar
+        selectedCount={selected.size}
+        actions={[
+          { label: "Delete", onClick: () => { void handleBulkDelete(); }, variant: "danger" },
+        ]}
+        onClear={() => setSelected(new Set())}
       />
 
       <ConfirmDialog

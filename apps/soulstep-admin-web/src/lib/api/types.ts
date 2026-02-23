@@ -448,3 +448,54 @@ export interface AdminUserReview {
   is_flagged: boolean;
   created_at: string;
 }
+
+// ── Phase 6 — Bulk Operations ─────────────────────────────────────────────────
+
+export interface BulkResult {
+  affected: number;
+}
+
+// ── Phase 6 — Audit Log ───────────────────────────────────────────────────────
+
+export interface AuditLogItem {
+  log_code: string;
+  admin_user_code: string;
+  admin_display_name: string | null;
+  action: string;
+  entity_type: string;
+  entity_code: string;
+  changes: Record<string, { old: unknown; new: unknown }> | null;
+  created_at: string;
+}
+
+export interface AuditLogListResponse {
+  items: AuditLogItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+// ── Phase 6 — Notifications ───────────────────────────────────────────────────
+
+export interface BroadcastResult {
+  broadcast_code: string;
+  recipient_count: number;
+}
+
+export interface AdminBroadcastItem {
+  broadcast_code: string;
+  admin_user_code: string;
+  admin_display_name: string | null;
+  type: string;
+  payload: Record<string, unknown>;
+  recipient_type: "all" | "targeted";
+  recipient_count: number;
+  created_at: string;
+}
+
+export interface AdminBroadcastListResponse {
+  items: AdminBroadcastItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}

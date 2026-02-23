@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlmodel import col, func, select
 
 from app.api.deps import AdminDep
+from app.api.v1.admin.audit_log import record_audit
 from app.db.models import CheckIn, Place, User
 from app.db.session import SessionDep
 
@@ -89,5 +90,6 @@ def delete_check_in(check_in_code: str, admin: AdminDep, session: SessionDep):
     ci = session.exec(select(CheckIn).where(CheckIn.check_in_code == check_in_code)).first()
     if not ci:
         raise HTTPException(status_code=404, detail="Check-in not found")
+    record_audit(session, admin, "delete", "check_in", check_in_code)
     session.delete(ci)
     session.commit()

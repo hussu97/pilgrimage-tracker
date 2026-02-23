@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlmodel import col, func, select
 
 from app.api.deps import AdminDep
+from app.api.v1.admin.audit_log import record_audit
 from app.db.models import Group, GroupMember, User
 from app.db.session import SessionDep
 
@@ -146,14 +147,19 @@ def patch_group(group_code: str, body: PatchGroupBody, admin: AdminDep, session:
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
 
+    changes: dict = {}
     if body.name is not None:
+        changes["name"] = {"old": group.name, "new": body.name}
         group.name = body.name
     if body.description is not None:
+        changes["description"] = {"old": group.description, "new": body.description}
         group.description = body.description
     if body.is_private is not None:
+        changes["is_private"] = {"old": group.is_private, "new": body.is_private}
         group.is_private = body.is_private
     group.updated_at = datetime.now(UTC)
 
+    record_audit(session, admin, "update", "group", group_code, changes or None)
     session.add(group)
     session.commit()
     session.refresh(group)
@@ -183,6 +189,7 @@ def delete_group(group_code: str, admin: AdminDep, session: SessionDep):
     group = session.exec(select(Group).where(Group.group_code == group_code)).first()
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
+    record_audit(session, admin, "delete", "group", group_code)
     session.delete(group)
     session.commit()
 

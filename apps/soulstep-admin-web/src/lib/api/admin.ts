@@ -1,5 +1,6 @@
 import { apiClient } from "./client";
 import type {
+  AdminBroadcastListResponse,
   AdminCheckIn,
   AdminContentTranslation,
   AdminGroup,
@@ -15,7 +16,11 @@ import type {
   AdminUserDetail,
   AdminUserReview,
   AppVersionConfig,
+  AuditLogItem,
+  AuditLogListResponse,
   AuthResponse,
+  BroadcastResult,
+  BulkResult,
   BulkUpdateAttributesBody,
   ContentTranslationListResponse,
   CreateContentTranslationBody,
@@ -351,5 +356,94 @@ export async function bulkUpdatePlaceAttributes(
     `/admin/place-attributes/${placeCode}`,
     body
   );
+  return res.data;
+}
+
+// ── Bulk Operations (Phase 6) ─────────────────────────────────────────────────
+
+export async function bulkDeactivateUsers(userCodes: string[]): Promise<BulkResult> {
+  const res = await apiClient.post<BulkResult>("/admin/bulk/users/deactivate", { user_codes: userCodes });
+  return res.data;
+}
+
+export async function bulkActivateUsers(userCodes: string[]): Promise<BulkResult> {
+  const res = await apiClient.post<BulkResult>("/admin/bulk/users/activate", { user_codes: userCodes });
+  return res.data;
+}
+
+export async function bulkFlagReviews(reviewCodes: string[]): Promise<BulkResult> {
+  const res = await apiClient.post<BulkResult>("/admin/bulk/reviews/flag", { review_codes: reviewCodes });
+  return res.data;
+}
+
+export async function bulkUnflagReviews(reviewCodes: string[]): Promise<BulkResult> {
+  const res = await apiClient.post<BulkResult>("/admin/bulk/reviews/unflag", { review_codes: reviewCodes });
+  return res.data;
+}
+
+export async function bulkDeleteReviews(reviewCodes: string[]): Promise<BulkResult> {
+  const res = await apiClient.post<BulkResult>("/admin/bulk/reviews/delete", { review_codes: reviewCodes });
+  return res.data;
+}
+
+export async function bulkDeleteCheckIns(checkInCodes: string[]): Promise<BulkResult> {
+  const res = await apiClient.post<BulkResult>("/admin/bulk/check-ins/delete", { check_in_codes: checkInCodes });
+  return res.data;
+}
+
+export async function bulkDeletePlaces(placeCodes: string[]): Promise<BulkResult> {
+  const res = await apiClient.post<BulkResult>("/admin/bulk/places/delete", { place_codes: placeCodes });
+  return res.data;
+}
+
+export async function bulkDeleteGroups(groupCodes: string[]): Promise<BulkResult> {
+  const res = await apiClient.post<BulkResult>("/admin/bulk/groups/delete", { group_codes: groupCodes });
+  return res.data;
+}
+
+// ── Export (Phase 6) ──────────────────────────────────────────────────────────
+
+export function exportUrl(entity: "users" | "places" | "reviews" | "check-ins" | "groups", format: "csv" | "json"): string {
+  const base = apiClient.defaults.baseURL ?? "/api/v1";
+  return `${base}/admin/export/${entity}?format=${format}`;
+}
+
+// ── Audit Log (Phase 6) ───────────────────────────────────────────────────────
+
+export async function listAuditLog(params?: {
+  page?: number;
+  page_size?: number;
+  admin_user_code?: string;
+  entity_type?: string;
+  action?: string;
+  from_date?: string;
+  to_date?: string;
+}): Promise<AuditLogListResponse> {
+  const res = await apiClient.get<AuditLogListResponse>("/admin/audit-log", { params });
+  return res.data;
+}
+
+export async function getAuditLogEntry(logCode: string): Promise<AuditLogItem> {
+  const res = await apiClient.get<AuditLogItem>(`/admin/audit-log/${logCode}`);
+  return res.data;
+}
+
+// ── Notifications (Phase 6) ───────────────────────────────────────────────────
+
+export async function broadcastNotification(body: { type: string; payload?: Record<string, unknown> }): Promise<BroadcastResult> {
+  const res = await apiClient.post<BroadcastResult>("/admin/notifications/broadcast", body);
+  return res.data;
+}
+
+export async function sendNotification(body: { user_codes: string[]; type: string; payload?: Record<string, unknown> }): Promise<BroadcastResult> {
+  const res = await apiClient.post<BroadcastResult>("/admin/notifications/send", body);
+  return res.data;
+}
+
+export async function listNotificationHistory(params?: {
+  page?: number;
+  page_size?: number;
+}): Promise<AdminBroadcastListResponse> {
+  const res = await apiClient.get<AdminBroadcastListResponse>("/admin/notifications/history", { params });
   return res.data;
 }

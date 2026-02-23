@@ -363,3 +363,39 @@ class UITranslation(SQLModel, table=True):
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
     )
+
+
+class AuditLog(SQLModel, table=True):
+    """Records every admin write operation for accountability."""
+
+    __tablename__ = "audit_log"
+
+    id: int | None = Field(default=None, primary_key=True)
+    log_code: str = Field(index=True, unique=True)
+    admin_user_code: str = Field(foreign_key="user.user_code", index=True)
+    action: str  # "create", "update", "delete", "bulk_deactivate", "flag", etc.
+    entity_type: str  # "user", "place", "review", "check_in", "group", etc.
+    entity_code: str  # code of the affected entity (or comma-joined for bulk)
+    changes: dict | None = Field(default=None, sa_column=Column(JSON))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+
+
+class AdminBroadcast(SQLModel, table=True):
+    """Tracks admin-initiated notification broadcasts for history."""
+
+    __tablename__ = "admin_broadcast"
+
+    id: int | None = Field(default=None, primary_key=True)
+    broadcast_code: str = Field(index=True, unique=True)
+    admin_user_code: str = Field(foreign_key="user.user_code", index=True)
+    type: str  # notification type key
+    payload: dict[str, Any] = Field(default={}, sa_column=Column(JSON))
+    recipient_type: str  # "all" | "targeted"
+    recipient_count: int = Field(default=0)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )

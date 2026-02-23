@@ -11,6 +11,7 @@ import {
   Database,
   Languages,
   FileText,
+  Bell,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { label: "Scraper", to: "/scraper", icon: Database },
   { label: "Content", to: "/translations", icon: Languages },
   { label: "Audit Log", to: "/audit-log", icon: FileText },
+  { label: "Notifications", to: "/notifications", icon: Bell },
 ];
 
 interface SidebarProps {

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlmodel import col, func, select
 
 from app.api.deps import AdminDep
+from app.api.v1.admin.audit_log import record_audit
 from app.db.models import CheckIn, Place, Review, User
 from app.db.session import SessionDep
 
@@ -129,14 +130,19 @@ def patch_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    changes: dict = {}
     if body.display_name is not None:
+        changes["display_name"] = {"old": user.display_name, "new": body.display_name}
         user.display_name = body.display_name
     if body.is_active is not None:
+        changes["is_active"] = {"old": user.is_active, "new": body.is_active}
         user.is_active = body.is_active
     if body.is_admin is not None:
+        changes["is_admin"] = {"old": user.is_admin, "new": body.is_admin}
         user.is_admin = body.is_admin
     user.updated_at = datetime.now(UTC)
 
+    record_audit(session, admin, "update", "user", user_code, changes or None)
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -169,6 +175,7 @@ def deactivate_user(user_code: str, admin: AdminDep, session: SessionDep):
         raise HTTPException(status_code=404, detail="User not found")
     user.is_active = False
     user.updated_at = datetime.now(UTC)
+    record_audit(session, admin, "delete", "user", user_code)
     session.add(user)
     session.commit()
 

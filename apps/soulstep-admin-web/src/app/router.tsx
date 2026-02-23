@@ -24,6 +24,8 @@ import { TranslationsPage } from "./pages/content/TranslationsPage";
 import { AppVersionsPage } from "./pages/content/AppVersionsPage";
 import { ContentTranslationsPage } from "./pages/content/ContentTranslationsPage";
 import { PlaceAttributesPage } from "./pages/content/PlaceAttributesPage";
+import { AuditLogPage } from "./pages/audit-log/AuditLogPage";
+import { NotificationManagementPage } from "./pages/notifications/NotificationManagementPage";
 
 /** Redirect to /login if not authenticated. */
 function RequireAuth() {
@@ -82,6 +84,9 @@ export const routes = [
               { path: "/app-versions", element: <AppVersionsPage /> },
               { path: "/content-translations", element: <ContentTranslationsPage /> },
               { path: "/place-attributes", element: <PlaceAttributesPage /> },
+              // Audit Log & Notifications (Phase 6)
+              { path: "/audit-log", element: <AuditLogPage /> },
+              { path: "/notifications", element: <NotificationManagementPage /> },
             ],
           },
         ],
