@@ -2,6 +2,10 @@
 
 Endpoints let admins view, override, and create translation keys at runtime.
 DB overrides (UITranslation rows) take precedence over seed_data.json values.
+
+The supported language list is derived dynamically from the in-memory i18n
+store (populated at startup from seed_data.json), so adding a new language
+to the seed automatically appears here with no code changes required.
 """
 
 from datetime import UTC, datetime
@@ -17,7 +21,19 @@ from app.db.session import SessionDep
 
 router = APIRouter()
 
-SUPPORTED_LANGS = ["en", "ar", "hi"]
+
+# ── Helpers ────────────────────────────────────────────────────────────────────
+
+
+def _get_supported_langs() -> list[str]:
+    """Return language codes from the in-memory i18n store.
+
+    Falls back to ["en"] if the store hasn't been seeded yet (e.g. in tests
+    where seed_i18n hasn't run). The store is populated from seed_data.json
+    at application startup via run_seed_system().
+    """
+    langs = [lang["code"] for lang in i18n_db.languages]
+    return langs if langs else ["en"]
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────────
@@ -25,23 +41,17 @@ SUPPORTED_LANGS = ["en", "ar", "hi"]
 
 class TranslationEntry(BaseModel):
     key: str
-    en: str | None = None
-    ar: str | None = None
-    hi: str | None = None
-    overridden_langs: list[str]  # langs that have a DB override row
+    values: dict[str, str | None]  # lang_code -> value (None = not set for this lang)
+    overridden_langs: list[str]  # langs that have a live DB override row
 
 
 class UpsertTranslationBody(BaseModel):
-    en: str | None = None
-    ar: str | None = None
-    hi: str | None = None
+    values: dict[str, str]  # lang_code -> new value (any subset of supported langs)
 
 
 class CreateTranslationBody(BaseModel):
     key: str
-    en: str | None = None
-    ar: str | None = None
-    hi: str | None = None
+    values: dict[str, str]  # lang_code -> value
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -52,21 +62,16 @@ def _build_entry(
     seed_data: dict[str, dict[str, str]],
     db_overrides: dict[str, dict[str, str]],
 ) -> TranslationEntry:
+    supported_langs = _get_supported_langs()
     overridden_langs: list[str] = []
     values: dict[str, str | None] = {}
-    for lang in SUPPORTED_LANGS:
+    for lang in supported_langs:
         if key in db_overrides.get(lang, {}):
             values[lang] = db_overrides[lang][key]
             overridden_langs.append(lang)
         else:
             values[lang] = seed_data.get(lang, {}).get(key)
-    return TranslationEntry(
-        key=key,
-        en=values.get("en"),
-        ar=values.get("ar"),
-        hi=values.get("hi"),
-        overridden_langs=overridden_langs,
-    )
+    return TranslationEntry(key=key, values=values, overridden_langs=overridden_langs)
 
 
 def _load_db_overrides(session, key: str | None = None) -> dict[str, dict[str, str]]:
@@ -93,6 +98,7 @@ def list_translations(
     """List all known translation keys with per-language values.
 
     Shows keys from seed data (union) any DB-only keys.
+    The supported language set is derived from the i18n store at runtime.
     The overridden_langs field indicates which values are DB overrides.
     """
     seed_keys: set[str] = set()
@@ -127,11 +133,8 @@ def create_translation(
         )
 
     now = datetime.now(UTC)
-    for lang in SUPPORTED_LANGS:
-        value = getattr(body, lang)
-        if value is not None:
-            row = UITranslation(key=body.key, lang=lang, value=value, updated_at=now)
-            session.add(row)
+    for lang, value in body.values.items():
+        session.add(UITranslation(key=body.key, lang=lang, value=value, updated_at=now))
     session.commit()
 
     db_overrides = _load_db_overrides(session, key=body.key)
@@ -140,7 +143,7 @@ def create_translation(
 
 @router.get("/translations/{key}", response_model=TranslationEntry)
 def get_translation(key: str, admin: AdminDep, session: SessionDep):
-    """Get a single translation key with values for all languages."""
+    """Get a single translation key with values for all supported languages."""
     seed_has_key = any(key in lang_map for lang_map in i18n_db.translations.values())
     db_overrides = _load_db_overrides(session, key=key)
     db_has_key = any(key in lang_map for lang_map in db_overrides.values())
@@ -158,15 +161,15 @@ def upsert_translation(
     admin: AdminDep,
     session: SessionDep,
 ):
-    """Upsert DB overrides for one or more languages of a key."""
-    updates = {
-        lang: getattr(body, lang) for lang in SUPPORTED_LANGS if getattr(body, lang) is not None
-    }
-    if not updates:
+    """Upsert DB overrides for one or more languages of a key.
+
+    Accepts any subset of supported language codes in body.values.
+    """
+    if not body.values:
         raise HTTPException(status_code=400, detail="At least one language value is required")
 
     now = datetime.now(UTC)
-    for lang, value in updates.items():
+    for lang, value in body.values.items():
         existing = session.exec(
             select(UITranslation).where(
                 UITranslation.key == key,

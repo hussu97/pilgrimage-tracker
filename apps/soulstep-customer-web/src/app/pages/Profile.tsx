@@ -117,7 +117,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-screen bg-background-light dark:bg-dark-bg">
+    <div className="relative min-h-screen bg-background-light dark:bg-dark-bg">
       {/* gradient header bg */}
       <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-soft-blue to-transparent dark:from-dark-surface/30 dark:to-transparent pointer-events-none z-0" />
 

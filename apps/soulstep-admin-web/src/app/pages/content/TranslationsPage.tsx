@@ -2,34 +2,29 @@ import { useCallback, useEffect, useState } from "react";
 import {
   createTranslation,
   deleteTranslationOverrides,
+  listLanguages,
   listTranslations,
   upsertTranslation,
 } from "@/lib/api/admin";
-import type { TranslationEntry } from "@/lib/api/types";
+import type { Language, TranslationEntry } from "@/lib/api/types";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Plus, RotateCcw, Check, X } from "lucide-react";
 
-const LANGS = ["en", "ar", "hi"] as const;
-type Lang = (typeof LANGS)[number];
-
 interface EditState {
   key: string;
-  lang: Lang;
+  lang: string;
   value: string;
 }
 
 interface NewKeyForm {
   key: string;
-  en: string;
-  ar: string;
-  hi: string;
+  values: Record<string, string>;
 }
 
-const EMPTY_FORM: NewKeyForm = { key: "", en: "", ar: "", hi: "" };
-
 export function TranslationsPage() {
+  const [langs, setLangs] = useState<Language[]>([]);
   const [entries, setEntries] = useState<TranslationEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -37,8 +32,15 @@ export function TranslationsPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<TranslationEntry | null>(null);
   const [showCreate, setShowCreate] = useState(false);
-  const [newForm, setNewForm] = useState<NewKeyForm>(EMPTY_FORM);
+  const [newForm, setNewForm] = useState<NewKeyForm>({ key: "", values: {} });
   const [creating, setCreating] = useState(false);
+
+  // Fetch supported languages once on mount
+  useEffect(() => {
+    listLanguages()
+      .then(setLangs)
+      .catch(() => setLangs([{ code: "en", name: "English" }]));
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -53,7 +55,7 @@ export function TranslationsPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const startEdit = (key: string, lang: Lang, currentValue: string | null) => {
+  const startEdit = (key: string, lang: string, currentValue: string | null) => {
     setEditing({ key, lang, value: currentValue ?? "" });
   };
 
@@ -63,7 +65,7 @@ export function TranslationsPage() {
     if (!editing) return;
     setSaving(true);
     try {
-      await upsertTranslation(editing.key, { [editing.lang]: editing.value });
+      await upsertTranslation(editing.key, { values: { [editing.lang]: editing.value } });
       setEditing(null);
       await load();
     } finally {
@@ -79,16 +81,11 @@ export function TranslationsPage() {
   };
 
   const handleCreate = async () => {
-    if (!newForm.key) return;
+    if (!newForm.key || Object.keys(newForm.values).length === 0) return;
     setCreating(true);
     try {
-      await createTranslation({
-        key: newForm.key,
-        ...(newForm.en ? { en: newForm.en } : {}),
-        ...(newForm.ar ? { ar: newForm.ar } : {}),
-        ...(newForm.hi ? { hi: newForm.hi } : {}),
-      });
-      setNewForm(EMPTY_FORM);
+      await createTranslation({ key: newForm.key, values: newForm.values });
+      setNewForm({ key: "", values: {} });
       setShowCreate(false);
       await load();
     } finally {
@@ -96,10 +93,7 @@ export function TranslationsPage() {
     }
   };
 
-  const cellValue = (entry: TranslationEntry, lang: Lang): string | null =>
-    entry[lang] ?? null;
-
-  const isEditing = (key: string, lang: Lang) =>
+  const isEditing = (key: string, lang: string) =>
     editing?.key === key && editing?.lang === lang;
 
   return (
@@ -109,7 +103,7 @@ export function TranslationsPage() {
         <div>
           <h1 className="text-xl font-semibold text-text-main dark:text-white">Translations</h1>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-0.5">
-            Manage UI translation keys. DB overrides take precedence over seed values.
+            Manage UI translation keys across all {langs.length} languages. Click a value to edit.
           </p>
         </div>
         <button
@@ -125,27 +119,34 @@ export function TranslationsPage() {
       {showCreate && (
         <div className="rounded-xl border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface p-5 space-y-4">
           <h2 className="text-sm font-semibold text-text-main dark:text-white">New Translation Key</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1">
-                Key (e.g. home.title)
-              </label>
-              <input
-                value={newForm.key}
-                onChange={(e) => setNewForm((f) => ({ ...f, key: e.target.value }))}
-                placeholder="e.g. settings.language_label"
-                className="w-full rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-bg px-3 py-2 text-sm font-mono text-text-main dark:text-white outline-none focus:border-primary"
-              />
-            </div>
-            {LANGS.map((lang) => (
-              <div key={lang}>
-                <label className="block text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1 uppercase">
-                  {lang}
+          <div>
+            <label className="block text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1">
+              Key (e.g. settings.language_label)
+            </label>
+            <input
+              value={newForm.key}
+              onChange={(e) => setNewForm((f) => ({ ...f, key: e.target.value }))}
+              placeholder="e.g. home.welcome_message"
+              className="w-full rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-bg px-3 py-2 text-sm font-mono text-text-main dark:text-white outline-none focus:border-primary"
+            />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {langs.map((lang) => (
+              <div key={lang.code}>
+                <label className="block text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1">
+                  {lang.name} ({lang.code.toUpperCase()})
                 </label>
                 <input
-                  value={newForm[lang]}
-                  onChange={(e) => setNewForm((f) => ({ ...f, [lang]: e.target.value }))}
-                  placeholder={`${lang} value`}
+                  value={newForm.values[lang.code] ?? ""}
+                  onChange={(e) =>
+                    setNewForm((f) => ({
+                      ...f,
+                      values: e.target.value
+                        ? { ...f.values, [lang.code]: e.target.value }
+                        : Object.fromEntries(Object.entries(f.values).filter(([k]) => k !== lang.code)),
+                    }))
+                  }
+                  placeholder={`${lang.code} value`}
                   className="w-full rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-bg px-3 py-2 text-sm text-text-main dark:text-white outline-none focus:border-primary"
                 />
               </div>
@@ -153,14 +154,14 @@ export function TranslationsPage() {
           </div>
           <div className="flex gap-2">
             <button
-              disabled={creating || !newForm.key}
+              disabled={creating || !newForm.key || Object.keys(newForm.values).length === 0}
               onClick={() => void handleCreate()}
               className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {creating ? "Creating…" : "Create"}
             </button>
             <button
-              onClick={() => { setShowCreate(false); setNewForm(EMPTY_FORM); }}
+              onClick={() => { setShowCreate(false); setNewForm({ key: "", values: {} }); }}
               className="rounded-lg border border-input-border dark:border-dark-border px-4 py-2 text-sm font-medium text-text-secondary dark:text-dark-text-secondary hover:bg-background-light dark:hover:bg-dark-bg transition-colors"
             >
               Cancel
@@ -178,25 +179,26 @@ export function TranslationsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-input-border dark:border-dark-border bg-background-light dark:bg-dark-bg">
-                <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide w-[28%]">
+                <th className="px-4 py-3 text-left text-xs font-medium text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide w-[24%]">
                   Key
                 </th>
-                {LANGS.map((lang) => (
+                {langs.map((lang) => (
                   <th
-                    key={lang}
+                    key={lang.code}
                     className="px-4 py-3 text-left text-xs font-medium text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide"
+                    title={lang.name}
                   >
-                    {lang}
+                    {lang.code}
                   </th>
                 ))}
-                <th className="px-4 py-3 w-14" />
+                <th className="px-4 py-3 w-12" />
               </tr>
             </thead>
             <tbody className="divide-y divide-input-border dark:divide-dark-border">
               {loading ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={langs.length + 2}
                     className="px-4 py-8 text-center text-sm text-text-secondary dark:text-dark-text-secondary"
                   >
                     Loading…
@@ -205,7 +207,7 @@ export function TranslationsPage() {
               ) : entries.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={langs.length + 2}
                     className="px-4 py-8 text-center text-sm text-text-secondary dark:text-dark-text-secondary"
                   >
                     No translation keys found.
@@ -224,14 +226,14 @@ export function TranslationsPage() {
                       </span>
                     </td>
 
-                    {/* Values per lang */}
-                    {LANGS.map((lang) => {
-                      const val = cellValue(entry, lang);
-                      const isOverridden = entry.overridden_langs.includes(lang);
+                    {/* Value per language */}
+                    {langs.map((lang) => {
+                      const val = entry.values[lang.code] ?? null;
+                      const isOverridden = entry.overridden_langs.includes(lang.code);
 
-                      if (isEditing(entry.key, lang)) {
+                      if (isEditing(entry.key, lang.code)) {
                         return (
-                          <td key={lang} className="px-4 py-2 align-top">
+                          <td key={lang.code} className="px-4 py-2 align-top">
                             <div className="flex items-start gap-1">
                               <textarea
                                 autoFocus
@@ -264,10 +266,10 @@ export function TranslationsPage() {
 
                       return (
                         <td
-                          key={lang}
+                          key={lang.code}
                           className="px-4 py-2.5 align-top cursor-pointer group"
-                          onClick={() => startEdit(entry.key, lang, val)}
-                          title="Click to edit"
+                          onClick={() => startEdit(entry.key, lang.code, val)}
+                          title={`Click to edit ${lang.name}`}
                         >
                           <div className="flex items-start gap-1.5 flex-wrap">
                             {val === null ? (
@@ -275,7 +277,7 @@ export function TranslationsPage() {
                                 missing
                               </span>
                             ) : (
-                              <span className="text-xs text-text-main dark:text-white break-words max-w-[180px] group-hover:text-primary transition-colors">
+                              <span className="text-xs text-text-main dark:text-white break-words max-w-[160px] group-hover:text-primary transition-colors">
                                 {val}
                               </span>
                             )}
@@ -287,7 +289,7 @@ export function TranslationsPage() {
                       );
                     })}
 
-                    {/* Actions */}
+                    {/* Revert action */}
                     <td className="px-3 py-2.5 align-top">
                       {entry.overridden_langs.length > 0 && (
                         <button

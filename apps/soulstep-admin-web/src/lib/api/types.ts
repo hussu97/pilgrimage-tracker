@@ -273,23 +273,24 @@ export interface RawCollectorEntry {
 // Translations
 export interface TranslationEntry {
   key: string;
-  en: string | null;
-  ar: string | null;
-  hi: string | null;
+  /** lang_code -> translated value (null = not set for this lang) */
+  values: Record<string, string | null>;
   overridden_langs: string[];
 }
 
+export interface Language {
+  code: string;
+  name: string;
+}
+
 export interface UpsertTranslationBody {
-  en?: string;
-  ar?: string;
-  hi?: string;
+  /** Any subset of supported lang codes -> new value */
+  values: Record<string, string>;
 }
 
 export interface CreateTranslationBody {
   key: string;
-  en?: string;
-  ar?: string;
-  hi?: string;
+  values: Record<string, string>;
 }
 
 // App Versions

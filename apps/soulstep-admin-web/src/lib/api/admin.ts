@@ -21,6 +21,7 @@ import type {
   CreateContentTranslationBody,
   CreatePlaceBody,
   CreateTranslationBody,
+  Language,
   LoginBody,
   PaginatedResponse,
   PatchGroupBody,
@@ -229,6 +230,13 @@ export async function listGroupMembers(groupCode: string): Promise<AdminGroupMem
 
 export async function removeGroupMember(groupCode: string, userCode: string): Promise<void> {
   await apiClient.delete(`/admin/groups/${groupCode}/members/${userCode}`);
+}
+
+// ── Languages (public — no auth) ──────────────────────────────────────────────
+
+export async function listLanguages(): Promise<Language[]> {
+  const res = await apiClient.get<Language[]>("/languages");
+  return res.data;
 }
 
 // ── Translations ───────────────────────────────────────────────────────────────

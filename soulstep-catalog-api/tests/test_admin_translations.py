@@ -52,15 +52,26 @@ def test_list_translations_returns_seed_keys(client, db_session):
     resp = client.get("/api/v1/admin/translations", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
-    # Seed data should have keys; list must be a list of entries
     assert isinstance(data, list)
     if data:
         entry = data[0]
         assert "key" in entry
-        assert "en" in entry
-        assert "ar" in entry
-        assert "hi" in entry
+        assert "values" in entry
         assert "overridden_langs" in entry
+        assert isinstance(entry["values"], dict)
+
+
+def test_list_translations_includes_all_seeded_languages(client, db_session):
+    """Every entry's values dict should include en, ar, hi, te, ml."""
+    headers = _admin_headers(client, db_session)
+    resp = client.get("/api/v1/admin/translations", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    # seed_i18n fixture loads all 5 langs
+    if data:
+        langs = set(data[0]["values"].keys())
+        for expected in ("en", "ar", "hi", "te", "ml"):
+            assert expected in langs, f"Language '{expected}' missing from values"
 
 
 def test_list_translations_shows_db_override(client, db_session):
@@ -71,7 +82,7 @@ def test_list_translations_shows_db_override(client, db_session):
     entries = {e["key"]: e for e in resp.json()}
     assert "some.test.key" in entries
     entry = entries["some.test.key"]
-    assert entry["en"] == "DB Value EN"
+    assert entry["values"]["en"] == "DB Value EN"
     assert "en" in entry["overridden_langs"]
 
 
@@ -82,7 +93,6 @@ def test_list_translations_search(client, db_session):
     assert resp.status_code == 200
     keys = [e["key"] for e in resp.json()]
     assert "unique.search.abc" in keys
-    # Ensure only matching keys returned
     assert all("unique.search" in k for k in keys)
 
 
@@ -95,16 +105,29 @@ def test_get_translation_404_for_unknown_key(client, db_session):
     assert resp.status_code == 404
 
 
-def test_get_translation_returns_seed_value(client, db_session):
-    # Insert a known key in DB first to ensure it exists
+def test_get_translation_returns_value(client, db_session):
     _seed_override(db_session, "test.get.key", "en", "Test Value")
     headers = _admin_headers(client, db_session)
     resp = client.get("/api/v1/admin/translations/test.get.key", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
     assert data["key"] == "test.get.key"
-    assert data["en"] == "Test Value"
+    assert data["values"]["en"] == "Test Value"
     assert "en" in data["overridden_langs"]
+
+
+def test_get_translation_returns_all_langs(client, db_session):
+    """A DB-overridden key should still have values for all supported langs."""
+    _seed_override(db_session, "test.all.langs", "hi", "हिंदी मूल्य")
+    headers = _admin_headers(client, db_session)
+    resp = client.get("/api/v1/admin/translations/test.all.langs", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["values"]["hi"] == "हिंदी मूल्य"
+    assert "hi" in data["overridden_langs"]
+    # Other langs present (even if None)
+    assert "te" in data["values"]
+    assert "ml" in data["values"]
 
 
 # ── Tests: upsert translation ──────────────────────────────────────────────────
@@ -114,17 +137,16 @@ def test_put_translation_creates_override(client, db_session):
     headers = _admin_headers(client, db_session)
     resp = client.put(
         "/api/v1/admin/translations/test.upsert.key",
-        json={"en": "New English", "ar": "Arabic Value"},
+        json={"values": {"en": "New English", "ar": "Arabic Value"}},
         headers=headers,
     )
     assert resp.status_code == 200
     data = resp.json()
-    assert data["en"] == "New English"
-    assert data["ar"] == "Arabic Value"
+    assert data["values"]["en"] == "New English"
+    assert data["values"]["ar"] == "Arabic Value"
     assert "en" in data["overridden_langs"]
     assert "ar" in data["overridden_langs"]
 
-    # Verify in DB
     rows = db_session.exec(
         select(UITranslation).where(UITranslation.key == "test.upsert.key")
     ).all()
@@ -137,11 +159,11 @@ def test_put_translation_updates_existing_override(client, db_session):
 
     resp = client.put(
         "/api/v1/admin/translations/test.update.key",
-        json={"en": "Updated Value"},
+        json={"values": {"en": "Updated Value"}},
         headers=headers,
     )
     assert resp.status_code == 200
-    assert resp.json()["en"] == "Updated Value"
+    assert resp.json()["values"]["en"] == "Updated Value"
 
     rows = db_session.exec(
         select(UITranslation).where(
@@ -152,11 +174,27 @@ def test_put_translation_updates_existing_override(client, db_session):
     assert rows[0].value == "Updated Value"
 
 
-def test_put_translation_requires_at_least_one_lang(client, db_session):
+def test_put_translation_supports_telugu_and_malayalam(client, db_session):
+    """Overrides for te and ml should work just like en/ar/hi."""
+    headers = _admin_headers(client, db_session)
+    resp = client.put(
+        "/api/v1/admin/translations/test.te.ml.key",
+        json={"values": {"te": "తెలుగు విలువ", "ml": "മലയാളം മൂല്യം"}},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["values"]["te"] == "తెలుగు విలువ"
+    assert data["values"]["ml"] == "മലയാളം മൂല്യം"
+    assert "te" in data["overridden_langs"]
+    assert "ml" in data["overridden_langs"]
+
+
+def test_put_translation_requires_values(client, db_session):
     headers = _admin_headers(client, db_session)
     resp = client.put(
         "/api/v1/admin/translations/some.key",
-        json={},
+        json={"values": {}},
         headers=headers,
     )
     assert resp.status_code == 400
@@ -180,7 +218,6 @@ def test_delete_translation_removes_overrides(client, db_session):
 
 
 def test_delete_translation_no_op_for_nonexistent(client, db_session):
-    """Deleting a key with no overrides should return 204 (no-op)."""
     headers = _admin_headers(client, db_session)
     resp = client.delete("/api/v1/admin/translations/no.overrides.here", headers=headers)
     assert resp.status_code == 204
@@ -193,36 +230,43 @@ def test_create_translation_new_key(client, db_session):
     headers = _admin_headers(client, db_session)
     resp = client.post(
         "/api/v1/admin/translations",
-        json={"key": "brand.new.key", "en": "Brand New", "ar": "جديد"},
+        json={"key": "brand.new.key", "values": {"en": "Brand New", "ar": "جديد", "te": "కొత్తది"}},
         headers=headers,
     )
     assert resp.status_code == 201
     data = resp.json()
     assert data["key"] == "brand.new.key"
-    assert data["en"] == "Brand New"
-    assert data["ar"] == "جديد"
+    assert data["values"]["en"] == "Brand New"
+    assert data["values"]["ar"] == "جديد"
+    assert data["values"]["te"] == "కొత్తది"
     assert "en" in data["overridden_langs"]
     assert "ar" in data["overridden_langs"]
+    assert "te" in data["overridden_langs"]
 
 
 # ── Tests: i18n merge endpoint ─────────────────────────────────────────────────
 
 
 def test_i18n_translations_merges_db_override(client, db_session):
-    """GET /api/v1/i18n/translations should apply DB overrides on top of seed."""
     _seed_override(db_session, "override.merge.test", "en", "DB Override Value")
 
     resp = client.get("/api/v1/translations?lang=en")
     assert resp.status_code == 200
-    data = resp.json()
-    assert data.get("override.merge.test") == "DB Override Value"
+    assert resp.json().get("override.merge.test") == "DB Override Value"
+
+
+def test_i18n_translations_merges_telugu_override(client, db_session):
+    """DB overrides for te and ml should also be returned by the public endpoint."""
+    _seed_override(db_session, "override.te.test", "te", "తెలుగు ఓవర్‌రైడ్")
+
+    resp = client.get("/api/v1/translations?lang=te")
+    assert resp.status_code == 200
+    assert resp.json().get("override.te.test") == "తెలుగు ఓవర్‌రైడ్"
 
 
 def test_i18n_translations_no_override_returns_seed(client, db_session):
-    """If no DB override, seed values should be returned unchanged."""
     resp = client.get("/api/v1/translations?lang=en")
     assert resp.status_code == 200
     data = resp.json()
     assert isinstance(data, dict)
-    # At least some seed keys should exist
     assert len(data) > 0
