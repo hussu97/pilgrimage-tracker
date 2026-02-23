@@ -8,14 +8,14 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ### Docs
 - **Replaced `ROADMAP.md`** with a comprehensive unified document merging `ROADMAP.md` and `ADMIN_ROADMAP.md` into a single source of truth
-- Preserved all 29 completed `[x]` items from the previous roadmap (P0–P3)
-- Merged 20 remaining unchecked items from old ROADMAP.md
+- Preserved all 29 completed `[x]` items from the previous roadmap (P0–P3) in a dedicated "Completed Items" section
+- Merged all 20 remaining unchecked items from old ROADMAP.md into the appropriate new priority tiers
 - Pulled in Admin Phase 6 features (bulk ops, data export, audit log, notifications) from `ADMIN_ROADMAP.md`
-- Added ~25 new items from a full-system audit (security, reliability, CI/CD, accessibility, testing, infrastructure) across all 5 systems (backend, scraper, web, mobile, admin)
-- Added new user feature ideas: deep linking, offline mode, optimistic UI updates
-- Added 8 monetization strategies: premium subscriptions, sponsored places, B2B partnerships, donations, marketplace, API access, premium groups, analytics-as-a-service
-- Reorganized into 4 priority tiers: P0 (Critical / Pre-Production), P1 (High Priority), P2 (Feature Enhancements), P3 (Scalability & DevOps)
-- Added "Completed Archive" section at bottom for quick reference of all done items
+- Added ~30 new items from a full-system audit (security, reliability, CI/CD, accessibility, testing, infrastructure, monitoring) across all 5 systems (backend, scraper, web, mobile, admin + infra)
+- Added 4 new user feature ideas from audit: deep linking, offline mode with sync queue, optimistic UI updates, image lazy loading
+- Added 8 monetization strategies: premium subscriptions (SoulStep Pro), B2B partnerships, local experiences marketplace, API access, sponsored places, donation integration, premium group features, analytics-as-a-service
+- Reorganized into 4 priority tiers: P0 (Critical / Pre-Production — 10 items), P1 (High Priority — 16 items), P2 (Feature Enhancements — 25 items), P3 (Scalability & DevOps — 25 items)
+- Total: 76 open items + 30 completed items = 106 tracked items
 
 ---
 
