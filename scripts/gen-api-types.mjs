@@ -2,11 +2,11 @@
  * Generate TypeScript types from the FastAPI OpenAPI schema.
  *
  * Usage:
- *   1. Start the server: cd server && uvicorn app.main:app --port 3000
+ *   1. Start the server: cd soulstep-catalog-api && uvicorn app.main:app --port 3000
  *   2. Run from repo root: npm run gen:types
  *
- * The generated file is written to apps/web/src/lib/types/api-generated.d.ts
- * and apps/mobile/src/lib/types/api-generated.d.ts
+ * The generated file is written to apps/soulstep-customer-web/src/lib/types/api-generated.d.ts
+ * and apps/soulstep-customer-mobile/src/lib/types/api-generated.d.ts
  *
  * These generated types reflect the backend schema exactly. You can import
  * them alongside the hand-written types in lib/types/ as a cross-check or
@@ -25,8 +25,8 @@ const rootDir = path.resolve(__dirname, '..');
 
 const API_URL = process.env.API_URL ?? 'http://127.0.0.1:3000/openapi.json';
 const TARGETS = [
-  path.join(rootDir, 'apps', 'web', 'src', 'lib', 'types', 'api-generated.d.ts'),
-  path.join(rootDir, 'apps', 'mobile', 'src', 'lib', 'types', 'api-generated.d.ts'),
+  path.join(rootDir, 'apps', 'soulstep-customer-web', 'src', 'lib', 'types', 'api-generated.d.ts'),
+  path.join(rootDir, 'apps', 'soulstep-customer-mobile', 'src', 'lib', 'types', 'api-generated.d.ts'),
 ];
 
 const otsBin = path.join(rootDir, 'node_modules', '.bin', 'openapi-typescript');

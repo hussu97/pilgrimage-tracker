@@ -21,13 +21,13 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: server/requirements.txt
+          cache-dependency-path: soulstep-catalog-api/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r server/requirements.txt
+        run: pip install -r soulstep-catalog-api/requirements.txt
 
       - name: Run pytest
-        working-directory: server
+        working-directory: soulstep-catalog-api
         run: python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
 
   data-scraper:
@@ -41,13 +41,13 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: data_scraper/requirements.txt
+          cache-dependency-path: soulstep-scraper-api/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r data_scraper/requirements.txt
+        run: pip install -r soulstep-scraper-api/requirements.txt
 
       - name: Run pytest
-        working-directory: data_scraper
+        working-directory: soulstep-scraper-api
         run: python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
 
   test-web:
@@ -61,14 +61,14 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: apps/soulstep-customer-web/package-lock.json
 
       - name: Install dependencies
-        working-directory: apps/web
+        working-directory: apps/soulstep-customer-web
         run: npm ci
 
       - name: Run tests with coverage
-        working-directory: apps/web
+        working-directory: apps/soulstep-customer-web
         run: npm run test -- --coverage
 
   test-mobile:
@@ -82,12 +82,12 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: apps/mobile/package-lock.json
+          cache-dependency-path: apps/soulstep-customer-mobile/package-lock.json
 
       - name: Install dependencies
-        working-directory: apps/mobile
+        working-directory: apps/soulstep-customer-mobile
         run: npm ci
 
       - name: Run tests with coverage
-        working-directory: apps/mobile
+        working-directory: apps/soulstep-customer-mobile
         run: npm test -- --coverage

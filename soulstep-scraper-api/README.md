@@ -1,6 +1,6 @@
-# Pilgrimage Data Scraper API
+# SoulStep Scraper API
 
-A FastAPI service that discovers pilgrimage sites via Google Maps, enriches them from multiple online sources, assesses data quality, and syncs the best information to the main server.
+A FastAPI service that discovers sacred places via Google Maps, enriches them from multiple online sources, assesses data quality, and syncs the best information to the main server.
 
 ## Features
 
@@ -14,14 +14,14 @@ A FastAPI service that discovers pilgrimage sites via Google Maps, enriches them
 
 1.  **Install Dependencies**:
     ```bash
-    cd data_scraper
+    cd soulstep-scraper-api
     python3 -m venv .venv
     source .venv/bin/activate
     pip install -r requirements.txt
     ```
 
 2.  **Environment Variables**:
-    Create a `.env` file in `data_scraper/` (copy from `.env.example`):
+    Create a `.env` file in `soulstep-scraper-api/` (copy from `.env.example`):
     ```env
     # Required
     GOOGLE_MAPS_API_KEY=your_api_key_here
@@ -76,7 +76,7 @@ Store final merged data → Sync to server
 ### Directory Structure
 
 ```
-data_scraper/app/
+soulstep-scraper-api/app/
   scrapers/
     base.py              # generate_code, make_request_with_backoff
     gmaps.py             # Discovery (quadtree search, dedup) + detail fetching

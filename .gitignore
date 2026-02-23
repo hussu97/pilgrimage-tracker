@@ -69,5 +69,5 @@ __pycache__/
 *.db
 *.sqlite
 *.sqlite3
-server/pilgrimage.db
-data_scraper/scraper.db
+soulstep-catalog-api/*.db
+soulstep-scraper-api/*.db

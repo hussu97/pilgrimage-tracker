@@ -4,7 +4,7 @@ Backend for SoulStep. Versioned API at `/api/v1`. **Python 3.11+** required. On 
 
 ## Run
 
-From this directory (`server/`):
+From this directory (`soulstep-catalog-api/`):
 
 ```bash
 python3 -m venv .venv
@@ -38,9 +38,9 @@ kill -9 PID
 
 ## Database Migrations (Alembic)
 
-Schema is managed with **Alembic**. Migrations live in `server/migrations/versions/`. The server runs `alembic upgrade head` automatically on startup so the schema is always up to date.
+Schema is managed with **Alembic**. Migrations live in `soulstep-catalog-api/migrations/versions/`. The server runs `alembic upgrade head` automatically on startup so the schema is always up to date.
 
-### Common commands (run from `server/` with venv active)
+### Common commands (run from `soulstep-catalog-api/` with venv active)
 
 ```bash
 # Apply all pending migrations (done automatically on startup)
@@ -70,9 +70,9 @@ alembic history
 
 The server uses **SQLModel** with a persistent **SQLite database** (`soulstep.db`). Data is loaded from a **central seed file** on startup:
 
-- **File:** `app/db/seed_data.json` (relative to `server/`). It contains `languages`, `translations` (en, ar, hi), and sample data for all stores.
+- **File:** `app/db/seed_data.json` (relative to `soulstep-catalog-api/`). It contains `languages`, `translations` (en, ar, hi), and sample data for all stores.
 - **Runner:** `app/db/seed.py` — `run_seed(seed_path)` drops all tables, rebuilds schema via `alembic upgrade head`, then populates the database from the JSON. It is invoked automatically on app startup when `seed_data.json` is present (dev only — no-op in production).
-- **Reset:** Restart the server to clear and re-run the seed from scratch. Or run it directly: `cd server && source .venv/bin/activate && python -m app.db.seed`.
+- **Reset:** Restart the server to clear and re-run the seed from scratch. Or run it directly: `cd soulstep-catalog-api && source .venv/bin/activate && python -m app.db.seed`.
 
 > **Note:** `run_seed()` drops all tables — never run it against a production database. Production schema updates are handled solely by `alembic upgrade head`.
 
@@ -103,6 +103,6 @@ By using SQLModel, we maintain Pydantic-like schemas for the API while gaining f
 - `JWT_SECRET` — secret for JWT (default: dev secret)
 - `PORT` — port (default: 3000)
 - `DATABASE_URL` — (optional for production) PostgreSQL connection string; when unset, SQLite (`soulstep.db`) is used for dev.
-- `GOOGLE_MAPS_API_KEY` — (optional, for scraper) Google Maps API key for `data_scraper/gmaps.py`. Not required for server operation, only for running the scraper to discover new places.
+- `GOOGLE_MAPS_API_KEY` — (optional, for scraper) Google Maps API key for `soulstep-scraper-api/gmaps.py`. Not required for server operation, only for running the scraper to discover new places.
 
 For production deployment options, see [PRODUCTION.md](../PRODUCTION.md) at repo root.

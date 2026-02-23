@@ -27,7 +27,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-app = FastAPI(title="Pilgrimage Data Scraper API", lifespan=lifespan)
+app = FastAPI(title="SoulStep Scraper API", lifespan=lifespan)
 
 app.include_router(api_router)
 

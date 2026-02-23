@@ -1,17 +1,17 @@
 # SoulStep – Web app
 
-Vite + React + TypeScript + Tailwind frontend for SoulStep. **All functionality lives in this folder** (`apps/web`): pages, API client, types, and context. It runs in desktop and mobile browsers and talks to the backend API (same contract as the Expo mobile app; see repo root for architecture).
+Vite + React + TypeScript + Tailwind frontend for SoulStep. **All functionality lives in this folder** (`apps/soulstep-customer-web`): pages, API client, types, and context. It runs in desktop and mobile browsers and talks to the backend API (same contract as the Expo mobile app; see repo root for architecture).
 
 ## Prerequisites
 
-- **Backend must be running** for any API calls to work. From `server/`: `uvicorn app.main:app --reload --port 3000`. If the backend is not on port 3000, see Environment below.
+- **Backend must be running** for any API calls to work. From `soulstep-catalog-api/`: `uvicorn app.main:app --reload --port 3000`. If the backend is not on port 3000, see Environment below.
 
 ## Run locally
 
-1. Start the **backend** first (from repo root or `server/`):
+1. Start the **backend** first (from repo root or `soulstep-catalog-api/`):
 
    ```bash
-   cd server
+   cd soulstep-catalog-api
    source .venv/bin/activate   # or .venv\Scripts\activate on Windows
    uvicorn app.main:app --reload --port 3000
    ```

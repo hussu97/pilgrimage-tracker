@@ -77,13 +77,13 @@ _OPENAPI_TAGS = [
     {
         "name": "places",
         "description": (
-            "Pilgrimage site discovery, search, filtering, check-ins, favorites, "
+            "Sacred site discovery, search, filtering, check-ins, favorites, "
             "reviews, and image management."
         ),
     },
     {
         "name": "reviews",
-        "description": "User reviews and ratings for pilgrimage sites.",
+        "description": "User reviews and ratings for sacred sites.",
     },
     {
         "name": "groups",

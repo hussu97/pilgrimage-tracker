@@ -1,6 +1,6 @@
 # SoulStep – Mobile app (Expo)
 
-Expo (React Native) app for SoulStep. Builds for iOS and Android. Uses the same API as the web app; feature parity with `apps/web` is maintained (see `.cursor/rules/frontend-replication.mdc`).
+Expo (React Native) app for SoulStep. Builds for iOS and Android. Uses the same API as the web app; feature parity with `apps/soulstep-customer-web` is maintained (see `.cursor/rules/frontend-replication.mdc`).
 
 ## Prerequisites
 
@@ -49,7 +49,7 @@ Configure `app.json` / `app.config.js` (icons, splash, scheme). Submit to App St
 
 ## Environment
 
-- **`EXPO_PUBLIC_API_URL`** – Base URL of the API. When unset, the app defaults to `http://127.0.0.1:3000` so the simulator can reach the backend. For a physical device, set this to your machine’s LAN IP (e.g. `http://192.168.1.10:3000`). The **backend must be running** (e.g. `cd server && uvicorn app.main:app --reload --port 3000`) for the Home screen and other API features to work.
+- **`EXPO_PUBLIC_API_URL`** – Base URL of the API. When unset, the app defaults to `http://127.0.0.1:3000` so the simulator can reach the backend. For a physical device, set this to your machine’s LAN IP (e.g. `http://192.168.1.10:3000`). The **backend must be running** (e.g. `cd soulstep-catalog-api && uvicorn app.main:app --reload --port 3000`) for the Home screen and other API features to work.
 
 ## Structure
 
@@ -59,7 +59,7 @@ Configure `app.json` / `app.config.js` (icons, splash, scheme). Submit to App St
 - `context/` – React context (e.g. `I18nContext` for locale and `t(key)`).
 - `screens/` – Screen components (e.g. `SettingsScreen` with language picker; add auth, home, places, groups, profile to match web flows).
 
-Design reference: `DESIGN_FILE.html` at repo root. Use the same translation keys and API shapes as `apps/web` (see `.cursor/rules/i18n-translations.mdc` and `.cursor/rules/frontend-replication.mdc`).
+Design reference: `DESIGN_FILE.html` at repo root. Use the same translation keys and API shapes as `apps/soulstep-customer-web` (see `.cursor/rules/i18n-translations.mdc` and `.cursor/rules/frontend-replication.mdc`).
 
 ## Error Tracking (GlitchTip / Sentry)
 

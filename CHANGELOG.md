@@ -4,6 +4,20 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Monorepo Folder Rename (2026-02-22)
+
+### Docs
+- Renamed all service root folders to use explicit service names:
+  - `server/` → `soulstep-catalog-api/`
+  - `data_scraper/` → `soulstep-scraper-api/`
+  - `apps/web/` → `apps/soulstep-customer-web/`
+  - `apps/mobile/` → `apps/soulstep-customer-mobile/`
+  - `apps/admin/` → `apps/soulstep-admin-web/`
+- Updated all path references across `README.md`, `CLAUDE.md`, `ARCHITECTURE.md`, `PRODUCTION.md`, `CHANGELOG.md`, `docker-compose.yml`, `.pre-commit-config.yaml`, `scripts/gen-api-types.mjs`, and all service `README.md` files
+- Updated GitHub Actions workflows (`deploy.yml`, `tests.yml`) with new working directories and cache paths
+
+---
+
 ## Admin Panel — Phase 1: Foundation (2026-02-22)
 
 ### Backend

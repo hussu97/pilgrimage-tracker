@@ -22,9 +22,9 @@ repos:
     hooks:
       - id: ruff
         args: [--fix]
-        files: ^(server|data_scraper)/
+        files: ^(soulstep-catalog-api|soulstep-scraper-api)/
       - id: ruff-format
-        files: ^(server|data_scraper)/
+        files: ^(soulstep-catalog-api|soulstep-scraper-api)/
 
   # ─── JavaScript / TypeScript: ESLint ─────────────────────────────────────────
   - repo: local
@@ -32,15 +32,15 @@ repos:
       - id: eslint-web
         name: ESLint (web)
         language: node
-        entry: bash -c 'cd apps/web && npx eslint --fix --ext ts,tsx src/'
-        files: ^apps/web/src/.*\.(ts|tsx)$
+        entry: bash -c 'cd apps/soulstep-customer-web && npx eslint --fix --ext ts,tsx src/'
+        files: ^apps/soulstep-customer-web/src/.*\.(ts|tsx)$
         pass_filenames: false
 
       - id: eslint-mobile
         name: ESLint (mobile)
         language: node
-        entry: bash -c 'cd apps/mobile && npx eslint --fix --ext ts,tsx src/'
-        files: ^apps/mobile/src/.*\.(ts|tsx)$
+        entry: bash -c 'cd apps/soulstep-customer-mobile && npx eslint --fix --ext ts,tsx src/'
+        files: ^apps/soulstep-customer-mobile/src/.*\.(ts|tsx)$
         pass_filenames: false
 
   # ─── JavaScript / TypeScript / JSON / YAML: Prettier ─────────────────────────
@@ -49,13 +49,13 @@ repos:
       - id: prettier
         name: Prettier
         language: node
-        entry: bash -c 'cd apps/web && npx prettier --write "src/**/*.{ts,tsx,css}"'
-        files: ^apps/web/src/.*\.(ts|tsx|css)$
+        entry: bash -c 'cd apps/soulstep-customer-web && npx prettier --write "src/**/*.{ts,tsx,css}"'
+        files: ^apps/soulstep-customer-web/src/.*\.(ts|tsx|css)$
         pass_filenames: false
 
       - id: prettier-mobile
         name: Prettier (mobile)
         language: node
-        entry: bash -c 'cd apps/mobile && npx prettier --write "src/**/*.{ts,tsx}"'
-        files: ^apps/mobile/src/.*\.(ts|tsx)$
+        entry: bash -c 'cd apps/soulstep-customer-mobile && npx prettier --write "src/**/*.{ts,tsx}"'
+        files: ^apps/soulstep-customer-mobile/src/.*\.(ts|tsx)$
         pass_filenames: false

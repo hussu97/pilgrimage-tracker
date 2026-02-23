@@ -792,5 +792,5 @@ Phase 6: Advanced Features
 | **Changelog** (Rule 2) | Each phase updates `CHANGELOG.md` under a new "Admin" section |
 | **Architecture doc** (Rule 1) | Phase 1 updates `ARCHITECTURE.md` with admin subsystem description |
 | **Production docs** (Rule 3) | `PRODUCTION.md` updated with admin app build/deploy for Docker, Render/Vercel, and GCP |
-| **Design reference** (Rule 5) | Admin uses shadcn/ui (not the pilgrimage design files), but inherits the same color tokens and Lexend typography for visual consistency |
+| **Design reference** (Rule 5) | Admin uses shadcn/ui (not the SoulStep design files), but inherits the same color tokens and Lexend typography for visual consistency |
 | **Git commits** (Rule 4) | Each phase is committed as one or more logical commits with `--author="Hussain Abbasi <h_abbasi97@hotmail.com>"` |

@@ -31,13 +31,13 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: server/requirements.txt
+          cache-dependency-path: soulstep-catalog-api/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r server/requirements.txt
+        run: pip install -r soulstep-catalog-api/requirements.txt
 
       - name: Run pytest
-        working-directory: server
+        working-directory: soulstep-catalog-api
         run: python -m pytest tests/ -v --tb=short
 
   test-web:
@@ -50,18 +50,18 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: apps/soulstep-customer-web/package-lock.json
 
       - name: Install dependencies
-        working-directory: apps/web
+        working-directory: apps/soulstep-customer-web
         run: npm ci
 
       - name: Typecheck
-        working-directory: apps/web
+        working-directory: apps/soulstep-customer-web
         run: npx tsc --noEmit
 
       - name: Build
-        working-directory: apps/web
+        working-directory: apps/soulstep-customer-web
         run: |
           if [ -z "$VITE_API_URL" ]; then
             echo "ERROR: VITE_API_URL secret is not set. Add it to GitHub → Settings → Secrets → Actions."
@@ -100,7 +100,7 @@ jobs:
       - name: Build and push Docker image
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/api:${{ github.sha }}"
-          docker build -t "$IMAGE" ./server
+          docker build -t "$IMAGE" ./soulstep-catalog-api
           docker push "$IMAGE"
 
       - name: Deploy to Cloud Run
@@ -129,14 +129,14 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: apps/soulstep-customer-web/package-lock.json
 
       - name: Install dependencies
-        working-directory: apps/web
+        working-directory: apps/soulstep-customer-web
         run: npm ci
 
       - name: Build
-        working-directory: apps/web
+        working-directory: apps/soulstep-customer-web
         run: |
           if [ -z "$VITE_API_URL" ]; then
             echo "ERROR: VITE_API_URL secret is not set. Add it to GitHub → Settings → Secrets → Actions."

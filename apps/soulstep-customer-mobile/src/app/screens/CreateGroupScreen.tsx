@@ -509,7 +509,7 @@ export default function CreateGroupScreen() {
   const inviteMessage = inviteCode
     ? INVITE_LINK_BASE_URL
       ? `${INVITE_LINK_BASE_URL}/join?code=${inviteCode}`
-      : `Join my pilgrimage group with code: ${inviteCode}`
+      : `Join my SoulStep group with code: ${inviteCode}`
     : '';
 
   const handleShare = async () => {

@@ -364,7 +364,7 @@ export default function CheckInsListScreen() {
         </TouchableOpacity>
         <Text style={styles.title}>{t('journey.journeyLog')}</Text>
         <Text style={styles.subtitle}>
-          {t('checkins.historySubtitle') || 'Relive your pilgrimage moments'}
+          {t('checkins.historySubtitle') || 'Relive your journey moments'}
         </Text>
       </View>
 

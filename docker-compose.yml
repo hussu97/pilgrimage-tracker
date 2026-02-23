@@ -16,7 +16,7 @@ services:
 
   api:
     build:
-      context: ./server
+      context: ./soulstep-catalog-api
       dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql://soulstep:${POSTGRES_PASSWORD:-changeme}@db:5432/soulstep
@@ -36,7 +36,7 @@ services:
 
   web:
     build:
-      context: ./apps/web
+      context: ./apps/soulstep-customer-web
       dockerfile: Dockerfile
       args:
         VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required (e.g. https://api.yourdomain.com)}
@@ -49,7 +49,7 @@ services:
   # Optional: only starts when you run `docker compose --profile scraper up`
   scraper:
     build:
-      context: ./data_scraper
+      context: ./soulstep-scraper-api
       dockerfile: Dockerfile
     environment:
       MAIN_SERVER_URL: http://api:3000

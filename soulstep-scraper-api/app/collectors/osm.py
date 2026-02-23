@@ -12,7 +12,7 @@ from app.collectors.base import BaseCollector, CollectorResult
 from app.scrapers.base import make_request_with_backoff
 
 OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter"
-HEADERS = {"User-Agent": "PilgrimageTrackerBot/1.0 (hussain@example.com)"}
+HEADERS = {"User-Agent": "SoulStepBot/1.0 (hussain@example.com)"}
 
 
 class OsmCollector(BaseCollector):

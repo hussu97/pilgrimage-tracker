@@ -2,13 +2,13 @@
 
 This document outlines how to deploy SoulStep to production. **Update the relevant plan(s) whenever deployment-relevant changes are made** (e.g. new env vars, new services, build steps).
 
-Current system: **Backend** (Python FastAPI in `server/`), **Web app** (Vite + React in `apps/web/`), **Mobile app** (Expo / React Native in `apps/mobile/`), optional **Data Scraper** (`data_scraper/`). API is versioned at `/api/v1`. For production, set `DATABASE_URL` to a PostgreSQL connection string (dev uses SQLite by default).
+Current system: **Backend** (Python FastAPI in `soulstep-catalog-api/`), **Web app** (Vite + React in `apps/soulstep-customer-web/`), **Mobile app** (Expo / React Native in `apps/soulstep-customer-mobile/`), optional **Data Scraper** (`soulstep-scraper-api/`). API is versioned at `/api/v1`. For production, set `DATABASE_URL` to a PostgreSQL connection string (dev uses SQLite by default).
 
 ---
 
 ## Environment Variables Reference
 
-### Backend (`server/`)
+### Backend (`soulstep-catalog-api/`)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -31,7 +31,7 @@ Current system: **Backend** (Python FastAPI in `server/`), **Web app** (Vite + R
 
 > **Note:** Version enforcement can also be configured per-platform via the `AppVersionConfig` DB table (editable at runtime without redeployment). DB values take priority over env vars.
 
-### Data Scraper (`data_scraper/`)
+### Data Scraper (`soulstep-scraper-api/`)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -40,13 +40,13 @@ Current system: **Backend** (Python FastAPI in `server/`), **Web app** (Vite + R
 | `SCRAPER_TIMEZONE` | No | UTC fallback | IANA timezone for places without Google UTC offset (e.g. `Asia/Dubai`) |
 | `SCRAPER_DB_PATH` | No | `scraper.db` (cwd) | Path to the SQLite database file — **set to `/data/scraper.db` in production** and mount a persistent volume at `/data` |
 
-### Web frontend (`apps/web/`)
+### Web frontend (`apps/soulstep-customer-web/`)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `VITE_API_URL` | **Yes (prod)** | _(relative `/api` in dev)_ | Production API base URL — **baked in at build time** |
 
-### Mobile (`apps/mobile/`)
+### Mobile (`apps/soulstep-customer-mobile/`)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -88,10 +88,10 @@ Deploy the full stack with Docker Compose. Dockerfiles for all services are chec
 
 | File | Description |
 |---|---|
-| `server/Dockerfile` | FastAPI backend — `python:3.12-slim` |
-| `data_scraper/Dockerfile` | Scraper service — `python:3.12-slim` |
-| `apps/web/Dockerfile` | Multi-stage: Node 20 build → nginx:1.27-alpine serve |
-| `apps/web/nginx.conf` | nginx SPA config (copied into web image) |
+| `soulstep-catalog-api/Dockerfile` | FastAPI backend — `python:3.12-slim` |
+| `soulstep-scraper-api/Dockerfile` | Scraper service — `python:3.12-slim` |
+| `apps/soulstep-customer-web/Dockerfile` | Multi-stage: Node 20 build → nginx:1.27-alpine serve |
+| `apps/soulstep-customer-web/nginx.conf` | nginx SPA config (copied into web image) |
 | `docker-compose.yml` | Wires all services + PostgreSQL |
 
 ### Quick Start
@@ -112,9 +112,9 @@ docker compose --profile scraper up -d scraper
 | Service | Image/Build | Port | Notes |
 |---|---|---|---|
 | `db` | `postgres:15-alpine` | internal | PostgreSQL; data persisted in `postgres_data` volume |
-| `api` | `./server` | `3000` | FastAPI; waits for `db` health; auto-runs Alembic migrations on start |
-| `web` | `./apps/web` | `80` | nginx serving the compiled React SPA |
-| `scraper` | `./data_scraper` | `8001` | Optional; activate with `--profile scraper`; SQLite DB persisted in `scraper_data` volume at `/data/scraper.db` |
+| `api` | `./soulstep-catalog-api` | `3000` | FastAPI; waits for `db` health; auto-runs Alembic migrations on start |
+| `web` | `./apps/soulstep-customer-web` | `80` | nginx serving the compiled React SPA |
+| `scraper` | `./soulstep-scraper-api` | `8001` | Optional; activate with `--profile scraper`; SQLite DB persisted in `scraper_data` volume at `/data/scraper.db` |
 
 > **Scraper database:** The scraper uses its own SQLite database (separate from the main API's PostgreSQL). In `docker-compose.yml`, a named volume `scraper_data` is mounted at `/data` inside the container, and `SCRAPER_DB_PATH=/data/scraper.db` tells the app to write there. Without this, `scraper.db` would be lost on every container restart.
 
@@ -147,8 +147,8 @@ SCRAPER_PORT=8001
 ```bash
 docker build \
   --build-arg VITE_API_URL=https://api.yourdomain.com \
-  -t pilgrimage-web \
-  apps/web/
+  -t soulstep-web \
+  apps/soulstep-customer-web/
 ```
 
 ### Migrations
@@ -169,14 +169,14 @@ docker exec <api_container> python -m app.jobs.backfill_timezones
 
 Example cron entry (on the host):
 ```
-0 2 * * * docker exec pilgrimage-api python -m app.jobs.cleanup_orphaned_images
+0 2 * * * docker exec soulstep-api python -m app.jobs.cleanup_orphaned_images
 ```
 
 ### Mobile
 
 Not containerised. Build locally or via CI:
 ```bash
-cd apps/mobile
+cd apps/soulstep-customer-mobile
 eas build --platform ios
 eas build --platform android
 ```
@@ -217,9 +217,9 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
 
    | Setting | Value |
    |---|---|
-   | **Name** | `pilgrimage-api` (or any name) |
+   | **Name** | `soulstep-api` (or any name) |
    | **Region** | Same region as your database |
-   | **Root Directory** | `server` |
+   | **Root Directory** | `soulstep-catalog-api` |
    | **Runtime** | `Python 3` |
    | **Build Command** | `pip install -r requirements.txt` |
    | **Start Command** | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
@@ -239,7 +239,7 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
    | `RESEND_FROM_EMAIL` | `noreply@yourdomain.com` (only needed with Resend) |
 
 5. Click **Create Web Service**. Render will build and deploy; first deploy takes ~2 min.
-6. Once live, your API URL is `https://pilgrimage-api.onrender.com` (shown at the top of the service page). Copy it.
+6. Once live, your API URL is `https://soulstep-api.onrender.com` (shown at the top of the service page). Copy it.
 
 > **Migrations:** Alembic runs `alembic upgrade head` automatically every time the app starts — no manual migration step required.
 
@@ -262,7 +262,7 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
 
    | Setting | Value |
    |---|---|
-   | **Root Directory** | `apps/web` |
+   | **Root Directory** | `apps/soulstep-customer-web` |
    | **Framework Preset** | `Vite` (Vercel auto-detects) |
    | **Build Command** | `npm run build` |
    | **Output Directory** | `dist` |
@@ -271,7 +271,7 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
 
    | Key | Value |
    |---|---|
-   | `VITE_API_URL` | `https://pilgrimage-api.onrender.com` (your Render API URL from Step 2) |
+   | `VITE_API_URL` | `https://soulstep-api.onrender.com` (your Render API URL from Step 2) |
 
 4. Click **Deploy**. Once deployed, copy your Vercel URL (e.g. `https://soulstep.vercel.app`).
 5. **Go back to Render** → your API service → **Environment** tab → update `CORS_ORIGINS` and `RESET_URL_BASE` to your Vercel URL, then **Save** (Render will redeploy automatically).
@@ -290,7 +290,7 @@ Only needed if you want the scraper service running in production:
 
    | Setting | Value |
    |---|---|
-   | **Root Directory** | `data_scraper` |
+   | **Root Directory** | `soulstep-scraper-api` |
    | **Build Command** | `pip install -r requirements.txt` |
    | **Start Command** | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
 
@@ -298,7 +298,7 @@ Only needed if you want the scraper service running in production:
 
    | Key | Value |
    |---|---|
-   | `MAIN_SERVER_URL` | `https://pilgrimage-api.onrender.com` |
+   | `MAIN_SERVER_URL` | `https://soulstep-api.onrender.com` |
    | `GOOGLE_MAPS_API_KEY` | Your Google Maps API key |
    | `SCRAPER_TIMEZONE` | e.g. `Asia/Dubai` or `UTC` |
 
@@ -399,7 +399,7 @@ jobs:
     steps:
       - name: Trigger cleanup via API endpoint
         run: |
-          curl -s -X POST https://pilgrimage-api.onrender.com/admin/cleanup-images \
+          curl -s -X POST https://soulstep-api.onrender.com/admin/cleanup-images \
             -H "Authorization: Bearer ${{ secrets.ADMIN_API_KEY }}"
 ```
 
@@ -410,7 +410,7 @@ jobs:
 Build and submit from your local machine or CI:
 
 ```bash
-cd apps/mobile
+cd apps/soulstep-customer-mobile
 # Set the API URL in app.json or pass via eas.json env
 eas build --platform ios --profile production
 eas build --platform android --profile production
@@ -475,13 +475,13 @@ Throughout this section, replace:
 Docker images need a registry before Cloud Run can pull them.
 
 ```bash
-gcloud artifacts repositories create pilgrimage \
+gcloud artifacts repositories create soulstep \
   --repository-format=docker \
   --location=REGION \
   --description="SoulStep images"
 ```
 
-Your image prefix will be: `REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/`
+Your image prefix will be: `REGION-docker.pkg.dev/PROJECT_ID/soulstep/`
 
 ---
 
@@ -490,7 +490,7 @@ Your image prefix will be: `REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/`
 #### 2a. Create the Cloud SQL instance
 
 ```bash
-gcloud sql instances create pilgrimage-db \
+gcloud sql instances create soulstep-db \
   --database-version=POSTGRES_15 \
   --tier=db-f1-micro \
   --region=REGION \
@@ -505,27 +505,27 @@ gcloud sql instances create pilgrimage-db \
 
 ```bash
 # Create the database
-gcloud sql databases create pilgrimage --instance=pilgrimage-db
+gcloud sql databases create soulstep --instance=soulstep-db
 
 # Create the app user (use a strong password)
-gcloud sql users create pilgrimage \
-  --instance=pilgrimage-db \
+gcloud sql users create soulstep \
+  --instance=soulstep-db \
   --password=STRONG_DB_PASSWORD
 ```
 
 #### 2c. Get the connection name
 
 ```bash
-gcloud sql instances describe pilgrimage-db \
+gcloud sql instances describe soulstep-db \
   --format="value(connectionName)"
-# Output: PROJECT_ID:REGION:pilgrimage-db
+# Output: PROJECT_ID:REGION:soulstep-db
 ```
 
 Save this value — it's used in Cloud Run deploys as `--add-cloudsql-instances`.
 
 The `DATABASE_URL` for Cloud Run uses a Unix socket (no proxy needed when running in Cloud Run):
 ```
-postgresql://pilgrimage:STRONG_DB_PASSWORD@/pilgrimage?host=/cloudsql/PROJECT_ID:REGION:pilgrimage-db
+postgresql://soulstep:STRONG_DB_PASSWORD@/soulstep?host=/cloudsql/PROJECT_ID:REGION:soulstep-db
 ```
 
 ---
@@ -542,7 +542,7 @@ echo -n "your-long-random-jwt-secret" | \
     --replication-policy=automatic
 
 # Database URL (the full connection string from Step 2c)
-echo -n "postgresql://pilgrimage:STRONG_DB_PASSWORD@/pilgrimage?host=/cloudsql/PROJECT_ID:REGION:pilgrimage-db" | \
+echo -n "postgresql://soulstep:STRONG_DB_PASSWORD@/soulstep?host=/cloudsql/PROJECT_ID:REGION:soulstep-db" | \
   gcloud secrets create DATABASE_URL \
     --data-file=- \
     --replication-policy=automatic
@@ -591,14 +591,14 @@ gcloud projects add-iam-policy-binding PROJECT_ID \
 
 **Option A — build locally (requires Docker):**
 ```bash
-docker build --platform linux/amd64 -t REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/api:latest ./server
-docker push REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/api:latest
+docker build --platform linux/amd64 -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest ./soulstep-catalog-api
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest
 ```
 
 **Option B — build in the cloud with Cloud Build (no local Docker needed):**
 ```bash
-gcloud builds submit ./server \
-  --tag REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/api:latest
+gcloud builds submit ./soulstep-catalog-api \
+  --tag REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest
 ```
 
 ---
@@ -606,12 +606,12 @@ gcloud builds submit ./server \
 ### Step 5 — Deploy the API to Cloud Run
 
 ```bash
-gcloud run deploy pilgrimage-api \
-  --image REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/api:latest \
+gcloud run deploy soulstep-api \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest \
   --platform managed \
   --region REGION \
   --allow-unauthenticated \
-  --add-cloudsql-instances PROJECT_ID:REGION:pilgrimage-db \
+  --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
   --set-secrets "JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
   --set-env-vars "CORS_ORIGINS=https://PROJECT_ID.web.app,JWT_EXPIRE=30m,REFRESH_EXPIRE=30d,RESEND_FROM_EMAIL=noreply@yourdomain.com,RESET_URL_BASE=https://PROJECT_ID.web.app" \
   --min-instances 0 \
@@ -622,7 +622,7 @@ gcloud run deploy pilgrimage-api \
 
 Once deployed, copy the **Service URL** shown at the end of the output — it looks like:
 ```
-https://pilgrimage-api-xxxxxxxxxxxx-uc.a.run.app
+https://soulstep-api-xxxxxxxxxxxx-uc.a.run.app
 ```
 
 > **Migrations:** Alembic runs `alembic upgrade head` automatically on every cold start. No manual step needed.
@@ -640,7 +640,7 @@ After you have the Firebase URL, come back and patch the env vars.
 > `CORS_ORIGINS` is **space-separated** (not comma-separated). The `--update-env-vars` flag uses commas to separate variable assignments, so quote the value carefully:
 
 ```bash
-gcloud run services update pilgrimage-api \
+gcloud run services update soulstep-api \
   --region REGION \
   --update-env-vars "CORS_ORIGINS=https://PROJECT_ID.web.app https://PROJECT_ID.firebaseapp.com,RESET_URL_BASE=https://PROJECT_ID.web.app"
 ```
@@ -678,7 +678,7 @@ firebase init hosting
 
 When prompted:
 - **Use an existing project** → select your GCP project ID
-- **Public directory:** `apps/web/dist`
+- **Public directory:** `apps/soulstep-customer-web/dist`
 - **Single-page app (rewrite all URLs to /index.html):** `Yes`
 - **Set up automatic builds with GitHub:** `No` (`.github/workflows/deploy.yml` handles this via Firebase token)
 - **Overwrite `dist/index.html`:** `No`
@@ -688,8 +688,8 @@ This creates `firebase.json` and `.firebaserc` at the repo root (both are alread
 #### 6b. Build and deploy
 
 ```bash
-cd apps/web
-VITE_API_URL=https://pilgrimage-api-xxxxxxxxxxxx-uc.a.run.app npm run build
+cd apps/soulstep-customer-web
+VITE_API_URL=https://soulstep-api-xxxxxxxxxxxx-uc.a.run.app npm run build
 cd ../..
 firebase deploy --only hosting
 ```
@@ -720,32 +720,32 @@ This is covered in Step 8 below with Cloud Run Jobs.
 
 1. Create a second database on the existing Cloud SQL instance:
    ```bash
-   gcloud sql databases create scraper --instance=pilgrimage-db
+   gcloud sql databases create scraper --instance=soulstep-db
    gcloud sql users create scraper \
-     --instance=pilgrimage-db \
+     --instance=soulstep-db \
      --password=SCRAPER_DB_PASSWORD
    ```
 2. Store the connection string in Secret Manager:
    ```bash
-   echo -n "postgresql://scraper:SCRAPER_DB_PASSWORD@/scraper?host=/cloudsql/PROJECT_ID:REGION:pilgrimage-db" | \
+   echo -n "postgresql://scraper:SCRAPER_DB_PASSWORD@/scraper?host=/cloudsql/PROJECT_ID:REGION:soulstep-db" | \
      gcloud secrets create SCRAPER_DATABASE_URL --data-file=- --replication-policy=automatic
    ```
-3. Pass it to the scraper deploy command via `SCRAPER_DB_PATH` is not enough here — you'd need to extend `data_scraper/app/db/session.py` to support `DATABASE_URL` for PostgreSQL if you go this route. For now, the Cloud Run Job approach is recommended.
+3. Pass it to the scraper deploy command via `SCRAPER_DB_PATH` is not enough here — you'd need to extend `soulstep-scraper-api/app/db/session.py` to support `DATABASE_URL` for PostgreSQL if you go this route. For now, the Cloud Run Job approach is recommended.
 
 #### Deploy as a long-running Service (if needed)
 
 ```bash
 # Build and push
-gcloud builds submit ./data_scraper \
-  --tag REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/scraper:latest
+gcloud builds submit ./soulstep-scraper-api \
+  --tag REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper:latest
 
 # Deploy (no-allow-unauthenticated = internal/service-account calls only)
-gcloud run deploy pilgrimage-scraper \
-  --image REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/scraper:latest \
+gcloud run deploy soulstep-scraper \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper:latest \
   --platform managed \
   --region REGION \
   --no-allow-unauthenticated \
-  --set-env-vars "MAIN_SERVER_URL=https://pilgrimage-api-xxxxxxxxxxxx-uc.a.run.app,SCRAPER_TIMEZONE=UTC,GOOGLE_MAPS_API_KEY=your-key" \
+  --set-env-vars "MAIN_SERVER_URL=https://soulstep-api-xxxxxxxxxxxx-uc.a.run.app,SCRAPER_TIMEZONE=UTC,GOOGLE_MAPS_API_KEY=your-key" \
   --memory 512Mi
 ```
 
@@ -764,9 +764,9 @@ PROJECT_NUMBER=$(gcloud projects describe PROJECT_ID --format="value(projectNumb
 SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 gcloud run jobs create cleanup-job \
-  --image REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/api:latest \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest \
   --region REGION \
-  --add-cloudsql-instances PROJECT_ID:REGION:pilgrimage-db \
+  --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
   --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
   --command "python" \
   --args "-m,app.jobs.cleanup_orphaned_images" \
@@ -800,9 +800,9 @@ gcloud run jobs execute cleanup-job --region REGION
 
 ```bash
 gcloud run jobs create backfill-timezones \
-  --image REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/api:latest \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest \
   --region REGION \
-  --add-cloudsql-instances PROJECT_ID:REGION:pilgrimage-db \
+  --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
   --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
   --command "python" \
   --args "-m,app.jobs.backfill_timezones" \
@@ -816,14 +816,14 @@ gcloud run jobs execute backfill-timezones --region REGION --wait
 ### Step 9 — Mobile
 
 ```bash
-cd apps/mobile
+cd apps/soulstep-customer-mobile
 eas build --platform ios --profile production
 eas build --platform android --profile production
 eas submit --platform ios
 eas submit --platform android
 ```
 
-Set `EXPO_PUBLIC_API_URL` to your Cloud Run API URL in `apps/mobile/.env` or via EAS secrets before building.
+Set `EXPO_PUBLIC_API_URL` to your Cloud Run API URL in `apps/soulstep-customer-mobile/.env` or via EAS secrets before building.
 
 ---
 
@@ -839,8 +839,8 @@ Firebase App Distribution lets you share pre-release builds with testers before 
 
 1. In the [Firebase console](https://console.firebase.google.com) → your project → **App Distribution**.
 2. Register your apps:
-   - **Add Android app** → enter your package name (e.g. `com.yourcompany.pilgrimagetracker`) → download `google-services.json` → place it in `apps/mobile/`.
-   - **Add iOS app** → enter your bundle ID (e.g. `com.yourcompany.pilgrimagetracker`) → download `GoogleService-Info.plist` → place it in `apps/mobile/`.
+   - **Add Android app** → enter your package name (e.g. `com.yourcompany.soulstep.mobile`) → download `google-services.json` → place it in `apps/soulstep-customer-mobile/`.
+   - **Add iOS app** → enter your bundle ID (e.g. `com.yourcompany.soulstep.mobile`) → download `GoogleService-Info.plist` → place it in `apps/soulstep-customer-mobile/`.
 3. Note the **App ID** for each platform — visible in **Project Settings → Your apps**. Looks like `1:834941457147:android:xxxx`.
 4. Create a tester group: **App Distribution → Testers & Groups → Add group** → name it (e.g. `internal`).
 5. Add tester emails to the group.
@@ -850,7 +850,7 @@ Firebase App Distribution lets you share pre-release builds with testers before 
 Use the `preview` profile (produces a `.apk` for Android and an ad-hoc signed `.ipa` for iOS) rather than `production` (which produces store-ready builds):
 
 ```bash
-cd apps/mobile
+cd apps/soulstep-customer-mobile
 
 # Android — produces a downloadable .apk (no Apple account needed)
 eas build --platform android --profile preview
@@ -941,14 +941,14 @@ deploy-gcp-api:
     - name: Build and push image
       run: |
         docker build \
-          -t REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/api:${{ github.sha }} \
-          ./server
-        docker push REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/api:${{ github.sha }}
+          -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:${{ github.sha }} \
+          ./soulstep-catalog-api
+        docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:${{ github.sha }}
 
     - name: Deploy to Cloud Run
       run: |
-        gcloud run deploy pilgrimage-api \
-          --image REGION-docker.pkg.dev/PROJECT_ID/pilgrimage/api:${{ github.sha }} \
+        gcloud run deploy soulstep-api \
+          --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:${{ github.sha }} \
           --region REGION \
           --platform managed \
           --quiet
@@ -965,10 +965,10 @@ deploy-gcp-web:
       with:
         node-version: "20"
         cache: npm
-        cache-dependency-path: apps/web/package-lock.json
+        cache-dependency-path: apps/soulstep-customer-web/package-lock.json
 
     - name: Install deps and build
-      working-directory: apps/web
+      working-directory: apps/soulstep-customer-web
       run: |
         npm ci
         npm run build
@@ -1008,12 +1008,12 @@ firebase login:ci
 
 Before submitting to App Store / Play Store:
 
-1. **Set bundle identifiers** in `apps/mobile/app.json`:
+1. **Set bundle identifiers** in `apps/soulstep-customer-mobile/app.json`:
    ```json
    {
      "expo": {
-       "ios": { "bundleIdentifier": "com.yourcompany.pilgrimagetracker" },
-       "android": { "package": "com.yourcompany.pilgrimagetracker" }
+       "ios": { "bundleIdentifier": "com.yourcompany.soulstep.mobile" },
+       "android": { "package": "com.yourcompany.soulstep.mobile" }
      }
    }
    ```
@@ -1021,7 +1021,7 @@ Before submitting to App Store / Play Store:
 3. **Configure EAS** — `eas.json` is already set up with development/preview/production profiles.
 4. **Build:**
    ```bash
-   cd apps/mobile
+   cd apps/soulstep-customer-mobile
    eas build --platform ios --profile production
    eas build --platform android --profile production
    ```
@@ -1035,7 +1035,7 @@ Before submitting to App Store / Play Store:
 
 ## Data Strategy — Scraper Service
 
-The `data_scraper/` service enriches pilgrimage place data from multiple sources.
+The `soulstep-scraper-api/` service enriches sacred place data from multiple sources.
 
 **Sources:**
 - **Google Sheets** — CSV export with OSM/Wikipedia enrichment
@@ -1060,7 +1060,7 @@ The `data_scraper/` service enriches pilgrimage place data from multiple sources
 
 | Plan | Backend | DB | Web | Mobile |
 |---|---|---|---|---|
-| **1 Docker** | Docker container (`server/Dockerfile`) | Postgres in Compose or external | nginx Docker image (`apps/web/Dockerfile`) | EAS build, submit to stores |
+| **1 Docker** | Docker container (`soulstep-catalog-api/Dockerfile`) | Postgres in Compose or external | nginx Docker image (`apps/soulstep-customer-web/Dockerfile`) | EAS build, submit to stores |
 | **2 Free** | Render Web Service | Render Postgres / Supabase / Neon | Vercel | EAS build |
 | **3 GCP** | Cloud Run | Cloud SQL (PostgreSQL 15) | Firebase Hosting | EAS build |
 

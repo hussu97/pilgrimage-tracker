@@ -18,7 +18,7 @@ from typing import Any
 from app.collectors.base import BaseCollector, CollectorResult
 from app.scrapers.base import make_request_with_backoff
 
-HEADERS = {"User-Agent": "PilgrimageTrackerBot/1.0 (hussain@example.com)"}
+HEADERS = {"User-Agent": "SoulStepBot/1.0 (hussain@example.com)"}
 
 # ── Relevance-validation helpers ───────────────────────────────────────────────
 

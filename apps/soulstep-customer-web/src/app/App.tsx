@@ -19,7 +19,7 @@ function I18nReadyGate({ children }: { children: React.ReactNode }) {
         <div className="w-14 h-14 rounded-full bg-white shadow-lg flex items-center justify-center border border-slate-100 mb-6">
           <span className="text-2xl text-slate-600">⊕</span>
         </div>
-        <p className="text-xl font-semibold text-slate-800 tracking-tight">Pilgrimage</p>
+        <p className="text-xl font-semibold text-slate-800 tracking-tight">SoulStep</p>
         <div className="mt-6 h-8 w-8 border-2 border-slate-400 border-t-primary rounded-full animate-spin" />
       </div>
     );
