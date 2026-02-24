@@ -1,7 +1,7 @@
 /**
  * Tests for setApiLocale() — verifies that the locale module variable is
- * correctly injected as a `lang` query parameter in getPlaces() and getPlace()
- * calls, and absent (fast path) when locale is English.
+ * correctly injected as a `lang` query parameter in getPlaces(), getPlace(),
+ * and getPlaceReviews() calls, and absent (fast path) when locale is English.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -23,7 +23,7 @@ const storageMock = (() => {
 })();
 Object.defineProperty(window, 'localStorage', { value: storageMock, writable: true });
 
-import { setApiLocale, getPlaces, getPlace } from '@/lib/api/client';
+import { setApiLocale, getPlaces, getPlace, getPlaceReviews } from '@/lib/api/client';
 
 function mockOkResponse(data: unknown): Response {
   return {
@@ -101,5 +101,33 @@ describe('setApiLocale() + getPlace()', () => {
     await getPlace('plc_001');
     const url = vi.mocked(fetch).mock.calls[0][0] as string;
     expect(url).toContain('lang=ar');
+  });
+});
+
+// ── setApiLocale + getPlaceReviews ────────────────────────────────────────────
+
+describe('setApiLocale() + getPlaceReviews()', () => {
+  it('does NOT inject lang param when locale is en', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(mockOkResponse({ reviews: [] }));
+    setApiLocale('en');
+    await getPlaceReviews('plc_001');
+    const url = vi.mocked(fetch).mock.calls[0][0] as string;
+    expect(url).not.toContain('lang=');
+  });
+
+  it('injects lang=ar when locale is ar', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(mockOkResponse({ reviews: [] }));
+    setApiLocale('ar');
+    await getPlaceReviews('plc_001');
+    const url = vi.mocked(fetch).mock.calls[0][0] as string;
+    expect(url).toContain('lang=ar');
+  });
+
+  it('injects lang=hi when locale is hi', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(mockOkResponse({ reviews: [] }));
+    setApiLocale('hi');
+    await getPlaceReviews('plc_001');
+    const url = vi.mocked(fetch).mock.calls[0][0] as string;
+    expect(url).toContain('lang=hi');
   });
 });

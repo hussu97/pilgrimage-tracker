@@ -1,9 +1,9 @@
 /**
  * Tests for setApiLocale() — verifies that the locale module variable is
- * correctly injected as a `lang` query parameter in getPlaces() and getPlace()
- * calls, and absent (fast path) when locale is English.
+ * correctly injected as a `lang` query parameter in getPlaces(), getPlace(),
+ * and getPlaceReviews() calls, and absent (fast path) when locale is English.
  */
-import { setApiLocale, getPlaces, getPlace } from '@/lib/api/client';
+import { setApiLocale, getPlaces, getPlace, getPlaceReviews } from '@/lib/api/client';
 
 // Mock react-native modules
 jest.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
@@ -94,5 +94,33 @@ describe('setApiLocale() + getPlace()', () => {
     await getPlace('plc_001');
     const url = (global.fetch as jest.Mock).mock.calls[0][0] as string;
     expect(url).toContain('lang=ar');
+  });
+});
+
+// ── setApiLocale + getPlaceReviews ────────────────────────────────────────────
+
+describe('setApiLocale() + getPlaceReviews()', () => {
+  it('does NOT inject lang param when locale is en', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(mockOkResponse({ reviews: [] }));
+    setApiLocale('en');
+    await getPlaceReviews('plc_001');
+    const url = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+    expect(url).not.toContain('lang=');
+  });
+
+  it('injects lang=ar when locale is ar', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(mockOkResponse({ reviews: [] }));
+    setApiLocale('ar');
+    await getPlaceReviews('plc_001');
+    const url = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+    expect(url).toContain('lang=ar');
+  });
+
+  it('injects lang=hi when locale is hi', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce(mockOkResponse({ reviews: [] }));
+    setApiLocale('hi');
+    await getPlaceReviews('plc_001');
+    const url = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+    expect(url).toContain('lang=hi');
   });
 });

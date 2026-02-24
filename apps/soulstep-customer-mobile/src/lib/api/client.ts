@@ -403,7 +403,9 @@ export async function getPlace(
 }
 
 export async function getPlaceReviews(placeCode: string, limit = 5): Promise<ReviewsResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/reviews?limit=${limit}`);
+  const sp = new URLSearchParams({ limit: String(limit) });
+  if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
+  const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/reviews?${sp}`);
   if (!res.ok) throw new Error('Failed to fetch reviews');
   return res.json();
 }
