@@ -53,13 +53,23 @@ Configure `app.json` / `app.config.js` (icons, splash, scheme). Submit to App St
 
 ## Structure
 
-- `App.js` – Root component.
-- `app.json` – Expo config (name, slug, version, etc.).
-- `api/` – API client (e.g. `getLanguages`, `getTranslations` for i18n; add other endpoints to match web).
-- `context/` – React context (e.g. `I18nContext` for locale and `t(key)`).
-- `screens/` – Screen components (e.g. `SettingsScreen` with language picker; add auth, home, places, groups, profile to match web flows).
+- `index.js` – Entry point.
+- `app.json` / `eas.json` – Expo config and EAS Build config.
+- `src/app/` – App shell: `App.tsx`, `providers.tsx`, `navigation.tsx`, `contexts/`, and all screens under `screens/`.
+- `src/app/screens/` – Screen components: SplashScreen, LoginScreen, RegisterScreen, ForgotPasswordScreen, ResetPasswordScreen, HomeScreen, PlaceDetailScreen, WriteReviewScreen, ProfileScreen, EditProfileScreen, CheckInsListScreen, FavoritesScreen, GroupsScreen, CreateGroupScreen, EditGroupScreen, EditGroupPlacesScreen, GroupDetailScreen, JoinGroupScreen, NotificationsScreen, SearchScreen.
+- `src/lib/` – Shared utilities: `api/client.ts` (API client), `types/` (TypeScript types), `theme.ts`, `constants.ts`, `share.ts`, `hooks/`, `utils/`.
+- `src/stores/` – State stores.
+- `src/components/` – Shared UI components.
 
-Design reference: `DESIGN_FILE.html` at repo root. Use the same translation keys and API shapes as `apps/soulstep-customer-web` (see `.cursor/rules/i18n-translations.mdc` and `.cursor/rules/frontend-replication.mdc`).
+Design reference: `FRONTEND_V3_LIGHT.html` / `FRONTEND_V3_DARK.html` at repo root. Use the same translation keys and API shapes as `apps/soulstep-customer-web`.
+
+## Tests
+
+```bash
+npm test
+```
+
+Tests live in `src/__tests__/`. Uses Jest + jest-expo. Covers pure logic (utilities, hooks, transformers) — not component rendering.
 
 ## Error Tracking (GlitchTip / Sentry)
 

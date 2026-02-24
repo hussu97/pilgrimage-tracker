@@ -5,6 +5,7 @@ Discover, visit, and track religious places. Multi-platform: desktop web, mobile
 ## Structure
 
 - **`soulstep-catalog-api/`** – Backend API (**Python + FastAPI**). Versioned at `/api/v1`. See [soulstep-catalog-api/README.md](soulstep-catalog-api/README.md).
+- **`soulstep-scraper-api/`** – Scraper service (**Python + FastAPI**). Discovers and enriches sacred places from Google Maps and other sources. See [soulstep-scraper-api/README.md](soulstep-scraper-api/README.md).
 - **`apps/soulstep-customer-web/`** – Web app (Vite + React + Tailwind). Desktop and mobile browser.
 - **`apps/soulstep-customer-mobile/`** – Mobile app (Expo / React Native). iOS and Android builds via Expo; same API as web.
 
@@ -67,7 +68,7 @@ Starts the Expo dev server. Run on iOS simulator, Android emulator, or device vi
 ## Docs
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) – System design, data model, API outline.
-- [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION_PROMPTS.md) – Step-by-step implementation prompts.
 - [CHANGELOG.md](CHANGELOG.md) – Implemented changes over time.
 - [PRODUCTION.md](PRODUCTION.md) – Go-to-production plans (Docker, free tier e.g. Render/Vercel, GCP).
-- **Service READMEs:** [soulstep-catalog-api/README.md](soulstep-catalog-api/README.md), [apps/soulstep-customer-web/README.md](apps/soulstep-customer-web/README.md), [apps/soulstep-customer-mobile/README.md](apps/soulstep-customer-mobile/README.md).
+- [ROADMAP.md](ROADMAP.md) – Planned features and milestones.
+- **Service READMEs:** [soulstep-catalog-api/README.md](soulstep-catalog-api/README.md), [soulstep-scraper-api/README.md](soulstep-scraper-api/README.md), [apps/soulstep-customer-web/README.md](apps/soulstep-customer-web/README.md), [apps/soulstep-customer-mobile/README.md](apps/soulstep-customer-mobile/README.md).

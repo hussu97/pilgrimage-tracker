@@ -66,10 +66,24 @@ Under `src/`:
 - **`lib/`** – API client (`lib/api/client.ts`), shared types (`lib/types/index.ts`), theme, constants, share helpers. The API client calls `/api/v1/*` (relative when `VITE_API_URL` is unset).
 - **`main.tsx`**, **`index.css`** – Entry and global styles.
 
-Design reference: `DESIGN_FILE.html` at repo root.
+Design reference: `FRONTEND_V3_LIGHT.html` / `FRONTEND_V3_DARK.html` at repo root.
+
+## Tests
+
+```bash
+npm test
+```
+
+Also run the TypeScript check (Vitest does not type-check):
+
+```bash
+npx tsc --noEmit
+```
+
+Tests live in `src/__tests__/`. Uses Vitest. Covers pure logic (utilities, hooks, transformers) — not component rendering.
 
 ## Parity reference (for mobile)
 
-Canonical **screens** (see `app/routes.tsx` and `app/pages/`): Splash, Login, Register, ForgotPassword, ResetPassword, SelectPath, Home, PlaceDetail, CheckIn, WriteReview, Profile, EditProfile, CheckInsList, Favorites, Groups, CreateGroup, GroupDetail, JoinGroup, Settings, Notifications.
+Canonical **screens** (see `app/routes.tsx` and `app/pages/`): Splash, Login, Register, ForgotPassword, ResetPassword, Home, PlaceDetail, WriteReview, Profile, EditProfile, CheckInsList, Favorites, Groups, CreateGroup, EditGroup, EditGroupPlaces, GroupDetail, JoinGroup, Notifications.
 
-**API surface** (see `lib/api/client.ts`): auth (login, register, forgot/reset, me), users (getMe, updateMe, check-ins, stats, favorites, settings), places (getPlaces, getPlace, reviews, checkIn, favorite, createReview), reviews (updateReview, deleteReview), groups (list, create, get, by-invite, join-by-code, join, members, invite, leaderboard, activity), notifications (get, markRead), i18n (getLanguages, getTranslations). Types in `lib/types/index.ts` use `user_code`, `place_code`, `religions` array.
+**API surface** (see `lib/api/client.ts`): auth (login, register, forgot/reset, me), users (getMe, updateMe, check-ins, stats, favorites, settings), places (getPlaces, getPlace, reviews, checkIn, favorite, createReview), reviews (updateReview, deleteReview), groups (list, create, get, by-invite, join-by-code, join, members, invite, leaderboard, activity, checklist, addPlace, notes), notifications (get, markRead), i18n (getLanguages, getTranslations). Types in `lib/types/index.ts` use `user_code`, `place_code`, `religions` array.

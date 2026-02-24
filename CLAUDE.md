@@ -27,11 +27,21 @@ The `Co-Authored-By` trailer for Claude should still be included in the commit b
 For any frontend UI/UX changes in `apps/soulstep-customer-web` or `apps/soulstep-customer-mobile`, use **FRONTEND_V3_LIGHT.html** (light mode) and **FRONTEND_V3_DARK.html** (dark mode) as the primary visual and layout reference. Align structure, spacing, typography (Lexend), colors, and icons (Material Icons/Symbols) with the design.
 
 ## 6. README Maintenance
-Keep the following READMEs accurate and up to date:
-- **README.md** – Monorepo overview, structure, prerequisites, local setup, env vars
-- **soulstep-catalog-api/README.md** – FastAPI backend: setup, run, env vars, API routes
-- **apps/soulstep-customer-web/README.md** – Vite + React: install, run, env, backend connection
-- **apps/soulstep-customer-mobile/README.md** – Expo / React Native: install, run, env, iOS/Android build
+Keep the following READMEs accurate and up to date. After any change that affects setup, structure, endpoints, env vars, or screens, update the relevant README(s) **before committing**.
+
+- **README.md** – Monorepo overview, structure (all services), prerequisites, local setup, env vars, docs links
+- **soulstep-catalog-api/README.md** – FastAPI backend: setup, run, env vars, all API routes (grouped by router), Alembic migrations, seed, tests
+- **soulstep-scraper-api/README.md** – Scraper service: setup, env vars, all API routes, architecture, collector table, tests
+- **apps/soulstep-customer-web/README.md** – Vite + React: install, run, env, backend connection, directory structure, tests, parity reference (screens + API surface)
+- **apps/soulstep-customer-mobile/README.md** – Expo / React Native: install, run, env, iOS/Android build, directory structure, tests, parity reference
+
+**Triggers — update READMEs when you:**
+- Add, rename, or remove an API endpoint
+- Add, rename, or remove a screen/page
+- Add a new env var
+- Change the directory structure of a service
+- Add or change test commands
+- Add a new service or major dependency
 
 ## 7. Internationalization (i18n)
 All customer-facing strings must come from the backend translation API — never hardcode UI copy.

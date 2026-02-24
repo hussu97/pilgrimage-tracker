@@ -81,22 +81,97 @@ By using SQLModel, we maintain Pydantic-like schemas for the API while gaining f
 
 ## Endpoints (v1)
 
+### Core
 - `GET /health` — health check
+- `GET /api/v1/app-version` — current min/recommended app version; no auth
+
+### Auth (`/api/v1/auth`)
 - `POST /api/v1/auth/register` — register (email, password, display_name)
 - `POST /api/v1/auth/login` — login
-- `POST /api/v1/auth/forgot-password` — request reset link
-- `POST /api/v1/auth/reset-password` — reset with token
+- `POST /api/v1/auth/forgot-password` — request password reset link
+- `POST /api/v1/auth/reset-password` — reset password with token
+
+### Users (`/api/v1/users`)
 - `GET /api/v1/users/me` — current user (Bearer token)
 - `PATCH /api/v1/users/me` — update profile (display_name)
-- `GET /api/v1/users/me/settings` — get settings (theme, language, units, religions, etc.)
-- `PATCH /api/v1/users/me/settings` — update settings
+- `GET /api/v1/users/me/settings` — get user settings (theme, language, units, religions, etc.)
+- `PATCH /api/v1/users/me/settings` — update user settings
 - `GET /api/v1/users/me/check-ins` — current user's check-ins
 - `GET /api/v1/users/me/stats` — places visited, check-ins this year
 - `GET /api/v1/users/me/favorites` — favorited places
+
+### Places (`/api/v1/places`)
 - `GET /api/v1/places` — list places (query: religion, lat, lng, limit, offset)
-- `POST /api/v1/places` — create a new place (used for syncing scraper data)
+- `GET /api/v1/places/{placeCode}` — get place detail
+- `GET /api/v1/places/{placeCode}/reviews` — reviews for a place
+- `POST /api/v1/places/{placeCode}/check-in` — check in to a place
+- `POST /api/v1/places/{placeCode}/favorite` — add to favorites
+- `DELETE /api/v1/places/{placeCode}/favorite` — remove from favorites
+- `POST /api/v1/places/{placeCode}/reviews` — create a review
+- `POST /api/v1/places` — create a place (scraper sync)
+- `POST /api/v1/places/batch` — batch create places (scraper sync)
+- `GET /api/v1/places/{placeCode}/image/{imageCode}` — serve place image
+
+### Reviews (`/api/v1/reviews`)
+- `PATCH /api/v1/reviews/{reviewCode}` — update a review
+- `DELETE /api/v1/reviews/{reviewCode}` — delete a review
+
+### Groups (`/api/v1/groups`)
+- `GET /api/v1/groups` — list user's groups
+- `POST /api/v1/groups` — create a group
+- `GET /api/v1/groups/{groupCode}` — get group detail
+- `PATCH /api/v1/groups/{groupCode}` — update group
+- `DELETE /api/v1/groups/{groupCode}` — delete group
+- `POST /api/v1/groups/{groupCode}/join` — join a group
+- `DELETE /api/v1/groups/{groupCode}/leave` — leave a group
+- `GET /api/v1/groups/{groupCode}/members` — list group members
+- `DELETE /api/v1/groups/{groupCode}/members/{userCode}` — remove a member
+- `PATCH /api/v1/groups/{groupCode}/members/{userCode}/role` — update member role
+- `GET /api/v1/groups/{groupCode}/leaderboard` — group leaderboard
+- `GET /api/v1/groups/{groupCode}/activity` — group activity feed
+- `GET /api/v1/groups/{groupCode}/checklist` — group place checklist
+- `POST /api/v1/groups/{groupCode}/places/{placeCode}` — add place to group itinerary
+- `GET /api/v1/groups/{groupCode}/places/{placeCode}/notes` — get place notes
+- `POST /api/v1/groups/{groupCode}/places/{placeCode}/notes` — add place note
+- `DELETE /api/v1/groups/{groupCode}/notes/{noteCode}` — delete place note
+- `POST /api/v1/groups/{groupCode}/invite` — create invite link
+- `GET /api/v1/groups/by-invite/{inviteCode}` — look up group by invite code
+- `POST /api/v1/groups/join-by-invite` — join group via invite code
+- `POST /api/v1/groups/{groupCode}/cover` — upload group cover image
+- `GET /api/v1/groups/cover-image/{imageCode}` — serve group cover image
+
+### Notifications (`/api/v1/notifications`)
+- `GET /api/v1/notifications` — list notifications
+- `PATCH /api/v1/notifications/{notificationCode}/read` — mark notification as read
+
+### Search (`/api/v1/search`)
+- `GET /api/v1/search/autocomplete` — place name autocomplete
+- `GET /api/v1/search/place-details` — fetch place details by place ID
+
+### Visitors (`/api/v1/visitors`)
+- `POST /api/v1/visitors` — create an anonymous visitor session
+- `GET /api/v1/visitors/{visitorCode}/settings` — get visitor settings
+- `PATCH /api/v1/visitors/{visitorCode}/settings` — update visitor settings
+
+### i18n (`/api/v1`)
 - `GET /api/v1/languages` — list supported languages (code, name); no auth
 - `GET /api/v1/translations?lang=en` — translation key→value for locale; fallback to English for missing keys; no auth
+
+### Share
+- `GET /share/{shareCode}` — resolve a share link (redirect to web app or return place info)
+
+### Admin (`/api/v1/admin`) — requires admin role
+Full CRUD for users, places, groups, reviews, check-ins, notifications, translations, content translations, place attributes, bulk operations, data export, audit log, app version management, and scraper proxy.
+
+## Tests
+
+```bash
+cd soulstep-catalog-api
+source .venv/bin/activate
+python -m pytest tests/ -v
+```
+
+Tests use in-memory SQLite (`StaticPool`) with migrations and seed patched out. Each test gets a fresh database.
 
 ## Environment
 
