@@ -110,11 +110,13 @@ Before creating a data location the requested scope must exist in the `GeoBounda
 | `city` | parent country | parent state *(optional)* | City (e.g. Dubai, Mumbai) |
 
 **Pre-seeded regions:**
-- **Countries**: UAE, India, USA
+- **Countries**: UAE, India, USA, Pakistan
 - **UAE cities** (8): Dubai, Abu Dhabi, Sharjah, Ajman, Ras Al Khaimah, Fujairah, Umm Al Quwain, Al Ain
 - **USA states** (8): California, Texas, New York, Florida, Illinois, Pennsylvania, Ohio, Georgia
 - **India states** (all 28): Maharashtra, Uttar Pradesh, West Bengal, Tamil Nadu, Rajasthan, Karnataka, Gujarat, Andhra Pradesh, Madhya Pradesh, Bihar, Telangana, Odisha, Kerala, Haryana, Punjab, Assam, Jharkhand, Chhattisgarh, Uttarakhand, Himachal Pradesh, Jammu and Kashmir, Goa, Tripura, Manipur, Meghalaya, Nagaland, Arunachal Pradesh, Mizoram, Sikkim
 - **India cities** (50+): Mumbai, Delhi, Bangalore, Hyderabad, Chennai, Kolkata, Pune, Ahmedabad, and more
+- **Pakistan provinces** (7): Punjab, Sindh, Khyber Pakhtunkhwa, Balochistan, Gilgit-Baltistan, Azad Kashmir, Islamabad Capital Territory
+- **Pakistan cities** (top 50): Karachi, Lahore, Faisalabad, Rawalpindi, Gujranwala, Peshawar, Multan, Hyderabad, Islamabad, Quetta, and 40 more
 
 Each boundary also stores a `radius_km` value (approximate search radius) alongside the lat/lng bounding box.
 
