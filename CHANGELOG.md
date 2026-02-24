@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Review Content Translation Support (2026-02-24)
+
+### Backend
+- **`GET /api/v1/places/{placeCode}/reviews`** now accepts a `lang` query param (BCP-47 code, e.g. `ar`, `hi`). When provided and non-English, translated `title` and `body` are returned from `ContentTranslation` rows; missing translations fall back to the original English text.
+- **`scripts/backfill_translations.py`** extended with `_backfill_reviews()` — mirrors `_backfill_places()` to auto-translate review `title` and `body` fields via Google Translate and persist results with `entity_type="review"`.
+- Added `TestGetPlaceReviewsLang` test class covering: no lang (English), `lang=en` fast path, stored Arabic translation, fallback to English, partial translation (only body), and null title handling.
+- Added `test_review_entity_type_works` to `test_content_translations.py` confirming `bulk_get_translations` works with `entity_type="review"`.
+
+---
+
 ## Unified Roadmap Consolidation (2026-02-23)
 
 ### Docs

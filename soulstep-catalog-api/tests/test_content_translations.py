@@ -104,3 +104,18 @@ class TestBulkGetTranslations:
         hi_result = ct_db.bulk_get_translations("place", ["plc_001"], "hi", db_session)
         assert ar_result["plc_001"]["name"] == "مسجد"
         assert hi_result["plc_001"]["name"] == "मस्जिद"
+
+    def test_review_entity_type_works(self, db_session):
+        """bulk_get_translations works with entity_type='review'."""
+        _upsert(db_session, "review", "rev_001", "title", "ar", "عنوان")
+        _upsert(db_session, "review", "rev_001", "body", "ar", "نص")
+        _upsert(db_session, "review", "rev_002", "title", "ar", "عنوان ب")
+
+        result = ct_db.bulk_get_translations("review", ["rev_001", "rev_002"], "ar", db_session)
+        assert result["rev_001"]["title"] == "عنوان"
+        assert result["rev_001"]["body"] == "نص"
+        assert result["rev_002"]["title"] == "عنوان ب"
+        assert "rev_002" in result
+        # Place translations are isolated from review translations
+        place_result = ct_db.bulk_get_translations("place", ["rev_001"], "ar", db_session)
+        assert "rev_001" not in place_result

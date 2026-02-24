@@ -262,6 +262,7 @@ def get_place_reviews(
     session: SessionDep,
     limit: int = Query(5),
     offset: int = Query(0),
+    lang: str | None = Query(None),
 ):
     if not places_db.get_place_by_code(place_code, session):
         raise HTTPException(status_code=404, detail="Place not found")
@@ -272,6 +273,11 @@ def get_place_reviews(
     # Batch-fetch review images for all reviews in a single query
     review_codes = [r.review_code for r in rows]
     all_review_images = review_images.get_review_images_bulk(review_codes, session=session)
+
+    # Bulk-fetch review translations if a non-English lang is requested
+    all_review_translations: dict = {}
+    if lang and lang != "en":
+        all_review_translations = ct_db.bulk_get_translations("review", review_codes, lang, session)
 
     out = []
     for r in rows:
@@ -285,6 +291,11 @@ def get_place_reviews(
         external_urls = getattr(r, "photo_urls", []) or []
         all_photo_urls = attached_urls + external_urls
 
+        # Apply translation overlay
+        trans = all_review_translations.get(r.review_code, {})
+        translated_title = trans.get("title", r.title)
+        translated_body = trans.get("body", r.body)
+
         if source == ReviewSource.EXTERNAL:
             # External review
             out.append(
@@ -294,8 +305,8 @@ def get_place_reviews(
                     "user_code": None,
                     "display_name": getattr(r, "author_name", "External User"),
                     "rating": r.rating,
-                    "title": r.title,
-                    "body": r.body,
+                    "title": translated_title,
+                    "body": translated_body,
                     "created_at": r.created_at,
                     "is_anonymous": False,
                     "photo_urls": all_photo_urls,
@@ -319,8 +330,8 @@ def get_place_reviews(
                     if is_anon
                     else (user.display_name if user else "Unknown"),
                     "rating": r.rating,
-                    "title": r.title,
-                    "body": r.body,
+                    "title": translated_title,
+                    "body": translated_body,
                     "created_at": r.created_at,
                     "is_anonymous": is_anon,
                     "photo_urls": all_photo_urls,

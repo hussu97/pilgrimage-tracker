@@ -7,6 +7,7 @@ Covers:
 - get_place: lang param triggers per-place translation fetch
 - batch_create_places: translations field persisted in ContentTranslation
 - build_specifications: localised "Available"/"Separate" via lang param
+- get_place_reviews: lang param returns translated review title/body
 """
 
 from types import SimpleNamespace
@@ -204,3 +205,141 @@ class TestBuildSpecificationsLocalisation:
             # No CT row for "ar" → should use default English
             result = build_specifications(place, db_session, attrs=attrs, lang="ar")
         assert result[0]["value"] == "Available"
+
+
+# ── get_place_reviews lang param ───────────────────────────────────────────────
+
+_REVIEW_PLACE_CODE = "plc_revloc01"
+_REVIEW_PLACE = {
+    "place_code": _REVIEW_PLACE_CODE,
+    "name": "Review Test Mosque",
+    "religion": "islam",
+    "place_type": "mosque",
+    "lat": 25.2048,
+    "lng": 55.2708,
+    "address": "456 Review St, Dubai",
+}
+
+
+def _setup_review_place(client):
+    resp = client.post("/api/v1/places", json=_REVIEW_PLACE)
+    assert resp.status_code in (200, 201), resp.text
+
+
+def _register_and_get_token(client, email="reviewloc@example.com"):
+    resp = client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": "Testpass123!", "display_name": "ReviewTester"},
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.json()["token"]
+
+
+def _post_review(client, token, place_code, title="English Title", body="English Body"):
+    resp = client.post(
+        f"/api/v1/places/{place_code}/reviews",
+        json={"rating": 4, "title": title, "body": body},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+class TestGetPlaceReviewsLang:
+    def test_no_lang_returns_english(self, client):
+        _setup_review_place(client)
+        token = _register_and_get_token(client, "rl_nolang@example.com")
+        _post_review(client, token, _REVIEW_PLACE_CODE)
+
+        resp = client.get(f"/api/v1/places/{_REVIEW_PLACE_CODE}/reviews")
+        assert resp.status_code == 200
+        reviews = resp.json()["reviews"]
+        assert len(reviews) == 1
+        assert reviews[0]["title"] == "English Title"
+        assert reviews[0]["body"] == "English Body"
+
+    def test_lang_en_fast_path_returns_english(self, client):
+        _setup_review_place(client)
+        token = _register_and_get_token(client, "rl_en@example.com")
+        _post_review(client, token, _REVIEW_PLACE_CODE)
+
+        resp = client.get(f"/api/v1/places/{_REVIEW_PLACE_CODE}/reviews?lang=en")
+        assert resp.status_code == 200
+        reviews = resp.json()["reviews"]
+        assert reviews[0]["title"] == "English Title"
+        assert reviews[0]["body"] == "English Body"
+
+    def test_lang_ar_returns_translation_when_stored(self, client, db_session):
+        _setup_review_place(client)
+        token = _register_and_get_token(client, "rl_ar@example.com")
+        review_data = _post_review(client, token, _REVIEW_PLACE_CODE)
+        review_code = review_data["review_code"]
+
+        ct_db.upsert_translation(
+            "review", review_code, "title", "ar", "عنوان عربي", "manual", db_session
+        )
+        ct_db.upsert_translation(
+            "review", review_code, "body", "ar", "نص عربي", "manual", db_session
+        )
+
+        resp = client.get(f"/api/v1/places/{_REVIEW_PLACE_CODE}/reviews?lang=ar")
+        assert resp.status_code == 200
+        reviews = resp.json()["reviews"]
+        match = next((r for r in reviews if r["review_code"] == review_code), None)
+        assert match is not None
+        assert match["title"] == "عنوان عربي"
+        assert match["body"] == "نص عربي"
+
+    def test_lang_ar_falls_back_to_english_when_no_translation(self, client):
+        _setup_review_place(client)
+        token = _register_and_get_token(client, "rl_ar_fb@example.com")
+        _post_review(client, token, _REVIEW_PLACE_CODE)
+
+        resp = client.get(f"/api/v1/places/{_REVIEW_PLACE_CODE}/reviews?lang=ar")
+        assert resp.status_code == 200
+        reviews = resp.json()["reviews"]
+        assert reviews[0]["title"] == "English Title"
+        assert reviews[0]["body"] == "English Body"
+
+    def test_partial_translation_body_translated_title_fallback(self, client, db_session):
+        _setup_review_place(client)
+        token = _register_and_get_token(client, "rl_partial@example.com")
+        review_data = _post_review(client, token, _REVIEW_PLACE_CODE)
+        review_code = review_data["review_code"]
+
+        # Only store body translation, not title
+        ct_db.upsert_translation(
+            "review", review_code, "body", "ar", "نص مترجم فقط", "manual", db_session
+        )
+
+        resp = client.get(f"/api/v1/places/{_REVIEW_PLACE_CODE}/reviews?lang=ar")
+        assert resp.status_code == 200
+        reviews = resp.json()["reviews"]
+        match = next((r for r in reviews if r["review_code"] == review_code), None)
+        assert match is not None
+        assert match["title"] == "English Title"  # falls back
+        assert match["body"] == "نص مترجم فقط"  # translated
+
+    def test_null_title_with_lang_remains_null(self, client, db_session):
+        _setup_review_place(client)
+        token = _register_and_get_token(client, "rl_nulltitle@example.com")
+        # Post review without title
+        resp = client.post(
+            f"/api/v1/places/{_REVIEW_PLACE_CODE}/reviews",
+            json={"rating": 3, "body": "Body only"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200, resp.text
+        review_code = resp.json()["review_code"]
+
+        ct_db.upsert_translation(
+            "review", review_code, "body", "ar", "جسم فقط", "manual", db_session
+        )
+
+        resp = client.get(f"/api/v1/places/{_REVIEW_PLACE_CODE}/reviews?lang=ar")
+        assert resp.status_code == 200
+        reviews = resp.json()["reviews"]
+        match = next((r for r in reviews if r["review_code"] == review_code), None)
+        assert match is not None
+        assert match["title"] is None
+        assert match["body"] == "جسم فقط"

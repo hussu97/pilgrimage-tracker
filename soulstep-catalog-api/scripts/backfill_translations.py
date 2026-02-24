@@ -37,7 +37,7 @@ load_dotenv(_PROJECT_ROOT / ".env")
 from sqlmodel import Session, select  # noqa: E402
 
 from app.db import content_translations as ct_db  # noqa: E402
-from app.db.models import Place, PlaceAttribute  # noqa: E402
+from app.db.models import Place, PlaceAttribute, Review  # noqa: E402
 from app.db.session import engine  # noqa: E402
 from app.services.translation_service import translate_batch  # noqa: E402
 
@@ -55,6 +55,7 @@ _ALL_LANG_CODES = [lang["code"] for lang in _seed["languages"]]
 _SUPPORTED_LANGS = [code for code in _ALL_LANG_CODES if code != "en"]
 
 _TRANSLATABLE_FIELDS = ["name", "description", "address"]
+_REVIEW_TRANSLATABLE_FIELDS = ["title", "body"]
 
 # Legacy attribute codes (e.g. name_ar, name_hi) that the scraper may have
 # stored as PlaceAttribute rows. Auto-generated from the languages list so
@@ -197,6 +198,95 @@ def _backfill_places(
     return translated_count
 
 
+def _backfill_reviews(
+    session: Session,
+    langs: list[str],
+    batch_size: int,
+    dry_run: bool,
+    rate_limit_delay: float,
+) -> int:
+    reviews = session.exec(select(Review)).all()
+    logger.info("Found %d reviews to process", len(reviews))
+
+    if not reviews:
+        logger.warning("No Review rows in the database — nothing to translate")
+        return 0
+
+    api_key = os.environ.get("GOOGLE_TRANSLATE_API_KEY")
+    if not api_key:
+        logger.error("GOOGLE_TRANSLATE_API_KEY is NOT set. Add it to soulstep-catalog-api/.env")
+        return 0
+    logger.info("GOOGLE_TRANSLATE_API_KEY is set (length=%d)", len(api_key))
+
+    translated_count = 0
+
+    for lang in langs:
+        logger.info("=== Reviews Language: %s ===", lang)
+        missing: list[tuple[Review, str, str]] = []
+        already_exist = 0
+        empty_fields = 0
+        for review in reviews:
+            for field in _REVIEW_TRANSLATABLE_FIELDS:
+                en_text = getattr(review, field, None)
+                if not en_text:
+                    empty_fields += 1
+                    continue
+                existing = ct_db.get_translation("review", review.review_code, field, lang, session)
+                if existing is None:
+                    missing.append((review, field, en_text))
+                else:
+                    already_exist += 1
+
+        logger.info(
+            "  %s summary: %d missing, %d already translated, %d empty source fields",
+            lang,
+            len(missing),
+            already_exist,
+            empty_fields,
+        )
+
+        if not missing:
+            logger.info("  Nothing to translate for %s — skipping", lang)
+            continue
+
+        for start in range(0, len(missing), batch_size):
+            chunk = missing[start : start + batch_size]
+            texts = [en_text for _, _, en_text in chunk]
+            logger.info("  Translating batch %d–%d …", start + 1, start + len(chunk))
+
+            if dry_run:
+                for review, field, _ in chunk:
+                    logger.info("    [DRY] would translate %s/%s", review.review_code, field)
+                continue
+
+            results = translate_batch(texts, target_lang=lang)
+            batch_ok = sum(1 for r in results if r is not None)
+            batch_fail = sum(1 for r in results if r is None)
+            if batch_fail > 0:
+                logger.warning(
+                    "  Batch result: %d translated, %d failed (returned None)",
+                    batch_ok,
+                    batch_fail,
+                )
+            for (review, field, _), translated in zip(chunk, results, strict=False):
+                if translated:
+                    ct_db.upsert_translation(
+                        entity_type="review",
+                        entity_code=review.review_code,
+                        field=field,
+                        lang=lang,
+                        text=translated,
+                        source="google_translate",
+                        session=session,
+                    )
+                    translated_count += 1
+
+            if rate_limit_delay > 0:
+                time.sleep(rate_limit_delay)
+
+    return translated_count
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Backfill ContentTranslation rows")
     parser.add_argument(
@@ -228,7 +318,16 @@ def main() -> None:
             dry_run=args.dry_run,
             rate_limit_delay=args.rate_limit_delay,
         )
-        logger.info("Translated %d new rows", translated)
+        logger.info("Translated %d new place rows", translated)
+
+        translated_reviews = _backfill_reviews(
+            session,
+            langs=args.langs,
+            batch_size=args.batch_size,
+            dry_run=args.dry_run,
+            rate_limit_delay=args.rate_limit_delay,
+        )
+        logger.info("Translated %d new review rows", translated_reviews)
 
     logger.info("Done.")
 
