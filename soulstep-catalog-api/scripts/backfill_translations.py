@@ -18,6 +18,7 @@ Environment:
 
 import argparse
 import logging
+import os
 import sys
 import time
 from pathlib import Path
@@ -34,6 +35,8 @@ from app.services.translation_service import translate_batch
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
+# Ensure translation_service logs are also visible
+logging.getLogger("app.services.translation_service").setLevel(logging.INFO)
 
 _SUPPORTED_LANGS = ["ar", "hi", "te"]
 _TRANSLATABLE_FIELDS = ["name", "description", "address"]
@@ -86,22 +89,62 @@ def _backfill_places(
 ) -> int:
     places = session.exec(select(Place)).all()
     logger.info("Found %d places to process", len(places))
+
+    if not places:
+        logger.warning("No Place rows in the database — nothing to translate")
+        return 0
+
+    # Log a sample place so the user can verify DB connectivity
+    sample = places[0]
+    logger.info(
+        "  Sample place: code=%s name=%r description=%s address=%s",
+        sample.place_code,
+        (sample.name or "")[:50],
+        "yes" if sample.description else "NO",
+        "yes" if sample.address else "NO",
+    )
+
+    # Check API key early
+    api_key = os.environ.get("GOOGLE_TRANSLATE_API_KEY")
+    if not api_key:
+        logger.error(
+            "GOOGLE_TRANSLATE_API_KEY is NOT set. "
+            "Export it before running: export GOOGLE_TRANSLATE_API_KEY=your_key"
+        )
+        return 0
+    logger.info("GOOGLE_TRANSLATE_API_KEY is set (length=%d)", len(api_key))
+
     translated_count = 0
 
     for lang in langs:
         logger.info("=== Language: %s ===", lang)
         # Collect (place, field, english_text) triples that need translation
         missing: list[tuple[Place, str, str]] = []
+        already_exist = 0
+        empty_fields = 0
         for place in places:
             for field in _TRANSLATABLE_FIELDS:
                 en_text = getattr(place, field, None)
                 if not en_text:
+                    empty_fields += 1
                     continue
                 existing = ct_db.get_translation("place", place.place_code, field, lang, session)
                 if existing is None:
                     missing.append((place, field, en_text))
+                else:
+                    already_exist += 1
 
-        logger.info("  %d (place, field) pairs missing %s translation", len(missing), lang)
+        logger.info(
+            "  %s summary: %d missing, %d already translated, %d empty source fields",
+            lang,
+            len(missing),
+            already_exist,
+            empty_fields,
+        )
+
+        if not missing:
+            logger.info("  Nothing to translate for %s — skipping", lang)
+            continue
 
         # Process in batches
         for start in range(0, len(missing), batch_size):
@@ -115,6 +158,14 @@ def _backfill_places(
                 continue
 
             results = translate_batch(texts, target_lang=lang)
+            batch_ok = sum(1 for r in results if r is not None)
+            batch_fail = sum(1 for r in results if r is None)
+            if batch_fail > 0:
+                logger.warning(
+                    "  Batch result: %d translated, %d failed (returned None)",
+                    batch_ok,
+                    batch_fail,
+                )
             for (place, field, _), translated in zip(chunk, results, strict=False):
                 if translated:
                     ct_db.upsert_translation(
