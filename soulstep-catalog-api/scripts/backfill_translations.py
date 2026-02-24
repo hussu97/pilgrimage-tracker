@@ -24,14 +24,19 @@ import time
 from pathlib import Path
 
 # Allow running as `python -m scripts.backfill_translations` from server/
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_PROJECT_ROOT))
 
-from sqlmodel import Session, select
+from dotenv import load_dotenv  # noqa: E402
 
-from app.db import content_translations as ct_db
-from app.db.models import Place, PlaceAttribute
-from app.db.session import engine
-from app.services.translation_service import translate_batch
+load_dotenv(_PROJECT_ROOT / ".env")
+
+from sqlmodel import Session, select  # noqa: E402
+
+from app.db import content_translations as ct_db  # noqa: E402
+from app.db.models import Place, PlaceAttribute  # noqa: E402
+from app.db.session import engine  # noqa: E402
+from app.services.translation_service import translate_batch  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
