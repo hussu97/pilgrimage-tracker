@@ -1,15 +1,17 @@
 """Backfill translations for existing Place rows that lack non-English content.
 
 Usage (from the server/ directory with venv active):
-    python -m scripts.backfill_translations [--langs ar hi te] [--dry-run] [--batch-size 50]
+    python -m scripts.backfill_translations [--langs ar hi] [--dry-run] [--batch-size 50]
 
 What it does:
 1. Iterates all Place rows.
 2. For each place × field × language combination missing a ContentTranslation row,
    batch-translates the English text via Google Cloud Translation API v2.
 3. Inserts results with source="google_translate".
-4. Also migrates existing name_ar / name_hi PlaceAttribute values into
+4. Also migrates existing name_{lang} PlaceAttribute values into
    ContentTranslation rows (source="scraper") if not already present.
+
+Supported languages are read from seed_data.json (the single source of truth).
 
 Environment:
     GOOGLE_TRANSLATE_API_KEY — required for auto-translation. Without it only the
@@ -17,6 +19,7 @@ Environment:
 """
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -43,19 +46,26 @@ logger = logging.getLogger(__name__)
 # Ensure translation_service logs are also visible
 logging.getLogger("app.services.translation_service").setLevel(logging.INFO)
 
-_SUPPORTED_LANGS = ["ar", "hi", "te"]
+# ── Language list from seed_data.json (single source of truth) ────────────────
+_SEED_DATA_PATH = _PROJECT_ROOT / "app" / "db" / "seed_data.json"
+with open(_SEED_DATA_PATH) as f:
+    _seed = json.load(f)
+_ALL_LANG_CODES = [lang["code"] for lang in _seed["languages"]]
+# Exclude English — we translate *from* English to the rest
+_SUPPORTED_LANGS = [code for code in _ALL_LANG_CODES if code != "en"]
+
 _TRANSLATABLE_FIELDS = ["name", "description", "address"]
 
-# Legacy attribute codes that map to ContentTranslation rows
+# Legacy attribute codes (e.g. name_ar, name_hi) that the scraper may have
+# stored as PlaceAttribute rows. Auto-generated from the languages list so
+# new languages are picked up without code changes.
 _LEGACY_ATTR_LANGS: dict[str, tuple[str, str]] = {
-    "name_ar": ("name", "ar"),
-    "name_hi": ("name", "hi"),
-    "name_te": ("name", "te"),
+    f"name_{code}": ("name", code) for code in _SUPPORTED_LANGS
 }
 
 
 def _migrate_legacy_attributes(session: Session, dry_run: bool) -> int:
-    """Copy name_ar / name_hi / name_te PlaceAttributes into ContentTranslation."""
+    """Copy legacy name_{lang} PlaceAttributes into ContentTranslation rows."""
     migrated = 0
     for attr_code, (field, lang) in _LEGACY_ATTR_LANGS.items():
         attrs = session.exec(
@@ -112,10 +122,7 @@ def _backfill_places(
     # Check API key early
     api_key = os.environ.get("GOOGLE_TRANSLATE_API_KEY")
     if not api_key:
-        logger.error(
-            "GOOGLE_TRANSLATE_API_KEY is NOT set. "
-            "Export it before running: export GOOGLE_TRANSLATE_API_KEY=your_key"
-        )
+        logger.error("GOOGLE_TRANSLATE_API_KEY is NOT set. " "Add it to soulstep-catalog-api/.env")
         return 0
     logger.info("GOOGLE_TRANSLATE_API_KEY is set (length=%d)", len(api_key))
 
@@ -196,7 +203,7 @@ def main() -> None:
         "--langs",
         nargs="+",
         default=_SUPPORTED_LANGS,
-        help=f"Languages to backfill (default: {_SUPPORTED_LANGS})",
+        help=f"Languages to backfill (from seed_data.json, default: {_SUPPORTED_LANGS})",
     )
     parser.add_argument("--dry-run", action="store_true", help="Print actions without writing")
     parser.add_argument("--batch-size", type=int, default=50, help="Translation batch size")
