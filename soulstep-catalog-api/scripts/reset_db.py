@@ -29,6 +29,7 @@ from pathlib import Path
 # Allow running as `python scripts/reset_db.py` from the server/ directory.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from sqlalchemy import text
 from sqlmodel import SQLModel
 
 from app.db.seed import run_seed_demo, run_seed_system
@@ -53,6 +54,10 @@ def main() -> None:
 
     print("Dropping all tables...")
     SQLModel.metadata.drop_all(engine)
+    # alembic_version is not part of SQLModel metadata so drop_all misses it.
+    # Drop it explicitly so run_migrations() sees a blank DB and runs from scratch.
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
 
     print("Running migrations...")
     run_migrations()

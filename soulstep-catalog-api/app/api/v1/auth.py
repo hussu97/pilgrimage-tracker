@@ -155,11 +155,18 @@ def login(request: Request, body: LoginBody, session: SessionDep):
     Returns a short-lived **access token** (Bearer) in the JSON body and a long-lived
     **refresh token** in an HTTP-only `SameSite=Strict` cookie.
     """
+    logger.info("LOGIN attempt: email=%r", body.email)
     user = store.get_user_by_email(body.email, session)
     if not user:
+        logger.warning("LOGIN failed: no user found for email=%r", body.email)
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    logger.info("LOGIN user found: user_code=%s is_admin=%s", user.user_code, user.is_admin)
     if not verify_password(body.password, user.password_hash):
+        logger.warning(
+            "LOGIN failed: wrong password for email=%r user_code=%s", body.email, user.user_code
+        )
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    logger.info("LOGIN success: user_code=%s is_admin=%s", user.user_code, user.is_admin)
     if body.visitor_code:
         try:
             store.merge_visitor_into_user(body.visitor_code, user.user_code, session)
