@@ -1,12 +1,12 @@
-"""Backfill translations for existing Place rows that lack non-English content.
+"""Backfill translations for existing Place and Review rows that lack non-English content.
 
-Usage (from the server/ directory with venv active):
+Usage (from the soulstep-catalog-api/ directory with venv active):
     python -m scripts.backfill_translations [--langs ar hi] [--dry-run] [--batch-size 50]
 
 What it does:
-1. Iterates all Place rows.
-2. For each place × field × language combination missing a ContentTranslation row,
-   batch-translates the English text via Google Cloud Translation API v2.
+1. Iterates all Place rows; for each place × field × language combination missing a
+   ContentTranslation row, batch-translates via Google Cloud Translation API v3.
+2. Iterates all Review rows; same logic for title and body fields.
 3. Inserts results with source="google_translate".
 4. Also migrates existing name_{lang} PlaceAttribute values into
    ContentTranslation rows (source="scraper") if not already present.
@@ -14,8 +14,9 @@ What it does:
 Supported languages are read from seed_data.json (the single source of truth).
 
 Environment:
-    GOOGLE_TRANSLATE_API_KEY — required for auto-translation. Without it only the
-                               attribute migration step runs.
+    GOOGLE_TRANSLATE_API_KEY — required for auto-translation.
+    GOOGLE_CLOUD_PROJECT     — GCP project ID, required for the v3 endpoint.
+    Without both, only the attribute migration step runs.
 """
 
 import argparse
@@ -122,10 +123,18 @@ def _backfill_places(
 
     # Check API key early
     api_key = os.environ.get("GOOGLE_TRANSLATE_API_KEY")
-    if not api_key:
-        logger.error("GOOGLE_TRANSLATE_API_KEY is NOT set. " "Add it to soulstep-catalog-api/.env")
+    project = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    if not api_key or not project:
+        logger.error(
+            "GOOGLE_TRANSLATE_API_KEY and/or GOOGLE_CLOUD_PROJECT not set. "
+            "Add both to soulstep-catalog-api/.env"
+        )
         return 0
-    logger.info("GOOGLE_TRANSLATE_API_KEY is set (length=%d)", len(api_key))
+    logger.info(
+        "Credentials OK: GOOGLE_TRANSLATE_API_KEY length=%d, GOOGLE_CLOUD_PROJECT=%s",
+        len(api_key),
+        project,
+    )
 
     translated_count = 0
 
@@ -213,10 +222,18 @@ def _backfill_reviews(
         return 0
 
     api_key = os.environ.get("GOOGLE_TRANSLATE_API_KEY")
-    if not api_key:
-        logger.error("GOOGLE_TRANSLATE_API_KEY is NOT set. Add it to soulstep-catalog-api/.env")
+    project = os.environ.get("GOOGLE_CLOUD_PROJECT")
+    if not api_key or not project:
+        logger.error(
+            "GOOGLE_TRANSLATE_API_KEY and/or GOOGLE_CLOUD_PROJECT not set. "
+            "Add both to soulstep-catalog-api/.env"
+        )
         return 0
-    logger.info("GOOGLE_TRANSLATE_API_KEY is set (length=%d)", len(api_key))
+    logger.info(
+        "Credentials OK: GOOGLE_TRANSLATE_API_KEY length=%d, GOOGLE_CLOUD_PROJECT=%s",
+        len(api_key),
+        project,
+    )
 
     translated_count = 0
 

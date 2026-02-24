@@ -179,5 +179,7 @@ Tests use in-memory SQLite (`StaticPool`) with migrations and seed patched out. 
 - `PORT` — port (default: 3000)
 - `DATABASE_URL` — (optional for production) PostgreSQL connection string; when unset, SQLite (`soulstep.db`) is used for dev.
 - `GOOGLE_MAPS_API_KEY` — (optional, for scraper) Google Maps API key for `soulstep-scraper-api/gmaps.py`. Not required for server operation, only for running the scraper to discover new places.
+- `GOOGLE_TRANSLATE_API_KEY` — (optional) Google Cloud Translation API key. Required only for running `scripts/backfill_translations.py`. Enable "Cloud Translation API" at console.cloud.google.com.
+- `GOOGLE_CLOUD_PROJECT` — (optional) GCP project ID. Required alongside `GOOGLE_TRANSLATE_API_KEY` for the v3 translation endpoint.
 
 For production deployment options, see [PRODUCTION.md](../PRODUCTION.md) at repo root.
