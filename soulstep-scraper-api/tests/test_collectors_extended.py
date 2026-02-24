@@ -481,6 +481,64 @@ class TestGmapsCollectorBuildPlaceData:
 
         assert place_data["name"] == "N/A"
 
+    def test_build_place_data_with_preloaded_maps(self):
+        """When type_map and religion_type_map are supplied, no session DB calls are made."""
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        response = self._response()
+
+        type_map = {"mosque": "mosque", "place_of_worship": "place of worship"}
+        religion_type_map = {"mosque": "islam", "place_of_worship": "islam"}
+
+        mock_img_resp = MagicMock()
+        mock_img_resp.status_code = 200
+        mock_img_resp.headers = {"Content-Type": "image/jpeg"}
+        mock_img_resp.content = b"img"
+
+        with patch(
+            "app.collectors.gmaps.process_weekly_hours",
+            return_value={"Monday": "7:00 AM – 10:00 PM"},
+        ):
+            with patch("app.collectors.gmaps.clean_address", return_value="Jerusalem"):
+                with patch("requests.get", return_value=mock_img_resp):
+                    place_data = collector.build_place_data(
+                        response,
+                        "gplc_ChIJ123",
+                        "fake_key",
+                        None,  # no session
+                        type_map=type_map,
+                        religion_type_map=religion_type_map,
+                    )
+
+        assert place_data["religion"] == "islam"
+        assert place_data["place_type"] == "mosque"
+        assert place_data["name"] == "Al-Aqsa Mosque"
+
+    def test_build_place_data_preloaded_maps_unknown_type(self):
+        """When types don't match the preloaded map, religion defaults to 'unknown'."""
+        from app.collectors.gmaps import GmapsCollector
+
+        collector = GmapsCollector()
+        response = self._response(types=["unknown_type"])
+
+        type_map: dict = {}
+        religion_type_map: dict = {}
+
+        with patch("app.collectors.gmaps.clean_address", return_value="Jerusalem"):
+            with patch("requests.get", return_value=MagicMock(status_code=404)):
+                place_data = collector.build_place_data(
+                    response,
+                    "gplc_XYZ",
+                    "key",
+                    None,
+                    type_map=type_map,
+                    religion_type_map=religion_type_map,
+                )
+
+        assert place_data["religion"] == "unknown"
+        assert place_data["place_type"] == "place of worship"
+
 
 # ── BestTimeCollector ─────────────────────────────────────────────────────────
 

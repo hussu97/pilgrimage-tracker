@@ -349,3 +349,55 @@ class TestCollectorRegistry:
             assert names.index("osm") < names.index("wikipedia")
         if "osm" in names and "wikidata" in names:
             assert names.index("osm") < names.index("wikidata")
+
+    def test_get_enrichment_phases_structure(self):
+        """get_enrichment_phases returns a list of non-empty phases."""
+        from app.collectors.registry import get_enrichment_phases
+
+        phases = get_enrichment_phases()
+        assert isinstance(phases, list)
+        # Each phase must be a non-empty list of collectors
+        for phase in phases:
+            assert isinstance(phase, list)
+            assert len(phase) > 0
+
+    def test_get_enrichment_phases_osm_in_first_phase(self):
+        """OSM (if available) must be in the first phase."""
+        from app.collectors.registry import get_enrichment_phases
+
+        phases = get_enrichment_phases()
+        if not phases:
+            return  # No collectors available — skip
+        first_phase_names = [c.name for c in phases[0]]
+        assert "gmaps" not in first_phase_names  # gmaps is never in enrichment phases
+        # OSM is always available (no API key required)
+        assert "osm" in first_phase_names
+
+    def test_get_enrichment_phases_wikipedia_wikidata_in_phase1(self):
+        """Wikipedia and Wikidata must be in a later phase than OSM."""
+        from app.collectors.registry import get_enrichment_phases
+
+        phases = get_enrichment_phases()
+        all_names_by_phase = [[c.name for c in phase] for phase in phases]
+
+        # Find phase index for osm, wikipedia, wikidata
+        osm_phase = next((i for i, names in enumerate(all_names_by_phase) if "osm" in names), None)
+        wp_phase = next(
+            (i for i, names in enumerate(all_names_by_phase) if "wikipedia" in names), None
+        )
+        wd_phase = next(
+            (i for i, names in enumerate(all_names_by_phase) if "wikidata" in names), None
+        )
+
+        if osm_phase is not None and wp_phase is not None:
+            assert osm_phase < wp_phase, "Wikipedia must come after OSM"
+        if osm_phase is not None and wd_phase is not None:
+            assert osm_phase < wd_phase, "Wikidata must come after OSM"
+
+    def test_get_enrichment_phases_excludes_gmaps(self):
+        """gmaps collector must not appear in enrichment phases."""
+        from app.collectors.registry import get_enrichment_phases
+
+        phases = get_enrichment_phases()
+        all_names = [c.name for phase in phases for c in phase]
+        assert "gmaps" not in all_names

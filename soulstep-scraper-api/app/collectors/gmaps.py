@@ -264,13 +264,23 @@ class GmapsCollector(BaseCollector):
         return result
 
     def build_place_data(
-        self, response: dict, place_code: str, api_key: str, session: Session
+        self,
+        response: dict,
+        place_code: str,
+        api_key: str,
+        session: Session | None,
+        *,
+        type_map: dict[str, str] | None = None,
+        religion_type_map: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """
         Build the full place_data dict from a gmaps response.
 
         This is used during the discovery phase to create the initial ScrapedPlace.raw_data.
-        It preserves the existing behavior from scrapers/gmaps.py get_place_details().
+
+        When type_map and religion_type_map are supplied (pre-loaded before entering a thread
+        pool), this method performs no DB access and is fully thread-safe.  When they are
+        None a session must be provided and the maps are queried on the fly.
         """
         # Process images (up to 3)
         photo_urls = []
@@ -406,13 +416,23 @@ class GmapsCollector(BaseCollector):
 
         # Auto-detect religion and place_type
         result_types = response.get("types", [])
-        religion = detect_religion_from_types(session, result_types)
+
+        if religion_type_map is not None:
+            # Use pre-loaded map (thread-safe, no DB access)
+            religion = None
+            for gmaps_type in result_types:
+                if gmaps_type in religion_type_map:
+                    religion = religion_type_map[gmaps_type]
+                    break
+        else:
+            religion = detect_religion_from_types(session, result_types)
+
         if not religion:
             print(f"Warning: Could not detect religion for {place_id} with types: {result_types}")
             religion = "unknown"
 
         place_type_name = "place of worship"
-        gmaps_type_map = get_gmaps_type_to_our_type(session)
+        gmaps_type_map = type_map if type_map is not None else get_gmaps_type_to_our_type(session)
         for gmaps_type in result_types:
             if gmaps_type in gmaps_type_map:
                 place_type_name = gmaps_type_map[gmaps_type]

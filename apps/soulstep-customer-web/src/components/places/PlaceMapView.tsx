@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import type { Place } from '@/lib/types';
 import type { SearchLocation } from '@/lib/utils/searchHistory';
 import type { MapBounds } from '@/components/places/PlacesMap';
@@ -13,6 +13,10 @@ interface PlaceMapViewProps {
   t: (key: string) => string;
   isVisible?: boolean;
   searchLocation?: SearchLocation | null;
+  initMapCenter?: { lat: number; lng: number };
+  initMapZoom?: number;
+  onMapMove?: (lat: number, lng: number, zoom: number) => void;
+  skipAutoFit?: boolean;
 }
 
 const PEEK_RATIO = 0.32; // fraction of viewport height when resting
@@ -26,11 +30,22 @@ export default function PlaceMapView({
   t,
   isVisible,
   searchLocation,
+  initMapCenter,
+  initMapZoom,
+  onMapMove,
+  skipAutoFit,
 }: PlaceMapViewProps) {
   const [visibleBounds, setVisibleBounds] = useState<MapBounds | null>(null);
 
   // Mobile bottom-sheet drag state
   const [sheetPx, setSheetPx] = useState<number | null>(null); // null = CSS percentage
+
+  // Animate sheet height when a pin is selected/deselected
+  useEffect(() => {
+    setSheetPx(
+      selectedPlace ? window.innerHeight * EXPANDED_RATIO : window.innerHeight * PEEK_RATIO,
+    );
+  }, [selectedPlace]);
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef<{ startY: number; startH: number } | null>(null);
 
@@ -89,21 +104,46 @@ export default function PlaceMapView({
         searchLocation={searchLocation}
         onBoundsChange={setVisibleBounds}
         className="h-full w-full bg-soft-blue dark:bg-dark-surface"
+        initMapCenter={initMapCenter}
+        initZoom={initMapZoom}
+        onMapMove={onMapMove}
+        skipAutoFit={skipAutoFit}
       />
 
-      {visiblePlaces.length > 0 && (
+      {(visiblePlaces.length > 0 || selectedPlace !== null) && (
         <>
           {/* ── Desktop: left side panel (overlay) ─────────────────────────── */}
           <div className="hidden md:flex flex-col absolute left-3 top-3 bottom-3 w-80 z-[500] bg-white/95 dark:bg-dark-surface backdrop-blur-xl rounded-2xl shadow-xl border border-input-border/60 dark:border-dark-border overflow-hidden">
             <div className="px-4 py-3 border-b border-input-border dark:border-dark-border shrink-0">
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                {countLabel}
-              </p>
+              {selectedPlace !== null ? (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
+                    {selectedPlace.name}
+                  </p>
+                  <button
+                    onClick={() => onPlaceSelect(null)}
+                    className="shrink-0 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-dark-border transition-colors"
+                    aria-label="Close"
+                  >
+                    <span className="material-symbols-outlined text-[18px] text-slate-500 dark:text-slate-400">
+                      close
+                    </span>
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  {countLabel}
+                </p>
+              )}
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
-              {visiblePlaces.map((place) => (
-                <PlaceCardUnified key={place.place_code} place={place} t={t} />
-              ))}
+              {selectedPlace !== null ? (
+                <PlaceCardUnified place={selectedPlace} t={t} />
+              ) : (
+                visiblePlaces.map((place) => (
+                  <PlaceCardUnified key={place.place_code} place={place} t={t} />
+                ))
+              )}
             </div>
           </div>
 
@@ -115,26 +155,54 @@ export default function PlaceMapView({
               transition: isDragging ? 'none' : 'height 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
             }}
           >
-            {/* Drag handle + count — pointer events live here */}
-            <div
-              className="shrink-0 pt-3 pb-2.5 px-4 border-b border-input-border/50 dark:border-dark-border cursor-grab active:cursor-grabbing select-none"
-              style={{ touchAction: 'none' }}
-              onPointerDown={onHandlePointerDown}
-              onPointerMove={onHandlePointerMove}
-              onPointerUp={onHandlePointerUp}
-              onPointerCancel={onHandlePointerUp}
-            >
-              <div className="w-10 h-1 rounded-full bg-slate-200 dark:bg-dark-border mx-auto mb-2.5" />
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                {countLabel}
-              </p>
-            </div>
-            {/* Scrollable card list */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-              {visiblePlaces.map((place) => (
-                <PlaceCardUnified key={place.place_code} place={place} t={t} />
-              ))}
-            </div>
+            {selectedPlace !== null ? (
+              <>
+                {/* Selected-place header with close button */}
+                <div className="shrink-0 pt-3 pb-2.5 px-4 border-b border-input-border/50 dark:border-dark-border">
+                  <div className="w-10 h-1 rounded-full bg-slate-200 dark:bg-dark-border mx-auto mb-2.5" />
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate">
+                      {selectedPlace.name}
+                    </p>
+                    <button
+                      onClick={() => onPlaceSelect(null)}
+                      className="shrink-0 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-dark-border transition-colors"
+                      aria-label="Close"
+                    >
+                      <span className="material-symbols-outlined text-[18px] text-slate-500 dark:text-slate-400">
+                        close
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 py-3">
+                  <PlaceCardUnified place={selectedPlace} t={t} />
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Drag handle + count — pointer events live here */}
+                <div
+                  className="shrink-0 pt-3 pb-2.5 px-4 border-b border-input-border/50 dark:border-dark-border cursor-grab active:cursor-grabbing select-none"
+                  style={{ touchAction: 'none' }}
+                  onPointerDown={onHandlePointerDown}
+                  onPointerMove={onHandlePointerMove}
+                  onPointerUp={onHandlePointerUp}
+                  onPointerCancel={onHandlePointerUp}
+                >
+                  <div className="w-10 h-1 rounded-full bg-slate-200 dark:bg-dark-border mx-auto mb-2.5" />
+                  <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    {countLabel}
+                  </p>
+                </div>
+                {/* Scrollable card list */}
+                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                  {visiblePlaces.map((place) => (
+                    <PlaceCardUnified key={place.place_code} place={place} t={t} />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </>
       )}

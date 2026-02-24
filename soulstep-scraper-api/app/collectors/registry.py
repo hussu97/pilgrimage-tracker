@@ -60,3 +60,42 @@ def get_enrichment_collectors() -> list[BaseCollector]:
         OutscraperCollector(),
     ]
     return [c for c in ordered if c.is_available()]
+
+
+def get_enrichment_phases() -> list[list[BaseCollector]]:
+    """
+    Return available enrichment collectors grouped by dependency phase.
+
+    Phase 0 — must run first (produces wikipedia/wikidata tags for downstream):
+        OsmCollector
+
+    Phase 1 — depend on Phase 0 tags, independent of each other (run in parallel):
+        WikipediaCollector, WikidataCollector
+
+    Phase 2 — fully independent (run in parallel):
+        KnowledgeGraphCollector, BestTimeCollector, FoursquareCollector, OutscraperCollector
+
+    Empty phases are omitted from the returned list.
+    """
+    from app.collectors.besttime import BestTimeCollector
+    from app.collectors.foursquare import FoursquareCollector
+    from app.collectors.knowledge_graph import KnowledgeGraphCollector
+    from app.collectors.osm import OsmCollector
+    from app.collectors.outscraper import OutscraperCollector
+    from app.collectors.wikidata import WikidataCollector
+    from app.collectors.wikipedia import WikipediaCollector
+
+    phase0 = [c for c in [OsmCollector()] if c.is_available()]
+    phase1 = [c for c in [WikipediaCollector(), WikidataCollector()] if c.is_available()]
+    phase2 = [
+        c
+        for c in [
+            KnowledgeGraphCollector(),
+            BestTimeCollector(),
+            FoursquareCollector(),
+            OutscraperCollector(),
+        ]
+        if c.is_available()
+    ]
+
+    return [phase for phase in [phase0, phase1, phase2] if phase]

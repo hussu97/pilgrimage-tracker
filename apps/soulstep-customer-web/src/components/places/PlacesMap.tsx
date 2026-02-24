@@ -115,6 +115,10 @@ interface PlacesMapProps {
   searchLocation?: SearchLocation | null;
   onBoundsChange?: (bounds: MapBounds) => void;
   className?: string;
+  initMapCenter?: { lat: number; lng: number };
+  initZoom?: number;
+  onMapMove?: (lat: number, lng: number, zoom: number) => void;
+  skipAutoFit?: boolean;
 }
 
 export default function PlacesMap({
@@ -126,6 +130,10 @@ export default function PlacesMap({
   searchLocation,
   onBoundsChange,
   className,
+  initMapCenter,
+  initZoom,
+  onMapMove,
+  skipAutoFit,
 }: PlacesMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -133,18 +141,29 @@ export default function PlacesMap({
   const userMarkerRef = useRef<L.Marker | null>(null);
   const searchMarkerRef = useRef<L.Marker | null>(null);
   const onBoundsChangeRef = useRef(onBoundsChange);
+  const onMapMoveRef = useRef(onMapMove);
+  const skipAutoFitRef = useRef(skipAutoFit ?? false);
   const navigate = useNavigate();
 
   useEffect(() => {
     onBoundsChangeRef.current = onBoundsChange;
   }, [onBoundsChange]);
 
+  useEffect(() => {
+    onMapMoveRef.current = onMapMove;
+  }, [onMapMove]);
+
+  useEffect(() => {
+    skipAutoFitRef.current = skipAutoFit ?? false;
+  }, [skipAutoFit]);
+
   // ── Initialize map once per mount ────────────────────────────────────────
   useLayoutEffect(() => {
     if (!containerRef.current) return;
 
-    const mapCenter = center ? ([center.lat, center.lng] as [number, number]) : DEFAULT_CENTER;
-    const zoom = center ? USER_ZOOM : DEFAULT_ZOOM;
+    const initPos = initMapCenter ?? center;
+    const mapCenter = initPos ? ([initPos.lat, initPos.lng] as [number, number]) : DEFAULT_CENTER;
+    const zoom = initZoom ?? (center ? USER_ZOOM : DEFAULT_ZOOM);
 
     const map = L.map(containerRef.current, { center: mapCenter, zoom, zoomControl: true });
 
@@ -164,6 +183,8 @@ export default function PlacesMap({
         east: b.getEast(),
         west: b.getWest(),
       });
+      const c = map.getCenter();
+      onMapMoveRef.current?.(c.lat, c.lng, map.getZoom());
     };
     map.on('moveend zoomend', emitBounds);
 
@@ -298,16 +319,8 @@ export default function PlacesMap({
     map.addLayer(cluster);
     clusterRef.current = cluster;
 
-    // Fit map to all markers
-    const lats = places.map((p) => p.lat);
-    const lngs = places.map((p) => p.lng);
-    const bounds = L.latLngBounds(
-      [Math.min(...lats), Math.min(...lngs)],
-      [Math.max(...lats), Math.max(...lngs)],
-    );
-    map.fitBounds(bounds.pad(0.15), { maxZoom: 14 });
-    // Emit bounds after the fitBounds animation finishes
-    map.once('moveend', () => {
+    if (skipAutoFitRef.current) {
+      // Map is already at the restored position — emit current bounds immediately
       const b = map.getBounds();
       onBoundsChangeRef.current?.({
         north: b.getNorth(),
@@ -315,7 +328,26 @@ export default function PlacesMap({
         east: b.getEast(),
         west: b.getWest(),
       });
-    });
+    } else {
+      // Fit map to all markers
+      const lats = places.map((p) => p.lat);
+      const lngs = places.map((p) => p.lng);
+      const bounds = L.latLngBounds(
+        [Math.min(...lats), Math.min(...lngs)],
+        [Math.max(...lats), Math.max(...lngs)],
+      );
+      map.fitBounds(bounds.pad(0.15), { maxZoom: 14 });
+      // Emit bounds after the fitBounds animation finishes
+      map.once('moveend', () => {
+        const b = map.getBounds();
+        onBoundsChangeRef.current?.({
+          north: b.getNorth(),
+          south: b.getSouth(),
+          east: b.getEast(),
+          west: b.getWest(),
+        });
+      });
+    }
   }, [places, onPlaceSelect, selectedPlaceCode, navigate]);
 
   return (

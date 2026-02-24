@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   FlatList,
+  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -309,6 +310,18 @@ function makeStyles(isDark: boolean) {
       paddingTop: 10,
       paddingBottom: 8,
     },
+    mapSheetSelectedHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingBottom: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: border,
+    },
+    mapSheetCloseBtn: {
+      padding: 4,
+    },
   });
 }
 
@@ -354,6 +367,7 @@ export default function HomeScreen() {
     }),
   ).current;
 
+  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -452,6 +466,7 @@ export default function HomeScreen() {
       try {
         const msg = JSON.parse(event.nativeEvent.data) as {
           type?: string;
+          placeCode?: string;
           north?: number;
           south?: number;
           east?: number;
@@ -473,6 +488,10 @@ export default function HomeScreen() {
             ),
           );
         }
+        if (msg.type === 'placeSelected' && msg.placeCode) {
+          const place = places.find((p) => p.place_code === msg.placeCode) ?? null;
+          setSelectedPlace(place);
+        }
       } catch {}
     },
     [places],
@@ -492,6 +511,18 @@ export default function HomeScreen() {
     }
     prevVisibleCount.current = visiblePlaces.length;
   }, [visiblePlaces.length, sheetHeightAnim]);
+
+  // Animate sheet to expanded when a pin is selected, back to peek when deselected
+  useEffect(() => {
+    const toValue = selectedPlace ? SHEET_EXPANDED : SHEET_PEEK;
+    Animated.spring(sheetHeightAnim, {
+      toValue,
+      useNativeDriver: false,
+      bounciness: 3,
+    }).start((res) => {
+      if (res.finished) gestureStartH.current = toValue;
+    });
+  }, [selectedPlace, sheetHeightAnim]);
 
   const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || t('home.title');
   const showEmpty = !loading && !error && places.length === 0;
@@ -674,28 +705,61 @@ export default function HomeScreen() {
               />
             ) : null}
 
-            {/* Bottom sheet overlay — only shown when places are visible, draggable */}
-            {visiblePlaces.length > 0 && (
+            {/* Bottom sheet overlay — shown when places are visible or a pin is selected */}
+            {(visiblePlaces.length > 0 || selectedPlace !== null) && (
               <Animated.View
                 style={[styles.mapSheet, { bottom: tabBarHeight, height: sheetHeightAnim }]}
               >
-                {/* Drag handle + header — pan responder lives here, not on the list */}
-                <View {...sheetPanResponder.panHandlers} style={styles.mapSheetDragArea}>
-                  <View style={styles.mapSheetHandle} />
-                  <View style={styles.mapSheetHeader}>
-                    <Text style={styles.mapSheetCount}>
-                      {t('map.placesInView').replace('{count}', String(visiblePlaces.length))}
-                    </Text>
-                  </View>
-                </View>
-                <FlatList
-                  data={visiblePlaces}
-                  keyExtractor={(p) => p.place_code}
-                  renderItem={({ item }) => <PlaceCard place={item} compact />}
-                  contentContainerStyle={styles.mapSheetList}
-                  ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-                  showsVerticalScrollIndicator={false}
-                />
+                {selectedPlace !== null ? (
+                  <>
+                    {/* Selected-place mode: drag handle + place name + close button */}
+                    <View style={styles.mapSheetHandle} />
+                    <View style={styles.mapSheetSelectedHeader}>
+                      <Text style={styles.mapSheetCount} numberOfLines={1}>
+                        {selectedPlace.name}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.mapSheetCloseBtn}
+                        onPress={() => setSelectedPlace(null)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <MaterialIcons
+                          name="close"
+                          size={20}
+                          color={
+                            isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary
+                          }
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    <ScrollView
+                      contentContainerStyle={styles.mapSheetList}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      <PlaceCard place={selectedPlace} compact />
+                    </ScrollView>
+                  </>
+                ) : (
+                  <>
+                    {/* List mode: drag handle + count header + flat list */}
+                    <View {...sheetPanResponder.panHandlers} style={styles.mapSheetDragArea}>
+                      <View style={styles.mapSheetHandle} />
+                      <View style={styles.mapSheetHeader}>
+                        <Text style={styles.mapSheetCount}>
+                          {t('map.placesInView').replace('{count}', String(visiblePlaces.length))}
+                        </Text>
+                      </View>
+                    </View>
+                    <FlatList
+                      data={visiblePlaces}
+                      keyExtractor={(p) => p.place_code}
+                      renderItem={({ item }) => <PlaceCard place={item} compact />}
+                      contentContainerStyle={styles.mapSheetList}
+                      ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+                      showsVerticalScrollIndicator={false}
+                    />
+                  </>
+                )}
               </Animated.View>
             )}
           </View>

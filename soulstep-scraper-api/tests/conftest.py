@@ -21,6 +21,24 @@ from sqlmodel import Session, SQLModel, create_engine
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
+# ── Rate limiter reset ────────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    """
+    Reset the global RateLimiter singleton before each test.
+
+    Without this, the last-call timestamps from one test would carry over
+    into the next, causing unexpected sleeps and slow test suites.
+    """
+    import app.scrapers.base as _base
+
+    _base._rate_limiter_instance = None
+    yield
+    _base._rate_limiter_instance = None
+
+
 # ── DB / session fixtures ──────────────────────────────────────────────────────
 
 

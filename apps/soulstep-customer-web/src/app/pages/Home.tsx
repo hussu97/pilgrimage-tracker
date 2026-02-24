@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
@@ -23,6 +23,23 @@ export default function Home() {
 
   const viewMode = (searchParams.get('view') as ViewMode) || 'list';
 
+  // ── Restored map position from URL ───────────────────────────────────────
+  const mlat = searchParams.get('mlat');
+  const mlng = searchParams.get('mlng');
+  const mz = searchParams.get('mz');
+  const initMapCenter = useMemo(
+    () => (mlat && mlng ? { lat: +mlat, lng: +mlng } : undefined),
+    // Only compute once on mount — URL params are written by the map itself
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  const initMapZoom = useMemo(
+    () => (mz ? +mz : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  const hasSavedMapPos = initMapCenter != null && initMapZoom != null;
+
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -35,6 +52,7 @@ export default function Home() {
   const [searchLocation, setSearchLocation] = useState<SearchLocation | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const nextCursorRef = useRef<string | null>(null);
+  const mapMoveTimerRef = useRef<number | null>(null);
 
   const buildParams = useCallback(
     (cursor: string | null) => ({
@@ -104,6 +122,26 @@ export default function Home() {
     return () => clearTimeout(id);
   }, [fetchPlaces]);
 
+  // ── Debounced map move → write mlat/mlng/mz to URL ───────────────────────
+  const handleMapMove = useCallback(
+    (lat: number, lng: number, zoom: number) => {
+      if (mapMoveTimerRef.current) clearTimeout(mapMoveTimerRef.current);
+      mapMoveTimerRef.current = window.setTimeout(() => {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.set('mlat', lat.toFixed(5));
+            next.set('mlng', lng.toFixed(5));
+            next.set('mz', String(zoom));
+            return next;
+          },
+          { replace: true },
+        );
+      }, 500);
+    },
+    [setSearchParams],
+  );
+
   const toggleViewMode = () => {
     const nextMode = viewMode === 'list' ? 'map' : 'list';
     const newParams = new URLSearchParams(searchParams);
@@ -122,10 +160,32 @@ export default function Home() {
   const handleSearchSelect = (loc: SearchLocation) => {
     setSearchLocation(loc);
     setShowSearch(false);
+    // Clear saved map position so the map re-fits to the new search area
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('mlat');
+        next.delete('mlng');
+        next.delete('mz');
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const handleClearSearch = () => {
     setSearchLocation(null);
+    // Clear saved map position so the map re-fits to the new default area
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('mlat');
+        next.delete('mlng');
+        next.delete('mz');
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   return (
@@ -166,6 +226,10 @@ export default function Home() {
             onPlaceSelect={setSelectedPlace}
             t={t}
             isVisible={viewMode === 'map'}
+            initMapCenter={initMapCenter}
+            initMapZoom={initMapZoom}
+            skipAutoFit={hasSavedMapPos}
+            onMapMove={handleMapMove}
           />
         </div>
       </main>

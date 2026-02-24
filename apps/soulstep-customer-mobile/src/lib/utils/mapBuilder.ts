@@ -100,7 +100,7 @@ export function buildMapHtml(places: Place[], centerLat: number, centerLng: numb
       marker.bindPopup('<strong>' + m.name + '</strong><br/><small>' + m.address + '</small>');
       marker.on('click', function() {
         if (window.ReactNativeWebView) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ placeCode: m.placeCode }));
+          window.ReactNativeWebView.postMessage(JSON.stringify({"type":"placeSelected","placeCode":m.placeCode}));
         }
       });
       clusterGroup.addLayer(marker);
@@ -129,6 +129,11 @@ export function buildMapHtml(places: Place[], centerLat: number, centerLng: numb
       }));
     }
     map.on('moveend', postBounds);
+    map.on('moveend', function() {
+      if (!window.ReactNativeWebView) return;
+      var c = map.getCenter();
+      window.ReactNativeWebView.postMessage(JSON.stringify({"type":"mapMoved","lat":c.lat,"lng":c.lng,"zoom":map.getZoom()}));
+    });
     map.whenReady(function() { setTimeout(postBounds, 300); });
   </script>
 </body>

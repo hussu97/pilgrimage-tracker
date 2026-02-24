@@ -103,4 +103,14 @@ describe('buildMapHtml()', () => {
     const html = buildMapHtml(places, CENTER_LAT, CENTER_LNG);
     expect(html).toContain('"openStatus":"unknown"');
   });
+
+  it('marker click posts placeSelected type message', () => {
+    const html = buildMapHtml(makePlaces([{ place_code: 'abc' }]), CENTER_LAT, CENTER_LNG);
+    expect(html).toContain('"type":"placeSelected"');
+  });
+
+  it('contains mapMoved postMessage', () => {
+    const html = buildMapHtml([], CENTER_LAT, CENTER_LNG);
+    expect(html).toContain('"type":"mapMoved"');
+  });
 });

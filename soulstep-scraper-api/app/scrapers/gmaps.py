@@ -9,13 +9,14 @@ detail fetch during the scraper run.
 import math
 import os
 import re
-import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
 import requests
 from sqlmodel import Session, desc, select
 
 from app.db.models import GeoBoundary, PlaceTypeMapping, RawCollectorData, ScrapedPlace, ScraperRun
+from app.scrapers.base import AtomicCounter, ThreadSafeIdSet, get_rate_limiter
 
 # Configuration
 MIN_RADIUS = 500  # 2km minimum radius for quadtree subdivision
@@ -201,12 +202,18 @@ def search_area(
     lng_max: float,
     place_types: list[str],
     api_key: str,
-    existing_ids: set,
+    existing_ids: ThreadSafeIdSet,
     depth: int = 0,
     max_results: int | None = None,
+    executor: ThreadPoolExecutor | None = None,
 ) -> list[str]:
     """
     Recursive quadtree search for places.
+
+    At depth 0, the four quadrant sub-searches are submitted concurrently to
+    the provided executor (if any).  Deeper levels run sequentially to avoid
+    thread-pool exhaustion / deadlock.
+
     Returns list of unique place_ids found in this area.
     """
     indent = "  " * depth
@@ -224,13 +231,12 @@ def search_area(
         print(f"{indent}Area too small (radius < {MIN_RADIUS}m), stopping recursion")
         return []
 
+    get_rate_limiter().acquire("gmaps_search")
     place_ids, is_saturated = get_places_in_circle(
         center_lat, center_lng, radius, place_types, api_key
     )
-    time.sleep(0.5)
 
-    new_ids = [pid for pid in place_ids if pid not in existing_ids]
-    existing_ids.update(new_ids)
+    new_ids = existing_ids.add_new(place_ids)
 
     print(
         f"{indent}Found {len(place_ids)} places ({len(new_ids)} new), saturated: {is_saturated}, total: {len(existing_ids)}"
@@ -257,31 +263,102 @@ def search_area(
 
     all_ids = list(new_ids)
 
-    for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
-        if max_results and len(existing_ids) >= max_results:
-            print(f"{indent}Stopping quadrant recursion - max_results ({max_results}) reached")
-            break
+    if executor is not None and depth == 0:
+        # Parallelize only the first level of quadrant splitting.
+        # Deeper levels run sequentially inside each worker to avoid deadlock
+        # with a bounded thread pool.
+        futures = []
+        for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
+            if max_results and len(existing_ids) >= max_results:
+                print(f"{indent}Stopping quadrant submission - max_results ({max_results}) reached")
+                break
+            f = executor.submit(
+                search_area,
+                q_lat_min,
+                q_lat_max,
+                q_lng_min,
+                q_lng_max,
+                place_types,
+                api_key,
+                existing_ids,
+                depth + 1,
+                max_results,
+                None,  # no executor at deeper levels
+            )
+            futures.append(f)
 
-        quadrant_ids = search_area(
-            q_lat_min,
-            q_lat_max,
-            q_lng_min,
-            q_lng_max,
-            place_types,
-            api_key,
-            existing_ids,
-            depth + 1,
-            max_results,
-        )
-        all_ids.extend(quadrant_ids)
+        for future in as_completed(futures):
+            try:
+                quadrant_ids = future.result()
+                all_ids.extend(quadrant_ids)
+            except Exception as e:
+                print(f"{indent}Quadrant search failed: {e}")
+    else:
+        # Sequential fallback (depth > 0 or no executor)
+        for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
+            if max_results and len(existing_ids) >= max_results:
+                print(f"{indent}Stopping quadrant recursion - max_results ({max_results}) reached")
+                break
+
+            quadrant_ids = search_area(
+                q_lat_min,
+                q_lat_max,
+                q_lng_min,
+                q_lng_max,
+                place_types,
+                api_key,
+                existing_ids,
+                depth + 1,
+                max_results,
+                None,
+            )
+            all_ids.extend(quadrant_ids)
 
     return all_ids
+
+
+def _flush_detail_buffer(
+    buffer: list[tuple],
+    run_code: str,
+    session: Session,
+    run: ScraperRun,
+    counter: AtomicCounter,
+    total: int,
+) -> None:
+    """Batch-write a buffer of fetched place details to the database."""
+    for _place_name, details, response in buffer:
+        scraped_place = ScrapedPlace(
+            run_code=run_code,
+            place_code=details["place_code"],
+            name=details["name"],
+            raw_data=details,
+        )
+        session.add(scraped_place)
+
+        raw_record = RawCollectorData(
+            place_code=details["place_code"],
+            collector_name="gmaps",
+            run_code=run_code,
+            raw_response=response,
+            status="success",
+        )
+        session.add(raw_record)
+
+    new_count = counter.increment(len(buffer))
+    run.processed_items = new_count
+    session.add(run)
+    session.commit()
+    print(f"  Flushed {len(buffer)} places ({new_count}/{total} total)")
 
 
 def run_gmaps_scraper(run_code: str, config: dict, session: Session):
     """
     Runs the Google Maps scraper with quadtree search and cross-run deduplication.
     Uses GmapsCollector for detail fetching with enhanced field mask.
+
+    Discovery phase uses a parallel quadtree search (4 workers).
+    Detail fetching uses a parallel ThreadPoolExecutor (5 workers) with
+    batch DB commits every 10 places.
     """
     from app.collectors.gmaps import GmapsCollector
 
@@ -333,22 +410,29 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
     for religion, types in religion_types_map.items():
         print(f"  {religion}: {types}")
 
-    # Discovery phase: quadtree search
-    print("\n--- Starting recursive quadtree search ---")
+    # Pre-load type maps once so workers don't need a DB session
+    type_map = get_gmaps_type_to_our_type(session)
+    religion_type_map = {m.gmaps_type: m.religion for m in place_type_mappings}
+
+    # ── Discovery phase: parallel quadtree search ──────────────────────────────
+    print("\n--- Starting recursive quadtree search (parallel depth-0 quadrants) ---")
     if max_results:
         print(f"Max results limit: {max_results}")
-    existing_ids = set()
-    place_ids = search_area(
-        boundary.lat_min,
-        boundary.lat_max,
-        boundary.lng_min,
-        boundary.lng_max,
-        all_gmaps_types,
-        api_key,
-        existing_ids,
-        depth=0,
-        max_results=max_results,
-    )
+    existing_ids = ThreadSafeIdSet()
+
+    with ThreadPoolExecutor(max_workers=4) as discovery_executor:
+        place_ids = search_area(
+            boundary.lat_min,
+            boundary.lat_max,
+            boundary.lng_min,
+            boundary.lng_max,
+            all_gmaps_types,
+            api_key,
+            existing_ids,
+            depth=0,
+            max_results=max_results,
+            executor=discovery_executor,
+        )
 
     print("\n=== Search Summary ===")
     print(f"Total unique places found: {len(place_ids)}")
@@ -359,100 +443,122 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
     session.add(run)
     session.commit()
 
-    # Detail fetching with cross-run deduplication
+    # ── Detail fetching: bulk cache lookup + parallel fetch ────────────────────
     print(f"\nFetching details for {len(place_ids)} places...")
 
     collector = GmapsCollector()
-
     stale_cutoff = datetime.now() - timedelta(days=stale_threshold_days)
-    cached_places = {}
 
+    # Build place_code → place_name mapping
+    name_to_code: dict[str, str] = {}
+    for place_name in place_ids:
+        extracted_id = place_name[7:] if place_name.startswith("places/") else place_name
+        name_to_code[place_name] = f"gplc_{extracted_id}"
+
+    # Single bulk query for cached places
+    cached_places: dict[str, ScrapedPlace] = {}
     if not force_refresh:
         print(f"Checking for cached places (fresher than {stale_threshold_days} days)...")
-        for place_name in place_ids:
-            extracted_id = place_name[7:] if place_name.startswith("places/") else place_name
-            place_code = f"gplc_{extracted_id}"
-            existing = session.exec(
-                select(ScrapedPlace)
-                .where(ScrapedPlace.place_code == place_code)
-                .where(ScrapedPlace.created_at >= stale_cutoff)
-                .order_by(desc(ScrapedPlace.created_at))
-            ).first()
-
-            if existing:
-                cached_places[place_name] = existing
-
+        all_place_codes = list(name_to_code.values())
+        existing = session.exec(
+            select(ScrapedPlace)
+            .where(ScrapedPlace.place_code.in_(all_place_codes))
+            .where(ScrapedPlace.created_at >= stale_cutoff)
+            .order_by(desc(ScrapedPlace.created_at))
+        ).all()
+        # Keep most-recent entry per place_code (ORDER BY desc ensures first = most recent)
+        for ep in existing:
+            if ep.place_code not in cached_places:
+                cached_places[ep.place_code] = ep
         print(
             f"Found {len(cached_places)} cached places, will fetch {len(place_ids) - len(cached_places)} fresh"
         )
 
-    fetched_count = 0
+    # Process cached places immediately (no API call)
     cached_count = 0
+    for place_name in place_ids:
+        place_code = name_to_code[place_name]
+        if place_code in cached_places and not force_refresh:
+            cached_place = cached_places[place_code]
+            scraped_place = ScrapedPlace(
+                run_code=run_code,
+                place_code=cached_place.place_code,
+                name=cached_place.name,
+                raw_data=cached_place.raw_data,
+            )
+            session.add(scraped_place)
+            cached_count += 1
 
-    for i, place_name in enumerate(place_ids):
-        session.expire(run)
-        session.refresh(run)
-        if run.status == "cancelled":
-            print(f"Run {run_code} was cancelled at place {i}")
-            return
+    if cached_count:
+        session.commit()
+        print(f"  Stored {cached_count} cached places")
 
+    # Parallel fetch for places that need fresh details
+    to_fetch = [
+        pn for pn in place_ids if not (name_to_code[pn] in cached_places and not force_refresh)
+    ]
+
+    if not to_fetch:
+        print("\n=== Details Fetch Summary ===")
+        print("Fresh fetches: 0")
+        print(f"Cached reuses: {cached_count}")
+        print(f"Total: {len(place_ids)}")
+        return
+
+    rate_limiter = get_rate_limiter()
+    counter = AtomicCounter(initial=cached_count)
+    BATCH_SIZE = 10
+
+    def _fetch_worker(place_name: str) -> tuple[str, dict, dict, str | None]:
+        """Fetch place details in a worker thread (no DB access)."""
         try:
-            if place_name in cached_places and not force_refresh:
-                cached_place = cached_places[place_name]
-                scraped_place = ScrapedPlace(
-                    run_code=run_code,
-                    place_code=cached_place.place_code,
-                    name=cached_place.name,
-                    raw_data=cached_place.raw_data,
-                )
-                session.add(scraped_place)
-                session.commit()
-
-                cached_count += 1
-                print(f"  [{i + 1}/{len(place_ids)}] {cached_place.name} (cached)")
-            else:
-                # Fetch fresh details via GmapsCollector
-                extracted_id = place_name[7:] if place_name.startswith("places/") else place_name
-                place_code = f"gplc_{extracted_id}"
-
-                # Use collector's internal fetch to get raw response
-                response = collector._fetch_details(place_name, api_key)
-
-                # Build place_data using the collector's method
-                details = collector.build_place_data(response, place_code, api_key, session)
-
-                scraped_place = ScrapedPlace(
-                    run_code=run_code,
-                    place_code=details["place_code"],
-                    name=details["name"],
-                    raw_data=details,
-                )
-                session.add(scraped_place)
-
-                # Also store raw collector data for later re-assessment
-                raw_record = RawCollectorData(
-                    place_code=details["place_code"],
-                    collector_name="gmaps",
-                    run_code=run_code,
-                    raw_response=response,
-                    status="success",
-                )
-                session.add(raw_record)
-                session.commit()
-
-                fetched_count += 1
-                print(f"  [{i + 1}/{len(place_ids)}] {details['name']} (fresh)")
-                time.sleep(0.5)
-
-            run.processed_items = i + 1
-            session.add(run)
-            session.commit()
-
+            place_code = name_to_code[place_name]
+            rate_limiter.acquire("gmaps_details")
+            response = collector._fetch_details(place_name, api_key)
+            details = collector.build_place_data(
+                response,
+                place_code,
+                api_key,
+                None,
+                type_map=type_map,
+                religion_type_map=religion_type_map,
+            )
+            return place_name, details, response, None
         except Exception as e:
-            print(f"  [{i + 1}/{len(place_ids)}] Error: {e}")
-            continue
+            return place_name, {}, {}, str(e)
+
+    buffer: list[tuple] = []
+
+    with ThreadPoolExecutor(max_workers=5) as detail_executor:
+        futures = {detail_executor.submit(_fetch_worker, pn): pn for pn in to_fetch}
+
+        for future in as_completed(futures):
+            # Cancellation check
+            session.expire(run)
+            session.refresh(run)
+            if run.status == "cancelled":
+                print(f"Run {run_code} was cancelled during detail fetching")
+                detail_executor.shutdown(wait=False)
+                return
+
+            place_name, details, response, error = future.result()
+
+            if error:
+                print(f"  Error fetching {place_name}: {error}")
+                counter.increment()
+                continue
+
+            buffer.append((place_name, details, response))
+
+            if len(buffer) >= BATCH_SIZE:
+                _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
+                buffer.clear()
+
+    # Flush any remaining items
+    if buffer:
+        _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
 
     print("\n=== Details Fetch Summary ===")
-    print(f"Fresh fetches: {fetched_count}")
+    print(f"Fresh fetches: {counter.value - cached_count}")
     print(f"Cached reuses: {cached_count}")
     print(f"Total: {len(place_ids)}")

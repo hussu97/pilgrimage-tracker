@@ -307,7 +307,7 @@ class TestEnrichmentPipeline:
             run_enrichment_pipeline("run_empty")
 
     def test_run_enrichment_pipeline_cancelled(self, pipeline_engine):
-        """Run with cancelled status should abort after the first place check."""
+        """Run with cancelled status should abort before any collectors are called."""
         from app.pipeline.enrichment import run_enrichment_pipeline
 
         _seed_run(pipeline_engine, loc_code="loc_cancel", run_code="run_cancel", status="cancelled")
@@ -322,7 +322,7 @@ class TestEnrichmentPipeline:
             ):
                 run_enrichment_pipeline("run_cancel")
 
-        # No collector.collect() should be called since run is cancelled
+        # Cancelled run detected before workers start — collect must not be called
         mock_collector.collect.assert_not_called()
 
     def test_run_enrichment_pipeline_success(self, pipeline_engine):
@@ -348,8 +348,7 @@ class TestEnrichmentPipeline:
                 "app.pipeline.enrichment.get_enrichment_collectors",
                 return_value=[mock_collector],
             ):
-                with patch("time.sleep"):
-                    run_enrichment_pipeline("run_success")
+                run_enrichment_pipeline("run_success")
 
         with Session(pipeline_engine) as session:
             place = session.exec(
@@ -375,6 +374,7 @@ class TestEnrichmentPipeline:
                 ):
                     run_enrichment_pipeline("run_exc")
 
+        # The parallel worker catches the exception and sets enrichment_status = "failed"
         with Session(pipeline_engine) as session:
             place = session.exec(
                 select(ScrapedPlace).where(ScrapedPlace.place_code == "gplc_exc1")
@@ -403,14 +403,13 @@ class TestEnrichPlace:
             session.add(place)
             session.commit()
 
-            with patch("time.sleep"):
-                _enrich_place(place, "run_ep", [], session)
+            _enrich_place(place, "run_ep", [], session)
 
             session.refresh(place)
             assert place.enrichment_status == "complete"
 
     def test_enrich_place_with_collector(self, pipeline_engine):
-        """_enrich_place stores RawCollectorData for each collector."""
+        """_enrich_place stores RawCollectorData for each collector (batch write at end)."""
         from sqlmodel import select
 
         from app.collectors.base import CollectorResult
@@ -439,8 +438,7 @@ class TestEnrichPlace:
             mock_collector.name = "osm"
             mock_collector.collect.return_value = mock_result
 
-            with patch("time.sleep"):
-                _enrich_place(place, "run_col", [mock_collector], session)
+            _enrich_place(place, "run_col", [mock_collector], session)
 
             raw_records = session.exec(
                 select(RawCollectorData).where(RawCollectorData.place_code == "gplc_col1")
@@ -479,8 +477,7 @@ class TestEnrichPlace:
             session.add(gmaps_raw)
             session.commit()
 
-            with patch("time.sleep"):
-                _enrich_place(place, "run_gmaps", [], session)
+            _enrich_place(place, "run_gmaps", [], session)
 
             session.refresh(place)
             assert place.enrichment_status == "complete"
@@ -512,8 +509,7 @@ class TestEnrichPlace:
             error_collector.name = "errorcollector"
             error_collector.collect.side_effect = Exception("Collector boom!")
 
-            with patch("time.sleep"):
-                _enrich_place(place, "run_err", [error_collector], session)
+            _enrich_place(place, "run_err", [error_collector], session)
 
             raw_records = session.exec(
                 select(RawCollectorData).where(RawCollectorData.place_code == "gplc_err1")
@@ -524,7 +520,7 @@ class TestEnrichPlace:
         assert "Collector boom!" in raw_records[0].error_message
 
     def test_enrich_place_tags_propagation(self, pipeline_engine):
-        """Tags returned by a collector should propagate to subsequent collectors."""
+        """Tags from OSM (Phase 0) must propagate to Wikipedia (Phase 1)."""
         from app.collectors.base import CollectorResult
         from app.db.models import DataLocation, ScrapedPlace, ScraperRun
         from app.pipeline.enrichment import _enrich_place
@@ -543,7 +539,7 @@ class TestEnrichPlace:
             session.add(place)
             session.commit()
 
-            # First collector returns tags
+            # Phase 0: OSM collector returns tags
             tag_result = CollectorResult(collector_name="osm")
             tag_result.status = "success"
             tag_result.tags = {"wikipedia": "en:Test", "wikidata": "Q99999"}
@@ -564,9 +560,9 @@ class TestEnrichPlace:
             wiki_collector.name = "wikipedia"
             wiki_collector.collect.side_effect = capture_collect
 
-            with patch("time.sleep"):
-                _enrich_place(place, "run_tags", [osm_collector, wiki_collector], session)
+            # OSM goes to Phase 0, Wikipedia goes to Phase 1 — tags must propagate
+            _enrich_place(place, "run_tags", [osm_collector, wiki_collector], session)
 
-        # The second collector (wikipedia) should have received the tags in existing_data
+        # Wikipedia (Phase 1) must have received the OSM tags in existing_data
         assert len(captured_existing_data) == 1
         assert captured_existing_data[0].get("tags", {}).get("wikipedia") == "en:Test"
