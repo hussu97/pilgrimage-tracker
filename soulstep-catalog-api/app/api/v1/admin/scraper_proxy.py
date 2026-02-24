@@ -16,7 +16,7 @@ router = APIRouter()
 
 async def _proxy(method: str, path: str, **kwargs) -> JSONResponse:
     """Forward a request to the scraper service and return its response."""
-    url = config.DATA_SCRAPER_URL.rstrip("/") + path
+    url = config.DATA_SCRAPER_URL.rstrip("/") + "/api/v1/scraper" + path
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.request(method, url, **kwargs)
@@ -61,13 +61,15 @@ async def get_run(run_code: str, admin: AdminDep):
 
 
 @router.get("/runs/{run_code}/data")
-async def get_run_data(run_code: str, admin: AdminDep):
-    return await _proxy("GET", f"/runs/{run_code}/data")
+async def get_run_data(run_code: str, admin: AdminDep, request: Request):
+    params = dict(request.query_params)
+    return await _proxy("GET", f"/runs/{run_code}/data", params=params)
 
 
 @router.get("/runs/{run_code}/raw-data")
-async def get_run_raw_data(run_code: str, admin: AdminDep):
-    return await _proxy("GET", f"/runs/{run_code}/raw-data")
+async def get_run_raw_data(run_code: str, admin: AdminDep, request: Request):
+    params = dict(request.query_params)
+    return await _proxy("GET", f"/runs/{run_code}/raw-data", params=params)
 
 
 @router.post("/runs/{run_code}/sync")
@@ -101,8 +103,9 @@ async def list_collectors(admin: AdminDep):
 
 
 @router.get("/place-type-mappings")
-async def list_place_type_mappings(admin: AdminDep):
-    return await _proxy("GET", "/place-type-mappings")
+async def list_place_type_mappings(admin: AdminDep, request: Request):
+    params = dict(request.query_params)
+    return await _proxy("GET", "/place-type-mappings", params=params)
 
 
 @router.post("/place-type-mappings")
