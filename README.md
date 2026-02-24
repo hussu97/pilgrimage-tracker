@@ -8,6 +8,7 @@ Discover, visit, and track religious places. Multi-platform: desktop web, mobile
 - **`soulstep-scraper-api/`** – Scraper service (**Python + FastAPI**). Discovers and enriches sacred places from Google Maps and other sources. See [soulstep-scraper-api/README.md](soulstep-scraper-api/README.md).
 - **`apps/soulstep-customer-web/`** – Web app (Vite + React + Tailwind). Desktop and mobile browser.
 - **`apps/soulstep-customer-mobile/`** – Mobile app (Expo / React Native). iOS and Android builds via Expo; same API as web.
+- **`apps/soulstep-admin-web/`** – Admin dashboard (Vite + React + Tailwind). Manages users, places, groups, reviews, scraper, content, and more. See [apps/soulstep-admin-web/README.md](apps/soulstep-admin-web/README.md).
 
 Both frontend apps use the **same API base URL** for `/api/v1`. No shared `packages/` folder; each app has its own types and API client. See [ARCHITECTURE.md](ARCHITECTURE.md) and [.cursor/rules/frontend-replication.mdc](.cursor/rules/frontend-replication.mdc).
 
@@ -71,4 +72,4 @@ Starts the Expo dev server. Run on iOS simulator, Android emulator, or device vi
 - [CHANGELOG.md](CHANGELOG.md) – Implemented changes over time.
 - [PRODUCTION.md](PRODUCTION.md) – Go-to-production plans (Docker, free tier e.g. Render/Vercel, GCP).
 - [ROADMAP.md](ROADMAP.md) – Planned features and milestones.
-- **Service READMEs:** [soulstep-catalog-api/README.md](soulstep-catalog-api/README.md), [soulstep-scraper-api/README.md](soulstep-scraper-api/README.md), [apps/soulstep-customer-web/README.md](apps/soulstep-customer-web/README.md), [apps/soulstep-customer-mobile/README.md](apps/soulstep-customer-mobile/README.md).
+- **Service READMEs:** [soulstep-catalog-api/README.md](soulstep-catalog-api/README.md), [soulstep-scraper-api/README.md](soulstep-scraper-api/README.md), [apps/soulstep-customer-web/README.md](apps/soulstep-customer-web/README.md), [apps/soulstep-customer-mobile/README.md](apps/soulstep-customer-mobile/README.md), [apps/soulstep-admin-web/README.md](apps/soulstep-admin-web/README.md).

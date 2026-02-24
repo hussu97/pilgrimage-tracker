@@ -34,6 +34,7 @@ Keep the following READMEs accurate and up to date. After any change that affect
 - **soulstep-scraper-api/README.md** – Scraper service: setup, env vars, all API routes, architecture, collector table, tests
 - **apps/soulstep-customer-web/README.md** – Vite + React: install, run, env, backend connection, directory structure, tests, parity reference (screens + API surface)
 - **apps/soulstep-customer-mobile/README.md** – Expo / React Native: install, run, env, iOS/Android build, directory structure, tests, parity reference
+- **apps/soulstep-admin-web/README.md** – Admin dashboard (Vite + React): install, run, env, directory structure, pages, API surface, tests
 
 **Triggers — update READMEs when you:**
 - Add, rename, or remove an API endpoint
