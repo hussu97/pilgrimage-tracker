@@ -15,14 +15,16 @@ from app.db.models import DataLocation, GeoBoundary, RawCollectorData, ScrapedPl
 # ── helpers ────────────────────────────────────────────────────────────────────
 
 
-def _add_geo_boundary(db_session, name="Dubai", boundary_type="city"):
+def _add_geo_boundary(db_session, name="Dubai", boundary_type="city", state=None, radius_km=None):
     boundary = GeoBoundary(
         name=name,
         boundary_type=boundary_type,
+        state=state,
         lat_min=24.0,
         lat_max=25.5,
         lng_min=54.5,
         lng_max=55.7,
+        radius_km=radius_km,
     )
     db_session.add(boundary)
     db_session.commit()
@@ -82,13 +84,6 @@ class TestDataLocations:
         )
         assert resp.status_code == 400
 
-    def test_create_gmaps_missing_city_and_country_returns_400(self, client):
-        resp = client.post(
-            "/api/v1/scraper/data-locations",
-            json={"name": "GMaps No City", "source_type": "gmaps"},
-        )
-        assert resp.status_code == 400
-
     def test_create_gmaps_with_valid_boundary_city(self, client, db_session):
         """gmaps location with a city that exists in DB."""
         _add_geo_boundary(db_session, "Dubai", "city")
@@ -117,6 +112,43 @@ class TestDataLocations:
             },
         )
         assert resp.status_code == 200
+
+    def test_create_gmaps_with_valid_boundary_state(self, client, db_session):
+        """gmaps location with state scope validates against GeoBoundary of type 'state'."""
+        _add_geo_boundary(db_session, "California", "state")
+        resp = client.post(
+            "/api/v1/scraper/data-locations",
+            json={
+                "name": "California GMaps",
+                "source_type": "gmaps",
+                "state": "California",
+                "max_results": 5,
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["source_type"] == "gmaps"
+        assert data["config"]["state"] == "California"
+
+    def test_create_gmaps_missing_state_boundary_returns_400(self, client):
+        """State that doesn't exist in GeoBoundary table returns 400."""
+        resp = client.post(
+            "/api/v1/scraper/data-locations",
+            json={
+                "name": "Unknown State",
+                "source_type": "gmaps",
+                "state": "NonexistentState",
+            },
+        )
+        assert resp.status_code == 400
+
+    def test_create_gmaps_missing_all_scopes_returns_400(self, client):
+        """No city, state, or country provided returns 400."""
+        resp = client.post(
+            "/api/v1/scraper/data-locations",
+            json={"name": "No Scope", "source_type": "gmaps"},
+        )
+        assert resp.status_code == 400
 
     def test_list_locations_empty(self, client):
         resp = client.get("/api/v1/scraper/data-locations")

@@ -194,6 +194,7 @@ export interface CreateDataLocationBody {
   name: string;
   source_type?: "gmaps";
   country?: string;
+  state?: string;
   city?: string;
   max_results?: number;
 }

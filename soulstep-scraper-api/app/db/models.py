@@ -57,12 +57,14 @@ class RawCollectorData(SQLModel, table=True):
 class GeoBoundary(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     name: str = Field(index=True)  # "UAE", "Dubai", "Mumbai"
-    boundary_type: str  # "country" or "city"
-    country: str | None = None  # parent country for cities (e.g., "UAE", "India")
+    boundary_type: str  # "country", "state", or "city"
+    country: str | None = None  # parent country (e.g., "UAE", "India", "USA")
+    state: str | None = None  # parent state for cities (e.g., "California", "Maharashtra")
     lat_min: float
     lat_max: float
     lng_min: float
     lng_max: float
+    radius_km: float | None = None  # approximate search radius in km
 
 
 class PlaceTypeMapping(SQLModel, table=True):

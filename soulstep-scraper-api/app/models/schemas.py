@@ -9,7 +9,8 @@ class DataLocationCreate(BaseModel):
     source_type: Literal["gmaps"] = "gmaps"
     # gmaps fields
     country: str | None = None
-    city: str | None = None  # More granular than country
+    state: str | None = None  # State/province level (e.g., "California", "Maharashtra")
+    city: str | None = None  # City level (most granular)
     max_results: int | None = None  # Limit results for testing
     force_refresh: bool | None = False  # Ignore cached places and force fresh fetch
     stale_threshold_days: int | None = 90  # Re-fetch if cached data older than this

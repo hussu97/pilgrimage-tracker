@@ -12,7 +12,7 @@ import { Plus, Trash2 } from "lucide-react";
 
 interface CreateForm {
   name: string;
-  mode: "city" | "country";
+  mode: "city" | "state" | "country";
   value: string;
   max_results: string;
 }
@@ -86,7 +86,7 @@ export function DataLocationsPage() {
       header: "Location",
       render: (l) => {
         const cfg = l.config as Record<string, unknown>;
-        return String(cfg.city ?? cfg.country ?? "—");
+        return String(cfg.city ?? cfg.state ?? cfg.country ?? "—");
       },
     },
     {
@@ -158,7 +158,7 @@ export function DataLocationsPage() {
                 Scope
               </label>
               <div className="flex gap-3">
-                {(["city", "country"] as const).map((m) => (
+                {(["city", "state", "country"] as const).map((m) => (
                   <label key={m} className="flex items-center gap-1.5 text-sm text-text-main dark:text-white cursor-pointer">
                     <input
                       type="radio"
@@ -172,13 +172,19 @@ export function DataLocationsPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-1">
-                {form.mode === "city" ? "City" : "Country"}
+                {form.mode === "city" ? "City" : form.mode === "state" ? "State" : "Country"}
               </label>
               <input
                 type="text"
                 value={form.value}
                 onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))}
-                placeholder={form.mode === "city" ? "e.g. Dubai" : "e.g. UAE"}
+                placeholder={
+                  form.mode === "city"
+                    ? "e.g. Dubai"
+                    : form.mode === "state"
+                    ? "e.g. California"
+                    : "e.g. UAE"
+                }
                 className="w-full rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-bg px-3 py-2 text-sm text-text-main dark:text-white outline-none focus:border-primary"
               />
             </div>

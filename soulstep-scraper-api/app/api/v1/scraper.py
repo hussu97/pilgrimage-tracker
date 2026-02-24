@@ -31,14 +31,15 @@ router = APIRouter()
 
 @router.post("/data-locations", response_model=DataLocationResponse)
 def create_data_location(body: DataLocationCreate, session: SessionDep):
-    # Validate either city or country is provided
-    if not body.city and not body.country:
+    # Validate at least one scope is provided (city > state > country priority)
+    if not body.city and not body.state and not body.country:
         raise HTTPException(
-            status_code=400, detail="Either city or country is required for gmaps source"
+            status_code=400,
+            detail="One of city, state, or country is required for gmaps source",
         )
 
-    # Validate the boundary exists in DB
-    boundary_name = body.city if body.city else body.country
+    # Validate the boundary exists in DB (city takes priority, then state, then country)
+    boundary_name = body.city or body.state or body.country
     boundary = session.exec(select(GeoBoundary).where(GeoBoundary.name == boundary_name)).first()
     if not boundary:
         raise HTTPException(
@@ -49,9 +50,11 @@ def create_data_location(body: DataLocationCreate, session: SessionDep):
         "max_results": body.max_results or 5  # Default to 5 for testing
     }
 
-    # Add city or country to config
+    # Store whichever scope was provided
     if body.city:
         config["city"] = body.city
+    elif body.state:
+        config["state"] = body.state
     else:
         config["country"] = body.country
 
