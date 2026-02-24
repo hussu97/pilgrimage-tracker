@@ -99,17 +99,36 @@ soulstep-scraper-api/app/
     merger.py            # Combines all collector outputs into final data
 ```
 
+## Geographic Boundaries
+
+Before creating a data location the requested scope must exist in the `GeoBoundary` table. The table is pre-seeded on first startup with all supported regions.
+
+| `boundary_type` | `country` | `state` | Description |
+|-----------------|-----------|---------|-------------|
+| `country` | `null` | `null` | Entire country (e.g. UAE, India, USA) |
+| `state` | parent country | `null` | State/province (e.g. California, Maharashtra) |
+| `city` | parent country | parent state *(optional)* | City (e.g. Dubai, Mumbai) |
+
+**Pre-seeded regions:**
+- **Countries**: UAE, India, USA
+- **UAE cities** (8): Dubai, Abu Dhabi, Sharjah, Ajman, Ras Al Khaimah, Fujairah, Umm Al Quwain, Al Ain
+- **USA states** (8): California, Texas, New York, Florida, Illinois, Pennsylvania, Ohio, Georgia
+- **India states** (8): Maharashtra, Uttar Pradesh, West Bengal, Tamil Nadu, Rajasthan, Karnataka, Gujarat, Andhra Pradesh
+- **India cities** (50+): Mumbai, Delhi, Bangalore, Hyderabad, Chennai, Kolkata, Pune, Ahmedabad, and more
+
+Each boundary also stores a `radius_km` value (approximate search radius) alongside the lat/lng bounding box.
+
 ## Usage
 
 ### 1. Create a Data Location
 **POST** `/api/v1/scraper/data-locations`
+
+Scope the location to a **city**, **state**, or **country** — exactly one must be provided:
+
 ```json
-{
-  "name": "Dubai Mosques",
-  "source_type": "gmaps",
-  "city": "Dubai",
-  "max_results": 10
-}
+{ "name": "Dubai Mosques",    "source_type": "gmaps", "city": "Dubai",      "max_results": 10 }
+{ "name": "California Places","source_type": "gmaps", "state": "California","max_results": 20 }
+{ "name": "India All",        "source_type": "gmaps", "country": "India",   "max_results": 50 }
 ```
 
 ### 2. Start a Scraper Run
