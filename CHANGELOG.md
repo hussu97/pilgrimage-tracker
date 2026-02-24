@@ -4,6 +4,22 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Admin Pagination Standardization (2026-02-24)
+
+### Backend
+- Raised `page_size` max from `le=100` to `le=2000` and default from `20` to `50` across all admin list endpoints: `GET /admin/users`, `/admin/places`, `/admin/reviews`, `/admin/groups`, `/admin/check-ins`, `/admin/audit-log`, `/admin/content-translations`, `/admin/notifications/history`, and scraper `GET /runs`
+
+### Frontend (admin)
+- Updated `Pagination` component default `pageSizeOptions` to `[50, 100, 200, 500, 1000, 2000]`
+- Updated `usePagination` hook default page size from `20` to `50`
+- Updated all paginated list pages (Users, Places, Reviews, Groups, Check-ins, Scraper Runs) to use `usePagination(50)`
+- Refactored `ContentTranslationsPage` to use `usePagination(50)` instead of a hardcoded `PAGE_SIZE` constant; page size selector now works on that page
+
+### Docs
+- Added **Rule 16** to `CLAUDE.md` documenting the admin pagination standard: default 50/page, options 50/100/200/500/1000/2000
+
+---
+
 ## Review Content Translation Support (2026-02-24)
 
 ### Backend
