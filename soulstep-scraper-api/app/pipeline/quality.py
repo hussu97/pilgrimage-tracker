@@ -175,11 +175,11 @@ def _llm_tiebreak(
 
         prompt = f"""You are evaluating two descriptions for "{place_name}", a pilgrimage/religious site.
 
-Description A (source: {candidate_a['source']}, score: {candidate_a['score']:.2f}):
-"{candidate_a['text']}"
+Description A (source: {candidate_a["source"]}, score: {candidate_a["score"]:.2f}):
+"{candidate_a["text"]}"
 
-Description B (source: {candidate_b['source']}, score: {candidate_b['score']:.2f}):
-"{candidate_b['text']}"
+Description B (source: {candidate_b["source"]}, score: {candidate_b["score"]:.2f}):
+"{candidate_b["text"]}"
 
 Pick the most informative, accurate, and contextually rich description. If both have complementary information, you may synthesize a combined description.
 

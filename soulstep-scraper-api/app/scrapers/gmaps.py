@@ -18,7 +18,7 @@ from sqlmodel import Session, desc, select
 from app.db.models import GeoBoundary, PlaceTypeMapping, RawCollectorData, ScrapedPlace, ScraperRun
 
 # Configuration
-MIN_RADIUS = 2000  # 2km minimum radius for quadtree subdivision
+MIN_RADIUS = 500  # 2km minimum radius for quadtree subdivision
 STALE_THRESHOLD_DAYS = 90  # Re-fetch place details if older than this
 
 

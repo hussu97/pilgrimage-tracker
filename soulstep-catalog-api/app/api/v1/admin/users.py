@@ -54,7 +54,7 @@ def list_users(
     admin: AdminDep,
     session: SessionDep,
     page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    page_size: Annotated[int, Query(ge=1, le=2000)] = 50,
     search: str | None = None,
     is_active: bool | None = None,
     is_admin_filter: Annotated[bool | None, Query(alias="is_admin")] = None,
@@ -202,7 +202,7 @@ def list_user_check_ins(
     admin: AdminDep,
     session: SessionDep,
     page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    page_size: Annotated[int, Query(ge=1, le=2000)] = 50,
 ):
     user = session.exec(select(User).where(User.user_code == user_code)).first()
     if not user:
@@ -258,7 +258,7 @@ def list_user_reviews(
     admin: AdminDep,
     session: SessionDep,
     page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    page_size: Annotated[int, Query(ge=1, le=2000)] = 50,
 ):
     user = session.exec(select(User).where(User.user_code == user_code)).first()
     if not user:

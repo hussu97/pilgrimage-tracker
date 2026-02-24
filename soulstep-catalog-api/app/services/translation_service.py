@@ -4,32 +4,35 @@ Provides translate_text() and translate_batch() helpers used by the backfill scr
 and (optionally) online auto-translation during ingest.
 
 Configuration:
-    GOOGLE_TRANSLATE_API_KEY — Cloud Translation API key (required).
-    GOOGLE_CLOUD_PROJECT     — GCP project ID (required for v3 endpoint).
-    If either is not set, all calls return None (graceful no-op).
+    GOOGLE_CLOUD_PROJECT — GCP project ID (required).
+    Credentials are resolved automatically via Application Default Credentials (ADC).
+    Run `gcloud auth application-default login` locally, or set
+    GOOGLE_APPLICATION_CREDENTIALS to a service account JSON path if available.
+    If GOOGLE_CLOUD_PROJECT is not set, all calls return None (graceful no-op).
 """
 
 import logging
 import os
 
-import requests
-
 logger = logging.getLogger(__name__)
 
-_TRANSLATE_V3_URL = (
-    "https://translation.googleapis.com/v3/projects/{project}/locations/global:translateText"
-)
-_API_KEY_ENV = "GOOGLE_TRANSLATE_API_KEY"
 _PROJECT_ENV = "GOOGLE_CLOUD_PROJECT"
 
 
-def _get_credentials() -> tuple[str, str] | None:
-    """Return (api_key, project_id) or None if either is missing."""
-    api_key = os.environ.get(_API_KEY_ENV) or None
-    project = os.environ.get(_PROJECT_ENV) or None
-    if not api_key or not project:
+def _get_project() -> str | None:
+    """Return the GCP project ID or None if not configured."""
+    return os.environ.get(_PROJECT_ENV) or None
+
+
+def _make_client():
+    """Return a TranslationServiceClient using ADC, or None on failure."""
+    try:
+        from google.cloud import translate_v3  # type: ignore[import-untyped]
+
+        return translate_v3.TranslationServiceClient()
+    except Exception as exc:
+        logger.error("Failed to create Google Translate client: %s: %s", type(exc).__name__, exc)
         return None
-    return api_key, project
 
 
 def translate_text(
@@ -42,52 +45,8 @@ def translate_text(
     Returns the translated string, or None if credentials are not configured or
     the call fails.
     """
-    creds = _get_credentials()
-    if not creds:
-        logger.warning("%s and/or %s not set — skipping translation", _API_KEY_ENV, _PROJECT_ENV)
-        return None
-
-    if not text or not text.strip():
-        return None
-
-    api_key, project = creds
-    url = _TRANSLATE_V3_URL.format(project=project)
-
-    try:
-        resp = requests.post(
-            url,
-            params={"key": api_key},
-            json={
-                "contents": [text],
-                "sourceLanguageCode": source_lang,
-                "targetLanguageCode": target_lang,
-                "mimeType": "text/plain",
-            },
-            timeout=10,
-        )
-        if not resp.ok:
-            logger.error(
-                "Google Translate API returned HTTP %d: %s", resp.status_code, resp.text[:500]
-            )
-            return None
-        data = resp.json()
-        return data["translations"][0]["translatedText"]
-    except requests.exceptions.ConnectionError as exc:
-        logger.error("Google Translate API connection failed (check network/API key): %s", exc)
-        return None
-    except requests.exceptions.Timeout:
-        logger.error("Google Translate API timed out after 10s")
-        return None
-    except (KeyError, IndexError) as exc:
-        logger.error(
-            "Unexpected Google Translate API response structure: %s — raw: %s",
-            exc,
-            resp.text[:500],
-        )
-        return None
-    except Exception as exc:
-        logger.error("Google Translate API call failed: %s: %s", type(exc).__name__, exc)
-        return None
+    results = translate_batch([text], target_lang=target_lang, source_lang=source_lang)
+    return results[0] if results else None
 
 
 def translate_batch(
@@ -100,11 +59,10 @@ def translate_batch(
     Returns a list of the same length as `texts`.  Any entry is None when the
     corresponding input is empty or when the call fails.
     """
-    creds = _get_credentials()
-    if not creds:
+    project = _get_project()
+    if not project:
         logger.warning(
-            "%s and/or %s not set — skipping batch of %d texts",
-            _API_KEY_ENV,
+            "%s not set — skipping batch of %d texts",
             _PROJECT_ENV,
             len(texts),
         )
@@ -119,50 +77,30 @@ def translate_batch(
         logger.warning("All %d texts in batch are empty — nothing to translate", len(texts))
         return [None] * len(texts)
 
-    api_key, project = creds
-    url = _TRANSLATE_V3_URL.format(project=project)
+    client = _make_client()
+    if client is None:
+        logger.error("Could not initialise Google Translate client — check credentials")
+        return [None] * len(texts)
 
+    parent = f"projects/{project}/locations/global"
     logger.info(
-        "Calling Google Translate API v3: %d texts → %s (source=%s)",
+        "Calling Google Translate API v3 (SDK): %d texts → %s (source=%s)",
         len(non_empty),
         target_lang,
         source_lang,
     )
 
     try:
-        resp = requests.post(
-            url,
-            params={"key": api_key},
-            json={
+        response = client.translate_text(
+            request={
+                "parent": parent,
                 "contents": [t for _, t in non_empty],
-                "sourceLanguageCode": source_lang,
-                "targetLanguageCode": target_lang,
-                "mimeType": "text/plain",
-            },
-            timeout=30,
+                "mime_type": "text/plain",
+                "source_language_code": source_lang,
+                "target_language_code": target_lang,
+            }
         )
-        if not resp.ok:
-            logger.error(
-                "Google Translate batch API returned HTTP %d: %s",
-                resp.status_code,
-                resp.text[:500],
-            )
-            return [None] * len(texts)
-        data = resp.json()
-        translated_texts = [t["translatedText"] for t in data["translations"]]
-    except requests.exceptions.ConnectionError as exc:
-        logger.error("Google Translate API connection failed (check network/API key): %s", exc)
-        return [None] * len(texts)
-    except requests.exceptions.Timeout:
-        logger.error("Google Translate batch API timed out after 30s")
-        return [None] * len(texts)
-    except (KeyError, IndexError) as exc:
-        logger.error(
-            "Unexpected Google Translate API response structure: %s — raw: %s",
-            exc,
-            resp.text[:500],
-        )
-        return [None] * len(texts)
+        translated_texts = [t.translated_text for t in response.translations]
     except Exception as exc:
         logger.error("Google Translate batch API call failed: %s: %s", type(exc).__name__, exc)
         return [None] * len(texts)

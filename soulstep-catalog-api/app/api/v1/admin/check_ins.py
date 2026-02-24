@@ -38,7 +38,7 @@ def list_check_ins(
     admin: AdminDep,
     session: SessionDep,
     page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    page_size: Annotated[int, Query(ge=1, le=2000)] = 50,
     place_code: str | None = None,
     user_code: str | None = None,
     group_code: str | None = None,

@@ -229,8 +229,7 @@ class GmapsCollector(BaseCollector):
             if not photo_name:
                 continue
             photo_url = (
-                f"https://places.googleapis.com/v1/{photo_name}/media"
-                f"?maxWidthPx=800&key={api_key}"
+                f"https://places.googleapis.com/v1/{photo_name}/media?maxWidthPx=800&key={api_key}"
             )
             result.images.append({"url": photo_url, "source": "gmaps"})
 
@@ -284,8 +283,7 @@ class GmapsCollector(BaseCollector):
                 continue
 
             photo_url = (
-                f"https://places.googleapis.com/v1/{photo_name}/media"
-                f"?maxWidthPx=800&key={api_key}"
+                f"https://places.googleapis.com/v1/{photo_name}/media?maxWidthPx=800&key={api_key}"
             )
             photo_urls.append(photo_url)
 

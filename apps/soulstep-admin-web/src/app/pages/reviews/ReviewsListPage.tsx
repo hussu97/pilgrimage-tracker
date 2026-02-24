@@ -11,7 +11,7 @@ import { formatDate } from "@/lib/utils";
 
 export function ReviewsListPage() {
   const navigate = useNavigate();
-  const { page, pageSize, setPage, setPageSize } = usePagination(20);
+  const { page, pageSize, setPage, setPageSize } = usePagination(50);
   const [flaggedFilter, setFlaggedFilter] = useState("");
   const [data, setData] = useState<{ items: AdminReview[]; total: number } | null>(null);
   const [loading, setLoading] = useState(true);

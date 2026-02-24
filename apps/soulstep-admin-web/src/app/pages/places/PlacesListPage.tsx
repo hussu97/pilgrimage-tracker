@@ -12,7 +12,7 @@ import { Plus } from "lucide-react";
 
 export function PlacesListPage() {
   const navigate = useNavigate();
-  const { page, pageSize, setPage, setPageSize } = usePagination(20);
+  const { page, pageSize, setPage, setPageSize } = usePagination(50);
   const [search, setSearch] = useState("");
   const [religionFilter, setReligionFilter] = useState("");
   const [data, setData] = useState<{ items: AdminPlace[]; total: number } | null>(null);

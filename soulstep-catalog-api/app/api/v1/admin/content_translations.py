@@ -64,7 +64,7 @@ def list_content_translations(
     admin: AdminDep,
     session: SessionDep,
     page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    page_size: Annotated[int, Query(ge=1, le=2000)] = 50,
     entity_type: str | None = None,
     entity_code: str | None = None,
     lang: str | None = None,

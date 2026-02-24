@@ -16,7 +16,7 @@ export function Pagination({
   total,
   onPageChange,
   onPageSizeChange,
-  pageSizeOptions = [10, 20, 50, 100],
+  pageSizeOptions = [50, 100, 200, 500, 1000, 2000],
 }: PaginationProps) {
   const totalPages = Math.ceil(total / pageSize);
   const from = (page - 1) * pageSize + 1;

@@ -9,6 +9,7 @@ import type { AdminContentTranslation } from "@/lib/api/types";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Pagination } from "@/components/shared/Pagination";
+import { usePagination } from "@/lib/hooks/usePagination";
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 
 const ENTITY_TYPES = ["place", "attribute_def", "spec_value"];
@@ -34,9 +35,9 @@ const EMPTY_FORM: CreateForm = {
 };
 
 export function ContentTranslationsPage() {
+  const { page, pageSize, setPage, setPageSize } = usePagination(50);
   const [items, setItems] = useState<AdminContentTranslation[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [entityTypeFilter, setEntityTypeFilter] = useState("");
   const [langFilter, setLangFilter] = useState("");
@@ -47,12 +48,10 @@ export function ContentTranslationsPage() {
   const [editText, setEditText] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<AdminContentTranslation | null>(null);
 
-  const PAGE_SIZE = 20;
-
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params: Record<string, unknown> = { page, page_size: PAGE_SIZE };
+      const params: Record<string, unknown> = { page, page_size: pageSize };
       if (entityTypeFilter) params.entity_type = entityTypeFilter;
       if (langFilter) params.lang = langFilter;
       const resp = await listContentTranslations(params as Parameters<typeof listContentTranslations>[0]);
@@ -64,7 +63,7 @@ export function ContentTranslationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, entityTypeFilter, langFilter]);
+  }, [page, pageSize, entityTypeFilter, langFilter]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -331,9 +330,10 @@ export function ContentTranslationsPage() {
 
       <Pagination
         page={page}
-        pageSize={PAGE_SIZE}
+        pageSize={pageSize}
         total={total}
         onPageChange={setPage}
+        onPageSizeChange={setPageSize}
       />
 
       <ConfirmDialog

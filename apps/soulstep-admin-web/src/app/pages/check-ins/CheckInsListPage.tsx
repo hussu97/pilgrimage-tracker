@@ -10,7 +10,7 @@ import { formatDateTime } from "@/lib/utils";
 import { Trash2 } from "lucide-react";
 
 export function CheckInsListPage() {
-  const { page, pageSize, setPage, setPageSize } = usePagination(20);
+  const { page, pageSize, setPage, setPageSize } = usePagination(50);
   const [data, setData] = useState<{ items: AdminCheckIn[]; total: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);

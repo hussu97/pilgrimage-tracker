@@ -120,7 +120,7 @@ def list_runs(
     status: str | None = Query(None),
     location_code: str | None = Query(None),
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
+    page_size: int = Query(50, ge=1, le=2000),
 ):
     base_query = select(ScraperRun)
     count_query = select(func.count()).select_from(ScraperRun)

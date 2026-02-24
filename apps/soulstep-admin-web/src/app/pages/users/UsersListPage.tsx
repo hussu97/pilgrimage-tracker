@@ -12,7 +12,7 @@ import { formatDate } from "@/lib/utils";
 
 export function UsersListPage() {
   const navigate = useNavigate();
-  const { page, pageSize, setPage, setPageSize } = usePagination(20);
+  const { page, pageSize, setPage, setPageSize } = usePagination(50);
   const [search, setSearch] = useState("");
   const [isActiveFilter, setIsActiveFilter] = useState<string>("");
   const [isAdminFilter, setIsAdminFilter] = useState<string>("");

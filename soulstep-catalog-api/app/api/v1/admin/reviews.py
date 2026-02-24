@@ -58,7 +58,7 @@ def list_reviews(
     admin: AdminDep,
     session: SessionDep,
     page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    page_size: Annotated[int, Query(ge=1, le=2000)] = 50,
     is_flagged: bool | None = None,
     place_code: str | None = None,
     user_code: str | None = None,

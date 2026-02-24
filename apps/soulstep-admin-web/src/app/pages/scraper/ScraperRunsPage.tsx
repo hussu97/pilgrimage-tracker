@@ -32,7 +32,7 @@ const ACTIVE_STATUSES: RunStatus[] = ["pending", "running"];
 
 export function ScraperRunsPage() {
   const navigate = useNavigate();
-  const { page, pageSize, setPage, setPageSize } = usePagination(20);
+  const { page, pageSize, setPage, setPageSize } = usePagination(50);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [data, setData] = useState<{ items: ScraperRun[]; total: number } | null>(null);
   const [loading, setLoading] = useState(true);

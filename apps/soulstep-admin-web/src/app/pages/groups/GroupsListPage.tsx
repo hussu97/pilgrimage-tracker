@@ -12,7 +12,7 @@ import { formatDate } from "@/lib/utils";
 
 export function GroupsListPage() {
   const navigate = useNavigate();
-  const { page, pageSize, setPage, setPageSize } = usePagination(20);
+  const { page, pageSize, setPage, setPageSize } = usePagination(50);
   const [search, setSearch] = useState("");
   const [data, setData] = useState<{ items: AdminGroup[]; total: number } | null>(null);
   const [loading, setLoading] = useState(true);

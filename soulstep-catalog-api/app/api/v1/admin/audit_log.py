@@ -73,7 +73,7 @@ def list_audit_log(
     admin: AdminDep,
     session: SessionDep,
     page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 50,
+    page_size: Annotated[int, Query(ge=1, le=2000)] = 50,
     admin_user_code: str | None = None,
     entity_type: str | None = None,
     action: str | None = None,

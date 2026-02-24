@@ -14,9 +14,10 @@ What it does:
 Supported languages are read from seed_data.json (the single source of truth).
 
 Environment:
-    GOOGLE_TRANSLATE_API_KEY — required for auto-translation.
-    GOOGLE_CLOUD_PROJECT     — GCP project ID, required for the v3 endpoint.
-    Without both, only the attribute migration step runs.
+    GOOGLE_CLOUD_PROJECT — GCP project ID (required for translation).
+    Credentials are resolved via Application Default Credentials (ADC).
+    Run `gcloud auth application-default login` before running this script.
+    Without GOOGLE_CLOUD_PROJECT set, only the attribute migration step runs.
 """
 
 import argparse
@@ -122,19 +123,11 @@ def _backfill_places(
     )
 
     # Check API key early
-    api_key = os.environ.get("GOOGLE_TRANSLATE_API_KEY")
     project = os.environ.get("GOOGLE_CLOUD_PROJECT")
-    if not api_key or not project:
-        logger.error(
-            "GOOGLE_TRANSLATE_API_KEY and/or GOOGLE_CLOUD_PROJECT not set. "
-            "Add both to soulstep-catalog-api/.env"
-        )
+    if not project:
+        logger.error("GOOGLE_CLOUD_PROJECT not set. Add it to soulstep-catalog-api/.env")
         return 0
-    logger.info(
-        "Credentials OK: GOOGLE_TRANSLATE_API_KEY length=%d, GOOGLE_CLOUD_PROJECT=%s",
-        len(api_key),
-        project,
-    )
+    logger.info("Credentials OK: GOOGLE_CLOUD_PROJECT=%s (using ADC)", project)
 
     translated_count = 0
 
@@ -221,19 +214,11 @@ def _backfill_reviews(
         logger.warning("No Review rows in the database — nothing to translate")
         return 0
 
-    api_key = os.environ.get("GOOGLE_TRANSLATE_API_KEY")
     project = os.environ.get("GOOGLE_CLOUD_PROJECT")
-    if not api_key or not project:
-        logger.error(
-            "GOOGLE_TRANSLATE_API_KEY and/or GOOGLE_CLOUD_PROJECT not set. "
-            "Add both to soulstep-catalog-api/.env"
-        )
+    if not project:
+        logger.error("GOOGLE_CLOUD_PROJECT not set. Add it to soulstep-catalog-api/.env")
         return 0
-    logger.info(
-        "Credentials OK: GOOGLE_TRANSLATE_API_KEY length=%d, GOOGLE_CLOUD_PROJECT=%s",
-        len(api_key),
-        project,
-    )
+    logger.info("Credentials OK: GOOGLE_CLOUD_PROJECT=%s (using ADC)", project)
 
     translated_count = 0
 

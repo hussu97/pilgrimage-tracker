@@ -150,3 +150,22 @@ Web and mobile must use the **same translation keys** for the same UI strings. W
 3. Never add a web-only or mobile-only key unless the UX genuinely differs
 4. Audit both apps when adding new keys to catch any matching hardcoded strings
 5. Interpolation pattern: `.replace('{placeholder}', value)` — the `t()` function is a simple key lookup with no built-in interpolation
+
+## 16. Admin Pagination Standard
+All paginated tables in `apps/soulstep-admin-web` must use the following page size options, in this exact order:
+
+| Option | Value |
+|--------|-------|
+| Default | **50 / page** |
+| — | 100 / page |
+| — | 200 / page |
+| — | 500 / page |
+| — | 1000 / page |
+| — | 2000 / page |
+
+**Rules:**
+- The shared `Pagination` component (`src/components/shared/Pagination.tsx`) already enforces this as the default `pageSizeOptions`.
+- The `usePagination` hook defaults to `50`.
+- All new paginated tables must use `usePagination(50)` and pass `onPageSizeChange={setPageSize}` to `<Pagination>`.
+- Backend list endpoints must accept `page_size` up to `2000` (`le=2000`) with a default of `50`.
+- Never hardcode a `PAGE_SIZE` constant — always use `usePagination`.

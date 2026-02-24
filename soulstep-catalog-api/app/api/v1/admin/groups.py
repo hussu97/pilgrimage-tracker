@@ -83,7 +83,7 @@ def list_groups(
     admin: AdminDep,
     session: SessionDep,
     page: Annotated[int, Query(ge=1)] = 1,
-    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    page_size: Annotated[int, Query(ge=1, le=2000)] = 50,
     search: str | None = None,
 ):
     stmt = select(Group)
