@@ -158,6 +158,7 @@ def run_seed_demo(seed_path: str | Path | None = None) -> None:
                 password_hash=password_hash,
                 display_name=u.get("display_name") or u["email"].split("@")[0],
                 religion=u.get("religion"),
+                is_admin=u.get("is_admin", False),
                 session=session,
             )
             if u.get("religion"):

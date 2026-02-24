@@ -1876,6 +1876,13 @@
   ],
   "users": [
     {
+      "user_code": "usr_admin",
+      "email": "admin@soulstep.app",
+      "password": "Admin1234",
+      "display_name": "Admin",
+      "is_admin": true
+    },
+    {
       "user_code": "usr_seed1",
       "email": "alice@test.com",
       "password": "test123",

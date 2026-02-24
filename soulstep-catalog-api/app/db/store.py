@@ -16,12 +16,14 @@ def create_user(
     display_name: str,
     session: Session,
     religion: Religion | None = None,
+    is_admin: bool = False,
 ) -> User:
     user = User(
         user_code=user_code,
         email=email,
         password_hash=password_hash,
         display_name=display_name,
+        is_admin=is_admin,
     )
     session.add(user)
 
