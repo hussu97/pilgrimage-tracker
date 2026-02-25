@@ -13,7 +13,6 @@ Routes registered in main.py:
 from __future__ import annotations
 
 import logging
-import os
 from datetime import UTC, datetime
 from xml.etree import ElementTree as ET
 
@@ -21,13 +20,13 @@ from fastapi import APIRouter
 from fastapi.responses import Response
 from sqlmodel import select
 
+from app.core.config import FRONTEND_URL
 from app.db.models import Place, PlaceImage, PlaceSEO
 from app.db.session import SessionDep
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 _SITEMAP_LIMIT = 50_000  # Standard sitemap URL cap
 _SUPPORTED_LANGS = ("en", "ar", "hi")
 

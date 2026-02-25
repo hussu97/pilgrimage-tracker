@@ -2,15 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import type { Place } from '@/lib/types';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
+import { formatDistance } from '@/lib/utils/place-utils';
 
 interface PlaceCardUnifiedProps {
   place: Place;
   t: (key: string) => string;
-}
-
-function formatDistance(km: number): string {
-  if (km === undefined) return '';
-  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
 function formatCount(n: number): string {

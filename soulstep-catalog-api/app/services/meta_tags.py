@@ -6,22 +6,12 @@ Cards, hreflang) for place detail pages and the homepage.
 
 from __future__ import annotations
 
-import os
+import html as _html
 from typing import Any
 
-_FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+from app.core.config import FRONTEND_URL as _FRONTEND_URL
+
 _SUPPORTED_LANGS = ("en", "ar", "hi")
-
-
-def _e(s: str) -> str:
-    """Minimal HTML attribute escaping (for inline strings inside quotes)."""
-    return (
-        s.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-        .replace("'", "&#x27;")
-    )
 
 
 def build_place_meta_tags(
@@ -51,31 +41,31 @@ def build_place_meta_tags(
     og_locale = og_locale_map.get(lang, "en_US")
 
     lines: list[str] = [
-        f"  <title>{_e(title)}</title>",
-        f'  <meta name="description" content="{_e(description)}" />',
-        f'  <link rel="canonical" href="{_e(canonical)}" />',
+        f"  <title>{_html.escape(title)}</title>",
+        f'  <meta name="description" content="{_html.escape(description)}" />',
+        f'  <link rel="canonical" href="{_html.escape(canonical)}" />',
         # Open Graph
         '  <meta property="og:type" content="place" />',
         '  <meta property="og:site_name" content="SoulStep" />',
-        f'  <meta property="og:title" content="{_e(title)}" />',
-        f'  <meta property="og:description" content="{_e(description)}" />',
-        f'  <meta property="og:url" content="{_e(canonical)}" />',
+        f'  <meta property="og:title" content="{_html.escape(title)}" />',
+        f'  <meta property="og:description" content="{_html.escape(description)}" />',
+        f'  <meta property="og:url" content="{_html.escape(canonical)}" />',
         f'  <meta property="og:locale" content="{og_locale}" />',
     ]
     if og_image:
         lines += [
-            f'  <meta property="og:image" content="{_e(og_image)}" />',
+            f'  <meta property="og:image" content="{_html.escape(og_image)}" />',
             '  <meta property="og:image:width" content="1200" />',
             '  <meta property="og:image:height" content="630" />',
         ]
     # Twitter Cards
     lines += [
         '  <meta name="twitter:card" content="summary_large_image" />',
-        f'  <meta name="twitter:title" content="{_e(title)}" />',
-        f'  <meta name="twitter:description" content="{_e(description)}" />',
+        f'  <meta name="twitter:title" content="{_html.escape(title)}" />',
+        f'  <meta name="twitter:description" content="{_html.escape(description)}" />',
     ]
     if og_image:
-        lines.append(f'  <meta name="twitter:image" content="{_e(og_image)}" />')
+        lines.append(f'  <meta name="twitter:image" content="{_html.escape(og_image)}" />')
 
     # hreflang alternates — each lang gets its own language-specific pre-render URL
     for alt_lang in _SUPPORTED_LANGS:
@@ -83,7 +73,11 @@ def build_place_meta_tags(
             alt_url = f"{_FRONTEND_URL}/share/{alt_lang}/places/{place_code}/{slug}"
         else:
             alt_url = f"{_FRONTEND_URL}/share/{alt_lang}/places/{place_code}"
-        lines.append(f'  <link rel="alternate" hreflang="{alt_lang}" href="{_e(alt_url)}" />')
-    lines.append(f'  <link rel="alternate" hreflang="x-default" href="{_e(canonical)}" />')
+        lines.append(
+            f'  <link rel="alternate" hreflang="{alt_lang}" href="{_html.escape(alt_url)}" />'
+        )
+    lines.append(
+        f'  <link rel="alternate" hreflang="x-default" href="{_html.escape(canonical)}" />'
+    )
 
     return "\n".join(lines)

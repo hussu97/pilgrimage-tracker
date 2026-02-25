@@ -4,7 +4,8 @@
  * formatDistance() and buildMapHtml() have no native dependencies.
  */
 
-import { buildMapHtml, formatDistance } from '../lib/utils/mapBuilder';
+import { buildMapHtml } from '../lib/utils/mapBuilder';
+import { formatDistance } from '../lib/utils/place-utils';
 import type { Place } from '../lib/types';
 
 function makePlaces(overrides: Partial<Place>[] = []): Place[] {

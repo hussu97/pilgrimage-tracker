@@ -14,6 +14,7 @@ import { useI18n, useTheme } from '@/app/providers';
 import { tokens } from '@/lib/theme';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { Place } from '@/lib/types';
+import { formatDistance } from '@/lib/utils/place-utils';
 
 interface PlaceSelectorProps {
   selectedCodes: string[];
@@ -119,12 +120,6 @@ function makeStyles(isDark: boolean) {
     },
     emptyText: { textAlign: 'center', color: textMuted, padding: 20 },
   });
-}
-
-function formatDistance(km: number): string {
-  if (km < 1) return `${Math.round(km * 1000)} m`;
-  if (km < 10) return `${km.toFixed(1)} km`;
-  return `${Math.round(km)} km`;
 }
 
 export default function PlaceSelector({

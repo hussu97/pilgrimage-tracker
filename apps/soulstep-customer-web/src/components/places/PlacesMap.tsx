@@ -21,6 +21,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'leaflet.markercluster';
 import type { Place } from '@/lib/types';
+import { formatDistance } from '@/lib/utils/place-utils';
 
 const DEFAULT_CENTER: [number, number] = [25, 0];
 const DEFAULT_ZOOM = 3;
@@ -93,10 +94,6 @@ function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
-}
-
-function formatDistance(km: number): string {
-  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
 }
 
 export interface MapBounds {

@@ -16,17 +16,10 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
+import { statusVariant } from "@/lib/utils/scraperStatus";
 import { Play, RefreshCw, Trash2, XCircle, UploadCloud } from "lucide-react";
 
 type RunStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
-
-function statusVariant(s: string) {
-  if (s === "completed") return "success" as const;
-  if (s === "failed") return "danger" as const;
-  if (s === "running") return "info" as const;
-  if (s === "cancelled") return "warning" as const;
-  return "neutral" as const;
-}
 
 const ACTIVE_STATUSES: RunStatus[] = ["pending", "running"];
 

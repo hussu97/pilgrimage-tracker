@@ -18,13 +18,12 @@ from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
 from sqlmodel import func, select
 
+from app.core.config import FRONTEND_URL
 from app.db.models import Place
 from app.db.session import SessionDep
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 _API_BASE = os.environ.get("API_BASE_URL", "http://localhost:3000")
 
 

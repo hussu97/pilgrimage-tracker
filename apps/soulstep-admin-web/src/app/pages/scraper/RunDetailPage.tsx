@@ -17,15 +17,8 @@ import { DataTable, type Column } from "@/components/shared/DataTable";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { usePolling } from "@/lib/hooks/usePolling";
 import { formatDate } from "@/lib/utils";
+import { statusVariant } from "@/lib/utils/scraperStatus";
 import { ArrowLeft, RefreshCw, Trash2, UploadCloud, XCircle } from "lucide-react";
-
-function statusVariant(s: string) {
-  if (s === "completed") return "success" as const;
-  if (s === "failed") return "danger" as const;
-  if (s === "running") return "info" as const;
-  if (s === "cancelled") return "warning" as const;
-  return "neutral" as const;
-}
 
 function enrichVariant(s: string) {
   if (s === "complete") return "success" as const;

@@ -10,15 +10,16 @@ HTML page with visible text content is returned (no JS redirect).
 
 from __future__ import annotations
 
+import html as _html
 import json
 import logging
-import os
 import re
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from sqlmodel import func, select
 
+from app.core.config import FRONTEND_URL
 from app.db import place_images
 from app.db import places as places_db
 from app.db import reviews as reviews_db
@@ -37,8 +38,6 @@ from app.services.structured_data import (
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 
 # ── Crawler detection ──────────────────────────────────────────────────────────
 
@@ -152,27 +151,14 @@ def _resolve_religion(keyword: str) -> str | None:
     return _KEYWORD_TO_RELIGION.get(kw)
 
 
-# ── HTML helpers ───────────────────────────────────────────────────────────────
-
-
-def _escape_html(s: str) -> str:
-    return (
-        s.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-        .replace("'", "&#x27;")
-    )
-
-
 def _build_faq_html(faqs: list[dict]) -> str:
     """Render FAQs as a visible HTML section for crawlers."""
     if not faqs:
         return ""
     items = "\n".join(
         f"    <div class='faq-item'>"
-        f"<h3>{_escape_html(faq['question'])}</h3>"
-        f"<p>{_escape_html(faq['answer'])}</p>"
+        f"<h3>{_html.escape(faq['question'])}</h3>"
+        f"<p>{_html.escape(faq['answer'])}</p>"
         f"</div>"
         for faq in faqs
     )
@@ -221,8 +207,8 @@ def _build_related_html(nearby: list[Place], similar: list[Place], seo_map: dict
     parts: list[str] = []
     if nearby:
         links = "\n".join(
-            f'    <li><a href="{_escape_html(_place_link(p, seo_map))}">'
-            f"{_escape_html(p.name)}</a></li>"
+            f'    <li><a href="{_html.escape(_place_link(p, seo_map))}">'
+            f"{_html.escape(p.name)}</a></li>"
             for p in nearby
         )
         parts.append(
@@ -235,8 +221,8 @@ def _build_related_html(nearby: list[Place], similar: list[Place], seo_map: dict
         )
     if similar:
         links = "\n".join(
-            f'    <li><a href="{_escape_html(_place_link(p, seo_map))}">'
-            f"{_escape_html(p.name)}</a></li>"
+            f'    <li><a href="{_html.escape(_place_link(p, seo_map))}">'
+            f"{_html.escape(p.name)}</a></li>"
             for p in similar
         )
         parts.append(
@@ -346,11 +332,11 @@ def share_place(place_code: str, session: SessionDep, request: Request):
     elif place.description:
         description_display = place.description
 
-    name_escaped = _escape_html(place.name)
-    address_escaped = _escape_html(place.address or "")
-    place_url_escaped = _escape_html(place_url)
+    name_escaped = _html.escape(place.name)
+    address_escaped = _html.escape(place.address or "")
+    place_url_escaped = _html.escape(place_url)
     img_tag = (
-        f'<img src="{_escape_html(first_image_url)}" alt="{name_escaped}" '
+        f'<img src="{_html.escape(first_image_url)}" alt="{name_escaped}" '
         f'width="800" height="450" loading="lazy" />'
         if first_image_url
         else ""
@@ -392,9 +378,9 @@ def share_place(place_code: str, session: SessionDep, request: Request):
   <main>
     <h1>{name_escaped}</h1>
     {f'<p><strong>Address:</strong> {address_escaped}</p>' if address_escaped else ''}
-    {f'<p><strong>Rating:</strong> {_escape_html(rating_str)}</p>' if rating_str else ''}
+    {f'<p><strong>Rating:</strong> {_html.escape(rating_str)}</p>' if rating_str else ''}
     {img_tag}
-    {f'<p>{_escape_html(description_display)}</p>' if description_display else ''}
+    {f'<p>{_html.escape(description_display)}</p>' if description_display else ''}
     {faq_html}
     {related_html}
     <p>{fallback_link}</p>
@@ -443,11 +429,11 @@ def share_about(request: Request):
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>About SoulStep – Sacred Site Discovery</title>
   <meta name="description" content="Learn about SoulStep, the app that helps spiritual travellers discover mosques, temples, churches, and sacred sites worldwide." />
-  <link rel="canonical" href="{_escape_html(canonical_url)}" />
+  <link rel="canonical" href="{_html.escape(canonical_url)}" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="SoulStep" />
   <meta property="og:title" content="About SoulStep – Sacred Site Discovery" />
-  <meta property="og:url" content="{_escape_html(page_url)}" />
+  <meta property="og:url" content="{_html.escape(page_url)}" />
 {jsonld_html}
 </head>
 <body>
@@ -496,7 +482,7 @@ def share_about(request: Request):
       structured data including coordinates, opening hours, and review summaries.
     </p>
 
-    <p><a href="{_escape_html(FRONTEND_URL)}">Explore SoulStep</a></p>
+    <p><a href="{_html.escape(FRONTEND_URL)}">Explore SoulStep</a></p>
   </main>
 </body>
 </html>"""
@@ -600,11 +586,11 @@ def share_how_it_works(request: Request):
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How SoulStep Works – Find Sacred Sites Near You</title>
   <meta name="description" content="Learn how to use SoulStep to find mosques, temples, and churches near you, check in, write reviews, and plan group spiritual trips." />
-  <link rel="canonical" href="{_escape_html(canonical_url)}" />
+  <link rel="canonical" href="{_html.escape(canonical_url)}" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="SoulStep" />
   <meta property="og:title" content="How SoulStep Works" />
-  <meta property="og:url" content="{_escape_html(page_url)}" />
+  <meta property="og:url" content="{_html.escape(page_url)}" />
 {jsonld_html}
 </head>
 <body>
@@ -668,7 +654,7 @@ def share_how_it_works(request: Request):
       </li>
     </ol>
 
-    <p><a href="{_escape_html(FRONTEND_URL)}">Start Exploring SoulStep</a></p>
+    <p><a href="{_html.escape(FRONTEND_URL)}">Start Exploring SoulStep</a></p>
   </main>
 </body>
 </html>"""
@@ -724,7 +710,7 @@ def share_coverage(request: Request, session: SessionDep):
         "zoroastrianism": "Zoroastrianism (Fire Temples)",
     }
     religion_rows_html = "\n".join(
-        f"      <tr><td>{_escape_html(religion_labels.get(r, r.title()))}</td>"
+        f"      <tr><td>{_html.escape(religion_labels.get(r, r.title()))}</td>"
         f"<td>{c:,}</td></tr>"
         for r, c in sorted(religion_counts.items(), key=lambda x: -x[1])
     )
@@ -736,11 +722,11 @@ def share_coverage(request: Request, session: SessionDep):
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>SoulStep Coverage – {total_places:,} Sacred Sites Worldwide</title>
   <meta name="description" content="SoulStep covers {total_places:,} sacred sites across {total_cities} cities worldwide, spanning Islam, Christianity, Hinduism, Buddhism, and more." />
-  <link rel="canonical" href="{_escape_html(canonical_url)}" />
+  <link rel="canonical" href="{_html.escape(canonical_url)}" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="SoulStep" />
   <meta property="og:title" content="SoulStep Coverage – {total_places:,} Sacred Sites Worldwide" />
-  <meta property="og:url" content="{_escape_html(page_url)}" />
+  <meta property="og:url" content="{_html.escape(page_url)}" />
 {jsonld_html}
 </head>
 <body>
@@ -779,7 +765,7 @@ def share_coverage(request: Request, session: SessionDep):
       and direct community submissions. Data is regularly updated and verified.
     </p>
 
-    <p><a href="{_escape_html(FRONTEND_URL)}">Explore All Sacred Sites on SoulStep</a></p>
+    <p><a href="{_html.escape(FRONTEND_URL)}">Explore All Sacred Sites on SoulStep</a></p>
   </main>
 </body>
 </html>"""
@@ -841,15 +827,15 @@ def share_religion_category(religion: str, session: SessionDep, request: Request
 
     # Build place list HTML
     place_items_html = "\n".join(
-        f'  <li><a href="{_escape_html(_place_link(p, seo_map))}">{_escape_html(p.name)}</a>'
-        f"{' – ' + _escape_html(p.address) if p.address else ''}</li>"
+        f'  <li><a href="{_html.escape(_place_link(p, seo_map))}">{_html.escape(p.name)}</a>'
+        f"{' – ' + _html.escape(p.address) if p.address else ''}</li>"
         for p in top_places
     )
 
-    title_e = _escape_html(meta["title"])
-    h1_e = _escape_html(meta["h1"])
-    desc_e = _escape_html(meta["description"])
-    canonical_e = _escape_html(canonical_url)
+    title_e = _html.escape(meta["title"])
+    h1_e = _html.escape(meta["h1"])
+    desc_e = _html.escape(meta["description"])
+    canonical_e = _html.escape(canonical_url)
 
     html = f"""<!DOCTYPE html>
 <html lang="{lang}"{dir_attr}>
@@ -873,7 +859,7 @@ def share_religion_category(religion: str, session: SessionDep, request: Request
     <ul>
 {place_items_html}
     </ul>
-    <p><a href="{_escape_html(FRONTEND_URL)}">Back to SoulStep</a></p>
+    <p><a href="{_html.escape(FRONTEND_URL)}">Back to SoulStep</a></p>
   </main>
 </body>
 </html>"""
@@ -942,11 +928,11 @@ def share_place_lang(lang: str, place_code: str, session: SessionDep, request: R
     jsonld_html = render_jsonld_script_tags(schemas)
 
     description_display = (seo.rich_description if seo else None) or place.description or ""
-    name_escaped = _escape_html(place.name)
-    address_escaped = _escape_html(place.address or "")
-    place_url_escaped = _escape_html(place_url)
+    name_escaped = _html.escape(place.name)
+    address_escaped = _html.escape(place.address or "")
+    place_url_escaped = _html.escape(place_url)
     img_tag = (
-        f'<img src="{_escape_html(first_image_url)}" alt="{name_escaped}" '
+        f'<img src="{_html.escape(first_image_url)}" alt="{name_escaped}" '
         f'width="800" height="450" loading="lazy" />'
         if first_image_url
         else ""
@@ -967,7 +953,7 @@ def share_place_lang(lang: str, place_code: str, session: SessionDep, request: R
     <h1>{name_escaped}</h1>
     {f'<p><strong>Address:</strong> {address_escaped}</p>' if address_escaped else ''}
     {img_tag}
-    {f'<p>{_escape_html(description_display)}</p>' if description_display else ''}
+    {f'<p>{_html.escape(description_display)}</p>' if description_display else ''}
     <p>{fallback_link}</p>
   </main>
 </body>

@@ -7,10 +7,9 @@ Used by the pre-rendering endpoint to embed JSON-LD in HTML.
 from __future__ import annotations
 
 import json
-import os
 from typing import Any
 
-_FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+from app.core.config import FRONTEND_URL as _FRONTEND_URL
 
 # ── Religion → Schema.org @type mapping ───────────────────────────────────────
 

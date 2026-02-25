@@ -532,6 +532,71 @@ def _persist_place_translations(place_code: str, translations, session: Session)
                 )
 
 
+def _upsert_single_place(place_data, session: Session):
+    """Create or update a single place and its related data (images, attrs, reviews, translations)."""
+    existing = places_db.get_place_by_code(place_data.place_code, session)
+    if existing:
+        row = places_db.update_place(
+            place_code=place_data.place_code,
+            session=session,
+            name=place_data.name,
+            religion=place_data.religion,
+            place_type=place_data.place_type,
+            lat=place_data.lat,
+            lng=place_data.lng,
+            address=place_data.address,
+            opening_hours=place_data.opening_hours,
+            utc_offset_minutes=getattr(place_data, "utc_offset_minutes", None),
+            description=place_data.description,
+            website_url=place_data.website_url,
+            source=place_data.source,
+        )
+    else:
+        row = places_db.create_place(
+            place_code=place_data.place_code,
+            session=session,
+            name=place_data.name,
+            religion=place_data.religion,
+            place_type=place_data.place_type,
+            lat=place_data.lat,
+            lng=place_data.lng,
+            address=place_data.address,
+            opening_hours=place_data.opening_hours,
+            utc_offset_minutes=getattr(place_data, "utc_offset_minutes", None),
+            description=place_data.description,
+            website_url=place_data.website_url,
+            source=place_data.source,
+        )
+
+    if place_data.image_blobs:
+        try:
+            place_images.set_images_from_blobs(
+                place_data.place_code, place_data.image_blobs, session=session
+            )
+        except Exception as e:
+            logger.error("Failed to store image blobs for %s: %s", place_data.place_code, e)
+    elif place_data.image_urls:
+        place_images.set_images_from_urls(
+            place_data.place_code, place_data.image_urls, session=session
+        )
+
+    if place_data.attributes:
+        for attr_input in place_data.attributes:
+            attr_db.upsert_attribute(
+                place_data.place_code, attr_input.attribute_code, attr_input.value, session
+            )
+
+    if place_data.external_reviews:
+        reviews_db.upsert_external_reviews(
+            place_data.place_code, place_data.external_reviews, session
+        )
+
+    if place_data.translations:
+        _persist_place_translations(place_data.place_code, place_data.translations, session)
+
+    return row
+
+
 @router.post("/batch")
 def batch_create_places(
     body: PlaceBatch,
@@ -544,67 +609,7 @@ def batch_create_places(
     results = []
     for place_data in body.places:
         try:
-            existing = places_db.get_place_by_code(place_data.place_code, session)
-            if existing:
-                places_db.update_place(
-                    place_code=place_data.place_code,
-                    session=session,
-                    name=place_data.name,
-                    religion=place_data.religion,
-                    place_type=place_data.place_type,
-                    lat=place_data.lat,
-                    lng=place_data.lng,
-                    address=place_data.address,
-                    opening_hours=place_data.opening_hours,
-                    utc_offset_minutes=getattr(place_data, "utc_offset_minutes", None),
-                    description=place_data.description,
-                    website_url=place_data.website_url,
-                    source=place_data.source,
-                )
-            else:
-                places_db.create_place(
-                    place_code=place_data.place_code,
-                    session=session,
-                    name=place_data.name,
-                    religion=place_data.religion,
-                    place_type=place_data.place_type,
-                    lat=place_data.lat,
-                    lng=place_data.lng,
-                    address=place_data.address,
-                    opening_hours=place_data.opening_hours,
-                    utc_offset_minutes=getattr(place_data, "utc_offset_minutes", None),
-                    description=place_data.description,
-                    website_url=place_data.website_url,
-                    source=place_data.source,
-                )
-
-            if place_data.image_blobs:
-                try:
-                    place_images.set_images_from_blobs(
-                        place_data.place_code, place_data.image_blobs, session=session
-                    )
-                except Exception as e:
-                    logger.error("Failed to store image blobs for %s: %s", place_data.place_code, e)
-            elif place_data.image_urls:
-                place_images.set_images_from_urls(
-                    place_data.place_code, place_data.image_urls, session=session
-                )
-
-            if place_data.attributes:
-                for attr_input in place_data.attributes:
-                    attr_db.upsert_attribute(
-                        place_data.place_code, attr_input.attribute_code, attr_input.value, session
-                    )
-
-            if place_data.external_reviews:
-                reviews_db.upsert_external_reviews(
-                    place_data.place_code, place_data.external_reviews, session
-                )
-
-            # Persist translations provided by the scraper
-            if place_data.translations:
-                _persist_place_translations(place_data.place_code, place_data.translations, session)
-
+            _upsert_single_place(place_data, session)
             results.append({"place_code": place_data.place_code, "ok": True})
         except Exception as e:
             results.append({"place_code": place_data.place_code, "ok": False, "error": str(e)})
@@ -626,64 +631,7 @@ def create_place(
     """
     Create a new place or update an existing one if place_code matches.
     """
-    existing_place = places_db.get_place_by_code(body.place_code, session)
-    if existing_place:
-        row = places_db.update_place(
-            place_code=body.place_code,
-            session=session,
-            name=body.name,
-            religion=body.religion,
-            place_type=body.place_type,
-            lat=body.lat,
-            lng=body.lng,
-            address=body.address,
-            opening_hours=body.opening_hours,
-            utc_offset_minutes=getattr(body, "utc_offset_minutes", None),
-            description=body.description,
-            website_url=body.website_url,
-            source=body.source,
-        )
-    else:
-        row = places_db.create_place(
-            place_code=body.place_code,
-            session=session,
-            name=body.name,
-            religion=body.religion,
-            place_type=body.place_type,
-            lat=body.lat,
-            lng=body.lng,
-            address=body.address,
-            opening_hours=body.opening_hours,
-            utc_offset_minutes=getattr(body, "utc_offset_minutes", None),
-            description=body.description,
-            website_url=body.website_url,
-            source=body.source,
-        )
-
-    # Store images: prefer blobs over URLs; both paths replace existing images.
-    if body.image_blobs:
-        try:
-            place_images.set_images_from_blobs(body.place_code, body.image_blobs, session=session)
-        except Exception as e:
-            logger.error("Failed to store image blobs: %s", e)
-    elif body.image_urls:
-        place_images.set_images_from_urls(body.place_code, body.image_urls, session=session)
-
-    # Store attributes if provided
-    if body.attributes:
-        for attr_input in body.attributes:
-            attr_db.upsert_attribute(
-                body.place_code, attr_input.attribute_code, attr_input.value, session
-            )
-
-    # Store external reviews if provided
-    if body.external_reviews:
-        reviews_db.upsert_external_reviews(body.place_code, body.external_reviews, session)
-
-    # Persist translations provided at ingest time
-    if body.translations:
-        _persist_place_translations(body.place_code, body.translations, session)
-
+    row = _upsert_single_place(body, session)
     return _place_detail(row, session)
 
 

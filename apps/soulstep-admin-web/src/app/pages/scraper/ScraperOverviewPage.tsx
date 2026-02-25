@@ -4,6 +4,7 @@ import { getScraperStats } from "@/lib/api/scraper";
 import type { ScraperStats } from "@/lib/api/types";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatDate } from "@/lib/utils";
+import { statusVariant as runStatusVariant } from "@/lib/utils/scraperStatus";
 import { Database, MapPin, Play, Layers } from "lucide-react";
 
 const SCRAPER_SECTIONS = [
@@ -12,15 +13,6 @@ const SCRAPER_SECTIONS = [
   { label: "Collectors", to: "/scraper/collectors", description: "View configured data collectors and their status." },
   { label: "Place Type Mappings", to: "/scraper/place-type-mappings", description: "Map external place types to internal types." },
 ];
-
-function runStatusVariant(status: string | null) {
-  if (!status) return "neutral" as const;
-  if (status === "completed") return "success" as const;
-  if (status === "failed") return "danger" as const;
-  if (status === "running") return "info" as const;
-  if (status === "cancelled") return "warning" as const;
-  return "neutral" as const;
-}
 
 export function ScraperOverviewPage() {
   const [stats, setStats] = useState<ScraperStats | null>(null);
