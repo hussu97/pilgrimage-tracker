@@ -51,12 +51,12 @@ Security vulnerabilities, data-loss risks, and compliance gaps that **must** be 
 
 ### Scraper Reliability
 
-- [ ] **Replace `print()` with structured logging across scraper service**
+- [x] **Replace `print()` with structured logging across scraper service**
   - 77 `print()` statements scattered throughout the scraper. No structured logging. API keys can leak in stack traces. Errors are invisible in production.
   - Replace all `print()` with Python `logging` module. Add automatic key masking. Use JSON format in production (`LOG_FORMAT=json`).
   - Files: `soulstep-scraper-api/app/collectors/*.py`, `soulstep-scraper-api/app/scrapers/*.py`, `soulstep-scraper-api/app/pipeline/*.py`, `soulstep-scraper-api/app/main.py`
 
-- [ ] **Validate required environment variables at scraper startup**
+- [x] **Validate required environment variables at scraper startup**
   - Missing API keys (e.g., `GOOGLE_MAPS_API_KEY`) only fail at runtime when a scrape runs, not at startup. No validation of database writability.
   - Add config validation in `lifespan()`. Check required env vars, log all config (with secrets masked), test DB writability. Consider migrating to `pydantic-settings`.
   - Files: `soulstep-scraper-api/app/main.py`

@@ -5,7 +5,10 @@ from sqlmodel import Session, select
 
 from app.db.models import DataLocation, ScrapedPlace, ScraperRun
 from app.db.session import engine
+from app.logger import get_logger
 from app.scrapers.gmaps import run_gmaps_scraper
+
+logger = get_logger(__name__)
 
 
 def generate_code(prefix: str) -> str:
@@ -19,7 +22,7 @@ def run_scraper_task(run_code: str):
     with Session(engine) as session:
         run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
         if not run:
-            print(f"Run {run_code} not found")
+            logger.error("Run %s not found", run_code)
             return
 
         run.status = "running"
@@ -50,10 +53,10 @@ def run_scraper_task(run_code: str):
                 run.status = "completed"
                 session.add(run)
                 session.commit()
-                print(f"Run {run_code} completed")
+                logger.info("Run %s completed", run_code)
 
         except Exception as e:
-            print(f"Run {run_code} failed: {e}")
+            logger.error("Run %s failed: %s", run_code, e, exc_info=True)
             run.status = "failed"
             session.add(run)
             session.commit()
@@ -117,7 +120,7 @@ def sync_run_to_server(run_code: str, server_url: str):
         places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
 
         total = len(places)
-        print(f"Syncing {total} places to {server_url} in batches of {BATCH_SIZE}")
+        logger.info("Syncing %d places to %s in batches of %d", total, server_url, BATCH_SIZE)
 
         synced_count = 0
         failure_details: list[str] = []
@@ -156,7 +159,7 @@ def sync_run_to_server(run_code: str, server_url: str):
         for batch_start in range(0, len(payloads), BATCH_SIZE):
             batch = payloads[batch_start : batch_start + BATCH_SIZE]
             batch_codes = [p["place_code"] for p in batch]
-            print(f"  Sending batch {batch_start // BATCH_SIZE + 1}: {len(batch)} places")
+            logger.info("Sending batch %d: %d places", batch_start // BATCH_SIZE + 1, len(batch))
 
             try:
                 resp = requests.post(
@@ -170,13 +173,14 @@ def sync_run_to_server(run_code: str, server_url: str):
                         if not r.get("ok"):
                             reason = r.get("error", "unknown error")
                             failure_details.append(f"{r['place_code']}: {reason}")
-                            print(f"  [FAIL] {r['place_code']}: {reason}")
+                            logger.warning("[FAIL] %s: %s", r["place_code"], reason)
                         else:
-                            print(f"  [OK]   {r['place_code']}")
+                            logger.debug("[OK]   %s", r["place_code"])
                 else:
                     # Batch endpoint unavailable — fall back to individual POSTs
-                    print(
-                        f"  Batch endpoint returned {resp.status_code}, falling back to individual POSTs"
+                    logger.warning(
+                        "Batch endpoint returned %d, falling back to individual POSTs",
+                        resp.status_code,
                     )
                     for payload in batch:
                         place_code = payload["place_code"]
@@ -185,27 +189,31 @@ def sync_run_to_server(run_code: str, server_url: str):
                             if r.status_code not in [200, 201]:
                                 reason = f"HTTP {r.status_code}"
                                 failure_details.append(f"{place_code}: {reason}")
-                                print(f"  [FAIL] {place_code}: {reason} — {r.text[:200]}")
+                                logger.warning(
+                                    "[FAIL] %s: %s — %s", place_code, reason, r.text[:200]
+                                )
                                 if r.status_code == 422:
-                                    print("  Payload that caused 422:")
-                                    print(_json.dumps(payload, indent=2, default=str))
+                                    logger.debug(
+                                        "Payload that caused 422:\n%s",
+                                        _json.dumps(payload, indent=2, default=str),
+                                    )
                             else:
                                 synced_count += 1
-                                print(f"  [OK]   {place_code}")
+                                logger.debug("[OK]   %s", place_code)
                         except Exception as e:
                             reason = f"{type(e).__name__}: {e}"
                             failure_details.append(f"{place_code}: {reason}")
-                            print(f"  [FAIL] {place_code}: {reason}")
+                            logger.warning("[FAIL] %s: %s", place_code, reason)
             except Exception as e:
                 reason = f"{type(e).__name__}: {e}"
                 for code in batch_codes:
                     failure_details.append(f"{code}: {reason}")
-                print(f"  [FAIL] Batch request failed: {reason}")
+                logger.error("[FAIL] Batch request failed: %s", reason)
 
         # Summary
         failed_count = len(failure_details)
-        print(f"\nSync complete: {synced_count}/{total} places synced. {failed_count} failure(s).")
+        logger.info(
+            "Sync complete: %d/%d places synced. %d failure(s).", synced_count, total, failed_count
+        )
         if failure_details:
-            print("Failed places:")
-            for detail in failure_details:
-                print(f"  - {detail}")
+            logger.warning("Failed places:\n%s", "\n".join(f"  - {d}" for d in failure_details))

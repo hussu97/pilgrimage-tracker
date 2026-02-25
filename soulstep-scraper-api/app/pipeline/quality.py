@@ -11,6 +11,10 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from app.logger import get_logger
+
+logger = get_logger(__name__)
+
 # Source reliability weights (out of 0.4 — the max for this factor)
 SOURCE_RELIABILITY = {
     "wikipedia": 0.40,
@@ -227,5 +231,5 @@ Respond in this exact JSON format:
         }
 
     except Exception as e:
-        print(f"LLM tie-breaking failed: {e}")
+        logger.warning("LLM tie-breaking failed: %s", e)
         return None

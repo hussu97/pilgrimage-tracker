@@ -41,7 +41,7 @@ class TestListRuns:
         assert data["items"] == []
         assert data["total"] == 0
         assert data["page"] == 1
-        assert data["page_size"] == 20
+        assert data["page_size"] == 50
 
     def test_returns_all_runs(self, client, db_session):
         loc = _make_location(db_session)

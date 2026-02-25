@@ -16,7 +16,10 @@ import requests
 from sqlmodel import Session, desc, select
 
 from app.db.models import GeoBoundary, PlaceTypeMapping, RawCollectorData, ScrapedPlace, ScraperRun
+from app.logger import get_logger
 from app.scrapers.base import AtomicCounter, ThreadSafeIdSet, get_rate_limiter
+
+logger = get_logger(__name__)
 
 # Configuration
 MIN_RADIUS = 500  # 2km minimum radius for quadtree subdivision
@@ -219,16 +222,24 @@ def search_area(
     indent = "  " * depth
     center_lat, center_lng, radius = calculate_search_radius(lat_min, lat_max, lng_min, lng_max)
 
-    print(
-        f"{indent}Searching area (lat: {lat_min:.4f}-{lat_max:.4f}, lng: {lng_min:.4f}-{lng_max:.4f}, radius: {radius:.0f}m, depth: {depth}, total: {len(existing_ids)})"
+    logger.debug(
+        "%sSearching area (lat: %.4f-%.4f, lng: %.4f-%.4f, radius: %.0fm, depth: %d, total: %d)",
+        indent,
+        lat_min,
+        lat_max,
+        lng_min,
+        lng_max,
+        radius,
+        depth,
+        len(existing_ids),
     )
 
     if max_results and len(existing_ids) >= max_results:
-        print(f"{indent}Reached max_results limit ({max_results}), stopping recursion")
+        logger.info("%sReached max_results limit (%d), stopping recursion", indent, max_results)
         return []
 
     if radius < MIN_RADIUS:
-        print(f"{indent}Area too small (radius < {MIN_RADIUS}m), stopping recursion")
+        logger.debug("%sArea too small (radius < %dm), stopping recursion", indent, MIN_RADIUS)
         return []
 
     get_rate_limiter().acquire("gmaps_search")
@@ -238,18 +249,23 @@ def search_area(
 
     new_ids = existing_ids.add_new(place_ids)
 
-    print(
-        f"{indent}Found {len(place_ids)} places ({len(new_ids)} new), saturated: {is_saturated}, total: {len(existing_ids)}"
+    logger.debug(
+        "%sFound %d places (%d new), saturated: %s, total: %d",
+        indent,
+        len(place_ids),
+        len(new_ids),
+        is_saturated,
+        len(existing_ids),
     )
 
     if max_results and len(existing_ids) >= max_results:
-        print(f"{indent}Reached max_results limit ({max_results}) after this search")
+        logger.info("%sReached max_results limit (%d) after this search", indent, max_results)
         return new_ids
 
     if not is_saturated:
         return new_ids
 
-    print(f"{indent}Area saturated, splitting into quadrants...")
+    logger.debug("%sArea saturated, splitting into quadrants...", indent)
 
     mid_lat = (lat_min + lat_max) / 2
     mid_lng = (lng_min + lng_max) / 2
@@ -270,7 +286,9 @@ def search_area(
         futures = []
         for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
             if max_results and len(existing_ids) >= max_results:
-                print(f"{indent}Stopping quadrant submission - max_results ({max_results}) reached")
+                logger.info(
+                    "%sStopping quadrant submission — max_results (%d) reached", indent, max_results
+                )
                 break
             f = executor.submit(
                 search_area,
@@ -292,12 +310,14 @@ def search_area(
                 quadrant_ids = future.result()
                 all_ids.extend(quadrant_ids)
             except Exception as e:
-                print(f"{indent}Quadrant search failed: {e}")
+                logger.warning("%sQuadrant search failed: %s", indent, e)
     else:
         # Sequential fallback (depth > 0 or no executor)
         for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
             if max_results and len(existing_ids) >= max_results:
-                print(f"{indent}Stopping quadrant recursion - max_results ({max_results}) reached")
+                logger.info(
+                    "%sStopping quadrant recursion — max_results (%d) reached", indent, max_results
+                )
                 break
 
             quadrant_ids = search_area(
@@ -348,7 +368,7 @@ def _flush_detail_buffer(
     run.processed_items = new_count
     session.add(run)
     session.commit()
-    print(f"  Flushed {len(buffer)} places ({new_count}/{total} total)")
+    logger.debug("Flushed %d places (%d/%d total)", len(buffer), new_count, total)
 
 
 def run_gmaps_scraper(run_code: str, config: dict, session: Session):
@@ -405,19 +425,19 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
             religion_types_map[mapping.religion] = []
         religion_types_map[mapping.religion].append(mapping.gmaps_type)
 
-    print(f"\n=== Searching for religious places in {boundary_name} ===")
-    print(f"Place types: {all_gmaps_types}")
+    logger.info("=== Searching for religious places in %s ===", boundary_name)
+    logger.info("Place types: %s", all_gmaps_types)
     for religion, types in religion_types_map.items():
-        print(f"  {religion}: {types}")
+        logger.info("  %s: %s", religion, types)
 
     # Pre-load type maps once so workers don't need a DB session
     type_map = get_gmaps_type_to_our_type(session)
     religion_type_map = {m.gmaps_type: m.religion for m in place_type_mappings}
 
     # ── Discovery phase: parallel quadtree search ──────────────────────────────
-    print("\n--- Starting recursive quadtree search (parallel depth-0 quadrants) ---")
+    logger.info("Starting recursive quadtree search (parallel depth-0 quadrants)")
     if max_results:
-        print(f"Max results limit: {max_results}")
+        logger.info("Max results limit: %d", max_results)
     existing_ids = ThreadSafeIdSet()
 
     with ThreadPoolExecutor(max_workers=4) as discovery_executor:
@@ -434,17 +454,17 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
             executor=discovery_executor,
         )
 
-    print("\n=== Search Summary ===")
-    print(f"Total unique places found: {len(place_ids)}")
+    logger.info("=== Search Summary ===")
+    logger.info("Total unique places found: %d", len(place_ids))
     if max_results and len(place_ids) >= max_results:
-        print(f"Stopped early due to max_results limit ({max_results})")
+        logger.info("Stopped early due to max_results limit (%d)", max_results)
 
     run.total_items = len(place_ids)
     session.add(run)
     session.commit()
 
     # ── Detail fetching: bulk cache lookup + parallel fetch ────────────────────
-    print(f"\nFetching details for {len(place_ids)} places...")
+    logger.info("Fetching details for %d places...", len(place_ids))
 
     collector = GmapsCollector()
     stale_cutoff = datetime.now() - timedelta(days=stale_threshold_days)
@@ -458,7 +478,7 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
     # Single bulk query for cached places
     cached_places: dict[str, ScrapedPlace] = {}
     if not force_refresh:
-        print(f"Checking for cached places (fresher than {stale_threshold_days} days)...")
+        logger.info("Checking for cached places (fresher than %d days)...", stale_threshold_days)
         all_place_codes = list(name_to_code.values())
         existing = session.exec(
             select(ScrapedPlace)
@@ -470,8 +490,10 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
         for ep in existing:
             if ep.place_code not in cached_places:
                 cached_places[ep.place_code] = ep
-        print(
-            f"Found {len(cached_places)} cached places, will fetch {len(place_ids) - len(cached_places)} fresh"
+        logger.info(
+            "Found %d cached places, will fetch %d fresh",
+            len(cached_places),
+            len(place_ids) - len(cached_places),
         )
 
     # Process cached places immediately (no API call)
@@ -491,7 +513,7 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
 
     if cached_count:
         session.commit()
-        print(f"  Stored {cached_count} cached places")
+        logger.info("Stored %d cached places", cached_count)
 
     # Parallel fetch for places that need fresh details
     to_fetch = [
@@ -499,10 +521,11 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
     ]
 
     if not to_fetch:
-        print("\n=== Details Fetch Summary ===")
-        print("Fresh fetches: 0")
-        print(f"Cached reuses: {cached_count}")
-        print(f"Total: {len(place_ids)}")
+        logger.info(
+            "=== Details Fetch Summary === fresh=0  cached=%d  total=%d",
+            cached_count,
+            len(place_ids),
+        )
         return
 
     rate_limiter = get_rate_limiter()
@@ -537,14 +560,14 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
             session.expire(run)
             session.refresh(run)
             if run.status == "cancelled":
-                print(f"Run {run_code} was cancelled during detail fetching")
+                logger.warning("Run %s was cancelled during detail fetching", run_code)
                 detail_executor.shutdown(wait=False)
                 return
 
             place_name, details, response, error = future.result()
 
             if error:
-                print(f"  Error fetching {place_name}: {error}")
+                logger.warning("Error fetching %s: %s", place_name, error)
                 counter.increment()
                 continue
 
@@ -558,7 +581,9 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
     if buffer:
         _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
 
-    print("\n=== Details Fetch Summary ===")
-    print(f"Fresh fetches: {counter.value - cached_count}")
-    print(f"Cached reuses: {cached_count}")
-    print(f"Total: {len(place_ids)}")
+    logger.info(
+        "=== Details Fetch Summary === fresh=%d  cached=%d  total=%d",
+        counter.value - cached_count,
+        cached_count,
+        len(place_ids),
+    )

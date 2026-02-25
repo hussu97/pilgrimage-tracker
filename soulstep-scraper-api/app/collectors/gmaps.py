@@ -15,12 +15,15 @@ import requests
 from sqlmodel import Session
 
 from app.collectors.base import BaseCollector, CollectorResult
+from app.logger import get_logger
 from app.scrapers.gmaps import (
     clean_address,
     detect_religion_from_types,
     get_gmaps_type_to_our_type,
     process_weekly_hours,
 )
+
+logger = get_logger(__name__)
 
 
 class GmapsCollector(BaseCollector):
@@ -310,7 +313,7 @@ class GmapsCollector(BaseCollector):
                 else:
                     download_failures.append(photo_url)
             except Exception as e:
-                print(f"Failed to download image {photo_url}: {e}")
+                logger.warning("Failed to download image %s: %s", photo_url, e)
                 download_failures.append(photo_url)
 
         # Process external reviews (up to 5)
@@ -428,7 +431,9 @@ class GmapsCollector(BaseCollector):
             religion = detect_religion_from_types(session, result_types)
 
         if not religion:
-            print(f"Warning: Could not detect religion for {place_id} with types: {result_types}")
+            logger.warning(
+                "Could not detect religion for %s with types: %s", place_id, result_types
+            )
             religion = "unknown"
 
         place_type_name = "place of worship"

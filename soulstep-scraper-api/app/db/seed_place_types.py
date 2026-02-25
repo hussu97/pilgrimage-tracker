@@ -3,6 +3,9 @@
 from sqlmodel import Session, select
 
 from app.db.models import PlaceTypeMapping
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Place type mappings: religion -> Google Maps types -> our internal type names
 # Note: Using Places API (New) supported types only:
@@ -45,16 +48,16 @@ def seed_place_type_mappings(session: Session):
     # Check if already seeded
     existing = session.exec(select(PlaceTypeMapping)).first()
     if existing:
-        print("Place type mappings already seeded.")
+        logger.debug("Place type mappings already seeded.")
         return
 
-    print(f"Seeding {len(PLACE_TYPE_MAPPINGS)} place type mappings...")
+    logger.info("Seeding %d place type mappings...", len(PLACE_TYPE_MAPPINGS))
     for mapping_data in PLACE_TYPE_MAPPINGS:
         mapping = PlaceTypeMapping(**mapping_data)
         session.add(mapping)
 
     session.commit()
-    print("Place type mappings seeded successfully.")
+    logger.info("Place type mappings seeded successfully.")
 
 
 if __name__ == "__main__":

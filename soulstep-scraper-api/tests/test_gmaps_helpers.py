@@ -167,8 +167,8 @@ class TestGetGmapsTypeToOurType:
 
 
 class TestMinRadius:
-    def test_min_radius_is_2000_meters(self):
-        assert MIN_RADIUS == 2000
+    def test_min_radius_is_500_meters(self):
+        assert MIN_RADIUS == 500
 
     def test_search_radius_above_min_is_searchable(self):
         # A 0.1° × 0.1° box near equator has radius ~7850m > MIN_RADIUS
@@ -176,6 +176,6 @@ class TestMinRadius:
         assert radius >= MIN_RADIUS
 
     def test_search_radius_tiny_box_below_min(self):
-        # A 0.01° × 0.01° box has radius ~785m < MIN_RADIUS
-        _, _, radius = calculate_search_radius(0, 0.01, 0, 0.01)
+        # A 0.004° × 0.004° box has radius ~314m < MIN_RADIUS (500m)
+        _, _, radius = calculate_search_radius(0, 0.004, 0, 0.004)
         assert radius < MIN_RADIUS

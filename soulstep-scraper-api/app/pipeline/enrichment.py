@@ -20,7 +20,10 @@ from app.collectors.base import BaseCollector, CollectorResult
 from app.collectors.registry import get_enrichment_collectors
 from app.db.models import RawCollectorData, ScrapedPlace, ScraperRun
 from app.db.session import engine
+from app.logger import get_logger
 from app.pipeline.merger import merge_collector_results
+
+logger = get_logger(__name__)
 
 # Collectors that belong to each dependency phase (identified by name)
 _PHASE0_NAMES = frozenset({"osm"})
@@ -70,25 +73,29 @@ def run_enrichment_pipeline(run_code: str):
     with Session(engine) as session:
         run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
         if not run:
-            print(f"Enrichment: Run {run_code} not found")
+            logger.error("Enrichment: Run %s not found", run_code)
             return
 
         if run.status == "cancelled":
-            print(f"Enrichment: Run {run_code} is already cancelled")
+            logger.warning("Enrichment: Run %s is already cancelled", run_code)
             return
 
         places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
 
         if not places:
-            print(f"Enrichment: No places found for run {run_code}")
+            logger.warning("Enrichment: No places found for run %s", run_code)
             return
 
         place_codes = [p.place_code for p in places]
         collectors = get_enrichment_collectors()
 
     collector_names = [c.name for c in collectors]
-    print("\n=== Enrichment Pipeline ===")
-    print(f"Run: {run_code}, Places: {len(place_codes)}, Collectors: {collector_names}")
+    logger.info(
+        "=== Enrichment Pipeline === run=%s  places=%d  collectors=%s",
+        run_code,
+        len(place_codes),
+        collector_names,
+    )
 
     completed_count = 0
 
@@ -103,7 +110,7 @@ def run_enrichment_pipeline(run_code: str):
             try:
                 _enrich_place(place, run_code, collectors, worker_session)
             except Exception as exc:
-                print(f"  {place_code}: enrichment failed: {exc}")
+                logger.error("%s: enrichment failed: %s", place_code, exc)
                 place.enrichment_status = "failed"
                 worker_session.add(place)
                 worker_session.commit()
@@ -118,7 +125,9 @@ def run_enrichment_pipeline(run_code: str):
                     select(ScraperRun).where(ScraperRun.run_code == run_code)
                 ).first()
                 if run_check and run_check.status == "cancelled":
-                    print(f"Enrichment cancelled after {completed_count}/{len(place_codes)} places")
+                    logger.warning(
+                        "Enrichment cancelled after %d/%d places", completed_count, len(place_codes)
+                    )
                     pool.shutdown(wait=False)
                     return
 
@@ -126,11 +135,11 @@ def run_enrichment_pipeline(run_code: str):
                 future.result()
                 completed_count += 1
                 place_code = futures[future]
-                print(f"  [{completed_count}/{len(place_codes)}] {place_code}: enriched")
+                logger.info("[%d/%d] %s: enriched", completed_count, len(place_codes), place_code)
             except Exception as exc:
-                print(f"  Worker error: {exc}")
+                logger.error("Worker error: %s", exc)
 
-    print("\n=== Enrichment Complete ===")
+    logger.info("=== Enrichment Complete ===")
 
 
 def _enrich_place(

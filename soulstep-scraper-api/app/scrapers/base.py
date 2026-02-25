@@ -4,6 +4,10 @@ import time
 
 import requests
 
+from app.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 def generate_code(prefix: str) -> str:
     """Generate a unique code with the given prefix."""
@@ -20,14 +24,14 @@ def make_request_with_backoff(method: str, url: str, **kwargs) -> requests.Respo
         try:
             response = requests.request(method, url, **kwargs)
             if response.status_code == 429:
-                print(f"Rate limit hit (429). Retrying in {wait_time}s...")
+                logger.warning("Rate limit hit (429) for %s. Retrying in %ss...", url, wait_time)
                 time.sleep(wait_time)
                 wait_time *= 2
                 retries += 1
                 continue
             return response
         except Exception as e:
-            print(f"Request error: {e}")
+            logger.error("Request error for %s: %s", url, e)
             return None
     return None
 

@@ -3,6 +3,9 @@
 from sqlmodel import Session, select
 
 from app.db.models import GeoBoundary
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Geographic boundaries for countries, states, and cities
 GEO_BOUNDARIES = [
@@ -1737,16 +1740,16 @@ def seed_geo_boundaries(session: Session):
     # Check if already seeded
     existing = session.exec(select(GeoBoundary)).first()
     if existing:
-        print("Geographic boundaries already seeded.")
+        logger.debug("Geographic boundaries already seeded.")
         return
 
-    print(f"Seeding {len(GEO_BOUNDARIES)} geographic boundaries...")
+    logger.info("Seeding %d geographic boundaries...", len(GEO_BOUNDARIES))
     for boundary_data in GEO_BOUNDARIES:
         boundary = GeoBoundary(**boundary_data)
         session.add(boundary)
 
     session.commit()
-    print("Geographic boundaries seeded successfully.")
+    logger.info("Geographic boundaries seeded successfully.")
 
 
 if __name__ == "__main__":

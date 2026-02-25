@@ -4,6 +4,23 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P0 Scraper Reliability (2026-02-25)
+
+### Scraper
+
+- **Structured logging** — Replaced all 79 `print()` statements across the scraper service with Python `logging` module calls. Created `app/logger.py` with:
+  - `setup_logging()` — configures root logger from `LOG_LEVEL` (default `INFO`) and `LOG_FORMAT` (default `text`, supports `json` for production log aggregation).
+  - `get_logger(name)` — returns a named `logging.Logger` for each module.
+  - `_SecretMaskingFormatter` — automatically scrubs API keys, passwords, secrets, and tokens from all log messages using regex patterns.
+  - `_JSONFormatter` — emits structured JSON with timestamp, level, logger name, and message for production pipelines.
+  - `mask_secret()` / `mask_message()` — public helpers used by startup config logging.
+  - Per-module loggers in: `app/main.py`, `app/scrapers/base.py`, `app/scrapers/gmaps.py`, `app/collectors/gmaps.py`, `app/pipeline/enrichment.py`, `app/pipeline/quality.py`, `app/db/scraper.py`, `app/db/seed_geo.py`, `app/db/seed_place_types.py`.
+- **Startup config validation** — Added `_validate_startup_config()` called in `lifespan()`. On startup it logs all optional API keys (masked), warns for any missing keys that will cause collectors to skip, prints general runtime config, and runs a DB connectivity check.
+- **Tests** — Added `tests/test_logger.py` with 25 tests covering `mask_secret`, `mask_message`, `setup_logging` (level, formatter, stdout, idempotency), `get_logger`, and `_JSONFormatter`.
+- **Pre-existing test fixes** — Updated stale `MIN_RADIUS` constant assertion from 2000→500 and `page_size` default from 20→50 in `test_gmaps_helpers.py` and `test_list_runs.py`.
+
+---
+
 ## SEO & AI Discoverability Roadmap (2026-02-25)
 
 ### Docs
