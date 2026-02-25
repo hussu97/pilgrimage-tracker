@@ -2,7 +2,7 @@
 
 This document is the **single unified roadmap** for the entire SoulStep monorepo. It merges the previous `ROADMAP.md` and `ADMIN_ROADMAP.md`, adds findings from a full system audit (backend, scraper, web, mobile, admin, infra), introduces new user features, and outlines monetization strategies. Items are organized by priority tier (P0 through P3).
 
-> **Last updated:** 2026-02-23
+> **Last updated:** 2026-02-25
 
 ---
 
@@ -135,6 +135,63 @@ Significant quality, UX, compliance, and admin completeness items. Should be add
   - Enable gzip for text/html, application/json, text/css, application/javascript. Add security headers (X-Frame-Options, X-Content-Type-Options, HSTS, CSP).
   - Files: `apps/soulstep-customer-web/nginx.conf`
 
+### SEO & Discoverability
+
+- [ ] **Backend pre-rendering service for crawlers**
+  - The SPA serves an empty `<div id="root"></div>` to search engines and AI bots. Zero crawlable HTML content exists today.
+  - Extend the existing `share.py` pattern to serve full HTML pages (meta tags + JSON-LD + visible content) for crawler user-agents. Route crawlers at Firebase/nginx layer; SPA behavior unchanged for humans.
+  - Files: `soulstep-catalog-api/app/api/v1/share.py`, `firebase.json`, `apps/soulstep-customer-web/nginx.conf`
+
+- [ ] **PlaceSEO model + migration**
+  - No SEO metadata storage exists. Titles, descriptions, slugs, and FAQ content must be stored per place and per language.
+  - New table: `place_code` (FK), `slug` (unique), `seo_title`, `meta_description`, `rich_description`, `faq_json`, `og_image_url`, `generated_at`, `is_manually_edited`. Multi-language SEO stored via existing `ContentTranslation` with `entity_type="place_seo"`.
+  - Files: `soulstep-catalog-api/app/db/models.py`, new migration `0011_place_seo.py`
+
+- [ ] **SEO content generation service**
+  - Writing SEO content manually for thousands of places is not scalable.
+  - Template-based auto-generation of slugs, titles, descriptions, FAQs, and image alt text from place data. No manual writing needed. English first, then translate to ar/hi via Google Cloud Translation.
+  - Files: new `soulstep-catalog-api/app/services/seo_generator.py`, new `soulstep-catalog-api/scripts/generate_seo.py`
+
+- [ ] **Dynamic sitemap.xml**
+  - No sitemap exists. Search engines have no way to discover the full set of place pages.
+  - Backend endpoint generating XML sitemap from database. Multi-language URLs with hreflang, priority scoring, lastmod dates. Sitemap index for >50k URLs.
+  - Files: new `soulstep-catalog-api/app/api/v1/sitemap.py`
+
+- [ ] **robots.txt with AI bot allowances**
+  - No robots.txt exists. No crawl directives for search engines or AI assistants.
+  - Proper directives allowing public pages, blocking auth-required pages and admin. Explicit AI bot allowances (ChatGPT-User, Claude-Web, PerplexityBot). Sitemap reference.
+  - Files: `apps/soulstep-customer-web/public/robots.txt` or backend endpoint
+
+- [ ] **JSON-LD structured data**
+  - No structured data markup. Search engines cannot generate rich snippets for place pages.
+  - Schema.org markup per place: `PlaceOfWorship`/`Mosque`/`HinduTemple`/`Church`, `AggregateRating`, `Review`, `BreadcrumbList`, `FAQPage`. `Organization` on homepage.
+  - Files: new `soulstep-catalog-api/app/services/structured_data.py`
+
+- [ ] **Dynamic meta tags per page**
+  - All pages share the same generic `<title>` and `<meta>` from `index.html`. No per-place OG tags for social sharing.
+  - Per-page: title, description, canonical, OG (title/desc/image/url/locale), Twitter Cards, hreflang alternates. Extends existing `share.py` pattern.
+  - Files: `soulstep-catalog-api/app/api/v1/share.py`, new `soulstep-catalog-api/app/services/meta_tags.py`
+
+- [ ] **llms.txt for AI chatbot discoverability**
+  - AI assistants (ChatGPT, Claude, Perplexity) have no structured way to discover SoulStep's content and capabilities.
+  - Markdown file at `/llms.txt` describing SoulStep's content, religions, API docs. Plus `/llms-full.txt` with richer detail. Both dynamically generated from DB.
+  - Files: new `soulstep-catalog-api/app/api/v1/llms.py`
+
+- [ ] **Rich FAQ content for AI citation**
+  - AI chatbots have no structured Q&A content to cite when answering questions about religious places.
+  - Auto-generated Q&A pairs per place from data (opening hours, parking, accessibility, prayer/service times). Rendered as FAQPage schema + visible HTML for AI crawlers to cite.
+  - Files: `soulstep-catalog-api/app/services/seo_generator.py`
+
+- [ ] **Admin SEO Dashboard**
+  - No visibility into SEO coverage, missing content, or generation status across the place catalog.
+  - New "SEO" section in admin sidebar. Health metrics: places missing SEO content, missing images, missing translations, sitemap status. Bulk generation triggers.
+  - Files: new `apps/soulstep-admin-web/src/app/pages/seo/SEODashboardPage.tsx`, new `soulstep-catalog-api/app/api/v1/admin/seo.py`, `apps/soulstep-admin-web/src/components/layout/Sidebar.tsx`
+
+- [ ] **Admin SEO Content Editor with SERP preview**
+  - No way to manually review or edit auto-generated SEO content per place.
+  - SEO tab on Place Detail page. Edit seo_title, meta_description, slug per language. Live Google SERP preview. Regenerate button. `is_manually_edited` flag prevents auto-overwrite.
+  - Files: `apps/soulstep-admin-web/src/app/pages/places/PlaceDetailPage.tsx`, new `apps/soulstep-admin-web/src/components/seo/SERPPreview.tsx`, `soulstep-catalog-api/app/api/v1/admin/seo.py`
+
 ### Documentation
 
 - [ ] **Create admin app README**
@@ -222,6 +279,48 @@ New user-facing features, UX improvements, and monetization strategies.
   - No proactive rate limiting. Relies on reactive backoff after 429 responses. Quadtree search can make hundreds of calls without throttling.
   - Implement token bucket rate limiters per API. Respect `X-RateLimit-Remaining` and `Retry-After` headers. Add per-location scrape quotas.
   - Files: `soulstep-scraper-api/app/scrapers/base.py`, `soulstep-scraper-api/app/collectors/*.py`
+
+### SEO & Discoverability
+
+- [ ] **SEO-friendly URLs with slugs**
+  - Place URLs use opaque codes only (e.g., `/places/plc_abc12`). Not human-readable or keyword-rich.
+  - `/places/{code}/{slug}` pattern. Slug is decorative; code remains authoritative (per Rule 9). 301 redirect on wrong/missing slug. Update React Router + mobile navigation.
+  - Files: `apps/soulstep-customer-web/src/app/routes.tsx`, mobile navigation, `soulstep-catalog-api/app/api/v1/share.py`
+
+- [ ] **Multi-language URL structure + hreflang**
+  - No language-specific URLs. Google indexes only one language variant per page.
+  - Language-prefixed pre-rendered pages (`/en/places/...`, `/ar/places/...`). hreflang link tags on all pages. Update sitemaps with all language variants.
+  - Files: `soulstep-catalog-api/app/api/v1/share.py`, `soulstep-catalog-api/app/api/v1/sitemap.py`
+
+- [ ] **Image SEO optimization**
+  - Place images lack alt text, no image sitemap exists, and no optimized OG images are generated.
+  - Auto-generated alt text for all place images. Image sitemap. OG image selection/generation (1200x630px). `alt_text` field on PlaceImage model.
+  - Files: `soulstep-catalog-api/app/db/models.py`, `soulstep-catalog-api/app/services/seo_generator.py`, `soulstep-catalog-api/app/api/v1/sitemap.py`
+
+- [ ] **Internal linking: related + nearby places**
+  - Pre-rendered pages have no outbound links to other place pages. Poor link equity distribution.
+  - Pre-rendered pages include "Nearby Places" (within 5km) and "Similar Places" (same religion/type) sections with links. Distributes PageRank and aids discovery.
+  - Files: `soulstep-catalog-api/app/api/v1/share.py`, `soulstep-catalog-api/app/api/v1/places.py`
+
+- [ ] **Client-side document title updates**
+  - All pages show the same browser tab title regardless of content. Poor UX and bookmarking.
+  - `useDocumentTitle` hook for SPA. Correct browser tab titles on all pages. Replicate in mobile (navigation title). Doesn't help crawlers but improves UX.
+  - Files: new `apps/soulstep-customer-web/src/hooks/useDocumentTitle.ts`, `apps/soulstep-customer-mobile/` navigation config
+
+- [ ] **Religion category pages**
+  - No landing pages for broad queries like "mosques near me" or "temples in Dubai".
+  - Pre-rendered `/mosques`, `/temples`, `/churches` pages with `ItemList` schema, meta tags, and internal links. Targets broad queries.
+  - Files: `soulstep-catalog-api/app/api/v1/share.py`
+
+- [ ] **Auto-regenerate SEO on place data changes**
+  - SEO content becomes stale when place data changes (new reviews, updated hours, new images).
+  - Post-update hook: when place data changes, regenerate SEO content if `is_manually_edited` is false. Daily background job for rating changes.
+  - Files: `soulstep-catalog-api/app/api/v1/admin/places.py`, `soulstep-catalog-api/app/services/seo_generator.py`
+
+- [ ] **Social sharing rich preview improvements**
+  - Current share.py provides basic OG tags. No locale, no site_name, no religion-specific imagery.
+  - Enhance share.py with PlaceSEO data, `og:locale`, `og:site_name`, religion-specific icons, optimal image dimensions.
+  - Files: `soulstep-catalog-api/app/api/v1/share.py`
 
 ### Monetization
 
@@ -361,6 +460,43 @@ Infrastructure, optimization, monitoring, code quality, and documentation work f
   - `tqdm` and `httpx` are in `requirements.txt` but not used anywhere in the codebase.
   - Remove `tqdm` and `httpx` (or document `httpx` as reserved for future async migration).
   - Files: `soulstep-scraper-api/requirements.txt`
+
+### SEO & Discoverability
+
+- [ ] **Knowledge Graph entity linking**
+  - No connections between SoulStep places and their Wikipedia/Wikidata/Google Maps counterparts. Weaker entity signals for search engines.
+  - Extract Wikipedia/Wikidata/Google Maps URLs from scraper data. Include as `sameAs` in JSON-LD. Strengthens entity recognition.
+  - Files: `soulstep-catalog-api/app/services/structured_data.py`, scraper pipeline
+
+- [ ] **Static info pages for AI context**
+  - No citable content about SoulStep itself. AI assistants cannot describe the platform accurately.
+  - Pre-rendered `/about`, `/how-it-works`, `/coverage` pages. Gives AI assistants citable content about SoulStep.
+  - Files: `soulstep-catalog-api/app/api/v1/share.py`
+
+- [ ] **RSS/Atom feed**
+  - No feed for newly added or updated places. Feed readers and some AI systems cannot track updates.
+  - `/feed.xml` with 50 most recently added/updated places. Consumed by feed readers and some AI systems.
+  - Files: new `soulstep-catalog-api/app/api/v1/feed.py`
+
+- [ ] **Multi-language SEO via Cloud Translation**
+  - SEO content is English-only. Arabic/Hindi/regional language search markets for religious content are untapped.
+  - Translate generated English SEO content to ar/hi. Store in ContentTranslation. Religion-aware terminology.
+  - Files: `soulstep-catalog-api/scripts/generate_seo.py`
+
+- [ ] **Structured data validation in CI**
+  - No automated checks for broken JSON-LD markup. Invalid structured data can ship undetected.
+  - pytest tests validating JSON-LD output against Schema.org. Catch broken structured data before deploy.
+  - Files: new `soulstep-catalog-api/tests/test_seo.py`
+
+- [ ] **Search engine submission docs**
+  - No documented procedure for submitting sitemaps to Google Search Console, Bing Webmaster Tools, or other search engines.
+  - Document Google Search Console, Bing Webmaster Tools setup and sitemap submission in PRODUCTION.md.
+  - Files: `PRODUCTION.md`
+
+- [ ] **AI citation monitoring**
+  - No visibility into whether AI assistants are citing SoulStep content or driving traffic.
+  - Middleware detecting AI-assistant referrers (ChatGPT, Perplexity). Admin dashboard report of AI referral traffic over time.
+  - Files: `soulstep-catalog-api/app/main.py`, `soulstep-catalog-api/app/api/v1/admin/seo.py`
 
 ### Documentation & Compliance
 
