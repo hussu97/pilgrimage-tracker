@@ -128,7 +128,7 @@ export default function AddToGroupSheet({
                         {g.name}
                       </p>
                       <p className="text-xs text-slate-400 dark:text-dark-text-secondary">
-                        {g.member_count ?? 0} members
+                        {g.member_count ?? 0} {t('groups.members').toLowerCase()}
                         {alreadyIn && (
                           <span className="ml-2 text-primary font-medium">
                             · {t('groups.placeAlreadyAdded')}

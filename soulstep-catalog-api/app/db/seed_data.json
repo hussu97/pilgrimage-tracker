@@ -377,7 +377,10 @@
       "search.noResults": "No places found for '{query}'",
       "search.recentEmpty": "Your recent searches will appear here",
       "search.searchPlaces": "Search for a city, area, or landmark...",
-      "search.error": "Could not load suggestions"
+      "search.error": "Could not load suggestions",
+      "home.listView": "List View",
+      "common.linkCopied": "Link copied",
+      "common.shared": "Shared"
     },
     "ar": {
       "auth.login": "تسجيل الدخول",
@@ -734,7 +737,10 @@
       "search.noResults": "لم يتم العثور على أماكن لـ '{query}'",
       "search.recentEmpty": "ستظهر عمليات البحث الأخيرة هنا",
       "search.searchPlaces": "ابحث عن مدينة أو منطقة أو معلم...",
-      "search.error": "تعذر تحميل الاقتراحات"
+      "search.error": "تعذر تحميل الاقتراحات",
+      "home.listView": "عرض القائمة",
+      "common.linkCopied": "تم نسخ الرابط",
+      "common.shared": "تمت المشاركة"
     },
     "hi": {
       "auth.login": "लॉग इन करें",
@@ -1091,7 +1097,10 @@
       "search.noResults": "'{query}' के लिए कोई स्थान नहीं मिला",
       "search.recentEmpty": "आपकी हाल की खोजें यहाँ दिखाई देंगी",
       "search.searchPlaces": "शहर, क्षेत्र या स्थलचिह्न खोजें...",
-      "search.error": "सुझाव लोड नहीं हो सके"
+      "search.error": "सुझाव लोड नहीं हो सके",
+      "home.listView": "सूची दृश्य",
+      "common.linkCopied": "लिंक कॉपी हो गया",
+      "common.shared": "शेयर हो गया"
     },
     "te": {
       "auth.login": "లాగిన్ చేయండి",

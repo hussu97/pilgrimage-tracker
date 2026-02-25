@@ -63,7 +63,7 @@ function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
           <div className="absolute top-4 right-4 z-10">
             <span className="badge-visited">
               <span className="material-symbols-outlined text-[12px]">check</span>
-              Visited
+              {t('places.visited')}
             </span>
           </div>
         )}

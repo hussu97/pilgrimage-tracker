@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useI18n } from '@/app/providers';
 
 interface ErrorStateProps {
   message: string;
@@ -7,12 +8,9 @@ interface ErrorStateProps {
   action?: ReactNode;
 }
 
-export default function ErrorState({
-  message,
-  onRetry,
-  retryLabel = 'Retry',
-  action,
-}: ErrorStateProps) {
+export default function ErrorState({ message, onRetry, retryLabel, action }: ErrorStateProps) {
+  const { t } = useI18n();
+  const label = retryLabel ?? t('common.retry');
   return (
     <div
       className="py-6 rounded-2xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/20 px-4"
@@ -26,7 +24,7 @@ export default function ErrorState({
             onClick={onRetry}
             className="px-4 py-2 rounded-xl bg-primary text-white font-medium hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
-            {retryLabel}
+            {label}
           </button>
         )}
         {action}

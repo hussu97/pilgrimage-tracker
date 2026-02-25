@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { shareUrl } from '@/lib/share';
+import { useI18n } from '@/app/providers';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -14,6 +15,7 @@ export function SharePlaceButton({
   placeCode,
   variant = 'default',
 }: SharePlaceButtonProps) {
+  const { t } = useI18n();
   const [status, setStatus] = useState<'idle' | 'shared' | 'copied'>('idle');
 
   const handleShare = async () => {
@@ -29,8 +31,14 @@ export function SharePlaceButton({
         type="button"
         onClick={handleShare}
         className="w-11 h-11 rounded-full bg-black/35 flex items-center justify-center text-white hover:bg-black/50 transition-all border border-white/20"
-        aria-label="Share"
-        title={status !== 'idle' ? (status === 'copied' ? 'Link copied' : 'Shared') : 'Share'}
+        aria-label={t('common.share')}
+        title={
+          status !== 'idle'
+            ? status === 'copied'
+              ? t('common.linkCopied')
+              : t('common.shared')
+            : t('common.share')
+        }
       >
         <span className="material-symbols-outlined text-[20px]">share</span>
       </button>

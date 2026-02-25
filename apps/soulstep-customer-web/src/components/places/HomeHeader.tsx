@@ -41,7 +41,7 @@ export default function HomeHeader({
               {viewMode === 'list' ? 'map' : 'grid_view'}
             </span>
             <span className="text-sm font-bold text-slate-700 dark:text-slate-200 hidden sm:inline">
-              {viewMode === 'list' ? t('home.map') : 'List View'}
+              {viewMode === 'list' ? t('home.map') : t('home.listView')}
             </span>
           </button>
         </div>
