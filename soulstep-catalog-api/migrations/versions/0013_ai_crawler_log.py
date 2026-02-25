@@ -32,9 +32,9 @@ def upgrade() -> None:
     op.create_table(
         "ai_crawler_log",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("bot_name", sa.String, nullable=False, index=True),
+        sa.Column("bot_name", sa.String, nullable=False),
         sa.Column("path", sa.String, nullable=False),
-        sa.Column("place_code", sa.String, nullable=True, index=True),
+        sa.Column("place_code", sa.String, nullable=True),
         sa.Column("visited_at", sa.DateTime(timezone=True), nullable=False),
     )
     op.create_index("ix_ai_crawler_log_bot_name", "ai_crawler_log", ["bot_name"])
