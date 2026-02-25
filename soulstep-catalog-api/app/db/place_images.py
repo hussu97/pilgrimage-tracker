@@ -6,46 +6,6 @@ from app.db.enums import ImageType
 from app.db.models import PlaceImage
 
 
-def add_image_url(
-    place_code: str,
-    url: str,
-    session: Session,
-    display_order: int = 0,
-) -> PlaceImage:
-    """Add a URL-based image for a place."""
-    image = PlaceImage(
-        place_code=place_code,
-        image_type=ImageType.URL,
-        url=url,
-        display_order=display_order,
-    )
-    session.add(image)
-    session.commit()
-    session.refresh(image)
-    return image
-
-
-def add_image_blob(
-    place_code: str,
-    data: bytes,
-    mime_type: str,
-    session: Session,
-    display_order: int = 0,
-) -> PlaceImage:
-    """Add a blob-based image for a place."""
-    image = PlaceImage(
-        place_code=place_code,
-        image_type=ImageType.BLOB,
-        blob_data=data,
-        mime_type=mime_type,
-        display_order=display_order,
-    )
-    session.add(image)
-    session.commit()
-    session.refresh(image)
-    return image
-
-
 def get_images(place_code: str, session: Session) -> list[dict]:
     """
     Get all images for a place, returns list of image dicts.

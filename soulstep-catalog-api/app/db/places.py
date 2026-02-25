@@ -1,6 +1,5 @@
 import math
 import re
-import secrets
 from datetime import UTC, datetime
 from typing import Any
 
@@ -175,10 +174,6 @@ def _is_open_now_from_hours(
         if open_min <= close_min:
             return open_min <= now_min <= close_min
         return now_min >= open_min or now_min <= close_min
-
-
-def _generate_place_code() -> str:
-    return "plc_" + secrets.token_hex(8)
 
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:

@@ -11,8 +11,8 @@ from app.db import groups as groups_db
 from app.db import i18n as i18n_db
 from app.db import notifications as notifications_db
 from app.db import place_attributes as attr_db
-from app.db import place_images, store
 from app.db import places as places_db
+from app.db import store
 from app.db.models import AppVersionConfig
 from app.db.session import Session, engine
 
@@ -129,23 +129,32 @@ def run_seed_demo(seed_path: str | Path | None = None) -> None:
         # Seed place images
         import base64
 
+        from app.db.enums import ImageType
+        from app.db.models import PlaceImage
+
         for img in data.get("place_images", []):
             if img["image_type"] == "url":
-                place_images.add_image_url(
-                    place_code=img["place_code"],
-                    url=img["url"],
-                    session=session,
-                    display_order=img.get("display_order", 0),
+                session.add(
+                    PlaceImage(
+                        place_code=img["place_code"],
+                        image_type=ImageType.URL,
+                        url=img["url"],
+                        display_order=img.get("display_order", 0),
+                    )
                 )
+                session.commit()
             elif img["image_type"] == "blob" and img.get("blob_data_base64"):
                 blob_data = base64.b64decode(img["blob_data_base64"])
-                place_images.add_image_blob(
-                    place_code=img["place_code"],
-                    data=blob_data,
-                    mime_type=img.get("mime_type", "image/jpeg"),
-                    display_order=img.get("display_order", 0),
-                    session=session,
+                session.add(
+                    PlaceImage(
+                        place_code=img["place_code"],
+                        image_type=ImageType.BLOB,
+                        blob_data=blob_data,
+                        mime_type=img.get("mime_type", "image/jpeg"),
+                        display_order=img.get("display_order", 0),
+                    )
                 )
+                session.commit()
 
         # Seed users
         for u in data.get("users", []):

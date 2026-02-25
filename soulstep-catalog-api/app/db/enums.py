@@ -6,7 +6,6 @@ from enum import StrEnum
 class ReviewSource(StrEnum):
     USER = "user"
     EXTERNAL = "external"
-    GOOGLE = "google"
 
 
 class ImageType(StrEnum):
@@ -43,24 +42,6 @@ class Religion(StrEnum):
     HINDUISM = "hinduism"
     CHRISTIANITY = "christianity"
     ALL = "all"
-
-
-class AttributeDataType(StrEnum):
-    BOOLEAN = "boolean"
-    STRING = "string"
-    NUMBER = "number"
-    JSON = "json"
-
-
-class AttributeCategory(StrEnum):
-    FACILITY = "facility"
-    TIMING = "timing"
-    INFO = "info"
-
-
-class AppPlatform(StrEnum):
-    IOS = "ios"
-    ANDROID = "android"
 
 
 class NotificationType(StrEnum):

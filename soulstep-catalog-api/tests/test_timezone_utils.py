@@ -1,13 +1,13 @@
 """
 Unit tests for app.services.timezone_utils:
-get_local_now, get_today_name, format_utc_offset.
+get_local_now, get_today_name.
 
 Pure-function tests — no DB or HTTP needed.
 """
 
 from datetime import UTC, datetime
 
-from app.services.timezone_utils import format_utc_offset, get_local_now, get_today_name
+from app.services.timezone_utils import get_local_now, get_today_name
 
 
 class TestGetLocalNow:
@@ -61,29 +61,3 @@ class TestGetTodayName:
 
     def test_zero_offset_matches_utc(self):
         assert get_today_name(0) == datetime.now(UTC).strftime("%A")
-
-
-class TestFormatUtcOffset:
-    def test_whole_hour_positive(self):
-        assert format_utc_offset(240) == "UTC+4"
-
-    def test_whole_hour_negative(self):
-        assert format_utc_offset(-300) == "UTC-5"
-
-    def test_half_hour_offset(self):
-        assert format_utc_offset(330) == "UTC+5:30"
-
-    def test_45_min_offset(self):
-        assert format_utc_offset(345) == "UTC+5:45"
-
-    def test_zero(self):
-        assert format_utc_offset(0) == "UTC+0"
-
-    def test_negative_half_hour(self):
-        assert format_utc_offset(-330) == "UTC-5:30"
-
-    def test_large_positive(self):
-        assert format_utc_offset(720) == "UTC+12"
-
-    def test_large_negative(self):
-        assert format_utc_offset(-720) == "UTC-12"

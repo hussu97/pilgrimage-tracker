@@ -1,6 +1,6 @@
 """
 Tests for pure-logic helpers in app.db.places:
-_haversine_km, _check_attr_bool, _place_has_*, _generate_place_code, list_places filtering.
+_haversine_km, _check_attr_bool, _place_has_*, list_places filtering.
 """
 
 from sqlmodel import Session
@@ -8,7 +8,6 @@ from sqlmodel import Session
 from app.db.models import Place
 from app.db.places import (
     _check_attr_bool,
-    _generate_place_code,
     _haversine_km,
     _place_has_events,
     _place_has_jummah,
@@ -137,24 +136,6 @@ class TestPlaceHasHelpers:
         p = _FakePlace()
         assert _place_has_womens_area(p, {"has_womens_area": True}) is True
         assert _place_has_womens_area(p, {"has_womens_area": False}) is False
-
-
-# ── _generate_place_code ───────────────────────────────────────────────────────
-
-
-class TestGeneratePlaceCode:
-    def test_has_plc_prefix(self):
-        code = _generate_place_code()
-        assert code.startswith("plc_")
-
-    def test_length_is_correct(self):
-        code = _generate_place_code()
-        # "plc_" + 16 hex chars = 20 chars
-        assert len(code) == 20
-
-    def test_codes_are_unique(self):
-        codes = {_generate_place_code() for _ in range(20)}
-        assert len(codes) == 20
 
 
 # ── create_place / update_place / get_place_by_code ───────────────────────────

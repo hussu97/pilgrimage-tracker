@@ -102,34 +102,6 @@ def count_reviews_by_user(user_code: str, session: Session) -> int:
     return session.exec(statement).one()
 
 
-def create_external_review(
-    place_code: str,
-    author_name: str,
-    rating: int,
-    text: str,
-    review_time: int,
-    session: Session,
-    language: str = "en",
-) -> Review:
-    """Create a review from external sources with source='external'."""
-    review_code = _generate_review_code()
-    review = Review(
-        review_code=review_code,
-        user_code=None,  # No user for external reviews
-        place_code=place_code,
-        rating=rating,
-        body=text,
-        source=ReviewSource.EXTERNAL,
-        author_name=author_name,
-        review_time=review_time,
-        language=language,
-    )
-    session.add(review)
-    session.commit()
-    session.refresh(review)
-    return review
-
-
 def delete_review(review_code: str, session: Session) -> bool:
     """Delete a review by code. Returns True if deleted, False if not found."""
     from app.db.models import ReviewImage

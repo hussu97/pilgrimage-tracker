@@ -33,26 +33,3 @@ def get_today_name(utc_offset_minutes: int | None) -> str:
     if utc_offset_minutes is not None:
         return get_local_now(utc_offset_minutes).strftime("%A")
     return datetime.now(UTC).strftime("%A")
-
-
-def format_utc_offset(minutes: int) -> str:
-    """Format offset for display.
-
-    Args:
-        minutes: UTC offset in minutes
-
-    Returns:
-        Formatted string (e.g., 'UTC+4', 'UTC+5:30', 'UTC-5')
-
-    Examples:
-        >>> format_utc_offset(240)
-        'UTC+4'
-        >>> format_utc_offset(330)
-        'UTC+5:30'
-        >>> format_utc_offset(-300)
-        'UTC-5'
-    """
-    sign = "+" if minutes >= 0 else "-"
-    total = abs(minutes)
-    h, m = divmod(total, 60)
-    return f"UTC{sign}{h}" if m == 0 else f"UTC{sign}{h}:{m:02d}"

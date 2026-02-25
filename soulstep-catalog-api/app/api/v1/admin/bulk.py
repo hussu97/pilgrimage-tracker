@@ -1,8 +1,5 @@
 """Admin — Bulk operations endpoints."""
 
-import random
-import string
-
 from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlmodel import col, select
@@ -12,14 +9,6 @@ from app.db.models import CheckIn, Group, Place, Review, User
 from app.db.session import SessionDep
 
 router = APIRouter()
-
-
-# ── Helper ─────────────────────────────────────────────────────────────────────
-
-
-def _gen_code(prefix: str) -> str:
-    chars = string.ascii_lowercase + string.digits
-    return prefix + "".join(random.choices(chars, k=8))
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────────

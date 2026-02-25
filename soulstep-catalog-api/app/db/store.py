@@ -46,33 +46,6 @@ def get_user_by_email(email: str, session: Session) -> User | None:
     return session.exec(select(User).where(User.email == email.lower())).first()
 
 
-def update_user_religion(
-    user_code: str, religion: Religion | None, session: Session
-) -> User | None:
-    settings = session.exec(select(UserSettings).where(UserSettings.user_code == user_code)).first()
-    if not settings:
-        # If settings don't exist for some reason, create them
-        settings = UserSettings(user_code=user_code)
-        session.add(settings)
-
-    if religion in VALID_RELIGIONS:
-        settings.religions = [religion]
-    else:
-        settings.religions = []
-
-    session.add(settings)
-
-    user = session.exec(select(User).where(User.user_code == user_code)).first()
-    if user:
-        user.updated_at = datetime.now(UTC)
-        session.add(user)
-
-    session.commit()
-    if user:
-        session.refresh(user)
-    return user
-
-
 def update_user(
     user_code: str,
     session: Session,

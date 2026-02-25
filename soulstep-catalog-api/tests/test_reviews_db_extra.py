@@ -37,35 +37,6 @@ def _create_user(db_session: Session, code: str, email: str) -> None:
 
 
 class TestExternalReviewsDB:
-    def test_create_external_review(self, db_session):
-        _create_place(db_session, "plc_ext001")
-        review = reviews_db.create_external_review(
-            place_code="plc_ext001",
-            author_name="John Doe",
-            rating=4,
-            text="Great place!",
-            review_time=1700000000,
-            session=db_session,
-        )
-        assert review.review_code is not None
-        assert review.source == "external"
-        assert review.user_code is None
-        assert review.author_name == "John Doe"
-        assert review.rating == 4
-
-    def test_create_external_review_with_language(self, db_session):
-        _create_place(db_session, "plc_ext002")
-        review = reviews_db.create_external_review(
-            place_code="plc_ext002",
-            author_name="Ahmed",
-            rating=5,
-            text="ممتاز",
-            review_time=1700000001,
-            session=db_session,
-            language="ar",
-        )
-        assert review.language == "ar"
-
     def test_upsert_external_reviews_inserts(self, db_session):
         _create_place(db_session, "plc_upsert01")
         reviews_list = [
@@ -124,14 +95,19 @@ class TestExternalReviewsDB:
         reviews_db.create_review(
             user_code="usr_src01", place_code="plc_source01", rating=5, session=db_session
         )
-        # Create an external review
-        reviews_db.create_external_review(
-            place_code="plc_source01",
-            author_name="Ext Author",
-            rating=4,
-            text="External",
-            review_time=0,
-            session=db_session,
+        # Create an external review via upsert
+        reviews_db.upsert_external_reviews(
+            "plc_source01",
+            [
+                {
+                    "author_name": "Ext Author",
+                    "rating": 4,
+                    "text": "External",
+                    "time": 0,
+                    "language": "en",
+                }
+            ],
+            db_session,
         )
 
         user_reviews = reviews_db.get_reviews_by_place(
