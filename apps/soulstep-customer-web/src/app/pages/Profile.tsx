@@ -5,7 +5,6 @@ import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
 import { getMyStats, getSettings, updateSettings } from '@/lib/api/client';
 import { cn } from '@/lib/utils/cn';
 import ErrorState from '@/components/common/ErrorState';
-import { applyTheme } from '@/lib/theme';
 import type { UserStats, Religion } from '@/lib/types';
 
 const RELIGIONS = [
@@ -114,7 +113,6 @@ export default function Profile() {
   const handleThemeToggle = (on: boolean) => {
     const t2 = on ? 'dark' : 'light';
     setTheme(t2);
-    applyTheme(t2);
     if (user) updateSettings({ theme: t2 }).catch(() => {});
   };
 

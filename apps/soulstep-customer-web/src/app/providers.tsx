@@ -12,7 +12,7 @@ import FeedbackPopup from '@/components/common/FeedbackPopup';
 import type { User } from '@/lib/types';
 import * as api from '@/lib/api/client';
 import { setApiLocale, setClientToken } from '@/lib/api/client';
-import { USER_KEY, LOCALE_STORAGE_KEY, VISITOR_KEY } from '@/lib/constants';
+import { USER_KEY, LOCALE_STORAGE_KEY, VISITOR_KEY, THEME_STORAGE_KEY } from '@/lib/constants';
 
 const SUPPORTED_LOCALES = ['en', 'ar', 'hi', 'te', 'ml'] as const;
 type LocaleCode = (typeof SUPPORTED_LOCALES)[number];
@@ -192,7 +192,6 @@ export function useAuth(): AuthContextValue {
 }
 
 // --- Theme ---
-const THEME_STORAGE_KEY = 'theme';
 const UNITS_STORAGE_KEY = 'units';
 type Theme = 'light' | 'dark' | 'system';
 type DistanceUnits = 'km' | 'miles';
