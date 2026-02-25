@@ -402,6 +402,25 @@ class AdminBroadcast(SQLModel, table=True):
     )
 
 
+class AICrawlerLog(SQLModel, table=True):
+    """Records visits from AI-assistant crawlers to share/pre-render pages.
+
+    Used by the admin SEO dashboard to track which AI bots are accessing
+    place pages (potential citation signals).
+    """
+
+    __tablename__ = "ai_crawler_log"
+
+    id: int | None = Field(default=None, primary_key=True)
+    bot_name: str = Field(index=True)  # "ChatGPT", "Claude", "Perplexity", etc.
+    path: str  # The URL path that was accessed
+    place_code: str | None = Field(default=None, index=True)  # Extracted from path if a place page
+    visited_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+
+
 class PlaceSEO(SQLModel, table=True):
     """SEO metadata for a sacred-site place page.
 

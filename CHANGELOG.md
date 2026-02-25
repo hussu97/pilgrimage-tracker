@@ -4,6 +4,32 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P3 SEO & AI Discoverability (2026-02-25)
+
+### Backend
+
+- **Knowledge Graph entity linking** — `build_place_jsonld()` in `structured_data.py` now accepts `knowledge_graph_urls: list[str] | None`. The `sameAs` field is built as a string (single URL) or list (multiple), merging `place.website_url` with any Wikidata/Wikipedia/Google Maps URLs passed by the caller. Duplicates are deduplicated.
+- **`build_dataset_jsonld()`** — New function in `structured_data.py`. Generates `Dataset` Schema.org JSON-LD for the SoulStep catalogue with `name`, `description`, `creator`, `license`, `keywords`, and optional `variableMeasured` per-religion counts.
+- **`build_organization_jsonld()` enhancement** — Now includes `knowsAbout` field listing the religion categories SoulStep covers.
+- **Static info pages for AI context** — Three new pre-rendered endpoints in `share.py`:
+  - `GET /share/about` — `AboutPage` JSON-LD, mission statement, feature list, supported religions, data sources.
+  - `GET /share/how-it-works` — `HowTo` JSON-LD with 7 ordered steps covering the full user journey.
+  - `GET /share/coverage` — `Dataset` JSON-LD with live stats from DB: total places, city count, per-religion breakdown.
+- **RSS 2.0 feed** (`GET /feed.xml`) — New `app/api/v1/feed.py`. Returns the 50 most recently added places as RSS 2.0 with `atom:link` self-reference, per-item categories (religion, place_type), `pubDate`, and `guid`.
+- **Atom 1.0 feed** (`GET /feed.atom`) — Same 50 most recent places in Atom format with `id`, `title`, `updated`, `author`, `entry` elements including `summary` and `category`.
+- **AI citation monitoring middleware** — New `ai_citation_middleware` in `main.py`. Detects 13 AI-assistant crawlers (ChatGPT, GPTBot, OAI-SearchBot, Claude, Anthropic, Perplexity, Common Crawl, Cohere, You.com, Meta, ByteDance, Diffbot, Omgili). Logs visits to `/share/` paths to a new `AICrawlerLog` DB table. Fire-and-forget via `ThreadPoolExecutor` — no latency added to responses.
+- **`AICrawlerLog` model** — New SQLModel table `ai_crawler_log` in `models.py`. Columns: `id`, `bot_name` (indexed), `path`, `place_code` (nullable, indexed), `visited_at` (TIMESTAMPTZ, indexed).
+- **Migration `0013_ai_crawler_log`** — Creates `ai_crawler_log` table with indexes on `bot_name`, `place_code`, and `visited_at`.
+- **`GET /admin/seo/ai-citations`** — New admin endpoint in `admin/seo.py`. Returns `total_visits`, `period_days`, `by_bot` (sorted by count), `top_places` (top 10 by visit count), and `recent_logs` (paginated). Query params: `days` (1-365, default 30), `bot_name` filter, `page`/`page_size`.
+- **`scripts/generate_seo.py`** — New CLI script for batch SEO generation and multi-language translation. Two modes:
+  - `--generate`: Creates English SEO content (slug, title, meta_description, rich_description, FAQs) for places missing it.
+  - `--translate --langs ar hi`: Translates existing English SEO fields to Arabic and Hindi via Google Cloud Translation API v3. Stores results in `ContentTranslation(entity_type="place_seo")`.
+  - Supports `--dry-run`, `--force`, `--limit N` flags.
+- **Tests** (`tests/test_seo_p3.py`) — 28 tests covering: Knowledge Graph sameAs (single/list/deduplicated/no-urls), `build_dataset_jsonld()` (basic fields, variableMeasured), static info pages (`/about`, `/how-it-works`, `/coverage`), RSS feed (200/valid XML/channel elements/items/empty), Atom feed (200/valid XML/required elements/entries), AI citations endpoint (auth required, empty state, reflected visits, bot filter, days param).
+- **`PRODUCTION.md` — Search engine submission docs** — New section: `FRONTEND_URL`/`API_BASE_URL` env vars, Google Search Console step-by-step (add property, verify, submit sitemap), Bing Webmaster Tools, Yandex Webmaster, AI bot verification, SEO script usage, feed URLs, AI citation monitoring endpoint reference.
+
+---
+
 ## P2 SEO & AI Discoverability (2026-02-25)
 
 ### Backend

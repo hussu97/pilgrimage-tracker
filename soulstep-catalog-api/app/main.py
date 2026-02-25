@@ -1,7 +1,10 @@
+import asyncio
 import logging
 import os
+import re
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 
 # Load .env before any app module is imported (session.py reads DATABASE_URL
@@ -27,6 +30,7 @@ from slowapi.util import get_remote_address  # noqa: E402
 from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 
 from app.api.v1 import api_router  # noqa: E402
+from app.api.v1 import feed as feed_module  # noqa: E402
 from app.api.v1 import seo_static as seo_static_module  # noqa: E402
 from app.api.v1 import share as share_router_module  # noqa: E402
 from app.api.v1 import sitemap as sitemap_module  # noqa: E402
@@ -47,6 +51,56 @@ from app.core.request_context import (  # noqa: E402
 from app.db.seed import run_seed_system  # noqa: E402
 from app.db.session import run_migrations  # noqa: E402
 
+# ── AI citation monitoring ────────────────────────────────────────────────────
+# Maps User-Agent patterns to display names for known AI crawlers.
+_AI_BOT_MAP: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"ChatGPT-User", re.IGNORECASE), "ChatGPT"),
+    (re.compile(r"GPTBot", re.IGNORECASE), "GPTBot"),
+    (re.compile(r"OAI-SearchBot", re.IGNORECASE), "OpenAI SearchBot"),
+    (re.compile(r"Claude-Web", re.IGNORECASE), "Claude"),
+    (re.compile(r"anthropic-ai", re.IGNORECASE), "Anthropic"),
+    (re.compile(r"PerplexityBot", re.IGNORECASE), "Perplexity"),
+    (re.compile(r"CCBot", re.IGNORECASE), "Common Crawl"),
+    (re.compile(r"cohere-ai", re.IGNORECASE), "Cohere"),
+    (re.compile(r"YouBot", re.IGNORECASE), "You.com"),
+    (re.compile(r"Meta-ExternalAgent", re.IGNORECASE), "Meta"),
+    (re.compile(r"Bytespider", re.IGNORECASE), "ByteDance"),
+    (re.compile(r"Diffbot", re.IGNORECASE), "Diffbot"),
+    (re.compile(r"Omgili", re.IGNORECASE), "Omgili"),
+]
+
+# Extracts place_code from /share/places/{code} or /share/{lang}/places/{code}
+_SHARE_PLACE_CODE_RE = re.compile(r"/share/(?:[a-z]{2}/)?places/([^/?#]+)")
+
+# Thread pool for fire-and-forget DB writes (1 thread is enough for logging)
+_AI_LOG_EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="ai-log")
+
+
+def _detect_ai_bot(user_agent: str) -> str | None:
+    """Return display name of the matched AI bot, or None."""
+    for pattern, name in _AI_BOT_MAP:
+        if pattern.search(user_agent):
+            return name
+    return None
+
+
+def _log_ai_visit_sync(bot_name: str, path: str, place_code: str | None) -> None:
+    """Write an AICrawlerLog row. Runs in a background thread pool."""
+    try:
+        from sqlmodel import Session
+
+        from app.db.models import AICrawlerLog
+        from app.db.session import engine
+
+        with Session(engine) as session:
+            log = AICrawlerLog(bot_name=bot_name, path=path, place_code=place_code)
+            session.add(log)
+            session.commit()
+    except Exception:
+        pass  # Never let monitoring break a response
+
+
+# ── Keys that contain large image data ────────────────────────────────────────
 # Keys that contain large image data and must never appear in log output.
 _IMAGE_LOG_KEYS: frozenset[str] = frozenset({"image_url", "image_blob"})
 
@@ -228,6 +282,28 @@ async def api_version_header_middleware(request: Request, call_next):
 
 
 @app.middleware("http")
+async def ai_citation_middleware(request: Request, call_next):
+    """Detect AI-assistant crawlers visiting /share/ pages and log them.
+
+    The DB write is fire-and-forget (ThreadPoolExecutor) so it never adds
+    latency to the actual response.
+    """
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/share/"):
+        ua = request.headers.get("user-agent", "")
+        bot_name = _detect_ai_bot(ua)
+        if bot_name:
+            place_code: str | None = None
+            m = _SHARE_PLACE_CODE_RE.search(path)
+            if m:
+                place_code = m.group(1)
+            loop = asyncio.get_event_loop()
+            loop.run_in_executor(_AI_LOG_EXECUTOR, _log_ai_visit_sync, bot_name, path, place_code)
+    return response
+
+
+@app.middleware("http")
 async def request_timing_middleware(request: Request, call_next):
     """Log a structured access log entry for every request."""
     start = time.perf_counter()
@@ -263,6 +339,7 @@ app.include_router(api_router)
 app.include_router(share_router_module.router, prefix="/share")
 app.include_router(sitemap_module.router)
 app.include_router(seo_static_module.router)
+app.include_router(feed_module.router)
 
 # Prometheus metrics — exposes GET /metrics (excluded from OpenAPI schema)
 try:

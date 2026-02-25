@@ -463,37 +463,37 @@ Infrastructure, optimization, monitoring, code quality, and documentation work f
 
 ### SEO & Discoverability
 
-- [ ] **Knowledge Graph entity linking**
+- [x] **Knowledge Graph entity linking**
   - No connections between SoulStep places and their Wikipedia/Wikidata/Google Maps counterparts. Weaker entity signals for search engines.
   - Extract Wikipedia/Wikidata/Google Maps URLs from scraper data. Include as `sameAs` in JSON-LD. Strengthens entity recognition.
   - Files: `soulstep-catalog-api/app/services/structured_data.py`, scraper pipeline
 
-- [ ] **Static info pages for AI context**
+- [x] **Static info pages for AI context**
   - No citable content about SoulStep itself. AI assistants cannot describe the platform accurately.
   - Pre-rendered `/about`, `/how-it-works`, `/coverage` pages. Gives AI assistants citable content about SoulStep.
   - Files: `soulstep-catalog-api/app/api/v1/share.py`
 
-- [ ] **RSS/Atom feed**
+- [x] **RSS/Atom feed**
   - No feed for newly added or updated places. Feed readers and some AI systems cannot track updates.
   - `/feed.xml` with 50 most recently added/updated places. Consumed by feed readers and some AI systems.
   - Files: new `soulstep-catalog-api/app/api/v1/feed.py`
 
-- [ ] **Multi-language SEO via Cloud Translation**
+- [x] **Multi-language SEO via Cloud Translation**
   - SEO content is English-only. Arabic/Hindi/regional language search markets for religious content are untapped.
   - Translate generated English SEO content to ar/hi. Store in ContentTranslation. Religion-aware terminology.
   - Files: `soulstep-catalog-api/scripts/generate_seo.py`
 
-- [ ] **Structured data validation in CI**
+- [x] **Structured data validation in CI**
   - No automated checks for broken JSON-LD markup. Invalid structured data can ship undetected.
   - pytest tests validating JSON-LD output against Schema.org. Catch broken structured data before deploy.
-  - Files: new `soulstep-catalog-api/tests/test_seo.py`
+  - Files: new `soulstep-catalog-api/tests/test_seo_p3.py`
 
-- [ ] **Search engine submission docs**
+- [x] **Search engine submission docs**
   - No documented procedure for submitting sitemaps to Google Search Console, Bing Webmaster Tools, or other search engines.
   - Document Google Search Console, Bing Webmaster Tools setup and sitemap submission in PRODUCTION.md.
   - Files: `PRODUCTION.md`
 
-- [ ] **AI citation monitoring**
+- [x] **AI citation monitoring**
   - No visibility into whether AI assistants are citing SoulStep content or driving traffic.
   - Middleware detecting AI-assistant referrers (ChatGPT, Perplexity). Admin dashboard report of AI referral traffic over time.
   - Files: `soulstep-catalog-api/app/main.py`, `soulstep-catalog-api/app/api/v1/admin/seo.py`

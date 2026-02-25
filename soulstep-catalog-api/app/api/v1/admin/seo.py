@@ -15,7 +15,8 @@ Routes:
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
+from collections import Counter
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -25,7 +26,7 @@ from sqlmodel import func, select
 from app.api.deps import AdminDep
 from app.db import places as places_db
 from app.db import reviews as reviews_db
-from app.db.models import Place, PlaceSEO
+from app.db.models import AICrawlerLog, Place, PlaceSEO
 from app.db.session import SessionDep
 from app.services import seo_generator
 
@@ -403,3 +404,82 @@ def bulk_generate_seo(
     )
 
     return GenerateResponse(generated=generated, skipped=skipped, errors=errors)
+
+
+# ── AI citation monitoring ──────────────────────────────────────────────────────
+
+
+class AICitationBotStats(BaseModel):
+    bot_name: str
+    visit_count: int
+
+
+class AICitationTopPlace(BaseModel):
+    place_code: str
+    visit_count: int
+
+
+class AICitationsResponse(BaseModel):
+    total_visits: int
+    period_days: int
+    by_bot: list[AICitationBotStats]
+    top_places: list[AICitationTopPlace]
+    recent_logs: list[dict[str, Any]]
+
+
+@router.get("/seo/ai-citations", response_model=AICitationsResponse, tags=["admin-seo"])
+def get_ai_citations(
+    admin: AdminDep,
+    session: SessionDep,
+    days: Annotated[int, Query(ge=1, le=365)] = 30,
+    bot_name: str | None = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> AICitationsResponse:
+    """Return AI-assistant crawler visit statistics for share pages.
+
+    Query params:
+    - days: look-back window in days (default 30)
+    - bot_name: filter to a specific bot (e.g. "ChatGPT")
+    """
+    since = datetime.now(UTC) - timedelta(days=days)
+    stmt = select(AICrawlerLog).where(AICrawlerLog.visited_at >= since)
+    if bot_name:
+        stmt = stmt.where(AICrawlerLog.bot_name == bot_name)
+
+    all_logs = session.exec(stmt.order_by(AICrawlerLog.visited_at.desc())).all()
+
+    # Aggregate stats
+    bot_counter: Counter[str] = Counter(log.bot_name for log in all_logs)
+    place_counter: Counter[str] = Counter(log.place_code for log in all_logs if log.place_code)
+
+    by_bot = [
+        AICitationBotStats(bot_name=name, visit_count=count)
+        for name, count in bot_counter.most_common()
+    ]
+    top_places = [
+        AICitationTopPlace(place_code=pc, visit_count=count)
+        for pc, count in place_counter.most_common(10)
+    ]
+
+    # Paginated recent logs
+    offset = (page - 1) * page_size
+    page_logs = all_logs[offset : offset + page_size]
+    recent_logs = [
+        {
+            "id": log.id,
+            "bot_name": log.bot_name,
+            "path": log.path,
+            "place_code": log.place_code,
+            "visited_at": log.visited_at.isoformat(),
+        }
+        for log in page_logs
+    ]
+
+    return AICitationsResponse(
+        total_visits=len(all_logs),
+        period_days=days,
+        by_bot=by_bot,
+        top_places=top_places,
+        recent_logs=recent_logs,
+    )

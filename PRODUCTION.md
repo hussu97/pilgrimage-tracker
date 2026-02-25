@@ -1232,3 +1232,122 @@ The `soulstep-scraper-api/` service enriches sacred place data from multiple sou
 | **3 GCP** | Cloud Run | Cloud SQL (PostgreSQL 15) | Firebase Hosting | EAS build |
 
 Keep this file in sync with the codebase: when deployment steps or environment variables change, update the corresponding plan(s).
+
+---
+
+## SEO & Search Engine Submission
+
+### Environment Variable: FRONTEND_URL
+
+The pre-rendering and SEO services need to know the public URL of the frontend to generate canonical URLs, sitemaps, and structured data correctly. Add this to the backend API service:
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `FRONTEND_URL` | **Yes (prod)** | `http://localhost:5173` | Public URL of the web frontend — used in sitemap, share pages, JSON-LD |
+| `API_BASE_URL` | No | `http://localhost:3000` | Public URL of the API — used in RSS/Atom feed self links |
+
+### Sitemap and Robots.txt Endpoints
+
+The backend automatically serves:
+- `GET /sitemap.xml` — Dynamic XML sitemap with all place pages, hreflang alternates, and image entries
+- `GET /sitemap-index.xml` — Auto-generated sitemap index when >50k places
+- `GET /robots.txt` — Crawl directives allowing AI bots (ChatGPT-User, Claude-Web, PerplexityBot)
+- `GET /llms.txt` and `GET /llms-full.txt` — AI chatbot discoverability files
+
+### Google Search Console
+
+1. **Sign in** to [Google Search Console](https://search.google.com/search-console).
+2. **Add property:** Click **Add property** → choose **URL prefix** → enter your production frontend URL (e.g. `https://soulstep.app`).
+3. **Verify ownership** using one of:
+   - **HTML file** — download the verification file and deploy it to `apps/soulstep-customer-web/public/`
+   - **HTML meta tag** — add `<meta name="google-site-verification" content="...">` to `apps/soulstep-customer-web/index.html`
+   - **DNS TXT record** — add the TXT record to your domain's DNS
+4. **Submit the sitemap:**
+   - In Search Console → **Sitemaps** → enter `sitemap.xml` → **Submit**.
+   - The full URL should be `https://api.yourdomain.com/sitemap.xml` (the backend API URL).
+5. **Monitor indexing:** Check **Coverage** and **Performance** reports after 24-48 hours.
+
+> **Note:** Submit the backend API sitemap URL, not the frontend URL. The sitemap is generated dynamically by the FastAPI backend.
+
+### Bing Webmaster Tools
+
+1. **Sign in** to [Bing Webmaster Tools](https://www.bing.com/webmasters).
+2. **Add your site:** Enter your frontend URL → **Add**.
+3. **Verify ownership:** Use the XML file method (deploy to `public/`) or DNS TXT record.
+4. **Submit sitemap:**
+   - Go to **Sitemaps** → **Submit sitemap**.
+   - Enter the full backend sitemap URL: `https://api.yourdomain.com/sitemap.xml`.
+5. **Monitor:** Check the **Dashboard** for crawl stats and index coverage.
+
+### Yandex Webmaster (optional — for Russian-speaking markets)
+
+1. Sign in at [webmaster.yandex.com](https://webmaster.yandex.com).
+2. Add your site and verify ownership via meta tag or DNS TXT record.
+3. Submit sitemap: **Indexing** → **Sitemap files** → add the backend sitemap URL.
+
+### AI Bot Verification
+
+The `robots.txt` (served at `GET /robots.txt`) explicitly allows the following AI crawlers:
+
+```
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+```
+
+No further verification is needed — these bots read `robots.txt` automatically.
+
+### SEO Script: Generate and Translate SEO Content
+
+After adding new places, run the SEO generation script to create titles, descriptions, slugs, and FAQs:
+
+```bash
+# Generate English SEO for all new places:
+python -m scripts.generate_seo --generate
+
+# Generate English SEO + translate to Arabic and Hindi:
+python -m scripts.generate_seo --generate --translate --langs ar hi
+
+# Translate only (when English SEO already exists):
+python -m scripts.generate_seo --translate --langs ar hi
+
+# Dry run (no writes):
+python -m scripts.generate_seo --generate --translate --dry-run
+```
+
+Requires `GOOGLE_CLOUD_PROJECT` and `GOOGLE_APPLICATION_CREDENTIALS` env vars for translation (same as `backfill_translations.py` — see Translation Backfill section above).
+
+### RSS and Atom Feeds
+
+Two syndication feeds are served by the backend:
+- `GET /feed.xml` — RSS 2.0 (50 most recently added places)
+- `GET /feed.atom` — Atom 1.0 (same content, Atom format)
+
+Submit these URLs to relevant feed aggregators or AI systems that consume structured feeds.
+
+### AI Citation Monitoring
+
+The admin dashboard tracks when AI crawlers visit pre-rendered share pages:
+
+```
+GET /api/v1/admin/seo/ai-citations?days=30
+```
+
+This endpoint returns:
+- Total AI crawler visits in the period
+- Breakdown by bot (ChatGPT, Claude, Perplexity, etc.)
+- Top places being cited by AI systems
+- Paginated recent visit log
+
+No additional setup required — the middleware runs automatically in production.

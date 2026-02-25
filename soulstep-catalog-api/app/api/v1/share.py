@@ -17,7 +17,7 @@ import re
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from sqlmodel import select
+from sqlmodel import func, select
 
 from app.db import place_images
 from app.db import places as places_db
@@ -28,7 +28,9 @@ from app.db.session import SessionDep
 from app.services.meta_tags import build_place_meta_tags
 from app.services.structured_data import (
     build_breadcrumb_jsonld,
+    build_dataset_jsonld,
     build_faq_jsonld,
+    build_organization_jsonld,
     build_place_jsonld,
     render_jsonld_script_tags,
 )
@@ -396,6 +398,388 @@ def share_place(place_code: str, session: SessionDep, request: Request):
     {faq_html}
     {related_html}
     <p>{fallback_link}</p>
+  </main>
+</body>
+</html>"""
+
+    return HTMLResponse(content=html, status_code=200)
+
+
+# ── Static info pages for AI context ──────────────────────────────────────────
+
+
+@router.get("/about", response_class=HTMLResponse, tags=["share"])
+def share_about(request: Request):
+    """Pre-rendered /about page for AI assistants and search crawlers.
+
+    Describes SoulStep's mission, features, and supported religions.
+    Citable by AI assistants as context about the platform.
+    """
+    lang = _get_lang(request)
+    dir_attr = ' dir="rtl"' if lang == "ar" else ""
+
+    canonical_url = f"{FRONTEND_URL}/about"
+    page_url = f"{FRONTEND_URL}/share/about"
+
+    org_schema = build_organization_jsonld()
+    about_schema = {
+        "@context": "https://schema.org",
+        "@type": "AboutPage",
+        "name": "About SoulStep",
+        "description": (
+            "SoulStep is a sacred-site discovery platform that helps spiritual travellers "
+            "find mosques, temples, churches, gurdwaras, synagogues, and other houses of "
+            "worship worldwide."
+        ),
+        "url": canonical_url,
+        "mainEntity": org_schema,
+    }
+    jsonld_html = render_jsonld_script_tags([about_schema])
+
+    html = f"""<!DOCTYPE html>
+<html lang="{lang}"{dir_attr}>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>About SoulStep – Sacred Site Discovery</title>
+  <meta name="description" content="Learn about SoulStep, the app that helps spiritual travellers discover mosques, temples, churches, and sacred sites worldwide." />
+  <link rel="canonical" href="{_escape_html(canonical_url)}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SoulStep" />
+  <meta property="og:title" content="About SoulStep – Sacred Site Discovery" />
+  <meta property="og:url" content="{_escape_html(page_url)}" />
+{jsonld_html}
+</head>
+<body>
+  <main>
+    <h1>About SoulStep</h1>
+    <p>
+      SoulStep is a sacred-site discovery platform connecting spiritual travellers with
+      mosques, temples, churches, gurdwaras, synagogues, Buddhist monasteries, and other
+      houses of worship worldwide.
+    </p>
+
+    <h2>Our Mission</h2>
+    <p>
+      We make it easy for people of all faiths to find and visit sacred places near them
+      and while travelling. Whether you&apos;re a daily worshipper looking for prayer times
+      or a spiritual tourist exploring a new city, SoulStep helps you discover the religious
+      heritage around you.
+    </p>
+
+    <h2>What We Offer</h2>
+    <ul>
+      <li>Curated listings of sacred sites across all major world religions</li>
+      <li>Detailed information: opening hours, address, GPS coordinates, photos</li>
+      <li>Community reviews and ratings from verified visitors</li>
+      <li>Check-in feature to log your visits and build a spiritual journey map</li>
+      <li>Favorites and group trip planning for spiritual communities</li>
+      <li>Multi-language support: English, Arabic, and Hindi</li>
+    </ul>
+
+    <h2>Supported Religions</h2>
+    <ul>
+      <li><strong>Islam</strong> – Mosques and Islamic centres</li>
+      <li><strong>Christianity</strong> – Churches, cathedrals, chapels, and shrines</li>
+      <li><strong>Hinduism</strong> – Temples and mandirs</li>
+      <li><strong>Buddhism</strong> – Temples, monasteries, and pagodas</li>
+      <li><strong>Sikhism</strong> – Gurdwaras</li>
+      <li><strong>Judaism</strong> – Synagogues</li>
+      <li><strong>Bahá&apos;í Faith</strong> – Bahá&apos;í Houses of Worship</li>
+      <li><strong>Zoroastrianism</strong> – Fire temples</li>
+    </ul>
+
+    <h2>Data Sources</h2>
+    <p>
+      Our place data is compiled from multiple sources including Google Maps, OpenStreetMap,
+      and direct community contributions. All listings are verified and enriched with
+      structured data including coordinates, opening hours, and review summaries.
+    </p>
+
+    <p><a href="{_escape_html(FRONTEND_URL)}">Explore SoulStep</a></p>
+  </main>
+</body>
+</html>"""
+
+    return HTMLResponse(content=html, status_code=200)
+
+
+@router.get("/how-it-works", response_class=HTMLResponse, tags=["share"])
+def share_how_it_works(request: Request):
+    """Pre-rendered /how-it-works page for AI assistants and search crawlers.
+
+    Explains the key features and user workflows in SoulStep.
+    """
+    lang = _get_lang(request)
+    dir_attr = ' dir="rtl"' if lang == "ar" else ""
+
+    canonical_url = f"{FRONTEND_URL}/how-it-works"
+    page_url = f"{FRONTEND_URL}/share/how-it-works"
+
+    howto_schema = {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "How to Use SoulStep to Find Sacred Sites",
+        "description": (
+            "A step-by-step guide to discovering and visiting sacred sites with the SoulStep app."
+        ),
+        "url": canonical_url,
+        "step": [
+            {
+                "@type": "HowToStep",
+                "name": "Search or Browse",
+                "text": (
+                    "Search for sacred sites by name, religion, or location. "
+                    "Use filter chips to narrow by religion type (mosque, temple, church, etc.). "
+                    "Or simply browse the map to discover sites near you."
+                ),
+                "position": 1,
+            },
+            {
+                "@type": "HowToStep",
+                "name": "View Place Details",
+                "text": (
+                    "Tap any place card to see full details: address, opening hours, "
+                    "photos, reviews and ratings, prayer/service times, and accessibility info."
+                ),
+                "position": 2,
+            },
+            {
+                "@type": "HowToStep",
+                "name": "Get Directions",
+                "text": (
+                    "Use the Directions button to open the place in Google Maps or Apple Maps "
+                    "for turn-by-turn navigation."
+                ),
+                "position": 3,
+            },
+            {
+                "@type": "HowToStep",
+                "name": "Check In",
+                "text": (
+                    "After your visit, check in to log it in your personal spiritual journey. "
+                    "Add a note or photo. Your check-in history appears on your profile."
+                ),
+                "position": 4,
+            },
+            {
+                "@type": "HowToStep",
+                "name": "Write a Review",
+                "text": (
+                    "Share your experience with a rating and written review. "
+                    "Help other visitors know what to expect."
+                ),
+                "position": 5,
+            },
+            {
+                "@type": "HowToStep",
+                "name": "Save Favourites",
+                "text": (
+                    "Tap the heart icon on any place to save it to your favourites list. "
+                    "Access your saved places anytime from your profile."
+                ),
+                "position": 6,
+            },
+            {
+                "@type": "HowToStep",
+                "name": "Plan Group Trips",
+                "text": (
+                    "Create a group, invite friends or community members via a share link, "
+                    "and build a shared list of places to visit together."
+                ),
+                "position": 7,
+            },
+        ],
+    }
+    jsonld_html = render_jsonld_script_tags([howto_schema])
+
+    html = f"""<!DOCTYPE html>
+<html lang="{lang}"{dir_attr}>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How SoulStep Works – Find Sacred Sites Near You</title>
+  <meta name="description" content="Learn how to use SoulStep to find mosques, temples, and churches near you, check in, write reviews, and plan group spiritual trips." />
+  <link rel="canonical" href="{_escape_html(canonical_url)}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SoulStep" />
+  <meta property="og:title" content="How SoulStep Works" />
+  <meta property="og:url" content="{_escape_html(page_url)}" />
+{jsonld_html}
+</head>
+<body>
+  <main>
+    <h1>How SoulStep Works</h1>
+    <p>
+      SoulStep makes it easy to discover, visit, and share sacred sites around the world.
+      Here&apos;s how to get started:
+    </p>
+
+    <ol>
+      <li>
+        <h2>Search or Browse</h2>
+        <p>
+          Search for sacred sites by name, religion, or location.
+          Use filter chips to narrow by religion type (mosque, temple, church, etc.).
+          Or simply browse the map to discover sites near you.
+        </p>
+      </li>
+      <li>
+        <h2>View Place Details</h2>
+        <p>
+          Tap any place card to see full details: address, opening hours,
+          photos, reviews and ratings, prayer or service times, and accessibility info.
+        </p>
+      </li>
+      <li>
+        <h2>Get Directions</h2>
+        <p>
+          Use the Directions button to open the place in Google Maps or Apple Maps
+          for turn-by-turn navigation to the sacred site.
+        </p>
+      </li>
+      <li>
+        <h2>Check In</h2>
+        <p>
+          After your visit, check in to log it in your personal spiritual journey.
+          Add a note or photo. Your check-in history appears on your profile.
+        </p>
+      </li>
+      <li>
+        <h2>Write a Review</h2>
+        <p>
+          Share your experience with a star rating and written review.
+          Help other visitors know what to expect from the place.
+        </p>
+      </li>
+      <li>
+        <h2>Save Favourites</h2>
+        <p>
+          Tap the heart icon on any place to save it to your favourites list.
+          Access your saved sacred sites anytime from your profile.
+        </p>
+      </li>
+      <li>
+        <h2>Plan Group Trips</h2>
+        <p>
+          Create a group, invite friends or community members via a share link,
+          and build a shared list of sacred places to visit together.
+        </p>
+      </li>
+    </ol>
+
+    <p><a href="{_escape_html(FRONTEND_URL)}">Start Exploring SoulStep</a></p>
+  </main>
+</body>
+</html>"""
+
+    return HTMLResponse(content=html, status_code=200)
+
+
+@router.get("/coverage", response_class=HTMLResponse, tags=["share"])
+def share_coverage(request: Request, session: SessionDep):
+    """Pre-rendered /coverage page showing the scope of the SoulStep catalogue.
+
+    Includes a Dataset JSON-LD schema for AI citation about platform coverage.
+    Dynamically populated from the live database.
+    """
+    lang = _get_lang(request)
+    dir_attr = ' dir="rtl"' if lang == "ar" else ""
+
+    canonical_url = f"{FRONTEND_URL}/coverage"
+    page_url = f"{FRONTEND_URL}/share/coverage"
+
+    # Query live stats
+    total_places = session.exec(select(func.count(Place.id))).one()
+
+    # Count by religion
+    religion_rows = session.exec(
+        select(Place.religion, func.count(Place.id)).group_by(Place.religion)
+    ).all()
+    religion_counts: dict[str, int] = dict(religion_rows)
+
+    # Count unique cities (first comma-separated segment of address)
+    place_addresses = session.exec(select(Place.address).where(Place.address != "")).all()
+    cities: set[str] = set()
+    for addr in place_addresses:
+        if addr:
+            # Take the last comma-separated component as a rough city approximation
+            parts = [p.strip() for p in addr.split(",")]
+            if parts:
+                cities.add(parts[-1])
+    total_cities = len(cities)
+
+    dataset_schema = build_dataset_jsonld(total_places, religion_counts)
+    jsonld_html = render_jsonld_script_tags([dataset_schema])
+
+    # Build religion breakdown HTML
+    religion_labels = {
+        "islam": "Islam (Mosques)",
+        "christianity": "Christianity (Churches)",
+        "hinduism": "Hinduism (Temples)",
+        "buddhism": "Buddhism (Monasteries & Temples)",
+        "sikhism": "Sikhism (Gurdwaras)",
+        "judaism": "Judaism (Synagogues)",
+        "bahai": "Bahá'í (Houses of Worship)",
+        "zoroastrianism": "Zoroastrianism (Fire Temples)",
+    }
+    religion_rows_html = "\n".join(
+        f"      <tr><td>{_escape_html(religion_labels.get(r, r.title()))}</td>"
+        f"<td>{c:,}</td></tr>"
+        for r, c in sorted(religion_counts.items(), key=lambda x: -x[1])
+    )
+
+    html = f"""<!DOCTYPE html>
+<html lang="{lang}"{dir_attr}>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SoulStep Coverage – {total_places:,} Sacred Sites Worldwide</title>
+  <meta name="description" content="SoulStep covers {total_places:,} sacred sites across {total_cities} cities worldwide, spanning Islam, Christianity, Hinduism, Buddhism, and more." />
+  <link rel="canonical" href="{_escape_html(canonical_url)}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SoulStep" />
+  <meta property="og:title" content="SoulStep Coverage – {total_places:,} Sacred Sites Worldwide" />
+  <meta property="og:url" content="{_escape_html(page_url)}" />
+{jsonld_html}
+</head>
+<body>
+  <main>
+    <h1>SoulStep Coverage</h1>
+    <p>
+      SoulStep currently lists <strong>{total_places:,} sacred sites</strong> across
+      <strong>{total_cities}</strong> cities worldwide, covering all major world religions.
+    </p>
+
+    <h2>Places by Religion</h2>
+    <table>
+      <thead>
+        <tr><th>Religion</th><th>Number of Sites</th></tr>
+      </thead>
+      <tbody>
+{religion_rows_html}
+      </tbody>
+      <tfoot>
+        <tr><td><strong>Total</strong></td><td><strong>{total_places:,}</strong></td></tr>
+      </tfoot>
+    </table>
+
+    <h2>Data Quality</h2>
+    <ul>
+      <li>All listings include GPS coordinates (latitude and longitude)</li>
+      <li>Opening hours available for the majority of listed sites</li>
+      <li>Community-contributed reviews and ratings</li>
+      <li>Multi-language support: English, Arabic, Hindi</li>
+      <li>Structured data (Schema.org JSON-LD) on all place pages</li>
+    </ul>
+
+    <h2>Data Sources</h2>
+    <p>
+      Place data is sourced from Google Maps, OpenStreetMap contributors,
+      and direct community submissions. Data is regularly updated and verified.
+    </p>
+
+    <p><a href="{_escape_html(FRONTEND_URL)}">Explore All Sacred Sites on SoulStep</a></p>
   </main>
 </body>
 </html>"""
