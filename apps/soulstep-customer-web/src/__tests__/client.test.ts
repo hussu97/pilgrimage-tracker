@@ -1,28 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-// ─── localStorage mock (jsdom 28+ requires explicit setup) ────────────────────
-const storageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => store[key] ?? null,
-    setItem: (key: string, value: string) => {
-      store[key] = value;
-    },
-    removeItem: (key: string) => {
-      delete store[key];
-    },
-    clear: () => {
-      store = {};
-    },
-  };
-})();
-
-Object.defineProperty(window, 'localStorage', {
-  value: storageMock,
-  writable: true,
-});
-
-import { refreshToken, logoutServer, updateGroup } from '@/lib/api/client';
+import { refreshToken, logoutServer, updateGroup, setClientToken } from '@/lib/api/client';
 
 function mockResponse(data: unknown, status = 200): Response {
   return {
@@ -34,7 +11,7 @@ function mockResponse(data: unknown, status = 200): Response {
 
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn());
-  storageMock.clear();
+  setClientToken(null); // reset in-memory token between tests
 });
 
 // ─── refreshToken ─────────────────────────────────────────────────────────────
@@ -98,7 +75,7 @@ describe('updateGroup()', () => {
   };
 
   beforeEach(() => {
-    storageMock.setItem('token', 'test-token');
+    setClientToken('test-token');
   });
 
   it('calls PATCH /api/v1/groups/{groupCode}', async () => {

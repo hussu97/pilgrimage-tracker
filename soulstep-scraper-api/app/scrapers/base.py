@@ -12,6 +12,7 @@ def generate_code(prefix: str) -> str:
 
 def make_request_with_backoff(method: str, url: str, **kwargs) -> requests.Response | None:
     """Make HTTP request with exponential backoff on rate limits."""
+    kwargs.setdefault("timeout", (5, 30))
     wait_time = 5
     retries = 0
     max_retries = 5

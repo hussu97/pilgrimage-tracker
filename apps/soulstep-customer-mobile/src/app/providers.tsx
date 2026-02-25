@@ -13,8 +13,8 @@ import { Appearance, I18nManager, NativeModules, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '@/lib/types';
 import * as api from '@/lib/api/client';
-import { setApiLocale } from '@/lib/api/client';
-import { TOKEN_KEY, USER_KEY, LOCALE_STORAGE_KEY, VISITOR_KEY } from '@/lib/constants';
+import { setApiLocale, setClientToken } from '@/lib/api/client';
+import { USER_KEY, LOCALE_STORAGE_KEY, VISITOR_KEY } from '@/lib/constants';
 import { getStoredTheme, setStoredTheme, type Theme } from '@/lib/theme';
 
 const SUPPORTED_LOCALES = ['en', 'ar', 'hi', 'te', 'ml'] as const;
@@ -95,43 +95,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshUser = useCallback(async () => {
-    const t = await AsyncStorage.getItem(TOKEN_KEY);
-    if (!t) return;
     try {
       const u = await api.getMe();
       setUserState(u);
       AsyncStorage.setItem(USER_KEY, JSON.stringify(u));
     } catch {
+      setClientToken(null);
       setToken(null);
       setUserState(null);
-      await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+      await AsyncStorage.removeItem(USER_KEY);
     }
   }, []);
 
+  // On mount: restore session using the refresh token from the httpOnly cookie.
+  // If no prior user session is cached (USER_KEY), skip to visitor init.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const t = await AsyncStorage.getItem(TOKEN_KEY);
-      if (cancelled) return;
-      if (!t) {
-        setToken(null);
-        setUserState(null);
-        setLoading(false);
-        await initVisitor();
-        return;
-      }
-      setToken(t);
-      try {
-        const u = await api.getMe();
-        if (!cancelled) {
-          setUserState(u);
-          await AsyncStorage.setItem(USER_KEY, JSON.stringify(u));
-        }
-      } catch {
+      const hasCachedUser = !!(await AsyncStorage.getItem(USER_KEY));
+      if (!hasCachedUser) {
         if (!cancelled) {
           setToken(null);
           setUserState(null);
-          await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+          setLoading(false);
+          await initVisitor();
+        }
+        return;
+      }
+      try {
+        const { token: t } = await api.refreshToken();
+        if (!cancelled) {
+          setClientToken(t);
+          setToken(t);
+          const u = await api.getMe();
+          if (!cancelled) {
+            setUserState(u);
+            await AsyncStorage.setItem(USER_KEY, JSON.stringify(u));
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setClientToken(null);
+          setToken(null);
+          setUserState(null);
+          await AsyncStorage.removeItem(USER_KEY);
           await initVisitor();
         }
       } finally {
@@ -150,12 +157,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       visitor_code: vc ?? undefined,
     });
-    await AsyncStorage.multiSet([
-      [TOKEN_KEY, t],
-      [USER_KEY, JSON.stringify(u)],
-    ]);
+    // Token stored in memory only — not AsyncStorage (httpOnly cookie handles persistence)
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(u));
     await AsyncStorage.removeItem(VISITOR_KEY);
     setVisitorCode(null);
+    setClientToken(t);
     setToken(t);
     setUserState(u);
   }, []);
@@ -168,19 +174,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       display_name,
       visitor_code: vc ?? undefined,
     });
-    await AsyncStorage.multiSet([
-      [TOKEN_KEY, t],
-      [USER_KEY, JSON.stringify(u)],
-    ]);
+    // Token stored in memory only — not AsyncStorage (httpOnly cookie handles persistence)
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(u));
     await AsyncStorage.removeItem(VISITOR_KEY);
     setVisitorCode(null);
+    setClientToken(t);
     setToken(t);
     setUserState(u);
   }, []);
 
   const logout = useCallback(async () => {
     await api.logoutServer();
-    await AsyncStorage.multiRemove([TOKEN_KEY, USER_KEY]);
+    setClientToken(null);
+    await AsyncStorage.removeItem(USER_KEY);
     setToken(null);
     setUserState(null);
     await initVisitor();

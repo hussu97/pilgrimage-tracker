@@ -26,6 +26,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r soulstep-catalog-api/requirements.txt
 
+      - name: Dependency vulnerability scan (pip-audit)
+        run: |
+          pip install pip-audit
+          pip-audit -r soulstep-catalog-api/requirements.txt --skip-editable || true
+
       - name: Run pytest
         working-directory: soulstep-catalog-api
         run: python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
@@ -45,6 +50,11 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r soulstep-scraper-api/requirements.txt
+
+      - name: Dependency vulnerability scan (pip-audit)
+        run: |
+          pip install pip-audit
+          pip-audit -r soulstep-scraper-api/requirements.txt --skip-editable || true
 
       - name: Run pytest
         working-directory: soulstep-scraper-api
@@ -67,6 +77,10 @@ jobs:
         working-directory: apps/soulstep-customer-web
         run: npm ci
 
+      - name: Dependency vulnerability scan (npm audit)
+        working-directory: apps/soulstep-customer-web
+        run: npm audit --audit-level=high || true
+
       - name: Run tests with coverage
         working-directory: apps/soulstep-customer-web
         run: npm run test -- --coverage
@@ -87,6 +101,10 @@ jobs:
       - name: Install dependencies
         working-directory: apps/soulstep-customer-mobile
         run: npm ci
+
+      - name: Dependency vulnerability scan (npm audit)
+        working-directory: apps/soulstep-customer-mobile
+        run: npm audit --audit-level=high || true
 
       - name: Run tests with coverage
         working-directory: apps/soulstep-customer-mobile

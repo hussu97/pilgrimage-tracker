@@ -76,7 +76,7 @@ class FoursquareCollector(BaseCollector):
             "name": name,
             "ll": f"{lat},{lng}",
         }
-        resp = requests.get(self.SEARCH_URL, headers=headers, params=params)
+        resp = requests.get(self.SEARCH_URL, headers=headers, params=params, timeout=(5, 30))
         if resp.status_code != 200:
             return None
 
@@ -91,7 +91,7 @@ class FoursquareCollector(BaseCollector):
             "Accept": "application/json",
         }
         url = self.TIPS_URL.format(fsq_id=fsq_id)
-        resp = requests.get(url, headers=headers, params={"limit": 10})
+        resp = requests.get(url, headers=headers, params={"limit": 10}, timeout=(5, 30))
         if resp.status_code != 200:
             return []
 

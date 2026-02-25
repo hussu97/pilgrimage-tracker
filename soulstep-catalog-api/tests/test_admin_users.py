@@ -99,7 +99,7 @@ class TestListUsers:
         assert "items" in data
         assert "total" in data
         assert data["page"] == 1
-        assert data["page_size"] == 20
+        assert data["page_size"] == 50
 
     def test_list_includes_registered_users(self, client, db_session):
         headers, admin_code = _admin_headers(client, db_session)

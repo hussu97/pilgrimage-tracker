@@ -1,17 +1,21 @@
 import axios from "axios";
 
-const TOKEN_KEY = "admin_token";
+// In-memory token — never persisted to localStorage (prevents XSS token theft).
+// The backend sets an httpOnly access_token cookie; the axios client sends it
+// automatically via withCredentials: true. The in-memory token is also injected
+// as an Authorization header for endpoints that validate it that way.
+let _inMemoryToken: string | null = null;
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return _inMemoryToken;
 }
 
 export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
+  _inMemoryToken = token;
 }
 
 export function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
+  _inMemoryToken = null;
 }
 
 export const apiClient = axios.create({
@@ -19,7 +23,7 @@ export const apiClient = axios.create({
   withCredentials: true,
 });
 
-// Attach Bearer token on every request
+// Attach Bearer token on every request (from in-memory state)
 apiClient.interceptors.request.use((config) => {
   const token = getToken();
   if (token) {
@@ -28,7 +32,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// On 401, clear token and redirect to login
+// On 401, clear in-memory token and redirect to login
 apiClient.interceptors.response.use(
   (res) => res,
   (err) => {

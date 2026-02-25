@@ -11,8 +11,8 @@ import {
 import FeedbackPopup from '@/components/common/FeedbackPopup';
 import type { User } from '@/lib/types';
 import * as api from '@/lib/api/client';
-import { setApiLocale } from '@/lib/api/client';
-import { TOKEN_KEY, USER_KEY, LOCALE_STORAGE_KEY, VISITOR_KEY } from '@/lib/constants';
+import { setApiLocale, setClientToken } from '@/lib/api/client';
+import { USER_KEY, LOCALE_STORAGE_KEY, VISITOR_KEY } from '@/lib/constants';
 
 const SUPPORTED_LOCALES = ['en', 'ar', 'hi', 'te', 'ml'] as const;
 type LocaleCode = (typeof SUPPORTED_LOCALES)[number];
@@ -51,7 +51,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
   });
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
+  // Token lives in memory only — never persisted to localStorage.
+  // The httpOnly access_token cookie (set by the server) handles session persistence
+  // across page reloads; we restore the in-memory token via the refresh endpoint on mount.
+  const [token, setTokenState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [visitorCode, setVisitorCode] = useState<string | null>(() =>
     localStorage.getItem(VISITOR_KEY),
@@ -63,17 +66,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     else localStorage.removeItem(USER_KEY);
   }, []);
 
+  const setToken = useCallback((t: string | null) => {
+    setTokenState(t);
+    setClientToken(t);
+  }, []);
+
   const refreshUser = useCallback(async () => {
-    if (!token) return;
     try {
       const u = await api.getMe();
       setUser(u);
     } catch {
       setToken(null);
       setUser(null);
-      localStorage.removeItem(TOKEN_KEY);
     }
-  }, [token, setUser]);
+  }, [setUser, setToken]);
 
   const initVisitor = useCallback(async () => {
     // Only init if no user and no visitor code yet
@@ -87,58 +93,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // On mount: restore session via the httpOnly refresh cookie if a prior user session
+  // existed (indicated by USER_KEY in localStorage). No token is ever read from storage.
   useEffect(() => {
-    if (!token) {
-      setUser(null);
+    const hasCachedUser = !!localStorage.getItem(USER_KEY);
+    if (!hasCachedUser) {
       setLoading(false);
-      // Init visitor when no user token exists
       initVisitor();
       return;
     }
-    refreshUser().finally(() => setLoading(false));
-  }, [token]);
+    api
+      .refreshToken()
+      .then(({ token: t }) => {
+        setToken(t);
+        return api.getMe();
+      })
+      .then((u) => setUser(u))
+      .catch(() => {
+        // Refresh failed — clear stale session hint and show login
+        setToken(null);
+        setUser(null);
+        initVisitor();
+      })
+      .finally(() => setLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const login = useCallback(async (email: string, password: string) => {
-    const vc = localStorage.getItem(VISITOR_KEY);
-    const { user: u, token: t } = await api.login({
-      email,
-      password,
-      visitor_code: vc ?? undefined,
-    } as any);
-    localStorage.setItem(TOKEN_KEY, t);
-    localStorage.setItem(USER_KEY, JSON.stringify(u));
-    // Clear visitor code after successful login (merged on server)
-    localStorage.removeItem(VISITOR_KEY);
-    setVisitorCode(null);
-    setToken(t);
-    setUserState(u);
-  }, []);
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const vc = localStorage.getItem(VISITOR_KEY);
+      const { user: u, token: t } = await api.login({
+        email,
+        password,
+        visitor_code: vc ?? undefined,
+      } as any);
+      // Token stored in memory only — not localStorage (httpOnly cookie handles persistence)
+      localStorage.setItem(USER_KEY, JSON.stringify(u));
+      // Clear visitor code after successful login (merged on server)
+      localStorage.removeItem(VISITOR_KEY);
+      setVisitorCode(null);
+      setToken(t);
+      setUserState(u);
+    },
+    [setToken],
+  );
 
-  const register = useCallback(async (email: string, password: string, display_name?: string) => {
-    const vc = localStorage.getItem(VISITOR_KEY);
-    const { user: u, token: t } = await api.register({
-      email,
-      password,
-      display_name,
-      visitor_code: vc ?? undefined,
-    } as any);
-    localStorage.setItem(TOKEN_KEY, t);
-    localStorage.setItem(USER_KEY, JSON.stringify(u));
-    // Clear visitor code after successful register (merged on server)
-    localStorage.removeItem(VISITOR_KEY);
-    setVisitorCode(null);
-    setToken(t);
-    setUserState(u);
-  }, []);
+  const register = useCallback(
+    async (email: string, password: string, display_name?: string) => {
+      const vc = localStorage.getItem(VISITOR_KEY);
+      const { user: u, token: t } = await api.register({
+        email,
+        password,
+        display_name,
+        visitor_code: vc ?? undefined,
+      } as any);
+      // Token stored in memory only — not localStorage (httpOnly cookie handles persistence)
+      localStorage.setItem(USER_KEY, JSON.stringify(u));
+      // Clear visitor code after successful register (merged on server)
+      localStorage.removeItem(VISITOR_KEY);
+      setVisitorCode(null);
+      setToken(t);
+      setUserState(u);
+    },
+    [setToken],
+  );
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
+    api.logoutServer().catch(() => {});
     localStorage.removeItem(USER_KEY);
     setToken(null);
     setUserState(null);
     // Re-init visitor after logout
     initVisitor();
-  }, [initVisitor]);
+  }, [setToken, initVisitor]);
 
   const authValue: AuthContextValue = useMemo(
     () => ({

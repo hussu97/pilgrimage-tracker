@@ -19,7 +19,16 @@ import type {
 import type { ChecklistResponse, PlaceNote } from '@/lib/types/groups';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
-const TOKEN_STORAGE_KEY = 'token';
+
+// In-memory token — never persisted to localStorage (prevents XSS token theft).
+// The backend also sets the access token as an httpOnly cookie for session persistence
+// across page reloads. The cookie is automatically included via credentials:'include'.
+let _inMemoryToken: string | null = null;
+
+/** Set or clear the in-memory access token. Called by AuthProvider on login/logout/refresh. */
+export function setClientToken(token: string | null): void {
+  _inMemoryToken = token;
+}
 
 // ─── Locale tracking for place API calls ──────────────────────────────────────
 let _currentLocale: string = 'en';
@@ -56,7 +65,7 @@ export async function getTranslations(lang: string): Promise<Record<string, stri
 }
 
 function getToken(): string | null {
-  return localStorage.getItem(TOKEN_STORAGE_KEY);
+  return _inMemoryToken;
 }
 
 function authHeaders(): HeadersInit {
@@ -102,11 +111,11 @@ async function authFetch(url: string, init?: RequestInit): Promise<Response> {
   if (!refreshInFlight) {
     refreshInFlight = refreshToken()
       .then(({ token }) => {
-        localStorage.setItem(TOKEN_STORAGE_KEY, token);
+        setClientToken(token);
         return token;
       })
       .catch((err) => {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        setClientToken(null);
         throw err;
       })
       .finally(() => {

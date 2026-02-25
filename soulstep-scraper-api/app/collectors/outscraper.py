@@ -64,7 +64,7 @@ class OutscraperCollector(BaseCollector):
             "language": "en",
             "sort": "newest",
         }
-        resp = requests.get(self.REVIEWS_URL, headers=headers, params=params)
+        resp = requests.get(self.REVIEWS_URL, headers=headers, params=params, timeout=(5, 30))
         if resp.status_code != 200:
             return []
 

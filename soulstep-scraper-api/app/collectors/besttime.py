@@ -52,7 +52,7 @@ class BestTimeCollector(BaseCollector):
             "venue_name": name,
             "venue_address": f"{lat},{lng}",
         }
-        resp = requests.post(self.FORECAST_URL, json=params)
+        resp = requests.post(self.FORECAST_URL, json=params, timeout=(5, 30))
         if resp.status_code != 200:
             return None
 

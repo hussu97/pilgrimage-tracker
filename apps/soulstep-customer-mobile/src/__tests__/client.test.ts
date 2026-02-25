@@ -1,5 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { refreshToken, logoutServer, updateGroup } from '@/lib/api/client';
+import { refreshToken, logoutServer, updateGroup, setClientToken } from '@/lib/api/client';
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch as typeof fetch;
@@ -12,9 +11,9 @@ function mockResponse(data: unknown, status = 200): Response {
   } as unknown as Response;
 }
 
-beforeEach(async () => {
+beforeEach(() => {
   jest.clearAllMocks();
-  await AsyncStorage.clear();
+  setClientToken(null); // reset in-memory token between tests
 });
 
 // ─── refreshToken ─────────────────────────────────────────────────────────────
@@ -77,8 +76,8 @@ describe('updateGroup()', () => {
     is_private: false,
   };
 
-  beforeEach(async () => {
-    await AsyncStorage.setItem('token', 'test-token');
+  beforeEach(() => {
+    setClientToken('test-token');
   });
 
   it('calls PATCH /api/v1/groups/{groupCode}', async () => {

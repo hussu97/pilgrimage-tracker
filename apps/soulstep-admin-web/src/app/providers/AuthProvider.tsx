@@ -17,13 +17,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // On mount, try to restore session from stored token
+  // On mount, try to restore session via the httpOnly access_token cookie.
+  // No token is ever read from localStorage; withCredentials on the axios client
+  // sends the cookie automatically.
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
     getMe()
       .then((u) => setUser(u))
       .catch(() => clearToken())
@@ -32,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await apiLogin({ email, password });
+    // Token stored in memory only (setToken writes to _inMemoryToken, not localStorage)
     setToken(data.token);
     setUser(data.user);
   }, []);

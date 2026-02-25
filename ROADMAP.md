@@ -12,27 +12,27 @@ Security vulnerabilities, data-loss risks, and compliance gaps that **must** be 
 
 ### Security
 
-- [ ] **Move auth tokens from localStorage to httpOnly cookies**
+- [x] **Move auth tokens from localStorage to httpOnly cookies**
   - Both web and mobile store JWT in `localStorage` / `AsyncStorage`, which is vulnerable to XSS. The admin app has the same issue.
   - Update backend to set `httpOnly`, `Secure`, `SameSite=Strict` cookies on login/refresh. Update frontend API clients to send credentials via cookies instead of `Authorization` header.
   - Files: `soulstep-catalog-api/app/core/security.py`, `apps/soulstep-customer-web/src/lib/api/client.ts`, `apps/soulstep-customer-mobile/src/lib/api/client.ts`, `apps/soulstep-admin-web/src/lib/api/client.ts`
 
-- [ ] **Add OWASP security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options)**
+- [x] **Add OWASP security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options)**
   - No Content Security Policy or clickjacking protection. `index.html` has no CSP meta tag. Nginx config lacks security headers.
   - Add headers in nginx config for production. Add CSP meta tags for development. Configure `Strict-Transport-Security`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`.
   - Files: `apps/soulstep-customer-web/nginx.conf`, `apps/soulstep-customer-web/index.html`
 
-- [ ] **Add security scanning to CI pipeline**
+- [x] **Add security scanning to CI pipeline**
   - No vulnerability scanning for Docker images, npm packages, or Python dependencies. Vulnerabilities could ship to production undetected.
   - Add Snyk or Trivy for container scanning, `pip-audit` for Python, `npm audit` for Node. Block deploys on critical/high vulnerabilities.
   - Files: `.github/workflows/deploy.yml`, `.github/workflows/tests.yml`
 
-- [ ] **Enforce rate limiting on auth and public endpoints**
+- [x] **Enforce rate limiting on auth and public endpoints**
   - `slowapi` is installed but not applied to login, register, search, or other public endpoints. Brute-force attacks and scraping are unmitigated.
   - Apply rate limits: login (5/min per IP), register (3/min per IP), search (30/min per user), password reset (3/min per IP).
   - Files: `soulstep-catalog-api/app/main.py`, `soulstep-catalog-api/app/api/v1/auth.py`
 
-- [ ] **Add request timeouts to all scraper HTTP calls**
+- [x] **Add request timeouts to all scraper HTTP calls**
   - 5 of 8 external API collectors (`gmaps`, `foursquare`, `knowledge_graph`, `outscraper`, `besttime`) lack explicit timeouts. Requests can hang indefinitely.
   - Add `timeout=(5, 30)` to all `requests.get()`/`requests.post()` calls. Use `timeout=(5, 60)` for photo downloads.
   - Files: `soulstep-scraper-api/app/collectors/*.py`, `soulstep-scraper-api/app/scrapers/base.py`

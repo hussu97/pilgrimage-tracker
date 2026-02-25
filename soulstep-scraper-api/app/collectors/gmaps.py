@@ -103,7 +103,7 @@ class GmapsCollector(BaseCollector):
             "X-Goog-FieldMask": ",".join(self.FIELD_MASK),
             "languageCode": "en",
         }
-        resp = requests.get(url, headers=headers)
+        resp = requests.get(url, headers=headers, timeout=(5, 30))
 
         if resp.status_code != 200:
             error_data = resp.json() if resp.content else {}

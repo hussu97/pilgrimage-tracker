@@ -5,20 +5,25 @@ Search proxy endpoints — keeps Google Places API key server-side.
 import logging
 
 import requests
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.core import config
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 GOOGLE_PLACES_AUTOCOMPLETE_URL = "https://places.googleapis.com/v1/places:autocomplete"
 GOOGLE_PLACE_DETAILS_URL = "https://places.googleapis.com/v1/places/{place_id}"
 
 
 @router.get("/autocomplete")
+@limiter.limit("30/minute")
 def autocomplete(
+    request: Request,
     q: str = Query(..., min_length=2),
     lat: float | None = Query(default=None),
     lng: float | None = Query(default=None),
@@ -76,7 +81,8 @@ def autocomplete(
 
 
 @router.get("/place-details")
-def place_details(place_id: str = Query(...)):
+@limiter.limit("30/minute")
+def place_details(request: Request, place_id: str = Query(...)):
     """Proxy to Google Place Details. Returns lat/lng and display info."""
     api_key = config.GOOGLE_MAPS_API_KEY
     if not api_key:

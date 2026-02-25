@@ -52,7 +52,7 @@ class KnowledgeGraphCollector(BaseCollector):
             "types": "Place",
             "languages": "en",
         }
-        resp = requests.get(self.KG_URL, params=params)
+        resp = requests.get(self.KG_URL, params=params, timeout=(5, 30))
         if resp.status_code != 200:
             return None
 

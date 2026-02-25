@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.security import decode_token
@@ -11,10 +11,21 @@ from app.db.session import SessionDep
 security = HTTPBearer(auto_error=False)
 
 
+def _extract_token(
+    credentials: HTTPAuthorizationCredentials | None,
+    request: Request,
+) -> str | None:
+    """Extract JWT from Authorization: Bearer header first, then access_token cookie."""
+    if credentials:
+        return credentials.credentials
+    return request.cookies.get("access_token")
+
+
 def get_current_user_code(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+    request: Request,
 ) -> str:
-    token = credentials.credentials if credentials is not None else None
+    token = _extract_token(credentials, request)
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
     user_code = decode_token(token)
@@ -35,10 +46,11 @@ def get_current_user(
 
 def get_optional_user(
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
+    request: Request,
     session: SessionDep,
 ) -> User | None:
-    """Return current user if valid Bearer token present, else None."""
-    token = credentials.credentials if credentials is not None else None
+    """Return current user if valid Bearer token or access_token cookie present, else None."""
+    token = _extract_token(credentials, request)
     if not token:
         return None
     user_code = decode_token(token)

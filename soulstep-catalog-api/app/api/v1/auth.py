@@ -33,6 +33,7 @@ limiter = Limiter(key_func=get_remote_address)
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
 _REFRESH_COOKIE_MAX_AGE = 30 * 24 * 60 * 60  # 30 days in seconds
+_ACCESS_COOKIE_MAX_AGE = 15 * 60  # 15 minutes in seconds
 
 
 def _to_public_user(user, session) -> UserResponse:
@@ -58,6 +59,19 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
         samesite="strict",
         max_age=_REFRESH_COOKIE_MAX_AGE,
         path="/api/v1/auth",
+    )
+
+
+def _set_access_cookie(response: Response, token: str) -> None:
+    """Set the access token as an httpOnly cookie (fallback for cookie-based auth)."""
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=_ACCESS_COOKIE_MAX_AGE,
+        path="/api/v1",
     )
 
 
@@ -136,6 +150,7 @@ def register(request: Request, body: RegisterBody, session: SessionDep):
     payload = AuthResponse(user=_to_public_user(user, session), token=access_token)
     resp = Response(content=payload.model_dump_json(), media_type="application/json")
     _set_refresh_cookie(resp, refresh)
+    _set_access_cookie(resp, access_token)
     return resp
 
 
@@ -179,6 +194,7 @@ def login(request: Request, body: LoginBody, session: SessionDep):
     payload = AuthResponse(user=_to_public_user(user, session), token=access_token)
     resp = Response(content=payload.model_dump_json(), media_type="application/json")
     _set_refresh_cookie(resp, refresh)
+    _set_access_cookie(resp, access_token)
     return resp
 
 
@@ -202,6 +218,7 @@ def refresh_token(request: Request, session: SessionDep):
         media_type="application/json",
     )
     _set_refresh_cookie(resp, new_refresh)
+    _set_access_cookie(resp, new_access)
     return resp
 
 

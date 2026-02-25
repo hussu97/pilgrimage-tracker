@@ -4,6 +4,50 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P0 Security Hardening (2026-02-25)
+
+### Backend
+
+- **httpOnly access_token cookie** — `POST /auth/login`, `/auth/register`, and `/auth/refresh` now set an `access_token` httpOnly, Secure, SameSite=Strict cookie (15-min TTL, `path=/api/v1`) in addition to the existing `refresh_token` cookie. Eliminates XSS token theft from localStorage.
+- **Cookie fallback in `deps.py`** — `get_current_user_code()` and `get_optional_user()` now accept the JWT from either the `Authorization: Bearer` header or the `access_token` cookie, supporting both in-memory (normal) and page-reload (cookie restore) scenarios.
+- **Information disclosure fix** — Removed `error_type: <ClassName>` from internal 500 error responses to prevent leaking Python class names.
+- **Search rate limiting** — Added `@limiter.limit("30/minute")` to `GET /api/v1/search/autocomplete` and `GET /api/v1/search/place-details`.
+
+### Scraper
+
+- **Request timeouts** — Added `timeout=(5, 30)` (5 s connect, 30 s read) to all `requests.get()` / `requests.post()` calls across all 5 external-API collectors (`gmaps`, `foursquare`, `knowledge_graph`, `outscraper`, `besttime`) and as a default in `make_request_with_backoff()`. Prevents indefinitely hanging HTTP calls.
+
+### Frontend (web)
+
+- **In-memory token** — `apps/soulstep-customer-web/src/lib/api/client.ts` switched from `localStorage` to a module-level `_inMemoryToken` variable. Exported `setClientToken()` for provider integration.
+- **Cookie-based session restore** — `AuthProvider` checks for a cached `USER_KEY` entry as a session hint, then calls `api.refreshToken()` on startup to restore the access token via the httpOnly refresh cookie. No token is ever written to `localStorage`.
+- **OWASP security headers** — `nginx.conf` rewritten with: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `X-XSS-Protection`, `Referrer-Policy`, `Permissions-Policy`, `Strict-Transport-Security` (1 year, includeSubDomains, preload), and a full `Content-Security-Policy`.
+- **CSP meta tag** — `index.html` now includes a `Content-Security-Policy` meta tag for the dev environment (where nginx doesn't run).
+
+### Frontend (mobile)
+
+- **In-memory token** — `apps/soulstep-customer-mobile/src/lib/api/client.ts` switched from `AsyncStorage` to a module-level `_inMemoryToken` variable. `authHeaders()` changed from async to sync (no more `await AsyncStorage.getItem()`).
+- **Cookie-based session restore** — `AuthProvider` checks `AsyncStorage` for `USER_KEY` as a hint, then calls `api.refreshToken()` on startup. No token is written to `AsyncStorage`.
+
+### Frontend (admin)
+
+- **In-memory token** — `apps/soulstep-admin-web/src/lib/api/client.ts` switched from `localStorage.getItem/setItem/removeItem` to a module-level `_inMemoryToken` variable.
+- **Cookie-based session restore** — `AuthProvider` removed the localStorage token check; session is restored via the existing `getMe()` call, which uses the httpOnly cookie through `withCredentials: true`.
+
+### CI / DevOps
+
+- **Trivy container scanning** — `.github/workflows/deploy.yml` scans every Docker image for CRITICAL/HIGH CVEs after each build (report-only, exit-code 0 for now).
+- **pip-audit** — `.github/workflows/tests.yml` runs `pip-audit` on both `soulstep-catalog-api` and `soulstep-scraper-api` Python dependencies.
+- **npm audit** — `.github/workflows/tests.yml` runs `npm audit --audit-level=high` on both web and mobile Node dependencies.
+
+### Tests
+
+- **Frontend test updates** — `apps/soulstep-customer-web/src/__tests__/client.test.ts` and `apps/soulstep-customer-mobile/src/__tests__/client.test.ts` updated to use `setClientToken()` / `setClientToken(null)` instead of `localStorage` / `AsyncStorage` mocks.
+- **Translation service test fix** — `tests/test_translation_service.py` updated to mock `_make_client()` (Google Cloud SDK) instead of `requests.post` (old HTTP implementation).
+- **Admin users test fix** — `tests/test_admin_users.py` updated default `page_size` assertion from `20` → `50` to match the pagination standardization.
+
+---
+
 ## Admin Pagination Standardization (2026-02-24)
 
 ### Backend
