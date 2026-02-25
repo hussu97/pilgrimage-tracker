@@ -18,10 +18,9 @@ describe('getFullImageUrl()', () => {
     expect(getFullImageUrl(url)).toBe(url);
   });
 
-  it('prepends base URL for relative paths', async () => {
+  it('returns relative paths as-is when no VITE_API_URL set', async () => {
     const { getFullImageUrl } = await import('@/lib/utils/imageUtils');
     const result = getFullImageUrl('/api/v1/places/pl_abc/images/1');
-    expect(result).toContain('/api/v1/places/pl_abc/images/1');
-    expect(result.startsWith('http')).toBe(true);
+    expect(result).toBe('/api/v1/places/pl_abc/images/1');
   });
 });

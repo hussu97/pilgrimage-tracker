@@ -2,7 +2,7 @@
  * Image utility functions for handling place and review images.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:3000';
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 /**
  * Convert a potentially relative image URL to a full URL.
