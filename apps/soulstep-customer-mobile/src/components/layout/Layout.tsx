@@ -22,28 +22,6 @@ const TAB_ICONS: Record<string, TabIconName> = {
   person: 'person',
 };
 
-function TabIcon({
-  iconKey,
-  focused,
-  showDot,
-}: {
-  iconKey: string;
-  focused: boolean;
-  showDot?: boolean;
-}) {
-  const iconName = TAB_ICONS[iconKey] ?? 'circle';
-  const color = focused ? tokens.colors.primary : tokens.colors.textMuted;
-  return (
-    <View style={styles.tabIconWrapper}>
-      {focused && <View style={styles.activeBar} />}
-      <View>
-        <MaterialIcons name={iconName} size={24} color={color} />
-        {showDot && <View style={styles.notificationDot} />}
-      </View>
-    </View>
-  );
-}
-
 function GlassTabBar({
   state,
   descriptors,

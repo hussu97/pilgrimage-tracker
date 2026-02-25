@@ -1,11 +1,6 @@
 // No theme/native module dependencies — pure logic tests
 
-import {
-  parseSemver,
-  versionMeetsMinimum,
-  shouldSoftUpdate,
-  shouldHardUpdate,
-} from '../lib/utils/versionUtils';
+import { parseSemver, versionMeetsMinimum, shouldSoftUpdate } from '../lib/utils/versionUtils';
 
 // ─── parseSemver ──────────────────────────────────────────────────────────────
 
@@ -67,22 +62,5 @@ describe('shouldSoftUpdate()', () => {
 
   it('returns false when min_version_soft is empty', () => {
     expect(shouldSoftUpdate('0.0.1', '')).toBe(false);
-  });
-});
-
-// ─── shouldHardUpdate ─────────────────────────────────────────────────────────
-
-describe('shouldHardUpdate()', () => {
-  it('returns true when current < min_version_hard', () => {
-    expect(shouldHardUpdate('0.9.0', '1.0.0')).toBe(true);
-  });
-
-  it('returns false when current >= min_version_hard', () => {
-    expect(shouldHardUpdate('1.0.0', '1.0.0')).toBe(false);
-    expect(shouldHardUpdate('1.2.3', '1.0.0')).toBe(false);
-  });
-
-  it('returns false when min_version_hard is empty', () => {
-    expect(shouldHardUpdate('0.0.1', '')).toBe(false);
   });
 });

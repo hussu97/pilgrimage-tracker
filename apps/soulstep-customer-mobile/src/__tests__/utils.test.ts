@@ -14,7 +14,7 @@ jest.mock('../lib/theme', () => ({
 
 import { crowdColor } from '../lib/utils/crowdColor';
 import { getFullImageUrl } from '../lib/utils/imageUtils';
-import { ROUTES, TOKEN_KEY, USER_KEY, VISITOR_KEY } from '../lib/constants';
+import { ROUTES, USER_KEY, VISITOR_KEY } from '../lib/constants';
 import { formatDistance } from '../lib/utils/place-utils';
 
 // ─── crowdColor ──────────────────────────────────────────────────────────────
@@ -81,7 +81,6 @@ describe('ROUTES constants', () => {
 
 describe('storage key constants', () => {
   it('exports correct storage keys', () => {
-    expect(TOKEN_KEY).toBe('token');
     expect(USER_KEY).toBe('user');
     expect(VISITOR_KEY).toBe('visitor_code');
   });

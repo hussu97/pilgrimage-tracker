@@ -28,9 +28,3 @@ export function shouldSoftUpdate(current: string, minVersionSoft: string): boole
   if (!minVersionSoft) return false;
   return !versionMeetsMinimum(current, minVersionSoft);
 }
-
-/** Return true when the app should be hard-blocked. */
-export function shouldHardUpdate(current: string, minVersionHard: string): boolean {
-  if (!minVersionHard) return false;
-  return !versionMeetsMinimum(current, minVersionHard);
-}

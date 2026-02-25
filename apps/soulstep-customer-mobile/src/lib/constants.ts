@@ -8,7 +8,6 @@ export const ROUTES = {
   SPLASH: 'Splash',
   FORGOT_PASSWORD: 'ForgotPassword',
   RESET_PASSWORD: 'ResetPassword',
-  SELECT_PATH: 'SelectPath',
   PROFILE: 'Profile',
   PROFILE_EDIT: 'EditProfile',
   FAVORITES: 'Favorites',
@@ -16,17 +15,14 @@ export const ROUTES = {
   GROUPS_NEW: 'CreateGroup',
   GROUP_DETAIL: 'GroupDetail',
   PLACE_DETAIL: 'PlaceDetail',
-  PLACE_CHECK_IN: 'CheckIn',
   PLACE_REVIEW: 'WriteReview',
   PROFILE_CHECK_INS: 'CheckInsList',
   JOIN: 'JoinGroup',
-  SETTINGS: 'Settings',
   NOTIFICATIONS: 'Notifications',
 } as const;
 
 export const LOCALE_STORAGE_KEY = 'soulstep-locale';
 export const THEME_STORAGE_KEY = 'soulstep-theme';
-export const TOKEN_KEY = 'token';
 export const USER_KEY = 'user';
 export const VISITOR_KEY = 'visitor_code';
 /** Default coordinates when location permission is denied or unavailable (used for getPlaces, etc.). */

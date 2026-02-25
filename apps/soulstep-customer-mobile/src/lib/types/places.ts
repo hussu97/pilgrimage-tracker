@@ -54,17 +54,6 @@ export interface PlaceDetail extends Place {
   total_checkins_count?: number;
   timings?: PlaceTiming[];
   specifications?: PlaceSpecification[];
-  external_reviews?: ExternalReview[];
-}
-
-export interface ExternalReview {
-  review_code: string;
-  place_code: string;
-  display_name: string;
-  rating: number;
-  body?: string;
-  created_at: string;
-  source: 'external';
 }
 
 export interface CheckIn {
