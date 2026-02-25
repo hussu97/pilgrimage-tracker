@@ -4,6 +4,14 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## SEO & AI Discoverability Roadmap (2026-02-25)
+
+### Docs
+
+- **ROADMAP.md — SEO & Discoverability section** — Added 26 new roadmap items across P1 (11 items: pre-rendering, PlaceSEO model, sitemap, robots.txt, JSON-LD, meta tags, llms.txt, FAQ content, admin dashboard/editor), P2 (8 items: slug URLs, hreflang, image SEO, internal linking, category pages, auto-regeneration), and P3 (7 items: Knowledge Graph linking, RSS feed, Cloud Translation, CI validation, AI citation monitoring).
+
+---
+
 ## P0 Security Hardening (2026-02-25)
 
 ### Backend
