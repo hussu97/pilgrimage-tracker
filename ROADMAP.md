@@ -282,45 +282,45 @@ New user-facing features, UX improvements, and monetization strategies.
 
 ### SEO & Discoverability
 
-- [ ] **SEO-friendly URLs with slugs**
+- [x] **SEO-friendly URLs with slugs**
   - Place URLs use opaque codes only (e.g., `/places/plc_abc12`). Not human-readable or keyword-rich.
   - `/places/{code}/{slug}` pattern. Slug is decorative; code remains authoritative (per Rule 9). 301 redirect on wrong/missing slug. Update React Router + mobile navigation.
   - Files: `apps/soulstep-customer-web/src/app/routes.tsx`, mobile navigation, `soulstep-catalog-api/app/api/v1/share.py`
 
-- [ ] **Multi-language URL structure + hreflang**
+- [x] **Multi-language URL structure + hreflang**
   - No language-specific URLs. Google indexes only one language variant per page.
-  - Language-prefixed pre-rendered pages (`/en/places/...`, `/ar/places/...`). hreflang link tags on all pages. Update sitemaps with all language variants.
-  - Files: `soulstep-catalog-api/app/api/v1/share.py`, `soulstep-catalog-api/app/api/v1/sitemap.py`
+  - Language-prefixed pre-rendered pages (`/share/{lang}/places/...`). hreflang link tags on all pages pointing to language-specific URLs. Updated sitemaps with all language variants.
+  - Files: `soulstep-catalog-api/app/api/v1/share.py`, `soulstep-catalog-api/app/api/v1/sitemap.py`, `soulstep-catalog-api/app/services/meta_tags.py`
 
-- [ ] **Image SEO optimization**
+- [x] **Image SEO optimization**
   - Place images lack alt text, no image sitemap exists, and no optimized OG images are generated.
-  - Auto-generated alt text for all place images. Image sitemap. OG image selection/generation (1200x630px). `alt_text` field on PlaceImage model.
+  - Auto-generated alt text for all place images (`generate_image_alt_text()`). Google image sitemap namespace. `alt_text` field on `PlaceImage` model + migration `0012`.
   - Files: `soulstep-catalog-api/app/db/models.py`, `soulstep-catalog-api/app/services/seo_generator.py`, `soulstep-catalog-api/app/api/v1/sitemap.py`
 
-- [ ] **Internal linking: related + nearby places**
+- [x] **Internal linking: related + nearby places**
   - Pre-rendered pages have no outbound links to other place pages. Poor link equity distribution.
-  - Pre-rendered pages include "Nearby Places" (within 5km) and "Similar Places" (same religion/type) sections with links. Distributes PageRank and aids discovery.
-  - Files: `soulstep-catalog-api/app/api/v1/share.py`, `soulstep-catalog-api/app/api/v1/places.py`
+  - Pre-rendered pages (crawlers only) include "Nearby Sacred Sites" (within 10km, Haversine) and "Similar Places" (same religion) sections with links.
+  - Files: `soulstep-catalog-api/app/api/v1/share.py`
 
-- [ ] **Client-side document title updates**
+- [x] **Client-side document title updates**
   - All pages show the same browser tab title regardless of content. Poor UX and bookmarking.
-  - `useDocumentTitle` hook for SPA. Correct browser tab titles on all pages. Replicate in mobile (navigation title). Doesn't help crawlers but improves UX.
-  - Files: new `apps/soulstep-customer-web/src/hooks/useDocumentTitle.ts`, `apps/soulstep-customer-mobile/` navigation config
+  - `useDocumentTitle` hook for SPA. Correct browser tab titles on PlaceDetail, Home, Profile, Favorites, Groups. Mobile: `navigation.setOptions({ title: place.name })` on place load.
+  - Files: new `apps/soulstep-customer-web/src/lib/hooks/useDocumentTitle.ts`, `apps/soulstep-customer-mobile/src/app/screens/PlaceDetailScreen.tsx`
 
-- [ ] **Religion category pages**
+- [x] **Religion category pages**
   - No landing pages for broad queries like "mosques near me" or "temples in Dubai".
-  - Pre-rendered `/mosques`, `/temples`, `/churches` pages with `ItemList` schema, meta tags, and internal links. Targets broad queries.
+  - Pre-rendered `GET /share/religion/{religion}` pages with `ItemList` schema, meta tags, and internal links. Keyword→religion mapping (mosque→islam, temple→hinduism, etc.).
   - Files: `soulstep-catalog-api/app/api/v1/share.py`
 
-- [ ] **Auto-regenerate SEO on place data changes**
+- [x] **Auto-regenerate SEO on place data changes**
   - SEO content becomes stale when place data changes (new reviews, updated hours, new images).
-  - Post-update hook: when place data changes, regenerate SEO content if `is_manually_edited` is false. Daily background job for rating changes.
-  - Files: `soulstep-catalog-api/app/api/v1/admin/places.py`, `soulstep-catalog-api/app/services/seo_generator.py`
+  - `PATCH /api/v1/admin/places/{code}` triggers `_regenerate_seo_bg()` via `BackgroundTasks` when any of `{name, religion, place_type, address, description, website_url}` changes. Respects `is_manually_edited`.
+  - Files: `soulstep-catalog-api/app/api/v1/admin/places.py`
 
-- [ ] **Social sharing rich preview improvements**
+- [x] **Social sharing rich preview improvements**
   - Current share.py provides basic OG tags. No locale, no site_name, no religion-specific imagery.
-  - Enhance share.py with PlaceSEO data, `og:locale`, `og:site_name`, religion-specific icons, optimal image dimensions.
-  - Files: `soulstep-catalog-api/app/api/v1/share.py`
+  - `Accept-Language` header determines `lang`/`dir` attributes. Religion-based fallback OG images (`_RELIGION_OG_IMAGES`). `seo_slug` added to place detail API response for canonical URL construction.
+  - Files: `soulstep-catalog-api/app/api/v1/share.py`, `soulstep-catalog-api/app/api/v1/places.py`
 
 ### Monetization
 

@@ -21,6 +21,7 @@ import type { Group } from '@/lib/types';
 import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 import { useAuth, useTheme } from '@/app/providers';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
+import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
 import { SharePlaceButton } from '@/components/places';
 import PlaceOpeningHours from '@/components/places/PlaceOpeningHours';
 import PlaceTimingsCarousel from '@/components/places/PlaceTimingsCarousel';
@@ -30,6 +31,7 @@ import { getFullImageUrl } from '@/lib/utils/imageUtils';
 
 function ReviewsSection({
   placeCode,
+  seoSlug,
   reviews,
   averageRating,
   reviewCount,
@@ -37,6 +39,7 @@ function ReviewsSection({
   onReviewsChange,
 }: {
   placeCode: string;
+  seoSlug?: string;
   reviews: Review[];
   averageRating?: number;
   reviewCount?: number;
@@ -99,7 +102,7 @@ function ReviewsSection({
         </div>
 
         <Link
-          to={`/places/${placeCode}/review`}
+          to={seoSlug ? `/places/${placeCode}/${seoSlug}/review` : `/places/${placeCode}/review`}
           className="bg-primary hover:bg-primary-hover text-white text-[11px] font-bold uppercase tracking-widest px-8 py-3 rounded-2xl shadow-lg shadow-primary/20 transition-all active:scale-95 text-center"
         >
           {t('placeDetail.writeAReview')}
@@ -154,7 +157,11 @@ function ReviewsSection({
                   {currentUserCode === r.user_code && (
                     <div className="flex items-center gap-1">
                       <Link
-                        to={`/places/${placeCode}/review`}
+                        to={
+                          seoSlug
+                            ? `/places/${placeCode}/${seoSlug}/review`
+                            : `/places/${placeCode}/review`
+                        }
                         state={{ edit: r }}
                         className="p-1.5 rounded-lg text-slate-300 hover:text-primary transition-colors"
                       >
@@ -217,7 +224,7 @@ function ReviewsSection({
 }
 
 export default function PlaceDetail() {
-  const { placeCode } = useParams<{ placeCode: string }>();
+  const { placeCode, slug } = useParams<{ placeCode: string; slug?: string }>();
   const navigate = useNavigate();
   const { t } = useI18n();
   const { user } = useAuth();
@@ -249,6 +256,8 @@ export default function PlaceDetail() {
   const [heroIsDragging, setHeroIsDragging] = useState(false);
   const [heroDragStartX, setHeroDragStartX] = useState(0);
   const heroDidDragRef = useRef(false);
+
+  useDocumentTitle(place?.name);
 
   const heroImages = (place?.images ?? [])
     .map((img) => getFullImageUrl(img.url))
@@ -333,6 +342,14 @@ export default function PlaceDetail() {
   useEffect(() => {
     fetchPlace();
   }, [fetchPlace]);
+
+  // Canonical slug redirect: if the place has a slug and the URL doesn't match, redirect
+  useEffect(() => {
+    if (!place?.seo_slug || !placeCode) return;
+    if (slug !== place.seo_slug) {
+      navigate(`/places/${placeCode}/${place.seo_slug}`, { replace: true });
+    }
+  }, [place?.seo_slug, placeCode, slug, navigate]);
 
   const fetchGroups = useCallback(() => {
     if (!user || !placeCode) return;
@@ -846,6 +863,7 @@ export default function PlaceDetail() {
             <section>
               <ReviewsSection
                 placeCode={place.place_code}
+                seoSlug={place.seo_slug}
                 reviews={reviews}
                 averageRating={averageRating}
                 reviewCount={reviewCount}
@@ -1002,6 +1020,7 @@ export default function PlaceDetail() {
             <section>
               <ReviewsSection
                 placeCode={place.place_code}
+                seoSlug={place.seo_slug}
                 reviews={reviews}
                 averageRating={averageRating}
                 reviewCount={reviewCount}

@@ -93,6 +93,7 @@ class PlaceImage(SQLModel, table=True):
     url: str | None = None
     blob_data: bytes | None = Field(default=None, sa_column=Column(LargeBinary))
     mime_type: str | None = None  # "image/jpeg", "image/png"
+    alt_text: str | None = None
     display_order: int = Field(default=0)
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),

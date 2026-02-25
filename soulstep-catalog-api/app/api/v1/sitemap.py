@@ -2,6 +2,7 @@
 
 Generates a sitemap.xml from all published places in the database.
 Multi-language URLs with hreflang and lastmod dates are included.
+Image sitemap extension (Google image namespace) is included per place.
 For catalogues exceeding 50,000 URLs a sitemap index is returned instead.
 
 Routes registered in main.py:
@@ -20,7 +21,7 @@ from fastapi import APIRouter
 from fastapi.responses import Response
 from sqlmodel import select
 
-from app.db.models import Place, PlaceSEO
+from app.db.models import Place, PlaceImage, PlaceSEO
 from app.db.session import SessionDep
 
 logger = logging.getLogger(__name__)
@@ -33,11 +34,13 @@ _SUPPORTED_LANGS = ("en", "ar", "hi")
 # Sitemap XML namespaces
 _NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
 _NS_XHTML = "http://www.w3.org/1999/xhtml"
+_NS_IMAGE = "http://www.google.com/schemas/sitemap-image/1.1"
 
 
 def _register_ns() -> None:
     ET.register_namespace("", _NS)
     ET.register_namespace("xhtml", _NS_XHTML)
+    ET.register_namespace("image", _NS_IMAGE)
 
 
 def _fmt_date(dt: datetime | None) -> str:
@@ -52,15 +55,23 @@ def _place_url(place_code: str, slug: str | None) -> str:
     return f"{FRONTEND_URL}/places/{place_code}"
 
 
+def _lang_place_url(lang: str, place_code: str, slug: str | None) -> str:
+    if slug:
+        return f"{FRONTEND_URL}/share/{lang}/places/{place_code}/{slug}"
+    return f"{FRONTEND_URL}/share/{lang}/places/{place_code}"
+
+
 def _build_sitemap_xml(
     places: list[Place],
     seo_map: dict[str, PlaceSEO],
+    images_map: dict[str, list[PlaceImage]],
 ) -> bytes:
     """Build a standard sitemap XML document."""
     _register_ns()
 
     urlset = ET.Element(f"{{{_NS}}}urlset")
-    urlset.set(f"xmlns:{_NS_XHTML}", _NS_XHTML)
+    urlset.set("xmlns:xhtml", _NS_XHTML)
+    urlset.set("xmlns:image", _NS_IMAGE)
 
     # Homepage
     _add_url(urlset, FRONTEND_URL, priority="1.0", changefreq="daily")
@@ -78,16 +89,29 @@ def _build_sitemap_xml(
             priority="0.8",
             changefreq="weekly",
         )
-        # hreflang alternates
+        # hreflang alternates — point to language-specific URLs
         for lang in _SUPPORTED_LANGS:
+            alt_url = _lang_place_url(lang, place.place_code, slug)
             xhtml_link = ET.SubElement(url_el, f"{{{_NS_XHTML}}}link")
             xhtml_link.set("rel", "alternate")
             xhtml_link.set("hreflang", lang)
-            xhtml_link.set("href", loc)
+            xhtml_link.set("href", alt_url)
         xhtml_default = ET.SubElement(url_el, f"{{{_NS_XHTML}}}link")
         xhtml_default.set("rel", "alternate")
         xhtml_default.set("hreflang", "x-default")
         xhtml_default.set("href", loc)
+
+        # Image sitemap entries (URL-type images only)
+        place_imgs = images_map.get(place.place_code, [])
+        for img in place_imgs:
+            if img.url:
+                img_el = ET.SubElement(url_el, f"{{{_NS_IMAGE}}}image")
+                ET.SubElement(img_el, f"{{{_NS_IMAGE}}}loc").text = img.url
+                ET.SubElement(img_el, f"{{{_NS_IMAGE}}}title").text = place.name
+                caption = (
+                    img.alt_text or f"{place.name} – {place.place_type} in {place.address or ''}"
+                )
+                ET.SubElement(img_el, f"{{{_NS_IMAGE}}}caption").text = caption
 
     ET.indent(urlset, space="  ")
     xml_str = ET.tostring(urlset, encoding="unicode", xml_declaration=False)
@@ -124,7 +148,20 @@ def sitemap_xml(session: SessionDep) -> Response:
     seo_rows = session.exec(select(PlaceSEO)).all()
     seo_map: dict[str, PlaceSEO] = {s.place_code: s for s in seo_rows}
 
-    xml_bytes = _build_sitemap_xml(places, seo_map)
+    # Batch-fetch URL-type images for all places
+    place_codes = [p.place_code for p in places]
+    images_map: dict[str, list[PlaceImage]] = {}
+    if place_codes:
+        all_imgs = session.exec(
+            select(PlaceImage).where(
+                PlaceImage.place_code.in_(place_codes),
+                PlaceImage.url.is_not(None),
+            )
+        ).all()
+        for img in all_imgs:
+            images_map.setdefault(img.place_code, []).append(img)
+
+    xml_bytes = _build_sitemap_xml(places, seo_map, images_map)
 
     logger.info("Served sitemap.xml with %d place URLs", len(places))
     return Response(

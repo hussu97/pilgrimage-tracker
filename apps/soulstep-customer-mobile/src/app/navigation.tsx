@@ -32,7 +32,7 @@ export type RootStackParamList = {
   ResetPassword: { token?: string };
   Main: undefined;
   Search: undefined;
-  PlaceDetail: { placeCode: string };
+  PlaceDetail: { placeCode: string; slug?: string };
   WriteReview: {
     placeCode: string;
     reviewCode?: string;

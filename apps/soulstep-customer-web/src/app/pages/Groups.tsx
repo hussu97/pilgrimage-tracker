@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
+import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
 import { cn } from '@/lib/utils/cn';
 import { getGroups } from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
@@ -54,6 +55,7 @@ export default function Groups() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useI18n();
+  useDocumentTitle(t('nav.groups'));
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

@@ -98,7 +98,25 @@ export function AppRoutes() {
             }
           />
           <Route
+            path="/places/:placeCode/:slug"
+            element={
+              <Layout>
+                <PlaceDetail />
+              </Layout>
+            }
+          />
+          <Route
             path="/places/:placeCode/review"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <WriteReview />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/places/:placeCode/:slug/review"
             element={
               <Layout>
                 <ProtectedRoute>

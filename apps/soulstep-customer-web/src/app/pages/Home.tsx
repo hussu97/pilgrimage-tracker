@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
+import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
 import { useLocation } from '@/app/contexts/LocationContext';
 import { getPlaces } from '@/lib/api/client';
 import FilterSheet from '@/components/places/FilterSheet';
@@ -16,6 +17,7 @@ type ViewMode = 'list' | 'map';
 const PAGE_SIZE = 20;
 
 export default function Home() {
+  useDocumentTitle();
   const { user } = useAuth();
   const { t } = useI18n();
   const { coords } = useLocation();

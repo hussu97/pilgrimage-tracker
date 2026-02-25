@@ -77,9 +77,12 @@ def build_place_meta_tags(
     if og_image:
         lines.append(f'  <meta name="twitter:image" content="{_e(og_image)}" />')
 
-    # hreflang alternates
+    # hreflang alternates — each lang gets its own language-specific pre-render URL
     for alt_lang in _SUPPORTED_LANGS:
-        alt_url = canonical  # same URL; lang served via Accept-Language / user pref
+        if slug:
+            alt_url = f"{_FRONTEND_URL}/share/{alt_lang}/places/{place_code}/{slug}"
+        else:
+            alt_url = f"{_FRONTEND_URL}/share/{alt_lang}/places/{place_code}"
         lines.append(f'  <link rel="alternate" hreflang="{alt_lang}" href="{_e(alt_url)}" />')
     lines.append(f'  <link rel="alternate" hreflang="x-default" href="{_e(canonical)}" />')
 

@@ -4,6 +4,38 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P2 SEO & AI Discoverability (2026-02-25)
+
+### Backend
+
+- **`alt_text` on PlaceImage** — New nullable `alt_text` field on `PlaceImage` model. Migration `0012_place_image_alt_text.py`. Stores auto-generated or manually set SEO-friendly image alt text.
+- **`generate_image_alt_text()`** — New function in `seo_generator.py`. Primary image: `"{name} – {religion_label} {type_label} in {city}"`. Additional images: `"{name} – interior view {n}"`.
+- **`seo_slug` in place detail API** — `GET /api/v1/places/{code}` now returns `seo_slug` (from joined `PlaceSEO` row, or `null` if not yet generated). Used by frontend for canonical URL routing.
+- **Auto-regenerate SEO on place patch** — `PATCH /api/v1/admin/places/{code}` now accepts `BackgroundTasks`. When any of `{name, religion, place_type, address, description, website_url}` is changed, `_regenerate_seo_bg()` is scheduled as a background task. Respects `is_manually_edited` flag.
+- **Religion category pages** — New `GET /share/religion/{religion}` endpoint serving pre-rendered HTML landing pages per religion (Islam, Christianity, Hinduism, Buddhism, Sikhism, Judaism, Bahá'í, Zoroastrianism). Includes `ItemList` JSON-LD schema, meta tags, and place list. Keyword→religion mapping (mosque→islam, etc.).
+- **Nearby + similar places on crawler pages** — Crawler visits to `GET /share/places/{code}` now include `<section class="nearby-places">` (within 10 km, Haversine) and `<section class="similar-places">` (same religion) sections with hyperlinks to other places.
+- **Multi-language place pages** — New `GET /share/{lang}/places/{code}` endpoint (lang ∈ `en`/`ar`/`hi`). Sets `html[lang]` and `dir="rtl"` for Arabic. Returns 404 for unsupported languages.
+- **Social preview improvements** — `share_place()` now reads `Accept-Language` header for `lang`/`dir` attributes. Religion-based fallback OG images (`_RELIGION_OG_IMAGES` dict) used when no place image exists.
+- **Image sitemap** — `GET /sitemap.xml` now registers Google image namespace (`xmlns:image`) and emits `<image:image>` child elements per place URL, with `<image:loc>`, `<image:title>`, and `<image:caption>` from `alt_text` or auto-generated fallback. Images fetched in a single batch query.
+- **hreflang language-specific URLs** — `sitemap.xml` hreflang alternates now point to `/share/{lang}/places/{code}` language-specific URLs (not all the same canonical). `build_place_meta_tags()` updated to match.
+- **Tests** (`tests/test_seo_p2.py`) — 15 tests covering: `seo_slug` in place detail, auto-regenerate on patch, non-triggering fields, `generate_image_alt_text()` (primary/secondary/no-address), religion category page, multi-language pages, sitemap image namespace, sitemap hreflang URLs, `meta_tags` hreflang, OG fallback images, nearby/similar sections (crawler vs. human).
+
+### Frontend (web)
+
+- **`useDocumentTitle` hook** (`src/lib/hooks/useDocumentTitle.ts`) — Sets `document.title` to `"{title} | SoulStep"` (with title) or `"SoulStep"` (without). Resets on unmount. Applied to: `PlaceDetail` (place name), `Home` (bare app name), `Profile`, `Favorites`, `Groups`.
+- **SEO-friendly URL slug routes** — New routes `/places/:placeCode/:slug` and `/places/:placeCode/:slug/review` added to `AppRoutes`. Both render the same components as the code-only routes.
+- **Canonical slug redirect in PlaceDetail** — After place data loads, if `place.seo_slug` differs from URL `slug` param, the component fires a `replace` navigation to the canonical slug URL. Review links updated to use slug when available.
+- **`seo_slug` type** — Added `seo_slug?: string` to `PlaceDetail` interface in `places.ts`.
+- **Tests** (`src/__tests__/useDocumentTitle.test.ts`) — 6 tests covering bare app name, titled format, unmount reset, title update on rerender, undefined/empty handling.
+
+### Frontend (mobile)
+
+- **`slug?` in PlaceDetail navigation params** — `RootStackParamList.PlaceDetail` updated to `{ placeCode: string; slug?: string }` for future deep-link compatibility.
+- **Navigation title from place data** — `PlaceDetailScreen` calls `navigation.setOptions({ title: place.name })` in a `useEffect` after place data loads, setting the native navigation bar title dynamically.
+- **Tests** (`src/__tests__/documentTitle.test.ts`) — 7 tests covering title formatting, empty name, special characters, slug param type checking (optional/required).
+
+---
+
 ## P0 Scraper Reliability (2026-02-25)
 
 ### Scraper

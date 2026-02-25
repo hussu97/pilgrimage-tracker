@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
+import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
 import { getMyStats, getSettings, updateSettings } from '@/lib/api/client';
 import { cn } from '@/lib/utils/cn';
 import ErrorState from '@/components/common/ErrorState';
@@ -29,6 +30,7 @@ export default function Profile() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { t, locale, languages, setLocale } = useI18n();
+  useDocumentTitle(t('nav.profile'));
   const { isDark, setTheme, units, setUnits } = useTheme();
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);

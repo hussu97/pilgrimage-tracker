@@ -286,6 +286,32 @@ def generate_faqs(
     return faqs
 
 
+def generate_image_alt_text(place: Place, display_order: int = 0) -> str:
+    """Generate SEO-friendly alt text for a place image.
+
+    Primary image: "{name} – {religion_label} {type_label} in {city}"
+    Additional images: "{name} – interior view {n}"
+    """
+    if display_order > 0:
+        return f"{place.name} – interior view {display_order + 1}"
+
+    religion_label = _RELIGION_LABELS.get(place.religion, place.religion.title())
+    type_label = _PLACE_TYPE_LABELS.get(
+        place.place_type, place.place_type.replace("_", " ").title()
+    )
+    city = ""
+    if place.address:
+        parts = [p.strip() for p in place.address.split(",")]
+        if len(parts) >= 2:
+            city = parts[-1].strip()
+        elif len(parts) == 1:
+            city = parts[0].strip()
+
+    if city:
+        return f"{place.name} – {religion_label} {type_label} in {city}"
+    return f"{place.name} – {religion_label} {type_label}"
+
+
 def _truthy(value: Any) -> bool | None:
     """Return True/False from attribute value, or None if missing."""
     if value is None:

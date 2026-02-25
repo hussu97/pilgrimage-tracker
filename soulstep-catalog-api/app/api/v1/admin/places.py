@@ -1,18 +1,22 @@
 """Admin — Places management endpoints."""
 
+import logging
 import random
 import string
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from pydantic import BaseModel
-from sqlmodel import col, func, select
+from sqlmodel import Session, col, func, select
 
 from app.api.deps import AdminDep
 from app.api.v1.admin.audit_log import record_audit
 from app.db.models import CheckIn, Place, PlaceImage, Review
-from app.db.session import SessionDep
+from app.db.session import SessionDep, engine
+from app.services.seo_generator import upsert_place_seo
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -89,6 +93,20 @@ class AdminPlaceImageItem(BaseModel):
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
+
+_SEO_TRIGGER_FIELDS = {"name", "religion", "place_type", "address", "description", "website_url"}
+
+
+def _regenerate_seo_bg(place_code: str) -> None:
+    """Background task: open a fresh DB session and regenerate SEO for a place."""
+    try:
+        with Session(engine) as session:
+            place = session.exec(select(Place).where(Place.place_code == place_code)).first()
+            if place:
+                upsert_place_seo(place, session)
+    except Exception:
+        logger.exception("SEO background regeneration failed for %s", place_code)
 
 
 def _place_counts(session: SessionDep, place_code: str) -> tuple[int, int]:
@@ -219,11 +237,18 @@ def get_place(place_code: str, admin: AdminDep, session: SessionDep):
 
 
 @router.patch("/places/{place_code}", response_model=AdminPlaceDetail)
-def patch_place(place_code: str, body: PatchPlaceBody, admin: AdminDep, session: SessionDep):
+def patch_place(
+    place_code: str,
+    body: PatchPlaceBody,
+    admin: AdminDep,
+    session: SessionDep,
+    background_tasks: BackgroundTasks,
+):
     place = session.exec(select(Place).where(Place.place_code == place_code)).first()
     if not place:
         raise HTTPException(status_code=404, detail="Place not found")
 
+    patched_fields = set(body.model_dump(exclude_unset=True).keys())
     changes = {
         field: {"old": getattr(place, field), "new": value}
         for field, value in body.model_dump(exclude_unset=True).items()
@@ -235,6 +260,10 @@ def patch_place(place_code: str, body: PatchPlaceBody, admin: AdminDep, session:
     session.add(place)
     session.commit()
     session.refresh(place)
+
+    # Auto-regenerate SEO when SEO-relevant fields change
+    if patched_fields & _SEO_TRIGGER_FIELDS:
+        background_tasks.add_task(_regenerate_seo_bg, place_code)
 
     review_count, check_in_count = _place_counts(session, place_code)
 

@@ -148,6 +148,13 @@ export default function PlaceDetailScreen() {
     fetchPlace();
   }, [fetchPlace]);
 
+  // Update navigation header title when place data loads
+  useEffect(() => {
+    if (place?.name) {
+      navigation.setOptions({ title: place.name });
+    }
+  }, [place?.name, navigation]);
+
   const fetchGroups = useCallback(() => {
     if (!user || !placeCode) return;
     getGroups()

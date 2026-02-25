@@ -55,6 +55,7 @@ export interface PlaceDetail extends Place {
   timings?: PlaceTiming[];
   specifications?: PlaceSpecification[];
   external_reviews?: ExternalReview[];
+  seo_slug?: string;
 }
 
 export interface ExternalReview {

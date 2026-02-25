@@ -1,7 +1,7 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, Query, Response
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.api.deps import OptionalUserDep, UserDep
 from app.db import check_ins as check_ins_db
@@ -13,6 +13,7 @@ from app.db import places as places_db
 from app.db import reviews as reviews_db
 from app.db import store as user_store
 from app.db.enums import ImageType, NotificationType, OpenStatus, Religion, ReviewSource
+from app.db.models import PlaceSEO
 from app.db.places import _haversine_km
 from app.db.session import SessionDep
 from app.models.schemas import CheckInBody, PlaceBatch, PlaceCreate, ReviewCreateBody
@@ -139,6 +140,9 @@ def _place_detail(
     out["timings"] = build_timings(place, attrs=attrs, session=session)
     out["specifications"] = build_specifications(place, attrs=attrs, session=session, lang=lang)
     out["attributes"] = attrs
+    # Append SEO slug if available
+    seo = session.exec(select(PlaceSEO).where(PlaceSEO.place_code == place.place_code)).first()
+    out["seo_slug"] = seo.slug if seo else None
     return out
 
 
