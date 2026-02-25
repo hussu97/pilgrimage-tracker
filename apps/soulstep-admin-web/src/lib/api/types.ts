@@ -361,25 +361,6 @@ export interface PlaceAttributeDefinition {
   usage_count: number;
 }
 
-export interface PlaceAttributeItem {
-  id: number;
-  attribute_code: string;
-  attribute_name: string;
-  data_type: string;
-  value_text: string | null;
-  value_json: Record<string, unknown> | null;
-}
-
-export interface BulkAttributeEntry {
-  attribute_code: string;
-  value_text?: string | null;
-  value_json?: Record<string, unknown> | null;
-}
-
-export interface BulkUpdateAttributesBody {
-  attributes: BulkAttributeEntry[];
-}
-
 // ── Dashboard Stats (Phase 5) ─────────────────────────────────────────────────
 
 export interface OverviewStats {

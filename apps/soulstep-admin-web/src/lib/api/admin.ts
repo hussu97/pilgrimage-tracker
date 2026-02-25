@@ -16,12 +16,10 @@ import type {
   AdminUserDetail,
   AdminUserReview,
   AppVersionConfig,
-  AuditLogItem,
   AuditLogListResponse,
   AuthResponse,
   BroadcastResult,
   BulkResult,
-  BulkUpdateAttributesBody,
   ContentTranslationListResponse,
   CreateContentTranslationBody,
   CreatePlaceBody,
@@ -34,7 +32,6 @@ import type {
   PatchReviewBody,
   PatchUserBody,
   PlaceAttributeDefinition,
-  PlaceAttributeItem,
   TranslationEntry,
   UpdateAppVersionBody,
   UpdateContentTranslationBody,
@@ -258,11 +255,6 @@ export async function listTranslations(params?: {
   return res.data;
 }
 
-export async function getTranslation(key: string): Promise<TranslationEntry> {
-  const res = await apiClient.get<TranslationEntry>(`/admin/translations/${key}`);
-  return res.data;
-}
-
 export async function upsertTranslation(
   key: string,
   body: UpsertTranslationBody
@@ -344,26 +336,6 @@ export async function listPlaceAttributeDefinitions(): Promise<PlaceAttributeDef
   return res.data;
 }
 
-export async function listPlaceAttributesByPlace(
-  placeCode: string
-): Promise<PlaceAttributeItem[]> {
-  const res = await apiClient.get<PlaceAttributeItem[]>(
-    `/admin/place-attributes/${placeCode}`
-  );
-  return res.data;
-}
-
-export async function bulkUpdatePlaceAttributes(
-  placeCode: string,
-  body: BulkUpdateAttributesBody
-): Promise<PlaceAttributeItem[]> {
-  const res = await apiClient.put<PlaceAttributeItem[]>(
-    `/admin/place-attributes/${placeCode}`,
-    body
-  );
-  return res.data;
-}
-
 // ── Bulk Operations (Phase 6) ─────────────────────────────────────────────────
 
 export async function bulkDeactivateUsers(userCodes: string[]): Promise<BulkResult> {
@@ -425,11 +397,6 @@ export async function listAuditLog(params?: {
   to_date?: string;
 }): Promise<AuditLogListResponse> {
   const res = await apiClient.get<AuditLogListResponse>("/admin/audit-log", { params });
-  return res.data;
-}
-
-export async function getAuditLogEntry(logCode: string): Promise<AuditLogItem> {
-  const res = await apiClient.get<AuditLogItem>(`/admin/audit-log/${logCode}`);
   return res.data;
 }
 
