@@ -4,6 +4,41 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Codebase Cleanup (2026-02-26)
+
+### Backend
+
+- **Dead code removal** — Deleted orphaned functions with zero callers: `_generate_place_code()` (`places.py`), `_gen_code()` (`admin/bulk.py`), `create_external_review()` (`reviews.py`), `update_user_religion()` (`store.py`), `add_image_url()` / `add_image_blob()` (`place_images.py`), `format_utc_offset()` (`timezone_utils.py`). Refactored `seed.py` to use inline `PlaceImage()` + `session.add()` instead of the deleted helpers.
+- **Dead enums removed** — `AttributeDataType`, `AttributeCategory`, `AppPlatform` enums removed from `enums.py`. `ReviewSource.GOOGLE` value removed (never referenced).
+- **Deleted empty placeholder** — `app/api/v2/__init__.py` deleted.
+- **`html.escape` deduplication** — Replaced custom `_escape_html()` in `share.py` and `_e()` in `meta_tags.py` with stdlib `html.escape()` (imported as `_html` in `share.py` to avoid conflict with local `html` string variables).
+- **`FRONTEND_URL` consolidation** — Six files (`structured_data.py`, `meta_tags.py`, `share.py`, `feed.py`, `sitemap.py`, `seo_static.py`) now import `FRONTEND_URL` from `app.core.config` instead of each calling `os.environ.get("FRONTEND_URL", ...)` independently.
+- **`_upsert_single_place()` extraction** — Shared upsert logic from batch and single-place create endpoints in `places.py` extracted into a private helper, eliminating ~60 lines of duplication.
+- **Test cleanup** — Removed `TestFormatUtcOffset`, `TestGeneratePlaceCode`, and `test_create_external_review` tests; updated `test_place_images.py` to use direct `PlaceImage()` construction.
+
+### Frontend (web)
+
+- **Dead file deletion** — Removed `Splash.tsx`, `PrimaryButton.tsx`, `SearchBar.tsx`, `SkeletonDetail.tsx`, `FilterChip.tsx` (all had zero imports).
+- **Dead type removal** — `Visitor` interface removed from `types/users.ts`; `ExternalReview` interface and `external_reviews` field removed from `types/places.ts`; `ROUTES` object and `TOKEN_KEY` removed from `constants.ts`.
+- **`formatDistance` deduplication** — Removed inline copies in `PlaceCardUnified.tsx` and `PlacesMap.tsx`; both now import from `@/lib/utils/place-utils`.
+- **Theme storage key bug fix** — `providers.tsx` had `THEME_STORAGE_KEY = 'theme'` conflicting with `lib/theme.ts` which reads/writes `'soulstep-theme'` from constants. Removed the local constant; both files now use the shared key. Also removed the redundant `applyTheme()` call in `Profile.tsx` since `ThemeProvider.setTheme()` handles it.
+- **i18n** — Replaced hardcoded strings with `t()` calls: `"Visited"` → `t('places.visited')`, `"List View"` → `t('home.listView')`, `"members"` → `t('groups.members').toLowerCase()` (in `AddToGroupSheet` and `PlaceDetail`), `"Share"` / `"Link copied"` / `"Shared"` → `t('common.share')` / `t('common.linkCopied')` / `t('common.shared')`, `ErrorState` retry label default → `t('common.retry')`. Added `home.listView`, `common.linkCopied`, and `common.shared` keys to `seed_data.json` (en, ar, hi).
+
+### Frontend (mobile)
+
+- **Dead file deletion** — Removed `SearchFilterBar.tsx`, `FilterChipsList.tsx`, `FilterChip.tsx`, `groupUtils.ts` (all unused in production).
+- **Dead code removal** — `TabIcon` function removed from `Layout.tsx`; `shouldHardUpdate()` removed from `versionUtils.ts`; `Visitor` interface removed from `types/users.ts`; `ExternalReview` interface removed from `types/places.ts`; `SELECT_PATH`, `PLACE_CHECK_IN`, `SETTINGS` routes and `TOKEN_KEY` removed from `constants.ts`; exported `formatDistance` removed from `mapBuilder.ts`.
+- **`formatDistance` deduplication** — `mapBuilder.ts`, `PlaceSelector.tsx`, and `PlaceScorecardRow.tsx` now import `formatDistance` from `place-utils.ts`.
+- **Test cleanup** — Deleted `groups.test.ts`; removed `shouldHardUpdate` and `TOKEN_KEY` tests from `updateUtils.test.ts` and `utils.test.ts`; updated `mapBuilder.test.ts` to import `formatDistance` from `place-utils`.
+
+### Admin
+
+- **Dead API function removal** — `getAuditLogEntry()`, `bulkUpdatePlaceAttributes()`, `listPlaceAttributesByPlace()`, and `getTranslation()` removed from `admin.ts`; associated dead types `BulkAttributeEntry`, `BulkUpdateAttributesBody`, `PlaceAttributeItem` removed from `types.ts`.
+- **`statusVariant` deduplication** — Extracted shared `statusVariant()` into `src/lib/utils/scraperStatus.ts`; `ScraperRunsPage`, `RunDetailPage`, and `ScraperOverviewPage` now import from it instead of each defining their own copy.
+- **Topbar route labels** — Added missing breadcrumb labels for `/app-versions`, `/place-attributes`, `/content-translations`, `/notifications`, and `/seo`.
+
+---
+
 ## P3 SEO & AI Discoverability (2026-02-25)
 
 ### Backend
