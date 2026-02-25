@@ -13,6 +13,7 @@ from app.api.v1.admin import (
     places,
     reviews,
     scraper_proxy,
+    seo,
     stats,
     translations,
     users,
@@ -34,3 +35,4 @@ admin_router.include_router(bulk.router, tags=["admin-bulk"])
 admin_router.include_router(export.router, tags=["admin-export"])
 admin_router.include_router(audit_log.router, tags=["admin-audit-log"])
 admin_router.include_router(notifications.router, tags=["admin-notifications"])
+admin_router.include_router(seo.router, tags=["admin-seo"])

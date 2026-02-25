@@ -40,6 +40,11 @@ import type {
   UpdateContentTranslationBody,
   UpsertTranslationBody,
   User,
+  SEOStats,
+  SEOListResponse,
+  SEODetail,
+  PatchSEOBody,
+  GenerateResponse,
 } from "./types";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -445,5 +450,48 @@ export async function listNotificationHistory(params?: {
   page_size?: number;
 }): Promise<AdminBroadcastListResponse> {
   const res = await apiClient.get<AdminBroadcastListResponse>("/admin/notifications/history", { params });
+  return res.data;
+}
+
+// ── SEO & Discoverability ─────────────────────────────────────────────────────
+
+export async function getSEOStats(): Promise<SEOStats> {
+  const res = await apiClient.get<SEOStats>("/admin/seo/stats");
+  return res.data;
+}
+
+export async function listSEOPlaces(params?: {
+  page?: number;
+  page_size?: number;
+  religion?: string;
+  missing_only?: boolean;
+  manually_edited?: boolean;
+  search?: string;
+}): Promise<SEOListResponse> {
+  const res = await apiClient.get<SEOListResponse>("/admin/seo/places", { params });
+  return res.data;
+}
+
+export async function getSEODetail(placeCode: string): Promise<SEODetail> {
+  const res = await apiClient.get<SEODetail>(`/admin/seo/places/${placeCode}`);
+  return res.data;
+}
+
+export async function patchSEO(placeCode: string, body: PatchSEOBody): Promise<SEODetail> {
+  const res = await apiClient.patch<SEODetail>(`/admin/seo/places/${placeCode}`, body);
+  return res.data;
+}
+
+export async function regenerateSEO(placeCode: string, force = false): Promise<SEODetail> {
+  const res = await apiClient.post<SEODetail>(
+    `/admin/seo/places/${placeCode}/generate`,
+    null,
+    { params: { force } }
+  );
+  return res.data;
+}
+
+export async function bulkGenerateSEO(body: { force?: boolean; limit?: number }): Promise<GenerateResponse> {
+  const res = await apiClient.post<GenerateResponse>("/admin/seo/generate", body);
   return res.data;
 }

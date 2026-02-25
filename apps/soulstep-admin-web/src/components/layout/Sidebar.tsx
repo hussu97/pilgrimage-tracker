@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
+  Search,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -26,6 +27,7 @@ const NAV_ITEMS = [
   { label: "Groups", to: "/groups", icon: Users2 },
   { label: "Scraper", to: "/scraper", icon: Database },
   { label: "Content", to: "/translations", icon: Languages },
+  { label: "SEO", to: "/seo", icon: Search },
   { label: "Audit Log", to: "/audit-log", icon: FileText },
   { label: "Notifications", to: "/notifications", icon: Bell },
 ];

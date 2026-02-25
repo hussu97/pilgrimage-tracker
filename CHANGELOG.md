@@ -21,6 +21,37 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P1 SEO & AI Discoverability Implementation (2026-02-25)
+
+### Backend
+
+- **PlaceSEO model + migration** — New `place_seo` table (`place_code` FK, `slug` unique, `seo_title`, `meta_description`, `rich_description`, `faq_json`, `og_image_url`, `is_manually_edited`, `generated_at`, `updated_at`). Migration `0011_place_seo.py`.
+- **SEO content generation service** (`app/services/seo_generator.py`) — Template-based auto-generation of slugs (Unicode-aware), SEO titles, meta descriptions, rich descriptions, and FAQ pairs from place data. `is_manually_edited=True` prevents auto-overwrite on re-generation. `upsert_place_seo()` for create/update with force flag.
+- **Schema.org JSON-LD service** (`app/services/structured_data.py`) — Generates `PlaceOfWorship`/`Mosque`/`HinduTemple`/`Church`/`BuddhistTemple`/`Gurdwara`/`Synagogue` JSON-LD, `BreadcrumbList`, `FAQPage`, and `Organization` schemas. Renders as `<script type="application/ld+json">` tags.
+- **Meta tags service** (`app/services/meta_tags.py`) — Per-page HTML string with `<title>`, `<meta name="description">`, `<link rel="canonical">`, `og:*`, Twitter Cards, and `hreflang` alternates for `en`/`ar`/`hi`.
+- **Enhanced share.py** — Bot/crawler detection via User-Agent regex (Googlebot, ChatGPT-User, Claude-Web, PerplexityBot, 30+ patterns). Crawlers receive full HTML with visible content, canonical link, JSON-LD, and FAQs; human browsers get OG tags + JS redirect unchanged.
+- **Dynamic sitemap.xml** (`GET /sitemap.xml`) — XML sitemap from all Place rows with hreflang alternates, `lastmod` from SEO `updated_at`, and priority scoring. Served at root, not `/api/v1/`.
+- **robots.txt** (`GET /robots.txt`) — Proper crawl directives allowing all public pages, blocking `/api/v1/auth/`, `/api/v1/admin/`, `/admin/`. Explicit per-agent allows for ChatGPT-User, Claude-Web, PerplexityBot, GPTBot. Sitemap reference.
+- **llms.txt + llms-full.txt** (`GET /llms.txt`, `GET /llms-full.txt`) — Dynamic Markdown files describing SoulStep for AI chatbot discoverability. Place count pulled from DB. Full variant includes API response schema and example queries.
+- **Admin SEO endpoints** (`app/api/v1/admin/seo.py`) — `GET /admin/seo/stats` (health metrics), `GET /admin/seo/places` (paginated list with coverage, search/filter), `GET /admin/seo/places/{code}`, `PATCH /admin/seo/places/{code}` (manual edit with slug conflict check), `POST /admin/seo/places/{code}/generate` (per-place regeneration with `force` flag), `POST /admin/seo/generate` (bulk generation). All require admin auth.
+- **Tests** (`tests/test_seo.py`) — 34 tests covering robots.txt, llms.txt, sitemap, enhanced share endpoint (crawler vs. human), all admin SEO endpoints, slug conflict detection, `is_manually_edited` protection, and `seo_generator` unit tests.
+
+### Frontend (Admin)
+
+- **SEO types** (`types.ts`) — `SEOStats`, `SEOListItem`, `SEOListResponse`, `FAQItem`, `SEODetail`, `PatchSEOBody`, `GenerateResponse`.
+- **SEO API functions** (`admin.ts`) — `getSEOStats()`, `listSEOPlaces()`, `getSEODetail()`, `patchSEO()`, `regenerateSEO()`, `bulkGenerateSEO()`.
+- **SEO Dashboard page** (`pages/seo/SEODashboardPage.tsx`) — Coverage stats, progress bar, paginated table with SEO status badges, bulk-generate button, search/filter by religion and missing-only.
+- **SERP Preview component** (`components/seo/SERPPreview.tsx`) — Live Google SERP-style preview with character-count warnings (green/amber/red) for title and description.
+- **SEO Place Detail/Editor page** (`pages/seo/SEOPlaceDetailPage.tsx`) — View and edit `slug`, `seo_title`, `meta_description`, `rich_description`, `og_image_url`, FAQ pairs. Live SERP preview. Regenerate button. `is_manually_edited` badge.
+- **Sidebar** — Added "SEO" nav item with `Search` icon between Content and Audit Log.
+- **Router** — Added `/seo` → `SEODashboardPage` and `/seo/:placeCode` → `SEOPlaceDetailPage` routes.
+
+### Docs
+
+- **ROADMAP.md** — Marked 11 P1 SEO items as completed.
+
+---
+
 ## SEO & AI Discoverability Roadmap (2026-02-25)
 
 ### Docs

@@ -399,3 +399,37 @@ class AdminBroadcast(SQLModel, table=True):
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
     )
+
+
+class PlaceSEO(SQLModel, table=True):
+    """SEO metadata for a sacred-site place page.
+
+    English is the canonical language. Translations for other languages are
+    stored via ContentTranslation with entity_type="place_seo".
+    is_manually_edited=True prevents auto-overwrite on re-generation.
+    """
+
+    __tablename__ = "place_seo"
+
+    id: int | None = Field(default=None, primary_key=True)
+    place_code: str = Field(index=True, unique=True, foreign_key="place.place_code")
+    slug: str = Field(index=True, unique=True)  # URL-friendly, e.g. "grand-mosque-dubai"
+    seo_title: str  # <title> tag content, ≤60 chars recommended
+    meta_description: str  # <meta name="description">, ≤160 chars recommended
+    rich_description: str | None = None  # Longer crawlable description paragraph
+    faq_json: list[dict[str, Any]] | None = Field(
+        default=None, sa_column=Column(JSON)
+    )  # [{"question": "...", "answer": "..."}, ...]
+    og_image_url: str | None = None  # 1200x630 OG image URL
+    is_manually_edited: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="0"),
+    )
+    generated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )

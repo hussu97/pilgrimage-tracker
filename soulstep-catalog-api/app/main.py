@@ -27,7 +27,9 @@ from slowapi.util import get_remote_address  # noqa: E402
 from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
 
 from app.api.v1 import api_router  # noqa: E402
+from app.api.v1 import seo_static as seo_static_module  # noqa: E402
 from app.api.v1 import share as share_router_module  # noqa: E402
+from app.api.v1 import sitemap as sitemap_module  # noqa: E402
 from app.core import config  # noqa: E402
 from app.core.client_context import (  # noqa: E402
     ClientContext,
@@ -259,6 +261,8 @@ async def request_timing_middleware(request: Request, call_next):
 
 app.include_router(api_router)
 app.include_router(share_router_module.router, prefix="/share")
+app.include_router(sitemap_module.router)
+app.include_router(seo_static_module.router)
 
 # Prometheus metrics — exposes GET /metrics (excluded from OpenAPI schema)
 try:

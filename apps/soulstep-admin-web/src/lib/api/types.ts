@@ -500,3 +500,72 @@ export interface AdminBroadcastListResponse {
   page: number;
   page_size: number;
 }
+
+// ── SEO & Discoverability ─────────────────────────────────────────────────────
+
+export interface SEOStats {
+  total_places: number;
+  places_with_seo: number;
+  places_missing_seo: number;
+  places_manually_edited: number;
+  coverage_pct: number;
+}
+
+export interface SEOListItem {
+  place_code: string;
+  name: string;
+  religion: string;
+  place_type: string;
+  has_seo: boolean;
+  slug: string | null;
+  seo_title: string | null;
+  meta_description: string | null;
+  is_manually_edited: boolean;
+  generated_at: string | null;
+  updated_at: string | null;
+}
+
+export interface SEOListResponse {
+  items: SEOListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface FAQItem {
+  question: string;
+  answer: string;
+}
+
+export interface SEODetail {
+  place_code: string;
+  name: string;
+  religion: string;
+  place_type: string;
+  address: string;
+  slug: string | null;
+  seo_title: string | null;
+  meta_description: string | null;
+  rich_description: string | null;
+  faq_json: FAQItem[] | null;
+  og_image_url: string | null;
+  is_manually_edited: boolean;
+  generated_at: string | null;
+  updated_at: string | null;
+}
+
+export interface PatchSEOBody {
+  slug?: string;
+  seo_title?: string;
+  meta_description?: string;
+  rich_description?: string;
+  faq_json?: FAQItem[];
+  og_image_url?: string;
+  is_manually_edited?: boolean;
+}
+
+export interface GenerateResponse {
+  generated: number;
+  skipped: number;
+  errors: number;
+}
