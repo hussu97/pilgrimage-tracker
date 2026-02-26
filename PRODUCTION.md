@@ -1068,7 +1068,7 @@ SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 gcloud run jobs create cleanup-job \
   --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest \
   --region REGION \
-  --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
+  --set-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
   --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
   --command "python" \
   --args="-m,app.jobs.cleanup_orphaned_images" \
@@ -1125,7 +1125,7 @@ On GCP, the translation backfill is the **simplest** — Cloud Run Jobs automati
 gcloud run jobs create backfill-translations \
   --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest \
   --region REGION \
-  --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
+  --set-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
   --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=PROJECT_ID" \
   --command "python" \
@@ -1167,7 +1167,7 @@ gcloud scheduler jobs create http run-backfill-translations \
 gcloud run jobs create backfill-timezones \
   --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest \
   --region REGION \
-  --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
+  --set-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
   --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
   --command "python" \
   --args="-m,app.jobs.backfill_timezones" \
