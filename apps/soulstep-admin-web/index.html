@@ -11,6 +11,15 @@
       rel="stylesheet"
     />
     <title>SoulStep Admin</title>
+    <!-- Apply dark class synchronously to avoid flash of wrong theme on load -->
+    <script>
+      (function () {
+        var stored = localStorage.getItem("admin_theme");
+        if (stored === "dark" || (!stored && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+          document.documentElement.classList.add("dark");
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

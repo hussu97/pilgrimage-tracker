@@ -32,13 +32,18 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// On 401, clear in-memory token and redirect to login
+// On 401, clear in-memory token and redirect to login.
+// Guard against redirecting when already on /login — otherwise AuthProvider's
+// getMe() call (which always 401s when unauthenticated) would cause an infinite
+// hard-reload loop that also produces dark/light mode flickering on every reload.
 apiClient.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
       clearToken();
-      window.location.href = "/login";
+      if (!window.location.pathname.startsWith("/login")) {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(err);
   }
