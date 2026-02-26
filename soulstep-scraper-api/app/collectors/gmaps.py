@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import base64
 import os
-from datetime import datetime
 from typing import Any
 
 import requests
@@ -22,6 +21,7 @@ from app.scrapers.gmaps import (
     get_gmaps_type_to_our_type,
     process_weekly_hours,
 )
+from app.utils.extractors import ContactExtractor, ReviewExtractor, make_description
 
 logger = get_logger(__name__)
 
@@ -130,14 +130,7 @@ class GmapsCollector(BaseCollector):
             editorial_text = ""
 
         if editorial_text:
-            result.descriptions.append(
-                {
-                    "text": editorial_text,
-                    "lang": "en",
-                    "source": "gmaps_editorial",
-                    "score": None,
-                }
-            )
+            result.descriptions.append(make_description(editorial_text, "en", "gmaps_editorial"))
 
         # Generative summary (longer, AI-generated)
         generative = response.get("generativeSummary", {})
@@ -151,29 +144,10 @@ class GmapsCollector(BaseCollector):
             gen_text = ""
 
         if gen_text:
-            result.descriptions.append(
-                {
-                    "text": gen_text,
-                    "lang": "en",
-                    "source": "gmaps_generative",
-                    "score": None,
-                }
-            )
+            result.descriptions.append(make_description(gen_text, "en", "gmaps_generative"))
 
         # --- Contact ---
-        national_phone = response.get("nationalPhoneNumber")
-        intl_phone = response.get("internationalPhoneNumber")
-        gmaps_uri = response.get("googleMapsUri")
-        website = response.get("websiteUri")
-
-        if national_phone:
-            result.contact["phone_national"] = national_phone
-        if intl_phone:
-            result.contact["phone_international"] = intl_phone
-        if gmaps_uri:
-            result.contact["google_maps_url"] = gmaps_uri
-        if website:
-            result.contact["website"] = website
+        result.contact.update(ContactExtractor.from_gmaps_response(response))
 
         # --- Attributes ---
         # Accessibility (expanded)
@@ -237,32 +211,7 @@ class GmapsCollector(BaseCollector):
             result.images.append({"url": photo_url, "source": "gmaps"})
 
         # --- Reviews ---
-        for review in response.get("reviews", [])[:5]:
-            review_text = review.get("text", {})
-            if isinstance(review_text, dict):
-                review_text = review_text.get("text", "")
-
-            author_name = review.get("authorAttribution", {}).get("displayName", "")
-
-            publish_time = review.get("publishTime", "")
-            time_unix = 0
-            try:
-                if publish_time:
-                    dt = datetime.fromisoformat(publish_time.replace("Z", "+00:00"))
-                    time_unix = int(dt.timestamp())
-            except Exception:
-                pass
-
-            result.reviews.append(
-                {
-                    "author_name": author_name,
-                    "rating": review.get("rating", 0),
-                    "text": review_text,
-                    "time": time_unix,
-                    "relative_time_description": review.get("relativePublishTimeDescription", ""),
-                    "language": "en",
-                }
-            )
+        result.reviews = ReviewExtractor.from_gmaps(response.get("reviews", []))
 
         return result
 
@@ -317,33 +266,7 @@ class GmapsCollector(BaseCollector):
                 download_failures.append(photo_url)
 
         # Process external reviews (up to 5)
-        external_reviews = []
-        for review in response.get("reviews", [])[:5]:
-            review_text = review.get("text", {})
-            if isinstance(review_text, dict):
-                review_text = review_text.get("text", "")
-
-            author_name = review.get("authorAttribution", {}).get("displayName", "")
-
-            publish_time = review.get("publishTime", "")
-            time_unix = 0
-            try:
-                if publish_time:
-                    dt = datetime.fromisoformat(publish_time.replace("Z", "+00:00"))
-                    time_unix = int(dt.timestamp())
-            except Exception:
-                pass
-
-            external_reviews.append(
-                {
-                    "author_name": author_name,
-                    "rating": review.get("rating", 0),
-                    "text": review_text,
-                    "time": time_unix,
-                    "relative_time_description": review.get("relativePublishTimeDescription", ""),
-                    "language": "en",
-                }
-            )
+        external_reviews = ReviewExtractor.from_gmaps(response.get("reviews", []))
 
         # Build attributes
         attributes = []

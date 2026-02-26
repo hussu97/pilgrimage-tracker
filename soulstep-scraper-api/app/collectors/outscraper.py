@@ -7,12 +7,12 @@ pilgrimage sites with thousands of reviews (Google Maps API caps at 5).
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 import requests
 
 from app.collectors.base import BaseCollector, CollectorResult
+from app.utils.extractors import ReviewExtractor
 
 
 class OutscraperCollector(BaseCollector):
@@ -82,26 +82,5 @@ class OutscraperCollector(BaseCollector):
             collector_name=self.name,
             raw_response={"reviews": reviews},
         )
-
-        for review in reviews:
-            time_unix = 0
-            review_datetime = review.get("review_datetime_utc", "")
-            if review_datetime:
-                try:
-                    dt = datetime.fromisoformat(review_datetime.replace("Z", "+00:00"))
-                    time_unix = int(dt.timestamp())
-                except Exception:
-                    pass
-
-            result.reviews.append(
-                {
-                    "author_name": review.get("author_title", ""),
-                    "rating": review.get("review_rating", 0),
-                    "text": review.get("review_text", ""),
-                    "time": time_unix,
-                    "relative_time_description": review.get("review_datetime_utc", ""),
-                    "language": review.get("review_language", "en"),
-                }
-            )
-
+        result.reviews = ReviewExtractor.from_outscraper(reviews)
         return result

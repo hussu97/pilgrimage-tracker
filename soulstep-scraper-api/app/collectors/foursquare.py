@@ -11,6 +11,7 @@ from typing import Any
 import requests
 
 from app.collectors.base import BaseCollector, CollectorResult
+from app.utils.extractors import ReviewExtractor
 
 
 class FoursquareCollector(BaseCollector):
@@ -48,20 +49,7 @@ class FoursquareCollector(BaseCollector):
                 collector_name=self.name,
                 raw_response={"fsq_id": fsq_id, "tips": tips},
             )
-
-            # Convert tips to reviews format
-            for tip in tips:
-                result.reviews.append(
-                    {
-                        "author_name": tip.get("created_by", "Foursquare User"),
-                        "rating": 0,  # Foursquare tips don't have individual ratings
-                        "text": tip.get("text", ""),
-                        "time": 0,
-                        "relative_time_description": "",
-                        "language": tip.get("lang", "en"),
-                    }
-                )
-
+            result.reviews = ReviewExtractor.from_foursquare_tips(tips)
             return result
         except Exception as e:
             return self._fail_result(str(e))

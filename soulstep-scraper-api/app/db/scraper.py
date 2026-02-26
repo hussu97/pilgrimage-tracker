@@ -103,14 +103,115 @@ def _sanitize_reviews(reviews: list[dict]) -> list[dict]:
     return [r for r in reviews if isinstance(r.get("rating"), int) and 1 <= r["rating"] <= 5]
 
 
-def sync_run_to_server(run_code: str, server_url: str):
-    """
-    Syncs scraped places to the main server using batch requests.
-    Places are sent in groups of BATCH_SIZE to reduce HTTP overhead.
-    Falls back to individual POSTs if the batch endpoint is unavailable.
-    """
+def build_sync_payloads(places: list[ScrapedPlace]) -> list[dict]:
+    """Sanitize and build a payload dict for each place."""
+    payloads = []
+    for p in places:
+        data = p.raw_data
+        payloads.append(
+            {
+                "place_code": p.place_code,
+                "name": data.get("name"),
+                "religion": _sanitize_religion(data.get("religion")),
+                "place_type": data.get("place_type"),
+                "lat": data.get("lat"),
+                "lng": data.get("lng"),
+                "address": data.get("address"),
+                "opening_hours": data.get("opening_hours"),
+                "utc_offset_minutes": data.get("utc_offset_minutes"),
+                # Server rejects payloads with both fields populated.
+                # Prefer image_blobs (self-contained) over image_urls when both exist.
+                "image_urls": []
+                if (data.get("image_blobs") or [])
+                else (data.get("image_urls") or []),
+                "image_blobs": data.get("image_blobs") or [],
+                "description": data.get("description"),
+                "website_url": data.get("website_url"),
+                "source": data.get("source"),
+                "attributes": _sanitize_attributes(data.get("attributes") or []),
+                "external_reviews": _sanitize_reviews(data.get("external_reviews") or []),
+                "translations": data.get("translations") or None,
+            }
+        )
+    return payloads
+
+
+def post_batch(
+    batch: list[dict],
+    server_url: str,
+    http_session: requests.Session,
+) -> tuple[int, list[str]]:
+    """POST one batch to /api/v1/places/batch. Returns (synced_count, failed_place_codes)."""
+
+    batch_codes = [p["place_code"] for p in batch]
+    try:
+        resp = http_session.post(
+            f"{server_url}/api/v1/places/batch",
+            json={"places": batch},
+        )
+        if resp.status_code in [200, 201]:
+            data = resp.json()
+            synced = data.get("synced", 0)
+            failed: list[str] = []
+            for r in data.get("results", []):
+                if not r.get("ok"):
+                    reason = r.get("error", "unknown error")
+                    failed.append(f"{r['place_code']}: {reason}")
+                    logger.warning("[FAIL] %s: %s", r["place_code"], reason)
+                else:
+                    logger.debug("[OK]   %s", r["place_code"])
+            return synced, failed
+        else:
+            logger.warning(
+                "Batch endpoint returned %d, falling back to individual POSTs", resp.status_code
+            )
+            return 0, [f"{code}: batch HTTP {resp.status_code}" for code in batch_codes]
+    except Exception as e:
+        reason = f"{type(e).__name__}: {e}"
+        logger.error("[FAIL] Batch request failed: %s", reason)
+        return 0, [f"{code}: {reason}" for code in batch_codes]
+
+
+def handle_sync_failures(
+    failed_payloads: list[dict],
+    server_url: str,
+    http_session: requests.Session,
+) -> tuple[int, list[str]]:
+    """Fall back to individual POSTs for each failed place. Returns (synced_count, failure_details)."""
     import json as _json
 
+    synced = 0
+    failure_details: list[str] = []
+    for payload in failed_payloads:
+        place_code = payload["place_code"]
+        try:
+            r = http_session.post(f"{server_url}/api/v1/places", json=payload)
+            if r.status_code not in [200, 201]:
+                reason = f"HTTP {r.status_code}"
+                failure_details.append(f"{place_code}: {reason}")
+                logger.warning("[FAIL] %s: %s — %s", place_code, reason, r.text[:200])
+                if r.status_code == 422:
+                    logger.debug(
+                        "Payload that caused 422:\n%s",
+                        _json.dumps(payload, indent=2, default=str),
+                    )
+            else:
+                synced += 1
+                logger.debug("[OK]   %s", place_code)
+        except Exception as e:
+            reason = f"{type(e).__name__}: {e}"
+            failure_details.append(f"{place_code}: {reason}")
+            logger.warning("[FAIL] %s: %s", place_code, reason)
+    return synced, failure_details
+
+
+def sync_run_to_server(run_code: str, server_url: str) -> None:
+    """
+    Orchestrator: build payloads → batch POST → handle individual failures.
+
+    Places are sent in groups of BATCH_SIZE to reduce HTTP overhead.
+    Falls back to individual POSTs for any batch that the endpoint rejects.
+    """
     # Ensure the URL has an http(s) scheme so requests doesn't raise InvalidSchema.
     if not server_url.startswith(("http://", "https://")):
         server_url = f"http://{server_url}"
@@ -122,98 +223,43 @@ def sync_run_to_server(run_code: str, server_url: str):
         total = len(places)
         logger.info("Syncing %d places to %s in batches of %d", total, server_url, BATCH_SIZE)
 
+        payloads = build_sync_payloads(list(places))
+        payloads_by_code = {p["place_code"]: p for p in payloads}
+
         synced_count = 0
-        failure_details: list[str] = []
+        all_failure_details: list[str] = []
 
-        # Build all payloads up front, sanitizing fields to match the server schema.
-        payloads = []
-        for p in places:
-            data = p.raw_data
-            payloads.append(
-                {
-                    "place_code": p.place_code,
-                    "name": data.get("name"),
-                    "religion": _sanitize_religion(data.get("religion")),
-                    "place_type": data.get("place_type"),
-                    "lat": data.get("lat"),
-                    "lng": data.get("lng"),
-                    "address": data.get("address"),
-                    "opening_hours": data.get("opening_hours"),
-                    "utc_offset_minutes": data.get("utc_offset_minutes"),
-                    # Server rejects payloads with both fields populated.
-                    # Prefer image_blobs (self-contained) over image_urls when both exist.
-                    "image_urls": []
-                    if (data.get("image_blobs") or [])
-                    else (data.get("image_urls") or []),
-                    "image_blobs": data.get("image_blobs") or [],
-                    "description": data.get("description"),
-                    "website_url": data.get("website_url"),
-                    "source": data.get("source"),
-                    "attributes": _sanitize_attributes(data.get("attributes") or []),
-                    "external_reviews": _sanitize_reviews(data.get("external_reviews") or []),
-                    "translations": data.get("translations") or None,
-                }
-            )
-
-        # Send in batches
+        http_session = requests.Session()
         for batch_start in range(0, len(payloads), BATCH_SIZE):
             batch = payloads[batch_start : batch_start + BATCH_SIZE]
-            batch_codes = [p["place_code"] for p in batch]
             logger.info("Sending batch %d: %d places", batch_start // BATCH_SIZE + 1, len(batch))
 
-            try:
-                resp = requests.post(
-                    f"{server_url}/api/v1/places/batch",
-                    json={"places": batch},
-                )
-                if resp.status_code in [200, 201]:
-                    data = resp.json()
-                    synced_count += data.get("synced", 0)
-                    for r in data.get("results", []):
-                        if not r.get("ok"):
-                            reason = r.get("error", "unknown error")
-                            failure_details.append(f"{r['place_code']}: {reason}")
-                            logger.warning("[FAIL] %s: %s", r["place_code"], reason)
-                        else:
-                            logger.debug("[OK]   %s", r["place_code"])
-                else:
-                    # Batch endpoint unavailable — fall back to individual POSTs
-                    logger.warning(
-                        "Batch endpoint returned %d, falling back to individual POSTs",
-                        resp.status_code,
-                    )
-                    for payload in batch:
-                        place_code = payload["place_code"]
-                        try:
-                            r = requests.post(f"{server_url}/api/v1/places", json=payload)
-                            if r.status_code not in [200, 201]:
-                                reason = f"HTTP {r.status_code}"
-                                failure_details.append(f"{place_code}: {reason}")
-                                logger.warning(
-                                    "[FAIL] %s: %s — %s", place_code, reason, r.text[:200]
-                                )
-                                if r.status_code == 422:
-                                    logger.debug(
-                                        "Payload that caused 422:\n%s",
-                                        _json.dumps(payload, indent=2, default=str),
-                                    )
-                            else:
-                                synced_count += 1
-                                logger.debug("[OK]   %s", place_code)
-                        except Exception as e:
-                            reason = f"{type(e).__name__}: {e}"
-                            failure_details.append(f"{place_code}: {reason}")
-                            logger.warning("[FAIL] %s: %s", place_code, reason)
-            except Exception as e:
-                reason = f"{type(e).__name__}: {e}"
-                for code in batch_codes:
-                    failure_details.append(f"{code}: {reason}")
-                logger.error("[FAIL] Batch request failed: %s", reason)
+            batch_synced, failed_entries = post_batch(batch, server_url, http_session)
 
-        # Summary
-        failed_count = len(failure_details)
+            if batch_synced > 0:
+                synced_count += batch_synced
+            else:
+                # Entire batch failed — retry individually
+                failed_codes = [e.split(":")[0] for e in failed_entries]
+                retry_payloads = [
+                    payloads_by_code[c] for c in failed_codes if c in payloads_by_code
+                ]
+                if retry_payloads:
+                    extra_synced, extra_failures = handle_sync_failures(
+                        retry_payloads, server_url, http_session
+                    )
+                    synced_count += extra_synced
+                    all_failure_details.extend(extra_failures)
+                else:
+                    all_failure_details.extend(failed_entries)
+
+            all_failure_details.extend(
+                e for e in failed_entries if e.split(":")[0] not in payloads_by_code
+            )
+
+        failed_count = len(all_failure_details)
         logger.info(
             "Sync complete: %d/%d places synced. %d failure(s).", synced_count, total, failed_count
         )
-        if failure_details:
-            logger.warning("Failed places:\n%s", "\n".join(f"  - {d}" for d in failure_details))
+        if all_failure_details:
+            logger.warning("Failed places:\n%s", "\n".join(f"  - {d}" for d in all_failure_details))

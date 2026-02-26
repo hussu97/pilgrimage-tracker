@@ -11,6 +11,7 @@ from typing import Any
 import requests
 
 from app.collectors.base import BaseCollector, CollectorResult
+from app.utils.extractors import make_description
 
 
 class KnowledgeGraphCollector(BaseCollector):
@@ -78,26 +79,12 @@ class KnowledgeGraphCollector(BaseCollector):
         if detailed_desc:
             article_body = detailed_desc.get("articleBody", "")
             if article_body:
-                result.descriptions.append(
-                    {
-                        "text": article_body,
-                        "lang": "en",
-                        "source": "knowledge_graph",
-                        "score": None,
-                    }
-                )
+                result.descriptions.append(make_description(article_body, "en", "knowledge_graph"))
 
         # Short description
         short_desc = result_item.get("description", "")
         if short_desc:
-            result.descriptions.append(
-                {
-                    "text": short_desc,
-                    "lang": "en",
-                    "source": "knowledge_graph_short",
-                    "score": None,
-                }
-            )
+            result.descriptions.append(make_description(short_desc, "en", "knowledge_graph_short"))
 
         # --- Entity types ---
         entity_types = result_item.get("@type", [])

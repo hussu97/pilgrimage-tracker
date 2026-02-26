@@ -4,6 +4,20 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P3 Code Quality — Scraper Service (2026-02-26)
+
+### Backend (Scraper)
+
+- **Shared utilities package** — Created `app/utils/__init__.py`, `app/utils/types.py` (TypedDict shapes: `DescriptionDict`, `ReviewDict`, `ImageDict`, `ContactDict`, `AttributeDict`, `ExistingDataDict`), and `app/utils/extractors.py` (`parse_iso_to_unix`, `make_description`, `ReviewExtractor`, `ContactExtractor`).
+- **Reduced collector duplication** — ~150 lines of duplicated review/contact/description loops removed from `gmaps.py` (2 locations), `outscraper.py`, `foursquare.py`, `osm.py`, `wikidata.py`, `knowledge_graph.py`, `wikipedia.py`. All replaced with calls to the shared extractors.
+- **Typed `CollectorResult`** — `descriptions`, `reviews`, `images`, `contact` fields now carry `DescriptionDict`, `ReviewDict`, `ImageDict`, `ContactDict` types from `app.utils.types`.
+- **Decomposed `run_gmaps_scraper()`** — Extracted `discover_places()` (Phase 1: parallel quadtree) and `fetch_place_details()` (Phase 2: parallel detail fetch + cache). `run_gmaps_scraper()` is now an orchestrator (~25 lines).
+- **Decomposed `sync_run_to_server()`** — Extracted `build_sync_payloads()`, `post_batch()`, `handle_sync_failures()`. `sync_run_to_server()` is now an orchestrator (~35 lines).
+- **Removed unused dependencies** — `tqdm` and `httpx` removed from `soulstep-scraper-api/requirements.txt`.
+- **New tests** — `tests/test_utils.py` (35 tests covering all extractor functions). Updated `tests/test_sync.py` to patch `requests.Session` instead of `requests.post` (4 tests updated). All 405 tests pass.
+
+---
+
 ## Codebase Cleanup (2026-02-26)
 
 ### Backend

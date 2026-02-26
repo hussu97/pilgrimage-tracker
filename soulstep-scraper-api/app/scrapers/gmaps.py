@@ -11,6 +11,7 @@ import os
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
+from typing import Any
 
 import requests
 from sqlmodel import Session, desc, select
@@ -371,11 +372,201 @@ def _flush_detail_buffer(
     logger.debug("Flushed %d places (%d/%d total)", len(buffer), new_count, total)
 
 
-def run_gmaps_scraper(run_code: str, config: dict, session: Session):
+def discover_places(
+    config: dict,
+    run_code: str,
+    session: Session,
+    type_map: dict,
+    religion_type_map: dict,
+    api_key: str,
+    all_gmaps_types: list[str],
+    boundary: GeoBoundary,
+) -> list[str]:
     """
-    Runs the Google Maps scraper with quadtree search and cross-run deduplication.
-    Uses GmapsCollector for detail fetching with enhanced field mask.
+    Phase 1: Parallel quadtree search → deduplicated list of discovered place resource names.
 
+    Returns the list of unique Google Maps place resource names (e.g. "places/ChIJ…") found
+    within the boundary. The run's total_items is updated and committed after discovery.
+    """
+    max_results = config.get("max_results")
+
+    logger.info("Starting recursive quadtree search (parallel depth-0 quadrants)")
+    if max_results:
+        logger.info("Max results limit: %d", max_results)
+    existing_ids = ThreadSafeIdSet()
+
+    with ThreadPoolExecutor(max_workers=4) as discovery_executor:
+        place_ids = search_area(
+            boundary.lat_min,
+            boundary.lat_max,
+            boundary.lng_min,
+            boundary.lng_max,
+            all_gmaps_types,
+            api_key,
+            existing_ids,
+            depth=0,
+            max_results=max_results,
+            executor=discovery_executor,
+        )
+
+    logger.info("=== Search Summary ===")
+    logger.info("Total unique places found: %d", len(place_ids))
+    if max_results and len(place_ids) >= max_results:
+        logger.info("Stopped early due to max_results limit (%d)", max_results)
+
+    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+    if run:
+        run.total_items = len(place_ids)
+        session.add(run)
+        session.commit()
+
+    return place_ids
+
+
+def fetch_place_details(
+    place_ids: list[str],
+    run_code: str,
+    session: Session,
+    collector: Any,
+    api_key: str,
+    type_map: dict,
+    religion_type_map: dict,
+    force_refresh: bool,
+    stale_threshold_days: int,
+) -> None:
+    """
+    Phase 2: Parallel detail fetching → batch DB writes via _flush_detail_buffer().
+
+    Checks cache first, then fetches fresh details for uncached places using a
+    ThreadPoolExecutor(5). Results are committed to the DB in batches of 10.
+    """
+    stale_cutoff = datetime.now() - timedelta(days=stale_threshold_days)
+
+    # Build place_code → place_name mapping
+    name_to_code: dict[str, str] = {}
+    for place_name in place_ids:
+        extracted_id = place_name[7:] if place_name.startswith("places/") else place_name
+        name_to_code[place_name] = f"gplc_{extracted_id}"
+
+    # Single bulk query for cached places
+    cached_places: dict[str, ScrapedPlace] = {}
+    if not force_refresh:
+        logger.info("Checking for cached places (fresher than %d days)...", stale_threshold_days)
+        all_place_codes = list(name_to_code.values())
+        existing = session.exec(
+            select(ScrapedPlace)
+            .where(ScrapedPlace.place_code.in_(all_place_codes))
+            .where(ScrapedPlace.created_at >= stale_cutoff)
+            .order_by(desc(ScrapedPlace.created_at))
+        ).all()
+        for ep in existing:
+            if ep.place_code not in cached_places:
+                cached_places[ep.place_code] = ep
+        logger.info(
+            "Found %d cached places, will fetch %d fresh",
+            len(cached_places),
+            len(place_ids) - len(cached_places),
+        )
+
+    # Store cached places immediately (no API call)
+    cached_count = 0
+    for place_name in place_ids:
+        place_code = name_to_code[place_name]
+        if place_code in cached_places and not force_refresh:
+            cached_place = cached_places[place_code]
+            scraped_place = ScrapedPlace(
+                run_code=run_code,
+                place_code=cached_place.place_code,
+                name=cached_place.name,
+                raw_data=cached_place.raw_data,
+            )
+            session.add(scraped_place)
+            cached_count += 1
+
+    if cached_count:
+        session.commit()
+        logger.info("Stored %d cached places", cached_count)
+
+    to_fetch = [
+        pn for pn in place_ids if not (name_to_code[pn] in cached_places and not force_refresh)
+    ]
+
+    if not to_fetch:
+        logger.info(
+            "=== Details Fetch Summary === fresh=0  cached=%d  total=%d",
+            cached_count,
+            len(place_ids),
+        )
+        return
+
+    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+    if not run:
+        raise ValueError(f"Run {run_code} not found during detail fetch")
+
+    rate_limiter = get_rate_limiter()
+    counter = AtomicCounter(initial=cached_count)
+    BATCH_SIZE = 10
+
+    def _fetch_worker(place_name: str) -> tuple[str, dict, dict, str | None]:
+        """Fetch place details in a worker thread (no DB access)."""
+        try:
+            place_code = name_to_code[place_name]
+            rate_limiter.acquire("gmaps_details")
+            response = collector._fetch_details(place_name, api_key)
+            details = collector.build_place_data(
+                response,
+                place_code,
+                api_key,
+                None,
+                type_map=type_map,
+                religion_type_map=religion_type_map,
+            )
+            return place_name, details, response, None
+        except Exception as e:
+            return place_name, {}, {}, str(e)
+
+    buffer: list[tuple] = []
+
+    with ThreadPoolExecutor(max_workers=5) as detail_executor:
+        futures = {detail_executor.submit(_fetch_worker, pn): pn for pn in to_fetch}
+
+        for future in as_completed(futures):
+            session.expire(run)
+            session.refresh(run)
+            if run.status == "cancelled":
+                logger.warning("Run %s was cancelled during detail fetching", run_code)
+                detail_executor.shutdown(wait=False)
+                return
+
+            place_name, details, response, error = future.result()
+
+            if error:
+                logger.warning("Error fetching %s: %s", place_name, error)
+                counter.increment()
+                continue
+
+            buffer.append((place_name, details, response))
+
+            if len(buffer) >= BATCH_SIZE:
+                _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
+                buffer.clear()
+
+    if buffer:
+        _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
+
+    logger.info(
+        "=== Details Fetch Summary === fresh=%d  cached=%d  total=%d",
+        counter.value - cached_count,
+        cached_count,
+        len(place_ids),
+    )
+
+
+def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> None:
+    """
+    Orchestrator: discover places → fetch and cache details.
+
+    Uses GmapsCollector for detail fetching with enhanced field mask.
     Discovery phase uses a parallel quadtree search (4 workers).
     Detail fetching uses a parallel ThreadPoolExecutor (5 workers) with
     batch DB commits every 10 places.
@@ -384,7 +575,6 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
 
     city = config.get("city")
     country = config.get("country")
-    max_results = config.get("max_results")
     force_refresh = config.get("force_refresh", False)
     stale_threshold_days = config.get("stale_threshold_days", STALE_THRESHOLD_DAYS)
 
@@ -419,7 +609,7 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
 
     all_gmaps_types = [m.gmaps_type for m in place_type_mappings]
 
-    religion_types_map = {}
+    religion_types_map: dict[str, list[str]] = {}
     for mapping in place_type_mappings:
         if mapping.religion not in religion_types_map:
             religion_types_map[mapping.religion] = []
@@ -434,156 +624,19 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session):
     type_map = get_gmaps_type_to_our_type(session)
     religion_type_map = {m.gmaps_type: m.religion for m in place_type_mappings}
 
-    # ── Discovery phase: parallel quadtree search ──────────────────────────────
-    logger.info("Starting recursive quadtree search (parallel depth-0 quadrants)")
-    if max_results:
-        logger.info("Max results limit: %d", max_results)
-    existing_ids = ThreadSafeIdSet()
+    place_ids = discover_places(
+        config, run_code, session, type_map, religion_type_map, api_key, all_gmaps_types, boundary
+    )
 
-    with ThreadPoolExecutor(max_workers=4) as discovery_executor:
-        place_ids = search_area(
-            boundary.lat_min,
-            boundary.lat_max,
-            boundary.lng_min,
-            boundary.lng_max,
-            all_gmaps_types,
-            api_key,
-            existing_ids,
-            depth=0,
-            max_results=max_results,
-            executor=discovery_executor,
-        )
-
-    logger.info("=== Search Summary ===")
-    logger.info("Total unique places found: %d", len(place_ids))
-    if max_results and len(place_ids) >= max_results:
-        logger.info("Stopped early due to max_results limit (%d)", max_results)
-
-    run.total_items = len(place_ids)
-    session.add(run)
-    session.commit()
-
-    # ── Detail fetching: bulk cache lookup + parallel fetch ────────────────────
     logger.info("Fetching details for %d places...", len(place_ids))
-
-    collector = GmapsCollector()
-    stale_cutoff = datetime.now() - timedelta(days=stale_threshold_days)
-
-    # Build place_code → place_name mapping
-    name_to_code: dict[str, str] = {}
-    for place_name in place_ids:
-        extracted_id = place_name[7:] if place_name.startswith("places/") else place_name
-        name_to_code[place_name] = f"gplc_{extracted_id}"
-
-    # Single bulk query for cached places
-    cached_places: dict[str, ScrapedPlace] = {}
-    if not force_refresh:
-        logger.info("Checking for cached places (fresher than %d days)...", stale_threshold_days)
-        all_place_codes = list(name_to_code.values())
-        existing = session.exec(
-            select(ScrapedPlace)
-            .where(ScrapedPlace.place_code.in_(all_place_codes))
-            .where(ScrapedPlace.created_at >= stale_cutoff)
-            .order_by(desc(ScrapedPlace.created_at))
-        ).all()
-        # Keep most-recent entry per place_code (ORDER BY desc ensures first = most recent)
-        for ep in existing:
-            if ep.place_code not in cached_places:
-                cached_places[ep.place_code] = ep
-        logger.info(
-            "Found %d cached places, will fetch %d fresh",
-            len(cached_places),
-            len(place_ids) - len(cached_places),
-        )
-
-    # Process cached places immediately (no API call)
-    cached_count = 0
-    for place_name in place_ids:
-        place_code = name_to_code[place_name]
-        if place_code in cached_places and not force_refresh:
-            cached_place = cached_places[place_code]
-            scraped_place = ScrapedPlace(
-                run_code=run_code,
-                place_code=cached_place.place_code,
-                name=cached_place.name,
-                raw_data=cached_place.raw_data,
-            )
-            session.add(scraped_place)
-            cached_count += 1
-
-    if cached_count:
-        session.commit()
-        logger.info("Stored %d cached places", cached_count)
-
-    # Parallel fetch for places that need fresh details
-    to_fetch = [
-        pn for pn in place_ids if not (name_to_code[pn] in cached_places and not force_refresh)
-    ]
-
-    if not to_fetch:
-        logger.info(
-            "=== Details Fetch Summary === fresh=0  cached=%d  total=%d",
-            cached_count,
-            len(place_ids),
-        )
-        return
-
-    rate_limiter = get_rate_limiter()
-    counter = AtomicCounter(initial=cached_count)
-    BATCH_SIZE = 10
-
-    def _fetch_worker(place_name: str) -> tuple[str, dict, dict, str | None]:
-        """Fetch place details in a worker thread (no DB access)."""
-        try:
-            place_code = name_to_code[place_name]
-            rate_limiter.acquire("gmaps_details")
-            response = collector._fetch_details(place_name, api_key)
-            details = collector.build_place_data(
-                response,
-                place_code,
-                api_key,
-                None,
-                type_map=type_map,
-                religion_type_map=religion_type_map,
-            )
-            return place_name, details, response, None
-        except Exception as e:
-            return place_name, {}, {}, str(e)
-
-    buffer: list[tuple] = []
-
-    with ThreadPoolExecutor(max_workers=5) as detail_executor:
-        futures = {detail_executor.submit(_fetch_worker, pn): pn for pn in to_fetch}
-
-        for future in as_completed(futures):
-            # Cancellation check
-            session.expire(run)
-            session.refresh(run)
-            if run.status == "cancelled":
-                logger.warning("Run %s was cancelled during detail fetching", run_code)
-                detail_executor.shutdown(wait=False)
-                return
-
-            place_name, details, response, error = future.result()
-
-            if error:
-                logger.warning("Error fetching %s: %s", place_name, error)
-                counter.increment()
-                continue
-
-            buffer.append((place_name, details, response))
-
-            if len(buffer) >= BATCH_SIZE:
-                _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
-                buffer.clear()
-
-    # Flush any remaining items
-    if buffer:
-        _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
-
-    logger.info(
-        "=== Details Fetch Summary === fresh=%d  cached=%d  total=%d",
-        counter.value - cached_count,
-        cached_count,
-        len(place_ids),
+    fetch_place_details(
+        place_ids,
+        run_code,
+        session,
+        GmapsCollector(),
+        api_key,
+        type_map,
+        religion_type_map,
+        force_refresh,
+        stale_threshold_days,
     )

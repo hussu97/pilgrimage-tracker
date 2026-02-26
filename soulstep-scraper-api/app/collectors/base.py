@@ -11,6 +11,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.utils.types import ContactDict, DescriptionDict, ImageDict, ReviewDict
+
 
 @dataclass
 class CollectorResult:
@@ -22,21 +24,15 @@ class CollectorResult:
     raw_response: dict[str, Any] = field(default_factory=dict)
 
     # Extracted data (each collector populates what it can)
-    descriptions: list[dict[str, Any]] = field(default_factory=list)
-    # Each entry: {"text": str, "lang": str, "source": str, "score": float | None}
-
+    descriptions: list[DescriptionDict] = field(default_factory=list)
     attributes: list[dict[str, Any]] = field(default_factory=list)
     # Each entry: {"attribute_code": str, "value": Any}
 
-    contact: dict[str, Any] = field(default_factory=dict)
-    # Keys: phone_national, phone_international, email, website,
-    #        social_facebook, social_instagram, social_twitter
+    contact: ContactDict = field(default_factory=dict)
 
-    images: list[dict[str, Any]] = field(default_factory=list)
-    # Each entry: {"url": str, "source": str} or {"data": str, "mime_type": str, "source": str}
+    images: list[ImageDict] = field(default_factory=list)
 
-    reviews: list[dict[str, Any]] = field(default_factory=list)
-    # Each entry matches the external_reviews format
+    reviews: list[ReviewDict] = field(default_factory=list)
 
     tags: dict[str, str] = field(default_factory=dict)
     # Free-form tags for downstream collectors (e.g., OSM wikipedia/wikidata tags)

@@ -17,6 +17,7 @@ from typing import Any
 
 from app.collectors.base import BaseCollector, CollectorResult
 from app.scrapers.base import make_request_with_backoff
+from app.utils.extractors import make_description
 
 HEADERS = {"User-Agent": "SoulStepBot/1.0 (hussain@example.com)"}
 
@@ -185,23 +186,13 @@ class WikipediaCollector(BaseCollector):
             # English description
             if en_info.get("description"):
                 result.descriptions.append(
-                    {
-                        "text": en_info["description"],
-                        "lang": "en",
-                        "source": "wikipedia",
-                        "score": None,
-                    }
+                    make_description(en_info["description"], "en", "wikipedia")
                 )
 
             # Short description (one-liner from Wikidata-backed field)
             if en_info.get("short_description"):
                 result.descriptions.append(
-                    {
-                        "text": en_info["short_description"],
-                        "lang": "en",
-                        "source": "wikipedia_short",
-                        "score": None,
-                    }
+                    make_description(en_info["short_description"], "en", "wikipedia_short")
                 )
 
             # Images
@@ -217,12 +208,7 @@ class WikipediaCollector(BaseCollector):
                 if lang_info and lang_info.get("description"):
                     result.raw_response[lang] = lang_info
                     result.descriptions.append(
-                        {
-                            "text": lang_info["description"],
-                            "lang": lang,
-                            "source": "wikipedia",
-                            "score": None,
-                        }
+                        make_description(lang_info["description"], lang, "wikipedia")
                     )
 
             return result

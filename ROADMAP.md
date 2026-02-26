@@ -436,22 +436,22 @@ Infrastructure, optimization, monitoring, code quality, and documentation work f
 
 ### Code Quality
 
-- [ ] **Reduce code duplication in scraper collectors**
+- [x] **Reduce code duplication in scraper collectors**
   - Review extraction, contact mapping, and description appending patterns are duplicated across gmaps, outscraper, foursquare, osm, and wikidata collectors (~150 lines of duplication).
   - Create shared `ReviewExtractor`, `ContactExtractor` utilities in `app/utils/extractors.py`.
   - Files: `soulstep-scraper-api/app/collectors/*.py`
 
-- [ ] **Break down monolithic scraper functions**
+- [x] **Break down monolithic scraper functions**
   - `run_gmaps_scraper()` (~170 lines) and `sync_run_to_server()` (~110 lines) combine business logic, DB access, HTTP, and error handling. Hard to test and maintain.
   - Decompose into: `discover_places()`, `fetch_place_details()`, `store_discovered_places()`, `build_sync_payloads()`, `post_batch()`, `handle_sync_failures()`.
   - Files: `soulstep-scraper-api/app/scrapers/gmaps.py`, `soulstep-scraper-api/app/db/scraper.py`
 
-- [ ] **Add type hints and response schema validation to scraper**
+- [x] **Add type hints and response schema validation to scraper**
   - Many scraper functions lack type hints. Collector responses use `dict[str, Any]` everywhere. No validation that external API responses match expected schemas.
   - Add type hints to all functions. Create `TypedDict` for `CollectorResult`, `PlaceData`, etc. Add Pydantic response models for external APIs.
   - Files: `soulstep-scraper-api/app/collectors/*.py`, `soulstep-scraper-api/app/pipeline/*.py`
 
-- [ ] **Remove unused scraper dependencies**
+- [x] **Remove unused scraper dependencies**
   - `tqdm` and `httpx` are in `requirements.txt` but not used anywhere in the codebase.
   - Remove `tqdm` and `httpx` (or document `httpx` as reserved for future async migration).
   - Files: `soulstep-scraper-api/requirements.txt`

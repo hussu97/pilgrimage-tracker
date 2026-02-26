@@ -154,6 +154,16 @@ def _make_place(run_code: str, place_code: str, session: Session) -> ScrapedPlac
     return place
 
 
+def _make_mock_session(post_return=None, post_side_effect=None):
+    """Return a mock requests.Session instance with a configured .post()."""
+    mock_sess = MagicMock()
+    if post_side_effect is not None:
+        mock_sess.post.side_effect = post_side_effect
+    else:
+        mock_sess.post.return_value = post_return
+    return mock_sess
+
+
 class TestSyncRunToServer:
     def test_batch_success(self, test_engine, db_session, monkeypatch):
         """Batch endpoint returns 200 → all places synced."""
@@ -172,12 +182,13 @@ class TestSyncRunToServer:
                 {"place_code": "plc_002", "ok": True},
             ],
         }
+        mock_sess = _make_mock_session(post_return=mock_resp)
 
-        with patch("requests.post", return_value=mock_resp) as mock_post:
+        with patch("requests.Session", return_value=mock_sess):
             sync_run_to_server(run_code, "http://127.0.0.1:3000")
             # Batch endpoint should have been called once
-            assert mock_post.call_count == 1
-            url = mock_post.call_args[0][0]
+            assert mock_sess.post.call_count == 1
+            url = mock_sess.post.call_args[0][0]
             assert url.endswith("/api/v1/places/batch")
 
     def test_batch_fallback_on_404(self, test_engine, db_session, monkeypatch):
@@ -196,10 +207,12 @@ class TestSyncRunToServer:
                 return batch_resp
             return individual_resp
 
-        with patch("requests.post", side_effect=post_side_effect) as mock_post:
+        mock_sess = _make_mock_session(post_side_effect=post_side_effect)
+
+        with patch("requests.Session", return_value=mock_sess):
             sync_run_to_server(run_code, "http://127.0.0.1:3000")
             # 1 batch call + 2 individual calls
-            assert mock_post.call_count == 3
+            assert mock_sess.post.call_count == 3
 
     def test_url_scheme_prepended(self, test_engine, db_session, monkeypatch):
         """Bare host:port gets http:// prepended automatically."""
@@ -213,10 +226,11 @@ class TestSyncRunToServer:
             "synced": 1,
             "results": [{"place_code": "plc_s01", "ok": True}],
         }
+        mock_sess = _make_mock_session(post_return=mock_resp)
 
-        with patch("requests.post", return_value=mock_resp) as mock_post:
+        with patch("requests.Session", return_value=mock_sess):
             sync_run_to_server(run_code, "127.0.0.1:3000")
-            url = mock_post.call_args[0][0]
+            url = mock_sess.post.call_args[0][0]
             assert url.startswith("http://")
 
     def test_partial_failure_individual(self, test_engine, db_session, monkeypatch):
@@ -231,29 +245,30 @@ class TestSyncRunToServer:
         ok_resp = MagicMock(status_code=200)
         fail_resp = MagicMock(status_code=422, text="Unprocessable Entity")
 
-        call_count = {"n": 0}
-
         def post_side_effect(url, **kwargs):
             if "/batch" in url:
                 return batch_resp
-            call_count["n"] += 1
             payload = kwargs.get("json", {})
             if payload.get("place_code") == "plc_bad":
                 return fail_resp
             return ok_resp
 
-        with patch("requests.post", side_effect=post_side_effect):
+        mock_sess = _make_mock_session(post_side_effect=post_side_effect)
+
+        with patch("requests.Session", return_value=mock_sess):
             # Should not raise
             sync_run_to_server(run_code, "http://127.0.0.1:3000")
 
     def test_network_exception(self, test_engine, db_session, monkeypatch):
-        """requests.post raises ConnectionError → no unhandled exception."""
+        """requests.Session().post raises ConnectionError → no unhandled exception."""
         run_code = "run_connfail"
         _make_place(run_code, "plc_e01", db_session)
 
         monkeypatch.setattr(scraper_module, "engine", test_engine)
 
-        with patch("requests.post", side_effect=ConnectionError("refused")):
+        mock_sess = _make_mock_session(post_side_effect=ConnectionError("refused"))
+
+        with patch("requests.Session", return_value=mock_sess):
             # Should not propagate the exception
             sync_run_to_server(run_code, "http://127.0.0.1:3000")
 
@@ -262,9 +277,11 @@ class TestSyncRunToServer:
         run_code = "run_empty"
         monkeypatch.setattr(scraper_module, "engine", test_engine)
 
-        with patch("requests.post") as mock_post:
+        mock_sess = _make_mock_session()
+
+        with patch("requests.Session", return_value=mock_sess):
             sync_run_to_server(run_code, "http://127.0.0.1:3000")
-            mock_post.assert_not_called()
+            mock_sess.post.assert_not_called()
 
     def test_https_url_not_double_prefixed(self, test_engine, db_session, monkeypatch):
         """HTTPS URL must not get an extra http:// prepended."""
@@ -278,9 +295,10 @@ class TestSyncRunToServer:
             "synced": 1,
             "results": [{"place_code": "plc_h01", "ok": True}],
         }
+        mock_sess = _make_mock_session(post_return=mock_resp)
 
-        with patch("requests.post", return_value=mock_resp) as mock_post:
+        with patch("requests.Session", return_value=mock_sess):
             sync_run_to_server(run_code, "https://api.example.com")
-            url = mock_post.call_args[0][0]
+            url = mock_sess.post.call_args[0][0]
             assert url.startswith("https://")
             assert "http://https://" not in url

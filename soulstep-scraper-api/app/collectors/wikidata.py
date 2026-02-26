@@ -11,6 +11,7 @@ from typing import Any
 
 from app.collectors.base import BaseCollector, CollectorResult
 from app.scrapers.base import make_request_with_backoff
+from app.utils.extractors import make_description
 
 HEADERS = {"User-Agent": "SoulStepBot/1.0 (hussain@example.com)"}
 
@@ -101,14 +102,7 @@ class WikidataCollector(BaseCollector):
             desc_obj = descriptions.get(lang, {})
             desc_text = desc_obj.get("value") if isinstance(desc_obj, dict) else None
             if desc_text:
-                result.descriptions.append(
-                    {
-                        "text": desc_text,
-                        "lang": lang,
-                        "source": "wikidata",
-                        "score": None,
-                    }
-                )
+                result.descriptions.append(make_description(desc_text, lang, "wikidata"))
 
         # --- Multilingual labels (names) ---
         labels = entity.get("labels", {})

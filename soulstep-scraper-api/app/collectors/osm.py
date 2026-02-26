@@ -10,6 +10,7 @@ from typing import Any
 
 from app.collectors.base import BaseCollector, CollectorResult
 from app.scrapers.base import make_request_with_backoff
+from app.utils.extractors import ContactExtractor
 
 OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter"
 HEADERS = {"User-Agent": "SoulStepBot/1.0 (hussain@example.com)"}
@@ -96,22 +97,7 @@ class OsmCollector(BaseCollector):
             result.attributes.append({"attribute_code": "denomination", "value": denomination})
 
         # --- Contact info ---
-        contact_mappings = {
-            "contact:phone": "phone_national",
-            "phone": "phone_national",
-            "contact:email": "email",
-            "email": "email",
-            "contact:website": "website",
-            "website": "website",
-            "contact:facebook": "social_facebook",
-            "contact:twitter": "social_twitter",
-            "contact:instagram": "social_instagram",
-        }
-
-        for tag_key, contact_field in contact_mappings.items():
-            val = tags.get(tag_key)
-            if val and contact_field not in result.contact:
-                result.contact[contact_field] = val
+        result.contact.update(ContactExtractor.from_osm_tags(tags))
 
         # --- Tags for downstream collectors ---
         if "wikipedia" in tags:
