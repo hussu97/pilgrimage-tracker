@@ -1,5 +1,5 @@
 import { createContext, useCallback, useEffect, useState } from "react";
-import { getMe, login as apiLogin } from "@/lib/api/admin";
+import { getMe, login as apiLogin, logoutUser, refreshToken } from "@/lib/api/admin";
 import { clearToken, setToken } from "@/lib/api/client";
 import type { User } from "@/lib/api/types";
 
@@ -17,11 +17,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // On mount, try to restore session via the httpOnly access_token cookie.
-  // No token is ever read from localStorage; withCredentials on the axios client
-  // sends the cookie automatically.
+  // On mount, silently refresh the access token using the long-lived refresh_token
+  // cookie (30-day httpOnly), then fetch the current user with the new Bearer token.
+  // This survives page reloads without requiring the user to log in again.
+  // The access_token cookie alone is not reliable across page loads because it has a
+  // 15-minute TTL and samesite=strict blocks it on cross-domain prod deployments.
   useEffect(() => {
-    getMe()
+    refreshToken()
+      .then((data) => {
+        setToken(data.token);
+        return getMe();
+      })
       .then((u) => setUser(u))
       .catch(() => clearToken())
       .finally(() => setIsLoading(false));
@@ -37,6 +43,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     clearToken();
     setUser(null);
+    // Revoke the refresh_token cookie server-side so silent refresh can't
+    // restore the session after logout.
+    logoutUser().catch(() => {});
   }, []);
 
   return (

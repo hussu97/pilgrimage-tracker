@@ -56,6 +56,15 @@ export async function getMe(): Promise<User> {
   return res.data;
 }
 
+export async function refreshToken(): Promise<{ token: string }> {
+  const res = await apiClient.post<{ token: string }>("/auth/refresh");
+  return res.data;
+}
+
+export async function logoutUser(): Promise<void> {
+  await apiClient.post("/auth/logout");
+}
+
 // ── Users ─────────────────────────────────────────────────────────────────────
 
 export async function listUsers(params?: {
