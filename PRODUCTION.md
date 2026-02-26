@@ -316,7 +316,7 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
    | `RESEND_FROM_EMAIL` | `noreply@soul-step.org` (only needed with Resend) |
 
 5. Click **Create Web Service**. Render will build and deploy; first deploy takes ~2 min.
-6. Once live, your API URL is `https://soulstep-api.onrender.com` (shown at the top of the service page). Copy it.
+6. Once live, your API URL is `https://soulstep-catalog-api.onrender.com` (shown at the top of the service page). Copy it.
 
 > **Migrations:** Alembic runs `alembic upgrade head` automatically every time the app starts — no manual migration step required.
 
@@ -348,7 +348,7 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
 
    | Key | Value |
    |---|---|
-   | `VITE_API_URL` | `https://soulstep-api.onrender.com` (your Render API URL from Step 2) |
+   | `VITE_API_URL` | `https://soulstep-catalog-api.onrender.com` (your Render API URL from Step 2) |
 
 4. Click **Deploy**. Once deployed, copy your Vercel URL (e.g. `https://soulstep.vercel.app`).
 5. **Go back to Render** → your API service → **Environment** tab → update `CORS_ORIGINS` and `RESET_URL_BASE` to your Vercel URL, then **Save** (Render will redeploy automatically).
@@ -375,7 +375,7 @@ Only needed if you want the scraper service running in production:
 
    | Key | Value |
    |---|---|
-   | `MAIN_SERVER_URL` | `https://soulstep-api.onrender.com` |
+   | `MAIN_SERVER_URL` | `https://soulstep-catalog-api.onrender.com` |
    | `GOOGLE_MAPS_API_KEY` | Your Google Maps API key |
    | `SCRAPER_TIMEZONE` | e.g. `Asia/Dubai` or `UTC` |
 
@@ -521,7 +521,7 @@ jobs:
     steps:
       - name: Trigger cleanup via API endpoint
         run: |
-          curl -s -X POST https://soulstep-api.onrender.com/admin/cleanup-images \
+          curl -s -X POST https://soulstep-catalog-api.onrender.com/admin/cleanup-images \
             -H "Authorization: Bearer ${{ secrets.ADMIN_API_KEY }}"
 ```
 
@@ -729,7 +729,7 @@ gcloud builds submit ./soulstep-catalog-api \
 ### Step 5 — Deploy the API to Cloud Run
 
 ```bash
-gcloud run deploy soulstep-api \
+gcloud run deploy soulstep-catalog-api \
   --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest \
   --platform managed \
   --region REGION \
@@ -745,7 +745,7 @@ gcloud run deploy soulstep-api \
 
 Once deployed, copy the **Service URL** shown at the end of the output — it looks like:
 ```
-https://soulstep-api-xxxxxxxxxxxx-uc.a.run.app
+https://soulstep-catalog-api-xxxxxxxxxxxx-uc.a.run.app
 ```
 
 > **Migrations:** Alembic runs `alembic upgrade head` automatically on every cold start. No manual step needed.
@@ -765,7 +765,7 @@ After you have the Firebase URL, come back and patch the env vars.
 > `CORS_ORIGINS` is **space-separated** (not comma-separated). The `--update-env-vars` flag uses commas to separate variable assignments, so quote the value carefully:
 
 ```bash
-gcloud run services update soulstep-api \
+gcloud run services update soulstep-catalog-api \
   --region REGION \
   --update-env-vars "CORS_ORIGINS=https://PROJECT_ID.web.app https://PROJECT_ID.firebaseapp.com,RESET_URL_BASE=https://PROJECT_ID.web.app"
 ```
@@ -796,7 +796,7 @@ These are injected during `npm run build` in the GitHub Actions workflow. To add
 
 | Secret name | Value |
 |---|---|
-| `VITE_API_URL` | `https://soulstep-api-834941457147.europe-west1.run.app` |
+| `VITE_API_URL` | `https://soulstep-catalog-api-834941457147.europe-west1.run.app` |
 | `VITE_ADSENSE_PUBLISHER_ID` | `ca-pub-7902951158656200` |
 
 > After adding a secret, the next `git push` to `main` will pick it up automatically.
@@ -841,7 +841,7 @@ gcloud run services describe soulstep-catalog-api \
 ```bash
 gcloud run services update soulstep-catalog-api \
   --region europe-west1 \
-  --update-env-vars "CORS_ORIGINS=https://soul-step.org https://project-fa2d7f52-2bc4-4a46-8ae.web.app https://project-fa2d7f52-2bc4-4a46-8ae.firebaseapp.com,FRONTEND_URL=https://soul-step.org,API_BASE_URL=https://soulstep-api-834941457147.europe-west1.run.app,RESET_URL_BASE=https://soul-step.org,RESEND_FROM_EMAIL=noreply@soul-step.org,JWT_EXPIRE=30m,REFRESH_EXPIRE=30d"
+  --update-env-vars "CORS_ORIGINS=https://soul-step.org https://project-fa2d7f52-2bc4-4a46-8ae.web.app https://project-fa2d7f52-2bc4-4a46-8ae.firebaseapp.com,FRONTEND_URL=https://soul-step.org,API_BASE_URL=https://soulstep-catalog-api-834941457147.europe-west1.run.app,RESET_URL_BASE=https://soul-step.org,RESEND_FROM_EMAIL=noreply@soul-step.org,JWT_EXPIRE=30m,REFRESH_EXPIRE=30d"
 ```
 
 > Secrets (`JWT_SECRET`, `DATABASE_URL`, `RESEND_API_KEY`) are managed separately via Secret Manager — see Step 3 above.
@@ -890,7 +890,7 @@ This creates `firebase.json` and `.firebaserc` at the repo root (both are alread
 
 ```bash
 cd apps/soulstep-customer-web
-VITE_API_URL=https://soulstep-api-xxxxxxxxxxxx-uc.a.run.app npm run build
+VITE_API_URL=https://soulstep-catalog-api-xxxxxxxxxxxx-uc.a.run.app npm run build
 cd ../..
 firebase deploy --only hosting
 ```
@@ -961,13 +961,13 @@ gcloud builds submit ./soulstep-scraper-api \
 #### 7c. Deploy as a Cloud Run Service
 
 ```bash
-gcloud run deploy soulstep-scraper \
+gcloud run deploy soulstep-scraper-api \
   --image europe-west1-docker.pkg.dev/project-fa2d7f52-2bc4-4a46-8ae/soulstep/scraper:latest \
   --platform managed \
   --region europe-west1 \
   --no-allow-unauthenticated \
   --set-secrets "GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,BESTTIME_API_KEY=SCRAPER_BESTTIME_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,OUTSCRAPER_API_KEY=SCRAPER_OUTSCRAPER_API_KEY:latest,ANTHROPIC_API_KEY=SCRAPER_ANTHROPIC_API_KEY:latest" \
-  --set-env-vars "MAIN_SERVER_URL=https://soulstep-api-834941457147.europe-west1.run.app,SCRAPER_TIMEZONE=Asia/Dubai,SCRAPER_DB_PATH=/tmp/scraper.db,LOG_FORMAT=json" \
+  --set-env-vars "MAIN_SERVER_URL=https://soulstep-catalog-api-834941457147.europe-west1.run.app,SCRAPER_TIMEZONE=Asia/Dubai,SCRAPER_DB_PATH=/tmp/scraper.db,LOG_FORMAT=json" \
   --memory 1Gi \
   --cpu 1 \
   --min-instances 0 \
@@ -983,14 +983,14 @@ gcloud run deploy soulstep-scraper \
 
 Once deployed, copy the **Service URL** — it looks like:
 ```
-https://soulstep-scraper-834941457147.europe-west1.run.app
+https://soulstep-scraper-api-834941457147.europe-west1.run.app
 ```
 
 Tell the catalog API where to find the scraper (enables the admin dashboard scraper proxy):
 ```bash
 gcloud run services update soulstep-catalog-api \
   --region europe-west1 \
-  --update-env-vars "DATA_SCRAPER_URL=https://soulstep-scraper-834941457147.europe-west1.run.app"
+  --update-env-vars "DATA_SCRAPER_URL=https://soulstep-scraper-api-834941457147.europe-west1.run.app"
 ```
 
 ---
@@ -1001,7 +1001,7 @@ The scraper requires an identity token (it's not public). Use `gcloud auth print
 
 ```bash
 TOKEN=$(gcloud auth print-identity-token)
-SCRAPER_URL=https://soulstep-scraper-834941457147.europe-west1.run.app
+SCRAPER_URL=https://soulstep-scraper-api-834941457147.europe-west1.run.app
 
 # 1. Check the scraper is healthy
 curl -H "Authorization: Bearer $TOKEN" $SCRAPER_URL/health
@@ -1041,7 +1041,7 @@ gcloud builds submit ./soulstep-scraper-api \
   --tag europe-west1-docker.pkg.dev/project-fa2d7f52-2bc4-4a46-8ae/soulstep/scraper:latest \
   --region europe-west1
 
-gcloud run deploy soulstep-scraper \
+gcloud run deploy soulstep-scraper-api \
   --image europe-west1-docker.pkg.dev/project-fa2d7f52-2bc4-4a46-8ae/soulstep/scraper:latest \
   --region europe-west1 \
   --quiet
@@ -1312,7 +1312,7 @@ deploy-gcp-api:
 
     - name: Deploy to Cloud Run
       run: |
-        gcloud run deploy soulstep-api \
+        gcloud run deploy soulstep-catalog-api \
           --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:${{ github.sha }} \
           --region REGION \
           --platform managed \
