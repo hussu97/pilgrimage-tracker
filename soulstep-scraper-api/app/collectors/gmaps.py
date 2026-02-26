@@ -8,9 +8,12 @@ from __future__ import annotations
 
 import base64
 import os
+import time
 from typing import Any
 
 import requests
+from requests.exceptions import ConnectionError as RequestsConnectionError
+from requests.exceptions import SSLError
 from sqlmodel import Session
 
 from app.collectors.base import BaseCollector, CollectorResult
@@ -24,6 +27,33 @@ from app.scrapers.gmaps import (
 from app.utils.extractors import ContactExtractor, ReviewExtractor, make_description
 
 logger = get_logger(__name__)
+
+_MAX_IMAGE_ATTEMPTS = 3
+
+
+def _download_image(url: str) -> bytes | None:
+    """Download an image with retries on transient SSL/connection errors.
+
+    Google Places photo URLs occasionally fail with UNEXPECTED_EOF_WHILE_READING
+    due to Cloud Run egress dropping the connection. A short backoff retry fixes it.
+    """
+    for attempt in range(_MAX_IMAGE_ATTEMPTS):
+        try:
+            resp = requests.get(url, timeout=20)
+            if resp.status_code == 200:
+                return resp.content
+            return None
+        except (SSLError, RequestsConnectionError) as e:
+            if attempt < _MAX_IMAGE_ATTEMPTS - 1:
+                time.sleep(attempt + 1)  # 1 s, 2 s
+                continue
+            logger.warning(
+                "Failed to download image %s after %d attempts: %s", url, _MAX_IMAGE_ATTEMPTS, e
+            )
+            return None
+        except Exception as e:
+            logger.warning("Failed to download image %s: %s", url, e)
+            return None
 
 
 class GmapsCollector(BaseCollector):
@@ -249,20 +279,15 @@ class GmapsCollector(BaseCollector):
             )
             photo_urls.append(photo_url)
 
-            try:
-                resp = requests.get(photo_url, timeout=15)
-                if resp.status_code == 200:
-                    mime = resp.headers.get("Content-Type", "image/jpeg")
-                    image_blobs.append(
-                        {
-                            "data": base64.b64encode(resp.content).decode("ascii"),
-                            "mime_type": mime,
-                        }
-                    )
-                else:
-                    download_failures.append(photo_url)
-            except Exception as e:
-                logger.warning("Failed to download image %s: %s", photo_url, e)
+            content = _download_image(photo_url)
+            if content is not None:
+                image_blobs.append(
+                    {
+                        "data": base64.b64encode(content).decode("ascii"),
+                        "mime_type": "image/jpeg",
+                    }
+                )
+            else:
                 download_failures.append(photo_url)
 
         # Process external reviews (up to 5)
