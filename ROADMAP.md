@@ -2,7 +2,7 @@
 
 This document is the **single unified roadmap** for the entire SoulStep monorepo. It merges the previous `ROADMAP.md` and `ADMIN_ROADMAP.md`, adds findings from a full system audit (backend, scraper, web, mobile, admin, infra), introduces new user features, and outlines monetization strategies. Items are organized by priority tier (P0 through P3).
 
-> **Last updated:** 2026-02-25
+> **Last updated:** 2026-02-26
 
 ---
 
@@ -69,34 +69,34 @@ Significant quality, UX, compliance, and admin completeness items. Should be add
 
 ### Testing
 
-- [ ] **Add E2E tests for critical user journeys (web)**
+- [x] **Add E2E tests for critical user journeys (web)**
   - No end-to-end tests exist for the web frontend. Component interactions and full user flows are untested.
   - Use Cypress or Playwright. Cover: login → place search → favorite → check-in, create group → add place, write review → see on place detail.
   - Files: new `apps/soulstep-customer-web/e2e/`
 
-- [ ] **Add admin frontend test coverage (Vitest)**
+- [x] **Add admin frontend test coverage (Vitest)**
   - Admin app has 0 Vitest tests for utility functions, hooks, data transformations, or pagination helpers.
   - Add tests for: pagination logic, data table filtering/sorting, polling hook, stat data transformations, date interval helpers, bulk selection logic.
   - Files: `apps/soulstep-admin-web/src/__tests__/`
 
-- [ ] **Add scraper integration and sync tests**
+- [x] **Add scraper integration and sync tests**
   - No tests for `sync_run_to_server()` error scenarios, full enrichment pipeline orchestration, timeout scenarios, or backoff/retry logic.
   - Add `test_sync.py` for sync failure/retry, `test_backoff.py` for 429 handling, integration test for complete scrape → enrich → sync flow.
   - Files: `soulstep-scraper-api/tests/`
 
 ### CI/CD Hardening
 
-- [ ] **Add linting checks to CI deploy workflow**
+- [x] **Add linting checks to CI deploy workflow**
   - No ESLint or Ruff checks in the deploy pipeline. Improperly formatted or linted code can ship.
   - Add `ruff check` for Python, `npm run lint` for web/mobile/admin before deploy. Block on errors.
   - Files: `.github/workflows/deploy.yml`
 
-- [ ] **Add admin app tests and build to CI**
+- [x] **Add admin app tests and build to CI**
   - Admin app is not tested or built in any CI workflow. Broken admin code can ship without detection.
   - Add admin Vitest run and `tsc --noEmit` + `vite build` to the test and deploy workflows.
   - Files: `.github/workflows/tests.yml`, `.github/workflows/deploy.yml`
 
-- [ ] **Add coverage thresholds to CI**
+- [x] **Add coverage thresholds to CI**
   - No coverage enforcement in CI. Coverage can silently drop without detection.
   - Configure pytest `--cov-fail-under=80`, Vitest `coverageThreshold: { global: { lines: 80 } }`, Jest similarly. Block PRs below threshold.
   - Files: `.github/workflows/tests.yml`, `apps/soulstep-customer-web/vitest.config.ts`, `apps/soulstep-customer-mobile/jest.config.js`
@@ -450,11 +450,6 @@ Infrastructure, optimization, monitoring, code quality, and documentation work f
   - Many scraper functions lack type hints. Collector responses use `dict[str, Any]` everywhere. No validation that external API responses match expected schemas.
   - Add type hints to all functions. Create `TypedDict` for `CollectorResult`, `PlaceData`, etc. Add Pydantic response models for external APIs.
   - Files: `soulstep-scraper-api/app/collectors/*.py`, `soulstep-scraper-api/app/pipeline/*.py`
-
-- [ ] **Set up monorepo tooling (Turborepo or npm workspaces)**
-  - No shared scripts, no monorepo-wide linting/testing commands. Each app has independent config.
-  - Add `turbo.json` or npm workspaces config. Create shared ESLint config package. Add `build:all`, `test:all`, `lint:all` root scripts.
-  - Files: `package.json`, new `turbo.json`
 
 - [ ] **Remove unused scraper dependencies**
   - `tqdm` and `httpx` are in `requirements.txt` but not used anywhere in the codebase.
