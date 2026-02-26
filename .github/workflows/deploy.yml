@@ -36,6 +36,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r soulstep-catalog-api/requirements.txt
 
+      - name: Lint (ruff)
+        working-directory: soulstep-catalog-api
+        run: pip install ruff && ruff check app/
+
       - name: Run pytest
         working-directory: soulstep-catalog-api
         run: python -m pytest tests/ -v --tb=short
@@ -60,6 +64,10 @@ jobs:
         working-directory: apps/soulstep-customer-web
         run: npx tsc --noEmit
 
+      - name: Lint (ESLint)
+        working-directory: apps/soulstep-customer-web
+        run: npm run lint
+
       - name: Build
         working-directory: apps/soulstep-customer-web
         run: |
@@ -71,11 +79,43 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
 
+  test-soulstep-admin-web:
+    name: soulstep-admin-web typecheck + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/soulstep-admin-web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/soulstep-admin-web
+        run: npm ci
+
+      - name: Lint (ESLint - if configured)
+        working-directory: apps/soulstep-admin-web
+        run: npm run lint || true    # non-blocking until lint is set up
+
+      - name: Run tests
+        working-directory: apps/soulstep-admin-web
+        run: npm test
+
+      - name: Typecheck
+        working-directory: apps/soulstep-admin-web
+        run: npx tsc --noEmit
+
+      - name: Build
+        working-directory: apps/soulstep-admin-web
+        run: npm run build
+
   # ── Deploy: API → Cloud Run ─────────────────────────────────────────────────
 
   deploy-api:
     name: Deploy API → Cloud Run
-    needs: [test-soulstep-catalog-api, test-soulstep-customer-web]
+    needs: [test-soulstep-catalog-api, test-soulstep-customer-web, test-soulstep-admin-web]
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -123,7 +163,7 @@ jobs:
 
   deploy-web:
     name: Deploy Web → Firebase Hosting
-    needs: [test-soulstep-catalog-api, test-soulstep-customer-web]
+    needs: [test-soulstep-catalog-api, test-soulstep-customer-web, test-soulstep-admin-web]
     runs-on: ubuntu-latest
     environment: production
     permissions:

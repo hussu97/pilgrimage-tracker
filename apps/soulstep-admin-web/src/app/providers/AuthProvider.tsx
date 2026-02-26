@@ -1,6 +1,6 @@
 import { createContext, useCallback, useEffect, useState } from "react";
 import { getMe, login as apiLogin } from "@/lib/api/admin";
-import { clearToken, getToken, setToken } from "@/lib/api/client";
+import { clearToken, setToken } from "@/lib/api/client";
 import type { User } from "@/lib/api/types";
 
 interface AuthContextValue {
