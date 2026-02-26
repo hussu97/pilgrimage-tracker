@@ -15,6 +15,7 @@ env:
   REGISTRY: europe-west1-docker.pkg.dev
   REPO: soulstep
   API_SERVICE: soulstep-catalog-api
+  SCRAPER_SERVICE: soulstep-scraper-api
   SA_EMAIL: github-deploy@project-fa2d7f52-2bc4-4a46-8ae.iam.gserviceaccount.com
   WIF_PROVIDER: projects/834941457147/locations/global/workloadIdentityPools/github-pool/providers/github-provider
 
@@ -112,6 +113,29 @@ jobs:
         working-directory: apps/soulstep-admin-web
         run: npm run build
 
+  test-soulstep-scraper-api:
+    name: Soulstep Scraper API tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: soulstep-scraper-api/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r soulstep-scraper-api/requirements.txt
+
+      - name: Lint (ruff)
+        working-directory: soulstep-scraper-api
+        run: pip install ruff && ruff check app/
+
+      - name: Run pytest
+        working-directory: soulstep-scraper-api
+        run: python -m pytest tests/ -v --tb=short
+
   # ── Deploy: API → Cloud Run ─────────────────────────────────────────────────
 
   deploy-api:
@@ -204,5 +228,103 @@ jobs:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: ${{ env.SA_EMAIL }}
 
-      - name: Deploy to Firebase Hosting
-        run: npx firebase-tools deploy --only hosting --project ${{ env.PROJECT_ID }}
+      - name: Deploy to Firebase Hosting (customer)
+        run: npx firebase-tools deploy --only hosting:customer --project ${{ env.PROJECT_ID }}
+
+  # ── Deploy: Admin Web → Firebase Hosting ────────────────────────────────────
+
+  deploy-admin-web:
+    name: Deploy Admin Web → Firebase Hosting
+    needs: [test-soulstep-catalog-api, test-soulstep-admin-web]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write   # required for Workload Identity Federation
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/soulstep-admin-web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: apps/soulstep-admin-web
+        run: npm ci
+
+      - name: Build
+        working-directory: apps/soulstep-admin-web
+        run: |
+          if [ -z "$VITE_API_URL" ]; then
+            echo "ERROR: VITE_API_URL secret is not set. Add it to GitHub → Settings → Secrets → Actions."
+            exit 1
+          fi
+          npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      - name: Authenticate with GCP (keyless)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.SA_EMAIL }}
+
+      - name: Deploy to Firebase Hosting (admin)
+        # Prerequisites (one-time, in Firebase console):
+        #   1. Create a second Hosting site: Project settings → Hosting → Add site
+        #   2. Note the site ID (e.g. soulstep-admin) and update .firebaserc targets.admin
+        run: npx firebase-tools deploy --only hosting:admin --project ${{ env.PROJECT_ID }}
+
+  # ── Deploy: Scraper API → Cloud Run ─────────────────────────────────────────
+
+  deploy-scraper:
+    name: Deploy Scraper API → Cloud Run
+    needs: [test-soulstep-scraper-api]
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write   # required for Workload Identity Federation
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate with GCP (keyless)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.SA_EMAIL }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker auth for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/scraper:${{ github.sha }}"
+          docker build -t "$IMAGE" ./soulstep-scraper-api
+          docker push "$IMAGE"
+
+      - name: Scan Docker image for vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/scraper:${{ github.sha }}"
+          format: "table"
+          exit-code: "0"
+          severity: "CRITICAL,HIGH"
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SCRAPER_SERVICE }} \
+            --image "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/scraper:${{ github.sha }}" \
+            --region ${{ env.REGION }} \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --timeout 3600 \
+            --max-instances 1 \
+            --quiet
