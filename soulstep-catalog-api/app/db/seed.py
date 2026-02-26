@@ -3,6 +3,7 @@ import logging
 from datetime import UTC, datetime
 from pathlib import Path
 
+from sqlalchemy import text
 from sqlmodel import SQLModel, select
 
 from app.core.security import hash_password
@@ -44,20 +45,87 @@ def run_seed_system(seed_path: str | Path | None = None) -> None:
     Safe to call on every startup — no table drops, all operations are upserts
     or in-memory replacements. This is the only seeding that runs automatically.
     """
+    logger.info("run_seed_system: starting")
+
+    # ── Load seed file ────────────────────────────────────────────────────────
     data = _load_seed_data(seed_path)
     if data is None:
+        logger.warning(
+            "run_seed_system: seed file not found at %s — skipping",
+            seed_path or _DEFAULT_SEED_PATH,
+        )
         return
+    logger.info("run_seed_system: seed file loaded, sections=%s", list(data.keys()))
 
+    # ── DB connectivity check ─────────────────────────────────────────────────
+    try:
+        with Session(engine) as session:
+            session.exec(text("SELECT 1"))
+        logger.info("run_seed_system: DB connection OK")
+    except Exception as exc:
+        logger.error("run_seed_system: DB connection failed — %s", exc)
+        raise
+
+    # ── Languages ─────────────────────────────────────────────────────────────
     if "languages" in data:
-        i18n_db.set_languages(data["languages"])
+        try:
+            i18n_db.set_languages(data["languages"])
+            logger.info("run_seed_system: languages seeded (%d)", len(data["languages"]))
+        except Exception as exc:
+            logger.error("run_seed_system: failed to seed languages — %s", exc)
+            raise
+
+    # ── Translations ──────────────────────────────────────────────────────────
     if "translations" in data:
-        i18n_db.set_translations(data["translations"])
+        try:
+            i18n_db.set_translations(data["translations"])
+            total_keys = sum(len(v) for v in data["translations"].values())
+            logger.info(
+                "run_seed_system: translations seeded (%d languages, %d total keys)",
+                len(data["translations"]),
+                total_keys,
+            )
+        except Exception as exc:
+            logger.error("run_seed_system: failed to seed translations — %s", exc)
+            raise
+
+    # ── Attribute definitions ─────────────────────────────────────────────────
     if "attribute_definitions" in data:
-        attr_db.seed_attribute_definitions(data["attribute_definitions"])
+        try:
+            attr_db.seed_attribute_definitions(data["attribute_definitions"])
+            logger.info(
+                "run_seed_system: attribute_definitions seeded (%d)",
+                len(data["attribute_definitions"]),
+            )
+        except Exception as exc:
+            logger.error("run_seed_system: failed to seed attribute_definitions — %s", exc)
+            raise
+
+    # ── Content translations ──────────────────────────────────────────────────
     if "content_translations" in data:
-        _seed_content_translations(data["content_translations"])
+        try:
+            _seed_content_translations(data["content_translations"])
+            logger.info(
+                "run_seed_system: content_translations seeded (%d rows)",
+                len(data["content_translations"]),
+            )
+        except Exception as exc:
+            logger.error("run_seed_system: failed to seed content_translations — %s", exc)
+            raise
+
+    # ── App version config ────────────────────────────────────────────────────
     if "app_version_config" in data:
-        _seed_app_version_config(data["app_version_config"])
+        try:
+            _seed_app_version_config(data["app_version_config"])
+            logger.info(
+                "run_seed_system: app_version_config seeded (%d platforms)",
+                len(data["app_version_config"]),
+            )
+        except Exception as exc:
+            logger.error("run_seed_system: failed to seed app_version_config — %s", exc)
+            raise
+
+    logger.info("run_seed_system: completed successfully")
 
 
 def _seed_content_translations(rows: list[dict]) -> None:
