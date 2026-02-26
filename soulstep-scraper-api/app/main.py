@@ -1,4 +1,3 @@
-import json
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -114,123 +113,93 @@ app.include_router(api_router)
 # ===== Global Exception Handlers =====
 
 
-def log_error(
-    request: Request, status_code: int, error_type: str, detail: str, exc: Exception = None
-):
-    """Log error details using the structured logger."""
-    path = f"{request.method} {request.url.path}"
-    query = dict(request.query_params) if request.query_params else None
-    exc_name = f"{type(exc).__name__}: {exc}" if exc else None
+def _log_http_error(
+    request: Request,
+    status_code: int,
+    detail: str,
+    exc: Exception | None = None,
+    extra_fields: dict | None = None,
+) -> None:
+    """Emit a structured log record for an HTTP error.
 
+    All context is placed in extra={} so _JSONFormatter promotes every field
+    to a top-level JSON key in Cloud Logging — no string parsing needed.
+
+    5xx → ERROR with exc_info (full traceback attached)
+    4xx → WARNING, no traceback (intentional responses, not bugs)
+    """
+    fields: dict = {
+        "http.method": request.method,
+        "http.path": request.url.path,
+        "http.status_code": status_code,
+        "http.query_params": dict(request.query_params) if request.query_params else None,
+        "http.user_agent": request.headers.get("user-agent"),
+        "http.client_ip": request.client.host if request.client else None,
+        "error.detail": detail,
+    }
+    if exc is not None:
+        fields["error.type"] = type(exc).__name__
+        fields["error.message"] = str(exc)
+    if extra_fields:
+        fields.update(extra_fields)
+
+    msg = f"{request.method} {request.url.path} → {status_code}: {detail}"
     if status_code >= 500:
-        logger.error(
-            "%s %s | %s | detail=%s | exc=%s",
-            error_type,
-            status_code,
-            path,
-            detail,
-            exc_name,
-            exc_info=exc is not None,
-        )
+        logger.error(msg, exc_info=exc, extra=fields)
     else:
-        logger.warning(
-            "%s %s | %s | query=%s | detail=%s | exc=%s",
-            error_type,
-            status_code,
-            path,
-            query,
-            detail,
-            exc_name,
-        )
+        logger.warning(msg, extra=fields)
 
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    """Handle HTTP exceptions (400, 401, 403, 404, etc.)"""
-    error_type = "HTTP Error"
-    if exc.status_code == 400:
-        error_type = "Bad Request"
-    elif exc.status_code == 401:
-        error_type = "Unauthorized"
-    elif exc.status_code == 403:
-        error_type = "Forbidden"
-    elif exc.status_code == 404:
-        error_type = "Not Found"
-    elif exc.status_code >= 500:
-        error_type = "Server Error"
-
-    log_error(request, exc.status_code, error_type, str(exc.detail), exc)
-
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail},
+    # 4xx are intentional — no traceback. 5xx are unexpected — attach exc_info.
+    _log_http_error(
+        request,
+        exc.status_code,
+        str(exc.detail),
+        exc=exc if exc.status_code >= 500 else None,
     )
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Handle 422 validation errors with detailed logging"""
     errors = exc.errors()
+    # Normalise to a JSON-safe list and log it as a structured field so
+    # every failing field is visible in Cloud Logging without parsing the message.
+    validation_errors = []
+    for err in errors:
+        entry: dict = {"loc": list(err["loc"]), "msg": err["msg"], "type": err["type"]}
+        if "ctx" in err:
+            entry["ctx"] = {
+                k: v if isinstance(v, str | int | float | bool | type(None)) else str(v)
+                for k, v in err["ctx"].items()
+            }
+        validation_errors.append(entry)
 
-    log_error(
+    _log_http_error(
         request,
         status.HTTP_422_UNPROCESSABLE_CONTENT,
-        "Validation Error",
         f"{len(errors)} validation error(s)",
-        exc,
+        extra_fields={"validation_errors": validation_errors},
     )
-
-    # Log individual field errors at DEBUG level (too verbose for INFO)
-    if logger.isEnabledFor(10):  # logging.DEBUG == 10
-        for error in errors:
-            field = " -> ".join(str(loc) for loc in error["loc"])
-            logger.debug(
-                "  Validation field=%s  msg=%s  type=%s", field, error["msg"], error["type"]
-            )
-
-    # Serialize errors for JSON response (convert non-serializable objects to strings)
-    serializable_errors = []
-    for error in errors:
-        serializable_error = {
-            "loc": error["loc"],
-            "msg": error["msg"],
-            "type": error["type"],
-        }
-        if "ctx" in error:
-            # Convert context values to strings if they're not JSON-serializable
-            ctx = {}
-            for key, value in error["ctx"].items():
-                try:
-                    json.dumps(value)
-                    ctx[key] = value
-                except (TypeError, ValueError):
-                    ctx[key] = str(value)
-            serializable_error["ctx"] = ctx
-        serializable_errors.append(serializable_error)
-
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-        content={"detail": serializable_errors},
+        content={"detail": validation_errors},
     )
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
-    """Catch-all handler for unhandled exceptions"""
-    log_error(
+    _log_http_error(
         request,
         status.HTTP_500_INTERNAL_SERVER_ERROR,
-        "Internal Server Error",
         "An unexpected error occurred",
-        exc,
+        exc=exc,
     )
-
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "detail": "Internal server error",
-            "error_type": type(exc).__name__,
-        },
+        content={"detail": "Internal server error"},
     )
 
 

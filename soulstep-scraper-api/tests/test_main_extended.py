@@ -113,7 +113,7 @@ class TestGeneralExceptionHandler:
 
         assert response.status_code == 500
 
-    def test_unhandled_exception_includes_error_type(self):
+    def test_unhandled_exception_returns_generic_body(self):
         import json
 
         from app.main import general_exception_handler
@@ -123,8 +123,9 @@ class TestGeneralExceptionHandler:
         response = asyncio.run(general_exception_handler(request, exc))
 
         body = json.loads(response.body)
-        assert body["error_type"] == "ValueError"
+        # error.type is now a structured log field, not exposed in the response body
         assert body["detail"] == "Internal server error"
+        assert response.status_code == 500
 
 
 # ── TestValidationExceptionHandler ───────────────────────────────────────────
@@ -212,26 +213,26 @@ class TestValidationExceptionHandler:
 
 class TestLogError:
     def test_log_error_with_query_params(self):
-        """log_error should run without error when query_params is non-empty."""
-        from app.main import log_error
+        """_log_http_error should run without error when query_params is non-empty."""
+        from app.main import _log_http_error
 
         request = _mock_request(query_params={"city": "Dubai"})
-        log_error(request, 400, "Bad Request", "Test error detail")
+        _log_http_error(request, 400, "Test error detail")
 
     def test_log_error_500_with_traceback(self):
-        """log_error at 500 level should print traceback."""
-        from app.main import log_error
+        """_log_http_error at 500 level should attach exc_info."""
+        from app.main import _log_http_error
 
         request = _mock_request()
         exc = RuntimeError("Something failed")
-        log_error(request, 500, "Server Error", "Unexpected failure", exc)
+        _log_http_error(request, 500, "Unexpected failure", exc=exc)
 
     def test_log_error_without_exception(self):
-        """log_error without an exception arg should run without error."""
-        from app.main import log_error
+        """_log_http_error without an exception arg should run without error."""
+        from app.main import _log_http_error
 
         request = _mock_request()
-        log_error(request, 404, "Not Found", "Resource missing")
+        _log_http_error(request, 404, "Resource missing")
 
 
 # ── TestDbSession ─────────────────────────────────────────────────────────────
