@@ -11,10 +11,15 @@ import app.db.models  # noqa: F401
 
 config = context.config
 
-# Override sqlalchemy.url from the SCRAPER_DB_PATH environment variable if set.
-scraper_db_path = os.environ.get("SCRAPER_DB_PATH")
-if scraper_db_path:
-    config.set_main_option("sqlalchemy.url", f"sqlite:///{scraper_db_path}")
+# Override sqlalchemy.url: DATABASE_URL (PostgreSQL) takes priority over
+# SCRAPER_DB_PATH (SQLite path). Mirrors the logic in app/db/session.py.
+_database_url = os.environ.get("DATABASE_URL")
+if _database_url:
+    config.set_main_option("sqlalchemy.url", _database_url)
+else:
+    _scraper_db_path = os.environ.get("SCRAPER_DB_PATH")
+    if _scraper_db_path:
+        config.set_main_option("sqlalchemy.url", f"sqlite:///{_scraper_db_path}")
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

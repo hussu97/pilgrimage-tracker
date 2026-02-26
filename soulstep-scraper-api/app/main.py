@@ -59,9 +59,15 @@ def _validate_startup_config() -> None:
         )
 
     # General non-secret config
+    _db_url = os.environ.get("DATABASE_URL")
+    if _db_url:
+        _db_display = f"{mask_secret(_db_url)} (PostgreSQL via DATABASE_URL)"
+    else:
+        _db_display = os.environ.get("SCRAPER_DB_PATH", "scraper.db (default SQLite)")
+
     other_config: dict[str, str] = {
         "MAIN_SERVER_URL": os.environ.get("MAIN_SERVER_URL", "http://127.0.0.1:3000 (default)"),
-        "SCRAPER_DB_PATH": os.environ.get("SCRAPER_DB_PATH", "scraper.db (default)"),
+        "DATABASE": _db_display,
         "LOG_LEVEL": os.environ.get("LOG_LEVEL", "INFO (default)"),
         "LOG_FORMAT": os.environ.get("LOG_FORMAT", "text (default)"),
     }

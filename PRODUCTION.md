@@ -1051,7 +1051,113 @@ gcloud run deploy soulstep-scraper-api \
 
 #### 7f. Persistent run history (optional upgrade)
 
-If you need scrape run history to survive cold starts, create a second database on the existing Cloud SQL instance and point the scraper at it. This requires extending `soulstep-scraper-api/app/db/session.py` to support a `DATABASE_URL` env var for PostgreSQL. Skip this unless you need long-term audit history.
+By default the scraper uses SQLite, which is wiped on every Cloud Run cold start. To keep full `ScraperRun`, `ScrapedPlace`, and `RawCollectorData` history across restarts, point the scraper at a PostgreSQL database using the `DATABASE_URL` environment variable. The scraper's `app/db/session.py` reads this variable and selects the appropriate engine automatically.
+
+> **When to do this:** only if you need long-term audit history or multi-instance safety. If you run the scraper on-demand and sync results immediately, ephemeral SQLite is simpler.
+
+---
+
+##### 7f-i. Create a scraper database on the existing Cloud SQL instance
+
+The main API already has a Cloud SQL instance (`soulstep-db`). Add a second database and user for the scraper rather than provisioning a new instance.
+
+```bash
+# Create a dedicated database
+gcloud sql databases create soulstep-scraper --instance=soulstep-db
+
+# Create a dedicated app user (use a strong password)
+gcloud sql users create soulstep-scraper \
+  --instance=soulstep-db \
+  --password=STRONG_SCRAPER_DB_PASSWORD
+```
+
+The connection string follows the same Unix-socket pattern as the main API:
+
+```
+postgresql://soulstep-scraper:STRONG_SCRAPER_DB_PASSWORD@/soulstep-scraper?host=/cloudsql/PROJECT_ID:REGION:soulstep-db
+```
+
+---
+
+##### 7f-ii. Store the connection string in Secret Manager
+
+```bash
+echo -n "postgresql://soulstep-scraper:STRONG_SCRAPER_DB_PASSWORD@/soulstep-scraper?host=/cloudsql/PROJECT_ID:REGION:soulstep-db" | \
+  gcloud secrets create SCRAPER_DATABASE_URL \
+    --data-file=- \
+    --replication-policy=automatic
+```
+
+Grant the compute service account access:
+
+```bash
+PROJECT_NUMBER=$(gcloud projects describe PROJECT_ID --format="value(projectNumber)")
+SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
+gcloud secrets add-iam-policy-binding SCRAPER_DATABASE_URL \
+  --member="serviceAccount:${SA}" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+The compute service account already has `roles/cloudsql.client` from Step 3 — no additional IAM changes are needed.
+
+---
+
+##### 7f-iii. Redeploy the scraper with DATABASE_URL
+
+Update the existing scraper service to mount the secret and connect to PostgreSQL:
+
+```bash
+gcloud run services update soulstep-scraper-api \
+  --region europe-west1 \
+  --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
+  --set-secrets "GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,\
+BESTTIME_API_KEY=SCRAPER_BESTTIME_API_KEY:latest,\
+FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,\
+OUTSCRAPER_API_KEY=SCRAPER_OUTSCRAPER_API_KEY:latest,\
+ANTHROPIC_API_KEY=SCRAPER_ANTHROPIC_API_KEY:latest,\
+DATABASE_URL=SCRAPER_DATABASE_URL:latest"
+```
+
+> **What changes:** `DATABASE_URL` is now set, so `session.py` creates a PostgreSQL engine instead of SQLite. On the next cold start, Alembic runs migrations 0001 → 0002 → 0003 against the PostgreSQL database. Migration 0003 is a no-op on fresh databases (tables are created correctly from 0001 with the right types).
+
+> **`SCRAPER_DB_PATH` is ignored** when `DATABASE_URL` is set — you can leave it unset or remove it from the service's env vars.
+
+---
+
+##### 7f-iv. What happens on startup
+
+1. `session.py` detects `DATABASE_URL` and creates a PostgreSQL engine (psycopg2).
+2. `run_migrations()` runs Alembic against the PostgreSQL database:
+   - Fresh DB: runs 0001 → 0002 → 0003, creating all tables with `TIMESTAMPTZ` columns.
+   - Existing DB already at head: no-op.
+3. `seed_geo_boundaries()` and `seed_place_type_mappings()` run as usual (idempotent upserts).
+
+Scrape runs, scraped places, and raw collector data now survive cold starts.
+
+---
+
+##### 7f-v. Local development with PostgreSQL (optional)
+
+To test the PostgreSQL path locally, set `DATABASE_URL` in your `.env` before starting the scraper:
+
+```dotenv
+DATABASE_URL=postgresql://soulstep-scraper:password@localhost:5432/soulstep-scraper
+```
+
+You can spin up a local PostgreSQL instance with Docker:
+
+```bash
+docker run -d \
+  --name scraper-postgres \
+  -e POSTGRES_USER=soulstep-scraper \
+  -e POSTGRES_PASSWORD=password \
+  -e POSTGRES_DB=soulstep-scraper \
+  -p 5432:5432 \
+  postgres:15-alpine
+```
+
+Then start the scraper normally — it will automatically run Alembic migrations against the local PostgreSQL database on startup.
 
 ---
 

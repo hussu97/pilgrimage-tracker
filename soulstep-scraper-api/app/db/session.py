@@ -4,14 +4,23 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine
 
-# SCRAPER_DB_PATH lets you relocate the SQLite file to a persistent volume.
-# Default: scraper.db in the working directory (fine for local dev).
-# Production: set to /data/scraper.db and mount a volume at /data.
-_db_path = os.environ.get("SCRAPER_DB_PATH", "scraper.db")
-sqlite_url = f"sqlite:///{_db_path}"
+# DATABASE_URL takes priority — set to a PostgreSQL connection string for
+# persistent run history that survives Cloud Run cold starts (PRODUCTION.md §7f).
+# Falls back to SQLite via SCRAPER_DB_PATH for local dev / ephemeral deployments.
+_database_url = os.environ.get("DATABASE_URL")
 
-connect_args = {"check_same_thread": False}
-engine = create_engine(sqlite_url, echo=False, connect_args=connect_args)
+if _database_url:
+    db_url = _database_url
+    connect_args: dict = {}
+else:
+    # SCRAPER_DB_PATH lets you relocate the SQLite file to a persistent volume.
+    # Default: scraper.db in the working directory (fine for local dev).
+    # Production: set to /data/scraper.db and mount a volume at /data.
+    _db_path = os.environ.get("SCRAPER_DB_PATH", "scraper.db")
+    db_url = f"sqlite:///{_db_path}"
+    connect_args = {"check_same_thread": False}
+
+engine = create_engine(db_url, echo=False, connect_args=connect_args)
 
 
 def create_db_and_tables():
@@ -41,7 +50,7 @@ def run_migrations() -> None:
 
     cfg = Config(ini_path)
     cfg.set_main_option("script_location", migrations_path)
-    cfg.set_main_option("sqlalchemy.url", sqlite_url)
+    cfg.set_main_option("sqlalchemy.url", db_url)
 
     with engine.begin() as connection:
         cfg.attributes["connection"] = connection
