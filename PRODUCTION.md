@@ -907,50 +907,151 @@ Firebase console → **Hosting** → **Add custom domain** → follow the DNS ve
 
 Only needed for automated place scraping in production.
 
-#### Scraper database on GCP
+The scraper (`soulstep-scraper-api`) is an **HTTP API service** — scrape runs are triggered via `POST /api/v1/scraper/runs` and monitored via `GET /api/v1/scraper/runs/{run_code}`. It runs as a long-lived Cloud Run Service, **not** a one-shot job.
 
-> **Cloud Run is stateless** — the container filesystem is wiped between instances and on scale-to-zero. The scraper's SQLite `scraper.db` does **not** persist across invocations.
+> **SQLite is ephemeral on Cloud Run** — the scraper's `scraper.db` is wiped on every cold start. This is fine: geo/place-type seeds re-run automatically on startup (idempotent), and scrape run history only needs to persist for the duration of an active run session. If you need persistent run history, see step 7f.
 
-**Recommended approach: run the scraper as a Cloud Run Job, not a long-running Service.**
+---
 
-A Cloud Run Job starts, runs a full scrape-and-sync cycle, then exits cleanly. Within a single job execution the SQLite file exists in `/tmp` or WORKDIR for the duration of the job. The geo and place-type seed data re-seeds automatically on each run (idempotent), so nothing is lost between job runs. Scraping run history lives in the database only for the duration of that job.
-
-This is covered in Step 8 below with Cloud Run Jobs.
-
-**If you do need a long-running scraper Service** (e.g. for a webhook-triggered scraping API), SQLite will reset on every cold start. In that case, use **Cloud SQL** for the scraper's database:
-
-1. Create a second database on the existing Cloud SQL instance:
-   ```bash
-   gcloud sql databases create scraper --instance=soulstep-db
-   gcloud sql users create scraper \
-     --instance=soulstep-db \
-     --password=SCRAPER_DB_PASSWORD
-   ```
-2. Store the connection string in Secret Manager:
-   ```bash
-   echo -n "postgresql://scraper:SCRAPER_DB_PASSWORD@/scraper?host=/cloudsql/PROJECT_ID:REGION:soulstep-db" | \
-     gcloud secrets create SCRAPER_DATABASE_URL --data-file=- --replication-policy=automatic
-   ```
-3. Pass it to the scraper deploy command via `SCRAPER_DB_PATH` is not enough here — you'd need to extend `soulstep-scraper-api/app/db/session.py` to support `DATABASE_URL` for PostgreSQL if you go this route. For now, the Cloud Run Job approach is recommended.
-
-#### Deploy as a long-running Service (if needed)
+#### 7a. Store scraper API keys in Secret Manager
 
 ```bash
-# Build and push
-gcloud builds submit ./soulstep-scraper-api \
-  --tag REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper:latest
+# Required
+echo -n "your-google-maps-api-key" | \
+  gcloud secrets create SCRAPER_GOOGLE_MAPS_API_KEY --data-file=- --replication-policy=automatic
 
-# Deploy (no-allow-unauthenticated = internal/service-account calls only)
-gcloud run deploy soulstep-scraper \
-  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper:latest \
-  --platform managed \
-  --region REGION \
-  --no-allow-unauthenticated \
-  --set-env-vars "MAIN_SERVER_URL=https://soulstep-api-xxxxxxxxxxxx-uc.a.run.app,SCRAPER_TIMEZONE=UTC,GOOGLE_MAPS_API_KEY=your-key" \
-  --memory 512Mi
+# Optional collectors — only create if you have the keys
+echo -n "your-besttime-key" | \
+  gcloud secrets create SCRAPER_BESTTIME_API_KEY --data-file=- --replication-policy=automatic
+
+echo -n "your-foursquare-key" | \
+  gcloud secrets create SCRAPER_FOURSQUARE_API_KEY --data-file=- --replication-policy=automatic
+
+echo -n "your-outscraper-key" | \
+  gcloud secrets create SCRAPER_OUTSCRAPER_API_KEY --data-file=- --replication-policy=automatic
+
+echo -n "your-anthropic-key" | \
+  gcloud secrets create SCRAPER_ANTHROPIC_API_KEY --data-file=- --replication-policy=automatic
 ```
 
-Note: without a persistent volume, the SQLite DB is ephemeral. Geo/place-type seeds will re-run on each cold start (safe). Run history will be lost between cold starts.
+Grant the compute service account access:
+```bash
+PROJECT_NUMBER=$(gcloud projects describe project-fa2d7f52-2bc4-4a46-8ae --format="value(projectNumber)")
+SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
+for SECRET in SCRAPER_GOOGLE_MAPS_API_KEY SCRAPER_BESTTIME_API_KEY SCRAPER_FOURSQUARE_API_KEY SCRAPER_OUTSCRAPER_API_KEY SCRAPER_ANTHROPIC_API_KEY; do
+  gcloud secrets add-iam-policy-binding $SECRET \
+    --member="serviceAccount:${SA}" \
+    --role="roles/secretmanager.secretAccessor" 2>/dev/null || true
+done
+```
+
+---
+
+#### 7b. Build and push the scraper image
+
+```bash
+gcloud builds submit ./soulstep-scraper-api \
+  --tag europe-west1-docker.pkg.dev/project-fa2d7f52-2bc4-4a46-8ae/soulstep/scraper:latest \
+  --region europe-west1
+```
+
+---
+
+#### 7c. Deploy as a Cloud Run Service
+
+```bash
+gcloud run deploy soulstep-scraper \
+  --image europe-west1-docker.pkg.dev/project-fa2d7f52-2bc4-4a46-8ae/soulstep/scraper:latest \
+  --platform managed \
+  --region europe-west1 \
+  --no-allow-unauthenticated \
+  --set-secrets "GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,BESTTIME_API_KEY=SCRAPER_BESTTIME_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,OUTSCRAPER_API_KEY=SCRAPER_OUTSCRAPER_API_KEY:latest,ANTHROPIC_API_KEY=SCRAPER_ANTHROPIC_API_KEY:latest" \
+  --set-env-vars "MAIN_SERVER_URL=https://soulstep-api-834941457147.europe-west1.run.app,SCRAPER_TIMEZONE=Asia/Dubai,SCRAPER_DB_PATH=/tmp/scraper.db,LOG_FORMAT=json" \
+  --memory 1Gi \
+  --cpu 1 \
+  --min-instances 0 \
+  --max-instances 1 \
+  --timeout 3600
+```
+
+> `--no-allow-unauthenticated` — the scraper is internal only, not public.
+>
+> `--timeout 3600` — scrape runs can take up to 60 min; Cloud Run's default 5-min timeout would kill them.
+>
+> `--max-instances 1` — prevents concurrent runs which would cause SQLite write conflicts.
+
+Once deployed, copy the **Service URL** — it looks like:
+```
+https://soulstep-scraper-834941457147.europe-west1.run.app
+```
+
+Tell the catalog API where to find the scraper (enables the admin dashboard scraper proxy):
+```bash
+gcloud run services update soulstep-catalog-api \
+  --region europe-west1 \
+  --update-env-vars "DATA_SCRAPER_URL=https://soulstep-scraper-834941457147.europe-west1.run.app"
+```
+
+---
+
+#### 7d. Trigger and monitor scrape runs
+
+The scraper requires an identity token (it's not public). Use `gcloud auth print-identity-token` to authenticate:
+
+```bash
+TOKEN=$(gcloud auth print-identity-token)
+SCRAPER_URL=https://soulstep-scraper-834941457147.europe-west1.run.app
+
+# 1. Check the scraper is healthy
+curl -H "Authorization: Bearer $TOKEN" $SCRAPER_URL/health
+
+# 2. List existing data locations (cities/regions configured for scraping)
+curl -H "Authorization: Bearer $TOKEN" $SCRAPER_URL/api/v1/scraper/data-locations
+
+# 3. Create a data location (first time setup — repeat for each city you want to scrape)
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Dubai", "city": "Dubai", "max_results": 50}' \
+  $SCRAPER_URL/api/v1/scraper/data-locations
+
+# 4. Start a scrape run (use the location_code returned in step 3)
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"location_code": "loc_XXXXXXXX"}' \
+  $SCRAPER_URL/api/v1/scraper/runs
+
+# 5. Poll run status (use the run_code returned in step 4)
+curl -H "Authorization: Bearer $TOKEN" \
+  $SCRAPER_URL/api/v1/scraper/runs/run_XXXXXXXX
+
+# 6. Once status = "completed", sync scraped places to the catalog API
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  $SCRAPER_URL/api/v1/scraper/runs/run_XXXXXXXX/sync
+```
+
+Alternatively, use the **admin dashboard** (soulstep-admin-web) → Scraper section, which wraps all of these calls through the catalog API proxy.
+
+---
+
+#### 7e. Redeploy after code changes
+
+```bash
+gcloud builds submit ./soulstep-scraper-api \
+  --tag europe-west1-docker.pkg.dev/project-fa2d7f52-2bc4-4a46-8ae/soulstep/scraper:latest \
+  --region europe-west1
+
+gcloud run deploy soulstep-scraper \
+  --image europe-west1-docker.pkg.dev/project-fa2d7f52-2bc4-4a46-8ae/soulstep/scraper:latest \
+  --region europe-west1 \
+  --quiet
+```
+
+---
+
+#### 7f. Persistent run history (optional upgrade)
+
+If you need scrape run history to survive cold starts, create a second database on the existing Cloud SQL instance and point the scraper at it. This requires extending `soulstep-scraper-api/app/db/session.py` to support a `DATABASE_URL` env var for PostgreSQL. Skip this unless you need long-term audit history.
 
 ---
 
