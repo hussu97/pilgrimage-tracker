@@ -325,6 +325,7 @@ jobs:
             --region ${{ env.REGION }} \
             --platform managed \
             --no-allow-unauthenticated \
+            --add-cloudsql-instances "${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db" \
             --timeout 3600 \
             --max-instances 1 \
             --quiet
