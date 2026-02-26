@@ -49,7 +49,9 @@ Configure `app.json` / `app.config.js` (icons, splash, scheme). Submit to App St
 
 ## Environment
 
-- **`EXPO_PUBLIC_API_URL`** – Base URL of the API. When unset, the app defaults to `http://127.0.0.1:3000` so the simulator can reach the backend. For a physical device, set this to your machine’s LAN IP (e.g. `http://192.168.1.10:3000`). The **backend must be running** (e.g. `cd soulstep-catalog-api && uvicorn app.main:app --reload --port 3000`) for the Home screen and other API features to work.
+- **`EXPO_PUBLIC_API_URL`** – Base URL of the API.
+- **`EXPO_PUBLIC_ADMOB_APP_ID_IOS`** – Optional. Google AdMob App ID for iOS. Replace the placeholder in `app.json` when ready.
+- **`EXPO_PUBLIC_ADMOB_APP_ID_ANDROID`** – Optional. Google AdMob App ID for Android. Replace the placeholder in `app.json` when ready. When unset, the app defaults to `http://127.0.0.1:3000` so the simulator can reach the backend. For a physical device, set this to your machine’s LAN IP (e.g. `http://192.168.1.10:3000`). The **backend must be running** (e.g. `cd soulstep-catalog-api && uvicorn app.main:app --reload --port 3000`) for the Home screen and other API features to work.
 
 ## Structure
 
@@ -59,7 +61,7 @@ Configure `app.json` / `app.config.js` (icons, splash, scheme). Submit to App St
 - `src/app/screens/` – Screen components: SplashScreen, LoginScreen, RegisterScreen, ForgotPasswordScreen, ResetPasswordScreen, HomeScreen, PlaceDetailScreen, WriteReviewScreen, ProfileScreen, EditProfileScreen, CheckInsListScreen, FavoritesScreen, GroupsScreen, CreateGroupScreen, EditGroupScreen, EditGroupPlacesScreen, GroupDetailScreen, JoinGroupScreen, NotificationsScreen, SearchScreen.
 - `src/lib/` – Shared utilities: `api/client.ts` (API client), `types/` (TypeScript types), `theme.ts`, `constants.ts`, `share.ts`, `hooks/`, `utils/`.
 - `src/stores/` – State stores.
-- `src/components/` – Shared UI components.
+- `src/components/` – Shared UI components: `ads/` (AdProvider, AdBannerNative, AdInterstitial, useAdConsent, ad-constants), `consent/` (ConsentBanner).
 
 Design reference: `FRONTEND_V3_LIGHT.html` / `FRONTEND_V3_DARK.html` at repo root. Use the same translation keys and API shapes as `apps/soulstep-customer-web`.
 

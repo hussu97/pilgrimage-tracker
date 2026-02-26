@@ -340,9 +340,9 @@ New user-facing features, UX improvements, and monetization strategies.
   - Offer a public read-only API for religious place data. Free tier (100 requests/day), paid tiers for higher limits.
   - Add API key management, usage tracking, rate limiting per key, and developer portal documentation.
 
-- [ ] **Sponsored places and contextual ads**
+- [x] **Sponsored places and contextual ads**
   - Non-intrusive sponsored listings in search results and nearby places. Clearly marked as "Sponsored". Relevant to religious tourism and cultural experiences.
-  - Add `is_sponsored` flag, sponsor management in admin, impression/click tracking.
+  - ~~Add `is_sponsored` flag, sponsor management in admin, impression/click tracking.~~ **Implemented:** Google AdSense (web) + AdMob placeholder (mobile). Backend AdConfig model, consent management (GDPR/CCPA), self-gating AdBanner/AdBannerNative components, CSP updates, Google Consent Mode v2. Ad placements across all pages/screens with render gating (feature flag + consent + premium).
 
 - [ ] **Donation platform integration**
   - Enable users to donate to religious sites directly through the app. Partner with payment providers for cross-border donations. SoulStep facilitates but does not process payments.

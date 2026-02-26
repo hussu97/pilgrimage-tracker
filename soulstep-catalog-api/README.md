@@ -153,6 +153,11 @@ By using SQLModel, we maintain Pydantic-like schemas for the API while gaining f
 - `GET /api/v1/visitors/{visitorCode}/settings` — get visitor settings
 - `PATCH /api/v1/visitors/{visitorCode}/settings` — update visitor settings
 
+### Ads & Consent (`/api/v1/ads`, `/api/v1/consent`)
+- `GET /api/v1/ads/config?platform=web|ios|android` — ad config (enabled flag, publisher ID, slot IDs); no auth
+- `POST /api/v1/consent` — record ad/analytics consent; auth optional (supports visitor_code)
+- `GET /api/v1/consent` — current consent status for caller
+
 ### i18n (`/api/v1`)
 - `GET /api/v1/languages` — list supported languages (code, name); no auth
 - `GET /api/v1/translations?lang=en` — translation key→value for locale; fallback to English for missing keys; no auth
@@ -161,7 +166,7 @@ By using SQLModel, we maintain Pydantic-like schemas for the API while gaining f
 - `GET /share/{shareCode}` — resolve a share link (redirect to web app or return place info)
 
 ### Admin (`/api/v1/admin`) — requires admin role
-Full CRUD for users, places, groups, reviews, check-ins, notifications, translations, content translations, place attributes, bulk operations, data export, audit log, app version management, and scraper proxy.
+Full CRUD for users, places, groups, reviews, check-ins, notifications, translations, content translations, place attributes, bulk operations, data export, audit log, app version management, scraper proxy, and ad config management (`GET/PATCH /admin/ads/config`, `GET /admin/ads/consent-stats`).
 
 ## Tests
 

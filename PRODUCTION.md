@@ -28,6 +28,10 @@ Current system: **Backend** (Python FastAPI in `soulstep-catalog-api/`), **Web a
 | `APP_STORE_URL_ANDROID` | No | _(empty)_ | Play Store URL for Android update link |
 | `LOG_LEVEL` | No | `INFO` | Python logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `LOG_FORMAT` | No | `json` | `json` for structured JSON logs (production); `text` for human-readable (dev) |
+| `ADS_ENABLED` | No | `false` | Master switch for ads across all platforms |
+| `ADSENSE_PUBLISHER_ID` | No | _(empty)_ | Google AdSense publisher ID (e.g. `ca-pub-xxxxxxxxxxxxxxxx`) |
+| `ADMOB_APP_ID_IOS` | No | _(empty)_ | Google AdMob App ID for iOS |
+| `ADMOB_APP_ID_ANDROID` | No | _(empty)_ | Google AdMob App ID for Android |
 | `GOOGLE_CLOUD_PROJECT` | No | _(empty)_ | GCP project ID — required for the translation backfill script (`scripts/backfill_translations.py`). When empty, the script skips machine translation and only runs the legacy attribute migration |
 | `GOOGLE_APPLICATION_CREDENTIALS` | No | _(empty)_ | Path to a GCP service account JSON key with the **Cloud Translation API** role. Not needed on GCP Cloud Run (uses built-in ADC). Required for Docker / Render / any non-GCP host |
 
@@ -47,12 +51,15 @@ Current system: **Backend** (Python FastAPI in `soulstep-catalog-api/`), **Web a
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `VITE_API_URL` | **Yes (prod)** | _(relative `/api` in dev)_ | Production API base URL — **baked in at build time** |
+| `VITE_ADSENSE_PUBLISHER_ID` | No | _(empty)_ | Google AdSense publisher ID for web ads |
 
 ### Mobile (`apps/soulstep-customer-mobile/`)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `EXPO_PUBLIC_API_URL` | No | `http://127.0.0.1:3000` | API base URL for device/Expo Go |
+| `EXPO_PUBLIC_ADMOB_APP_ID_IOS` | No | _(empty)_ | Google AdMob App ID for iOS |
+| `EXPO_PUBLIC_ADMOB_APP_ID_ANDROID` | No | _(empty)_ | Google AdMob App ID for Android |
 
 ---
 

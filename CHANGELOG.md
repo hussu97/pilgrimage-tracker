@@ -4,6 +4,44 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## P2 Ad Integration — Monetization (2026-02-26)
+
+### Backend
+
+- **AdConfig model** — Server-driven feature flag per platform (web/ios/android): `ads_enabled`, `adsense_publisher_id`, `ad_slots` (JSON dict mapping slot names to ad unit IDs).
+- **ConsentRecord model** — GDPR/CCPA audit trail: `user_code` or `visitor_code`, `consent_type` (ads/analytics), `granted`, `ip_address`, `user_agent`, timestamps.
+- **`is_premium` field on User** — Boolean, default false. Render gating: premium users never see ads.
+- **Public endpoints** — `GET /api/v1/ads/config?platform=web|ios|android` (no auth), `POST /api/v1/consent`, `GET /api/v1/consent`.
+- **Admin endpoints** — `GET /admin/ads/config`, `PATCH /admin/ads/config/:id`, `GET /admin/ads/consent-stats`.
+- **Migration** — `0014_ad_config_consent.py`: creates `ad_config` + `consent_record` tables, adds `is_premium` on `user`.
+- **Config vars** — `ADS_ENABLED`, `ADSENSE_PUBLISHER_ID`, `ADMOB_APP_ID_IOS`, `ADMOB_APP_ID_ANDROID`.
+- **Consent translation keys** — Added `consent.*` and `ads.*` keys for en, ar, hi in seed data.
+- **Tests** — 21 new pytest tests for ads config, consent recording/retrieval, admin management, and consent stats.
+
+### Frontend (web)
+
+- **CSP updates** — `index.html` and `nginx.conf` updated to allow Google AdSense script-src, connect-src, and frame-src domains.
+- **Google Consent Mode v2** — Default-deny consent snippet in `index.html`; `AdProvider` updates consent state via `gtag()` after user grants.
+- **AdProvider context** — Fetches backend config, manages consent state, injects AdSense script after consent, exposes `canShowAds` flag.
+- **AdBanner component** — Self-gating (consent + premium + feature flag), dark mode `dark:bg-dark-surface`, RTL-aware, test mode in dev.
+- **ConsentBanner** — Fixed bottom sheet: "Accept All" + "Manage Preferences" with individual toggles.
+- **useAdConsent hook** — localStorage persistence + fire-and-forget backend sync.
+- **Ad placements** — PlaceDetail (3 slots), PlaceListView (in-feed every 5th card), CheckInsList (2 slots between sections), Favorites (every 4th card), GroupDetail (bottom), Profile (above version), Notifications (bottom).
+- **Tests** — 8 Vitest tests for consent utilities.
+
+### Frontend (mobile)
+
+- **AdProvider context** — Same render gating as web; fetches config per-platform (ios/android).
+- **AdBannerNative component** — Self-gating with `makeStyles(isDark)` pattern, placeholder for AdMob BannerAd.
+- **AdInterstitial controller** — Singleton with 5-min cooldown, first-session grace period.
+- **ConsentBanner** — Modal bottom sheet with Switch toggles for ads/analytics, dark mode support.
+- **useAdConsent hook** — AsyncStorage persistence + backend sync.
+- **app.json** — Added `react-native-google-mobile-ads` plugin config with placeholder App IDs.
+- **Ad placements** — PlaceDetailScreen (3 slots), HomeScreen (in-feed every 5th card), CheckInsListScreen (2 slots), FavoritesScreen (every 4th card), GroupDetailScreen (bottom), ProfileScreen (above version), NotificationsScreen (bottom).
+- **Tests** — 10 Jest tests for consent utilities and interstitial logic.
+
+---
+
 ## P3 Code Quality — Scraper Service (2026-02-26)
 
 ### Backend (Scraper)

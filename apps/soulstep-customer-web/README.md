@@ -56,13 +56,14 @@ Output: `dist/`. For production, set `VITE_API_URL` to the production API base U
 - **`VITE_API_URL`** – Optional. When **unset**, the app uses relative URLs (`/api/v1/...`), so in dev the Vite proxy sends them to the backend. When **set** (e.g. for production or a different backend port), all API requests use this base URL. **Use `127.0.0.1` only—not `localhost`** (localhost can resolve to IPv6 on macOS). Restart the dev server after changing env.
 - **`VITE_PROXY_TARGET`** – Optional. Proxy target for `/api` in dev (default `http://127.0.0.1:3000`). Use `127.0.0.1` only—not `localhost`. Restart the dev server after changing.
 - **`VITE_GLITCHTIP_DSN`** – Optional. GlitchTip (Sentry-compatible) DSN for error tracking. When unset, error tracking is disabled. Obtain from your GlitchTip project settings (e.g. `https://<key>@app.glitchtip.com/<project>`).
+- **`VITE_ADSENSE_PUBLISHER_ID`** – Optional. Google AdSense publisher ID (e.g. `ca-pub-xxxxxxxxxxxxxxxx`). When unset, ad provider uses backend config only.
 
 ## Structure
 
 Under `src/`:
 
 - **`app/`** – App shell and pages: `App.tsx`, `providers.tsx` (auth + i18n), `routes.tsx`, and all screens under `app/pages/` (Splash, Login, Register, Home, PlaceDetail, Profile, Favorites, Groups, Notifications, Settings, etc.).
-- **`components/`** – Shared UI: Layout, ProtectedRoute, PlaceCard, PlacesMap, EmptyState, ErrorState.
+- **`components/`** – Shared UI: Layout, ProtectedRoute, PlaceCard, PlacesMap, EmptyState, ErrorState, `ads/` (AdProvider, AdBanner, useAdConsent, ad-constants), `consent/` (ConsentBanner).
 - **`lib/`** – API client (`lib/api/client.ts`), shared types (`lib/types/index.ts`), theme, constants, share helpers. The API client calls `/api/v1/*` (relative when `VITE_API_URL` is unset).
 - **`main.tsx`**, **`index.css`** – Entry and global styles.
 
