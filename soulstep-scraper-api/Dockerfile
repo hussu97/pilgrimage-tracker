@@ -11,6 +11,7 @@ COPY . .
 # Set SCRAPER_DB_PATH=/data/scraper.db and mount a volume at /data.
 RUN mkdir -p /data
 
-EXPOSE 8001
+# Cloud Run injects PORT=8080; fall back to 8080 for local docker run too.
+EXPOSE 8080
 
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8001}"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
