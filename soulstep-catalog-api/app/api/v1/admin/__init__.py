@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.admin import (
+    ads,
     app_versions,
     audit_log,
     bulk,
@@ -36,3 +37,4 @@ admin_router.include_router(export.router, tags=["admin-export"])
 admin_router.include_router(audit_log.router, tags=["admin-audit-log"])
 admin_router.include_router(notifications.router, tags=["admin-notifications"])
 admin_router.include_router(seo.router, tags=["admin-seo"])
+admin_router.include_router(ads.router, tags=["admin-ads"])

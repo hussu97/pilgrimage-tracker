@@ -47,6 +47,10 @@ class User(SQLModel, table=True):
         default=True,
         sa_column=Column(Boolean, nullable=False, server_default="1"),
     )
+    is_premium: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="0"),
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
@@ -450,6 +454,55 @@ class PlaceSEO(SQLModel, table=True):
         sa_column=_TSTZ(nullable=False),
     )
     updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+
+
+class AdConfig(SQLModel, table=True):
+    """Server-driven feature flag and ad-unit configuration per platform.
+
+    Rows: one for "web", one for "ios", one for "android".
+    Used by GET /api/v1/ads/config to deliver ad unit IDs and the kill-switch.
+    """
+
+    __tablename__ = "ad_config"
+
+    id: int | None = Field(default=None, primary_key=True)
+    platform: str = Field(index=True, unique=True)  # "web" | "ios" | "android"
+    ads_enabled: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="0"),
+    )
+    adsense_publisher_id: str = Field(default="")
+    ad_slots: dict[str, Any] = Field(
+        default={}, sa_column=Column(JSON)
+    )  # {"place-detail-mid": "ca-pub-.../1234", ...}
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+
+
+class ConsentRecord(SQLModel, table=True):
+    """GDPR/CCPA audit trail for user consent choices.
+
+    Records every consent grant/revoke for ads and analytics.
+    Keyed by user_code (logged-in) or visitor_code (anonymous).
+    """
+
+    __tablename__ = "consent_record"
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_code: str | None = Field(default=None, index=True)
+    visitor_code: str | None = Field(default=None, index=True)
+    consent_type: str  # "ads" | "analytics"
+    granted: bool = Field(
+        sa_column=Column(Boolean, nullable=False),
+    )
+    ip_address: str | None = None
+    user_agent: str | None = None
+    created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
     )

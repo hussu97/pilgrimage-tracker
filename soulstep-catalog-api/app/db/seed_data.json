@@ -380,7 +380,16 @@
       "search.error": "Could not load suggestions",
       "home.listView": "List View",
       "common.linkCopied": "Link copied",
-      "common.shared": "Shared"
+      "common.shared": "Shared",
+      "consent.title": "Privacy & Cookies",
+      "consent.body": "We use cookies and similar technologies to show you relevant ads and improve your experience. You can manage your preferences at any time.",
+      "consent.acceptAll": "Accept All",
+      "consent.managePreferences": "Manage Preferences",
+      "consent.personalizedAds": "Personalized Ads",
+      "consent.analytics": "Analytics",
+      "consent.save": "Save Preferences",
+      "ads.label": "Ad",
+      "ads.premium": "Go Premium to remove ads"
     },
     "ar": {
       "auth.login": "تسجيل الدخول",
@@ -740,7 +749,16 @@
       "search.error": "تعذر تحميل الاقتراحات",
       "home.listView": "عرض القائمة",
       "common.linkCopied": "تم نسخ الرابط",
-      "common.shared": "تمت المشاركة"
+      "common.shared": "تمت المشاركة",
+      "consent.title": "الخصوصية وملفات تعريف الارتباط",
+      "consent.body": "نستخدم ملفات تعريف الارتباط وتقنيات مشابهة لعرض إعلانات ذات صلة وتحسين تجربتك. يمكنك إدارة تفضيلاتك في أي وقت.",
+      "consent.acceptAll": "قبول الكل",
+      "consent.managePreferences": "إدارة التفضيلات",
+      "consent.personalizedAds": "الإعلانات المخصصة",
+      "consent.analytics": "التحليلات",
+      "consent.save": "حفظ التفضيلات",
+      "ads.label": "إعلان",
+      "ads.premium": "اشترك في النسخة المميزة لإزالة الإعلانات"
     },
     "hi": {
       "auth.login": "लॉग इन करें",
@@ -1100,7 +1118,16 @@
       "search.error": "सुझाव लोड नहीं हो सके",
       "home.listView": "सूची दृश्य",
       "common.linkCopied": "लिंक कॉपी हो गया",
-      "common.shared": "शेयर हो गया"
+      "common.shared": "शेयर हो गया",
+      "consent.title": "गोपनीयता और कुकीज़",
+      "consent.body": "हम प्रासंगिक विज्ञापन दिखाने और आपके अनुभव को बेहतर बनाने के लिए कुकीज़ और समान तकनीकों का उपयोग करते हैं। आप किसी भी समय अपनी प्राथमिकताएं प्रबंधित कर सकते हैं।",
+      "consent.acceptAll": "सभी स्वीकार करें",
+      "consent.managePreferences": "प्राथमिकताएं प्रबंधित करें",
+      "consent.personalizedAds": "व्यक्तिगत विज्ञापन",
+      "consent.analytics": "विश्लेषण",
+      "consent.save": "प्राथमिकताएं सहेजें",
+      "ads.label": "विज्ञापन",
+      "ads.premium": "विज्ञापन हटाने के लिए प्रीमियम लें"
     },
     "te": {
       "auth.login": "లాగిన్ చేయండి",

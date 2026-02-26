@@ -56,3 +56,9 @@ GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")
 
 # Data scraper service URL (used by admin scraper proxy)
 DATA_SCRAPER_URL = os.environ.get("DATA_SCRAPER_URL", "http://localhost:8001")
+
+# Ads integration
+ADS_ENABLED = os.environ.get("ADS_ENABLED", "false").lower() == "true"
+ADSENSE_PUBLISHER_ID = os.environ.get("ADSENSE_PUBLISHER_ID", "")
+ADMOB_APP_ID_IOS = os.environ.get("ADMOB_APP_ID_IOS", "")
+ADMOB_APP_ID_ANDROID = os.environ.get("ADMOB_APP_ID_ANDROID", "")
