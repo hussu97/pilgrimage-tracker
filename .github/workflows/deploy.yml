@@ -140,7 +140,7 @@ jobs:
 
   deploy-api:
     name: Deploy API → Cloud Run
-    needs: [test-soulstep-catalog-api, test-soulstep-customer-web, test-soulstep-admin-web]
+    needs: [test-soulstep-catalog-api]
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -190,7 +190,7 @@ jobs:
 
   deploy-web:
     name: Deploy Web → Firebase Hosting
-    needs: [test-soulstep-catalog-api, test-soulstep-customer-web, test-soulstep-admin-web]
+    needs: [test-soulstep-customer-web]
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -235,7 +235,7 @@ jobs:
 
   deploy-admin-web:
     name: Deploy Admin Web → Firebase Hosting
-    needs: [test-soulstep-catalog-api, test-soulstep-admin-web]
+    needs: [test-soulstep-admin-web]
     runs-on: ubuntu-latest
     environment: production
     permissions:
