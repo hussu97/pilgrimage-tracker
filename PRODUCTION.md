@@ -1091,7 +1091,7 @@ echo -n "postgresql://soulstep-scraper:STRONG_SCRAPER_DB_PASSWORD@/soulstep-scra
 Grant the compute service account access:
 
 ```bash
-PROJECT_NUMBER=$(gcloud projects describe PROJECT_ID --format="value(projectNumber)")
+PROJECT_NUMBER=$(gcloud projects describe project-fa2d7f52-2bc4-4a46-8ae --format="value(projectNumber)")
 SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 gcloud secrets add-iam-policy-binding SCRAPER_DATABASE_URL \
