@@ -155,6 +155,43 @@ class TestGetReviewImages:
         result = review_images_db.get_review_images(review_code, session=db_session)
         assert result[0]["url"].startswith("/api/v1/reviews/images/")
 
+    def test_gcs_url_returned_when_set(self, db_session):
+        user_code = _create_user(db_session, "f02")
+        place_code = _create_place(db_session, "f02")
+        review_code = _create_review(db_session, user_code, place_code, "f02")
+
+        gcs_url = "https://storage.googleapis.com/bucket/images/reviews/abc.jpg"
+        img = review_images_db.create_review_image(
+            uploaded_by_user_code=user_code,
+            blob_data=None,
+            mime_type="image/jpeg",
+            file_size=1024,
+            width=800,
+            height=600,
+            gcs_url=gcs_url,
+            session=db_session,
+        )
+        review_images_db.attach_images_to_review(
+            review_code, [img.id], user_code, session=db_session
+        )
+
+        result = review_images_db.get_review_images(review_code, session=db_session)
+        assert result[0]["url"] == gcs_url
+
+    def test_create_with_nullable_blob_data(self, db_session):
+        user_code = _create_user(db_session, "f03")
+        img = review_images_db.create_review_image(
+            uploaded_by_user_code=user_code,
+            blob_data=None,
+            mime_type="image/jpeg",
+            file_size=512,
+            width=400,
+            height=300,
+            session=db_session,
+        )
+        assert img.id is not None
+        assert img.blob_data is None
+
     def test_session_required(self):
         with pytest.raises(ValueError, match="Session is required"):
             review_images_db.get_review_images("rev_x", session=None)

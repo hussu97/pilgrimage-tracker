@@ -4,6 +4,23 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## GCS Image Storage (2026-02-26)
+
+### Backend
+
+- **`app/services/image_storage.py`** — New dual-backend image storage abstraction: `BlobStorageBackend` (default, stores blobs in DB) and `GCSStorageBackend` (uploads to GCS, returns public URL). Controlled by `IMAGE_STORAGE` env var (`blob` | `gcs`).
+- **Model changes** — Added `gcs_url` field (nullable String) to `PlaceImage`, `ReviewImage`, `GroupCoverImage`. Made `blob_data` nullable on `ReviewImage` and `GroupCoverImage`.
+- **Migration `0015_gcs_image_storage.py`** — Adds `gcs_url` column to all three image tables; makes `blob_data` nullable on `reviewimage` and `groupcoverimage` via `batch_alter_table` (SQLite-compatible).
+- **CRUD updates** — `place_images.py`, `review_images.py`, `group_cover_images.py` updated to handle GCS type, accept `gcs_url` param, and clean up GCS objects on orphan cleanup.
+- **API endpoints** — `POST /reviews/upload-photo`, `POST /groups/upload-cover` upload to GCS when enabled. `GET /reviews/images/{id}`, `GET /groups/cover/{code}`, `GET /places/{code}/images/{id}` redirect 301 to GCS URL when set.
+- **Admin** — `DELETE /admin/places/{code}/images/{id}` deletes GCS object before DB row.
+- **Data migration script** — `scripts/migrate_blobs_to_gcs.py` one-time script to migrate existing blob rows to GCS.
+- **Config vars** — `IMAGE_STORAGE`, `GCS_BUCKET_NAME`, `GOOGLE_APPLICATION_CREDENTIALS`.
+- **Dependency** — `google-cloud-storage>=2.14.0` added to `requirements.txt`.
+- **Tests** — 11 new tests in `test_image_storage.py`; GCS tests added to `test_place_images.py`, `test_review_images.py`, `test_group_cover_upload.py`. All 973 tests pass.
+
+---
+
 ## P2 Ad Integration — Monetization (2026-02-26)
 
 ### Backend

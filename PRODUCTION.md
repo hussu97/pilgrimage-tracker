@@ -33,7 +33,9 @@ Current system: **Backend** (Python FastAPI in `soulstep-catalog-api/`), **Web a
 | `ADMOB_APP_ID_IOS` | No | _(empty)_ | Google AdMob App ID for iOS |
 | `ADMOB_APP_ID_ANDROID` | No | _(empty)_ | Google AdMob App ID for Android |
 | `GOOGLE_CLOUD_PROJECT` | No | _(empty)_ | GCP project ID — required for the translation backfill script (`scripts/backfill_translations.py`). When empty, the script skips machine translation and only runs the legacy attribute migration |
-| `GOOGLE_APPLICATION_CREDENTIALS` | No | _(empty)_ | Path to a GCP service account JSON key with the **Cloud Translation API** role. Not needed on GCP Cloud Run (uses built-in ADC). Required for Docker / Render / any non-GCP host |
+| `GOOGLE_APPLICATION_CREDENTIALS` | No | _(empty)_ | Path to a GCP service account JSON key with the **Cloud Translation API** and **Storage Object Admin** roles. Not needed on GCP Cloud Run (uses built-in ADC). Required for Docker / Render / any non-GCP host |
+| `IMAGE_STORAGE` | No | `blob` | `blob` = store images as DB blobs (dev default); `gcs` = upload to Google Cloud Storage |
+| `GCS_BUCKET_NAME` | No | _(empty)_ | GCS bucket name (required when `IMAGE_STORAGE=gcs`). Bucket objects must be publicly readable |
 
 > **Note:** Version enforcement can also be configured per-platform via the `AppVersionConfig` DB table (editable at runtime without redeployment). DB values take priority over env vars.
 
@@ -147,7 +149,14 @@ SCRAPER_TIMEZONE=UTC
 API_PORT=3000
 WEB_PORT=80
 SCRAPER_PORT=8001
+
+# GCS image storage (optional — defaults to blob/DB storage)
+# IMAGE_STORAGE=gcs
+# GCS_BUCKET_NAME=soulstep-images
+# GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcs-sa.json
 ```
+
+> **GCS image storage (Docker):** Mount a GCP service account JSON into the container (`-v /path/to/sa.json:/run/secrets/gcs-sa.json`) and set `GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcs-sa.json`. The service account needs `roles/storage.objectAdmin` on the bucket. Create the bucket with public-read ACLs or an IAM policy binding `allUsers:roles/storage.objectViewer`.
 
 ### Build Web Image Manually
 
@@ -454,12 +463,15 @@ The backfill script requires Google Cloud Translation API credentials. Since Ren
    | Key | Value |
    |---|---|
    | `GOOGLE_CLOUD_PROJECT` | Your GCP project ID |
-   | `GOOGLE_APPLICATION_CREDENTIALS` | `/etc/secrets/translate-key.json` |
+   | `GOOGLE_APPLICATION_CREDENTIALS` | `/etc/secrets/gcp-key.json` |
+   | `IMAGE_STORAGE` | `gcs` (optional — enable GCS image backend) |
+   | `GCS_BUCKET_NAME` | Your GCS bucket name (optional) |
 
 3. **Store the key as a Render secret file:**
    - Go to your API service → **Environment** → **Secret Files**.
-   - Click **Add Secret File** → filename: `translate-key.json`, paste the full JSON contents of the service account key.
+   - Click **Add Secret File** → filename: `gcp-key.json`, paste the full JSON contents of the service account key.
    - Render mounts secret files at `/etc/secrets/<filename>`.
+   - The same key file is used for both Translation API and Cloud Storage — ensure the service account has both `roles/cloudtranslate.user` and `roles/storage.objectAdmin`.
 
 #### Running the backfill
 
@@ -724,7 +736,7 @@ gcloud run deploy soulstep-api \
   --allow-unauthenticated \
   --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
   --set-secrets "JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
-  --set-env-vars "CORS_ORIGINS=https://PROJECT_ID.web.app,JWT_EXPIRE=30m,REFRESH_EXPIRE=30d,RESEND_FROM_EMAIL=noreply@soul-step.org,RESET_URL_BASE=https://PROJECT_ID.web.app" \
+  --set-env-vars "CORS_ORIGINS=https://PROJECT_ID.web.app,JWT_EXPIRE=30m,REFRESH_EXPIRE=30d,RESEND_FROM_EMAIL=noreply@soul-step.org,RESET_URL_BASE=https://PROJECT_ID.web.app,IMAGE_STORAGE=gcs,GCS_BUCKET_NAME=soulstep-images" \
   --min-instances 0 \
   --max-instances 10 \
   --memory 512Mi \
@@ -737,6 +749,8 @@ https://soulstep-api-xxxxxxxxxxxx-uc.a.run.app
 ```
 
 > **Migrations:** Alembic runs `alembic upgrade head` automatically on every cold start. No manual step needed.
+
+> **GCS image storage (GCP):** On Cloud Run, grant the Cloud Run service account `roles/storage.objectAdmin` on the bucket — no `GOOGLE_APPLICATION_CREDENTIALS` file needed (workload identity / ADC is used automatically). Create the bucket: `gcloud storage buckets create gs://soulstep-images --location=REGION`. Grant public read: `gcloud storage buckets add-iam-policy-binding gs://soulstep-images --member=allUsers --role=roles/storage.objectViewer`.
 
 > **Cold starts:** `--min-instances 0` = free (scales to zero when idle). Set `--min-instances 1` to eliminate cold starts (~$10/month for one always-on instance).
 

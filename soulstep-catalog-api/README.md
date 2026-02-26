@@ -186,5 +186,8 @@ Tests use in-memory SQLite (`StaticPool`) with migrations and seed patched out. 
 - `GOOGLE_MAPS_API_KEY` — (optional, for scraper) Google Maps API key for `soulstep-scraper-api/gmaps.py`. Not required for server operation, only for running the scraper to discover new places.
 - `GOOGLE_TRANSLATE_API_KEY` — (optional) Google Cloud Translation API key. Required only for running `scripts/backfill_translations.py`. Enable "Cloud Translation API" at console.cloud.google.com.
 - `GOOGLE_CLOUD_PROJECT` — (optional) GCP project ID. Required alongside `GOOGLE_TRANSLATE_API_KEY` for the v3 translation endpoint.
+- `IMAGE_STORAGE` — (optional) `blob` (default, stores images in DB) or `gcs` (upload to Google Cloud Storage).
+- `GCS_BUCKET_NAME` — (optional) GCS bucket name. Required when `IMAGE_STORAGE=gcs`. Bucket objects must be publicly readable.
+- `GOOGLE_APPLICATION_CREDENTIALS` — (optional) Path to a GCP service account JSON key. Required on non-GCP hosts when using `IMAGE_STORAGE=gcs` or the translation backfill script. Not needed on Cloud Run (uses workload identity).
 
 For production deployment options, see [PRODUCTION.md](../PRODUCTION.md) at repo root.

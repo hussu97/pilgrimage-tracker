@@ -2,7 +2,7 @@ from datetime import date
 from io import BytesIO
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import RedirectResponse, Response
 from PIL import Image
 
 from app.api.deps import UserDep
@@ -20,6 +20,11 @@ from app.models.schemas import (
     GroupPlaceNoteBody,
     GroupUpdateBody,
     UpdateMemberRoleBody,
+)
+from app.services.image_storage import (
+    PREFIX_GROUP_COVERS,
+    get_image_storage,
+    is_gcs_enabled,
 )
 
 router = APIRouter()
@@ -689,21 +694,40 @@ async def upload_group_cover(
         raise HTTPException(status_code=400, detail=f"Failed to process image: {str(e)}")
 
     try:
-        cover_image = cover_images_db.create_image(
-            uploaded_by_user_code=user.user_code,
-            blob_data=compressed_data,
-            mime_type="image/jpeg",
-            file_size=final_size,
-            width=final_width,
-            height=final_height,
-            session=session,
-        )
-        return {
-            "image_code": cover_image.image_code,
-            "url": f"/api/v1/groups/cover/{cover_image.image_code}",
-            "width": final_width,
-            "height": final_height,
-        }
+        if is_gcs_enabled():
+            gcs_url = get_image_storage().upload(compressed_data, "image/jpeg", PREFIX_GROUP_COVERS)
+            cover_image = cover_images_db.create_image(
+                uploaded_by_user_code=user.user_code,
+                blob_data=None,
+                mime_type="image/jpeg",
+                file_size=final_size,
+                width=final_width,
+                height=final_height,
+                session=session,
+                gcs_url=gcs_url,
+            )
+            return {
+                "image_code": cover_image.image_code,
+                "url": gcs_url,
+                "width": final_width,
+                "height": final_height,
+            }
+        else:
+            cover_image = cover_images_db.create_image(
+                uploaded_by_user_code=user.user_code,
+                blob_data=compressed_data,
+                mime_type="image/jpeg",
+                file_size=final_size,
+                width=final_width,
+                height=final_height,
+                session=session,
+            )
+            return {
+                "image_code": cover_image.image_code,
+                "url": f"/api/v1/groups/cover/{cover_image.image_code}",
+                "width": final_width,
+                "height": final_height,
+            }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to store image: {str(e)}")
 
@@ -714,6 +738,8 @@ def get_cover_image(image_code: str, session: SessionDep):
     image = cover_images_db.get_by_code(image_code, session)
     if image is None:
         raise HTTPException(status_code=404, detail="Image not found")
+    if image.gcs_url:
+        return RedirectResponse(url=image.gcs_url, status_code=301)
     return Response(
         content=image.blob_data,
         media_type=image.mime_type,

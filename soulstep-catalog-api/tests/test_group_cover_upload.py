@@ -4,9 +4,11 @@ Tests for group cover image upload and serving endpoints.
 Covers:
 - POST /api/v1/groups/upload-cover  (cover image upload pipeline)
 - GET  /api/v1/groups/cover/{image_code}  (serve cover image blob)
+- GCS upload flow (mocked)
 """
 
 from io import BytesIO
+from unittest.mock import MagicMock, patch
 
 from PIL import Image
 
@@ -165,3 +167,33 @@ class TestGetCoverImage:
         resp = client.get(f"{COVER_URL}/{image_code}")
         assert resp.status_code == 200
         assert "max-age" in resp.headers.get("cache-control", "")
+
+
+# ── TestGCSCoverUpload ────────────────────────────────────────────────────────
+
+
+class TestGCSCoverUpload:
+    def test_upload_uses_gcs_when_enabled(self, auth_client):
+        """When GCS is enabled, upload returns a full GCS URL."""
+        client, token, user_code = auth_client
+        jpeg = _make_jpeg_bytes()
+
+        gcs_public_url = "https://storage.googleapis.com/test-bucket/images/group-covers/abc123.jpg"
+
+        mock_storage = MagicMock()
+        mock_storage.upload.return_value = gcs_public_url
+
+        with (
+            patch("app.api.v1.groups.is_gcs_enabled", return_value=True),
+            patch("app.api.v1.groups.get_image_storage", return_value=mock_storage),
+        ):
+            resp = client.post(
+                UPLOAD_URL,
+                files={"file": ("cover.jpg", jpeg, "image/jpeg")},
+            )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["url"] == gcs_public_url
+        assert "image_code" in data
+        mock_storage.upload.assert_called_once()

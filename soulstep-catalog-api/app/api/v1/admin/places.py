@@ -322,10 +322,18 @@ def list_place_images(place_code: str, admin: AdminDep, session: SessionDep):
 
 @router.delete("/places/{place_code}/images/{image_id}", status_code=204)
 def delete_place_image(place_code: str, image_id: int, admin: AdminDep, session: SessionDep):
+    from app.db.enums import ImageType
+    from app.services.image_storage import get_image_storage, is_gcs_enabled
+
     image = session.exec(
         select(PlaceImage).where(PlaceImage.id == image_id, PlaceImage.place_code == place_code)
     ).first()
     if not image:
         raise HTTPException(status_code=404, detail="Image not found")
+    if image.image_type == ImageType.GCS and image.gcs_url and is_gcs_enabled():
+        try:
+            get_image_storage().delete(image.gcs_url)
+        except Exception:
+            pass
     session.delete(image)
     session.commit()

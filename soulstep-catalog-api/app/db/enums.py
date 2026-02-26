@@ -11,6 +11,7 @@ class ReviewSource(StrEnum):
 class ImageType(StrEnum):
     URL = "url"
     BLOB = "blob"
+    GCS = "gcs"
 
 
 class GroupRole(StrEnum):

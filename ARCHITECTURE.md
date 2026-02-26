@@ -416,7 +416,51 @@ soulstep-catalog-api/app/api/
 
 ---
 
-## 11. Design Alignment
+## 11. Image Storage
+
+Images (place photos, review photos, group cover images) support two storage backends, controlled by the `IMAGE_STORAGE` env var.
+
+### Backends
+
+| `IMAGE_STORAGE` | Behavior |
+|---|---|
+| `blob` (default) | Binary data stored in the database `LargeBinary` column. Served via internal API endpoints. Best for local dev. |
+| `gcs` | Images uploaded to Google Cloud Storage and served via public GCS URLs. `blob_data` is left NULL. Recommended for production. |
+
+### Service abstraction
+
+`app/services/image_storage.py` exposes:
+- `BlobStorageBackend` — `upload()` returns `None` (caller stores blob in DB)
+- `GCSStorageBackend` — `upload()` uploads to GCS bucket, returns public URL; `delete()` removes the GCS object
+- `get_image_storage()` — lazy singleton, picks backend from `IMAGE_STORAGE`
+- `is_gcs_enabled()` — boolean helper for conditional logic
+
+### GCS bucket structure
+
+```
+{GCS_BUCKET_NAME}/
+  images/places/          # Place photos (set_images_from_blobs)
+  images/reviews/         # Review upload photos
+  images/group-covers/    # Group cover image uploads
+```
+
+### Frontend compatibility
+
+The `getFullImageUrl()` utility in both web and mobile already handles both modes:
+- Relative URLs (`/api/v1/...`) → API base prepended
+- Full HTTPS URLs (`https://storage.googleapis.com/...`) → passed through as-is
+
+### Required env vars (GCS mode)
+
+| Var | Description |
+|---|---|
+| `IMAGE_STORAGE=gcs` | Enable GCS backend |
+| `GCS_BUCKET_NAME` | Bucket name (must exist, public-readable objects) |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account JSON (or use workload identity on GCP) |
+
+---
+
+## 12. Design Alignment
 
 - **Screens to implement** (from DESIGN_FILE.html and app-design-prompt): Splash, Create Account, Login, Forgot Password, Preferred religions (multi-select, optional), Home (list + map), Place detail (Islam/Hinduism/Christianity variants), Check-in flow, Profile and stats, Groups list, Group detail and leaderboard, Favorites, Settings, Notifications, Write review. Empty and error states as specified in the design prompt.
 - **Design system:** Lexend, Material Icons/Symbols, Tailwind with tokens from DESIGN_FILE (primary, borders, radii, safe areas). Support light/dark where designs specify (e.g. Place detail Hindu temple).

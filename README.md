@@ -65,6 +65,7 @@ Starts the Expo dev server. Run on iOS simulator, Android emulator, or device vi
 - **Server:** `JWT_SECRET`, `PORT` (default 3000). See `soulstep-catalog-api/README.md`.
 - **Web:** `VITE_API_URL` – API base URL. Leave unset when using Vite proxy to `http://localhost:3000`.
 - **Mobile:** `EXPO_PUBLIC_API_URL` – API base URL for the Expo app (e.g. `http://localhost:3000`).
+- **Image storage (optional):** `IMAGE_STORAGE=gcs` + `GCS_BUCKET_NAME` to use Google Cloud Storage instead of database blobs. `GOOGLE_APPLICATION_CREDENTIALS` needed on non-GCP hosts. See `soulstep-catalog-api/README.md` and [PRODUCTION.md](PRODUCTION.md).
 
 ## Docs
 

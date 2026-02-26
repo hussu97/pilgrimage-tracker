@@ -42,6 +42,14 @@ def get_images(place_code: str, session: Session) -> list[dict]:
                     "display_order": img.display_order,
                 }
             )
+        elif img.image_type == ImageType.GCS:
+            result.append(
+                {
+                    "id": img.id,
+                    "url": img.gcs_url,
+                    "display_order": img.display_order,
+                }
+            )
 
     return result
 
@@ -80,6 +88,14 @@ def get_images_bulk(place_codes: list[str], session: Session) -> dict[str, list[
                 {
                     "id": img.id,
                     "url": f"/api/v1/places/{img.place_code}/images/{img.id}",
+                    "display_order": img.display_order,
+                }
+            )
+        elif img.image_type == ImageType.GCS:
+            result[img.place_code].append(
+                {
+                    "id": img.id,
+                    "url": img.gcs_url,
                     "display_order": img.display_order,
                 }
             )
@@ -127,21 +143,37 @@ def set_images_from_blobs(
     """Delete existing images and bulk insert from blob list (used during sync).
 
     Each blob dict must have 'data' (base64 str) and optionally 'mime_type'.
+    When GCS is enabled, images are uploaded to GCS instead of stored as blobs.
     """
     import base64
 
+    from app.services.image_storage import PREFIX_PLACES, get_image_storage, is_gcs_enabled
+
     _clear_images(place_code, session)
+
+    storage = get_image_storage() if is_gcs_enabled() else None
 
     for i, blob in enumerate(blobs):
         data = base64.b64decode(blob["data"])
         mime_type = blob.get("mime_type", "image/jpeg")
-        image = PlaceImage(
-            place_code=place_code,
-            image_type=ImageType.BLOB,
-            blob_data=data,
-            mime_type=mime_type,
-            display_order=i,
-        )
+
+        if storage is not None:
+            gcs_url = storage.upload(data, mime_type, PREFIX_PLACES)
+            image = PlaceImage(
+                place_code=place_code,
+                image_type=ImageType.GCS,
+                gcs_url=gcs_url,
+                mime_type=mime_type,
+                display_order=i,
+            )
+        else:
+            image = PlaceImage(
+                place_code=place_code,
+                image_type=ImageType.BLOB,
+                blob_data=data,
+                mime_type=mime_type,
+                display_order=i,
+            )
         session.add(image)
 
     session.commit()

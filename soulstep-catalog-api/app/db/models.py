@@ -93,9 +93,10 @@ class Place(SQLModel, table=True):
 class PlaceImage(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     place_code: str = Field(index=True, foreign_key="place.place_code")
-    image_type: str = Field(default=ImageType.URL)  # "url" or "blob"
+    image_type: str = Field(default=ImageType.URL)  # "url", "blob", or "gcs"
     url: str | None = None
     blob_data: bytes | None = Field(default=None, sa_column=Column(LargeBinary))
+    gcs_url: str | None = None
     mime_type: str | None = None  # "image/jpeg", "image/png"
     alt_text: str | None = None
     display_order: int = Field(default=0)
@@ -133,7 +134,8 @@ class ReviewImage(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     review_code: str | None = Field(default=None, index=True, foreign_key="review.review_code")
     uploaded_by_user_code: str = Field(index=True, foreign_key="user.user_code")
-    blob_data: bytes = Field(sa_column=Column(LargeBinary))
+    blob_data: bytes | None = Field(default=None, sa_column=Column(LargeBinary, nullable=True))
+    gcs_url: str | None = None
     mime_type: str  # "image/jpeg", "image/png", "image/webp"
     file_size: int
     width: int
@@ -268,7 +270,8 @@ class GroupCoverImage(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     image_code: str = Field(index=True, unique=True)
     uploaded_by_user_code: str = Field(index=True, foreign_key="user.user_code")
-    blob_data: bytes = Field(sa_column=Column(LargeBinary))
+    blob_data: bytes | None = Field(default=None, sa_column=Column(LargeBinary, nullable=True))
+    gcs_url: str | None = None
     mime_type: str  # "image/jpeg"
     file_size: int
     width: int

@@ -13,17 +13,19 @@ def _generate_code() -> str:
 
 def create_image(
     uploaded_by_user_code: str,
-    blob_data: bytes,
+    blob_data: bytes | None,
     mime_type: str,
     file_size: int,
     width: int,
     height: int,
     session: Session,
+    gcs_url: str | None = None,
 ) -> GroupCoverImage:
     image = GroupCoverImage(
         image_code=_generate_code(),
         uploaded_by_user_code=uploaded_by_user_code,
         blob_data=blob_data,
+        gcs_url=gcs_url,
         mime_type=mime_type,
         file_size=file_size,
         width=width,

@@ -1,7 +1,7 @@
 from io import BytesIO
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import RedirectResponse, Response
 from PIL import Image
 
 from app.api.deps import UserDep
@@ -140,25 +140,46 @@ async def upload_review_photo(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to process image: {str(e)}")
 
-    # Store in database
-    try:
-        review_image = review_images_db.create_review_image(
-            uploaded_by_user_code=user.user_code,
-            blob_data=compressed_data,
-            mime_type="image/jpeg",
-            file_size=final_size,
-            width=final_width,
-            height=final_height,
-            display_order=0,
-            session=session,
-        )
+    # Store image (blob DB or GCS)
+    from app.services.image_storage import PREFIX_REVIEWS, get_image_storage, is_gcs_enabled
 
-        return {
-            "id": review_image.id,
-            "url": f"/api/v1/reviews/images/{review_image.id}",
-            "width": final_width,
-            "height": final_height,
-        }
+    try:
+        if is_gcs_enabled():
+            gcs_url = get_image_storage().upload(compressed_data, "image/jpeg", PREFIX_REVIEWS)
+            review_image = review_images_db.create_review_image(
+                uploaded_by_user_code=user.user_code,
+                blob_data=None,
+                mime_type="image/jpeg",
+                file_size=final_size,
+                width=final_width,
+                height=final_height,
+                display_order=0,
+                gcs_url=gcs_url,
+                session=session,
+            )
+            return {
+                "id": review_image.id,
+                "url": gcs_url,
+                "width": final_width,
+                "height": final_height,
+            }
+        else:
+            review_image = review_images_db.create_review_image(
+                uploaded_by_user_code=user.user_code,
+                blob_data=compressed_data,
+                mime_type="image/jpeg",
+                file_size=final_size,
+                width=final_width,
+                height=final_height,
+                display_order=0,
+                session=session,
+            )
+            return {
+                "id": review_image.id,
+                "url": f"/api/v1/reviews/images/{review_image.id}",
+                "width": final_width,
+                "height": final_height,
+            }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to store image: {str(e)}")
 
@@ -175,6 +196,9 @@ def get_review_image(
     image = review_images_db.get_image_by_id(image_id, session)
     if image is None:
         raise HTTPException(status_code=404, detail="Image not found")
+
+    if image.gcs_url:
+        return RedirectResponse(url=image.gcs_url, status_code=301)
 
     return Response(
         content=image.blob_data,

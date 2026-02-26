@@ -9,12 +9,13 @@ from app.db.models import ReviewImage
 
 def create_review_image(
     uploaded_by_user_code: str,
-    blob_data: bytes,
+    blob_data: bytes | None,
     mime_type: str,
     file_size: int,
     width: int,
     height: int,
     display_order: int = 0,
+    gcs_url: str | None = None,
     session: Session = None,
 ) -> ReviewImage:
     """
@@ -28,6 +29,7 @@ def create_review_image(
         review_code=None,  # Not attached yet
         uploaded_by_user_code=uploaded_by_user_code,
         blob_data=blob_data,
+        gcs_url=gcs_url,
         mime_type=mime_type,
         file_size=file_size,
         width=width,
@@ -93,7 +95,7 @@ def get_review_images(review_code: str, session: Session = None) -> list[dict]:
     return [
         {
             "id": img.id,
-            "url": f"/api/v1/reviews/images/{img.id}",
+            "url": img.gcs_url if img.gcs_url else f"/api/v1/reviews/images/{img.id}",
             "width": img.width,
             "height": img.height,
             "display_order": img.display_order,
@@ -128,7 +130,7 @@ def get_review_images_bulk(
             result[img.review_code].append(
                 {
                     "id": img.id,
-                    "url": f"/api/v1/reviews/images/{img.id}",
+                    "url": img.gcs_url if img.gcs_url else f"/api/v1/reviews/images/{img.id}",
                     "width": img.width,
                     "height": img.height,
                     "display_order": img.display_order,
@@ -163,8 +165,15 @@ def cleanup_orphaned_images(max_age_hours: int = 24, session: Session = None) ->
     )
     orphaned = session.exec(stmt).all()
 
+    from app.services.image_storage import get_image_storage, is_gcs_enabled
+
     count = len(orphaned)
     for img in orphaned:
+        if is_gcs_enabled() and img.gcs_url:
+            try:
+                get_image_storage().delete(img.gcs_url)
+            except Exception:
+                pass
         session.delete(img)
 
     session.commit()

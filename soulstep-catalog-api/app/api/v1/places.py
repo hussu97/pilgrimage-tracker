@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi.responses import RedirectResponse
 from sqlmodel import Session, select
 
 from app.api.deps import OptionalUserDep, UserDep
@@ -645,6 +646,9 @@ def get_place_image(
     image = place_images.get_image_by_id(image_id, session=session)
     if not image or image.place_code != place_code:
         raise HTTPException(status_code=404, detail="Image not found")
+
+    if image.image_type == ImageType.GCS and image.gcs_url:
+        return RedirectResponse(url=image.gcs_url, status_code=301)
 
     if image.image_type != ImageType.BLOB or not image.blob_data:
         raise HTTPException(status_code=404, detail="Image not found")

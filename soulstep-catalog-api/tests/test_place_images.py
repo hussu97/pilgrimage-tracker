@@ -11,6 +11,8 @@ from app.db import place_images as images_db
 from app.db.enums import ImageType
 from app.db.models import Place, PlaceImage
 
+GCS_URL = "https://storage.googleapis.com/soulstep-images/images/places/abc123.jpg"
+
 
 def _create_place(db_session: Session, place_code="plc_img001") -> str:
     place = Place(
@@ -59,6 +61,25 @@ def _add_blob_image(
     return img
 
 
+def _add_gcs_image(
+    db_session: Session,
+    place_code: str,
+    gcs_url: str = GCS_URL,
+    display_order: int = 0,
+) -> PlaceImage:
+    img = PlaceImage(
+        place_code=place_code,
+        image_type=ImageType.GCS,
+        gcs_url=gcs_url,
+        mime_type="image/jpeg",
+        display_order=display_order,
+    )
+    db_session.add(img)
+    db_session.commit()
+    db_session.refresh(img)
+    return img
+
+
 # ── TestGetImages ──────────────────────────────────────────────────────────────
 
 
@@ -83,6 +104,13 @@ class TestGetImages:
         place_code = _create_place(db_session, "plc_img012")
         result = images_db.get_images(place_code, db_session)
         assert result == []
+
+    def test_gcs_image_returns_gcs_url(self, db_session):
+        place_code = _create_place(db_session, "plc_img014")
+        _add_gcs_image(db_session, place_code, GCS_URL)
+        result = images_db.get_images(place_code, db_session)
+        assert len(result) == 1
+        assert result[0]["url"] == GCS_URL
 
     def test_multiple_images_returned(self, db_session):
         place_code = _create_place(db_session, "plc_img013")
@@ -149,6 +177,14 @@ class TestImageOrder:
     def test_get_images_bulk_empty_input(self, db_session):
         result = images_db.get_images_bulk([], db_session)
         assert result == {}
+
+    def test_get_images_bulk_includes_gcs_images(self, db_session):
+        place_code = _create_place(db_session, "plc_img033")
+        _add_gcs_image(db_session, place_code, GCS_URL)
+        result = images_db.get_images_bulk([place_code], db_session)
+        assert place_code in result
+        assert len(result[place_code]) == 1
+        assert result[place_code][0]["url"] == GCS_URL
 
     def test_get_image_by_id(self, db_session):
         place_code = _create_place(db_session, "plc_img032")

@@ -62,3 +62,7 @@ ADS_ENABLED = os.environ.get("ADS_ENABLED", "false").lower() == "true"
 ADSENSE_PUBLISHER_ID = os.environ.get("ADSENSE_PUBLISHER_ID", "")
 ADMOB_APP_ID_IOS = os.environ.get("ADMOB_APP_ID_IOS", "")
 ADMOB_APP_ID_ANDROID = os.environ.get("ADMOB_APP_ID_ANDROID", "")
+
+# Image storage backend
+IMAGE_STORAGE = os.environ.get("IMAGE_STORAGE", "blob")  # "blob" | "gcs"
+GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "")
