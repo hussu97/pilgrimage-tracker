@@ -39,7 +39,7 @@ export async function writeConsent(type: 'ads' | 'analytics', granted: boolean):
 }
 
 /** Sync consent to backend (fire-and-forget). */
-function syncConsentToBackend(
+export function syncConsentToBackend(
   type: 'ads' | 'analytics',
   granted: boolean,
   visitorCode: string | null,

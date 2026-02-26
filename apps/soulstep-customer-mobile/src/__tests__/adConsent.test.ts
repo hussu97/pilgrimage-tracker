@@ -1,6 +1,6 @@
 /**
- * Tests for ad consent utilities (readConsent, writeConsent) and
- * interstitial cooldown logic.
+ * Tests for ad consent utilities (readConsent, writeConsent, syncConsentToBackend)
+ * and interstitial cooldown logic.
  */
 
 // Mock AsyncStorage before any imports
@@ -18,7 +18,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
   }),
 }));
 
-import { readConsent, writeConsent } from '../components/ads/useAdConsent';
+import { readConsent, writeConsent, syncConsentToBackend } from '../components/ads/useAdConsent';
 import {
   AD_CONSENT_KEY,
   ANALYTICS_CONSENT_KEY,
@@ -30,10 +30,15 @@ import {
   resetInterstitialState,
 } from '../components/ads/AdInterstitial';
 
+const mockFetch = jest.fn(() => Promise.resolve({ ok: true }));
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(globalThis as unknown as Record<string, any>).fetch = mockFetch;
+
 beforeEach(() => {
   // Clear mock store
   Object.keys(mockStore).forEach((k) => delete mockStore[k]);
   resetInterstitialState();
+  mockFetch.mockClear();
 });
 
 // ─── readConsent ──────────────────────────────────────────────────────────────
@@ -102,5 +107,34 @@ describe('AdInterstitial', () => {
 
   it('has correct cooldown constant', () => {
     expect(INTERSTITIAL_COOLDOWN_MS).toBe(5 * 60 * 1000);
+  });
+});
+
+// ─── syncConsentToBackend ────────────────────────────────────────────────────
+
+describe('syncConsentToBackend()', () => {
+  it('sends POST to /api/v1/consent with consent data', () => {
+    syncConsentToBackend('ads', true, 'vis_abc', 'tok_123');
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toContain('/api/v1/consent');
+    expect(opts.method).toBe('POST');
+    expect(JSON.parse(opts.body)).toEqual({
+      consent_type: 'ads',
+      granted: true,
+      visitor_code: 'vis_abc',
+    });
+    expect(opts.headers['Authorization']).toBe('Bearer tok_123');
+  });
+
+  it('omits Authorization header when token is null', () => {
+    syncConsentToBackend('analytics', false, 'vis_abc', null);
+    const [, opts] = mockFetch.mock.calls[0];
+    expect(opts.headers['Authorization']).toBeUndefined();
+  });
+
+  it('does not throw when fetch rejects', () => {
+    mockFetch.mockImplementationOnce(() => Promise.reject(new Error('network')));
+    expect(() => syncConsentToBackend('ads', true, null, null)).not.toThrow();
   });
 });
