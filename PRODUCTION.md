@@ -187,7 +187,7 @@ docker exec <api_container> python -m app.jobs.backfill_timezones
 
 Example cron entry (on the host):
 ```
-0 2 * * * docker exec soulstep-api python -m app.jobs.cleanup_orphaned_images
+0 2 * * * docker exec soulstep-catalog-api python -m app.jobs.cleanup_orphaned_images
 ```
 
 ### Translation Backfill (Google Cloud Translation API)
@@ -243,7 +243,7 @@ docker run --rm \
   -e GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/translate-key.json \
   -e GOOGLE_CLOUD_PROJECT=your-gcp-project-id \
   -e DATABASE_URL=postgresql://... \
-  soulstep-api \
+  soulstep-catalog-api \
   python -m scripts.backfill_translations --langs ar hi
 ```
 
@@ -294,7 +294,7 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
 
    | Setting | Value |
    |---|---|
-   | **Name** | `soulstep-api` (or any name) |
+   | **Name** | `soulstep-catalog-api` (or any name) |
    | **Region** | Same region as your database |
    | **Root Directory** | `soulstep-catalog-api` |
    | **Runtime** | `Python 3` |
