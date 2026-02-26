@@ -86,10 +86,23 @@ def _validate_startup_config() -> None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     _validate_startup_config()
-    run_migrations()
-    with Session(engine) as session:
-        seed_geo_boundaries(session)
-        seed_place_type_mappings(session)
+    # Wrap every startup DB operation so a failed migration or seed never
+    # prevents the container from binding to its port.  Cloud Run's startup
+    # probe only needs port 8080 to respond — keeping the app alive lets us
+    # read the real error from Cloud Run logs instead of just seeing
+    # "container failed to start".
+    try:
+        run_migrations()
+    except Exception as exc:
+        logger.error(
+            "run_migrations() failed at startup — proceeding anyway: %s", exc, exc_info=True
+        )
+    try:
+        with Session(engine) as session:
+            seed_geo_boundaries(session)
+            seed_place_type_mappings(session)
+    except Exception as exc:
+        logger.error("Seed functions failed at startup — proceeding anyway: %s", exc, exc_info=True)
     yield
 
 
@@ -223,4 +236,18 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    from sqlalchemy import text as _text
+
+    db_ok = False
+    db_error = None
+    try:
+        with Session(engine) as s:
+            s.exec(_text("SELECT 1"))
+        db_ok = True
+    except Exception as exc:
+        db_error = str(exc)
+
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "db": "ok" if db_ok else f"error: {db_error}",
+    }

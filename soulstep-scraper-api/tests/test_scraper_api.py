@@ -507,7 +507,9 @@ class TestMainEndpoints:
         """Covers the /health endpoint in app/main.py."""
         resp = client.get("/health")
         assert resp.status_code == 200
-        assert resp.json() == {"status": "ok"}
+        data = resp.json()
+        assert data["status"] in ("ok", "degraded")
+        assert "db" in data
 
     def test_http_exception_handler(self, error_client):
         """Trigger a 404 to exercise the HTTP exception handler in main.py."""
