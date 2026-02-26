@@ -78,6 +78,7 @@ jobs:
           npm run build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_ADSENSE_PUBLISHER_ID: ${{ secrets.VITE_ADSENSE_PUBLISHER_ID }}
 
   test-soulstep-admin-web:
     name: soulstep-admin-web typecheck + build
@@ -193,6 +194,7 @@ jobs:
           npm run build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_ADSENSE_PUBLISHER_ID: ${{ secrets.VITE_ADSENSE_PUBLISHER_ID }}
 
       - name: Authenticate with GCP (keyless)
         uses: google-github-actions/auth@v2

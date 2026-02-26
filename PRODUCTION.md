@@ -772,6 +772,82 @@ gcloud run services update soulstep-api \
 
 ---
 
+### Step 5b — Managing Environment Variables (GCP)
+
+There are two categories of env vars in the GCP setup:
+
+| Category | Where they live | How to change them |
+|---|---|---|
+| **Frontend** (`VITE_*`) | Baked into the build at CI time | GitHub repo Secrets |
+| **Backend** (Cloud Run) | Set on the Cloud Run service | `gcloud` CLI or GCP Console — persists across deploys |
+
+---
+
+#### Frontend `VITE_*` variables → GitHub Secrets
+
+These are injected during `npm run build` in the GitHub Actions workflow. To add or update one:
+
+**Via GitHub UI:**
+1. Go to your repo on GitHub → **Settings** → **Secrets and variables** → **Actions**
+2. Click **New repository secret**
+3. Add the name and value → **Add secret**
+
+**Current frontend secrets used by the workflow:**
+
+| Secret name | Value |
+|---|---|
+| `VITE_API_URL` | `https://soulstep-api-834941457147.europe-west1.run.app` |
+| `VITE_ADSENSE_PUBLISHER_ID` | `ca-pub-7902951158656200` |
+
+> After adding a secret, the next `git push` to `main` will pick it up automatically.
+
+---
+
+#### Backend env vars → Cloud Run
+
+These live on the Cloud Run service and **persist across every deploy** — the GitHub Actions `gcloud run deploy` command does not overwrite them.
+
+**Option A — GCP Console (UI):**
+1. Go to [console.cloud.google.com](https://console.cloud.google.com) → **Cloud Run**
+2. Click **soulstep-catalog-api** → **Edit & Deploy New Revision**
+3. Scroll to **Variables & Secrets** tab
+4. Under **Environment variables**, click **+ Add variable** for each one
+5. Click **Deploy** — a new revision is created with the updated vars
+
+**Option B — CLI:**
+
+Add or update specific variables (safe — only touches the vars you name):
+```bash
+gcloud run services update soulstep-catalog-api \
+  --region europe-west1 \
+  --update-env-vars "VAR_NAME=value,ANOTHER_VAR=value"
+```
+
+Replace all env vars at once (overwrites everything not listed — use with care):
+```bash
+gcloud run services update soulstep-catalog-api \
+  --region europe-west1 \
+  --set-env-vars "VAR1=value1,VAR2=value2"
+```
+
+View current env vars on the running service:
+```bash
+gcloud run services describe soulstep-catalog-api \
+  --region europe-west1 \
+  --format="yaml(spec.template.spec.containers[0].env)"
+```
+
+**Full set of backend env vars for production:**
+```bash
+gcloud run services update soulstep-catalog-api \
+  --region europe-west1 \
+  --update-env-vars "CORS_ORIGINS=https://soul-step.org https://project-fa2d7f52-2bc4-4a46-8ae.web.app https://project-fa2d7f52-2bc4-4a46-8ae.firebaseapp.com,FRONTEND_URL=https://soul-step.org,API_BASE_URL=https://soulstep-api-834941457147.europe-west1.run.app,RESET_URL_BASE=https://soul-step.org,RESEND_FROM_EMAIL=noreply@soul-step.org,JWT_EXPIRE=30m,REFRESH_EXPIRE=30d"
+```
+
+> Secrets (`JWT_SECRET`, `DATABASE_URL`, `RESEND_API_KEY`) are managed separately via Secret Manager — see Step 3 above.
+
+---
+
 ### Step 6 — Deploy the Web Frontend (Firebase Hosting)
 
 #### 6a. Install Firebase CLI and initialise the project
