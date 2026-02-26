@@ -17,6 +17,8 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { AuthBottomSheetProvider } from '@/components/auth/AuthBottomSheet';
 import OfflineBanner from '@/components/common/OfflineBanner';
 import ForceUpdateModal from '@/components/common/ForceUpdateModal';
+import { AdProvider } from '@/components/ads/AdProvider';
+import ConsentBanner from '@/components/consent/ConsentBanner';
 import { UpdateProvider, useUpdate } from '@/lib/updateContext';
 import {
   getAppVersion,
@@ -76,9 +78,12 @@ export default function App() {
                 <LocationProvider>
                   <SearchProvider>
                     <AuthBottomSheetProvider>
-                      <FeedbackProvider>
-                        <AuthGate />
-                      </FeedbackProvider>
+                      <AdProvider>
+                        <FeedbackProvider>
+                          <AuthGate />
+                          <ConsentBanner />
+                        </FeedbackProvider>
+                      </AdProvider>
                     </AuthBottomSheetProvider>
                   </SearchProvider>
                 </LocationProvider>
