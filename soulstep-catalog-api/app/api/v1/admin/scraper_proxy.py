@@ -13,13 +13,43 @@ from app.core import config
 
 router = APIRouter()
 
+# GCP metadata server — available on Cloud Run, GCE, etc.
+_METADATA_TOKEN_URL = (
+    "http://metadata.google.internal/computeMetadata/v1/instance"
+    "/service-accounts/default/identity"
+)
+
+
+async def _identity_token(audience: str) -> str | None:
+    """Fetch a GCP OIDC identity token for service-to-service auth.
+
+    The scraper is deployed with --no-allow-unauthenticated, so the catalog
+    API must present a valid identity token signed for the scraper's URL.
+    Returns None when not running on GCP (local dev) so the proxy still
+    works without a token in that environment.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                _METADATA_TOKEN_URL,
+                params={"audience": audience},
+                headers={"Metadata-Flavor": "Google"},
+            )
+            resp.raise_for_status()
+            return resp.text
+    except Exception:
+        return None
+
 
 async def _proxy(method: str, path: str, **kwargs) -> JSONResponse:
     """Forward a request to the scraper service and return its response."""
-    url = config.DATA_SCRAPER_URL.rstrip("/") + "/api/v1/scraper" + path
+    base = config.DATA_SCRAPER_URL.rstrip("/")
+    url = base + "/api/v1/scraper" + path
     try:
+        token = await _identity_token(base)
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.request(method, url, **kwargs)
+            resp = await client.request(method, url, headers=headers, **kwargs)
         try:
             content = resp.json() if resp.content else None
         except Exception:
