@@ -2,13 +2,88 @@
 
 This document outlines how to deploy SoulStep to production. **Update the relevant plan(s) whenever deployment-relevant changes are made** (e.g. new env vars, new services, build steps).
 
-Current system: **Backend** (Python FastAPI in `soulstep-catalog-api/`), **Web app** (Vite + React in `apps/soulstep-customer-web/`), **Mobile app** (Expo / React Native in `apps/soulstep-customer-mobile/`), optional **Data Scraper** (`soulstep-scraper-api/`). API is versioned at `/api/v1`. For production, set `DATABASE_URL` to a PostgreSQL connection string (dev uses SQLite by default).
+---
+
+## Table of Contents
+
+- [1. Overview](#1-overview)
+- [2. Environment Variables](#2-environment-variables)
+  - [2.1 Backend API](#21-backend-api-soulstep-catalog-api)
+  - [2.2 Data Scraper](#22-data-scraper-soulstep-scraper-api)
+  - [2.3 Web Frontend](#23-web-frontend-appssoulstep-customer-web)
+  - [2.4 Mobile](#24-mobile-appssoulstep-customer-mobile)
+- [3. Plan A — Docker Compose](#3-plan-a--docker-compose)
+  - [3.1 Files](#31-files)
+  - [3.2 Quick Start](#32-quick-start)
+  - [3.3 Services](#33-services)
+  - [3.4 Required .env](#34-required-env)
+  - [3.5 Building the Web Image](#35-building-the-web-image)
+  - [3.6 GCS Image Storage (Docker)](#36-gcs-image-storage-docker)
+  - [3.7 Scheduled Jobs (Docker)](#37-scheduled-jobs-docker)
+  - [3.8 Translation Backfill (Docker)](#38-translation-backfill-docker)
+- [4. Plan B — Render + Vercel (Free Tier)](#4-plan-b--render--vercel-free-tier)
+  - [4.1 Create Database (Neon)](#41-create-database-neon)
+  - [4.2 Deploy Backend API (Render)](#42-deploy-backend-api-render)
+  - [4.3 Deploy Web Frontend (Vercel)](#43-deploy-web-frontend-vercel)
+  - [4.4 Data Scraper on Render (optional)](#44-data-scraper-on-render-optional)
+  - [4.5 CI/CD (GitHub Actions)](#45-cicd-github-actions)
+  - [4.6 Translation Backfill on Render](#46-translation-backfill-on-render)
+  - [4.7 Scheduled Jobs on Render](#47-scheduled-jobs-on-render)
+- [5. Plan C — Google Cloud Platform](#5-plan-c--google-cloud-platform)
+  - [5.1 Prerequisites](#51-prerequisites)
+  - [5.2 Artifact Registry](#52-artifact-registry)
+  - [5.3 Database (Cloud SQL)](#53-database-cloud-sql)
+  - [5.4 Secrets (Secret Manager) + IAM Roles](#54-secrets-secret-manager--iam-roles)
+  - [5.5 Build & Push API Image](#55-build--push-api-image)
+  - [5.6 Deploy API (Cloud Run)](#56-deploy-api-cloud-run)
+  - [5.7 Deploy Web Frontend (Firebase Hosting)](#57-deploy-web-frontend-firebase-hosting)
+  - [5.8 Managing Environment Variables](#58-managing-environment-variables)
+  - [5.9 Data Scraper (Cloud Run, optional)](#59-data-scraper-cloud-run-optional)
+  - [5.10 Scheduled Jobs (Cloud Scheduler + Cloud Run Jobs)](#510-scheduled-jobs-cloud-scheduler--cloud-run-jobs)
+  - [5.11 CI/CD (GitHub Actions for GCP)](#511-cicd-github-actions-for-gcp)
+  - [5.12 Estimated Costs](#512-estimated-costs)
+- [6. Operations Guide](#6-operations-guide)
+  - [6.1 Database Migrations](#61-database-migrations)
+  - [6.2 Translation Backfill](#62-translation-backfill)
+  - [6.3 Scheduled Jobs](#63-scheduled-jobs)
+  - [6.4 Scraper Database Options](#64-scraper-database-options)
+- [7. Mobile](#7-mobile)
+  - [7.1 Production Checklist](#71-production-checklist)
+  - [7.2 Building & Submitting](#72-building--submitting)
+  - [7.3 Beta Testing (Firebase App Distribution)](#73-beta-testing-firebase-app-distribution)
+- [8. SEO & Search Engine Submission](#8-seo--search-engine-submission)
+  - [8.1 Endpoints](#81-endpoints)
+  - [8.2 Google Search Console](#82-google-search-console)
+  - [8.3 Bing Webmaster Tools](#83-bing-webmaster-tools)
+  - [8.4 Yandex (optional)](#84-yandex-optional)
+  - [8.5 AI Bot Verification](#85-ai-bot-verification)
+  - [8.6 SEO Generation Script](#86-seo-generation-script)
+  - [8.7 AI Citation Monitoring](#87-ai-citation-monitoring)
+- [9. Observability](#9-observability)
+  - [9.1 Prometheus Metrics](#91-prometheus-metrics)
+  - [9.2 GlitchTip Error Tracking](#92-glitchtip-error-tracking)
 
 ---
 
-## Environment Variables Reference
+## 1. Overview
 
-### Backend (`soulstep-catalog-api/`)
+Current system: **Backend** (Python FastAPI in `soulstep-catalog-api/`), **Web app** (Vite + React in `apps/soulstep-customer-web/`), **Mobile app** (Expo / React Native in `apps/soulstep-customer-mobile/`), optional **Data Scraper** (`soulstep-scraper-api/`). API is versioned at `/api/v1`. For production, set `DATABASE_URL` to a PostgreSQL connection string (dev uses SQLite by default).
+
+| Plan | Backend | DB | Web | Mobile |
+|---|---|---|---|---|
+| **A — Docker** | Docker container (`soulstep-catalog-api/Dockerfile`) | Postgres in Compose or external | nginx Docker image (`apps/soulstep-customer-web/Dockerfile`) | EAS build, submit to stores |
+| **B — Free** | Render Web Service | Render Postgres / Supabase / Neon | Vercel | EAS build |
+| **C — GCP** | Cloud Run | Cloud SQL (PostgreSQL 15) | Firebase Hosting | EAS build |
+
+All plans share the same operations (migrations, backfill scripts, scheduled jobs) documented in [§6 Operations Guide](#6-operations-guide), the same mobile build process in [§7 Mobile](#7-mobile), and the same SEO setup in [§8 SEO](#8-seo--search-engine-submission).
+
+---
+
+## 2. Environment Variables
+
+All environment variables documented here. Plan-specific sections reference this table — they do not redefine variables.
+
+### 2.1 Backend API (`soulstep-catalog-api/`)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -36,10 +111,12 @@ Current system: **Backend** (Python FastAPI in `soulstep-catalog-api/`), **Web a
 | `GOOGLE_APPLICATION_CREDENTIALS` | No | _(empty)_ | Path to a GCP service account JSON key with the **Cloud Translation API** and **Storage Object Admin** roles. Not needed on GCP Cloud Run (uses built-in ADC). Required for Docker / Render / any non-GCP host |
 | `IMAGE_STORAGE` | No | `blob` | `blob` = store images as DB blobs (dev default); `gcs` = upload to Google Cloud Storage |
 | `GCS_BUCKET_NAME` | No | _(empty)_ | GCS bucket name (required when `IMAGE_STORAGE=gcs`). Bucket objects must be publicly readable |
+| `FRONTEND_URL` | **Yes (prod)** | `http://localhost:5173` | Public URL of the web frontend — used in sitemap, share pages, JSON-LD |
+| `API_BASE_URL` | No | `http://localhost:3000` | Public URL of the API — used in RSS/Atom feed self links |
 
 > **Note:** Version enforcement can also be configured per-platform via the `AppVersionConfig` DB table (editable at runtime without redeployment). DB values take priority over env vars.
 
-### Data Scraper (`soulstep-scraper-api/`)
+### 2.2 Data Scraper (`soulstep-scraper-api/`)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -47,15 +124,16 @@ Current system: **Backend** (Python FastAPI in `soulstep-catalog-api/`), **Web a
 | `GOOGLE_MAPS_API_KEY` | Yes (gmaps scraper) | _(empty)_ | Google Maps API key |
 | `SCRAPER_TIMEZONE` | No | UTC fallback | IANA timezone for places without Google UTC offset (e.g. `Asia/Dubai`) |
 | `SCRAPER_DB_PATH` | No | `scraper.db` (cwd) | Path to the SQLite database file — **set to `/data/scraper.db` in production** and mount a persistent volume at `/data` |
+| `DATABASE_URL` | No | _(empty)_ | PostgreSQL connection string — when set, the scraper uses PostgreSQL instead of SQLite. Takes priority over `SCRAPER_DB_PATH`. See [§6.4](#64-scraper-database-options) |
 
-### Web frontend (`apps/soulstep-customer-web/`)
+### 2.3 Web Frontend (`apps/soulstep-customer-web/`)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `VITE_API_URL` | **Yes (prod)** | _(relative `/api` in dev)_ | Production API base URL — **baked in at build time** |
 | `VITE_ADSENSE_PUBLISHER_ID` | No | _(empty)_ | Google AdSense publisher ID for web ads |
 
-### Mobile (`apps/soulstep-customer-mobile/`)
+### 2.4 Mobile (`apps/soulstep-customer-mobile/`)
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
@@ -65,37 +143,13 @@ Current system: **Backend** (Python FastAPI in `soulstep-catalog-api/`), **Web a
 
 ---
 
-## Observability
-
-### Prometheus Metrics
-
-The backend exposes a `GET /metrics` endpoint (added automatically by `prometheus-fastapi-instrumentator`).
-
-- In production, **restrict access** to `/metrics` via nginx or a firewall rule — allow only from your internal monitoring network.
-- Scrape with Prometheus; visualise with Grafana.
-- No additional env var is needed; the endpoint is enabled at startup.
-
-### GlitchTip Error Tracking
-
-[GlitchTip](https://glitchtip.com) is an open-source, self-hostable Sentry-compatible error tracker.
-
-1. Deploy a GlitchTip instance (Docker image: `glitchtip/glitchtip`).
-2. Create a project and obtain a DSN (e.g. `https://abc@glitchtip.example.com/1`).
-3. Set the DSN as `GLITCHTIP_DSN` in your backend env vars.
-4. When ready, install `sentry-sdk` and add the integration:
-   ```python
-   import sentry_sdk
-   from sentry_sdk.integrations.starlette import StarletteIntegration
-   sentry_sdk.init(dsn=os.environ["GLITCHTIP_DSN"], integrations=[StarletteIntegration()])
-   ```
-
----
-
-## Plan 1: Docker
+## 3. Plan A — Docker Compose
 
 Deploy the full stack with Docker Compose. Dockerfiles for all services are checked into the repo.
 
-### Files
+Migrations run automatically on API startup (see [§6.1](#61-database-migrations)). For scheduled jobs, see [§3.7](#37-scheduled-jobs-docker). For mobile builds, see [§7](#7-mobile).
+
+### 3.1 Files
 
 | File | Description |
 |---|---|
@@ -105,7 +159,7 @@ Deploy the full stack with Docker Compose. Dockerfiles for all services are chec
 | `apps/soulstep-customer-web/nginx.conf` | nginx SPA config (copied into web image) |
 | `docker-compose.yml` | Wires all services + PostgreSQL |
 
-### Quick Start
+### 3.2 Quick Start
 
 ```bash
 # 1. Copy and fill out env vars
@@ -118,7 +172,7 @@ docker compose up -d --build
 docker compose --profile scraper up -d scraper
 ```
 
-### docker-compose.yml Services
+### 3.3 Services
 
 | Service | Image/Build | Port | Notes |
 |---|---|---|---|
@@ -127,9 +181,9 @@ docker compose --profile scraper up -d scraper
 | `web` | `./apps/soulstep-customer-web` | `80` | nginx serving the compiled React SPA |
 | `scraper` | `./soulstep-scraper-api` | `8001` | Optional; activate with `--profile scraper`; SQLite DB persisted in `scraper_data` volume at `/data/scraper.db` |
 
-> **Scraper database:** The scraper uses its own SQLite database (separate from the main API's PostgreSQL). In `docker-compose.yml`, a named volume `scraper_data` is mounted at `/data` inside the container, and `SCRAPER_DB_PATH=/data/scraper.db` tells the app to write there. Without this, `scraper.db` would be lost on every container restart.
+> **Scraper database:** The scraper uses its own SQLite database (separate from the main API's PostgreSQL). In `docker-compose.yml`, a named volume `scraper_data` is mounted at `/data` inside the container, and `SCRAPER_DB_PATH=/data/scraper.db` tells the app to write there. Without this, `scraper.db` would be lost on every container restart. For persistent PostgreSQL instead, see [§6.4](#64-scraper-database-options).
 
-### Required `.env` for Docker
+### 3.4 Required `.env`
 
 ```dotenv
 POSTGRES_PASSWORD=changeme_strong_password
@@ -156,9 +210,7 @@ SCRAPER_PORT=8001
 # GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcs-sa.json
 ```
 
-> **GCS image storage (Docker):** Mount a GCP service account JSON into the container (`-v /path/to/sa.json:/run/secrets/gcs-sa.json`) and set `GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcs-sa.json`. The service account needs `roles/storage.objectAdmin` on the bucket. Create the bucket with public-read ACLs or an IAM policy binding `allUsers:roles/storage.objectViewer`.
-
-### Build Web Image Manually
+### 3.5 Building the Web Image
 
 `VITE_API_URL` is baked in at build time — the variable must be set before building:
 
@@ -169,13 +221,11 @@ docker build \
   apps/soulstep-customer-web/
 ```
 
-### Migrations
+### 3.6 GCS Image Storage (Docker)
 
-Alembic migrations run **automatically on API startup** via `alembic upgrade head`. No manual migration step needed.
+Mount a GCP service account JSON into the container (`-v /path/to/sa.json:/run/secrets/gcs-sa.json`) and set `GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/gcs-sa.json`. The service account needs `roles/storage.objectAdmin` on the bucket. Create the bucket with public-read ACLs or an IAM policy binding `allUsers:roles/storage.objectViewer`.
 
-Migration `0004_groups_revamp` adds: `checkin.group_code` (nullable FK, indexed), `group.cover_image_url / start_date / end_date / updated_at`, and the new `groupplacenote` table. No new environment variables or external services are required.
-
-### Scheduled Jobs
+### 3.7 Scheduled Jobs (Docker)
 
 ```bash
 # Cleanup orphaned review images (run daily, e.g. 2 AM)
@@ -190,33 +240,11 @@ Example cron entry (on the host):
 0 2 * * * docker exec soulstep-catalog-api python -m app.jobs.cleanup_orphaned_images
 ```
 
-### Translation Backfill (Google Cloud Translation API)
+For the full list of available jobs, see [§6.3](#63-scheduled-jobs).
 
-The `scripts/backfill_translations.py` script machine-translates Place and Review content into Arabic and Hindi using the **Google Cloud Translation API v3**. It authenticates via **Application Default Credentials (ADC)** — a GCP service account key JSON file, not interactive OAuth.
+### 3.8 Translation Backfill (Docker)
 
-#### One-time GCP setup
-
-1. **Create a GCP project** (or reuse an existing one) and note the project ID.
-2. **Enable the Cloud Translation API:**
-   ```bash
-   gcloud services enable translate.googleapis.com --project YOUR_PROJECT_ID
-   ```
-3. **Create a service account and download a key:**
-   ```bash
-   gcloud iam service-accounts create soulstep-translate \
-     --display-name "SoulStep Translation" \
-     --project YOUR_PROJECT_ID
-
-   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-     --member="serviceAccount:soulstep-translate@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
-     --role="roles/cloudtranslate.user"
-
-   gcloud iam service-accounts keys create translate-key.json \
-     --iam-account="soulstep-translate@YOUR_PROJECT_ID.iam.gserviceaccount.com"
-   ```
-4. **Keep `translate-key.json` safe** — you'll mount it into the container.
-
-#### Running in Docker
+Requires the one-time GCP setup described in [§6.2a](#a-one-time-gcp-setup). Then:
 
 Add the service account key and env vars to your `.env`:
 
@@ -247,27 +275,17 @@ docker run --rm \
   python -m scripts.backfill_translations --langs ar hi
 ```
 
-> **Cost:** Google Cloud Translation API v3 charges ~$20 per million characters. A typical backfill of a few hundred places costs well under $1.
-
-### Mobile
-
-Not containerised. Build locally or via CI:
-```bash
-cd apps/soulstep-customer-mobile
-eas build --platform ios
-eas build --platform android
-```
-Set `EXPO_PUBLIC_API_URL` to the production API URL in your EAS build config or `.env`.
-
 ---
 
-## Plan 2: Free Online Services (Render + Vercel)
+## 4. Plan B — Render + Vercel (Free Tier)
 
 Recommended free-tier setup: **Render** for the backend API (and optionally the scraper), **Neon** for the database (generous free tier, no expiry), **Vercel** for the web frontend.
 
+Migrations run automatically on API startup (see [§6.1](#61-database-migrations)). For mobile builds, see [§7](#7-mobile).
+
 ---
 
-### Step 1 — Create the Database (Neon — recommended free tier)
+### 4.1 Create Database (Neon)
 
 > **Why Neon over Render Postgres?** Render's free Postgres expires after 90 days. Neon's free tier doesn't expire and gives you 0.5 GB storage.
 
@@ -286,7 +304,7 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
 
 ---
 
-### Step 2 — Deploy the Backend API on Render
+### 4.2 Deploy Backend API (Render)
 
 1. Go to [render.com](https://render.com) → **New** → **Web Service**.
 2. Connect your GitHub account and select the `soulstep` repo.
@@ -306,9 +324,9 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
 
    | Key | Value |
    |---|---|
-   | `DATABASE_URL` | The Neon (or Render Postgres) connection string from Step 1 |
+   | `DATABASE_URL` | The Neon (or Render Postgres) connection string from §4.1 |
    | `JWT_SECRET` | A long random string — generate with `openssl rand -hex 32` |
-   | `CORS_ORIGINS` | `https://your-app.vercel.app` (you'll get this URL in Step 4; update it then) |
+   | `CORS_ORIGINS` | `https://your-app.vercel.app` (you'll get this URL in §4.3; update it then) |
    | `JWT_EXPIRE` | `30m` |
    | `REFRESH_EXPIRE` | `30d` |
    | `RESET_URL_BASE` | `https://your-app.vercel.app` (same as CORS_ORIGINS) |
@@ -318,21 +336,11 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
 5. Click **Create Web Service**. Render will build and deploy; first deploy takes ~2 min.
 6. Once live, your API URL is `https://soulstep-catalog-api.onrender.com` (shown at the top of the service page). Copy it.
 
-> **Migrations:** Alembic runs `alembic upgrade head` automatically every time the app starts — no manual migration step required.
-
-> **Auto-deploy:** By default Render deploys on every push to `main`. If you're using the GitHub Actions deploy workflow (see below), **disable auto-deploy**: Service → Settings → **Auto-Deploy → Off**. The workflow will trigger deploys via a deploy hook after tests pass.
+> **Auto-deploy:** By default Render deploys on every push to `main`. If you're using the GitHub Actions deploy workflow (see [§4.5](#45-cicd-github-actions)), **disable auto-deploy**: Service → Settings → **Auto-Deploy → Off**. The workflow will trigger deploys via a deploy hook after tests pass.
 
 ---
 
-### Step 3 — Get the Render Deploy Hook (for GitHub Actions)
-
-1. In your Render API service → **Settings** tab → scroll to **Deploy Hook**.
-2. Click **Generate Deploy Hook** → copy the URL (looks like `https://api.render.com/deploy/srv-xxx?key=yyy`).
-3. Save it — you'll add it as a GitHub secret in Step 6.
-
----
-
-### Step 4 — Deploy the Web Frontend on Vercel
+### 4.3 Deploy Web Frontend (Vercel)
 
 1. Go to [vercel.com](https://vercel.com) → **Add New Project** → import the `soulstep` repo.
 2. On the **Configure Project** screen:
@@ -348,18 +356,18 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
 
    | Key | Value |
    |---|---|
-   | `VITE_API_URL` | `https://soulstep-catalog-api.onrender.com` (your Render API URL from Step 2) |
+   | `VITE_API_URL` | `https://soulstep-catalog-api.onrender.com` (your Render API URL from §4.2) |
 
 4. Click **Deploy**. Once deployed, copy your Vercel URL (e.g. `https://soulstep.vercel.app`).
 5. **Go back to Render** → your API service → **Environment** tab → update `CORS_ORIGINS` and `RESET_URL_BASE` to your Vercel URL, then **Save** (Render will redeploy automatically).
 
 > **VITE_API_URL is baked in at build time.** If you ever change the API URL, update this env var in Vercel and redeploy.
 
-> **Get Vercel IDs for GitHub Actions:** In your Vercel project → **Settings → General** → note the **Project ID**. Your **Org/Team ID** is at [vercel.com/account](https://vercel.com/account) → Settings → copy the **ID** under your username/team. You'll need both in Step 6.
+> **Get Vercel IDs for GitHub Actions:** In your Vercel project → **Settings → General** → note the **Project ID**. Your **Org/Team ID** is at [vercel.com/account](https://vercel.com/account) → Settings → copy the **ID** under your username/team. You'll need both in [§4.5](#45-cicd-github-actions).
 
 ---
 
-### Step 5 — Data Scraper on Render (Optional)
+### 4.4 Data Scraper on Render (optional)
 
 Only needed if you want the scraper service running in production:
 
@@ -379,7 +387,7 @@ Only needed if you want the scraper service running in production:
    | `GOOGLE_MAPS_API_KEY` | Your Google Maps API key |
    | `SCRAPER_TIMEZONE` | e.g. `Asia/Dubai` or `UTC` |
 
-3. Get the scraper's deploy hook (same as Step 3) and save it as `RENDER_SCRAPER_DEPLOY_HOOK_URL` in Step 6.
+3. Get the scraper's deploy hook (same process as the API deploy hook) and save it as `RENDER_SCRAPER_DEPLOY_HOOK_URL` in [§4.5](#45-cicd-github-actions).
 
 #### Scraper database persistence on Render
 
@@ -401,9 +409,11 @@ Render will mount the disk at `/data` and the scraper will write its SQLite file
 
 If you're running the scraper on-demand (trigger a scrape, sync data to the main API, then stop), you don't need persistence. The seeded geo/timezone data re-seeds automatically on every startup (idempotent). Only scraping run history is lost on restart. Set no `SCRAPER_DB_PATH` — it defaults to `scraper.db` in the working directory.
 
+For more on SQLite vs PostgreSQL for the scraper, see [§6.4](#64-scraper-database-options).
+
 ---
 
-### Step 6 — GitHub Actions: CI/CD Pipeline
+### 4.5 CI/CD (GitHub Actions)
 
 The workflow at `.github/workflows/deploy.yml` runs on every push to `main`:
 
@@ -411,7 +421,12 @@ The workflow at `.github/workflows/deploy.yml` runs on every push to `main`:
 2. On success, triggers the Render deploy hook (redeploys the API)
 3. On success, runs `vercel build --prod` + `vercel deploy --prebuilt --prod`
 
-**Required GitHub Secrets and Variables**
+#### Get the Render Deploy Hook
+
+1. In your Render API service → **Settings** tab → scroll to **Deploy Hook**.
+2. Click **Generate Deploy Hook** → copy the URL (looks like `https://api.render.com/deploy/srv-xxx?key=yyy`).
+
+#### Required GitHub Secrets and Variables
 
 Go to your GitHub repo → **Settings → Secrets and Variables → Actions**.
 
@@ -431,7 +446,7 @@ Under **Variables** (non-secret):
 |---|---|
 | `DEPLOY_SCRAPER` | `true` to also deploy the scraper; omit or set to anything else to skip |
 
-**GitHub Environment (optional but recommended)**
+#### GitHub Environment (optional but recommended)
 
 The deploy jobs reference the `production` environment. To create it:
 
@@ -439,7 +454,7 @@ The deploy jobs reference the `production` environment. To create it:
 2. Add **Required reviewers** if you want a manual approval gate before deploys go out.
 3. Move the secrets above into the environment instead of the repo level for tighter scoping.
 
-**What the pipeline does on a push to `main`:**
+#### What the pipeline does on a push to `main`
 
 ```
 push to main
@@ -451,14 +466,13 @@ push to main
 
 ---
 
-### Translation Backfill on Render
+### 4.6 Translation Backfill on Render
 
 The backfill script requires Google Cloud Translation API credentials. Since Render is not GCP, you must provide a service account key.
 
-#### Setup
+Complete the one-time GCP setup described in [§6.2a](#a-one-time-gcp-setup), then:
 
-1. Complete the **one-time GCP setup** described in Plan 1 (create a service account with `roles/cloudtranslate.user` and download the key JSON).
-2. Add environment variables to the **Render API service**:
+1. Add environment variables to the **Render API service**:
 
    | Key | Value |
    |---|---|
@@ -467,7 +481,7 @@ The backfill script requires Google Cloud Translation API credentials. Since Ren
    | `IMAGE_STORAGE` | `gcs` (optional — enable GCS image backend) |
    | `GCS_BUCKET_NAME` | Your GCS bucket name (optional) |
 
-3. **Store the key as a Render secret file:**
+2. **Store the key as a Render secret file:**
    - Go to your API service → **Environment** → **Secret Files**.
    - Click **Add Secret File** → filename: `gcp-key.json`, paste the full JSON contents of the service account key.
    - Render mounts secret files at `/etc/secrets/<filename>`.
@@ -496,7 +510,7 @@ curl -X POST https://api.render.com/deploy/srv-xxx?key=yyy  # redeploy after add
 
 ---
 
-### Scheduled Jobs (Render or GitHub Actions)
+### 4.7 Scheduled Jobs on Render
 
 **Option A — Render Cron Job (paid plans only):**
 
@@ -525,24 +539,11 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.ADMIN_API_KEY }}"
 ```
 
----
-
-### Mobile
-
-Build and submit from your local machine or CI:
-
-```bash
-cd apps/soulstep-customer-mobile
-# Set the API URL in app.json or pass via eas.json env
-eas build --platform ios --profile production
-eas build --platform android --profile production
-eas submit --platform ios
-eas submit --platform android
-```
+For the full list of available jobs, see [§6.3](#63-scheduled-jobs).
 
 ---
 
-## Plan 3: Google Cloud Platform (GCP)
+## 5. Plan C — Google Cloud Platform
 
 Services used: **Cloud Run** (API + optional scraper), **Cloud SQL** (PostgreSQL 15), **Firebase Hosting** (web), **Artifact Registry** (Docker images), **Secret Manager** (credentials), **Cloud Scheduler** (cron jobs).
 
@@ -550,9 +551,11 @@ Throughout this section, replace:
 - `PROJECT_ID` → your GCP project ID (e.g. `project-fa2d7f52-2bc4-4a46-8ae`)
 - `REGION` → your chosen region (e.g. `europe-west1`)
 
+Migrations run automatically on API startup (see [§6.1](#61-database-migrations)). For mobile builds, see [§7](#7-mobile).
+
 ---
 
-### Prerequisites
+### 5.1 Prerequisites
 
 1. **Install the gcloud CLI:**
    ```bash
@@ -593,7 +596,7 @@ Throughout this section, replace:
 
 ---
 
-### Step 1 — Create the Artifact Registry repository
+### 5.2 Artifact Registry
 
 Docker images need a registry before Cloud Run can pull them.
 
@@ -608,9 +611,9 @@ Your image prefix will be: `REGION-docker.pkg.dev/PROJECT_ID/soulstep/`
 
 ---
 
-### Step 2 — Create the Database (Cloud SQL)
+### 5.3 Database (Cloud SQL)
 
-#### 2a. Create the Cloud SQL instance
+#### a. Create the Cloud SQL instance
 
 ```bash
 gcloud sql instances create soulstep-db \
@@ -624,7 +627,7 @@ gcloud sql instances create soulstep-db \
 
 > `db-f1-micro` is the cheapest tier (~$7/month). Use `db-g1-small` or higher for meaningful production traffic.
 
-#### 2b. Create the database and app user
+#### b. Create the database and app user
 
 ```bash
 # Create the database
@@ -636,7 +639,7 @@ gcloud sql users create soulstep \
   --password=STRONG_DB_PASSWORD
 ```
 
-#### 2c. Get the connection name
+#### c. Get the connection name
 
 ```bash
 gcloud sql instances describe soulstep-db \
@@ -653,7 +656,7 @@ postgresql://soulstep:STRONG_DB_PASSWORD@/soulstep?host=/cloudsql/PROJECT_ID:REG
 
 ---
 
-### Step 3 — Store Secrets in Secret Manager
+### 5.4 Secrets (Secret Manager) + IAM Roles
 
 Never pass sensitive values as plain `--set-env-vars`. Use Secret Manager and mount them as secrets.
 
@@ -664,7 +667,7 @@ echo -n "your-long-random-jwt-secret" | \
     --data-file=- \
     --replication-policy=automatic
 
-# Database URL (the full connection string from Step 2c)
+# Database URL (the full connection string from §5.3c)
 echo -n "postgresql://soulstep:STRONG_DB_PASSWORD@/soulstep?host=/cloudsql/PROJECT_ID:REGION:soulstep-db" | \
   gcloud secrets create DATABASE_URL \
     --data-file=- \
@@ -710,7 +713,7 @@ gcloud projects add-iam-policy-binding PROJECT_ID \
 
 ---
 
-### Step 4 — Build and Push the API Image
+### 5.5 Build & Push API Image
 
 **Option A — build locally (requires Docker):**
 ```bash
@@ -726,7 +729,7 @@ gcloud builds submit ./soulstep-catalog-api \
 
 ---
 
-### Step 5 — Deploy the API to Cloud Run
+### 5.6 Deploy API (Cloud Run)
 
 ```bash
 gcloud run deploy soulstep-catalog-api \
@@ -748,13 +751,11 @@ Once deployed, copy the **Service URL** shown at the end of the output — it lo
 https://soulstep-catalog-api-xxxxxxxxxxxx-uc.a.run.app
 ```
 
-> **Migrations:** Alembic runs `alembic upgrade head` automatically on every cold start. No manual step needed.
-
 > **GCS image storage (GCP):** On Cloud Run, grant the Cloud Run service account `roles/storage.objectAdmin` on the bucket — no `GOOGLE_APPLICATION_CREDENTIALS` file needed (workload identity / ADC is used automatically). Create the bucket: `gcloud storage buckets create gs://soulstep-images --location=REGION`. Grant public read: `gcloud storage buckets add-iam-policy-binding gs://soulstep-images --member=allUsers --role=roles/storage.objectViewer`.
 
 > **Cold starts:** `--min-instances 0` = free (scales to zero when idle). Set `--min-instances 1` to eliminate cold starts (~$10/month for one always-on instance).
 
-#### Update CORS after deploying the web frontend (Step 6)
+#### Update CORS after deploying the web frontend (§5.7)
 
 After you have the Firebase URL, come back and patch the env vars.
 
@@ -772,7 +773,62 @@ gcloud run services update soulstep-catalog-api \
 
 ---
 
-### Step 5b — Managing Environment Variables (GCP)
+### 5.7 Deploy Web Frontend (Firebase Hosting)
+
+#### a. Install Firebase CLI and initialise the project
+
+**Prerequisite — add Firebase to your GCP project (one-time, required)**
+
+A GCP project and a Firebase project are separate things. Firebase Hosting returns a 404 until Firebase is explicitly enabled on the project.
+
+**Option A — web console (recommended, always works):**
+1. Go to [console.firebase.google.com](https://console.firebase.google.com)
+2. Click **Add project** → select **"Add Firebase to a Google Cloud Platform project"**
+3. Choose `PROJECT_ID` from the dropdown
+4. Skip Google Analytics when prompted
+5. Click **Add Firebase** and wait for it to finish
+
+**Option B — CLI (may return 403 on projects not originally created via Firebase console):**
+```bash
+npm install -g firebase-tools
+firebase login
+firebase projects:addfirebase PROJECT_ID
+```
+If this returns a 403, use the web console instead (Option A).
+
+Once Firebase is enabled on the project:
+
+```bash
+firebase init hosting
+```
+
+When prompted:
+- **Use an existing project** → select your GCP project ID
+- **Public directory:** `apps/soulstep-customer-web/dist`
+- **Single-page app (rewrite all URLs to /index.html):** `Yes`
+- **Set up automatic builds with GitHub:** `No` (`.github/workflows/deploy.yml` handles this via Firebase token)
+- **Overwrite `dist/index.html`:** `No`
+
+This creates `firebase.json` and `.firebaserc` at the repo root (both are already checked in — skip this step if they exist).
+
+#### b. Build and deploy
+
+```bash
+cd apps/soulstep-customer-web
+VITE_API_URL=https://soulstep-catalog-api-xxxxxxxxxxxx-uc.a.run.app npm run build
+cd ../..
+firebase deploy --only hosting
+```
+
+Your app is live at `https://PROJECT_ID.web.app`. Copy this URL and go back to [§5.6](#56-deploy-api-cloud-run) to update `CORS_ORIGINS`.
+
+#### c. Custom domain (optional)
+
+Firebase console → **Hosting** → **Add custom domain** → follow the DNS verification steps. Firebase provisions a TLS cert automatically within minutes.
+
+---
+
+### 5.8 Managing Environment Variables
 
 There are two categories of env vars in the GCP setup:
 
@@ -844,76 +900,21 @@ gcloud run services update soulstep-catalog-api \
   --update-env-vars "CORS_ORIGINS=https://soul-step.org https://project-fa2d7f52-2bc4-4a46-8ae.web.app https://project-fa2d7f52-2bc4-4a46-8ae.firebaseapp.com,FRONTEND_URL=https://soul-step.org,API_BASE_URL=https://soulstep-catalog-api-834941457147.europe-west1.run.app,RESET_URL_BASE=https://soul-step.org,RESEND_FROM_EMAIL=noreply@soul-step.org,JWT_EXPIRE=30m,REFRESH_EXPIRE=30d"
 ```
 
-> Secrets (`JWT_SECRET`, `DATABASE_URL`, `RESEND_API_KEY`) are managed separately via Secret Manager — see Step 3 above.
+> Secrets (`JWT_SECRET`, `DATABASE_URL`, `RESEND_API_KEY`) are managed separately via Secret Manager — see [§5.4](#54-secrets-secret-manager--iam-roles).
 
 ---
 
-### Step 6 — Deploy the Web Frontend (Firebase Hosting)
-
-#### 6a. Install Firebase CLI and initialise the project
-
-**Prerequisite — add Firebase to your GCP project (one-time, required)**
-
-A GCP project and a Firebase project are separate things. Firebase Hosting returns a 404 until Firebase is explicitly enabled on the project.
-
-**Option A — web console (recommended, always works):**
-1. Go to [console.firebase.google.com](https://console.firebase.google.com)
-2. Click **Add project** → select **"Add Firebase to a Google Cloud Platform project"**
-3. Choose `PROJECT_ID` from the dropdown
-4. Skip Google Analytics when prompted
-5. Click **Add Firebase** and wait for it to finish
-
-**Option B — CLI (may return 403 on projects not originally created via Firebase console):**
-```bash
-npm install -g firebase-tools
-firebase login
-firebase projects:addfirebase PROJECT_ID
-```
-If this returns a 403, use the web console instead (Option A).
-
-Once Firebase is enabled on the project:
-
-```bash
-firebase init hosting
-```
-
-When prompted:
-- **Use an existing project** → select your GCP project ID
-- **Public directory:** `apps/soulstep-customer-web/dist`
-- **Single-page app (rewrite all URLs to /index.html):** `Yes`
-- **Set up automatic builds with GitHub:** `No` (`.github/workflows/deploy.yml` handles this via Firebase token)
-- **Overwrite `dist/index.html`:** `No`
-
-This creates `firebase.json` and `.firebaserc` at the repo root (both are already checked in — skip this step if they exist).
-
-#### 6b. Build and deploy
-
-```bash
-cd apps/soulstep-customer-web
-VITE_API_URL=https://soulstep-catalog-api-xxxxxxxxxxxx-uc.a.run.app npm run build
-cd ../..
-firebase deploy --only hosting
-```
-
-Your app is live at `https://PROJECT_ID.web.app`. Copy this URL and go back to Step 5 to update `CORS_ORIGINS`.
-
-#### 6c. Custom domain (optional)
-
-Firebase console → **Hosting** → **Add custom domain** → follow the DNS verification steps. Firebase provisions a TLS cert automatically within minutes.
-
----
-
-### Step 7 — Data Scraper on Cloud Run (Optional)
+### 5.9 Data Scraper (Cloud Run, optional)
 
 Only needed for automated place scraping in production.
 
 The scraper (`soulstep-scraper-api`) is an **HTTP API service** — scrape runs are triggered via `POST /api/v1/scraper/runs` and monitored via `GET /api/v1/scraper/runs/{run_code}`. It runs as a long-lived Cloud Run Service, **not** a one-shot job.
 
-> **SQLite is ephemeral on Cloud Run** — the scraper's `scraper.db` is wiped on every cold start. This is fine: geo/place-type seeds re-run automatically on startup (idempotent), and scrape run history only needs to persist for the duration of an active run session. If you need persistent run history, see step 7f.
+> **SQLite is ephemeral on Cloud Run** — the scraper's `scraper.db` is wiped on every cold start. This is fine: geo/place-type seeds re-run automatically on startup (idempotent), and scrape run history only needs to persist for the duration of an active run session. If you need persistent run history, see [§5.9f](#f-persistent-run-history-optional-upgrade).
 
 ---
 
-#### 7a. Store scraper API keys in Secret Manager
+#### a. Store scraper API keys in Secret Manager
 
 ```bash
 # Required
@@ -948,7 +949,7 @@ done
 
 ---
 
-#### 7b. Build and push the scraper image
+#### b. Build and push the scraper image
 
 ```bash
 gcloud builds submit ./soulstep-scraper-api \
@@ -958,7 +959,7 @@ gcloud builds submit ./soulstep-scraper-api \
 
 ---
 
-#### 7c. Deploy as a Cloud Run Service
+#### c. Deploy as a Cloud Run Service
 
 ```bash
 gcloud run deploy soulstep-scraper-api \
@@ -995,7 +996,7 @@ gcloud run services update soulstep-catalog-api \
 
 ---
 
-#### 7d. Trigger and monitor scrape runs
+#### d. Trigger and monitor scrape runs
 
 The scraper requires an identity token (it's not public). Use `gcloud auth print-identity-token` to authenticate:
 
@@ -1034,7 +1035,7 @@ Alternatively, use the **admin dashboard** (soulstep-admin-web) → Scraper sect
 
 ---
 
-#### 7e. Redeploy after code changes
+#### e. Redeploy after code changes
 
 ```bash
 gcloud builds submit ./soulstep-scraper-api \
@@ -1049,15 +1050,13 @@ gcloud run deploy soulstep-scraper-api \
 
 ---
 
-#### 7f. Persistent run history (optional upgrade)
+#### f. Persistent run history (optional upgrade)
 
-By default the scraper uses SQLite, which is wiped on every Cloud Run cold start. To keep full `ScraperRun`, `ScrapedPlace`, and `RawCollectorData` history across restarts, point the scraper at a PostgreSQL database using the `DATABASE_URL` environment variable. The scraper's `app/db/session.py` reads this variable and selects the appropriate engine automatically.
+By default the scraper uses SQLite, which is wiped on every Cloud Run cold start. To keep full `ScraperRun`, `ScrapedPlace`, and `RawCollectorData` history across restarts, point the scraper at a PostgreSQL database using the `DATABASE_URL` environment variable. The scraper's `app/db/session.py` reads this variable and selects the appropriate engine automatically. See [§6.4](#64-scraper-database-options) for the full SQLite vs PostgreSQL comparison.
 
 > **When to do this:** only if you need long-term audit history or multi-instance safety. If you run the scraper on-demand and sync results immediately, ephemeral SQLite is simpler.
 
----
-
-##### 7f-i. Create a scraper database on the existing Cloud SQL instance
+##### Create a scraper database on the existing Cloud SQL instance
 
 The main API already has a Cloud SQL instance (`soulstep-db`). Add a second database and user for the scraper rather than provisioning a new instance.
 
@@ -1077,9 +1076,7 @@ The connection string follows the same Unix-socket pattern as the main API:
 postgresql://soulstep-scraper:STRONG_SCRAPER_DB_PASSWORD@/soulstep-scraper?host=/cloudsql/PROJECT_ID:REGION:soulstep-db
 ```
 
----
-
-##### 7f-ii. Store the connection string in Secret Manager
+##### Store the connection string in Secret Manager
 
 ```bash
 echo -n "postgresql://soulstep-scraper:STRONG_SCRAPER_DB_PASSWORD@/soulstep-scraper?host=/cloudsql/PROJECT_ID:REGION:soulstep-db" | \
@@ -1099,11 +1096,9 @@ gcloud secrets add-iam-policy-binding SCRAPER_DATABASE_URL \
   --role="roles/secretmanager.secretAccessor"
 ```
 
-The compute service account already has `roles/cloudsql.client` from Step 3 — no additional IAM changes are needed.
+The compute service account already has `roles/cloudsql.client` from [§5.4](#54-secrets-secret-manager--iam-roles) — no additional IAM changes are needed.
 
----
-
-##### 7f-iii. Redeploy the scraper with DATABASE_URL
+##### Redeploy the scraper with DATABASE_URL
 
 Update the existing scraper service to mount the secret and connect to PostgreSQL:
 
@@ -1123,9 +1118,7 @@ DATABASE_URL=SCRAPER_DATABASE_URL:latest"
 
 > **`SCRAPER_DB_PATH` is ignored** when `DATABASE_URL` is set — you can leave it unset or remove it from the service's env vars.
 
----
-
-##### 7f-iv. What happens on startup
+##### What happens on startup
 
 1. `session.py` detects `DATABASE_URL` and creates a PostgreSQL engine (psycopg2).
 2. `run_migrations()` runs Alembic against the PostgreSQL database:
@@ -1135,9 +1128,7 @@ DATABASE_URL=SCRAPER_DATABASE_URL:latest"
 
 Scrape runs, scraped places, and raw collector data now survive cold starts.
 
----
-
-##### 7f-v. Local development with PostgreSQL (optional)
+##### Local development with PostgreSQL (optional)
 
 To test the PostgreSQL path locally, set `DATABASE_URL` in your `.env` before starting the scraper:
 
@@ -1161,9 +1152,9 @@ Then start the scraper normally — it will automatically run Alembic migrations
 
 ---
 
-### Step 8 — Scheduled Jobs (Cloud Scheduler + Cloud Run Jobs)
+### 5.10 Scheduled Jobs (Cloud Scheduler + Cloud Run Jobs)
 
-#### 8a. Create a reusable Cloud Run Job for the cleanup task
+#### a. Cleanup job
 
 Cloud Run Jobs run to completion then exit — perfect for cron tasks.
 
@@ -1187,7 +1178,7 @@ Test it runs correctly:
 gcloud run jobs execute cleanup-job --region REGION --wait
 ```
 
-#### 8b. Schedule it with Cloud Scheduler
+Schedule it with Cloud Scheduler:
 
 ```bash
 gcloud scheduler jobs create http run-cleanup-job \
@@ -1204,16 +1195,13 @@ To trigger manually at any time:
 gcloud run jobs execute cleanup-job --region REGION
 ```
 
-#### 8c. Backfill translations (one-off or periodic, run after adding new places/reviews)
+#### b. Translation backfill job
 
 On GCP, the translation backfill is the **simplest** — Cloud Run Jobs automatically have Application Default Credentials (ADC) via the compute service account. No service account key file is needed.
 
 **Prerequisites:**
 
-1. **Enable the Cloud Translation API** (add to the enable APIs command in Prerequisites):
-   ```bash
-   gcloud services enable translate.googleapis.com --project PROJECT_ID
-   ```
+1. **Enable the Cloud Translation API** (already included in the [§5.1](#51-prerequisites) enable APIs command).
 
 2. **Grant the compute service account the translation role:**
    ```bash
@@ -1267,7 +1255,7 @@ gcloud scheduler jobs create http run-backfill-translations \
 > gcloud run jobs execute backfill-translations --region REGION --wait
 > ```
 
-#### 8d. Backfill timezones (one-off job, run after adding new place data)
+#### c. Timezone backfill job
 
 ```bash
 gcloud run jobs create backfill-timezones \
@@ -1284,83 +1272,7 @@ gcloud run jobs execute backfill-timezones --region REGION --wait
 
 ---
 
-### Step 9 — Mobile
-
-```bash
-cd apps/soulstep-customer-mobile
-eas build --platform ios --profile production
-eas build --platform android --profile production
-eas submit --platform ios
-eas submit --platform android
-```
-
-Set `EXPO_PUBLIC_API_URL` to your Cloud Run API URL in `apps/soulstep-customer-mobile/.env` or via EAS secrets before building.
-
----
-
-### Step 9b — Firebase App Distribution (Beta Testing)
-
-Firebase App Distribution lets you share pre-release builds with testers before submitting to the app stores.
-
-> **Apple Developer account requirement:**
-> - **Android** — not required. Any APK can be distributed freely.
-> - **iOS** — **yes, required** ($99/year). iOS apps must be signed with an ad-hoc provisioning profile tied to tester device UDIDs. Without an Apple Developer account, iOS distribution is not possible outside TestFlight (which also requires the same account).
-
-#### 9b-i. One-time setup
-
-1. In the [Firebase console](https://console.firebase.google.com) → your project → **App Distribution**.
-2. Register your apps:
-   - **Add Android app** → enter your package name (e.g. `com.yourcompany.soulstep.mobile`) → download `google-services.json` → place it in `apps/soulstep-customer-mobile/`.
-   - **Add iOS app** → enter your bundle ID (e.g. `com.yourcompany.soulstep.mobile`) → download `GoogleService-Info.plist` → place it in `apps/soulstep-customer-mobile/`.
-3. Note the **App ID** for each platform — visible in **Project Settings → Your apps**. Looks like `1:834941457147:android:xxxx`.
-4. Create a tester group: **App Distribution → Testers & Groups → Add group** → name it (e.g. `internal`).
-5. Add tester emails to the group.
-
-#### 9b-ii. Build a distributable binary with EAS
-
-Use the `preview` profile (produces a `.apk` for Android and an ad-hoc signed `.ipa` for iOS) rather than `production` (which produces store-ready builds):
-
-```bash
-cd apps/soulstep-customer-mobile
-
-# Android — produces a downloadable .apk (no Apple account needed)
-eas build --platform android --profile preview
-
-# iOS — produces an ad-hoc .ipa (requires Apple Developer account)
-eas build --platform ios --profile preview
-```
-
-Once the build finishes, EAS prints a download URL. Download the `.apk` / `.ipa` file.
-
-#### 9b-iii. Upload to Firebase App Distribution
-
-```bash
-# Install Firebase CLI if not already installed
-npm install -g firebase-tools
-firebase login
-
-# Android
-firebase appdistribution:distribute path/to/app.apk \
-  --app YOUR_ANDROID_FIREBASE_APP_ID \
-  --groups "internal" \
-  --release-notes "Short description of what changed"
-
-# iOS
-firebase appdistribution:distribute path/to/app.ipa \
-  --app YOUR_IOS_FIREBASE_APP_ID \
-  --groups "internal" \
-  --release-notes "Short description of what changed"
-```
-
-Testers receive an email with a download link. Android testers install directly; iOS testers must first install the Firebase App Distribution profile on their device (prompted on first download).
-
-#### 9b-iv. Automate via EAS (optional)
-
-EAS can upload to Firebase App Distribution automatically after a successful build by adding a submit profile in `eas.json`. See the [EAS Submit docs](https://docs.expo.dev/submit/introduction/) for configuration.
-
----
-
-### Step 10 — GitHub Actions CI/CD for GCP
+### 5.11 CI/CD (GitHub Actions for GCP)
 
 To automate GCP deployments from the existing `.github/workflows/deploy.yml`, you need a dedicated service account with the right permissions.
 
@@ -1461,7 +1373,7 @@ firebase login:ci
 
 ---
 
-### GCP Services and Estimated Costs
+### 5.12 Estimated Costs
 
 | Service | What it runs | Free tier | ~Cost beyond free |
 |---|---|---|---|
@@ -1475,7 +1387,118 @@ firebase login:ci
 
 ---
 
-## Mobile Production Checklist
+## 6. Operations Guide
+
+Shared operations across all deployment plans. Each plan section references these — platform-specific execution commands are in the plan sections above.
+
+### 6.1 Database Migrations
+
+Alembic migrations run **automatically on API startup** via `alembic upgrade head`. No manual migration step is needed for any plan.
+
+Notable migrations:
+- `0004_groups_revamp` adds: `checkin.group_code` (nullable FK, indexed), `group.cover_image_url / start_date / end_date / updated_at`, and the new `groupplacenote` table. No new environment variables or external services are required.
+
+### 6.2 Translation Backfill
+
+The `scripts/backfill_translations.py` script machine-translates Place and Review content into Arabic and Hindi using the **Google Cloud Translation API v3**. It authenticates via **Application Default Credentials (ADC)** — a GCP service account key JSON file, not interactive OAuth.
+
+#### a. One-time GCP setup
+
+1. **Create a GCP project** (or reuse an existing one) and note the project ID.
+2. **Enable the Cloud Translation API:**
+   ```bash
+   gcloud services enable translate.googleapis.com --project YOUR_PROJECT_ID
+   ```
+3. **Create a service account and download a key:**
+   ```bash
+   gcloud iam service-accounts create soulstep-translate \
+     --display-name "SoulStep Translation" \
+     --project YOUR_PROJECT_ID
+
+   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+     --member="serviceAccount:soulstep-translate@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
+     --role="roles/cloudtranslate.user"
+
+   gcloud iam service-accounts keys create translate-key.json \
+     --iam-account="soulstep-translate@YOUR_PROJECT_ID.iam.gserviceaccount.com"
+   ```
+4. **Keep `translate-key.json` safe** — you'll mount it into the container.
+
+> **On GCP Cloud Run:** You don't need a key file — ADC is automatic. See [§5.10b](#b-translation-backfill-job).
+
+#### b. Script usage
+
+```bash
+# Dry run (no writes)
+python -m scripts.backfill_translations --dry-run
+
+# Full run — translate Arabic + Hindi
+python -m scripts.backfill_translations --langs ar hi
+
+# Generate only (skip translation, only run legacy attribute migration)
+python -m scripts.backfill_translations
+```
+
+#### c. Cost note
+
+Google Cloud Translation API v3 charges ~$20 per million characters. A typical backfill of a few hundred places costs well under $1.
+
+Plan-specific execution:
+- **Docker:** See [§3.8](#38-translation-backfill-docker)
+- **Render:** See [§4.6](#46-translation-backfill-on-render)
+- **GCP:** See [§5.10b](#b-translation-backfill-job)
+
+### 6.3 Scheduled Jobs
+
+Available jobs (run from the `soulstep-catalog-api` working directory):
+
+| Job | Command | Schedule | Description |
+|---|---|---|---|
+| Cleanup orphaned images | `python -m app.jobs.cleanup_orphaned_images` | Daily (e.g. 2 AM UTC) | Removes review images no longer referenced by any review |
+| Backfill timezones | `python -m app.jobs.backfill_timezones` | One-off after adding new places | Populates timezone data for places missing it |
+| Backfill translations | `python -m scripts.backfill_translations --langs ar hi` | One-off or weekly | Machine-translates place/review content (see [§6.2](#62-translation-backfill)) |
+
+Plan-specific scheduling:
+- **Docker:** Host cron — see [§3.7](#37-scheduled-jobs-docker)
+- **Render:** Render Cron Job or GitHub Actions — see [§4.7](#47-scheduled-jobs-on-render)
+- **GCP:** Cloud Scheduler + Cloud Run Jobs — see [§5.10](#510-scheduled-jobs-cloud-scheduler--cloud-run-jobs)
+
+### 6.4 Scraper Database Options
+
+The `soulstep-scraper-api/` service enriches sacred place data from multiple sources:
+- **Google Sheets** — CSV export with OSM/Wikipedia enrichment
+- **Google Maps API** — grid-based search with attribute extraction
+
+**Data flow:**
+1. Create a data location (gsheet or gmaps config via API)
+2. Create a run → background scraping task starts
+3. Sync to main server → places created/updated with attributes
+
+The scraper supports two database backends:
+
+| Backend | Env var | When to use |
+|---|---|---|
+| **SQLite** (default) | `SCRAPER_DB_PATH` | Development, on-demand scraping where history isn't needed. Geo/place-type seeds re-run automatically on startup (idempotent). |
+| **PostgreSQL** | `DATABASE_URL` | Long-term audit history, multi-instance safety, or persistent run history across Cloud Run cold starts. |
+
+**Priority:** When `DATABASE_URL` is set, `session.py` creates a PostgreSQL engine and ignores `SCRAPER_DB_PATH`. When `DATABASE_URL` is not set, SQLite is used at the path specified by `SCRAPER_DB_PATH` (defaults to `scraper.db` in the working directory).
+
+**Startup behavior:** On every startup, the scraper runs Alembic migrations (0001 → 0002 → 0003) against whichever database is selected, then runs `seed_geo_boundaries()` and `seed_place_type_mappings()` (idempotent upserts).
+
+| Deployment | Recommended |
+|---|---|
+| **Local / On-Demand** | SQLite (default) |
+| **Docker Compose** | SQLite with persistent volume (`scraper_data` at `/data`) |
+| **Render** | SQLite with persistent disk or accept ephemeral — see [§4.4](#44-data-scraper-on-render-optional) |
+| **Cloud Run** | SQLite (ephemeral) or PostgreSQL for persistent history — see [§5.9f](#f-persistent-run-history-optional-upgrade) |
+
+---
+
+## 7. Mobile
+
+Mobile builds are identical for all deployment plans. The mobile app is not containerised — it is built locally or via CI using Expo Application Services (EAS).
+
+### 7.1 Production Checklist
 
 Before submitting to App Store / Play Store:
 
@@ -1490,75 +1513,101 @@ Before submitting to App Store / Play Store:
    ```
 2. **Set app name and slug** (`name`, `slug` in `app.json`) to production values.
 3. **Configure EAS** — `eas.json` is already set up with development/preview/production profiles.
-4. **Build:**
-   ```bash
-   cd apps/soulstep-customer-mobile
-   eas build --platform ios --profile production
-   eas build --platform android --profile production
-   ```
-5. **Submit:**
-   ```bash
-   eas submit --platform ios
-   eas submit --platform android
-   ```
+4. **Set `EXPO_PUBLIC_API_URL`** to the production API URL in your EAS build config or `.env`.
+
+### 7.2 Building & Submitting
+
+```bash
+cd apps/soulstep-customer-mobile
+
+# Build
+eas build --platform ios --profile production
+eas build --platform android --profile production
+
+# Submit to stores
+eas submit --platform ios
+eas submit --platform android
+```
+
+### 7.3 Beta Testing (Firebase App Distribution)
+
+Firebase App Distribution lets you share pre-release builds with testers before submitting to the app stores.
+
+> **Apple Developer account requirement:**
+> - **Android** — not required. Any APK can be distributed freely.
+> - **iOS** — **yes, required** ($99/year). iOS apps must be signed with an ad-hoc provisioning profile tied to tester device UDIDs. Without an Apple Developer account, iOS distribution is not possible outside TestFlight (which also requires the same account).
+
+#### a. One-time setup
+
+1. In the [Firebase console](https://console.firebase.google.com) → your project → **App Distribution**.
+2. Register your apps:
+   - **Add Android app** → enter your package name (e.g. `com.yourcompany.soulstep.mobile`) → download `google-services.json` → place it in `apps/soulstep-customer-mobile/`.
+   - **Add iOS app** → enter your bundle ID (e.g. `com.yourcompany.soulstep.mobile`) → download `GoogleService-Info.plist` → place it in `apps/soulstep-customer-mobile/`.
+3. Note the **App ID** for each platform — visible in **Project Settings → Your apps**. Looks like `1:834941457147:android:xxxx`.
+4. Create a tester group: **App Distribution → Testers & Groups → Add group** → name it (e.g. `internal`).
+5. Add tester emails to the group.
+
+#### b. Build with EAS preview profile
+
+Use the `preview` profile (produces a `.apk` for Android and an ad-hoc signed `.ipa` for iOS) rather than `production` (which produces store-ready builds):
+
+```bash
+cd apps/soulstep-customer-mobile
+
+# Android — produces a downloadable .apk (no Apple account needed)
+eas build --platform android --profile preview
+
+# iOS — produces an ad-hoc .ipa (requires Apple Developer account)
+eas build --platform ios --profile preview
+```
+
+Once the build finishes, EAS prints a download URL. Download the `.apk` / `.ipa` file.
+
+#### c. Upload to Firebase App Distribution
+
+```bash
+# Install Firebase CLI if not already installed
+npm install -g firebase-tools
+firebase login
+
+# Android
+firebase appdistribution:distribute path/to/app.apk \
+  --app YOUR_ANDROID_FIREBASE_APP_ID \
+  --groups "internal" \
+  --release-notes "Short description of what changed"
+
+# iOS
+firebase appdistribution:distribute path/to/app.ipa \
+  --app YOUR_IOS_FIREBASE_APP_ID \
+  --groups "internal" \
+  --release-notes "Short description of what changed"
+```
+
+Testers receive an email with a download link. Android testers install directly; iOS testers must first install the Firebase App Distribution profile on their device (prompted on first download).
+
+#### d. Automate via EAS
+
+EAS can upload to Firebase App Distribution automatically after a successful build by adding a submit profile in `eas.json`. See the [EAS Submit docs](https://docs.expo.dev/submit/introduction/) for configuration.
 
 ---
 
-## Data Strategy — Scraper Service
+## 8. SEO & Search Engine Submission
 
-The `soulstep-scraper-api/` service enriches sacred place data from multiple sources.
+Post-deployment setup for search engine indexing and AI discoverability. Not required for the application to function.
 
-**Sources:**
-- **Google Sheets** — CSV export with OSM/Wikipedia enrichment
-- **Google Maps API** — grid-based search with attribute extraction
-
-**Deployment options:**
-
-| Option | When to Use |
-|---|---|
-| **Local / On-Demand** | Development, one-off data loads |
-| **Render / Cloud Run Service** | Continuous or webhook-triggered scraping |
-| **Cloud Run Job** | Scheduled batch updates via Cloud Scheduler |
-
-**Data flow:**
-1. Create a data location (gsheet or gmaps config via API)
-2. Create a run → background scraping task starts
-3. Sync to main server → places created/updated with attributes
-
----
-
-## Summary
-
-| Plan | Backend | DB | Web | Mobile |
-|---|---|---|---|---|
-| **1 Docker** | Docker container (`soulstep-catalog-api/Dockerfile`) | Postgres in Compose or external | nginx Docker image (`apps/soulstep-customer-web/Dockerfile`) | EAS build, submit to stores |
-| **2 Free** | Render Web Service | Render Postgres / Supabase / Neon | Vercel | EAS build |
-| **3 GCP** | Cloud Run | Cloud SQL (PostgreSQL 15) | Firebase Hosting | EAS build |
-
-Keep this file in sync with the codebase: when deployment steps or environment variables change, update the corresponding plan(s).
-
----
-
-## SEO & Search Engine Submission
-
-### Environment Variable: FRONTEND_URL
-
-The pre-rendering and SEO services need to know the public URL of the frontend to generate canonical URLs, sitemaps, and structured data correctly. Add this to the backend API service:
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `FRONTEND_URL` | **Yes (prod)** | `http://localhost:5173` | Public URL of the web frontend — used in sitemap, share pages, JSON-LD |
-| `API_BASE_URL` | No | `http://localhost:3000` | Public URL of the API — used in RSS/Atom feed self links |
-
-### Sitemap and Robots.txt Endpoints
+### 8.1 Endpoints
 
 The backend automatically serves:
 - `GET /sitemap.xml` — Dynamic XML sitemap with all place pages, hreflang alternates, and image entries
 - `GET /sitemap-index.xml` — Auto-generated sitemap index when >50k places
 - `GET /robots.txt` — Crawl directives allowing AI bots (ChatGPT-User, Claude-Web, PerplexityBot)
 - `GET /llms.txt` and `GET /llms-full.txt` — AI chatbot discoverability files
+- `GET /feed.xml` — RSS 2.0 (50 most recently added places)
+- `GET /feed.atom` — Atom 1.0 (same content, Atom format)
 
-### Google Search Console
+Submit feed URLs to relevant feed aggregators or AI systems that consume structured feeds.
+
+### 8.2 Google Search Console
 
 1. **Sign in** to [Google Search Console](https://search.google.com/search-console).
 2. **Add property:** Click **Add property** → choose **URL prefix** → enter your production frontend URL (e.g. `https://soul-step.org`).
@@ -1573,7 +1622,7 @@ The backend automatically serves:
 
 > **Note:** Submit the backend API sitemap URL, not the frontend URL. The sitemap is generated dynamically by the FastAPI backend.
 
-### Bing Webmaster Tools
+### 8.3 Bing Webmaster Tools
 
 1. **Sign in** to [Bing Webmaster Tools](https://www.bing.com/webmasters).
 2. **Add your site:** Enter your frontend URL → **Add**.
@@ -1583,13 +1632,15 @@ The backend automatically serves:
    - Enter the full backend sitemap URL: `https://api.soul-step.org/sitemap.xml`.
 5. **Monitor:** Check the **Dashboard** for crawl stats and index coverage.
 
-### Yandex Webmaster (optional — for Russian-speaking markets)
+### 8.4 Yandex (optional)
+
+For Russian-speaking markets:
 
 1. Sign in at [webmaster.yandex.com](https://webmaster.yandex.com).
 2. Add your site and verify ownership via meta tag or DNS TXT record.
 3. Submit sitemap: **Indexing** → **Sitemap files** → add the backend sitemap URL.
 
-### AI Bot Verification
+### 8.5 AI Bot Verification
 
 The `robots.txt` (served at `GET /robots.txt`) explicitly allows the following AI crawlers:
 
@@ -1612,7 +1663,7 @@ Allow: /
 
 No further verification is needed — these bots read `robots.txt` automatically.
 
-### SEO Script: Generate and Translate SEO Content
+### 8.6 SEO Generation Script
 
 After adding new places, run the SEO generation script to create titles, descriptions, slugs, and FAQs:
 
@@ -1630,17 +1681,9 @@ python -m scripts.generate_seo --translate --langs ar hi
 python -m scripts.generate_seo --generate --translate --dry-run
 ```
 
-Requires `GOOGLE_CLOUD_PROJECT` and `GOOGLE_APPLICATION_CREDENTIALS` env vars for translation (same as `backfill_translations.py` — see Translation Backfill section above).
+Requires `GOOGLE_CLOUD_PROJECT` and `GOOGLE_APPLICATION_CREDENTIALS` env vars for translation (same setup as [§6.2](#62-translation-backfill)).
 
-### RSS and Atom Feeds
-
-Two syndication feeds are served by the backend:
-- `GET /feed.xml` — RSS 2.0 (50 most recently added places)
-- `GET /feed.atom` — Atom 1.0 (same content, Atom format)
-
-Submit these URLs to relevant feed aggregators or AI systems that consume structured feeds.
-
-### AI Citation Monitoring
+### 8.7 AI Citation Monitoring
 
 The admin dashboard tracks when AI crawlers visit pre-rendered share pages:
 
@@ -1655,3 +1698,33 @@ This endpoint returns:
 - Paginated recent visit log
 
 No additional setup required — the middleware runs automatically in production.
+
+---
+
+## 9. Observability
+
+### 9.1 Prometheus Metrics
+
+The backend exposes a `GET /metrics` endpoint (added automatically by `prometheus-fastapi-instrumentator`).
+
+- In production, **restrict access** to `/metrics` via nginx or a firewall rule — allow only from your internal monitoring network.
+- Scrape with Prometheus; visualise with Grafana.
+- No additional env var is needed; the endpoint is enabled at startup.
+
+### 9.2 GlitchTip Error Tracking
+
+[GlitchTip](https://glitchtip.com) is an open-source, self-hostable Sentry-compatible error tracker.
+
+1. Deploy a GlitchTip instance (Docker image: `glitchtip/glitchtip`).
+2. Create a project and obtain a DSN (e.g. `https://abc@glitchtip.example.com/1`).
+3. Set the DSN as `GLITCHTIP_DSN` in your backend env vars.
+4. When ready, install `sentry-sdk` and add the integration:
+   ```python
+   import sentry_sdk
+   from sentry_sdk.integrations.starlette import StarletteIntegration
+   sentry_sdk.init(dsn=os.environ["GLITCHTIP_DSN"], integrations=[StarletteIntegration()])
+   ```
+
+---
+
+Keep this file in sync with the codebase: when deployment steps or environment variables change, update the corresponding plan(s).
