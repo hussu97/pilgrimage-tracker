@@ -1071,7 +1071,7 @@ gcloud run jobs create cleanup-job \
   --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
   --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
   --command "python" \
-  --args "-m,app.jobs.cleanup_orphaned_images" \
+  --args="-m,app.jobs.cleanup_orphaned_images" \
   --max-retries 1 \
   --task-timeout 300
 ```
@@ -1129,7 +1129,7 @@ gcloud run jobs create backfill-translations \
   --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
   --set-env-vars "GOOGLE_CLOUD_PROJECT=PROJECT_ID" \
   --command "python" \
-  --args "-m,scripts.backfill_translations,--langs,ar,hi" \
+  --args="-m,scripts.backfill_translations,--langs,ar,hi" \
   --max-retries 1 \
   --task-timeout 600 \
   --memory 512Mi
@@ -1157,7 +1157,7 @@ gcloud scheduler jobs create http run-backfill-translations \
 > **Dry run:** To test without writing, update the job args temporarily:
 > ```bash
 > gcloud run jobs update backfill-translations --region REGION \
->   --args "-m,scripts.backfill_translations,--langs,ar,hi,--dry-run"
+>   --args="-m,scripts.backfill_translations,--langs,ar,hi,--dry-run"
 > gcloud run jobs execute backfill-translations --region REGION --wait
 > ```
 
@@ -1170,7 +1170,7 @@ gcloud run jobs create backfill-timezones \
   --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
   --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
   --command "python" \
-  --args "-m,app.jobs.backfill_timezones" \
+  --args="-m,app.jobs.backfill_timezones" \
   --max-retries 1
 
 gcloud run jobs execute backfill-timezones --region REGION --wait
