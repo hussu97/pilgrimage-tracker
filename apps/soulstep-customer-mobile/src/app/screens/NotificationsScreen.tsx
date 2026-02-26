@@ -14,6 +14,7 @@ import { getNotifications, markNotificationRead } from '@/lib/api/client';
 import { useI18n, useTheme } from '@/app/providers';
 import type { Notification } from '@/lib/types';
 import { tokens } from '@/lib/theme';
+import AdBannerNative from '@/components/ads/AdBannerNative';
 
 function notificationIcon(
   type: string,
@@ -230,37 +231,46 @@ export default function NotificationsScreen() {
         </View>
       )}
       {!loading && !error && notifications.length > 0 && (
-        <View style={styles.list}>
-          {notifications.map((n) => (
-            <View key={n.notification_code} style={[styles.card, !n.read_at && styles.cardUnread]}>
-              <View style={styles.iconWrap}>
-                <MaterialIcons
-                  name={notificationIcon(n.type)}
-                  size={18}
-                  color={tokens.colors.primary}
-                />
-              </View>
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTitle}>{notificationTitle(n)}</Text>
-                {notificationBody(n) ? (
-                  <Text style={styles.cardBodyText}>{notificationBody(n)}</Text>
+        <>
+          <View style={styles.list}>
+            {notifications.map((n) => (
+              <View
+                key={n.notification_code}
+                style={[styles.card, !n.read_at && styles.cardUnread]}
+              >
+                <View style={styles.iconWrap}>
+                  <MaterialIcons
+                    name={notificationIcon(n.type)}
+                    size={18}
+                    color={tokens.colors.primary}
+                  />
+                </View>
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardTitle}>{notificationTitle(n)}</Text>
+                  {notificationBody(n) ? (
+                    <Text style={styles.cardBodyText}>{notificationBody(n)}</Text>
+                  ) : null}
+                  <Text style={styles.cardTime}>
+                    {n.created_at ? new Date(n.created_at).toLocaleString() : ''}
+                  </Text>
+                </View>
+                {!n.read_at ? (
+                  <TouchableOpacity
+                    onPress={() => handleMarkRead(n.notification_code)}
+                    style={styles.markRead}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.markReadText}>{t('notifications.markRead')}</Text>
+                  </TouchableOpacity>
                 ) : null}
-                <Text style={styles.cardTime}>
-                  {n.created_at ? new Date(n.created_at).toLocaleString() : ''}
-                </Text>
               </View>
-              {!n.read_at ? (
-                <TouchableOpacity
-                  onPress={() => handleMarkRead(n.notification_code)}
-                  style={styles.markRead}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.markReadText}>{t('notifications.markRead')}</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+          {/* Ad: bottom of notification list */}
+          <View style={{ marginTop: 16, paddingHorizontal: 24 }}>
+            <AdBannerNative slot="notifications-bottom" format="banner" />
+          </View>
+        </>
       )}
     </ScrollView>
   );

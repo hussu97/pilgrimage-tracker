@@ -43,6 +43,7 @@ import PlaceTimingsCarousel from '@/components/places/PlaceTimingsCarousel';
 import PlaceSpecificationsGrid from '@/components/places/PlaceSpecificationsGrid';
 import PlaceReviewsList from '@/components/places/PlaceReviewsList';
 import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
+import AdBannerNative from '@/components/ads/AdBannerNative';
 import type { Group } from '@/lib/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>;
@@ -644,10 +645,20 @@ export default function PlaceDetailScreen() {
             <PlaceTimingsCarousel timings={timings} title={carouselTitle} isDark={isDark} />
           ) : null}
 
+          {/* Ad: after timings carousel */}
+          <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+            <AdBannerNative slot="place-detail-top" format="banner" />
+          </View>
+
           {/* Facilities / Specifications */}
           {specifications.length > 0 ? (
             <PlaceSpecificationsGrid specifications={specifications} t={t} isDark={isDark} />
           ) : null}
+
+          {/* Ad: between specifications and groups */}
+          <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
+            <AdBannerNative slot="place-detail-mid" format="medium-rectangle" />
+          </View>
 
           {/* Groups */}
           {user && (
@@ -713,6 +724,11 @@ export default function PlaceDetailScreen() {
               })()}
             </View>
           )}
+
+          {/* Ad: after reviews */}
+          <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
+            <AdBannerNative slot="place-detail-bottom" format="banner" />
+          </View>
 
           {/* Reviews */}
           <PlaceReviewsList

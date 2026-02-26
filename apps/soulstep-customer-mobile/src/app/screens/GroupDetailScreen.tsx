@@ -34,6 +34,7 @@ import {
 import { shareUrl } from '@/lib/share';
 import { INVITE_LINK_BASE_URL } from '@/lib/constants';
 import { useAuth, useFeedback, useI18n, useTheme } from '@/app/providers';
+import AdBannerNative from '@/components/ads/AdBannerNative';
 import type { RootStackParamList } from '@/app/navigation';
 import type {
   Group,
@@ -1325,6 +1326,11 @@ export default function GroupDetailScreen() {
               ) : null}
             </View>
           )}
+
+          {/* Ad: bottom of tab content */}
+          <View style={{ marginTop: 16 }}>
+            <AdBannerNative slot="group-detail-bottom" format="banner" />
+          </View>
         </View>
       </ScrollView>
 

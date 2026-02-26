@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
+import AdBannerNative from '@/components/ads/AdBannerNative';
 import { getMyStats, updateSettings } from '@/lib/api/client';
 import type { UserStats, Religion } from '@/lib/types';
 import { tokens } from '@/lib/theme';
@@ -697,6 +698,11 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* Ad: above version info */}
+        <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+          <AdBannerNative slot="profile-bottom" format="banner" />
+        </View>
 
         {/* Version */}
         <Text style={styles.version}>{t('profile.version').replace('{version}', APP_VERSION)}</Text>

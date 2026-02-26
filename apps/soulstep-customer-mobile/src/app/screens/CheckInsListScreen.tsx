@@ -19,6 +19,7 @@ import { getMyCheckIns, getOnThisDayCheckIns, getThisMonthCheckIns } from '@/lib
 import type { CheckIn } from '@/lib/types';
 import { tokens } from '@/lib/theme';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
+import AdBannerNative from '@/components/ads/AdBannerNative';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -517,6 +518,11 @@ export default function CheckInsListScreen() {
             </View>
           </View>
 
+          {/* Ad: between calendar and This Month */}
+          <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+            <AdBannerNative slot="checkins-top" format="banner" />
+          </View>
+
           {/* This Month */}
           {thisMonth.length > 0 && (
             <View style={styles.sectionWrap}>
@@ -574,6 +580,11 @@ export default function CheckInsListScreen() {
               ))}
             </View>
           )}
+
+          {/* Ad: between This Month and Recent Visits */}
+          <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+            <AdBannerNative slot="checkins-mid" format="medium-rectangle" />
+          </View>
 
           <Text style={styles.sectionTitle}>{t('journey.recentVisits')}</Text>
           {recentCheckIns.map((c) => (

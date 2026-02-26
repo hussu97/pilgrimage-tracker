@@ -17,6 +17,7 @@ import { getMyFavorites, removeFavorite } from '@/lib/api/client';
 import PlaceCard from '@/components/places/PlaceCard';
 import SkeletonCard from '@/components/common/SkeletonCard';
 import SwipeableRow from '@/components/common/SwipeableRow';
+import AdBannerNative from '@/components/ads/AdBannerNative';
 import type { Place } from '@/lib/types';
 import { tokens } from '@/lib/theme';
 
@@ -173,16 +174,23 @@ export default function FavoritesScreen() {
           return <SkeletonCard isDark={isDark} />;
         }
         return (
-          <SwipeableRow
-            onDelete={() => handleRemove(item.place_code)}
-            deleteLabel={t('common.remove') || 'Remove'}
-            deleteColor="#EF4444"
-            deleteIcon="favorite-border"
-          >
-            <View style={{ opacity: removingCode === item.place_code ? 0.5 : 1 }}>
-              <PlaceCard place={item} isActive={index === activeIndex} />
-            </View>
-          </SwipeableRow>
+          <>
+            <SwipeableRow
+              onDelete={() => handleRemove(item.place_code)}
+              deleteLabel={t('common.remove') || 'Remove'}
+              deleteColor="#EF4444"
+              deleteIcon="favorite-border"
+            >
+              <View style={{ opacity: removingCode === item.place_code ? 0.5 : 1 }}>
+                <PlaceCard place={item} isActive={index === activeIndex} />
+              </View>
+            </SwipeableRow>
+            {(index + 1) % 4 === 0 && (
+              <View style={{ marginTop: 16 }}>
+                <AdBannerNative slot="favorites-feed" format="banner" />
+              </View>
+            )}
+          </>
         );
       }}
       viewabilityConfig={viewabilityConfig}

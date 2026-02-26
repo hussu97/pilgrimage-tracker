@@ -29,6 +29,7 @@ import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
 import PlaceCard from '@/components/places/PlaceCard';
 import SkeletonCard from '@/components/common/SkeletonCard';
+import AdBannerNative from '@/components/ads/AdBannerNative';
 import HomeHeader from '@/components/places/HomeHeader';
 import UpdateBanner from '@/components/common/UpdateBanner';
 import { buildMapHtml } from '@/lib/utils/mapBuilder';
@@ -628,7 +629,14 @@ export default function HomeScreen() {
                 String(item.place_code).startsWith('skel-') ? (
                   <SkeletonCard isDark={isDark} />
                 ) : (
-                  <PlaceCard place={item} isActive={index === activeIndex} />
+                  <>
+                    <PlaceCard place={item} isActive={index === activeIndex} />
+                    {(index + 1) % 5 === 0 && (
+                      <View style={{ marginTop: 16 }}>
+                        <AdBannerNative slot="home-feed" format="banner" />
+                      </View>
+                    )}
+                  </>
                 )
               }
               viewabilityConfig={viewabilityConfig}
