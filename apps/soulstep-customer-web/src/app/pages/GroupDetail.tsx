@@ -22,6 +22,7 @@ import ErrorState from '@/components/common/ErrorState';
 import GroupCheckInModal from '@/components/groups/GroupCheckInModal';
 import type { Group, LeaderboardEntry, ActivityItem, GroupMember } from '@/lib/types';
 import type { ChecklistResponse, PlaceNote } from '@/lib/types/groups';
+import AdBanner from '@/components/ads/AdBanner';
 
 type Tab = 'itinerary' | 'activity' | 'leaderboard' | 'members';
 
@@ -876,6 +877,11 @@ export default function GroupDetail() {
       </div>
 
       {/* Confirm dialog */}
+      {/* Ad: bottom of group detail */}
+      <div className="px-6 pb-6">
+        <AdBanner slot="group-detail-bottom" format="horizontal" />
+      </div>
+
       {confirmAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div

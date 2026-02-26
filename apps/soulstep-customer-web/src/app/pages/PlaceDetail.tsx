@@ -28,6 +28,7 @@ import PlaceTimingsCarousel from '@/components/places/PlaceTimingsCarousel';
 import PlaceSpecificationsGrid from '@/components/places/PlaceSpecificationsGrid';
 import { crowdColorClass, formatDistance } from '@/lib/utils/place-utils';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
+import AdBanner from '@/components/ads/AdBanner';
 
 function ReviewsSection({
   placeCode,
@@ -854,6 +855,9 @@ export default function PlaceDetail() {
               <PlaceTimingsCarousel timings={timings} title={carouselTitle} compact />
             )}
 
+            {/* Ad slot 1: between timings and specifications */}
+            <AdBanner slot="place-detail-top" format="horizontal" className="my-4" />
+
             {/* Specifications */}
             {specifications.length > 0 && (
               <PlaceSpecificationsGrid specifications={specifications} t={t} compact />
@@ -871,6 +875,11 @@ export default function PlaceDetail() {
                 onReviewsChange={fetchPlace}
               />
             </section>
+
+            {/* Ad slot 3: after reviews (mobile) */}
+            {reviews.length > 0 && (
+              <AdBanner slot="place-detail-bottom" format="horizontal" className="mt-4" />
+            )}
           </div>
 
           {/* Mobile sticky footer — check-in only */}
@@ -930,10 +939,16 @@ export default function PlaceDetail() {
             {/* Carousel */}
             {timings.length > 0 && <PlaceTimingsCarousel timings={timings} title={carouselTitle} />}
 
+            {/* Ad slot 1: between timings and specifications (desktop) */}
+            <AdBanner slot="place-detail-top" format="horizontal" className="my-4" />
+
             {/* Specifications */}
             {specifications.length > 0 && (
               <PlaceSpecificationsGrid specifications={specifications} t={t} />
             )}
+
+            {/* Ad slot 2: between specifications and groups (desktop) */}
+            <AdBanner slot="place-detail-mid" format="rectangle" className="my-4" />
 
             {/* Groups */}
             {user && (
@@ -1028,6 +1043,11 @@ export default function PlaceDetail() {
                 onReviewsChange={fetchPlace}
               />
             </section>
+
+            {/* Ad slot 3: after reviews (desktop) */}
+            {reviews.length > 0 && (
+              <AdBanner slot="place-detail-bottom" format="horizontal" className="mt-4" />
+            )}
           </div>
 
           {/* Right column: sticky sidebar */}

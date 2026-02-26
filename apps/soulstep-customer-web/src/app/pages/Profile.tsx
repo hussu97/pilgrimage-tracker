@@ -6,6 +6,7 @@ import { getMyStats, getSettings, updateSettings } from '@/lib/api/client';
 import { cn } from '@/lib/utils/cn';
 import ErrorState from '@/components/common/ErrorState';
 import type { UserStats, Religion } from '@/lib/types';
+import AdBanner from '@/components/ads/AdBanner';
 
 const RELIGIONS = [
   { code: 'islam' as const, emoji: '🕌', labelKey: 'common.islam' },
@@ -446,6 +447,9 @@ export default function Profile() {
             </button>
           </div>
         )}
+
+        {/* Ad: bottom of profile */}
+        <AdBanner slot="profile-bottom" format="horizontal" className="mb-4" />
 
         {/* Version */}
         <div className="flex justify-center">

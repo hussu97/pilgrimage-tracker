@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, Fragment } from 'react';
 import type { Place } from '@/lib/types';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
 import SkeletonList from '@/components/common/SkeletonList';
 import PlaceCardUnified from './PlaceCardUnified';
+import AdBanner from '@/components/ads/AdBanner';
 
 interface PlaceListViewProps {
   places: Place[];
@@ -73,8 +74,16 @@ export default function PlaceListView({
   return (
     <div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        {places.map((place) => (
-          <PlaceCardUnified key={place.place_code} place={place} t={t} />
+        {places.map((place, idx) => (
+          <Fragment key={place.place_code}>
+            <PlaceCardUnified place={place} t={t} />
+            {/* In-feed ad every 5th card */}
+            {(idx + 1) % 5 === 0 && (
+              <div className="col-span-full">
+                <AdBanner slot="home-feed" format="horizontal" className="my-2" />
+              </div>
+            )}
+          </Fragment>
         ))}
       </div>
       <div ref={sentinelRef} className="h-4" />

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils/cn';
 import { getMyCheckIns, getOnThisDayCheckIns, getThisMonthCheckIns } from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { CheckIn } from '@/lib/types';
+import AdBanner from '@/components/ads/AdBanner';
 
 /** Get locale-aware single-letter weekday abbreviations starting from Sunday. */
 function getWeekdayLabels(locale: string): string[] {
@@ -390,6 +391,11 @@ export default function CheckInsList() {
             </div>
           </section>
 
+          {/* Ad: between calendar and This Month */}
+          <div className="px-6 mb-6">
+            <AdBanner slot="checkins-top" format="horizontal" />
+          </div>
+
           {/* This Month */}
           {thisMonth.length > 0 && (
             <section className="px-6 mb-8">
@@ -411,6 +417,11 @@ export default function CheckInsList() {
               </div>
             </section>
           )}
+
+          {/* Ad: between This Month and Recent Visits */}
+          <div className="px-6 mb-6">
+            <AdBanner slot="checkins-mid" format="rectangle" />
+          </div>
 
           {/* All recent visits */}
           <section className="px-6 space-y-3 pb-24">

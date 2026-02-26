@@ -6,6 +6,7 @@ import { getNotifications, markNotificationRead } from '@/lib/api/client';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
 import type { Notification } from '@/lib/types';
+import AdBanner from '@/components/ads/AdBanner';
 
 function notificationIcon(type: string): string {
   if (type.includes('check') || type.includes('check_in')) return 'check_circle';
@@ -94,48 +95,54 @@ export default function NotificationsPage() {
         />
       )}
       {!loading && !error && notifications.length > 0 && (
-        <ul className="space-y-2">
-          {notifications.map((n) => (
-            <li
-              key={n.notification_code}
-              className={cn(
-                'rounded-2xl border border-input-border dark:border-dark-border overflow-hidden shadow-subtle',
-                n.read_at
-                  ? 'bg-surface dark:bg-dark-surface'
-                  : 'bg-primary/5 dark:bg-primary/10 border-primary/30',
-              )}
-            >
-              <div className="flex gap-3 p-4">
-                <div className="w-10 h-10 rounded-full bg-soft-blue flex items-center justify-center text-primary shrink-0">
-                  <span className="material-symbols-outlined">{notificationIcon(n.type)}</span>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-text-main dark:text-white">
-                    {notificationTitle(n, t)}
-                  </p>
-                  {notificationBody(n) && (
-                    <p className="text-sm text-text-muted dark:text-dark-text-secondary mt-0.5">
-                      {notificationBody(n)}
-                    </p>
-                  )}
-                  <p className="text-xs text-text-muted dark:text-dark-text-secondary mt-2">
-                    {n.created_at ? new Date(n.created_at).toLocaleString() : ''}
-                  </p>
-                </div>
-                {!n.read_at && (
-                  <button
-                    type="button"
-                    onClick={() => handleMarkRead(n.notification_code)}
-                    aria-label={t('notifications.markRead')}
-                    className="shrink-0 text-primary text-sm font-medium hover:text-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                  >
-                    {t('notifications.markRead')}
-                  </button>
+        <>
+          <ul className="space-y-2">
+            {notifications.map((n) => (
+              <li
+                key={n.notification_code}
+                className={cn(
+                  'rounded-2xl border border-input-border dark:border-dark-border overflow-hidden shadow-subtle',
+                  n.read_at
+                    ? 'bg-surface dark:bg-dark-surface'
+                    : 'bg-primary/5 dark:bg-primary/10 border-primary/30',
                 )}
-              </div>
-            </li>
-          ))}
-        </ul>
+              >
+                <div className="flex gap-3 p-4">
+                  <div className="w-10 h-10 rounded-full bg-soft-blue flex items-center justify-center text-primary shrink-0">
+                    <span className="material-symbols-outlined">{notificationIcon(n.type)}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-text-main dark:text-white">
+                      {notificationTitle(n, t)}
+                    </p>
+                    {notificationBody(n) && (
+                      <p className="text-sm text-text-muted dark:text-dark-text-secondary mt-0.5">
+                        {notificationBody(n)}
+                      </p>
+                    )}
+                    <p className="text-xs text-text-muted dark:text-dark-text-secondary mt-2">
+                      {n.created_at ? new Date(n.created_at).toLocaleString() : ''}
+                    </p>
+                  </div>
+                  {!n.read_at && (
+                    <button
+                      type="button"
+                      onClick={() => handleMarkRead(n.notification_code)}
+                      aria-label={t('notifications.markRead')}
+                      className="shrink-0 text-primary text-sm font-medium hover:text-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    >
+                      {t('notifications.markRead')}
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+          {/* Ad: bottom of notification list */}
+          <div className="mt-4">
+            <AdBanner slot="notifications-bottom" format="horizontal" />
+          </div>
+        </>
       )}
     </div>
   );

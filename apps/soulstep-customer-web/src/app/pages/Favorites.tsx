@@ -7,6 +7,8 @@ import PlaceCard from '@/components/places/PlaceCard';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
 import type { Place } from '@/lib/types';
+import { Fragment } from 'react';
+import AdBanner from '@/components/ads/AdBanner';
 
 export default function Favorites() {
   const { t } = useI18n();
@@ -84,19 +86,27 @@ export default function Favorites() {
       )}
       {!loading && !error && places.length > 0 && (
         <div className="space-y-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
-          {places.map((place) => (
-            <div key={place.place_code} className="relative group/card">
-              <PlaceCard place={place} />
-              <button
-                type="button"
-                onClick={(e) => handleRemove(e, place.place_code)}
-                disabled={removingCode === place.place_code}
-                className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center disabled:opacity-50"
-                aria-label={t('places.unfavorite')}
-              >
-                <span className="material-symbols-outlined text-lg">bookmark</span>
-              </button>
-            </div>
+          {places.map((place, idx) => (
+            <Fragment key={place.place_code}>
+              <div className="relative group/card">
+                <PlaceCard place={place} />
+                <button
+                  type="button"
+                  onClick={(e) => handleRemove(e, place.place_code)}
+                  disabled={removingCode === place.place_code}
+                  className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center disabled:opacity-50"
+                  aria-label={t('places.unfavorite')}
+                >
+                  <span className="material-symbols-outlined text-lg">bookmark</span>
+                </button>
+              </div>
+              {/* Ad after every 4th favorite */}
+              {(idx + 1) % 4 === 0 && (
+                <div className="col-span-full">
+                  <AdBanner slot="favorites-feed" format="horizontal" className="my-2" />
+                </div>
+              )}
+            </Fragment>
           ))}
         </div>
       )}
