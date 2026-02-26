@@ -4,14 +4,22 @@ Shared test fixtures for the server test suite.
 Uses an in-memory SQLite database (StaticPool) so tests are fully isolated
 from any real data files and run without any filesystem side-effects.
 
-Each test gets a fresh database (function-scoped engine) so there is no
-state leakage between tests.
+The engine is session-scoped (schema created once). Per-test data isolation
+is provided by the `_reset_db` autouse fixture, which deletes all rows after
+each test — far faster than recreating the schema 900+ times.
+
+Performance budget vs naïve per-test engine:
+  - Schema create_all × N tests  → schema create_all × 1        (~15 s saved)
+  - bcrypt rounds=12 per register → bcrypt rounds=4              (~100 s saved)
+  - IMAGE_STORAGE=gcs (real GCS)  → IMAGE_STORAGE=blob (no-op)  (fixes 13 failures)
 """
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import patch
 
+import bcrypt as _bcrypt_lib
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
@@ -34,12 +42,38 @@ def seed_i18n():
             i18n_db.set_translations(data["translations"])
 
 
+# ── Session-wide performance fixtures ─────────────────────────────────────────
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _force_blob_storage():
+    """Override IMAGE_STORAGE=blob for all tests — prevents real GCS calls."""
+    from app.services.image_storage import reset_storage_instance
+
+    reset_storage_instance()
+    with patch.dict(os.environ, {"IMAGE_STORAGE": "blob"}, clear=False):
+        yield
+    reset_storage_instance()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _fast_bcrypt():
+    """Patch bcrypt to use rounds=4 for the whole session — ~100× faster than rounds=12."""
+    # Capture the real function BEFORE the patch replaces it, to avoid recursion.
+    _orig_gensalt = _bcrypt_lib.gensalt
+    with patch("bcrypt.gensalt", side_effect=lambda *a, **kw: _orig_gensalt(rounds=4)):
+        yield
+
+
 # ── DB / session fixtures ──────────────────────────────────────────────────────
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def test_engine():
-    """Fresh in-memory SQLite engine per test — guarantees data isolation."""
+    """
+    Single in-memory SQLite engine shared across the entire test session.
+    Schema is created once; per-test isolation is handled by `_reset_db`.
+    """
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -51,6 +85,16 @@ def test_engine():
     SQLModel.metadata.create_all(engine)
     yield engine
     SQLModel.metadata.drop_all(engine)
+
+
+@pytest.fixture(autouse=True)
+def _reset_db(test_engine):
+    """Delete all rows after each test — provides isolation without recreating the schema."""
+    yield
+    with Session(test_engine) as session:
+        for table in reversed(SQLModel.metadata.sorted_tables):
+            session.execute(table.delete())
+        session.commit()
 
 
 @pytest.fixture()

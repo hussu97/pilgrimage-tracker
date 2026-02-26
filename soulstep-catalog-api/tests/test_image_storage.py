@@ -77,10 +77,13 @@ class TestGCSStorageBackend:
         assert url.startswith("https://storage.googleapis.com/")
         assert url.endswith(".jpg")
 
-    def test_upload_calls_make_public(self):
-        backend = self._make_backend()
-        backend.upload(b"data", "image/jpeg", "images/reviews/")
-        backend._mock_blob.make_public.assert_called_once()
+    def test_upload_constructs_url_directly(self):
+        """URL is built directly (not via make_public) to support uniform bucket-level access."""
+        backend = self._make_backend("test-bucket")
+        url = backend.upload(b"data", "image/jpeg", "images/reviews/")
+        assert url.startswith("https://storage.googleapis.com/test-bucket/images/reviews/")
+        assert url.endswith(".jpg")
+        backend._mock_blob.make_public.assert_not_called()
 
     def test_upload_png_extension(self):
         backend = self._make_backend()

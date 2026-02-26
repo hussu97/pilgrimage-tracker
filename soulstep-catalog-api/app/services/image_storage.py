@@ -64,8 +64,9 @@ class GCSStorageBackend:
         object_name = f"{prefix}{secrets.token_hex(16)}.{ext}"
         blob = self._bucket.blob(object_name)
         blob.upload_from_string(data, content_type=mime_type)
-        blob.make_public()
-        return blob.public_url
+        # Construct the public URL directly — make_public() requires legacy ACL
+        # which is incompatible with uniform bucket-level access (the GCP default).
+        return f"https://storage.googleapis.com/{self._bucket.name}/{object_name}"
 
     def delete(self, url: str) -> None:
         if not url:
