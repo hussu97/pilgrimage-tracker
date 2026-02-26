@@ -6,7 +6,7 @@ import { SERPPreview } from "@/components/seo/SERPPreview";
 import { formatDate } from "@/lib/utils";
 import { ArrowLeft, RefreshCw, Save, Plus, Trash2, PenLine } from "lucide-react";
 
-const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL ?? "https://soulstep.app";
+const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL ?? "https://soul-step.org";
 
 export function SEOPlaceDetailPage() {
   const { placeCode } = useParams<{ placeCode: string }>();

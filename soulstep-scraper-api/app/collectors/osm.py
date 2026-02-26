@@ -13,7 +13,7 @@ from app.scrapers.base import make_request_with_backoff
 from app.utils.extractors import ContactExtractor
 
 OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter"
-HEADERS = {"User-Agent": "SoulStepBot/1.0 (hussain@example.com)"}
+HEADERS = {"User-Agent": "SoulStepBot/1.0 (contact@soul-step.org)"}
 
 
 class OsmCollector(BaseCollector):

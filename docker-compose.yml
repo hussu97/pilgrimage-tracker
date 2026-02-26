@@ -25,7 +25,7 @@ services:
       JWT_EXPIRE: ${JWT_EXPIRE:-30m}
       REFRESH_EXPIRE: ${REFRESH_EXPIRE:-30d}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
-      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@soulstep-tracker.app}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@soul-step.org}
       RESET_URL_BASE: ${RESET_URL_BASE:-http://localhost}
     ports:
       - "${API_PORT:-3000}:3000"
@@ -39,7 +39,7 @@ services:
       context: ./apps/soulstep-customer-web
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required (e.g. https://api.yourdomain.com)}
+        VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required (e.g. https://api.soul-step.org)}
     ports:
       - "${WEB_PORT:-80}:80"
     depends_on:

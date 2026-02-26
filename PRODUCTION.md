@@ -19,7 +19,7 @@ Current system: **Backend** (Python FastAPI in `soulstep-catalog-api/`), **Web a
 | `CORS_ORIGINS` | No | `http://localhost:5173 http://127.0.0.1:5173` | **Space-separated** list of allowed origins (not comma-separated) |
 | `PORT` | No | `3000` | Server port — Dockerfile uses `${PORT:-3000}` |
 | `RESEND_API_KEY` | No | _(empty)_ | Resend.com API key for password-reset emails |
-| `RESEND_FROM_EMAIL` | No | `noreply@soulstep.app` | From address for transactional emails |
+| `RESEND_FROM_EMAIL` | No | `noreply@soul-step.org` | From address for transactional emails |
 | `RESET_URL_BASE` | No | `http://localhost:5173` | Frontend base URL for password-reset links |
 | `MIN_APP_VERSION_SOFT` | No | _(empty)_ | Semver (e.g. `1.1.0`) — mobile clients below this see a soft-update banner. Empty = disabled |
 | `MIN_APP_VERSION_HARD` | No | _(empty)_ | Semver (e.g. `1.0.0`) — mobile clients below this are blocked with HTTP 426. Empty = disabled |
@@ -139,7 +139,7 @@ CORS_ORIGINS=http://localhost        # space-separated; add web domain
 JWT_EXPIRE=30m
 REFRESH_EXPIRE=30d
 RESEND_API_KEY=
-RESEND_FROM_EMAIL=noreply@soulstep.app
+RESEND_FROM_EMAIL=noreply@soul-step.org
 RESET_URL_BASE=http://localhost
 GOOGLE_MAPS_API_KEY=
 SCRAPER_TIMEZONE=UTC
@@ -155,7 +155,7 @@ SCRAPER_PORT=8001
 
 ```bash
 docker build \
-  --build-arg VITE_API_URL=https://api.yourdomain.com \
+  --build-arg VITE_API_URL=https://api.soul-step.org \
   -t soulstep-web \
   apps/soulstep-customer-web/
 ```
@@ -304,7 +304,7 @@ Recommended free-tier setup: **Render** for the backend API (and optionally the 
    | `REFRESH_EXPIRE` | `30d` |
    | `RESET_URL_BASE` | `https://your-app.vercel.app` (same as CORS_ORIGINS) |
    | `RESEND_API_KEY` | Optional — leave empty if not using email |
-   | `RESEND_FROM_EMAIL` | `noreply@yourdomain.com` (only needed with Resend) |
+   | `RESEND_FROM_EMAIL` | `noreply@soul-step.org` (only needed with Resend) |
 
 5. Click **Create Web Service**. Render will build and deploy; first deploy takes ~2 min.
 6. Once live, your API URL is `https://soulstep-api.onrender.com` (shown at the top of the service page). Copy it.
@@ -724,7 +724,7 @@ gcloud run deploy soulstep-api \
   --allow-unauthenticated \
   --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
   --set-secrets "JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
-  --set-env-vars "CORS_ORIGINS=https://PROJECT_ID.web.app,JWT_EXPIRE=30m,REFRESH_EXPIRE=30d,RESEND_FROM_EMAIL=noreply@yourdomain.com,RESET_URL_BASE=https://PROJECT_ID.web.app" \
+  --set-env-vars "CORS_ORIGINS=https://PROJECT_ID.web.app,JWT_EXPIRE=30m,REFRESH_EXPIRE=30d,RESEND_FROM_EMAIL=noreply@soul-step.org,RESET_URL_BASE=https://PROJECT_ID.web.app" \
   --min-instances 0 \
   --max-instances 10 \
   --memory 512Mi \
@@ -1264,14 +1264,14 @@ The backend automatically serves:
 ### Google Search Console
 
 1. **Sign in** to [Google Search Console](https://search.google.com/search-console).
-2. **Add property:** Click **Add property** → choose **URL prefix** → enter your production frontend URL (e.g. `https://soulstep.app`).
+2. **Add property:** Click **Add property** → choose **URL prefix** → enter your production frontend URL (e.g. `https://soul-step.org`).
 3. **Verify ownership** using one of:
    - **HTML file** — download the verification file and deploy it to `apps/soulstep-customer-web/public/`
    - **HTML meta tag** — add `<meta name="google-site-verification" content="...">` to `apps/soulstep-customer-web/index.html`
    - **DNS TXT record** — add the TXT record to your domain's DNS
 4. **Submit the sitemap:**
    - In Search Console → **Sitemaps** → enter `sitemap.xml` → **Submit**.
-   - The full URL should be `https://api.yourdomain.com/sitemap.xml` (the backend API URL).
+   - The full URL should be `https://api.soul-step.org/sitemap.xml` (the backend API URL).
 5. **Monitor indexing:** Check **Coverage** and **Performance** reports after 24-48 hours.
 
 > **Note:** Submit the backend API sitemap URL, not the frontend URL. The sitemap is generated dynamically by the FastAPI backend.
@@ -1283,7 +1283,7 @@ The backend automatically serves:
 3. **Verify ownership:** Use the XML file method (deploy to `public/`) or DNS TXT record.
 4. **Submit sitemap:**
    - Go to **Sitemaps** → **Submit sitemap**.
-   - Enter the full backend sitemap URL: `https://api.yourdomain.com/sitemap.xml`.
+   - Enter the full backend sitemap URL: `https://api.soul-step.org/sitemap.xml`.
 5. **Monitor:** Check the **Dashboard** for crawl stats and index coverage.
 
 ### Yandex Webmaster (optional — for Russian-speaking markets)

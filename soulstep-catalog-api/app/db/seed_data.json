@@ -1913,7 +1913,7 @@
   "users": [
     {
       "user_code": "usr_admin",
-      "email": "admin@soulstep.app",
+      "email": "admin@soul-step.org",
       "password": "Admin1234",
       "display_name": "Admin",
       "is_admin": true
