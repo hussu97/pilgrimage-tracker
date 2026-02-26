@@ -20,7 +20,11 @@ async def _proxy(method: str, path: str, **kwargs) -> JSONResponse:
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.request(method, url, **kwargs)
-        return JSONResponse(status_code=resp.status_code, content=resp.json())
+        try:
+            content = resp.json() if resp.content else None
+        except Exception:
+            content = {"detail": resp.text}
+        return JSONResponse(status_code=resp.status_code, content=content)
     except httpx.ConnectError:
         raise HTTPException(status_code=503, detail="Scraper service unavailable")
     except httpx.TimeoutException:
