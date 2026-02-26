@@ -575,7 +575,9 @@ def _upsert_single_place(place_data, session: Session):
                 place_data.place_code, place_data.image_blobs, session=session
             )
         except Exception as e:
-            logger.error("Failed to store image blobs for %s: %s", place_data.place_code, e)
+            logger.error(
+                "Failed to store image blobs for %s: %s", place_data.place_code, e, exc_info=True
+            )
     elif place_data.image_urls:
         place_images.set_images_from_urls(
             place_data.place_code, place_data.image_urls, session=session

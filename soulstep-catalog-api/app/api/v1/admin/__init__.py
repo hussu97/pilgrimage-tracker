@@ -9,6 +9,7 @@ from app.api.v1.admin import (
     content_translations,
     export,
     groups,
+    health,
     notifications,
     place_attributes,
     places,
@@ -38,3 +39,4 @@ admin_router.include_router(audit_log.router, tags=["admin-audit-log"])
 admin_router.include_router(notifications.router, tags=["admin-notifications"])
 admin_router.include_router(seo.router, tags=["admin-seo"])
 admin_router.include_router(ads.router, tags=["admin-ads"])
+admin_router.include_router(health.router, tags=["admin-health"])
