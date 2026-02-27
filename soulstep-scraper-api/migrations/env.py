@@ -21,11 +21,21 @@ else:
     if _scraper_db_path:
         config.set_main_option("sqlalchemy.url", f"sqlite:///{_scraper_db_path}")
 
-if config.config_file_name is not None:
+# Only configure logging when running via the Alembic CLI (no injected connection).
+# When called from run_migrations() in session.py, logging is already configured
+# by setup_logging() in main.py — calling fileConfig() here would replace the root
+# logger's handlers with Alembic's stderr text handler, swallowing all app logs.
+if config.config_file_name is not None and config.attributes.get("connection") is None:
     fileConfig(config.config_file_name)
 
 # Use SQLModel's shared metadata so Alembic sees every table definition.
 target_metadata = SQLModel.metadata
+
+
+# Use a dedicated version table so the scraper's migration history doesn't
+# collide with the catalog-api's alembic_version table (both services share the
+# same PostgreSQL database).
+_VERSION_TABLE = "scraper_alembic_version"
 
 
 def run_migrations_offline() -> None:
@@ -34,6 +44,7 @@ def run_migrations_offline() -> None:
     context.configure(
         url=url,
         target_metadata=target_metadata,
+        version_table=_VERSION_TABLE,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -56,7 +67,11 @@ def run_migrations_online() -> None:
     provided = config.attributes.get("connection")
     if provided is not None:
         # Reuse the caller's connection — no new engine created.
-        context.configure(connection=provided, target_metadata=target_metadata)
+        context.configure(
+            connection=provided,
+            target_metadata=target_metadata,
+            version_table=_VERSION_TABLE,
+        )
         with context.begin_transaction():
             context.run_migrations()
         return
@@ -68,7 +83,11 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            version_table=_VERSION_TABLE,
+        )
         with context.begin_transaction():
             context.run_migrations()
 

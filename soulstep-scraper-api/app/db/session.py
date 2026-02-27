@@ -52,15 +52,28 @@ def run_migrations() -> None:
     cfg.set_main_option("script_location", migrations_path)
     cfg.set_main_option("sqlalchemy.url", db_url)
 
+    # The scraper uses its own version table to avoid colliding with the
+    # catalog-api's alembic_version table (both services share the same DB).
+    _VERSION_TABLE = "scraper_alembic_version"
+
     with engine.begin() as connection:
         cfg.attributes["connection"] = connection
 
         inspector = inspect(connection)
         existing_tables = set(inspector.get_table_names())
-        if existing_tables:
-            needs_stamp = "alembic_version" not in existing_tables
+
+        # Check for scraper-specific tables, NOT just any table.  The scraper
+        # shares a PostgreSQL DB with the catalog-api, so existing_tables is
+        # always non-empty (catalog-api tables are present).  We only skip
+        # running migrations if the scraper's own core table already exists.
+        scraper_bootstrapped = "datalocation" in existing_tables
+
+        if scraper_bootstrapped:
+            needs_stamp = _VERSION_TABLE not in existing_tables
             if not needs_stamp:
-                ver = connection.execute(text("SELECT version_num FROM alembic_version")).fetchone()
+                ver = connection.execute(
+                    text(f"SELECT version_num FROM {_VERSION_TABLE}")
+                ).fetchone()
                 needs_stamp = ver is None
             if needs_stamp:
                 command.stamp(cfg, "head")
