@@ -159,7 +159,7 @@ def list_places(
     place_type: str | None = Query(None),
     search: str | None = Query(None),
     sort: str | None = Query(None, description="proximity or rating"),
-    limit: int = Query(50),
+    limit: int = Query(50, le=500),
     cursor: str | None = Query(
         None, description="place_code of the last seen item; omit for the first page"
     ),
@@ -180,6 +180,10 @@ def list_places(
     lang: str | None = Query(
         None, description="BCP-47 language code for localized content (e.g. ar, hi, te)"
     ),
+    min_lat: float | None = Query(None, description="South boundary of map viewport"),
+    max_lat: float | None = Query(None, description="North boundary of map viewport"),
+    min_lng: float | None = Query(None, description="West boundary of map viewport"),
+    max_lng: float | None = Query(None, description="East boundary of map viewport"),
 ):
     religions = religion
     result = places_db.list_places(
@@ -199,6 +203,10 @@ def list_places(
         has_parking=has_parking,
         womens_area=womens_area,
         top_rated=top_rated,
+        min_lat=min_lat,
+        max_lat=max_lat,
+        min_lng=min_lng,
+        max_lng=max_lng,
     )
     # Use bulk-fetched attributes, ratings, and images for efficiency
     all_attrs = result["all_attrs"]

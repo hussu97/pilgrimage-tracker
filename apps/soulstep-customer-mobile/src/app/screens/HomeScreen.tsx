@@ -37,6 +37,7 @@ import { buildMapHtml } from '@/lib/utils/mapBuilder';
 type ViewMode = 'list' | 'map';
 
 const PAGE_SIZE = 20;
+const MAP_PAGE_SIZE = 200;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SHEET_PEEK = Math.round(SCREEN_HEIGHT * 0.28); // resting height — most of map visible
 const SHEET_EXPANDED = Math.round(SCREEN_HEIGHT * 0.58); // dragged-up height
@@ -323,6 +324,53 @@ function makeStyles(isDark: boolean) {
     mapSheetCloseBtn: {
       padding: 4,
     },
+    searchAreaBtn: {
+      position: 'absolute',
+      top: 12,
+      alignSelf: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 24,
+      backgroundColor: surface,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: isDark ? 0.3 : 0.15,
+      shadowRadius: 8,
+      elevation: 4,
+      borderWidth: 1,
+      borderColor: border,
+      zIndex: 10,
+    },
+    searchAreaText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: tokens.colors.primary,
+    },
+    mapLoadingBadge: {
+      position: 'absolute',
+      top: 12,
+      right: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 16,
+      backgroundColor: surface,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+      zIndex: 10,
+    },
+    mapLoadingText: {
+      fontSize: 11,
+      color: textSecondary,
+    },
   });
 }
 
@@ -384,6 +432,14 @@ export default function HomeScreen() {
   const [visiblePlaceCodes, setVisiblePlaceCodes] = useState<Set<string>>(new Set());
   const [activeIndex, setActiveIndex] = useState<number>(0);
 
+  // Map-specific state for viewport-based fetching
+  const [mapPlaces, setMapPlaces] = useState<Place[]>([]);
+  const [mapLoading, setMapLoading] = useState(false);
+  const [showSearchArea, setShowSearchArea] = useState(false);
+  interface MapBounds { north: number; south: number; east: number; west: number; }
+  const currentMapBoundsRef = useRef<MapBounds | null>(null);
+  const initialMapFetchDone = useRef(false);
+
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: Array<{ index: number | null }> }) => {
@@ -395,57 +451,66 @@ export default function HomeScreen() {
 
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
-  const buildParams = useCallback(
-    (cursor: string | null) => ({
-      religions: (() => {
-        const r = user?.religions ?? [];
-        if (!r.length || r.includes('all')) return undefined;
-        return r;
-      })(),
+  // Shared base params (no cursor, no limit, no bbox)
+  const buildBaseParams = useCallback(() => {
+    const religions = (() => {
+      const r = user?.religions ?? [];
+      if (!r.length || r.includes('all')) return undefined;
+      return r;
+    })();
+    return {
+      religions,
       sort: 'distance' as const,
-      limit: PAGE_SIZE,
-      cursor: cursor ?? undefined,
       lat: searchLocation ? searchLocation.lat : coords.lat,
       lng: searchLocation ? searchLocation.lng : coords.lng,
-      radius: searchLocation ? 10 : undefined,
       place_type: activeFilters.placeType,
       open_now: activeFilters.openNow,
       has_parking: activeFilters.hasParking,
       womens_area: activeFilters.womensArea,
       has_events: activeFilters.hasEvents,
       top_rated: activeFilters.topRated,
+    };
+  }, [user?.religions, activeFilters, coords, searchLocation]);
+
+  const buildListParams = useCallback(
+    (cursor: string | null) => ({
+      ...buildBaseParams(),
+      limit: PAGE_SIZE,
+      cursor: cursor ?? undefined,
+      radius: searchLocation ? 10 : undefined,
     }),
-    [user?.religions, activeFilters, coords, searchLocation],
+    [buildBaseParams, searchLocation],
   );
 
-  // Initial / refresh fetch — resets pagination
+  // Initial / refresh fetch — resets pagination (list view)
   const fetchPlaces = useCallback(async () => {
     setLoading(true);
     setError('');
     setHasMore(true);
     try {
-      const data = await getPlaces(buildParams(null));
+      const data = await getPlaces(buildListParams(null));
       setPlaces(data.places);
       setNextCursor(data.next_cursor ?? null);
       setHasMore(data.next_cursor != null);
       setFilterOptions(data.filters?.options ?? []);
       const centerLat = (searchLocation ? searchLocation.lat : coords.lat) ?? 21.3891;
       const centerLng = (searchLocation ? searchLocation.lng : coords.lng) ?? 39.8579;
-      setMapHtml(buildMapHtml(data.places, centerLat, centerLng));
+      const zoom = searchLocation ? 15 : 14;
+      setMapHtml(buildMapHtml(data.places, centerLat, centerLng, zoom));
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
       setPlaces([]);
     } finally {
       setLoading(false);
     }
-  }, [buildParams, coords, t]);
+  }, [buildListParams, coords, searchLocation, t]);
 
   // Load next page — appends to list
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore || loading) return;
     setLoadingMore(true);
     try {
-      const data = await getPlaces(buildParams(nextCursor));
+      const data = await getPlaces(buildListParams(nextCursor));
       if (data.places.length > 0) {
         setPlaces((prev) => [...prev, ...data.places]);
         setNextCursor(data.next_cursor ?? null);
@@ -456,11 +521,60 @@ export default function HomeScreen() {
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, loading, buildParams, nextCursor]);
+  }, [loadingMore, hasMore, loading, buildListParams, nextCursor]);
+
+  // Map-view fetch (viewport bounding box)
+  const fetchMapPlaces = useCallback(
+    async (bounds: MapBounds) => {
+      setMapLoading(true);
+      try {
+        const data = await getPlaces({
+          ...buildBaseParams(),
+          min_lat: bounds.south,
+          max_lat: bounds.north,
+          min_lng: bounds.west,
+          max_lng: bounds.east,
+          limit: MAP_PAGE_SIZE,
+        });
+        setMapPlaces(data.places);
+        if (data.filters?.options) setFilterOptions(data.filters.options);
+        // Update markers in WebView without rebuilding the full HTML
+        const markers = data.places.map((p: Place) => ({
+          lat: p.lat,
+          lng: p.lng,
+          name: p.name,
+          placeCode: p.place_code,
+          address: p.address || p.place_type || '',
+          openStatus:
+            p.open_status ??
+            (p.is_open_now === true ? 'open' : p.is_open_now === false ? 'closed' : 'unknown'),
+        }));
+        webViewRef.current?.injectJavaScript(
+          `window.updateMarkers && window.updateMarkers(${JSON.stringify(markers)}); true;`,
+        );
+      } catch {
+        // Keep previous map places on error
+      } finally {
+        setMapLoading(false);
+      }
+    },
+    [buildBaseParams],
+  );
 
   useEffect(() => {
     fetchPlaces();
   }, [fetchPlaces]);
+
+  // Auto-refetch map when filters or search change (if we have bounds)
+  const prevBaseParamsRef = useRef<string>('');
+  useEffect(() => {
+    const key = JSON.stringify(buildBaseParams());
+    if (prevBaseParamsRef.current && prevBaseParamsRef.current !== key && currentMapBoundsRef.current) {
+      setShowSearchArea(false);
+      fetchMapPlaces(currentMapBoundsRef.current);
+    }
+    prevBaseParamsRef.current = key;
+  }, [buildBaseParams, fetchMapPlaces]);
 
   const handleWebViewMessage = useCallback(
     (event: { nativeEvent: { data: string } }) => {
@@ -474,34 +588,57 @@ export default function HomeScreen() {
           west?: number;
         };
         if (msg.type === 'boundsChanged' && msg.north != null) {
-          const { north, south, east, west } = msg;
+          const bounds = {
+            north: msg.north!,
+            south: msg.south!,
+            east: msg.east!,
+            west: msg.west!,
+          };
+          currentMapBoundsRef.current = bounds;
+
+          // Filter visible places from the map-specific set
+          const activePlaces = mapPlaces.length > 0 ? mapPlaces : places;
           setVisiblePlaceCodes(
             new Set(
-              places
+              activePlaces
                 .filter(
                   (p) =>
-                    p.lat >= (south ?? -90) &&
-                    p.lat <= (north ?? 90) &&
-                    p.lng >= (west ?? -180) &&
-                    p.lng <= (east ?? 180),
+                    p.lat >= bounds.south &&
+                    p.lat <= bounds.north &&
+                    p.lng >= bounds.west &&
+                    p.lng <= bounds.east,
                 )
                 .map((p) => p.place_code),
             ),
           );
+
+          // Initial map fetch — runs once when bounds are first reported
+          if (!initialMapFetchDone.current) {
+            initialMapFetchDone.current = true;
+            fetchMapPlaces(bounds);
+          } else {
+            // User has panned — show "Search this area" button
+            setShowSearchArea(true);
+          }
         }
         if (msg.type === 'placeSelected' && msg.placeCode) {
-          const place = places.find((p) => p.place_code === msg.placeCode) ?? null;
+          const activePlaces = mapPlaces.length > 0 ? mapPlaces : places;
+          const place = activePlaces.find((p) => p.place_code === msg.placeCode) ?? null;
           setSelectedPlace(place);
+        }
+        if (msg.type === 'recenter') {
+          setSearchLocation(null);
+          initialMapFetchDone.current = false;
         }
       } catch {}
     },
-    [places],
+    [places, mapPlaces, fetchMapPlaces, setSearchLocation],
   );
 
-  const visiblePlaces = useMemo(
-    () => places.filter((p) => visiblePlaceCodes.has(p.place_code)),
-    [places, visiblePlaceCodes],
-  );
+  const visiblePlaces = useMemo(() => {
+    const activePlaces = mapPlaces.length > 0 ? mapPlaces : places;
+    return activePlaces.filter((p) => visiblePlaceCodes.has(p.place_code));
+  }, [places, mapPlaces, visiblePlaceCodes]);
 
   // Snap sheet back to peek whenever the visible set refreshes to a new non-empty batch
   const prevVisibleCount = useRef(0);
@@ -700,17 +837,42 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
             ) : mapHtml ? (
-              <WebView
-                ref={webViewRef}
-                style={StyleSheet.absoluteFill}
-                source={{ html: mapHtml }}
-                onMessage={handleWebViewMessage}
-                javaScriptEnabled
-                domStorageEnabled
-                originWhitelist={['*']}
-                mixedContentMode="always"
-                scrollEnabled={false}
-              />
+              <>
+                <WebView
+                  ref={webViewRef}
+                  style={StyleSheet.absoluteFill}
+                  source={{ html: mapHtml }}
+                  onMessage={handleWebViewMessage}
+                  javaScriptEnabled
+                  domStorageEnabled
+                  originWhitelist={['*']}
+                  mixedContentMode="always"
+                  scrollEnabled={false}
+                />
+                {/* "Search this area" floating button */}
+                {showSearchArea && (
+                  <TouchableOpacity
+                    style={styles.searchAreaBtn}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      if (currentMapBoundsRef.current) {
+                        setShowSearchArea(false);
+                        fetchMapPlaces(currentMapBoundsRef.current);
+                      }
+                    }}
+                  >
+                    <MaterialIcons name="search" size={18} color={tokens.colors.primary} />
+                    <Text style={styles.searchAreaText}>{t('map.searchThisArea')}</Text>
+                  </TouchableOpacity>
+                )}
+                {/* Loading spinner */}
+                {mapLoading && (
+                  <View style={styles.mapLoadingBadge}>
+                    <ActivityIndicator size="small" color={tokens.colors.primary} />
+                    <Text style={styles.mapLoadingText}>{t('map.loading')}</Text>
+                  </View>
+                )}
+              </>
             ) : null}
 
             {/* Bottom sheet overlay — shown when places are visible or a pin is selected */}

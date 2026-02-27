@@ -101,7 +101,7 @@ By using SQLModel, we maintain Pydantic-like schemas for the API while gaining f
 - `GET /api/v1/users/me/favorites` — favorited places
 
 ### Places (`/api/v1/places`)
-- `GET /api/v1/places` — list places (query: religion, lat, lng, limit, offset)
+- `GET /api/v1/places` — list places (query: religion, lat, lng, radius, limit≤500, cursor, open_now, has_parking, womens_area, has_events, top_rated, min_lat, max_lat, min_lng, max_lng, lang)
 - `GET /api/v1/places/{placeCode}` — get place detail
 - `GET /api/v1/places/{placeCode}/reviews` — reviews for a place (query: limit, offset, lang — BCP-47 code for translated title/body)
 - `POST /api/v1/places/{placeCode}/check-in` — check in to a place

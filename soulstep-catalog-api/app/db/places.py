@@ -333,6 +333,10 @@ def list_places(
     has_parking: bool | None = None,
     womens_area: bool | None = None,
     top_rated: bool | None = None,
+    min_lat: float | None = None,
+    max_lat: float | None = None,
+    min_lng: float | None = None,
+    max_lng: float | None = None,
 ) -> dict:
     statement = select(Place)
 
@@ -345,6 +349,21 @@ def list_places(
         statement = statement.where(
             or_(Place.name.ilike(q), Place.address.ilike(q), Place.description.ilike(q))
         )
+
+    # Bounding-box filter — applied at the SQL level for efficiency
+    has_bbox = (
+        min_lat is not None
+        and max_lat is not None
+        and min_lng is not None
+        and max_lng is not None
+    )
+    if has_bbox:
+        statement = statement.where(Place.lat >= min_lat, Place.lat <= max_lat)
+        if min_lng <= max_lng:
+            statement = statement.where(Place.lng >= min_lng, Place.lng <= max_lng)
+        else:
+            # Crosses antimeridian (e.g. min_lng=170, max_lng=-170)
+            statement = statement.where(or_(Place.lng >= min_lng, Place.lng <= max_lng))
 
     all_places = session.exec(statement).all()
 
@@ -371,7 +390,8 @@ def list_places(
         if lat is not None and lng is not None:
             dist = _haversine_km(lat, lng, p.lat, p.lng)
 
-        if radius_km is not None and dist is not None and dist > radius_km:
+        # Skip radius filtering when bounding box is provided (bbox already constrains area)
+        if not has_bbox and radius_km is not None and dist is not None and dist > radius_km:
             continue
 
         result.append((p, dist))

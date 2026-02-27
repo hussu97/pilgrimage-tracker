@@ -24,8 +24,8 @@ import type { Place } from '@/lib/types';
 import { formatDistance } from '@/lib/utils/place-utils';
 
 const DEFAULT_CENTER: [number, number] = [25, 0];
-const DEFAULT_ZOOM = 3;
-const USER_ZOOM = 11;
+const DEFAULT_ZOOM = 5;
+const USER_ZOOM = 14;
 
 const openStatusColors: Record<string, string> = {
   open: 'rgba(22, 163, 74, 0.85)',
@@ -116,6 +116,7 @@ interface PlacesMapProps {
   initZoom?: number;
   onMapMove?: (lat: number, lng: number, zoom: number) => void;
   skipAutoFit?: boolean;
+  onRecenter?: () => void;
 }
 
 export default function PlacesMap({
@@ -131,6 +132,7 @@ export default function PlacesMap({
   initZoom,
   onMapMove,
   skipAutoFit,
+  onRecenter,
 }: PlacesMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -139,7 +141,9 @@ export default function PlacesMap({
   const searchMarkerRef = useRef<L.Marker | null>(null);
   const onBoundsChangeRef = useRef(onBoundsChange);
   const onMapMoveRef = useRef(onMapMove);
+  const onRecenterRef = useRef(onRecenter);
   const skipAutoFitRef = useRef(skipAutoFit ?? false);
+  const hasInitialFitRef = useRef(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -149,6 +153,10 @@ export default function PlacesMap({
   useEffect(() => {
     onMapMoveRef.current = onMapMove;
   }, [onMapMove]);
+
+  useEffect(() => {
+    onRecenterRef.current = onRecenter;
+  }, [onRecenter]);
 
   useEffect(() => {
     skipAutoFitRef.current = skipAutoFit ?? false;
@@ -170,6 +178,23 @@ export default function PlacesMap({
     }).addTo(map);
 
     mapRef.current = map;
+
+    // "My location" recenter button — bottom-right
+    const RecenterControl = L.Control.extend({
+      options: { position: 'bottomright' as const },
+      onAdd() {
+        const btn = L.DomUtil.create('button', '');
+        btn.innerHTML =
+          '<span class="material-symbols-outlined" style="font-size:20px;color:#374151;">my_location</span>';
+        btn.title = 'My location';
+        btn.style.cssText =
+          'width:36px;height:36px;background:#fff;border:none;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;cursor:pointer;';
+        L.DomEvent.disableClickPropagation(btn);
+        btn.addEventListener('click', () => onRecenterRef.current?.());
+        return btn;
+      },
+    });
+    new RecenterControl().addTo(map);
 
     // Emit bounds whenever the visible area changes
     const emitBounds = () => {
@@ -252,7 +277,7 @@ export default function PlacesMap({
       offset: [0, -8],
     });
     searchMarkerRef.current = marker;
-    map.setView([searchLocation.lat, searchLocation.lng], 12);
+    map.setView([searchLocation.lat, searchLocation.lng], 15);
   }, [searchLocation]);
 
   // ── Update markers whenever places or selection changes ───────────────────
@@ -316,8 +341,10 @@ export default function PlacesMap({
     map.addLayer(cluster);
     clusterRef.current = cluster;
 
-    if (skipAutoFitRef.current) {
-      // Map is already at the restored position — emit current bounds immediately
+    // Only auto-fit on the very first load (before any viewport-based fetches).
+    // After that, the user controls the viewport and we just update markers in place.
+    if (skipAutoFitRef.current || hasInitialFitRef.current) {
+      // Map is already positioned — emit current bounds immediately
       const b = map.getBounds();
       onBoundsChangeRef.current?.({
         north: b.getNorth(),
@@ -326,6 +353,7 @@ export default function PlacesMap({
         west: b.getWest(),
       });
     } else {
+      hasInitialFitRef.current = true;
       // Fit map to all markers
       const lats = places.map((p) => p.lat);
       const lngs = places.map((p) => p.lng);
@@ -333,7 +361,7 @@ export default function PlacesMap({
         [Math.min(...lats), Math.min(...lngs)],
         [Math.max(...lats), Math.max(...lngs)],
       );
-      map.fitBounds(bounds.pad(0.15), { maxZoom: 14 });
+      map.fitBounds(bounds.pad(0.15), { maxZoom: 16 });
       // Emit bounds after the fitBounds animation finishes
       map.once('moveend', () => {
         const b = map.getBounds();

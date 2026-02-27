@@ -15,7 +15,12 @@ const OPEN_STATUS_COLORS: Record<string, string> = {
   unknown: 'rgba(148, 163, 184, 0.85)',
 };
 
-export function buildMapHtml(places: Place[], centerLat: number, centerLng: number): string {
+export function buildMapHtml(
+  places: Place[],
+  centerLat: number,
+  centerLng: number,
+  zoom: number = 14,
+): string {
   const markers: MapMarker[] = places.map((p) => ({
     lat: p.lat,
     lng: p.lng,
@@ -37,6 +42,7 @@ export function buildMapHtml(places: Place[], centerLat: number, centerLng: numb
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body, #map { width: 100%; height: 100%; }
@@ -51,12 +57,28 @@ export function buildMapHtml(places: Place[], centerLat: number, centerLng: numb
       border: 3px solid #fff;
       box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
+    .recenter-btn {
+      width: 36px;
+      height: 36px;
+      background: #fff;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .recenter-btn .material-symbols-outlined {
+      font-size: 20px;
+      color: #374151;
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <script>
-    var map = L.map('map', { zoomControl: true }).setView([${centerLat}, ${centerLng}], 13);
+    var map = L.map('map', { zoomControl: true }).setView([${centerLat}, ${centerLng}], ${zoom});
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -116,6 +138,39 @@ export function buildMapHtml(places: Place[], centerLat: number, centerLng: numb
       opacity: 1,
       fillOpacity: 1
     }).addTo(map).bindPopup('Your location');
+
+    // Recenter control
+    var RecenterControl = L.Control.extend({
+      options: { position: 'bottomright' },
+      onAdd: function() {
+        var btn = L.DomUtil.create('button', 'recenter-btn');
+        btn.innerHTML = '<span class="material-symbols-outlined">my_location</span>';
+        btn.title = 'My location';
+        L.DomEvent.disableClickPropagation(btn);
+        btn.addEventListener('click', function() {
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({"type":"recenter"}));
+          }
+        });
+        return btn;
+      }
+    });
+    new RecenterControl().addTo(map);
+
+    // Functions callable from React Native via injectJavaScript
+    window.updateMarkers = function(newMarkers) {
+      clusterGroup.clearLayers();
+      newMarkers.forEach(function(m) {
+        var marker = L.marker([m.lat, m.lng], { icon: createIcon(m.openStatus) });
+        marker.bindPopup('<strong>' + m.name + '</strong><br/><small>' + m.address + '</small>');
+        marker.on('click', function() {
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify({"type":"placeSelected","placeCode":m.placeCode}));
+          }
+        });
+        clusterGroup.addLayer(marker);
+      });
+    };
 
     function postBounds() {
       if (!window.ReactNativeWebView) return;
