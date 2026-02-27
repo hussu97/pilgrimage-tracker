@@ -8,10 +8,44 @@ on:
 
 concurrency:
   group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      catalog: ${{ steps.filter.outputs.catalog }}
+      scraper: ${{ steps.filter.outputs.scraper }}
+      web: ${{ steps.filter.outputs.web }}
+      mobile: ${{ steps.filter.outputs.mobile }}
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            catalog:
+              - 'soulstep-catalog-api/**'
+              - '.github/workflows/tests.yml'
+            scraper:
+              - 'soulstep-scraper-api/**'
+              - '.github/workflows/tests.yml'
+            web:
+              - 'apps/soulstep-customer-web/**'
+              - '.github/workflows/tests.yml'
+            mobile:
+              - 'apps/soulstep-customer-mobile/**'
+              - '.github/workflows/tests.yml'
+            admin:
+              - 'apps/soulstep-admin-web/**'
+              - '.github/workflows/tests.yml'
+
   soulstep-catalog-api:
     name: soulstep-catalog-api tests
+    needs: changes
+    if: needs.changes.outputs.catalog == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -24,12 +58,12 @@ jobs:
           cache-dependency-path: soulstep-catalog-api/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r soulstep-catalog-api/requirements.txt
+        run: |
+          pip install -r soulstep-catalog-api/requirements.txt
+          pip install pip-audit
 
       - name: Dependency vulnerability scan (pip-audit)
-        run: |
-          pip install pip-audit
-          pip-audit -r soulstep-catalog-api/requirements.txt --skip-editable || true
+        run: pip-audit -r soulstep-catalog-api/requirements.txt --skip-editable || true
 
       - name: Run pytest
         working-directory: soulstep-catalog-api
@@ -37,6 +71,8 @@ jobs:
 
   soulstep-scraper-api:
     name: soulstep-scraper-api tests
+    needs: changes
+    if: needs.changes.outputs.scraper == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -49,12 +85,12 @@ jobs:
           cache-dependency-path: soulstep-scraper-api/requirements.txt
 
       - name: Install dependencies
-        run: pip install -r soulstep-scraper-api/requirements.txt
+        run: |
+          pip install -r soulstep-scraper-api/requirements.txt
+          pip install pip-audit
 
       - name: Dependency vulnerability scan (pip-audit)
-        run: |
-          pip install pip-audit
-          pip-audit -r soulstep-scraper-api/requirements.txt --skip-editable || true
+        run: pip-audit -r soulstep-scraper-api/requirements.txt --skip-editable || true
 
       - name: Run pytest
         working-directory: soulstep-scraper-api
@@ -62,6 +98,8 @@ jobs:
 
   soulstep-customer-web:
     name: Soulstep Customer Web frontend tests
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -87,6 +125,8 @@ jobs:
 
   soulstep-customer-mobile:
     name: Soulstep Customer Mobile frontend tests
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -112,6 +152,8 @@ jobs:
 
   soulstep-admin-web:
     name: soulstep-admin-web tests + build
+    needs: changes
+    if: needs.changes.outputs.admin == 'true'
     runs-on: ubuntu-latest
 
     steps:
