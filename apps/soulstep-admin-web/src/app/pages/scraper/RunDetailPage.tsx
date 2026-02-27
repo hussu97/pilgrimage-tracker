@@ -351,7 +351,8 @@ export function RunDetailPage() {
   }, [loadRun, loadData, loadActivity, runCode]);
 
   const isActive = run?.status === "pending" || run?.status === "running";
-  const isResumable = run?.status === "interrupted" || run?.status === "failed";
+  const isResumable =
+    run?.status === "interrupted" || run?.status === "failed" || run?.status === "cancelled";
 
   // Poll run metadata + activity every 3 s while active
   usePolling(loadRun, 3000, isActive);

@@ -135,6 +135,18 @@ def test_resume_endpoint_rejects_pending(client, db_session):
     assert "pending" in resp.json()["detail"]
 
 
+def test_resume_endpoint_accepts_cancelled(client, db_session):
+    """POST /runs/{run_code}/resume should accept cancelled runs."""
+    loc = _make_location(db_session)
+    run = _make_run(db_session, loc.code, status="cancelled")
+
+    with patch("app.api.v1.scraper.resume_scraper_task"):
+        resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
+
+    assert resp.status_code == 200
+    assert resp.json()["run_code"] == run.run_code
+
+
 def test_resume_endpoint_not_found(client):
     """POST /runs/{run_code}/resume should return 404 for unknown run_code."""
     resp = client.post("/api/v1/scraper/runs/run_nonexistent/resume")

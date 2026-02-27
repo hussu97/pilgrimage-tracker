@@ -270,15 +270,15 @@ def re_enrich_run(run_code: str, background_tasks: BackgroundTasks, session: Ses
 
 @router.post("/runs/{run_code}/resume")
 def resume_run(run_code: str, background_tasks: BackgroundTasks, session: SessionDep):
-    """Resume an interrupted or failed run from where it left off."""
+    """Resume an interrupted, failed, or cancelled run from where it left off."""
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    if run.status not in ["interrupted", "failed"]:
+    if run.status not in ["interrupted", "failed", "cancelled"]:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot resume run with status: {run.status}. Only interrupted or failed runs can be resumed.",
+            detail=f"Cannot resume run with status: {run.status}. Only interrupted, failed, or cancelled runs can be resumed.",
         )
 
     background_tasks.add_task(resume_scraper_task, run.run_code)

@@ -23,7 +23,7 @@ import { Play, RefreshCw, Trash2, XCircle, UploadCloud } from "lucide-react";
 type RunStatus = "pending" | "running" | "completed" | "failed" | "cancelled" | "interrupted";
 
 const ACTIVE_STATUSES: RunStatus[] = ["pending", "running"];
-const RESUMABLE_STATUSES: RunStatus[] = ["interrupted", "failed"];
+const RESUMABLE_STATUSES: RunStatus[] = ["interrupted", "failed", "cancelled"];
 
 export function ScraperRunsPage() {
   const navigate = useNavigate();
