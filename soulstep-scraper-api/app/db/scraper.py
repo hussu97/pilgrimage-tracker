@@ -361,55 +361,83 @@ def sync_run_to_server(run_code: str, server_url: str) -> None:
 
     Places are sent in groups of BATCH_SIZE to reduce HTTP overhead.
     Falls back to individual POSTs for any batch that the endpoint rejects.
+
+    Progress is persisted to ScraperRun after every batch so the admin UI
+    can display a live sync counter (polled via the /activity endpoint).
     """
     # Ensure the URL has an http(s) scheme so requests doesn't raise InvalidSchema.
     if not server_url.startswith(("http://", "https://")):
         server_url = f"http://{server_url}"
     server_url = server_url.rstrip("/")
 
+    # Load places and mark run as syncing
     with Session(engine) as session:
         places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
-
         total = len(places)
-        logger.info("Syncing %d places to %s in batches of %d", total, server_url, BATCH_SIZE)
-
         payloads = build_sync_payloads(list(places))
         payloads_by_code = {p["place_code"]: p for p in payloads}
 
-        synced_count = 0
-        all_failure_details: list[str] = []
+        run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+        if run:
+            run.stage = "syncing"
+            run.places_synced = 0
+            run.places_sync_failed = 0
+            session.add(run)
+        session.commit()
 
-        http_session = requests.Session()
-        for batch_start in range(0, len(payloads), BATCH_SIZE):
-            batch = payloads[batch_start : batch_start + BATCH_SIZE]
-            logger.info("Sending batch %d: %d places", batch_start // BATCH_SIZE + 1, len(batch))
+    logger.info("Syncing %d places to %s in batches of %d", total, server_url, BATCH_SIZE)
 
-            batch_synced, failed_entries = post_batch(batch, server_url, http_session)
+    synced_count = 0
+    all_failure_details: list[str] = []
 
-            if batch_synced > 0:
-                synced_count += batch_synced
+    http_session = requests.Session()
+    for batch_start in range(0, len(payloads), BATCH_SIZE):
+        batch = payloads[batch_start : batch_start + BATCH_SIZE]
+        logger.info("Sending batch %d: %d places", batch_start // BATCH_SIZE + 1, len(batch))
+
+        batch_synced, failed_entries = post_batch(batch, server_url, http_session)
+
+        if batch_synced > 0:
+            synced_count += batch_synced
+        else:
+            # Entire batch failed — retry individually
+            failed_codes = [e.split(":")[0] for e in failed_entries]
+            retry_payloads = [payloads_by_code[c] for c in failed_codes if c in payloads_by_code]
+            if retry_payloads:
+                extra_synced, extra_failures = handle_sync_failures(
+                    retry_payloads, server_url, http_session
+                )
+                synced_count += extra_synced
+                all_failure_details.extend(extra_failures)
             else:
-                # Entire batch failed — retry individually
-                failed_codes = [e.split(":")[0] for e in failed_entries]
-                retry_payloads = [
-                    payloads_by_code[c] for c in failed_codes if c in payloads_by_code
-                ]
-                if retry_payloads:
-                    extra_synced, extra_failures = handle_sync_failures(
-                        retry_payloads, server_url, http_session
-                    )
-                    synced_count += extra_synced
-                    all_failure_details.extend(extra_failures)
-                else:
-                    all_failure_details.extend(failed_entries)
+                all_failure_details.extend(failed_entries)
 
-            all_failure_details.extend(
-                e for e in failed_entries if e.split(":")[0] not in payloads_by_code
-            )
-
-        failed_count = len(all_failure_details)
-        logger.info(
-            "Sync complete: %d/%d places synced. %d failure(s).", synced_count, total, failed_count
+        all_failure_details.extend(
+            e for e in failed_entries if e.split(":")[0] not in payloads_by_code
         )
-        if all_failure_details:
-            logger.warning("Failed places:\n%s", "\n".join(f"  - {d}" for d in all_failure_details))
+
+        # Persist progress after every batch so the admin UI can poll it
+        with Session(engine) as session:
+            run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+            if run:
+                run.places_synced = synced_count
+                run.places_sync_failed = len(all_failure_details)
+                session.add(run)
+                session.commit()
+
+    failed_count = len(all_failure_details)
+    logger.info(
+        "Sync complete: %d/%d places synced. %d failure(s).", synced_count, total, failed_count
+    )
+    if all_failure_details:
+        logger.warning("Failed places:\n%s", "\n".join(f"  - {d}" for d in all_failure_details))
+
+    # Clear syncing stage when done
+    with Session(engine) as session:
+        run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+        if run:
+            run.stage = None
+            run.places_synced = synced_count
+            run.places_sync_failed = failed_count
+            session.add(run)
+            session.commit()

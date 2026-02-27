@@ -22,11 +22,15 @@ class ScraperRun(SQLModel, table=True):
     )  # pending, running, completed, failed, cancelled, interrupted
     stage: str | None = Field(
         default=None
-    )  # discovery, detail_fetch, enrichment (null when not running)
+    )  # discovery, detail_fetch, image_download, enrichment, syncing (null when done)
     total_items: int | None = Field(default=None)
     processed_items: int = Field(default=0)
     discovered_resource_names: list[str] = Field(default=[], sa_column=Column(JSON))
     error_message: str | None = Field(default=None)
+    images_downloaded: int = Field(default=0)
+    images_failed: int = Field(default=0)
+    places_synced: int = Field(default=0)
+    places_sync_failed: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

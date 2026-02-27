@@ -48,6 +48,14 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
     activity.places_enriching.length > 0 ||
     activity.places_failed > 0 ||
     stage === "enrichment";
+  const showImages =
+    activity.images_downloaded > 0 ||
+    activity.images_failed > 0 ||
+    stage === "image_download";
+  const showSync =
+    activity.places_synced > 0 ||
+    activity.places_sync_failed > 0 ||
+    stage === "syncing";
 
   const cellsSatPct =
     activity.cells_total > 0
@@ -57,6 +65,12 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
     activity.places_total > 0
       ? Math.round((activity.places_complete / activity.places_total) * 100)
       : 0;
+  const syncPct =
+    activity.places_total > 0
+      ? Math.min(100, Math.round((activity.places_synced / activity.places_total) * 100))
+      : 0;
+
+  const isSyncing = stage === "syncing";
 
   return (
     <div className="rounded-xl border border-primary/40 dark:border-primary/30 bg-primary/5 dark:bg-primary/[0.08] p-4 space-y-4">
@@ -100,6 +114,35 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
                 className="bg-primary/60 h-1.5 rounded-full transition-all duration-700"
                 style={{ width: `${cellsSatPct}%` }}
               />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Image Download */}
+      {showImages && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
+            Image Download
+          </p>
+          {stage === "image_download" && activity.images_downloaded === 0 ? (
+            <div className="flex items-center gap-1.5 text-xs text-text-secondary dark:text-dark-text-secondary">
+              <RefreshCw size={11} className="animate-spin text-primary flex-shrink-0" />
+              Downloading images…
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 flex-wrap text-xs">
+              <span className="text-green-600 dark:text-green-400 font-semibold">
+                {activity.images_downloaded.toLocaleString()} downloaded
+              </span>
+              {activity.images_failed > 0 && (
+                <>
+                  <span className="text-text-secondary">·</span>
+                  <span className="text-red-500 font-semibold">
+                    {activity.images_failed.toLocaleString()} failed
+                  </span>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -163,7 +206,47 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
         </div>
       )}
 
-      {!showCells && !showEnrichment && (
+      {/* Sync */}
+      {showSync && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
+            Sync
+          </p>
+          <div className="flex items-center gap-3 flex-wrap text-xs">
+            <span className="text-blue-600 dark:text-blue-400 font-semibold">
+              {activity.places_synced.toLocaleString()}
+              {activity.places_total > 0 && ` / ${activity.places_total.toLocaleString()}`} synced
+            </span>
+            {activity.places_sync_failed > 0 && (
+              <>
+                <span className="text-text-secondary">·</span>
+                <span className="text-red-500 font-semibold">
+                  {activity.places_sync_failed.toLocaleString()} failed
+                </span>
+              </>
+            )}
+            {isSyncing && (
+              <>
+                <span className="text-text-secondary">·</span>
+                <RefreshCw size={11} className="animate-spin text-blue-500 flex-shrink-0" />
+                <span className="text-text-secondary dark:text-dark-text-secondary">
+                  syncing…
+                </span>
+              </>
+            )}
+          </div>
+          {activity.places_total > 0 && (
+            <div className="w-full bg-background-light dark:bg-dark-bg rounded-full h-1.5">
+              <div
+                className="bg-blue-500 h-1.5 rounded-full transition-all duration-700"
+                style={{ width: `${syncPct}%` }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {!showCells && !showEnrichment && !showImages && !showSync && (
         <p className="text-xs text-text-secondary dark:text-dark-text-secondary">
           Waiting for scraper to start…
         </p>
@@ -351,12 +434,13 @@ export function RunDetailPage() {
   }, [loadRun, loadData, loadActivity, runCode]);
 
   const isActive = run?.status === "pending" || run?.status === "running";
+  const isSyncing = run?.stage === "syncing";
   const isResumable =
     run?.status === "interrupted" || run?.status === "failed" || run?.status === "cancelled";
 
-  // Poll run metadata + activity every 3 s while active
-  usePolling(loadRun, 3000, isActive);
-  usePolling(loadActivity, 3000, isActive);
+  // Poll run metadata + activity every 3 s while active or syncing
+  usePolling(loadRun, 3000, isActive || isSyncing);
+  usePolling(loadActivity, 3000, isActive || isSyncing);
 
   // Poll places every 5 s while active and places tab is open
   const pollPlaces = useCallback(async () => {
@@ -527,13 +611,21 @@ export function RunDetailPage() {
 
         {/* Stage pipeline */}
         {(() => {
-          const stages = ["discovery", "detail_fetch", "image_download", "enrichment"];
+          const stages = ["discovery", "detail_fetch", "image_download", "enrichment", "syncing"];
           const currentStageIdx = run.stage ? stages.indexOf(run.stage) : -1;
           const isInterrupted = run.status === "interrupted";
+          // "syncing" is triggered manually post-completion; treat it as done
+          // only when places_synced > 0 and we're no longer actively syncing
+          const syncDone =
+            (activity?.places_synced ?? 0) > 0 && run.stage !== "syncing";
           return (
             <div className="flex items-center gap-0 flex-wrap">
               {stages.map((s, i) => {
-                const isDone = currentStageIdx > i || run.status === "completed";
+                const isSyncStage = s === "syncing";
+                const isDone = isSyncStage
+                  ? syncDone
+                  : currentStageIdx > i ||
+                    (run.status === "completed" && !isSyncStage);
                 const isCurrent = currentStageIdx === i;
                 return (
                   <div key={s} className="flex items-center">
@@ -541,10 +633,14 @@ export function RunDetailPage() {
                       className={[
                         "px-2 py-1 rounded text-xs font-medium",
                         isDone
-                          ? "bg-primary/10 text-primary"
+                          ? isSyncStage
+                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                            : "bg-primary/10 text-primary"
                           : isCurrent
                           ? isInterrupted
                             ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
+                            : isSyncStage
+                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
                             : "bg-primary/20 text-primary"
                           : "bg-background-light dark:bg-dark-bg text-text-secondary dark:text-dark-text-secondary",
                       ]
@@ -573,8 +669,8 @@ export function RunDetailPage() {
           </div>
         )}
 
-        {/* Live activity panel — only while running */}
-        {isActive && activity && (
+        {/* Live activity panel — while running, syncing, or whenever there is data to show */}
+        {(isActive || isSyncing || (activity && (activity.places_synced > 0 || activity.images_downloaded > 0))) && activity && (
           <LiveActivityPanel run={run} activity={activity} />
         )}
       </div>

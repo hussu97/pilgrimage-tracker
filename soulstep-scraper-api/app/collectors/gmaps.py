@@ -111,6 +111,9 @@ async def download_place_images(run_code: str, engine, max_workers: int = 20) ->
     for (place_id, idx), content in results.items():
         blobs_by_place.setdefault(place_id, []).append((idx, content))
 
+    downloaded = sum(len(v) for v in blobs_by_place.values())
+    images_failed = len(tasks) - downloaded
+
     with Session(engine) as session:
         for place_id, blob_list in blobs_by_place.items():
             place = session.get(ScrapedPlace, place_id)
@@ -128,9 +131,18 @@ async def download_place_images(run_code: str, engine, max_workers: int = 20) ->
             raw["image_urls"] = []  # clear URLs now that blobs exist
             place.raw_data = raw
             session.add(place)
+
+        # Persist progress counters so the admin UI can display them
+        from app.db.models import ScraperRun
+
+        run_record = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+        if run_record:
+            run_record.images_downloaded = downloaded
+            run_record.images_failed = images_failed
+            session.add(run_record)
+
         session.commit()
 
-    downloaded = sum(len(v) for v in blobs_by_place.values())
     logger.info(
         "Image download complete: %d/%d images downloaded for run %s",
         downloaded,

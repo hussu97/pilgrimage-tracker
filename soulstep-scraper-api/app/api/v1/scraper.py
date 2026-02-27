@@ -375,6 +375,10 @@ def get_run_activity(run_code: str, session: SessionDep):
         "places_enriching": [{"place_code": p.place_code, "name": p.name} for p in enriching],
         "places_complete": places_complete,
         "places_failed": places_failed,
+        "images_downloaded": run.images_downloaded,
+        "images_failed": run.images_failed,
+        "places_synced": run.places_synced,
+        "places_sync_failed": run.places_sync_failed,
     }
 
 

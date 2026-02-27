@@ -280,6 +280,10 @@ export interface RunActivity {
   places_enriching: { place_code: string; name: string }[];
   places_complete: number;
   places_failed: number;
+  images_downloaded: number;
+  images_failed: number;
+  places_synced: number;
+  places_sync_failed: number;
 }
 
 export interface DiscoveryCellItem {
