@@ -4,6 +4,17 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Translation Cost Reduction (2026-02-27)
+
+### Backend
+
+- **`scripts/backfill_translations.py`** — Removed `address` from translatable place fields; addresses are location identifiers understood universally without translation (~25–33% cost reduction on place translations).
+- **`--estimate` flag** — New CLI flag: scans all missing translations, prints per-language character counts and estimated cost at $20/million chars without making any API calls.
+- **`--min-review-length` flag** — New CLI flag (default: 0): skips review fields (title/body) shorter than N characters, avoiding translation of low-value short reviews (e.g. "Great!", "5 stars").
+- **Cost tracking** — `_backfill_places()` and `_backfill_reviews()` now return `(translated_count, total_chars)` for use in estimate summaries.
+
+---
+
 ## Scraper Run Persistence & Resumability (2026-02-27)
 
 ### Backend (Scraper)

@@ -191,3 +191,43 @@ Tests use in-memory SQLite (`StaticPool`) with migrations and seed patched out. 
 - `GOOGLE_APPLICATION_CREDENTIALS` — (optional) Path to a GCP service account JSON key. Required on non-GCP hosts when using `IMAGE_STORAGE=gcs` or the translation backfill script. Not needed on Cloud Run (uses workload identity).
 
 For production deployment options, see [PRODUCTION.md](../PRODUCTION.md) at repo root.
+
+## Scripts
+
+### Translation Backfill (`scripts/backfill_translations.py`)
+
+Backfills `ContentTranslation` rows for existing Place and Review records.
+
+**Fields translated:** `name`, `description` for places; `title`, `body` for reviews. `address` is intentionally excluded — location identifiers are understood universally without translation.
+
+**Prerequisites:**
+1. `gcloud auth application-default login`
+2. Set `GOOGLE_CLOUD_PROJECT` in `.env`
+
+**Usage:**
+```bash
+# Dry run — show what would be translated without writing
+python -m scripts.backfill_translations --dry-run
+
+# Estimate cost before running (no API calls made)
+python -m scripts.backfill_translations --estimate
+
+# Skip short reviews (e.g. < 20 chars like "Great!")
+python -m scripts.backfill_translations --min-review-length 20
+
+# Target specific languages only
+python -m scripts.backfill_translations --langs ar hi
+
+# Full run with rate limiting
+python -m scripts.backfill_translations --batch-size 50 --rate-limit-delay 0.5
+```
+
+**Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--langs` | all non-English | Languages to backfill (from `seed_data.json`) |
+| `--dry-run` | off | Print actions without writing to DB |
+| `--estimate` | off | Show char count + estimated cost ($20/M chars) — no API calls |
+| `--batch-size` | 50 | Translation batch size |
+| `--rate-limit-delay` | 0.5 | Seconds to sleep between API batches |
+| `--min-review-length` | 0 | Skip review fields shorter than N chars (0 = translate all) |

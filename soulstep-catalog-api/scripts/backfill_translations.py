@@ -2,6 +2,8 @@
 
 Usage (from the soulstep-catalog-api/ directory with venv active):
     python -m scripts.backfill_translations [--langs ar hi] [--dry-run] [--batch-size 50]
+    python -m scripts.backfill_translations --estimate            # show cost estimate, no API calls
+    python -m scripts.backfill_translations --min-review-length 50  # skip short reviews
 
 What it does:
 1. Iterates all Place rows; for each place × field × language combination missing a
@@ -56,7 +58,9 @@ _ALL_LANG_CODES = [lang["code"] for lang in _seed["languages"]]
 # Exclude English — we translate *from* English to the rest
 _SUPPORTED_LANGS = [code for code in _ALL_LANG_CODES if code != "en"]
 
-_TRANSLATABLE_FIELDS = ["name", "description", "address"]
+# Address is intentionally excluded: location identifiers don't translate
+# meaningfully and are understood universally without machine translation.
+_TRANSLATABLE_FIELDS = ["name", "description"]
 _REVIEW_TRANSLATABLE_FIELDS = ["title", "body"]
 
 # Legacy attribute codes (e.g. name_ar, name_hi) that the scraper may have
@@ -65,6 +69,9 @@ _REVIEW_TRANSLATABLE_FIELDS = ["title", "body"]
 _LEGACY_ATTR_LANGS: dict[str, tuple[str, str]] = {
     f"name_{code}": ("name", code) for code in _SUPPORTED_LANGS
 }
+
+# Google Cloud Translation pricing (USD per million characters)
+_PRICE_PER_MILLION_CHARS = 20.0
 
 
 def _migrate_legacy_attributes(session: Session, dry_run: bool) -> int:
@@ -104,32 +111,39 @@ def _backfill_places(
     batch_size: int,
     dry_run: bool,
     rate_limit_delay: float,
-) -> int:
+    estimate: bool = False,
+) -> tuple[int, int]:
+    """Translate missing place fields.
+
+    Returns (translated_count, total_chars) where total_chars counts characters
+    in all missing items (for cost estimation).
+    """
     places = session.exec(select(Place)).all()
     logger.info("Found %d places to process", len(places))
 
     if not places:
         logger.warning("No Place rows in the database — nothing to translate")
-        return 0
+        return 0, 0
 
     # Log a sample place so the user can verify DB connectivity
     sample = places[0]
     logger.info(
-        "  Sample place: code=%s name=%r description=%s address=%s",
+        "  Sample place: code=%s name=%r description=%s",
         sample.place_code,
         (sample.name or "")[:50],
         "yes" if sample.description else "NO",
-        "yes" if sample.address else "NO",
     )
 
-    # Check API key early
-    project = os.environ.get("GOOGLE_CLOUD_PROJECT")
-    if not project:
-        logger.error("GOOGLE_CLOUD_PROJECT not set. Add it to soulstep-catalog-api/.env")
-        return 0
-    logger.info("Credentials OK: GOOGLE_CLOUD_PROJECT=%s (using ADC)", project)
+    if not estimate:
+        # Check API key early (skip for estimate — no API calls made)
+        project = os.environ.get("GOOGLE_CLOUD_PROJECT")
+        if not project:
+            logger.error("GOOGLE_CLOUD_PROJECT not set. Add it to soulstep-catalog-api/.env")
+            return 0, 0
+        logger.info("Credentials OK: GOOGLE_CLOUD_PROJECT=%s (using ADC)", project)
 
     translated_count = 0
+    total_chars = 0
 
     for lang in langs:
         logger.info("=== Language: %s ===", lang)
@@ -146,6 +160,7 @@ def _backfill_places(
                 existing = ct_db.get_translation("place", place.place_code, field, lang, session)
                 if existing is None:
                     missing.append((place, field, en_text))
+                    total_chars += len(en_text)
                 else:
                     already_exist += 1
 
@@ -159,6 +174,17 @@ def _backfill_places(
 
         if not missing:
             logger.info("  Nothing to translate for %s — skipping", lang)
+            continue
+
+        if estimate:
+            lang_chars = sum(len(t) for _, _, t in missing)
+            logger.info(
+                "  [ESTIMATE] %s: %d items, %d chars (~$%.4f)",
+                lang,
+                len(missing),
+                lang_chars,
+                lang_chars / 1_000_000 * _PRICE_PER_MILLION_CHARS,
+            )
             continue
 
         # Process in batches
@@ -197,7 +223,7 @@ def _backfill_places(
             if rate_limit_delay > 0:
                 time.sleep(rate_limit_delay)
 
-    return translated_count
+    return translated_count, total_chars
 
 
 def _backfill_reviews(
@@ -206,49 +232,76 @@ def _backfill_reviews(
     batch_size: int,
     dry_run: bool,
     rate_limit_delay: float,
-) -> int:
+    min_review_length: int = 0,
+    estimate: bool = False,
+) -> tuple[int, int]:
+    """Translate missing review fields.
+
+    Returns (translated_count, total_chars) where total_chars counts characters
+    in all missing items (for cost estimation).
+    Skips reviews shorter than min_review_length characters.
+    """
     reviews = session.exec(select(Review)).all()
     logger.info("Found %d reviews to process", len(reviews))
 
     if not reviews:
         logger.warning("No Review rows in the database — nothing to translate")
-        return 0
+        return 0, 0
 
-    project = os.environ.get("GOOGLE_CLOUD_PROJECT")
-    if not project:
-        logger.error("GOOGLE_CLOUD_PROJECT not set. Add it to soulstep-catalog-api/.env")
-        return 0
-    logger.info("Credentials OK: GOOGLE_CLOUD_PROJECT=%s (using ADC)", project)
+    if not estimate:
+        project = os.environ.get("GOOGLE_CLOUD_PROJECT")
+        if not project:
+            logger.error("GOOGLE_CLOUD_PROJECT not set. Add it to soulstep-catalog-api/.env")
+            return 0, 0
+        logger.info("Credentials OK: GOOGLE_CLOUD_PROJECT=%s (using ADC)", project)
 
     translated_count = 0
+    total_chars = 0
 
     for lang in langs:
         logger.info("=== Reviews Language: %s ===", lang)
         missing: list[tuple[Review, str, str]] = []
         already_exist = 0
         empty_fields = 0
+        skipped_short = 0
         for review in reviews:
             for field in _REVIEW_TRANSLATABLE_FIELDS:
                 en_text = getattr(review, field, None)
                 if not en_text:
                     empty_fields += 1
                     continue
+                if min_review_length and len(en_text.strip()) < min_review_length:
+                    skipped_short += 1
+                    continue
                 existing = ct_db.get_translation("review", review.review_code, field, lang, session)
                 if existing is None:
                     missing.append((review, field, en_text))
+                    total_chars += len(en_text)
                 else:
                     already_exist += 1
 
         logger.info(
-            "  %s summary: %d missing, %d already translated, %d empty source fields",
+            "  %s summary: %d missing, %d already translated, %d empty, %d skipped (too short)",
             lang,
             len(missing),
             already_exist,
             empty_fields,
+            skipped_short,
         )
 
         if not missing:
             logger.info("  Nothing to translate for %s — skipping", lang)
+            continue
+
+        if estimate:
+            lang_chars = sum(len(t) for _, _, t in missing)
+            logger.info(
+                "  [ESTIMATE] %s: %d items, %d chars (~$%.4f)",
+                lang,
+                len(missing),
+                lang_chars,
+                lang_chars / 1_000_000 * _PRICE_PER_MILLION_CHARS,
+            )
             continue
 
         for start in range(0, len(missing), batch_size):
@@ -286,7 +339,7 @@ def _backfill_reviews(
             if rate_limit_delay > 0:
                 time.sleep(rate_limit_delay)
 
-    return translated_count
+    return translated_count, total_chars
 
 
 def main() -> None:
@@ -298,6 +351,13 @@ def main() -> None:
         help=f"Languages to backfill (from seed_data.json, default: {_SUPPORTED_LANGS})",
     )
     parser.add_argument("--dry-run", action="store_true", help="Print actions without writing")
+    parser.add_argument(
+        "--estimate",
+        action="store_true",
+        help=(
+            "Show character count and estimated cost (at $20/M chars) without making any API calls"
+        ),
+    )
     parser.add_argument("--batch-size", type=int, default=50, help="Translation batch size")
     parser.add_argument(
         "--rate-limit-delay",
@@ -305,33 +365,68 @@ def main() -> None:
         default=0.5,
         help="Seconds to sleep between API batches (default: 0.5)",
     )
+    parser.add_argument(
+        "--min-review-length",
+        type=int,
+        default=0,
+        help=(
+            "Skip review fields shorter than this many characters (e.g. 20 skips 'Great place!'). "
+            "Default: 0 (translate everything)."
+        ),
+    )
     args = parser.parse_args()
 
-    logger.info("Starting translation backfill (dry_run=%s, langs=%s)", args.dry_run, args.langs)
+    if args.estimate:
+        logger.info(
+            "=== ESTIMATE MODE — no API calls will be made (langs=%s, min_review_length=%d) ===",
+            args.langs,
+            args.min_review_length,
+        )
+    else:
+        logger.info(
+            "Starting translation backfill (dry_run=%s, langs=%s, min_review_length=%d)",
+            args.dry_run,
+            args.langs,
+            args.min_review_length,
+        )
 
     with Session(engine) as session:
-        migrated = _migrate_legacy_attributes(session, args.dry_run)
+        migrated = _migrate_legacy_attributes(session, args.dry_run or args.estimate)
         logger.info("Migrated %d legacy attribute rows", migrated)
 
-        translated = _backfill_places(
+        _, place_chars = _backfill_places(
             session,
             langs=args.langs,
             batch_size=args.batch_size,
             dry_run=args.dry_run,
             rate_limit_delay=args.rate_limit_delay,
+            estimate=args.estimate,
         )
-        logger.info("Translated %d new place rows", translated)
 
-        translated_reviews = _backfill_reviews(
+        _, review_chars = _backfill_reviews(
             session,
             langs=args.langs,
             batch_size=args.batch_size,
             dry_run=args.dry_run,
             rate_limit_delay=args.rate_limit_delay,
+            min_review_length=args.min_review_length,
+            estimate=args.estimate,
         )
-        logger.info("Translated %d new review rows", translated_reviews)
 
-    logger.info("Done.")
+    if args.estimate:
+        total_chars = place_chars + review_chars
+        estimated_cost = total_chars / 1_000_000 * _PRICE_PER_MILLION_CHARS
+        logger.info("=== ESTIMATE SUMMARY ===")
+        logger.info("  Place characters:  %d", place_chars)
+        logger.info("  Review characters: %d", review_chars)
+        logger.info("  Total characters:  %d", total_chars)
+        logger.info(
+            "  Estimated cost:    $%.4f  (at $%.2f/million chars)",
+            estimated_cost,
+            _PRICE_PER_MILLION_CHARS,
+        )
+    else:
+        logger.info("Done.")
 
 
 if __name__ == "__main__":
