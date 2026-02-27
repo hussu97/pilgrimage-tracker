@@ -15,8 +15,10 @@ import type { RawCollectorEntry, ScrapedPlaceData, ScraperRun } from "@/lib/api/
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DataTable, type Column } from "@/components/shared/DataTable";
+import { Pagination } from "@/components/shared/Pagination";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { usePolling } from "@/lib/hooks/usePolling";
+import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
 import { statusVariant } from "@/lib/utils/scraperStatus";
 import { ArrowLeft, Play, RefreshCw, Trash2, UploadCloud, XCircle } from "lucide-react";
@@ -33,11 +35,13 @@ export function RunDetailPage() {
   const navigate = useNavigate();
   const [run, setRun] = useState<ScraperRun | null>(null);
   const [places, setPlaces] = useState<ScrapedPlaceData[]>([]);
+  const [total, setTotal] = useState(0);
   const [rawData, setRawData] = useState<RawCollectorEntry[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [expandedRaw, setExpandedRaw] = useState<Set<string>>(new Set());
+  const { page, pageSize, setPage, setPageSize } = usePagination(50);
 
   const loadRun = useCallback(async () => {
     if (!runCode) return;
@@ -49,17 +53,24 @@ export function RunDetailPage() {
   const loadData = useCallback(async () => {
     if (!runCode) return;
     try {
-      const [p, r] = await Promise.all([
-        getRunData(runCode, search || undefined),
-        getRunRawData(runCode),
-      ]);
-      setPlaces(p);
-      setRawData(r);
+      const result = await getRunData(runCode, {
+        search: search || undefined,
+        page,
+        page_size: pageSize,
+      });
+      setPlaces(result.items);
+      setTotal(result.total);
     } catch {
       setPlaces([]);
-      setRawData([]);
+      setTotal(0);
     }
-  }, [runCode, search]);
+  }, [runCode, search, page, pageSize]);
+
+  // Load raw collector data once per run (independent of pagination)
+  useEffect(() => {
+    if (!runCode) return;
+    getRunRawData(runCode).then(setRawData).catch(() => setRawData([]));
+  }, [runCode]);
 
   useEffect(() => {
     if (!runCode) return;
@@ -284,7 +295,7 @@ export function RunDetailPage() {
               value={tab}
               className="px-4 py-2.5 text-sm font-medium text-text-secondary dark:text-dark-text-secondary border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary transition-colors"
             >
-              {tab === "places" ? `Scraped Places (${places.length})` : `Raw Data (${rawData.length})`}
+              {tab === "places" ? `Scraped Places (${total})` : `Raw Data (${rawData.length})`}
             </Tabs.Trigger>
           ))}
         </Tabs.List>
@@ -292,7 +303,7 @@ export function RunDetailPage() {
         <Tabs.Content value="places" className="pt-4 space-y-3">
           <SearchInput
             value={search}
-            onChange={(v) => { setSearch(v); void loadData(); }}
+            onChange={(v) => { setSearch(v); setPage(1); }}
             placeholder="Search by name…"
             className="w-64"
           />
@@ -301,6 +312,13 @@ export function RunDetailPage() {
             data={places}
             rowKey={(p) => String(p._scraped_id)}
             emptyMessage="No scraped places."
+          />
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
           />
         </Tabs.Content>
 

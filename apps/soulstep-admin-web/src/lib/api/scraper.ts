@@ -62,10 +62,14 @@ export async function getRun(runCode: string): Promise<ScraperRun> {
   return res.data;
 }
 
-export async function getRunData(runCode: string, search?: string): Promise<ScrapedPlaceData[]> {
-  const res = await apiClient.get<ScrapedPlaceData[]>(`/admin/scraper/runs/${runCode}/data`, {
-    params: search ? { search } : undefined,
-  });
+export async function getRunData(
+  runCode: string,
+  params?: { search?: string; page?: number; page_size?: number }
+): Promise<PaginatedResponse<ScrapedPlaceData>> {
+  const res = await apiClient.get<PaginatedResponse<ScrapedPlaceData>>(
+    `/admin/scraper/runs/${runCode}/data`,
+    { params }
+  );
   return res.data;
 }
 

@@ -210,12 +210,16 @@ class TestScraperRuns:
         assert resp.status_code == 404
 
     def test_view_data_empty(self, client, db_session):
-        """View data for an existing run with no scraped places."""
+        """View data for an existing run with no scraped places returns paginated response."""
         loc = _create_location_in_db(db_session, "View Data Test")
         run = _create_run_in_db(db_session, loc.code, "completed")
         resp = client.get(f"/api/v1/scraper/runs/{run.run_code}/data")
         assert resp.status_code == 200
-        assert resp.json() == []
+        data = resp.json()
+        assert data["items"] == []
+        assert data["total"] == 0
+        assert data["page"] == 1
+        assert data["page_size"] == 50
 
     def test_view_data_with_search_filter(self, client, db_session):
         """View data with a search filter — covers the search branch."""
@@ -223,6 +227,43 @@ class TestScraperRuns:
         run = _create_run_in_db(db_session, loc.code, "completed")
         resp = client.get(f"/api/v1/scraper/runs/{run.run_code}/data?search=mosque")
         assert resp.status_code == 200
+        data = resp.json()
+        assert "items" in data
+        assert "total" in data
+
+    def test_view_data_pagination(self, client, db_session):
+        """View data supports page and page_size query params."""
+        loc = _create_location_in_db(db_session, "Pagination Test")
+        run = _create_run_in_db(db_session, loc.code, "completed")
+
+        # Insert 5 scraped places
+        for i in range(5):
+            place = ScrapedPlace(
+                run_code=run.run_code,
+                place_code=f"gplc_page{i}",
+                name=f"Place {i}",
+                raw_data={"name": f"Place {i}"},
+                enrichment_status="complete",
+            )
+            db_session.add(place)
+        db_session.commit()
+
+        # Page 1, size 3 → 3 items
+        resp = client.get(f"/api/v1/scraper/runs/{run.run_code}/data?page=1&page_size=3")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 5
+        assert len(data["items"]) == 3
+        assert data["page"] == 1
+        assert data["page_size"] == 3
+
+        # Page 2, size 3 → 2 items
+        resp = client.get(f"/api/v1/scraper/runs/{run.run_code}/data?page=2&page_size=3")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 5
+        assert len(data["items"]) == 2
+        assert data["page"] == 2
 
     def test_view_raw_data_empty(self, client, db_session):
         """View raw collector data for a run with no data."""

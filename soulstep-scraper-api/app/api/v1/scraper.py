@@ -176,21 +176,34 @@ def get_run(run_code: str, session: SessionDep):
 
 
 @router.get("/runs/{run_code}/data")
-def view_data(run_code: str, session: SessionDep, search: str | None = Query(None)):
-    query = select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
+def view_data(
+    run_code: str,
+    session: SessionDep,
+    search: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=2000),
+):
+    base_query = select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
+    count_query = (
+        select(func.count()).select_from(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
+    )
     if search:
-        query = query.where(ScrapedPlace.name.contains(search))
+        base_query = base_query.where(ScrapedPlace.name.contains(search))
+        count_query = count_query.where(ScrapedPlace.name.contains(search))
 
-    results = session.exec(query).all()
+    total = session.exec(count_query).one()
+    results = session.exec(base_query.offset((page - 1) * page_size).limit(page_size)).all()
+
     out = []
     for r in results:
-        data = r.raw_data
+        data = dict(r.raw_data)
         data["_scraped_id"] = r.place_code
         data["_enrichment_status"] = r.enrichment_status
         data["_description_source"] = r.description_source
         data["_description_score"] = r.description_score
         out.append(data)
-    return out
+
+    return {"items": out, "total": total, "page": page, "page_size": page_size}
 
 
 @router.get("/runs/{run_code}/raw-data", response_model=list[RawCollectorDataResponse])
