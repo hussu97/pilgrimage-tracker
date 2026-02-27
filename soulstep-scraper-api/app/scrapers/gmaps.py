@@ -23,7 +23,8 @@ from app.scrapers.base import AtomicCounter, ThreadSafeIdSet, get_rate_limiter
 logger = get_logger(__name__)
 
 # Configuration
-MIN_RADIUS = 500  # 2km minimum radius for quadtree subdivision
+MIN_RADIUS = 500  # minimum radius for quadtree subdivision
+MAX_RADIUS = 50000  # Google Places API hard limit for searchNearby radius
 STALE_THRESHOLD_DAYS = 90  # Re-fetch place details if older than this
 
 
@@ -243,21 +244,33 @@ def search_area(
         logger.debug("%sArea too small (radius < %dm), stopping recursion", indent, MIN_RADIUS)
         return []
 
-    get_rate_limiter().acquire("gmaps_search")
-    place_ids, is_saturated = get_places_in_circle(
-        center_lat, center_lng, radius, place_types, api_key
-    )
+    if radius > MAX_RADIUS:
+        # Google Places API rejects radii > 50km. A country/region-scale area is
+        # always saturated, so skip the API call and subdivide immediately.
+        logger.debug(
+            "%sRadius %.0fm exceeds API limit (%dm), subdividing without searching",
+            indent,
+            radius,
+            MAX_RADIUS,
+        )
+        new_ids = []
+        is_saturated = True
+    else:
+        get_rate_limiter().acquire("gmaps_search")
+        place_ids, is_saturated = get_places_in_circle(
+            center_lat, center_lng, radius, place_types, api_key
+        )
 
-    new_ids = existing_ids.add_new(place_ids)
+        new_ids = existing_ids.add_new(place_ids)
 
-    logger.debug(
-        "%sFound %d places (%d new), saturated: %s, total: %d",
-        indent,
-        len(place_ids),
-        len(new_ids),
-        is_saturated,
-        len(existing_ids),
-    )
+        logger.debug(
+            "%sFound %d places (%d new), saturated: %s, total: %d",
+            indent,
+            len(place_ids),
+            len(new_ids),
+            is_saturated,
+            len(existing_ids),
+        )
 
     if max_results and len(existing_ids) >= max_results:
         logger.info("%sReached max_results limit (%d) after this search", indent, max_results)
