@@ -5,14 +5,14 @@ stores raw data, and merges results into the final ScrapedPlace.
 Parallelism:
   - Within a single place: collectors run in dependency-ordered phases.
     Phase 0 (OSM) runs first (sequential), Phase 1 (Wikipedia/Wikidata) and
-    Phase 2 (everything else) run concurrently within their phase.
-  - Across places: up to 3 places are enriched concurrently, each in its
-    own thread with its own DB Session.
+    Phase 2 (everything else) run concurrently within their phase via asyncio.gather().
+  - Across places: up to 3 places are enriched concurrently via asyncio.gather()
+    with an asyncio.Semaphore(3).
 """
 
 from __future__ import annotations
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import asyncio
 
 from sqlmodel import Session, select
 
@@ -38,7 +38,7 @@ def _group_into_phases(collectors: list[BaseCollector]) -> list[list[BaseCollect
     return [p for p in [phase0, phase1, phase2] if p]
 
 
-def _run_collector_safe(
+async def _run_collector_safe(
     collector: BaseCollector,
     place_code: str,
     lat: float,
@@ -48,7 +48,7 @@ def _run_collector_safe(
 ) -> CollectorResult:
     """Execute a single collector, catching any exception as a failed result."""
     try:
-        return collector.collect(
+        return await collector.collect(
             place_code=place_code,
             lat=lat,
             lng=lng,
@@ -63,11 +63,11 @@ def _run_collector_safe(
         )
 
 
-def run_enrichment_pipeline(run_code: str):
+async def run_enrichment_pipeline(run_code: str):
     """
     Run the enrichment pipeline for all places in a scraper run.
 
-    Uses up to 3 concurrent worker threads, each with its own DB Session.
+    Enriches up to 3 places concurrently via asyncio.gather() + asyncio.Semaphore(3).
     Cancellation is checked after every place completes.
     """
     with Session(engine) as session:
@@ -112,28 +112,32 @@ def run_enrichment_pipeline(run_code: str):
     )
     logger.info("Enrichment: processing %d places", len(place_codes))
 
+    sem = asyncio.Semaphore(3)
     completed_count = 0
+    cancelled = False
 
-    def _worker(place_code: str) -> None:
-        """Enrich a single place using its own DB session."""
-        with Session(engine) as worker_session:
-            place = worker_session.exec(
-                select(ScrapedPlace).where(ScrapedPlace.place_code == place_code)
-            ).first()
-            if not place:
+    async def _worker(place_code: str) -> None:
+        nonlocal completed_count, cancelled
+        async with sem:
+            if cancelled:
                 return
-            try:
-                _enrich_place(place, run_code, collectors, worker_session)
-            except Exception as exc:
-                logger.error("%s: enrichment failed: %s", place_code, exc)
-                place.enrichment_status = "failed"
-                worker_session.add(place)
-                worker_session.commit()
+            with Session(engine) as worker_session:
+                place = worker_session.exec(
+                    select(ScrapedPlace).where(ScrapedPlace.place_code == place_code)
+                ).first()
+                if not place:
+                    return
+                try:
+                    await _enrich_place(place, run_code, collectors, worker_session)
+                except Exception as exc:
+                    logger.error("%s: enrichment failed: %s", place_code, exc)
+                    place.enrichment_status = "failed"
+                    worker_session.add(place)
+                    worker_session.commit()
 
-    with ThreadPoolExecutor(max_workers=3) as pool:
-        futures = {pool.submit(_worker, code): code for code in place_codes}
+            completed_count += 1
+            logger.info("[%d/%d] %s: enriched", completed_count, len(place_codes), place_code)
 
-        for future in as_completed(futures):
             # Cancellation check after each place completes
             with Session(engine) as check_session:
                 run_check = check_session.exec(
@@ -143,21 +147,14 @@ def run_enrichment_pipeline(run_code: str):
                     logger.warning(
                         "Enrichment cancelled after %d/%d places", completed_count, len(place_codes)
                     )
-                    pool.shutdown(wait=False)
-                    return
+                    cancelled = True
 
-            try:
-                future.result()
-                completed_count += 1
-                place_code = futures[future]
-                logger.info("[%d/%d] %s: enriched", completed_count, len(place_codes), place_code)
-            except Exception as exc:
-                logger.error("Worker error: %s", exc)
+    await asyncio.gather(*[_worker(code) for code in place_codes])
 
     logger.info("=== Enrichment Complete ===")
 
 
-def _enrich_place(
+async def _enrich_place(
     place: ScrapedPlace,
     run_code: str,
     collectors: list[BaseCollector],
@@ -168,7 +165,7 @@ def _enrich_place(
 
     Phase 0 (OSM) runs sequentially first so its tags are available
     to Phase 1 (Wikipedia / Wikidata).  Phases 1 and 2 run collectors
-    in parallel within the phase.  All RawCollectorData records are
+    concurrently via asyncio.gather().  All RawCollectorData records are
     written in a single batch at the end.
     """
     place.enrichment_status = "enriching"
@@ -191,38 +188,31 @@ def _enrich_place(
         if len(phase) == 1:
             # Single collector in this phase — run sequentially
             collector = phase[0]
-            result = _run_collector_safe(collector, place.place_code, lat, lng, name, accumulated)
+            result = await _run_collector_safe(
+                collector, place.place_code, lat, lng, name, accumulated
+            )
             results[collector.name] = result
             if result.status == "success" and result.tags:
                 accumulated["tags"].update(result.tags)
         else:
-            # Multiple independent collectors — run in parallel
-            phase_results: dict[str, CollectorResult] = {}
-            with ThreadPoolExecutor(max_workers=len(phase)) as phase_pool:
-                future_map = {
-                    phase_pool.submit(
-                        _run_collector_safe,
-                        c,
-                        place.place_code,
-                        lat,
-                        lng,
-                        name,
-                        accumulated,
-                    ): c
+            # Multiple independent collectors — run concurrently
+            phase_results_list = await asyncio.gather(
+                *[
+                    _run_collector_safe(c, place.place_code, lat, lng, name, accumulated)
                     for c in phase
-                }
-                for future in as_completed(future_map):
-                    collector = future_map[future]
-                    try:
-                        result = future.result()
-                    except Exception as exc:
-                        result = CollectorResult(
-                            collector_name=collector.name,
-                            status="failed",
-                            error_message=str(exc),
-                        )
-                    phase_results[collector.name] = result
-
+                ],
+                return_exceptions=True,
+            )
+            phase_results: dict[str, CollectorResult] = {}
+            for c, r in zip(phase, phase_results_list, strict=False):
+                if isinstance(r, BaseException):
+                    phase_results[c.name] = CollectorResult(
+                        collector_name=c.name,
+                        status="failed",
+                        error_message=str(r),
+                    )
+                else:
+                    phase_results[c.name] = r
             results.update(phase_results)
             # Propagate any tags emitted by this phase
             for result in phase_results.values():

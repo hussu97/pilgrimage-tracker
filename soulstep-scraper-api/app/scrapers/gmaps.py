@@ -6,20 +6,24 @@ This module handles discovery (finding places) and orchestrating the initial
 detail fetch during the scraper run.
 """
 
+import asyncio
 import math
 import os
 import re
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import Any
 
-import requests
+import httpx
 from sqlmodel import Session, desc, select
 
 from app.db.models import GeoBoundary, PlaceTypeMapping, RawCollectorData, ScrapedPlace, ScraperRun
 from app.logger import get_logger
-from app.scrapers.base import AtomicCounter, ThreadSafeIdSet, get_rate_limiter
+from app.scrapers.base import (
+    AsyncRateLimiter,
+    AtomicCounter,
+    ThreadSafeIdSet,
+    get_async_rate_limiter,
+)
 from app.scrapers.cell_store import DiscoveryCellStore, GlobalCellStore
 
 logger = get_logger(__name__)
@@ -146,19 +150,19 @@ def process_weekly_hours(opening_hours_dict):
     return schedule
 
 
-def get_places_in_circle(
+async def get_places_in_circle(
     lat: float,
     lng: float,
     radius: float,
     place_types: list[str],
     api_key: str,
-    http_session: requests.Session | None = None,
+    client: httpx.AsyncClient | None = None,
 ) -> tuple[list[str], bool]:
     """
     Find all places of given types within radius using new Places API.
     Returns (list of place resource names, is_saturated).
 
-    Accepts an optional requests.Session for connection reuse across calls.
+    Accepts an optional httpx.AsyncClient for connection reuse across calls.
     """
     url = "https://places.googleapis.com/v1/places:searchNearby"
     headers = {
@@ -174,8 +178,11 @@ def get_places_in_circle(
         "maxResultCount": 20,
     }
 
-    fetcher = http_session or requests
-    resp = fetcher.post(url, json=body, headers=headers)
+    if client is not None:
+        resp = await client.post(url, json=body, headers=headers)
+    else:
+        async with httpx.AsyncClient(timeout=35.0) as c:
+            resp = await c.post(url, json=body, headers=headers)
 
     if resp.status_code != 200:
         error_data = resp.json() if resp.content else {}
@@ -210,7 +217,7 @@ def calculate_search_radius(
     return center_lat, center_lng, radius
 
 
-def search_area(
+async def search_area(
     lat_min: float,
     lat_max: float,
     lng_min: float,
@@ -220,18 +227,18 @@ def search_area(
     existing_ids: ThreadSafeIdSet,
     depth: int = 0,
     max_results: int | None = None,
-    executor: ThreadPoolExecutor | None = None,
+    client: httpx.AsyncClient | None = None,
     cell_store: DiscoveryCellStore | None = None,
-    http_session: requests.Session | None = None,
-    semaphore: Any | None = None,
+    semaphore: asyncio.Semaphore | None = None,
+    rate_limiter: AsyncRateLimiter | None = None,
     global_cache: GlobalCellStore | None = None,
 ) -> list[str]:
     """
-    Recursive quadtree search for places.
+    Async recursive quadtree search for places.
 
-    When an executor and semaphore are provided, quadrant children at ALL depths are
-    submitted to the shared thread pool (not just depth 0).  The semaphore caps
-    concurrent API calls so Google rate limits are respected even with 32+ workers.
+    When a semaphore is provided, concurrent API calls are capped at the
+    semaphore value so Google rate limits are respected.  All children at
+    every depth are gathered concurrently via asyncio.gather().
 
     When cell_store is provided, already-searched bounding boxes are loaded
     from cache (skipping the API call) to support interrupted-run resumability.
@@ -262,8 +269,6 @@ def search_area(
         return []
 
     if radius > MAX_RADIUS:
-        # Google Places API rejects radii > 50km. A country/region-scale area is
-        # always saturated, so skip the API call and subdivide immediately.
         logger.debug(
             "%sRadius %.0fm exceeds API limit (%dm), subdividing without searching",
             indent,
@@ -288,17 +293,11 @@ def search_area(
                 )
                 new_ids = existing_ids.add_new(cached.resource_names)
                 if not cached.saturated:
-                    # Leaf cell — no need to recurse
                     return new_ids
-                # Saturated: skip API call but still recurse into quadrants
                 is_saturated = True
                 if max_results and len(existing_ids) >= max_results:
-                    logger.info(
-                        "%sReached max_results limit (%d) after cached cell", indent, max_results
-                    )
                     return new_ids
-                # Jump straight to quadrant splitting for cached saturated cell
-                return _split_quadrants(
+                return await _split_quadrants(
                     lat_min,
                     lat_max,
                     lng_min,
@@ -309,10 +308,10 @@ def search_area(
                     existing_ids,
                     depth,
                     max_results,
-                    executor,
+                    client,
                     cell_store,
-                    http_session,
                     semaphore,
+                    rate_limiter,
                     global_cache,
                     indent,
                 )
@@ -335,17 +334,14 @@ def search_area(
             place_ids = global_hit.resource_names
             is_saturated = global_hit.saturated
         else:
-            # Acquire semaphore if provided (limits concurrent API calls across all workers)
-            if semaphore is not None:
-                semaphore.acquire()
-            try:
-                get_rate_limiter().acquire("gmaps_search")
-                place_ids, is_saturated = get_places_in_circle(
-                    center_lat, center_lng, radius, place_types, api_key, http_session
+            # Acquire semaphore if provided (limits concurrent API calls)
+            _sem_ctx = semaphore if semaphore is not None else _NullSemaphore()
+            async with _sem_ctx:
+                if rate_limiter is not None:
+                    await rate_limiter.acquire("gmaps_search")
+                place_ids, is_saturated = await get_places_in_circle(
+                    center_lat, center_lng, radius, place_types, api_key, client
                 )
-            finally:
-                if semaphore is not None:
-                    semaphore.release()
 
             # Save to global cache for future runs
             if global_cache is not None:
@@ -371,14 +367,13 @@ def search_area(
             )
 
     if max_results and len(existing_ids) >= max_results:
-        logger.info("%sReached max_results limit (%d) after this search", indent, max_results)
         return new_ids
 
     if not is_saturated:
         return new_ids
 
     logger.debug("%sArea saturated, splitting into quadrants...", indent)
-    return _split_quadrants(
+    return await _split_quadrants(
         lat_min,
         lat_max,
         lng_min,
@@ -389,16 +384,26 @@ def search_area(
         existing_ids,
         depth,
         max_results,
-        executor,
+        client,
         cell_store,
-        http_session,
         semaphore,
+        rate_limiter,
         global_cache,
         indent,
     )
 
 
-def _split_quadrants(
+class _NullSemaphore:
+    """No-op async context manager used when no semaphore is configured."""
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_):
+        pass
+
+
+async def _split_quadrants(
     lat_min: float,
     lat_max: float,
     lng_min: float,
@@ -409,14 +414,14 @@ def _split_quadrants(
     existing_ids: ThreadSafeIdSet,
     depth: int,
     max_results: int | None,
-    executor: ThreadPoolExecutor | None,
+    client: httpx.AsyncClient | None,
     cell_store: DiscoveryCellStore | None,
-    http_session: requests.Session | None,
-    semaphore: Any | None,
+    semaphore: asyncio.Semaphore | None,
+    rate_limiter: AsyncRateLimiter | None,
     global_cache: GlobalCellStore | None,
     indent: str,
 ) -> list[str]:
-    """Submit/recurse into four quadrants, reusing the shared executor and semaphore."""
+    """Recursively search four quadrants concurrently using asyncio.gather()."""
     mid_lat = (lat_min + lat_max) / 2
     mid_lng = (lng_min + lng_max) / 2
 
@@ -429,19 +434,15 @@ def _split_quadrants(
 
     all_ids = list(seed_ids)
 
-    if executor is not None:
-        # Submit all quadrants to the shared pool at every depth level.
-        # The semaphore caps concurrent API calls; the large pool (32 workers) ensures
-        # tasks waiting for API slots don't block each other — no deadlock risk.
-        futures = []
-        for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
-            if max_results and len(existing_ids) >= max_results:
-                logger.info(
-                    "%sStopping quadrant submission — max_results (%d) reached", indent, max_results
-                )
-                break
-            f = executor.submit(
-                search_area,
+    tasks = []
+    for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
+        if max_results and len(existing_ids) >= max_results:
+            logger.info(
+                "%sStopping quadrant submission — max_results (%d) reached", indent, max_results
+            )
+            break
+        tasks.append(
+            search_area(
                 q_lat_min,
                 q_lat_max,
                 q_lng_min,
@@ -451,45 +452,20 @@ def _split_quadrants(
                 existing_ids,
                 depth + 1,
                 max_results,
-                executor,
+                client,
                 cell_store,
-                http_session,
                 semaphore,
+                rate_limiter,
                 global_cache,
             )
-            futures.append(f)
+        )
 
-        for future in as_completed(futures):
-            try:
-                all_ids.extend(future.result())
-            except Exception as e:
-                logger.warning("%sQuadrant search failed: %s", indent, e)
-    else:
-        # Sequential fallback (no executor provided)
-        for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
-            if max_results and len(existing_ids) >= max_results:
-                logger.info(
-                    "%sStopping quadrant recursion — max_results (%d) reached", indent, max_results
-                )
-                break
-            all_ids.extend(
-                search_area(
-                    q_lat_min,
-                    q_lat_max,
-                    q_lng_min,
-                    q_lng_max,
-                    place_types,
-                    api_key,
-                    existing_ids,
-                    depth + 1,
-                    max_results,
-                    None,
-                    cell_store,
-                    http_session,
-                    semaphore,
-                    global_cache,
-                )
-            )
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    for result in results:
+        if isinstance(result, Exception):
+            logger.warning("%sQuadrant search failed: %s", indent, result)
+        else:
+            all_ids.extend(result)
 
     return all_ids
 
@@ -528,7 +504,7 @@ def _flush_detail_buffer(
     logger.debug("Flushed %d places (%d/%d total)", len(buffer), new_count, total)
 
 
-def discover_places(
+async def discover_places(
     config: dict,
     run_code: str,
     session: Session,
@@ -539,7 +515,7 @@ def discover_places(
     boundary: GeoBoundary,
 ) -> list[str]:
     """
-    Phase 1: Parallel quadtree search → deduplicated list of discovered place resource names.
+    Phase 1: Async parallel quadtree search → deduplicated list of discovered place resource names.
 
     Returns the list of unique Google Maps place resource names (e.g. "places/ChIJ…") found
     within the boundary. The run's total_items is updated and committed after discovery.
@@ -548,7 +524,7 @@ def discover_places(
 
     max_results = config.get("max_results")
 
-    logger.info("Starting recursive quadtree search (all-depth parallel, 32 workers, semaphore=10)")
+    logger.info("Starting recursive quadtree search (all-depth async parallel, semaphore=10)")
     if max_results:
         logger.info("Max results limit: %d", max_results)
 
@@ -560,15 +536,12 @@ def discover_places(
     # Global cross-run cache — skips API calls for cells searched within TTL
     global_cache = GlobalCellStore(_engine)
 
-    # Semaphore caps concurrent API calls across all worker threads.
-    # Large pool (32) prevents deadlock — workers queuing for children never block the pool.
-    api_semaphore = threading.Semaphore(10)
+    # Semaphore caps concurrent API calls across all coroutines.
+    api_semaphore = asyncio.Semaphore(10)
+    rate_limiter = get_async_rate_limiter()
 
-    with (
-        requests.Session() as discovery_http,
-        ThreadPoolExecutor(max_workers=32) as discovery_executor,
-    ):
-        search_area(
+    async with httpx.AsyncClient(timeout=35.0) as discovery_client:
+        await search_area(
             boundary.lat_min,
             boundary.lat_max,
             boundary.lng_min,
@@ -578,10 +551,10 @@ def discover_places(
             existing_ids,
             depth=0,
             max_results=max_results,
-            executor=discovery_executor,
+            client=discovery_client,
             cell_store=cell_store,
-            http_session=discovery_http,
             semaphore=api_semaphore,
+            rate_limiter=rate_limiter,
             global_cache=global_cache,
         )
 
@@ -605,7 +578,7 @@ def discover_places(
     return all_resource_names
 
 
-def fetch_place_details(
+async def fetch_place_details(
     place_ids: list[str],
     run_code: str,
     session: Session,
@@ -617,10 +590,11 @@ def fetch_place_details(
     stale_threshold_days: int,
 ) -> None:
     """
-    Phase 2: Parallel detail fetching → batch DB writes via _flush_detail_buffer().
+    Phase 2: Async parallel detail fetching → batch DB writes.
 
-    Checks cache first, then fetches fresh details for uncached places using a
-    ThreadPoolExecutor(5). Results are committed to the DB in batches of 10.
+    Checks cache first, then fetches fresh details for uncached places using
+    asyncio.gather() with a concurrency semaphore (max 20 concurrent).
+    Results are committed to the DB in batches of 10.
     """
     stale_cutoff = datetime.now() - timedelta(days=stale_threshold_days)
 
@@ -702,63 +676,72 @@ def fetch_place_details(
     if not run:
         raise ValueError(f"Run {run_code} not found during detail fetch")
 
-    rate_limiter = get_rate_limiter()
+    rate_limiter = get_async_rate_limiter()
     counter = AtomicCounter(initial=cached_count)
     BATCH_SIZE = 10
+    fetch_sem = asyncio.Semaphore(20)  # max 20 concurrent detail fetches
 
-    detail_http = requests.Session()
-
-    def _fetch_worker(place_name: str) -> tuple[str, dict, dict, str | None]:
-        """Fetch place details in a worker thread (no DB access).
-
-        Uses the split field-mask strategy: essential fields first, extended only
-        for qualifying places (OPERATIONAL + rating >= threshold).
-        """
-        try:
-            place_code = name_to_code[place_name]
-            response = collector.fetch_details_split(place_name, api_key, rate_limiter, detail_http)
-            details = collector.build_place_data(
-                response,
-                place_code,
-                api_key,
-                None,
-                type_map=type_map,
-                religion_type_map=religion_type_map,
-            )
-            return place_name, details, response, None
-        except Exception as e:
-            return place_name, {}, {}, str(e)
-
+    # Buffer and lock for thread-safe batch writes (asyncio is single-threaded,
+    # but we still need the buffer list to be consistent across await points)
     buffer: list[tuple] = []
 
-    with ThreadPoolExecutor(max_workers=20) as detail_executor:
-        futures = {detail_executor.submit(_fetch_worker, pn): pn for pn in to_fetch}
+    async with httpx.AsyncClient(timeout=35.0) as detail_client:
 
-        for future in as_completed(futures):
-            session.expire(run)
-            session.refresh(run)
-            if run.status == "cancelled":
-                logger.warning("Run %s was cancelled during detail fetching", run_code)
-                detail_executor.shutdown(wait=False)
-                return
+        async def _fetch_worker(place_name: str) -> tuple[str, dict, dict, str | None]:
+            """Fetch place details for a single place."""
+            try:
+                place_code = name_to_code[place_name]
+                response = await collector.fetch_details_split(
+                    place_name, api_key, rate_limiter, detail_client
+                )
+                details = collector.build_place_data(
+                    response,
+                    place_code,
+                    api_key,
+                    None,
+                    type_map=type_map,
+                    religion_type_map=religion_type_map,
+                )
+                return place_name, details, response, None
+            except Exception as e:
+                return place_name, {}, {}, str(e)
 
-            place_name, details, response, error = future.result()
+        async def _bounded_fetch(place_name: str) -> tuple:
+            async with fetch_sem:
+                return await _fetch_worker(place_name)
 
-            if error:
-                logger.warning("Error fetching %s: %s", place_name, error)
-                counter.increment()
-                continue
+        results = await asyncio.gather(
+            *[_bounded_fetch(pn) for pn in to_fetch], return_exceptions=True
+        )
 
-            buffer.append((place_name, details, response))
+    # Cancellation check and buffer flush (synchronous — single-threaded)
+    session.expire(run)
+    session.refresh(run)
+    if run.status == "cancelled":
+        logger.warning("Run %s was cancelled during detail fetching", run_code)
+        return
 
-            if len(buffer) >= BATCH_SIZE:
-                _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
-                buffer.clear()
+    for result in results:
+        if isinstance(result, Exception):
+            logger.warning("Detail fetch task error: %s", result)
+            counter.increment()
+            continue
+
+        place_name, details, response, error = result
+
+        if error:
+            logger.warning("Error fetching %s: %s", place_name, error)
+            counter.increment()
+            continue
+
+        buffer.append((place_name, details, response))
+
+        if len(buffer) >= BATCH_SIZE:
+            _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
+            buffer.clear()
 
     if buffer:
         _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
-
-    detail_http.close()
 
     logger.info(
         "=== Details Fetch Summary === fresh=%d  cached=%d  total=%d",
@@ -768,14 +751,9 @@ def fetch_place_details(
     )
 
 
-def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> None:
+async def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> None:
     """
-    Orchestrator: discover places → fetch and cache details.
-
-    Uses GmapsCollector for detail fetching with enhanced field mask.
-    Discovery phase uses a parallel quadtree search (4 workers).
-    Detail fetching uses a parallel ThreadPoolExecutor (5 workers) with
-    batch DB commits every 10 places.
+    Async orchestrator: discover places → fetch and cache details → download images.
     """
     from app.collectors.gmaps import GmapsCollector
 
@@ -826,7 +804,7 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> None:
     for religion, types in religion_types_map.items():
         logger.info("  %s: %s", religion, types)
 
-    # Pre-load type maps once so workers don't need a DB session
+    # Pre-load type maps once so coroutines don't need a DB session
     type_map = get_gmaps_type_to_our_type(session)
     religion_type_map = {m.gmaps_type: m.religion for m in place_type_mappings}
 
@@ -834,12 +812,12 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> None:
     session.add(run)
     session.commit()
 
-    place_ids = discover_places(
+    place_ids = await discover_places(
         config, run_code, session, type_map, religion_type_map, api_key, all_gmaps_types, boundary
     )
 
     logger.info("Fetching details for %d places...", len(place_ids))
-    fetch_place_details(
+    await fetch_place_details(
         place_ids,
         run_code,
         session,
@@ -863,4 +841,4 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> None:
         session.add(run)
         session.commit()
 
-    download_place_images(run_code, _img_engine, max_workers=20)
+    await download_place_images(run_code, _img_engine, max_workers=20)

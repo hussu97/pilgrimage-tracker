@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import requests
+import httpx
 
 from app.collectors.base import BaseCollector, CollectorResult
 from app.utils.extractors import ReviewExtractor
@@ -24,7 +24,7 @@ class OutscraperCollector(BaseCollector):
 
     REVIEWS_URL = "https://api.app.outscraper.com/maps/reviews-v3"
 
-    def collect(
+    async def collect(
         self,
         place_code: str,
         lat: float,
@@ -47,7 +47,7 @@ class OutscraperCollector(BaseCollector):
             return self._skip_result("No Google Place ID available")
 
         try:
-            reviews = self._fetch_reviews(google_place_id, api_key)
+            reviews = await self._fetch_reviews(google_place_id, api_key)
             if not reviews:
                 return self._skip_result("No Outscraper reviews returned")
 
@@ -55,7 +55,7 @@ class OutscraperCollector(BaseCollector):
         except Exception as e:
             return self._fail_result(str(e))
 
-    def _fetch_reviews(self, place_id: str, api_key: str, limit: int = 50) -> list[dict]:
+    async def _fetch_reviews(self, place_id: str, api_key: str, limit: int = 50) -> list[dict]:
         """Fetch reviews from Outscraper API."""
         headers = {"X-API-KEY": api_key}
         params = {
@@ -64,7 +64,8 @@ class OutscraperCollector(BaseCollector):
             "language": "en",
             "sort": "newest",
         }
-        resp = requests.get(self.REVIEWS_URL, headers=headers, params=params, timeout=(5, 30))
+        async with httpx.AsyncClient(timeout=35.0) as client:
+            resp = await client.get(self.REVIEWS_URL, headers=headers, params=params)
         if resp.status_code != 200:
             return []
 

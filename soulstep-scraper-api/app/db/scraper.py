@@ -15,7 +15,7 @@ def generate_code(prefix: str) -> str:
     return f"{prefix}_{secrets.token_hex(4)}"
 
 
-def run_scraper_task(run_code: str):
+async def run_scraper_task(run_code: str):
     """
     Background task dispatcher that runs the gmaps scraper, then the enrichment pipeline.
     """
@@ -42,7 +42,7 @@ def run_scraper_task(run_code: str):
 
         try:
             # Phase 1-3: Discovery + Detail fetching via gmaps
-            run_gmaps_scraper(run_code, location.config, session)
+            await run_gmaps_scraper(run_code, location.config, session)
 
             # Phase 4: Enrichment pipeline
             from app.pipeline.enrichment import run_enrichment_pipeline
@@ -52,7 +52,7 @@ def run_scraper_task(run_code: str):
             session.add(run)
             session.commit()
 
-            run_enrichment_pipeline(run_code)
+            await run_enrichment_pipeline(run_code)
 
             # Final check to ensure we don't overwrite "cancelled" with "completed"
             session.refresh(run)
@@ -72,7 +72,7 @@ def run_scraper_task(run_code: str):
             session.commit()
 
 
-def resume_scraper_task(run_code: str):
+async def resume_scraper_task(run_code: str):
     """
     Resume an interrupted or failed scraper run from where it left off.
 
@@ -108,7 +108,7 @@ def resume_scraper_task(run_code: str):
         try:
             if resume_from in (None, "discovery"):
                 # Discovery was incomplete — re-run full pipeline
-                run_gmaps_scraper(run_code, location.config, session)
+                await run_gmaps_scraper(run_code, location.config, session)
 
                 from app.pipeline.enrichment import run_enrichment_pipeline
 
@@ -117,7 +117,7 @@ def resume_scraper_task(run_code: str):
                 session.add(run)
                 session.commit()
 
-                run_enrichment_pipeline(run_code)
+                await run_enrichment_pipeline(run_code)
 
             elif resume_from == "detail_fetch":
                 # Discovery completed — derive resource names from DiscoveryCell records
@@ -142,7 +142,7 @@ def resume_scraper_task(run_code: str):
                         "Resume: No discovered places found for run %s, re-running discovery",
                         run_code,
                     )
-                    run_gmaps_scraper(run_code, location.config, session)
+                    await run_gmaps_scraper(run_code, location.config, session)
                 else:
                     api_key = __import__("os").environ.get("GOOGLE_MAPS_API_KEY", "")
                     if not api_key:
@@ -161,7 +161,7 @@ def resume_scraper_task(run_code: str):
                     force_refresh = location.config.get("force_refresh", False)
                     stale_threshold_days = location.config.get("stale_threshold_days", 90)
 
-                    fetch_place_details(
+                    await fetch_place_details(
                         place_ids,
                         run_code,
                         session,
@@ -178,7 +178,7 @@ def resume_scraper_task(run_code: str):
                     session.add(run)
                     session.commit()
 
-                    download_place_images(run_code, engine)
+                    await download_place_images(run_code, engine)
 
                 from app.pipeline.enrichment import run_enrichment_pipeline
 
@@ -187,13 +187,13 @@ def resume_scraper_task(run_code: str):
                 session.add(run)
                 session.commit()
 
-                run_enrichment_pipeline(run_code)
+                await run_enrichment_pipeline(run_code)
 
             elif resume_from == "enrichment":
                 # Skip straight to enrichment (already-enriched places are skipped internally)
                 from app.pipeline.enrichment import run_enrichment_pipeline
 
-                run_enrichment_pipeline(run_code)
+                await run_enrichment_pipeline(run_code)
 
             session.refresh(run)
             if run.status != "cancelled":

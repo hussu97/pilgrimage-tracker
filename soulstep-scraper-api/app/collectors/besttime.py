@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import requests
+import httpx
 
 from app.collectors.base import BaseCollector, CollectorResult
 
@@ -22,7 +22,7 @@ class BestTimeCollector(BaseCollector):
 
     FORECAST_URL = "https://besttime.app/api/v1/forecasts"
 
-    def collect(
+    async def collect(
         self,
         place_code: str,
         lat: float,
@@ -35,7 +35,7 @@ class BestTimeCollector(BaseCollector):
             return self._not_configured_result()
 
         try:
-            forecast = self._fetch_forecast(name, lat, lng, api_key)
+            forecast = await self._fetch_forecast(name, lat, lng, api_key)
             if not forecast:
                 return self._skip_result("No BestTime forecast available")
 
@@ -43,7 +43,7 @@ class BestTimeCollector(BaseCollector):
         except Exception as e:
             return self._fail_result(str(e))
 
-    def _fetch_forecast(
+    async def _fetch_forecast(
         self, name: str, lat: float, lng: float, api_key: str
     ) -> dict[str, Any] | None:
         """Fetch foot traffic forecast from BestTime API."""
@@ -52,7 +52,8 @@ class BestTimeCollector(BaseCollector):
             "venue_name": name,
             "venue_address": f"{lat},{lng}",
         }
-        resp = requests.post(self.FORECAST_URL, json=params, timeout=(5, 30))
+        async with httpx.AsyncClient(timeout=35.0) as client:
+            resp = await client.post(self.FORECAST_URL, json=params)
         if resp.status_code != 200:
             return None
 

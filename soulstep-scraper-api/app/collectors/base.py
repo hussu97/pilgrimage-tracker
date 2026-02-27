@@ -49,7 +49,7 @@ class BaseCollector(ABC):
     api_key_env_var: str = ""
 
     @abstractmethod
-    def collect(
+    async def collect(
         self,
         place_code: str,
         lat: float,

@@ -12,7 +12,7 @@ Covers:
 """
 
 import secrets
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy.pool import StaticPool
@@ -263,7 +263,7 @@ def _make_place_types():
     return ["mosque"]
 
 
-def test_search_area_cache_hit_non_saturated():
+async def test_search_area_cache_hit_non_saturated():
     """Cache hit for a non-saturated cell: no API call, returns cached names."""
     from app.scrapers.gmaps import search_area
 
@@ -276,8 +276,8 @@ def test_search_area_cache_hit_non_saturated():
 
     existing_ids = ThreadSafeIdSet()
 
-    with patch("app.scrapers.gmaps.get_places_in_circle") as mock_api:
-        result = search_area(
+    with patch("app.scrapers.gmaps.get_places_in_circle", new=AsyncMock()) as mock_api:
+        result = await search_area(
             lat_min=24.0,
             lat_max=25.0,
             lng_min=55.0,
@@ -293,7 +293,7 @@ def test_search_area_cache_hit_non_saturated():
     assert sorted(result) == ["places/A", "places/B"]
 
 
-def test_search_area_cache_miss_calls_api_and_saves():
+async def test_search_area_cache_miss_calls_api_and_saves():
     """Cache miss: API is called and result is saved to cell store.
 
     Uses a 0.1x0.1 degree box (~7.5 km radius) which is well under MAX_RADIUS
@@ -307,14 +307,15 @@ def test_search_area_cache_miss_calls_api_and_saves():
     existing_ids = ThreadSafeIdSet()
 
     with (
-        patch("app.scrapers.gmaps.get_places_in_circle") as mock_api,
-        patch("app.scrapers.gmaps.get_rate_limiter") as mock_rl,
+        patch(
+            "app.scrapers.gmaps.get_places_in_circle",
+            new=AsyncMock(return_value=(["places/X", "places/Y"], False)),
+        ) as mock_api,
+        patch("app.scrapers.gmaps.get_async_rate_limiter") as mock_rl,
     ):
-        # Non-saturated result → no recursion, exactly one API call
-        mock_api.return_value = (["places/X", "places/Y"], False)
-        mock_rl.return_value.acquire = MagicMock()
+        mock_rl.return_value.acquire = AsyncMock()
 
-        result = search_area(
+        result = await search_area(
             lat_min=24.0,
             lat_max=24.1,
             lng_min=55.0,
@@ -335,7 +336,7 @@ def test_search_area_cache_miss_calls_api_and_saves():
     assert sorted(result) == ["places/X", "places/Y"]
 
 
-def test_search_area_cache_hit_saturated_recurses():
+async def test_search_area_cache_hit_saturated_recurses():
     """Cache hit for a saturated cell: no API call but recurses into quadrants.
 
     Uses a 0.1x0.1 degree root cell (~7.5 km) so the cell-store cache check
@@ -362,14 +363,15 @@ def test_search_area_cache_hit_saturated_recurses():
     existing_ids = ThreadSafeIdSet()
 
     with (
-        patch("app.scrapers.gmaps.get_places_in_circle") as mock_api,
-        patch("app.scrapers.gmaps.get_rate_limiter") as mock_rl,
+        patch(
+            "app.scrapers.gmaps.get_places_in_circle",
+            new=AsyncMock(return_value=([], False)),
+        ) as mock_api,
+        patch("app.scrapers.gmaps.get_async_rate_limiter") as mock_rl,
     ):
-        # Sub-cell API calls return 0 results (non-saturated)
-        mock_api.return_value = ([], False)
-        mock_rl.return_value.acquire = MagicMock()
+        mock_rl.return_value.acquire = AsyncMock()
 
-        search_area(
+        await search_area(
             lat_min=24.0,
             lat_max=24.1,
             lng_min=55.0,

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import requests
+import httpx
 
 from app.collectors.base import BaseCollector, CollectorResult
 from app.utils.extractors import make_description
@@ -23,7 +23,7 @@ class KnowledgeGraphCollector(BaseCollector):
 
     KG_URL = "https://kgsearch.googleapis.com/v1/entities:search"
 
-    def collect(
+    async def collect(
         self,
         place_code: str,
         lat: float,
@@ -36,7 +36,7 @@ class KnowledgeGraphCollector(BaseCollector):
             return self._not_configured_result()
 
         try:
-            response = self._search(name, api_key)
+            response = await self._search(name, api_key)
             if not response:
                 return self._skip_result("No Knowledge Graph results found")
 
@@ -44,7 +44,7 @@ class KnowledgeGraphCollector(BaseCollector):
         except Exception as e:
             return self._fail_result(str(e))
 
-    def _search(self, name: str, api_key: str) -> dict[str, Any] | None:
+    async def _search(self, name: str, api_key: str) -> dict[str, Any] | None:
         """Search Knowledge Graph by name with Place type constraint."""
         params = {
             "query": name,
@@ -53,7 +53,8 @@ class KnowledgeGraphCollector(BaseCollector):
             "types": "Place",
             "languages": "en",
         }
-        resp = requests.get(self.KG_URL, params=params, timeout=(5, 30))
+        async with httpx.AsyncClient(timeout=35.0) as client:
+            resp = await client.get(self.KG_URL, params=params)
         if resp.status_code != 200:
             return None
 

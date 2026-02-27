@@ -11,7 +11,7 @@ import os
 import sys
 import threading
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
@@ -55,7 +55,7 @@ class TestDownloadPlaceImages:
             session.refresh(place)
             return place.id
 
-    def test_downloads_images_and_stores_blobs(self):
+    async def test_downloads_images_and_stores_blobs(self):
         from app.collectors.gmaps import download_place_images
         from app.db.models import ScrapedPlace
 
@@ -66,14 +66,13 @@ class TestDownloadPlaceImages:
         mock_resp.status_code = 200
         mock_resp.content = b"fake_jpeg_data"
 
-        with patch("requests.Session") as MockSession:
-            mock_http = MagicMock()
-            mock_http.__enter__ = lambda s: mock_http
-            mock_http.__exit__ = MagicMock(return_value=False)
-            mock_http.get.return_value = mock_resp
-            MockSession.return_value = mock_http
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
 
-            download_place_images("run1", engine, max_workers=1)
+        with patch("app.collectors.gmaps.httpx.AsyncClient", return_value=mock_client):
+            await download_place_images("run1", engine, max_workers=1)
 
         with Session(engine) as session:
             place = session.exec(
@@ -83,7 +82,7 @@ class TestDownloadPlaceImages:
             assert place.raw_data["image_blobs"] != []
             assert place.raw_data["image_urls"] == []
 
-    def test_skips_places_already_having_blobs(self):
+    async def test_skips_places_already_having_blobs(self):
         """Places that already have image_blobs should not be re-downloaded."""
         from app.collectors.gmaps import download_place_images
         from app.db.models import ScrapedPlace
@@ -104,20 +103,20 @@ class TestDownloadPlaceImages:
 
         called = []
 
-        with patch("requests.Session") as MockSession:
-            mock_http = MagicMock()
-            mock_http.__enter__ = lambda s: mock_http
-            mock_http.__exit__ = MagicMock(return_value=False)
-            mock_http.get.side_effect = lambda *a, **k: called.append(1) or MagicMock(
-                status_code=200, content=b"data"
-            )
-            MockSession.return_value = mock_http
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(
+            side_effect=lambda *a, **k: called.append(1)
+            or MagicMock(status_code=200, content=b"data")
+        )
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
 
-            download_place_images("run2", engine, max_workers=1)
+        with patch("app.collectors.gmaps.httpx.AsyncClient", return_value=mock_client):
+            await download_place_images("run2", engine, max_workers=1)
 
         assert called == [], "Should not have made any HTTP requests"
 
-    def test_handles_download_failure_gracefully(self):
+    async def test_handles_download_failure_gracefully(self):
         """A 404 response should result in no blobs stored but no crash."""
         from app.collectors.gmaps import download_place_images
         from app.db.models import ScrapedPlace
@@ -128,15 +127,14 @@ class TestDownloadPlaceImages:
         mock_resp = MagicMock()
         mock_resp.status_code = 404
 
-        with patch("requests.Session") as MockSession:
-            mock_http = MagicMock()
-            mock_http.__enter__ = lambda s: mock_http
-            mock_http.__exit__ = MagicMock(return_value=False)
-            mock_http.get.return_value = mock_resp
-            MockSession.return_value = mock_http
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
 
+        with patch("app.collectors.gmaps.httpx.AsyncClient", return_value=mock_client):
             # Should not raise
-            download_place_images("run3", engine, max_workers=1)
+            await download_place_images("run3", engine, max_workers=1)
 
         with Session(engine) as session:
             place = session.exec(
@@ -152,7 +150,7 @@ class TestDownloadPlaceImages:
 
 
 class TestResourceNameDerivation:
-    def test_discover_places_does_not_write_resource_names_to_run(self):
+    async def test_discover_places_does_not_write_resource_names_to_run(self):
         """discover_places() should NOT write the full resource name list to run.discovered_resource_names."""
         from app.db.models import GeoBoundary, ScraperRun
         from app.scrapers.gmaps import discover_places
@@ -174,11 +172,11 @@ class TestResourceNameDerivation:
             session.add(run)
             session.commit()
 
-        def _fake_search_area(*args, **kwargs):
+        async def _fake_search_area(*args, **kwargs):
             return []
 
         with (
-            patch("app.scrapers.gmaps.search_area", side_effect=_fake_search_area),
+            patch("app.scrapers.gmaps.search_area", new=AsyncMock(side_effect=_fake_search_area)),
             patch("app.db.session.engine", engine),
             patch("app.scrapers.gmaps.GlobalCellStore"),
             patch("app.scrapers.gmaps.DiscoveryCellStore"),
@@ -191,7 +189,7 @@ class TestResourceNameDerivation:
                     select(GeoBoundary).where(GeoBoundary.name == "TestCity")
                 ).first()
 
-                discover_places(
+                await discover_places(
                     config={},
                     run_code="run_x",
                     session=session,
@@ -440,11 +438,11 @@ class TestGlobalCellStore:
 
 class TestFetchDetailsSplit:
     def _make_rate_limiter(self):
-        from app.scrapers.base import RateLimiter
+        from app.scrapers.base import AsyncRateLimiter
 
-        return RateLimiter(burst=10)
+        return AsyncRateLimiter(burst=10)
 
-    def test_only_essential_for_permanently_closed(self):
+    async def test_only_essential_for_permanently_closed(self):
         """PERMANENTLY_CLOSED places should skip the extended API call."""
         from app.collectors.gmaps import GmapsCollector
 
@@ -463,13 +461,13 @@ class TestFetchDetailsSplit:
             call_count[0] += 1
             return dict(essential_resp)
 
-        with patch.object(collector, "_fetch_details", side_effect=fake_fetch):
+        with patch.object(collector, "_fetch_details", new=AsyncMock(side_effect=fake_fetch)):
             with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "fake"}):
-                collector.fetch_details_split("places/X", "fake", rl)
+                await collector.fetch_details_split("places/X", "fake", rl)
 
         assert call_count[0] == 1  # only essential call
 
-    def test_extended_fetched_for_operational_with_rating(self):
+    async def test_extended_fetched_for_operational_with_rating(self):
         """OPERATIONAL places with a rating should trigger the extended call."""
         from app.collectors.gmaps import GmapsCollector
 
@@ -492,13 +490,13 @@ class TestFetchDetailsSplit:
             call_idx[0] += 1
             return dict(r)
 
-        with patch.object(collector, "_fetch_details", side_effect=fake_fetch):
-            result = collector.fetch_details_split("places/Y", "fake", rl)
+        with patch.object(collector, "_fetch_details", new=AsyncMock(side_effect=fake_fetch)):
+            result = await collector.fetch_details_split("places/Y", "fake", rl)
 
         assert call_idx[0] == 2  # both essential + extended called
         assert result.get("generativeSummary") is not None
 
-    def test_extended_skipped_for_unrated(self):
+    async def test_extended_skipped_for_unrated(self):
         """A place with no rating (None) should skip the extended call."""
         from app.collectors.gmaps import GmapsCollector
 
@@ -516,8 +514,8 @@ class TestFetchDetailsSplit:
             call_count[0] += 1
             return dict(essential_resp)
 
-        with patch.object(collector, "_fetch_details", side_effect=fake_fetch):
-            collector.fetch_details_split("places/Z", "fake", rl)
+        with patch.object(collector, "_fetch_details", new=AsyncMock(side_effect=fake_fetch)):
+            await collector.fetch_details_split("places/Z", "fake", rl)
 
         assert call_count[0] == 1  # only essential
 

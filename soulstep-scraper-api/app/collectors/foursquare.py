@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import requests
+import httpx
 
 from app.collectors.base import BaseCollector, CollectorResult
 from app.utils.extractors import ReviewExtractor
@@ -24,7 +24,7 @@ class FoursquareCollector(BaseCollector):
     SEARCH_URL = "https://api.foursquare.com/v3/places/match"
     TIPS_URL = "https://api.foursquare.com/v3/places/{fsq_id}/tips"
 
-    def collect(
+    async def collect(
         self,
         place_code: str,
         lat: float,
@@ -38,12 +38,12 @@ class FoursquareCollector(BaseCollector):
 
         try:
             # Step 1: Match place
-            fsq_id = self._match_place(name, lat, lng, api_key)
+            fsq_id = await self._match_place(name, lat, lng, api_key)
             if not fsq_id:
                 return self._skip_result("No Foursquare match found")
 
             # Step 2: Fetch tips
-            tips = self._fetch_tips(fsq_id, api_key)
+            tips = await self._fetch_tips(fsq_id, api_key)
 
             result = CollectorResult(
                 collector_name=self.name,
@@ -54,7 +54,7 @@ class FoursquareCollector(BaseCollector):
         except Exception as e:
             return self._fail_result(str(e))
 
-    def _match_place(self, name: str, lat: float, lng: float, api_key: str) -> str | None:
+    async def _match_place(self, name: str, lat: float, lng: float, api_key: str) -> str | None:
         """Match a place by name and coordinates."""
         headers = {
             "Authorization": api_key,
@@ -64,7 +64,8 @@ class FoursquareCollector(BaseCollector):
             "name": name,
             "ll": f"{lat},{lng}",
         }
-        resp = requests.get(self.SEARCH_URL, headers=headers, params=params, timeout=(5, 30))
+        async with httpx.AsyncClient(timeout=35.0) as client:
+            resp = await client.get(self.SEARCH_URL, headers=headers, params=params)
         if resp.status_code != 200:
             return None
 
@@ -72,14 +73,15 @@ class FoursquareCollector(BaseCollector):
         place = data.get("place", {})
         return place.get("fsq_id")
 
-    def _fetch_tips(self, fsq_id: str, api_key: str) -> list[dict]:
+    async def _fetch_tips(self, fsq_id: str, api_key: str) -> list[dict]:
         """Fetch tips for a Foursquare place."""
         headers = {
             "Authorization": api_key,
             "Accept": "application/json",
         }
         url = self.TIPS_URL.format(fsq_id=fsq_id)
-        resp = requests.get(url, headers=headers, params={"limit": 10}, timeout=(5, 30))
+        async with httpx.AsyncClient(timeout=35.0) as client:
+            resp = await client.get(url, headers=headers, params={"limit": 10})
         if resp.status_code != 200:
             return []
 

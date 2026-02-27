@@ -10,7 +10,7 @@ Covers:
 
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy.pool import StaticPool
@@ -291,22 +291,22 @@ class TestQualityScoringExtended:
 
 
 class TestEnrichmentPipeline:
-    def test_run_enrichment_pipeline_run_not_found(self, pipeline_engine):
+    async def test_run_enrichment_pipeline_run_not_found(self, pipeline_engine):
         from app.pipeline.enrichment import run_enrichment_pipeline
 
         with patch("app.pipeline.enrichment.engine", pipeline_engine):
             # No run in DB → should exit early without error
-            run_enrichment_pipeline("nonexistent_run")
+            await run_enrichment_pipeline("nonexistent_run")
 
-    def test_run_enrichment_pipeline_no_places(self, pipeline_engine):
+    async def test_run_enrichment_pipeline_no_places(self, pipeline_engine):
         from app.pipeline.enrichment import run_enrichment_pipeline
 
         _seed_run(pipeline_engine, run_code="run_empty")
 
         with patch("app.pipeline.enrichment.engine", pipeline_engine):
-            run_enrichment_pipeline("run_empty")
+            await run_enrichment_pipeline("run_empty")
 
-    def test_run_enrichment_pipeline_cancelled(self, pipeline_engine):
+    async def test_run_enrichment_pipeline_cancelled(self, pipeline_engine):
         """Run with cancelled status should abort before any collectors are called."""
         from app.pipeline.enrichment import run_enrichment_pipeline
 
@@ -320,12 +320,12 @@ class TestEnrichmentPipeline:
                 "app.pipeline.enrichment.get_enrichment_collectors",
                 return_value=[mock_collector],
             ):
-                run_enrichment_pipeline("run_cancel")
+                await run_enrichment_pipeline("run_cancel")
 
         # Cancelled run detected before workers start — collect must not be called
         mock_collector.collect.assert_not_called()
 
-    def test_run_enrichment_pipeline_success(self, pipeline_engine):
+    async def test_run_enrichment_pipeline_success(self, pipeline_engine):
         """Happy path: places get enriched and status set to 'complete'."""
         from sqlmodel import select
 
@@ -341,14 +341,14 @@ class TestEnrichmentPipeline:
 
         mock_collector = MagicMock()
         mock_collector.name = "osm"
-        mock_collector.collect.return_value = mock_result
+        mock_collector.collect = AsyncMock(return_value=mock_result)
 
         with patch("app.pipeline.enrichment.engine", pipeline_engine):
             with patch(
                 "app.pipeline.enrichment.get_enrichment_collectors",
                 return_value=[mock_collector],
             ):
-                run_enrichment_pipeline("run_success")
+                await run_enrichment_pipeline("run_success")
 
         with Session(pipeline_engine) as session:
             place = session.exec(
@@ -356,7 +356,7 @@ class TestEnrichmentPipeline:
             ).first()
         assert place.enrichment_status == "complete"
 
-    def test_run_enrichment_pipeline_place_exception(self, pipeline_engine):
+    async def test_run_enrichment_pipeline_place_exception(self, pipeline_engine):
         """When _enrich_place raises, place gets status 'failed' and pipeline continues."""
         from sqlmodel import select
 
@@ -372,7 +372,7 @@ class TestEnrichmentPipeline:
                     "app.pipeline.enrichment._enrich_place",
                     side_effect=Exception("Unexpected error"),
                 ):
-                    run_enrichment_pipeline("run_exc")
+                    await run_enrichment_pipeline("run_exc")
 
         # The parallel worker catches the exception and sets enrichment_status = "failed"
         with Session(pipeline_engine) as session:
@@ -383,7 +383,7 @@ class TestEnrichmentPipeline:
 
 
 class TestEnrichPlace:
-    def test_enrich_place_basic(self, pipeline_engine):
+    async def test_enrich_place_basic(self, pipeline_engine):
         """_enrich_place updates place status to 'complete'."""
 
         from app.db.models import DataLocation, ScrapedPlace, ScraperRun
@@ -403,12 +403,12 @@ class TestEnrichPlace:
             session.add(place)
             session.commit()
 
-            _enrich_place(place, "run_ep", [], session)
+            await _enrich_place(place, "run_ep", [], session)
 
             session.refresh(place)
             assert place.enrichment_status == "complete"
 
-    def test_enrich_place_with_collector(self, pipeline_engine):
+    async def test_enrich_place_with_collector(self, pipeline_engine):
         """_enrich_place stores RawCollectorData for each collector (batch write at end)."""
         from sqlmodel import select
 
@@ -436,9 +436,9 @@ class TestEnrichPlace:
 
             mock_collector = MagicMock()
             mock_collector.name = "osm"
-            mock_collector.collect.return_value = mock_result
+            mock_collector.collect = AsyncMock(return_value=mock_result)
 
-            _enrich_place(place, "run_col", [mock_collector], session)
+            await _enrich_place(place, "run_col", [mock_collector], session)
 
             raw_records = session.exec(
                 select(RawCollectorData).where(RawCollectorData.place_code == "gplc_col1")
@@ -448,7 +448,7 @@ class TestEnrichPlace:
         assert raw_records[0].collector_name == "osm"
         assert raw_records[0].status == "skipped"
 
-    def test_enrich_place_with_gmaps_raw_data(self, pipeline_engine):
+    async def test_enrich_place_with_gmaps_raw_data(self, pipeline_engine):
         """When gmaps RawCollectorData exists, _extract is called for it."""
 
         from app.db.models import DataLocation, RawCollectorData, ScrapedPlace, ScraperRun
@@ -477,14 +477,14 @@ class TestEnrichPlace:
             session.add(gmaps_raw)
             session.commit()
 
-            _enrich_place(place, "run_gmaps", [], session)
+            await _enrich_place(place, "run_gmaps", [], session)
 
             session.refresh(place)
             assert place.enrichment_status == "complete"
             # Raw data should have been merged
             assert place.raw_data is not None
 
-    def test_enrich_place_collector_exception(self, pipeline_engine):
+    async def test_enrich_place_collector_exception(self, pipeline_engine):
         """Collector exceptions are caught and stored as 'failed' raw data."""
         from sqlmodel import select
 
@@ -507,9 +507,9 @@ class TestEnrichPlace:
 
             error_collector = MagicMock()
             error_collector.name = "errorcollector"
-            error_collector.collect.side_effect = Exception("Collector boom!")
+            error_collector.collect = AsyncMock(side_effect=Exception("Collector boom!"))
 
-            _enrich_place(place, "run_err", [error_collector], session)
+            await _enrich_place(place, "run_err", [error_collector], session)
 
             raw_records = session.exec(
                 select(RawCollectorData).where(RawCollectorData.place_code == "gplc_err1")
@@ -519,7 +519,7 @@ class TestEnrichPlace:
         assert raw_records[0].status == "failed"
         assert "Collector boom!" in raw_records[0].error_message
 
-    def test_enrich_place_tags_propagation(self, pipeline_engine):
+    async def test_enrich_place_tags_propagation(self, pipeline_engine):
         """Tags from OSM (Phase 0) must propagate to Wikipedia (Phase 1)."""
         from app.collectors.base import CollectorResult
         from app.db.models import DataLocation, ScrapedPlace, ScraperRun
@@ -554,14 +554,14 @@ class TestEnrichPlace:
 
             osm_collector = MagicMock()
             osm_collector.name = "osm"
-            osm_collector.collect.return_value = tag_result
+            osm_collector.collect = AsyncMock(return_value=tag_result)
 
             wiki_collector = MagicMock()
             wiki_collector.name = "wikipedia"
-            wiki_collector.collect.side_effect = capture_collect
+            wiki_collector.collect = AsyncMock(side_effect=capture_collect)
 
             # OSM goes to Phase 0, Wikipedia goes to Phase 1 — tags must propagate
-            _enrich_place(place, "run_tags", [osm_collector, wiki_collector], session)
+            await _enrich_place(place, "run_tags", [osm_collector, wiki_collector], session)
 
         # Wikipedia (Phase 1) must have received the OSM tags in existing_data
         assert len(captured_existing_data) == 1

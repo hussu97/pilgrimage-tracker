@@ -1,7 +1,9 @@
+import asyncio
 import secrets
 import threading
 import time
 
+import httpx
 import requests
 
 from app.logger import get_logger
@@ -160,3 +162,99 @@ def get_rate_limiter() -> RateLimiter:
     if _rate_limiter_instance is None:
         _rate_limiter_instance = RateLimiter()
     return _rate_limiter_instance
+
+
+class AsyncRateLimiter:
+    """
+    Async per-endpoint token-bucket rate limiter with burst support.
+
+    Drop-in async counterpart to RateLimiter.  Uses asyncio.Lock to serialise
+    token accounting and asyncio.sleep to yield control while waiting, so the
+    event loop is never hard-blocked.
+
+    One instance is shared across all coroutines (safe because asyncio is
+    single-threaded — only one coroutine runs between await points).
+    """
+
+    DEFAULT_RATES: dict[str, float] = RateLimiter.DEFAULT_RATES
+    DEFAULT_BURST: int = RateLimiter.DEFAULT_BURST
+
+    def __init__(self, burst: int = DEFAULT_BURST) -> None:
+        self._burst = burst
+        self._lock = asyncio.Lock()
+        # Per-endpoint: [tokens_float, last_refill_monotonic, rps]
+        self._buckets: dict[str, list] = {}
+
+    async def acquire(self, endpoint: str) -> None:
+        """Async-block until a token is available for the given endpoint."""
+        async with self._lock:
+            if endpoint not in self._buckets:
+                rps = self.DEFAULT_RATES.get(endpoint, 1.0)
+                self._buckets[endpoint] = [float(self._burst), time.monotonic(), rps]
+            bucket = self._buckets[endpoint]
+
+        while True:
+            async with self._lock:
+                now = time.monotonic()
+                rps = bucket[2]
+                elapsed = now - bucket[1]
+                bucket[0] = min(float(self._burst), bucket[0] + elapsed * rps)
+                bucket[1] = now
+                if bucket[0] >= 1.0:
+                    bucket[0] -= 1.0
+                    return
+                wait = (1.0 - bucket[0]) / rps
+
+            await asyncio.sleep(wait)
+
+
+# Module-level async singleton.
+_async_rate_limiter_instance: AsyncRateLimiter | None = None
+
+
+def get_async_rate_limiter() -> AsyncRateLimiter:
+    """Return the global AsyncRateLimiter singleton, creating it on first call."""
+    global _async_rate_limiter_instance
+    if _async_rate_limiter_instance is None:
+        _async_rate_limiter_instance = AsyncRateLimiter()
+    return _async_rate_limiter_instance
+
+
+async def async_request_with_backoff(
+    method: str,
+    url: str,
+    client: httpx.AsyncClient | None = None,
+    **kwargs,
+) -> httpx.Response | None:
+    """Async HTTP request with exponential backoff on rate limits (429).
+
+    Uses the provided httpx.AsyncClient for connection reuse, or creates a
+    one-shot client if none is given.
+    """
+    kwargs.setdefault("timeout", 35.0)
+    wait_time = 5
+    retries = 0
+    max_retries = 5
+
+    async def _do_request(c: httpx.AsyncClient) -> httpx.Response | None:
+        nonlocal wait_time, retries
+        while retries < max_retries:
+            try:
+                response = await c.request(method, url, **kwargs)
+                if response.status_code == 429:
+                    logger.warning("Rate limit hit (429) for %s. Retrying in %ss…", url, wait_time)
+                    await asyncio.sleep(wait_time)
+                    wait_time *= 2
+                    retries += 1
+                    continue
+                return response
+            except Exception as e:
+                logger.error("Async request error for %s: %s", url, e)
+                return None
+        return None
+
+    if client is not None:
+        return await _do_request(client)
+
+    async with httpx.AsyncClient() as c:
+        return await _do_request(c)

@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Scraper Async I/O Migration (2026-02-27)
+
+### Backend (Scraper)
+
+- **Full async I/O migration (3.1)** — Replaced `requests` + `ThreadPoolExecutor` with `httpx.AsyncClient` + `asyncio.gather()` across all layers:
+  - All 8 collectors (`gmaps`, `osm`, `wikipedia`, `wikidata`, `knowledge_graph`, `besttime`, `foursquare`, `outscraper`) — `collect()` and all internal fetch methods are now `async def`.
+  - New `AsyncRateLimiter` (token-bucket, `asyncio.Lock` + `asyncio.sleep`) and `async_request_with_backoff()` helper in `scrapers/base.py`.
+  - `search_area()`, `get_places_in_circle()`, `discover_places()`, `fetch_place_details()`, `download_place_images()`, `run_gmaps_scraper()` — all `async def` using `asyncio.gather()` + `asyncio.Semaphore` for concurrency.
+  - Enrichment pipeline (`pipeline/enrichment.py`) — `run_enrichment_pipeline()` uses `asyncio.Semaphore(3)` + `asyncio.gather()` across places; `_enrich_place()` runs phases in parallel via `asyncio.gather()`.
+  - `run_scraper_task()` and `resume_scraper_task()` in `db/scraper.py` are now `async def`; Starlette auto-awaits them as background tasks.
+- **PostgreSQL-ready (3.2)** — No code changes required; `app/db/session.py` already reads `DATABASE_URL` env var. Setting `DATABASE_URL=postgresql+psycopg2://...` on GCP Cloud Run is sufficient to enable PostgreSQL for concurrent writes.
+- **Tests** — All 453 tests updated and passing. `pytest-asyncio` (`asyncio_mode = auto`) runs all `async def test_*` functions automatically; `AsyncMock` used throughout for async method patching; `httpx.AsyncClient` mocked with async context manager protocol.
+
+---
+
 ## Scraper Performance & Scale Optimization (2026-02-27)
 
 ### Backend (Scraper)

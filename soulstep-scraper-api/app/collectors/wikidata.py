@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.collectors.base import BaseCollector, CollectorResult
-from app.scrapers.base import make_request_with_backoff
+from app.scrapers.base import async_request_with_backoff
 from app.utils.extractors import make_description
 
 HEADERS = {"User-Agent": "SoulStepBot/1.0 (contact@soul-step.org)"}
@@ -33,7 +33,7 @@ class WikidataCollector(BaseCollector):
     requires_api_key = False
     api_key_env_var = ""
 
-    def collect(
+    async def collect(
         self,
         place_code: str,
         lat: float,
@@ -49,7 +49,7 @@ class WikidataCollector(BaseCollector):
             return self._skip_result("No Wikidata QID available (needs OSM wikidata tag)")
 
         try:
-            entity_data = self._fetch_entity(qid)
+            entity_data = await self._fetch_entity(qid)
             if not entity_data:
                 return self._fail_result(f"Could not fetch Wikidata entity {qid}")
 
@@ -57,14 +57,14 @@ class WikidataCollector(BaseCollector):
         except Exception as e:
             return self._fail_result(str(e))
 
-    def _fetch_entity(self, qid: str) -> dict[str, Any] | None:
+    async def _fetch_entity(self, qid: str) -> dict[str, Any] | None:
         """Fetch a Wikidata entity by QID via the wbgetentities API."""
         url = (
             f"https://www.wikidata.org/w/api.php"
             f"?action=wbgetentities&ids={qid}&format=json"
             f"&languages=en|ar|hi|te&props=labels|descriptions|claims"
         )
-        response = make_request_with_backoff("GET", url, headers=HEADERS)
+        response = await async_request_with_backoff("GET", url, headers=HEADERS)
         if not response or response.status_code != 200:
             return None
 

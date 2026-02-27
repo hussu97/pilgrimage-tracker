@@ -16,7 +16,7 @@ import urllib.parse
 from typing import Any
 
 from app.collectors.base import BaseCollector, CollectorResult
-from app.scrapers.base import make_request_with_backoff
+from app.scrapers.base import async_request_with_backoff
 from app.utils.extractors import make_description
 
 HEADERS = {"User-Agent": "SoulStepBot/1.0 (contact@soul-step.org)"}
@@ -143,7 +143,7 @@ class WikipediaCollector(BaseCollector):
     requires_api_key = False
     api_key_env_var = ""
 
-    def collect(
+    async def collect(
         self,
         place_code: str,
         lat: float,
@@ -160,11 +160,11 @@ class WikipediaCollector(BaseCollector):
             if wiki_tag:
                 # Use OSM wikipedia tag (e.g., "en:Al-Aqsa Mosque").
                 # OSM tags are human-curated — skip relevance validation.
-                en_info = self._fetch_from_tag(wiki_tag)
+                en_info = await self._fetch_from_tag(wiki_tag)
                 from_search = False
             else:
                 # Fallback: search Wikipedia by place name.
-                en_info = self._search_wikipedia(name, "en")
+                en_info = await self._search_wikipedia(name, "en")
                 from_search = True
 
             if not en_info:
@@ -203,9 +203,16 @@ class WikipediaCollector(BaseCollector):
             title = en_info.get("title", name)
 
             # Arabic, Hindi, and Telugu extracts
-            for lang in ["ar", "hi", "te"]:
-                lang_info = self._fetch_by_title(title, lang)
-                if lang_info and lang_info.get("description"):
+            import asyncio as _asyncio
+
+            lang_results = await _asyncio.gather(
+                *[self._fetch_by_title(title, lang) for lang in ["ar", "hi", "te"]],
+                return_exceptions=True,
+            )
+            for lang, lang_info in zip(["ar", "hi", "te"], lang_results, strict=False):
+                if isinstance(lang_info, Exception) or not lang_info:
+                    continue
+                if lang_info.get("description"):
                     result.raw_response[lang] = lang_info
                     result.descriptions.append(
                         make_description(lang_info["description"], lang, "wikipedia")
@@ -215,7 +222,7 @@ class WikipediaCollector(BaseCollector):
         except Exception as e:
             return self._fail_result(str(e))
 
-    def _fetch_from_tag(self, wiki_tag: str) -> dict[str, Any]:
+    async def _fetch_from_tag(self, wiki_tag: str) -> dict[str, Any]:
         """Fetch Wikipedia summary using an OSM wikipedia tag (e.g., 'en:Article Title')."""
         parts = wiki_tag.split(":", 1)
         if len(parts) == 2:
@@ -224,14 +231,14 @@ class WikipediaCollector(BaseCollector):
             lang = "en"
             title = parts[0]
 
-        return self._fetch_by_title(title, lang) or {}
+        return await self._fetch_by_title(title, lang) or {}
 
-    def _fetch_by_title(self, title: str, lang: str = "en") -> dict[str, Any] | None:
+    async def _fetch_by_title(self, title: str, lang: str = "en") -> dict[str, Any] | None:
         """Fetch Wikipedia summary by title and language."""
         encoded_title = urllib.parse.quote(title)
         url = f"https://{lang}.wikipedia.org/api/rest_v1/page/summary/{encoded_title}"
 
-        response = make_request_with_backoff("GET", url, headers=HEADERS)
+        response = await async_request_with_backoff("GET", url, headers=HEADERS)
         if not response or response.status_code != 200:
             return None
 
@@ -254,14 +261,14 @@ class WikipediaCollector(BaseCollector):
         except Exception:
             return None
 
-    def _search_wikipedia(self, query: str, lang: str = "en") -> dict[str, Any] | None:
+    async def _search_wikipedia(self, query: str, lang: str = "en") -> dict[str, Any] | None:
         """Search Wikipedia and fetch summary of the first result."""
         search_url = (
             f"https://{lang}.wikipedia.org/w/api.php"
             f"?action=query&list=search&srsearch={urllib.parse.quote(query)}"
             f"&format=json&srlimit=1"
         )
-        response = make_request_with_backoff("GET", search_url, headers=HEADERS)
+        response = await async_request_with_backoff("GET", search_url, headers=HEADERS)
         if not response or response.status_code != 200:
             return None
 
@@ -272,7 +279,7 @@ class WikipediaCollector(BaseCollector):
                 return None
 
             title = results[0]["title"]
-            return self._fetch_by_title(title, lang)
+            return await self._fetch_by_title(title, lang)
         except Exception:
             return None
 

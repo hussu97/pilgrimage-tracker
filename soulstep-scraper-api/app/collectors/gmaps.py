@@ -6,15 +6,12 @@ Extracted from scrapers/gmaps.py detail-fetching logic with enhanced field mask.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import os
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
-import requests
-from requests.exceptions import ConnectionError as RequestsConnectionError
-from requests.exceptions import SSLError
+import httpx
 from sqlmodel import Session, select
 
 from app.collectors.base import BaseCollector, CollectorResult
@@ -32,22 +29,25 @@ logger = get_logger(__name__)
 _MAX_IMAGE_ATTEMPTS = 3
 
 
-def _download_image(url: str, http_session: requests.Session | None = None) -> bytes | None:
-    """Download an image with retries on transient SSL/connection errors.
+async def _download_image(url: str, client: httpx.AsyncClient | None = None) -> bytes | None:
+    """Download an image with retries on transient errors.
 
     Google Places photo URLs occasionally fail with UNEXPECTED_EOF_WHILE_READING
     due to Cloud Run egress dropping the connection. A short backoff retry fixes it.
     """
-    fetcher = http_session or requests
     for attempt in range(_MAX_IMAGE_ATTEMPTS):
         try:
-            resp = fetcher.get(url, timeout=20)
+            if client is not None:
+                resp = await client.get(url, timeout=20.0)
+            else:
+                async with httpx.AsyncClient(timeout=20.0) as c:
+                    resp = await c.get(url)
             if resp.status_code == 200:
                 return resp.content
             return None
-        except (SSLError, RequestsConnectionError) as e:
+        except (httpx.ConnectError, httpx.RemoteProtocolError) as e:
             if attempt < _MAX_IMAGE_ATTEMPTS - 1:
-                time.sleep(attempt + 1)  # 1 s, 2 s
+                await asyncio.sleep(attempt + 1)  # 1 s, 2 s
                 continue
             logger.warning(
                 "Failed to download image %s after %d attempts: %s", url, _MAX_IMAGE_ATTEMPTS, e
@@ -58,12 +58,12 @@ def _download_image(url: str, http_session: requests.Session | None = None) -> b
             return None
 
 
-def download_place_images(run_code: str, engine, max_workers: int = 20) -> None:
+async def download_place_images(run_code: str, engine, max_workers: int = 20) -> None:
     """Phase 3: Download images for all places in a run and store blobs in raw_data.
 
     This is called after fetch_place_details() so that detail fetching is not
-    blocked by image downloads. Uses a shared requests.Session for connection
-    reuse and a ThreadPoolExecutor for parallelism.
+    blocked by image downloads. Uses a shared httpx.AsyncClient for connection
+    reuse and asyncio.gather for parallelism.
 
     CDN photo URLs (places.googleapis.com/v1/.../media) are not billed API calls,
     so no rate limiting is needed here.
@@ -92,21 +92,19 @@ def download_place_images(run_code: str, engine, max_workers: int = 20) -> None:
 
     logger.info("Image download: downloading %d images for %d places", len(tasks), len(place_map))
 
-    # Download in parallel using a shared session for connection reuse
+    # Download in parallel using a shared client and a semaphore for concurrency control
+    sem = asyncio.Semaphore(max_workers)
     results: dict[tuple[int, int], bytes] = {}
-    with requests.Session() as http_session, ThreadPoolExecutor(max_workers=max_workers) as pool:
-        future_to_key = {
-            pool.submit(_download_image, url, http_session): (place_id, idx)
-            for place_id, idx, url in tasks
-        }
-        for future in as_completed(future_to_key):
-            key = future_to_key[future]
-            try:
-                content = future.result()
+
+    async with httpx.AsyncClient(timeout=20.0) as http_client:
+
+        async def _fetch(place_id: int, idx: int, url: str) -> None:
+            async with sem:
+                content = await _download_image(url, http_client)
                 if content is not None:
-                    results[key] = content
-            except Exception as e:
-                logger.warning("Image download error for key %s: %s", key, e)
+                    results[(place_id, idx)] = content
+
+        await asyncio.gather(*[_fetch(pid, idx, url) for pid, idx, url in tasks])
 
     # Group results by place and write back
     blobs_by_place: dict[int, list[dict]] = {}
@@ -187,7 +185,7 @@ class GmapsCollector(BaseCollector):
     # Combined mask used when fetching a single place (e.g. GmapsCollector.collect())
     FIELD_MASK = FIELD_MASK_ESSENTIAL + FIELD_MASK_EXTENDED
 
-    def collect(
+    async def collect(
         self,
         place_code: str,
         lat: float,
@@ -209,24 +207,24 @@ class GmapsCollector(BaseCollector):
         place_resource_name = f"places/{place_id}"
 
         try:
-            response = self._fetch_details(place_resource_name, api_key)
+            response = await self._fetch_details(place_resource_name, api_key)
             result = self._extract(response, place_code, api_key)
             result.raw_response = response
             return result
         except Exception as e:
             return self._fail_result(str(e))
 
-    def _fetch_details(
+    async def _fetch_details(
         self,
         place_name: str,
         api_key: str,
         field_mask: list[str] | None = None,
-        http_session: requests.Session | None = None,
+        client: httpx.AsyncClient | None = None,
     ) -> dict:
         """Fetch place details from Google Places API.
 
         Uses field_mask if provided, otherwise falls back to the full combined FIELD_MASK.
-        Accepts an optional requests.Session for connection reuse.
+        Accepts an optional httpx.AsyncClient for connection reuse.
         """
         url = f"https://places.googleapis.com/v1/{place_name}"
         mask = field_mask if field_mask is not None else self.FIELD_MASK
@@ -236,8 +234,11 @@ class GmapsCollector(BaseCollector):
             "X-Goog-FieldMask": ",".join(mask),
             "languageCode": "en",
         }
-        fetcher = http_session or requests
-        resp = fetcher.get(url, headers=headers, timeout=(5, 30))
+        if client is not None:
+            resp = await client.get(url, headers=headers)
+        else:
+            async with httpx.AsyncClient(timeout=35.0) as c:
+                resp = await c.get(url, headers=headers)
 
         if resp.status_code != 200:
             error_data = resp.json() if resp.content else {}
@@ -251,12 +252,12 @@ class GmapsCollector(BaseCollector):
     # Minimum quality bar for fetching extended (expensive) fields
     _EXTENDED_MIN_RATING: float = 1.0
 
-    def fetch_details_split(
+    async def fetch_details_split(
         self,
         place_name: str,
         api_key: str,
         rate_limiter,
-        http_session: requests.Session | None = None,
+        client: httpx.AsyncClient | None = None,
     ) -> dict:
         """Two-stage detail fetch: essential fields first, extended fields conditionally.
 
@@ -264,18 +265,18 @@ class GmapsCollector(BaseCollector):
         skip the extended (Atmosphere-tier) call, saving ~15-30% in API cost.
         Returns the merged response dict.
         """
-        rate_limiter.acquire("gmaps_details")
-        essential = self._fetch_details(
-            place_name, api_key, self.FIELD_MASK_ESSENTIAL, http_session
+        await rate_limiter.acquire("gmaps_details")
+        essential = await self._fetch_details(
+            place_name, api_key, self.FIELD_MASK_ESSENTIAL, client
         )
 
         # Quality gate: only fetch expensive extended fields for live, rated places
         status = essential.get("businessStatus", "")
         rating = essential.get("rating") or 0.0
         if status == "OPERATIONAL" and float(rating) >= self._EXTENDED_MIN_RATING:
-            rate_limiter.acquire("gmaps_details")
-            extended = self._fetch_details(
-                place_name, api_key, self.FIELD_MASK_EXTENDED, http_session
+            await rate_limiter.acquire("gmaps_details")
+            extended = await self._fetch_details(
+                place_name, api_key, self.FIELD_MASK_EXTENDED, client
             )
             essential.update(extended)
 
@@ -396,9 +397,9 @@ class GmapsCollector(BaseCollector):
         Images are stored as URLs only — actual blob download is deferred to the
         download_place_images() phase after detail fetch.
 
-        When type_map and religion_type_map are supplied (pre-loaded before entering a thread
-        pool), this method performs no DB access and is fully thread-safe.  When they are
-        None a session must be provided and the maps are queried on the fly.
+        When type_map and religion_type_map are supplied (pre-loaded before entering the
+        async gather), this method performs no DB access and is fully coroutine-safe.
+        When they are None a session must be provided and the maps are queried on the fly.
         """
         # Process images (up to 3) — URLs only, no download during detail fetch
         photo_urls = []
@@ -492,7 +493,7 @@ class GmapsCollector(BaseCollector):
         result_types = response.get("types", [])
 
         if religion_type_map is not None:
-            # Use pre-loaded map (thread-safe, no DB access)
+            # Use pre-loaded map (no DB access)
             religion = None
             for gmaps_type in result_types:
                 if gmaps_type in religion_type_map:

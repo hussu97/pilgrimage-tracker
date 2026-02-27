@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 @pytest.fixture(autouse=True)
 def reset_rate_limiter():
     """
-    Reset the global RateLimiter singleton before each test.
+    Reset the global RateLimiter and AsyncRateLimiter singletons before each test.
 
     Without this, the last-call timestamps from one test would carry over
     into the next, causing unexpected sleeps and slow test suites.
@@ -35,8 +35,10 @@ def reset_rate_limiter():
     import app.scrapers.base as _base
 
     _base._rate_limiter_instance = None
+    _base._async_rate_limiter_instance = None
     yield
     _base._rate_limiter_instance = None
+    _base._async_rate_limiter_instance = None
 
 
 # ── DB / session fixtures ──────────────────────────────────────────────────────

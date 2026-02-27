@@ -4,7 +4,7 @@ Unit tests for all collectors (mocked HTTP responses).
 
 import os
 import sys
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -100,20 +100,22 @@ class TestOsmCollector:
         assert result.contact["email"] == "info@alaqsa.com"
         assert result.contact["website"] == "https://alaqsa.com"
 
-    def test_collect_no_data(self):
+    async def test_collect_no_data(self):
         from app.collectors.osm import OsmCollector
 
         collector = OsmCollector()
-        with patch.object(collector, "_query_overpass", return_value={}):
-            result = collector.collect("gplc_test", 25.0, 55.0, "Test Mosque")
+        with patch.object(collector, "_query_overpass", new=AsyncMock(return_value={})):
+            result = await collector.collect("gplc_test", 25.0, 55.0, "Test Mosque")
         assert result.status == "skipped"
 
-    def test_collect_exception(self):
+    async def test_collect_exception(self):
         from app.collectors.osm import OsmCollector
 
         collector = OsmCollector()
-        with patch.object(collector, "_query_overpass", side_effect=Exception("Network error")):
-            result = collector.collect("gplc_test", 25.0, 55.0, "Test Mosque")
+        with patch.object(
+            collector, "_query_overpass", new=AsyncMock(side_effect=Exception("Network error"))
+        ):
+            result = await collector.collect("gplc_test", 25.0, 55.0, "Test Mosque")
         assert result.status == "failed"
         assert "Network error" in result.error_message
 
@@ -122,7 +124,7 @@ class TestOsmCollector:
 
 
 class TestWikipediaCollector:
-    def test_extract_from_tag(self):
+    async def test_extract_from_tag(self):
         from app.collectors.wikipedia import WikipediaCollector
 
         collector = WikipediaCollector()
@@ -133,9 +135,9 @@ class TestWikipediaCollector:
             "image_url": "https://upload.wikimedia.org/image.jpg",
             "original_image": "https://upload.wikimedia.org/image_full.jpg",
         }
-        with patch.object(collector, "_fetch_from_tag", return_value=mock_info):
-            with patch.object(collector, "_fetch_by_title", return_value=None):
-                result = collector.collect(
+        with patch.object(collector, "_fetch_from_tag", new=AsyncMock(return_value=mock_info)):
+            with patch.object(collector, "_fetch_by_title", new=AsyncMock(return_value=None)):
+                result = await collector.collect(
                     "gplc_test",
                     31.7,
                     35.2,
@@ -149,12 +151,12 @@ class TestWikipediaCollector:
         assert any("Al-Aqsa" in d["text"] for d in en_descs)
         assert len(result.images) == 1
 
-    def test_skip_when_no_article(self):
+    async def test_skip_when_no_article(self):
         from app.collectors.wikipedia import WikipediaCollector
 
         collector = WikipediaCollector()
-        with patch.object(collector, "_search_wikipedia", return_value=None):
-            result = collector.collect("gplc_test", 25.0, 55.0, "Unknown Place")
+        with patch.object(collector, "_search_wikipedia", new=AsyncMock(return_value=None)):
+            result = await collector.collect("gplc_test", 25.0, 55.0, "Unknown Place")
         assert result.status == "skipped"
 
 
@@ -162,11 +164,11 @@ class TestWikipediaCollector:
 
 
 class TestWikidataCollector:
-    def test_skip_without_qid(self):
+    async def test_skip_without_qid(self):
         from app.collectors.wikidata import WikidataCollector
 
         collector = WikidataCollector()
-        result = collector.collect("gplc_test", 25.0, 55.0, "Test")
+        result = await collector.collect("gplc_test", 25.0, 55.0, "Test")
         assert result.status == "skipped"
 
     def test_extract_entity(self):
@@ -234,13 +236,13 @@ class TestWikidataCollector:
 
 
 class TestKnowledgeGraphCollector:
-    def test_not_configured_without_key(self):
+    async def test_not_configured_without_key(self):
         from app.collectors.knowledge_graph import KnowledgeGraphCollector
 
         collector = KnowledgeGraphCollector()
         with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": ""}, clear=False):
             # Override the is_available check
-            result = collector.collect("gplc_test", 25.0, 55.0, "Test")
+            result = await collector.collect("gplc_test", 25.0, 55.0, "Test")
             # May be not_configured or fail depending on env
             assert result.status in ("not_configured", "failed", "skipped")
 
@@ -276,36 +278,36 @@ class TestKnowledgeGraphCollector:
 
 
 class TestPaidCollectors:
-    def test_besttime_not_configured(self):
+    async def test_besttime_not_configured(self):
         from app.collectors.besttime import BestTimeCollector
 
         collector = BestTimeCollector()
         with patch.dict(os.environ, {"BESTTIME_API_KEY": ""}, clear=False):
-            result = collector.collect("gplc_test", 25.0, 55.0, "Test")
+            result = await collector.collect("gplc_test", 25.0, 55.0, "Test")
         assert result.status == "not_configured"
 
-    def test_foursquare_not_configured(self):
+    async def test_foursquare_not_configured(self):
         from app.collectors.foursquare import FoursquareCollector
 
         collector = FoursquareCollector()
         with patch.dict(os.environ, {"FOURSQUARE_API_KEY": ""}, clear=False):
-            result = collector.collect("gplc_test", 25.0, 55.0, "Test")
+            result = await collector.collect("gplc_test", 25.0, 55.0, "Test")
         assert result.status == "not_configured"
 
-    def test_outscraper_not_configured(self):
+    async def test_outscraper_not_configured(self):
         from app.collectors.outscraper import OutscraperCollector
 
         collector = OutscraperCollector()
         with patch.dict(os.environ, {"OUTSCRAPER_API_KEY": ""}, clear=False):
-            result = collector.collect("gplc_test", 25.0, 55.0, "Test")
+            result = await collector.collect("gplc_test", 25.0, 55.0, "Test")
         assert result.status == "not_configured"
 
-    def test_outscraper_skip_without_place_id(self):
+    async def test_outscraper_skip_without_place_id(self):
         from app.collectors.outscraper import OutscraperCollector
 
         collector = OutscraperCollector()
         with patch.dict(os.environ, {"OUTSCRAPER_API_KEY": "test_key"}, clear=False):
-            result = collector.collect("custom_place", 25.0, 55.0, "Test")
+            result = await collector.collect("custom_place", 25.0, 55.0, "Test")
         assert result.status == "skipped"
 
 

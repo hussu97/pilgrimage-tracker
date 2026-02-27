@@ -8,7 +8,7 @@ KnowledgeGraphCollector, OsmCollector.
 
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -163,58 +163,68 @@ class TestGmapsCollectorExtract:
 
 
 class TestGmapsCollectorCollect:
-    def test_collect_no_api_key(self):
+    async def test_collect_no_api_key(self):
         from app.collectors.gmaps import GmapsCollector
 
         collector = GmapsCollector()
         with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": ""}, clear=False):
-            result = collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
+            result = await collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
         assert result.status == "not_configured"
 
-    def test_collect_invalid_place_code(self):
+    async def test_collect_invalid_place_code(self):
         from app.collectors.gmaps import GmapsCollector
 
         collector = GmapsCollector()
         with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "fake_key"}, clear=False):
-            result = collector.collect("invalid_code", 25.0, 55.0, "Test")
+            result = await collector.collect("invalid_code", 25.0, 55.0, "Test")
         assert result.status == "skipped"
 
-    def test_collect_success(self):
+    async def test_collect_success(self):
         from app.collectors.gmaps import GmapsCollector
 
         collector = GmapsCollector()
         mock_response = {"editorialSummary": {"text": "A fine mosque."}}
         with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "fake_key"}, clear=False):
-            with patch.object(collector, "_fetch_details", return_value=mock_response):
-                result = collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test Place")
+            with patch.object(
+                collector, "_fetch_details", new=AsyncMock(return_value=mock_response)
+            ):
+                result = await collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test Place")
 
         assert result.status == "success"
         assert result.raw_response == mock_response
 
-    def test_collect_exception(self):
+    async def test_collect_exception(self):
         from app.collectors.gmaps import GmapsCollector
 
         collector = GmapsCollector()
         with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "fake_key"}, clear=False):
-            with patch.object(collector, "_fetch_details", side_effect=Exception("API error")):
-                result = collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
+            with patch.object(
+                collector, "_fetch_details", new=AsyncMock(side_effect=Exception("API error"))
+            ):
+                result = await collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
         assert result.status == "failed"
         assert "API error" in result.error_message
 
 
 class TestGmapsCollectorFetchDetails:
-    def test_fetch_details_success(self):
+    async def test_fetch_details_success(self):
         from app.collectors.gmaps import GmapsCollector
 
         collector = GmapsCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"displayName": {"text": "Test"}}
-        with patch("requests.get", return_value=mock_resp):
-            data = collector._fetch_details("places/ChIJ123", "key")
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.gmaps.httpx.AsyncClient", return_value=mock_client):
+            data = await collector._fetch_details("places/ChIJ123", "key")
         assert data == {"displayName": {"text": "Test"}}
 
-    def test_fetch_details_http_error(self):
+    async def test_fetch_details_http_error(self):
         from app.collectors.gmaps import GmapsCollector
 
         collector = GmapsCollector()
@@ -222,11 +232,17 @@ class TestGmapsCollectorFetchDetails:
         mock_resp.status_code = 403
         mock_resp.content = b'{"error": {"message": "API key invalid"}}'
         mock_resp.json.return_value = {"error": {"message": "API key invalid"}}
-        with patch("requests.get", return_value=mock_resp):
-            with pytest.raises(Exception, match="Places API get place details failed"):
-                collector._fetch_details("places/ChIJ123", "bad_key")
 
-    def test_fetch_details_http_error_empty_body(self):
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.gmaps.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(Exception, match="Places API get place details failed"):
+                await collector._fetch_details("places/ChIJ123", "bad_key")
+
+    async def test_fetch_details_http_error_empty_body(self):
         from app.collectors.gmaps import GmapsCollector
 
         collector = GmapsCollector()
@@ -234,9 +250,15 @@ class TestGmapsCollectorFetchDetails:
         mock_resp.status_code = 500
         mock_resp.content = b""
         mock_resp.json.side_effect = Exception("No content")
-        with patch("requests.get", return_value=mock_resp):
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.gmaps.httpx.AsyncClient", return_value=mock_client):
             with pytest.raises(Exception, match="Places API"):
-                collector._fetch_details("places/ChIJ123", "key")
+                await collector._fetch_details("places/ChIJ123", "key")
 
 
 class TestGmapsCollectorBuildPlaceData:
@@ -542,55 +564,75 @@ class TestGmapsCollectorBuildPlaceData:
 
 
 class TestBestTimeCollectorExtended:
-    def test_collect_with_key_no_forecast(self):
+    async def test_collect_with_key_no_forecast(self):
         from app.collectors.besttime import BestTimeCollector
 
         collector = BestTimeCollector()
         with patch.dict(os.environ, {"BESTTIME_API_KEY": "test_key"}, clear=False):
-            with patch.object(collector, "_fetch_forecast", return_value=None):
-                result = collector.collect("gplc_test", 25.0, 55.0, "Test")
+            with patch.object(collector, "_fetch_forecast", new=AsyncMock(return_value=None)):
+                result = await collector.collect("gplc_test", 25.0, 55.0, "Test")
         assert result.status == "skipped"
 
-    def test_collect_exception(self):
+    async def test_collect_exception(self):
         from app.collectors.besttime import BestTimeCollector
 
         collector = BestTimeCollector()
         with patch.dict(os.environ, {"BESTTIME_API_KEY": "test_key"}, clear=False):
-            with patch.object(collector, "_fetch_forecast", side_effect=Exception("Timeout")):
-                result = collector.collect("gplc_test", 25.0, 55.0, "Test")
+            with patch.object(
+                collector, "_fetch_forecast", new=AsyncMock(side_effect=Exception("Timeout"))
+            ):
+                result = await collector.collect("gplc_test", 25.0, 55.0, "Test")
         assert result.status == "failed"
         assert "Timeout" in result.error_message
 
-    def test_fetch_forecast_success(self):
+    async def test_fetch_forecast_success(self):
         from app.collectors.besttime import BestTimeCollector
 
         collector = BestTimeCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"status": "OK", "analysis": {}}
-        with patch("requests.post", return_value=mock_resp):
-            data = collector._fetch_forecast("Test", 25.0, 55.0, "key")
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.besttime.httpx.AsyncClient", return_value=mock_client):
+            data = await collector._fetch_forecast("Test", 25.0, 55.0, "key")
         assert data == {"status": "OK", "analysis": {}}
 
-    def test_fetch_forecast_non_200(self):
+    async def test_fetch_forecast_non_200(self):
         from app.collectors.besttime import BestTimeCollector
 
         collector = BestTimeCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 400
-        with patch("requests.post", return_value=mock_resp):
-            result = collector._fetch_forecast("Test", 25.0, 55.0, "key")
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.besttime.httpx.AsyncClient", return_value=mock_client):
+            result = await collector._fetch_forecast("Test", 25.0, 55.0, "key")
         assert result is None
 
-    def test_fetch_forecast_not_ok_status(self):
+    async def test_fetch_forecast_not_ok_status(self):
         from app.collectors.besttime import BestTimeCollector
 
         collector = BestTimeCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"status": "NOT_FOUND"}
-        with patch("requests.post", return_value=mock_resp):
-            result = collector._fetch_forecast("Test", 25.0, 55.0, "key")
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.besttime.httpx.AsyncClient", return_value=mock_client):
+            result = await collector._fetch_forecast("Test", 25.0, 55.0, "key")
         assert result is None
 
     def test_extract_with_week_data(self):
@@ -638,7 +680,7 @@ class TestBestTimeCollectorExtended:
         assert result.status == "success"
         assert result.attributes == []
 
-    def test_collect_success_full_flow(self):
+    async def test_collect_success_full_flow(self):
         from app.collectors.besttime import BestTimeCollector
 
         collector = BestTimeCollector()
@@ -655,8 +697,8 @@ class TestBestTimeCollectorExtended:
             },
         }
         with patch.dict(os.environ, {"BESTTIME_API_KEY": "test_key"}, clear=False):
-            with patch.object(collector, "_fetch_forecast", return_value=mock_data):
-                result = collector.collect("gplc_test", 25.0, 55.0, "Test Mosque")
+            with patch.object(collector, "_fetch_forecast", new=AsyncMock(return_value=mock_data)):
+                result = await collector.collect("gplc_test", 25.0, 55.0, "Test Mosque")
 
         assert result.status == "success"
         assert any(a["attribute_code"] == "busyness_forecast" for a in result.attributes)
@@ -666,16 +708,16 @@ class TestBestTimeCollectorExtended:
 
 
 class TestFoursquareCollectorExtended:
-    def test_collect_no_match(self):
+    async def test_collect_no_match(self):
         from app.collectors.foursquare import FoursquareCollector
 
         collector = FoursquareCollector()
         with patch.dict(os.environ, {"FOURSQUARE_API_KEY": "test_key"}, clear=False):
-            with patch.object(collector, "_match_place", return_value=None):
-                result = collector.collect("gplc_test", 25.0, 55.0, "Unknown Place")
+            with patch.object(collector, "_match_place", new=AsyncMock(return_value=None)):
+                result = await collector.collect("gplc_test", 25.0, 55.0, "Unknown Place")
         assert result.status == "skipped"
 
-    def test_collect_success(self):
+    async def test_collect_success(self):
         from app.collectors.foursquare import FoursquareCollector
 
         collector = FoursquareCollector()
@@ -684,75 +726,107 @@ class TestFoursquareCollectorExtended:
             {"text": "Worth visiting", "lang": "en"},
         ]
         with patch.dict(os.environ, {"FOURSQUARE_API_KEY": "test_key"}, clear=False):
-            with patch.object(collector, "_match_place", return_value="fsq_abc123"):
-                with patch.object(collector, "_fetch_tips", return_value=mock_tips):
-                    result = collector.collect("gplc_test", 25.0, 55.0, "Test Mosque")
+            with patch.object(collector, "_match_place", new=AsyncMock(return_value="fsq_abc123")):
+                with patch.object(collector, "_fetch_tips", new=AsyncMock(return_value=mock_tips)):
+                    result = await collector.collect("gplc_test", 25.0, 55.0, "Test Mosque")
 
         assert result.status == "success"
         assert len(result.reviews) == 2
         assert result.reviews[0]["text"] == "Beautiful mosque!"
         assert result.reviews[0]["rating"] == 0  # Foursquare tips have no rating
 
-    def test_collect_exception(self):
+    async def test_collect_exception(self):
         from app.collectors.foursquare import FoursquareCollector
 
         collector = FoursquareCollector()
         with patch.dict(os.environ, {"FOURSQUARE_API_KEY": "test_key"}, clear=False):
-            with patch.object(collector, "_match_place", side_effect=Exception("Connection error")):
-                result = collector.collect("gplc_test", 25.0, 55.0, "Test")
+            with patch.object(
+                collector, "_match_place", new=AsyncMock(side_effect=Exception("Connection error"))
+            ):
+                result = await collector.collect("gplc_test", 25.0, 55.0, "Test")
         assert result.status == "failed"
 
-    def test_match_place_success(self):
+    async def test_match_place_success(self):
         from app.collectors.foursquare import FoursquareCollector
 
         collector = FoursquareCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"place": {"fsq_id": "fsq_abc123"}}
-        with patch("requests.get", return_value=mock_resp):
-            fsq_id = collector._match_place("Test", 25.0, 55.0, "api_key")
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.foursquare.httpx.AsyncClient", return_value=mock_client):
+            fsq_id = await collector._match_place("Test", 25.0, 55.0, "api_key")
         assert fsq_id == "fsq_abc123"
 
-    def test_match_place_non_200(self):
+    async def test_match_place_non_200(self):
         from app.collectors.foursquare import FoursquareCollector
 
         collector = FoursquareCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 403
-        with patch("requests.get", return_value=mock_resp):
-            fsq_id = collector._match_place("Test", 25.0, 55.0, "key")
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.foursquare.httpx.AsyncClient", return_value=mock_client):
+            fsq_id = await collector._match_place("Test", 25.0, 55.0, "key")
         assert fsq_id is None
 
-    def test_match_place_no_fsq_id(self):
+    async def test_match_place_no_fsq_id(self):
         from app.collectors.foursquare import FoursquareCollector
 
         collector = FoursquareCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"place": {}}  # No fsq_id
-        with patch("requests.get", return_value=mock_resp):
-            fsq_id = collector._match_place("Test", 25.0, 55.0, "key")
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.foursquare.httpx.AsyncClient", return_value=mock_client):
+            fsq_id = await collector._match_place("Test", 25.0, 55.0, "key")
         assert fsq_id is None
 
-    def test_fetch_tips_success(self):
+    async def test_fetch_tips_success(self):
         from app.collectors.foursquare import FoursquareCollector
 
         collector = FoursquareCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = [{"text": "Great place"}, {"text": "Very peaceful"}]
-        with patch("requests.get", return_value=mock_resp):
-            tips = collector._fetch_tips("fsq_abc", "api_key")
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.foursquare.httpx.AsyncClient", return_value=mock_client):
+            tips = await collector._fetch_tips("fsq_abc", "api_key")
         assert len(tips) == 2
 
-    def test_fetch_tips_non_200(self):
+    async def test_fetch_tips_non_200(self):
         from app.collectors.foursquare import FoursquareCollector
 
         collector = FoursquareCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 500
-        with patch("requests.get", return_value=mock_resp):
-            tips = collector._fetch_tips("fsq_abc", "key")
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.foursquare.httpx.AsyncClient", return_value=mock_client):
+            tips = await collector._fetch_tips("fsq_abc", "key")
         assert tips == []
 
 
@@ -760,7 +834,7 @@ class TestFoursquareCollectorExtended:
 
 
 class TestOutscraperCollectorExtended:
-    def test_collect_with_gplc_code(self):
+    async def test_collect_with_gplc_code(self):
         from app.collectors.outscraper import OutscraperCollector
 
         collector = OutscraperCollector()
@@ -774,22 +848,26 @@ class TestOutscraperCollectorExtended:
             }
         ]
         with patch.dict(os.environ, {"OUTSCRAPER_API_KEY": "test_key"}, clear=False):
-            with patch.object(collector, "_fetch_reviews", return_value=mock_reviews):
-                result = collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
+            with patch.object(
+                collector, "_fetch_reviews", new=AsyncMock(return_value=mock_reviews)
+            ):
+                result = await collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
 
         assert result.status == "success"
         assert len(result.reviews) == 1
         assert result.reviews[0]["author_name"] == "Test User"
         assert result.reviews[0]["time"] > 0
 
-    def test_collect_with_existing_data_place_id(self):
+    async def test_collect_with_existing_data_place_id(self):
         from app.collectors.outscraper import OutscraperCollector
 
         collector = OutscraperCollector()
         mock_reviews = [{"author_title": "User", "review_rating": 4, "review_text": "Nice"}]
         with patch.dict(os.environ, {"OUTSCRAPER_API_KEY": "test_key"}, clear=False):
-            with patch.object(collector, "_fetch_reviews", return_value=mock_reviews):
-                result = collector.collect(
+            with patch.object(
+                collector, "_fetch_reviews", new=AsyncMock(return_value=mock_reviews)
+            ):
+                result = await collector.collect(
                     "custom_code",
                     25.0,
                     55.0,
@@ -798,25 +876,27 @@ class TestOutscraperCollectorExtended:
                 )
         assert result.status == "success"
 
-    def test_collect_no_reviews_returned(self):
+    async def test_collect_no_reviews_returned(self):
         from app.collectors.outscraper import OutscraperCollector
 
         collector = OutscraperCollector()
         with patch.dict(os.environ, {"OUTSCRAPER_API_KEY": "test_key"}, clear=False):
-            with patch.object(collector, "_fetch_reviews", return_value=[]):
-                result = collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
+            with patch.object(collector, "_fetch_reviews", new=AsyncMock(return_value=[])):
+                result = await collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
         assert result.status == "skipped"
 
-    def test_collect_exception(self):
+    async def test_collect_exception(self):
         from app.collectors.outscraper import OutscraperCollector
 
         collector = OutscraperCollector()
         with patch.dict(os.environ, {"OUTSCRAPER_API_KEY": "test_key"}, clear=False):
-            with patch.object(collector, "_fetch_reviews", side_effect=Exception("API error")):
-                result = collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
+            with patch.object(
+                collector, "_fetch_reviews", new=AsyncMock(side_effect=Exception("API error"))
+            ):
+                result = await collector.collect("gplc_ChIJ123", 25.0, 55.0, "Test")
         assert result.status == "failed"
 
-    def test_fetch_reviews_success(self):
+    async def test_fetch_reviews_success(self):
         from app.collectors.outscraper import OutscraperCollector
 
         collector = OutscraperCollector()
@@ -831,30 +911,48 @@ class TestOutscraperCollectorExtended:
                 }
             ]
         }
-        with patch("requests.get", return_value=mock_resp):
-            reviews = collector._fetch_reviews("ChIJ123", "api_key")
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.outscraper.httpx.AsyncClient", return_value=mock_client):
+            reviews = await collector._fetch_reviews("ChIJ123", "api_key")
         assert len(reviews) == 1
         assert reviews[0]["author_title"] == "User1"
 
-    def test_fetch_reviews_non_200(self):
+    async def test_fetch_reviews_non_200(self):
         from app.collectors.outscraper import OutscraperCollector
 
         collector = OutscraperCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 401
-        with patch("requests.get", return_value=mock_resp):
-            reviews = collector._fetch_reviews("ChIJ123", "key")
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.outscraper.httpx.AsyncClient", return_value=mock_client):
+            reviews = await collector._fetch_reviews("ChIJ123", "key")
         assert reviews == []
 
-    def test_fetch_reviews_no_data(self):
+    async def test_fetch_reviews_no_data(self):
         from app.collectors.outscraper import OutscraperCollector
 
         collector = OutscraperCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"data": []}
-        with patch("requests.get", return_value=mock_resp):
-            reviews = collector._fetch_reviews("ChIJ123", "key")
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.outscraper.httpx.AsyncClient", return_value=mock_client):
+            reviews = await collector._fetch_reviews("ChIJ123", "key")
         assert reviews == []
 
     def test_extract_reviews(self):
@@ -891,7 +989,7 @@ class TestOutscraperCollectorExtended:
 
 
 class TestWikipediaCollectorExtended:
-    def test_fetch_from_tag_no_colon(self):
+    async def test_fetch_from_tag_no_colon(self):
         """Tag without colon separator defaults to English."""
         from app.collectors.wikipedia import WikipediaCollector
 
@@ -903,13 +1001,15 @@ class TestWikipediaCollectorExtended:
             "image_url": None,
             "original_image": None,
         }
-        with patch.object(collector, "_fetch_by_title", return_value=mock_info) as mock_fetch:
-            result = collector._fetch_from_tag("Al-Aqsa_Mosque")
+        with patch.object(
+            collector, "_fetch_by_title", new=AsyncMock(return_value=mock_info)
+        ) as mock_fetch:
+            result = await collector._fetch_from_tag("Al-Aqsa_Mosque")
 
         mock_fetch.assert_called_once_with("Al-Aqsa_Mosque", "en")
         assert result == mock_info
 
-    def test_fetch_by_title_success_with_thumbnail(self):
+    async def test_fetch_by_title_success_with_thumbnail(self):
         from app.collectors.wikipedia import WikipediaCollector
 
         collector = WikipediaCollector()
@@ -921,15 +1021,18 @@ class TestWikipediaCollectorExtended:
             "description": "Historic mosque in Jerusalem",
             "thumbnail": {"source": "https://upload.wikimedia.org/thumb.jpg"},
         }
-        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=mock_resp):
-            info = collector._fetch_by_title("Al-Aqsa Mosque", "en")
+        with patch(
+            "app.collectors.wikipedia.async_request_with_backoff",
+            new=AsyncMock(return_value=mock_resp),
+        ):
+            info = await collector._fetch_by_title("Al-Aqsa Mosque", "en")
 
         assert info["title"] == "Al-Aqsa Mosque"
         assert info["description"] == "Al-Aqsa Mosque is the third holiest site in Islam."
         assert info["image_url"] == "https://upload.wikimedia.org/thumb.jpg"
         assert info["original_image"] is None
 
-    def test_fetch_by_title_with_originalimage(self):
+    async def test_fetch_by_title_with_originalimage(self):
         from app.collectors.wikipedia import WikipediaCollector
 
         collector = WikipediaCollector()
@@ -941,42 +1044,53 @@ class TestWikipediaCollectorExtended:
             "thumbnail": {"source": "https://example.com/thumb.jpg"},
             "originalimage": {"source": "https://example.com/full.jpg"},
         }
-        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=mock_resp):
-            info = collector._fetch_by_title("Test", "en")
+        with patch(
+            "app.collectors.wikipedia.async_request_with_backoff",
+            new=AsyncMock(return_value=mock_resp),
+        ):
+            info = await collector._fetch_by_title("Test", "en")
 
         assert info["image_url"] == "https://example.com/full.jpg"  # Original wins
         assert info["original_image"] == "https://example.com/full.jpg"
 
-    def test_fetch_by_title_no_response(self):
+    async def test_fetch_by_title_no_response(self):
         from app.collectors.wikipedia import WikipediaCollector
 
         collector = WikipediaCollector()
-        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=None):
-            result = collector._fetch_by_title("Test", "en")
+        with patch(
+            "app.collectors.wikipedia.async_request_with_backoff", new=AsyncMock(return_value=None)
+        ):
+            result = await collector._fetch_by_title("Test", "en")
         assert result is None
 
-    def test_fetch_by_title_non_200(self):
+    async def test_fetch_by_title_non_200(self):
         from app.collectors.wikipedia import WikipediaCollector
 
         collector = WikipediaCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 404
-        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=mock_resp):
-            result = collector._fetch_by_title("Unknown", "en")
+        with patch(
+            "app.collectors.wikipedia.async_request_with_backoff",
+            new=AsyncMock(return_value=mock_resp),
+        ):
+            result = await collector._fetch_by_title("Unknown", "en")
         assert result is None
 
-    def test_fetch_by_title_json_exception(self):
+    async def test_fetch_by_title_json_exception(self):
         from app.collectors.wikipedia import WikipediaCollector
 
         collector = WikipediaCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.side_effect = ValueError("Invalid JSON")
-        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=mock_resp):
-            result = collector._fetch_by_title("Test", "en")
+        with patch(
+            "app.collectors.wikipedia.async_request_with_backoff",
+            new=AsyncMock(return_value=mock_resp),
+        ):
+            result = await collector._fetch_by_title("Test", "en")
         assert result is None
 
-    def test_search_wikipedia_success(self):
+    async def test_search_wikipedia_success(self):
         from app.collectors.wikipedia import WikipediaCollector
 
         collector = WikipediaCollector()
@@ -991,43 +1105,54 @@ class TestWikipediaCollectorExtended:
             "original_image": None,
         }
         with patch(
-            "app.collectors.wikipedia.make_request_with_backoff", return_value=mock_search_resp
+            "app.collectors.wikipedia.async_request_with_backoff",
+            new=AsyncMock(return_value=mock_search_resp),
         ):
-            with patch.object(collector, "_fetch_by_title", return_value=mock_article_info):
-                result = collector._search_wikipedia("Al-Aqsa Mosque", "en")
+            with patch.object(
+                collector, "_fetch_by_title", new=AsyncMock(return_value=mock_article_info)
+            ):
+                result = await collector._search_wikipedia("Al-Aqsa Mosque", "en")
 
         assert result == mock_article_info
 
-    def test_search_wikipedia_no_response(self):
+    async def test_search_wikipedia_no_response(self):
         from app.collectors.wikipedia import WikipediaCollector
 
         collector = WikipediaCollector()
-        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=None):
-            result = collector._search_wikipedia("Test", "en")
+        with patch(
+            "app.collectors.wikipedia.async_request_with_backoff", new=AsyncMock(return_value=None)
+        ):
+            result = await collector._search_wikipedia("Test", "en")
         assert result is None
 
-    def test_search_wikipedia_non_200(self):
+    async def test_search_wikipedia_non_200(self):
         from app.collectors.wikipedia import WikipediaCollector
 
         collector = WikipediaCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 500
-        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=mock_resp):
-            result = collector._search_wikipedia("Test", "en")
+        with patch(
+            "app.collectors.wikipedia.async_request_with_backoff",
+            new=AsyncMock(return_value=mock_resp),
+        ):
+            result = await collector._search_wikipedia("Test", "en")
         assert result is None
 
-    def test_search_wikipedia_empty_results(self):
+    async def test_search_wikipedia_empty_results(self):
         from app.collectors.wikipedia import WikipediaCollector
 
         collector = WikipediaCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"query": {"search": []}}
-        with patch("app.collectors.wikipedia.make_request_with_backoff", return_value=mock_resp):
-            result = collector._search_wikipedia("Unknown Gibberish Place", "en")
+        with patch(
+            "app.collectors.wikipedia.async_request_with_backoff",
+            new=AsyncMock(return_value=mock_resp),
+        ):
+            result = await collector._search_wikipedia("Unknown Gibberish Place", "en")
         assert result is None
 
-    def test_collect_multilingual_descriptions(self):
+    async def test_collect_multilingual_descriptions(self):
         """Arabic and Hindi descriptions should be added when available."""
         from app.collectors.wikipedia import WikipediaCollector
 
@@ -1052,9 +1177,9 @@ class TestWikipediaCollectorExtended:
                 return ar_info
             return None  # hi not available
 
-        with patch.object(collector, "_fetch_from_tag", return_value=en_info):
+        with patch.object(collector, "_fetch_from_tag", new=AsyncMock(return_value=en_info)):
             with patch.object(collector, "_fetch_by_title", side_effect=fetch_by_title_side_effect):
-                result = collector.collect(
+                result = await collector.collect(
                     "gplc_test",
                     31.7,
                     35.2,
@@ -1068,15 +1193,15 @@ class TestWikipediaCollectorExtended:
         assert "ar" in langs
         assert "hi" not in langs
 
-    def test_collect_exception_path(self):
+    async def test_collect_exception_path(self):
         """Exception during collection should result in failed status."""
         from app.collectors.wikipedia import WikipediaCollector
 
         collector = WikipediaCollector()
         with patch.object(
-            collector, "_fetch_from_tag", side_effect=RuntimeError("Network failure")
+            collector, "_fetch_from_tag", new=AsyncMock(side_effect=RuntimeError("Network failure"))
         ):
-            result = collector.collect(
+            result = await collector.collect(
                 "gplc_test",
                 25.0,
                 55.0,
@@ -1088,7 +1213,7 @@ class TestWikipediaCollectorExtended:
 
     # ── Relevance validation (search path only) ────────────────────────────────
 
-    def test_search_result_rejected_when_unrelated_article(self):
+    async def test_search_result_rejected_when_unrelated_article(self):
         """Searching 'Al Futtaim Masjid' must not accept an article about 'Dubai Marina'."""
         from app.collectors.wikipedia import WikipediaCollector
 
@@ -1101,13 +1226,15 @@ class TestWikipediaCollectorExtended:
             "image_url": None,
             "original_image": None,
         }
-        with patch.object(collector, "_search_wikipedia", return_value=irrelevant_info):
-            result = collector.collect("gplc_test", 25.1, 55.2, "Al Futtaim Masjid")
+        with patch.object(
+            collector, "_search_wikipedia", new=AsyncMock(return_value=irrelevant_info)
+        ):
+            result = await collector.collect("gplc_test", 25.1, 55.2, "Al Futtaim Masjid")
 
         assert result.status == "skipped"
         assert "not relevant" in result.error_message.lower()
 
-    def test_search_result_accepted_when_title_matches(self):
+    async def test_search_result_accepted_when_title_matches(self):
         """Searching 'Al-Aqsa Mosque' should accept an article titled 'Al-Aqsa Mosque'."""
         from app.collectors.wikipedia import WikipediaCollector
 
@@ -1119,13 +1246,15 @@ class TestWikipediaCollectorExtended:
             "image_url": None,
             "original_image": None,
         }
-        with patch.object(collector, "_search_wikipedia", return_value=relevant_info):
+        with patch.object(
+            collector, "_search_wikipedia", new=AsyncMock(return_value=relevant_info)
+        ):
             with patch.object(collector, "_fetch_by_title", return_value=None):
-                result = collector.collect("gplc_test", 31.7, 35.2, "Al-Aqsa Mosque")
+                result = await collector.collect("gplc_test", 31.7, 35.2, "Al-Aqsa Mosque")
 
         assert result.status == "success"
 
-    def test_osm_tag_path_bypasses_relevance_check(self):
+    async def test_osm_tag_path_bypasses_relevance_check(self):
         """Articles fetched via an OSM tag are accepted without relevance validation."""
         from app.collectors.wikipedia import WikipediaCollector
 
@@ -1138,9 +1267,9 @@ class TestWikipediaCollectorExtended:
             "image_url": None,
             "original_image": None,
         }
-        with patch.object(collector, "_fetch_from_tag", return_value=unrelated_info):
+        with patch.object(collector, "_fetch_from_tag", new=AsyncMock(return_value=unrelated_info)):
             with patch.object(collector, "_fetch_by_title", return_value=None):
-                result = collector.collect(
+                result = await collector.collect(
                     "gplc_test",
                     25.0,
                     55.0,
@@ -1232,7 +1361,7 @@ class TestWikipediaCollectorExtended:
 
 
 class TestWikidataCollectorExtended:
-    def test_collect_with_valid_qid_success(self):
+    async def test_collect_with_valid_qid_success(self):
         from app.collectors.wikidata import WikidataCollector
 
         collector = WikidataCollector()
@@ -1245,8 +1374,8 @@ class TestWikidataCollectorExtended:
             "descriptions": {"en": {"value": "Mosque in Jerusalem"}},
             "labels": {},
         }
-        with patch.object(collector, "_fetch_entity", return_value=entity):
-            result = collector.collect(
+        with patch.object(collector, "_fetch_entity", new=AsyncMock(return_value=entity)):
+            result = await collector.collect(
                 "gplc_test",
                 25.0,
                 55.0,
@@ -1256,12 +1385,12 @@ class TestWikidataCollectorExtended:
         assert result.status == "success"
         assert result.contact.get("website") == "https://alaqsa.org"
 
-    def test_collect_entity_not_found(self):
+    async def test_collect_entity_not_found(self):
         from app.collectors.wikidata import WikidataCollector
 
         collector = WikidataCollector()
-        with patch.object(collector, "_fetch_entity", return_value=None):
-            result = collector.collect(
+        with patch.object(collector, "_fetch_entity", new=AsyncMock(return_value=None)):
+            result = await collector.collect(
                 "gplc_test",
                 25.0,
                 55.0,
@@ -1270,12 +1399,14 @@ class TestWikidataCollectorExtended:
             )
         assert result.status == "failed"
 
-    def test_collect_exception(self):
+    async def test_collect_exception(self):
         from app.collectors.wikidata import WikidataCollector
 
         collector = WikidataCollector()
-        with patch.object(collector, "_fetch_entity", side_effect=Exception("Network error")):
-            result = collector.collect(
+        with patch.object(
+            collector, "_fetch_entity", new=AsyncMock(side_effect=Exception("Network error"))
+        ):
+            result = await collector.collect(
                 "gplc_test",
                 25.0,
                 55.0,
@@ -1284,7 +1415,7 @@ class TestWikidataCollectorExtended:
             )
         assert result.status == "failed"
 
-    def test_fetch_entity_success(self):
+    async def test_fetch_entity_success(self):
         from app.collectors.wikidata import WikidataCollector
 
         collector = WikidataCollector()
@@ -1299,29 +1430,37 @@ class TestWikidataCollectorExtended:
                 }
             }
         }
-        with patch("app.collectors.wikidata.make_request_with_backoff", return_value=mock_resp):
-            entity = collector._fetch_entity("Q23731")
+        with patch(
+            "app.collectors.wikidata.async_request_with_backoff",
+            new=AsyncMock(return_value=mock_resp),
+        ):
+            entity = await collector._fetch_entity("Q23731")
 
         assert entity is not None
         assert entity["descriptions"]["en"]["value"] == "Mosque"
 
-    def test_fetch_entity_no_response(self):
+    async def test_fetch_entity_no_response(self):
         from app.collectors.wikidata import WikidataCollector
 
         collector = WikidataCollector()
-        with patch("app.collectors.wikidata.make_request_with_backoff", return_value=None):
-            entity = collector._fetch_entity("Q23731")
+        with patch(
+            "app.collectors.wikidata.async_request_with_backoff", new=AsyncMock(return_value=None)
+        ):
+            entity = await collector._fetch_entity("Q23731")
         assert entity is None
 
-    def test_fetch_entity_json_exception(self):
+    async def test_fetch_entity_json_exception(self):
         from app.collectors.wikidata import WikidataCollector
 
         collector = WikidataCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.side_effect = ValueError("JSON parse error")
-        with patch("app.collectors.wikidata.make_request_with_backoff", return_value=mock_resp):
-            entity = collector._fetch_entity("Q23731")
+        with patch(
+            "app.collectors.wikidata.async_request_with_backoff",
+            new=AsyncMock(return_value=mock_resp),
+        ):
+            entity = await collector._fetch_entity("Q23731")
         assert entity is None
 
     def test_extract_claim_value_none(self):
@@ -1389,7 +1528,7 @@ class TestWikidataCollectorExtended:
 
 
 class TestKnowledgeGraphCollectorExtended:
-    def test_collect_success(self):
+    async def test_collect_success(self):
         from app.collectors.knowledge_graph import KnowledgeGraphCollector
 
         collector = KnowledgeGraphCollector()
@@ -1407,30 +1546,32 @@ class TestKnowledgeGraphCollectorExtended:
             "resultScore": 1234.56,
         }
         with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "test_key"}, clear=False):
-            with patch.object(collector, "_search", return_value=element):
-                result = collector.collect("gplc_test", 25.0, 55.0, "Al-Aqsa Mosque")
+            with patch.object(collector, "_search", new=AsyncMock(return_value=element)):
+                result = await collector.collect("gplc_test", 25.0, 55.0, "Al-Aqsa Mosque")
 
         assert result.status == "success"
 
-    def test_collect_no_results(self):
+    async def test_collect_no_results(self):
         from app.collectors.knowledge_graph import KnowledgeGraphCollector
 
         collector = KnowledgeGraphCollector()
         with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "test_key"}, clear=False):
-            with patch.object(collector, "_search", return_value=None):
-                result = collector.collect("gplc_test", 25.0, 55.0, "Unknown Place")
+            with patch.object(collector, "_search", new=AsyncMock(return_value=None)):
+                result = await collector.collect("gplc_test", 25.0, 55.0, "Unknown Place")
         assert result.status == "skipped"
 
-    def test_collect_exception(self):
+    async def test_collect_exception(self):
         from app.collectors.knowledge_graph import KnowledgeGraphCollector
 
         collector = KnowledgeGraphCollector()
         with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "test_key"}, clear=False):
-            with patch.object(collector, "_search", side_effect=Exception("API down")):
-                result = collector.collect("gplc_test", 25.0, 55.0, "Test")
+            with patch.object(
+                collector, "_search", new=AsyncMock(side_effect=Exception("API down"))
+            ):
+                result = await collector.collect("gplc_test", 25.0, 55.0, "Test")
         assert result.status == "failed"
 
-    def test_search_success(self):
+    async def test_search_success(self):
         from app.collectors.knowledge_graph import KnowledgeGraphCollector
 
         collector = KnowledgeGraphCollector()
@@ -1439,30 +1580,48 @@ class TestKnowledgeGraphCollectorExtended:
         mock_resp.json.return_value = {
             "itemListElement": [{"result": {"name": "Al-Aqsa Mosque"}, "resultScore": 1000}]
         }
-        with patch("requests.get", return_value=mock_resp):
-            element = collector._search("Al-Aqsa Mosque", "key")
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.knowledge_graph.httpx.AsyncClient", return_value=mock_client):
+            element = await collector._search("Al-Aqsa Mosque", "key")
         assert element is not None
         assert element["result"]["name"] == "Al-Aqsa Mosque"
 
-    def test_search_non_200(self):
+    async def test_search_non_200(self):
         from app.collectors.knowledge_graph import KnowledgeGraphCollector
 
         collector = KnowledgeGraphCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 403
-        with patch("requests.get", return_value=mock_resp):
-            result = collector._search("Test", "key")
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.knowledge_graph.httpx.AsyncClient", return_value=mock_client):
+            result = await collector._search("Test", "key")
         assert result is None
 
-    def test_search_empty_results(self):
+    async def test_search_empty_results(self):
         from app.collectors.knowledge_graph import KnowledgeGraphCollector
 
         collector = KnowledgeGraphCollector()
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"itemListElement": []}
-        with patch("requests.get", return_value=mock_resp):
-            result = collector._search("Unknown", "key")
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("app.collectors.knowledge_graph.httpx.AsyncClient", return_value=mock_client):
+            result = await collector._search("Unknown", "key")
         assert result is None
 
     def test_extract_string_entity_type(self):
@@ -1504,7 +1663,7 @@ class TestKnowledgeGraphCollectorExtended:
 
 
 class TestOsmCollectorExtended:
-    def test_collect_with_tags_returned(self):
+    async def test_collect_with_tags_returned(self):
         """collect() should call _extract() when tags are returned."""
         from app.collectors.osm import OsmCollector
 
@@ -1514,8 +1673,8 @@ class TestOsmCollectorExtended:
             "denomination": "sunni",
             "wikipedia": "en:Test",
         }
-        with patch.object(collector, "_query_overpass", return_value=mock_tags):
-            result = collector.collect("gplc_test", 25.0, 55.0, "Test Mosque")
+        with patch.object(collector, "_query_overpass", new=AsyncMock(return_value=mock_tags)):
+            result = await collector.collect("gplc_test", 25.0, 55.0, "Test Mosque")
 
         assert result.status == "success"
         attr_codes = {a["attribute_code"] for a in result.attributes}
@@ -1523,7 +1682,7 @@ class TestOsmCollectorExtended:
         assert "denomination" in attr_codes
         assert result.tags["wikipedia"] == "en:Test"
 
-    def test_query_overpass_success(self):
+    async def test_query_overpass_success(self):
         from app.collectors.osm import OsmCollector
 
         collector = OsmCollector()
@@ -1534,40 +1693,48 @@ class TestOsmCollectorExtended:
                 {"id": 2},  # No "tags" key — should be skipped
             ]
         }
-        with patch("app.collectors.osm.make_request_with_backoff", return_value=mock_resp):
-            tags = collector._query_overpass(25.0, 55.0)
+        with patch(
+            "app.collectors.osm.async_request_with_backoff", new=AsyncMock(return_value=mock_resp)
+        ):
+            tags = await collector._query_overpass(25.0, 55.0)
 
         assert tags == {"amenity": "place_of_worship", "name": "Test Mosque"}
 
-    def test_query_overpass_no_response(self):
+    async def test_query_overpass_no_response(self):
         from app.collectors.osm import OsmCollector
 
         collector = OsmCollector()
-        with patch("app.collectors.osm.make_request_with_backoff", return_value=None):
-            tags = collector._query_overpass(25.0, 55.0)
+        with patch(
+            "app.collectors.osm.async_request_with_backoff", new=AsyncMock(return_value=None)
+        ):
+            tags = await collector._query_overpass(25.0, 55.0)
         assert tags == {}
 
-    def test_query_overpass_no_elements(self):
+    async def test_query_overpass_no_elements(self):
         from app.collectors.osm import OsmCollector
 
         collector = OsmCollector()
         mock_resp = MagicMock()
         mock_resp.json.return_value = {"elements": []}
-        with patch("app.collectors.osm.make_request_with_backoff", return_value=mock_resp):
-            tags = collector._query_overpass(25.0, 55.0)
+        with patch(
+            "app.collectors.osm.async_request_with_backoff", new=AsyncMock(return_value=mock_resp)
+        ):
+            tags = await collector._query_overpass(25.0, 55.0)
         assert tags == {}
 
-    def test_query_overpass_json_exception(self):
+    async def test_query_overpass_json_exception(self):
         from app.collectors.osm import OsmCollector
 
         collector = OsmCollector()
         mock_resp = MagicMock()
         mock_resp.json.side_effect = ValueError("Bad JSON")
-        with patch("app.collectors.osm.make_request_with_backoff", return_value=mock_resp):
-            tags = collector._query_overpass(25.0, 55.0)
+        with patch(
+            "app.collectors.osm.async_request_with_backoff", new=AsyncMock(return_value=mock_resp)
+        ):
+            tags = await collector._query_overpass(25.0, 55.0)
         assert tags == {}
 
-    def test_query_overpass_elements_without_tags(self):
+    async def test_query_overpass_elements_without_tags(self):
         """All elements lack 'tags' key → returns empty dict."""
         from app.collectors.osm import OsmCollector
 
@@ -1576,6 +1743,8 @@ class TestOsmCollectorExtended:
         mock_resp.json.return_value = {
             "elements": [{"id": 1, "type": "node"}, {"id": 2, "type": "way"}]
         }
-        with patch("app.collectors.osm.make_request_with_backoff", return_value=mock_resp):
-            tags = collector._query_overpass(25.0, 55.0)
+        with patch(
+            "app.collectors.osm.async_request_with_backoff", new=AsyncMock(return_value=mock_resp)
+        ):
+            tags = await collector._query_overpass(25.0, 55.0)
         assert tags == {}

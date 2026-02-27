@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.collectors.base import BaseCollector, CollectorResult
-from app.scrapers.base import make_request_with_backoff
+from app.scrapers.base import async_request_with_backoff
 from app.utils.extractors import ContactExtractor
 
 OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter"
@@ -23,7 +23,7 @@ class OsmCollector(BaseCollector):
     requires_api_key = False
     api_key_env_var = ""
 
-    def collect(
+    async def collect(
         self,
         place_code: str,
         lat: float,
@@ -32,7 +32,7 @@ class OsmCollector(BaseCollector):
         existing_data: dict[str, Any] | None = None,
     ) -> CollectorResult:
         try:
-            tags = self._query_overpass(lat, lng)
+            tags = await self._query_overpass(lat, lng)
             if not tags:
                 return self._skip_result("No OSM data found near coordinates")
 
@@ -40,7 +40,7 @@ class OsmCollector(BaseCollector):
         except Exception as e:
             return self._fail_result(str(e))
 
-    def _query_overpass(self, lat: float, lng: float, radius: int = 200) -> dict[str, Any]:
+    async def _query_overpass(self, lat: float, lng: float, radius: int = 200) -> dict[str, Any]:
         """Query OpenStreetMap for place of worship near coordinates."""
         overpass_query = f"""
         [out:json][timeout:25];
@@ -51,7 +51,7 @@ class OsmCollector(BaseCollector):
         );
         out center;
         """
-        response = make_request_with_backoff(
+        response = await async_request_with_backoff(
             "POST", OVERPASS_ENDPOINT, data=overpass_query, headers=HEADERS
         )
         if not response:
