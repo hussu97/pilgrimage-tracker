@@ -16,7 +16,7 @@ from contextvars import ContextVar
 # GCP trace context — populated per-request by the trace middleware in main.py.
 # Included in every JSON log entry so Cloud Logging links the app log to the
 # corresponding request log ("correlated entries").
-_TRACE_CTX: ContextVar[dict] = ContextVar("_gcp_trace", default={})
+_TRACE_CTX: ContextVar[dict | None] = ContextVar("_gcp_trace", default=None)
 
 
 def set_trace_context(project_id: str, trace_id: str, span_id: str, sampled: bool) -> None:
@@ -118,7 +118,8 @@ def setup_logging() -> None:
                         log_record["severity"] = log_record.pop("levelname")
                     # Link this log entry to the Cloud Run request log so the app
                     # error/traceback appears in the same "correlated entries" view.
-                    log_record.update(_TRACE_CTX.get())
+                    if trace := _TRACE_CTX.get():
+                        log_record.update(trace)
 
             handler = logging.StreamHandler()
             handler.setFormatter(

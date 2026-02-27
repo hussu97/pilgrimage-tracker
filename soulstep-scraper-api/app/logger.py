@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 # GCP trace context — populated per-request by the trace middleware in main.py.
 # Every JSON log entry includes these fields so Cloud Logging links the app log
 # to the request log entry automatically ("correlated entries").
-_TRACE_CTX: ContextVar[dict] = ContextVar("_gcp_trace", default={})
+_TRACE_CTX: ContextVar[dict | None] = ContextVar("_gcp_trace", default=None)
 
 
 def set_trace_context(project_id: str, trace_id: str, span_id: str, sampled: bool) -> None:
@@ -160,7 +160,8 @@ class _JSONFormatter(logging.Formatter):
         # Link this log entry to the Cloud Run request log via trace correlation.
         # When set, Cloud Logging groups the app log with the request log so you
         # can see error details directly alongside the HTTP request entry.
-        entry.update(_TRACE_CTX.get())
+        if trace := _TRACE_CTX.get():
+            entry.update(trace)
         return json.dumps(entry, ensure_ascii=False, default=str)
 
 
