@@ -51,12 +51,17 @@ def _to_public_user(user, session) -> UserResponse:
 
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
+    # SameSite=None (+ Secure=True) is required because the admin web is hosted on a
+    # different domain from the API (Firebase vs Cloud Run).  SameSite=Strict would
+    # silently drop the cookie on every cross-origin CORS request, breaking silent refresh.
+    # This is safe: the cookie is httpOnly (JS can't read it) and CORS is locked to
+    # explicit origins, so CSRF is still mitigated.
     response.set_cookie(
         key="refresh_token",
         value=token,
         httponly=True,
         secure=True,
-        samesite="strict",
+        samesite="none",
         max_age=_REFRESH_COOKIE_MAX_AGE,
         path="/api/v1/auth",
     )
@@ -69,7 +74,7 @@ def _set_access_cookie(response: Response, token: str) -> None:
         value=token,
         httponly=True,
         secure=True,
-        samesite="strict",
+        samesite="none",
         max_age=_ACCESS_COOKIE_MAX_AGE,
         path="/api/v1",
     )
