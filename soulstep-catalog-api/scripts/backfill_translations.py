@@ -368,7 +368,7 @@ def main() -> None:
     parser.add_argument(
         "--min-review-length",
         type=int,
-        default=0,
+        default=6,
         help=(
             "Skip review fields shorter than this many characters (e.g. 20 skips 'Great place!'). "
             "Default: 0 (translate everything)."
