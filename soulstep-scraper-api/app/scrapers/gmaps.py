@@ -9,6 +9,7 @@ detail fetch during the scraper run.
 import math
 import os
 import re
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 from typing import Any
@@ -19,7 +20,7 @@ from sqlmodel import Session, desc, select
 from app.db.models import GeoBoundary, PlaceTypeMapping, RawCollectorData, ScrapedPlace, ScraperRun
 from app.logger import get_logger
 from app.scrapers.base import AtomicCounter, ThreadSafeIdSet, get_rate_limiter
-from app.scrapers.cell_store import DiscoveryCellStore
+from app.scrapers.cell_store import DiscoveryCellStore, GlobalCellStore
 
 logger = get_logger(__name__)
 
@@ -146,11 +147,18 @@ def process_weekly_hours(opening_hours_dict):
 
 
 def get_places_in_circle(
-    lat: float, lng: float, radius: float, place_types: list[str], api_key: str
+    lat: float,
+    lng: float,
+    radius: float,
+    place_types: list[str],
+    api_key: str,
+    http_session: requests.Session | None = None,
 ) -> tuple[list[str], bool]:
     """
     Find all places of given types within radius using new Places API.
     Returns (list of place resource names, is_saturated).
+
+    Accepts an optional requests.Session for connection reuse across calls.
     """
     url = "https://places.googleapis.com/v1/places:searchNearby"
     headers = {
@@ -166,7 +174,8 @@ def get_places_in_circle(
         "maxResultCount": 20,
     }
 
-    resp = requests.post(url, json=body, headers=headers)
+    fetcher = http_session or requests
+    resp = fetcher.post(url, json=body, headers=headers)
 
     if resp.status_code != 200:
         error_data = resp.json() if resp.content else {}
@@ -213,13 +222,16 @@ def search_area(
     max_results: int | None = None,
     executor: ThreadPoolExecutor | None = None,
     cell_store: DiscoveryCellStore | None = None,
+    http_session: requests.Session | None = None,
+    semaphore: Any | None = None,
+    global_cache: GlobalCellStore | None = None,
 ) -> list[str]:
     """
     Recursive quadtree search for places.
 
-    At depth 0, the four quadrant sub-searches are submitted concurrently to
-    the provided executor (if any).  Deeper levels run sequentially to avoid
-    thread-pool exhaustion / deadlock.
+    When an executor and semaphore are provided, quadrant children at ALL depths are
+    submitted to the shared thread pool (not just depth 0).  The semaphore caps
+    concurrent API calls so Google rate limits are respected even with 32+ workers.
 
     When cell_store is provided, already-searched bounding boxes are loaded
     from cache (skipping the API call) to support interrupted-run resumability.
@@ -280,72 +292,66 @@ def search_area(
                     return new_ids
                 # Saturated: skip API call but still recurse into quadrants
                 is_saturated = True
-                # Fall through to quadrant splitting below
                 if max_results and len(existing_ids) >= max_results:
                     logger.info(
                         "%sReached max_results limit (%d) after cached cell", indent, max_results
                     )
                     return new_ids
-                # Jump straight to quadrant splitting
-                all_ids = list(new_ids)
-                mid_lat = (lat_min + lat_max) / 2
-                mid_lng = (lng_min + lng_max) / 2
-                quadrants = [
-                    (lat_min, mid_lat, lng_min, mid_lng),
-                    (lat_min, mid_lat, mid_lng, lng_max),
-                    (mid_lat, lat_max, lng_min, mid_lng),
-                    (mid_lat, lat_max, mid_lng, lng_max),
-                ]
-                if executor is not None and depth == 0:
-                    futures = []
-                    for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
-                        if max_results and len(existing_ids) >= max_results:
-                            break
-                        f = executor.submit(
-                            search_area,
-                            q_lat_min,
-                            q_lat_max,
-                            q_lng_min,
-                            q_lng_max,
-                            place_types,
-                            api_key,
-                            existing_ids,
-                            depth + 1,
-                            max_results,
-                            None,
-                            cell_store,
-                        )
-                        futures.append(f)
-                    for future in as_completed(futures):
-                        try:
-                            all_ids.extend(future.result())
-                        except Exception as e:
-                            logger.warning("%sQuadrant search failed: %s", indent, e)
-                else:
-                    for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
-                        if max_results and len(existing_ids) >= max_results:
-                            break
-                        all_ids.extend(
-                            search_area(
-                                q_lat_min,
-                                q_lat_max,
-                                q_lng_min,
-                                q_lng_max,
-                                place_types,
-                                api_key,
-                                existing_ids,
-                                depth + 1,
-                                max_results,
-                                None,
-                                cell_store,
-                            )
-                        )
-                return all_ids
+                # Jump straight to quadrant splitting for cached saturated cell
+                return _split_quadrants(
+                    lat_min,
+                    lat_max,
+                    lng_min,
+                    lng_max,
+                    list(new_ids),
+                    place_types,
+                    api_key,
+                    existing_ids,
+                    depth,
+                    max_results,
+                    executor,
+                    cell_store,
+                    http_session,
+                    semaphore,
+                    global_cache,
+                    indent,
+                )
 
-        get_rate_limiter().acquire("gmaps_search")
-        place_ids, is_saturated = get_places_in_circle(
-            center_lat, center_lng, radius, place_types, api_key
-        )
+        # Check global cross-run cache before making an API call
+        global_hit = None
+        if global_cache is not None:
+            global_hit = global_cache.get(lat_min, lat_max, lng_min, lng_max, place_types)
+
+        if global_hit is not None:
+            logger.debug(
+                "%sGlobal cache hit (lat: %.4f-%.4f, lng: %.4f-%.4f, results: %d)",
+                indent,
+                lat_min,
+                lat_max,
+                lng_min,
+                lng_max,
+                global_hit.result_count,
+            )
+            place_ids = global_hit.resource_names
+            is_saturated = global_hit.saturated
+        else:
+            # Acquire semaphore if provided (limits concurrent API calls across all workers)
+            if semaphore is not None:
+                semaphore.acquire()
+            try:
+                get_rate_limiter().acquire("gmaps_search")
+                place_ids, is_saturated = get_places_in_circle(
+                    center_lat, center_lng, radius, place_types, api_key, http_session
+                )
+            finally:
+                if semaphore is not None:
+                    semaphore.release()
+
+            # Save to global cache for future runs
+            if global_cache is not None:
+                global_cache.save(
+                    lat_min, lat_max, lng_min, lng_max, place_types, place_ids, is_saturated
+                )
 
         new_ids = existing_ids.add_new(place_ids)
 
@@ -372,7 +378,45 @@ def search_area(
         return new_ids
 
     logger.debug("%sArea saturated, splitting into quadrants...", indent)
+    return _split_quadrants(
+        lat_min,
+        lat_max,
+        lng_min,
+        lng_max,
+        list(new_ids),
+        place_types,
+        api_key,
+        existing_ids,
+        depth,
+        max_results,
+        executor,
+        cell_store,
+        http_session,
+        semaphore,
+        global_cache,
+        indent,
+    )
 
+
+def _split_quadrants(
+    lat_min: float,
+    lat_max: float,
+    lng_min: float,
+    lng_max: float,
+    seed_ids: list[str],
+    place_types: list[str],
+    api_key: str,
+    existing_ids: ThreadSafeIdSet,
+    depth: int,
+    max_results: int | None,
+    executor: ThreadPoolExecutor | None,
+    cell_store: DiscoveryCellStore | None,
+    http_session: requests.Session | None,
+    semaphore: Any | None,
+    global_cache: GlobalCellStore | None,
+    indent: str,
+) -> list[str]:
+    """Submit/recurse into four quadrants, reusing the shared executor and semaphore."""
     mid_lat = (lat_min + lat_max) / 2
     mid_lng = (lng_min + lng_max) / 2
 
@@ -383,12 +427,12 @@ def search_area(
         (mid_lat, lat_max, mid_lng, lng_max),  # NE
     ]
 
-    all_ids = list(new_ids)
+    all_ids = list(seed_ids)
 
-    if executor is not None and depth == 0:
-        # Parallelize only the first level of quadrant splitting.
-        # Deeper levels run sequentially inside each worker to avoid deadlock
-        # with a bounded thread pool.
+    if executor is not None:
+        # Submit all quadrants to the shared pool at every depth level.
+        # The semaphore caps concurrent API calls; the large pool (32 workers) ensures
+        # tasks waiting for API slots don't block each other — no deadlock risk.
         futures = []
         for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
             if max_results and len(existing_ids) >= max_results:
@@ -407,40 +451,45 @@ def search_area(
                 existing_ids,
                 depth + 1,
                 max_results,
-                None,  # no executor at deeper levels
+                executor,
                 cell_store,
+                http_session,
+                semaphore,
+                global_cache,
             )
             futures.append(f)
 
         for future in as_completed(futures):
             try:
-                quadrant_ids = future.result()
-                all_ids.extend(quadrant_ids)
+                all_ids.extend(future.result())
             except Exception as e:
                 logger.warning("%sQuadrant search failed: %s", indent, e)
     else:
-        # Sequential fallback (depth > 0 or no executor)
+        # Sequential fallback (no executor provided)
         for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
             if max_results and len(existing_ids) >= max_results:
                 logger.info(
                     "%sStopping quadrant recursion — max_results (%d) reached", indent, max_results
                 )
                 break
-
-            quadrant_ids = search_area(
-                q_lat_min,
-                q_lat_max,
-                q_lng_min,
-                q_lng_max,
-                place_types,
-                api_key,
-                existing_ids,
-                depth + 1,
-                max_results,
-                None,
-                cell_store,
+            all_ids.extend(
+                search_area(
+                    q_lat_min,
+                    q_lat_max,
+                    q_lng_min,
+                    q_lng_max,
+                    place_types,
+                    api_key,
+                    existing_ids,
+                    depth + 1,
+                    max_results,
+                    None,
+                    cell_store,
+                    http_session,
+                    semaphore,
+                    global_cache,
+                )
             )
-            all_ids.extend(quadrant_ids)
 
     return all_ids
 
@@ -499,7 +548,7 @@ def discover_places(
 
     max_results = config.get("max_results")
 
-    logger.info("Starting recursive quadtree search (parallel depth-0 quadrants)")
+    logger.info("Starting recursive quadtree search (all-depth parallel, 32 workers, semaphore=10)")
     if max_results:
         logger.info("Max results limit: %d", max_results)
 
@@ -508,7 +557,17 @@ def discover_places(
     existing_ids = ThreadSafeIdSet()
     cell_store.pre_seed_id_set(existing_ids)  # seed dedup set from prior cells
 
-    with ThreadPoolExecutor(max_workers=4) as discovery_executor:
+    # Global cross-run cache — skips API calls for cells searched within TTL
+    global_cache = GlobalCellStore(_engine)
+
+    # Semaphore caps concurrent API calls across all worker threads.
+    # Large pool (32) prevents deadlock — workers queuing for children never block the pool.
+    api_semaphore = threading.Semaphore(10)
+
+    with (
+        requests.Session() as discovery_http,
+        ThreadPoolExecutor(max_workers=32) as discovery_executor,
+    ):
         search_area(
             boundary.lat_min,
             boundary.lat_max,
@@ -521,6 +580,9 @@ def discover_places(
             max_results=max_results,
             executor=discovery_executor,
             cell_store=cell_store,
+            http_session=discovery_http,
+            semaphore=api_semaphore,
+            global_cache=global_cache,
         )
 
     # Use existing_ids.to_list() — includes pre-seeded IDs from resumed runs
@@ -534,7 +596,8 @@ def discover_places(
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if run:
         run.total_items = len(all_resource_names)
-        run.discovered_resource_names = all_resource_names
+        # Resource names are derived from DiscoveryCell records — no longer written to
+        # the run's JSON column to avoid 3MB+ serialization at 100K-place scale.
         run.stage = "detail_fetch"
         session.add(run)
         session.commit()
@@ -643,12 +706,17 @@ def fetch_place_details(
     counter = AtomicCounter(initial=cached_count)
     BATCH_SIZE = 10
 
+    detail_http = requests.Session()
+
     def _fetch_worker(place_name: str) -> tuple[str, dict, dict, str | None]:
-        """Fetch place details in a worker thread (no DB access)."""
+        """Fetch place details in a worker thread (no DB access).
+
+        Uses the split field-mask strategy: essential fields first, extended only
+        for qualifying places (OPERATIONAL + rating >= threshold).
+        """
         try:
             place_code = name_to_code[place_name]
-            rate_limiter.acquire("gmaps_details")
-            response = collector._fetch_details(place_name, api_key)
+            response = collector.fetch_details_split(place_name, api_key, rate_limiter, detail_http)
             details = collector.build_place_data(
                 response,
                 place_code,
@@ -663,7 +731,7 @@ def fetch_place_details(
 
     buffer: list[tuple] = []
 
-    with ThreadPoolExecutor(max_workers=5) as detail_executor:
+    with ThreadPoolExecutor(max_workers=20) as detail_executor:
         futures = {detail_executor.submit(_fetch_worker, pn): pn for pn in to_fetch}
 
         for future in as_completed(futures):
@@ -689,6 +757,8 @@ def fetch_place_details(
 
     if buffer:
         _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
+
+    detail_http.close()
 
     logger.info(
         "=== Details Fetch Summary === fresh=%d  cached=%d  total=%d",
@@ -780,3 +850,17 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> None:
         force_refresh,
         stale_threshold_days,
     )
+
+    # Phase 3: Download images in a dedicated parallel phase (no rate limiting needed —
+    # CDN media URLs are not billed API calls)
+    logger.info("Downloading images for places in run %s...", run_code)
+    from app.collectors.gmaps import download_place_images
+    from app.db.session import engine as _img_engine
+
+    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+    if run:
+        run.stage = "image_download"
+        session.add(run)
+        session.commit()
+
+    download_place_images(run_code, _img_engine, max_workers=20)

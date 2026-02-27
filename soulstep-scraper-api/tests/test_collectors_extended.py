@@ -319,32 +319,31 @@ class TestGmapsCollectorBuildPlaceData:
         assert place_data["description"] == "A historic mosque."
         assert place_data["website_url"] == "https://alaqsa.org"
         assert place_data["utc_offset_minutes"] == 180
-        assert len(place_data["image_blobs"]) == 1  # downloaded → use blobs
-        assert place_data["image_urls"] == []
+        # Images are stored as URLs only during detail fetch — blobs downloaded later
+        assert place_data["image_blobs"] == []
+        assert len(place_data["image_urls"]) == 1
         assert len(place_data["external_reviews"]) == 1
         assert place_data["external_reviews"][0]["author_name"] == "Alice"
 
     def test_build_place_data_image_download_failure(self):
+        """build_place_data no longer downloads images — URLs always stored as-is."""
         from app.collectors.gmaps import GmapsCollector
 
         collector = GmapsCollector()
         mock_session = MagicMock()
         response = self._response()
 
-        mock_img_resp = MagicMock()
-        mock_img_resp.status_code = 403  # Download fails
-
         patches = self._common_patches()
         with patches[0], patches[1], patches[2], patches[3]:
-            with patch("requests.get", return_value=mock_img_resp):
-                place_data = collector.build_place_data(
-                    response, "gplc_ChIJ123", "fake_key", mock_session
-                )
+            place_data = collector.build_place_data(
+                response, "gplc_ChIJ123", "fake_key", mock_session
+            )
 
         assert place_data["image_blobs"] == []
-        assert len(place_data["image_urls"]) == 1  # URL used as fallback
+        assert len(place_data["image_urls"]) == 1  # URL always stored
 
     def test_build_place_data_image_exception(self):
+        """build_place_data no longer downloads images — no exception path to test."""
         from app.collectors.gmaps import GmapsCollector
 
         collector = GmapsCollector()
@@ -353,10 +352,9 @@ class TestGmapsCollectorBuildPlaceData:
 
         patches = self._common_patches()
         with patches[0], patches[1], patches[2], patches[3]:
-            with patch("requests.get", side_effect=Exception("Network error")):
-                place_data = collector.build_place_data(
-                    response, "gplc_ChIJ123", "fake_key", mock_session
-                )
+            place_data = collector.build_place_data(
+                response, "gplc_ChIJ123", "fake_key", mock_session
+            )
 
         assert place_data["image_blobs"] == []
         assert len(place_data["image_urls"]) == 1

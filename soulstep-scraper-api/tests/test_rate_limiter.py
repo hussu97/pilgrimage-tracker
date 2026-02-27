@@ -26,16 +26,17 @@ class TestRateLimiter:
         assert elapsed < 0.1
 
     def test_rapid_second_call_is_throttled(self):
-        """Second immediate acquire() should enforce the rate limit."""
+        """Calls beyond the burst window should enforce the rate limit."""
         from app.scrapers.base import RateLimiter
 
-        rl = RateLimiter()
-        rl.acquire("gmaps_search")  # prime the bucket (2 rps → 0.5 s interval)
+        # burst=1 so any second call must wait
+        rl = RateLimiter(burst=1)
+        rl.acquire("gmaps_search")  # exhausts the single burst token (10 rps → 0.1 s interval)
         start = time.monotonic()
         rl.acquire("gmaps_search")
         elapsed = time.monotonic() - start
-        # Must have waited at least ~0.4 s (allow 0.1 s tolerance)
-        assert elapsed >= 0.4
+        # Must have waited at least ~0.08 s (allow tolerance)
+        assert elapsed >= 0.08
 
     def test_different_endpoints_are_independent(self):
         """Acquiring one endpoint does not delay another."""
@@ -49,11 +50,12 @@ class TestRateLimiter:
         assert elapsed < 0.1
 
     def test_unknown_endpoint_defaults_to_one_rps(self):
-        """An unknown endpoint defaults to 1 rps (1-second min interval)."""
+        """An unknown endpoint defaults to 1 rps (1-second min interval after burst exhausted)."""
         from app.scrapers.base import RateLimiter
 
-        rl = RateLimiter()
-        rl.acquire("totally_unknown")  # prime
+        # burst=1 so the second call must wait the full interval
+        rl = RateLimiter(burst=1)
+        rl.acquire("totally_unknown")  # exhausts burst token (1 rps → 1 s interval)
         start = time.monotonic()
         rl.acquire("totally_unknown")
         elapsed = time.monotonic() - start

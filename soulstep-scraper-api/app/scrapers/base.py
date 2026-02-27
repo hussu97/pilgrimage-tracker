@@ -38,16 +38,20 @@ def make_request_with_backoff(method: str, url: str, **kwargs) -> requests.Respo
 
 class RateLimiter:
     """
-    Thread-safe per-endpoint token-bucket rate limiter.
+    Thread-safe per-endpoint token-bucket rate limiter with burst support.
 
-    Each endpoint gets its own bucket with configurable requests-per-second.
-    Threads waiting for one API do not block threads waiting for another.
+    Each endpoint gets its own bucket with configurable requests-per-second and burst size.
+    A threading.Condition per endpoint allows multiple tokens to be consumed in rapid
+    succession (burst) before throttling kicks in — eliminating the serial lock contention
+    that the old "last call + sleep" approach suffered when many workers competed for slots.
+
+    Threads waiting for one endpoint do not block threads waiting for another.
     """
 
     DEFAULT_RATES: dict[str, float] = {
-        "gmaps_search": 2.0,
-        "gmaps_details": 5.0,
-        "gmaps_photo": 5.0,
+        "gmaps_search": 10.0,  # was 2.0 — Google allows ~100 QPS, keep conservative
+        "gmaps_details": 15.0,  # was 5.0
+        "gmaps_photo": 15.0,  # was 5.0 — CDN, not billed; still throttle slightly
         "overpass": 1.0,
         "osm": 1.0,
         "wikipedia": 5.0,
@@ -58,31 +62,41 @@ class RateLimiter:
         "outscraper": 1.0,
     }
 
-    def __init__(self) -> None:
-        self._meta_lock = threading.Lock()
-        self._locks: dict[str, threading.Lock] = {}
-        self._last_call: dict[str, float] = {}
+    # Burst size = max tokens that can be consumed before refill kicks in
+    DEFAULT_BURST: int = 3
 
-    def _get_lock(self, endpoint: str) -> threading.Lock:
+    def __init__(self, burst: int = DEFAULT_BURST) -> None:
+        self._burst = burst
+        self._meta_lock = threading.Lock()
+        # Per-endpoint: (condition, tokens_float, last_refill_time)
+        self._buckets: dict[str, tuple[threading.Condition, list]] = {}
+
+    def _get_bucket(self, endpoint: str):
         with self._meta_lock:
-            if endpoint not in self._locks:
-                self._locks[endpoint] = threading.Lock()
-                self._last_call[endpoint] = 0.0
-            return self._locks[endpoint]
+            if endpoint not in self._buckets:
+                rps = self.DEFAULT_RATES.get(endpoint, 1.0)
+                cond = threading.Condition(threading.Lock())
+                # Start full (burst tokens available)
+                state = [float(self._burst), time.monotonic(), rps]
+                self._buckets[endpoint] = (cond, state)
+            return self._buckets[endpoint]
 
     def acquire(self, endpoint: str) -> None:
-        """Block until a request slot is available for the given endpoint."""
-        lock = self._get_lock(endpoint)
-        rps = self.DEFAULT_RATES.get(endpoint, 1.0)
-        min_interval = 1.0 / rps
-
-        with lock:
-            now = time.time()
-            elapsed = now - self._last_call[endpoint]
-            wait = min_interval - elapsed
-            if wait > 0:
-                time.sleep(wait)
-            self._last_call[endpoint] = time.time()
+        """Block until a token is available for the given endpoint."""
+        cond, state = self._get_bucket(endpoint)
+        with cond:
+            while True:
+                now = time.monotonic()
+                rps = state[2]
+                elapsed = now - state[1]
+                state[0] = min(float(self._burst), state[0] + elapsed * rps)
+                state[1] = now
+                if state[0] >= 1.0:
+                    state[0] -= 1.0
+                    return
+                # Wait until the next token is available
+                wait = (1.0 - state[0]) / rps
+                cond.wait(timeout=wait)
 
 
 class ThreadSafeIdSet:

@@ -120,17 +120,26 @@ def resume_scraper_task(run_code: str):
                 run_enrichment_pipeline(run_code)
 
             elif resume_from == "detail_fetch":
-                # Discovery completed — use persisted resource names
-                from app.collectors.gmaps import GmapsCollector
-                from app.db.models import PlaceTypeMapping
+                # Discovery completed — derive resource names from DiscoveryCell records
+                # (the JSON column is no longer written at 100K-place scale)
+                from app.collectors.gmaps import GmapsCollector, download_place_images
+                from app.db.models import DiscoveryCell, PlaceTypeMapping
                 from app.scrapers.gmaps import (
                     fetch_place_details,
                 )
 
-                place_ids = run.discovered_resource_names or []
+                cells = session.exec(
+                    select(DiscoveryCell).where(DiscoveryCell.run_code == run_code)
+                ).all()
+                place_ids = list({name for cell in cells for name in cell.resource_names})
+
+                # Fallback: if no cells (very old run format), use JSON column
+                if not place_ids:
+                    place_ids = run.discovered_resource_names or []
+
                 if not place_ids:
                     logger.warning(
-                        "Resume: No discovered_resource_names for run %s, re-running discovery",
+                        "Resume: No discovered places found for run %s, re-running discovery",
                         run_code,
                     )
                     run_gmaps_scraper(run_code, location.config, session)
@@ -163,6 +172,13 @@ def resume_scraper_task(run_code: str):
                         force_refresh,
                         stale_threshold_days,
                     )
+
+                    session.refresh(run)
+                    run.stage = "image_download"
+                    session.add(run)
+                    session.commit()
+
+                    download_place_images(run_code, engine)
 
                 from app.pipeline.enrichment import run_enrichment_pipeline
 

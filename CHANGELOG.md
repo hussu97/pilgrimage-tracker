@@ -4,6 +4,22 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Scraper Performance & Scale Optimization (2026-02-27)
+
+### Backend (Scraper)
+
+- **Image phase decoupling (1.1)** — `build_place_data()` no longer downloads images inline. Images are stored as URLs only during detail fetch. New `download_place_images()` function (in `collectors/gmaps.py`) runs as a dedicated phase after `fetch_place_details()`, using `ThreadPoolExecutor(20)` + shared `requests.Session` for parallelised CDN downloads. Reduces `raw_data` size from 200–800KB to ~2–5KB per place (fixes 20–80GB storage bomb at 100K scale).
+- **Resource name derivation from cells (1.2)** — `discover_places()` no longer writes the full place-name list to `ScraperRun.discovered_resource_names`. Resume logic now derives place IDs from `DiscoveryCell` records directly, preventing 3MB+ JSON serialisation on every run load at 100K scale.
+- **Increased rate limits + workers (1.3)** — `gmaps_search` raised from 2→10 rps, `gmaps_details` 5→15 rps. Discovery pool raised from 4→32 workers; detail-fetch pool from 5→20 workers.
+- **Connection pooling (1.4)** — `requests.Session` passed through `get_places_in_circle`, `search_area`, `_split_quadrants`, and the detail fetch worker, reusing TCP connections and avoiding per-request TLS handshake overhead.
+- **Parallel discovery at all depths (2.2)** — `search_area` now submits quadrant children to the shared thread pool at every recursion depth (not just depth 0). A `threading.Semaphore(10)` caps concurrent API calls. Extracted `_split_quadrants()` helper. 3–5× faster discovery.
+- **Token-bucket rate limiter (2.3)** — Replaced the "last-call + sleep" `RateLimiter` with a proper token-bucket using `threading.Condition`. Supports configurable burst (default 3 tokens), eliminates serial lock contention at 20+ workers.
+- **Field mask split (2.4)** — `GmapsCollector` now has `FIELD_MASK_ESSENTIAL` and `FIELD_MASK_EXTENDED`. New `fetch_details_split()` fetches essential fields first and only calls the expensive Atmosphere-tier extended fields for OPERATIONAL places with a rating. Saves 15–30% in per-place API cost for closed/unrated places.
+- **Cross-run discovery cache (2.1)** — New `GlobalDiscoveryCell` model + `GlobalCellStore` class. Keyed by bounding box + place_types_hash with 30-day TTL. After month 1, recurring runs of the same city skip ~95% of discovery API calls. Migration `0006_global_discovery_cache.py` adds the `globaldiscoverycell` table.
+- **Tests** — 19 new tests in `tests/test_perf_optimizations.py` covering: image download phase, resource name derivation, token-bucket burst/throttle/refill/concurrency, `GlobalCellStore` (save, miss, expiry, upsert, thread safety), `fetch_details_split` quality gate, and `build_place_data` URL-only storage.
+
+---
+
 ## Translation Cost Reduction (2026-02-27)
 
 ### Backend

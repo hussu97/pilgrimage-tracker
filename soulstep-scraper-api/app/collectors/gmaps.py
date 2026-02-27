@@ -9,12 +9,13 @@ from __future__ import annotations
 import base64
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 import requests
 from requests.exceptions import ConnectionError as RequestsConnectionError
 from requests.exceptions import SSLError
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.collectors.base import BaseCollector, CollectorResult
 from app.logger import get_logger
@@ -31,15 +32,16 @@ logger = get_logger(__name__)
 _MAX_IMAGE_ATTEMPTS = 3
 
 
-def _download_image(url: str) -> bytes | None:
+def _download_image(url: str, http_session: requests.Session | None = None) -> bytes | None:
     """Download an image with retries on transient SSL/connection errors.
 
     Google Places photo URLs occasionally fail with UNEXPECTED_EOF_WHILE_READING
     due to Cloud Run egress dropping the connection. A short backoff retry fixes it.
     """
+    fetcher = http_session or requests
     for attempt in range(_MAX_IMAGE_ATTEMPTS):
         try:
-            resp = requests.get(url, timeout=20)
+            resp = fetcher.get(url, timeout=20)
             if resp.status_code == 200:
                 return resp.content
             return None
@@ -56,6 +58,89 @@ def _download_image(url: str) -> bytes | None:
             return None
 
 
+def download_place_images(run_code: str, engine, max_workers: int = 20) -> None:
+    """Phase 3: Download images for all places in a run and store blobs in raw_data.
+
+    This is called after fetch_place_details() so that detail fetching is not
+    blocked by image downloads. Uses a shared requests.Session for connection
+    reuse and a ThreadPoolExecutor for parallelism.
+
+    CDN photo URLs (places.googleapis.com/v1/.../media) are not billed API calls,
+    so no rate limiting is needed here.
+    """
+    from app.db.models import ScrapedPlace
+
+    with Session(engine) as session:
+        places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
+
+    # Collect (place_id, url_index, url) tuples to download
+    tasks: list[tuple[int, int, str]] = []
+    place_map: dict[int, dict] = {}  # place.id → raw_data
+
+    for place in places:
+        raw = place.raw_data or {}
+        urls = raw.get("image_urls") or []
+        if not urls or raw.get("image_blobs"):
+            continue  # already downloaded or no URLs
+        place_map[place.id] = raw
+        for idx, url in enumerate(urls):
+            tasks.append((place.id, idx, url))
+
+    if not tasks:
+        logger.info("Image download: no pending images for run %s", run_code)
+        return
+
+    logger.info("Image download: downloading %d images for %d places", len(tasks), len(place_map))
+
+    # Download in parallel using a shared session for connection reuse
+    results: dict[tuple[int, int], bytes] = {}
+    with requests.Session() as http_session, ThreadPoolExecutor(max_workers=max_workers) as pool:
+        future_to_key = {
+            pool.submit(_download_image, url, http_session): (place_id, idx)
+            for place_id, idx, url in tasks
+        }
+        for future in as_completed(future_to_key):
+            key = future_to_key[future]
+            try:
+                content = future.result()
+                if content is not None:
+                    results[key] = content
+            except Exception as e:
+                logger.warning("Image download error for key %s: %s", key, e)
+
+    # Group results by place and write back
+    blobs_by_place: dict[int, list[dict]] = {}
+    for (place_id, idx), content in results.items():
+        blobs_by_place.setdefault(place_id, []).append((idx, content))
+
+    with Session(engine) as session:
+        for place_id, blob_list in blobs_by_place.items():
+            place = session.get(ScrapedPlace, place_id)
+            if not place:
+                continue
+            raw = dict(place.raw_data or {})
+            sorted_blobs = [
+                {
+                    "data": base64.b64encode(content).decode("ascii"),
+                    "mime_type": "image/jpeg",
+                }
+                for _, content in sorted(blob_list, key=lambda x: x[0])
+            ]
+            raw["image_blobs"] = sorted_blobs
+            raw["image_urls"] = []  # clear URLs now that blobs exist
+            place.raw_data = raw
+            session.add(place)
+        session.commit()
+
+    downloaded = sum(len(v) for v in blobs_by_place.values())
+    logger.info(
+        "Image download complete: %d/%d images downloaded for run %s",
+        downloaded,
+        len(tasks),
+        run_code,
+    )
+
+
 class GmapsCollector(BaseCollector):
     """Fetches place details from Google Places API (New) with enhanced field mask."""
 
@@ -63,9 +148,8 @@ class GmapsCollector(BaseCollector):
     requires_api_key = True
     api_key_env_var = "GOOGLE_MAPS_API_KEY"
 
-    # Enhanced field mask — adds generativeSummary, phone, parking, etc.
-    FIELD_MASK = [
-        # Basic tier (free)
+    # Essential fields — cheaper SKU, always fetched first.
+    FIELD_MASK_ESSENTIAL = [
         "name",
         "id",
         "displayName",
@@ -74,21 +158,23 @@ class GmapsCollector(BaseCollector):
         "types",
         "photos",
         "businessStatus",
-        # Contact tier
         "regularOpeningHours",
         "websiteUri",
         "utcOffsetMinutes",
         "nationalPhoneNumber",
         "internationalPhoneNumber",
         "googleMapsUri",
-        # Atmosphere tier
         "rating",
         "userRatingCount",
+        "editorialSummary",
+    ]
+
+    # Extended fields — Atmosphere-tier (more expensive), only fetched for
+    # qualifying places (businessStatus=OPERATIONAL, rating >= 1.0).
+    FIELD_MASK_EXTENDED = [
         "reviews",
         "accessibilityOptions",
-        "editorialSummary",
         "generativeSummary",
-        # Additional details
         "parkingOptions",
         "paymentOptions",
         "allowsDogs",
@@ -97,6 +183,9 @@ class GmapsCollector(BaseCollector):
         "restroom",
         "outdoorSeating",
     ]
+
+    # Combined mask used when fetching a single place (e.g. GmapsCollector.collect())
+    FIELD_MASK = FIELD_MASK_ESSENTIAL + FIELD_MASK_EXTENDED
 
     def collect(
         self,
@@ -127,16 +216,28 @@ class GmapsCollector(BaseCollector):
         except Exception as e:
             return self._fail_result(str(e))
 
-    def _fetch_details(self, place_name: str, api_key: str) -> dict:
-        """Fetch place details from Google Places API."""
+    def _fetch_details(
+        self,
+        place_name: str,
+        api_key: str,
+        field_mask: list[str] | None = None,
+        http_session: requests.Session | None = None,
+    ) -> dict:
+        """Fetch place details from Google Places API.
+
+        Uses field_mask if provided, otherwise falls back to the full combined FIELD_MASK.
+        Accepts an optional requests.Session for connection reuse.
+        """
         url = f"https://places.googleapis.com/v1/{place_name}"
+        mask = field_mask if field_mask is not None else self.FIELD_MASK
         headers = {
             "Content-Type": "application/json",
             "X-Goog-Api-Key": api_key,
-            "X-Goog-FieldMask": ",".join(self.FIELD_MASK),
+            "X-Goog-FieldMask": ",".join(mask),
             "languageCode": "en",
         }
-        resp = requests.get(url, headers=headers, timeout=(5, 30))
+        fetcher = http_session or requests
+        resp = fetcher.get(url, headers=headers, timeout=(5, 30))
 
         if resp.status_code != 200:
             error_data = resp.json() if resp.content else {}
@@ -146,6 +247,39 @@ class GmapsCollector(BaseCollector):
             )
 
         return resp.json()
+
+    # Minimum quality bar for fetching extended (expensive) fields
+    _EXTENDED_MIN_RATING: float = 1.0
+
+    def fetch_details_split(
+        self,
+        place_name: str,
+        api_key: str,
+        rate_limiter,
+        http_session: requests.Session | None = None,
+    ) -> dict:
+        """Two-stage detail fetch: essential fields first, extended fields conditionally.
+
+        Places with businessStatus != OPERATIONAL or rating < _EXTENDED_MIN_RATING
+        skip the extended (Atmosphere-tier) call, saving ~15-30% in API cost.
+        Returns the merged response dict.
+        """
+        rate_limiter.acquire("gmaps_details")
+        essential = self._fetch_details(
+            place_name, api_key, self.FIELD_MASK_ESSENTIAL, http_session
+        )
+
+        # Quality gate: only fetch expensive extended fields for live, rated places
+        status = essential.get("businessStatus", "")
+        rating = essential.get("rating") or 0.0
+        if status == "OPERATIONAL" and float(rating) >= self._EXTENDED_MIN_RATING:
+            rate_limiter.acquire("gmaps_details")
+            extended = self._fetch_details(
+                place_name, api_key, self.FIELD_MASK_EXTENDED, http_session
+            )
+            essential.update(extended)
+
+        return essential
 
     def _extract(self, response: dict, place_code: str, api_key: str) -> CollectorResult:
         """Extract structured data from the API response."""
@@ -259,15 +393,15 @@ class GmapsCollector(BaseCollector):
         Build the full place_data dict from a gmaps response.
 
         This is used during the discovery phase to create the initial ScrapedPlace.raw_data.
+        Images are stored as URLs only — actual blob download is deferred to the
+        download_place_images() phase after detail fetch.
 
         When type_map and religion_type_map are supplied (pre-loaded before entering a thread
         pool), this method performs no DB access and is fully thread-safe.  When they are
         None a session must be provided and the maps are queried on the fly.
         """
-        # Process images (up to 3)
+        # Process images (up to 3) — URLs only, no download during detail fetch
         photo_urls = []
-        image_blobs = []
-        download_failures = []
 
         for photo in response.get("photos", [])[:3]:
             photo_name = photo.get("name")
@@ -278,17 +412,6 @@ class GmapsCollector(BaseCollector):
                 f"https://places.googleapis.com/v1/{photo_name}/media?maxWidthPx=800&key={api_key}"
             )
             photo_urls.append(photo_url)
-
-            content = _download_image(photo_url)
-            if content is not None:
-                image_blobs.append(
-                    {
-                        "data": base64.b64encode(content).decode("ascii"),
-                        "mime_type": "image/jpeg",
-                    }
-                )
-            else:
-                download_failures.append(photo_url)
 
         # Process external reviews (up to 5)
         external_reviews = ReviewExtractor.from_gmaps(response.get("reviews", []))
@@ -404,8 +527,6 @@ class GmapsCollector(BaseCollector):
         else:
             description = f"A {place_type_name} located in {clean_address(formatted_address)}."
 
-        use_blobs = len(image_blobs) == len(photo_urls) and len(photo_urls) > 0
-
         location = response.get("location", {})
         lat = location.get("latitude", 0)
         lng = location.get("longitude", 0)
@@ -441,8 +562,8 @@ class GmapsCollector(BaseCollector):
             "lat": lat,
             "lng": lng,
             "address": clean_address(formatted_address),
-            "image_urls": [] if use_blobs else photo_urls,
-            "image_blobs": image_blobs if use_blobs else [],
+            "image_urls": photo_urls,
+            "image_blobs": [],
             "description": description,
             "website_url": website_url,
             "opening_hours": opening_hours,

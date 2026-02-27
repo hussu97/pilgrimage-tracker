@@ -108,3 +108,26 @@ class DiscoveryCell(SQLModel, table=True):
     saturated: bool
     resource_names: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class GlobalDiscoveryCell(SQLModel, table=True):
+    """Cross-run discovery cache keyed by bounding box + place_types_hash.
+
+    After month 1, recurring runs of the same city can skip 95%+ of discovery
+    API calls by reusing cached results that are still within the TTL window.
+
+    TTL is enforced in application logic (GlobalCellStore), not DB constraints.
+    """
+
+    __tablename__ = "globaldiscoverycell"
+
+    id: int | None = Field(default=None, primary_key=True)
+    lat_min: float
+    lat_max: float
+    lng_min: float
+    lng_max: float
+    place_types_hash: str = Field(index=True)
+    result_count: int
+    saturated: bool
+    resource_names: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    searched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
