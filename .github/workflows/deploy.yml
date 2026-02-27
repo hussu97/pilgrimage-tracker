@@ -20,10 +20,41 @@ env:
   WIF_PROVIDER: projects/834941457147/locations/global/workloadIdentityPools/github-pool/providers/github-provider
 
 jobs:
+  # ── Detect changed paths ───────────────────────────────────────────────────
+
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      catalog: ${{ steps.filter.outputs.catalog }}
+      scraper: ${{ steps.filter.outputs.scraper }}
+      web: ${{ steps.filter.outputs.web }}
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            catalog:
+              - 'soulstep-catalog-api/**'
+              - '.github/workflows/deploy.yml'
+            scraper:
+              - 'soulstep-scraper-api/**'
+              - '.github/workflows/deploy.yml'
+            web:
+              - 'apps/soulstep-customer-web/**'
+              - '.github/workflows/deploy.yml'
+            admin:
+              - 'apps/soulstep-admin-web/**'
+              - '.github/workflows/deploy.yml'
+
   # ── Gate: tests must pass before any deployment ────────────────────────────
 
   test-soulstep-catalog-api:
     name: Soulstep Catalog API tests
+    needs: changes
+    if: needs.changes.outputs.catalog == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,6 +78,8 @@ jobs:
 
   test-soulstep-customer-web:
     name: Soulstep Customer Web typecheck + build
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,6 +116,8 @@ jobs:
 
   test-soulstep-admin-web:
     name: soulstep-admin-web typecheck + build
+    needs: changes
+    if: needs.changes.outputs.admin == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -115,6 +150,8 @@ jobs:
 
   test-soulstep-scraper-api:
     name: Soulstep Scraper API tests
+    needs: changes
+    if: needs.changes.outputs.scraper == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -140,7 +177,8 @@ jobs:
 
   deploy-api:
     name: Deploy API → Cloud Run
-    needs: [test-soulstep-catalog-api]
+    needs: [changes, test-soulstep-catalog-api]
+    if: needs.changes.outputs.catalog == 'true'
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -190,7 +228,8 @@ jobs:
 
   deploy-web:
     name: Deploy Web → Firebase Hosting
-    needs: [test-soulstep-customer-web]
+    needs: [changes, test-soulstep-customer-web]
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -235,7 +274,8 @@ jobs:
 
   deploy-admin-web:
     name: Deploy Admin Web → Firebase Hosting
-    needs: [test-soulstep-admin-web]
+    needs: [changes, test-soulstep-admin-web]
+    if: needs.changes.outputs.admin == 'true'
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -282,7 +322,8 @@ jobs:
 
   deploy-scraper:
     name: Deploy Scraper API → Cloud Run
-    needs: [test-soulstep-scraper-api]
+    needs: [changes, test-soulstep-scraper-api]
+    if: needs.changes.outputs.scraper == 'true'
     runs-on: ubuntu-latest
     environment: production
     permissions:
