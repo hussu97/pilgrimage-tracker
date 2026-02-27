@@ -729,7 +729,7 @@ async def fetch_place_details(
 
         place_name, details, response, error = result
 
-        if error:
+        if error is not None:
             logger.warning("Error fetching %s: %s", place_name, error)
             counter.increment()
             continue
