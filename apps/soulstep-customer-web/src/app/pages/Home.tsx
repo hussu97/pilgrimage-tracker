@@ -9,12 +9,14 @@ import HomeHeader from '@/components/places/HomeHeader';
 import PlaceListView from '@/components/places/PlaceListView';
 import PlaceMapView from '@/components/places/PlaceMapView';
 import SearchOverlay from '@/components/search/SearchOverlay';
+import type { MapBounds } from '@/components/places/PlacesMap';
 import type { Place, FilterOption } from '@/lib/types';
 import type { SearchLocation } from '@/lib/utils/searchHistory';
 
 type ViewMode = 'list' | 'map';
 
 const PAGE_SIZE = 20;
+const MAP_PAGE_SIZE = 200;
 
 export default function Home() {
   useDocumentTitle();
@@ -42,49 +44,68 @@ export default function Home() {
   );
   const hasSavedMapPos = initMapCenter != null && initMapZoom != null;
 
+  // ── List-view state (cursor-paginated, 20/page) ──────────────────────────
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState('');
+  const nextCursorRef = useRef<string | null>(null);
+
+  // ── Map-view state (viewport-fetched, up to 200) ─────────────────────────
+  const [mapPlaces, setMapPlaces] = useState<Place[]>([]);
+  const [mapLoading, setMapLoading] = useState(false);
+  const [showSearchArea, setShowSearchArea] = useState(false);
+  const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+  const mapBoundsRef = useRef<MapBounds | null>(null);
+  const initialMapFetchDone = useRef(false);
+
+  // ── Shared state ──────────────────────────────────────────────────────────
   const [showFilters, setShowFilters] = useState(false);
   const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
   const [activeFilters, setActiveFilters] = useState<Record<string, boolean>>({});
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [searchLocation, setSearchLocation] = useState<SearchLocation | null>(null);
   const [showSearch, setShowSearch] = useState(false);
-  const nextCursorRef = useRef<string | null>(null);
   const mapMoveTimerRef = useRef<number | null>(null);
 
-  const buildParams = useCallback(
-    (cursor: string | null) => ({
-      religions: (() => {
-        const r = user?.religions ?? [];
-        if (!r.length || r.includes('all')) return undefined;
-        return r;
-      })(),
-      sort: 'distance',
-      limit: PAGE_SIZE,
-      cursor: cursor ?? undefined,
+  // ── Shared base params (no cursor, no limit, no bbox) ────────────────────
+  const buildBaseParams = useCallback(() => {
+    const religions = (() => {
+      const r = user?.religions ?? [];
+      if (!r.length || r.includes('all')) return undefined;
+      return r;
+    })();
+    return {
+      religions,
+      sort: 'distance' as const,
       lat: searchLocation ? searchLocation.lat : coords.lat,
       lng: searchLocation ? searchLocation.lng : coords.lng,
-      radius: searchLocation ? 10 : undefined,
       open_now: activeFilters.open_now,
       has_parking: activeFilters.has_parking,
       womens_area: activeFilters.womens_area,
       has_events: activeFilters.has_events,
       top_rated: activeFilters.top_rated,
+    };
+  }, [user?.religions, activeFilters, coords, searchLocation]);
+
+  // ── List-view fetch (cursor-paginated) ────────────────────────────────────
+  const buildListParams = useCallback(
+    (cursor: string | null) => ({
+      ...buildBaseParams(),
+      limit: PAGE_SIZE,
+      cursor: cursor ?? undefined,
+      radius: searchLocation ? 10 : undefined,
     }),
-    [user?.religions, activeFilters, coords, searchLocation],
+    [buildBaseParams, searchLocation],
   );
 
-  // Initial / refresh — resets pagination
   const fetchPlaces = useCallback(async () => {
     setLoading(true);
     setError('');
     setHasMore(true);
     try {
-      const response = await getPlaces(buildParams(null));
+      const response = await getPlaces(buildListParams(null));
       setPlaces(response.places);
       nextCursorRef.current = response.next_cursor ?? null;
       setHasMore(response.next_cursor != null);
@@ -97,14 +118,13 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [buildParams, t]);
+  }, [buildListParams, t]);
 
-  // Load next page — appends
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore || loading) return;
     setLoadingMore(true);
     try {
-      const response = await getPlaces(buildParams(nextCursorRef.current));
+      const response = await getPlaces(buildListParams(nextCursorRef.current));
       if (response.places.length > 0) {
         setPlaces((prev) => [...prev, ...response.places]);
         nextCursorRef.current = response.next_cursor ?? null;
@@ -115,14 +135,77 @@ export default function Home() {
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, loading, buildParams]);
+  }, [loadingMore, hasMore, loading, buildListParams]);
 
+  // ── Map-view fetch (viewport bounding box) ────────────────────────────────
+  const fetchMapPlaces = useCallback(
+    async (bounds: MapBounds) => {
+      setMapLoading(true);
+      try {
+        const response = await getPlaces({
+          ...buildBaseParams(),
+          min_lat: bounds.south,
+          max_lat: bounds.north,
+          min_lng: bounds.west,
+          max_lng: bounds.east,
+          limit: MAP_PAGE_SIZE,
+        });
+        setMapPlaces(response.places);
+        if (response.filters?.options) {
+          setFilterOptions(response.filters.options);
+        }
+      } catch {
+        // Keep previous map places on error
+      } finally {
+        setMapLoading(false);
+      }
+    },
+    [buildBaseParams],
+  );
+
+  // Auto-fetch list when params change
   useEffect(() => {
     const id = setTimeout(() => {
       fetchPlaces();
     }, 200);
     return () => clearTimeout(id);
   }, [fetchPlaces]);
+
+  // Initial map fetch — runs once when the map first reports bounds
+  useEffect(() => {
+    if (mapBounds && !initialMapFetchDone.current) {
+      initialMapFetchDone.current = true;
+      fetchMapPlaces(mapBounds);
+    }
+  }, [mapBounds, fetchMapPlaces]);
+
+  // Auto-refetch map when filters or search change (if we have bounds)
+  const prevBaseParamsRef = useRef<string>('');
+  useEffect(() => {
+    const key = JSON.stringify(buildBaseParams());
+    if (prevBaseParamsRef.current && prevBaseParamsRef.current !== key && mapBoundsRef.current) {
+      setShowSearchArea(false);
+      fetchMapPlaces(mapBoundsRef.current);
+    }
+    prevBaseParamsRef.current = key;
+  }, [buildBaseParams, fetchMapPlaces]);
+
+  // ── Map bounds change → show "Search this area" button ────────────────────
+  const handleBoundsChange = useCallback((bounds: MapBounds) => {
+    setMapBounds(bounds);
+    mapBoundsRef.current = bounds;
+    // Show button only after the initial fetch is done (user has panned)
+    if (initialMapFetchDone.current) {
+      setShowSearchArea(true);
+    }
+  }, []);
+
+  const handleSearchArea = useCallback(() => {
+    if (mapBoundsRef.current) {
+      setShowSearchArea(false);
+      fetchMapPlaces(mapBoundsRef.current);
+    }
+  }, [fetchMapPlaces]);
 
   // ── Debounced map move → write mlat/mlng/mz to URL ───────────────────────
   const handleMapMove = useCallback(
@@ -144,6 +227,23 @@ export default function Home() {
     [setSearchParams],
   );
 
+  // ── Recenter map to user location ─────────────────────────────────────────
+  const handleRecenter = useCallback(() => {
+    // Trigger re-center by updating the PlacesMap via a search-location-like flow
+    // The simplest approach: clear search + saved position so map re-fits to user coords
+    setSearchLocation(null);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('mlat');
+        next.delete('mlng');
+        next.delete('mz');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [setSearchParams]);
+
   const toggleViewMode = () => {
     const nextMode = viewMode === 'list' ? 'map' : 'list';
     const newParams = new URLSearchParams(searchParams);
@@ -163,6 +263,7 @@ export default function Home() {
     setSearchLocation(loc);
     setShowSearch(false);
     // Clear saved map position so the map re-fits to the new search area
+    initialMapFetchDone.current = false;
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -178,6 +279,7 @@ export default function Home() {
   const handleClearSearch = () => {
     setSearchLocation(null);
     // Clear saved map position so the map re-fits to the new default area
+    initialMapFetchDone.current = false;
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -221,7 +323,7 @@ export default function Home() {
         </div>
         <div className={viewMode === 'map' ? 'h-full w-full absolute inset-0' : 'hidden'}>
           <PlaceMapView
-            places={places}
+            places={mapPlaces}
             center={coords}
             searchLocation={searchLocation}
             selectedPlace={selectedPlace}
@@ -232,6 +334,11 @@ export default function Home() {
             initMapZoom={initMapZoom}
             skipAutoFit={hasSavedMapPos}
             onMapMove={handleMapMove}
+            mapLoading={mapLoading}
+            showSearchArea={showSearchArea}
+            onSearchArea={handleSearchArea}
+            onRecenter={handleRecenter}
+            onBoundsChange={handleBoundsChange}
           />
         </div>
       </main>

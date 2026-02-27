@@ -4,6 +4,37 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Map View Pagination & Usability (2026-02-27)
+
+### Backend
+- Added bounding-box query params (`min_lat`, `max_lat`, `min_lng`, `max_lng`) to `GET /api/v1/places` for viewport-based filtering at the SQL level
+- Bounding box filter handles antimeridian edge case
+- Added `le=500` validation to `limit` parameter
+- When bounding box is provided, radius filtering is skipped (bbox takes precedence)
+
+### Frontend (web)
+- Map view now fetches up to 200 places based on the visible viewport (bounding box) instead of a fixed 20 from center point
+- "Search this area" floating button appears when the user pans the map — click to load places for the new area
+- Default zoom increased from 11 to 14 (user location) and 3 to 5 (no location)
+- Search location zoom increased from 12 to 15
+- Added "My location" recenter button on the map (bottom-right)
+- Loading spinner indicator during map place fetches
+- Map no longer auto-fits bounds on every place update (prevents feedback loop with viewport fetching)
+- Filters and search changes auto-refetch map places without requiring button click
+
+### Frontend (mobile)
+- Mirror of all web map view changes for feature parity
+- Map zoom increased from 13 to 14 (default) and 15 (search)
+- "Search this area" floating button above the bottom sheet
+- "My location" recenter button via Leaflet custom control in WebView
+- `updateMarkers()` JS function injected to update markers without rebuilding WebView HTML
+- Loading spinner indicator on map
+
+### Docs
+- Added translation keys for `map.searchThisArea`, `map.loading`, `map.recenter` in all languages
+
+---
+
 ## Scraper Async I/O Migration (2026-02-27)
 
 ### Backend (Scraper)

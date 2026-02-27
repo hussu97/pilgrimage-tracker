@@ -170,6 +170,10 @@ export interface GetPlacesParams {
   has_events?: boolean;
   top_rated?: boolean;
   include_checkins?: boolean;
+  min_lat?: number;
+  max_lat?: number;
+  min_lng?: number;
+  max_lng?: number;
 }
 
 export async function getPlaces(params?: GetPlacesParams): Promise<PlacesResponse> {
@@ -189,6 +193,10 @@ export async function getPlaces(params?: GetPlacesParams): Promise<PlacesRespons
   if (params?.has_events) sp.set('has_events', 'true');
   if (params?.top_rated) sp.set('top_rated', 'true');
   if (params?.include_checkins) sp.set('include_checkins', 'true');
+  if (params?.min_lat != null) sp.set('min_lat', String(params.min_lat));
+  if (params?.max_lat != null) sp.set('max_lat', String(params.max_lat));
+  if (params?.min_lng != null) sp.set('min_lng', String(params.min_lng));
+  if (params?.max_lng != null) sp.set('max_lng', String(params.max_lng));
   if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
 
   const qs = sp.toString();

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import type { Place } from '@/lib/types';
 import type { SearchLocation } from '@/lib/utils/searchHistory';
 import type { MapBounds } from '@/components/places/PlacesMap';
@@ -17,6 +17,11 @@ interface PlaceMapViewProps {
   initMapZoom?: number;
   onMapMove?: (lat: number, lng: number, zoom: number) => void;
   skipAutoFit?: boolean;
+  mapLoading?: boolean;
+  showSearchArea?: boolean;
+  onSearchArea?: () => void;
+  onRecenter?: () => void;
+  onBoundsChange?: (bounds: MapBounds) => void;
 }
 
 const PEEK_RATIO = 0.32; // fraction of viewport height when resting
@@ -34,8 +39,21 @@ export default function PlaceMapView({
   initMapZoom,
   onMapMove,
   skipAutoFit,
+  mapLoading,
+  showSearchArea,
+  onSearchArea,
+  onRecenter,
+  onBoundsChange: onBoundsChangeProp,
 }: PlaceMapViewProps) {
   const [visibleBounds, setVisibleBounds] = useState<MapBounds | null>(null);
+
+  const handleBoundsChange = useCallback(
+    (bounds: MapBounds) => {
+      setVisibleBounds(bounds);
+      onBoundsChangeProp?.(bounds);
+    },
+    [onBoundsChangeProp],
+  );
 
   // Mobile bottom-sheet drag state
   const [sheetPx, setSheetPx] = useState<number | null>(null); // null = CSS percentage
@@ -102,13 +120,35 @@ export default function PlaceMapView({
         selectedPlaceCode={selectedPlace?.place_code}
         isVisible={isVisible}
         searchLocation={searchLocation}
-        onBoundsChange={setVisibleBounds}
+        onBoundsChange={handleBoundsChange}
         className="h-full w-full bg-soft-blue dark:bg-dark-surface"
         initMapCenter={initMapCenter}
         initZoom={initMapZoom}
         onMapMove={onMapMove}
         skipAutoFit={skipAutoFit}
+        onRecenter={onRecenter}
       />
+
+      {/* "Search this area" floating button — appears after panning the map */}
+      {showSearchArea && (
+        <button
+          onClick={onSearchArea}
+          className="absolute top-3 left-1/2 -translate-x-1/2 z-[600] flex items-center gap-1.5 px-4 py-2 rounded-full bg-white dark:bg-dark-surface shadow-lg border border-input-border/60 dark:border-dark-border text-sm font-semibold text-primary hover:bg-slate-50 dark:hover:bg-dark-border transition-colors"
+        >
+          <span className="material-symbols-outlined text-[18px]">search</span>
+          {t('map.searchThisArea')}
+        </button>
+      )}
+
+      {/* Loading spinner — top-right, subtle */}
+      {mapLoading && (
+        <div className="absolute top-3 right-3 z-[600] flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/90 dark:bg-dark-surface/90 shadow border border-input-border/40 dark:border-dark-border">
+          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs text-slate-500 dark:text-dark-text-secondary">
+            {t('map.loading')}
+          </span>
+        </div>
+      )}
 
       {(visiblePlaces.length > 0 || selectedPlace !== null) && (
         <>
