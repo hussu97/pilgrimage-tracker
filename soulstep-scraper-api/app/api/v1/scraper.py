@@ -5,6 +5,7 @@ from sqlmodel import func, select
 
 from app.db.models import (
     DataLocation,
+    DiscoveryCell,
     GeoBoundary,
     PlaceTypeMapping,
     RawCollectorData,
@@ -324,6 +325,104 @@ def delete_run(run_code: str, session: SessionDep):
     session.delete(run)
     session.commit()
     return {"status": "deleted", "run_code": run_code}
+
+
+@router.get("/runs/{run_code}/activity")
+def get_run_activity(run_code: str, session: SessionDep):
+    """Lightweight live snapshot of a run's progress — polled by the admin UI."""
+    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    cells_total = session.exec(
+        select(func.count()).select_from(DiscoveryCell).where(DiscoveryCell.run_code == run_code)
+    ).one()
+    cells_saturated = session.exec(
+        select(func.count())
+        .select_from(DiscoveryCell)
+        .where(DiscoveryCell.run_code == run_code)
+        .where(DiscoveryCell.saturated == True)  # noqa: E712
+    ).one()
+
+    places_total = session.exec(
+        select(func.count()).select_from(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
+    ).one()
+    places_complete = session.exec(
+        select(func.count())
+        .select_from(ScrapedPlace)
+        .where(ScrapedPlace.run_code == run_code)
+        .where(ScrapedPlace.enrichment_status == "complete")
+    ).one()
+    places_failed = session.exec(
+        select(func.count())
+        .select_from(ScrapedPlace)
+        .where(ScrapedPlace.run_code == run_code)
+        .where(ScrapedPlace.enrichment_status == "failed")
+    ).one()
+
+    enriching = session.exec(
+        select(ScrapedPlace)
+        .where(ScrapedPlace.run_code == run_code)
+        .where(ScrapedPlace.enrichment_status == "enriching")
+        .limit(5)
+    ).all()
+
+    return {
+        "cells_total": cells_total,
+        "cells_saturated": cells_saturated,
+        "places_total": places_total,
+        "places_pending": max(0, places_total - places_complete - places_failed - len(enriching)),
+        "places_enriching": [{"place_code": p.place_code, "name": p.name} for p in enriching],
+        "places_complete": places_complete,
+        "places_failed": places_failed,
+    }
+
+
+@router.get("/runs/{run_code}/cells")
+def get_run_cells(
+    run_code: str,
+    session: SessionDep,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=2000),
+):
+    """Return discovery cells for a run (paginated)."""
+    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    count_q = (
+        select(func.count()).select_from(DiscoveryCell).where(DiscoveryCell.run_code == run_code)
+    )
+    total = session.exec(count_q).one()
+
+    cells = session.exec(
+        select(DiscoveryCell)
+        .where(DiscoveryCell.run_code == run_code)
+        .order_by(DiscoveryCell.created_at.asc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+
+    return {
+        "items": [
+            {
+                "lat_min": c.lat_min,
+                "lat_max": c.lat_max,
+                "lng_min": c.lng_min,
+                "lng_max": c.lng_max,
+                "depth": c.depth,
+                "radius_m": round(c.radius_m),
+                "result_count": c.result_count,
+                "saturated": c.saturated,
+                "resource_names_count": len(c.resource_names or []),
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+            }
+            for c in cells
+        ],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
 
 
 # ===== Collectors =====

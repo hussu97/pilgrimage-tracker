@@ -4,10 +4,12 @@ import type {
   CreateDataLocationBody,
   CreatePlaceTypeMappingBody,
   DataLocation,
+  DiscoveryCellItem,
   PaginatedResponse,
   PatchPlaceTypeMappingBody,
   PlaceTypeMapping,
   RawCollectorEntry,
+  RunActivity,
   ScrapedPlaceData,
   ScraperRun,
   ScraperStats,
@@ -106,6 +108,22 @@ export async function cancelRun(runCode: string): Promise<unknown> {
 
 export async function deleteRun(runCode: string): Promise<void> {
   await apiClient.delete(`/admin/scraper/runs/${runCode}`);
+}
+
+export async function getRunActivity(runCode: string): Promise<RunActivity> {
+  const res = await apiClient.get<RunActivity>(`/admin/scraper/runs/${runCode}/activity`);
+  return res.data;
+}
+
+export async function getRunCells(
+  runCode: string,
+  params?: { page?: number; page_size?: number }
+): Promise<PaginatedResponse<DiscoveryCellItem>> {
+  const res = await apiClient.get<PaginatedResponse<DiscoveryCellItem>>(
+    `/admin/scraper/runs/${runCode}/cells`,
+    { params }
+  );
+  return res.data;
 }
 
 // ── Collectors ─────────────────────────────────────────────────────────────────

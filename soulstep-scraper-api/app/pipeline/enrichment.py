@@ -127,6 +127,14 @@ async def run_enrichment_pipeline(run_code: str):
                 ).first()
                 if not place:
                     return
+                place_name = place.name
+                remaining = len(place_codes) - completed_count
+                logger.info(
+                    "Enriching %r (%s) — %d remaining",
+                    place_name,
+                    place_code,
+                    remaining,
+                )
                 try:
                     await _enrich_place(place, run_code, collectors, worker_session)
                 except Exception as exc:
@@ -136,7 +144,13 @@ async def run_enrichment_pipeline(run_code: str):
                     worker_session.commit()
 
             completed_count += 1
-            logger.info("[%d/%d] %s: enriched", completed_count, len(place_codes), place_code)
+            logger.info(
+                "[%d/%d] Enriched %r (%s)",
+                completed_count,
+                len(place_codes),
+                place_name,
+                place_code,
+            )
 
             # Cancellation check after each place completes
             with Session(engine) as check_session:

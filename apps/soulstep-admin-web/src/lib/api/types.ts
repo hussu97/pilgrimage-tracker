@@ -272,6 +272,29 @@ export interface RawCollectorEntry {
   collected_at: string;
 }
 
+export interface RunActivity {
+  cells_total: number;
+  cells_saturated: number;
+  places_total: number;
+  places_pending: number;
+  places_enriching: { place_code: string; name: string }[];
+  places_complete: number;
+  places_failed: number;
+}
+
+export interface DiscoveryCellItem {
+  lat_min: number;
+  lat_max: number;
+  lng_min: number;
+  lng_max: number;
+  depth: number;
+  radius_m: number;
+  result_count: number;
+  saturated: boolean;
+  resource_names_count: number;
+  created_at: string | null;
+}
+
 // ── Content & Configuration (Phase 4) ────────────────────────────────────────
 
 // Translations

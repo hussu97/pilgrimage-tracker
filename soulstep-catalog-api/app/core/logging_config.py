@@ -123,7 +123,7 @@ def setup_logging() -> None:
 
             handler = logging.StreamHandler()
             handler.setFormatter(
-                _CustomJsonFormatter("%(timestamp)s %(level)s %(name)s %(message)s")
+                _CustomJsonFormatter("%(timestamp)s %(levelname)s %(name)s %(message)s")
             )
         except ImportError:
             # Fallback to text if python-json-logger is not installed

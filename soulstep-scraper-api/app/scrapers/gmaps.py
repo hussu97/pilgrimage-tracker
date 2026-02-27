@@ -351,14 +351,24 @@ async def search_area(
 
         new_ids = existing_ids.add_new(place_ids)
 
-        logger.debug(
-            "%sFound %d places (%d new), saturated: %s, total: %d",
-            indent,
-            len(place_ids),
-            len(new_ids),
-            is_saturated,
-            len(existing_ids),
-        )
+        if new_ids:
+            logger.info(
+                "Cell depth=%d found=%d new_in_cell=%d total_so_far=%d saturated=%s",
+                depth,
+                len(new_ids),
+                len(place_ids),
+                len(existing_ids),
+                is_saturated,
+            )
+        else:
+            logger.debug(
+                "%sFound %d places (%d new), saturated: %s, total: %d",
+                indent,
+                len(place_ids),
+                len(new_ids),
+                is_saturated,
+                len(existing_ids),
+            )
 
         # Persist this cell immediately so interrupted runs can resume
         if cell_store is not None:

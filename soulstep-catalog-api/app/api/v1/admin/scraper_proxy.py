@@ -131,6 +131,17 @@ async def delete_run(run_code: str, admin: AdminDep):
     return await _proxy("DELETE", f"/runs/{run_code}")
 
 
+@router.get("/runs/{run_code}/activity")
+async def get_run_activity(run_code: str, admin: AdminDep):
+    return await _proxy("GET", f"/runs/{run_code}/activity")
+
+
+@router.get("/runs/{run_code}/cells")
+async def get_run_cells(run_code: str, admin: AdminDep, request: Request):
+    params = dict(request.query_params)
+    return await _proxy("GET", f"/runs/{run_code}/cells", params=params)
+
+
 @router.get("/stats")
 async def get_scraper_stats(admin: AdminDep):
     return await _proxy("GET", "/stats")

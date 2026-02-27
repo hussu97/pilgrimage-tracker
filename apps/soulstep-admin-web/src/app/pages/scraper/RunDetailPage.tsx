@@ -1,17 +1,25 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import * as Tabs from "@radix-ui/react-tabs";
 import {
   cancelRun,
   deleteRun,
   getRun,
+  getRunActivity,
+  getRunCells,
   getRunData,
   getRunRawData,
   reEnrichRun,
   resumeRun,
   syncRun,
 } from "@/lib/api/scraper";
-import type { RawCollectorEntry, ScrapedPlaceData, ScraperRun } from "@/lib/api/types";
+import type {
+  DiscoveryCellItem,
+  RawCollectorEntry,
+  RunActivity,
+  ScrapedPlaceData,
+  ScraperRun,
+} from "@/lib/api/types";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DataTable, type Column } from "@/components/shared/DataTable";
@@ -30,6 +38,255 @@ function enrichVariant(s: string) {
   return "neutral" as const;
 }
 
+// ── Live Activity Panel ─────────────────────────────────────────────────────
+
+function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunActivity }) {
+  const stage = run.stage;
+  const showCells = activity.cells_total > 0;
+  const showEnrichment =
+    activity.places_complete > 0 ||
+    activity.places_enriching.length > 0 ||
+    activity.places_failed > 0 ||
+    stage === "enrichment";
+
+  const cellsSatPct =
+    activity.cells_total > 0
+      ? Math.round((activity.cells_saturated / activity.cells_total) * 100)
+      : 0;
+  const enrichPct =
+    activity.places_total > 0
+      ? Math.round((activity.places_complete / activity.places_total) * 100)
+      : 0;
+
+  return (
+    <div className="rounded-xl border border-primary/40 dark:border-primary/30 bg-primary/5 dark:bg-primary/[0.08] p-4 space-y-4">
+      <div className="flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-primary animate-pulse inline-block" />
+        <span className="text-xs font-semibold text-primary uppercase tracking-wide">
+          Live Activity
+        </span>
+        {stage && (
+          <span className="ml-auto text-xs font-medium px-2 py-0.5 rounded bg-primary/10 text-primary capitalize">
+            {stage.replace(/_/g, " ")}
+          </span>
+        )}
+      </div>
+
+      {/* Discovery */}
+      {showCells && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
+            Discovery
+          </p>
+          <div className="flex items-center gap-3 flex-wrap text-xs text-text-main dark:text-white">
+            <span>
+              <span className="font-semibold">{activity.cells_total.toLocaleString()}</span>{" "}
+              cells searched
+            </span>
+            <span className="text-text-secondary">·</span>
+            <span>
+              <span className="font-semibold">{activity.cells_saturated.toLocaleString()}</span>{" "}
+              saturated ({cellsSatPct}%)
+            </span>
+            <span className="text-text-secondary">·</span>
+            <span>
+              <span className="font-semibold">{activity.places_total.toLocaleString()}</span>{" "}
+              places found
+            </span>
+          </div>
+          {activity.cells_total > 0 && (
+            <div className="w-full bg-background-light dark:bg-dark-bg rounded-full h-1.5">
+              <div
+                className="bg-primary/60 h-1.5 rounded-full transition-all duration-700"
+                style={{ width: `${cellsSatPct}%` }}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Enrichment */}
+      {showEnrichment && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
+            Enrichment
+          </p>
+          <div className="flex items-center gap-3 flex-wrap text-xs">
+            <span className="text-green-600 dark:text-green-400 font-semibold">
+              {activity.places_complete.toLocaleString()} enriched
+            </span>
+            {activity.places_failed > 0 && (
+              <>
+                <span className="text-text-secondary">·</span>
+                <span className="text-red-500 font-semibold">
+                  {activity.places_failed} failed
+                </span>
+              </>
+            )}
+            {activity.places_pending > 0 && (
+              <>
+                <span className="text-text-secondary">·</span>
+                <span className="text-text-secondary dark:text-dark-text-secondary">
+                  {activity.places_pending} pending
+                </span>
+              </>
+            )}
+          </div>
+          {activity.places_total > 0 && (
+            <div className="w-full bg-background-light dark:bg-dark-bg rounded-full h-1.5">
+              <div
+                className="bg-green-500 h-1.5 rounded-full transition-all duration-700"
+                style={{ width: `${enrichPct}%` }}
+              />
+            </div>
+          )}
+
+          {activity.places_enriching.length > 0 && (
+            <div className="space-y-1 pt-1">
+              <p className="text-xs text-text-secondary dark:text-dark-text-secondary">
+                Currently enriching:
+              </p>
+              {activity.places_enriching.map((p) => (
+                <div
+                  key={p.place_code}
+                  className="flex items-center gap-1.5 text-xs text-text-main dark:text-white"
+                >
+                  <RefreshCw size={11} className="animate-spin text-primary flex-shrink-0" />
+                  <span className="truncate">{p.name}</span>
+                  <span className="text-text-secondary dark:text-dark-text-secondary font-mono ml-auto flex-shrink-0">
+                    {p.place_code}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!showCells && !showEnrichment && (
+        <p className="text-xs text-text-secondary dark:text-dark-text-secondary">
+          Waiting for scraper to start…
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Cells Tab ───────────────────────────────────────────────────────────────
+
+function CellsTab({ runCode }: { runCode: string }) {
+  const [cells, setCells] = useState<DiscoveryCellItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const { page, pageSize, setPage, setPageSize } = usePagination(50);
+
+  useEffect(() => {
+    setLoading(true);
+    getRunCells(runCode, { page, page_size: pageSize })
+      .then((r) => {
+        setCells(r.items);
+        setTotal(r.total);
+      })
+      .catch(() => {
+        setCells([]);
+        setTotal(0);
+      })
+      .finally(() => setLoading(false));
+  }, [runCode, page, pageSize]);
+
+  const cols: Column<DiscoveryCellItem>[] = [
+    {
+      key: "depth",
+      header: "Depth",
+      render: (c) => (
+        <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-background-light dark:bg-dark-bg text-text-secondary dark:text-dark-text-secondary">
+          {c.depth}
+        </span>
+      ),
+    },
+    {
+      key: "center",
+      header: "Center (lat, lng)",
+      render: (c) => (
+        <span className="font-mono text-xs text-text-secondary dark:text-dark-text-secondary">
+          {(((c.lat_min + c.lat_max) / 2)).toFixed(4)},{" "}
+          {(((c.lng_min + c.lng_max) / 2)).toFixed(4)}
+        </span>
+      ),
+    },
+    {
+      key: "radius_m",
+      header: "Radius",
+      render: (c) => (
+        <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
+          {c.radius_m >= 1000
+            ? `${(c.radius_m / 1000).toFixed(1)} km`
+            : `${c.radius_m} m`}
+        </span>
+      ),
+    },
+    {
+      key: "result_count",
+      header: "Found",
+      render: (c) => (
+        <span className="text-xs font-semibold text-text-main dark:text-white">
+          {c.result_count}
+        </span>
+      ),
+    },
+    {
+      key: "saturated",
+      header: "Saturated",
+      render: (c) =>
+        c.saturated ? (
+          <StatusBadge label="saturated" variant="warning" />
+        ) : (
+          <StatusBadge label="ok" variant="success" />
+        ),
+    },
+    {
+      key: "created_at",
+      header: "Searched At",
+      render: (c) => (
+        <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
+          {c.created_at ? formatDate(c.created_at) : "—"}
+        </span>
+      ),
+    },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-32 text-text-secondary dark:text-dark-text-secondary text-sm">
+        Loading cells…
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-text-secondary dark:text-dark-text-secondary">
+        {total.toLocaleString()} cells searched during discovery
+      </p>
+      <DataTable
+        columns={cols}
+        data={cells}
+        rowKey={(c) => `${c.lat_min}-${c.lat_max}-${c.lng_min}-${c.lng_max}-${c.depth}`}
+        emptyMessage="No discovery cells found for this run."
+      />
+      <Pagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
+    </div>
+  );
+}
+
+// ── Main Page ───────────────────────────────────────────────────────────────
+
 export function RunDetailPage() {
   const { runCode } = useParams<{ runCode: string }>();
   const navigate = useNavigate();
@@ -37,16 +294,31 @@ export function RunDetailPage() {
   const [places, setPlaces] = useState<ScrapedPlaceData[]>([]);
   const [total, setTotal] = useState(0);
   const [rawData, setRawData] = useState<RawCollectorEntry[]>([]);
+  const [activity, setActivity] = useState<RunActivity | null>(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [expandedRaw, setExpandedRaw] = useState<Set<string>>(new Set());
   const { page, pageSize, setPage, setPageSize } = usePagination(50);
 
+  // Track active tab so we only poll places when the places tab is visible
+  const [activeTab, setActiveTab] = useState("places");
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
   const loadRun = useCallback(async () => {
     if (!runCode) return;
     try {
       setRun(await getRun(runCode));
+    } catch {/* ignore */}
+  }, [runCode]);
+
+  const loadActivity = useCallback(async () => {
+    if (!runCode) return;
+    try {
+      setActivity(await getRunActivity(runCode));
     } catch {/* ignore */}
   }, [runCode]);
 
@@ -66,7 +338,7 @@ export function RunDetailPage() {
     }
   }, [runCode, search, page, pageSize]);
 
-  // Load raw collector data once per run (independent of pagination)
+  // Load raw collector data once per run
   useEffect(() => {
     if (!runCode) return;
     getRunRawData(runCode).then(setRawData).catch(() => setRawData([]));
@@ -75,12 +347,21 @@ export function RunDetailPage() {
   useEffect(() => {
     if (!runCode) return;
     setLoading(true);
-    void Promise.all([loadRun(), loadData()]).finally(() => setLoading(false));
-  }, [loadRun, loadData, runCode]);
+    void Promise.all([loadRun(), loadData(), loadActivity()]).finally(() => setLoading(false));
+  }, [loadRun, loadData, loadActivity, runCode]);
 
   const isActive = run?.status === "pending" || run?.status === "running";
   const isResumable = run?.status === "interrupted" || run?.status === "failed";
+
+  // Poll run metadata + activity every 3 s while active
   usePolling(loadRun, 3000, isActive);
+  usePolling(loadActivity, 3000, isActive);
+
+  // Poll places every 5 s while active and places tab is open
+  const pollPlaces = useCallback(async () => {
+    if (activeTabRef.current === "places") await loadData();
+  }, [loadData]);
+  usePolling(pollPlaces, 5000, isActive);
 
   const handleAction = async (action: string) => {
     if (!runCode) return;
@@ -225,47 +506,51 @@ export function RunDetailPage() {
           </div>
         </div>
 
-        {/* Progress */}
+        {/* Overall progress bar */}
         <div className="space-y-1">
           <div className="flex justify-between text-xs text-text-secondary dark:text-dark-text-secondary">
             <span>Progress</span>
             <span>
               {run.total_items != null
-                ? `${run.processed_items} / ${run.total_items} places`
+                ? `${run.processed_items.toLocaleString()} / ${run.total_items.toLocaleString()} places`
                 : "Discovering…"}
             </span>
           </div>
           <div className="w-full bg-background-light dark:bg-dark-bg rounded-full h-2">
             <div
-              className="bg-primary h-2 rounded-full transition-all"
+              className="bg-primary h-2 rounded-full transition-all duration-700"
               style={{ width: `${progressPct}%` }}
             />
           </div>
         </div>
 
-        {/* Stage pipeline indicator */}
+        {/* Stage pipeline */}
         {(() => {
-          const stages = ["discovery", "detail_fetch", "enrichment"];
+          const stages = ["discovery", "detail_fetch", "image_download", "enrichment"];
           const currentStageIdx = run.stage ? stages.indexOf(run.stage) : -1;
           const isInterrupted = run.status === "interrupted";
           return (
-            <div className="flex items-center gap-0">
+            <div className="flex items-center gap-0 flex-wrap">
               {stages.map((s, i) => {
                 const isDone = currentStageIdx > i || run.status === "completed";
                 const isCurrent = currentStageIdx === i;
                 return (
                   <div key={s} className="flex items-center">
-                    <div className={[
-                      "px-2 py-1 rounded text-xs font-medium",
-                      isDone
-                        ? "bg-primary/10 text-primary"
-                        : isCurrent
-                        ? isInterrupted
-                          ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
-                          : "bg-primary/20 text-primary"
-                        : "bg-background-light dark:bg-dark-bg text-text-secondary dark:text-dark-text-secondary",
-                    ].filter(Boolean).join(" ")}>
-                      {s.replace("_", " ")}
+                    <div
+                      className={[
+                        "px-2 py-1 rounded text-xs font-medium",
+                        isDone
+                          ? "bg-primary/10 text-primary"
+                          : isCurrent
+                          ? isInterrupted
+                            ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
+                            : "bg-primary/20 text-primary"
+                          : "bg-background-light dark:bg-dark-bg text-text-secondary dark:text-dark-text-secondary",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {s.replace(/_/g, " ")}
                     </div>
                     {i < stages.length - 1 && (
                       <div className="w-4 h-px bg-input-border dark:bg-dark-border mx-0.5" />
@@ -281,21 +566,32 @@ export function RunDetailPage() {
         {run.error_message && (
           <div className="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/10 px-4 py-3">
             <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-0.5">Error</p>
-            <p className="text-xs text-red-600 dark:text-red-300 font-mono break-words">{run.error_message}</p>
+            <p className="text-xs text-red-600 dark:text-red-300 font-mono break-words">
+              {run.error_message}
+            </p>
           </div>
+        )}
+
+        {/* Live activity panel — only while running */}
+        {isActive && activity && (
+          <LiveActivityPanel run={run} activity={activity} />
         )}
       </div>
 
       {/* Tabs */}
-      <Tabs.Root defaultValue="places">
+      <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
         <Tabs.List className="flex border-b border-input-border dark:border-dark-border">
-          {["places", "raw"].map((tab) => (
+          {[
+            { value: "places", label: `Scraped Places (${total})` },
+            { value: "cells", label: `Discovery Cells${activity ? ` (${activity.cells_total})` : ""}` },
+            { value: "raw", label: `Raw Data (${rawData.length})` },
+          ].map((tab) => (
             <Tabs.Trigger
-              key={tab}
-              value={tab}
+              key={tab.value}
+              value={tab.value}
               className="px-4 py-2.5 text-sm font-medium text-text-secondary dark:text-dark-text-secondary border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary transition-colors"
             >
-              {tab === "places" ? `Scraped Places (${total})` : `Raw Data (${rawData.length})`}
+              {tab.label}
             </Tabs.Trigger>
           ))}
         </Tabs.List>
@@ -303,7 +599,10 @@ export function RunDetailPage() {
         <Tabs.Content value="places" className="pt-4 space-y-3">
           <SearchInput
             value={search}
-            onChange={(v) => { setSearch(v); setPage(1); }}
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
             placeholder="Search by name…"
             className="w-64"
           />
@@ -320,6 +619,10 @@ export function RunDetailPage() {
             onPageChange={setPage}
             onPageSizeChange={setPageSize}
           />
+        </Tabs.Content>
+
+        <Tabs.Content value="cells" className="pt-4">
+          {runCode && <CellsTab runCode={runCode} />}
         </Tabs.Content>
 
         <Tabs.Content value="raw" className="pt-4 space-y-3">
