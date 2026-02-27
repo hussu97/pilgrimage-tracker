@@ -8,6 +8,7 @@ import {
   getRunData,
   getRunRawData,
   reEnrichRun,
+  resumeRun,
   syncRun,
 } from "@/lib/api/scraper";
 import type { RawCollectorEntry, ScrapedPlaceData, ScraperRun } from "@/lib/api/types";
@@ -18,7 +19,7 @@ import { SearchInput } from "@/components/shared/SearchInput";
 import { usePolling } from "@/lib/hooks/usePolling";
 import { formatDate } from "@/lib/utils";
 import { statusVariant } from "@/lib/utils/scraperStatus";
-import { ArrowLeft, RefreshCw, Trash2, UploadCloud, XCircle } from "lucide-react";
+import { ArrowLeft, Play, RefreshCw, Trash2, UploadCloud, XCircle } from "lucide-react";
 
 function enrichVariant(s: string) {
   if (s === "complete") return "success" as const;
@@ -67,6 +68,7 @@ export function RunDetailPage() {
   }, [loadRun, loadData, runCode]);
 
   const isActive = run?.status === "pending" || run?.status === "running";
+  const isResumable = run?.status === "interrupted" || run?.status === "failed";
   usePolling(loadRun, 3000, isActive);
 
   const handleAction = async (action: string) => {
@@ -75,6 +77,7 @@ export function RunDetailPage() {
       if (action === "cancel") await cancelRun(runCode);
       else if (action === "sync") await syncRun(runCode);
       else if (action === "re-enrich") await reEnrichRun(runCode);
+      else if (action === "resume") await resumeRun(runCode);
       await loadRun();
     } catch {/* ignore */}
   };
@@ -178,6 +181,14 @@ export function RunDetailPage() {
                 <XCircle size={13} /> Cancel
               </button>
             )}
+            {isResumable && (
+              <button
+                onClick={() => void handleAction("resume")}
+                className="flex items-center gap-1.5 rounded-lg border border-primary px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Play size={13} /> Resume
+              </button>
+            )}
             {run.status === "completed" && (
               <>
                 <button
@@ -220,6 +231,48 @@ export function RunDetailPage() {
             />
           </div>
         </div>
+
+        {/* Stage pipeline indicator */}
+        {(() => {
+          const stages = ["discovery", "detail_fetch", "enrichment"];
+          const currentStageIdx = run.stage ? stages.indexOf(run.stage) : -1;
+          const isInterrupted = run.status === "interrupted";
+          return (
+            <div className="flex items-center gap-0">
+              {stages.map((s, i) => {
+                const isDone = currentStageIdx > i || run.status === "completed";
+                const isCurrent = currentStageIdx === i;
+                return (
+                  <div key={s} className="flex items-center">
+                    <div className={[
+                      "px-2 py-1 rounded text-xs font-medium",
+                      isDone
+                        ? "bg-primary/10 text-primary"
+                        : isCurrent
+                        ? isInterrupted
+                          ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
+                          : "bg-primary/20 text-primary"
+                        : "bg-background-light dark:bg-dark-bg text-text-secondary dark:text-dark-text-secondary",
+                    ].filter(Boolean).join(" ")}>
+                      {s.replace("_", " ")}
+                    </div>
+                    {i < stages.length - 1 && (
+                      <div className="w-4 h-px bg-input-border dark:bg-dark-border mx-0.5" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
+        {/* Error message */}
+        {run.error_message && (
+          <div className="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/10 px-4 py-3">
+            <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-0.5">Error</p>
+            <p className="text-xs text-red-600 dark:text-red-300 font-mono break-words">{run.error_message}</p>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

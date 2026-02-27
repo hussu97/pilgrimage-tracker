@@ -88,6 +88,7 @@ def client(test_engine):
         patch("app.main.run_migrations"),
         patch("app.main.seed_geo_boundaries"),
         patch("app.main.seed_place_type_mappings"),
+        patch("app.main._mark_interrupted_runs"),
     ):
         with TestClient(app, raise_server_exceptions=True) as c:
             yield c
@@ -116,6 +117,7 @@ def error_client(test_engine):
         patch("app.main.run_migrations"),
         patch("app.main.seed_geo_boundaries"),
         patch("app.main.seed_place_type_mappings"),
+        patch("app.main._mark_interrupted_runs"),
     ):
         with TestClient(app, raise_server_exceptions=False) as c:
             yield c

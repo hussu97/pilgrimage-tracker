@@ -11,6 +11,7 @@ from sqlmodel import Session
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import api_router
+from app.db.models import ScraperRun
 from app.db.seed_geo import seed_geo_boundaries
 from app.db.seed_place_types import seed_place_type_mappings
 from app.db.session import engine, run_migrations
@@ -82,6 +83,30 @@ def _validate_startup_config() -> None:
         logger.error("Database connectivity check failed: %s", exc)
 
 
+def _mark_interrupted_runs() -> None:
+    """
+    Mark any runs stuck in 'running' status as 'interrupted' at startup.
+
+    If the process was killed mid-run (OOM, Cloud Run restart, crash), runs
+    remain in status='running' forever. This function detects them and sets
+    status='interrupted' so they can be resumed via the resume endpoint.
+    """
+    from sqlmodel import select as _select
+
+    with Session(engine) as session:
+        stuck_runs = session.exec(_select(ScraperRun).where(ScraperRun.status == "running")).all()
+        if not stuck_runs:
+            return
+        logger.warning(
+            "Found %d run(s) stuck in 'running' state — marking as interrupted", len(stuck_runs)
+        )
+        for run in stuck_runs:
+            run.status = "interrupted"
+            run.error_message = "Process terminated unexpectedly"
+            session.add(run)
+        session.commit()
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     _validate_startup_config()
@@ -102,6 +127,12 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             seed_place_type_mappings(session)
     except Exception as exc:
         logger.error("Seed functions failed at startup — proceeding anyway: %s", exc, exc_info=True)
+    try:
+        _mark_interrupted_runs()
+    except Exception as exc:
+        logger.error(
+            "_mark_interrupted_runs() failed at startup — proceeding anyway: %s", exc, exc_info=True
+        )
     yield
 
 

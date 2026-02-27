@@ -17,9 +17,16 @@ class ScraperRun(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     run_code: str = Field(index=True, unique=True)
     location_code: str = Field(foreign_key="datalocation.code")
-    status: str = Field(default="pending")  # pending, running, completed, failed, cancelled
+    status: str = Field(
+        default="pending"
+    )  # pending, running, completed, failed, cancelled, interrupted
+    stage: str | None = Field(
+        default=None
+    )  # discovery, detail_fetch, enrichment (null when not running)
     total_items: int | None = Field(default=None)
     processed_items: int = Field(default=0)
+    discovered_resource_names: list[str] = Field(default=[], sa_column=Column(JSON))
+    error_message: str | None = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

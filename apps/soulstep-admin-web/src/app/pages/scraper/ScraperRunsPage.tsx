@@ -6,6 +6,7 @@ import {
   listDataLocations,
   listRuns,
   reEnrichRun,
+  resumeRun,
   startRun,
   syncRun,
 } from "@/lib/api/scraper";
@@ -19,9 +20,10 @@ import { formatDate } from "@/lib/utils";
 import { statusVariant } from "@/lib/utils/scraperStatus";
 import { Play, RefreshCw, Trash2, XCircle, UploadCloud } from "lucide-react";
 
-type RunStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+type RunStatus = "pending" | "running" | "completed" | "failed" | "cancelled" | "interrupted";
 
 const ACTIVE_STATUSES: RunStatus[] = ["pending", "running"];
+const RESUMABLE_STATUSES: RunStatus[] = ["interrupted", "failed"];
 
 export function ScraperRunsPage() {
   const navigate = useNavigate();
@@ -72,6 +74,7 @@ export function ScraperRunsPage() {
       if (action === "cancel") await cancelRun(runCode);
       else if (action === "sync") await syncRun(runCode);
       else if (action === "re-enrich") await reEnrichRun(runCode);
+      else if (action === "resume") await resumeRun(runCode);
       await load();
     } catch {
       /* errors are silently ignored for now */
@@ -136,6 +139,18 @@ export function ScraperRunsPage() {
       },
     },
     {
+      key: "stage",
+      header: "Stage",
+      render: (r) =>
+        r.stage ? (
+          <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-background-light dark:bg-dark-bg text-text-secondary dark:text-dark-text-secondary">
+            {r.stage}
+          </span>
+        ) : (
+          <span className="text-xs text-text-secondary dark:text-dark-text-secondary">—</span>
+        ),
+    },
+    {
       key: "started_at",
       header: "Started",
       render: (r) => (
@@ -156,6 +171,15 @@ export function ScraperRunsPage() {
               className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
             >
               <XCircle size={14} />
+            </button>
+          )}
+          {RESUMABLE_STATUSES.includes(r.status as RunStatus) && (
+            <button
+              title="Resume"
+              onClick={() => void handleAction("resume", r.run_code)}
+              className="p-1.5 rounded hover:bg-background-light dark:hover:bg-dark-bg text-primary transition-colors"
+            >
+              <Play size={14} />
             </button>
           )}
           {r.status === "completed" && (
@@ -199,7 +223,7 @@ export function ScraperRunsPage() {
             className="rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface px-3 py-2 text-sm text-text-main dark:text-white outline-none focus:border-primary"
           >
             <option value="">All statuses</option>
-            {(["pending", "running", "completed", "failed", "cancelled"] as RunStatus[]).map((s) => (
+            {(["pending", "running", "completed", "failed", "cancelled", "interrupted"] as RunStatus[]).map((s) => (
               <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
             ))}
           </select>

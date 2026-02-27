@@ -4,5 +4,6 @@ export function statusVariant(s: string | null) {
   if (s === "failed") return "danger" as const;
   if (s === "running") return "info" as const;
   if (s === "cancelled") return "warning" as const;
+  if (s === "interrupted") return "warning" as const;
   return "neutral" as const;
 }

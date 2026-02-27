@@ -90,6 +90,11 @@ export async function reEnrichRun(runCode: string): Promise<unknown> {
   return res.data;
 }
 
+export async function resumeRun(runCode: string): Promise<unknown> {
+  const res = await apiClient.post(`/admin/scraper/runs/${runCode}/resume`);
+  return res.data;
+}
+
 export async function cancelRun(runCode: string): Promise<unknown> {
   const res = await apiClient.post(`/admin/scraper/runs/${runCode}/cancel`);
   return res.data;

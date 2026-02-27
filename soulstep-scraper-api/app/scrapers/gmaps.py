@@ -430,6 +430,8 @@ def discover_places(
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if run:
         run.total_items = len(place_ids)
+        run.discovered_resource_names = list(place_ids)
+        run.stage = "detail_fetch"
         session.add(run)
         session.commit()
 
@@ -460,6 +462,23 @@ def fetch_place_details(
     for place_name in place_ids:
         extracted_id = place_name[7:] if place_name.startswith("places/") else place_name
         name_to_code[place_name] = f"gplc_{extracted_id}"
+
+    # Idempotency guard: skip places already stored for this run (resume support)
+    existing_in_run = session.exec(
+        select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
+    ).all()
+    already_fetched_codes = {p.place_code for p in existing_in_run}
+    if already_fetched_codes:
+        original_count = len(place_ids)
+        place_ids = [pn for pn in place_ids if name_to_code[pn] not in already_fetched_codes]
+        logger.info(
+            "Resume: skipping %d already-fetched places, %d remaining",
+            original_count - len(place_ids),
+            len(place_ids),
+        )
+        if not place_ids:
+            logger.info("All places already fetched for run %s, skipping detail fetch", run_code)
+            return
 
     # Single bulk query for cached places
     cached_places: dict[str, ScrapedPlace] = {}
@@ -636,6 +655,10 @@ def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> None:
     # Pre-load type maps once so workers don't need a DB session
     type_map = get_gmaps_type_to_our_type(session)
     religion_type_map = {m.gmaps_type: m.religion for m in place_type_mappings}
+
+    run.stage = "discovery"
+    session.add(run)
+    session.commit()
 
     place_ids = discover_places(
         config, run_code, session, type_map, religion_type_map, api_key, all_gmaps_types, boundary

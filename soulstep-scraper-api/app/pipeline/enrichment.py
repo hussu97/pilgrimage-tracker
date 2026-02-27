@@ -80,10 +80,24 @@ def run_enrichment_pipeline(run_code: str):
             logger.warning("Enrichment: Run %s is already cancelled", run_code)
             return
 
-        places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
+        all_places = session.exec(
+            select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
+        ).all()
+
+        if not all_places:
+            logger.warning("Enrichment: No places found for run %s", run_code)
+            return
+
+        places = [p for p in all_places if p.enrichment_status != "complete"]
+        if len(places) < len(all_places):
+            logger.info(
+                "Enrichment: skipping %d already-enriched places, %d remaining",
+                len(all_places) - len(places),
+                len(places),
+            )
 
         if not places:
-            logger.warning("Enrichment: No places found for run %s", run_code)
+            logger.info("Enrichment: all places already enriched for run %s", run_code)
             return
 
         place_codes = [p.place_code for p in places]
@@ -96,6 +110,7 @@ def run_enrichment_pipeline(run_code: str):
         len(place_codes),
         collector_names,
     )
+    logger.info("Enrichment: processing %d places", len(place_codes))
 
     completed_count = 0
 

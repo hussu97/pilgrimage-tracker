@@ -11,7 +11,7 @@ from app.db.models import (
     ScrapedPlace,
     ScraperRun,
 )
-from app.db.scraper import generate_code, run_scraper_task, sync_run_to_server
+from app.db.scraper import generate_code, resume_scraper_task, run_scraper_task, sync_run_to_server
 from app.db.session import SessionDep
 from app.models.schemas import (
     CollectorStatusResponse,
@@ -254,13 +254,37 @@ def re_enrich_run(run_code: str, background_tasks: BackgroundTasks, session: Ses
     }
 
 
+@router.post("/runs/{run_code}/resume")
+def resume_run(run_code: str, background_tasks: BackgroundTasks, session: SessionDep):
+    """Resume an interrupted or failed run from where it left off."""
+    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    if run.status not in ["interrupted", "failed"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot resume run with status: {run.status}. Only interrupted or failed runs can be resumed.",
+        )
+
+    background_tasks.add_task(resume_scraper_task, run.run_code)
+
+    return {
+        "status": run.status,
+        "run_code": run_code,
+        "resume_from_stage": run.stage,
+        "processed_items": run.processed_items,
+        "total_items": run.total_items,
+    }
+
+
 @router.post("/runs/{run_code}/cancel")
 def cancel_run(run_code: str, session: SessionDep):
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    if run.status not in ["pending", "running"]:
+    if run.status not in ["pending", "running", "interrupted"]:
         raise HTTPException(status_code=400, detail=f"Cannot cancel run with status: {run.status}")
 
     run.status = "cancelled"

@@ -32,8 +32,10 @@ class ScraperRunResponse(BaseModel):
     run_code: str
     location_code: str
     status: str
+    stage: str | None = None
     total_items: int | None = None
     processed_items: int = 0
+    error_message: str | None = None
     created_at: datetime
 
 

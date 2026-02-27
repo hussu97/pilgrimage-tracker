@@ -61,7 +61,7 @@ Under `src/`:
   - `groups/` – `GroupsListPage.tsx`, `GroupDetailPage.tsx`
   - `check-ins/` – `CheckInsListPage.tsx`
   - `notifications/` – `NotificationManagementPage.tsx`
-  - `scraper/` – `ScraperOverviewPage.tsx`, `ScraperRunsPage.tsx`, `RunDetailPage.tsx`, `DataLocationsPage.tsx`, `CollectorsPage.tsx`, `PlaceTypeMappingsPage.tsx`
+  - `scraper/` – `ScraperOverviewPage.tsx`, `ScraperRunsPage.tsx`, `RunDetailPage.tsx`, `DataLocationsPage.tsx`, `CollectorsPage.tsx`, `PlaceTypeMappingsPage.tsx`. Runs list shows current pipeline stage and a Resume button for `interrupted`/`failed` runs. Run detail shows a 3-step stage indicator (Discovery → Detail Fetch → Enrichment), error message alerts, and a Resume button.
   - `content/` – `TranslationsPage.tsx`, `ContentTranslationsPage.tsx`, `PlaceAttributesPage.tsx`, `AppVersionsPage.tsx`
   - `audit-log/` – `AuditLogPage.tsx`
 - **`components/`** – Shared UI: layout shell, shared widgets, Radix UI primitives.

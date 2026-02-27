@@ -4,6 +4,36 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Scraper Run Persistence & Resumability (2026-02-27)
+
+### Backend (Scraper)
+
+- **Model** — Added `stage` (String, nullable), `discovered_resource_names` (JSON list), `error_message` (String, nullable) fields to `ScraperRun`. Added `"interrupted"` as a valid status value.
+- **Migration `0004_run_persistence.py`** — Adds the three new columns to the `scraperrun` table.
+- **Stage tracking** — `run_scraper_task()` now sets `run.stage` to `"discovery"` → `"detail_fetch"` → `"enrichment"` as it progresses and stores `error_message` on failure.
+- **Discovery persistence** — `run_gmaps_scraper()` persists discovered Google Maps resource names to `discovered_resource_names` after discovery, enabling detail-fetch to resume without re-discovering.
+- **Idempotent detail fetch** — `fetch_place_details()` skips places already stored for a run (resume safety guard).
+- **Idempotent enrichment** — `run_enrichment_pipeline()` skips places with `enrichment_status == "complete"`, making enrichment resumable without re-running collectors.
+- **Startup detection** — `_mark_interrupted_runs()` in `lifespan()` detects runs stuck in `"running"` on startup (process crash/OOM) and marks them `"interrupted"`.
+- **Resume endpoint** — `POST /runs/{run_code}/resume` resumes from stored stage; `resume_scraper_task()` orchestrator reads stage and skips completed phases.
+- **Cancel update** — Cancel endpoint now also accepts `"interrupted"` status.
+- **Schema** — `ScraperRunResponse` exposes `stage` and `error_message` fields.
+- **Tests** — 10 new tests in `tests/test_resume.py` covering startup detection, resume endpoint, schema fields, JSON persistence, cancel behaviour.
+
+### Backend (Catalog API)
+
+- **Scraper proxy** — Added `POST /admin/scraper/runs/{run_code}/resume` proxy route.
+
+### Frontend (Admin)
+
+- **Types** — `ScraperRun` interface updated: `"interrupted"` added to `status` union, `stage: string | null` and `error_message: string | null` fields added.
+- **API client** — `resumeRun(runCode)` function added to `scraper.ts`.
+- **Status utility** — `statusVariant()` maps `"interrupted"` → `"warning"` (orange badge).
+- **Runs list** — Stage column added showing current pipeline phase; Resume button (Play icon) shown for `interrupted`/`failed` runs; `"interrupted"` added to status filter dropdown.
+- **Run detail** — 3-step stage pipeline indicator (Discovery → Detail Fetch → Enrichment) with highlighted current/completed steps and warning highlight for interrupted runs. Error message alert box shown when `error_message` is set. Resume button for `interrupted`/`failed` runs.
+
+---
+
 ## GCS Image Storage (2026-02-26)
 
 ### Backend

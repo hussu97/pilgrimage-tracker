@@ -202,9 +202,11 @@ export interface CreateDataLocationBody {
 export interface ScraperRun {
   run_code: string;
   location_code: string;
-  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  status: "pending" | "running" | "completed" | "failed" | "cancelled" | "interrupted";
+  stage: string | null;
   total_items: number | null;
   processed_items: number;
+  error_message: string | null;
   created_at: string;
 }
 

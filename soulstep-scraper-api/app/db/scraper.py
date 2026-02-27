@@ -26,6 +26,7 @@ def run_scraper_task(run_code: str):
             return
 
         run.status = "running"
+        run.error_message = None
         session.add(run)
         session.commit()
 
@@ -34,6 +35,7 @@ def run_scraper_task(run_code: str):
         ).first()
         if not location:
             run.status = "failed"
+            run.error_message = "Location not found"
             session.add(run)
             session.commit()
             return
@@ -45,19 +47,151 @@ def run_scraper_task(run_code: str):
             # Phase 4: Enrichment pipeline
             from app.pipeline.enrichment import run_enrichment_pipeline
 
+            session.refresh(run)
+            run.stage = "enrichment"
+            session.add(run)
+            session.commit()
+
             run_enrichment_pipeline(run_code)
 
             # Final check to ensure we don't overwrite "cancelled" with "completed"
             session.refresh(run)
             if run.status != "cancelled":
                 run.status = "completed"
+                run.stage = None
                 session.add(run)
                 session.commit()
                 logger.info("Run %s completed", run_code)
 
         except Exception as e:
             logger.error("Run %s failed: %s", run_code, e, exc_info=True)
+            session.refresh(run)
             run.status = "failed"
+            run.error_message = str(e)[:500]
+            session.add(run)
+            session.commit()
+
+
+def resume_scraper_task(run_code: str):
+    """
+    Resume an interrupted or failed scraper run from where it left off.
+
+    Uses run.stage to decide the resume point:
+      - None or "discovery" → re-run full pipeline (discovery was incomplete)
+      - "detail_fetch" → use persisted discovered_resource_names, skip to detail fetch
+      - "enrichment" → skip straight to enrichment (which skips already-enriched places)
+    """
+    with Session(engine) as session:
+        run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+        if not run:
+            logger.error("Resume: Run %s not found", run_code)
+            return
+
+        resume_from = run.stage
+        run.status = "running"
+        run.error_message = None
+        session.add(run)
+        session.commit()
+
+        location = session.exec(
+            select(DataLocation).where(DataLocation.code == run.location_code)
+        ).first()
+        if not location:
+            run.status = "failed"
+            run.error_message = "Location not found"
+            session.add(run)
+            session.commit()
+            return
+
+        logger.info("Resuming run %s from stage: %s", run_code, resume_from or "beginning")
+
+        try:
+            if resume_from in (None, "discovery"):
+                # Discovery was incomplete — re-run full pipeline
+                run_gmaps_scraper(run_code, location.config, session)
+
+                from app.pipeline.enrichment import run_enrichment_pipeline
+
+                session.refresh(run)
+                run.stage = "enrichment"
+                session.add(run)
+                session.commit()
+
+                run_enrichment_pipeline(run_code)
+
+            elif resume_from == "detail_fetch":
+                # Discovery completed — use persisted resource names
+                from app.collectors.gmaps import GmapsCollector
+                from app.db.models import PlaceTypeMapping
+                from app.scrapers.gmaps import (
+                    fetch_place_details,
+                )
+
+                place_ids = run.discovered_resource_names or []
+                if not place_ids:
+                    logger.warning(
+                        "Resume: No discovered_resource_names for run %s, re-running discovery",
+                        run_code,
+                    )
+                    run_gmaps_scraper(run_code, location.config, session)
+                else:
+                    api_key = __import__("os").environ.get("GOOGLE_MAPS_API_KEY", "")
+                    if not api_key:
+                        raise ValueError("GOOGLE_MAPS_API_KEY environment variable not set")
+
+                    from sqlmodel import select as _select
+
+                    place_type_mappings = session.exec(
+                        _select(PlaceTypeMapping)
+                        .where(PlaceTypeMapping.is_active)
+                        .where(PlaceTypeMapping.source_type == "gmaps")
+                    ).all()
+                    type_map = {m.gmaps_type: m.our_place_type for m in place_type_mappings}
+                    religion_type_map = {m.gmaps_type: m.religion for m in place_type_mappings}
+
+                    force_refresh = location.config.get("force_refresh", False)
+                    stale_threshold_days = location.config.get("stale_threshold_days", 90)
+
+                    fetch_place_details(
+                        place_ids,
+                        run_code,
+                        session,
+                        GmapsCollector(),
+                        api_key,
+                        type_map,
+                        religion_type_map,
+                        force_refresh,
+                        stale_threshold_days,
+                    )
+
+                from app.pipeline.enrichment import run_enrichment_pipeline
+
+                session.refresh(run)
+                run.stage = "enrichment"
+                session.add(run)
+                session.commit()
+
+                run_enrichment_pipeline(run_code)
+
+            elif resume_from == "enrichment":
+                # Skip straight to enrichment (already-enriched places are skipped internally)
+                from app.pipeline.enrichment import run_enrichment_pipeline
+
+                run_enrichment_pipeline(run_code)
+
+            session.refresh(run)
+            if run.status != "cancelled":
+                run.status = "completed"
+                run.stage = None
+                session.add(run)
+                session.commit()
+                logger.info("Run %s resumed and completed", run_code)
+
+        except Exception as e:
+            logger.error("Resume of run %s failed: %s", run_code, e, exc_info=True)
+            session.refresh(run)
+            run.status = "failed"
+            run.error_message = str(e)[:500]
             session.add(run)
             session.commit()
 

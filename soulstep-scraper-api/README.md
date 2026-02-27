@@ -142,6 +142,19 @@ Scope the location to a **city**, **state**, or **country** — exactly one must
 ```
 Returns a `run_code`. The scraper runs discovery, detail-fetching, and enrichment in the background.
 
+Run status values:
+- `pending` → queued, not started yet
+- `running` → actively executing
+- `completed` → finished successfully
+- `failed` → terminated with an error (see `error_message`)
+- `cancelled` → manually cancelled
+- `interrupted` → process was killed mid-run (set automatically on startup); resume with `/resume`
+
+Run `stage` values (current pipeline phase while `running` or `interrupted`):
+- `"discovery"` → searching for places via Google Maps quadtree
+- `"detail_fetch"` → fetching place details from Google Places API
+- `"enrichment"` → running multi-source enrichment collectors
+
 ### 3. Check Run Status
 **GET** `/api/v1/scraper/runs/{run_code}`
 
@@ -160,8 +173,29 @@ Returns a `run_code`. The scraper runs discovery, detail-fetching, and enrichmen
 ### 8. Sync to Main Server
 **POST** `/api/v1/scraper/runs/{run_code}/sync`
 
-### 9. Cancel a Run
+### 9. Resume an Interrupted or Failed Run
+**POST** `/api/v1/scraper/runs/{run_code}/resume`
+
+Resumes a run whose status is `interrupted` or `failed`. The run restarts from the stage stored in the `stage` field:
+- `null` / `"discovery"` → full pipeline restart
+- `"detail_fetch"` → uses persisted `discovered_resource_names`, skips to detail fetch
+- `"enrichment"` → skips to enrichment (already-enriched places are skipped automatically)
+
+Response:
+```json
+{
+  "run_code": "run_abc123",
+  "status": "interrupted",
+  "resume_from_stage": "enrichment",
+  "processed_items": 87,
+  "total_items": 120
+}
+```
+
+### 10. Cancel a Run
 **POST** `/api/v1/scraper/runs/{run_code}/cancel`
+
+Accepts runs with status `pending`, `running`, or `interrupted`.
 
 ## Collectors
 
