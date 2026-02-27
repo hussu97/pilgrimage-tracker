@@ -324,6 +324,7 @@ jobs:
             --image "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/scraper:${{ github.sha }}" \
             --region ${{ env.REGION }} \
             --platform managed \
+            --no-allow-unauthenticated \
             --add-cloudsql-instances "${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db" \
             --timeout 3600 \
             --max-instances 1 \
