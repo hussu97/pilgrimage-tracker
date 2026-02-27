@@ -28,6 +28,7 @@ class AdminReviewListItem(BaseModel):
     title: str | None
     is_flagged: bool
     source: str
+    review_time: int | None  # Unix timestamp from Google (null for user reviews)
     created_at: datetime
 
 
@@ -100,6 +101,7 @@ def list_reviews(
                 title=r.title,
                 is_flagged=r.is_flagged,
                 source=r.source,
+                review_time=r.review_time if r.review_time else None,
                 created_at=r.created_at,
             )
         )
@@ -131,6 +133,7 @@ def get_review(review_code: str, admin: AdminDep, session: SessionDep):
         is_anonymous=review.is_anonymous,
         author_name=review.author_name,
         source=review.source,
+        review_time=review.review_time if review.review_time else None,
         created_at=review.created_at,
     )
 
@@ -180,6 +183,7 @@ def patch_review(review_code: str, body: PatchReviewBody, admin: AdminDep, sessi
         is_anonymous=review.is_anonymous,
         author_name=review.author_name,
         source=review.source,
+        review_time=review.review_time if review.review_time else None,
         created_at=review.created_at,
     )
 

@@ -84,7 +84,11 @@ export function ReviewsListPage() {
       key: "created_at",
       header: "Date",
       render: (r) => (
-        <span className="text-text-secondary dark:text-dark-text-secondary">{formatDate(r.created_at)}</span>
+        <span className="text-text-secondary dark:text-dark-text-secondary">
+          {r.review_time
+            ? formatDate(new Date(r.review_time * 1000).toISOString())
+            : formatDate(r.created_at)}
+        </span>
       ),
     },
   ];

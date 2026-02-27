@@ -65,7 +65,9 @@ export function ReviewDetailPage() {
             </p>
             <p className="text-xs text-text-secondary dark:text-dark-text-secondary">
               by {review.user_display_name ?? review.author_name ?? "Anonymous"} ·{" "}
-              {formatDateTime(review.created_at)}
+              {review.review_time
+                ? formatDateTime(new Date(review.review_time * 1000).toISOString())
+                : formatDateTime(review.created_at)}
             </p>
           </div>
           <div className="flex items-center gap-2">

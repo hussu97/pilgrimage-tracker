@@ -113,6 +113,7 @@ export interface AdminReview {
   title: string | null;
   is_flagged: boolean;
   source: string;
+  review_time: number | null;
   created_at: string;
 }
 
