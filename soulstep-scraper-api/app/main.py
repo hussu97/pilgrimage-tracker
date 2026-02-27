@@ -14,7 +14,7 @@ from app.api.v1 import api_router
 from app.db.seed_geo import seed_geo_boundaries
 from app.db.seed_place_types import seed_place_type_mappings
 from app.db.session import engine, run_migrations
-from app.logger import get_logger, mask_secret, setup_logging
+from app.logger import get_logger, mask_secret, set_trace_context, setup_logging
 
 load_dotenv()
 setup_logging()
@@ -108,6 +108,33 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="SoulStep Scraper API", lifespan=lifespan)
 
 app.include_router(api_router)
+
+
+# ===== Middleware =====
+
+
+@app.middleware("http")
+async def _gcp_trace_middleware(request: Request, call_next):
+    """Extract the X-Cloud-Trace-Context header injected by Cloud Run and store
+    it in a ContextVar for the duration of this request.
+
+    Every JSON log entry produced by _JSONFormatter then includes
+    logging.googleapis.com/trace + spanId, which tells Cloud Logging to group
+    the app log with the matching request log entry — so you can see the full
+    stack trace directly alongside the HTTP 500 in the Cloud Logging UI.
+    """
+    header = request.headers.get("X-Cloud-Trace-Context", "")
+    if header:
+        parts = header.split("/")
+        trace_id = parts[0]
+        span_id, sampled = "", False
+        if len(parts) > 1:
+            span_parts = parts[1].split(";")
+            span_id = span_parts[0]
+            sampled = len(span_parts) > 1 and "o=1" in span_parts[1]
+        project = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
+        set_trace_context(project, trace_id, span_id, sampled)
+    return await call_next(request)
 
 
 # ===== Global Exception Handlers =====

@@ -11,6 +11,31 @@ Environment variables:
 
 import logging
 import os
+from contextvars import ContextVar
+
+# GCP trace context — populated per-request by the trace middleware in main.py.
+# Included in every JSON log entry so Cloud Logging links the app log to the
+# corresponding request log ("correlated entries").
+_TRACE_CTX: ContextVar[dict] = ContextVar("_gcp_trace", default={})
+
+
+def set_trace_context(project_id: str, trace_id: str, span_id: str, sampled: bool) -> None:
+    """Store GCP trace fields for the current async task context.
+
+    Called by the HTTP middleware in main.py on every incoming request.
+    Safe to call with an empty trace_id — does nothing in that case.
+    """
+    if not trace_id:
+        return
+    trace_path = f"projects/{project_id}/traces/{trace_id}" if project_id else trace_id
+    _TRACE_CTX.set(
+        {
+            "logging.googleapis.com/trace": trace_path,
+            "logging.googleapis.com/spanId": span_id,
+            "logging.googleapis.com/traceSampled": sampled,
+        }
+    )
+
 
 # Standard LogRecord attributes — anything outside this set is an extra field
 # added by the caller and should be included in text output.
@@ -87,7 +112,13 @@ def setup_logging() -> None:
                     elif "timestamp" not in log_record:
                         log_record["timestamp"] = self.formatTime(record)
                     if "levelname" in log_record:
-                        log_record["level"] = log_record.pop("levelname")
+                        # Cloud Logging uses "severity" (not "level") to classify
+                        # entries. Without this, all logs appear as DEFAULT and
+                        # severity-based filters return nothing.
+                        log_record["severity"] = log_record.pop("levelname")
+                    # Link this log entry to the Cloud Run request log so the app
+                    # error/traceback appears in the same "correlated entries" view.
+                    log_record.update(_TRACE_CTX.get())
 
             handler = logging.StreamHandler()
             handler.setFormatter(

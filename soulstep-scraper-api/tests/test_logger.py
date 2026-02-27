@@ -223,7 +223,7 @@ class TestJSONFormatter:
         )
         output = formatter.format(record)
         parsed = json.loads(output)
-        assert parsed["level"] == "INFO"
+        assert parsed["severity"] == "INFO"
         assert parsed["message"] == "hello world"
         assert "timestamp" in parsed
         assert "logger" in parsed

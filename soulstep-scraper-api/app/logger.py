@@ -7,7 +7,7 @@ Usage:
 
 Environment variables:
     LOG_LEVEL  : DEBUG | INFO | WARNING | ERROR | CRITICAL  (default: INFO)
-    LOG_FORMAT : text | json                                  (default: text)
+    LOG_FORMAT : text | json                                  (default: json)
 """
 
 from __future__ import annotations
@@ -17,10 +17,35 @@ import logging
 import os
 import re
 import sys
+from contextvars import ContextVar
 from datetime import UTC, datetime
 
 # Regex patterns to mask secrets inside log message strings.
 # Each tuple is (compiled_pattern, replacement).
+# GCP trace context — populated per-request by the trace middleware in main.py.
+# Every JSON log entry includes these fields so Cloud Logging links the app log
+# to the request log entry automatically ("correlated entries").
+_TRACE_CTX: ContextVar[dict] = ContextVar("_gcp_trace", default={})
+
+
+def set_trace_context(project_id: str, trace_id: str, span_id: str, sampled: bool) -> None:
+    """Store GCP trace fields for the current async task context.
+
+    Called by the HTTP middleware in main.py on every incoming request.
+    Safe to call with an empty trace_id — does nothing in that case.
+    """
+    if not trace_id:
+        return
+    trace_path = f"projects/{project_id}/traces/{trace_id}" if project_id else trace_id
+    _TRACE_CTX.set(
+        {
+            "logging.googleapis.com/trace": trace_path,
+            "logging.googleapis.com/spanId": span_id,
+            "logging.googleapis.com/traceSampled": sampled,
+        }
+    )
+
+
 _SECRET_PATTERNS: list[tuple[re.Pattern, str]] = [
     # api_key=VALUE  /  api-key: VALUE  /  api_key: VALUE
     (re.compile(r"(api[_-]?key\s*[=:]\s*)([^\s&\"'\\,]+)", re.IGNORECASE), r"\1***"),
@@ -119,7 +144,10 @@ class _JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         entry: dict = {
             "timestamp": datetime.now(UTC).isoformat(),
-            "level": record.levelname,
+            # Cloud Logging uses "severity" (not "level") to set the log level.
+            # Without this key all entries appear as DEFAULT and severity filters
+            # (e.g. severity>=ERROR) return nothing.
+            "severity": record.levelname,
             "logger": record.name,
             "message": mask_message(record.getMessage()),
         }
@@ -129,6 +157,10 @@ class _JSONFormatter(logging.Formatter):
                 entry[key] = value
         if record.exc_info:
             entry["exception"] = self.formatException(record.exc_info)
+        # Link this log entry to the Cloud Run request log via trace correlation.
+        # When set, Cloud Logging groups the app log with the request log so you
+        # can see error details directly alongside the HTTP request entry.
+        entry.update(_TRACE_CTX.get())
         return json.dumps(entry, ensure_ascii=False, default=str)
 
 
@@ -141,7 +173,7 @@ def setup_logging() -> None:
     """
     level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
     log_level = getattr(logging, level_name, logging.INFO)
-    log_format = os.environ.get("LOG_FORMAT", "text").lower()
+    log_format = os.environ.get("LOG_FORMAT", "json").lower()
 
     root = logging.getLogger()
     root.setLevel(log_level)

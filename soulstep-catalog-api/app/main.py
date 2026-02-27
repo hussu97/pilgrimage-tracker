@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Set up structured logging immediately after loading env, before other imports.
-from app.core.logging_config import setup_logging  # noqa: E402
+from app.core.logging_config import set_trace_context, setup_logging  # noqa: E402
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -332,6 +332,30 @@ async def request_timing_middleware(request: Request, call_next):
         logger.info("request_complete", extra=extra)
 
     return response
+
+
+@app.middleware("http")
+async def _gcp_trace_middleware(request: Request, call_next):
+    """Extract X-Cloud-Trace-Context injected by Cloud Run and store it in a
+    ContextVar for the lifetime of this request.
+
+    Every JSON log entry produced by _CustomJsonFormatter then includes
+    logging.googleapis.com/trace + spanId, which tells Cloud Logging to group
+    the app log with the matching request log entry. This is how you see the
+    full traceback / error detail alongside the HTTP 500 in the Logs Explorer.
+    """
+    header = request.headers.get("X-Cloud-Trace-Context", "")
+    if header:
+        parts = header.split("/")
+        trace_id = parts[0]
+        span_id, sampled = "", False
+        if len(parts) > 1:
+            span_parts = parts[1].split(";")
+            span_id = span_parts[0]
+            sampled = len(span_parts) > 1 and "o=1" in span_parts[1]
+        project = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
+        set_trace_context(project, trace_id, span_id, sampled)
+    return await call_next(request)
 
 
 app.include_router(api_router)
