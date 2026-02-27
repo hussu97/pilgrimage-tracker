@@ -85,3 +85,26 @@ class PlaceTypeMapping(SQLModel, table=True):
     is_active: bool = Field(default=True)  # Enable/disable this mapping
     display_order: int = Field(default=0)  # For ordering results
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class DiscoveryCell(SQLModel, table=True):
+    """Records each bounding box searched via Google Places API during discovery.
+
+    Persisted immediately after the API call so interrupted runs can resume
+    by skipping already-searched bounding boxes.
+    Only cells where an actual API call was made are stored — oversized cells
+    that auto-subdivide without calling the API are not recorded.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_code: str = Field(index=True)
+    lat_min: float
+    lat_max: float
+    lng_min: float
+    lng_max: float
+    depth: int
+    radius_m: float
+    result_count: int  # 0-20; if 20, area was saturated and subdivided
+    saturated: bool
+    resource_names: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

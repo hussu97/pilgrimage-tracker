@@ -19,6 +19,7 @@ from sqlmodel import Session, desc, select
 from app.db.models import GeoBoundary, PlaceTypeMapping, RawCollectorData, ScrapedPlace, ScraperRun
 from app.logger import get_logger
 from app.scrapers.base import AtomicCounter, ThreadSafeIdSet, get_rate_limiter
+from app.scrapers.cell_store import DiscoveryCellStore
 
 logger = get_logger(__name__)
 
@@ -211,6 +212,7 @@ def search_area(
     depth: int = 0,
     max_results: int | None = None,
     executor: ThreadPoolExecutor | None = None,
+    cell_store: DiscoveryCellStore | None = None,
 ) -> list[str]:
     """
     Recursive quadtree search for places.
@@ -218,6 +220,9 @@ def search_area(
     At depth 0, the four quadrant sub-searches are submitted concurrently to
     the provided executor (if any).  Deeper levels run sequentially to avoid
     thread-pool exhaustion / deadlock.
+
+    When cell_store is provided, already-searched bounding boxes are loaded
+    from cache (skipping the API call) to support interrupted-run resumability.
 
     Returns list of unique place_ids found in this area.
     """
@@ -256,6 +261,87 @@ def search_area(
         new_ids = []
         is_saturated = True
     else:
+        # Check cell store cache before making an API call
+        if cell_store is not None:
+            cached = cell_store.get(lat_min, lat_max, lng_min, lng_max)
+            if cached is not None:
+                logger.debug(
+                    "%sSkipping cached cell (lat: %.4f-%.4f, lng: %.4f-%.4f, results: %d)",
+                    indent,
+                    lat_min,
+                    lat_max,
+                    lng_min,
+                    lng_max,
+                    cached.result_count,
+                )
+                new_ids = existing_ids.add_new(cached.resource_names)
+                if not cached.saturated:
+                    # Leaf cell — no need to recurse
+                    return new_ids
+                # Saturated: skip API call but still recurse into quadrants
+                is_saturated = True
+                # Fall through to quadrant splitting below
+                if max_results and len(existing_ids) >= max_results:
+                    logger.info(
+                        "%sReached max_results limit (%d) after cached cell", indent, max_results
+                    )
+                    return new_ids
+                # Jump straight to quadrant splitting
+                all_ids = list(new_ids)
+                mid_lat = (lat_min + lat_max) / 2
+                mid_lng = (lng_min + lng_max) / 2
+                quadrants = [
+                    (lat_min, mid_lat, lng_min, mid_lng),
+                    (lat_min, mid_lat, mid_lng, lng_max),
+                    (mid_lat, lat_max, lng_min, mid_lng),
+                    (mid_lat, lat_max, mid_lng, lng_max),
+                ]
+                if executor is not None and depth == 0:
+                    futures = []
+                    for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
+                        if max_results and len(existing_ids) >= max_results:
+                            break
+                        f = executor.submit(
+                            search_area,
+                            q_lat_min,
+                            q_lat_max,
+                            q_lng_min,
+                            q_lng_max,
+                            place_types,
+                            api_key,
+                            existing_ids,
+                            depth + 1,
+                            max_results,
+                            None,
+                            cell_store,
+                        )
+                        futures.append(f)
+                    for future in as_completed(futures):
+                        try:
+                            all_ids.extend(future.result())
+                        except Exception as e:
+                            logger.warning("%sQuadrant search failed: %s", indent, e)
+                else:
+                    for q_lat_min, q_lat_max, q_lng_min, q_lng_max in quadrants:
+                        if max_results and len(existing_ids) >= max_results:
+                            break
+                        all_ids.extend(
+                            search_area(
+                                q_lat_min,
+                                q_lat_max,
+                                q_lng_min,
+                                q_lng_max,
+                                place_types,
+                                api_key,
+                                existing_ids,
+                                depth + 1,
+                                max_results,
+                                None,
+                                cell_store,
+                            )
+                        )
+                return all_ids
+
         get_rate_limiter().acquire("gmaps_search")
         place_ids, is_saturated = get_places_in_circle(
             center_lat, center_lng, radius, place_types, api_key
@@ -271,6 +357,12 @@ def search_area(
             is_saturated,
             len(existing_ids),
         )
+
+        # Persist this cell immediately so interrupted runs can resume
+        if cell_store is not None:
+            cell_store.save(
+                lat_min, lat_max, lng_min, lng_max, depth, radius, place_ids, is_saturated
+            )
 
     if max_results and len(existing_ids) >= max_results:
         logger.info("%sReached max_results limit (%d) after this search", indent, max_results)
@@ -316,6 +408,7 @@ def search_area(
                 depth + 1,
                 max_results,
                 None,  # no executor at deeper levels
+                cell_store,
             )
             futures.append(f)
 
@@ -345,6 +438,7 @@ def search_area(
                 depth + 1,
                 max_results,
                 None,
+                cell_store,
             )
             all_ids.extend(quadrant_ids)
 
@@ -401,15 +495,21 @@ def discover_places(
     Returns the list of unique Google Maps place resource names (e.g. "places/ChIJ…") found
     within the boundary. The run's total_items is updated and committed after discovery.
     """
+    from app.db.session import engine as _engine
+
     max_results = config.get("max_results")
 
     logger.info("Starting recursive quadtree search (parallel depth-0 quadrants)")
     if max_results:
         logger.info("Max results limit: %d", max_results)
+
+    # Build cell store — pre-loads existing cells so interrupted runs can resume
+    cell_store = DiscoveryCellStore(run_code, _engine)
     existing_ids = ThreadSafeIdSet()
+    cell_store.pre_seed_id_set(existing_ids)  # seed dedup set from prior cells
 
     with ThreadPoolExecutor(max_workers=4) as discovery_executor:
-        place_ids = search_area(
+        search_area(
             boundary.lat_min,
             boundary.lat_max,
             boundary.lng_min,
@@ -420,22 +520,26 @@ def discover_places(
             depth=0,
             max_results=max_results,
             executor=discovery_executor,
+            cell_store=cell_store,
         )
 
+    # Use existing_ids.to_list() — includes pre-seeded IDs from resumed runs
+    all_resource_names = existing_ids.to_list()
+
     logger.info("=== Search Summary ===")
-    logger.info("Total unique places found: %d", len(place_ids))
-    if max_results and len(place_ids) >= max_results:
+    logger.info("Total unique places found: %d", len(all_resource_names))
+    if max_results and len(all_resource_names) >= max_results:
         logger.info("Stopped early due to max_results limit (%d)", max_results)
 
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if run:
-        run.total_items = len(place_ids)
-        run.discovered_resource_names = list(place_ids)
+        run.total_items = len(all_resource_names)
+        run.discovered_resource_names = all_resource_names
         run.stage = "detail_fetch"
         session.add(run)
         session.commit()
 
-    return place_ids
+    return all_resource_names
 
 
 def fetch_place_details(

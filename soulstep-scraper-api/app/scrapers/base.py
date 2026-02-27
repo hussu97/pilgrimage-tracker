@@ -111,6 +111,11 @@ class ThreadSafeIdSet:
         with self._lock:
             return item in self._set
 
+    def to_list(self) -> list[str]:
+        """Return a snapshot of all IDs currently in the set."""
+        with self._lock:
+            return list(self._set)
+
 
 class AtomicCounter:
     """Thread-safe integer counter for tracking progress across parallel workers."""
