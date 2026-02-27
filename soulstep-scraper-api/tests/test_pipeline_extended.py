@@ -68,7 +68,7 @@ def _seed_place(engine, run_code, place_code="gplc_test1", name="Test Mosque"):
 
 
 class TestQualityScoringExtended:
-    def test_assess_descriptions_non_en_fallback(self):
+    async def test_assess_descriptions_non_en_fallback(self):
         """When no English candidates exist, use all candidates as fallback."""
         from app.pipeline.quality import assess_descriptions
 
@@ -76,13 +76,13 @@ class TestQualityScoringExtended:
             {"text": "مسجد تاريخي في القدس", "lang": "ar", "source": "wikipedia", "score": None},
             {"text": "ऐतिहासिक मस्जिद", "lang": "hi", "source": "wikidata", "score": None},
         ]
-        result = assess_descriptions(candidates, "Test Mosque")
+        result = await assess_descriptions(candidates, "Test Mosque")
 
         # Should pick from all candidates (no EN → fallback)
         assert result["text"] != ""
         assert result["source"] in ("wikipedia", "wikidata")
 
-    def test_assess_descriptions_llm_tiebreak_triggered(self):
+    async def test_assess_descriptions_llm_tiebreak_triggered(self):
         """When two close-scored candidates exist and API key is set, LLM is called."""
         from app.pipeline.quality import assess_descriptions
 
@@ -111,14 +111,16 @@ class TestQualityScoringExtended:
             "method": "llm",
         }
 
-        with patch("app.pipeline.quality._llm_tiebreak", return_value=mock_llm_result):
+        with patch(
+            "app.pipeline.quality._llm_tiebreak", new=AsyncMock(return_value=mock_llm_result)
+        ):
             with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test_key"}, clear=False):
-                result = assess_descriptions(candidates, "Test Mosque")
+                result = await assess_descriptions(candidates, "Test Mosque")
 
         assert result["method"] == "llm"
         assert result["text"] == "LLM synthesized description"
 
-    def test_assess_descriptions_llm_tiebreak_returns_none(self):
+    async def test_assess_descriptions_llm_tiebreak_returns_none(self):
         """When LLM returns None, fall back to heuristic winner."""
         from app.pipeline.quality import assess_descriptions
 
@@ -128,14 +130,14 @@ class TestQualityScoringExtended:
             {"text": long_text, "lang": "en", "source": "knowledge_graph", "score": None},
         ]
 
-        with patch("app.pipeline.quality._llm_tiebreak", return_value=None):
+        with patch("app.pipeline.quality._llm_tiebreak", new=AsyncMock(return_value=None)):
             with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test_key"}, clear=False):
-                result = assess_descriptions(candidates, "Test")
+                result = await assess_descriptions(candidates, "Test")
 
         assert result["method"] == "heuristic"
         assert result["source"] == "wikipedia"  # Wikipedia has higher reliability
 
-    def test_llm_tiebreak_choice_a(self):
+    async def test_llm_tiebreak_choice_a(self):
         """_llm_tiebreak selects candidate A."""
         import sys
 
@@ -146,19 +148,19 @@ class TestQualityScoringExtended:
 
         mock_anthropic = MagicMock()
         mock_client = MagicMock()
-        mock_anthropic.Anthropic.return_value = mock_client
+        mock_anthropic.AsyncAnthropic.return_value = mock_client
         mock_response = MagicMock()
         mock_response.content = [MagicMock(text='{"choice": "A", "text": "Description A"}')]
-        mock_client.messages.create.return_value = mock_response
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
 
         with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
-            result = _llm_tiebreak(candidate_a, candidate_b, "Test Mosque")
+            result = await _llm_tiebreak(candidate_a, candidate_b, "Test Mosque")
 
         assert result is not None
         assert result["source"] == "wikipedia"
         assert result["method"] == "llm"
 
-    def test_llm_tiebreak_choice_b(self):
+    async def test_llm_tiebreak_choice_b(self):
         """_llm_tiebreak selects candidate B."""
         import sys
 
@@ -169,17 +171,17 @@ class TestQualityScoringExtended:
 
         mock_anthropic = MagicMock()
         mock_client = MagicMock()
-        mock_anthropic.Anthropic.return_value = mock_client
+        mock_anthropic.AsyncAnthropic.return_value = mock_client
         mock_response = MagicMock()
         mock_response.content = [MagicMock(text='{"choice": "B", "text": "Description B"}')]
-        mock_client.messages.create.return_value = mock_response
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
 
         with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
-            result = _llm_tiebreak(candidate_a, candidate_b, "Test")
+            result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result["source"] == "knowledge_graph"
 
-    def test_llm_tiebreak_synthesized(self):
+    async def test_llm_tiebreak_synthesized(self):
         """_llm_tiebreak returns a synthesized description."""
         import sys
 
@@ -190,21 +192,21 @@ class TestQualityScoringExtended:
 
         mock_anthropic = MagicMock()
         mock_client = MagicMock()
-        mock_anthropic.Anthropic.return_value = mock_client
+        mock_anthropic.AsyncAnthropic.return_value = mock_client
         mock_response = MagicMock()
         mock_response.content = [
             MagicMock(text='{"choice": "synthesized", "text": "Combined best description."}')
         ]
-        mock_client.messages.create.return_value = mock_response
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
 
         with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
-            result = _llm_tiebreak(candidate_a, candidate_b, "Test")
+            result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result["source"] == "llm_synthesized"
         assert result["text"] == "Combined best description."
         assert result["score"] == 0.68  # max of the two
 
-    def test_llm_tiebreak_unknown_choice(self):
+    async def test_llm_tiebreak_unknown_choice(self):
         """Unknown choice from LLM should return None."""
         import sys
 
@@ -215,17 +217,17 @@ class TestQualityScoringExtended:
 
         mock_anthropic = MagicMock()
         mock_client = MagicMock()
-        mock_anthropic.Anthropic.return_value = mock_client
+        mock_anthropic.AsyncAnthropic.return_value = mock_client
         mock_response = MagicMock()
         mock_response.content = [MagicMock(text='{"choice": "C", "text": ""}')]
-        mock_client.messages.create.return_value = mock_response
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
 
         with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
-            result = _llm_tiebreak(candidate_a, candidate_b, "Test")
+            result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result is None
 
-    def test_llm_tiebreak_markdown_wrapped_json(self):
+    async def test_llm_tiebreak_markdown_wrapped_json(self):
         """LLM response wrapped in markdown code block should be parsed correctly."""
         import sys
 
@@ -236,19 +238,19 @@ class TestQualityScoringExtended:
 
         mock_anthropic = MagicMock()
         mock_client = MagicMock()
-        mock_anthropic.Anthropic.return_value = mock_client
+        mock_anthropic.AsyncAnthropic.return_value = mock_client
         mock_response = MagicMock()
         # LLM wraps JSON in markdown code block
         mock_response.content = [MagicMock(text='```json\n{"choice": "A", "text": "Desc A"}\n```')]
-        mock_client.messages.create.return_value = mock_response
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
 
         with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
-            result = _llm_tiebreak(candidate_a, candidate_b, "Test")
+            result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result is not None
         assert result["source"] == "wikipedia"
 
-    def test_llm_tiebreak_exception_returns_none(self):
+    async def test_llm_tiebreak_exception_returns_none(self):
         """Exception during LLM call should return None gracefully."""
         import sys
 
@@ -258,14 +260,14 @@ class TestQualityScoringExtended:
         candidate_b = {"text": "Desc B", "source": "knowledge_graph", "score": 0.65}
 
         mock_anthropic = MagicMock()
-        mock_anthropic.Anthropic.side_effect = Exception("API unavailable")
+        mock_anthropic.AsyncAnthropic.side_effect = Exception("API unavailable")
 
         with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
-            result = _llm_tiebreak(candidate_a, candidate_b, "Test")
+            result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result is None
 
-    def test_llm_tiebreak_empty_text_uses_candidate_a(self):
+    async def test_llm_tiebreak_empty_text_uses_candidate_a(self):
         """When LLM returns empty text for choice A, fall back to candidate_a text."""
         import sys
 
@@ -276,13 +278,13 @@ class TestQualityScoringExtended:
 
         mock_anthropic = MagicMock()
         mock_client = MagicMock()
-        mock_anthropic.Anthropic.return_value = mock_client
+        mock_anthropic.AsyncAnthropic.return_value = mock_client
         mock_response = MagicMock()
         mock_response.content = [MagicMock(text='{"choice": "A", "text": ""}')]
-        mock_client.messages.create.return_value = mock_response
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
 
         with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
-            result = _llm_tiebreak(candidate_a, candidate_b, "Test")
+            result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result["text"] == "Fallback A"  # Falls back to candidate_a text
 

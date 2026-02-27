@@ -104,7 +104,7 @@ def score_description(text: str, source: str, place_name: str = "") -> float:
     return round(reliability + length_score + specificity_score, 4)
 
 
-def assess_descriptions(
+async def assess_descriptions(
     candidates: list[dict[str, Any]],
     place_name: str = "",
 ) -> dict[str, Any]:
@@ -150,7 +150,7 @@ def assess_descriptions(
         and (scored[0]["score"] - scored[1]["score"]) < LLM_TIE_BREAK_THRESHOLD
         and os.environ.get("ANTHROPIC_API_KEY")
     ):
-        llm_result = _llm_tiebreak(scored[0], scored[1], place_name)
+        llm_result = await _llm_tiebreak(scored[0], scored[1], place_name)
         if llm_result:
             return llm_result
 
@@ -162,7 +162,7 @@ def assess_descriptions(
     }
 
 
-def _llm_tiebreak(
+async def _llm_tiebreak(
     candidate_a: dict[str, Any],
     candidate_b: dict[str, Any],
     place_name: str,
@@ -170,12 +170,17 @@ def _llm_tiebreak(
     """
     Use Claude Haiku to break a tie between two close description candidates.
 
+    Runs asynchronously so multiple per-place tie-breaks can proceed in
+    parallel when many places are being enriched concurrently.
+
     Returns the LLM's choice or None if the call fails.
     """
     try:
+        import json
+
         import anthropic
 
-        client = anthropic.Anthropic()
+        client = anthropic.AsyncAnthropic()
 
         prompt = f"""You are evaluating two descriptions for "{place_name}", a pilgrimage/religious site.
 
@@ -190,16 +195,13 @@ Pick the most informative, accurate, and contextually rich description. If both 
 Respond in this exact JSON format:
 {{"choice": "A" or "B" or "synthesized", "text": "the chosen or synthesized description"}}"""
 
-        response = client.messages.create(
+        response = await client.messages.create(
             model="claude-haiku-4-5-20251001",
             max_tokens=500,
             messages=[{"role": "user", "content": prompt}],
         )
 
-        import json
-
         content = response.content[0].text.strip()
-        # Try to parse JSON from the response
         # Handle case where LLM wraps in markdown code block
         if content.startswith("```"):
             content = content.split("```")[1]

@@ -9,6 +9,59 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
+# ── TestGenericNameSkip ───────────────────────────────────────────────────────
+
+
+class TestGenericNameSkip:
+    def test_bare_mosque_is_generic(self):
+        from app.pipeline.enrichment import _is_generic_name
+
+        assert _is_generic_name("Mosque") is True
+        assert _is_generic_name("mosque") is True
+        assert _is_generic_name("MOSQUE") is True
+
+    def test_bare_masjid_variants(self):
+        from app.pipeline.enrichment import _is_generic_name
+
+        assert _is_generic_name("Masjid") is True
+        assert _is_generic_name("Masjed") is True
+
+    def test_with_leading_article(self):
+        from app.pipeline.enrichment import _is_generic_name
+
+        assert _is_generic_name("The Mosque") is True
+        assert _is_generic_name("The Church") is True
+        assert _is_generic_name("Al Masjid") is True
+        assert _is_generic_name("Al-Masjid") is True
+        assert _is_generic_name("El Dargah") is True
+
+    def test_other_generic_types(self):
+        from app.pipeline.enrichment import _is_generic_name
+
+        assert _is_generic_name("Church") is True
+        assert _is_generic_name("Temple") is True
+        assert _is_generic_name("Shrine") is True
+        assert _is_generic_name("Gurudwara") is True
+        assert _is_generic_name("Synagogue") is True
+        assert _is_generic_name("Monastery") is True
+
+    def test_specific_names_are_not_generic(self):
+        from app.pipeline.enrichment import _is_generic_name
+
+        assert _is_generic_name("Al-Aqsa Mosque") is False
+        assert _is_generic_name("Grand Mosque") is False
+        assert _is_generic_name("Hagia Sophia") is False
+        assert _is_generic_name("Church of the Holy Sepulchre") is False
+        assert _is_generic_name("Jama Masjid Delhi") is False
+        assert _is_generic_name("Blue Mosque") is False
+
+    def test_whitespace_handling(self):
+        from app.pipeline.enrichment import _is_generic_name
+
+        assert _is_generic_name("  Mosque  ") is True
+        assert _is_generic_name("  Al Masjid  ") is True
+
+
 # ── TestQualityScoring ────────────────────────────────────────────────────────
 
 
@@ -74,25 +127,25 @@ class TestQualityScoring:
 
 
 class TestAssessDescriptions:
-    def test_empty_candidates(self):
+    async def test_empty_candidates(self):
         from app.pipeline.quality import assess_descriptions
 
-        result = assess_descriptions([])
+        result = await assess_descriptions([])
         assert result["text"] == ""
         assert result["source"] == "none"
 
-    def test_single_candidate(self):
+    async def test_single_candidate(self):
         from app.pipeline.quality import assess_descriptions
 
         candidates = [
             {"text": "A mosque in Jerusalem", "lang": "en", "source": "wikipedia", "score": None}
         ]
-        result = assess_descriptions(candidates, "Al-Aqsa Mosque")
+        result = await assess_descriptions(candidates, "Al-Aqsa Mosque")
         assert result["text"] == "A mosque in Jerusalem"
         assert result["source"] == "wikipedia"
         assert result["method"] == "heuristic"
 
-    def test_wikipedia_beats_editorial(self):
+    async def test_wikipedia_beats_editorial(self):
         from app.pipeline.quality import assess_descriptions
 
         candidates = [
@@ -109,10 +162,10 @@ class TestAssessDescriptions:
                 "score": None,
             },
         ]
-        result = assess_descriptions(candidates, "Al-Aqsa Mosque")
+        result = await assess_descriptions(candidates, "Al-Aqsa Mosque")
         assert result["source"] == "wikipedia"
 
-    def test_filters_to_english(self):
+    async def test_filters_to_english(self):
         """Non-English candidates should not affect the primary description choice."""
         from app.pipeline.quality import assess_descriptions
 
@@ -120,10 +173,10 @@ class TestAssessDescriptions:
             {"text": "A mosque", "lang": "en", "source": "wikipedia", "score": None},
             {"text": "مسجد", "lang": "ar", "source": "wikipedia", "score": None},
         ]
-        result = assess_descriptions(candidates, "Test Mosque")
+        result = await assess_descriptions(candidates, "Test Mosque")
         assert result["text"] == "A mosque"
 
-    def test_llm_tiebreak_not_triggered_without_key(self):
+    async def test_llm_tiebreak_not_triggered_without_key(self):
         """LLM should not be called when ANTHROPIC_API_KEY is not set."""
         from app.pipeline.quality import assess_descriptions
 
@@ -142,7 +195,7 @@ class TestAssessDescriptions:
             },
         ]
         with patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}, clear=False):
-            result = assess_descriptions(candidates, "Test Mosque")
+            result = await assess_descriptions(candidates, "Test Mosque")
         assert result["method"] == "heuristic"
 
 
@@ -150,15 +203,15 @@ class TestAssessDescriptions:
 
 
 class TestMerger:
-    def test_merge_empty_results(self):
+    async def test_merge_empty_results(self):
         from app.pipeline.merger import merge_collector_results
 
         base = {"name": "Test", "description": "Original", "attributes": [], "external_reviews": []}
-        merged = merge_collector_results(base, {}, "Test")
+        merged = await merge_collector_results(base, {}, "Test")
         assert merged["name"] == "Test"
         assert merged["description"] == "Original"
 
-    def test_merge_descriptions(self):
+    async def test_merge_descriptions(self):
         from app.collectors.base import CollectorResult
         from app.pipeline.merger import merge_collector_results
 
@@ -185,13 +238,13 @@ class TestMerger:
             },
         ]
 
-        merged = merge_collector_results(base, {"wikipedia": wp_result}, "Test Mosque")
+        merged = await merge_collector_results(base, {"wikipedia": wp_result}, "Test Mosque")
         # Wikipedia should win over the short original
         assert "Test Mosque" in merged["description"]
         assert merged["_description_source"] == "wikipedia"
         assert merged["translations"]["description"]["ar"] == "مسجد تاريخي"
 
-    def test_merge_contact_priority(self):
+    async def test_merge_contact_priority(self):
         """gmaps contact should take priority over OSM."""
         from app.collectors.base import CollectorResult
         from app.pipeline.merger import merge_collector_results
@@ -204,13 +257,15 @@ class TestMerger:
         osm_result = CollectorResult(collector_name="osm")
         osm_result.contact = {"phone_national": "+1-555-0200", "email": "info@test.com"}
 
-        merged = merge_collector_results(base, {"gmaps": gmaps_result, "osm": osm_result}, "Test")
+        merged = await merge_collector_results(
+            base, {"gmaps": gmaps_result, "osm": osm_result}, "Test"
+        )
 
         attrs = {a["attribute_code"]: a["value"] for a in merged["attributes"]}
         assert attrs["phone_national"] == "+1-555-0100"  # gmaps wins
         assert attrs["email"] == "info@test.com"  # only in osm
 
-    def test_merge_attributes_union(self):
+    async def test_merge_attributes_union(self):
         """Attributes from multiple sources should be unioned."""
         from app.collectors.base import CollectorResult
         from app.pipeline.merger import merge_collector_results
@@ -227,14 +282,14 @@ class TestMerger:
             {"attribute_code": "denomination", "value": "sunni"},
         ]
 
-        merged = merge_collector_results(base, {"osm": osm_result}, "Test")
+        merged = await merge_collector_results(base, {"osm": osm_result}, "Test")
 
         attr_codes = {a["attribute_code"] for a in merged["attributes"]}
         assert "rating" in attr_codes
         assert "has_toilets" in attr_codes
         assert "denomination" in attr_codes
 
-    def test_merge_boolean_true_wins(self):
+    async def test_merge_boolean_true_wins(self):
         """For boolean attributes, True should win over False."""
         from app.collectors.base import CollectorResult
         from app.pipeline.merger import merge_collector_results
@@ -248,11 +303,11 @@ class TestMerger:
         gmaps_result = CollectorResult(collector_name="gmaps")
         gmaps_result.attributes = [{"attribute_code": "has_restroom", "value": True}]
 
-        merged = merge_collector_results(base, {"gmaps": gmaps_result}, "Test")
+        merged = await merge_collector_results(base, {"gmaps": gmaps_result}, "Test")
         restroom = next(a for a in merged["attributes"] if a["attribute_code"] == "has_restroom")
         assert restroom["value"] is True
 
-    def test_merge_reviews_dedup(self):
+    async def test_merge_reviews_dedup(self):
         """Reviews from multiple sources should be deduplicated."""
         from app.collectors.base import CollectorResult
         from app.pipeline.merger import merge_collector_results
@@ -271,10 +326,10 @@ class TestMerger:
             {"author_name": "User2", "text": "Beautiful mosque", "rating": 4, "time": 0},
         ]
 
-        merged = merge_collector_results(base, {"outscraper": outscraper_result}, "Test")
+        merged = await merge_collector_results(base, {"outscraper": outscraper_result}, "Test")
         assert len(merged["external_reviews"]) == 2  # Deduped: User1 once + User2
 
-    def test_merge_images_dedup(self):
+    async def test_merge_images_dedup(self):
         """Images from multiple sources should be deduplicated."""
         from app.collectors.base import CollectorResult
         from app.pipeline.merger import merge_collector_results
@@ -292,10 +347,10 @@ class TestMerger:
             {"url": "https://upload.wikimedia.org/img2.jpg", "source": "wikipedia"},
         ]
 
-        merged = merge_collector_results(base, {"wikipedia": wp_result}, "Test")
+        merged = await merge_collector_results(base, {"wikipedia": wp_result}, "Test")
         assert len(merged["image_urls"]) == 2  # Original + 1 new
 
-    def test_merge_entity_types(self):
+    async def test_merge_entity_types(self):
         """Entity types from knowledge graph should be stored."""
         from app.collectors.base import CollectorResult
         from app.pipeline.merger import merge_collector_results
@@ -305,5 +360,5 @@ class TestMerger:
         kg_result = CollectorResult(collector_name="knowledge_graph")
         kg_result.entity_types = ["Place", "TouristAttraction"]
 
-        merged = merge_collector_results(base, {"knowledge_graph": kg_result}, "Test")
+        merged = await merge_collector_results(base, {"knowledge_graph": kg_result}, "Test")
         assert merged["entity_types"] == ["Place", "TouristAttraction"]

@@ -20,7 +20,7 @@ from app.collectors.base import CollectorResult
 from app.pipeline.quality import assess_descriptions
 
 
-def merge_collector_results(
+async def merge_collector_results(
     base_data: dict[str, Any],
     results: dict[str, CollectorResult],
     place_name: str = "",
@@ -45,7 +45,7 @@ def merge_collector_results(
             all_descriptions.extend(r.descriptions)
 
     if all_descriptions:
-        assessment = assess_descriptions(all_descriptions, place_name)
+        assessment = await assess_descriptions(all_descriptions, place_name)
         if assessment["text"]:
             merged["description"] = assessment["text"]
             merged["_description_source"] = assessment["source"]

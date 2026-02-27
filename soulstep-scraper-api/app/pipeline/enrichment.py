@@ -6,8 +6,8 @@ Parallelism:
   - Within a single place: collectors run in dependency-ordered phases.
     Phase 0 (OSM) runs first (sequential), Phase 1 (Wikipedia/Wikidata) and
     Phase 2 (everything else) run concurrently within their phase via asyncio.gather().
-  - Across places: up to 3 places are enriched concurrently via asyncio.gather()
-    with an asyncio.Semaphore(3).
+  - Across places: up to 10 places are enriched concurrently via asyncio.gather()
+    with an asyncio.Semaphore(10).
 """
 
 from __future__ import annotations
@@ -28,6 +28,65 @@ logger = get_logger(__name__)
 # Collectors that belong to each dependency phase (identified by name)
 _PHASE0_NAMES = frozenset({"osm"})
 _PHASE1_NAMES = frozenset({"wikipedia", "wikidata"})
+
+# Bare type words that make a place name too generic for enrichment to be useful.
+# If the name (after stripping a leading article) is exactly one of these, skip
+# all collectors and fall back to the Google Maps description.
+_GENERIC_PLACE_TERMS = frozenset(
+    {
+        # Mosques
+        "mosque",
+        "masjid",
+        "masjed",
+        "jama",
+        "jamia",
+        # Churches
+        "church",
+        "chapel",
+        "cathedral",
+        "basilica",
+        # Temples / Hindu / Buddhist
+        "temple",
+        "mandir",
+        "pagoda",
+        "stupa",
+        # Sikh
+        "gurudwara",
+        "gurdwara",
+        # Jewish
+        "synagogue",
+        "shul",
+        # Shrines / tombs / sufi
+        "shrine",
+        "dargah",
+        "darga",
+        "mazar",
+        "mausoleum",
+        # Monasteries
+        "monastery",
+        "convent",
+    }
+)
+
+# Leading articles to strip before comparing (Arabic, English)
+_LEADING_ARTICLES = ("the ", "a ", "an ", "al ", "al-", "el ", "el-")
+
+
+def _is_generic_name(name: str) -> bool:
+    """
+    Return True if the place name is too generic for enrichment to yield
+    useful results — i.e. it is nothing more than a bare place-type word
+    (optionally preceded by a leading article).
+
+    Examples that return True:  "Mosque", "the Church", "Al Masjid", "masjed"
+    Examples that return False: "Al-Aqsa Mosque", "Grand Mosque", "Hagia Sofia"
+    """
+    normalized = name.strip().lower()
+    for article in _LEADING_ARTICLES:
+        if normalized.startswith(article):
+            normalized = normalized[len(article) :].strip()
+            break  # strip at most one article
+    return normalized in _GENERIC_PLACE_TERMS
 
 
 def _group_into_phases(collectors: list[BaseCollector]) -> list[list[BaseCollector]]:
@@ -67,7 +126,7 @@ async def run_enrichment_pipeline(run_code: str):
     """
     Run the enrichment pipeline for all places in a scraper run.
 
-    Enriches up to 3 places concurrently via asyncio.gather() + asyncio.Semaphore(3).
+    Enriches up to 10 places concurrently via asyncio.gather() + asyncio.Semaphore(10).
     Cancellation is checked after every place completes.
     """
     with Session(engine) as session:
@@ -112,7 +171,7 @@ async def run_enrichment_pipeline(run_code: str):
     )
     logger.info("Enrichment: processing %d places", len(place_codes))
 
-    sem = asyncio.Semaphore(3)
+    sem = asyncio.Semaphore(10)
     completed_count = 0
     cancelled = False
 
@@ -182,14 +241,32 @@ async def _enrich_place(
     concurrently via asyncio.gather().  All RawCollectorData records are
     written in a single batch at the end.
     """
+    raw_data = place.raw_data or {}
+    name = place.name
+
+    # Skip enrichment for places whose name is just a bare type word (e.g. "Mosque",
+    # "Masjid", "Church").  External collectors would find nothing useful because
+    # there is no specific proper name to search on.  Use the Google Maps description
+    # that was already stored during the discovery/detail-fetch phase.
+    if _is_generic_name(name):
+        logger.info(
+            "Skipping enrichment for generic name %r (%s) — using gmaps description",
+            name,
+            place.place_code,
+        )
+        place.enrichment_status = "complete"
+        place.description_source = "gmaps"
+        place.description_score = 0.3
+        session.add(place)
+        session.commit()
+        return
+
     place.enrichment_status = "enriching"
     session.add(place)
     session.commit()
 
-    raw_data = place.raw_data or {}
     lat = raw_data.get("lat", 0)
     lng = raw_data.get("lng", 0)
-    name = place.name
 
     accumulated: dict = {
         "tags": {},
@@ -260,7 +337,7 @@ async def _enrich_place(
         results["gmaps"] = gmaps_result
 
     # Merge all results into final raw_data
-    merged = merge_collector_results(raw_data, results, name)
+    merged = await merge_collector_results(raw_data, results, name)
     place.raw_data = merged
     place.description_source = merged.get("_description_source")
     place.description_score = merged.get("_description_score")
