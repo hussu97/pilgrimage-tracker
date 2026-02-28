@@ -194,7 +194,7 @@ Significant quality, UX, compliance, and admin completeness items. Should be add
 
 ### Documentation
 
-- [ ] **Create admin app README**
+- [x] **Create admin app README**
   - No README for the admin app. Onboarding requires reading source code.
   - Document: folder structure, development setup, deployment, shadcn/ui component patterns, environment variables.
   - Files: new `apps/soulstep-admin-web/README.md`
@@ -258,7 +258,7 @@ New user-facing features, UX improvements, and monetization strategies.
 
 ### Backend Features
 
-- [ ] **Analytics and tracking endpoint**
+- [x] **Analytics and tracking endpoint**
   - No visibility into user behavior (popular places, search patterns, drop-off points).
   - Add a `POST /api/v1/analytics/events` endpoint that accepts batched events. Store in a separate `analytics_events` table. Build a simple dashboard query for top places, active users, and check-in trends.
 

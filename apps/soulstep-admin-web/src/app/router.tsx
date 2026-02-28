@@ -28,6 +28,7 @@ import { AuditLogPage } from "./pages/audit-log/AuditLogPage";
 import { NotificationManagementPage } from "./pages/notifications/NotificationManagementPage";
 import { SEODashboardPage } from "./pages/seo/SEODashboardPage";
 import { SEOPlaceDetailPage } from "./pages/seo/SEOPlaceDetailPage";
+import { AnalyticsDashboardPage } from "./pages/analytics/AnalyticsDashboardPage";
 
 /** Redirect to /login if not authenticated. */
 function RequireAuth() {
@@ -89,6 +90,8 @@ export const routes = [
               // SEO & Discoverability
               { path: "/seo", element: <SEODashboardPage /> },
               { path: "/seo/:placeCode", element: <SEOPlaceDetailPage /> },
+              // Analytics
+              { path: "/analytics", element: <AnalyticsDashboardPage /> },
               // Audit Log & Notifications (Phase 6)
               { path: "/audit-log", element: <AuditLogPage /> },
               { path: "/notifications", element: <NotificationManagementPage /> },

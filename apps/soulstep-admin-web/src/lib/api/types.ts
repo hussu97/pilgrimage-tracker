@@ -580,3 +580,60 @@ export interface GenerateResponse {
   skipped: number;
   errors: number;
 }
+
+// Analytics
+
+export interface EventTypeCount {
+  event_type: string;
+  count: number;
+}
+
+export interface PlatformCount {
+  platform: string;
+  count: number;
+}
+
+export interface AnalyticsOverview {
+  total_events: number;
+  total_events_24h: number;
+  total_events_7d: number;
+  unique_users: number;
+  unique_visitors: number;
+  unique_sessions: number;
+  top_event_types: EventTypeCount[];
+  platform_breakdown: PlatformCount[];
+}
+
+export interface AnalyticsTopPlace {
+  place_code: string;
+  place_name: string;
+  religion: string;
+  view_count: number;
+  interaction_count: number;
+}
+
+export interface AnalyticsTrendPoint {
+  period: string;
+  count: number;
+}
+
+export interface AnalyticsEventListItem {
+  event_code: string;
+  event_type: string;
+  user_code: string | null;
+  visitor_code: string | null;
+  session_id: string;
+  properties: Record<string, unknown> | null;
+  platform: string;
+  device_type: string | null;
+  app_version: string | null;
+  client_timestamp: string;
+  created_at: string;
+}
+
+export interface AnalyticsEventListResponse {
+  items: AnalyticsEventListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}

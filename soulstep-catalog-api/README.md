@@ -158,6 +158,15 @@ By using SQLModel, we maintain Pydantic-like schemas for the API while gaining f
 - `POST /api/v1/consent` — record ad/analytics consent; auth optional (supports visitor_code)
 - `GET /api/v1/consent` — current consent status for caller
 
+### Analytics (`/api/v1/analytics`)
+- `POST /api/v1/analytics/events` — batch ingest analytics events (max 50/req, 10 req/min rate limit); auth optional (requires visitor_code if anonymous)
+
+### Admin Analytics (`/api/v1/admin/analytics`) — requires admin role
+- `GET /admin/analytics/overview` — total events, unique users/visitors/sessions, top event types, platform breakdown
+- `GET /admin/analytics/top-places?period=7d&limit=20` — top places by analytics event frequency
+- `GET /admin/analytics/trends?interval=day&period=30d&event_type=` — event count trends over time
+- `GET /admin/analytics/events?page=1&page_size=50&event_type=&platform=` — paginated raw event log with filters
+
 ### i18n (`/api/v1`)
 - `GET /api/v1/languages` — list supported languages (code, name); no auth
 - `GET /api/v1/translations?lang=en` — translation key→value for locale; fallback to English for missing keys; no auth
@@ -166,7 +175,7 @@ By using SQLModel, we maintain Pydantic-like schemas for the API while gaining f
 - `GET /share/{shareCode}` — resolve a share link (redirect to web app or return place info)
 
 ### Admin (`/api/v1/admin`) — requires admin role
-Full CRUD for users, places, groups, reviews, check-ins, notifications, translations, content translations, place attributes, bulk operations, data export, audit log, app version management, scraper proxy, and ad config management (`GET/PATCH /admin/ads/config`, `GET /admin/ads/consent-stats`).
+Full CRUD for users, places, groups, reviews, check-ins, notifications, translations, content translations, place attributes, bulk operations, data export, audit log, app version management, scraper proxy, ad config management, and analytics queries.
 
 ## Tests
 

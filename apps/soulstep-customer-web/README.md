@@ -63,8 +63,8 @@ Output: `dist/`. For production, set `VITE_API_URL` to the production API base U
 Under `src/`:
 
 - **`app/`** – App shell and pages: `App.tsx`, `providers.tsx` (auth + i18n), `routes.tsx`, and all screens under `app/pages/` (Splash, Login, Register, Home, PlaceDetail, Profile, Favorites, Groups, Notifications, Settings, etc.).
-- **`components/`** – Shared UI: Layout, ProtectedRoute, PlaceCard, PlacesMap, EmptyState, ErrorState, `ads/` (AdProvider, AdBanner, useAdConsent, ad-constants), `consent/` (ConsentBanner).
-- **`lib/`** – API client (`lib/api/client.ts`), shared types (`lib/types/index.ts`), theme, constants, share helpers. The API client calls `/api/v1/*` (relative when `VITE_API_URL` is unset).
+- **`components/`** – Shared UI: Layout, ProtectedRoute, PlaceCard, PlacesMap, EmptyState, ErrorState, `ads/` (AdProvider, AdBanner, useAdConsent, ad-constants), `consent/` (ConsentBanner), `analytics/` (AnalyticsProviderConnected).
+- **`lib/`** – API client (`lib/api/client.ts`), shared types (`lib/types/index.ts`), theme, constants, share helpers. The API client calls `/api/v1/*` (relative when `VITE_API_URL` is unset). Hooks: `useAnalytics` (batched event ingestion, consent gating, auto page-view tracking), `useAuthRequired`, `useDocumentTitle`.
 - **`main.tsx`**, **`index.css`** – Entry and global styles.
 
 Design reference: `FRONTEND_V3_LIGHT.html` / `FRONTEND_V3_DARK.html` at repo root.

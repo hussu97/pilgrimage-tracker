@@ -64,8 +64,9 @@ Under `src/`:
   - `scraper/` – `ScraperOverviewPage.tsx`, `ScraperRunsPage.tsx`, `RunDetailPage.tsx`, `DataLocationsPage.tsx`, `CollectorsPage.tsx`, `PlaceTypeMappingsPage.tsx`. Runs list shows current pipeline stage and a Resume button for `interrupted`/`failed` runs. Run detail shows a 3-step stage indicator (Discovery → Detail Fetch → Enrichment), error message alerts, and a Resume button.
   - `content/` – `TranslationsPage.tsx`, `ContentTranslationsPage.tsx`, `PlaceAttributesPage.tsx`, `AppVersionsPage.tsx`
   - `audit-log/` – `AuditLogPage.tsx`
+  - `analytics/` – `AnalyticsDashboardPage.tsx` — overview stat cards, event trends line chart, event type & platform pie charts, top-places bar chart, paginated raw event log with filters
 - **`components/`** – Shared UI: layout shell, shared widgets, Radix UI primitives.
-- **`lib/`** – API clients (`lib/api/client.ts`, `lib/api/admin.ts`, `lib/api/scraper.ts`, `lib/api/stats.ts`), shared types (`lib/api/types.ts`), hooks, utils.
+- **`lib/`** – API clients (`lib/api/client.ts`, `lib/api/admin.ts`, `lib/api/scraper.ts`, `lib/api/stats.ts`, `lib/api/analytics.ts`), shared types (`lib/api/types.ts`), hooks, utils.
 - **`main.tsx`**, **`index.css`** – Entry and global styles.
 
 ## API surface
@@ -75,6 +76,7 @@ The admin app calls `/api/v1/admin/*` routes (requires Bearer token with admin r
 - **`lib/api/admin.ts`** – Users, places, groups, reviews, check-ins, notifications, translations, content translations, place attributes, bulk operations, data export, audit log, app versions.
 - **`lib/api/scraper.ts`** – Data locations, scraper runs, collectors, place type mappings (proxied via catalog API).
 - **`lib/api/stats.ts`** – Dashboard stats.
+- **`lib/api/analytics.ts`** – Analytics overview, top places, trends, event log (`GET /admin/analytics/*`).
 
 ## Tests
 

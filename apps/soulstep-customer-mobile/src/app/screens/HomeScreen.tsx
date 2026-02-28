@@ -436,7 +436,12 @@ export default function HomeScreen() {
   const [mapPlaces, setMapPlaces] = useState<Place[]>([]);
   const [mapLoading, setMapLoading] = useState(false);
   const [showSearchArea, setShowSearchArea] = useState(false);
-  interface MapBounds { north: number; south: number; east: number; west: number; }
+  interface MapBounds {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+  }
   const currentMapBoundsRef = useRef<MapBounds | null>(null);
   const initialMapFetchDone = useRef(false);
 
@@ -569,7 +574,11 @@ export default function HomeScreen() {
   const prevBaseParamsRef = useRef<string>('');
   useEffect(() => {
     const key = JSON.stringify(buildBaseParams());
-    if (prevBaseParamsRef.current && prevBaseParamsRef.current !== key && currentMapBoundsRef.current) {
+    if (
+      prevBaseParamsRef.current &&
+      prevBaseParamsRef.current !== key &&
+      currentMapBoundsRef.current
+    ) {
       setShowSearchArea(false);
       fetchMapPlaces(currentMapBoundsRef.current);
     }

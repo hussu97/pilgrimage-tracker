@@ -460,7 +460,76 @@ The `getFullImageUrl()` utility in both web and mobile already handles both mode
 
 ---
 
-## 12. Design Alignment
+## 12. Analytics & Event Tracking
+
+### 12.1 Overview
+
+A privacy-first analytics pipeline collects batched events from web and mobile clients, stores them in a dedicated `analytics_event` table, and surfaces aggregated insights through admin dashboard queries.
+
+### 12.2 Data Model
+
+```
+analytics_event table:
+  id               INT PK auto
+  event_code       STR unique, indexed ("evt_" + token_hex(8))
+  event_type       STR indexed (enum: page_view | place_view | search | check_in |
+                                      favorite_toggle | review_submit | share |
+                                      filter_change | signup | login)
+  user_code        STR nullable, indexed (authenticated user; no FK — high-volume table)
+  visitor_code     STR nullable, indexed (anonymous visitor; no FK — high-volume table)
+  session_id       STR indexed (UUID per app session)
+  properties       JSON nullable (event-specific data, e.g. {place_code, religion})
+  platform         STR indexed ("web" | "ios" | "android")
+  device_type      STR nullable ("mobile" | "desktop")
+  app_version      STR nullable
+  client_timestamp DATETIME(timezone=True, NOT NULL) — when event happened on device
+  created_at       DATETIME(timezone=True, NOT NULL) — when server received it
+```
+
+No FK constraints on `user_code`/`visitor_code` to avoid write overhead on this high-volume append-only table.
+
+### 12.3 Ingestion Endpoint
+
+**`POST /api/v1/analytics/events`** — rate-limited at 10 req/min per IP, auth optional.
+
+- Accepts a batch of up to 50 events with shared `platform`, `device_type`, `app_version`, `visitor_code`
+- Uses `OptionalUserDep` — works for both authenticated users and anonymous visitors
+- Validates `event_type` against `AnalyticsEventType` enum, rejects unknown types
+- Bulk inserts in a single transaction, generates `event_code` server-side
+- Response: `{ "accepted": N }`
+
+### 12.4 Admin Query Endpoints
+
+All require `AdminDep` (admin role JWT).
+
+| Endpoint | Description |
+|---|---|
+| `GET /admin/analytics/overview` | Total events (all time, 24h, 7d), unique users/visitors/sessions, top event types, platform breakdown |
+| `GET /admin/analytics/top-places?period=7d&limit=20` | Top places by analytics frequency (place_code extracted from properties JSON in Python for SQLite compat) |
+| `GET /admin/analytics/trends?interval=day&period=30d&event_type=` | Event count trends over time; Python-side datetime grouping per `stats.py` pattern |
+| `GET /admin/analytics/events?page=1&page_size=50&event_type=&platform=` | Paginated raw event log with filters (type, platform, user_code, session_id, date_from, date_to) |
+
+### 12.5 Client-Side Hook
+
+Both web and mobile implement `useAnalytics()` and `AnalyticsProviderConnected`:
+
+**Web** (`apps/soulstep-customer-web/src/lib/hooks/useAnalytics.ts`):
+- Session ID: `crypto.randomUUID()` stored in `sessionStorage` (new per browser tab)
+- Buffer: `useRef<Event[]>`, flushes every 30s or at 10 events
+- Flush: `fetch('/api/v1/analytics/events')` — fire-and-forget
+- `navigator.sendBeacon()` on `beforeunload` for reliability
+- Consent gating: reads `analytics` consent from `useAds()` context; no-op if not granted
+- Auto page-view tracking: `usePageViewTracking()` hook via `useLocation()`
+
+**Mobile** (`apps/soulstep-customer-mobile/src/lib/hooks/useAnalytics.ts`):
+- Session ID: UUID v4 generated in memory (reset on cold start via `AppState` listener)
+- Platform from `Platform.OS`, device_type always `"mobile"`, app_version from `expo-constants`
+- Flush on `AppState` `background` transition instead of `sendBeacon`
+- Same consent gating and buffer logic as web
+
+---
+
+## 13. Design Alignment
 
 - **Screens to implement** (from DESIGN_FILE.html and app-design-prompt): Splash, Create Account, Login, Forgot Password, Preferred religions (multi-select, optional), Home (list + map), Place detail (Islam/Hinduism/Christianity variants), Check-in flow, Profile and stats, Groups list, Group detail and leaderboard, Favorites, Settings, Notifications, Write review. Empty and error states as specified in the design prompt.
 - **Design system:** Lexend, Material Icons/Symbols, Tailwind with tokens from DESIGN_FILE (primary, borders, radii, safe areas). Support light/dark where designs specify (e.g. Place detail Hindu temple).

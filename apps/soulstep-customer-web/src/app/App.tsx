@@ -11,6 +11,7 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { AuthGateProvider } from '@/components/auth/AuthGateProvider';
 import { AdProvider } from '@/components/ads/AdProvider';
 import ConsentBanner from '@/components/consent/ConsentBanner';
+import { AnalyticsProviderConnected } from '@/components/analytics/AnalyticsProviderConnected';
 
 /** Renders children only after initial i18n (locale + translations) has loaded; shows minimal splash until then. */
 function I18nReadyGate({ children }: { children: React.ReactNode }) {
@@ -37,14 +38,16 @@ export default function App() {
           <I18nProvider>
             <I18nReadyGate>
               <AdProvider>
-                <FeedbackProvider>
-                  <LocationProvider>
-                    <AuthGateProvider>
-                      <AppRoutes />
-                      <ConsentBanner />
-                    </AuthGateProvider>
-                  </LocationProvider>
-                </FeedbackProvider>
+                <AnalyticsProviderConnected>
+                  <FeedbackProvider>
+                    <LocationProvider>
+                      <AuthGateProvider>
+                        <AppRoutes />
+                        <ConsentBanner />
+                      </AuthGateProvider>
+                    </LocationProvider>
+                  </FeedbackProvider>
+                </AnalyticsProviderConnected>
               </AdProvider>
             </I18nReadyGate>
           </I18nProvider>

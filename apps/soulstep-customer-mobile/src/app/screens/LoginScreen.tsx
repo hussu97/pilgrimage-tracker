@@ -15,6 +15,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/app/navigation';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
+import { useAnalytics } from '@/lib/hooks/useAnalytics';
 import { tokens } from '@/lib/theme';
 
 function makeStyles(isDark: boolean) {
@@ -82,6 +83,7 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const { t } = useI18n();
   const { isDark } = useTheme();
+  const { trackEvent } = useAnalytics();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const [email, setEmail] = useState('');
@@ -94,6 +96,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await login(email, password);
+      trackEvent('login');
       navigation.replace('Main');
     } catch (e) {
       setError(e instanceof Error ? e.message : t('errors.loginFailed'));

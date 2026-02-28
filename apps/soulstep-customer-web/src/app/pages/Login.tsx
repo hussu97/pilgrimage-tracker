@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
+import { useAnalytics } from '@/lib/hooks/useAnalytics';
 
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading, login } = useAuth();
   const { t } = useI18n();
+  const { trackEvent } = useAnalytics();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -23,6 +25,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       await login(email, password);
+      trackEvent('login');
       const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
       navigate(from ?? '/home');
     } catch (err) {

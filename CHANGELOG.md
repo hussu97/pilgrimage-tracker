@@ -4,6 +4,40 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Analytics & Tracking Pipeline (2026-02-28)
+
+### Backend
+- Added `AnalyticsEventType` enum to `enums.py` (10 event types)
+- Added `AnalyticsEvent` model (high-volume table, no FK constraints for performance)
+- Migration `0016_analytics_events.py` — creates `analytics_event` table with indexes
+- `POST /api/v1/analytics/events` — batch ingestion endpoint (max 50 events, 10 req/min rate limit, works authenticated + anonymous)
+- `GET /admin/analytics/overview` — total events, unique users/visitors/sessions, top event types, platform breakdown
+- `GET /admin/analytics/top-places` — top places by view + interaction counts with period filter
+- `GET /admin/analytics/trends` — event count trends by day/week/month with period and event_type filters
+- `GET /admin/analytics/events` — paginated raw event log with filters (event_type, platform, user_code, session_id, date range)
+- 15 pytest tests in `tests/test_analytics.py`, all passing
+
+### Frontend (web)
+- `useAnalytics.ts` hook — `AnalyticsProvider` with batched buffering (30s flush / 10-event auto-flush), `navigator.sendBeacon` on page unload, consent gating
+- `AnalyticsProviderConnected` — wires hook to auth + ads contexts
+- Auto page-view tracking via `usePageViewTracking()` in `AppRoutes`
+- `trackEvent` calls in `PlaceDetail` (place_view, check_in, favorite_toggle), `Login` (login), `Register` (signup), `WriteReview` (review_submit)
+- 11 Vitest pure-logic tests in `src/__tests__/analytics.test.ts`, all passing
+
+### Frontend (mobile)
+- `useAnalytics.ts` hook — mirrors web with `AppState` background flush instead of `sendBeacon`, platform from `Platform.OS`, app version from `expo-constants`
+- `AnalyticsProviderConnected` — wires hook to auth + ads contexts
+- `trackEvent` calls in `PlaceDetailScreen` (place_view, check_in, favorite_toggle), `LoginScreen` (login), `RegisterScreen` (signup)
+- 13 Jest pure-logic tests in `src/__tests__/analytics.test.ts`, all passing
+
+### Admin
+- `AnalyticsDashboardPage` — 6-stat overview cards, event trends line chart (period/interval toggles), event type pie chart, top places bar chart, platform breakdown pie chart, paginated raw event log with type/platform filters
+- New `/analytics` route and "Analytics" sidebar nav item (BarChart2 icon)
+- `src/lib/api/analytics.ts` — API client functions for all 4 admin endpoints
+- Analytics interfaces added to `src/lib/api/types.ts`
+
+---
+
 ## Map View Pagination & Usability (2026-02-27)
 
 ### Backend

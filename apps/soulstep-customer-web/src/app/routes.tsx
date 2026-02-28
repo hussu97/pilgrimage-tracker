@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import Layout from '@/components/layout/Layout';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
+import { usePageViewTracking } from '@/lib/hooks/useAnalytics';
 
 const CHUNK_RELOAD_KEY = 'chunkLoadError';
 
@@ -71,9 +72,15 @@ function PageLoader() {
   );
 }
 
+function PageViewTracker() {
+  usePageViewTracking();
+  return null;
+}
+
 export function AppRoutes() {
   return (
     <RouteErrorBoundary>
+      <PageViewTracker />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />

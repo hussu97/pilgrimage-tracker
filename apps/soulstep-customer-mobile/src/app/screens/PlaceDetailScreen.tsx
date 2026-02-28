@@ -28,6 +28,7 @@ import {
 import { shareUrl } from '@/lib/share';
 import { useAuth, useFeedback, useI18n, useTheme } from '@/app/providers';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
+import { useAnalytics } from '@/lib/hooks/useAnalytics';
 import { formatDistance } from '@/lib/utils/place-utils';
 import type { RootStackParamList } from '@/app/navigation';
 import type {
@@ -71,6 +72,7 @@ export default function PlaceDetailScreen() {
   const { showSuccess, showError } = useFeedback();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const { requireAuth } = useAuthRequired();
+  const { trackEvent } = useAnalytics();
 
   const [place, setPlace] = useState<PlaceDetailType | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -134,6 +136,7 @@ export default function PlaceDetailScreen() {
       setReviews(reviewsData.reviews ?? []);
       setAverageRating(reviewsData.average_rating);
       setReviewCount(reviewsData.review_count);
+      trackEvent('place_view', { place_code: placeData.place_code, religion: placeData.religion });
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('common.error');
       setError(msg);
@@ -190,6 +193,10 @@ export default function PlaceDetailScreen() {
       if (wasFavorite) await removeFavorite(placeCode);
       else await addFavorite(placeCode);
       setPlace((p) => (p ? { ...p, is_favorite: !p.is_favorite } : null));
+      trackEvent('favorite_toggle', {
+        place_code: placeCode,
+        action: wasFavorite ? 'remove' : 'add',
+      });
       showSuccess(t(wasFavorite ? 'feedback.favoriteRemoved' : 'feedback.favoriteAdded'));
     } catch {
       showError(t('feedback.error'));
@@ -219,6 +226,7 @@ export default function PlaceDetailScreen() {
         year: 'numeric',
       });
       setCheckInDate(date);
+      trackEvent('check_in', { place_code: placeCode });
       setTimeout(() => setCheckInDone(true), 430);
       showSuccess(t('feedback.checkedIn'));
     } catch {

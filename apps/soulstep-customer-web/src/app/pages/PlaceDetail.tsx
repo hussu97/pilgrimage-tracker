@@ -22,6 +22,7 @@ import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 import { useAuth, useTheme } from '@/app/providers';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
+import { useAnalytics } from '@/lib/hooks/useAnalytics';
 import { SharePlaceButton } from '@/components/places';
 import PlaceOpeningHours from '@/components/places/PlaceOpeningHours';
 import PlaceTimingsCarousel from '@/components/places/PlaceTimingsCarousel';
@@ -259,6 +260,7 @@ export default function PlaceDetail() {
   const heroDidDragRef = useRef(false);
 
   useDocumentTitle(place?.name);
+  const { trackEvent } = useAnalytics();
 
   const heroImages = (place?.images ?? [])
     .map((img) => getFullImageUrl(img.url))
@@ -329,6 +331,7 @@ export default function PlaceDetail() {
       setReviews(reviewsData.reviews ?? []);
       setAverageRating(reviewsData.average_rating);
       setReviewCount(reviewsData.review_count);
+      trackEvent('place_view', { place_code: placeData.place_code, religion: placeData.religion });
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('common.error');
       setError(msg);
@@ -373,6 +376,10 @@ export default function PlaceDetail() {
       if (wasFavorite) await removeFavorite(placeCode);
       else await addFavorite(placeCode);
       setPlace((p) => (p ? { ...p, is_favorite: !p.is_favorite } : null));
+      trackEvent('favorite_toggle', {
+        place_code: placeCode,
+        action: wasFavorite ? 'remove' : 'add',
+      });
       showSuccess(t(wasFavorite ? 'feedback.favoriteRemoved' : 'feedback.favoriteAdded'));
     } catch {
       showError(t('feedback.error'));
@@ -396,6 +403,7 @@ export default function PlaceDetail() {
         year: 'numeric',
       });
       setCheckInDate(date);
+      trackEvent('check_in', { place_code: placeCode });
       setTimeout(() => setCheckInDone(true), 430);
       showSuccess(t('feedback.checkedIn'));
     } catch {

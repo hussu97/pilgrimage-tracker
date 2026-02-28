@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     ads,
+    analytics,
     app_version,
     auth,
     groups,
@@ -27,4 +28,5 @@ api_router.include_router(notifications.router, prefix="/notifications", tags=["
 api_router.include_router(visitors.router, prefix="/visitors", tags=["visitors"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(ads.router, tags=["ads"])
+api_router.include_router(analytics.router, tags=["analytics"])
 api_router.include_router(admin_router)

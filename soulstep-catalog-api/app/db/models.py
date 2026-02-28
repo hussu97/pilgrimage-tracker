@@ -509,3 +509,28 @@ class ConsentRecord(SQLModel, table=True):
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
     )
+
+
+class AnalyticsEvent(SQLModel, table=True):
+    """High-volume analytics events table.
+
+    No FK constraints on user_code/visitor_code to avoid write overhead.
+    """
+
+    __tablename__ = "analytics_event"
+
+    id: int | None = Field(default=None, primary_key=True)
+    event_code: str = Field(index=True, unique=True)  # "evt_" + token_hex(8)
+    event_type: str = Field(index=True)  # validated against AnalyticsEventType
+    user_code: str | None = Field(default=None, index=True)  # authenticated user
+    visitor_code: str | None = Field(default=None, index=True)  # anonymous visitor
+    session_id: str = Field(index=True)  # UUID per app session
+    properties: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+    platform: str = Field(index=True)  # "web" | "ios" | "android"
+    device_type: str | None = Field(default=None)  # "mobile" | "desktop"
+    app_version: str | None = Field(default=None)
+    client_timestamp: datetime = Field(sa_column=_TSTZ(nullable=False))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
