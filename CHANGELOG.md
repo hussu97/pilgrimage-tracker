@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Nginx gzip, Docker HEALTHCHECKs, Web Password Validation (2026-02-28)
+
+### Infrastructure
+- Enabled gzip compression in `apps/soulstep-customer-web/nginx.conf` (`gzip on`, `gzip_comp_level 6`, `gzip_min_length 1024`, covers JS/CSS/JSON/SVG/XML types)
+- Added `HEALTHCHECK` to `soulstep-catalog-api/Dockerfile` (30s interval, 15s start period, Python urllib probe on `/health`)
+- Added `HEALTHCHECK` to `apps/soulstep-customer-web/Dockerfile` (30s interval, 5s start period, wget probe on port 80)
+- Updated `docker-compose.yml` `web` service to `depends_on: api: condition: service_healthy` so the web container waits for a healthy API before starting
+
+### Frontend (web)
+- Added `src/lib/utils/passwordRules.ts` — shared `checkRule()` and `ruleTranslationKey()` helpers mirroring mobile's inline logic
+- Updated `AuthModal.tsx`: fetches password rules via `getFieldRules()` on mount with fallback defaults; shows a live ✓/○ rule checklist when password field is focused (register tab); fixed `minLength` on password input to use dynamic value from API; fixed `setSubmitting(true)` bug in `finally` block (now correctly `setSubmitting(false)` via `resetForm()`)
+- 12 Vitest tests in `src/__tests__/passwordRules.test.ts` covering all rule types and edge cases — all passing
+
+---
+
 ## Analytics & Tracking Pipeline (2026-02-28)
 
 ### Backend

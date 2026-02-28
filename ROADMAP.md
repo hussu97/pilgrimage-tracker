@@ -118,7 +118,7 @@ Significant quality, UX, compliance, and admin completeness items. Should be add
   - Create `SkeletonCard`, `SkeletonList`, `SkeletonDetail` components. Use route-specific skeletons instead of generic loaders. Apply to Favorites, Profile, PlaceDetail, and all list pages.
   - Files: `apps/soulstep-customer-web/src/components/`, `apps/soulstep-customer-mobile/src/components/`
 
-- [ ] **Match client-side password validation with backend rules**
+- [x] **Match client-side password validation with backend rules**
   - Web validates only `password.length < 6` but backend requires 8+ chars, one uppercase, one lowercase, one digit. Causes UX confusion.
   - Fetch `getFieldRules()` or hardcode matching regex. Show real-time validation feedback during registration.
   - Files: `apps/soulstep-customer-web/src/components/auth/AuthModal.tsx`, `apps/soulstep-customer-mobile/src/app/screens/RegisterScreen.tsx`
@@ -130,7 +130,7 @@ Significant quality, UX, compliance, and admin completeness items. Should be add
   - Add `HEALTHCHECK` to API and web Dockerfiles. Add `.dockerignore` files. Run as non-root user. Add memory/CPU limits in docker-compose.
   - Files: `soulstep-catalog-api/Dockerfile`, `apps/soulstep-customer-web/Dockerfile`, `docker-compose.yml`
 
-- [ ] **Add gzip compression and security headers to nginx**
+- [x] **Add gzip compression and security headers to nginx**
   - Nginx config has no compression and no security headers. Large responses sent uncompressed. No XSS/clickjacking protection at the edge.
   - Enable gzip for text/html, application/json, text/css, application/javascript. Add security headers (X-Frame-Options, X-Content-Type-Options, HSTS, CSP).
   - Files: `apps/soulstep-customer-web/nginx.conf`

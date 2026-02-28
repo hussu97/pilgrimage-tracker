@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
 import Modal from '@/components/common/Modal';
 import { cn } from '@/lib/utils/cn';
+import { getFieldRules } from '@/lib/api/client';
+import type { PasswordRule } from '@/lib/api/client';
+import { checkRule, ruleTranslationKey } from '@/lib/utils/passwordRules';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -22,6 +25,26 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [passwordRules, setPasswordRules] = useState<PasswordRule[]>([]);
+  const [showRules, setShowRules] = useState(false);
+
+  useEffect(() => {
+    getFieldRules()
+      .then((data) => {
+        const pwField = data.fields.find((f) => f.name === 'password');
+        if (pwField) setPasswordRules(pwField.rules);
+      })
+      .catch(() => {
+        setPasswordRules([
+          { type: 'min_length', value: 8 },
+          { type: 'require_uppercase' },
+          { type: 'require_lowercase' },
+          { type: 'require_digit' },
+        ]);
+      });
+  }, []);
+
+  const minLength = passwordRules.find((r) => r.type === 'min_length')?.value ?? 8;
 
   function resetForm() {
     setEmail('');
@@ -30,6 +53,7 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
     setConfirm('');
     setError('');
     setSubmitting(false);
+    setShowRules(false);
   }
 
   function switchTab(t: Tab) {
@@ -43,9 +67,7 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
     setSubmitting(true);
     try {
       await login(email, password);
-      // user state is updated in context — pass current user (will be set by now)
       resetForm();
-      // onSuccess will be called by effect watching user change in AuthGateProvider
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.loginFailed'));
@@ -61,7 +83,7 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
       setError(t('auth.passwordsDoNotMatch'));
       return;
     }
-    if (password.length < 6) {
+    if (password.length < minLength) {
       setError(t('auth.passwordMinLength'));
       return;
     }
@@ -174,15 +196,50 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
               className={inputClass}
               required
             />
-            <input
-              type="password"
-              placeholder={t('auth.password')}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={inputClass}
-              required
-              minLength={6}
-            />
+            <div>
+              <input
+                type="password"
+                placeholder={t('auth.password')}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onFocus={() => setShowRules(true)}
+                className={inputClass}
+                required
+                minLength={minLength}
+              />
+              {/* Live password rule checklist */}
+              {showRules && passwordRules.length > 0 && (
+                <ul className="mt-2 px-1 space-y-1">
+                  {passwordRules.map((rule) => {
+                    const met = password.length > 0 && checkRule(rule, password);
+                    const label = t(ruleTranslationKey(rule)).replace(
+                      '{count}',
+                      rule.type === 'min_length' ? String(rule.value ?? 8) : '',
+                    );
+                    return (
+                      <li key={rule.type} className="flex items-center gap-1.5">
+                        <span
+                          className={cn(
+                            'text-xs font-bold w-3',
+                            met ? 'text-green-500' : 'text-slate-400 dark:text-dark-text-secondary',
+                          )}
+                        >
+                          {met ? '✓' : '○'}
+                        </span>
+                        <span
+                          className={cn(
+                            'text-xs',
+                            met ? 'text-green-500' : 'text-slate-400 dark:text-dark-text-secondary',
+                          )}
+                        >
+                          {label}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
             <input
               type="password"
               placeholder={t('auth.confirmPassword')}
