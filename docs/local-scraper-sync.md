@@ -40,6 +40,7 @@ pip install -r requirements.txt
 Create a `.env` file in `soulstep-scraper-api/`:
 
 ```dotenv
+# Local SQLite (default for dev)
 DATABASE_URL=sqlite:///./scraper.db
 
 # Required for Google Maps discovery
@@ -67,7 +68,31 @@ curl -s http://127.0.0.1:3100/health
 
 ---
 
-## 4. Configure `MAIN_SERVER_URL`
+## 4. Use the Production Postgres DB (optional but recommended)
+
+By default the scraper stores its data (runs, scraped places, data locations) in a local SQLite file. If you want that data visible in the **prod admin dashboard** without syncing, point the scraper at the prod Postgres DB instead.
+
+First install the Postgres driver if you haven't already:
+
+```bash
+pip install psycopg2-binary
+```
+
+Then replace `DATABASE_URL` in `.env` with the prod connection string (get it from your hosting provider — Render, Supabase, etc. — usually labeled "External Database URL"):
+
+```dotenv
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+```
+
+On startup, the scraper runs Alembic migrations against this DB using a separate `scraper_alembic_version` table, so it won't interfere with the catalog API's own migrations.
+
+All scraper data (runs, scraped places, data locations) will now live in prod Postgres and the admin web app on prod will see it immediately through the catalog API's scraper proxy — no manual sync step needed to view run state.
+
+> **Note:** `MAIN_SERVER_URL` is still needed when you want to *sync passing places into the catalog* (i.e. copy enriched places into the `Place` table). That's a separate step from where the scraper stores its own working data.
+
+---
+
+## 5. Configure `MAIN_SERVER_URL`
 
 `MAIN_SERVER_URL` is the base URL of the catalog API that will receive synced places.
 
@@ -81,7 +106,7 @@ curl -s http://127.0.0.1:3100/health
 
 ---
 
-## 5. Create a Data Location
+## 6. Create a Data Location
 
 A **Data Location** defines where to scrape (city, state, or country):
 
@@ -100,7 +125,7 @@ Save the `code` from the response (e.g. `loc_abc12345`).
 
 ---
 
-## 6. Start a Run
+## 7. Start a Run
 
 ```bash
 curl -s -X POST http://127.0.0.1:3100/api/v1/scraper/runs \
@@ -112,7 +137,7 @@ The run starts immediately in a background task. Save the `run_code` from the re
 
 ---
 
-## 7. Monitor Progress
+## 8. Monitor Progress
 
 **Activity snapshot** (poll every few seconds):
 
@@ -136,7 +161,7 @@ Review the `gate_breakdown` and `score_distribution` to validate thresholds befo
 
 ---
 
-## 8. Review Quality in Admin Dashboard
+## 9. Review Quality in Admin Dashboard
 
 If you have the admin web app running locally:
 
@@ -147,7 +172,7 @@ If you have the admin web app running locally:
 
 ---
 
-## 9. Sync to Catalog
+## 10. Sync to Catalog
 
 Once you're satisfied with quality, sync passing places to the catalog API:
 
@@ -165,7 +190,7 @@ curl -s "https://api.soulstep.app/api/v1/places?page_size=20" | python -m json.t
 
 ---
 
-## 10. Tips
+## 11. Tips
 
 ### Test with a small batch first
 
