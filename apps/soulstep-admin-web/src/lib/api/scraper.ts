@@ -8,6 +8,7 @@ import type {
   PaginatedResponse,
   PatchPlaceTypeMappingBody,
   PlaceTypeMapping,
+  QualityMetrics,
   RawCollectorEntry,
   RunActivity,
   ScrapedPlaceData,
@@ -168,4 +169,11 @@ export async function updatePlaceTypeMapping(
 
 export async function deletePlaceTypeMapping(id: number): Promise<void> {
   await apiClient.delete(`/admin/scraper/place-type-mappings/${id}`);
+}
+
+// ── Quality Metrics ────────────────────────────────────────────────────────────
+
+export async function getQualityMetrics(params?: { run_code?: string }): Promise<QualityMetrics> {
+  const res = await apiClient.get<QualityMetrics>("/admin/scraper/quality-metrics", { params });
+  return res.data;
 }

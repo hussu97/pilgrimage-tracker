@@ -98,3 +98,54 @@ class ScraperStatsResponse(BaseModel):
     total_places_scraped: int
     last_run_at: datetime | None = None
     last_run_status: str | None = None
+
+
+# ── Quality Metrics ────────────────────────────────────────────────────────────
+
+
+class ScoreBucket(BaseModel):
+    bucket: str  # e.g. "0.0-0.1"
+    count: int
+
+
+class GateCount(BaseModel):
+    gate: str  # "below_image_gate" | "below_enrichment_gate" | "below_sync_gate" | "passed"
+    count: int
+
+
+class NearThresholdCount(BaseModel):
+    gate: str
+    threshold: float
+    count: int  # places with quality_score in [threshold-0.05, threshold+0.05]
+
+
+class DescriptionSourceCount(BaseModel):
+    source: str
+    count: int
+
+
+class EnrichmentStatusCount(BaseModel):
+    status: str
+    count: int
+
+
+class PerRunSummaryItem(BaseModel):
+    run_code: str
+    location_name: str | None
+    status: str
+    total_scraped: int
+    total_passed: int
+    avg_score: float | None
+    created_at: datetime
+
+
+class QualityMetricsResponse(BaseModel):
+    score_distribution: list[ScoreBucket]
+    gate_breakdown: list[GateCount]
+    near_threshold_counts: list[NearThresholdCount]
+    avg_quality_score: float | None
+    median_quality_score: float | None
+    description_source_breakdown: list[DescriptionSourceCount]
+    enrichment_status_breakdown: list[EnrichmentStatusCount]
+    per_run_summary: list[PerRunSummaryItem]
+    overall_stats: dict

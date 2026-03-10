@@ -131,6 +131,7 @@ def list_places(
     search: str | None = None,
     religion: str | None = None,
     place_type: str | None = None,
+    city_country: str | None = None,
 ):
     stmt = select(Place)
     if search:
@@ -139,6 +140,8 @@ def list_places(
         stmt = stmt.where(Place.religion == religion)
     if place_type:
         stmt = stmt.where(Place.place_type == place_type)
+    if city_country:
+        stmt = stmt.where(col(Place.address).ilike(f"%{city_country}%"))
 
     total = session.exec(select(func.count()).select_from(stmt.subquery())).one()
     stmt = (

@@ -4,6 +4,34 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Quality Metrics Dashboard + Places Filter + Scraper Docs (2026-03-10)
+
+### Backend (soulstep-scraper-api)
+- **New `GET /scraper/quality-metrics?run_code=<optional>`** — aggregate quality scoring stats: score distribution (10 buckets), gate funnel, near-threshold sensitivity (±0.05 band), avg/median score, description source breakdown, enrichment status breakdown, per-run summary
+- **New Pydantic schemas** in `app/models/schemas.py`: `ScoreBucket`, `GateCount`, `NearThresholdCount`, `DescriptionSourceCount`, `EnrichmentStatusCount`, `PerRunSummaryItem`, `QualityMetricsResponse`
+- **New tests** `tests/test_quality_metrics.py` — 8 test cases covering empty DB, seeded distribution, gate breakdown, run_code filter, description source, enrichment status, avg score accuracy, near-threshold band counting
+
+### Backend (soulstep-catalog-api)
+- **`GET /admin/places`** — new `city_country` query param filters places by `address` ILIKE; no migration needed
+- **`GET /admin/scraper/quality-metrics`** proxy added to `scraper_proxy.py`, forwarding `run_code` param to scraper service
+- **Tests** — added `test_city_country_filter_matches_address` + `test_city_country_filter_case_insensitive` to `test_admin_places.py`; added `TestQualityMetricsProxy` (2 tests) to `test_scraper_proxy.py`
+
+### Frontend (admin)
+- **New `QualityMetricsPage`** (`/scraper/quality`) — run filter dropdown, 4 stat cards, score distribution BarChart with gate ReferenceLine markers, gate funnel BarChart (per-gate colors), description source + enrichment status PieCharts, near-threshold sensitivity table, per-run summary table with pagination
+- **`PlacesListPage`** — added city/country SearchInput that filters by address field via `city_country` param
+- **`ScraperOverviewPage`** — added "Quality Metrics" section card linking to `/scraper/quality`
+- **`router.tsx`** — new route `/scraper/quality`
+- **`lib/api/types.ts`** — added `QualityScoreBucket`, `QualityGateCount`, `NearThresholdCount`, `DescriptionSourceCount`, `EnrichmentStatusCount`, `PerRunSummaryItem`, `QualityOverallStats`, `QualityMetrics` interfaces
+- **`lib/api/scraper.ts`** — added `getQualityMetrics(params?)`
+- **`lib/api/admin.ts`** — added `city_country?` to `listPlaces` params
+- **New utility** `lib/utils/qualityMetrics.ts` — `formatScore()`, `gateColor()`, `formatGateLabel()`
+- **New tests** `src/__tests__/qualityMetrics.test.ts` — 16 Vitest tests for all 3 utility helpers
+
+### Docs
+- **New `docs/local-scraper-sync.md`** — guide for running the scraper locally and syncing to a remote catalog API (prerequisites, setup, data location, run, monitor, review quality, sync, tips)
+
+---
+
 ## Place Quality Scoring & Pipeline Optimization (2026-03-10)
 
 ### Scraper (soulstep-scraper-api)

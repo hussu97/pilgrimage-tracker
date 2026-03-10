@@ -197,6 +197,20 @@ Response:
 
 Accepts runs with status `pending`, `running`, or `interrupted`.
 
+### 11. Quality Metrics
+**GET** `/api/v1/scraper/quality-metrics?run_code=<optional>`
+
+Aggregate quality scoring statistics. When `run_code` is omitted, metrics cover all runs.
+
+Response includes:
+- `score_distribution` — 10 buckets (0.0–0.1 … 0.9–1.0) with place counts
+- `gate_breakdown` — counts per gate label (`below_image_gate`, `below_enrichment_gate`, `below_sync_gate`, `passed`)
+- `near_threshold_counts` — places within ±0.05 of each gate threshold (sensitivity analysis)
+- `avg_quality_score`, `median_quality_score`
+- `description_source_breakdown`, `enrichment_status_breakdown`
+- `per_run_summary` — per-run totals with avg score
+- `overall_stats` — `total_scraped`, `total_synced`, `overall_filter_rate_pct`
+
 ## Collectors
 
 | Collector | Source | Cost | Extracts |

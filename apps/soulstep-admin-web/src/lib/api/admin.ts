@@ -122,6 +122,7 @@ export async function listPlaces(params?: {
   search?: string;
   religion?: string;
   place_type?: string;
+  city_country?: string;
 }): Promise<PaginatedResponse<AdminPlace>> {
   const res = await apiClient.get<PaginatedResponse<AdminPlace>>("/admin/places", { params });
   return res.data;

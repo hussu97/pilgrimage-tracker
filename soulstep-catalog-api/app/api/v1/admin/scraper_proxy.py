@@ -152,6 +152,12 @@ async def list_collectors(admin: AdminDep):
     return await _proxy("GET", "/collectors")
 
 
+@router.get("/quality-metrics")
+async def get_quality_metrics(admin: AdminDep, request: Request):
+    params = dict(request.query_params)
+    return await _proxy("GET", "/quality-metrics", params=params)
+
+
 @router.get("/place-type-mappings")
 async def list_place_type_mappings(admin: AdminDep, request: Request):
     params = dict(request.query_params)

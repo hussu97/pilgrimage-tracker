@@ -56,12 +56,12 @@ Under `src/`:
 - **`app/pages/`** – One subdirectory per domain:
   - `DashboardPage.tsx`, `LoginPage.tsx`, `AccessDeniedPage.tsx`
   - `users/` – `UsersListPage.tsx`, `UserDetailPage.tsx`
-  - `places/` – `PlacesListPage.tsx`, `PlaceDetailPage.tsx`, `CreatePlacePage.tsx`
+  - `places/` – `PlacesListPage.tsx` (name search + city/country address filter), `PlaceDetailPage.tsx`, `CreatePlacePage.tsx`
   - `reviews/` – `ReviewsListPage.tsx`, `ReviewDetailPage.tsx`
   - `groups/` – `GroupsListPage.tsx`, `GroupDetailPage.tsx`
   - `check-ins/` – `CheckInsListPage.tsx`
   - `notifications/` – `NotificationManagementPage.tsx`
-  - `scraper/` – `ScraperOverviewPage.tsx`, `ScraperRunsPage.tsx`, `RunDetailPage.tsx`, `DataLocationsPage.tsx`, `CollectorsPage.tsx`, `PlaceTypeMappingsPage.tsx`. Runs list shows current pipeline stage and a Resume button for `interrupted`/`failed` runs. Run detail shows a 3-step stage indicator (Discovery → Detail Fetch → Enrichment), error message alerts, and a Resume button.
+  - `scraper/` – `ScraperOverviewPage.tsx`, `ScraperRunsPage.tsx`, `RunDetailPage.tsx`, `DataLocationsPage.tsx`, `CollectorsPage.tsx`, `PlaceTypeMappingsPage.tsx`, `QualityMetricsPage.tsx` (score distribution, gate funnel, pie charts, near-threshold table, per-run summary). Runs list shows current pipeline stage and a Resume button for `interrupted`/`failed` runs. Run detail shows a 3-step stage indicator (Discovery → Detail Fetch → Enrichment), error message alerts, and a Resume button.
   - `content/` – `TranslationsPage.tsx`, `ContentTranslationsPage.tsx`, `PlaceAttributesPage.tsx`, `AppVersionsPage.tsx`
   - `audit-log/` – `AuditLogPage.tsx`
   - `analytics/` – `AnalyticsDashboardPage.tsx` — overview stat cards, event trends line chart, event type & platform pie charts, top-places bar chart, paginated raw event log with filters

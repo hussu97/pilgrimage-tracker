@@ -15,6 +15,7 @@ export function PlacesListPage() {
   const { page, pageSize, setPage, setPageSize } = usePagination(50);
   const [search, setSearch] = useState("");
   const [religionFilter, setReligionFilter] = useState("");
+  const [cityCountryFilter, setCityCountryFilter] = useState("");
   const [data, setData] = useState<{ items: AdminPlace[]; total: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -25,6 +26,7 @@ export function PlacesListPage() {
       const params: Record<string, unknown> = { page, page_size: pageSize };
       if (search) params.search = search;
       if (religionFilter) params.religion = religionFilter;
+      if (cityCountryFilter) params.city_country = cityCountryFilter;
       const res = await listPlaces(params as Parameters<typeof listPlaces>[0]);
       setData(res);
     } catch {
@@ -32,7 +34,7 @@ export function PlacesListPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, religionFilter]);
+  }, [page, pageSize, search, religionFilter, cityCountryFilter]);
 
   useEffect(() => {
     void load();
@@ -88,6 +90,12 @@ export function PlacesListPage() {
           value={search}
           onChange={(v) => { setSearch(v); setPage(1); }}
           placeholder="Search by name..."
+          className="w-64"
+        />
+        <SearchInput
+          value={cityCountryFilter}
+          onChange={(v) => { setCityCountryFilter(v); setPage(1); }}
+          placeholder="Filter by city / country..."
           className="w-64"
         />
         <select

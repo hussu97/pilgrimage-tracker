@@ -303,3 +303,48 @@ class TestPlaceTypeMappingsProxy:
                 "/api/v1/admin/scraper/place-type-mappings/1", headers=self.auth
             )
         assert resp.status_code == 200
+
+
+# ── Quality Metrics proxy ─────────────────────────────────────────────────────
+
+
+class TestQualityMetricsProxy:
+    @pytest.fixture(autouse=True)
+    def setup(self, client, db_session):
+        self.token = _admin_token(client, db_session)
+        self.auth = {"Authorization": f"Bearer {self.token}"}
+        self.client = client
+
+    def test_quality_metrics_returns_200(self):
+        payload = {
+            "score_distribution": [],
+            "gate_breakdown": [],
+            "near_threshold_counts": [],
+            "avg_quality_score": None,
+            "median_quality_score": None,
+            "description_source_breakdown": [],
+            "enrichment_status_breakdown": [],
+            "per_run_summary": [],
+            "overall_stats": {
+                "total_scraped": 0,
+                "total_synced": 0,
+                "overall_filter_rate_pct": 0.0,
+            },
+        }
+        with _mock_proxy(payload):
+            resp = self.client.get("/api/v1/admin/scraper/quality-metrics", headers=self.auth)
+        assert resp.status_code == 200
+        assert resp.json() == payload
+
+    def test_run_code_param_is_forwarded(self):
+        payload = {"overall_stats": {"total_scraped": 5}}
+        with _mock_proxy(payload) as mock_cls:
+            mock_client = mock_cls.return_value.__aenter__.return_value
+            self.client.get(
+                "/api/v1/admin/scraper/quality-metrics?run_code=run_abc123",
+                headers=self.auth,
+            )
+            call_kwargs = mock_client.request.call_args
+            url = call_kwargs[0][1] if call_kwargs[0] else call_kwargs[1].get("url", "")
+            params = call_kwargs[1].get("params", {})
+            assert "run_code" in params or "run_code=run_abc123" in url

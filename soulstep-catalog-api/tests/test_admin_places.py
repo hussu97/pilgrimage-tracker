@@ -116,6 +116,44 @@ class TestListPlaces:
         assert resp.status_code == 200
         assert len(resp.json()["items"]) <= 1
 
+    def test_city_country_filter_matches_address(self, client, db_session):
+        headers = _admin_headers(client, db_session)
+        place = Place(
+            place_code="plc_dubai001",
+            name="Grand Mosque",
+            religion="islam",
+            place_type="mosque",
+            lat=25.2,
+            lng=55.3,
+            address="Sheikh Zayed Rd, Dubai, UAE",
+            source="manual",
+        )
+        db_session.add(place)
+        db_session.commit()
+        resp = client.get("/api/v1/admin/places?city_country=Dubai", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert any(p["place_code"] == "plc_dubai001" for p in data["items"])
+
+    def test_city_country_filter_case_insensitive(self, client, db_session):
+        headers = _admin_headers(client, db_session)
+        place = Place(
+            place_code="plc_riyadh01",
+            name="Al Masjid",
+            religion="islam",
+            place_type="mosque",
+            lat=24.7,
+            lng=46.7,
+            address="King Fahd Rd, Riyadh, Saudi Arabia",
+            source="manual",
+        )
+        db_session.add(place)
+        db_session.commit()
+        resp = client.get("/api/v1/admin/places?city_country=riyadh", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert any(p["place_code"] == "plc_riyadh01" for p in data["items"])
+
 
 # ── Tests: Create place ────────────────────────────────────────────────────────
 

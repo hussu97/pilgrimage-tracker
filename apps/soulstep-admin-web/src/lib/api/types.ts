@@ -302,6 +302,60 @@ export interface DiscoveryCellItem {
   created_at: string | null;
 }
 
+export interface QualityScoreBucket {
+  bucket: string;
+  count: number;
+}
+
+export interface QualityGateCount {
+  gate: string;
+  count: number;
+}
+
+export interface NearThresholdCount {
+  gate: string;
+  threshold: number;
+  count: number;
+}
+
+export interface DescriptionSourceCount {
+  source: string;
+  count: number;
+}
+
+export interface EnrichmentStatusCount {
+  status: string;
+  count: number;
+}
+
+export interface PerRunSummaryItem {
+  run_code: string;
+  location_name: string | null;
+  status: string;
+  total_scraped: number;
+  total_passed: number;
+  avg_score: number | null;
+  created_at: string;
+}
+
+export interface QualityOverallStats {
+  total_scraped: number;
+  total_synced: number;
+  overall_filter_rate_pct: number;
+}
+
+export interface QualityMetrics {
+  score_distribution: QualityScoreBucket[];
+  gate_breakdown: QualityGateCount[];
+  near_threshold_counts: NearThresholdCount[];
+  avg_quality_score: number | null;
+  median_quality_score: number | null;
+  description_source_breakdown: DescriptionSourceCount[];
+  enrichment_status_breakdown: EnrichmentStatusCount[];
+  per_run_summary: PerRunSummaryItem[];
+  overall_stats: QualityOverallStats;
+}
+
 // ── Content & Configuration (Phase 4) ────────────────────────────────────────
 
 // Translations

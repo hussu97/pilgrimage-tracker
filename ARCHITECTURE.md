@@ -301,8 +301,11 @@ Each collector implements `BaseCollector` ABC and returns a `CollectorResult` da
    - `GET /collectors` — list all collectors with enabled/available status
    - `GET /runs/{run_code}/raw-data` — view raw collector data for debugging
    - `POST /runs/{run_code}/re-enrich` — re-run enrichment without re-doing discovery
+   - `GET /quality-metrics?run_code=<optional>` — aggregate quality scoring stats (score distribution, gate funnel, near-threshold sensitivity, per-run summary)
 
 4. **Syncing:** `POST /runs/{run_code}/sync` — batch-pushes enriched data to main server
+
+5. **Catalog proxy** (`soulstep-catalog-api/app/api/v1/admin/scraper_proxy.py`) exposes all scraper endpoints under `/admin/scraper/*`, including `GET /admin/scraper/quality-metrics`, forwarding requests to `DATA_SCRAPER_URL` with GCP OIDC auth for production.
 
 ### 8.7 Source Tracking
 
