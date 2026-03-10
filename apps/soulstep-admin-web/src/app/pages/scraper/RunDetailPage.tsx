@@ -47,6 +47,7 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
     activity.places_complete > 0 ||
     activity.places_enriching.length > 0 ||
     activity.places_failed > 0 ||
+    (activity.places_filtered ?? 0) > 0 ||
     stage === "enrichment";
   const showImages =
     activity.images_downloaded > 0 ||
@@ -171,6 +172,14 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
                 <span className="text-text-secondary">·</span>
                 <span className="text-text-secondary dark:text-dark-text-secondary">
                   {activity.places_pending} pending
+                </span>
+              </>
+            )}
+            {(activity.places_filtered ?? 0) > 0 && (
+              <>
+                <span className="text-text-secondary">·</span>
+                <span className="text-text-secondary dark:text-dark-text-secondary">
+                  {activity.places_filtered} filtered
                 </span>
               </>
             )}
@@ -516,6 +525,25 @@ export function RunDetailPage() {
           {p._description_score != null ? p._description_score.toFixed(2) : "—"}
         </span>
       ),
+    },
+    {
+      key: "quality_score",
+      header: "Quality",
+      render: (p) => {
+        const qs = p._quality_score;
+        if (qs == null) return <span className="text-sm text-text-secondary dark:text-dark-text-secondary">—</span>;
+        const color =
+          qs >= 0.4
+            ? "text-green-600 dark:text-green-400"
+            : qs >= 0.2
+            ? "text-yellow-600 dark:text-yellow-400"
+            : "text-red-500";
+        return (
+          <span className={`text-sm font-medium ${color}`} title={p._quality_gate ?? undefined}>
+            {qs.toFixed(2)}
+          </span>
+        );
+      },
     },
   ];
 

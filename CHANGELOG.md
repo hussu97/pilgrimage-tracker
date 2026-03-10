@@ -4,6 +4,26 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Place Quality Scoring & Pipeline Optimization (2026-03-10)
+
+### Scraper (soulstep-scraper-api)
+- **New `app/pipeline/place_quality.py`** — pure quality scoring engine computing a 0.0–1.0 score from GMaps metadata (Bayesian rating, business status, photo count, editorial/generative summaries, website, opening hours, name specificity, place type bonus); three configurable gate thresholds: `GATE_IMAGE_DOWNLOAD=0.20`, `GATE_ENRICHMENT=0.35`, `GATE_SYNC=0.40`; shared `is_generic_name()` re-exported for backwards-compat
+- **New `app/scrapers/gmaps_cache.py`** — `GlobalGmapsCacheStore` following `GlobalCellStore` pattern; cross-run persistent cache for GMaps API responses (TTL 90 days); upsert on save, pre-loads non-expired entries on init
+- **Data model** (`app/db/models.py`): `ScrapedPlace` gains `quality_score` (float, nullable) and `quality_gate` (str, nullable); `ScraperRun` gains `places_filtered` (int, default 0); new `GlobalGmapsCache` table for GMaps response cache
+- **Migration `0008_quality_scoring.py`** — adds new columns and `globalgmapscache` table
+- **`app/scrapers/gmaps.py`** `_flush_detail_buffer()` now computes and stores quality score + gate label on each `ScrapedPlace` immediately after detail fetch
+- **`app/collectors/gmaps.py`** `build_place_data()` now stores `rating`, `user_rating_count`, `has_editorial`, `has_generative`, `gmaps_types` directly in raw_data for use by quality scorer; `download_place_images()` gates on `GATE_IMAGE_DOWNLOAD`
+- **`app/pipeline/enrichment.py`** gates on `GATE_ENRICHMENT` — places below threshold are marked `enrichment_status="filtered"` and skipped; `_is_generic_name` aliased from `place_quality.is_generic_name` (backwards-compat)
+- **`app/db/scraper.py`** sync converted to async httpx (`sync_run_to_server_async`): batches sent concurrently (semaphore=3), individual fallbacks also async; quality gate `GATE_SYNC` filters places before sync; `sync_run_to_server` wraps via `asyncio.run()`; sync fallback wrappers kept for test compat
+- **`app/api/v1/scraper.py`** `GET /runs/{run_code}/data` now includes `_quality_score` and `_quality_gate` fields; `GET /runs/{run_code}/activity` now includes `places_filtered` count
+- **New tests** `tests/test_place_quality.py` (36 tests) and `tests/test_gmaps_cache.py` (6 tests); updated `tests/test_sync.py` to use `AsyncMock` + quality gate tests; all 506 tests passing
+
+### Frontend (admin)
+- `apps/soulstep-admin-web/src/lib/api/types.ts` — `ScrapedPlaceData` gains `_quality_score` and `_quality_gate`; `RunActivity` gains `places_filtered`
+- `RunDetailPage.tsx` — places data table has a new color-coded **Quality** column (green ≥0.4, yellow ≥0.2, red <0.2); activity panel shows **filtered** count alongside enriched/failed/pending
+
+---
+
 ## Nginx gzip, Docker HEALTHCHECKs, Web Password Validation (2026-02-28)
 
 ### Infrastructure

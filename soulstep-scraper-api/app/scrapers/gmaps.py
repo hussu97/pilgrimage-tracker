@@ -488,13 +488,24 @@ def _flush_detail_buffer(
     counter: AtomicCounter,
     total: int,
 ) -> None:
-    """Batch-write a buffer of fetched place details to the database."""
+    """Batch-write a buffer of fetched place details to the database.
+
+    Computes quality score and gate label for each place immediately after
+    detail fetch so downstream phases can gate on these values.
+    """
+    from app.pipeline.place_quality import get_quality_gate, score_place_quality
+
     for _place_name, details, response in buffer:
+        quality_score = score_place_quality(details)
+        quality_gate = get_quality_gate(quality_score)
+
         scraped_place = ScrapedPlace(
             run_code=run_code,
             place_code=details["place_code"],
             name=details["name"],
             raw_data=details,
+            quality_score=quality_score,
+            quality_gate=quality_gate,
         )
         session.add(scraped_place)
 

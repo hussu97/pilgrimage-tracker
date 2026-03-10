@@ -202,6 +202,8 @@ def view_data(
         data["_enrichment_status"] = r.enrichment_status
         data["_description_source"] = r.description_source
         data["_description_score"] = r.description_score
+        data["_quality_score"] = r.quality_score
+        data["_quality_gate"] = r.quality_gate
         out.append(data)
 
     return {"items": out, "total": total, "page": page, "page_size": page_size}
@@ -367,14 +369,25 @@ def get_run_activity(run_code: str, session: SessionDep):
         .limit(5)
     ).all()
 
+    places_filtered = session.exec(
+        select(func.count())
+        .select_from(ScrapedPlace)
+        .where(ScrapedPlace.run_code == run_code)
+        .where(ScrapedPlace.enrichment_status == "filtered")
+    ).one()
+
     return {
         "cells_total": cells_total,
         "cells_saturated": cells_saturated,
         "places_total": places_total,
-        "places_pending": max(0, places_total - places_complete - places_failed - len(enriching)),
+        "places_pending": max(
+            0,
+            places_total - places_complete - places_failed - places_filtered - len(enriching),
+        ),
         "places_enriching": [{"place_code": p.place_code, "name": p.name} for p in enriching],
         "places_complete": places_complete,
         "places_failed": places_failed,
+        "places_filtered": places_filtered,
         "images_downloaded": run.images_downloaded,
         "images_failed": run.images_failed,
         "places_synced": run.places_synced,

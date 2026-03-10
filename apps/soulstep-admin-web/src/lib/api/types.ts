@@ -259,6 +259,8 @@ export interface ScrapedPlaceData {
   _enrichment_status: string;
   _description_source: string | null;
   _description_score: number | null;
+  _quality_score: number | null;
+  _quality_gate: string | null;
   name: string;
   [key: string]: unknown;
 }
@@ -280,6 +282,7 @@ export interface RunActivity {
   places_enriching: { place_code: string; name: string }[];
   places_complete: number;
   places_failed: number;
+  places_filtered: number;
   images_downloaded: number;
   images_failed: number;
   places_synced: number;

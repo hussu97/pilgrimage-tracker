@@ -31,6 +31,7 @@ class ScraperRun(SQLModel, table=True):
     images_failed: int = Field(default=0)
     places_synced: int = Field(default=0)
     places_sync_failed: int = Field(default=0)
+    places_filtered: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -41,11 +42,13 @@ class ScrapedPlace(SQLModel, table=True):
     name: str
     raw_data: dict[str, Any] = Field(default={}, sa_column=Column(JSON))
     enrichment_status: str = Field(default="pending")
-    # "pending" | "enriching" | "complete" | "failed"
+    # "pending" | "enriching" | "complete" | "failed" | "filtered"
     description_source: str | None = Field(default=None)
     # which source won: "wikipedia", "gmaps_editorial", "gmaps_generative",
     #                    "wikidata", "knowledge_graph", "llm_synthesized"
     description_score: float | None = Field(default=None)
+    quality_score: float | None = Field(default=None)
+    quality_gate: str | None = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -135,3 +138,19 @@ class GlobalDiscoveryCell(SQLModel, table=True):
     saturated: bool
     resource_names: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     searched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class GlobalGmapsCache(SQLModel, table=True):
+    """Cross-run cache for raw GMaps API responses keyed by place_code.
+
+    Avoids re-fetching place details within the TTL window (90 days).
+    TTL is enforced in application logic (GlobalGmapsCacheStore), not DB constraints.
+    """
+
+    __tablename__ = "globalgmapscache"
+
+    id: int | None = Field(default=None, primary_key=True)
+    place_code: str = Field(index=True, unique=True)
+    raw_response: dict[str, Any] = Field(default={}, sa_column=Column(JSON))
+    quality_score: float | None = Field(default=None)
+    cached_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

@@ -67,8 +67,12 @@ async def download_place_images(run_code: str, engine, max_workers: int = 20) ->
 
     CDN photo URLs (places.googleapis.com/v1/.../media) are not billed API calls,
     so no rate limiting is needed here.
+
+    Quality gate: places with quality_score below GATE_IMAGE_DOWNLOAD are skipped.
+    Backwards-compat: quality_score IS NULL passes through (existing runs).
     """
     from app.db.models import ScrapedPlace
+    from app.pipeline.place_quality import GATE_IMAGE_DOWNLOAD, passes_gate
 
     with Session(engine) as session:
         places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
@@ -78,6 +82,8 @@ async def download_place_images(run_code: str, engine, max_workers: int = 20) ->
     place_map: dict[int, dict] = {}  # place.id → raw_data
 
     for place in places:
+        if not passes_gate(place.quality_score, GATE_IMAGE_DOWNLOAD):
+            continue  # filtered by quality gate
         raw = place.raw_data or {}
         urls = raw.get("image_urls") or []
         if not urls or raw.get("image_blobs"):
@@ -534,6 +540,19 @@ class GmapsCollector(BaseCollector):
         else:
             editorial = ""
 
+        # Get generative summary (extended fields — may be absent if not fetched)
+        generative_summary = response.get("generativeSummary", {})
+        if isinstance(generative_summary, dict):
+            gen_overview = generative_summary.get("overview", {})
+            if isinstance(gen_overview, dict):
+                generative_text = gen_overview.get("text", "")
+            elif isinstance(gen_overview, str):
+                generative_text = gen_overview
+            else:
+                generative_text = ""
+        else:
+            generative_text = ""
+
         formatted_address = response.get("formattedAddress", "")
         if editorial:
             description = editorial
@@ -587,4 +606,10 @@ class GmapsCollector(BaseCollector):
             "vicinity": formatted_address,
             "business_status": business_status,
             "google_place_id": place_id,
+            # Quality scoring helpers — stored for score_place_quality()
+            "rating": response.get("rating"),
+            "user_rating_count": response.get("userRatingCount"),
+            "has_editorial": bool(editorial),
+            "has_generative": bool(generative_text),
+            "gmaps_types": result_types,
         }

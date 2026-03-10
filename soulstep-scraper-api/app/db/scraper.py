@@ -1,11 +1,13 @@
+import asyncio
 import secrets
 
-import requests
+import httpx
 from sqlmodel import Session, select
 
 from app.db.models import DataLocation, ScrapedPlace, ScraperRun
 from app.db.session import engine
 from app.logger import get_logger
+from app.pipeline.place_quality import GATE_SYNC, passes_gate
 from app.scrapers.gmaps import run_gmaps_scraper
 
 logger = get_logger(__name__)
@@ -286,13 +288,79 @@ def build_sync_payloads(places: list[ScrapedPlace]) -> list[dict]:
     return payloads
 
 
+async def _post_batch_async(
+    batch: list[dict],
+    server_url: str,
+    client: httpx.AsyncClient,
+) -> tuple[int, list[str]]:
+    """POST one batch to /api/v1/places/batch. Returns (synced_count, failed_entries)."""
+    batch_codes = [p["place_code"] for p in batch]
+    try:
+        resp = await client.post(
+            f"{server_url}/api/v1/places/batch",
+            json={"places": batch},
+        )
+        if resp.status_code in [200, 201]:
+            data = resp.json()
+            synced = data.get("synced", 0)
+            failed: list[str] = []
+            for r in data.get("results", []):
+                if not r.get("ok"):
+                    reason = r.get("error", "unknown error")
+                    failed.append(f"{r['place_code']}: {reason}")
+                    logger.warning("[FAIL] %s: %s", r["place_code"], reason)
+                else:
+                    logger.debug("[OK]   %s", r["place_code"])
+            return synced, failed
+        else:
+            logger.warning(
+                "Batch endpoint returned %d, falling back to individual POSTs", resp.status_code
+            )
+            return 0, [f"{code}: batch HTTP {resp.status_code}" for code in batch_codes]
+    except Exception as e:
+        reason = f"{type(e).__name__}: {e}"
+        logger.error("[FAIL] Batch request failed: %s", reason)
+        return 0, [f"{code}: {reason}" for code in batch_codes]
+
+
+async def _post_individual_async(
+    payload: dict,
+    server_url: str,
+    client: httpx.AsyncClient,
+) -> tuple[int, list[str]]:
+    """Fall back to a single individual POST. Returns (synced_count, failure_details)."""
+    import json as _json
+
+    place_code = payload["place_code"]
+    try:
+        r = await client.post(f"{server_url}/api/v1/places", json=payload)
+        if r.status_code not in [200, 201]:
+            reason = f"HTTP {r.status_code}"
+            logger.warning("[FAIL] %s: %s — %s", place_code, reason, r.text[:200])
+            if r.status_code == 422:
+                logger.debug(
+                    "Payload that caused 422:\n%s",
+                    _json.dumps(payload, indent=2, default=str),
+                )
+            return 0, [f"{place_code}: {reason}"]
+        else:
+            logger.debug("[OK]   %s", place_code)
+            return 1, []
+    except Exception as e:
+        reason = f"{type(e).__name__}: {e}"
+        logger.warning("[FAIL] %s: %s", place_code, reason)
+        return 0, [f"{place_code}: {reason}"]
+
+
+# Keep synchronous wrappers for backwards compat with existing tests and call-sites.
+
+
 def post_batch(
     batch: list[dict],
     server_url: str,
-    http_session: requests.Session,
+    http_session,
 ) -> tuple[int, list[str]]:
-    """POST one batch to /api/v1/places/batch. Returns (synced_count, failed_place_codes)."""
-
+    """Synchronous wrapper — kept for test backwards-compat."""
     batch_codes = [p["place_code"] for p in batch]
     try:
         resp = http_session.post(
@@ -325,9 +393,9 @@ def post_batch(
 def handle_sync_failures(
     failed_payloads: list[dict],
     server_url: str,
-    http_session: requests.Session,
+    http_session,
 ) -> tuple[int, list[str]]:
-    """Fall back to individual POSTs for each failed place. Returns (synced_count, failure_details)."""
+    """Synchronous fallback to individual POSTs — kept for test backwards-compat."""
     import json as _json
 
     synced = 0
@@ -355,24 +423,38 @@ def handle_sync_failures(
     return synced, failure_details
 
 
-def sync_run_to_server(run_code: str, server_url: str) -> None:
-    """
-    Orchestrator: build payloads → batch POST → handle individual failures.
+async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
+    """Async orchestrator: build payloads → concurrent batch POSTs → individual fallbacks.
 
-    Places are sent in groups of BATCH_SIZE to reduce HTTP overhead.
-    Falls back to individual POSTs for any batch that the endpoint rejects.
+    Quality gate: places with quality_score below GATE_SYNC are skipped.
+    Backwards-compat: quality_score IS NULL passes through (existing runs).
 
-    Progress is persisted to ScraperRun after every batch so the admin UI
-    can display a live sync counter (polled via the /activity endpoint).
+    Batches are sent concurrently (semaphore of 3) to reduce wall-clock time.
+    Individual fallback POSTs are also async.
+    Progress is persisted after every batch for the admin UI live counter.
     """
-    # Ensure the URL has an http(s) scheme so requests doesn't raise InvalidSchema.
+    # Ensure the URL has an http(s) scheme
     if not server_url.startswith(("http://", "https://")):
         server_url = f"http://{server_url}"
     server_url = server_url.rstrip("/")
 
-    # Load places and mark run as syncing
+    # Load places and apply quality gate
     with Session(engine) as session:
-        places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
+        all_places = session.exec(
+            select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
+        ).all()
+
+        places = [p for p in all_places if passes_gate(p.quality_score, GATE_SYNC)]
+        filtered_count = len(all_places) - len(places)
+
+        if filtered_count:
+            logger.info(
+                "Sync quality gate: skipping %d/%d places below threshold (%.2f)",
+                filtered_count,
+                len(all_places),
+                GATE_SYNC,
+            )
+
         total = len(places)
         payloads = build_sync_payloads(list(places))
         payloads_by_code = {p["place_code"]: p for p in payloads}
@@ -389,34 +471,43 @@ def sync_run_to_server(run_code: str, server_url: str) -> None:
 
     synced_count = 0
     all_failure_details: list[str] = []
+    batch_sem = asyncio.Semaphore(3)  # max 3 concurrent batch POSTs
 
-    http_session = requests.Session()
-    for batch_start in range(0, len(payloads), BATCH_SIZE):
+    async def _process_batch(batch_start: int) -> None:
+        nonlocal synced_count
         batch = payloads[batch_start : batch_start + BATCH_SIZE]
         logger.info("Sending batch %d: %d places", batch_start // BATCH_SIZE + 1, len(batch))
 
-        batch_synced, failed_entries = post_batch(batch, server_url, http_session)
+        async with batch_sem:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                batch_synced, failed_entries = await _post_batch_async(batch, server_url, client)
 
-        if batch_synced > 0:
-            synced_count += batch_synced
-        else:
-            # Entire batch failed — retry individually
-            failed_codes = [e.split(":")[0] for e in failed_entries]
-            retry_payloads = [payloads_by_code[c] for c in failed_codes if c in payloads_by_code]
-            if retry_payloads:
-                extra_synced, extra_failures = handle_sync_failures(
-                    retry_payloads, server_url, http_session
+                if batch_synced > 0:
+                    synced_count += batch_synced
+                else:
+                    # Entire batch failed — retry individually (concurrently)
+                    failed_codes = [e.split(":")[0] for e in failed_entries]
+                    retry_payloads = [
+                        payloads_by_code[c] for c in failed_codes if c in payloads_by_code
+                    ]
+                    if retry_payloads:
+                        ind_results = await asyncio.gather(
+                            *[
+                                _post_individual_async(pl, server_url, client)
+                                for pl in retry_payloads
+                            ]
+                        )
+                        for extra_synced, extra_failures in ind_results:
+                            synced_count += extra_synced
+                            all_failure_details.extend(extra_failures)
+                    else:
+                        all_failure_details.extend(failed_entries)
+
+                all_failure_details.extend(
+                    e for e in failed_entries if e.split(":")[0] not in payloads_by_code
                 )
-                synced_count += extra_synced
-                all_failure_details.extend(extra_failures)
-            else:
-                all_failure_details.extend(failed_entries)
 
-        all_failure_details.extend(
-            e for e in failed_entries if e.split(":")[0] not in payloads_by_code
-        )
-
-        # Persist progress after every batch so the admin UI can poll it
+        # Persist progress after every batch
         with Session(engine) as session:
             run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
             if run:
@@ -424,6 +515,9 @@ def sync_run_to_server(run_code: str, server_url: str) -> None:
                 run.places_sync_failed = len(all_failure_details)
                 session.add(run)
                 session.commit()
+
+    batch_starts = list(range(0, len(payloads), BATCH_SIZE))
+    await asyncio.gather(*[_process_batch(bs) for bs in batch_starts])
 
     failed_count = len(all_failure_details)
     logger.info(
@@ -441,3 +535,12 @@ def sync_run_to_server(run_code: str, server_url: str) -> None:
             run.places_sync_failed = failed_count
             session.add(run)
             session.commit()
+
+
+def sync_run_to_server(run_code: str, server_url: str) -> None:
+    """Synchronous entry-point — runs the async implementation in an event loop.
+
+    Called from FastAPI background tasks (which run in a thread) and from
+    existing tests via asyncio.run / monkeypatching.
+    """
+    asyncio.run(sync_run_to_server_async(run_code, server_url))

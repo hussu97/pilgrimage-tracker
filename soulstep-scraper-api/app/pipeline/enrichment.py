@@ -22,6 +22,7 @@ from app.db.models import RawCollectorData, ScrapedPlace, ScraperRun
 from app.db.session import engine
 from app.logger import get_logger
 from app.pipeline.merger import merge_collector_results
+from app.pipeline.place_quality import GATE_ENRICHMENT, is_generic_name, passes_gate
 
 logger = get_logger(__name__)
 
@@ -29,64 +30,10 @@ logger = get_logger(__name__)
 _PHASE0_NAMES = frozenset({"osm"})
 _PHASE1_NAMES = frozenset({"wikipedia", "wikidata"})
 
-# Bare type words that make a place name too generic for enrichment to be useful.
-# If the name (after stripping a leading article) is exactly one of these, skip
-# all collectors and fall back to the Google Maps description.
-_GENERIC_PLACE_TERMS = frozenset(
-    {
-        # Mosques
-        "mosque",
-        "masjid",
-        "masjed",
-        "jama",
-        "jamia",
-        # Churches
-        "church",
-        "chapel",
-        "cathedral",
-        "basilica",
-        # Temples / Hindu / Buddhist
-        "temple",
-        "mandir",
-        "pagoda",
-        "stupa",
-        # Sikh
-        "gurudwara",
-        "gurdwara",
-        # Jewish
-        "synagogue",
-        "shul",
-        # Shrines / tombs / sufi
-        "shrine",
-        "dargah",
-        "darga",
-        "mazar",
-        "mausoleum",
-        # Monasteries
-        "monastery",
-        "convent",
-    }
-)
-
-# Leading articles to strip before comparing (Arabic, English)
-_LEADING_ARTICLES = ("the ", "a ", "an ", "al ", "al-", "el ", "el-")
-
-
-def _is_generic_name(name: str) -> bool:
-    """
-    Return True if the place name is too generic for enrichment to yield
-    useful results — i.e. it is nothing more than a bare place-type word
-    (optionally preceded by a leading article).
-
-    Examples that return True:  "Mosque", "the Church", "Al Masjid", "masjed"
-    Examples that return False: "Al-Aqsa Mosque", "Grand Mosque", "Hagia Sofia"
-    """
-    normalized = name.strip().lower()
-    for article in _LEADING_ARTICLES:
-        if normalized.startswith(article):
-            normalized = normalized[len(article) :].strip()
-            break  # strip at most one article
-    return normalized in _GENERIC_PLACE_TERMS
+# _is_generic_name is now provided by place_quality.is_generic_name.
+# Keep a local alias for backwards-compat with existing tests that import it
+# directly from this module.
+_is_generic_name = is_generic_name
 
 
 def _group_into_phases(collectors: list[BaseCollector]) -> list[list[BaseCollector]]:
@@ -147,16 +94,44 @@ async def run_enrichment_pipeline(run_code: str):
             logger.warning("Enrichment: No places found for run %s", run_code)
             return
 
-        places = [p for p in all_places if p.enrichment_status != "complete"]
+        places = [p for p in all_places if p.enrichment_status not in ("complete", "filtered")]
         if len(places) < len(all_places):
             logger.info(
-                "Enrichment: skipping %d already-enriched places, %d remaining",
+                "Enrichment: skipping %d already-enriched/filtered places, %d remaining",
                 len(all_places) - len(places),
                 len(places),
             )
 
         if not places:
             logger.info("Enrichment: all places already enriched for run %s", run_code)
+            return
+
+        # Quality gate: mark places below GATE_ENRICHMENT as filtered
+        below_gate = [p for p in places if not passes_gate(p.quality_score, GATE_ENRICHMENT)]
+        if below_gate:
+            for p in below_gate:
+                p.enrichment_status = "filtered"
+                session.add(p)
+            session.commit()
+
+            # Update places_filtered counter on the run
+            run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+            if run:
+                run.places_filtered = len(below_gate)
+                session.add(run)
+                session.commit()
+
+            logger.info(
+                "Enrichment: filtered %d places below quality gate (%.2f), %d remaining",
+                len(below_gate),
+                GATE_ENRICHMENT,
+                len(places) - len(below_gate),
+            )
+
+        places = [p for p in places if passes_gate(p.quality_score, GATE_ENRICHMENT)]
+
+        if not places:
+            logger.info("Enrichment: all places filtered by quality gate for run %s", run_code)
             return
 
         place_codes = [p.place_code for p in places]
