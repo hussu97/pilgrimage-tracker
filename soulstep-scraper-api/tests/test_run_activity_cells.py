@@ -50,7 +50,7 @@ def _make_cell(
         lng_min=lng_min,
         lng_max=lng_max,
         depth=depth,
-        radius_m=0.0,
+        radius_m=30000.0,
         result_count=result_count,
         saturated=saturated,
         resource_names=[f"places/id{i}" for i in range(result_count)],

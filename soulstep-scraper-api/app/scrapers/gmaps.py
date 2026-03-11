@@ -157,67 +157,53 @@ def process_weekly_hours(opening_hours_dict):
     return schedule
 
 
-async def get_places_in_rectangle(
-    lat_min: float,
-    lat_max: float,
-    lng_min: float,
-    lng_max: float,
+async def get_places_in_circle(
+    lat: float,
+    lng: float,
+    radius: float,
     place_types: list[str],
     api_key: str,
     client: httpx.AsyncClient | None = None,
 ) -> tuple[list[str], bool]:
     """
-    Find all places of given types within a bounding box using the Places API
-    (searchText endpoint — the only endpoint that supports rectangle restriction).
+    Find all places of given types within a circle using the Places API
+    (searchNearby endpoint — supports circle restriction + includedTypes filtering).
 
-    Makes one searchText call per place type sequentially, aggregates results.
     Returns (deduplicated list of place resource names, is_saturated).
-    is_saturated is True if ANY type returned the maximum 20 results.
+    is_saturated is True if the maximum 20 results were returned.
 
     Accepts an optional httpx.AsyncClient for connection reuse across calls.
     """
-    url = "https://places.googleapis.com/v1/places:searchText"
+    url = "https://places.googleapis.com/v1/places:searchNearby"
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": api_key,
         "X-Goog-FieldMask": "places.name",
     }
-    rectangle = {
-        "low": {"latitude": lat_min, "longitude": lng_min},
-        "high": {"latitude": lat_max, "longitude": lng_max},
+    body = {
+        "includedTypes": place_types,
+        "locationRestriction": {
+            "circle": {"center": {"latitude": lat, "longitude": lng}, "radius": radius}
+        },
+        "maxResultCount": 20,
     }
 
-    all_names: set[str] = set()
-    is_saturated = False
+    if client is not None:
+        resp = await client.post(url, json=body, headers=headers)
+    else:
+        async with httpx.AsyncClient(timeout=35.0) as c:
+            resp = await c.post(url, json=body, headers=headers)
 
-    for ptype in place_types:
-        body = {
-            # textQuery is required by searchText; use the type name as a
-            # meaningful search term (e.g. "mosque", "hindu temple").
-            "textQuery": ptype.replace("_", " "),
-            "includedType": ptype,
-            "locationRestriction": {"rectangle": rectangle},
-            "maxResultCount": 20,
-        }
+    if resp.status_code != 200:
+        error_data = resp.json() if resp.content else {}
+        error_msg = error_data.get("error", {}).get("message", "Unknown error")
+        raise Exception(f"Places API searchNearby failed (HTTP {resp.status_code}): {error_msg}")
 
-        if client is not None:
-            resp = await client.post(url, json=body, headers=headers)
-        else:
-            async with httpx.AsyncClient(timeout=35.0) as c:
-                resp = await c.post(url, json=body, headers=headers)
+    places_data = resp.json().get("places", [])
+    names = [p["name"] for p in places_data if "name" in p]
+    is_saturated = len(names) == 20
 
-        if resp.status_code != 200:
-            error_data = resp.json() if resp.content else {}
-            error_msg = error_data.get("error", {}).get("message", "Unknown error")
-            raise Exception(f"Places API searchText failed (HTTP {resp.status_code}): {error_msg}")
-
-        places_data = resp.json().get("places", [])
-        names = [p["name"] for p in places_data if "name" in p]
-        all_names.update(names)
-        if len(names) == 20:
-            is_saturated = True
-
-    return list(all_names), is_saturated
+    return names, is_saturated
 
 
 def calculate_search_radius(
@@ -268,10 +254,10 @@ async def search_area(
     Returns list of unique place_ids found in this area.
     """
     indent = "  " * depth
-    _, _, radius = calculate_search_radius(lat_min, lat_max, lng_min, lng_max)
+    center_lat, center_lng, radius = calculate_search_radius(lat_min, lat_max, lng_min, lng_max)
 
     logger.debug(
-        "%sSearching area (lat: %.4f-%.4f, lng: %.4f-%.4f, half_diag: %.0fm, depth: %d, total: %d)",
+        "%sSearching area (lat: %.4f-%.4f, lng: %.4f-%.4f, radius: %.0fm, depth: %d, total: %d)",
         indent,
         lat_min,
         lat_max,
@@ -361,8 +347,8 @@ async def search_area(
             async with _sem_ctx:
                 if rate_limiter is not None:
                     await rate_limiter.acquire("gmaps_search")
-                place_ids, is_saturated = await get_places_in_rectangle(
-                    lat_min, lat_max, lng_min, lng_max, place_types, api_key, client
+                place_ids, is_saturated = await get_places_in_circle(
+                    center_lat, center_lng, radius, place_types, api_key, client
                 )
 
             # Save to global cache for future runs
@@ -394,7 +380,9 @@ async def search_area(
 
         # Persist this cell immediately so interrupted runs can resume
         if cell_store is not None:
-            cell_store.save(lat_min, lat_max, lng_min, lng_max, depth, 0.0, place_ids, is_saturated)
+            cell_store.save(
+                lat_min, lat_max, lng_min, lng_max, depth, radius, place_ids, is_saturated
+            )
 
     if max_results and len(existing_ids) >= max_results:
         return new_ids

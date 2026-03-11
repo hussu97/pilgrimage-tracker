@@ -37,6 +37,7 @@ import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
 import { statusVariant } from "@/lib/utils/scraperStatus";
 import { ArrowLeft, Check, Copy, ExternalLink, Play, RefreshCw, Trash2, UploadCloud, XCircle } from "lucide-react";
+import { CellsMap } from "./CellsMap";
 
 function enrichVariant(s: string) {
   if (s === "complete") return "success" as const;
@@ -440,7 +441,17 @@ function CellsTab({ runCode }: { runCode: string }) {
   const [cells, setCells] = useState<DiscoveryCellItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [allCells, setAllCells] = useState<DiscoveryCellItem[]>([]);
+  const [mapLoading, setMapLoading] = useState(true);
   const { page, pageSize, setPage, setPageSize } = usePagination(50);
+
+  useEffect(() => {
+    setMapLoading(true);
+    getRunCells(runCode, { page: 1, page_size: 2000 })
+      .then((r) => setAllCells(r.items))
+      .catch(() => setAllCells([]))
+      .finally(() => setMapLoading(false));
+  }, [runCode]);
 
   useEffect(() => {
     setLoading(true);
@@ -546,6 +557,7 @@ function CellsTab({ runCode }: { runCode: string }) {
 
   return (
     <div className="space-y-3">
+      {!mapLoading && allCells.length > 0 && <CellsMap cells={allCells} />}
       <p className="text-xs text-text-secondary dark:text-dark-text-secondary">
         {total.toLocaleString()} cells searched during discovery
       </p>
