@@ -206,6 +206,15 @@ def _place_detail(
     return out
 
 
+@router.get("/count")
+def get_places_count(session: SessionDep):
+    """Return the total count of all places in the database."""
+    from sqlmodel import func as _func
+
+    total = session.exec(select(_func.count(Place.id))).one()
+    return {"total": total}
+
+
 @router.get("/recommended")
 def get_recommended_places(
     session: SessionDep,

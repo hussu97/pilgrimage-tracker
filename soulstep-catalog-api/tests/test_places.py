@@ -551,3 +551,35 @@ class TestBatchEndpoint:
             ],
         )
         assert data["synced"] == 1
+
+
+# ── places count endpoint ───────────────────────────────────────────────────────
+
+
+class TestPlacesCount:
+    """GET /api/v1/places/count"""
+
+    def test_count_empty_returns_zero(self, client):
+        resp = client.get(f"{PLACES_URL}/count")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "total" in data
+        assert data["total"] == 0
+
+    def test_count_reflects_created_places(self, client):
+        _create_place(client, "plc_cnt_a001")
+        _create_place(client, "plc_cnt_a002")
+        _create_place(client, "plc_cnt_a003")
+        resp = client.get(f"{PLACES_URL}/count")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 3
+
+    def test_count_no_auth_required(self, client):
+        resp = client.get(f"{PLACES_URL}/count")
+        assert resp.status_code == 200
+
+    def test_count_total_is_int(self, client):
+        _create_place(client, "plc_cnt_t001")
+        resp = client.get(f"{PLACES_URL}/count")
+        assert isinstance(resp.json()["total"], int)

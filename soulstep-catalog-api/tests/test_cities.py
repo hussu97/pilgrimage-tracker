@@ -137,3 +137,125 @@ class TestCityReligionPlaces:
         assert "city" in data
         assert "religion" in data
         assert data["religion"] == "christianity"
+
+
+# ── city popularity metrics ────────────────────────────────────────────────────
+
+
+class TestCityMetrics:
+    """GET /api/v1/cities?include_metrics=true"""
+
+    def _register_and_token(self, client, email="citymetrics@example.com"):
+        resp = client.post(
+            "/api/v1/auth/register",
+            json={"email": email, "password": "Pass1234!", "display_name": "MetricsUser"},
+        )
+        assert resp.status_code == 200
+        return resp.json()["token"]
+
+    def test_metrics_fields_present_when_requested(self, client):
+        """include_metrics=true adds checkins_30d and popularity_label to each city."""
+        _create_place(client, "plc_met001", "Dubai")
+        resp = client.get(CITIES_URL, params={"include_metrics": "true"})
+        assert resp.status_code == 200
+        cities = resp.json()["cities"]
+        assert len(cities) >= 1
+        city = next((c for c in cities if c["city"] == "Dubai"), None)
+        assert city is not None
+        assert "checkins_30d" in city
+        assert "popularity_label" in city
+
+    def test_metrics_fields_absent_without_flag(self, client):
+        """Without include_metrics=true, fields are not present."""
+        _create_place(client, "plc_met002", "London")
+        resp = client.get(CITIES_URL)
+        assert resp.status_code == 200
+        cities = resp.json()["cities"]
+        if cities:
+            assert "checkins_30d" not in cities[0]
+            assert "popularity_label" not in cities[0]
+
+    def test_metrics_checkins_zero_when_no_checkins(self, client):
+        """checkins_30d is 0 for a city with no check-ins."""
+        _create_place(client, "plc_met003", "Tokyo")
+        resp = client.get(CITIES_URL, params={"include_metrics": "true"})
+        cities = resp.json()["cities"]
+        tokyo = next((c for c in cities if c["city"] == "Tokyo"), None)
+        assert tokyo is not None
+        assert tokyo["checkins_30d"] == 0
+        assert tokyo["popularity_label"] is None
+
+    def test_metrics_checkins_counted_for_city(self, client, db_session):
+        """Places with recent check-ins are counted per city."""
+        from datetime import UTC, datetime, timedelta
+
+        from app.db.models import CheckIn, Place
+
+        # Create place in DB directly (so we can also create check-ins directly)
+        place = Place(
+            place_code="plc_met_ci01",
+            name="Checkin Mosque",
+            religion="islam",
+            place_type="mosque",
+            lat=25.0,
+            lng=55.0,
+            address="Test St",
+            city="Riyadh",
+        )
+        db_session.add(place)
+        db_session.commit()
+
+        # Add 10 check-ins within last 30 days
+        for i in range(10):
+            ci = CheckIn(
+                check_in_code=f"ci_met_{i:04d}",
+                user_code="usr_test_metrics",
+                place_code="plc_met_ci01",
+                checked_in_at=datetime.now(UTC) - timedelta(days=i),
+            )
+            db_session.add(ci)
+        db_session.commit()
+
+        resp = client.get(CITIES_URL, params={"include_metrics": "true"})
+        cities = resp.json()["cities"]
+        riyadh = next((c for c in cities if c["city"] == "Riyadh"), None)
+        assert riyadh is not None
+        assert riyadh["checkins_30d"] == 10
+        # 10 > 5 so label should be "Growing"
+        assert riyadh["popularity_label"] == "Growing"
+
+    def test_metrics_popularity_label_trending(self, client, db_session):
+        """Cities with >50 check-ins get 'Trending' label."""
+        from datetime import UTC, datetime
+
+        from app.db.models import CheckIn, Place
+
+        place = Place(
+            place_code="plc_trending01",
+            name="Trending Mosque",
+            religion="islam",
+            place_type="mosque",
+            lat=24.0,
+            lng=54.0,
+            address="Test",
+            city="Mecca",
+        )
+        db_session.add(place)
+        db_session.commit()
+
+        for i in range(55):
+            ci = CheckIn(
+                check_in_code=f"ci_trend_{i:04d}",
+                user_code="usr_trend_test",
+                place_code="plc_trending01",
+                checked_in_at=datetime.now(UTC),
+            )
+            db_session.add(ci)
+        db_session.commit()
+
+        resp = client.get(CITIES_URL, params={"include_metrics": "true"})
+        cities = resp.json()["cities"]
+        mecca = next((c for c in cities if c["city"] == "Mecca"), None)
+        assert mecca is not None
+        assert mecca["checkins_30d"] == 55
+        assert mecca["popularity_label"] == "Trending"

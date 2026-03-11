@@ -4,6 +4,18 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Backend: Phase 1 UI/UX Overhaul — Places Count, City Metrics, Journey Translations (2026-03-12)
+
+### Backend
+- **`soulstep-catalog-api/app/api/v1/places.py`** — Added `GET /api/v1/places/count` endpoint returning `{"total": int}`; registered before `/{place_code}` catch-all to avoid routing conflicts
+- **`soulstep-catalog-api/app/api/v1/cities.py`** — Added `include_metrics: bool` query parameter to `GET /api/v1/cities`; when `true`, computes `checkins_30d` per city (check-ins in last 30 days) and derives `popularity_label` ("Trending" >50, "Popular" >20, "Growing" >5, `null` otherwise)
+- **`soulstep-catalog-api/app/db/seed_data.json`** — Added `search.placeholder` and `dashboard.totalPlaces` translation keys for all 5 languages (en, ar, hi, te, ml); updated all `groups.*` values to use "journey(s)" terminology across all languages (keys unchanged)
+- **`soulstep-catalog-api/tests/test_places.py`** — Added `TestPlacesCount` class (4 tests) covering empty state, count accuracy, no-auth, and int type
+- **`soulstep-catalog-api/tests/test_cities.py`** — Added `TestCityMetrics` class (5 tests) covering fields presence, zero check-ins, counted check-ins, "Growing" and "Trending" labels
+- **`soulstep-catalog-api/tests/test_i18n.py`** — Added 7 tests verifying `search.placeholder`, `dashboard.totalPlaces`, and journey rename (`groups.title == "Journeys"`) across all 5 languages
+
+---
+
 ## Mobile Quick Fixes — Phase 2 (2026-03-12)
 
 ### Frontend (mobile)

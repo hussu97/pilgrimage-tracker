@@ -73,3 +73,38 @@ class TestTranslations:
     def test_contains_place_keys(self, client):
         keys = client.get(TRANS_URL, params={"lang": "en"}).json().keys()
         assert any("places" in k for k in keys)
+
+    def test_search_placeholder_key_present_in_english(self, client):
+        data = client.get(TRANS_URL, params={"lang": "en"}).json()
+        assert "search.placeholder" in data
+        assert data["search.placeholder"] == "Search sacred sites..."
+
+    def test_dashboard_total_places_key_present_in_english(self, client):
+        data = client.get(TRANS_URL, params={"lang": "en"}).json()
+        assert "dashboard.totalPlaces" in data
+        assert data["dashboard.totalPlaces"] == "Sacred sites to explore"
+
+    def test_new_keys_present_in_arabic(self, client):
+        data = client.get(TRANS_URL, params={"lang": "ar"}).json()
+        assert "search.placeholder" in data
+        assert "dashboard.totalPlaces" in data
+
+    def test_new_keys_present_in_hindi(self, client):
+        data = client.get(TRANS_URL, params={"lang": "hi"}).json()
+        assert "search.placeholder" in data
+        assert "dashboard.totalPlaces" in data
+
+    def test_new_keys_present_in_telugu(self, client):
+        data = client.get(TRANS_URL, params={"lang": "te"}).json()
+        assert "search.placeholder" in data
+        assert "dashboard.totalPlaces" in data
+
+    def test_new_keys_present_in_malayalam(self, client):
+        data = client.get(TRANS_URL, params={"lang": "ml"}).json()
+        assert "search.placeholder" in data
+        assert "dashboard.totalPlaces" in data
+
+    def test_groups_title_is_journeys_in_english(self, client):
+        """groups.title value should now be 'Journeys'."""
+        data = client.get(TRANS_URL, params={"lang": "en"}).json()
+        assert data.get("groups.title") == "Journeys"

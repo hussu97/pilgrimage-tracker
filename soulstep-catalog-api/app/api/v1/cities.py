@@ -9,11 +9,12 @@ Provides city-level landing pages for long-tail SEO:
 from __future__ import annotations
 
 import re
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import func, select
 
-from app.db.models import City, Place
+from app.db.models import CheckIn, City, Place
 from app.db.session import SessionDep
 
 router = APIRouter()
@@ -33,11 +34,25 @@ def _slug_to_city_match(slug: str, city: str) -> bool:
     return _city_to_slug(city) == slug
 
 
+def _derive_popularity_label(checkins_30d: int) -> str | None:
+    """Derive a popularity label from the 30-day check-in count."""
+    if checkins_30d > 50:
+        return "Trending"
+    if checkins_30d > 20:
+        return "Popular"
+    if checkins_30d > 5:
+        return "Growing"
+    return None
+
+
 @router.get("")
 def list_cities(
     session: SessionDep,
     limit: int = Query(100, le=500),
     offset: int = Query(0),
+    include_metrics: bool = Query(
+        False, description="Include 30-day check-in metrics and popularity label per city"
+    ),
 ):
     """List all cities with place counts, sorted by count descending."""
     rows = session.exec(
@@ -56,20 +71,47 @@ def list_cities(
     )
     city_map = {c.name: c for c in city_rows}
 
+    # Compute 30-day check-in counts per city if metrics requested
+    checkins_by_city: dict[str, int] = {}
+    if include_metrics and city_names:
+        cutoff = datetime.now(UTC) - timedelta(days=30)
+        # Get all place_codes for the cities in this page
+        place_rows = session.exec(
+            select(Place.place_code, Place.city).where(Place.city.in_(city_names))  # type: ignore[attr-defined]
+        ).all()
+        place_to_city = dict(place_rows)
+        place_codes = list(place_to_city.keys())
+        if place_codes:
+            checkin_rows = session.exec(
+                select(CheckIn.place_code, func.count(CheckIn.id).label("cnt"))
+                .where(
+                    CheckIn.place_code.in_(place_codes),  # type: ignore[attr-defined]
+                    CheckIn.checked_in_at >= cutoff,
+                )
+                .group_by(CheckIn.place_code)
+            ).all()
+            for place_code, cnt in checkin_rows:
+                city_name = place_to_city.get(place_code)
+                if city_name:
+                    checkins_by_city[city_name] = checkins_by_city.get(city_name, 0) + cnt
+
     cities = []
     for city, count in rows:
         if not city:
             continue
         city_row = city_map.get(city)
-        cities.append(
-            {
-                "city": city,
-                "city_slug": _city_to_slug(city),
-                "city_code": city_row.city_code if city_row else None,
-                "translations": city_row.translations if city_row else None,
-                "count": count,
-            }
-        )
+        entry: dict = {
+            "city": city,
+            "city_slug": _city_to_slug(city),
+            "city_code": city_row.city_code if city_row else None,
+            "translations": city_row.translations if city_row else None,
+            "count": count,
+        }
+        if include_metrics:
+            checkins_30d = checkins_by_city.get(city, 0)
+            entry["checkins_30d"] = checkins_30d
+            entry["popularity_label"] = _derive_popularity_label(checkins_30d)
+        cities.append(entry)
 
     total = session.exec(
         select(func.count()).select_from(
