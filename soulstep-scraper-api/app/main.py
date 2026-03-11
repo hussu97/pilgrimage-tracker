@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text as sa_text
 from sqlmodel import Session
@@ -142,6 +143,21 @@ app.include_router(api_router)
 
 
 # ===== Middleware =====
+
+# CORS — allow the admin web to call the scraper API directly in local-dev
+# hybrid mode (VITE_SCRAPER_API_URL). Origins are comma-separated in
+# SCRAPER_ALLOWED_ORIGINS; defaults to localhost admin-web dev port.
+_raw_origins = os.environ.get(
+    "SCRAPER_ALLOWED_ORIGINS", "http://localhost:5174,http://127.0.0.1:5174"
+)
+_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_allowed_origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.middleware("http")

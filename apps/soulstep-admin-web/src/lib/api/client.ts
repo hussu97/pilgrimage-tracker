@@ -19,9 +19,20 @@ export function clearToken(): void {
 }
 
 export const apiClient = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL ?? ""}/api/v1`,
+  baseURL: "/api/v1",
   withCredentials: true,
 });
+
+// Scraper client — routes to the scraper API.
+// When VITE_SCRAPER_API_URL is set (local-dev hybrid mode), calls go directly
+// to the local scraper service so the prod catalog proxy is bypassed.
+// Otherwise falls back through the Vite proxy → catalog proxy path.
+// Either way, scraper.ts uses short paths like /data-locations or /runs.
+const _scraperBase = import.meta.env.VITE_SCRAPER_API_URL
+  ? `${import.meta.env.VITE_SCRAPER_API_URL}/api/v1/scraper`
+  : "/api/v1/admin/scraper";
+
+export const scraperClient = axios.create({ baseURL: _scraperBase });
 
 // Attach Bearer token on every request (from in-memory state)
 apiClient.interceptors.request.use((config) => {

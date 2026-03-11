@@ -32,7 +32,7 @@ You can run the scraper on your laptop and point it at any catalog URL — local
 
 ```bash
 cd soulstep-scraper-api
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
