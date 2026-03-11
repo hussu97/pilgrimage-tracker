@@ -3,12 +3,12 @@
  *
  * Replaces the flat place-list Home with a journey-first experience:
  *   • Active Journey hero card with circular progress ring
- *   • Quick Actions row
+ *   • Quick Actions 2×2 colorful card grid
+ *   • Popular Places carousel (top-rated + most checked-in)
+ *   • Popular Cities horizontal scroll
  *   • Recommended Places carousel (backend /places/recommended)
  *   • Popular Journeys carousel (backend /groups/featured)
  *   • Recent Activity feed (from user's groups)
- *
- * Phase 1 — foundation skeleton + Phase 2 — full data wiring combined.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -32,6 +32,23 @@ interface RecommendedPlace {
   distance_km?: number | null;
 }
 
+interface PopularPlace {
+  place_code: string;
+  name: string;
+  religion: string;
+  images: { url: string }[];
+  average_rating?: number | null;
+  review_count?: number | null;
+  total_checkins_count?: number | null;
+  distance?: number | null;
+}
+
+interface PopularCity {
+  city: string;
+  city_slug: string;
+  count: number;
+}
+
 interface FeaturedJourney {
   group_code: string;
   name: string;
@@ -40,6 +57,39 @@ interface FeaturedJourney {
   total_sites: number;
   member_count: number;
 }
+
+// ── Quick action accent colors ────────────────────────────────────────────────
+
+const ACTION_CONFIG = [
+  {
+    key: 'map',
+    icon: 'map',
+    color: '#10B981',
+    bgClass: 'bg-emerald-500/10',
+    textClass: 'text-emerald-500',
+  },
+  {
+    key: 'create',
+    icon: 'add_circle',
+    color: '#3B82F6',
+    bgClass: 'bg-blue-500/10',
+    textClass: 'text-blue-500',
+  },
+  {
+    key: 'join',
+    icon: 'group_add',
+    color: '#8B5CF6',
+    bgClass: 'bg-violet-500/10',
+    textClass: 'text-violet-500',
+  },
+  {
+    key: 'favorites',
+    icon: 'favorite',
+    color: '#F43F5E',
+    bgClass: 'bg-rose-500/10',
+    textClass: 'text-rose-500',
+  },
+] as const;
 
 // ── API calls (typed thin wrappers) ──────────────────────────────────────────
 
@@ -65,6 +115,26 @@ async function getRecommendedPlaces(params: {
   });
   if (!res.ok) return [];
   return res.json();
+}
+
+async function getPopularPlaces(): Promise<PopularPlace[]> {
+  const qs = new URLSearchParams({
+    sort: 'rating',
+    include_rating: 'true',
+    include_checkins: 'true',
+    limit: '10',
+  });
+  const res = await fetch(`${API_BASE}/api/v1/places?${qs}`, { credentials: 'include' });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data) ? data : (data.places ?? data.items ?? []);
+}
+
+async function getPopularCities(): Promise<PopularCity[]> {
+  const res = await fetch(`${API_BASE}/api/v1/cities?limit=10`, { credentials: 'include' });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.cities ?? [];
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -228,67 +298,74 @@ function EmptyJourneyCard() {
   );
 }
 
-/** Quick action button — icon+label circle on mobile, pill button on desktop */
-function QuickAction({
-  icon,
-  label,
-  to,
-  onClick,
-}: {
-  icon: string;
-  label: string;
-  to?: string;
-  onClick?: () => void;
-}) {
-  const mobileInner = (
-    <motion.div
-      whileTap={{ scale: 0.94 }}
-      className="md:hidden flex flex-col items-center gap-2 cursor-pointer group"
-    >
-      <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-dark-surface flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-        <span
-          className="material-symbols-outlined text-[22px] text-text-muted dark:text-dark-text-secondary group-hover:text-primary transition-colors"
-          style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}
-          aria-hidden
-        >
-          {icon}
-        </span>
-      </div>
-      <span className="text-xs font-medium text-text-muted dark:text-dark-text-secondary text-center leading-tight">
-        {label}
-      </span>
-    </motion.div>
-  );
+/** 2×2 grid of colorful quick-action cards */
+function QuickActionsGrid({ user }: { user: { display_name?: string } | null }) {
+  const { t } = useI18n();
 
-  const desktopInner = (
-    <motion.div
-      whileTap={{ scale: 0.97 }}
-      className="hidden md:flex items-center gap-2 cursor-pointer group px-4 py-2.5 rounded-xl border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface hover:border-primary/50 hover:bg-primary/5 transition-all"
-    >
-      <span
-        className="material-symbols-outlined text-[20px] text-text-muted dark:text-dark-text-secondary group-hover:text-primary transition-colors"
-        style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}
-        aria-hidden
-      >
-        {icon}
-      </span>
-      <span className="text-sm font-medium text-text-muted dark:text-dark-text-secondary group-hover:text-primary transition-colors whitespace-nowrap">
-        {label}
-      </span>
-    </motion.div>
-  );
+  const actions = [
+    {
+      ...ACTION_CONFIG[0],
+      label: t('journey.exploreMap'),
+      sub: t('nav.places'),
+      href: '/map',
+    },
+    {
+      ...ACTION_CONFIG[1],
+      label: t('journey.newJourney'),
+      sub: t('journey.startPlanning'),
+      href: user ? '/journeys/new' : '/login',
+    },
+    {
+      ...ACTION_CONFIG[2],
+      label: t('journey.joinWithCode'),
+      sub: t('journey.joinExisting'),
+      href: '/join',
+    },
+    {
+      ...ACTION_CONFIG[3],
+      label: t('favorites.title'),
+      sub: t('favorites.savedPlaces'),
+      href: '/favorites',
+    },
+  ];
 
-  const inner = (
-    <>
-      {mobileInner}
-      {desktopInner}
-    </>
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {actions.map((a) => (
+        <motion.div key={a.key} whileTap={{ scale: 0.97 }}>
+          <Link
+            to={a.href}
+            className="flex flex-col items-start gap-2.5 p-4 rounded-2xl bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border shadow-sm hover:shadow-md transition-all group"
+          >
+            <div
+              className={`w-11 h-11 rounded-[14px] flex items-center justify-center ${a.bgClass}`}
+            >
+              <span
+                className={`material-symbols-outlined text-[22px] ${a.textClass}`}
+                style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}
+                aria-hidden
+              >
+                {a.icon}
+              </span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-text-primary dark:text-white leading-tight">
+                {a.label}
+              </p>
+              {a.sub && (
+                <p className="text-[11px] text-text-muted dark:text-dark-text-secondary mt-0.5 leading-tight">
+                  {a.sub}
+                </p>
+              )}
+            </div>
+          </Link>
+        </motion.div>
+      ))}
+    </div>
   );
-  if (to) return <Link to={to}>{inner}</Link>;
-  return <button onClick={onClick}>{inner}</button>;
 }
 
-/** Horizontal place card */
+/** Horizontal place card — recommended */
 function PlaceCardSmall({ place }: { place: RecommendedPlace }) {
   const { t } = useI18n();
   return (
@@ -332,12 +409,73 @@ function PlaceCardSmall({ place }: { place: RecommendedPlace }) {
           <button
             onClick={(e) => {
               e.preventDefault();
-              // TODO Phase 3: open "Add to Journey" bottom sheet
+              // TODO: open "Add to Journey" modal
             }}
             className="mt-2 text-[10px] font-semibold text-primary hover:underline"
           >
             + {t('map.addToJourney')}
           </button>
+        </div>
+      </motion.div>
+    </Link>
+  );
+}
+
+/** Horizontal popular place card — with rating + checkins */
+function PopularPlaceCard({ place }: { place: PopularPlace }) {
+  const imgUrl = place.images?.[0]?.url ? getFullImageUrl(place.images[0].url) : null;
+  return (
+    <Link to={`/places/${place.place_code}`}>
+      <motion.div
+        whileTap={{ scale: 0.97 }}
+        className="w-48 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface"
+      >
+        <div className="h-28 bg-slate-100 dark:bg-dark-border relative overflow-hidden">
+          {imgUrl ? (
+            <img src={imgUrl} alt={place.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <span
+                className="material-symbols-outlined text-3xl text-slate-300"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                place
+              </span>
+            </div>
+          )}
+          {place.distance != null && (
+            <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+              {place.distance < 1
+                ? `${Math.round(place.distance * 1000)}m`
+                : `${place.distance.toFixed(1)}km`}
+            </span>
+          )}
+        </div>
+        <div className="p-2.5">
+          <p className="text-xs font-semibold text-text-primary dark:text-white line-clamp-1">
+            {place.name}
+          </p>
+          <p className="text-[10px] text-text-muted dark:text-dark-text-secondary mt-0.5 capitalize">
+            {place.religion}
+          </p>
+          <div className="flex items-center gap-2 mt-1.5">
+            {place.average_rating != null && place.average_rating > 0 && (
+              <span className="flex items-center gap-0.5 text-[10px] font-semibold text-amber-500">
+                ★ {place.average_rating.toFixed(1)}
+              </span>
+            )}
+            {place.total_checkins_count != null && place.total_checkins_count > 0 && (
+              <span className="flex items-center gap-0.5 text-[10px] text-text-muted dark:text-dark-text-secondary">
+                <span
+                  className="material-symbols-outlined text-[12px]"
+                  style={{ fontVariationSettings: "'FILL' 0" }}
+                >
+                  check_circle
+                </span>
+                {place.total_checkins_count}
+              </span>
+            )}
+          </div>
         </div>
       </motion.div>
     </Link>
@@ -409,6 +547,8 @@ export default function Home() {
   const [journeysLoading, setJourneysLoading] = useState(false);
   const [recommended, setRecommended] = useState<RecommendedPlace[]>([]);
   const [featured, setFeatured] = useState<FeaturedJourney[]>([]);
+  const [popularPlaces, setPopularPlaces] = useState<PopularPlace[]>([]);
+  const [popularCities, setPopularCities] = useState<PopularCity[]>([]);
 
   // Redirect to onboarding on first visit (no user + no flag)
   useEffect(() => {
@@ -456,6 +596,16 @@ export default function Home() {
     }
   }, []);
 
+  const fetchPopular = useCallback(async () => {
+    try {
+      const [places, cities] = await Promise.all([getPopularPlaces(), getPopularCities()]);
+      setPopularPlaces(places.slice(0, 10));
+      setPopularCities(cities.slice(0, 10));
+    } catch {
+      // silently skip
+    }
+  }, []);
+
   useEffect(() => {
     fetchJourneys();
   }, [fetchJourneys]);
@@ -463,7 +613,8 @@ export default function Home() {
   useEffect(() => {
     fetchRecommended();
     fetchFeatured();
-  }, [fetchRecommended, fetchFeatured]);
+    fetchPopular();
+  }, [fetchRecommended, fetchFeatured, fetchPopular]);
 
   const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || '';
   const activeJourneys = journeys.filter(
@@ -522,9 +673,9 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="px-4 pb-6 space-y-6 md:grid md:grid-cols-12 md:gap-6 md:space-y-0">
+        <div className="px-4 pb-6 space-y-5 md:grid md:grid-cols-12 md:gap-6 md:space-y-0">
           {/* ── Left column (main content on desktop) ─────────── */}
-          <div className="md:col-span-8 space-y-6">
+          <div className="md:col-span-8 space-y-5">
             {/* Active Journey Card */}
             <section>
               <AnimatePresence mode="wait">
@@ -556,31 +707,64 @@ export default function Home() {
               </AnimatePresence>
             </section>
 
-            {/* Quick Actions */}
+            {/* Quick Actions — 2×2 colorful card grid */}
             <section>
-              {/* Mobile: uniform icon+label grid */}
-              <div className="md:hidden flex items-center justify-around bg-white dark:bg-dark-surface rounded-2xl shadow-sm p-4">
-                <QuickAction icon="map" label={t('journey.exploreMap')} to="/map" />
-                <QuickAction
-                  icon="add_circle"
-                  label={t('journey.newJourney')}
-                  onClick={() => navigate(user ? '/journeys/new' : '/login')}
-                />
-                <QuickAction icon="group_add" label={t('journey.joinWithCode')} to="/join" />
-                <QuickAction icon="favorite" label={t('favorites.title')} to="/favorites" />
-              </div>
-              {/* Desktop: pill-button row */}
-              <div className="hidden md:flex items-center gap-3 flex-wrap">
-                <QuickAction icon="map" label={t('journey.exploreMap')} to="/map" />
-                <QuickAction
-                  icon="add_circle"
-                  label={t('journey.newJourney')}
-                  onClick={() => navigate(user ? '/journeys/new' : '/login')}
-                />
-                <QuickAction icon="group_add" label={t('journey.joinWithCode')} to="/join" />
-                <QuickAction icon="favorite" label={t('favorites.title')} to="/favorites" />
-              </div>
+              <QuickActionsGrid user={user} />
             </section>
+
+            {/* Popular Places */}
+            {popularPlaces.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base font-bold text-text-primary dark:text-white">
+                    {t('dashboard.popularPlaces')}
+                  </h2>
+                  <Link to="/places" className="text-xs font-semibold text-primary">
+                    {t('common.showMore')}
+                  </Link>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                  {popularPlaces.map((place) => (
+                    <PopularPlaceCard key={place.place_code} place={place} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Popular Cities */}
+            {popularCities.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base font-bold text-text-primary dark:text-white">
+                    {t('dashboard.popularCities')}
+                  </h2>
+                  <Link to="/cities" className="text-xs font-semibold text-primary">
+                    {t('common.showMore')}
+                  </Link>
+                </div>
+                <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                  {popularCities.map((city) => (
+                    <Link
+                      key={city.city_slug}
+                      to={`/cities/${city.city_slug}`}
+                      className="flex-shrink-0"
+                    >
+                      <motion.div
+                        whileTap={{ scale: 0.96 }}
+                        className="px-4 py-2.5 rounded-full bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border shadow-sm hover:shadow-md hover:border-primary/40 transition-all text-center min-w-[72px]"
+                      >
+                        <p className="text-sm font-semibold text-text-primary dark:text-white whitespace-nowrap">
+                          {city.city}
+                        </p>
+                        <p className="text-[10px] text-text-muted dark:text-dark-text-secondary mt-0.5">
+                          {city.count} {t('nav.places').toLowerCase()}
+                        </p>
+                      </motion.div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Recommended Places */}
             {recommended.length > 0 && (
@@ -589,7 +773,7 @@ export default function Home() {
                   <h2 className="text-base font-bold text-text-primary dark:text-white">
                     {t('journey.recommendedPlaces')}
                   </h2>
-                  <Link to="/home" className="text-xs font-semibold text-primary">
+                  <Link to="/places" className="text-xs font-semibold text-primary">
                     {t('common.showMore')}
                   </Link>
                 </div>
