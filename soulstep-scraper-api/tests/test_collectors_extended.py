@@ -45,7 +45,7 @@ class TestGmapsCollectorExtract:
                 {"name": "places/ChIJ/photos/photo1"},
                 {"name": "places/ChIJ/photos/photo2"},
                 {"name": "places/ChIJ/photos/photo3"},
-                {"name": "places/ChIJ/photos/photo4"},  # 4th is ignored
+                {"name": "places/ChIJ/photos/photo4"},
             ],
             "reviews": [
                 {
@@ -89,8 +89,8 @@ class TestGmapsCollectorExtract:
         assert "payment_options" in attr_codes
         assert "accessibility_details" in attr_codes
 
-        # Photos capped at 3
-        assert len(result.images) == 3
+        # All 4 photos returned (collector takes up to 10)
+        assert len(result.images) == 4
         assert all(img["source"] == "gmaps" for img in result.images)
 
         # Reviews
