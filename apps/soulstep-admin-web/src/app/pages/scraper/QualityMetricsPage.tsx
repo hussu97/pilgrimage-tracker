@@ -156,9 +156,9 @@ export function QualityMetricsPage() {
                   <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} />
                   <Tooltip contentStyle={TOOLTIP_STYLE} />
                   <Bar dataKey="count" fill="#6366f1" radius={[3, 3, 0, 0]} />
-                  <ReferenceLine x="0.2-0.3" stroke="#ef4444" strokeDasharray="4 2" label={{ value: "0.20", fill: "#ef4444", fontSize: 10 }} />
-                  <ReferenceLine x="0.3-0.4" stroke="#f59e0b" strokeDasharray="4 2" label={{ value: "0.35", fill: "#f59e0b", fontSize: 10 }} />
-                  <ReferenceLine x="0.4-0.5" stroke="#f97316" strokeDasharray="4 2" label={{ value: "0.40", fill: "#f97316", fontSize: 10 }} />
+                  <ReferenceLine x="0.5-0.6" stroke="#ef4444" strokeDasharray="4 2" label={{ value: "0.50 img", fill: "#ef4444", fontSize: 10 }} />
+                  <ReferenceLine x="0.6-0.7" stroke="#f59e0b" strokeDasharray="4 2" label={{ value: "0.60 enrich", fill: "#f59e0b", fontSize: 10 }} />
+                  <ReferenceLine x="0.7-0.8" stroke="#f97316" strokeDasharray="4 2" label={{ value: "0.70 sync", fill: "#f97316", fontSize: 10 }} />
                 </BarChart>
               </ResponsiveContainer>
             </Panel>
