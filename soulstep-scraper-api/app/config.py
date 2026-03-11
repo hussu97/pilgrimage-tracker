@@ -55,6 +55,10 @@ class Settings:
     detail_concurrency: int = int(os.environ.get("SCRAPER_DETAIL_CONCURRENCY", "20"))
     # Max concurrent places enriched in parallel.
     enrichment_concurrency: int = int(os.environ.get("SCRAPER_ENRICHMENT_CONCURRENCY", "10"))
+    # Max concurrent Overpass API calls (across all enrichment workers).
+    overpass_concurrency: int = int(os.environ.get("SCRAPER_OVERPASS_CONCURRENCY", "2"))
+    # Max jitter sleep (seconds) added before each Overpass call to spread burst.
+    overpass_jitter_max: float = float(os.environ.get("SCRAPER_OVERPASS_JITTER_MAX", "1.5"))
 
 
 settings = Settings()

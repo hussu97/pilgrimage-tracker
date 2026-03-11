@@ -179,6 +179,10 @@ function QualityBreakdownPanel({
 function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunActivity }) {
   const stage = run.stage;
   const showCells = activity.cells_total > 0;
+  const showDetailFetch =
+    stage === "detail_fetch" ||
+    (activity.detail_fetch_total != null && activity.detail_fetch_total > 0) ||
+    run.processed_items > 0;
   const showEnrichment =
     activity.places_complete > 0 ||
     activity.places_enriching.length > 0 ||
@@ -255,6 +259,62 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
           )}
         </div>
       )}
+
+      {/* Detail Fetch */}
+      {showDetailFetch && (() => {
+        const fetchTotal = activity.detail_fetch_total ?? run.total_items ?? 0;
+        const fetchDone = run.processed_items;
+        const fetchCached = activity.detail_fetch_cached ?? 0;
+        const fetchFresh = Math.max(0, fetchDone - fetchCached);
+        const fetchPct = fetchTotal > 0 ? Math.min(100, Math.round((fetchDone / fetchTotal) * 100)) : 0;
+        return (
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
+              Detail Fetch
+            </p>
+            {stage === "detail_fetch" && fetchDone === 0 ? (
+              <div className="flex items-center gap-1.5 text-xs text-text-secondary dark:text-dark-text-secondary">
+                <RefreshCw size={11} className="animate-spin text-primary flex-shrink-0" />
+                Fetching place details…
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 flex-wrap text-xs text-text-main dark:text-white">
+                <span>
+                  <span className="font-semibold">{fetchDone.toLocaleString()}</span>
+                  {fetchTotal > 0 && (
+                    <> / <span className="font-semibold">{fetchTotal.toLocaleString()}</span></>
+                  )}{" "}
+                  fetched
+                </span>
+                {fetchCached > 0 && (
+                  <>
+                    <span className="text-text-secondary">·</span>
+                    <span className="text-text-secondary dark:text-dark-text-secondary">
+                      {fetchCached.toLocaleString()} from cache
+                    </span>
+                  </>
+                )}
+                {fetchFresh > 0 && (
+                  <>
+                    <span className="text-text-secondary">·</span>
+                    <span className="text-text-secondary dark:text-dark-text-secondary">
+                      {fetchFresh.toLocaleString()} API calls
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+            {fetchTotal > 0 && (
+              <div className="w-full bg-background-light dark:bg-dark-bg rounded-full h-1.5">
+                <div
+                  className="bg-primary/60 h-1.5 rounded-full transition-all duration-700"
+                  style={{ width: `${fetchPct}%` }}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Image Download */}
       {showImages && (
@@ -391,7 +451,7 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
         </div>
       )}
 
-      {!showCells && !showEnrichment && !showImages && !showSync && (
+      {!showCells && !showDetailFetch && !showEnrichment && !showImages && !showSync && (
         <p className="text-xs text-text-secondary dark:text-dark-text-secondary">
           Waiting for scraper to start…
         </p>

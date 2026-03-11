@@ -88,4 +88,6 @@ def get_activity_snapshot(run_code: str, session: Session) -> dict:
         "images_failed": run.images_failed,
         "places_synced": run.places_synced,
         "places_sync_failed": run.places_sync_failed,
+        "detail_fetch_total": run.total_items,
+        "detail_fetch_cached": run.detail_fetch_cached,
     }

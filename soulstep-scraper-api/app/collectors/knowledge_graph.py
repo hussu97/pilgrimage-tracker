@@ -11,7 +11,10 @@ from typing import Any
 import httpx
 
 from app.collectors.base import BaseCollector, CollectorResult
+from app.logger import get_logger
 from app.utils.extractors import make_description
+
+logger = get_logger(__name__)
 
 
 class KnowledgeGraphCollector(BaseCollector):
@@ -56,10 +59,12 @@ class KnowledgeGraphCollector(BaseCollector):
         async with httpx.AsyncClient(timeout=35.0) as client:
             resp = await client.get(self.KG_URL, params=params)
         if resp.status_code != 200:
+            logger.warning("knowledge_graph HTTP %d for %r", resp.status_code, name)
             return None
 
         data = resp.json()
         elements = data.get("itemListElement", [])
+        logger.info("knowledge_graph 200 for %r — %d result(s)", name, len(elements))
         if not elements:
             return None
 

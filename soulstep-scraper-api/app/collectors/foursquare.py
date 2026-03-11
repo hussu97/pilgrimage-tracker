@@ -11,7 +11,10 @@ from typing import Any
 import httpx
 
 from app.collectors.base import BaseCollector, CollectorResult
+from app.logger import get_logger
 from app.utils.extractors import ReviewExtractor
+
+logger = get_logger(__name__)
 
 
 class FoursquareCollector(BaseCollector):
@@ -67,11 +70,14 @@ class FoursquareCollector(BaseCollector):
         async with httpx.AsyncClient(timeout=35.0) as client:
             resp = await client.get(self.SEARCH_URL, headers=headers, params=params)
         if resp.status_code != 200:
+            logger.warning("foursquare match HTTP %d for %r", resp.status_code, name)
             return None
 
         data = resp.json()
         place = data.get("place", {})
-        return place.get("fsq_id")
+        fsq_id = place.get("fsq_id")
+        logger.info("foursquare match 200 for %r — fsq_id=%s", name, fsq_id)
+        return fsq_id
 
     async def _fetch_tips(self, fsq_id: str, api_key: str) -> list[dict]:
         """Fetch tips for a Foursquare place."""
@@ -83,6 +89,9 @@ class FoursquareCollector(BaseCollector):
         async with httpx.AsyncClient(timeout=35.0) as client:
             resp = await client.get(url, headers=headers, params={"limit": 10})
         if resp.status_code != 200:
+            logger.warning("foursquare tips HTTP %d for fsq_id=%s", resp.status_code, fsq_id)
             return []
 
-        return resp.json()
+        tips = resp.json()
+        logger.info("foursquare tips 200 for fsq_id=%s — %d tip(s)", fsq_id, len(tips))
+        return tips

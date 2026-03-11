@@ -6,14 +6,35 @@ Extracts amenities, contact info, wikipedia/wikidata tags, and multilingual name
 
 from __future__ import annotations
 
+import asyncio
+import random
 from typing import Any
 
 from app.collectors.base import BaseCollector, CollectorResult
 from app.scrapers.base import async_request_with_backoff
 from app.utils.extractors import ContactExtractor
 
-OVERPASS_ENDPOINT = "https://overpass-api.de/api/interpreter"
-HEADERS = {"User-Agent": "SoulStepBot/1.0 (contact@soul-step.org)"}
+# Official public Overpass mirrors — separate servers/networks/IPs.
+# Rotating across them spreads load so no single mirror sees all our traffic.
+OVERPASS_ENDPOINTS = [
+    "https://overpass-api.de/api/interpreter",  # DE main
+    "https://lz4.overpass-api.de/api/interpreter",  # DE alt node
+    "https://overpass.kumi.systems/api/interpreter",  # kumi.systems
+    "https://overpass.osm.ch/api/interpreter",  # Swiss
+]
+
+# Semaphore is created lazily so it is attached to the running event loop.
+_overpass_sem: asyncio.Semaphore | None = None
+
+
+def _get_overpass_sem() -> asyncio.Semaphore:
+    """Return (or lazily create) the module-level Overpass concurrency semaphore."""
+    global _overpass_sem
+    from app.config import settings
+
+    if _overpass_sem is None:
+        _overpass_sem = asyncio.Semaphore(settings.overpass_concurrency)
+    return _overpass_sem
 
 
 class OsmCollector(BaseCollector):
@@ -41,7 +62,19 @@ class OsmCollector(BaseCollector):
             return self._fail_result(str(e))
 
     async def _query_overpass(self, lat: float, lng: float, radius: int = 200) -> dict[str, Any]:
-        """Query OpenStreetMap for place of worship near coordinates."""
+        """Query OpenStreetMap for place of worship near coordinates.
+
+        Applies three layers of rate-limit resilience:
+          1. Acquires from the shared AsyncRateLimiter (1 rps Overpass bucket).
+          2. Sleeps a random jitter so concurrent workers don't fire simultaneously.
+          3. Holds the module-level semaphore to cap in-flight Overpass calls.
+          4. Picks a random mirror so requests hit different servers.
+          5. Uses per-request varied headers for fingerprint diversification.
+        """
+        from app.config import settings
+        from app.scrapers.base import get_async_rate_limiter
+        from app.utils.http_helpers import varied_headers
+
         overpass_query = f"""
         [out:json][timeout:25];
         (
@@ -51,9 +84,18 @@ class OsmCollector(BaseCollector):
         );
         out center;
         """
-        response = await async_request_with_backoff(
-            "POST", OVERPASS_ENDPOINT, data=overpass_query, headers=HEADERS
-        )
+
+        rl = get_async_rate_limiter()
+        await rl.acquire("overpass")
+        await asyncio.sleep(random.uniform(0.0, settings.overpass_jitter_max))
+
+        endpoint = random.choice(OVERPASS_ENDPOINTS)
+        headers = varied_headers({"Content-Type": "application/x-www-form-urlencoded"})
+
+        async with _get_overpass_sem():
+            response = await async_request_with_backoff(
+                "POST", endpoint, data=overpass_query, headers=headers
+            )
         if not response:
             return {}
 

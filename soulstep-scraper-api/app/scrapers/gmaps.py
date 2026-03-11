@@ -690,6 +690,10 @@ async def fetch_place_details(
             cached_count += 1
 
     if cached_count:
+        _run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+        if _run:
+            _run.detail_fetch_cached = cached_count
+            session.add(_run)
         session.commit()
         logger.info("Stored %d cached places", cached_count)
 

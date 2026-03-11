@@ -10,10 +10,12 @@ from __future__ import annotations
 from typing import Any
 
 from app.collectors.base import BaseCollector, CollectorResult
+from app.logger import get_logger
 from app.scrapers.base import async_request_with_backoff
 from app.utils.extractors import make_description
+from app.utils.http_helpers import varied_headers
 
-HEADERS = {"User-Agent": "SoulStepBot/1.0 (contact@soul-step.org)"}
+logger = get_logger(__name__)
 
 # Wikidata property IDs we care about
 PROPERTY_MAP = {
@@ -64,10 +66,13 @@ class WikidataCollector(BaseCollector):
             f"?action=wbgetentities&ids={qid}&format=json"
             f"&languages=en|ar|hi|te&props=labels|descriptions|claims"
         )
-        response = await async_request_with_backoff("GET", url, headers=HEADERS)
+        response = await async_request_with_backoff("GET", url, headers=varied_headers())
         if not response or response.status_code != 200:
+            status = response.status_code if response else "no response"
+            logger.warning("wikidata HTTP %s for QID %s", status, qid)
             return None
 
+        logger.info("wikidata 200 for QID %s", qid)
         try:
             data = response.json()
             entities = data.get("entities", {})

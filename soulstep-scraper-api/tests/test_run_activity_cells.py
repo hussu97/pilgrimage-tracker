@@ -114,6 +114,33 @@ class TestRunActivity:
         assert data["places_enriching"][0]["name"] == "Al Noor"
         assert data["places_enriching"][0]["place_code"] == "gplc_a4"
 
+    def test_activity_detail_fetch_fields(self, client, db_session):
+        """detail_fetch_total equals run.total_items; detail_fetch_cached equals run.detail_fetch_cached."""
+        run = ScraperRun(
+            run_code="run_act_df1",
+            location_code="loc_test",
+            status="running",
+            total_items=42,
+            detail_fetch_cached=10,
+        )
+        db_session.add(run)
+        db_session.commit()
+
+        resp = client.get("/api/v1/scraper/runs/run_act_df1/activity")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["detail_fetch_total"] == 42
+        assert data["detail_fetch_cached"] == 10
+
+    def test_activity_detail_fetch_defaults(self, client, db_session):
+        """detail_fetch_cached defaults to 0 and detail_fetch_total is None when total_items not set."""
+        _make_run(db_session, "run_act_df2")
+        resp = client.get("/api/v1/scraper/runs/run_act_df2/activity")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["detail_fetch_cached"] == 0
+        assert data["detail_fetch_total"] is None
+
     def test_activity_places_enriching_capped_at_5(self, client, db_session):
         run = _make_run(db_session, "run_act_cap")
         for i in range(8):

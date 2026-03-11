@@ -12,7 +12,10 @@ from typing import Any
 import httpx
 
 from app.collectors.base import BaseCollector, CollectorResult
+from app.logger import get_logger
 from app.utils.extractors import ReviewExtractor
+
+logger = get_logger(__name__)
 
 
 class OutscraperCollector(BaseCollector):
@@ -67,15 +70,19 @@ class OutscraperCollector(BaseCollector):
         async with httpx.AsyncClient(timeout=35.0) as client:
             resp = await client.get(self.REVIEWS_URL, headers=headers, params=params)
         if resp.status_code != 200:
+            logger.warning("outscraper HTTP %d for place_id=%s", resp.status_code, place_id)
             return []
 
         data = resp.json()
         if not data.get("data"):
+            logger.info("outscraper 200 for place_id=%s — no data in response", place_id)
             return []
 
         # Outscraper returns nested structure: data[0] is the place, reviews_data has reviews
         place_data = data["data"][0] if data["data"] else {}
-        return place_data.get("reviews_data", [])
+        reviews = place_data.get("reviews_data", [])
+        logger.info("outscraper 200 for place_id=%s — %d review(s)", place_id, len(reviews))
+        return reviews
 
     def _extract(self, reviews: list[dict]) -> CollectorResult:
         """Extract reviews into standard format."""

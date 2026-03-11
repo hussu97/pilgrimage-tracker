@@ -587,6 +587,118 @@ class TestCollectorRegistry:
         assert "gmaps" not in all_names
 
 
+# ── TestHttpHelpers ───────────────────────────────────────────────────────────
+
+
+class TestHttpHelpers:
+    def test_varied_headers_returns_dict(self):
+        from app.utils.http_helpers import varied_headers
+
+        h = varied_headers()
+        assert isinstance(h, dict)
+        assert "User-Agent" in h
+        assert "Accept-Language" in h
+        assert "Accept" in h
+
+    def test_varied_headers_ua_from_pool(self):
+        from app.utils.http_helpers import _USER_AGENTS, varied_headers
+
+        for _ in range(20):
+            h = varied_headers()
+            assert h["User-Agent"] in _USER_AGENTS
+
+    def test_varied_headers_accept_language_from_pool(self):
+        from app.utils.http_helpers import _ACCEPT_LANGUAGES, varied_headers
+
+        for _ in range(20):
+            h = varied_headers()
+            assert h["Accept-Language"] in _ACCEPT_LANGUAGES
+
+    def test_varied_headers_not_always_identical(self):
+        """Over many calls the UA should vary (probabilistic — could fail with p=(1/5)^29)."""
+        from app.utils.http_helpers import varied_headers
+
+        uas = {varied_headers()["User-Agent"] for _ in range(30)}
+        assert len(uas) > 1
+
+    def test_varied_headers_merges_base(self):
+        from app.utils.http_helpers import varied_headers
+
+        h = varied_headers({"Content-Type": "application/x-www-form-urlencoded"})
+        assert h["Content-Type"] == "application/x-www-form-urlencoded"
+        assert "User-Agent" in h
+
+    def test_varied_headers_does_not_mutate_base(self):
+        from app.utils.http_helpers import varied_headers
+
+        base = {"X-Custom": "value"}
+        varied_headers(base)
+        assert "User-Agent" not in base
+
+
+# ── TestOsmOverpassDiversification ────────────────────────────────────────────
+
+
+class TestOsmOverpassDiversification:
+    def test_overpass_endpoints_list_nonempty(self):
+        from app.collectors.osm import OVERPASS_ENDPOINTS
+
+        assert len(OVERPASS_ENDPOINTS) >= 2
+        for ep in OVERPASS_ENDPOINTS:
+            assert ep.startswith("https://")
+
+    async def test_query_overpass_uses_endpoint_from_list(self):
+        """_query_overpass must POST to one of the OVERPASS_ENDPOINTS."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from app.collectors.osm import OVERPASS_ENDPOINTS, OsmCollector
+
+        collector = OsmCollector()
+        called_urls: list[str] = []
+
+        # Use MagicMock (not AsyncMock) so .json() is a plain callable
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"elements": [{"tags": {"amenity": "place_of_worship"}}]}
+
+        async def fake_backoff(method, url, **kwargs):
+            called_urls.append(url)
+            return mock_response
+
+        with patch("app.collectors.osm.async_request_with_backoff", side_effect=fake_backoff):
+            with patch("app.scrapers.base.AsyncRateLimiter.acquire", new=AsyncMock()):
+                with patch("asyncio.sleep", new=AsyncMock()):
+                    await collector._query_overpass(25.0, 55.0)
+
+        assert len(called_urls) == 1
+        assert called_urls[0] in OVERPASS_ENDPOINTS
+
+    async def test_query_overpass_acquires_rate_limiter(self):
+        """_query_overpass must call rate_limiter.acquire('overpass')."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from app.collectors.osm import OsmCollector
+
+        collector = OsmCollector()
+        acquired: list[str] = []
+
+        async def fake_acquire(endpoint):
+            acquired.append(endpoint)
+
+        # Use MagicMock (not AsyncMock) so .json() is a plain callable
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"elements": [{"tags": {"amenity": "place_of_worship"}}]}
+
+        async def fake_backoff(method, url, **kwargs):
+            return mock_response
+
+        with patch("app.collectors.osm.async_request_with_backoff", side_effect=fake_backoff):
+            with patch("app.scrapers.base.AsyncRateLimiter.acquire", side_effect=fake_acquire):
+                with patch("asyncio.sleep", new=AsyncMock()):
+                    await collector._query_overpass(25.0, 55.0)
+
+        assert "overpass" in acquired
+
+
 # ── TestDownloadImage ─────────────────────────────────────────────────────────
 
 

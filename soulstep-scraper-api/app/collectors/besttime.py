@@ -11,6 +11,9 @@ from typing import Any
 import httpx
 
 from app.collectors.base import BaseCollector, CollectorResult
+from app.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class BestTimeCollector(BaseCollector):
@@ -55,12 +58,15 @@ class BestTimeCollector(BaseCollector):
         async with httpx.AsyncClient(timeout=35.0) as client:
             resp = await client.post(self.FORECAST_URL, json=params)
         if resp.status_code != 200:
+            logger.warning("besttime HTTP %d for %r", resp.status_code, name)
             return None
 
         data = resp.json()
         if data.get("status") != "OK":
+            logger.warning("besttime 200 but status=%r for %r", data.get("status"), name)
             return None
 
+        logger.info("besttime 200 OK for %r", name)
         return data
 
     def _extract(self, data: dict[str, Any]) -> CollectorResult:
