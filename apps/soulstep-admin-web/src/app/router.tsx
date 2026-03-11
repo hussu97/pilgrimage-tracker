@@ -21,6 +21,7 @@ import { RunDetailPage } from "./pages/scraper/RunDetailPage";
 import { CollectorsPage } from "./pages/scraper/CollectorsPage";
 import { PlaceTypeMappingsPage } from "./pages/scraper/PlaceTypeMappingsPage";
 import { QualityMetricsPage } from "./pages/scraper/QualityMetricsPage";
+import { CoverageMapPage } from "./pages/scraper/CoverageMapPage";
 import { TranslationsPage } from "./pages/content/TranslationsPage";
 import { AppVersionsPage } from "./pages/content/AppVersionsPage";
 import { ContentTranslationsPage } from "./pages/content/ContentTranslationsPage";
@@ -85,6 +86,7 @@ export const routes = [
               { path: "/scraper/place-type-mappings", element: <PlaceTypeMappingsPage /> },
               { path: "/scraper/quality", element: <Navigate to="/quality" replace /> },
               { path: "/quality", element: <QualityMetricsPage /> },
+              { path: "/coverage-map", element: <CoverageMapPage /> },
               // Content & Configuration (Phase 4)
               { path: "/translations", element: <TranslationsPage /> },
               { path: "/app-versions", element: <AppVersionsPage /> },
