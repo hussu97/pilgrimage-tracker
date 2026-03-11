@@ -239,7 +239,7 @@ export default function FavoritesScreen() {
             <Text style={styles.emptyDesc}>{t('home.explorePlaces')}</Text>
             <TouchableOpacity
               style={styles.emptyCta}
-              onPress={() => tabNav.navigate('Main' as never)}
+              onPress={() => stackNav?.navigate('MapDiscovery' as never)}
               activeOpacity={0.8}
             >
               <Text style={styles.emptyCtaText}>{t('profile.exploreCta')}</Text>

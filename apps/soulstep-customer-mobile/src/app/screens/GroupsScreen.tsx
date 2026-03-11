@@ -523,14 +523,6 @@ export default function GroupsScreen() {
           </>
         )}
       </ScrollView>
-
-      <TouchableOpacity
-        style={[styles.fab, { bottom: insets.bottom + 80 }]}
-        onPress={navToCreate}
-        activeOpacity={0.9}
-      >
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
     </View>
   );
 }

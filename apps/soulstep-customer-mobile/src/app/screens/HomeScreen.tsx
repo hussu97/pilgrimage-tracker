@@ -130,7 +130,7 @@ async function fetchPopularPlaces(): Promise<PopularPlace[]> {
       sort: 'rating',
       include_rating: 'true',
       include_checkins: 'true',
-      limit: '10',
+      limit: '40',
     });
     const res = await fetch(`${API_BASE}/api/v1/places?${qs.toString()}`);
     if (!res.ok) return [];
@@ -722,7 +722,7 @@ export default function HomeScreen() {
   const loadPopularPlaces = useCallback(async () => {
     try {
       const data = await fetchPopularPlaces();
-      setPopularPlaces(data.slice(0, 10));
+      setPopularPlaces(data);
     } catch {
       // silently skip
     }
@@ -972,9 +972,6 @@ export default function HomeScreen() {
       <View style={{ marginTop: 24 }}>
         <View style={[styles.sectionRow, { paddingHorizontal: 20 }]}>
           <Text style={styles.sectionTitle}>{t('dashboard.popularPlaces')}</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Places')}>
-            <Text style={styles.seeMore}>{t('common.showMore')}</Text>
-          </TouchableOpacity>
         </View>
         <FlatList
           data={popularPlaces}
@@ -1218,7 +1215,7 @@ export default function HomeScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 80 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

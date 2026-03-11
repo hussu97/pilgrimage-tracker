@@ -79,7 +79,7 @@ export default function ExploreCitiesScreen() {
           keyExtractor={(c) => c.city_slug}
           numColumns={2}
           columnWrapperStyle={s.row}
-          contentContainerStyle={s.listContent}
+          contentContainerStyle={[s.listContent, { paddingBottom: insets.bottom + 80 }]}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={s.cityCard}

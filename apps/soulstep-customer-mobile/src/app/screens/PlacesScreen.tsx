@@ -156,7 +156,7 @@ export default function PlacesScreen() {
           keyExtractor={(p) => p.place_code}
           numColumns={2}
           columnWrapperStyle={s.row}
-          contentContainerStyle={s.listContent}
+          contentContainerStyle={[s.listContent, { paddingBottom: insets.bottom + 80 }]}
           renderItem={renderPlace}
           onEndReached={() => hasMore && !loading && fetchPlaces(cursor)}
           onEndReachedThreshold={0.5}

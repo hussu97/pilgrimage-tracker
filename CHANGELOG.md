@@ -4,6 +4,17 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Mobile Quick Fixes — Phase 2 (2026-03-12)
+
+### Frontend (mobile)
+- **`HomeScreen.tsx`** — Fixed bottom scroll cutoff: main ScrollView `contentContainerStyle` now uses `insets.bottom + 80` for `paddingBottom`; increased popular places fetch limit from 10 → 40 and removed `.slice(0, 10)` cap; removed "Show More" button from the Popular Places section header row
+- **`PlacesScreen.tsx`** — Fixed bottom scroll cutoff: FlatList `contentContainerStyle` now uses `insets.bottom + 80` for `paddingBottom`
+- **`ExploreCitiesScreen.tsx`** — Fixed bottom scroll cutoff: FlatList `contentContainerStyle` now uses `insets.bottom + 80` for `paddingBottom`
+- **`FavoritesScreen.tsx`** — Changed empty state CTA navigation from `Main` tab to `MapDiscovery` stack screen
+- **`GroupsScreen.tsx`** — Removed floating action button (FAB) with '+' icon from the bottom-right of the Journeys screen
+
+---
+
 ## Web Quick Fixes: Scroll Padding, Navigation, Carousel, FAB, Alignment (2026-03-12)
 
 ### Frontend (web)
