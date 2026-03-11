@@ -27,6 +27,7 @@ import SearchScreen from './screens/SearchScreen';
 import ExploreCitiesScreen from './screens/ExploreCitiesScreen';
 import ExploreCityScreen from './screens/ExploreCityScreen';
 import PlacesScreen from './screens/PlacesScreen';
+import MapDiscoveryScreen from './screens/MapDiscoveryScreen';
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -57,6 +58,7 @@ export type RootStackParamList = {
   JoinGroup: { inviteCode?: string }; // join a journey
   Notifications: undefined;
   Favorites: undefined;
+  MapDiscovery: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -102,6 +104,7 @@ function RootStack() {
       <Stack.Screen name="ExploreCities" component={withScreenBoundary(ExploreCitiesScreen)} />
       <Stack.Screen name="ExploreCity" component={withScreenBoundary(ExploreCityScreen)} />
       <Stack.Screen name="Places" component={withScreenBoundary(PlacesScreen)} />
+      <Stack.Screen name="MapDiscovery" component={withScreenBoundary(MapDiscoveryScreen)} />
     </Stack.Navigator>
   );
 }

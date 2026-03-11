@@ -56,6 +56,7 @@ const PlacesIndex = lazyWithReload(() => import('@/app/pages/Places'));
 const ExploreCities = lazyWithReload(() => import('@/app/pages/ExploreCities'));
 const ExploreCity = lazyWithReload(() => import('@/app/pages/ExploreCity'));
 const Developers = lazyWithReload(() => import('@/app/pages/Developers'));
+const MapDiscovery = lazyWithReload(() => import('@/app/pages/MapDiscovery'));
 
 /**
  * Wraps children in an ErrorBoundary keyed to the current pathname.
@@ -330,6 +331,14 @@ export function AppRoutes() {
             element={
               <Layout>
                 <Developers />
+              </Layout>
+            }
+          />
+          <Route
+            path="/map"
+            element={
+              <Layout>
+                <MapDiscovery />
               </Layout>
             }
           />

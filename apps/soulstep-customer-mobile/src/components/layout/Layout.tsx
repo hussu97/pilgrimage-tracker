@@ -126,9 +126,7 @@ export default function Layout() {
 
   const handleMapTab = () => {
     setActiveTab('Map');
-    // Navigate to home screen, which has a map view toggle
-    // For now it just sets the active tab state
-    setActiveTab('Map');
+    navigation.navigate('MapDiscovery');
   };
 
   const textColor = (active: boolean) =>

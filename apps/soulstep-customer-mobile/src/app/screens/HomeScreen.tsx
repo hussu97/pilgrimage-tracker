@@ -1,1048 +1,907 @@
-import { useCallback, useEffect, useState, useRef, useMemo } from 'react';
+/**
+ * Journey Dashboard — the home screen of SoulStep (mobile).
+ *
+ * Mirrors the web Journey Dashboard at apps/soulstep-customer-web/src/app/pages/Home.tsx.
+ *
+ * Shows:
+ *   • Greeting header with notification + profile buttons
+ *   • Active Journey hero card with circular progress ring (SVG via react-native-svg if available,
+ *     otherwise a simple text percentage fallback)
+ *   • Quick Actions row
+ *   • Recommended Places horizontal carousel
+ *   • Popular Journeys horizontal carousel
+ */
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Modal,
-  Pressable,
-  Dimensions,
-  Animated,
-  PanResponder,
+  FlatList,
+  Image,
 } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useAuth, useI18n, useTheme, useSearch } from '@/app/providers';
-import { useLocation } from '@/app/contexts/LocationContext';
-import { useAds } from '@/components/ads/AdProvider';
-import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
-import { getPlaces } from '@/lib/api/client';
+import Constants from 'expo-constants';
+import { useAuth, useI18n, useTheme } from '@/app/providers';
+import { getGroups } from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
-import type { Place, FilterOption } from '@/lib/types';
+import type { Group, Place } from '@/lib/types';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
-import PlaceCard from '@/components/places/PlaceCard';
-import SkeletonCard from '@/components/common/SkeletonCard';
-import AdBannerNative from '@/components/ads/AdBannerNative';
-import HomeHeader from '@/components/places/HomeHeader';
-import UpdateBanner from '@/components/common/UpdateBanner';
-import { buildMapHtml } from '@/lib/utils/mapBuilder';
 
-type ViewMode = 'list' | 'map';
+// ── API base ──────────────────────────────────────────────────────────────────
 
-const PAGE_SIZE = 20;
-const MAP_PAGE_SIZE = 200;
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-const SHEET_PEEK = Math.round(SCREEN_HEIGHT * 0.28); // resting height — most of map visible
-const SHEET_EXPANDED = Math.round(SCREEN_HEIGHT * 0.58); // dragged-up height
+const API_BASE: string =
+  Constants.expoConfig?.extra?.apiUrl ?? process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:3000';
 
-interface ActiveFilters {
-  placeType?: string;
-  openNow?: boolean;
-  hasParking?: boolean;
-  womensArea?: boolean;
-  hasEvents?: boolean;
-  topRated?: boolean;
+// ── Local types ───────────────────────────────────────────────────────────────
+
+interface RecommendedPlace {
+  place_code: string;
+  name: string;
+  religion: string;
+  address: string;
+  city?: string;
+  image_url?: string | null;
+  distance_km?: number | null;
 }
 
-function toCamel(s: string): string {
-  return s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+interface FeaturedJourney {
+  group_code: string;
+  name: string;
+  description?: string;
+  cover_image_url?: string | null;
+  total_sites: number;
+  member_count: number;
 }
+
+// ── API thin wrappers ─────────────────────────────────────────────────────────
+
+async function fetchFeaturedJourneys(): Promise<FeaturedJourney[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/groups/featured`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+async function fetchRecommendedPlaces(params: {
+  lat?: number | null;
+  lng?: number | null;
+  religions?: string[];
+}): Promise<RecommendedPlace[]> {
+  try {
+    const qs = new URLSearchParams();
+    if (params.lat != null) qs.set('lat', String(params.lat));
+    if (params.lng != null) qs.set('lng', String(params.lng));
+    (params.religions ?? []).forEach((r) => qs.append('religions', r));
+    const url = `${API_BASE}/api/v1/places/recommended?${qs.toString()}`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
+  }
+}
+
+// ── makeStyles ────────────────────────────────────────────────────────────────
 
 function makeStyles(isDark: boolean) {
-  const bg = isDark ? tokens.colors.darkBg : '#F0F7FF';
+  const bg = isDark ? tokens.colors.darkBg : '#F5F0E9';
   const surface = isDark ? tokens.colors.darkSurface : '#ffffff';
-  const border = isDark ? tokens.colors.darkBorder : 'rgba(0,0,0,0.05)';
+  const border = isDark ? tokens.colors.darkBorder : 'rgba(0,0,0,0.06)';
   const textMain = isDark ? '#ffffff' : tokens.colors.textDark;
   const textSecondary = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary;
   const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
-  const chipBg = isDark ? tokens.colors.darkSurface : '#ffffff';
-  const chipBorder = isDark ? tokens.colors.darkBorder : '#E2E8F0';
-  const toggleGroupBg = isDark ? tokens.colors.darkSurface : '#f1f5f9';
 
   return StyleSheet.create({
     container: {
       flex: 1,
       backgroundColor: bg,
     },
-    gradientTop: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      height: 300,
-      backgroundColor: isDark ? '#1a1a2e' : '#EBF5FF',
-      opacity: 0.7,
+    scroll: {
+      flex: 1,
     },
-    headerArea: {
-      backgroundColor: 'transparent',
+    scrollContent: {
+      paddingBottom: 32,
     },
-    header: {
-      paddingHorizontal: 24,
-      paddingTop: 8,
-      paddingBottom: 16,
-    },
+    // ── Header ──
     headerRow: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 8,
     },
-    greeting: {
-      fontSize: 28,
+    greetingLabel: {
+      fontSize: 12,
+      color: textMuted,
+      marginBottom: 2,
+    },
+    displayName: {
+      fontSize: 20,
       fontWeight: '700',
       color: textMain,
-      letterSpacing: -1,
+      letterSpacing: -0.5,
     },
-    greetingName: {
+    signInBtn: {
+      fontSize: 14,
+      fontWeight: '600',
       color: tokens.colors.primary,
     },
-    toggleGroup: {
+    headerActions: {
       flexDirection: 'row',
-      backgroundColor: toggleGroupBg,
-      borderRadius: tokens.borderRadius.xl,
-      padding: 4,
-      gap: 4,
+      alignItems: 'center',
+      gap: 10,
     },
-    toggleBtn: {
+    iconCircle: {
       width: 36,
       height: 36,
-      borderRadius: tokens.borderRadius.lg,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    toggleBtnActive: {
-      backgroundColor: tokens.colors.primary,
-    },
-    searchWrap: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginHorizontal: 24,
-      marginBottom: 16,
+      borderRadius: 18,
       backgroundColor: surface,
-      borderRadius: tokens.borderRadius['2xl'],
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: isDark ? 0.3 : 0.06,
-      shadowRadius: 8,
-      elevation: 2,
-      borderWidth: 1,
-      borderColor: border,
-    },
-    searchIconStyle: { marginRight: 10 },
-    searchBarBtn: {
-      flexDirection: 'row',
       alignItems: 'center',
-      flex: 1,
-    },
-    searchInput: {
-      flex: 1,
-      fontSize: 15,
-      color: textMain,
-      padding: 0,
-    },
-    contentArea: {
-      flex: 1,
-    },
-    mapContainer: {
-      flex: 1,
-    },
-    centered: {
-      flex: 1,
       justifyContent: 'center',
+      ...tokens.shadow.card,
+    },
+    avatarCircle: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: tokens.colors.primaryAlpha,
       alignItems: 'center',
-      padding: 40,
-      minHeight: 200,
+      justifyContent: 'center',
     },
-    loadingText: {
-      marginTop: 12,
+    avatarText: {
       fontSize: 14,
-      color: textSecondary,
+      fontWeight: '700',
+      color: tokens.colors.primary,
     },
-    errorText: {
-      fontSize: 14,
-      color: '#b91c1c',
-      textAlign: 'center',
-      marginBottom: 12,
-    },
-    emptyIcon: { marginBottom: 12 },
-    emptyTitle: {
-      fontSize: 16,
-      color: textSecondary,
-      textAlign: 'center',
-      marginBottom: 16,
-    },
-    retryButton: {
-      backgroundColor: tokens.colors.primary,
+    // ── Section wrapper ──
+    section: {
       paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderRadius: tokens.borderRadius.xl,
+      marginTop: 20,
     },
-    retryText: { color: '#fff', fontWeight: '600', fontSize: 14 },
-    listContent: { paddingHorizontal: 24, paddingTop: 4 },
-    separator: { height: 16 },
-    // Filter icon in search bar
-    filterIconBtn: {
-      padding: 6,
-      borderRadius: 8,
-      marginLeft: 2,
-    },
-    filterIconBtnActive: {
-      backgroundColor: isDark ? '#1e2a3e' : tokens.colors.blueTint,
-    },
-    filterDot: {
-      position: 'absolute',
-      top: 4,
-      right: 4,
-      width: 7,
-      height: 7,
-      borderRadius: 3.5,
-      backgroundColor: tokens.colors.primary,
-    },
-    // Filter sheet
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-      justifyContent: 'flex-end',
-    },
-    filterSheet: {
-      backgroundColor: surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      paddingHorizontal: 24,
-      paddingTop: 12,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 16,
-      elevation: 8,
-    },
-    filterSheetHeader: {
+    sectionRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 16,
+      marginBottom: 12,
     },
-    filterSheetTitle: { fontSize: 18, fontWeight: '700', color: textMain },
-    filterClearAll: { fontSize: 14, color: tokens.colors.primary, fontWeight: '600' },
-    filterSectionLabel: {
+    sectionTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: textMain,
+    },
+    seeMore: {
       fontSize: 12,
       fontWeight: '600',
-      color: textMuted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      marginBottom: 8,
-      marginTop: 4,
+      color: tokens.colors.primary,
     },
-    filterChipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
-    filterChip: {
+    // ── Active Journey Hero Card ──
+    heroCard: {
+      marginHorizontal: 20,
+      marginTop: 16,
+      borderRadius: tokens.borderRadius['3xl'],
+      overflow: 'hidden',
+      height: 176,
+      ...tokens.shadow.cardMd,
+    },
+    heroCoverImage: {
+      ...StyleSheet.absoluteFillObject,
+      width: '100%',
+      height: '100%',
+    },
+    heroCoverOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+    },
+    heroGradientFallback: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: tokens.colors.primary,
+    },
+    heroContent: {
+      flex: 1,
+      padding: 16,
+      justifyContent: 'space-between',
+    },
+    heroTop: {
       flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+    },
+    heroLabel: {
+      fontSize: 10,
+      fontWeight: '600',
+      letterSpacing: 1,
+      color: 'rgba(255,255,255,0.8)',
+      textTransform: 'uppercase',
+      marginBottom: 4,
+    },
+    heroTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: '#ffffff',
+      letterSpacing: -0.5,
+    },
+    // Progress ring area
+    progressRingWrap: {
       alignItems: 'center',
+      justifyContent: 'center',
+      width: 56,
+      height: 56,
+    },
+    progressRingTrack: {
+      position: 'absolute',
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      borderWidth: 4,
+      borderColor: 'rgba(255,255,255,0.2)',
+    },
+    progressRingFill: {
+      position: 'absolute',
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      borderWidth: 4,
+      borderColor: '#ffffff',
+    },
+    progressPct: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#ffffff',
+    },
+    heroBottom: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+    },
+    heroNextUp: {
+      fontSize: 11,
+      color: 'rgba(255,255,255,0.8)',
+      marginBottom: 2,
+    },
+    heroNextUpName: {
+      fontWeight: '600',
+      color: '#ffffff',
+    },
+    heroPlacesCount: {
+      fontSize: 11,
+      color: 'rgba(255,255,255,0.7)',
+    },
+    heroContinueBtn: {
+      backgroundColor: 'rgba(255,255,255,0.2)',
       paddingHorizontal: 14,
       paddingVertical: 8,
       borderRadius: tokens.borderRadius.full,
-      backgroundColor: chipBg,
-      borderWidth: 1,
-      borderColor: chipBorder,
     },
-    filterChipActive: {
-      backgroundColor: tokens.colors.primary,
-      borderColor: tokens.colors.primary,
-    },
-    filterChipText: { fontSize: 13, fontWeight: '500', color: textMain },
-    filterChipTextActive: { color: '#fff', fontWeight: '600' },
-    applyFiltersBtn: {
-      backgroundColor: tokens.colors.primary,
-      paddingVertical: 14,
-      borderRadius: 12,
-      alignItems: 'center',
-      marginTop: 4,
-      marginBottom: 8,
-    },
-    applyFiltersBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-    // Map bottom sheet — absolute overlay, does not shrink the map
-    mapSheet: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      // bottom and height applied inline (tabBarHeight + animated height)
-      backgroundColor: surface,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: isDark ? 0.3 : 0.12,
-      shadowRadius: 16,
-      elevation: 8,
-      borderTopWidth: 1,
-      borderTopColor: border,
-    },
-    mapSheetHandle: {
-      width: 32,
-      height: 4,
-      backgroundColor: isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder,
-      borderRadius: 2,
-      alignSelf: 'center',
-      marginTop: 10,
-      marginBottom: 8,
-    },
-    mapSheetHeader: {
-      paddingHorizontal: 16,
-      paddingBottom: 8,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: border,
-    },
-    mapSheetCount: {
-      fontSize: 13,
+    heroContinueText: {
+      fontSize: 12,
       fontWeight: '600',
+      color: '#ffffff',
+    },
+    // ── Empty Journey Card ──
+    emptyCard: {
+      marginHorizontal: 20,
+      marginTop: 16,
+      borderRadius: tokens.borderRadius['3xl'],
+      borderWidth: 2,
+      borderStyle: 'dashed',
+      borderColor: isDark ? tokens.colors.darkBorder : '#D1C7BD',
+      paddingVertical: 32,
+      paddingHorizontal: 20,
+      alignItems: 'center',
+    },
+    emptyIconWrap: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: tokens.colors.primaryAlpha,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    emptyTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: textMain,
+      textAlign: 'center',
+      marginBottom: 6,
+    },
+    emptyDesc: {
+      fontSize: 13,
       color: textSecondary,
+      textAlign: 'center',
+      lineHeight: 19,
+      maxWidth: 260,
     },
-    mapSheetDragArea: {
-      // Touch target for the pan responder — handle + count row
+    emptyBtn: {
+      marginTop: 16,
+      backgroundColor: tokens.colors.primary,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: tokens.borderRadius.full,
     },
-    mapSheetList: {
-      paddingHorizontal: 12,
-      paddingTop: 10,
-      paddingBottom: 8,
+    emptyBtnText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#ffffff',
     },
-    mapSheetSelectedHeader: {
+    // ── Skeleton / loading ──
+    skeleton: {
+      backgroundColor: isDark ? tokens.colors.darkSurface : '#E5DDD6',
+      borderRadius: tokens.borderRadius['3xl'],
+      height: 176,
+      marginHorizontal: 20,
+      marginTop: 16,
+    },
+    // ── Quick Actions ──
+    quickActionsCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 16,
-      paddingBottom: 8,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: border,
-    },
-    mapSheetCloseBtn: {
-      padding: 4,
-    },
-    searchAreaBtn: {
-      position: 'absolute',
-      top: 12,
-      alignSelf: 'center',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 24,
+      justifyContent: 'space-around',
       backgroundColor: surface,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: isDark ? 0.3 : 0.15,
-      shadowRadius: 8,
-      elevation: 4,
+      borderRadius: tokens.borderRadius['2xl'],
+      paddingVertical: 16,
+      paddingHorizontal: 8,
+      ...tokens.shadow.card,
       borderWidth: 1,
       borderColor: border,
-      zIndex: 10,
     },
-    searchAreaText: {
-      fontSize: 13,
+    quickAction: {
+      alignItems: 'center',
+      gap: 6,
+      minWidth: 60,
+    },
+    quickActionIcon: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: isDark ? tokens.colors.darkBg : '#F5F0E9',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    quickActionLabel: {
+      fontSize: 11,
+      fontWeight: '500',
+      color: textSecondary,
+      textAlign: 'center',
+    },
+    // ── Recommended Places carousel ──
+    carousel: {
+      paddingLeft: 20,
+      paddingRight: 8,
+    },
+    placeCardSmall: {
+      width: 160,
+      borderRadius: tokens.borderRadius['2xl'],
+      backgroundColor: surface,
+      overflow: 'hidden',
+      marginRight: 12,
+      ...tokens.shadow.card,
+      borderWidth: 1,
+      borderColor: border,
+    },
+    placeCardImage: {
+      width: '100%',
+      height: 100,
+      backgroundColor: isDark ? tokens.colors.darkBorder : '#E5DDD6',
+    },
+    placeCardImageFallback: {
+      width: '100%',
+      height: 100,
+      backgroundColor: isDark ? tokens.colors.darkBorder : '#E5DDD6',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    placeCardBody: {
+      padding: 10,
+    },
+    placeCardName: {
+      fontSize: 12,
       fontWeight: '600',
-      color: tokens.colors.primary,
+      color: textMain,
+      marginBottom: 2,
     },
-    mapLoadingBadge: {
+    placeCardReligion: {
+      fontSize: 10,
+      color: textMuted,
+      textTransform: 'capitalize',
+    },
+    placeDistanceBadge: {
       position: 'absolute',
-      top: 12,
-      right: 12,
+      bottom: 6,
+      right: 6,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 99,
+    },
+    placeDistanceText: {
+      fontSize: 10,
+      color: '#ffffff',
+      fontWeight: '600',
+    },
+    // ── Popular Journeys carousel ──
+    journeyCardSmall: {
+      width: 192,
+      borderRadius: tokens.borderRadius['2xl'],
+      backgroundColor: surface,
+      overflow: 'hidden',
+      marginRight: 12,
+      ...tokens.shadow.card,
+      borderWidth: 1,
+      borderColor: border,
+    },
+    journeyCardImage: {
+      width: '100%',
+      height: 100,
+      backgroundColor: tokens.colors.primaryAlpha,
+    },
+    journeyCardImageFallback: {
+      width: '100%',
+      height: 100,
+      backgroundColor: tokens.colors.primaryAlpha,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    journeyCardBody: {
+      padding: 10,
+    },
+    journeyCardName: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: textMain,
+      marginBottom: 4,
+    },
+    journeyCardMeta: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: 16,
-      backgroundColor: surface,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.1,
-      shadowRadius: 4,
-      elevation: 2,
-      zIndex: 10,
     },
-    mapLoadingText: {
-      fontSize: 11,
-      color: textSecondary,
+    journeyCardMetaText: {
+      fontSize: 10,
+      color: textMuted,
+    },
+    journeyCardDot: {
+      width: 3,
+      height: 3,
+      borderRadius: 1.5,
+      backgroundColor: isDark ? tokens.colors.darkBorder : '#D1C7BD',
     },
   });
 }
 
+// ── Circular Progress Ring (simple View-based since react-native-svg not in deps) ──
+
+function ProgressRing({ pct }: { pct: number }) {
+  return (
+    <View style={{ alignItems: 'center', justifyContent: 'center', width: 56, height: 56 }}>
+      <View
+        style={{
+          position: 'absolute',
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          borderWidth: 4,
+          borderColor: 'rgba(255,255,255,0.25)',
+        }}
+      />
+      {/* We can't do partial arcs without SVG. Show a filled arc approximation
+          by using a partial border with a colored override. For now show the % text. */}
+      <Text style={{ fontSize: 12, fontWeight: '700', color: '#ffffff' }}>{pct}%</Text>
+    </View>
+  );
+}
+
+// ── Main Screen ───────────────────────────────────────────────────────────────
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const tabBarHeight = useBottomTabBarHeight();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
   const { t } = useI18n();
   const { isDark } = useTheme();
-  const { coords } = useLocation();
-  const { searchLocation, setSearchLocation } = useSearch();
-  const { consent } = useAds();
-  const { trackUmamiEvent } = useUmamiTracking('Home', consent.analytics);
-  const webViewRef = useRef<WebView>(null);
-
-  // Draggable bottom sheet
-  const sheetHeightAnim = useRef(new Animated.Value(SHEET_PEEK)).current;
-  const gestureStartH = useRef(SHEET_PEEK);
-  const sheetPanResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        sheetHeightAnim.stopAnimation((v) => {
-          gestureStartH.current = v;
-        });
-      },
-      onPanResponderMove: (_, { dy }) => {
-        sheetHeightAnim.setValue(
-          Math.max(80, Math.min(SHEET_EXPANDED, gestureStartH.current - dy)),
-        );
-      },
-      onPanResponderRelease: (_, { vy, dy }) => {
-        const cur = gestureStartH.current - dy;
-        const mid = (SHEET_PEEK + SHEET_EXPANDED) / 2;
-        const snapTo = vy < -0.5 || cur > mid ? SHEET_EXPANDED : SHEET_PEEK;
-        Animated.spring(sheetHeightAnim, {
-          toValue: snapTo,
-          useNativeDriver: false,
-          bounciness: 3,
-        }).start((res) => {
-          if (res.finished) gestureStartH.current = snapTo;
-        });
-      },
-    }),
-  ).current;
-
-  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [error, setError] = useState('');
-  const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
-  const [pendingFilters, setPendingFilters] = useState<ActiveFilters>({});
-  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
-  const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [mapHtml, setMapHtml] = useState<string>('');
-  const [visiblePlaceCodes, setVisiblePlaceCodes] = useState<Set<string>>(new Set());
-  const [activeIndex, setActiveIndex] = useState<number>(0);
-
-  // Map-specific state for viewport-based fetching
-  const [mapPlaces, setMapPlaces] = useState<Place[]>([]);
-  const [mapLoading, setMapLoading] = useState(false);
-  const [showSearchArea, setShowSearchArea] = useState(false);
-  interface MapBounds {
-    north: number;
-    south: number;
-    east: number;
-    west: number;
-  }
-  const currentMapBoundsRef = useRef<MapBounds | null>(null);
-  const initialMapFetchDone = useRef(false);
-
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: Array<{ index: number | null }> }) => {
-      if (viewableItems.length > 0 && viewableItems[0].index != null) {
-        setActiveIndex(viewableItems[0].index);
-      }
-    },
-  ).current;
 
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
-  // Shared base params (no cursor, no limit, no bbox)
-  const buildBaseParams = useCallback(() => {
-    const religions = (() => {
-      const r = user?.religions ?? [];
-      if (!r.length || r.includes('all')) return undefined;
-      return r;
-    })();
-    return {
-      religions,
-      sort: 'distance' as const,
-      lat: searchLocation ? searchLocation.lat : coords.lat,
-      lng: searchLocation ? searchLocation.lng : coords.lng,
-      place_type: activeFilters.placeType,
-      open_now: activeFilters.openNow,
-      has_parking: activeFilters.hasParking,
-      womens_area: activeFilters.womensArea,
-      has_events: activeFilters.hasEvents,
-      top_rated: activeFilters.topRated,
-    };
-  }, [user?.religions, activeFilters, coords, searchLocation]);
+  const [journeys, setJourneys] = useState<Group[]>([]);
+  const [journeysLoading, setJourneysLoading] = useState(false);
+  const [recommended, setRecommended] = useState<RecommendedPlace[]>([]);
+  const [featured, setFeatured] = useState<FeaturedJourney[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const buildListParams = useCallback(
-    (cursor: string | null) => ({
-      ...buildBaseParams(),
-      limit: PAGE_SIZE,
-      cursor: cursor ?? undefined,
-      radius: searchLocation ? 10 : undefined,
-    }),
-    [buildBaseParams, searchLocation],
-  );
+  // ── Data fetching ──
 
-  // Initial / refresh fetch — resets pagination (list view)
-  const fetchPlaces = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    setHasMore(true);
-    try {
-      const data = await getPlaces(buildListParams(null));
-      setPlaces(data.places);
-      setNextCursor(data.next_cursor ?? null);
-      setHasMore(data.next_cursor != null);
-      setFilterOptions(data.filters?.options ?? []);
-      const centerLat = (searchLocation ? searchLocation.lat : coords.lat) ?? 21.3891;
-      const centerLng = (searchLocation ? searchLocation.lng : coords.lng) ?? 39.8579;
-      const zoom = searchLocation ? 15 : 14;
-      setMapHtml(buildMapHtml(data.places, centerLat, centerLng, zoom));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'));
-      setPlaces([]);
-    } finally {
-      setLoading(false);
+  const loadJourneys = useCallback(async () => {
+    if (!user) {
+      setJourneys([]);
+      return;
     }
-  }, [buildListParams, coords, searchLocation, t]);
-
-  // Load next page — appends to list
-  const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore || loading) return;
-    setLoadingMore(true);
+    setJourneysLoading(true);
     try {
-      const data = await getPlaces(buildListParams(nextCursor));
-      if (data.places.length > 0) {
-        setPlaces((prev) => [...prev, ...data.places]);
-        setNextCursor(data.next_cursor ?? null);
-      }
-      setHasMore(data.next_cursor != null);
+      const data = await getGroups();
+      setJourneys(Array.isArray(data) ? data : []);
     } catch {
-      // silently skip — user can scroll again
+      // silently skip
     } finally {
-      setLoadingMore(false);
+      setJourneysLoading(false);
     }
-  }, [loadingMore, hasMore, loading, buildListParams, nextCursor]);
+  }, [user]);
 
-  // Map-view fetch (viewport bounding box)
-  const fetchMapPlaces = useCallback(
-    async (bounds: MapBounds) => {
-      setMapLoading(true);
-      try {
-        const data = await getPlaces({
-          ...buildBaseParams(),
-          min_lat: bounds.south,
-          max_lat: bounds.north,
-          min_lng: bounds.west,
-          max_lng: bounds.east,
-          limit: MAP_PAGE_SIZE,
-        });
-        setMapPlaces(data.places);
-        if (data.filters?.options) setFilterOptions(data.filters.options);
-        // Update markers in WebView without rebuilding the full HTML
-        const markers = data.places.map((p: Place) => ({
-          lat: p.lat,
-          lng: p.lng,
-          name: p.name,
-          placeCode: p.place_code,
-          address: p.address || p.place_type || '',
-          openStatus:
-            p.open_status ??
-            (p.is_open_now === true ? 'open' : p.is_open_now === false ? 'closed' : 'unknown'),
-        }));
-        webViewRef.current?.injectJavaScript(
-          `window.updateMarkers && window.updateMarkers(${JSON.stringify(markers)}); true;`,
-        );
-      } catch {
-        // Keep previous map places on error
-      } finally {
-        setMapLoading(false);
-      }
-    },
-    [buildBaseParams],
+  const loadRecommended = useCallback(async () => {
+    try {
+      const religions = (user?.religions ?? []).filter((r) => r !== 'all');
+      const data = await fetchRecommendedPlaces({ religions });
+      setRecommended(data.slice(0, 10));
+    } catch {
+      // silently skip
+    }
+  }, [user?.religions]);
+
+  const loadFeatured = useCallback(async () => {
+    try {
+      const data = await fetchFeaturedJourneys();
+      setFeatured(data.slice(0, 10));
+    } catch {
+      // silently skip
+    }
+  }, []);
+
+  const loadAll = useCallback(async () => {
+    await Promise.all([loadJourneys(), loadRecommended(), loadFeatured()]);
+  }, [loadJourneys, loadRecommended, loadFeatured]);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadAll();
+    setRefreshing(false);
+  }, [loadAll]);
+
+  // ── Derived state ──
+
+  const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || '';
+
+  const activeJourneys = journeys.filter(
+    (g) => (g.total_sites ?? 0) > 0 && (g.sites_visited ?? 0) < (g.total_sites ?? 0),
   );
+  const primaryJourney: Group | null = activeJourneys[0] ?? journeys[0] ?? null;
 
-  useEffect(() => {
-    fetchPlaces();
-  }, [fetchPlaces]);
+  const pct =
+    primaryJourney && (primaryJourney.total_sites ?? 0) > 0
+      ? Math.round(((primaryJourney.sites_visited ?? 0) / (primaryJourney.total_sites ?? 1)) * 100)
+      : 0;
 
-  // Auto-refetch map when filters or search change (if we have bounds)
-  const prevBaseParamsRef = useRef<string>('');
-  useEffect(() => {
-    const key = JSON.stringify(buildBaseParams());
-    if (
-      prevBaseParamsRef.current &&
-      prevBaseParamsRef.current !== key &&
-      currentMapBoundsRef.current
-    ) {
-      setShowSearchArea(false);
-      fetchMapPlaces(currentMapBoundsRef.current);
-    }
-    prevBaseParamsRef.current = key;
-  }, [buildBaseParams, fetchMapPlaces]);
+  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
 
-  const handleWebViewMessage = useCallback(
-    (event: { nativeEvent: { data: string } }) => {
-      try {
-        const msg = JSON.parse(event.nativeEvent.data) as {
-          type?: string;
-          placeCode?: string;
-          north?: number;
-          south?: number;
-          east?: number;
-          west?: number;
-        };
-        if (msg.type === 'boundsChanged' && msg.north != null) {
-          const bounds = {
-            north: msg.north!,
-            south: msg.south!,
-            east: msg.east!,
-            west: msg.west!,
-          };
-          currentMapBoundsRef.current = bounds;
+  // ── Render helpers ──
 
-          // Filter visible places from the map-specific set
-          const activePlaces = mapPlaces.length > 0 ? mapPlaces : places;
-          setVisiblePlaceCodes(
-            new Set(
-              activePlaces
-                .filter(
-                  (p) =>
-                    p.lat >= bounds.south &&
-                    p.lat <= bounds.north &&
-                    p.lng >= bounds.west &&
-                    p.lng <= bounds.east,
-                )
-                .map((p) => p.place_code),
-            ),
-          );
-
-          // Initial map fetch — runs once when bounds are first reported
-          if (!initialMapFetchDone.current) {
-            initialMapFetchDone.current = true;
-            fetchMapPlaces(bounds);
-          } else {
-            // User has panned — show "Search this area" button
-            setShowSearchArea(true);
-          }
-        }
-        if (msg.type === 'placeSelected' && msg.placeCode) {
-          const activePlaces = mapPlaces.length > 0 ? mapPlaces : places;
-          const place = activePlaces.find((p) => p.place_code === msg.placeCode) ?? null;
-          setSelectedPlace(place);
-        }
-        if (msg.type === 'recenter') {
-          setSearchLocation(null);
-          initialMapFetchDone.current = false;
-        }
-      } catch {}
-    },
-    [places, mapPlaces, fetchMapPlaces, setSearchLocation],
-  );
-
-  const visiblePlaces = useMemo(() => {
-    const activePlaces = mapPlaces.length > 0 ? mapPlaces : places;
-    return activePlaces.filter((p) => visiblePlaceCodes.has(p.place_code));
-  }, [places, mapPlaces, visiblePlaceCodes]);
-
-  // Snap sheet back to peek whenever the visible set refreshes to a new non-empty batch
-  const prevVisibleCount = useRef(0);
-  useEffect(() => {
-    if (visiblePlaces.length > 0 && prevVisibleCount.current === 0) {
-      sheetHeightAnim.setValue(SHEET_PEEK);
-      gestureStartH.current = SHEET_PEEK;
-    }
-    prevVisibleCount.current = visiblePlaces.length;
-  }, [visiblePlaces.length, sheetHeightAnim]);
-
-  // Animate sheet to expanded when a pin is selected, back to peek when deselected
-  useEffect(() => {
-    const toValue = selectedPlace ? SHEET_EXPANDED : SHEET_PEEK;
-    Animated.spring(sheetHeightAnim, {
-      toValue,
-      useNativeDriver: false,
-      bounciness: 3,
-    }).start((res) => {
-      if (res.finished) gestureStartH.current = toValue;
-    });
-  }, [selectedPlace, sheetHeightAnim]);
-
-  const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || t('home.title');
-  const showEmpty = !loading && !error && places.length === 0;
-  const hasActiveFilters = Object.values(activeFilters).some(Boolean);
-  const textSecondaryColor = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary;
-  const textMutedColor = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
-
-  return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Background gradient tint */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <View style={styles.gradientTop} />
-      </View>
-
-      {/* Soft update banner */}
-      <UpdateBanner />
-
-      {/* Always-visible header area */}
-      <View style={styles.headerArea}>
-        <HomeHeader
-          displayName={displayName}
-          viewMode={viewMode}
-          onViewModeToggle={() => {
-            const next = viewMode === 'list' ? 'map' : 'list';
-            setViewMode(next);
-            trackUmamiEvent('view_mode_change', { mode: next });
-          }}
-          isDark={isDark}
-          t={t}
-        />
-        {/* Pressable search bar — opens SearchScreen */}
-        <View style={styles.searchWrap}>
+  function renderHeader() {
+    return (
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.greetingLabel}>{t('dashboard.greeting')}</Text>
+          {displayName ? (
+            <Text style={styles.displayName}>{displayName}</Text>
+          ) : (
+            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+              <Text style={styles.signInBtn}>{t('dashboard.signIn')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={styles.headerActions}>
           <TouchableOpacity
-            style={[styles.searchBarBtn, { flex: 1 }]}
-            onPress={() => navigation.navigate('Search')}
-            activeOpacity={0.8}
+            style={styles.iconCircle}
+            onPress={() => navigation.navigate('Notifications')}
+            accessibilityLabel="Notifications"
           >
             <MaterialIcons
-              name="search"
+              name="notifications-none"
               size={20}
-              color={textMutedColor}
-              style={styles.searchIconStyle}
+              color={isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary}
             />
-            {searchLocation ? (
-              <Text
-                style={[
-                  styles.searchInput,
-                  { color: isDark ? '#fff' : tokens.colors.textDark, flex: 1 },
-                ]}
-                numberOfLines={1}
-              >
-                {searchLocation.name}
-              </Text>
-            ) : (
-              <Text
-                style={[styles.searchInput, { color: textMutedColor, flex: 1 }]}
-                numberOfLines={1}
-              >
-                {t('search.searchPlaces')}
-              </Text>
-            )}
-            {searchLocation && (
-              <TouchableOpacity
-                onPress={() => setSearchLocation(null)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <MaterialIcons name="close" size={18} color={textMutedColor} />
-              </TouchableOpacity>
-            )}
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => {
-              setPendingFilters(activeFilters);
-              setFilterSheetOpen(true);
-            }}
-            style={[styles.filterIconBtn, hasActiveFilters && styles.filterIconBtnActive]}
+            style={styles.avatarCircle}
+            onPress={() => navigation.navigate('Main')}
+            accessibilityLabel="Profile"
           >
-            <MaterialIcons
-              name="tune"
-              size={20}
-              color={hasActiveFilters ? tokens.colors.primary : textMutedColor}
-            />
-            {hasActiveFilters && <View style={styles.filterDot} />}
+            {user?.display_name?.[0] ? (
+              <Text style={styles.avatarText}>{user.display_name[0].toUpperCase()}</Text>
+            ) : (
+              <MaterialIcons name="person" size={18} color={tokens.colors.primary} />
+            )}
           </TouchableOpacity>
         </View>
       </View>
+    );
+  }
 
-      {/* Conditional content area */}
-      <View style={styles.contentArea}>
-        {viewMode === 'list' ? (
-          error && places.length === 0 ? (
-            <View style={styles.centered}>
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity style={styles.retryButton} onPress={fetchPlaces}>
-                <Text style={styles.retryText}>{t('common.retry')}</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <FlatList
-              data={
-                loading && places.length === 0
-                  ? (Array.from({ length: 5 }, (_, i) => ({ place_code: `skel-${i}` })) as any)
-                  : places
-              }
-              keyExtractor={(item) => item.place_code}
-              renderItem={({ item, index }) =>
-                String(item.place_code).startsWith('skel-') ? (
-                  <SkeletonCard isDark={isDark} />
-                ) : (
-                  <>
-                    <PlaceCard place={item} isActive={index === activeIndex} />
-                    {(index + 1) % 5 === 0 && (
-                      <View style={{ marginTop: 16 }}>
-                        <AdBannerNative slot="home-feed" format="banner" />
-                      </View>
-                    )}
-                  </>
-                )
-              }
-              viewabilityConfig={viewabilityConfig}
-              onViewableItemsChanged={onViewableItemsChanged}
-              ListEmptyComponent={
-                showEmpty ? (
-                  <View style={styles.centered}>
-                    <MaterialIcons
-                      name="location-off"
-                      size={48}
-                      color={textMutedColor}
-                      style={styles.emptyIcon}
-                    />
-                    <Text style={styles.emptyTitle}>{t('home.noPlacesFound')}</Text>
-                    <TouchableOpacity
-                      style={styles.retryButton}
-                      onPress={() => setActiveFilters({})}
-                    >
-                      <Text style={styles.retryText}>{t('home.clearFilters')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : null
-              }
-              ListFooterComponent={
-                loadingMore ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={tokens.colors.primary}
-                    style={{ marginVertical: 16 }}
-                  />
-                ) : null
-              }
-              contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 100 }]}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-              onEndReached={loadMore}
-              onEndReachedThreshold={0.4}
-              refreshControl={
-                <RefreshControl
-                  refreshing={loading && places.length > 0}
-                  onRefresh={fetchPlaces}
-                  colors={[tokens.colors.primary]}
-                  tintColor={tokens.colors.primary}
-                />
-              }
-            />
-          )
+  function renderHeroCard() {
+    if (journeysLoading) {
+      return <View style={styles.skeleton} />;
+    }
+
+    if (!primaryJourney) {
+      // Empty state
+      return (
+        <View style={styles.emptyCard}>
+          <View style={styles.emptyIconWrap}>
+            <MaterialIcons name="route" size={32} color={tokens.colors.primary} />
+          </View>
+          <Text style={styles.emptyTitle}>{t('journey.createFirst')}</Text>
+          <Text style={styles.emptyDesc}>{t('journey.createFirstDesc')}</Text>
+          <TouchableOpacity
+            style={styles.emptyBtn}
+            onPress={() => navigation.navigate(user ? 'CreateGroup' : 'Login')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.emptyBtnText}>{t('journey.startPlanning')}</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    const coverUri = primaryJourney.cover_image_url
+      ? getFullImageUrl(primaryJourney.cover_image_url)
+      : null;
+
+    return (
+      <TouchableOpacity
+        style={styles.heroCard}
+        activeOpacity={0.92}
+        onPress={() => navigation.navigate('GroupDetail', { groupCode: primaryJourney.group_code })}
+      >
+        {coverUri ? (
+          <>
+            <Image source={{ uri: coverUri }} style={styles.heroCoverImage} resizeMode="cover" />
+            <View style={styles.heroCoverOverlay} />
+          </>
         ) : (
-          /* Map view — map is full size, sheet overlays it */
-          <View style={styles.mapContainer}>
-            {loading && places.length === 0 ? (
-              <View style={styles.centered}>
-                <ActivityIndicator size="large" color={tokens.colors.primary} />
-                <Text style={styles.loadingText}>{t('common.loading')}</Text>
-              </View>
-            ) : error && places.length === 0 ? (
-              <View style={styles.centered}>
-                <MaterialIcons name="map" size={48} color={textMutedColor} />
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={fetchPlaces}>
-                  <Text style={styles.retryText}>{t('common.retry')}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : mapHtml ? (
-              <>
-                <WebView
-                  ref={webViewRef}
-                  style={StyleSheet.absoluteFill}
-                  source={{ html: mapHtml }}
-                  onMessage={handleWebViewMessage}
-                  javaScriptEnabled
-                  domStorageEnabled
-                  originWhitelist={['*']}
-                  mixedContentMode="always"
-                  scrollEnabled={false}
-                />
-                {/* "Search this area" floating button */}
-                {showSearchArea && (
-                  <TouchableOpacity
-                    style={styles.searchAreaBtn}
-                    activeOpacity={0.85}
-                    onPress={() => {
-                      if (currentMapBoundsRef.current) {
-                        setShowSearchArea(false);
-                        fetchMapPlaces(currentMapBoundsRef.current);
-                      }
-                    }}
-                  >
-                    <MaterialIcons name="search" size={18} color={tokens.colors.primary} />
-                    <Text style={styles.searchAreaText}>{t('map.searchThisArea')}</Text>
-                  </TouchableOpacity>
-                )}
-                {/* Loading spinner */}
-                {mapLoading && (
-                  <View style={styles.mapLoadingBadge}>
-                    <ActivityIndicator size="small" color={tokens.colors.primary} />
-                    <Text style={styles.mapLoadingText}>{t('map.loading')}</Text>
-                  </View>
-                )}
-              </>
-            ) : null}
+          <View style={styles.heroGradientFallback} />
+        )}
 
-            {/* Bottom sheet overlay — shown when places are visible or a pin is selected */}
-            {(visiblePlaces.length > 0 || selectedPlace !== null) && (
-              <Animated.View
-                style={[styles.mapSheet, { bottom: tabBarHeight, height: sheetHeightAnim }]}
+        <View style={styles.heroContent}>
+          {/* Top row: label + name | progress ring */}
+          <View style={styles.heroTop}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={styles.heroLabel}>{t('journey.activeJourney')}</Text>
+              <Text style={styles.heroTitle} numberOfLines={1}>
+                {primaryJourney.name}
+              </Text>
+            </View>
+            <ProgressRing pct={pct} />
+          </View>
+
+          {/* Bottom row: next up + continue btn */}
+          <View style={styles.heroBottom}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              {primaryJourney.next_place_name ? (
+                <Text style={styles.heroNextUp} numberOfLines={1}>
+                  {t('journey.nextUp')}:{' '}
+                  <Text style={styles.heroNextUpName}>{primaryJourney.next_place_name}</Text>
+                </Text>
+              ) : null}
+              <Text style={styles.heroPlacesCount}>
+                {primaryJourney.sites_visited ?? 0}/{primaryJourney.total_sites ?? 0}{' '}
+                {t('journey.placesCount').replace('{count}', '').trim()}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.heroContinueBtn}
+              onPress={() =>
+                navigation.navigate('GroupDetail', { groupCode: primaryJourney.group_code })
+              }
+              activeOpacity={0.8}
+            >
+              <Text style={styles.heroContinueText}>{t('journey.continueJourney')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  function renderQuickActions() {
+    const actions = [
+      {
+        icon: 'map' as const,
+        label: t('journey.exploreMap'),
+        onPress: () => navigation.navigate('Places'),
+      },
+      {
+        icon: 'add-circle-outline' as const,
+        label: t('journey.newJourney'),
+        onPress: () => navigation.navigate(user ? 'CreateGroup' : 'Login'),
+      },
+      {
+        icon: 'group-add' as const,
+        label: t('journey.joinWithCode'),
+        onPress: () => navigation.navigate('JoinGroup', {}),
+      },
+      {
+        icon: 'favorite-border' as const,
+        label: t('favorites.title'),
+        onPress: () => navigation.navigate('Favorites'),
+      },
+    ];
+
+    return (
+      <View style={styles.section}>
+        <View style={styles.quickActionsCard}>
+          {actions.map((a) => (
+            <TouchableOpacity
+              key={a.label}
+              style={styles.quickAction}
+              onPress={a.onPress}
+              activeOpacity={0.75}
+            >
+              <View style={styles.quickActionIcon}>
+                <MaterialIcons name={a.icon} size={22} color={textMuted} />
+              </View>
+              <Text style={styles.quickActionLabel}>{a.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  function renderRecommendedPlaces() {
+    if (recommended.length === 0) return null;
+
+    return (
+      <View style={{ marginTop: 20 }}>
+        <View style={[styles.sectionRow, { paddingHorizontal: 20 }]}>
+          <Text style={styles.sectionTitle}>{t('journey.recommendedPlaces')}</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Places')}>
+            <Text style={styles.seeMore}>{t('common.showMore')}</Text>
+          </TouchableOpacity>
+        </View>
+        <FlatList
+          data={recommended}
+          keyExtractor={(item) => item.place_code}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.carousel}
+          renderItem={({ item }) => {
+            const imgUri = item.image_url ? getFullImageUrl(item.image_url) : null;
+            return (
+              <TouchableOpacity
+                style={styles.placeCardSmall}
+                activeOpacity={0.88}
+                onPress={() => navigation.navigate('PlaceDetail', { placeCode: item.place_code })}
               >
-                {selectedPlace !== null ? (
-                  <>
-                    {/* Selected-place mode: drag handle + place name + close button */}
-                    <View style={styles.mapSheetHandle} />
-                    <View style={styles.mapSheetSelectedHeader}>
-                      <Text style={styles.mapSheetCount} numberOfLines={1}>
-                        {selectedPlace.name}
-                      </Text>
-                      <TouchableOpacity
-                        style={styles.mapSheetCloseBtn}
-                        onPress={() => setSelectedPlace(null)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      >
-                        <MaterialIcons
-                          name="close"
-                          size={20}
-                          color={
-                            isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary
-                          }
-                        />
-                      </TouchableOpacity>
-                    </View>
-                    <ScrollView
-                      contentContainerStyle={styles.mapSheetList}
-                      showsVerticalScrollIndicator={false}
-                    >
-                      <PlaceCard place={selectedPlace} compact />
-                    </ScrollView>
-                  </>
-                ) : (
-                  <>
-                    {/* List mode: drag handle + count header + flat list */}
-                    <View {...sheetPanResponder.panHandlers} style={styles.mapSheetDragArea}>
-                      <View style={styles.mapSheetHandle} />
-                      <View style={styles.mapSheetHeader}>
-                        <Text style={styles.mapSheetCount}>
-                          {t('map.placesInView').replace('{count}', String(visiblePlaces.length))}
+                {imgUri ? (
+                  <View>
+                    <Image
+                      source={{ uri: imgUri }}
+                      style={styles.placeCardImage}
+                      resizeMode="cover"
+                    />
+                    {item.distance_km != null && (
+                      <View style={styles.placeDistanceBadge}>
+                        <Text style={styles.placeDistanceText}>
+                          {item.distance_km < 1
+                            ? `${Math.round(item.distance_km * 1000)}m`
+                            : `${item.distance_km.toFixed(1)}km`}
                         </Text>
                       </View>
-                    </View>
-                    <FlatList
-                      data={visiblePlaces}
-                      keyExtractor={(p) => p.place_code}
-                      renderItem={({ item }) => <PlaceCard place={item} compact />}
-                      contentContainerStyle={styles.mapSheetList}
-                      ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-                      showsVerticalScrollIndicator={false}
-                    />
-                  </>
+                    )}
+                  </View>
+                ) : (
+                  <View style={styles.placeCardImageFallback}>
+                    <MaterialIcons name="place" size={28} color={textMuted} />
+                  </View>
                 )}
-              </Animated.View>
-            )}
-          </View>
-        )}
-      </View>
-
-      {/* Filter bottom sheet */}
-      <Modal visible={filterSheetOpen} transparent animationType="slide">
-        <Pressable style={styles.modalOverlay} onPress={() => setFilterSheetOpen(false)}>
-          <Pressable
-            style={[styles.filterSheet, { paddingBottom: insets.bottom + 16 }]}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <View style={styles.sheetHandle} />
-            <View style={styles.filterSheetHeader}>
-              <Text style={styles.filterSheetTitle}>{t('home.filters')}</Text>
-              <TouchableOpacity onPress={() => setPendingFilters({})}>
-                <Text style={styles.filterClearAll}>{t('home.clearAll')}</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Place type */}
-            <Text style={styles.filterSectionLabel}>{t('home.filterType')}</Text>
-            <View style={styles.filterChipsRow}>
-              {(['mosque', 'shrine', 'temple'] as const).map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.filterChip,
-                    pendingFilters.placeType === type && styles.filterChipActive,
-                  ]}
-                  onPress={() =>
-                    setPendingFilters((f) => ({
-                      ...f,
-                      placeType: f.placeType === type ? undefined : type,
-                    }))
-                  }
-                  activeOpacity={0.75}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      pendingFilters.placeType === type && styles.filterChipTextActive,
-                    ]}
-                  >
-                    {t(`home.filter_${type}`)}
+                <View style={styles.placeCardBody}>
+                  <Text style={styles.placeCardName} numberOfLines={1}>
+                    {item.name}
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+                  <Text style={styles.placeCardReligion} numberOfLines={1}>
+                    {item.religion}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      </View>
+    );
+  }
 
-            {/* Feature filters from backend */}
-            <Text style={styles.filterSectionLabel}>{t('home.filterFeatures')}</Text>
-            <View style={styles.filterChipsRow}>
-              {filterOptions.map((opt) => {
-                const key = toCamel(opt.key) as keyof ActiveFilters;
-                const isActive = Boolean((pendingFilters as Record<string, unknown>)[key]);
-                return (
-                  <TouchableOpacity
-                    key={opt.key}
-                    style={[styles.filterChip, isActive && styles.filterChipActive]}
-                    onPress={() =>
-                      setPendingFilters((f) => ({ ...f, [key]: isActive ? undefined : true }))
-                    }
-                    activeOpacity={0.75}
-                  >
-                    <MaterialIcons
-                      name={opt.icon as any}
-                      size={14}
-                      color={isActive ? '#fff' : textMutedColor}
-                      style={{ marginRight: 4 }}
-                    />
-                    <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>
-                      {opt.label} ({opt.count})
+  function renderPopularJourneys() {
+    if (featured.length === 0) return null;
+
+    return (
+      <View style={{ marginTop: 20 }}>
+        <View style={[styles.sectionRow, { paddingHorizontal: 20 }]}>
+          <Text style={styles.sectionTitle}>{t('journey.popularJourneys')}</Text>
+        </View>
+        <FlatList
+          data={featured}
+          keyExtractor={(item) => item.group_code}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.carousel}
+          renderItem={({ item }) => {
+            const imgUri = item.cover_image_url ? getFullImageUrl(item.cover_image_url) : null;
+            return (
+              <TouchableOpacity
+                style={styles.journeyCardSmall}
+                activeOpacity={0.88}
+                onPress={() => navigation.navigate('GroupDetail', { groupCode: item.group_code })}
+              >
+                {imgUri ? (
+                  <Image
+                    source={{ uri: imgUri }}
+                    style={styles.journeyCardImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.journeyCardImageFallback}>
+                    <MaterialIcons name="route" size={28} color={tokens.colors.primary} />
+                  </View>
+                )}
+                <View style={styles.journeyCardBody}>
+                  <Text style={styles.journeyCardName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <View style={styles.journeyCardMeta}>
+                    <Text style={styles.journeyCardMetaText}>
+                      {item.total_sites} {t('journey.placesCount').replace('{count}', '').trim()}
                     </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                    <View style={styles.journeyCardDot} />
+                    <Text style={styles.journeyCardMetaText}>
+                      {item.member_count}{' '}
+                      {t('journey.membersCount')?.replace('{count}', '').trim() ?? 'members'}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      </View>
+    );
+  }
 
-            <TouchableOpacity
-              style={styles.applyFiltersBtn}
-              onPress={() => {
-                setActiveFilters(pendingFilters);
-                trackUmamiEvent('filter_apply', {
-                  count: Object.values(pendingFilters).filter(Boolean).length,
-                });
-                setFilterSheetOpen(false);
-              }}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.applyFiltersBtnText}>{t('home.applyFilters')}</Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
+  // ── Render ──
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[tokens.colors.primary]}
+            tintColor={tokens.colors.primary}
+          />
+        }
+      >
+        {renderHeader()}
+        {renderHeroCard()}
+        {renderQuickActions()}
+        {renderRecommendedPlaces()}
+        {renderPopularJourneys()}
+      </ScrollView>
     </View>
   );
 }

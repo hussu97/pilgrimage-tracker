@@ -35,9 +35,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     location.pathname === '/home' ||
     location.pathname === '/dashboard';
 
-  const isMap =
-    (location.pathname === '/home' && location.search.includes('view=map')) ||
-    location.pathname === '/map';
+  const isMap = location.pathname === '/map';
 
   return (
     <div className="min-h-screen flex flex-col font-display dark:bg-dark-bg dark:text-white">
@@ -63,7 +61,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
           {/* Explore Map */}
           <Link
-            to="/home?view=map"
+            to="/map"
             className={cn(
               'text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary text-sm',
               isMap && 'text-primary dark:text-primary',
@@ -191,7 +189,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
             {/* Explore Map */}
             <Link
-              to="/home?view=map"
+              to="/map"
               aria-current={isMap ? 'page' : undefined}
               className={cn(
                 'flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all duration-200 active:scale-90',
