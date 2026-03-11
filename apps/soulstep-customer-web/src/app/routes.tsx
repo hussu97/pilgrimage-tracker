@@ -51,6 +51,10 @@ const JoinGroup = lazyWithReload(() => import('@/app/pages/JoinGroup'));
 const EditGroup = lazyWithReload(() => import('@/app/pages/EditGroup'));
 const EditGroupPlaces = lazyWithReload(() => import('@/app/pages/EditGroupPlaces'));
 const Notifications = lazyWithReload(() => import('@/app/pages/Notifications'));
+const PlacesIndex = lazyWithReload(() => import('@/app/pages/Places'));
+const ExploreCities = lazyWithReload(() => import('@/app/pages/ExploreCities'));
+const ExploreCity = lazyWithReload(() => import('@/app/pages/ExploreCity'));
+const Developers = lazyWithReload(() => import('@/app/pages/Developers'));
 
 /**
  * Wraps children in an ErrorBoundary keyed to the current pathname.
@@ -235,6 +239,46 @@ export function AppRoutes() {
                 <ProtectedRoute>
                   <Notifications />
                 </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/places"
+            element={
+              <Layout>
+                <PlacesIndex />
+              </Layout>
+            }
+          />
+          <Route
+            path="/explore"
+            element={
+              <Layout>
+                <ExploreCities />
+              </Layout>
+            }
+          />
+          <Route
+            path="/explore/:city"
+            element={
+              <Layout>
+                <ExploreCity />
+              </Layout>
+            }
+          />
+          <Route
+            path="/explore/:city/:religion"
+            element={
+              <Layout>
+                <ExploreCity />
+              </Layout>
+            }
+          />
+          <Route
+            path="/developers"
+            element={
+              <Layout>
+                <Developers />
               </Layout>
             }
           />

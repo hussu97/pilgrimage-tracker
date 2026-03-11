@@ -4,6 +4,51 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## SEO/GEO/AI Discoverability — Full Roadmap Implementation (2026-03-11)
+
+### Backend
+- **`app/api/v1/places.py`** — exposed `seo_title`, `seo_meta_description`, `seo_rich_description`, `seo_faq_json`, `seo_og_image_url`, `updated_at` in place detail; added `nearby_places` (Haversine 10 km) and `similar_places` (same religion)
+- **`app/db/place_images.py`** — added `alt_text` to all image dicts in `get_images()` and `get_images_bulk()`
+- **`app/services/structured_data.py`** — added `additionalType: TouristAttraction` to place JSON-LD
+- **`app/api/v1/seo_static.py`** — enhanced `llms.txt` with OpenAPI spec, religion pages, feeds, example queries; added `/.well-known/ai-plugin.json` endpoint
+- **`app/api/v1/share.py`** — semantic HTML for AI citation: `<address>`, `<table>` (opening hours), `<dl>` (attributes), `<blockquote>` (reviews); `share_city()` and `share_city_religion()` endpoints
+- **`app/api/v1/cities.py`** (new) — `GET /api/v1/cities`, `GET /api/v1/cities/{city_slug}`, `GET /api/v1/cities/{city_slug}/{religion}`
+- **`app/api/v1/__init__.py`** — registered `cities` router
+- **`app/api/v1/sitemap.py`** — added `/explore` index, city pages (priority 0.7), and city/religion combo pages (priority 0.6) to sitemap
+- **`tests/test_seo_frontend.py`** (new) — 15 tests: SEO fields, alt_text, TouristAttraction, llms.txt, ai-plugin, semantic HTML
+- **`tests/test_cities.py`** (new) — 13 tests: city list, city places, religion filter, slug matching
+
+### Frontend (web)
+- **`src/lib/hooks/useHead.ts`** (new) — `useHead()` hook: dynamic title, meta, OG, Twitter, canonical, JSON-LD, hreflang via DOM manipulation
+- **`src/lib/types/places.ts`** — added SEO fields, `alt_text` on images, `NearbyPlace` interface, `nearby_places`/`similar_places` on `PlaceDetail`
+- **`src/app/pages/PlaceDetail.tsx`** — `useHead` with Place/BreadcrumbList/FAQPage JSON-LD, hreflang; `Breadcrumb`, `PlaceFAQ`, `NearbyPlaces` integration; propagated `alt_text`
+- **`src/app/pages/Home.tsx`** — `useHead` with Organization + WebSite JSON-LD
+- **`src/components/places/PlaceCard.tsx`** — `alt_text` propagation, `loading="lazy"`, merged `style` attributes
+- **`src/components/places/PlaceFAQ.tsx`** (new) — collapsible FAQ accordion, dark mode
+- **`src/components/common/Breadcrumb.tsx`** (new) — breadcrumb nav: linked items + plain last item
+- **`src/components/places/NearbyPlaces.tsx`** (new) — horizontal scroll of place cards
+- **`src/app/pages/Places.tsx`** (new) — `/places` index with religion filter, pagination, `useHead`
+- **`src/app/pages/ExploreCities.tsx`** (new) — city browser with search, links to `/explore/:city`
+- **`src/app/pages/ExploreCity.tsx`** (new) — places in city with religion filter chips
+- **`src/app/pages/Developers.tsx`** (new) — API docs page with WebAPI JSON-LD, curl examples
+- **`src/app/routes.tsx`** — added routes: `/places`, `/explore`, `/explore/:city`, `/explore/:city/:religion`, `/developers`
+- **`src/lib/api/client.ts`** — added `getCities()`, `getCityPlaces()`, `getCityReligionPlaces()`
+- **`index.html`** — font preload for Lexend
+- **`src/__tests__/useHead.test.ts`** (new) — 6 pure logic tests
+
+### Frontend (mobile)
+- **`src/lib/types/places.ts`** — same type updates as web (SEO fields, alt_text, NearbyPlace)
+- **`src/lib/api/client.ts`** — added `getCities()`, `getCityPlaces()`, `getCityReligionPlaces()`
+- **`src/components/places/PlaceFAQ.tsx`** (new) — FAQ accordion for React Native
+- **`src/components/places/NearbyPlaces.tsx`** (new) — horizontal scroll for React Native
+- **`src/app/screens/ExploreCitiesScreen.tsx`** (new) — city browser screen
+- **`src/app/screens/ExploreCityScreen.tsx`** (new) — city places screen with religion filter
+- **`src/app/screens/PlacesScreen.tsx`** (new) — all places screen with religion filter
+- **`src/app/navigation.tsx`** — added `ExploreCities`, `ExploreCity`, `Places` routes
+- **`src/app/screens/PlaceDetailScreen.tsx`** — integrated `PlaceFAQ` and `NearbyPlaces`
+
+---
+
 ## OpenStreetMap Coverage Map + Quality Metrics Sidebar Move (2026-03-11)
 
 ### Backend (scraper)

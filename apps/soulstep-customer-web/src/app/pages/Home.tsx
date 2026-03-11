@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
-import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
+import { useHead } from '@/lib/hooks/useHead';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { useLocation } from '@/app/contexts/LocationContext';
 import { getPlaces } from '@/lib/api/client';
@@ -20,7 +20,48 @@ const PAGE_SIZE = 20;
 const MAP_PAGE_SIZE = 200;
 
 export default function Home() {
-  useDocumentTitle();
+  useHead({
+    title: 'Discover Sacred Sites Near You',
+    description:
+      'Find mosques, temples, churches, synagogues, and sacred places worldwide. Read reviews, check opening hours, and discover places of worship near you.',
+    canonicalUrl: 'https://soul-step.org/home',
+    ogType: 'website',
+    ogTitle: 'Discover Sacred Sites Near You',
+    ogDescription: 'Find mosques, temples, churches, synagogues, and sacred places worldwide.',
+    ogUrl: 'https://soul-step.org/home',
+    twitterCard: 'summary_large_image',
+    jsonLd: [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        name: 'SoulStep',
+        url: 'https://soul-step.org',
+        description:
+          'Discover sacred sites, mosques, temples, churches, and places of worship worldwide',
+        knowsAbout: [
+          'Islam',
+          'Christianity',
+          'Hinduism',
+          'Buddhism',
+          'Sikhism',
+          'Judaism',
+          'Bahai',
+          'Zoroastrianism',
+        ],
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: 'SoulStep',
+        url: 'https://soul-step.org',
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: 'https://soul-step.org/home?q={search_term_string}',
+          'query-input': 'required name=search_term_string',
+        },
+      },
+    ],
+  });
   const { user } = useAuth();
   const { t } = useI18n();
   const { coords } = useLocation();

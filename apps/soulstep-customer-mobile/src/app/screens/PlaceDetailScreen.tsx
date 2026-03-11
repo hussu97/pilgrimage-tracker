@@ -45,6 +45,8 @@ import PlaceScorecardRow from '@/components/places/PlaceScorecardRow';
 import PlaceTimingsCarousel from '@/components/places/PlaceTimingsCarousel';
 import PlaceSpecificationsGrid from '@/components/places/PlaceSpecificationsGrid';
 import PlaceReviewsList from '@/components/places/PlaceReviewsList';
+import PlaceFAQ from '@/components/places/PlaceFAQ';
+import NearbyPlaces from '@/components/places/NearbyPlaces';
 import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 import AdBannerNative from '@/components/ads/AdBannerNative';
 import type { Group } from '@/lib/types';
@@ -753,6 +755,17 @@ export default function PlaceDetailScreen() {
           <View style={{ paddingHorizontal: 16, marginTop: 16 }}>
             <AdBannerNative slot="place-detail-bottom" format="banner" />
           </View>
+
+          {/* FAQ */}
+          <PlaceFAQ faqs={place?.seo_faq_json} />
+
+          {/* Nearby & Similar */}
+          {place?.nearby_places && place.nearby_places.length > 0 && (
+            <NearbyPlaces title="Nearby Sacred Sites" places={place.nearby_places} />
+          )}
+          {place?.similar_places && place.similar_places.length > 0 && (
+            <NearbyPlaces title="Similar Places" places={place.similar_places} />
+          )}
 
           {/* Reviews */}
           <PlaceReviewsList

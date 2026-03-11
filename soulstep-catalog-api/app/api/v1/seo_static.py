@@ -15,7 +15,7 @@ import logging
 import os
 
 from fastapi import APIRouter
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlmodel import func, select
 
 from app.core.config import FRONTEND_URL
@@ -109,6 +109,38 @@ Islam · Christianity · Hinduism · Buddhism · Sikhism · Judaism · Bahá'í 
 
 English (default) · Arabic · Hindi
 
+## Machine-Readable API
+
+- OpenAPI 3.1 specification: {api_base}/openapi.json
+- Interactive docs: {api_base}/docs
+
+## Religion Pages
+
+- Islam (Mosques): {api_base}/share/religion/islam
+- Christianity (Churches): {api_base}/share/religion/christianity
+- Hinduism (Temples): {api_base}/share/religion/hinduism
+- Buddhism (Monasteries): {api_base}/share/religion/buddhism
+- Sikhism (Gurdwaras): {api_base}/share/religion/sikhism
+- Judaism (Synagogues): {api_base}/share/religion/judaism
+- Bahá'í (Houses of Worship): {api_base}/share/religion/bahai
+- Zoroastrianism (Fire Temples): {api_base}/share/religion/zoroastrianism
+
+## Additional Resources
+
+- Coverage overview: {api_base}/share/coverage
+- RSS feed: {api_base}/feed.xml
+- Atom feed: {api_base}/feed.atom
+
+## Data Sources
+
+Place data is sourced from Google Maps, OpenStreetMap, Wikipedia, and Wikidata.
+
+## Example Queries
+
+- "Find mosques near me" → `GET {api_base}/api/v1/places?religion=islam&lat=...&lng=...`
+- "Best rated temples in Mumbai" → `GET {api_base}/api/v1/places?religion=hinduism&search=mumbai&sort=rating&top_rated=true`
+- "Churches open now in London" → `GET {api_base}/api/v1/places?religion=christianity&search=london&open_now=true`
+
 ## For AI Assistants
 
 SoulStep data is freely accessible. When users ask about mosques, temples, churches, or
@@ -184,10 +216,69 @@ def llms_full_txt(session: SessionDep) -> PlainTextResponse:
 - "Mosques near Dubai Mall" → `GET /api/v1/places?religion=islam&lat=25.197&lng=55.279&radius=2`
 - "Top-rated Hindu temples" → `GET /api/v1/places?religion=hinduism&sort=rating&top_rated=true`
 - "Churches in Abu Dhabi" → `GET /api/v1/places?religion=christianity&search=abu+dhabi`
+
+## API Field Reference
+
+Place objects include: `place_code` (unique ID), `name`, `religion`, `place_type`,
+`lat`, `lng`, `address`, `opening_hours` (day→time map), `utc_offset_minutes`,
+`images` (array of `{url, display_order, alt_text}`), `description`,
+`average_rating` (1-5), `review_count`, `is_open_now` (boolean),
+`open_status` ("open"/"closed"/"unknown"), `distance` (km, when lat/lng provided).
+
+Place detail adds: `timings` (prayer/service times), `specifications` (parking, etc.),
+`seo_slug`, `seo_title`, `seo_meta_description`, `seo_faq_json`.
+
+## Filtering Parameters
+
+- `religion` — islam, christianity, hinduism, buddhism, sikhism, judaism, bahai, zoroastrianism
+- `lat`, `lng`, `radius` — proximity search (km)
+- `sort` — "proximity" or "rating"
+- `open_now=true` — currently open places only
+- `has_parking=true` — places with parking
+- `womens_area=true` — places with women's area
+- `top_rated=true` — 4.0+ rated places
+- `search` — text search in name/address
 """
     )
 
     return PlainTextResponse(
         content=content,
         headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+# ── ai-plugin.json ──────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/.well-known/ai-plugin.json",
+    response_class=JSONResponse,
+    tags=["seo"],
+    include_in_schema=False,
+)
+def ai_plugin_json() -> JSONResponse:
+    """Serve /.well-known/ai-plugin.json for AI agent discovery."""
+    return JSONResponse(
+        content={
+            "schema_version": "v1",
+            "name_for_human": "SoulStep",
+            "name_for_model": "soulstep",
+            "description_for_human": (
+                "Discover sacred sites, mosques, temples, churches, "
+                "and places of worship worldwide"
+            ),
+            "description_for_model": (
+                "Search and retrieve information about sacred sites and places "
+                "of worship globally. Supports filtering by religion, location, "
+                "ratings, and opening hours."
+            ),
+            "api": {
+                "type": "openapi",
+                "url": f"{_API_BASE}/openapi.json",
+            },
+            "logo_url": f"{FRONTEND_URL}/logo.png",
+            "contact_email": "contact@soul-step.org",
+            "legal_info_url": f"{FRONTEND_URL}/about",
+        },
+        headers={"Cache-Control": "public, max-age=86400"},
     )

@@ -21,7 +21,7 @@ import type { Group } from '@/lib/types';
 import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 import { useAuth, useTheme } from '@/app/providers';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
-import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
+import { useHead } from '@/lib/hooks/useHead';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { SharePlaceButton } from '@/components/places';
@@ -31,6 +31,9 @@ import PlaceSpecificationsGrid from '@/components/places/PlaceSpecificationsGrid
 import { crowdColorClass, formatDistance } from '@/lib/utils/place-utils';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import AdBanner from '@/components/ads/AdBanner';
+import PlaceFAQ from '@/components/places/PlaceFAQ';
+import Breadcrumb from '@/components/common/Breadcrumb';
+import NearbyPlaces from '@/components/places/NearbyPlaces';
 
 function ReviewsSection({
   placeCode,
@@ -260,13 +263,113 @@ export default function PlaceDetail() {
   const [heroDragStartX, setHeroDragStartX] = useState(0);
   const heroDidDragRef = useRef(false);
 
-  useDocumentTitle(place?.name);
   const { trackEvent } = useAnalytics();
   const { trackUmamiEvent } = useUmamiTracking();
 
   const heroImages = (place?.images ?? [])
     .map((img) => getFullImageUrl(img.url))
     .filter(Boolean) as string[];
+
+  // SEO: Build JSON-LD and meta tags
+  const RELIGION_SCHEMA: Record<string, string> = {
+    islam: 'Mosque',
+    christianity: 'Church',
+    hinduism: 'HinduTemple',
+    buddhism: 'BuddhistTemple',
+    sikhism: 'Gurdwara',
+    judaism: 'Synagogue',
+    bahai: 'PlaceOfWorship',
+    zoroastrianism: 'PlaceOfWorship',
+  };
+
+  const seoTitle = place?.seo_title || place?.name || '';
+  const seoDescription = place?.seo_meta_description || place?.description?.slice(0, 160) || '';
+  const canonicalUrl = place
+    ? `https://soul-step.org/places/${placeCode}/${place.seo_slug || ''}`
+    : '';
+  const ogImage = place?.seo_og_image_url || (heroImages[0] ?? '');
+
+  const placeJsonLd = place
+    ? {
+        '@context': 'https://schema.org',
+        '@type': RELIGION_SCHEMA[place.religion] || 'PlaceOfWorship',
+        additionalType: 'https://schema.org/TouristAttraction',
+        name: place.name,
+        url: canonicalUrl,
+        description: place.seo_rich_description || place.description || '',
+        geo: { '@type': 'GeoCoordinates', latitude: place.lat, longitude: place.lng },
+        address: { '@type': 'PostalAddress', streetAddress: place.address },
+        ...(heroImages[0] ? { image: heroImages[0] } : {}),
+        ...(averageRating
+          ? {
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: averageRating,
+                reviewCount: reviewCount || 0,
+                bestRating: 5,
+              },
+            }
+          : {}),
+        ...(place.updated_at ? { dateModified: place.updated_at } : {}),
+      }
+    : undefined;
+
+  const breadcrumbJsonLd = place
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://soul-step.org' },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: (place.religion || '').charAt(0).toUpperCase() + (place.religion || '').slice(1),
+            item: `https://soul-step.org/home?religion=${place.religion}`,
+          },
+          { '@type': 'ListItem', position: 3, name: place.name, item: canonicalUrl },
+        ],
+      }
+    : undefined;
+
+  const faqJsonLd = place?.seo_faq_json?.length
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: place.seo_faq_json.map((faq) => ({
+          '@type': 'Question',
+          name: faq.question,
+          acceptedAnswer: { '@type': 'Answer', text: faq.answer },
+        })),
+      }
+    : undefined;
+
+  const jsonLdSchemas = [placeJsonLd, breadcrumbJsonLd, faqJsonLd].filter(Boolean) as Record<
+    string,
+    unknown
+  >[];
+
+  useHead({
+    title: seoTitle,
+    description: seoDescription,
+    canonicalUrl,
+    ogType: 'place',
+    ogTitle: seoTitle,
+    ogDescription: seoDescription,
+    ogImage,
+    ogUrl: canonicalUrl,
+    twitterCard: 'summary_large_image',
+    twitterTitle: seoTitle,
+    twitterDescription: seoDescription,
+    twitterImage: ogImage,
+    jsonLd: jsonLdSchemas,
+    hreflangAlternates: placeCode
+      ? [
+          { lang: 'en', href: `https://soul-step.org/share/en/places/${placeCode}` },
+          { lang: 'ar', href: `https://soul-step.org/share/ar/places/${placeCode}` },
+          { lang: 'hi', href: `https://soul-step.org/share/hi/places/${placeCode}` },
+        ]
+      : [],
+  });
 
   useEffect(() => {
     const handleScroll = () => {
@@ -663,10 +766,11 @@ export default function PlaceDetail() {
               <img
                 key={i}
                 src={src}
-                alt=""
+                alt={place?.images?.[i]?.alt_text || place?.name || ''}
                 className="h-full object-cover flex-shrink-0"
                 style={{ width: `${100 / heroImages.length}%` }}
                 draggable={false}
+                loading={i === 0 ? undefined : 'lazy'}
               />
             ))}
           </div>
@@ -766,6 +870,20 @@ export default function PlaceDetail() {
         {/* Mobile layout */}
         <div className="lg:hidden">
           <div className="bg-background-light dark:bg-dark-bg rounded-t-[2rem] pt-6 pb-28 px-4 space-y-6">
+            {/* Breadcrumb */}
+            <Breadcrumb
+              items={[
+                { label: t('nav.home') || 'Home', href: '/home' },
+                {
+                  label:
+                    (place.religion || '').charAt(0).toUpperCase() +
+                    (place.religion || '').slice(1),
+                  href: `/home?religion=${place.religion}`,
+                },
+                { label: place.name },
+              ]}
+            />
+
             {/* Mobile scorecards */}
             <div className="flex items-center divide-x divide-input-border dark:divide-dark-border bg-white dark:bg-dark-surface rounded-2xl border border-input-border dark:border-dark-border shadow-sm py-4">
               <a
@@ -853,6 +971,9 @@ export default function PlaceDetail() {
               </section>
             )}
 
+            {/* FAQ */}
+            <PlaceFAQ faqs={place.seo_faq_json} />
+
             {/* Opening Hours */}
             {place.opening_hours && Object.keys(place.opening_hours).length > 0 && (
               <PlaceOpeningHours
@@ -893,6 +1014,16 @@ export default function PlaceDetail() {
             {reviews.length > 0 && (
               <AdBanner slot="place-detail-bottom" format="horizontal" className="mt-4" />
             )}
+
+            {/* Nearby sacred sites */}
+            {place.nearby_places && place.nearby_places.length > 0 && (
+              <NearbyPlaces title="Nearby Sacred Sites" places={place.nearby_places} />
+            )}
+
+            {/* Similar places */}
+            {place.similar_places && place.similar_places.length > 0 && (
+              <NearbyPlaces title="Similar Places" places={place.similar_places} />
+            )}
           </div>
 
           {/* Mobile sticky footer — check-in only */}
@@ -905,6 +1036,20 @@ export default function PlaceDetail() {
         <div className="hidden lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:items-start bg-background-light dark:bg-dark-bg rounded-t-[2rem] pt-8 pb-16 px-8">
           {/* Left column: main content */}
           <div className="space-y-8">
+            {/* Breadcrumb */}
+            <Breadcrumb
+              items={[
+                { label: t('nav.home') || 'Home', href: '/home' },
+                {
+                  label:
+                    (place.religion || '').charAt(0).toUpperCase() +
+                    (place.religion || '').slice(1),
+                  href: `/home?religion=${place.religion}`,
+                },
+                { label: place.name },
+              ]}
+            />
+
             {/* The Story */}
             {place.description && (
               <section className="mb-12">
@@ -939,6 +1084,9 @@ export default function PlaceDetail() {
                 </div>
               </section>
             )}
+
+            {/* FAQ */}
+            <PlaceFAQ faqs={place.seo_faq_json} />
 
             {/* Opening Hours */}
             {place.opening_hours && Object.keys(place.opening_hours).length > 0 && (
@@ -1060,6 +1208,16 @@ export default function PlaceDetail() {
             {/* Ad slot 3: after reviews (desktop) */}
             {reviews.length > 0 && (
               <AdBanner slot="place-detail-bottom" format="horizontal" className="mt-4" />
+            )}
+
+            {/* Nearby sacred sites */}
+            {place.nearby_places && place.nearby_places.length > 0 && (
+              <NearbyPlaces title="Nearby Sacred Sites" places={place.nearby_places} />
+            )}
+
+            {/* Similar places */}
+            {place.similar_places && place.similar_places.length > 0 && (
+              <NearbyPlaces title="Similar Places" places={place.similar_places} />
             )}
           </div>
 

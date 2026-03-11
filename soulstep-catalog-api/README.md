@@ -112,6 +112,11 @@ By using SQLModel, we maintain Pydantic-like schemas for the API while gaining f
 - `POST /api/v1/places/batch` — batch create places (scraper sync)
 - `GET /api/v1/places/{placeCode}/image/{imageCode}` — serve place image
 
+### Cities (`/api/v1/cities`)
+- `GET /api/v1/cities` — list all cities with place counts, sorted by count desc (query: limit≤500, offset)
+- `GET /api/v1/cities/{city_slug}` — places in a city matched by slug (query: page, page_size≤200)
+- `GET /api/v1/cities/{city_slug}/{religion}` — places in a city filtered by religion
+
 ### Reviews (`/api/v1/reviews`)
 - `PATCH /api/v1/reviews/{reviewCode}` — update a review
 - `DELETE /api/v1/reviews/{reviewCode}` — delete a review

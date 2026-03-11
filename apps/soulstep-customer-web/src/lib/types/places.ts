@@ -14,7 +14,7 @@ export interface Place {
    * Blob images are automatically served via /api/v1/places/{code}/images/{id}
    * so all images appear as URLs to the client. Frontend doesn't need to know the storage type.
    */
-  images?: Array<{ url: string; display_order: number }>;
+  images?: Array<{ url: string; display_order: number; alt_text?: string }>;
   distance?: number;
   description?: string;
   opening_hours?: Record<string, string>;
@@ -55,6 +55,26 @@ export interface PlaceDetail extends Place {
   timings?: PlaceTiming[];
   specifications?: PlaceSpecification[];
   seo_slug?: string;
+  seo_title?: string;
+  seo_meta_description?: string;
+  seo_rich_description?: string;
+  seo_faq_json?: Array<{ question: string; answer: string }>;
+  seo_og_image_url?: string;
+  updated_at?: string;
+  nearby_places?: NearbyPlace[];
+  similar_places?: NearbyPlace[];
+}
+
+export interface NearbyPlace {
+  place_code: string;
+  name: string;
+  address: string;
+  religion: string;
+  seo_slug?: string;
+  image_url?: string;
+  average_rating?: number;
+  lat: number;
+  lng: number;
 }
 
 export interface CheckIn {
@@ -67,7 +87,7 @@ export interface CheckIn {
     place_code: string;
     name: string;
     address: string;
-    images?: Array<{ url: string; display_order: number }>;
+    images?: Array<{ url: string; display_order: number; alt_text?: string }>;
     average_rating?: number;
   };
   date?: string;

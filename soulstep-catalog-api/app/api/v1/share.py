@@ -236,6 +236,66 @@ def _build_related_html(nearby: list[Place], similar: list[Place], seo_map: dict
     return "\n".join(parts)
 
 
+# ── Semantic HTML helpers ─────────────────────────────────────────────────────
+
+
+def _build_opening_hours_table(opening_hours: dict | None) -> str:
+    """Render opening hours as an HTML <table> for better AI parsing."""
+    if not opening_hours or not isinstance(opening_hours, dict):
+        return ""
+    rows = "\n".join(
+        f"    <tr><td>{_html.escape(day)}</td>" f"<td><time>{_html.escape(hours)}</time></td></tr>"
+        for day, hours in opening_hours.items()
+    )
+    return f"""
+  <table>
+    <caption>Opening Hours</caption>
+    <thead><tr><th>Day</th><th>Hours</th></tr></thead>
+    <tbody>
+{rows}
+    </tbody>
+  </table>"""
+
+
+def _build_attributes_dl(place, session) -> str:
+    """Render place attributes as an HTML <dl> definition list."""
+    from app.db import place_attributes as attr_db
+
+    attrs = attr_db.get_attributes_dict(place.place_code, session)
+    if not attrs:
+        return ""
+    items = "\n".join(
+        f"    <dt>{_html.escape(str(k))}</dt><dd>{_html.escape(str(v))}</dd>"
+        for k, v in attrs.items()
+        if v
+    )
+    if not items:
+        return ""
+    return f"""
+  <dl>
+{items}
+  </dl>"""
+
+
+def _build_reviews_blockquotes(review_samples: list[dict]) -> str:
+    """Render review excerpts as <blockquote> elements."""
+    if not review_samples:
+        return ""
+    quotes = []
+    for r in review_samples[:3]:
+        body = r.get("body", "")
+        if not body:
+            continue
+        author = _html.escape(r.get("author_name", "Anonymous"))
+        rating = r.get("rating", 5)
+        quotes.append(
+            f'  <blockquote>\n    <p>"{_html.escape(body)}"</p>\n'
+            f"    <cite>— {author}, <span>{rating}/5 stars</span></cite>\n"
+            f"  </blockquote>"
+        )
+    return "\n".join(quotes)
+
+
 # ── Place pre-render endpoint ──────────────────────────────────────────────────
 
 
@@ -377,10 +437,13 @@ def share_place(place_code: str, session: SessionDep, request: Request):
   {redirect_script}
   <main>
     <h1>{name_escaped}</h1>
-    {f"<p><strong>Address:</strong> {address_escaped}</p>" if address_escaped else ""}
+    {f"<address>{address_escaped}</address>" if address_escaped else ""}
     {f"<p><strong>Rating:</strong> {_html.escape(rating_str)}</p>" if rating_str else ""}
     {img_tag}
     {f"<p>{_html.escape(description_display)}</p>" if description_display else ""}
+    {_build_opening_hours_table(place.opening_hours) if is_crawler and place.opening_hours else ""}
+    {_build_attributes_dl(place, session) if is_crawler else ""}
+    {_build_reviews_blockquotes(review_samples) if is_crawler and review_samples else ""}
     {faq_html}
     {related_html}
     <p>{fallback_link}</p>
@@ -958,4 +1021,207 @@ def share_place_lang(lang: str, place_code: str, session: SessionDep, request: R
 </body>
 </html>"""
 
+    return HTMLResponse(content=html, status_code=200)
+
+
+# ── City landing pages ─────────────────────────────────────────────────────────
+
+
+def _city_to_slug(city: str) -> str:
+    """Convert city name to URL-friendly slug."""
+    import re
+
+    slug = city.lower().strip()
+    slug = re.sub(r"[^a-z0-9\s-]", "", slug)
+    slug = re.sub(r"[\s]+", "-", slug)
+    return slug.strip("-")
+
+
+@router.get("/city/{city_slug}", response_class=HTMLResponse, tags=["share"])
+def share_city(city_slug: str, session: SessionDep, request: Request):
+    """Pre-rendered city landing page with all sacred sites in that city."""
+    lang = _get_lang(request)
+    dir_attr = ' dir="rtl"' if lang == "ar" else ""
+
+    all_cities = session.exec(
+        select(Place.city).where(Place.city != None, Place.city != "").distinct()  # noqa: E711
+    ).all()
+    matching_city = next((c for c in all_cities if c and _city_to_slug(c) == city_slug), None)
+    if not matching_city:
+        raise HTTPException(status_code=404, detail="City not found")
+
+    places = session.exec(select(Place).where(Place.city == matching_city).limit(50)).all()
+
+    place_codes = [p.place_code for p in places]
+    seo_rows = (
+        session.exec(select(PlaceSEO).where(PlaceSEO.place_code.in_(place_codes))).all()
+        if place_codes
+        else []
+    )
+    seo_map = {s.place_code: s for s in seo_rows}
+
+    religion_counts: dict[str, int] = {}
+    for p in places:
+        religion_counts[p.religion] = religion_counts.get(p.religion, 0) + 1
+
+    list_items = [
+        {
+            "@type": "ListItem",
+            "position": i + 1,
+            "name": p.name,
+            "url": _place_link(p, seo_map),
+        }
+        for i, p in enumerate(places[:20])
+    ]
+    item_list_schema = {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        "name": f"Sacred Sites in {matching_city}",
+        "numberOfItems": len(places),
+        "itemListElement": list_items,
+    }
+    jsonld_html = render_jsonld_script_tags([item_list_schema])
+
+    title = f"Sacred Sites in {matching_city} | SoulStep"
+    description = f"Discover {len(places)} sacred sites, mosques, temples, and churches in {matching_city}. Reviews, opening hours, and directions on SoulStep."
+    canonical_url = f"{FRONTEND_URL}/explore/{city_slug}"
+
+    place_items_html = "\n".join(
+        f'  <li><a href="{_html.escape(_place_link(p, seo_map))}">{_html.escape(p.name)}</a>'
+        f"{' – ' + _html.escape(p.religion.title()) if p.religion else ''}</li>"
+        for p in places
+    )
+    religion_html = "\n".join(
+        f"  <li>{r.title()}: {c} places</li>"
+        for r, c in sorted(religion_counts.items(), key=lambda x: -x[1])
+    )
+
+    html = f"""<!DOCTYPE html>
+<html lang="{lang}"{dir_attr}>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{_html.escape(title)}</title>
+  <meta name="description" content="{_html.escape(description)}" />
+  <link rel="canonical" href="{_html.escape(canonical_url)}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SoulStep" />
+  <meta property="og:title" content="{_html.escape(title)}" />
+  <meta property="og:description" content="{_html.escape(description)}" />
+{jsonld_html}
+</head>
+<body>
+  <main>
+    <h1>Sacred Sites in {_html.escape(matching_city)}</h1>
+    <p>{_html.escape(description)}</p>
+    <h2>By Religion</h2>
+    <ul>
+{religion_html}
+    </ul>
+    <h2>Places</h2>
+    <ul>
+{place_items_html}
+    </ul>
+    <p><a href="{_html.escape(FRONTEND_URL)}">Back to SoulStep</a></p>
+  </main>
+</body>
+</html>"""
+    return HTMLResponse(content=html, status_code=200)
+
+
+@router.get("/city/{city_slug}/{religion}", response_class=HTMLResponse, tags=["share"])
+def share_city_religion(city_slug: str, religion: str, session: SessionDep, request: Request):
+    """Pre-rendered city+religion landing page (e.g. Mosques in Dubai)."""
+    lang = _get_lang(request)
+    dir_attr = ' dir="rtl"' if lang == "ar" else ""
+
+    all_cities = session.exec(
+        select(Place.city).where(Place.city != None, Place.city != "").distinct()  # noqa: E711
+    ).all()
+    matching_city = next((c for c in all_cities if c and _city_to_slug(c) == city_slug), None)
+    if not matching_city:
+        raise HTTPException(status_code=404, detail="City not found")
+
+    canonical_religion = _resolve_religion(religion)
+    if not canonical_religion:
+        raise HTTPException(status_code=404, detail="Religion not found")
+
+    places = session.exec(
+        select(Place)
+        .where(Place.city == matching_city, Place.religion == canonical_religion)
+        .limit(50)
+    ).all()
+
+    place_codes = [p.place_code for p in places]
+    seo_rows = (
+        session.exec(select(PlaceSEO).where(PlaceSEO.place_code.in_(place_codes))).all()
+        if place_codes
+        else []
+    )
+    seo_map = {s.place_code: s for s in seo_rows}
+
+    religion_label = _RELIGION_PAGE_META.get(canonical_religion, {}).get(
+        "h1", canonical_religion.title()
+    )
+    title = f"{religion_label} in {matching_city} | SoulStep"
+    description = f"Find {len(places)} {religion_label.lower()} in {matching_city}. Read reviews and check opening hours on SoulStep."
+
+    faq_schema = {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": f"How many {religion_label.lower()} are in {matching_city}?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": f"SoulStep lists {len(places)} {religion_label.lower()} in {matching_city}.",
+                },
+            },
+        ],
+    }
+    list_items = [
+        {"@type": "ListItem", "position": i + 1, "name": p.name, "url": _place_link(p, seo_map)}
+        for i, p in enumerate(places[:20])
+    ]
+    item_list_schema = {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        "name": f"{religion_label} in {matching_city}",
+        "numberOfItems": len(places),
+        "itemListElement": list_items,
+    }
+    jsonld_html = render_jsonld_script_tags([item_list_schema, faq_schema])
+
+    canonical_url = f"{FRONTEND_URL}/explore/{city_slug}/{canonical_religion}"
+    place_items_html = "\n".join(
+        f'  <li><a href="{_html.escape(_place_link(p, seo_map))}">{_html.escape(p.name)}</a></li>'
+        for p in places
+    )
+
+    html = f"""<!DOCTYPE html>
+<html lang="{lang}"{dir_attr}>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{_html.escape(title)}</title>
+  <meta name="description" content="{_html.escape(description)}" />
+  <link rel="canonical" href="{_html.escape(canonical_url)}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="SoulStep" />
+  <meta property="og:title" content="{_html.escape(title)}" />
+  <meta property="og:description" content="{_html.escape(description)}" />
+{jsonld_html}
+</head>
+<body>
+  <main>
+    <h1>{_html.escape(religion_label)} in {_html.escape(matching_city)}</h1>
+    <p>{_html.escape(description)}</p>
+    <ul>
+{place_items_html}
+    </ul>
+    <p><a href="{_html.escape(FRONTEND_URL)}">Back to SoulStep</a></p>
+  </main>
+</body>
+</html>"""
     return HTMLResponse(content=html, status_code=200)

@@ -871,3 +871,51 @@ export async function updateVisitorSettings(
   if (!res.ok) throw new Error('Failed to update visitor settings');
   return res.json();
 }
+
+// ─── Cities ───────────────────────────────────────────────────────────────────
+
+export async function getCities(): Promise<{
+  cities: Array<{ city: string; city_slug: string; count: number }>;
+}> {
+  const res = await fetch(`${API_BASE}/api/v1/cities`, { headers: clientHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch cities');
+  return res.json();
+}
+
+export async function getCityPlaces(citySlug: string): Promise<{
+  city: string;
+  places: Array<{
+    place_code: string;
+    name: string;
+    religion: string;
+    address: string;
+    seo_slug?: string;
+  }>;
+}> {
+  const res = await fetch(`${API_BASE}/api/v1/cities/${encodeURIComponent(citySlug)}`, {
+    headers: clientHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to fetch city places');
+  return res.json();
+}
+
+export async function getCityReligionPlaces(
+  citySlug: string,
+  religion: string,
+): Promise<{
+  city: string;
+  places: Array<{
+    place_code: string;
+    name: string;
+    religion: string;
+    address: string;
+    seo_slug?: string;
+  }>;
+}> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/cities/${encodeURIComponent(citySlug)}/${encodeURIComponent(religion)}`,
+    { headers: clientHeaders() },
+  );
+  if (!res.ok) throw new Error('Failed to fetch city religion places');
+  return res.json();
+}

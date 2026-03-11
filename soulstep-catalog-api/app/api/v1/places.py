@@ -14,7 +14,7 @@ from app.db import places as places_db
 from app.db import reviews as reviews_db
 from app.db import store as user_store
 from app.db.enums import ImageType, NotificationType, OpenStatus, Religion, ReviewSource
-from app.db.models import PlaceSEO
+from app.db.models import Place, PlaceSEO
 from app.db.places import _haversine_km
 from app.db.session import SessionDep
 from app.models.schemas import CheckInBody, PlaceBatch, PlaceCreate, ReviewCreateBody
@@ -144,6 +144,57 @@ def _place_detail(
     # Append SEO slug if available
     seo = session.exec(select(PlaceSEO).where(PlaceSEO.place_code == place.place_code)).first()
     out["seo_slug"] = seo.slug if seo else None
+    out["seo_title"] = seo.seo_title if seo else None
+    out["seo_meta_description"] = seo.meta_description if seo else None
+    out["seo_rich_description"] = seo.rich_description if seo else None
+    out["seo_faq_json"] = seo.faq_json if seo else None
+    out["seo_og_image_url"] = seo.og_image_url if seo else None
+    out["updated_at"] = place.created_at.isoformat() if place.created_at else None
+
+    # Nearby places (within 10 km)
+    all_places = session.exec(select(Place).where(Place.place_code != place.place_code)).all()
+    nearby_with_dist = []
+    for p in all_places:
+        dist = _haversine_km(place.lat, place.lng, p.lat, p.lng)
+        if dist <= 10.0:
+            nearby_with_dist.append((dist, p))
+    nearby_with_dist.sort(key=lambda x: x[0])
+    nearby_places = [p for _, p in nearby_with_dist[:5]]
+
+    # Similar places (same religion)
+    similar_places = session.exec(
+        select(Place)
+        .where(Place.religion == place.religion, Place.place_code != place.place_code)
+        .limit(5)
+    ).all()
+
+    # Build SEO slug map for related places
+    related_codes = [p.place_code for p in nearby_places + similar_places]
+    seo_rows = (
+        session.exec(select(PlaceSEO).where(PlaceSEO.place_code.in_(related_codes))).all()
+        if related_codes
+        else []
+    )
+    seo_map = {s.place_code: s for s in seo_rows}
+
+    def _related_item(p) -> dict:
+        rel_seo = seo_map.get(p.place_code)
+        rel_images = place_images.get_images(p.place_code, session=session)
+        agg = reviews_db.get_aggregate_rating(p.place_code, session)
+        return {
+            "place_code": p.place_code,
+            "name": p.name,
+            "address": p.address,
+            "religion": p.religion,
+            "seo_slug": rel_seo.slug if rel_seo else None,
+            "image_url": rel_images[0]["url"] if rel_images else None,
+            "average_rating": agg["average"] if agg else None,
+            "lat": p.lat,
+            "lng": p.lng,
+        }
+
+    out["nearby_places"] = [_related_item(p) for p in nearby_places]
+    out["similar_places"] = [_related_item(p) for p in similar_places]
     return out
 
 

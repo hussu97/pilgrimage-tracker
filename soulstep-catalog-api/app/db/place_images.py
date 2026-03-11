@@ -31,6 +31,7 @@ def get_images(place_code: str, session: Session) -> list[dict]:
                     "id": img.id,
                     "url": img.url,
                     "display_order": img.display_order,
+                    "alt_text": img.alt_text,
                 }
             )
         elif img.image_type == ImageType.BLOB:
@@ -40,6 +41,7 @@ def get_images(place_code: str, session: Session) -> list[dict]:
                     "id": img.id,
                     "url": f"/api/v1/places/{place_code}/images/{img.id}",
                     "display_order": img.display_order,
+                    "alt_text": img.alt_text,
                 }
             )
         elif img.image_type == ImageType.GCS:
@@ -48,6 +50,7 @@ def get_images(place_code: str, session: Session) -> list[dict]:
                     "id": img.id,
                     "url": img.gcs_url,
                     "display_order": img.display_order,
+                    "alt_text": img.alt_text,
                 }
             )
 
@@ -81,6 +84,7 @@ def get_images_bulk(place_codes: list[str], session: Session) -> dict[str, list[
                     "id": img.id,
                     "url": img.url,
                     "display_order": img.display_order,
+                    "alt_text": img.alt_text,
                 }
             )
         elif img.image_type == ImageType.BLOB:
@@ -89,6 +93,7 @@ def get_images_bulk(place_codes: list[str], session: Session) -> dict[str, list[
                     "id": img.id,
                     "url": f"/api/v1/places/{img.place_code}/images/{img.id}",
                     "display_order": img.display_order,
+                    "alt_text": img.alt_text,
                 }
             )
         elif img.image_type == ImageType.GCS:
@@ -97,6 +102,7 @@ def get_images_bulk(place_codes: list[str], session: Session) -> dict[str, list[
                     "id": img.id,
                     "url": img.gcs_url,
                     "display_order": img.display_order,
+                    "alt_text": img.alt_text,
                 }
             )
 

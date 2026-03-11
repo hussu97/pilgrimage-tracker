@@ -807,3 +807,37 @@ export async function updateVisitorSettings(
   if (!res.ok) throw new Error('Failed to update visitor settings');
   return res.json();
 }
+
+export async function getCities(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<{ cities: Array<{ city: string; city_slug: string; count: number }>; total: number }> {
+  const q = new URLSearchParams();
+  if (params?.limit != null) q.set('limit', String(params.limit));
+  if (params?.offset != null) q.set('offset', String(params.offset));
+  const res = await fetch(`${API_BASE}/api/v1/cities?${q}`, { headers: clientHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch cities');
+  return res.json();
+}
+
+export async function getCityPlaces(citySlug: string, page = 1): Promise<any> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/cities/${encodeURIComponent(citySlug)}?page=${page}`,
+    { headers: clientHeaders() },
+  );
+  if (!res.ok) throw new Error('City not found');
+  return res.json();
+}
+
+export async function getCityReligionPlaces(
+  citySlug: string,
+  religion: string,
+  page = 1,
+): Promise<any> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/cities/${encodeURIComponent(citySlug)}/${encodeURIComponent(religion)}?page=${page}`,
+    { headers: clientHeaders() },
+  );
+  if (!res.ok) throw new Error('City/religion not found');
+  return res.json();
+}

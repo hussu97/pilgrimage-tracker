@@ -22,10 +22,10 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const isClosed = openStatus === 'closed';
   const isUnknown = openStatus === 'unknown';
 
-  const images = (place.images ?? [])
-    .map((img) => getFullImageUrl(img.url))
-    .filter(Boolean) as string[];
+  const rawImages = place.images ?? [];
+  const images = rawImages.map((img) => getFullImageUrl(img.url)).filter(Boolean) as string[];
   const imageUrl = images[0] ?? null;
+  const altTexts = rawImages.map((img) => img.alt_text || place.name);
 
   // Carousel state (regular variant only)
   const [imgIdx, setImgIdx] = useState(0);
@@ -98,8 +98,9 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
           {imageUrl ? (
             <img
               src={imageUrl}
-              alt=""
+              alt={altTexts[0] || place.name}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              loading="lazy"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
@@ -166,7 +167,10 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
         onMouseDown={images.length > 1 ? handleMouseDown : undefined}
         onMouseMove={images.length > 1 ? handleMouseMove : undefined}
         onMouseUp={images.length > 1 ? handleMouseUp : undefined}
-        style={{ cursor: images.length > 1 ? (isDragging ? 'grabbing' : 'grab') : undefined }}
+        style={{
+          aspectRatio: '16/9',
+          cursor: images.length > 1 ? (isDragging ? 'grabbing' : 'grab') : undefined,
+        }}
       >
         {images.length > 0 ? (
           <div
@@ -180,10 +184,11 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
               <img
                 key={i}
                 src={src}
-                alt=""
+                alt={altTexts[i] || place.name}
                 className="h-full object-cover flex-shrink-0"
                 style={{ width: `${100 / images.length}%` }}
                 draggable={false}
+                loading="lazy"
               />
             ))}
           </div>

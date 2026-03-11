@@ -65,7 +65,7 @@ Under `src/`:
 
 - **`app/`** – App shell and pages: `App.tsx`, `providers.tsx` (auth + i18n), `routes.tsx`, and all screens under `app/pages/` (Splash, Login, Register, Home, PlaceDetail, Profile, Favorites, Groups, Notifications, Settings, etc.).
 - **`components/`** – Shared UI: Layout, ProtectedRoute, PlaceCard, PlacesMap, EmptyState, ErrorState, `ads/` (AdProvider, AdBanner, useAdConsent, ad-constants), `consent/` (ConsentBanner), `analytics/` (AnalyticsProviderConnected).
-- **`lib/`** – API client (`lib/api/client.ts`), shared types (`lib/types/index.ts`), theme, constants, share helpers. The API client calls `/api/v1/*` (relative when `VITE_API_URL` is unset). Hooks: `useAnalytics` (batched event ingestion, consent gating, auto page-view tracking), `useAuthRequired`, `useDocumentTitle`.
+- **`lib/`** – API client (`lib/api/client.ts`), shared types (`lib/types/index.ts`), theme, constants, share helpers. The API client calls `/api/v1/*` (relative when `VITE_API_URL` is unset). Hooks: `useAnalytics`, `useAuthRequired`, `useDocumentTitle`, `useHead` (dynamic meta/OG/JSON-LD injection).
 - **`main.tsx`**, **`index.css`** – Entry and global styles.
 
 Design reference: `FRONTEND_V3_LIGHT.html` / `FRONTEND_V3_DARK.html` at repo root.
@@ -86,6 +86,6 @@ Tests live in `src/__tests__/`. Uses Vitest. Covers pure logic (utilities, hooks
 
 ## Parity reference (for mobile)
 
-Canonical **screens** (see `app/routes.tsx` and `app/pages/`): Splash, Login, Register, ForgotPassword, ResetPassword, Home, PlaceDetail, WriteReview, Profile, EditProfile, CheckInsList, Favorites, Groups, CreateGroup, EditGroup, EditGroupPlaces, GroupDetail, JoinGroup, Notifications.
+Canonical **screens** (see `app/routes.tsx` and `app/pages/`): Splash, Login, Register, ForgotPassword, ResetPassword, Home, PlaceDetail, WriteReview, Profile, EditProfile, CheckInsList, Favorites, Groups, CreateGroup, EditGroup, EditGroupPlaces, GroupDetail, JoinGroup, Notifications, Places (`/places`), ExploreCities (`/explore`), ExploreCity (`/explore/:city`, `/explore/:city/:religion`), Developers (`/developers`).
 
-**API surface** (see `lib/api/client.ts`): auth (login, register, forgot/reset, me), users (getMe, updateMe, check-ins, stats, favorites, settings), places (getPlaces, getPlace, reviews, checkIn, favorite, createReview), reviews (updateReview, deleteReview), groups (list, create, get, by-invite, join-by-code, join, members, invite, leaderboard, activity, checklist, addPlace, notes), notifications (get, markRead), i18n (getLanguages, getTranslations). Types in `lib/types/index.ts` use `user_code`, `place_code`, `religions` array.
+**API surface** (see `lib/api/client.ts`): auth (login, register, forgot/reset, me), users (getMe, updateMe, check-ins, stats, favorites, settings), places (getPlaces, getPlace, reviews, checkIn, favorite, createReview), reviews (updateReview, deleteReview), groups (list, create, get, by-invite, join-by-code, join, members, invite, leaderboard, activity, checklist, addPlace, notes), notifications (get, markRead), cities (getCities, getCityPlaces, getCityReligionPlaces), i18n (getLanguages, getTranslations). Types in `lib/types/index.ts` use `user_code`, `place_code`, `religions` array.

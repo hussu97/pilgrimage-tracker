@@ -24,6 +24,24 @@ from app.core.config import FRONTEND_URL
 from app.db.models import Place, PlaceImage, PlaceSEO
 from app.db.session import SessionDep
 
+_RELIGIONS = [
+    "islam",
+    "christianity",
+    "hinduism",
+    "buddhism",
+    "sikhism",
+    "judaism",
+    "bahai",
+    "zoroastrianism",
+]
+
+
+def _city_to_slug(city: str) -> str:
+    import re
+
+    return re.sub(r"[^a-z0-9]+", "-", city.lower()).strip("-")
+
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -64,6 +82,7 @@ def _build_sitemap_xml(
     places: list[Place],
     seo_map: dict[str, PlaceSEO],
     images_map: dict[str, list[PlaceImage]],
+    cities: list[tuple[str, set[str]]],
 ) -> bytes:
     """Build a standard sitemap XML document."""
     _register_ns()
@@ -74,6 +93,25 @@ def _build_sitemap_xml(
 
     # Homepage
     _add_url(urlset, FRONTEND_URL, priority="1.0", changefreq="daily")
+
+    # Explore index
+    _add_url(urlset, f"{FRONTEND_URL}/explore", priority="0.8", changefreq="weekly")
+
+    # City pages
+    for city_slug, religions in cities:
+        _add_url(
+            urlset,
+            f"{FRONTEND_URL}/explore/{city_slug}",
+            priority="0.7",
+            changefreq="weekly",
+        )
+        for religion in religions:
+            _add_url(
+                urlset,
+                f"{FRONTEND_URL}/explore/{city_slug}/{religion}",
+                priority="0.6",
+                changefreq="weekly",
+            )
 
     # Place pages
     for place in places:
@@ -160,7 +198,17 @@ def sitemap_xml(session: SessionDep) -> Response:
         for img in all_imgs:
             images_map.setdefault(img.place_code, []).append(img)
 
-    xml_bytes = _build_sitemap_xml(places, seo_map, images_map)
+    # Build city → set-of-religions map for city pages
+    city_religions: dict[str, set[str]] = {}
+    for p in places:
+        if p.city:
+            slug = _city_to_slug(p.city)
+            city_religions.setdefault(slug, set())
+            if p.religion:
+                city_religions[slug].add(p.religion)
+    cities = list(city_religions.items())
+
+    xml_bytes = _build_sitemap_xml(places, seo_map, images_map, cities)
 
     logger.info("Served sitemap.xml with %d place URLs", len(places))
     return Response(

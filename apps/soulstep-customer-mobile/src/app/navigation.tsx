@@ -24,6 +24,9 @@ import EditGroupScreen from './screens/EditGroupScreen';
 import EditGroupPlacesScreen from './screens/EditGroupPlacesScreen';
 import NotificationsScreen from './screens/NotificationsScreen';
 import SearchScreen from './screens/SearchScreen';
+import ExploreCitiesScreen from './screens/ExploreCitiesScreen';
+import ExploreCityScreen from './screens/ExploreCityScreen';
+import PlacesScreen from './screens/PlacesScreen';
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -34,6 +37,9 @@ export type RootStackParamList = {
   Main: undefined;
   Search: undefined;
   PlaceDetail: { placeCode: string; slug?: string };
+  ExploreCities: undefined;
+  ExploreCity: { citySlug: string };
+  Places: undefined;
   WriteReview: {
     placeCode: string;
     reviewCode?: string;
@@ -92,6 +98,9 @@ function RootStack() {
       <Stack.Screen name="Notifications" component={withScreenBoundary(NotificationsScreen)} />
       <Stack.Screen name="Favorites" component={withScreenBoundary(FavoritesScreen)} />
       <Stack.Screen name="Search" component={withScreenBoundary(SearchScreen)} />
+      <Stack.Screen name="ExploreCities" component={withScreenBoundary(ExploreCitiesScreen)} />
+      <Stack.Screen name="ExploreCity" component={withScreenBoundary(ExploreCityScreen)} />
+      <Stack.Screen name="Places" component={withScreenBoundary(PlacesScreen)} />
     </Stack.Navigator>
   );
 }

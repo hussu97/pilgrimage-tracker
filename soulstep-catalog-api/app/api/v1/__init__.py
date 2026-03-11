@@ -5,6 +5,7 @@ from app.api.v1 import (
     analytics,
     app_version,
     auth,
+    cities,
     groups,
     i18n,
     notifications,
@@ -22,6 +23,7 @@ api_router.include_router(app_version.router, tags=["app-version"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(places.router, prefix="/places", tags=["places"])
+api_router.include_router(cities.router, prefix="/cities", tags=["cities"])
 api_router.include_router(reviews.router, prefix="/reviews", tags=["reviews"])
 api_router.include_router(groups.router, prefix="/groups", tags=["groups"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
