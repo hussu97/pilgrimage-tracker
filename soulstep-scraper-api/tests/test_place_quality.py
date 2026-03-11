@@ -162,17 +162,21 @@ class TestScorePlaceQuality:
         assert score > 0.0
 
     def test_photo_count_granular(self):
-        """Photo score increases across all 5 tiers."""
+        """Photo score increases across all 5 tiers: 0 / 1-4 / 5-7 / 8-9 / 10+."""
 
-        def make(urls):
-            return _make_raw(image_urls=urls, image_blobs=[])
+        def make(n):
+            return _make_raw(image_urls=[f"u{i}" for i in range(n)], image_blobs=[])
 
-        s0 = score_place_quality(make([]))
-        s1 = score_place_quality(make(["u1"]))
-        s2 = score_place_quality(make(["u1", "u2"]))
-        s5 = score_place_quality(make([f"u{i}" for i in range(5)]))
-        s10 = score_place_quality(make([f"u{i}" for i in range(10)]))
-        assert s0 < s1 < s2 < s5 < s10
+        s0 = score_place_quality(make(0))
+        s1 = score_place_quality(make(1))  # bad
+        s4 = score_place_quality(make(4))  # bad (same tier as 1)
+        s5 = score_place_quality(make(5))  # mediocre
+        s7 = score_place_quality(make(7))  # mediocre (same tier as 5)
+        s8 = score_place_quality(make(8))  # good
+        s9 = score_place_quality(make(9))  # good (same tier as 8)
+        s10 = score_place_quality(make(10))  # full
+
+        assert s0 < s1 == s4 < s5 == s7 < s8 == s9 < s10
 
     def test_editorial_adds_bonus(self):
         raw_ed = _make_raw(has_editorial=True)

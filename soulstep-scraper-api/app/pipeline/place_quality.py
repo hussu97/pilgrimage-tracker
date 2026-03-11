@@ -175,15 +175,16 @@ def score_place_quality(raw_data: dict) -> float:
         score += 0.075
 
     # ── 3. Photo count (0.15) — 5-tier granularity ───────────────────────────
+    # 10: full | 8-9: good | 5-7: mediocre | 1-4: bad | 0: none
     photo_count = len(raw_data.get("image_urls") or []) + len(raw_data.get("image_blobs") or [])
     if photo_count >= 10:
         score += 0.15
-    elif photo_count >= 5:
+    elif photo_count >= 8:
         score += 0.1125  # 0.75 * 0.15
-    elif photo_count >= 2:
+    elif photo_count >= 5:
         score += 0.075  # 0.50 * 0.15
-    elif photo_count == 1:
-        score += 0.03  # 0.20 * 0.15
+    elif photo_count >= 1:
+        score += 0.015  # 0.10 * 0.15
 
     # ── 4. Editorial summary (0.05, bonus only) ───────────────────────────────
     if raw_data.get("has_editorial"):
@@ -260,15 +261,16 @@ def score_place_quality_breakdown(raw_data: dict) -> dict:
     )
 
     # ── 3. Photo count (0.15) — 5-tier granularity ───────────────────────────
+    # 10: full | 8-9: good | 5-7: mediocre | 1-4: bad | 0: none
     photo_count = len(raw_data.get("image_urls") or []) + len(raw_data.get("image_blobs") or [])
     if photo_count >= 10:
         raw_3 = 1.0
-    elif photo_count >= 5:
+    elif photo_count >= 8:
         raw_3 = 0.75
-    elif photo_count >= 2:
+    elif photo_count >= 5:
         raw_3 = 0.50
-    elif photo_count == 1:
-        raw_3 = 0.20
+    elif photo_count >= 1:
+        raw_3 = 0.10
     else:
         raw_3 = 0.0
     weight_3 = 0.15
@@ -278,7 +280,7 @@ def score_place_quality_breakdown(raw_data: dict) -> dict:
             "weight": weight_3,
             "raw_score": round(raw_3, 4),
             "weighted": round(raw_3 * weight_3, 4),
-            "detail": f"photos={photo_count} (tiers: 0/1/2-4/5-9/10+)",
+            "detail": f"photos={photo_count} (tiers: 0/1-4/5-7/8-9/10+)",
         }
     )
 
