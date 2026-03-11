@@ -2,6 +2,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import RedirectResponse
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.api.deps import OptionalUserDep, UserDep
@@ -795,6 +796,27 @@ def batch_create_places(
         try:
             _, action = _upsert_single_place(place_data, session, existing_map, loc_cache)
             results.append({"place_code": place_data.place_code, "ok": True, "action": action})
+        except IntegrityError:
+            # Race condition: a concurrent request inserted this place between our
+            # pre-fetch and our INSERT. Roll back, re-fetch the row, then update.
+            session.rollback()
+            try:
+                existing = places_db.get_place_by_code(place_data.place_code, session)
+                if existing:
+                    existing_map[place_data.place_code] = existing
+                _, action = _upsert_single_place(place_data, session, existing_map, loc_cache)
+                results.append({"place_code": place_data.place_code, "ok": True, "action": action})
+            except Exception as retry_err:
+                session.rollback()
+                logger.warning(
+                    "Failed to upsert place %s after IntegrityError retry: %s",
+                    place_data.place_code,
+                    retry_err,
+                    exc_info=True,
+                )
+                results.append(
+                    {"place_code": place_data.place_code, "ok": False, "error": str(retry_err)}
+                )
         except Exception as e:
             session.rollback()
             logger.warning("Failed to upsert place %s: %s", place_data.place_code, e, exc_info=True)
