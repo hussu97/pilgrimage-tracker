@@ -298,6 +298,10 @@ class PlaceCreate(BaseModel):
 
 
 class PlaceBatch(BaseModel):
-    """Wraps a list of places for the batch create/update endpoint."""
+    """Wraps a list of places for the batch create/update endpoint.
 
-    places: list[PlaceCreate]
+    At most 500 places per request. Duplicate place_codes are deduplicated
+    (last entry wins) before processing.
+    """
+
+    places: list[PlaceCreate] = Field(..., max_length=500)

@@ -44,6 +44,49 @@ def upsert_attribute(
         return attr
 
 
+def bulk_upsert_attributes(place_code: str, attrs: list, session: Session) -> None:
+    """Upsert all attributes for a place in a single DB round-trip.
+
+    Fetches existing attrs for the place once, then updates or inserts in-memory.
+    Flushes at the end — the caller is responsible for committing.
+    """
+    if not attrs:
+        return
+
+    existing: dict[str, PlaceAttribute] = {
+        a.attribute_code: a
+        for a in session.exec(
+            select(PlaceAttribute).where(PlaceAttribute.place_code == place_code)
+        ).all()
+    }
+
+    for attr_input in attrs:
+        code = attr_input.attribute_code
+        value = attr_input.value
+        if isinstance(value, dict | list):
+            value_text: str | None = None
+            value_json: Any = value
+        else:
+            value_text = str(value) if value is not None else None
+            value_json = None
+
+        if code in existing:
+            existing[code].value_text = value_text
+            existing[code].value_json = value_json
+            session.add(existing[code])
+        else:
+            session.add(
+                PlaceAttribute(
+                    place_code=place_code,
+                    attribute_code=code,
+                    value_text=value_text,
+                    value_json=value_json,
+                )
+            )
+
+    session.flush()
+
+
 def get_attributes_for_place(place_code: str, session: Session) -> list[PlaceAttribute]:
     """Get attributes for a place. REQUIRES an active session."""
     return list(

@@ -159,6 +159,188 @@ class TestWikipediaCollector:
             result = await collector.collect("gplc_test", 25.0, 55.0, "Unknown Place")
         assert result.status == "skipped"
 
+    # ── Layer 0: Distance gate ─────────────────────────────────────────────────
+
+    def test_distance_gate_rejects_far_article(self):
+        """Article coordinates >100 km from the place → rejected."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        # Place is in Abu Dhabi (~24.45, 54.37); article is in Dubai (~25.2, 55.27) = ~105 km
+        article_info = {
+            "title": "Some Mosque",
+            "short_description": "mosque in Dubai",
+            "coordinates": {"lat": 25.2, "lon": 55.27},
+        }
+        assert not collector._is_article_relevant(article_info, "Some Mosque", lat=24.45, lng=54.37)
+
+    def test_distance_gate_accepts_nearby_article(self):
+        """Article coordinates within 100 km of the place → not rejected on distance alone."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        # Both points within a few km of each other
+        article_info = {
+            "title": "Some Mosque",
+            "short_description": "mosque",
+            "coordinates": {"lat": 25.2, "lon": 55.3},
+        }
+        assert collector._is_article_relevant(article_info, "Some Mosque", lat=25.21, lng=55.31)
+
+    def test_distance_gate_skipped_when_no_article_coords(self):
+        """No article coordinates → distance gate is skipped; Jaccard decides."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        article_info = {
+            "title": "Some Mosque",
+            "short_description": "mosque",
+            "coordinates": {},
+        }
+        # Jaccard will pass (identical name) even though we passed far-away lat/lng
+        assert collector._is_article_relevant(article_info, "Some Mosque", lat=0.0, lng=0.0)
+
+    # ── Layer 3: Distinctive token gap penalty ────────────────────────────────
+
+    def test_distinctive_gap_rejects_two_tokens_missing(self):
+        """Two non-noise, non-religious tokens missing + jaccard < 0.6 → reject."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        # place = "Hamdan Tower Mosque Garden Road" (tokens: hamdan, tower, mosque, garden, road)
+        # article = "Hamdan Mosque" (tokens: hamdan, mosque)
+        # jaccard = 2/5 = 0.4  (≥0.3, <0.6)
+        # distinctive_missing = {tower, garden, road} → len=3 ≥ 2 → REJECT
+        article_info = {
+            "title": "Hamdan Mosque",
+            "short_description": "mosque",
+            "coordinates": {},
+        }
+        result = collector._is_article_relevant(article_info, "Hamdan Tower Mosque Garden Road")
+        assert not result, "Should reject when 2+ distinctive tokens are missing and jaccard < 0.6"
+
+    def test_distinctive_gap_accepts_high_jaccard(self):
+        """High jaccard (≥ 0.6) passes even if some tokens differ."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        # place = "Faisal Mosque Islamabad" (tokens: faisal, mosque, islamabad)
+        # article = "Faisal Mosque" (tokens: faisal, mosque)
+        # jaccard = 2/3 = 0.67 ≥ 0.6 → NOT rejected by gap penalty
+        article_info = {
+            "title": "Faisal Mosque",
+            "short_description": "mosque in Islamabad",
+            "coordinates": {},
+        }
+        assert collector._is_article_relevant(article_info, "Faisal Mosque Islamabad")
+
+    def test_distinctive_gap_accepts_one_token_missing(self):
+        """Only 1 distinctive token missing → not rejected by gap penalty (threshold=2)."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        # place = "Khalifa Palace Mosque" → tokens: {khalifa, palace, mosque}
+        # article = "Khalifa Mosque" → tokens: {khalifa, mosque}
+        # jaccard = 2/3 ≈ 0.67 ≥ 0.6 → NOT rejected
+        article_info = {
+            "title": "Khalifa Mosque",
+            "short_description": "mosque",
+            "coordinates": {},
+        }
+        assert collector._is_article_relevant(article_info, "Khalifa Palace Mosque")
+
+    # ── Layer 2: Top-N search — best-match selection ──────────────────────────
+
+    async def test_search_returns_best_jaccard_match(self):
+        """_search_wikipedia picks the candidate with the highest Jaccard score."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+
+        search_response = AsyncMock()
+        search_response.status_code = 200
+        search_response.json = lambda: {
+            "query": {
+                "search": [
+                    {"title": "Grand Mosque Abu Dhabi"},
+                    {"title": "Grand Mosque (different city)"},
+                    {"title": "Unrelated Article"},
+                ]
+            }
+        }
+
+        async def fake_fetch(title, lang="en"):
+            return {
+                "title": title,
+                "description": f"Description for {title}",
+                "short_description": title,
+                "image_url": None,
+                "original_image": None,
+                "coordinates": {},
+            }
+
+        with patch(
+            "app.collectors.wikipedia.async_request_with_backoff",
+            new=AsyncMock(return_value=search_response),
+        ):
+            with patch.object(collector, "_fetch_by_title", side_effect=fake_fetch):
+                result = await collector._search_wikipedia(
+                    "Grand Mosque Abu Dhabi", "en", lat=24.41, lng=54.47
+                )
+
+        assert result is not None
+        # The first result shares the most tokens with the query
+        assert result["title"] == "Grand Mosque Abu Dhabi"
+
+    # ── Layer 3: Location-aware search query ──────────────────────────────────
+
+    async def test_city_hint_appended_to_query(self):
+        """When existing_data has a city, it is appended to the Wikipedia search query."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        captured_queries: list[str] = []
+
+        async def fake_search(query, lang="en", lat=None, lng=None):
+            captured_queries.append(query)
+            return {
+                "title": "Sheikh Khalifa Palace Masjid",
+                "description": "A mosque in Abu Dhabi Palace district.",
+                "short_description": "mosque in Abu Dhabi",
+                "image_url": None,
+                "original_image": None,
+                "coordinates": {"lat": 24.45, "lon": 54.37},
+            }
+
+        with patch.object(collector, "_search_wikipedia", side_effect=fake_search):
+            with patch.object(collector, "_fetch_by_title", new=AsyncMock(return_value=None)):
+                await collector.collect(
+                    "gplc_test",
+                    24.45,
+                    54.37,
+                    "Sheikh Khalifa Palace Masjid",
+                    existing_data={"city": "Abu Dhabi"},
+                )
+
+        assert captured_queries, "search should have been called"
+        assert "Abu Dhabi" in captured_queries[0]
+
+    async def test_no_city_hint_uses_name_only(self):
+        """Without city context the query is just the place name."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        captured_queries: list[str] = []
+
+        async def fake_search(query, lang="en", lat=None, lng=None):
+            captured_queries.append(query)
+            return None
+
+        with patch.object(collector, "_search_wikipedia", side_effect=fake_search):
+            await collector.collect("gplc_test", 25.0, 55.0, "Al-Aqsa Mosque", existing_data={})
+
+        assert captured_queries[0] == "Al-Aqsa Mosque"
+
 
 # ── TestWikidataCollector ─────────────────────────────────────────────────────
 

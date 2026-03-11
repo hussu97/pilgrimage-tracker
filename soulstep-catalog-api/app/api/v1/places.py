@@ -663,60 +663,70 @@ def _persist_place_translations(place_code: str, translations, session: Session)
                 )
 
 
-def _upsert_single_place(place_data, session: Session):
-    """Create or update a single place and its related data (images, attrs, reviews, translations)."""
+def _upsert_single_place(
+    place_data,
+    session: Session,
+    existing_map: dict[str, Place] | None = None,
+    loc_cache: dict[tuple, tuple] | None = None,
+) -> tuple:
+    """Create or update a single place and all its related data.
+
+    Args:
+        existing_map: Pre-fetched {place_code: Place} dict (batch optimisation).
+                      When None, falls back to a single SELECT.
+        loc_cache:    Per-batch {(city, state, country): (city_code, state_code, country_code)}
+                      cache to avoid repeated location lookups for the same strings.
+
+    Returns:
+        (place_row, action) where action is "created" or "updated".
+    """
     city_str = getattr(place_data, "city", None)
     state_str = getattr(place_data, "state", None)
     country_str = getattr(place_data, "country", None)
-    city_code, state_code, country_code = resolve_location_codes(
-        city_str, state_str, country_str, session
+
+    loc_key = (city_str, state_str, country_str)
+    if loc_cache is not None:
+        if loc_key not in loc_cache:
+            loc_cache[loc_key] = resolve_location_codes(city_str, state_str, country_str, session)
+        city_code, state_code, country_code = loc_cache[loc_key]
+    else:
+        city_code, state_code, country_code = resolve_location_codes(
+            city_str, state_str, country_str, session
+        )
+
+    existing = (
+        existing_map.get(place_data.place_code)
+        if existing_map is not None
+        else places_db.get_place_by_code(place_data.place_code, session)
     )
 
-    existing = places_db.get_place_by_code(place_data.place_code, session)
+    shared_kwargs = {
+        "session": session,
+        "name": place_data.name,
+        "religion": place_data.religion,
+        "place_type": place_data.place_type,
+        "lat": place_data.lat,
+        "lng": place_data.lng,
+        "address": place_data.address,
+        "opening_hours": place_data.opening_hours,
+        "utc_offset_minutes": getattr(place_data, "utc_offset_minutes", None),
+        "description": place_data.description,
+        "website_url": place_data.website_url,
+        "source": place_data.source,
+        "city": city_str,
+        "state": state_str,
+        "country": country_str,
+        "city_code": city_code,
+        "state_code": state_code,
+        "country_code": country_code,
+    }
+
     if existing:
-        row = places_db.update_place(
-            place_code=place_data.place_code,
-            session=session,
-            name=place_data.name,
-            religion=place_data.religion,
-            place_type=place_data.place_type,
-            lat=place_data.lat,
-            lng=place_data.lng,
-            address=place_data.address,
-            opening_hours=place_data.opening_hours,
-            utc_offset_minutes=getattr(place_data, "utc_offset_minutes", None),
-            description=place_data.description,
-            website_url=place_data.website_url,
-            source=place_data.source,
-            city=city_str,
-            state=state_str,
-            country=country_str,
-            city_code=city_code,
-            state_code=state_code,
-            country_code=country_code,
-        )
+        row = places_db.update_place(place_code=place_data.place_code, **shared_kwargs)
+        action = "updated"
     else:
-        row = places_db.create_place(
-            place_code=place_data.place_code,
-            session=session,
-            name=place_data.name,
-            religion=place_data.religion,
-            place_type=place_data.place_type,
-            lat=place_data.lat,
-            lng=place_data.lng,
-            address=place_data.address,
-            opening_hours=place_data.opening_hours,
-            utc_offset_minutes=getattr(place_data, "utc_offset_minutes", None),
-            description=place_data.description,
-            website_url=place_data.website_url,
-            source=place_data.source,
-            city=city_str,
-            state=state_str,
-            country=country_str,
-            city_code=city_code,
-            state_code=state_code,
-            country_code=country_code,
-        )
+        row = places_db.create_place(place_code=place_data.place_code, **shared_kwargs)
+        action = "created"
 
     if place_data.image_blobs:
         try:
@@ -733,10 +743,8 @@ def _upsert_single_place(place_data, session: Session):
         )
 
     if place_data.attributes:
-        for attr_input in place_data.attributes:
-            attr_db.upsert_attribute(
-                place_data.place_code, attr_input.attribute_code, attr_input.value, session
-            )
+        attr_db.bulk_upsert_attributes(place_data.place_code, place_data.attributes, session)
+        session.commit()
 
     if place_data.external_reviews:
         reviews_db.upsert_external_reviews(
@@ -746,7 +754,7 @@ def _upsert_single_place(place_data, session: Session):
     if place_data.translations:
         _persist_place_translations(place_data.place_code, place_data.translations, session)
 
-    return row
+    return row, action
 
 
 @router.post("/batch")
@@ -754,23 +762,52 @@ def batch_create_places(
     body: PlaceBatch,
     session: SessionDep,
 ):
+    """Create or update multiple places in a single request (up to 500).
+
+    Optimisations vs processing places one-by-one:
+    - Duplicate place_codes are deduplicated (last entry wins) before any DB work.
+    - All existing Place rows for the batch are pre-fetched in a single SELECT.
+    - Location strings are resolved once per unique (city, state, country) tuple
+      and cached for the duration of the request.
+    - Attributes for each place are upserted in a single round-trip instead of
+      one commit per attribute.
+    - A failed place triggers a session rollback so subsequent places are
+      unaffected; already-committed places in the same batch are not rolled back.
+
+    Returns a summary with per-place action ("created" | "updated") and errors.
     """
-    Create or update multiple places in a single request.
-    Returns a summary of successes and failures.
-    """
+    # Deduplicate: last item for each place_code wins
+    seen: dict[str, PlaceCreate] = {}
+    for p in body.places:
+        seen[p.place_code] = p
+    places = list(seen.values())
+
+    # Pre-fetch all existing Place rows in one query
+    place_codes = [p.place_code for p in places]
+    existing_rows = session.exec(select(Place).where(Place.place_code.in_(place_codes))).all()
+    existing_map: dict[str, Place] = {p.place_code: p for p in existing_rows}
+
+    # Per-batch location code cache: (city, state, country) → (city_code, state_code, country_code)
+    loc_cache: dict[tuple, tuple] = {}
+
     results = []
-    for place_data in body.places:
+    for place_data in places:
         try:
-            _upsert_single_place(place_data, session)
-            results.append({"place_code": place_data.place_code, "ok": True})
+            _, action = _upsert_single_place(place_data, session, existing_map, loc_cache)
+            results.append({"place_code": place_data.place_code, "ok": True, "action": action})
         except Exception as e:
+            session.rollback()
+            logger.warning("Failed to upsert place %s: %s", place_data.place_code, e, exc_info=True)
             results.append({"place_code": place_data.place_code, "ok": False, "error": str(e)})
 
     success = sum(1 for r in results if r["ok"])
+    duplicates = len(body.places) - len(places)
     return {
-        "total": len(results),
+        "total": len(body.places),
+        "unique": len(places),
         "synced": success,
         "failed": len(results) - success,
+        "duplicates_skipped": duplicates,
         "results": results,
     }
 
@@ -783,7 +820,7 @@ def create_place(
     """
     Create a new place or update an existing one if place_code matches.
     """
-    row = _upsert_single_place(body, session)
+    row, _ = _upsert_single_place(body, session)
     return _place_detail(row, session)
 
 

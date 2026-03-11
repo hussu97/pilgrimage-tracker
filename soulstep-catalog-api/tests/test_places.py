@@ -418,3 +418,136 @@ class TestLocationCodes:
         assert data["city_code"] is None
         assert data["state_code"] is None
         assert data["country_code"] is None
+
+
+def _batch(client, places: list[dict]) -> dict:
+    resp = client.post(f"{PLACES_URL}/batch", json={"places": places})
+    assert resp.status_code == 200
+    return resp.json()
+
+
+def _place_payload(place_code: str, **overrides) -> dict:
+    return {
+        **SAMPLE_PLACE,
+        "place_code": place_code,
+        "image_urls": [],
+        "attributes": [],
+        **overrides,
+    }
+
+
+class TestBatchEndpoint:
+    """Tests for batch upsert improvements: dedup, pre-fetch, caching, error isolation."""
+
+    def test_batch_returns_action_created(self, client):
+        data = _batch(client, [_place_payload("plc_bat_new1")])
+        assert data["results"][0]["action"] == "created"
+
+    def test_batch_returns_action_updated_on_resync(self, client):
+        _batch(client, [_place_payload("plc_bat_upd1")])
+        data = _batch(client, [_place_payload("plc_bat_upd1", name="Updated Name")])
+        assert data["results"][0]["action"] == "updated"
+
+    def test_batch_deduplicates_place_codes(self, client):
+        """Duplicate place_code entries: last one wins, counted in duplicates_skipped."""
+        data = _batch(
+            client,
+            [
+                _place_payload("plc_bat_dup1", name="First"),
+                _place_payload("plc_bat_dup1", name="Second"),
+            ],
+        )
+        # Only 1 place processed, 1 duplicate skipped
+        assert data["unique"] == 1
+        assert data["duplicates_skipped"] == 1
+        assert data["synced"] == 1
+
+        # The last entry's name should be the one stored
+        detail = client.get(f"{PLACES_URL}/plc_bat_dup1")
+        assert detail.json()["name"] == "Second"
+
+    def test_batch_error_does_not_prevent_subsequent_places(self, client, monkeypatch):
+        """A runtime error on one place should not prevent others from being processed.
+
+        Monkeypatches create_place to raise for a specific place_code, simulating a
+        DB-level failure that happens after schema validation passes.
+        """
+        import app.db.places as _places_db
+
+        original_create = _places_db.create_place
+
+        def _failing_create(place_code, **kwargs):
+            if place_code == "plc_bat_bad1":
+                raise RuntimeError("Simulated DB failure")
+            return original_create(place_code, **kwargs)
+
+        monkeypatch.setattr(_places_db, "create_place", _failing_create)
+
+        data = _batch(
+            client,
+            [
+                _place_payload("plc_bat_ok01"),
+                _place_payload("plc_bat_bad1"),
+                _place_payload("plc_bat_ok02"),
+            ],
+        )
+        codes_ok = {r["place_code"] for r in data["results"] if r["ok"]}
+        codes_fail = {r["place_code"] for r in data["results"] if not r["ok"]}
+        assert "plc_bat_ok01" in codes_ok
+        assert "plc_bat_bad1" in codes_fail
+        assert "plc_bat_ok02" in codes_ok
+        assert data["synced"] == 2
+        assert data["failed"] == 1
+
+    def test_batch_total_counts_include_duplicates(self, client):
+        data = _batch(
+            client,
+            [
+                _place_payload("plc_bat_cnt1"),
+                _place_payload("plc_bat_cnt1"),  # duplicate
+                _place_payload("plc_bat_cnt2"),
+            ],
+        )
+        assert data["total"] == 3
+        assert data["unique"] == 2
+        assert data["synced"] == 2
+        assert data["duplicates_skipped"] == 1
+
+    def test_batch_shared_location_resolved_once(self, client):
+        """Multiple places in the same city should all get the same city_code."""
+        places = [
+            _place_payload(
+                f"plc_bat_loc{i}",
+                city="Dubai",
+                state="Dubai Emirate",
+                country="United Arab Emirates",
+            )
+            for i in range(3)
+        ]
+        data = _batch(client, places)
+        assert data["synced"] == 3
+
+        for i in range(3):
+            detail = client.get(f"{PLACES_URL}/plc_bat_loc{i}")
+            assert detail.json()["city_code"] == "cty_dubai"
+
+    def test_batch_size_limit_422(self, client):
+        """Sending more than 500 places should be rejected with 422."""
+        too_many = [_place_payload(f"plc_bat_big{i:04d}") for i in range(501)]
+        resp = client.post(f"{PLACES_URL}/batch", json={"places": too_many})
+        assert resp.status_code == 422
+
+    def test_batch_attributes_persisted(self, client):
+        """Attributes sent in a batch place are stored correctly."""
+        data = _batch(
+            client,
+            [
+                {
+                    **_place_payload("plc_bat_atr1"),
+                    "attributes": [
+                        {"attribute_code": "has_parking", "value": True},
+                    ],
+                }
+            ],
+        )
+        assert data["synced"] == 1

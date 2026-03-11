@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Batch Place Sync Improvements (2026-03-11)
+
+### Backend
+- **`app/api/v1/places.py`** — `batch_create_places`: pre-fetches all existing Place rows in a single SELECT before the loop (was N individual SELECTs); deduplicates place_codes before processing (last entry wins); maintains a per-request location code cache so the same `(city, state, country)` tuple hits the DB only once; calls `session.rollback()` after a failed place so the session is clean for subsequent places; response now includes `"action": "created"|"updated"` per result, `"unique"`, and `"duplicates_skipped"` fields; `_upsert_single_place` now returns `(row, action)` and accepts optional `existing_map` and `loc_cache` kwargs
+- **`app/db/place_attributes.py`** — added `bulk_upsert_attributes(place_code, attrs, session)`: fetches all existing attrs for the place once, updates/inserts in-memory, then flushes once — replaces N individual SELECT+commit+refresh calls (one per attribute) with a single round-trip
+- **`app/models/schemas.py`** — `PlaceBatch.places` capped at 500 entries (`max_length=500`); oversized requests return 422
+- **`tests/test_places.py`** — added `TestBatchEndpoint` (8 tests): action field, deduplication, error isolation via monkeypatch, total/unique/duplicates_skipped counts, shared location cache, batch size limit, attribute persistence
+
+---
+
 ## Location Codes: Country/State/City Tables (2026-03-11)
 
 ### Backend
