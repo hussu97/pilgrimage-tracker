@@ -132,6 +132,7 @@ All environment variables documented here. Plan-specific sections reference this
 |---|---|---|---|
 | `VITE_API_URL` | **Yes (prod)** | _(relative `/api` in dev)_ | Production API base URL — **baked in at build time** |
 | `VITE_ADSENSE_PUBLISHER_ID` | No | _(empty)_ | Google AdSense publisher ID for web ads |
+| `VITE_UMAMI_WEBSITE_ID` | No | _(empty)_ | Umami Cloud website ID for privacy-friendly analytics. Script proxied via `/umami/script.js` to bypass adblockers. Get from Umami Cloud dashboard |
 
 ### 2.4 Mobile (`apps/soulstep-customer-mobile/`)
 
@@ -140,6 +141,7 @@ All environment variables documented here. Plan-specific sections reference this
 | `EXPO_PUBLIC_API_URL` | No | `http://127.0.0.1:3000` | API base URL for device/Expo Go |
 | `EXPO_PUBLIC_ADMOB_APP_ID_IOS` | No | _(empty)_ | Google AdMob App ID for iOS |
 | `EXPO_PUBLIC_ADMOB_APP_ID_ANDROID` | No | _(empty)_ | Google AdMob App ID for Android |
+| `EXPO_PUBLIC_UMAMI_WEBSITE_ID` | No | _(empty)_ | Umami Cloud website ID for analytics. Sends directly to `cloud.umami.is` (no adblocker risk in native apps) |
 
 ---
 

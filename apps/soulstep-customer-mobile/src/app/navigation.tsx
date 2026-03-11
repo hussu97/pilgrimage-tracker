@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { UmamiTrackerConnected } from '@/components/analytics/UmamiTrackerConnected';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import Layout from '@/components/layout/Layout';
 import SplashScreen from './screens/SplashScreen';
@@ -99,6 +100,7 @@ export function AppNavigationContent({ user, loading }: { user: unknown; loading
   if (loading) return null;
   return (
     <NavigationContainer>
+      <UmamiTrackerConnected />
       <RootStack />
     </NavigationContainer>
   );

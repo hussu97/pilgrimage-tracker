@@ -52,6 +52,7 @@ Configure `app.json` / `app.config.js` (icons, splash, scheme). Submit to App St
 - **`EXPO_PUBLIC_API_URL`** – Base URL of the API.
 - **`EXPO_PUBLIC_ADMOB_APP_ID_IOS`** – Optional. Google AdMob App ID for iOS. Replace the placeholder in `app.json` when ready.
 - **`EXPO_PUBLIC_ADMOB_APP_ID_ANDROID`** – Optional. Google AdMob App ID for Android. Replace the placeholder in `app.json` when ready. When unset, the app defaults to `http://127.0.0.1:3000` so the simulator can reach the backend. For a physical device, set this to your machine’s LAN IP (e.g. `http://192.168.1.10:3000`). The **backend must be running** (e.g. `cd soulstep-catalog-api && uvicorn app.main:app --reload --port 3000`) for the Home screen and other API features to work.
+- **`EXPO_PUBLIC_UMAMI_WEBSITE_ID`** – Optional. Umami Cloud website ID for privacy-friendly analytics. Sends directly to `cloud.umami.is/api/send` (no adblocker risk in native apps). Sign up at https://umami.is → free plan → Add website → copy Website ID. When unset, Umami is disabled.
 
 ## Structure
 

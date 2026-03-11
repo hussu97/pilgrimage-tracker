@@ -31,5 +31,14 @@
       });
     </script>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Umami Cloud analytics — proxied via /umami to bypass adblockers -->
+    <script
+      async
+      defer
+      src="/umami/script.js"
+      data-website-id="%VITE_UMAMI_WEBSITE_ID%"
+      data-host-url="/umami"
+      data-domains="soul-step.org"
+    ></script>
   </body>
 </html>

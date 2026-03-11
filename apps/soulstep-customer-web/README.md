@@ -57,6 +57,7 @@ Output: `dist/`. For production, set `VITE_API_URL` to the production API base U
 - **`VITE_PROXY_TARGET`** – Optional. Proxy target for `/api` in dev (default `http://127.0.0.1:3000`). Use `127.0.0.1` only—not `localhost`. Restart the dev server after changing.
 - **`VITE_GLITCHTIP_DSN`** – Optional. GlitchTip (Sentry-compatible) DSN for error tracking. When unset, error tracking is disabled. Obtain from your GlitchTip project settings (e.g. `https://<key>@app.glitchtip.com/<project>`).
 - **`VITE_ADSENSE_PUBLISHER_ID`** – Optional. Google AdSense publisher ID (e.g. `ca-pub-xxxxxxxxxxxxxxxx`). When unset, ad provider uses backend config only.
+- **`VITE_UMAMI_WEBSITE_ID`** – Optional. Umami Cloud website ID for privacy-friendly analytics. The script is proxied via `/umami/script.js` to bypass adblockers (same-origin). Sign up at https://umami.is → free plan → Add website → copy Website ID. When unset, Umami is disabled.
 
 ## Structure
 

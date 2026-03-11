@@ -43,6 +43,12 @@ export default defineConfig({
         target: backendOrigin,
         changeOrigin: true,
       },
+      '/umami': {
+        target: 'https://cloud.umami.is',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path.replace(/^\/umami/, ''),
+      },
     },
   },
 });

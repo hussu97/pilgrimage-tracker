@@ -4,6 +4,25 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Umami Cloud Analytics Integration (2026-03-11)
+
+### Frontend (web)
+- **Adblocker-proof Umami tracking** — nginx proxies `/umami/script.js` and `/umami/api/send` to `cloud.umami.is` so all requests are same-origin and not blocked by uBlock Origin or similar
+- **`nginx.conf`** — added `resolver 8.8.8.8`, two proxy `location` blocks for Umami script + collect API
+- **`index.html`** — added Umami `<script>` tag using `data-host-url="/umami"` and `data-website-id="%VITE_UMAMI_WEBSITE_ID%"`
+- **`vite.config.ts`** — added `/umami` dev proxy forwarding to `cloud.umami.is` so local development works without nginx
+- **`VITE_UMAMI_WEBSITE_ID`** — new optional env var; added to `.env.example`
+- **`src/__tests__/umami.test.ts`** — 17 Vitest tests for `buildUmamiPayload`, screen name normalisation, consent gating, website ID guard
+
+### Frontend (mobile)
+- **`src/lib/hooks/useUmamiTracking.ts`** — new hook; auto-tracks page views when screen name changes, exposes `trackUmamiEvent(name, data?)` for custom events; respects `analyticsConsent` flag; sends directly to `cloud.umami.is/api/send` (no adblocker risk in native apps)
+- **`src/components/analytics/UmamiTrackerConnected.tsx`** — new component rendered inside `NavigationContainer`; reads consent from `AdProvider`, current route from `useNavigationState`, and calls `useUmamiTracking`
+- **`src/app/navigation.tsx`** — added `<UmamiTrackerConnected />` inside `<NavigationContainer>`
+- **`EXPO_PUBLIC_UMAMI_WEBSITE_ID`** — new optional env var; added to `.env.example`
+- **`src/__tests__/umami.test.ts`** — 21 Jest tests for payload builder, screen name normalisation, consent gating, website ID guard, deduplication
+
+---
+
 ## Quality Metrics Dashboard + Places Filter + Scraper Docs (2026-03-10)
 
 ### Backend (soulstep-scraper-api)
