@@ -396,6 +396,41 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
 
 // ── Cells Tab ───────────────────────────────────────────────────────────────
 
+function buildGeojsonUrl(c: DiscoveryCellItem): string {
+  const geojson = {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [c.lng_min, c.lat_min],
+              [c.lng_max, c.lat_min],
+              [c.lng_max, c.lat_max],
+              [c.lng_min, c.lat_max],
+              [c.lng_min, c.lat_min],
+            ],
+          ],
+        },
+        properties: {},
+      },
+    ],
+  };
+  return `https://geojson.io/#data=data:application/json,${encodeURIComponent(JSON.stringify(geojson))}`;
+}
+
+function fmtDistance(m: number): string {
+  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m}m`;
+}
+
+function fmtArea(m2: number): string {
+  return m2 >= 1_000_000
+    ? `${(m2 / 1_000_000).toFixed(2)} km²`
+    : `${(m2 / 10_000).toFixed(1)} ha`;
+}
+
 function CellsTab({ runCode }: { runCode: string }) {
   const [cells, setCells] = useState<DiscoveryCellItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -427,52 +462,71 @@ function CellsTab({ runCode }: { runCode: string }) {
       ),
     },
     {
-      key: "center",
-      header: "Center (lat, lng)",
+      key: "bounds",
+      header: "Bounds",
       render: (c) => (
-        <span className="font-mono text-xs text-text-secondary dark:text-dark-text-secondary">
-          {(((c.lat_min + c.lat_max) / 2)).toFixed(4)},{" "}
-          {(((c.lng_min + c.lng_max) / 2)).toFixed(4)}
-        </span>
+        <div className="space-y-0.5">
+          <p className="font-mono text-xs text-text-main dark:text-white">
+            {c.lat_min.toFixed(4)}–{c.lat_max.toFixed(4)}
+          </p>
+          <p className="font-mono text-xs text-text-secondary dark:text-dark-text-secondary">
+            {c.lng_min.toFixed(4)}–{c.lng_max.toFixed(4)}
+          </p>
+        </div>
       ),
     },
     {
-      key: "radius_m",
-      header: "Radius",
+      key: "size",
+      header: "Size",
       render: (c) => (
         <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
-          {c.radius_m >= 1000
-            ? `${(c.radius_m / 1000).toFixed(1)} km`
-            : `${c.radius_m} m`}
+          {fmtDistance(c.width_m)} × {fmtDistance(c.height_m)}
         </span>
       ),
     },
     {
-      key: "result_count",
-      header: "Found",
+      key: "area",
+      header: "Area",
       render: (c) => (
-        <span className="text-xs font-semibold text-text-main dark:text-white">
-          {c.result_count}
+        <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
+          {fmtArea(c.area_m2)}
         </span>
       ),
     },
     {
-      key: "saturated",
-      header: "Saturated",
-      render: (c) =>
-        c.saturated ? (
-          <StatusBadge label="saturated" variant="warning" />
-        ) : (
-          <StatusBadge label="ok" variant="success" />
-        ),
+      key: "found_status",
+      header: "Found / Status",
+      render: (c) => (
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-semibold text-text-main dark:text-white">
+            {c.result_count}
+          </span>
+          {c.saturated ? (
+            <StatusBadge label="saturated" variant="warning" />
+          ) : (
+            <StatusBadge label="ok" variant="success" />
+          )}
+        </div>
+      ),
     },
     {
       key: "created_at",
-      header: "Searched At",
+      header: "Searched At / Map",
       render: (c) => (
-        <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
-          {c.created_at ? formatDate(c.created_at) : "—"}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
+            {c.created_at ? formatDate(c.created_at) : "—"}
+          </span>
+          <a
+            href={buildGeojsonUrl(c)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-shrink-0 text-text-secondary dark:text-dark-text-secondary hover:text-primary transition-colors"
+            title="View bounding box on geojson.io"
+          >
+            <ExternalLink size={12} />
+          </a>
+        </div>
       ),
     },
   ];

@@ -1,3 +1,5 @@
+import math
+
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 from sqlmodel import func, select
 
@@ -361,6 +363,18 @@ def get_place_quality_breakdown(run_code: str, place_code: str, session: Session
     return score_place_quality_breakdown(place.raw_data or {})
 
 
+def _cell_dimensions(c) -> dict:
+    center_lat = (c.lat_min + c.lat_max) / 2
+    height_m = abs(c.lat_max - c.lat_min) * 111_000
+    width_m = abs(c.lng_max - c.lng_min) * 111_000 * abs(math.cos(math.radians(center_lat)))
+    area_m2 = height_m * width_m
+    return {
+        "width_m": round(width_m),
+        "height_m": round(height_m),
+        "area_m2": round(area_m2),
+    }
+
+
 @router.get("/runs/{run_code}/cells")
 def get_run_cells(
     run_code: str,
@@ -399,6 +413,7 @@ def get_run_cells(
                 "saturated": c.saturated,
                 "resource_names_count": len(c.resource_names or []),
                 "created_at": c.created_at.isoformat() if c.created_at else None,
+                **_cell_dimensions(c),
             }
             for c in cells
         ],

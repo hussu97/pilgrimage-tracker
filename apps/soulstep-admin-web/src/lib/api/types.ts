@@ -298,11 +298,14 @@ export interface DiscoveryCellItem {
   lng_min: number;
   lng_max: number;
   depth: number;
-  radius_m: number;
+  radius_m: number;        // kept; always 0 for new cells
   result_count: number;
   saturated: boolean;
   resource_names_count: number;
   created_at: string | null;
+  width_m: number;
+  height_m: number;
+  area_m2: number;
 }
 
 export interface QualityScoreBucket {

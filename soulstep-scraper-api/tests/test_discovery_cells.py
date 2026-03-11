@@ -52,7 +52,7 @@ def _seed_cell(
     lng_min=3.0,
     lng_max=4.0,
     depth=1,
-    radius_m=500.0,
+    radius_m=0.0,
     resource_names=None,
     saturated=False,
 ) -> DiscoveryCell:
@@ -276,7 +276,7 @@ async def test_search_area_cache_hit_non_saturated():
 
     existing_ids = ThreadSafeIdSet()
 
-    with patch("app.scrapers.gmaps.get_places_in_circle", new=AsyncMock()) as mock_api:
+    with patch("app.scrapers.gmaps.get_places_in_rectangle", new=AsyncMock()) as mock_api:
         result = await search_area(
             lat_min=24.0,
             lat_max=25.0,
@@ -308,7 +308,7 @@ async def test_search_area_cache_miss_calls_api_and_saves():
 
     with (
         patch(
-            "app.scrapers.gmaps.get_places_in_circle",
+            "app.scrapers.gmaps.get_places_in_rectangle",
             new=AsyncMock(return_value=(["places/X", "places/Y"], False)),
         ) as mock_api,
         patch("app.scrapers.gmaps.get_async_rate_limiter") as mock_rl,
@@ -364,7 +364,7 @@ async def test_search_area_cache_hit_saturated_recurses():
 
     with (
         patch(
-            "app.scrapers.gmaps.get_places_in_circle",
+            "app.scrapers.gmaps.get_places_in_rectangle",
             new=AsyncMock(return_value=([], False)),
         ) as mock_api,
         patch("app.scrapers.gmaps.get_async_rate_limiter") as mock_rl,

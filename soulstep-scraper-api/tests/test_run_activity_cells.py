@@ -50,7 +50,7 @@ def _make_cell(
         lng_min=lng_min,
         lng_max=lng_max,
         depth=depth,
-        radius_m=30000.0,
+        radius_m=0.0,
         result_count=result_count,
         saturated=saturated,
         resource_names=[f"places/id{i}" for i in range(result_count)],
@@ -170,6 +170,9 @@ class TestRunCells:
         assert cell["resource_names_count"] == 15
         assert "lat_min" in cell
         assert "radius_m" in cell
+        assert "width_m" in cell and cell["width_m"] > 0
+        assert "height_m" in cell and cell["height_m"] > 0
+        assert "area_m2" in cell and cell["area_m2"] > 0
 
     def test_cells_pagination(self, client, db_session):
         run = _make_run(db_session, "run_cells_page")
@@ -195,3 +198,26 @@ class TestRunCells:
         resp = client.get(f"/api/v1/scraper/runs/{run.run_code}/cells")
         data = resp.json()
         assert data["items"][0]["saturated"] is True
+
+    def test_cell_dimensions_values(self, client, db_session):
+        """Dimensions should be computed correctly for a known bounding box."""
+        run = _make_run(db_session, "run_cells_dim")
+        # 0.5 degree square at equator ≈ 55500 m on each side
+        _make_cell(
+            db_session,
+            run.run_code,
+            lat_min=0.0,
+            lat_max=0.5,
+            lng_min=0.0,
+            lng_max=0.5,
+            depth=0,
+            result_count=0,
+            saturated=False,
+        )
+        resp = client.get(f"/api/v1/scraper/runs/{run.run_code}/cells")
+        assert resp.status_code == 200
+        cell = resp.json()["items"][0]
+        # At equator, 0.5 deg lat and lng are both ~55500 m
+        assert abs(cell["height_m"] - 55500) < 500
+        assert abs(cell["width_m"] - 55500) < 500
+        assert cell["area_m2"] > 0

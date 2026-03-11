@@ -157,16 +157,17 @@ def process_weekly_hours(opening_hours_dict):
     return schedule
 
 
-async def get_places_in_circle(
-    lat: float,
-    lng: float,
-    radius: float,
+async def get_places_in_rectangle(
+    lat_min: float,
+    lat_max: float,
+    lng_min: float,
+    lng_max: float,
     place_types: list[str],
     api_key: str,
     client: httpx.AsyncClient | None = None,
 ) -> tuple[list[str], bool]:
     """
-    Find all places of given types within radius using new Places API.
+    Find all places of given types within a bounding box using the Places API.
     Returns (list of place resource names, is_saturated).
 
     Accepts an optional httpx.AsyncClient for connection reuse across calls.
@@ -180,7 +181,10 @@ async def get_places_in_circle(
     body = {
         "includedTypes": place_types,
         "locationRestriction": {
-            "circle": {"center": {"latitude": lat, "longitude": lng}, "radius": radius}
+            "rectangle": {
+                "low": {"latitude": lat_min, "longitude": lng_min},
+                "high": {"latitude": lat_max, "longitude": lng_max},
+            }
         },
         "maxResultCount": 20,
     }
@@ -253,10 +257,10 @@ async def search_area(
     Returns list of unique place_ids found in this area.
     """
     indent = "  " * depth
-    center_lat, center_lng, radius = calculate_search_radius(lat_min, lat_max, lng_min, lng_max)
+    _, _, radius = calculate_search_radius(lat_min, lat_max, lng_min, lng_max)
 
     logger.debug(
-        "%sSearching area (lat: %.4f-%.4f, lng: %.4f-%.4f, radius: %.0fm, depth: %d, total: %d)",
+        "%sSearching area (lat: %.4f-%.4f, lng: %.4f-%.4f, half_diag: %.0fm, depth: %d, total: %d)",
         indent,
         lat_min,
         lat_max,
@@ -346,8 +350,8 @@ async def search_area(
             async with _sem_ctx:
                 if rate_limiter is not None:
                     await rate_limiter.acquire("gmaps_search")
-                place_ids, is_saturated = await get_places_in_circle(
-                    center_lat, center_lng, radius, place_types, api_key, client
+                place_ids, is_saturated = await get_places_in_rectangle(
+                    lat_min, lat_max, lng_min, lng_max, place_types, api_key, client
                 )
 
             # Save to global cache for future runs
@@ -379,9 +383,7 @@ async def search_area(
 
         # Persist this cell immediately so interrupted runs can resume
         if cell_store is not None:
-            cell_store.save(
-                lat_min, lat_max, lng_min, lng_max, depth, radius, place_ids, is_saturated
-            )
+            cell_store.save(lat_min, lat_max, lng_min, lng_max, depth, 0.0, place_ids, is_saturated)
 
     if max_results and len(existing_ids) >= max_results:
         return new_ids
