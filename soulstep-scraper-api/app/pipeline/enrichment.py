@@ -164,7 +164,9 @@ async def run_enrichment_pipeline(run_code: str):
                 return
             with Session(engine) as worker_session:
                 place = worker_session.exec(
-                    select(ScrapedPlace).where(ScrapedPlace.place_code == place_code)
+                    select(ScrapedPlace)
+                    .where(ScrapedPlace.place_code == place_code)
+                    .where(ScrapedPlace.run_code == run_code)
                 ).first()
                 if not place:
                     return

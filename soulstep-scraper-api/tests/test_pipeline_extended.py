@@ -368,6 +368,56 @@ class TestEnrichmentPipeline:
             ).first()
         assert place.enrichment_status == "failed"
 
+    async def test_run_enrichment_pipeline_same_place_in_two_runs(self, pipeline_engine):
+        """Regression: same place_code in two runs must only update the correct run's row."""
+        from sqlmodel import select
+
+        from app.collectors.base import CollectorResult
+
+        # Seed two runs that both discovered the same place_code.
+        # Create the shared location first, then seed runs that reuse it.
+        from app.db.models import DataLocation, ScrapedPlace, ScraperRun
+        from app.pipeline.enrichment import run_enrichment_pipeline
+
+        with Session(pipeline_engine) as session:
+            session.add(DataLocation(code="loc_multi", name="Multi Location", config={}))
+            session.add(ScraperRun(run_code="run_old", location_code="loc_multi", status="pending"))
+            session.add(ScraperRun(run_code="run_new", location_code="loc_multi", status="pending"))
+            session.commit()
+        _seed_place(pipeline_engine, "run_old", place_code="gplc_shared", name="Shared Mosque")
+        _seed_place(pipeline_engine, "run_new", place_code="gplc_shared", name="Shared Mosque")
+
+        mock_result = CollectorResult(collector_name="osm")
+        mock_result.status = "skipped"
+        mock_collector = MagicMock()
+        mock_collector.name = "osm"
+        mock_collector.collect = AsyncMock(return_value=mock_result)
+
+        # Enrich only run_new
+        with patch("app.pipeline.enrichment.engine", pipeline_engine):
+            with patch(
+                "app.pipeline.enrichment.get_enrichment_collectors",
+                return_value=[mock_collector],
+            ):
+                await run_enrichment_pipeline("run_new")
+
+        with Session(pipeline_engine) as session:
+            new_place = session.exec(
+                select(ScrapedPlace)
+                .where(ScrapedPlace.place_code == "gplc_shared")
+                .where(ScrapedPlace.run_code == "run_new")
+            ).first()
+            old_place = session.exec(
+                select(ScrapedPlace)
+                .where(ScrapedPlace.place_code == "gplc_shared")
+                .where(ScrapedPlace.run_code == "run_old")
+            ).first()
+
+        # Only run_new's row should be marked complete
+        assert new_place.enrichment_status == "complete"
+        # run_old's row must remain untouched
+        assert old_place.enrichment_status == "pending"
+
 
 class TestEnrichPlace:
     async def test_enrich_place_basic(self, pipeline_engine):
