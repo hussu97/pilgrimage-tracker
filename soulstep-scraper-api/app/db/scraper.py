@@ -392,19 +392,25 @@ async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
             select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
         ).all()
 
-        places = [
-            p
-            for p in all_places
-            if passes_gate(p.quality_score, GATE_SYNC) and is_name_specific_enough(p.name or "")
-        ]
-        filtered_count = len(all_places) - len(places)
+        quality_filtered: list = []
+        name_filtered: list = []
+        places = []
+        for p in all_places:
+            if not passes_gate(p.quality_score, GATE_SYNC):
+                quality_filtered.append(p)
+            elif not is_name_specific_enough(p.name or ""):
+                name_filtered.append(p)
+            else:
+                places.append(p)
 
-        if filtered_count:
+        if quality_filtered or name_filtered:
             logger.info(
-                "Sync gate: skipping %d/%d places (below quality threshold %.2f or name not specific enough)",
-                filtered_count,
+                "Sync gate: skipping %d/%d places (%d below quality threshold %.2f, %d name not specific enough)",
+                len(quality_filtered) + len(name_filtered),
                 len(all_places),
+                len(quality_filtered),
                 GATE_SYNC,
+                len(name_filtered),
             )
 
         total = len(places)
@@ -416,6 +422,8 @@ async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
             run.stage = "syncing"
             run.places_synced = 0
             run.places_sync_failed = 0
+            run.places_sync_quality_filtered = len(quality_filtered)
+            run.places_sync_name_filtered = len(name_filtered)
             session.add(run)
         session.commit()
 

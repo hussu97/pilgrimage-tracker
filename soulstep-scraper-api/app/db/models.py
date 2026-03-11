@@ -31,6 +31,8 @@ class ScraperRun(SQLModel, table=True):
     images_failed: int = Field(default=0)
     places_synced: int = Field(default=0)
     places_sync_failed: int = Field(default=0)
+    places_sync_quality_filtered: int = Field(default=0)
+    places_sync_name_filtered: int = Field(default=0)
     places_filtered: int = Field(default=0)
     detail_fetch_cached: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

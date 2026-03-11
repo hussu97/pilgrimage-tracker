@@ -290,6 +290,8 @@ export interface RunActivity {
   images_failed: number;
   places_synced: number;
   places_sync_failed: number;
+  places_sync_quality_filtered?: number;
+  places_sync_name_filtered?: number;
   detail_fetch_total?: number | null;
   detail_fetch_cached?: number;
 }

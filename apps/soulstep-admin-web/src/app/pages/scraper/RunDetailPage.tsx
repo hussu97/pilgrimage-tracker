@@ -196,6 +196,8 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
   const showSync =
     activity.places_synced > 0 ||
     activity.places_sync_failed > 0 ||
+    (activity.places_sync_quality_filtered ?? 0) > 0 ||
+    (activity.places_sync_name_filtered ?? 0) > 0 ||
     stage === "syncing";
 
   const cellsSatPct =
@@ -213,9 +215,24 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
           Math.round(((activity.places_filtered ?? 0) / activity.places_total) * 100),
         )
       : 0;
+  const syncQualityFiltered = activity.places_sync_quality_filtered ?? 0;
+  const syncNameFiltered = activity.places_sync_name_filtered ?? 0;
+  const syncTotal = activity.places_synced + activity.places_sync_failed + syncQualityFiltered + syncNameFiltered;
   const syncPct =
-    activity.places_total > 0
-      ? Math.min(100, Math.round((activity.places_synced / activity.places_total) * 100))
+    syncTotal > 0
+      ? Math.min(100, Math.round((activity.places_synced / syncTotal) * 100))
+      : 0;
+  const syncFailPct =
+    syncTotal > 0
+      ? Math.min(100 - syncPct, Math.round((activity.places_sync_failed / syncTotal) * 100))
+      : 0;
+  const syncQualityPct =
+    syncTotal > 0
+      ? Math.min(100 - syncPct - syncFailPct, Math.round((syncQualityFiltered / syncTotal) * 100))
+      : 0;
+  const syncNamePct =
+    syncTotal > 0
+      ? Math.min(100 - syncPct - syncFailPct - syncQualityPct, Math.round((syncNameFiltered / syncTotal) * 100))
       : 0;
 
   const isSyncing = stage === "syncing";
@@ -431,13 +448,29 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
           <div className="flex items-center gap-3 flex-wrap text-xs">
             <span className="text-blue-600 dark:text-blue-400 font-semibold">
               {activity.places_synced.toLocaleString()}
-              {activity.places_total > 0 && ` / ${activity.places_total.toLocaleString()}`} synced
+              {syncTotal > 0 && ` / ${syncTotal.toLocaleString()}`} synced
             </span>
             {activity.places_sync_failed > 0 && (
               <>
                 <span className="text-text-secondary">·</span>
                 <span className="text-red-500 font-semibold">
                   {activity.places_sync_failed.toLocaleString()} failed
+                </span>
+              </>
+            )}
+            {syncQualityFiltered > 0 && (
+              <>
+                <span className="text-text-secondary">·</span>
+                <span className="text-amber-500 font-semibold">
+                  {syncQualityFiltered.toLocaleString()} below quality gate
+                </span>
+              </>
+            )}
+            {syncNameFiltered > 0 && (
+              <>
+                <span className="text-text-secondary">·</span>
+                <span className="text-orange-400 font-semibold">
+                  {syncNameFiltered.toLocaleString()} generic name
                 </span>
               </>
             )}
@@ -451,12 +484,30 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
               </>
             )}
           </div>
-          {activity.places_total > 0 && (
-            <div className="w-full bg-background-light dark:bg-dark-bg rounded-full h-1.5">
+          {syncTotal > 0 && (
+            <div className="w-full bg-background-light dark:bg-dark-bg rounded-full h-1.5 flex overflow-hidden">
               <div
-                className="bg-blue-500 h-1.5 rounded-full transition-all duration-700"
+                className="bg-blue-500 h-1.5 transition-all duration-700"
                 style={{ width: `${syncPct}%` }}
               />
+              {syncFailPct > 0 && (
+                <div
+                  className="bg-red-500 h-1.5 transition-all duration-700"
+                  style={{ width: `${syncFailPct}%` }}
+                />
+              )}
+              {syncQualityPct > 0 && (
+                <div
+                  className="bg-amber-400 h-1.5 transition-all duration-700"
+                  style={{ width: `${syncQualityPct}%` }}
+                />
+              )}
+              {syncNamePct > 0 && (
+                <div
+                  className="bg-orange-300 h-1.5 transition-all duration-700"
+                  style={{ width: `${syncNamePct}%` }}
+                />
+              )}
             </div>
           )}
         </div>
