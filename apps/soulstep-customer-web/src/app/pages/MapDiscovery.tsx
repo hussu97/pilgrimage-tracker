@@ -2,20 +2,25 @@ import { useState, useEffect, useCallback } from 'react';
 import PlaceMapView from '@/components/places/PlaceMapView';
 import { getPlaces } from '@/lib/api/client';
 import type { Place } from '@/lib/types';
-import type { Religion } from '@/lib/types/users';
 import { useI18n } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
 import { useHead } from '@/lib/hooks/useHead';
 
-const RELIGION_OPTIONS: { value: string; label: string; icon: string }[] = [
-  { value: '', label: 'All', icon: 'public' },
-  { value: 'islam', label: 'Islam', icon: 'crescent_moon' },
-  { value: 'christianity', label: 'Christianity', icon: 'church' },
-  { value: 'hinduism', label: 'Hinduism', icon: 'temple_hindu' },
-  { value: 'buddhism', label: 'Buddhism', icon: 'brightness_7' },
-  { value: 'sikhism', label: 'Sikhism', icon: 'star' },
-  { value: 'judaism', label: 'Judaism', icon: 'star_of_david' },
+interface BoolFilter {
+  key: 'open_now' | 'has_parking' | 'womens_area' | 'top_rated' | 'has_events';
+  label: string;
+  icon: string;
+}
+
+const BOOL_FILTERS: BoolFilter[] = [
+  { key: 'open_now', label: 'Open Now', icon: 'schedule' },
+  { key: 'top_rated', label: 'Top Rated', icon: 'star' },
+  { key: 'has_parking', label: 'Parking', icon: 'local_parking' },
+  { key: 'womens_area', label: "Women's Area", icon: 'wc' },
+  { key: 'has_events', label: 'Events', icon: 'event' },
 ];
+
+type ActiveFilters = Record<BoolFilter['key'], boolean>;
 
 export default function MapDiscovery() {
   const { t } = useI18n();
@@ -24,18 +29,28 @@ export default function MapDiscovery() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
   const [search, setSearch] = useState('');
-  const [religion, setReligion] = useState('');
+  const [filters, setFilters] = useState<ActiveFilters>({
+    open_now: false,
+    has_parking: false,
+    womens_area: false,
+    top_rated: false,
+    has_events: false,
+  });
   const [loading, setLoading] = useState(false);
 
   useHead({ title: t('map.fullScreen') || 'Explore Map' });
 
-  const fetchPlaces = useCallback(async (searchVal: string, religionVal: string) => {
+  const fetchPlaces = useCallback(async (searchVal: string, activeFilters: ActiveFilters) => {
     setLoading(true);
     try {
       const resp = await getPlaces({
         search: searchVal || undefined,
-        religions: religionVal ? [religionVal as Religion] : undefined,
         limit: 200,
+        open_now: activeFilters.open_now || undefined,
+        has_parking: activeFilters.has_parking || undefined,
+        womens_area: activeFilters.womens_area || undefined,
+        top_rated: activeFilters.top_rated || undefined,
+        has_events: activeFilters.has_events || undefined,
       });
       setPlaces(resp.places);
     } catch {
@@ -47,16 +62,26 @@ export default function MapDiscovery() {
 
   // Initial fetch
   useEffect(() => {
-    fetchPlaces('', '');
+    fetchPlaces('', {
+      open_now: false,
+      has_parking: false,
+      womens_area: false,
+      top_rated: false,
+      has_events: false,
+    });
   }, [fetchPlaces]);
 
-  // Debounced search
+  // Debounced re-fetch on search/filter change
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchPlaces(search, religion);
+      fetchPlaces(search, filters);
     }, 400);
     return () => clearTimeout(timer);
-  }, [search, religion, fetchPlaces]);
+  }, [search, filters, fetchPlaces]);
+
+  const toggleFilter = (key: BoolFilter['key']) => {
+    setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   return (
     // Full-screen container: position relative so overlay children can be absolute
@@ -74,7 +99,7 @@ export default function MapDiscovery() {
 
       {/* Floating search + filter overlay */}
       <div className="absolute top-0 left-0 right-0 z-[700] pointer-events-none">
-        <div className="pointer-events-auto mx-auto max-w-lg px-4 pt-3 flex flex-col gap-2">
+        <div className="pointer-events-auto mx-auto max-w-lg px-4 pt-3 md:pt-[64px] flex flex-col gap-2">
           {/* Search bar */}
           <div className="flex items-center gap-2 bg-white/90 dark:bg-dark-surface/90 backdrop-blur-xl rounded-2xl shadow-lg border border-input-border/60 dark:border-dark-border px-4 py-2.5">
             <span
@@ -103,14 +128,14 @@ export default function MapDiscovery() {
             )}
           </div>
 
-          {/* Religion filter chips */}
+          {/* Bool filter chips */}
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-            {RELIGION_OPTIONS.map((opt) => {
-              const isActive = religion === opt.value;
+            {BOOL_FILTERS.map((f) => {
+              const isActive = filters[f.key];
               return (
                 <button
-                  key={opt.value}
-                  onClick={() => setReligion(opt.value)}
+                  key={f.key}
+                  onClick={() => toggleFilter(f.key)}
                   className={[
                     'shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-150',
                     isActive
@@ -123,9 +148,9 @@ export default function MapDiscovery() {
                     aria-hidden
                     style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
                   >
-                    {opt.icon}
+                    {f.icon}
                   </span>
-                  {opt.label}
+                  {f.label}
                 </button>
               );
             })}

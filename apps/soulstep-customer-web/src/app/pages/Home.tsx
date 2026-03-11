@@ -228,7 +228,7 @@ function EmptyJourneyCard() {
   );
 }
 
-/** Quick action button */
+/** Quick action button — icon+label circle on mobile, pill button on desktop */
 function QuickAction({
   icon,
   label,
@@ -240,10 +240,10 @@ function QuickAction({
   to?: string;
   onClick?: () => void;
 }) {
-  const inner = (
+  const mobileInner = (
     <motion.div
       whileTap={{ scale: 0.94 }}
-      className="flex flex-col items-center gap-2 cursor-pointer group"
+      className="md:hidden flex flex-col items-center gap-2 cursor-pointer group"
     >
       <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-dark-surface flex items-center justify-center group-hover:bg-primary/10 transition-colors">
         <span
@@ -258,6 +258,31 @@ function QuickAction({
         {label}
       </span>
     </motion.div>
+  );
+
+  const desktopInner = (
+    <motion.div
+      whileTap={{ scale: 0.97 }}
+      className="hidden md:flex items-center gap-2 cursor-pointer group px-4 py-2.5 rounded-xl border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface hover:border-primary/50 hover:bg-primary/5 transition-all"
+    >
+      <span
+        className="material-symbols-outlined text-[20px] text-text-muted dark:text-dark-text-secondary group-hover:text-primary transition-colors"
+        style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}
+        aria-hidden
+      >
+        {icon}
+      </span>
+      <span className="text-sm font-medium text-text-muted dark:text-dark-text-secondary group-hover:text-primary transition-colors whitespace-nowrap">
+        {label}
+      </span>
+    </motion.div>
+  );
+
+  const inner = (
+    <>
+      {mobileInner}
+      {desktopInner}
+    </>
   );
   if (to) return <Link to={to}>{inner}</Link>;
   return <button onClick={onClick}>{inner}</button>;
@@ -448,205 +473,219 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-dark-bg">
-      {/* ── Top bar ─────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 pt-safe-top pt-4 pb-2">
-        <div>
-          <p className="text-xs text-text-muted dark:text-dark-text-secondary">
-            {t('dashboard.greeting')}
-          </p>
-          {displayName ? (
-            <h1 className="text-xl font-bold text-text-primary dark:text-white leading-tight">
-              {displayName}
-            </h1>
-          ) : (
-            <button
-              onClick={() => navigate('/login')}
-              className="text-sm font-semibold text-primary"
-            >
-              {t('dashboard.signIn')}
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/notifications"
-            aria-label="Notifications"
-            className="relative w-9 h-9 rounded-full bg-white dark:bg-dark-surface shadow-sm flex items-center justify-center text-text-muted dark:text-dark-text-secondary hover:text-primary transition-colors"
-          >
-            <span
-              className="material-symbols-outlined text-[22px]"
-              style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}
-            >
-              notifications
-            </span>
-          </Link>
-          <Link
-            to="/profile"
-            className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm hover:bg-primary/20 transition-colors"
-          >
-            {user?.display_name?.[0]?.toUpperCase() ?? (
-              <span
-                className="material-symbols-outlined text-[18px]"
-                style={{ fontVariationSettings: "'FILL' 1" }}
+      <div className="max-w-2xl md:max-w-4xl mx-auto">
+        {/* ── Top bar ─────────────────────────────────────────── */}
+        <div className="flex items-center justify-between px-4 pt-safe-top pt-4 pb-2">
+          <div>
+            <p className="text-xs text-text-muted dark:text-dark-text-secondary">
+              {t('dashboard.greeting')}
+            </p>
+            {displayName ? (
+              <h1 className="text-xl font-bold text-text-primary dark:text-white leading-tight">
+                {displayName}
+              </h1>
+            ) : (
+              <button
+                onClick={() => navigate('/login')}
+                className="text-sm font-semibold text-primary"
               >
-                person
-              </span>
+                {t('dashboard.signIn')}
+              </button>
             )}
-          </Link>
-        </div>
-      </div>
-
-      <div className="px-4 pb-6 space-y-6 md:grid md:grid-cols-12 md:gap-6 md:space-y-0">
-        {/* ── Left column (main content on desktop) ─────────── */}
-        <div className="md:col-span-8 space-y-6">
-          {/* Active Journey Card */}
-          <section>
-            <AnimatePresence mode="wait">
-              {journeysLoading ? (
-                <motion.div
-                  key="skeleton"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="h-44 rounded-2xl bg-slate-200 dark:bg-dark-surface animate-pulse"
-                />
-              ) : primaryJourney ? (
-                <motion.div
-                  key="card"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
+          </div>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/notifications"
+              aria-label="Notifications"
+              className="relative w-9 h-9 rounded-full bg-white dark:bg-dark-surface shadow-sm flex items-center justify-center text-text-muted dark:text-dark-text-secondary hover:text-primary transition-colors"
+            >
+              <span
+                className="material-symbols-outlined text-[22px]"
+                style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}
+              >
+                notifications
+              </span>
+            </Link>
+            <Link
+              to="/profile"
+              className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm hover:bg-primary/20 transition-colors"
+            >
+              {user?.display_name?.[0]?.toUpperCase() ?? (
+                <span
+                  className="material-symbols-outlined text-[18px]"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
                 >
-                  <ActiveJourneyCard journey={primaryJourney} />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="empty"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <EmptyJourneyCard />
-                </motion.div>
+                  person
+                </span>
               )}
-            </AnimatePresence>
-          </section>
-
-          {/* Quick Actions */}
-          <section>
-            <div className="flex items-center justify-around bg-white dark:bg-dark-surface rounded-2xl shadow-sm p-4">
-              <QuickAction icon="map" label={t('journey.exploreMap')} to="/home?view=map" />
-              <QuickAction
-                icon="add_circle"
-                label={t('journey.newJourney')}
-                onClick={() => navigate(user ? '/journeys/new' : '/login')}
-              />
-              <QuickAction icon="group_add" label={t('journey.joinWithCode')} to="/join" />
-              <QuickAction icon="favorite" label={t('favorites.title')} to="/favorites" />
-            </div>
-          </section>
-
-          {/* Recommended Places */}
-          {recommended.length > 0 && (
-            <section>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-base font-bold text-text-primary dark:text-white">
-                  {t('journey.recommendedPlaces')}
-                </h2>
-                <Link to="/home" className="text-xs font-semibold text-primary">
-                  {t('common.showMore')}
-                </Link>
-              </div>
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
-                {recommended.map((place) => (
-                  <PlaceCardSmall key={place.place_code} place={place} />
-                ))}
-              </div>
-            </section>
-          )}
+            </Link>
+          </div>
         </div>
 
-        {/* ── Right column (desktop sidebar) ────────────────── */}
-        <div className="md:col-span-4 space-y-6">
-          {/* Popular Journeys */}
-          {featured.length > 0 && (
+        <div className="px-4 pb-6 space-y-6 md:grid md:grid-cols-12 md:gap-6 md:space-y-0">
+          {/* ── Left column (main content on desktop) ─────────── */}
+          <div className="md:col-span-8 space-y-6">
+            {/* Active Journey Card */}
             <section>
-              <h2 className="text-base font-bold text-text-primary dark:text-white mb-3">
-                {t('journey.popularJourneys')}
-              </h2>
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide md:flex-col md:overflow-visible">
-                {featured.map((j) => (
-                  <FeaturedJourneyCard key={j.group_code} journey={j} />
-                ))}
-              </div>
+              <AnimatePresence mode="wait">
+                {journeysLoading ? (
+                  <motion.div
+                    key="skeleton"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="h-44 rounded-2xl bg-slate-200 dark:bg-dark-surface animate-pulse"
+                  />
+                ) : primaryJourney ? (
+                  <motion.div
+                    key="card"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <ActiveJourneyCard journey={primaryJourney} />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="empty"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <EmptyJourneyCard />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </section>
-          )}
 
-          {/* My Journeys list (if any beyond active) */}
-          {journeys.length > 0 && (
+            {/* Quick Actions */}
             <section>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-base font-bold text-text-primary dark:text-white">
-                  {t('journey.myJourneys')}
-                </h2>
-                <Link to="/groups" className="text-xs font-semibold text-primary">
-                  {t('common.showMore')}
-                </Link>
+              {/* Mobile: uniform icon+label grid */}
+              <div className="md:hidden flex items-center justify-around bg-white dark:bg-dark-surface rounded-2xl shadow-sm p-4">
+                <QuickAction icon="map" label={t('journey.exploreMap')} to="/map" />
+                <QuickAction
+                  icon="add_circle"
+                  label={t('journey.newJourney')}
+                  onClick={() => navigate(user ? '/journeys/new' : '/login')}
+                />
+                <QuickAction icon="group_add" label={t('journey.joinWithCode')} to="/join" />
+                <QuickAction icon="favorite" label={t('favorites.title')} to="/favorites" />
               </div>
-              <div className="space-y-2">
-                {journeys.slice(0, 3).map((j) => {
-                  const pct =
-                    (j.total_sites ?? 0) > 0
-                      ? Math.round(((j.sites_visited ?? 0) / (j.total_sites ?? 1)) * 100)
-                      : 0;
-                  return (
-                    <Link
-                      key={j.group_code}
-                      to={`/journeys/${j.group_code}`}
-                      className="flex items-center gap-3 bg-white dark:bg-dark-surface rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow"
-                    >
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                        {j.cover_image_url ? (
-                          <img
-                            src={getFullImageUrl(j.cover_image_url)}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <span
-                            className="material-symbols-outlined text-xl text-primary"
-                            style={{ fontVariationSettings: "'FILL' 1" }}
-                          >
-                            route
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-text-primary dark:text-white truncate">
-                          {j.name}
-                        </p>
-                        <div className="flex items-center gap-1 mt-0.5">
-                          <div className="flex-1 h-1 rounded-full bg-slate-100 dark:bg-dark-border overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-primary transition-all"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          <span className="text-[10px] text-text-muted dark:text-dark-text-secondary ml-1">
-                            {pct}%
-                          </span>
-                        </div>
-                      </div>
-                      <span
-                        className="material-symbols-outlined text-[18px] text-slate-300"
-                        aria-hidden
-                      >
-                        chevron_right
-                      </span>
-                    </Link>
-                  );
-                })}
+              {/* Desktop: pill-button row */}
+              <div className="hidden md:flex items-center gap-3 flex-wrap">
+                <QuickAction icon="map" label={t('journey.exploreMap')} to="/map" />
+                <QuickAction
+                  icon="add_circle"
+                  label={t('journey.newJourney')}
+                  onClick={() => navigate(user ? '/journeys/new' : '/login')}
+                />
+                <QuickAction icon="group_add" label={t('journey.joinWithCode')} to="/join" />
+                <QuickAction icon="favorite" label={t('favorites.title')} to="/favorites" />
               </div>
             </section>
-          )}
+
+            {/* Recommended Places */}
+            {recommended.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base font-bold text-text-primary dark:text-white">
+                    {t('journey.recommendedPlaces')}
+                  </h2>
+                  <Link to="/home" className="text-xs font-semibold text-primary">
+                    {t('common.showMore')}
+                  </Link>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                  {recommended.map((place) => (
+                    <PlaceCardSmall key={place.place_code} place={place} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+
+          {/* ── Right column (desktop sidebar) ────────────────── */}
+          <div className="md:col-span-4 space-y-6">
+            {/* Popular Journeys */}
+            {featured.length > 0 && (
+              <section>
+                <h2 className="text-base font-bold text-text-primary dark:text-white mb-3">
+                  {t('journey.popularJourneys')}
+                </h2>
+                <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide md:flex-col md:overflow-visible">
+                  {featured.map((j) => (
+                    <FeaturedJourneyCard key={j.group_code} journey={j} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* My Journeys list (if any beyond active) */}
+            {journeys.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base font-bold text-text-primary dark:text-white">
+                    {t('journey.myJourneys')}
+                  </h2>
+                  <Link to="/groups" className="text-xs font-semibold text-primary">
+                    {t('common.showMore')}
+                  </Link>
+                </div>
+                <div className="space-y-2">
+                  {journeys.slice(0, 3).map((j) => {
+                    const pct =
+                      (j.total_sites ?? 0) > 0
+                        ? Math.round(((j.sites_visited ?? 0) / (j.total_sites ?? 1)) * 100)
+                        : 0;
+                    return (
+                      <Link
+                        key={j.group_code}
+                        to={`/journeys/${j.group_code}`}
+                        className="flex items-center gap-3 bg-white dark:bg-dark-surface rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                          {j.cover_image_url ? (
+                            <img
+                              src={getFullImageUrl(j.cover_image_url)}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span
+                              className="material-symbols-outlined text-xl text-primary"
+                              style={{ fontVariationSettings: "'FILL' 1" }}
+                            >
+                              route
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-text-primary dark:text-white truncate">
+                            {j.name}
+                          </p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <div className="flex-1 h-1 rounded-full bg-slate-100 dark:bg-dark-border overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-primary transition-all"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] text-text-muted dark:text-dark-text-secondary ml-1">
+                              {pct}%
+                            </span>
+                          </div>
+                        </div>
+                        <span
+                          className="material-symbols-outlined text-[18px] text-slate-300"
+                          aria-hidden
+                        >
+                          chevron_right
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+          </div>
         </div>
       </div>
     </div>

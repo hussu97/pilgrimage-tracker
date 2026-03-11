@@ -47,7 +47,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       </a>
 
       {/* Desktop top nav bar */}
-      <header className="hidden md:flex safe-area-top border-b border-input-border dark:border-dark-border bg-background-light dark:bg-dark-surface px-6 py-3">
+      <header className="hidden md:flex relative z-[800] safe-area-top border-b border-input-border dark:border-dark-border bg-background-light dark:bg-dark-surface px-6 py-3">
         <nav className="flex items-center gap-6 w-full max-w-6xl xl:max-w-7xl mx-auto">
           {/* Logo → dashboard */}
           <Link
