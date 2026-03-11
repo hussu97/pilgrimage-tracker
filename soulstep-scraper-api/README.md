@@ -270,6 +270,20 @@ Accepts runs with status `pending`, `running`, or `interrupted`.
 ### 12. Quality Score Breakdown (per place)
 **GET** `/api/v1/scraper/runs/{run_code}/places/{place_code}/quality-breakdown`
 
+### 13. Map — Discovery Cells
+**GET** `/api/v1/scraper/map/cells?run_code=<optional>`
+
+Returns all **leaf (non-saturated)** discovery cells with no rectangle overlap. Optionally filtered by `run_code`.
+
+Response: array of `{ lat_min, lat_max, lng_min, lng_max, depth, result_count, run_code }`.
+
+### 14. Map — Scraped Places
+**GET** `/api/v1/scraper/map/places?run_code=<optional>`
+
+Returns all scraped places that have a valid lat/lng in `raw_data` (zero-coord places excluded). Optionally filtered by `run_code`.
+
+Response: array of `{ place_code, name, lat, lng, enrichment_status, quality_gate, quality_score, run_code }`.
+
 Returns a factor-by-factor breakdown of the quality score recomputed from `raw_data` (no new DB columns required).
 
 Response:

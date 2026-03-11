@@ -83,7 +83,8 @@ export const routes = [
               { path: "/scraper/runs/:runCode", element: <RunDetailPage /> },
               { path: "/scraper/collectors", element: <CollectorsPage /> },
               { path: "/scraper/place-type-mappings", element: <PlaceTypeMappingsPage /> },
-              { path: "/scraper/quality", element: <QualityMetricsPage /> },
+              { path: "/scraper/quality", element: <Navigate to="/quality" replace /> },
+              { path: "/quality", element: <QualityMetricsPage /> },
               // Content & Configuration (Phase 4)
               { path: "/translations", element: <TranslationsPage /> },
               { path: "/app-versions", element: <AppVersionsPage /> },

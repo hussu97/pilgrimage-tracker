@@ -149,3 +149,27 @@ class QualityMetricsResponse(BaseModel):
     enrichment_status_breakdown: list[EnrichmentStatusCount]
     per_run_summary: list[PerRunSummaryItem]
     overall_stats: dict
+
+
+# ── Map Endpoints ───────────────────────────────────────────────────────────────
+
+
+class MapCellItem(BaseModel):
+    lat_min: float
+    lat_max: float
+    lng_min: float
+    lng_max: float
+    depth: int
+    result_count: int
+    run_code: str
+
+
+class MapPlaceItem(BaseModel):
+    place_code: str
+    name: str
+    lat: float
+    lng: float
+    enrichment_status: str
+    quality_gate: str | None
+    quality_score: float | None
+    run_code: str

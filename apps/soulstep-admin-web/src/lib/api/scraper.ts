@@ -5,6 +5,8 @@ import type {
   CreatePlaceTypeMappingBody,
   DataLocation,
   DiscoveryCellItem,
+  MapCellItem,
+  MapPlaceItem,
   PaginatedResponse,
   PatchPlaceTypeMappingBody,
   PlaceTypeMapping,
@@ -187,4 +189,14 @@ export async function getPlaceQualityBreakdown(
     `/runs/${runCode}/places/${placeCode}/quality-breakdown`
   );
   return res.data;
+}
+
+// ── Map ────────────────────────────────────────────────────────────────────────
+
+export async function getMapCells(params?: { run_code?: string }): Promise<MapCellItem[]> {
+  return (await scraperClient.get<MapCellItem[]>("/map/cells", { params })).data;
+}
+
+export async function getMapPlaces(params?: { run_code?: string }): Promise<MapPlaceItem[]> {
+  return (await scraperClient.get<MapPlaceItem[]>("/map/places", { params })).data;
 }

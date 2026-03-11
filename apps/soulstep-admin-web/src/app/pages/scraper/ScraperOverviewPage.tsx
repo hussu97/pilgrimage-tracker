@@ -12,7 +12,7 @@ const SCRAPER_SECTIONS = [
   { label: "Runs", to: "/scraper/runs", description: "Start, monitor, and manage scraper runs." },
   { label: "Collectors", to: "/scraper/collectors", description: "View configured data collectors and their status." },
   { label: "Place Type Mappings", to: "/scraper/place-type-mappings", description: "Map external place types to internal types." },
-  { label: "Quality Metrics", to: "/scraper/quality", description: "Evaluate quality scoring thresholds and filter rates." },
+  { label: "Quality Metrics", to: "/quality", description: "Evaluate quality scoring thresholds and filter rates." },
 ];
 
 export function ScraperOverviewPage() {

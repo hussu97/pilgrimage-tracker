@@ -4,6 +4,33 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## OpenStreetMap Coverage Map + Quality Metrics Sidebar Move (2026-03-11)
+
+### Backend (scraper)
+- **`app/models/schemas.py`** — added `MapCellItem` and `MapPlaceItem` Pydantic schemas
+- **`app/api/v1/scraper.py`** — added `_extract_lat_lng()` helper + two new endpoints:
+  - `GET /api/v1/scraper/map/cells?run_code=` — leaf (non-saturated) discovery cells for map rendering, no rectangle overlap
+  - `GET /api/v1/scraper/map/places?run_code=` — scraped places with valid lat/lng for dot markers
+- **`tests/test_map_endpoints.py`** (new) — 8 pytest tests covering empty DB, saturated-cell exclusion, zero-coord exclusion, run_code filtering, and response shape
+
+### Frontend (admin)
+- **`src/components/shared/MapView.tsx`** (new) — reusable Leaflet map component: `Rectangle` per cell (HSL green→red by result count), `CircleMarker` per place (colored by status), tooltips, 2000-item cap with warning badge, empty-state placeholder; exports `MapLegend`
+- **`src/index.css`** — added Leaflet CSS import
+- **`package.json`** — added `leaflet`, `react-leaflet`, `@types/leaflet`
+- **`src/lib/api/types.ts`** — added `MapCellItem`, `MapPlaceItem` TypeScript interfaces
+- **`src/lib/api/scraper.ts`** — added `getMapCells()`, `getMapPlaces()` API client functions
+- **`src/components/layout/Sidebar.tsx`** — added "Quality" nav item (`BarChart3` icon) between Scraper and Content
+- **`src/app/router.tsx`** — added `/quality` route for `QualityMetricsPage`; `/scraper/quality` now redirects to `/quality`
+- **`src/app/pages/scraper/ScraperOverviewPage.tsx`** — updated Quality Metrics card link to `/quality`
+- **`src/app/pages/DashboardPage.tsx`** — added "Scraper Coverage Map" panel: run dropdown, mini stat pills (cells / places / passed / filtered), `MapView` at 480 px, `MapLegend`
+- **`src/app/pages/scraper/RunDetailPage.tsx`** — added 4th "Map" tab with lazy-loaded `MapTab` (loads only when tab becomes active), mini stat row, `MapView` at 520 px, `MapLegend`
+
+### Docs
+- **`soulstep-scraper-api/README.md`** — documented `GET /map/cells` and `GET /map/places` endpoints (sections 13 & 14)
+- **`apps/soulstep-admin-web/README.md`** — documented Map tab in RunDetailPage and Quality top-level route
+
+---
+
 ## Scraper API: Comprehensive Audit & Enhancement (2026-03-11)
 
 ### Backend (scraper)

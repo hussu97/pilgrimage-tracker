@@ -17,6 +17,7 @@ import {
   Menu,
   Search,
   BarChart2,
+  BarChart3,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { label: "Check-ins", to: "/check-ins", icon: CheckSquare },
   { label: "Groups", to: "/groups", icon: Users2 },
   { label: "Scraper", to: "/scraper", icon: Database },
+  { label: "Quality", to: "/quality", icon: BarChart3 },
   { label: "Content", to: "/translations", icon: Languages },
   { label: "SEO", to: "/seo", icon: Search },
   { label: "Analytics", to: "/analytics", icon: BarChart2 },

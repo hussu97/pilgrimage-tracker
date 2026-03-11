@@ -4,6 +4,8 @@ import * as Tabs from "@radix-ui/react-tabs";
 import {
   cancelRun,
   deleteRun,
+  getMapCells,
+  getMapPlaces,
   getPlaceQualityBreakdown,
   getRun,
   getRunActivity,
@@ -16,12 +18,15 @@ import {
 } from "@/lib/api/scraper";
 import type {
   DiscoveryCellItem,
+  MapCellItem,
+  MapPlaceItem,
   QualityBreakdown,
   RawCollectorEntry,
   RunActivity,
   ScrapedPlaceData,
   ScraperRun,
 } from "@/lib/api/types";
+import { MapView, MapLegend } from "@/components/shared/MapView";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { DataTable, type Column } from "@/components/shared/DataTable";
@@ -561,6 +566,69 @@ function CellsTab({ runCode }: { runCode: string }) {
   );
 }
 
+// ── Map Tab ──────────────────────────────────────────────────────────────────
+
+function MapTab({ runCode, active }: { runCode: string; active: boolean }) {
+  const [cells, setCells] = useState<MapCellItem[]>([]);
+  const [places, setPlaces] = useState<MapPlaceItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!active || loaded) return;
+    setLoading(true);
+    Promise.all([
+      getMapCells({ run_code: runCode }),
+      getMapPlaces({ run_code: runCode }),
+    ])
+      .then(([c, p]) => {
+        setCells(c);
+        setPlaces(p);
+        setLoaded(true);
+      })
+      .catch(() => {
+        setCells([]);
+        setPlaces([]);
+      })
+      .finally(() => setLoading(false));
+  }, [active, loaded, runCode]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-32 text-text-secondary dark:text-dark-text-secondary text-sm">
+        Loading map…
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 pt-4">
+      {/* Mini stats */}
+      <div className="flex flex-wrap gap-3">
+        {[
+          { label: "Leaf cells", value: cells.length },
+          { label: "Places plotted", value: places.length },
+        ].map(({ label, value }) => (
+          <div
+            key={label}
+            className="px-3 py-1.5 rounded-lg bg-background-light dark:bg-dark-bg border border-input-border dark:border-dark-border"
+          >
+            <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
+              {label}:{" "}
+            </span>
+            <span className="text-xs font-semibold text-text-main dark:text-white tabular-nums">
+              {value.toLocaleString()}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <MapView cells={cells} places={places} height="520px" />
+      <MapLegend />
+    </div>
+  );
+}
+
 // ── Main Page ───────────────────────────────────────────────────────────────
 
 export function RunDetailPage() {
@@ -850,6 +918,7 @@ export function RunDetailPage() {
             { value: "places", label: `Scraped Places (${total})` },
             { value: "cells", label: `Discovery Cells${activity ? ` (${activity.cells_total})` : ""}` },
             { value: "raw", label: `Raw Data (${rawData.length})` },
+            { value: "map", label: "Map" },
           ].map((tab) => (
             <Tabs.Trigger
               key={tab.value}
@@ -967,6 +1036,10 @@ export function RunDetailPage() {
 
         <Tabs.Content value="cells" className="pt-4">
           {runCode && <CellsTab runCode={runCode} />}
+        </Tabs.Content>
+
+        <Tabs.Content value="map">
+          {runCode && <MapTab runCode={runCode} active={activeTab === "map"} />}
         </Tabs.Content>
 
         <Tabs.Content value="raw" className="pt-4 space-y-3">

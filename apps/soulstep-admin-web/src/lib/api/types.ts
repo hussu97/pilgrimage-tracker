@@ -714,3 +714,26 @@ export interface AnalyticsEventListResponse {
   page: number;
   page_size: number;
 }
+
+// ── Map types ────────────────────────────────────────────────────────────────
+
+export interface MapCellItem {
+  lat_min: number;
+  lat_max: number;
+  lng_min: number;
+  lng_max: number;
+  depth: number;
+  result_count: number;
+  run_code: string;
+}
+
+export interface MapPlaceItem {
+  place_code: string;
+  name: string;
+  lat: number;
+  lng: number;
+  enrichment_status: string;
+  quality_gate: string | null;
+  quality_score: number | null;
+  run_code: string;
+}

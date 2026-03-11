@@ -18,6 +18,8 @@ from app.models.schemas import (
     CollectorStatusResponse,
     DataLocationCreate,
     DataLocationResponse,
+    MapCellItem,
+    MapPlaceItem,
     PlaceTypeMappingCreate,
     PlaceTypeMappingResponse,
     PlaceTypeMappingUpdate,
@@ -421,6 +423,64 @@ def get_run_cells(
         "page": page,
         "page_size": page_size,
     }
+
+
+# ===== Map Endpoints =====
+
+
+def _extract_lat_lng(raw_data: dict) -> tuple[float, float] | None:
+    try:
+        lat = float(raw_data.get("lat") or 0)
+        lng = float(raw_data.get("lng") or 0)
+        return (lat, lng) if lat != 0.0 or lng != 0.0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+@router.get("/map/cells", response_model=list[MapCellItem])
+def get_map_cells(session: SessionDep, run_code: str | None = Query(None)):
+    """Return all leaf (non-saturated) discovery cells, optionally filtered by run."""
+    q = select(DiscoveryCell).where(DiscoveryCell.saturated == False)  # noqa: E712
+    if run_code:
+        q = q.where(DiscoveryCell.run_code == run_code)
+    return [
+        MapCellItem(
+            lat_min=c.lat_min,
+            lat_max=c.lat_max,
+            lng_min=c.lng_min,
+            lng_max=c.lng_max,
+            depth=c.depth,
+            result_count=c.result_count,
+            run_code=c.run_code,
+        )
+        for c in session.exec(q).all()
+    ]
+
+
+@router.get("/map/places", response_model=list[MapPlaceItem])
+def get_map_places(session: SessionDep, run_code: str | None = Query(None)):
+    """Return all scraped places with valid lat/lng, optionally filtered by run."""
+    q = select(ScrapedPlace)
+    if run_code:
+        q = q.where(ScrapedPlace.run_code == run_code)
+    out = []
+    for p in session.exec(q).all():
+        coords = _extract_lat_lng(p.raw_data or {})
+        if coords:
+            lat, lng = coords
+            out.append(
+                MapPlaceItem(
+                    place_code=p.place_code,
+                    name=p.name,
+                    lat=lat,
+                    lng=lng,
+                    enrichment_status=p.enrichment_status,
+                    quality_gate=p.quality_gate,
+                    quality_score=p.quality_score,
+                    run_code=p.run_code,
+                )
+            )
+    return out
 
 
 # ===== Collectors =====

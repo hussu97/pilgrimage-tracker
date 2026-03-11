@@ -63,7 +63,8 @@ Under `src/`:
   - `groups/` – `GroupsListPage.tsx`, `GroupDetailPage.tsx`
   - `check-ins/` – `CheckInsListPage.tsx`
   - `notifications/` – `NotificationManagementPage.tsx`
-  - `scraper/` – `ScraperOverviewPage.tsx`, `ScraperRunsPage.tsx`, `RunDetailPage.tsx`, `DataLocationsPage.tsx`, `CollectorsPage.tsx`, `PlaceTypeMappingsPage.tsx`, `QualityMetricsPage.tsx` (score distribution, gate funnel, pie charts, near-threshold table, per-run summary). Runs list shows current pipeline stage and a Resume button for `interrupted`/`failed` runs. Run detail shows a 3-step stage indicator (Discovery → Detail Fetch → Enrichment), error message alerts, and a Resume button. Scraped Places table has clickable rows: clicking any row expands an inline quality-score breakdown panel showing all 8 scoring factors with progress bars and weighted contribution values.
+  - `scraper/` – `ScraperOverviewPage.tsx`, `ScraperRunsPage.tsx`, `RunDetailPage.tsx` (4 tabs: Scraped Places, Discovery Cells, Raw Data, **Map**), `DataLocationsPage.tsx`, `CollectorsPage.tsx`, `PlaceTypeMappingsPage.tsx`. Runs list shows current pipeline stage and a Resume button for `interrupted`/`failed` runs. Run detail shows a 3-step stage indicator (Discovery → Detail Fetch → Enrichment), error message alerts, and a Resume button. Scraped Places table has clickable rows: clicking any row expands an inline quality-score breakdown panel. The Map tab renders an OpenStreetMap view with colored rectangles (discovery cells) and dot markers (places).
+  - `QualityMetricsPage.tsx` is now a **top-level route** at `/quality` (sidebar item "Quality"). Old URL `/scraper/quality` redirects to `/quality`.
   - `content/` – `TranslationsPage.tsx`, `ContentTranslationsPage.tsx`, `PlaceAttributesPage.tsx`, `AppVersionsPage.tsx`
   - `audit-log/` – `AuditLogPage.tsx`
   - `analytics/` – `AnalyticsDashboardPage.tsx` — overview stat cards, event trends line chart, event type & platform pie charts, top-places bar chart, paginated raw event log with filters
@@ -76,7 +77,7 @@ Under `src/`:
 The admin app calls `/api/v1/admin/*` routes (requires Bearer token with admin role). Key modules:
 
 - **`lib/api/admin.ts`** – Users, places, groups, reviews, check-ins, notifications, translations, content translations, place attributes, bulk operations, data export, audit log, app versions.
-- **`lib/api/scraper.ts`** – Data locations, scraper runs, collectors, place type mappings (proxied via catalog API).
+- **`lib/api/scraper.ts`** – Data locations, scraper runs, collectors, place type mappings, quality metrics, `getMapCells()`, `getMapPlaces()` (proxied via catalog API).
 - **`lib/api/stats.ts`** – Dashboard stats.
 - **`lib/api/analytics.ts`** – Analytics overview, top places, trends, event log (`GET /admin/analytics/*`).
 

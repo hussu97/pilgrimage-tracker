@@ -14,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import { StatCard } from "@/components/shared/StatCard";
+import { MapView, MapLegend } from "@/components/shared/MapView";
 import {
   getOverviewStats,
   getPopularPlaces,
@@ -22,13 +23,17 @@ import {
   getReviewStats,
   getUserGrowth,
 } from "@/lib/api/stats";
+import { getMapCells, getMapPlaces, listRuns } from "@/lib/api/scraper";
 import type {
   GrowthDataPoint,
+  MapCellItem,
+  MapPlaceItem,
   OverviewStats,
   PopularPlace,
   RecentActivityItem,
   ReligionBreakdownItem,
   ReviewStats,
+  ScraperRun,
 } from "@/lib/api/types";
 
 // ── Chart constants ────────────────────────────────────────────────────────────
@@ -122,6 +127,13 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Coverage Map state
+  const [mapCells, setMapCells] = useState<MapCellItem[]>([]);
+  const [mapPlaces, setMapPlaces] = useState<MapPlaceItem[]>([]);
+  const [mapRuns, setMapRuns] = useState<ScraperRun[]>([]);
+  const [selectedMapRun, setSelectedMapRun] = useState<string>("");
+  const [mapLoading, setMapLoading] = useState(false);
+
   // Initial load of all sections in parallel
   useEffect(() => {
     Promise.all([
@@ -145,7 +157,27 @@ export function DashboardPage() {
         setError("Failed to load dashboard data.");
         setLoading(false);
       });
+    // Load scraper runs for the map dropdown (best-effort)
+    listRuns({ page_size: 200 })
+      .then((r) => setMapRuns(r.items))
+      .catch(() => {});
   }, []);
+
+  // Reload map data when selected run changes
+  useEffect(() => {
+    setMapLoading(true);
+    const params = selectedMapRun ? { run_code: selectedMapRun } : undefined;
+    Promise.all([getMapCells(params), getMapPlaces(params)])
+      .then(([cells, places]) => {
+        setMapCells(cells);
+        setMapPlaces(places);
+      })
+      .catch(() => {
+        setMapCells([]);
+        setMapPlaces([]);
+      })
+      .finally(() => setMapLoading(false));
+  }, [selectedMapRun]);
 
   // Reload growth when interval changes
   useEffect(() => {
@@ -446,6 +478,62 @@ export function DashboardPage() {
             ))}
           </div>
         )}
+      </Panel>
+
+      {/* ── Row 5: Scraper Coverage Map ────────────────────────────────────── */}
+      <Panel>
+        {/* Header row */}
+        <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+          <h3 className="text-sm font-semibold text-text-main dark:text-white">
+            Scraper Coverage Map
+          </h3>
+          <select
+            value={selectedMapRun}
+            onChange={(e) => setSelectedMapRun(e.target.value)}
+            className="text-xs rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-bg text-text-main dark:text-white px-2 py-1.5 outline-none focus:ring-2 focus:ring-primary/30"
+          >
+            <option value="">All Runs</option>
+            {mapRuns.map((r) => (
+              <option key={r.run_code} value={r.run_code}>
+                {r.run_code} · {r.location_code} · {r.created_at.slice(0, 10)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Mini stats */}
+        <div className="flex flex-wrap gap-3 mb-4">
+          {[
+            { label: "Cells", value: mapCells.length },
+            { label: "Places", value: mapPlaces.length },
+            {
+              label: "Passed",
+              value: mapPlaces.filter((p) => p.quality_gate === "passed").length,
+            },
+            {
+              label: "Filtered",
+              value: mapPlaces.filter((p) => p.enrichment_status === "filtered").length,
+            },
+          ].map(({ label, value }) => (
+            <div
+              key={label}
+              className="px-3 py-1.5 rounded-lg bg-background-light dark:bg-dark-bg border border-input-border dark:border-dark-border"
+            >
+              <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
+                {label}:{" "}
+              </span>
+              <span className="text-xs font-semibold text-text-main dark:text-white tabular-nums">
+                {mapLoading ? "…" : value.toLocaleString()}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Map */}
+        <MapView cells={mapCells} places={mapPlaces} height="480px" />
+
+        {/* Legend */}
+        <MapLegend />
       </Panel>
     </div>
   );
