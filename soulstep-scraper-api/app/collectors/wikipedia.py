@@ -84,6 +84,77 @@ _RELIGIOUS_TOKENS: frozenset[str] = frozenset(
 )
 
 # Terms in a Wikidata short description that signal the article is about a
+# person, not a physical place.  Wikidata short descriptions follow a
+# "[nationality] [profession]" pattern (e.g. "Saudi politician"), so matching
+# on the profession noun is reliable.  Checked before all other layers —
+# a biography is never relevant to a sacred-site place search.
+_PERSON_TERMS: frozenset[str] = frozenset(
+    {
+        # Civic / political
+        "politician",
+        "minister",
+        "president",
+        "governor",
+        "senator",
+        "parliamentarian",
+        "diplomat",
+        "ambassador",
+        # Business
+        "businessman",
+        "businesswoman",
+        "entrepreneur",
+        "executive",
+        # Academic / professional
+        "scholar",
+        "academic",
+        "professor",
+        "researcher",
+        "scientist",
+        "engineer",
+        "architect",
+        "lawyer",
+        "judge",
+        "physician",
+        "doctor",
+        # Arts / media
+        "writer",
+        "author",
+        "novelist",
+        "poet",
+        "journalist",
+        "artist",
+        "painter",
+        "sculptor",
+        "musician",
+        "singer",
+        "rapper",
+        "actor",
+        "actress",
+        "filmmaker",
+        "director",
+        # Sport
+        "athlete",
+        "footballer",
+        "cricketer",
+        "swimmer",
+        "boxer",
+        "wrestler",
+        # Religious roles (people, not places)
+        "imam",
+        "cleric",
+        "preacher",
+        # Military
+        "general",
+        "admiral",
+        "colonel",
+        "soldier",
+        "officer",
+        # Generic Wikidata literal
+        "person",
+    }
+)
+
+# Terms in a Wikidata short description that signal the article is about a
 # geographic/administrative area or commercial/civic feature — NOT a place of
 # worship.  When the place name implies a religious site and the article's short
 # description contains one of these, we treat it as a definite mismatch.
@@ -403,6 +474,12 @@ class WikipediaCollector(BaseCollector):
           If the Wikipedia article has coordinates and the place has coordinates,
           reject immediately if distance > WIKIPEDIA_MAX_DISTANCE_KM (default 100 km).
 
+        Layer 0.5 — Person gate:
+          If the article's Wikidata short description contains a profession/role
+          term that identifies a person (politician, scholar, footballer, …),
+          reject outright.  A biography is never relevant to a physical-place
+          search regardless of name similarity.
+
         Layer 1 — Token overlap (Jaccard):
           Normalize both the article title and the place name to token sets
           (applying synonym mapping so "masjid" == "mosque", etc.).
@@ -441,6 +518,15 @@ class WikipediaCollector(BaseCollector):
                     max_dist_km,
                 )
                 return False
+
+        # Layer 0.5: person gate — reject biographies regardless of name similarity
+        if short_desc and any(term in short_desc for term in _PERSON_TERMS):
+            logger.info(
+                "wikipedia relevance rejected %r — article appears to be about a person (%r)",
+                article_title,
+                short_desc[:80],
+            )
+            return False
 
         # Layer 1: Jaccard token overlap
         jaccard = 0.0

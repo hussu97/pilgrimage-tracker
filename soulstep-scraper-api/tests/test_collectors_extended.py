@@ -1307,6 +1307,23 @@ class TestWikipediaCollectorExtended:
         }
         assert collector._is_article_relevant(article, "Al Futtaim Masjid") is False
 
+    def test_is_article_relevant_person_rejected(self):
+        """Person article (politician, scholar, etc.) is never relevant to a place search."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        cases = [
+            ("Omer al-Qarray", "Saudi politician", "Mosque of Qurais"),
+            ("John Smith", "British author", "St. Mary's Church"),
+            ("Ahmed al-Rashid", "Iraqi general", "Al-Rashid Mosque"),
+            ("Fatima Malik", "Pakistani scholar", "Grand Mosque Lahore"),
+        ]
+        for title, short_desc, place_name in cases:
+            article = {"title": title, "short_description": short_desc}
+            assert (
+                collector._is_article_relevant(article, place_name) is False
+            ), f"Expected rejection: article='{title}' ({short_desc}) for place='{place_name}'"
+
     def test_is_article_relevant_no_short_desc_accepts(self):
         """Zero token overlap but no short description to contradict → accept."""
         from app.collectors.wikipedia import WikipediaCollector
