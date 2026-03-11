@@ -42,11 +42,13 @@ The dev server **proxies** `/api` requests to `http://127.0.0.1:3000` by default
 npm run build
 ```
 
-Output: `dist/`. For production, the `VITE_API_URL` env var sets the proxy target (defaults to `http://127.0.0.1:3000` in dev).
+Output: `dist/`.
 
 ## Environment
 
-- **`VITE_API_URL`** – Optional. Proxy target for `/api` in dev (default `http://127.0.0.1:3000`). Use `127.0.0.1`—not `localhost`. Restart the dev server after changing.
+- **`API_PROXY_TARGET`** – Optional. Catalog API URL the Vite dev server proxies `/api` calls to (default `http://127.0.0.1:3000`). Not `VITE_`-prefixed — never sent to the browser. Set to the prod catalog API URL for local-dev hybrid mode.
+- **`VITE_SCRAPER_API_URL`** – Optional. When set, scraper API calls go directly to this URL (e.g. `http://127.0.0.1:8001`) instead of through the catalog proxy. Use for local-dev hybrid mode (local scraper + prod catalog).
+- **`VITE_FRONTEND_URL`** – Optional. Customer web URL for SEO place preview links (default `https://soul-step.org`).
 
 ## Structure
 
