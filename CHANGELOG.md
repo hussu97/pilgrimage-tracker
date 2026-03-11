@@ -4,6 +4,19 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Mobile Phase 3 — Place Count Ticker, 2.3 Carousels, City Metrics, Map UX, Images, Journey Rename (2026-03-12)
+
+### Frontend (mobile)
+- **`HomeScreen.tsx`** — Replaced greeting/welcome header with an animated place count ticker: fetches `GET /api/v1/places/count`, animates from 0 → total using `Animated.timing` with a 1400ms duration, displays count in large primary-colored bold text with `t('dashboard.totalPlaces')` subtitle; notification bell and avatar remain on the right; dark mode supported
+- **`HomeScreen.tsx`** — Applied 2.3-item peek carousel width to all three horizontal carousels (popular places, recommended places, popular journeys): `cardWidth = Math.min((screenWidth - 40) / 2.3, 200)` applied inline to each card
+- **`ExploreCityScreen.tsx`** — Added city metrics banner below the header: fetches cities with `include_metrics=true`, shows total places count, check-ins in last 30 days, and a colored popularity badge ("Trending"/"Popular"/"Growing") when present; card-style with dark mode support
+- **`ExploreCityScreen.tsx`** — Added image thumbnail (44x44) with place icon fallback to each city place row
+- **`MapDiscoveryScreen.tsx`** — Increased map carousel card width to `screenWidth * 0.75`; elevated bottom position by +24px (`insets.bottom + 96`); increased card shadow (`shadowRadius: 16`, `elevation: 8`); added `Animated.spring` press scale animation (1.0 → 0.96) on card press
+- **`GroupDetailScreen.tsx`** — Added Material Icon place fallback when a checklist place has no `image_url`, ensuring images are always shown in the route tab
+- **`GroupsScreen.tsx`** — Audited for hardcoded group strings; all display strings already use `t()` — no changes needed
+
+---
+
 ## Backend: Phase 1 UI/UX Overhaul — Places Count, City Metrics, Journey Translations (2026-03-12)
 
 ### Backend

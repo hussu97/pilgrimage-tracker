@@ -1189,7 +1189,24 @@ export default function GroupDetailScreen() {
                                   style={styles.placeThumb}
                                   contentFit="cover"
                                 />
-                              ) : null}
+                              ) : (
+                                <View
+                                  style={[
+                                    styles.placeThumb,
+                                    { alignItems: 'center', justifyContent: 'center' },
+                                  ]}
+                                >
+                                  <MaterialIcons
+                                    name="place"
+                                    size={20}
+                                    color={
+                                      isDark
+                                        ? tokens.colors.darkTextSecondary
+                                        : tokens.colors.textMuted
+                                    }
+                                  />
+                                </View>
+                              )}
 
                               {/* Info */}
                               <View style={styles.placeInfo}>

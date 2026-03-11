@@ -9,6 +9,7 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { WebView } from 'react-native-webview';
@@ -30,7 +31,7 @@ import type { RootStackParamList } from '@/app/navigation';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = 240;
+const CARD_WIDTH = Math.round(SCREEN_WIDTH * 0.75);
 const CARD_GAP = 12;
 
 const RELIGION_OPTIONS: { value: Religion | ''; label: string }[] = [
@@ -125,10 +126,10 @@ function makeStyles(isDark: boolean) {
       borderRadius: 16,
       overflow: 'hidden',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.15,
-      shadowRadius: 12,
-      elevation: 6,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.18,
+      shadowRadius: 16,
+      elevation: 8,
       marginRight: CARD_GAP,
       borderWidth: 0.5,
       borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
@@ -289,8 +290,30 @@ export default function MapDiscoveryScreen() {
   const renderCard = ({ item, index }: { item: Place; index: number }) => {
     const imgUrl = item.images?.[0]?.url ? getFullImageUrl(item.images[0].url) : null;
     const isSelected = item.place_code === selectedCode;
+    const scaleAnim = new Animated.Value(1);
+
+    const handlePressIn = () => {
+      Animated.spring(scaleAnim, {
+        toValue: 0.96,
+        useNativeDriver: true,
+        speed: 30,
+        bounciness: 0,
+      }).start();
+    };
+
+    const handlePressOut = () => {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 20,
+        bounciness: 4,
+      }).start();
+    };
+
     return (
-      <View style={[s.card, isSelected && s.cardSelected]}>
+      <Animated.View
+        style={[s.card, isSelected && s.cardSelected, { transform: [{ scale: scaleAnim }] }]}
+      >
         {imgUrl ? (
           <ExpoImage
             source={{ uri: imgUrl }}
@@ -318,17 +341,19 @@ export default function MapDiscoveryScreen() {
           <TouchableOpacity
             style={s.cardBtn}
             activeOpacity={0.8}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
             onPress={() => navigation.navigate('PlaceDetail', { placeCode: item.place_code })}
           >
             <Text style={s.cardBtnText}>{t('place.viewDetails') || 'View Details'}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </Animated.View>
     );
   };
 
   const TOP_OVERLAY_TOP = insets.top + 8;
-  const BOTTOM_CAROUSEL_BOTTOM = insets.bottom + 72; // above bottom bar
+  const BOTTOM_CAROUSEL_BOTTOM = insets.bottom + 96; // above bottom bar (+24px elevated)
 
   return (
     <View style={s.container}>

@@ -13,7 +13,7 @@
  *   • Recommended Places horizontal carousel
  *   • Popular Journeys horizontal carousel
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import {
   FlatList,
   Image,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -152,6 +153,17 @@ async function fetchPopularCities(): Promise<PopularCity[]> {
   }
 }
 
+async function fetchPlaceCount(): Promise<number> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/places/count`);
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return typeof data.total === 'number' ? data.total : 0;
+  } catch {
+    return 0;
+  }
+}
+
 // ── makeStyles ────────────────────────────────────────────────────────────────
 
 function makeStyles(isDark: boolean) {
@@ -182,21 +194,18 @@ function makeStyles(isDark: boolean) {
       paddingTop: 12,
       paddingBottom: 8,
     },
-    greetingLabel: {
+    tickerCount: {
+      fontSize: 36,
+      fontWeight: '800',
+      color: tokens.colors.primary,
+      letterSpacing: -1,
+      lineHeight: 40,
+    },
+    tickerSubtitle: {
       fontSize: 12,
       color: textMuted,
-      marginBottom: 2,
-    },
-    displayName: {
-      fontSize: 20,
-      fontWeight: '700',
-      color: textMain,
-      letterSpacing: -0.5,
-    },
-    signInBtn: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: tokens.colors.primary,
+      marginTop: 2,
+      fontWeight: '500',
     },
     headerActions: {
       flexDirection: 'row',
@@ -678,9 +687,16 @@ export default function HomeScreen() {
   const [popularCities, setPopularCities] = useState<PopularCity[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [addToJourneyPlace, setAddToJourneyPlace] = useState<RecommendedPlace | null>(null);
+  const [placeCount, setPlaceCount] = useState(0);
+
+  // Animated count ticker
+  const countAnim = useRef(new Animated.Value(0)).current;
+  const [displayCount, setDisplayCount] = useState(0);
 
   const screenWidth = Dimensions.get('window').width;
   const actionCardWidth = (screenWidth - 40 - 12) / 2;
+  // 2.3-item carousel card width
+  const cardWidth = Math.min((screenWidth - 40) / 2.3, 200);
 
   // ── Data fetching ──
 
@@ -737,6 +753,15 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const loadPlaceCount = useCallback(async () => {
+    try {
+      const count = await fetchPlaceCount();
+      setPlaceCount(count);
+    } catch {
+      // silently skip
+    }
+  }, []);
+
   const loadAll = useCallback(async () => {
     await Promise.all([
       loadJourneys(),
@@ -744,12 +769,37 @@ export default function HomeScreen() {
       loadFeatured(),
       loadPopularPlaces(),
       loadPopularCities(),
+      loadPlaceCount(),
     ]);
-  }, [loadJourneys, loadRecommended, loadFeatured, loadPopularPlaces, loadPopularCities]);
+  }, [
+    loadJourneys,
+    loadRecommended,
+    loadFeatured,
+    loadPopularPlaces,
+    loadPopularCities,
+    loadPlaceCount,
+  ]);
 
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  // Animate count ticker when placeCount changes
+  useEffect(() => {
+    if (placeCount === 0) return;
+    countAnim.setValue(0);
+    const listener = countAnim.addListener(({ value }) => {
+      setDisplayCount(Math.round(value));
+    });
+    Animated.timing(countAnim, {
+      toValue: placeCount,
+      duration: 1400,
+      useNativeDriver: false,
+    }).start();
+    return () => {
+      countAnim.removeListener(listener);
+    };
+  }, [placeCount, countAnim]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -758,8 +808,6 @@ export default function HomeScreen() {
   }, [loadAll]);
 
   // ── Derived state ──
-
-  const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || '';
 
   const activeJourneys = journeys.filter(
     (g) => (g.total_sites ?? 0) > 0 && (g.sites_visited ?? 0) < (g.total_sites ?? 0),
@@ -779,14 +827,10 @@ export default function HomeScreen() {
     return (
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.greetingLabel}>{t('dashboard.greeting')}</Text>
-          {displayName ? (
-            <Text style={styles.displayName}>{displayName}</Text>
-          ) : (
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-              <Text style={styles.signInBtn}>{t('dashboard.signIn')}</Text>
-            </TouchableOpacity>
-          )}
+          <Text style={styles.tickerCount}>
+            {placeCount > 0 ? displayCount.toLocaleString() : '—'}
+          </Text>
+          <Text style={styles.tickerSubtitle}>{t('dashboard.totalPlaces')}</Text>
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity
@@ -983,7 +1027,7 @@ export default function HomeScreen() {
             const imgUri = item.images?.[0]?.url ? getFullImageUrl(item.images[0].url) : null;
             return (
               <TouchableOpacity
-                style={styles.popularPlaceCard}
+                style={[styles.popularPlaceCard, { width: cardWidth }]}
                 activeOpacity={0.88}
                 onPress={() => navigation.navigate('PlaceDetail', { placeCode: item.place_code })}
               >
@@ -1101,7 +1145,7 @@ export default function HomeScreen() {
             const imgUri = item.image_url ? getFullImageUrl(item.image_url) : null;
             return (
               <TouchableOpacity
-                style={styles.placeCardSmall}
+                style={[styles.placeCardSmall, { width: cardWidth }]}
                 activeOpacity={0.88}
                 onPress={() => navigation.navigate('PlaceDetail', { placeCode: item.place_code })}
               >
@@ -1171,7 +1215,7 @@ export default function HomeScreen() {
             const imgUri = item.cover_image_url ? getFullImageUrl(item.cover_image_url) : null;
             return (
               <TouchableOpacity
-                style={styles.journeyCardSmall}
+                style={[styles.journeyCardSmall, { width: cardWidth }]}
                 activeOpacity={0.88}
                 onPress={() => navigation.navigate('GroupDetail', { groupCode: item.group_code })}
               >
