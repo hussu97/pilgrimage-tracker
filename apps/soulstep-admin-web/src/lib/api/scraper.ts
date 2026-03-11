@@ -8,6 +8,7 @@ import type {
   PaginatedResponse,
   PatchPlaceTypeMappingBody,
   PlaceTypeMapping,
+  QualityBreakdown,
   QualityMetrics,
   RawCollectorEntry,
   RunActivity,
@@ -175,5 +176,15 @@ export async function deletePlaceTypeMapping(id: number): Promise<void> {
 
 export async function getQualityMetrics(params?: { run_code?: string }): Promise<QualityMetrics> {
   const res = await scraperClient.get<QualityMetrics>("/quality-metrics", { params });
+  return res.data;
+}
+
+export async function getPlaceQualityBreakdown(
+  runCode: string,
+  placeCode: string
+): Promise<QualityBreakdown> {
+  const res = await scraperClient.get<QualityBreakdown>(
+    `/runs/${runCode}/places/${placeCode}/quality-breakdown`
+  );
   return res.data;
 }

@@ -63,7 +63,7 @@ Under `src/`:
   - `groups/` – `GroupsListPage.tsx`, `GroupDetailPage.tsx`
   - `check-ins/` – `CheckInsListPage.tsx`
   - `notifications/` – `NotificationManagementPage.tsx`
-  - `scraper/` – `ScraperOverviewPage.tsx`, `ScraperRunsPage.tsx`, `RunDetailPage.tsx`, `DataLocationsPage.tsx`, `CollectorsPage.tsx`, `PlaceTypeMappingsPage.tsx`, `QualityMetricsPage.tsx` (score distribution, gate funnel, pie charts, near-threshold table, per-run summary). Runs list shows current pipeline stage and a Resume button for `interrupted`/`failed` runs. Run detail shows a 3-step stage indicator (Discovery → Detail Fetch → Enrichment), error message alerts, and a Resume button.
+  - `scraper/` – `ScraperOverviewPage.tsx`, `ScraperRunsPage.tsx`, `RunDetailPage.tsx`, `DataLocationsPage.tsx`, `CollectorsPage.tsx`, `PlaceTypeMappingsPage.tsx`, `QualityMetricsPage.tsx` (score distribution, gate funnel, pie charts, near-threshold table, per-run summary). Runs list shows current pipeline stage and a Resume button for `interrupted`/`failed` runs. Run detail shows a 3-step stage indicator (Discovery → Detail Fetch → Enrichment), error message alerts, and a Resume button. Scraped Places table has clickable rows: clicking any row expands an inline quality-score breakdown panel showing all 8 scoring factors with progress bars and weighted contribution values.
   - `content/` – `TranslationsPage.tsx`, `ContentTranslationsPage.tsx`, `PlaceAttributesPage.tsx`, `AppVersionsPage.tsx`
   - `audit-log/` – `AuditLogPage.tsx`
   - `analytics/` – `AnalyticsDashboardPage.tsx` — overview stat cards, event trends line chart, event type & platform pie charts, top-places bar chart, paginated raw event log with filters

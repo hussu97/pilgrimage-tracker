@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Scraper Debug Log Fix + Quality Score Breakdown (2026-03-11)
+
+### Backend (scraper)
+- **`logger.py`** — extended noisy-logger suppression list to include `httpcore`, `httpcore.http11`, `httpcore.http2`, `httpcore.connection`; eliminates flood of connection-level DEBUG lines (e.g. `send_request_headers`, `connect_tcp`) when `LOG_LEVEL=DEBUG`
+- **`place_quality.py`** — added `score_place_quality_breakdown(raw_data)` which mirrors the existing `score_place_quality()` logic but returns a structured breakdown: `{total_score, gate, factors[8]}` where each factor has `name`, `weight`, `raw_score`, `weighted`, `detail`
+- **`scraper.py`** — new endpoint `GET /api/v1/scraper/runs/{run_code}/places/{place_code}/quality-breakdown`; recomputes breakdown from existing `raw_data` (no schema changes); returns 404 if run or place not found
+- **`tests/test_quality_breakdown.py`** — 16 new tests covering breakdown logic (factor count, sum correctness, score parity with direct scorer, bounds, gate labels) and endpoint integration (404 cases, response shape, score accuracy)
+
+### Frontend (admin)
+- **`lib/api/types.ts`** — added `QualityFactor` and `QualityBreakdown` interfaces
+- **`lib/api/scraper.ts`** — added `getPlaceQualityBreakdown(runCode, placeCode)` API client method
+- **`RunDetailPage.tsx`** — replaced DataTable in Scraped Places tab with custom accordion rows; clicking any row lazily fetches and shows an inline `QualityBreakdownPanel` with: place header, total score badge, gate label, and 8 factor rows each with name, detail text, color-coded progress bar (green ≥80%, yellow ≥50%, red <50%), and weighted contribution value
+
+---
+
 ## Umami Cloud Analytics Integration (2026-03-11)
 
 ### Frontend (web)

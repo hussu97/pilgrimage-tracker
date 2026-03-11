@@ -200,6 +200,26 @@ Accepts runs with status `pending`, `running`, or `interrupted`.
 ### 11. Quality Metrics
 **GET** `/api/v1/scraper/quality-metrics?run_code=<optional>`
 
+### 12. Quality Score Breakdown (per place)
+**GET** `/api/v1/scraper/runs/{run_code}/places/{place_code}/quality-breakdown`
+
+Returns a factor-by-factor breakdown of the quality score recomputed from `raw_data` (no new DB columns required).
+
+Response:
+```json
+{
+  "total_score": 0.873,
+  "gate": null,
+  "factors": [
+    { "name": "Rating & Reviews", "weight": 0.30, "raw_score": 0.94, "weighted": 0.282, "detail": "rating=4.8, reviews=5000, bayesian=0.94" },
+    ...
+  ]
+}
+```
+
+The `gate` field is `null` when the score passes all gates, or one of `"below_image_gate"`, `"below_enrichment_gate"`, `"below_sync_gate"`.
+Returns **404** if the run or place does not exist.
+
 Aggregate quality scoring statistics. When `run_code` is omitted, metrics cover all runs.
 
 Response includes:

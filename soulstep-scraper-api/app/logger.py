@@ -195,7 +195,16 @@ def setup_logging() -> None:
     # Suppress noisy third-party connection-level debug logs regardless of
     # the app's LOG_LEVEL. urllib3 and requests log every HTTPS connection at
     # DEBUG, which floods GCP Cloud Logging during scraper runs.
-    for noisy_logger in ("urllib3", "urllib3.connectionpool", "requests", "httpx"):
+    for noisy_logger in (
+        "urllib3",
+        "urllib3.connectionpool",
+        "requests",
+        "httpx",
+        "httpcore",
+        "httpcore.http11",
+        "httpcore.http2",
+        "httpcore.connection",
+    ):
         logging.getLogger(noisy_logger).setLevel(logging.WARNING)
 
 

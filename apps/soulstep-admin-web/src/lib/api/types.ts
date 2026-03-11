@@ -359,6 +359,20 @@ export interface QualityMetrics {
   overall_stats: QualityOverallStats;
 }
 
+export interface QualityFactor {
+  name: string;
+  weight: number;
+  raw_score: number;
+  weighted: number;
+  detail: string;
+}
+
+export interface QualityBreakdown {
+  total_score: number;
+  gate: string | null;
+  factors: QualityFactor[];
+}
+
 // ── Content & Configuration (Phase 4) ────────────────────────────────────────
 
 // Translations

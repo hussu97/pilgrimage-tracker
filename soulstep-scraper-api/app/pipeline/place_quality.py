@@ -201,6 +201,172 @@ def score_place_quality(raw_data: dict) -> float:
     return min(1.0, max(0.0, score))
 
 
+# ── Quality breakdown ────────────────────────────────────────────────────────
+
+
+def score_place_quality_breakdown(raw_data: dict) -> dict:
+    """Return a factor-by-factor breakdown of the quality score.
+
+    Returns a dict with:
+      total_score  float          capped 0.0–1.0
+      gate         str | None     gate label or None if all gates passed
+      factors      list[dict]     8 entries, one per scoring factor
+    """
+    factors = []
+
+    # ── 1. Rating + review count (0.30) ──────────────────────────────────────
+    rating: float = float(raw_data.get("rating") or 0.0)
+    review_count: int = int(raw_data.get("user_rating_count") or 0)
+    if not review_count:
+        for attr in raw_data.get("attributes") or []:
+            code = attr.get("attribute_code", "")
+            if code == "rating" and not rating:
+                rating = float(attr.get("value") or 0.0)
+            elif code == "reviews_count" and not review_count:
+                review_count = int(attr.get("value") or 0)
+    bayesian = (rating * review_count + 10 * 3.0) / (review_count + 10) / 5.0
+    weight_1 = 0.30
+    raw_1 = bayesian
+    factors.append(
+        {
+            "name": "Rating & Reviews",
+            "weight": weight_1,
+            "raw_score": round(raw_1, 4),
+            "weighted": round(raw_1 * weight_1, 4),
+            "detail": f"rating={rating}, reviews={review_count}, bayesian={round(bayesian, 4)}",
+        }
+    )
+
+    # ── 2. Business status (0.15) ─────────────────────────────────────────────
+    status = raw_data.get("business_status", "")
+    if status == "OPERATIONAL":
+        raw_2 = 1.0
+    elif status == "CLOSED_TEMPORARILY":
+        raw_2 = 0.5
+    else:
+        raw_2 = 0.0
+    weight_2 = 0.15
+    factors.append(
+        {
+            "name": "Business Status",
+            "weight": weight_2,
+            "raw_score": round(raw_2, 4),
+            "weighted": round(raw_2 * weight_2, 4),
+            "detail": f"status={status or 'unknown'}",
+        }
+    )
+
+    # ── 3. Photo count (0.10) ─────────────────────────────────────────────────
+    photo_count = len(raw_data.get("image_urls") or []) + len(raw_data.get("image_blobs") or [])
+    if photo_count >= 2:
+        raw_3 = 1.0
+    elif photo_count == 1:
+        raw_3 = 0.5
+    else:
+        raw_3 = 0.0
+    weight_3 = 0.10
+    factors.append(
+        {
+            "name": "Photo Count",
+            "weight": weight_3,
+            "raw_score": round(raw_3, 4),
+            "weighted": round(raw_3 * weight_3, 4),
+            "detail": f"photos={photo_count}",
+        }
+    )
+
+    # ── 4. Editorial / generative summary (0.10) ─────────────────────────────
+    has_editorial: bool = bool(raw_data.get("has_editorial", False))
+    has_generative: bool = bool(raw_data.get("has_generative", False))
+    if has_editorial:
+        raw_4 = 1.0
+    elif has_generative:
+        raw_4 = 0.5
+    else:
+        raw_4 = 0.0
+    weight_4 = 0.10
+    factors.append(
+        {
+            "name": "Editorial Summary",
+            "weight": weight_4,
+            "raw_score": round(raw_4, 4),
+            "weighted": round(raw_4 * weight_4, 4),
+            "detail": f"has_editorial={has_editorial}, has_generative={has_generative}",
+        }
+    )
+
+    # ── 5. Has website (0.05) ────────────────────────────────────────────────
+    has_website = bool(raw_data.get("website_url"))
+    raw_5 = 1.0 if has_website else 0.0
+    weight_5 = 0.05
+    factors.append(
+        {
+            "name": "Has Website",
+            "weight": weight_5,
+            "raw_score": round(raw_5, 4),
+            "weighted": round(raw_5 * weight_5, 4),
+            "detail": f"website_url={'present' if has_website else 'absent'}",
+        }
+    )
+
+    # ── 6. Has opening hours (0.05) ──────────────────────────────────────────
+    opening_hours = raw_data.get("opening_hours") or {}
+    has_hours = bool(
+        opening_hours and any(v != "Hours not available" for v in opening_hours.values())
+    )
+    raw_6 = 1.0 if has_hours else 0.0
+    weight_6 = 0.05
+    factors.append(
+        {
+            "name": "Opening Hours",
+            "weight": weight_6,
+            "raw_score": round(raw_6, 4),
+            "weighted": round(raw_6 * weight_6, 4),
+            "detail": f"has_hours={has_hours}, days={len(opening_hours)}",
+        }
+    )
+
+    # ── 7. Name specificity (0.15) ───────────────────────────────────────────
+    name = raw_data.get("name", "")
+    raw_7 = _name_specificity(name)
+    weight_7 = 0.15
+    factors.append(
+        {
+            "name": "Name Specificity",
+            "weight": weight_7,
+            "raw_score": round(raw_7, 4),
+            "weighted": round(raw_7 * weight_7, 4),
+            "detail": f"name={name!r}, specificity={raw_7}",
+        }
+    )
+
+    # ── 8. Place type bonus (0.10) ───────────────────────────────────────────
+    gmaps_types: list[str] = raw_data.get("gmaps_types") or []
+    type_factor = 0.5
+    if "tourist_attraction" in gmaps_types:
+        type_factor += 0.25
+    if "point_of_interest" in gmaps_types:
+        type_factor += 0.25
+    weight_8 = 0.10
+    factors.append(
+        {
+            "name": "Place Type Bonus",
+            "weight": weight_8,
+            "raw_score": round(type_factor, 4),
+            "weighted": round(type_factor * weight_8, 4),
+            "detail": f"types={gmaps_types}, factor={type_factor}",
+        }
+    )
+
+    total = sum(f["weighted"] for f in factors)
+    total = min(1.0, max(0.0, total))
+    return {
+        "total_score": round(total, 4),
+        "gate": get_quality_gate(total),
+        "factors": factors,
+    }
+
+
 # ── Gate helpers ─────────────────────────────────────────────────────────────
 
 

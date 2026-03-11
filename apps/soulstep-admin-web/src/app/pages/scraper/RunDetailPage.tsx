@@ -4,6 +4,7 @@ import * as Tabs from "@radix-ui/react-tabs";
 import {
   cancelRun,
   deleteRun,
+  getPlaceQualityBreakdown,
   getRun,
   getRunActivity,
   getRunCells,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/api/scraper";
 import type {
   DiscoveryCellItem,
+  QualityBreakdown,
   RawCollectorEntry,
   RunActivity,
   ScrapedPlaceData,
@@ -36,6 +38,112 @@ function enrichVariant(s: string) {
   if (s === "failed") return "danger" as const;
   if (s === "enriching") return "info" as const;
   return "neutral" as const;
+}
+
+// ── Quality Breakdown Panel ──────────────────────────────────────────────────
+
+function factorColor(rawScore: number) {
+  if (rawScore >= 0.8) return "bg-green-500";
+  if (rawScore >= 0.5) return "bg-yellow-400";
+  return "bg-red-400";
+}
+
+function factorTextColor(rawScore: number) {
+  if (rawScore >= 0.8) return "text-green-600 dark:text-green-400";
+  if (rawScore >= 0.5) return "text-yellow-600 dark:text-yellow-400";
+  return "text-red-500 dark:text-red-400";
+}
+
+function QualityBreakdownPanel({
+  runCode,
+  place,
+}: {
+  runCode: string;
+  place: ScrapedPlaceData;
+}) {
+  const [breakdown, setBreakdown] = useState<QualityBreakdown | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    setError(false);
+    getPlaceQualityBreakdown(runCode, String(place._scraped_id))
+      .then(setBreakdown)
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, [runCode, place._scraped_id]);
+
+  if (loading) {
+    return (
+      <div className="px-4 py-3 text-xs text-text-secondary dark:text-dark-text-secondary">
+        Loading breakdown…
+      </div>
+    );
+  }
+  if (error || !breakdown) {
+    return (
+      <div className="px-4 py-3 text-xs text-red-500">Failed to load quality breakdown.</div>
+    );
+  }
+
+  const gateLabel = breakdown.gate
+    ? breakdown.gate.replace(/_/g, " ")
+    : "passed all gates";
+  const totalColor =
+    breakdown.total_score >= 0.4
+      ? "text-green-600 dark:text-green-400"
+      : breakdown.total_score >= 0.2
+      ? "text-yellow-600 dark:text-yellow-400"
+      : "text-red-500 dark:text-red-400";
+
+  return (
+    <div className="px-4 py-3 bg-background-light dark:bg-dark-bg space-y-3 border-t border-input-border dark:border-dark-border">
+      {/* Header */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-xs font-semibold text-text-main dark:text-white truncate">
+          {place.name}
+        </span>
+        <span className="font-mono text-xs text-text-secondary dark:text-dark-text-secondary">
+          {place._scraped_id}
+        </span>
+        <span className={`text-sm font-bold ml-auto ${totalColor}`}>
+          {breakdown.total_score.toFixed(3)}
+        </span>
+        <span className="text-xs px-2 py-0.5 rounded bg-background-light dark:bg-dark-surface border border-input-border dark:border-dark-border text-text-secondary dark:text-dark-text-secondary">
+          {gateLabel}
+        </span>
+      </div>
+
+      {/* Factor rows */}
+      <div className="space-y-1.5">
+        {breakdown.factors.map((f) => (
+          <div key={f.name} className="grid grid-cols-[140px_1fr_56px_48px] gap-2 items-center">
+            <span className="text-xs font-medium text-text-main dark:text-white truncate">
+              {f.name}
+            </span>
+            <div className="space-y-0.5">
+              <div className="w-full bg-input-border dark:bg-dark-border rounded-full h-1.5">
+                <div
+                  className={`h-1.5 rounded-full transition-all ${factorColor(f.raw_score)}`}
+                  style={{ width: `${Math.round(f.raw_score * 100)}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-text-secondary dark:text-dark-text-secondary truncate">
+                {f.detail}
+              </p>
+            </div>
+            <span className={`text-xs font-medium text-right ${factorTextColor(f.raw_score)}`}>
+              {(f.raw_score * 100).toFixed(0)}%
+            </span>
+            <span className="text-xs text-text-secondary dark:text-dark-text-secondary text-right font-mono">
+              +{f.weighted.toFixed(3)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // ── Live Activity Panel ─────────────────────────────────────────────────────
@@ -391,6 +499,7 @@ export function RunDetailPage() {
   const [loading, setLoading] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [expandedRaw, setExpandedRaw] = useState<Set<string>>(new Set());
+  const [expandedPlaces, setExpandedPlaces] = useState<Set<string>>(new Set());
   const { page, pageSize, setPage, setPageSize } = usePagination(50);
 
   // Track active tab so we only poll places when the places tab is visible
@@ -482,70 +591,6 @@ export function RunDetailPage() {
     (acc[r.place_code] ??= []).push(r);
     return acc;
   }, {});
-
-  const placeColumns: Column<ScrapedPlaceData>[] = [
-    {
-      key: "name",
-      header: "Name",
-      render: (p) => <span className="font-medium">{p.name}</span>,
-    },
-    {
-      key: "id",
-      header: "Place Code",
-      render: (p) => (
-        <span className="font-mono text-xs text-text-secondary dark:text-dark-text-secondary">
-          {p._scraped_id}
-        </span>
-      ),
-    },
-    {
-      key: "enrichment",
-      header: "Enrichment",
-      render: (p) => (
-        <StatusBadge
-          label={String(p._enrichment_status ?? "unknown")}
-          variant={enrichVariant(String(p._enrichment_status ?? ""))}
-        />
-      ),
-    },
-    {
-      key: "description_source",
-      header: "Description Source",
-      render: (p) => (
-        <span className="text-sm text-text-secondary dark:text-dark-text-secondary">
-          {p._description_source ?? "—"}
-        </span>
-      ),
-    },
-    {
-      key: "score",
-      header: "Score",
-      render: (p) => (
-        <span className="text-sm">
-          {p._description_score != null ? p._description_score.toFixed(2) : "—"}
-        </span>
-      ),
-    },
-    {
-      key: "quality_score",
-      header: "Quality",
-      render: (p) => {
-        const qs = p._quality_score;
-        if (qs == null) return <span className="text-sm text-text-secondary dark:text-dark-text-secondary">—</span>;
-        const color =
-          qs >= 0.4
-            ? "text-green-600 dark:text-green-400"
-            : qs >= 0.2
-            ? "text-yellow-600 dark:text-yellow-400"
-            : "text-red-500";
-        return (
-          <span className={`text-sm font-medium ${color}`} title={p._quality_gate ?? undefined}>
-            {qs.toFixed(2)}
-          </span>
-        );
-      },
-    },
-  ];
 
   if (loading) {
     return (
@@ -731,12 +776,84 @@ export function RunDetailPage() {
             placeholder="Search by name…"
             className="w-64"
           />
-          <DataTable
-            columns={placeColumns}
-            data={places}
-            rowKey={(p) => String(p._scraped_id)}
-            emptyMessage="No scraped places."
-          />
+          {places.length === 0 ? (
+            <p className="text-sm text-text-secondary dark:text-dark-text-secondary py-8 text-center">
+              No scraped places.
+            </p>
+          ) : (
+            <div className="rounded-xl border border-input-border dark:border-dark-border overflow-hidden">
+              {/* Table header */}
+              <div className="grid grid-cols-[1fr_140px_100px_110px_60px_64px] gap-2 px-4 py-2 bg-background-light dark:bg-dark-bg border-b border-input-border dark:border-dark-border text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
+                <span>Name</span>
+                <span>Place Code</span>
+                <span>Enrichment</span>
+                <span>Desc. Source</span>
+                <span>Score</span>
+                <span>Quality</span>
+              </div>
+              {places.map((p) => {
+                const placeCode = String(p._scraped_id);
+                const isExpanded = expandedPlaces.has(placeCode);
+                const qs = p._quality_score;
+                const qColor =
+                  qs != null
+                    ? qs >= 0.4
+                      ? "text-green-600 dark:text-green-400"
+                      : qs >= 0.2
+                      ? "text-yellow-600 dark:text-yellow-400"
+                      : "text-red-500"
+                    : "text-text-secondary dark:text-dark-text-secondary";
+                return (
+                  <div
+                    key={placeCode}
+                    className="border-b border-input-border dark:border-dark-border last:border-b-0"
+                  >
+                    <button
+                      className="w-full grid grid-cols-[1fr_140px_100px_110px_60px_64px] gap-2 px-4 py-2.5 text-left hover:bg-primary/5 dark:hover:bg-primary/[0.06] transition-colors"
+                      onClick={() =>
+                        setExpandedPlaces((prev) => {
+                          const next = new Set(prev);
+                          if (isExpanded) next.delete(placeCode);
+                          else next.add(placeCode);
+                          return next;
+                        })
+                      }
+                    >
+                      <span className="text-sm font-medium text-text-main dark:text-white truncate">
+                        {p.name}
+                      </span>
+                      <span className="font-mono text-xs text-text-secondary dark:text-dark-text-secondary truncate">
+                        {placeCode}
+                      </span>
+                      <span>
+                        <StatusBadge
+                          label={String(p._enrichment_status ?? "unknown")}
+                          variant={enrichVariant(String(p._enrichment_status ?? ""))}
+                        />
+                      </span>
+                      <span className="text-sm text-text-secondary dark:text-dark-text-secondary truncate">
+                        {p._description_source ?? "—"}
+                      </span>
+                      <span className="text-sm">
+                        {p._description_score != null
+                          ? p._description_score.toFixed(2)
+                          : "—"}
+                      </span>
+                      <span
+                        className={`text-sm font-medium ${qColor}`}
+                        title={p._quality_gate ?? undefined}
+                      >
+                        {qs != null ? qs.toFixed(2) : "—"}
+                      </span>
+                    </button>
+                    {isExpanded && runCode && (
+                      <QualityBreakdownPanel runCode={runCode} place={p} />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <Pagination
             page={page}
             pageSize={pageSize}

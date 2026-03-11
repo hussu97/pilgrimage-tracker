@@ -402,6 +402,22 @@ def get_run_activity(run_code: str, session: SessionDep):
     }
 
 
+@router.get("/runs/{run_code}/places/{place_code}/quality-breakdown")
+def get_place_quality_breakdown(run_code: str, place_code: str, session: SessionDep):
+    """Return a factor-by-factor quality score breakdown for a single scraped place."""
+    place = session.exec(
+        select(ScrapedPlace)
+        .where(ScrapedPlace.run_code == run_code)
+        .where(ScrapedPlace.place_code == place_code)
+    ).first()
+    if not place:
+        raise HTTPException(status_code=404, detail="Place not found")
+
+    from app.pipeline.place_quality import score_place_quality_breakdown
+
+    return score_place_quality_breakdown(place.raw_data or {})
+
+
 @router.get("/runs/{run_code}/cells")
 def get_run_cells(
     run_code: str,
