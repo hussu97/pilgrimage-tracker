@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/app/navigation';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
+import { useAds } from '@/components/ads/AdProvider';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { tokens } from '@/lib/theme';
 
 function makeStyles(isDark: boolean) {
@@ -84,6 +86,8 @@ export default function LoginScreen() {
   const { t } = useI18n();
   const { isDark } = useTheme();
   const { trackEvent } = useAnalytics();
+  const { consent } = useAds();
+  const { trackUmamiEvent } = useUmamiTracking('Login', consent.analytics);
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const [email, setEmail] = useState('');
@@ -97,6 +101,7 @@ export default function LoginScreen() {
     try {
       await login(email, password);
       trackEvent('login');
+      trackUmamiEvent('login');
       navigation.replace('Main');
     } catch (e) {
       setError(e instanceof Error ? e.message : t('errors.loginFailed'));

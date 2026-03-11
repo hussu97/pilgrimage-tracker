@@ -29,6 +29,8 @@ import { shareUrl } from '@/lib/share';
 import { useAuth, useFeedback, useI18n, useTheme } from '@/app/providers';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
+import { useAds } from '@/components/ads/AdProvider';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { formatDistance } from '@/lib/utils/place-utils';
 import type { RootStackParamList } from '@/app/navigation';
 import type {
@@ -73,6 +75,8 @@ export default function PlaceDetailScreen() {
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const { requireAuth } = useAuthRequired();
   const { trackEvent } = useAnalytics();
+  const { consent } = useAds();
+  const { trackUmamiEvent } = useUmamiTracking('PlaceDetail', consent.analytics);
 
   const [place, setPlace] = useState<PlaceDetailType | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -137,6 +141,7 @@ export default function PlaceDetailScreen() {
       setAverageRating(reviewsData.average_rating);
       setReviewCount(reviewsData.review_count);
       trackEvent('place_view', { place_code: placeData.place_code, religion: placeData.religion });
+      trackUmamiEvent('place_view', { religion: placeData.religion });
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('common.error');
       setError(msg);
@@ -146,7 +151,7 @@ export default function PlaceDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [placeCode, t]);
+  }, [placeCode, t, trackUmamiEvent]);
 
   useEffect(() => {
     fetchPlace();
@@ -197,13 +202,14 @@ export default function PlaceDetailScreen() {
         place_code: placeCode,
         action: wasFavorite ? 'remove' : 'add',
       });
+      trackUmamiEvent(wasFavorite ? 'favorite_remove' : 'favorite_add');
       showSuccess(t(wasFavorite ? 'feedback.favoriteRemoved' : 'feedback.favoriteAdded'));
     } catch {
       showError(t('feedback.error'));
     } finally {
       setFavoriteLoading(false);
     }
-  }, [placeCode, place, showSuccess, showError, t]);
+  }, [placeCode, place, showSuccess, showError, t, trackUmamiEvent]);
 
   const toggleFavorite = useCallback(() => {
     requireAuth(() => doActualToggleFavorite());
@@ -227,6 +233,7 @@ export default function PlaceDetailScreen() {
       });
       setCheckInDate(date);
       trackEvent('check_in', { place_code: placeCode });
+      trackUmamiEvent('check_in');
       setTimeout(() => setCheckInDone(true), 430);
       showSuccess(t('feedback.checkedIn'));
     } catch {
@@ -234,7 +241,16 @@ export default function PlaceDetailScreen() {
     } finally {
       setCheckInLoading(false);
     }
-  }, [placeCode, checkInLoading, checkInDone, checkInScale, t, showSuccess, showError]);
+  }, [
+    placeCode,
+    checkInLoading,
+    checkInDone,
+    checkInScale,
+    t,
+    showSuccess,
+    showError,
+    trackUmamiEvent,
+  ]);
 
   const handleCheckIn = useCallback(() => {
     requireAuth(() => doActualCheckIn(), 'visitor.loginRequired');

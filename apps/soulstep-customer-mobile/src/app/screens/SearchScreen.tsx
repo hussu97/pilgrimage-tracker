@@ -14,6 +14,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme, useI18n, useSearch } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
+import { useAds } from '@/components/ads/AdProvider';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { searchAutocomplete, getSearchPlaceDetails } from '@/lib/api/client';
 import type { SearchSuggestion } from '@/lib/api/client';
 import { getSearchHistory, addSearchHistory, clearSearchHistory } from '@/lib/utils/searchHistory';
@@ -141,6 +143,8 @@ export default function SearchScreen() {
   const { t } = useI18n();
   const { coords } = useLocation();
   const { setSearchLocation } = useSearch();
+  const { consent } = useAds();
+  const { trackUmamiEvent } = useUmamiTracking('Search', consent.analytics);
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const [query, setQuery] = useState('');
@@ -204,6 +208,7 @@ export default function SearchScreen() {
       };
       await addSearchHistory(loc);
       setSearchLocation(loc);
+      trackUmamiEvent('search', { query: loc.name });
       navigation.goBack();
     } catch {
       setError(t('search.error'));
@@ -215,6 +220,7 @@ export default function SearchScreen() {
   const handleSelectHistory = async (item: SearchLocation) => {
     await addSearchHistory(item);
     setSearchLocation(item);
+    trackUmamiEvent('search', { query: item.name });
     navigation.goBack();
   };
 

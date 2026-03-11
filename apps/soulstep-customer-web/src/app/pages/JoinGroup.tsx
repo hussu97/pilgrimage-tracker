@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useI18n, useFeedback } from '@/app/providers';
 import { getGroupByInviteCode, joinGroupByCode } from '@/lib/api/client';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 
 export default function JoinGroup() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useI18n();
   const { showSuccess, showError } = useFeedback();
+  const { trackUmamiEvent } = useUmamiTracking();
   const code = searchParams.get('code')?.trim() ?? '';
   const [groupName, setGroupName] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -34,6 +36,7 @@ export default function JoinGroup() {
     setError('');
     try {
       const { group_code } = await joinGroupByCode(code);
+      trackUmamiEvent('group_join');
       showSuccess(t('feedback.groupJoined'));
       navigate(`/groups/${group_code}`);
     } catch (err) {

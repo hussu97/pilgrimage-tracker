@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
 import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { useLocation } from '@/app/contexts/LocationContext';
 import { getPlaces } from '@/lib/api/client';
 import FilterSheet from '@/components/places/FilterSheet';
@@ -23,6 +24,7 @@ export default function Home() {
   const { user } = useAuth();
   const { t } = useI18n();
   const { coords } = useLocation();
+  const { trackUmamiEvent } = useUmamiTracking();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const viewMode = (searchParams.get('view') as ViewMode) || 'list';
@@ -249,6 +251,7 @@ export default function Home() {
     const newParams = new URLSearchParams(searchParams);
     newParams.set('view', nextMode);
     setSearchParams(newParams);
+    trackUmamiEvent('view_mode_change', { mode: nextMode });
   };
 
   const activeFiltersCount = Object.values(activeFilters).filter(Boolean).length;
@@ -262,6 +265,7 @@ export default function Home() {
   const handleSearchSelect = (loc: SearchLocation) => {
     setSearchLocation(loc);
     setShowSearch(false);
+    trackUmamiEvent('search', { query: loc.name });
     // Clear saved map position so the map re-fits to the new search area
     initialMapFetchDone.current = false;
     setSearchParams(
@@ -348,7 +352,10 @@ export default function Home() {
         onClose={() => setShowFilters(false)}
         options={filterOptions}
         activeFilters={activeFilters}
-        onApply={setActiveFilters}
+        onApply={(filters) => {
+          setActiveFilters(filters);
+          trackUmamiEvent('filter_apply', { count: Object.values(filters).filter(Boolean).length });
+        }}
       />
 
       {showSearch && (

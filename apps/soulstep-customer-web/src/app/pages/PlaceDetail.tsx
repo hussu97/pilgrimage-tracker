@@ -23,6 +23,7 @@ import { useAuth, useTheme } from '@/app/providers';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { SharePlaceButton } from '@/components/places';
 import PlaceOpeningHours from '@/components/places/PlaceOpeningHours';
 import PlaceTimingsCarousel from '@/components/places/PlaceTimingsCarousel';
@@ -261,6 +262,7 @@ export default function PlaceDetail() {
 
   useDocumentTitle(place?.name);
   const { trackEvent } = useAnalytics();
+  const { trackUmamiEvent } = useUmamiTracking();
 
   const heroImages = (place?.images ?? [])
     .map((img) => getFullImageUrl(img.url))
@@ -332,6 +334,7 @@ export default function PlaceDetail() {
       setAverageRating(reviewsData.average_rating);
       setReviewCount(reviewsData.review_count);
       trackEvent('place_view', { place_code: placeData.place_code, religion: placeData.religion });
+      trackUmamiEvent('place_view', { religion: placeData.religion });
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('common.error');
       setError(msg);
@@ -341,7 +344,7 @@ export default function PlaceDetail() {
     } finally {
       setLoading(false);
     }
-  }, [placeCode, t]);
+  }, [placeCode, t, trackUmamiEvent]);
 
   useEffect(() => {
     fetchPlace();
@@ -380,13 +383,14 @@ export default function PlaceDetail() {
         place_code: placeCode,
         action: wasFavorite ? 'remove' : 'add',
       });
+      trackUmamiEvent(wasFavorite ? 'favorite_remove' : 'favorite_add');
       showSuccess(t(wasFavorite ? 'feedback.favoriteRemoved' : 'feedback.favoriteAdded'));
     } catch {
       showError(t('feedback.error'));
     } finally {
       setFavoriteLoading(false);
     }
-  }, [placeCode, place, showSuccess, showError, t]);
+  }, [placeCode, place, showSuccess, showError, t, trackUmamiEvent]);
 
   const toggleFavorite = useCallback(() => {
     requireAuth(() => doToggleFavorite());
@@ -404,6 +408,7 @@ export default function PlaceDetail() {
       });
       setCheckInDate(date);
       trackEvent('check_in', { place_code: placeCode });
+      trackUmamiEvent('check_in');
       setTimeout(() => setCheckInDone(true), 430);
       showSuccess(t('feedback.checkedIn'));
     } catch {
@@ -411,7 +416,7 @@ export default function PlaceDetail() {
     } finally {
       setCheckInLoading(false);
     }
-  }, [placeCode, checkInLoading, checkInDone, showSuccess, showError, t]);
+  }, [placeCode, checkInLoading, checkInDone, showSuccess, showError, t, trackUmamiEvent]);
 
   const handleCheckIn = useCallback(() => {
     if (checkInDone) return;

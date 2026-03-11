@@ -13,6 +13,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getGroupByInviteCode, joinGroupByCode } from '@/lib/api/client';
 import { useFeedback, useI18n, useTheme } from '@/app/providers';
+import { useAds } from '@/components/ads/AdProvider';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
 
@@ -92,6 +94,8 @@ export default function JoinGroupScreen() {
   const { t } = useI18n();
   const { isDark } = useTheme();
   const { showSuccess, showError } = useFeedback();
+  const { consent } = useAds();
+  const { trackUmamiEvent } = useUmamiTracking('JoinGroup', consent.analytics);
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const [codeInput, setCodeInput] = useState(inviteCodeFromParams);
   const [preview, setPreview] = useState<{ group_code: string; name: string } | null>(null);
@@ -144,6 +148,7 @@ export default function JoinGroupScreen() {
     setError('');
     try {
       const res = await joinGroupByCode(code);
+      trackUmamiEvent('group_join');
       setJoining(false);
       showSuccess(t('feedback.groupJoined'));
       navigation.replace('GroupDetail', { groupCode: res.group_code });

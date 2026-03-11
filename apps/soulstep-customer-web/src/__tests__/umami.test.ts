@@ -17,6 +17,7 @@ interface UmamiPayload {
     url: string;
     website: string;
     name?: string;
+    data?: Record<string, unknown>;
   };
 }
 
@@ -28,6 +29,7 @@ function buildUmamiPayload(
     language?: string;
     screen?: string;
     eventName?: string;
+    data?: Record<string, unknown>;
   } = {},
 ): UmamiPayload {
   return {
@@ -40,6 +42,7 @@ function buildUmamiPayload(
       url: `/${screenName}`,
       website: websiteId,
       ...(opts.eventName ? { name: opts.eventName } : {}),
+      ...(opts.data ? { data: opts.data } : {}),
     },
   };
 }
@@ -70,6 +73,37 @@ describe('buildUmamiPayload', () => {
   it('includes name field for custom events', () => {
     const payload = buildUmamiPayload('PlaceDetail', WEBSITE_ID, { eventName: 'place_view' });
     expect(payload.payload.name).toBe('place_view');
+  });
+
+  it('includes data field for custom events with data', () => {
+    const payload = buildUmamiPayload('PlaceDetail', WEBSITE_ID, {
+      eventName: 'place_view',
+      data: { religion: 'Islam' },
+    });
+    expect(payload.payload.data).toEqual({ religion: 'Islam' });
+  });
+
+  it('omits data field when no data provided', () => {
+    const payload = buildUmamiPayload('Home', WEBSITE_ID, { eventName: 'login' });
+    expect('data' in payload.payload).toBe(false);
+  });
+
+  it('builds review_submit event with rating data', () => {
+    const payload = buildUmamiPayload('WriteReview', WEBSITE_ID, {
+      eventName: 'review_submit',
+      data: { rating: 5 },
+    });
+    expect(payload.payload.name).toBe('review_submit');
+    expect(payload.payload.data).toEqual({ rating: 5 });
+  });
+
+  it('builds filter_apply event with count data', () => {
+    const payload = buildUmamiPayload('Home', WEBSITE_ID, {
+      eventName: 'filter_apply',
+      data: { count: 3 },
+    });
+    expect(payload.payload.name).toBe('filter_apply');
+    expect(payload.payload.data).toEqual({ count: 3 });
   });
 
   it('uses custom hostname when provided', () => {

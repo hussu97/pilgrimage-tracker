@@ -19,6 +19,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getPlace, createReview, updateReview, uploadReviewPhoto } from '@/lib/api/client';
 import { pickImages, compressImage, validateImage } from '@/lib/utils/imageUpload';
 import { useFeedback, useI18n, useTheme } from '@/app/providers';
+import { useAds } from '@/components/ads/AdProvider';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import type { RootStackParamList } from '@/app/navigation';
 import type { PlaceDetail } from '@/lib/types';
 import { tokens } from '@/lib/theme';
@@ -234,6 +236,8 @@ export default function WriteReviewScreen() {
   const { t } = useI18n();
   const { isDark } = useTheme();
   const { showSuccess, showError } = useFeedback();
+  const { consent } = useAds();
+  const { trackUmamiEvent } = useUmamiTracking('WriteReview', consent.analytics);
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const [place, setPlace] = useState<PlaceDetail | null>(null);
   const [rating, setRating] = useState(initRating ?? 0);
@@ -322,6 +326,7 @@ export default function WriteReviewScreen() {
           is_anonymous: isAnonymous,
           photo_urls: photos.map((p) => p.url),
         });
+        trackUmamiEvent('review_submit', { rating });
         showSuccess(t('feedback.reviewSubmitted'));
       }
       setSuccess(true);

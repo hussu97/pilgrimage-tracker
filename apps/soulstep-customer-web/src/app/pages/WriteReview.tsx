@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useI18n, useFeedback } from '@/app/providers';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { cn } from '@/lib/utils/cn';
 import { getPlace, createReview, updateReview, uploadReviewPhoto } from '@/lib/api/client';
 import { compressImage, validateImageFile } from '@/lib/utils/imageUpload';
@@ -26,6 +27,7 @@ export default function WriteReview() {
   const { t } = useI18n();
   const { showSuccess, showError } = useFeedback();
   const { trackEvent } = useAnalytics();
+  const { trackUmamiEvent } = useUmamiTracking();
   const editReview = (location.state as LocationState)?.edit;
 
   const [place, setPlace] = useState<PlaceDetail | null>(null);
@@ -127,6 +129,7 @@ export default function WriteReview() {
           photo_urls: photos.map((p) => p.url),
         });
         trackEvent('review_submit', { place_code: placeCode, rating });
+        trackUmamiEvent('review_submit', { rating });
         showSuccess(t('feedback.reviewSubmitted'));
       }
       setSuccess(true);

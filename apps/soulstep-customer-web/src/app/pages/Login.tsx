@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -9,6 +10,7 @@ export default function Login() {
   const { user, loading, login } = useAuth();
   const { t } = useI18n();
   const { trackEvent } = useAnalytics();
+  const { trackUmamiEvent } = useUmamiTracking();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -26,6 +28,7 @@ export default function Login() {
     try {
       await login(email, password);
       trackEvent('login');
+      trackUmamiEvent('login');
       const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
       navigate(from ?? '/home');
     } catch (err) {

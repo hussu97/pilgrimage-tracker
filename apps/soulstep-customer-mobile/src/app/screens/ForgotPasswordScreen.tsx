@@ -15,6 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/app/navigation';
 import { useI18n, useTheme } from '@/app/providers';
 import { forgotPassword } from '@/lib/api/client';
+import { useAds } from '@/components/ads/AdProvider';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { tokens } from '@/lib/theme';
 
 function makeStyles(isDark: boolean) {
@@ -104,6 +106,8 @@ export default function ForgotPasswordScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>>();
   const { t } = useI18n();
   const { isDark } = useTheme();
+  const { consent } = useAds();
+  const { trackUmamiEvent } = useUmamiTracking('ForgotPassword', consent.analytics);
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
@@ -115,6 +119,7 @@ export default function ForgotPasswordScreen() {
     setLoading(true);
     try {
       await forgotPassword(email);
+      trackUmamiEvent('forgot_password');
       setSent(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : t('common.error'));

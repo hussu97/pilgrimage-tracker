@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useI18n } from '@/app/providers';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { getFieldRules } from '@/lib/api/client';
 import { cn } from '@/lib/utils/cn';
 import type { PasswordRule } from '@/lib/api/client';
@@ -41,6 +42,7 @@ export default function Register() {
   const { register } = useAuth();
   const { t } = useI18n();
   const { trackEvent } = useAnalytics();
+  const { trackUmamiEvent } = useUmamiTracking();
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -83,6 +85,7 @@ export default function Register() {
     try {
       await register(email, password, displayName.trim() || undefined);
       trackEvent('signup');
+      trackUmamiEvent('signup');
       navigate('/home');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.registrationFailed'));

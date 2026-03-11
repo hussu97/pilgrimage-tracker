@@ -16,6 +16,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@/app/navigation';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
+import { useAds } from '@/components/ads/AdProvider';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { getFieldRules } from '@/lib/api/client';
 import type { PasswordRule } from '@/lib/api/client';
 import { tokens } from '@/lib/theme';
@@ -120,6 +122,8 @@ export default function RegisterScreen() {
   const { t } = useI18n();
   const { isDark } = useTheme();
   const { trackEvent } = useAnalytics();
+  const { consent } = useAds();
+  const { trackUmamiEvent } = useUmamiTracking('Register', consent.analytics);
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const [displayName, setDisplayName] = useState('');
@@ -164,6 +168,7 @@ export default function RegisterScreen() {
     try {
       await register(email, password, displayName.trim() || undefined);
       trackEvent('signup');
+      trackUmamiEvent('signup');
       navigation.replace('Main');
     } catch (e) {
       setError(e instanceof Error ? e.message : t('errors.registrationFailed'));

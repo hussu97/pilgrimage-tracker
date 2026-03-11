@@ -2,9 +2,11 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useI18n } from '@/app/providers';
 import { forgotPassword } from '@/lib/api/client';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 
 export default function ForgotPassword() {
   const { t } = useI18n();
+  const { trackUmamiEvent } = useUmamiTracking();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
@@ -16,6 +18,7 @@ export default function ForgotPassword() {
     setLoading(true);
     try {
       await forgotPassword(email);
+      trackUmamiEvent('forgot_password');
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));

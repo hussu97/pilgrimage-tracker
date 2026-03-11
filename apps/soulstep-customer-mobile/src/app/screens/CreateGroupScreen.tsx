@@ -23,6 +23,8 @@ import { createGroup, getPlaces, uploadGroupCover } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
 import { INVITE_LINK_BASE_URL } from '@/lib/constants';
 import { useFeedback, useI18n, useTheme } from '@/app/providers';
+import { useAds } from '@/components/ads/AdProvider';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
 import PlaceSelector from '@/components/groups/PlaceSelector';
@@ -283,6 +285,8 @@ export default function CreateGroupScreen() {
   const { t } = useI18n();
   const { isDark } = useTheme();
   const { showError } = useFeedback();
+  const { consent } = useAds();
+  const { trackUmamiEvent } = useUmamiTracking('CreateGroup', consent.analytics);
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
   const [step, setStep] = useState<Step>('details');
@@ -496,6 +500,7 @@ export default function CreateGroupScreen() {
         start_date: startDate ? formatDate(startDate) : undefined,
         end_date: endDate ? formatDate(endDate) : undefined,
       });
+      trackUmamiEvent('group_create', { place_count: selectedPlaceCodes.length });
       setInviteCode(g.invite_code);
       setGroupCode(g.group_code);
     } catch (err) {

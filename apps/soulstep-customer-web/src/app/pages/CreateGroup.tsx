@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n, useFeedback } from '@/app/providers';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { cn } from '@/lib/utils/cn';
 import { createGroup, getPlaces, uploadGroupCover } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
@@ -13,6 +14,7 @@ export default function CreateGroup() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const { showError } = useFeedback();
+  const { trackUmamiEvent } = useUmamiTracking();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
@@ -119,6 +121,7 @@ export default function CreateGroup() {
         start_date: startDate || undefined,
         end_date: endDate || undefined,
       });
+      trackUmamiEvent('group_create', { place_count: selectedPlaceCodes.length });
       setInviteCode(g.invite_code);
       setGroupCode(g.group_code);
     } catch (err) {

@@ -22,6 +22,8 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth, useI18n, useTheme, useSearch } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
+import { useAds } from '@/components/ads/AdProvider';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { getPlaces } from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { Place, FilterOption } from '@/lib/types';
@@ -383,6 +385,8 @@ export default function HomeScreen() {
   const { isDark } = useTheme();
   const { coords } = useLocation();
   const { searchLocation, setSearchLocation } = useSearch();
+  const { consent } = useAds();
+  const { trackUmamiEvent } = useUmamiTracking('Home', consent.analytics);
   const webViewRef = useRef<WebView>(null);
 
   // Draggable bottom sheet
@@ -692,7 +696,11 @@ export default function HomeScreen() {
         <HomeHeader
           displayName={displayName}
           viewMode={viewMode}
-          onViewModeToggle={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
+          onViewModeToggle={() => {
+            const next = viewMode === 'list' ? 'map' : 'list';
+            setViewMode(next);
+            trackUmamiEvent('view_mode_change', { mode: next });
+          }}
           isDark={isDark}
           t={t}
         />
@@ -1023,6 +1031,9 @@ export default function HomeScreen() {
               style={styles.applyFiltersBtn}
               onPress={() => {
                 setActiveFilters(pendingFilters);
+                trackUmamiEvent('filter_apply', {
+                  count: Object.values(pendingFilters).filter(Boolean).length,
+                });
                 setFilterSheetOpen(false);
               }}
               activeOpacity={0.85}
