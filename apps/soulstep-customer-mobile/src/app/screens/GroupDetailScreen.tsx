@@ -49,7 +49,7 @@ import GroupCheckInSheet from '@/components/groups/GroupCheckInSheet';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'GroupDetail'>;
 type GroupDetailRoute = RouteProp<RootStackParamList, 'GroupDetail'>;
-type Tab = 'itinerary' | 'activity' | 'leaderboard' | 'members';
+type Tab = 'route' | 'activity' | 'members';
 
 function makeStyles(isDark: boolean) {
   const bg = isDark ? tokens.colors.darkBg : tokens.colors.surfaceTint;
@@ -70,7 +70,126 @@ function makeStyles(isDark: boolean) {
     backButton: { paddingVertical: 12 },
     backButtonText: { color: textMain, fontWeight: '600' },
 
-    // Header
+    // Hero
+    heroContainer: {
+      width: '100%',
+      height: 200,
+      position: 'relative',
+      overflow: 'hidden',
+    },
+    heroCoverImage: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    heroOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    heroFallback: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: tokens.colors.primary,
+    },
+    heroTopRow: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+    },
+    glassBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 999,
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.2)',
+    },
+    glassBtnIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.2)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroBtnRow: {
+      flexDirection: 'row',
+      gap: 8,
+    },
+    glassBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+    heroBottomRow: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+    },
+    heroNameWrap: { flex: 1, marginRight: 12 },
+    heroName: { fontSize: 20, fontWeight: '700', color: '#fff', lineHeight: 26 },
+    heroMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginTop: 4,
+      flexWrap: 'wrap',
+    },
+    heroMetaText: { fontSize: 12, color: 'rgba(255,255,255,0.8)' },
+    progressWrap: { alignItems: 'center' },
+    progressPct: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#fff',
+      position: 'absolute',
+      alignSelf: 'center',
+    },
+    progressLabel: { fontSize: 10, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+
+    // Description strip
+    descriptionStrip: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingTop: 10,
+      paddingBottom: 4,
+    },
+    descriptionText: { flex: 1, fontSize: 13, color: textSecondary },
+    mapBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: tokens.colors.primary,
+    },
+    mapBtnText: { fontSize: 12, fontWeight: '600', color: tokens.colors.primary },
+
+    // Header (fallback when no cover image)
     headerWrap: { paddingHorizontal: 20, paddingBottom: 12 },
     headerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
     backBtn: {
@@ -95,7 +214,6 @@ function makeStyles(isDark: boolean) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    coverImage: { width: '100%', height: 140, borderRadius: 16, marginBottom: 12 },
     groupName: { fontSize: 22, fontWeight: '700', color: textMain, marginBottom: 4 },
     groupMeta: {
       flexDirection: 'row',
@@ -107,31 +225,36 @@ function makeStyles(isDark: boolean) {
     metaText: { fontSize: 13, color: textMuted },
     description: { fontSize: 14, color: textSecondary, marginTop: 4 },
 
-    // Tab bar
+    // Tab bar (pill style with underline indicator)
     tabBar: {
       flexDirection: 'row',
       paddingHorizontal: 12,
-      paddingVertical: 4,
+      paddingTop: 8,
+      paddingBottom: 0,
       gap: 4,
     },
     tab: {
       flex: 1,
-      paddingVertical: 10,
+      flexDirection: 'row',
       alignItems: 'center',
-      borderRadius: 10,
       justifyContent: 'center',
+      gap: 4,
+      paddingVertical: 9,
+      borderRadius: 10,
     },
     tabActive: {
-      backgroundColor: isDark ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.08)',
+      backgroundColor: isDark ? 'rgba(176,86,61,0.15)' : 'rgba(176,86,61,0.08)',
     },
-    tabDivider: { height: 1, backgroundColor: border },
+    tabText: { fontSize: 12, fontWeight: '600', color: textMuted },
+    tabTextActive: { color: tokens.colors.primary },
+    tabDivider: { height: 1, backgroundColor: border, marginTop: 4 },
 
     // Tab content
-    tabContent: { paddingHorizontal: 20, paddingBottom: 32 },
+    tabContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 120 },
 
     // Progress bars
-    progressSection: { marginTop: 16, marginBottom: 20 },
-    progressLabel: { fontSize: 13, fontWeight: '600', color: textSecondary, marginBottom: 6 },
+    progressSection: { marginBottom: 20 },
+    progressBarLabel: { fontSize: 13, fontWeight: '600', color: textSecondary, marginBottom: 6 },
     progressRow: { marginBottom: 10 },
     progressTrack: {
       height: 8,
@@ -143,60 +266,89 @@ function makeStyles(isDark: boolean) {
     progressFillPersonal: { backgroundColor: '#34d399' },
     progressStat: { fontSize: 12, color: textMuted, marginTop: 3 },
 
-    // Place item
-    placeItem: {
+    // Timeline itinerary
+    timelineList: {},
+    timelineRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginBottom: 10,
+    },
+    timelineLeft: {
+      width: 32,
+      alignItems: 'center',
+    },
+    timelineBadge: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      zIndex: 1,
+    },
+    timelineBadgeVisited: {
+      backgroundColor: tokens.colors.openNow,
+      borderColor: tokens.colors.openNow,
+    },
+    timelineBadgeUnvisited: {
+      backgroundColor: surface,
+      borderColor: tokens.colors.primary,
+    },
+    timelineBadgeNumber: { fontSize: 12, fontWeight: '700', color: tokens.colors.primary },
+    timelineLine: {
+      flex: 1,
+      width: 2,
+      backgroundColor: border,
+      marginTop: 2,
+      alignSelf: 'center',
+      minHeight: 12,
+    },
+    timelineCard: {
+      flex: 1,
       borderWidth: 1,
       borderColor: border,
       borderRadius: 14,
       backgroundColor: surface,
-      marginBottom: 10,
       overflow: 'hidden',
+      marginBottom: 2,
     },
     placeHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 12,
+      padding: 10,
       gap: 10,
     },
-    placeIndicator: {
-      flexShrink: 0,
-      alignItems: 'center',
-      gap: 2,
+    placeThumb: {
+      width: 44,
+      height: 44,
+      borderRadius: 8,
+      backgroundColor: border,
     },
-    placeIndex: { fontSize: 10, fontWeight: '700', color: textMuted },
-    checkCircle: {
-      width: 22,
-      height: 22,
-      borderRadius: 11,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    checkCircleChecked: { backgroundColor: tokens.colors.openNow },
-    checkCirclePartial: {
-      backgroundColor: isDark ? tokens.colors.primaryAlphaDark : tokens.colors.primaryAlpha,
-    },
-    checkCircleEmpty: {
-      backgroundColor: isDark ? tokens.colors.darkBorder : tokens.colors.silverLight,
-    },
-    placeThumb: { width: 44, height: 44, borderRadius: 8, backgroundColor: border },
     placeInfo: { flex: 1, minWidth: 0 },
-    placeName: { fontSize: 14, fontWeight: '600', color: textMain },
-    placeSubtext: { fontSize: 12, color: textMuted, marginTop: 2 },
+    placeName: { fontSize: 13, fontWeight: '600', color: textMain },
+    placeSubtext: { fontSize: 11, color: textMuted, marginTop: 2 },
     placeAvatarRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 4 },
     placeAvatarChip: {
-      width: 18,
-      height: 18,
-      borderRadius: 9,
+      width: 16,
+      height: 16,
+      borderRadius: 8,
       backgroundColor: isDark ? tokens.colors.primaryAlphaDark : tokens.colors.softBlue,
       alignItems: 'center',
       justifyContent: 'center',
-      marginLeft: -4,
+      marginLeft: -3,
     },
-    placeAvatarInitial: { fontSize: 8, fontWeight: '700', color: tokens.colors.primary },
-    placeCheckedCount: { fontSize: 10, color: textMuted, marginLeft: 4 },
-    placeExpanded: { paddingHorizontal: 12, paddingBottom: 12 },
-    divider: { height: 1, backgroundColor: border, marginBottom: 12 },
-    actionRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+    placeAvatarInitial: { fontSize: 7, fontWeight: '700', color: tokens.colors.primary },
+    placeCheckedCount: { fontSize: 9, color: textMuted, marginLeft: 4 },
+    checkInInlineBtn: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 8,
+      backgroundColor: tokens.colors.primary,
+    },
+    checkInInlineBtnText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+    placeExpanded: { paddingHorizontal: 10, paddingBottom: 10 },
+    divider: { height: 1, backgroundColor: border, marginBottom: 10 },
+    actionRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
     detailsBtn: {
       flex: 1,
       paddingVertical: 10,
@@ -205,7 +357,7 @@ function makeStyles(isDark: boolean) {
       borderWidth: 1,
       borderColor: tokens.colors.primary,
     },
-    detailsBtnText: { color: tokens.colors.primary, fontWeight: '600', fontSize: 14 },
+    detailsBtnText: { color: tokens.colors.primary, fontWeight: '600', fontSize: 13 },
     checkInBtn: {
       flex: 1,
       backgroundColor: tokens.colors.primary,
@@ -213,17 +365,17 @@ function makeStyles(isDark: boolean) {
       paddingVertical: 10,
       alignItems: 'center',
     },
-    checkInBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+    checkInBtnText: { color: '#fff', fontWeight: '600', fontSize: 13 },
     alreadyCheckedBtn: {
       backgroundColor: isDark ? '#1a3a2a' : '#dcfce7',
       borderRadius: 10,
       paddingVertical: 10,
       alignItems: 'center',
-      marginBottom: 12,
+      marginBottom: 10,
     },
-    alreadyCheckedText: { color: '#16a34a', fontWeight: '600', fontSize: 14 },
-    checkedByTitle: { fontSize: 12, fontWeight: '600', color: textMuted, marginBottom: 6 },
-    checkedByRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+    alreadyCheckedText: { color: '#16a34a', fontWeight: '600', fontSize: 13 },
+    checkedByTitle: { fontSize: 11, fontWeight: '600', color: textMuted, marginBottom: 6 },
+    checkedByRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
     avatarChip: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -234,19 +386,19 @@ function makeStyles(isDark: boolean) {
       borderRadius: 20,
     },
     avatarCircle: {
-      width: 22,
-      height: 22,
-      borderRadius: 11,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
       backgroundColor: tokens.colors.softBlue,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    avatarInitial: { fontSize: 10, fontWeight: '700', color: tokens.colors.primary },
-    avatarName: { fontSize: 12, color: textMain },
+    avatarInitial: { fontSize: 9, fontWeight: '700', color: tokens.colors.primary },
+    avatarName: { fontSize: 11, color: textMain },
 
     // Notes
     notesSection: {},
-    notesTitle: { fontSize: 12, fontWeight: '600', color: textMuted, marginBottom: 8 },
+    notesTitle: { fontSize: 11, fontWeight: '600', color: textMuted, marginBottom: 8 },
     noteItem: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -257,8 +409,8 @@ function makeStyles(isDark: boolean) {
       borderBottomColor: border,
     },
     noteContent: { flex: 1, minWidth: 0 },
-    noteAuthor: { fontSize: 12, fontWeight: '600', color: textMain, marginBottom: 2 },
-    noteText: { fontSize: 13, color: textSecondary },
+    noteAuthor: { fontSize: 11, fontWeight: '600', color: textMain, marginBottom: 2 },
+    noteText: { fontSize: 12, color: textSecondary },
     noteDeleteBtn: { padding: 2 },
     noteInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
     noteInput: {
@@ -268,15 +420,15 @@ function makeStyles(isDark: boolean) {
       borderRadius: 20,
       paddingHorizontal: 14,
       paddingVertical: 8,
-      fontSize: 13,
+      fontSize: 12,
       color: textMain,
       backgroundColor: bg,
-      height: 40,
+      height: 38,
     },
     noteAddBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
       backgroundColor: tokens.colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
@@ -475,7 +627,93 @@ function makeStyles(isDark: boolean) {
       marginBottom: 12,
       marginTop: 4,
     },
+
+    // Glass contextual bottom bar
+    glassBar: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+    },
+    glassBarInner: {
+      flexDirection: 'row',
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderRadius: 20,
+      backgroundColor: isDark ? 'rgba(36,36,36,0.88)' : 'rgba(255,255,255,0.88)',
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.5)',
+      // shadow
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 8,
+    },
+    glassBarBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 11,
+      borderRadius: 12,
+      backgroundColor: tokens.colors.primary,
+    },
+    glassBarBtnOutline: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: 11,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: tokens.colors.primary,
+      backgroundColor: 'transparent',
+    },
+    glassBarBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+    glassBarBtnTextOutline: { color: tokens.colors.primary, fontSize: 13, fontWeight: '700' },
   });
+}
+
+// Simple circular progress ring using SVG-free approach (two arcs via border)
+function CircularProgress({ pct, size = 56 }: { pct: number; size?: number }) {
+  // We'll just render a text-based badge since RN doesn't support SVG natively without a package
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        borderWidth: 3,
+        borderColor: 'rgba(255,255,255,0.3)',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          borderRadius: size / 2,
+          borderWidth: 3,
+          borderColor: '#fff',
+          borderTopColor: pct >= 25 ? '#fff' : 'transparent',
+          borderRightColor: pct >= 50 ? '#fff' : 'transparent',
+          borderBottomColor: pct >= 75 ? '#fff' : 'transparent',
+          borderLeftColor: pct >= 100 ? '#fff' : 'transparent',
+        }}
+      />
+      <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{pct}%</Text>
+    </View>
+  );
 }
 
 export default function GroupDetailScreen() {
@@ -489,7 +727,7 @@ export default function GroupDetailScreen() {
   const { showSuccess, showError } = useFeedback();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
-  const [activeTab, setActiveTab] = useState<Tab>('itinerary');
+  const [activeTab, setActiveTab] = useState<Tab>('route');
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -562,7 +800,7 @@ export default function GroupDetailScreen() {
   }, [fetchData]);
 
   useEffect(() => {
-    if (activeTab === 'itinerary' && checklist === null && !checklistLoading) {
+    if (activeTab === 'route' && checklist === null && !checklistLoading) {
       fetchChecklist();
     }
   }, [activeTab, checklist, checklistLoading, fetchChecklist]);
@@ -692,6 +930,17 @@ export default function GroupDetailScreen() {
   const restLeaderboard = leaderboard.slice(3);
   const displayLeaderboard = showFullLeaderboard ? leaderboard : restLeaderboard;
 
+  // Compute progress percentage
+  const pct = useMemo(() => {
+    if (group && (group.total_sites ?? 0) > 0) {
+      return Math.round(((group.sites_visited ?? 0) / (group.total_sites ?? 1)) * 100);
+    }
+    if (checklist && checklist.total_places > 0) {
+      return checklist.group_progress;
+    }
+    return 0;
+  }, [group, checklist]);
+
   if (!groupCode) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top }]}>
@@ -728,10 +977,9 @@ export default function GroupDetailScreen() {
     );
   }
 
-  const TABS: { key: Tab; label: string; icon: string }[] = [
-    { key: 'itinerary', label: t('groups.itinerary'), icon: 'route' },
+  const TABS: { key: Tab; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
+    { key: 'route', label: t('groups.itinerary'), icon: 'route' },
     { key: 'activity', label: t('groups.recentlyVisited'), icon: 'history' },
-    { key: 'leaderboard', label: t('groups.leaderboard'), icon: 'emoji-events' },
     { key: 'members', label: t('groups.membersTab'), icon: 'group' },
   ];
 
@@ -742,7 +990,7 @@ export default function GroupDetailScreen() {
     >
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
@@ -753,62 +1001,83 @@ export default function GroupDetailScreen() {
           />
         }
       >
-        {/* Header */}
-        <View style={[styles.headerWrap, { paddingTop: insets.top + 12 }]}>
-          <View style={styles.headerRow}>
+        {/* ── HERO SECTION ── */}
+        <View style={[styles.heroContainer, { height: 200 + insets.top }]}>
+          {group.cover_image_url ? (
+            <>
+              <ExpoImage
+                source={{ uri: getFullImageUrl(group.cover_image_url) }}
+                style={[styles.heroCoverImage, { top: 0, height: 200 + insets.top }]}
+                contentFit="cover"
+              />
+              <View style={[styles.heroOverlay, { top: 0, height: 200 + insets.top }]} />
+            </>
+          ) : (
+            <View style={[styles.heroFallback, { top: 0, height: 200 + insets.top }]} />
+          )}
+
+          {/* Top row: back + action buttons */}
+          <View style={[styles.heroTopRow, { paddingTop: insets.top + 12 }]}>
             <TouchableOpacity
-              style={styles.backBtn}
+              style={styles.glassBtn}
               onPress={() => navigation.goBack()}
               activeOpacity={0.8}
             >
-              <MaterialIcons
-                name="arrow-back"
-                size={20}
-                color={isDark ? '#fff' : tokens.colors.textDark}
-              />
+              <MaterialIcons name="arrow-back" size={16} color="#fff" />
+              <Text style={styles.glassBtnText}>{t('common.back')}</Text>
             </TouchableOpacity>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {group.name}
-            </Text>
-            <View style={styles.headerActions}>
+            <View style={styles.heroBtnRow}>
               {isAdmin ? (
                 <TouchableOpacity
-                  style={styles.headerIconBtn}
+                  style={styles.glassBtnIcon}
                   onPress={() => navigation.navigate('EditGroup', { groupCode })}
                   activeOpacity={0.8}
                 >
-                  <MaterialIcons
-                    name="settings"
-                    size={18}
-                    color={isDark ? '#fff' : tokens.colors.textDark}
-                  />
+                  <MaterialIcons name="settings" size={17} color="#fff" />
                 </TouchableOpacity>
               ) : null}
+              <TouchableOpacity
+                style={styles.glassBtnIcon}
+                onPress={() => shareUrl(group.name, inviteUrl || '')}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="share" size={17} color="#fff" />
+              </TouchableOpacity>
             </View>
           </View>
 
-          {group.cover_image_url ? (
-            <ExpoImage
-              source={{ uri: getFullImageUrl(group.cover_image_url) }}
-              style={styles.coverImage}
-              contentFit="cover"
-            />
-          ) : null}
-
-          <View style={styles.groupMeta}>
-            <Text style={styles.metaText}>
-              {group.member_count ?? members.length} {t('groups.members')}
-            </Text>
-            {group.start_date && group.end_date ? (
-              <Text style={styles.metaText}>
-                {group.start_date} – {group.end_date}
+          {/* Bottom row: journey name + progress ring */}
+          <View style={[styles.heroBottomRow]}>
+            <View style={styles.heroNameWrap}>
+              <Text style={styles.heroName} numberOfLines={2}>
+                {group.name}
               </Text>
-            ) : null}
+              <View style={styles.heroMeta}>
+                <Text style={styles.heroMetaText}>
+                  {group.member_count ?? members.length} {t('groups.members')}
+                </Text>
+                {group.start_date && group.end_date ? (
+                  <Text style={styles.heroMetaText}>
+                    {group.start_date} – {group.end_date}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+            <View style={styles.progressWrap}>
+              <CircularProgress pct={pct} size={52} />
+              <Text style={styles.progressLabel}>{t('groups.groupProgress')}</Text>
+            </View>
           </View>
-          {group.description ? <Text style={styles.description}>{group.description}</Text> : null}
         </View>
 
-        {/* Tab bar */}
+        {/* Description + map button */}
+        {(group.description ?? false) ? (
+          <View style={styles.descriptionStrip}>
+            <Text style={styles.descriptionText}>{group.description}</Text>
+          </View>
+        ) : null}
+
+        {/* ── TAB BAR ── */}
         <View style={styles.tabBar}>
           {TABS.map((tab) => (
             <TouchableOpacity
@@ -818,8 +1087,8 @@ export default function GroupDetailScreen() {
               activeOpacity={0.8}
             >
               <MaterialIcons
-                name={tab.icon as any}
-                size={18}
+                name={tab.icon}
+                size={16}
                 color={
                   activeTab === tab.key
                     ? tokens.colors.primary
@@ -828,15 +1097,21 @@ export default function GroupDetailScreen() {
                       : tokens.colors.textMuted
                 }
               />
+              <Text
+                style={[styles.tabText, activeTab === tab.key && styles.tabTextActive]}
+                numberOfLines={1}
+              >
+                {tab.label}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
         <View style={styles.tabDivider} />
 
-        {/* Tab Content */}
+        {/* ── TAB CONTENT ── */}
         <View style={styles.tabContent}>
-          {/* ── ITINERARY TAB ── */}
-          {activeTab === 'itinerary' && (
+          {/* ROUTE TAB */}
+          {activeTab === 'route' && (
             <>
               {checklistLoading ? (
                 <ActivityIndicator color={tokens.colors.primary} style={{ marginTop: 40 }} />
@@ -845,7 +1120,7 @@ export default function GroupDetailScreen() {
                   {/* Progress bars */}
                   <View style={styles.progressSection}>
                     <View style={styles.progressRow}>
-                      <Text style={styles.progressLabel}>{t('groups.groupProgress')}</Text>
+                      <Text style={styles.progressBarLabel}>{t('groups.groupProgress')}</Text>
                       <View style={styles.progressTrack}>
                         <View
                           style={[styles.progressFill, { width: `${checklist.group_progress}%` }]}
@@ -856,7 +1131,7 @@ export default function GroupDetailScreen() {
                       </Text>
                     </View>
                     <View style={styles.progressRow}>
-                      <Text style={styles.progressLabel}>{t('groups.yourProgress')}</Text>
+                      <Text style={styles.progressBarLabel}>{t('groups.yourProgress')}</Text>
                       <View style={styles.progressTrack}>
                         <View
                           style={[
@@ -872,107 +1147,80 @@ export default function GroupDetailScreen() {
                     </View>
                   </View>
 
-                  {/* Place list */}
-                  {checklist.places.map((place, idx) => {
-                    const isExpanded = expandedPlaceCode === place.place_code;
-                    return (
-                      <View key={place.place_code} style={styles.placeItem}>
-                        <TouchableOpacity
-                          style={styles.placeHeader}
-                          onPress={() => setExpandedPlaceCode(isExpanded ? null : place.place_code)}
-                          activeOpacity={0.8}
-                        >
-                          {/* Number + check circle */}
-                          <View style={styles.placeIndicator}>
-                            <Text style={styles.placeIndex}>{idx + 1}</Text>
+                  {/* Timeline place list */}
+                  <View style={styles.timelineList}>
+                    {checklist.places.map((place, idx) => {
+                      const isExpanded = expandedPlaceCode === place.place_code;
+                      const isLast = idx === checklist.places.length - 1;
+                      return (
+                        <View key={place.place_code} style={styles.timelineRow}>
+                          {/* Left: badge + connecting line */}
+                          <View style={styles.timelineLeft}>
                             <View
                               style={[
-                                styles.checkCircle,
+                                styles.timelineBadge,
                                 place.user_checked_in
-                                  ? styles.checkCircleChecked
-                                  : place.check_in_count > 0
-                                    ? styles.checkCirclePartial
-                                    : styles.checkCircleEmpty,
+                                  ? styles.timelineBadgeVisited
+                                  : styles.timelineBadgeUnvisited,
                               ]}
                             >
-                              <MaterialIcons
-                                name={place.user_checked_in ? 'check' : 'radio-button-unchecked'}
-                                size={12}
-                                color={
-                                  place.user_checked_in
-                                    ? '#fff'
-                                    : isDark
-                                      ? tokens.colors.darkTextSecondary
-                                      : tokens.colors.textMuted
-                                }
-                              />
+                              {place.user_checked_in ? (
+                                <MaterialIcons name="check" size={14} color="#fff" />
+                              ) : (
+                                <Text style={styles.timelineBadgeNumber}>{idx + 1}</Text>
+                              )}
                             </View>
+                            {!isLast && <View style={styles.timelineLine} />}
                           </View>
 
-                          {/* Thumbnail */}
-                          {place.image_url ? (
-                            <ExpoImage
-                              source={{ uri: getFullImageUrl(place.image_url) }}
-                              style={styles.placeThumb}
-                              contentFit="cover"
-                            />
-                          ) : null}
+                          {/* Right: place card */}
+                          <View style={styles.timelineCard}>
+                            <TouchableOpacity
+                              style={styles.placeHeader}
+                              onPress={() =>
+                                setExpandedPlaceCode(isExpanded ? null : place.place_code)
+                              }
+                              activeOpacity={0.8}
+                            >
+                              {/* Thumbnail */}
+                              {place.image_url ? (
+                                <ExpoImage
+                                  source={{ uri: getFullImageUrl(place.image_url) }}
+                                  style={styles.placeThumb}
+                                  contentFit="cover"
+                                />
+                              ) : null}
 
-                          {/* Info */}
-                          <View style={styles.placeInfo}>
-                            <Text style={styles.placeName} numberOfLines={1}>
-                              {place.name}
-                            </Text>
-                            {place.address ? (
-                              <Text style={styles.placeSubtext} numberOfLines={1}>
-                                {place.address}
-                              </Text>
-                            ) : null}
-                            {place.check_in_count > 0 && (
-                              <View style={styles.placeAvatarRow}>
-                                {place.checked_in_by.slice(0, 3).map((ci) => (
-                                  <View key={ci.user_code} style={styles.placeAvatarChip}>
-                                    <Text style={styles.placeAvatarInitial}>
-                                      {ci.display_name.charAt(0)}
+                              {/* Info */}
+                              <View style={styles.placeInfo}>
+                                <Text style={styles.placeName} numberOfLines={1}>
+                                  {place.name}
+                                </Text>
+                                {place.address ? (
+                                  <Text style={styles.placeSubtext} numberOfLines={1}>
+                                    {place.address}
+                                  </Text>
+                                ) : null}
+                                {place.check_in_count > 0 && (
+                                  <View style={styles.placeAvatarRow}>
+                                    {place.checked_in_by.slice(0, 3).map((ci) => (
+                                      <View key={ci.user_code} style={styles.placeAvatarChip}>
+                                        <Text style={styles.placeAvatarInitial}>
+                                          {ci.display_name.charAt(0)}
+                                        </Text>
+                                      </View>
+                                    ))}
+                                    <Text style={styles.placeCheckedCount}>
+                                      {place.check_in_count} {t('groups.checkedIn')}
                                     </Text>
                                   </View>
-                                ))}
-                                <Text style={styles.placeCheckedCount}>
-                                  {place.check_in_count} {t('groups.checkedIn')}
-                                </Text>
+                                )}
                               </View>
-                            )}
-                          </View>
 
-                          <MaterialIcons
-                            name={isExpanded ? 'expand-less' : 'expand-more'}
-                            size={20}
-                            color={
-                              isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted
-                            }
-                          />
-                        </TouchableOpacity>
-
-                        {isExpanded && (
-                          <View style={styles.placeExpanded}>
-                            <View style={styles.divider} />
-
-                            {/* Action buttons */}
-                            <View style={styles.actionRow}>
-                              <TouchableOpacity
-                                style={styles.detailsBtn}
-                                onPress={() =>
-                                  navigation.navigate('PlaceDetail', {
-                                    placeCode: place.place_code,
-                                  })
-                                }
-                                activeOpacity={0.8}
-                              >
-                                <Text style={styles.detailsBtnText}>{t('home.details')}</Text>
-                              </TouchableOpacity>
-                              {!place.user_checked_in && (
+                              {/* Inline check-in button */}
+                              {!place.user_checked_in ? (
                                 <TouchableOpacity
-                                  style={styles.checkInBtn}
+                                  style={styles.checkInInlineBtn}
                                   onPress={() =>
                                     setCheckInSheet({
                                       visible: true,
@@ -982,94 +1230,145 @@ export default function GroupDetailScreen() {
                                   }
                                   activeOpacity={0.8}
                                 >
-                                  <Text style={styles.checkInBtnText}>{t('groups.checkIn')}</Text>
+                                  <Text style={styles.checkInInlineBtnText}>
+                                    {t('groups.checkIn')}
+                                  </Text>
                                 </TouchableOpacity>
-                              )}
-                            </View>
-                            {place.user_checked_in && (
-                              <View style={styles.alreadyCheckedBtn}>
-                                <Text style={styles.alreadyCheckedText}>
-                                  ✓ {t('groups.checkedIn')}
-                                </Text>
-                              </View>
-                            )}
+                              ) : null}
 
-                            {/* Who checked in */}
-                            {place.checked_in_by.length > 0 && (
-                              <>
-                                <Text style={styles.checkedByTitle}>
-                                  {t('groups.checkedIn')} ({place.checked_in_by.length})
-                                </Text>
-                                <View style={styles.checkedByRow}>
-                                  {place.checked_in_by.map((ci) => (
-                                    <View key={ci.user_code} style={styles.avatarChip}>
-                                      <View style={styles.avatarCircle}>
-                                        <Text style={styles.avatarInitial}>
-                                          {(ci.display_name || '?').charAt(0)}
-                                        </Text>
-                                      </View>
-                                      <Text style={styles.avatarName} numberOfLines={1}>
-                                        {ci.display_name}
-                                      </Text>
-                                    </View>
-                                  ))}
-                                </View>
-                              </>
-                            )}
+                              <MaterialIcons
+                                name={isExpanded ? 'expand-less' : 'expand-more'}
+                                size={20}
+                                color={
+                                  isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted
+                                }
+                              />
+                            </TouchableOpacity>
 
-                            {/* Notes */}
-                            <View style={styles.notesSection}>
-                              <Text style={styles.notesTitle}>{t('groups.notes')}</Text>
-                              {place.notes.map((note) => (
-                                <View key={note.note_code} style={styles.noteItem}>
-                                  <View style={styles.noteContent}>
-                                    <Text style={styles.noteAuthor}>
-                                      {note.display_name ?? note.user_code}
-                                    </Text>
-                                    <Text style={styles.noteText}>{note.text}</Text>
-                                  </View>
-                                  {(isAdmin || note.user_code === user?.user_code) && (
+                            {isExpanded && (
+                              <View style={styles.placeExpanded}>
+                                <View style={styles.divider} />
+
+                                {/* Action buttons */}
+                                <View style={styles.actionRow}>
+                                  <TouchableOpacity
+                                    style={styles.detailsBtn}
+                                    onPress={() =>
+                                      navigation.navigate('PlaceDetail', {
+                                        placeCode: place.place_code,
+                                      })
+                                    }
+                                    activeOpacity={0.8}
+                                  >
+                                    <Text style={styles.detailsBtnText}>{t('home.details')}</Text>
+                                  </TouchableOpacity>
+                                  {!place.user_checked_in && (
                                     <TouchableOpacity
-                                      style={styles.noteDeleteBtn}
-                                      onPress={() => handleDeleteNote(note.note_code)}
+                                      style={styles.checkInBtn}
+                                      onPress={() =>
+                                        setCheckInSheet({
+                                          visible: true,
+                                          placeCode: place.place_code,
+                                          placeName: place.name,
+                                        })
+                                      }
+                                      activeOpacity={0.8}
                                     >
-                                      <MaterialIcons name="close" size={16} color="#ef4444" />
+                                      <Text style={styles.checkInBtnText}>
+                                        {t('groups.checkIn')}
+                                      </Text>
                                     </TouchableOpacity>
                                   )}
                                 </View>
-                              ))}
-                              <View style={styles.noteInputRow}>
-                                <TextInput
-                                  style={styles.noteInput}
-                                  value={noteInputs[place.place_code] ?? ''}
-                                  onChangeText={(v) =>
-                                    setNoteInputs((prev) => ({ ...prev, [place.place_code]: v }))
-                                  }
-                                  placeholder={t('groups.notePlaceholder')}
-                                  placeholderTextColor={
-                                    isDark
-                                      ? tokens.colors.darkTextSecondary
-                                      : tokens.colors.textMuted
-                                  }
-                                />
-                                <TouchableOpacity
-                                  style={styles.noteAddBtn}
-                                  onPress={() => handleAddNote(place.place_code)}
-                                  disabled={submittingNote === place.place_code}
-                                >
-                                  {submittingNote === place.place_code ? (
-                                    <ActivityIndicator color="#fff" size="small" />
-                                  ) : (
-                                    <MaterialIcons name="send" size={18} color="#fff" />
-                                  )}
-                                </TouchableOpacity>
+                                {place.user_checked_in && (
+                                  <View style={styles.alreadyCheckedBtn}>
+                                    <Text style={styles.alreadyCheckedText}>
+                                      ✓ {t('groups.checkedIn')}
+                                    </Text>
+                                  </View>
+                                )}
+
+                                {/* Who checked in */}
+                                {place.checked_in_by.length > 0 && (
+                                  <>
+                                    <Text style={styles.checkedByTitle}>
+                                      {t('groups.checkedIn')} ({place.checked_in_by.length})
+                                    </Text>
+                                    <View style={styles.checkedByRow}>
+                                      {place.checked_in_by.map((ci) => (
+                                        <View key={ci.user_code} style={styles.avatarChip}>
+                                          <View style={styles.avatarCircle}>
+                                            <Text style={styles.avatarInitial}>
+                                              {(ci.display_name || '?').charAt(0)}
+                                            </Text>
+                                          </View>
+                                          <Text style={styles.avatarName} numberOfLines={1}>
+                                            {ci.display_name}
+                                          </Text>
+                                        </View>
+                                      ))}
+                                    </View>
+                                  </>
+                                )}
+
+                                {/* Notes */}
+                                <View style={styles.notesSection}>
+                                  <Text style={styles.notesTitle}>{t('groups.notes')}</Text>
+                                  {place.notes.map((note) => (
+                                    <View key={note.note_code} style={styles.noteItem}>
+                                      <View style={styles.noteContent}>
+                                        <Text style={styles.noteAuthor}>
+                                          {note.display_name ?? note.user_code}
+                                        </Text>
+                                        <Text style={styles.noteText}>{note.text}</Text>
+                                      </View>
+                                      {(isAdmin || note.user_code === user?.user_code) && (
+                                        <TouchableOpacity
+                                          style={styles.noteDeleteBtn}
+                                          onPress={() => handleDeleteNote(note.note_code)}
+                                        >
+                                          <MaterialIcons name="close" size={16} color="#ef4444" />
+                                        </TouchableOpacity>
+                                      )}
+                                    </View>
+                                  ))}
+                                  <View style={styles.noteInputRow}>
+                                    <TextInput
+                                      style={styles.noteInput}
+                                      value={noteInputs[place.place_code] ?? ''}
+                                      onChangeText={(v) =>
+                                        setNoteInputs((prev) => ({
+                                          ...prev,
+                                          [place.place_code]: v,
+                                        }))
+                                      }
+                                      placeholder={t('groups.notePlaceholder')}
+                                      placeholderTextColor={
+                                        isDark
+                                          ? tokens.colors.darkTextSecondary
+                                          : tokens.colors.textMuted
+                                      }
+                                    />
+                                    <TouchableOpacity
+                                      style={styles.noteAddBtn}
+                                      onPress={() => handleAddNote(place.place_code)}
+                                      disabled={submittingNote === place.place_code}
+                                    >
+                                      {submittingNote === place.place_code ? (
+                                        <ActivityIndicator color="#fff" size="small" />
+                                      ) : (
+                                        <MaterialIcons name="send" size={16} color="#fff" />
+                                      )}
+                                    </TouchableOpacity>
+                                  </View>
+                                </View>
                               </View>
-                            </View>
+                            )}
                           </View>
-                        )}
-                      </View>
-                    );
-                  })}
+                        </View>
+                      );
+                    })}
+                  </View>
                 </>
               ) : (
                 <View style={styles.emptyWrap}>
@@ -1087,7 +1386,7 @@ export default function GroupDetailScreen() {
             </>
           )}
 
-          {/* ── ACTIVITY TAB ── */}
+          {/* ACTIVITY TAB */}
           {activeTab === 'activity' && (
             <>
               {activity.length === 0 ? (
@@ -1095,7 +1394,7 @@ export default function GroupDetailScreen() {
                   {t('groups.noRecentActivity')}
                 </Text>
               ) : (
-                <View style={[styles.activityList, { marginTop: 16 }]}>
+                <View style={[styles.activityList, { marginTop: 8 }]}>
                   {activity.map((item, i) => (
                     <TouchableOpacity
                       key={`${item.user_code}-${item.place_code}-${i}`}
@@ -1129,108 +1428,9 @@ export default function GroupDetailScreen() {
             </>
           )}
 
-          {/* ── LEADERBOARD TAB ── */}
-          {activeTab === 'leaderboard' && (
-            <>
-              {topThree.length > 0 ? (
-                <View style={[styles.podium, { marginTop: 16 }]}>
-                  {topThree[1] ? (
-                    <View style={styles.podiumItem}>
-                      <View style={[styles.avatar, styles.avatar2]}>
-                        <Text style={styles.avatarText}>
-                          {(topThree[1].display_name || '?').charAt(0)}
-                        </Text>
-                      </View>
-                      <Text style={styles.podiumName} numberOfLines={1}>
-                        {topThree[1].display_name}
-                      </Text>
-                      <Text style={styles.podiumPlaces}>
-                        {topThree[1].places_visited} {t('groups.places')}
-                      </Text>
-                      <View style={[styles.rankBar, styles.rankBar2]}>
-                        <Text style={styles.rankNum}>2</Text>
-                      </View>
-                    </View>
-                  ) : null}
-                  {topThree[0] ? (
-                    <View style={styles.podiumItem}>
-                      <View style={[styles.avatar, styles.avatar1]}>
-                        <Text style={styles.avatarText}>
-                          {(topThree[0].display_name || '?').charAt(0)}
-                        </Text>
-                      </View>
-                      <Text style={styles.podiumName} numberOfLines={1}>
-                        {topThree[0].display_name}
-                      </Text>
-                      <Text style={styles.podiumPlaces}>
-                        {topThree[0].places_visited} {t('groups.places')}
-                      </Text>
-                      <View style={[styles.rankBar, styles.rankBar1]}>
-                        <Text style={styles.rankNum1}>1</Text>
-                      </View>
-                    </View>
-                  ) : null}
-                  {topThree[2] ? (
-                    <View style={styles.podiumItem}>
-                      <View style={[styles.avatar, styles.avatar3]}>
-                        <Text style={styles.avatarText}>
-                          {(topThree[2].display_name || '?').charAt(0)}
-                        </Text>
-                      </View>
-                      <Text style={styles.podiumName} numberOfLines={1}>
-                        {topThree[2].display_name}
-                      </Text>
-                      <Text style={styles.podiumPlaces}>
-                        {topThree[2].places_visited} {t('groups.places')}
-                      </Text>
-                      <View style={[styles.rankBar, styles.rankBar3]}>
-                        <Text style={styles.rankNum}>3</Text>
-                      </View>
-                    </View>
-                  ) : null}
-                </View>
-              ) : null}
-              {leaderboard.length > 3 ? (
-                <TouchableOpacity
-                  onPress={() => setShowFullLeaderboard((v) => !v)}
-                  style={styles.viewFull}
-                >
-                  <Text style={styles.viewFullText}>
-                    {showFullLeaderboard ? t('groups.showLess') : t('groups.viewFullLeaderboard')}
-                  </Text>
-                </TouchableOpacity>
-              ) : null}
-              {displayLeaderboard.length > 0 ? (
-                <View style={styles.leaderList}>
-                  {displayLeaderboard.map((entry) => (
-                    <View key={entry.user_code} style={styles.leaderRow}>
-                      <Text style={styles.leaderRank}>#{entry.rank}</Text>
-                      <View style={styles.avatarSmall}>
-                        <Text style={styles.avatarSmallText}>
-                          {(entry.display_name || '?').charAt(0)}
-                        </Text>
-                      </View>
-                      <Text style={styles.leaderName} numberOfLines={1}>
-                        {entry.display_name}
-                      </Text>
-                      <Text style={styles.leaderPlaces}>
-                        {entry.places_visited} {t('groups.places')}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-              {leaderboard.length === 0 ? (
-                <Text style={[styles.muted, { marginTop: 24 }]}>
-                  {t('groups.noLeaderboardData')}
-                </Text>
-              ) : null}
-            </>
-          )}
-
-          {/* ── MEMBERS TAB ── */}
+          {/* MEMBERS TAB */}
           {activeTab === 'members' && (
-            <View style={{ marginTop: 16 }}>
+            <View style={{ marginTop: 8 }}>
               {members.map((member) => {
                 const isSelf = member.user_code === user?.user_code;
                 const isTargetCreator = member.is_creator;
@@ -1324,6 +1524,108 @@ export default function GroupDetailScreen() {
                   </View>
                 </View>
               ) : null}
+
+              {/* Leaderboard in members tab */}
+              {topThree.length > 0 ? (
+                <View
+                  style={{
+                    marginTop: 24,
+                    paddingTop: 16,
+                    borderTopWidth: 1,
+                    borderTopColor: isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder,
+                  }}
+                >
+                  <Text style={styles.sectionTitle}>{t('groups.leaderboard')}</Text>
+                  <View style={[styles.podium, { marginTop: 8 }]}>
+                    {topThree[1] ? (
+                      <View style={styles.podiumItem}>
+                        <View style={[styles.avatar, styles.avatar2]}>
+                          <Text style={styles.avatarText}>
+                            {(topThree[1].display_name || '?').charAt(0)}
+                          </Text>
+                        </View>
+                        <Text style={styles.podiumName} numberOfLines={1}>
+                          {topThree[1].display_name}
+                        </Text>
+                        <Text style={styles.podiumPlaces}>
+                          {topThree[1].places_visited} {t('groups.places')}
+                        </Text>
+                        <View style={[styles.rankBar, styles.rankBar2]}>
+                          <Text style={styles.rankNum}>2</Text>
+                        </View>
+                      </View>
+                    ) : null}
+                    {topThree[0] ? (
+                      <View style={styles.podiumItem}>
+                        <View style={[styles.avatar, styles.avatar1]}>
+                          <Text style={styles.avatarText}>
+                            {(topThree[0].display_name || '?').charAt(0)}
+                          </Text>
+                        </View>
+                        <Text style={styles.podiumName} numberOfLines={1}>
+                          {topThree[0].display_name}
+                        </Text>
+                        <Text style={styles.podiumPlaces}>
+                          {topThree[0].places_visited} {t('groups.places')}
+                        </Text>
+                        <View style={[styles.rankBar, styles.rankBar1]}>
+                          <Text style={styles.rankNum1}>1</Text>
+                        </View>
+                      </View>
+                    ) : null}
+                    {topThree[2] ? (
+                      <View style={styles.podiumItem}>
+                        <View style={[styles.avatar, styles.avatar3]}>
+                          <Text style={styles.avatarText}>
+                            {(topThree[2].display_name || '?').charAt(0)}
+                          </Text>
+                        </View>
+                        <Text style={styles.podiumName} numberOfLines={1}>
+                          {topThree[2].display_name}
+                        </Text>
+                        <Text style={styles.podiumPlaces}>
+                          {topThree[2].places_visited} {t('groups.places')}
+                        </Text>
+                        <View style={[styles.rankBar, styles.rankBar3]}>
+                          <Text style={styles.rankNum}>3</Text>
+                        </View>
+                      </View>
+                    ) : null}
+                  </View>
+                  {leaderboard.length > 3 ? (
+                    <TouchableOpacity
+                      onPress={() => setShowFullLeaderboard((v) => !v)}
+                      style={styles.viewFull}
+                    >
+                      <Text style={styles.viewFullText}>
+                        {showFullLeaderboard
+                          ? t('groups.showLess')
+                          : t('groups.viewFullLeaderboard')}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
+                  {displayLeaderboard.length > 0 ? (
+                    <View style={styles.leaderList}>
+                      {displayLeaderboard.map((entry) => (
+                        <View key={entry.user_code} style={styles.leaderRow}>
+                          <Text style={styles.leaderRank}>#{entry.rank}</Text>
+                          <View style={styles.avatarSmall}>
+                            <Text style={styles.avatarSmallText}>
+                              {(entry.display_name || '?').charAt(0)}
+                            </Text>
+                          </View>
+                          <Text style={styles.leaderName} numberOfLines={1}>
+                            {entry.display_name}
+                          </Text>
+                          <Text style={styles.leaderPlaces}>
+                            {entry.places_visited} {t('groups.places')}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
             </View>
           )}
 
@@ -1333,6 +1635,41 @@ export default function GroupDetailScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* ── GLASS CONTEXTUAL BOTTOM BAR ── */}
+      <View style={[styles.glassBar, { paddingBottom: insets.bottom + 12 }]}>
+        <View style={styles.glassBarInner}>
+          {isAdmin ? (
+            <>
+              <TouchableOpacity
+                style={styles.glassBarBtn}
+                onPress={() => navigation.navigate('EditGroup', { groupCode })}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="add-location" size={16} color="#fff" />
+                <Text style={styles.glassBarBtnText}>{t('groups.addPlace')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.glassBarBtnOutline}
+                onPress={() => shareUrl(group.name, inviteUrl || '')}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="share" size={16} color={tokens.colors.primary} />
+                <Text style={styles.glassBarBtnTextOutline}>{t('common.share')}</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
+              style={styles.glassBarBtn}
+              onPress={() => shareUrl(group.name, inviteUrl || '')}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="person-add" size={16} color="#fff" />
+              <Text style={styles.glassBarBtnText}>{t('journey.inviteFriends')}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
 
       {/* Check-in sheet */}
       <GroupCheckInSheet
