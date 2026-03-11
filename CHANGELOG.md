@@ -4,6 +4,29 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Web Phase 4 & 5 — Join Modal, Journeys Redesign, Journey Detail FAB + Map, Desktop Layout Overhaul (2026-03-12)
+
+### Frontend (web)
+
+**Phase 4 — Major Redesigns**
+
+- **`JoinJourneyModal.tsx`** (new) — Animated framer-motion bottom-sheet modal for joining a journey with an invite code: clipboard paste button, debounced 600ms preview fetch (`GET /api/v1/groups/by-invite/{code}`), preview card with journey name, states (idle → loading → preview → joining → success → error), success green checkmark with scale animation, redirect to group detail after 1.5s; dark mode compliant
+- **`Home.tsx`** — "Join with Code" quick action now opens `JoinJourneyModal` instead of navigating to `/join`; `QuickActionsGrid` accepts `onJoinClick` prop; modal rendered via React fragment
+- **`Groups.tsx`** — Full redesign: section header with journey count badge and "Join" button that opens `JoinJourneyModal`; horizontal stats bar (sites visited, journey count, active streak/completed); filter tabs (All / Active / Completed) with counts; journey cards now show full cover image with gradient overlay, progress bar animated with framer-motion stagger (index × 50ms delay), active/done badges on image, member count chip, "Continue →" CTA; desktop: `lg:grid lg:grid-cols-3 lg:gap-6`
+- **`GroupDetail.tsx`** — Removed both bottom action bars (glass bar at z-40 and glass bar at z-[600]); added floating "Add Place" FAB (`fixed bottom-6 right-6 z-50`, framer-motion scale animation, admin/creator only); share and invite buttons moved to hero header area (icon buttons alongside back/settings); check-in UX upgraded: inline button shows green animated checkmark on success, `checkInSuccess` state; duplicate check-in button in expanded section replaced with "checked in" status indicator; place cards have scroll-target `id`s for map marker click highlighting
+- **`JourneyMapView.tsx`** (new) — Vanilla Leaflet map component (same pattern as PlacesMap.tsx, avoids react-leaflet strict-mode bug) showing only the journey's places as markers; auto-fits bounds on mount; blue markers for unchecked, green for checked-in; marker click fires `onPlaceSelect(placeCode)` which scrolls to and expands the corresponding place card; props: `places`, `onPlaceSelect`, `className`
+- **`GroupDetail.tsx`** — Desktop 2-column layout: `lg:grid lg:grid-cols-5 lg:gap-8`; left (3/5): route/itinerary + tabs; right (2/5 sticky): `JourneyMapView`, member list sidebar, leaderboard; mobile: collapsible map section with toggle button; `ChecklistPlace` type extended with optional `latitude`/`longitude`
+
+**Phase 5 — Desktop Layout Overhaul**
+
+- **`Layout.tsx`** — Already uses `max-w-6xl xl:max-w-7xl` — confirmed and unchanged
+- **`Home.tsx`** — Desktop container updated to `max-w-2xl lg:max-w-6xl xl:max-w-7xl`; grid changed from `md:grid-cols-12` (8/4) to `lg:grid-cols-5` (3/2 = 60%/40%); right sidebar uses `lg:sticky lg:top-24`; section headers scaled to `lg:text-lg`
+- **`Groups.tsx`** — Journey cards grid: `lg:grid lg:grid-cols-3 lg:gap-6` on desktop
+- **`GroupDetail.tsx`** — Desktop sidebar: `lg:col-span-2 lg:sticky lg:top-24` with map, member list, and leaderboard
+- **`MapDiscovery.tsx`** — Desktop side panel: `lg:flex lg:h-screen`; left panel (`lg:w-80`) with vertical filters, search, selected place summary; map fills remaining space (`flex-1`); mobile retains floating overlay unchanged; filter chips rendered vertically on desktop
+
+---
+
 ## Web Phase 3 — Place Count Ticker, 2.3 Carousels, City Metrics, Map UX, Images, Journey Rename (2026-03-12)
 
 ### Frontend (web)
