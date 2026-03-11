@@ -40,7 +40,7 @@ async def _download_image(url: str, client: httpx.AsyncClient | None = None) -> 
             if client is not None:
                 resp = await client.get(url, timeout=20.0)
             else:
-                async with httpx.AsyncClient(timeout=20.0) as c:
+                async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as c:
                     resp = await c.get(url)
             if resp.status_code == 200:
                 return resp.content
@@ -102,7 +102,7 @@ async def download_place_images(run_code: str, engine, max_workers: int = 20) ->
     sem = asyncio.Semaphore(max_workers)
     results: dict[tuple[int, int], bytes] = {}
 
-    async with httpx.AsyncClient(timeout=20.0) as http_client:
+    async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as http_client:
 
         async def _fetch(place_id: int, idx: int, url: str) -> None:
             async with sem:

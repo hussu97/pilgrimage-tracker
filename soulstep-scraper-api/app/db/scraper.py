@@ -191,6 +191,21 @@ async def resume_scraper_task(run_code: str):
 
                 await run_enrichment_pipeline(run_code)
 
+            elif resume_from == "image_download":
+                # Detail fetch completed but image download failed — re-run images then enrich
+                from app.collectors.gmaps import download_place_images
+
+                await download_place_images(run_code, engine)
+
+                session.refresh(run)
+                run.stage = "enrichment"
+                session.add(run)
+                session.commit()
+
+                from app.pipeline.enrichment import run_enrichment_pipeline
+
+                await run_enrichment_pipeline(run_code)
+
             elif resume_from == "enrichment":
                 # Skip straight to enrichment (already-enriched places are skipped internally)
                 from app.pipeline.enrichment import run_enrichment_pipeline

@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Fix: Image Download 302 Redirect + Resume Gap (2026-03-11)
+
+### Backend (scraper)
+- **`app/collectors/gmaps.py`** — added `follow_redirects=True` to both `httpx.AsyncClient` instances in `_download_image()` (fallback client) and `download_place_images()` (shared client); Google's Places photo media endpoint now returns a 302 redirect to a CDN URL (`lh3.googleusercontent.com`) instead of 200, so httpx must follow the redirect to get the actual image bytes
+- **`app/db/scraper.py`** — added `elif resume_from == "image_download"` case to `resume_scraper_task()`; runs with `stage="image_download"` now re-download images then continue to enrichment instead of being skipped when resuming from `stage="enrichment"`
+- **`tests/test_collectors.py`** — added `TestDownloadImage` class with 5 tests: 200 returns content, raw 302 returns None (validates fix necessity), redirect-followed 200 returns CDN content, `ConnectError` retries and returns None, no-client path creates own client with `follow_redirects=True`
+- **`tests/test_resume.py`** — added `test_resume_endpoint_accepts_image_download_stage` to verify runs with `stage="image_download"` are accepted and resume correctly
+
+---
+
 ## Scraper Debug Log Fix + Quality Score Breakdown (2026-03-11)
 
 ### Backend (scraper)

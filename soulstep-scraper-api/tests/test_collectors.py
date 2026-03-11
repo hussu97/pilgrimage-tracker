@@ -403,3 +403,101 @@ class TestCollectorRegistry:
         phases = get_enrichment_phases()
         all_names = [c.name for phase in phases for c in phase]
         assert "gmaps" not in all_names
+
+
+# ── TestDownloadImage ─────────────────────────────────────────────────────────
+
+
+class TestDownloadImage:
+    """Tests for _download_image() redirect and error handling."""
+
+    def _make_mock_response(self, status_code: int, content: bytes = b"imagedata") -> AsyncMock:
+        resp = AsyncMock()
+        resp.status_code = status_code
+        resp.content = content
+        return resp
+
+    async def test_200_returns_content(self):
+        """200 response → returns content bytes."""
+
+        from app.collectors.gmaps import _download_image
+
+        resp = self._make_mock_response(200, b"img_bytes")
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=resp)
+
+        result = await _download_image("http://example.com/photo.jpg", mock_client)
+        assert result == b"img_bytes"
+
+    async def test_302_without_follow_returns_none_old_behavior(self):
+        """Without follow_redirects a raw 302 would return None — validates the fix
+        is necessary by confirming the old code path returned None on non-200."""
+
+        from app.collectors.gmaps import _download_image
+
+        resp = self._make_mock_response(302, b"")
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=resp)
+
+        # With the old client (no follow_redirects), status != 200 → None
+        result = await _download_image("http://example.com/photo.jpg", mock_client)
+        assert result is None
+
+    async def test_200_after_redirect_returns_content(self):
+        """httpx with follow_redirects=True transparently follows 302 and delivers 200.
+        Simulated by passing a client that returns 200 directly (as httpx would after redirect)."""
+
+        from app.collectors.gmaps import _download_image
+
+        resp = self._make_mock_response(200, b"cdn_image")
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=resp)
+
+        result = await _download_image(
+            "http://places.googleapis.com/v1/places/X/photos/Y/media?key=K", mock_client
+        )
+        assert result == b"cdn_image"
+
+    async def test_connection_error_retries_and_returns_none(self):
+        """ConnectError → retries up to _MAX_IMAGE_ATTEMPTS times, then returns None."""
+        import httpx
+
+        from app.collectors.gmaps import _download_image
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
+
+        with patch("asyncio.sleep", new_callable=AsyncMock):
+            result = await _download_image("http://example.com/photo.jpg", mock_client)
+
+        assert result is None
+
+    async def test_no_client_creates_own_with_follow_redirects(self):
+        """When no client is passed, _download_image creates its own with follow_redirects=True."""
+
+        from app.collectors.gmaps import _download_image
+
+        # Patch httpx.AsyncClient to capture the kwargs it was constructed with
+        captured_kwargs = {}
+
+        class _FakeClient:
+            def __init__(self, **kwargs):
+                captured_kwargs.update(kwargs)
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            async def get(self, url, **kw):
+                resp = AsyncMock()
+                resp.status_code = 200
+                resp.content = b"data"
+                return resp
+
+        with patch("app.collectors.gmaps.httpx.AsyncClient", _FakeClient):
+            result = await _download_image("http://example.com/photo.jpg")
+
+        assert captured_kwargs.get("follow_redirects") is True
+        assert result == b"data"

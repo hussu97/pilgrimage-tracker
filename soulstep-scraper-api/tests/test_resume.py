@@ -215,3 +215,20 @@ def test_cancel_accepts_interrupted(client, db_session):
 
     db_session.refresh(run)
     assert run.status == "cancelled"
+
+
+# ── 6. image_download resume stage ───────────────────────────────────────────
+
+
+def test_resume_endpoint_accepts_image_download_stage(client, db_session):
+    """POST /runs/{run_code}/resume should accept runs with stage='image_download'."""
+    loc = _make_location(db_session)
+    run = _make_run(db_session, loc.code, status="interrupted", stage="image_download")
+
+    with patch("app.api.v1.scraper.resume_scraper_task"):
+        resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["run_code"] == run.run_code
+    assert data["resume_from_stage"] == "image_download"
