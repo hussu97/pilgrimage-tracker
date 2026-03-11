@@ -31,13 +31,35 @@ import { usePolling } from "@/lib/hooks/usePolling";
 import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
 import { statusVariant } from "@/lib/utils/scraperStatus";
-import { ArrowLeft, ExternalLink, Play, RefreshCw, Trash2, UploadCloud, XCircle } from "lucide-react";
+import { ArrowLeft, Check, Copy, ExternalLink, Play, RefreshCw, Trash2, UploadCloud, XCircle } from "lucide-react";
 
 function enrichVariant(s: string) {
   if (s === "complete") return "success" as const;
   if (s === "failed") return "danger" as const;
   if (s === "enriching") return "info" as const;
   return "neutral" as const;
+}
+
+// ── Copy Button ─────────────────────────────────────────────────────────────
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = (e: { stopPropagation: () => void }) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      className="flex-shrink-0 text-text-secondary dark:text-dark-text-secondary hover:text-primary transition-colors"
+      title="Copy to clipboard"
+    >
+      {copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
+    </button>
+  );
 }
 
 // ── Quality Breakdown Panel ──────────────────────────────────────────────────
@@ -592,6 +614,14 @@ export function RunDetailPage() {
     return acc;
   }, {});
 
+  const filteredGroupedRaw = search
+    ? Object.fromEntries(
+        Object.entries(groupedRaw).filter(([pc]) =>
+          pc.toLowerCase().includes(search.toLowerCase())
+        )
+      )
+    : groupedRaw;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-48 text-text-secondary dark:text-dark-text-secondary">
@@ -748,6 +778,17 @@ export function RunDetailPage() {
         )}
       </div>
 
+      {/* Global search */}
+      <SearchInput
+        value={search}
+        onChange={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
+        placeholder="Search by name or place code…"
+        className="w-80"
+      />
+
       {/* Tabs */}
       <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
         <Tabs.List className="flex border-b border-input-border dark:border-dark-border">
@@ -767,15 +808,6 @@ export function RunDetailPage() {
         </Tabs.List>
 
         <Tabs.Content value="places" className="pt-4 space-y-3">
-          <SearchInput
-            value={search}
-            onChange={(v) => {
-              setSearch(v);
-              setPage(1);
-            }}
-            placeholder="Search by name…"
-            className="w-64"
-          />
           {places.length === 0 ? (
             <p className="text-sm text-text-secondary dark:text-dark-text-secondary py-8 text-center">
               No scraped places.
@@ -837,8 +869,9 @@ export function RunDetailPage() {
                           </a>
                         )}
                       </span>
-                      <span className="font-mono text-xs text-text-secondary dark:text-dark-text-secondary truncate">
-                        {placeCode}
+                      <span className="flex items-center gap-1 font-mono text-xs text-text-secondary dark:text-dark-text-secondary overflow-hidden">
+                        <span className="truncate">{placeCode}</span>
+                        <CopyButton text={placeCode} />
                       </span>
                       <span>
                         <StatusBadge
@@ -887,8 +920,12 @@ export function RunDetailPage() {
             <p className="text-text-secondary dark:text-dark-text-secondary text-sm">
               No raw collector data available.
             </p>
+          ) : Object.keys(filteredGroupedRaw).length === 0 ? (
+            <p className="text-text-secondary dark:text-dark-text-secondary text-sm">
+              No entries match your search.
+            </p>
           ) : (
-            Object.entries(groupedRaw).map(([placeCode, entries]) => {
+            Object.entries(filteredGroupedRaw).map(([placeCode, entries]) => {
               const isExpanded = expandedRaw.has(placeCode);
               return (
                 <div
@@ -906,8 +943,9 @@ export function RunDetailPage() {
                       })
                     }
                   >
-                    <span className="font-mono text-xs text-text-main dark:text-white">
+                    <span className="flex items-center gap-1.5 font-mono text-xs text-text-main dark:text-white">
                       {placeCode}
+                      <CopyButton text={placeCode} />
                     </span>
                     <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
                       {entries.length} collector{entries.length !== 1 ? "s" : ""} ·{" "}
