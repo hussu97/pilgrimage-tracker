@@ -31,6 +31,7 @@ import Constants from 'expo-constants';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { getGroups } from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
+import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 import type { Group, Place } from '@/lib/types';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
@@ -417,6 +418,19 @@ function makeStyles(isDark: boolean) {
       color: textMuted,
       textTransform: 'capitalize',
     },
+    addToJourneyBtn: {
+      marginTop: 6,
+      alignSelf: 'flex-start',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+      backgroundColor: isDark ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.08)',
+    },
+    addToJourneyText: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: tokens.colors.primary,
+    },
     placeDistanceBadge: {
       position: 'absolute',
       bottom: 6,
@@ -519,6 +533,7 @@ export default function HomeScreen() {
   const [recommended, setRecommended] = useState<RecommendedPlace[]>([]);
   const [featured, setFeatured] = useState<FeaturedJourney[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [addToJourneyPlace, setAddToJourneyPlace] = useState<RecommendedPlace | null>(null);
 
   // ── Data fetching ──
 
@@ -814,6 +829,16 @@ export default function HomeScreen() {
                   <Text style={styles.placeCardReligion} numberOfLines={1}>
                     {item.religion}
                   </Text>
+                  <TouchableOpacity
+                    style={styles.addToJourneyBtn}
+                    activeOpacity={0.75}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      setAddToJourneyPlace(item);
+                    }}
+                  >
+                    <Text style={styles.addToJourneyText}>+ {t('map.addToJourney')}</Text>
+                  </TouchableOpacity>
                 </View>
               </TouchableOpacity>
             );
@@ -902,6 +927,13 @@ export default function HomeScreen() {
         {renderRecommendedPlaces()}
         {renderPopularJourneys()}
       </ScrollView>
+      {addToJourneyPlace && (
+        <AddToGroupSheet
+          placeCode={addToJourneyPlace.place_code}
+          placeName={addToJourneyPlace.name}
+          onClose={() => setAddToJourneyPlace(null)}
+        />
+      )}
     </View>
   );
 }

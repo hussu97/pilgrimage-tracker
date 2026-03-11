@@ -874,34 +874,23 @@ export async function updateVisitorSettings(
 
 // ─── Cities ───────────────────────────────────────────────────────────────────
 
-export async function getCities(): Promise<{
+export async function getCities(params?: { limit?: number; offset?: number }): Promise<{
   cities: Array<{ city: string; city_slug: string; count: number }>;
 }> {
-  const res = await fetch(`${API_BASE}/api/v1/cities`, { headers: clientHeaders() });
+  const qs = new URLSearchParams();
+  if (params?.limit != null) qs.set('limit', String(params.limit));
+  if (params?.offset != null) qs.set('offset', String(params.offset));
+  const query = qs.toString();
+  const res = await fetch(`${API_BASE}/api/v1/cities${query ? `?${query}` : ''}`, {
+    headers: clientHeaders(),
+  });
   if (!res.ok) throw new Error('Failed to fetch cities');
   return res.json();
 }
 
-export async function getCityPlaces(citySlug: string): Promise<{
-  city: string;
-  places: Array<{
-    place_code: string;
-    name: string;
-    religion: string;
-    address: string;
-    seo_slug?: string;
-  }>;
-}> {
-  const res = await fetch(`${API_BASE}/api/v1/cities/${encodeURIComponent(citySlug)}`, {
-    headers: clientHeaders(),
-  });
-  if (!res.ok) throw new Error('Failed to fetch city places');
-  return res.json();
-}
-
-export async function getCityReligionPlaces(
+export async function getCityPlaces(
   citySlug: string,
-  religion: string,
+  page = 1,
 ): Promise<{
   city: string;
   places: Array<{
@@ -913,7 +902,29 @@ export async function getCityReligionPlaces(
   }>;
 }> {
   const res = await fetch(
-    `${API_BASE}/api/v1/cities/${encodeURIComponent(citySlug)}/${encodeURIComponent(religion)}`,
+    `${API_BASE}/api/v1/cities/${encodeURIComponent(citySlug)}?page=${page}`,
+    { headers: clientHeaders() },
+  );
+  if (!res.ok) throw new Error('Failed to fetch city places');
+  return res.json();
+}
+
+export async function getCityReligionPlaces(
+  citySlug: string,
+  religion: string,
+  page = 1,
+): Promise<{
+  city: string;
+  places: Array<{
+    place_code: string;
+    name: string;
+    religion: string;
+    address: string;
+    seo_slug?: string;
+  }>;
+}> {
+  const res = await fetch(
+    `${API_BASE}/api/v1/cities/${encodeURIComponent(citySlug)}/${encodeURIComponent(religion)}?page=${page}`,
     { headers: clientHeaders() },
   );
   if (!res.ok) throw new Error('Failed to fetch city religion places');

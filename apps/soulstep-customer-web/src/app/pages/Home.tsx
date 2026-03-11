@@ -539,7 +539,7 @@ export default function Home() {
                 label={t('journey.newJourney')}
                 onClick={() => navigate(user ? '/journeys/new' : '/login')}
               />
-              <QuickAction icon="group_add" label={t('groups.joinGroup')} to="/join" />
+              <QuickAction icon="group_add" label={t('journey.joinWithCode')} to="/join" />
               <QuickAction icon="favorite" label={t('favorites.title')} to="/favorites" />
             </div>
           </section>

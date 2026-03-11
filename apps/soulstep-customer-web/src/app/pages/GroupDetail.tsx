@@ -1135,6 +1135,39 @@ export default function GroupDetail() {
           }}
         />
       )}
+
+      {/* Glass contextual bottom bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-[600] bg-white/90 dark:bg-dark-bg/90 backdrop-blur-lg border-t border-white/30 dark:border-white/5 px-4 py-3 flex items-center justify-center gap-3">
+        {isAdmin || isCreator ? (
+          <>
+            <button
+              type="button"
+              onClick={() => navigate(`/journeys/${groupCode}/edit-places`)}
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-[0.97] transition-all"
+            >
+              <span className="material-symbols-outlined text-[18px]">add_location_alt</span>
+              {t('groups.addPlace')}
+            </button>
+            <button
+              type="button"
+              onClick={() => shareUrl(inviteUrl, group?.name ?? 'Journey')}
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white text-sm font-semibold hover:bg-soft-blue dark:hover:bg-dark-surface active:scale-[0.97] transition-all"
+            >
+              <span className="material-symbols-outlined text-[18px]">share</span>
+              {t('common.share')}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => shareUrl(inviteUrl, group?.name ?? 'Journey')}
+            className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-[0.97] transition-all"
+          >
+            <span className="material-symbols-outlined text-[18px]">person_add</span>
+            {t('journey.inviteFriends')}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
