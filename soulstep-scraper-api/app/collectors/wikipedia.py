@@ -484,6 +484,8 @@ class WikipediaCollector(BaseCollector):
           Normalize both the article title and the place name to token sets
           (applying synonym mapping so "masjid" == "mosque", etc.).
           If the Jaccard similarity ≥ 0.3, the article is provisionally accepted.
+          If below 0.3, a quick Layer 2 contradiction check still runs, then
+          falls through to Layer 3 (no early accept on low overlap).
 
         Layer 2 — Wikidata short description contradiction:
           If the place name contains a religious-site token (mosque, temple,
@@ -543,8 +545,7 @@ class WikipediaCollector(BaseCollector):
                 if place_is_religious and short_desc:
                     if any(term in short_desc for term in _NON_PLACE_TERMS):
                         return False
-                # No strong signal — accept
-                return True
+                # Fall through to Layer 3 — low jaccard alone is not enough to accept
 
         # Layer 2: explicit contradiction via Wikidata short description
         place_is_religious = bool(place_tokens & _RELIGIOUS_TOKENS)

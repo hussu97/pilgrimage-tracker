@@ -1324,8 +1324,36 @@ class TestWikipediaCollectorExtended:
                 collector._is_article_relevant(article, place_name) is False
             ), f"Expected rejection: article='{title}' ({short_desc}) for place='{place_name}'"
 
-    def test_is_article_relevant_no_short_desc_accepts(self):
-        """Zero token overlap but no short description to contradict → accept."""
+    def test_is_article_relevant_country_org_article_rejected(self):
+        """Broad country/org overview article rejected when distinctive place tokens missing."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        # "St. Mary's Catholic Church, Al Ain" → "Catholic Church in the United Arab Emirates"
+        # jaccard=0.25 (<0.3), but 3 distinctive tokens missing (st, marys, ain) → Layer 3 rejects
+        article = {
+            "title": "Catholic Church in the United Arab Emirates",
+            "short_description": "Roman Catholicism in the UAE",
+        }
+        assert (
+            collector._is_article_relevant(article, "St. Mary's Catholic Church, Al Ain") is False
+        )
+
+    def test_is_article_relevant_low_jaccard_few_missing_tokens_accepts(self):
+        """Low jaccard but < 2 distinctive tokens missing → accept (Layer 3 does not fire)."""
+        from app.collectors.wikipedia import WikipediaCollector
+
+        collector = WikipediaCollector()
+        # "Blue Mosque" → "Sultan Ahmed Mosque": jaccard low, but only 1 distinctive token missing
+        article = {
+            "title": "Sultan Ahmed Mosque",
+            "short_description": "Ottoman-era mosque in Istanbul",
+        }
+        # distinctive_missing = {"blue"} = 1 < 2 → NOT rejected
+        assert collector._is_article_relevant(article, "Blue Mosque") is True
+
+    def test_is_article_relevant_completely_different_title_rejected(self):
+        """Zero token overlap + multiple distinctive tokens missing → reject via Layer 3."""
         from app.collectors.wikipedia import WikipediaCollector
 
         collector = WikipediaCollector()
@@ -1333,8 +1361,8 @@ class TestWikipediaCollectorExtended:
             "title": "Completely Different Title",
             "short_description": None,
         }
-        # No religious token in place name, no short desc → default accept
-        assert collector._is_article_relevant(article, "Unknown Small Shrine X") is True
+        # distinctive_missing = {unknown, small, x} = 3 ≥ 2 AND jaccard=0.0 < 0.6 → rejected
+        assert collector._is_article_relevant(article, "Unknown Small Shrine X") is False
 
 
 # ── WikidataCollector ─────────────────────────────────────────────────────────
