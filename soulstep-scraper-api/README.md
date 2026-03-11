@@ -264,6 +264,16 @@ Response:
 
 Accepts runs with status `pending`, `running`, or `interrupted`.
 
+### 10a. Get Place Codes for a Run
+**GET** `/api/v1/scraper/runs/{run_code}/place-codes`
+
+Returns a list of `place_code` strings for all scraped places in the run. Used by the catalog proxy to delete catalog places when a run is deleted.
+
+### 10b. Delete a Run
+**DELETE** `/api/v1/scraper/runs/{run_code}`
+
+Deletes the run and cascades to all `ScrapedPlace`, `RawCollectorData`, and `DiscoveryCell` records for the run.
+
 ### 11. Quality Metrics
 **GET** `/api/v1/scraper/quality-metrics?run_code=<optional>`
 
@@ -333,6 +343,17 @@ Descriptions from all sources are scored using heuristics (0.0-1.0):
 - **Specificity** (30%): Place name mentions + relevant keywords
 
 When the top 2 candidates are within 0.15, Gemini (`gemini-2.5-flash`) can optionally break the tie or synthesize a combined description. Requires `GEMINI_API_KEY`. This is only triggered for ~10-20% of places.
+
+## Scripts
+
+### Reset Scraper Data (`scripts/reset_scraper_data.py`)
+
+Delete all scraper data (ScrapedPlace, RawCollectorData, DiscoveryCell, ScraperRun, GlobalDiscoveryCell, GlobalGmapsCache) from the scraper DB. DataLocation records are preserved. Use this for a fresh start.
+
+```bash
+cd soulstep-scraper-api && source .venv/bin/activate
+python scripts/reset_scraper_data.py
+```
 
 ## Troubleshooting
 

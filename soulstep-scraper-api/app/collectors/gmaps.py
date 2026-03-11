@@ -405,7 +405,7 @@ class GmapsCollector(BaseCollector):
             )
 
         # --- Images ---
-        for photo in response.get("photos", [])[:3]:
+        for photo in response.get("photos", [])[:10]:
             photo_name = photo.get("name")
             if not photo_name:
                 continue
@@ -440,10 +440,10 @@ class GmapsCollector(BaseCollector):
         async gather), this method performs no DB access and is fully coroutine-safe.
         When they are None a session must be provided and the maps are queried on the fly.
         """
-        # Process images (up to 3) — URLs only, no download during detail fetch
+        # Process images (up to 10) — URLs only, no download during detail fetch
         photo_urls = []
 
-        for photo in response.get("photos", [])[:3]:
+        for photo in response.get("photos", [])[:10]:
             photo_name = photo.get("name")
             if not photo_name:
                 continue

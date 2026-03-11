@@ -321,6 +321,18 @@ def cancel_run(run_code: str, session: SessionDep):
     return {"status": "cancelled", "run_code": run_code}
 
 
+@router.get("/runs/{run_code}/place-codes")
+def get_run_place_codes(run_code: str, session: SessionDep) -> list[str]:
+    """Return all place_codes scraped in a given run (lightweight list for deletion)."""
+    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+    places = session.exec(
+        select(ScrapedPlace.place_code).where(ScrapedPlace.run_code == run_code)
+    ).all()
+    return list(places)
+
+
 @router.delete("/runs/{run_code}")
 def delete_run(run_code: str, session: SessionDep):
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
@@ -333,6 +345,8 @@ def delete_run(run_code: str, session: SessionDep):
         select(RawCollectorData).where(RawCollectorData.run_code == run_code)
     ).all():
         session.delete(rd)
+    for cell in session.exec(select(DiscoveryCell).where(DiscoveryCell.run_code == run_code)).all():
+        session.delete(cell)
 
     session.delete(run)
     session.commit()

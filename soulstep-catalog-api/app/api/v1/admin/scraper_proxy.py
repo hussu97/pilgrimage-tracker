@@ -5,11 +5,12 @@ Every endpoint requires AdminDep — non-admins receive HTTP 403.
 """
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
 from app.api.deps import AdminDep
 from app.core import config
+from app.db.session import SessionDep
 
 router = APIRouter()
 
@@ -54,6 +55,27 @@ async def _proxy(method: str, path: str, **kwargs) -> JSONResponse:
         except Exception:
             content = {"detail": resp.text}
         return JSONResponse(status_code=resp.status_code, content=content)
+    except httpx.ConnectError:
+        raise HTTPException(status_code=503, detail="Scraper service unavailable")
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="Scraper service timed out")
+
+
+async def _proxy_json(method: str, path: str, **kwargs):
+    """Forward a request to the scraper service and return parsed JSON content."""
+    base = config.DATA_SCRAPER_URL.rstrip("/")
+    url = base + "/api/v1/scraper" + path
+    try:
+        token = await _identity_token(base)
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.request(method, url, headers=headers, **kwargs)
+        if not resp.content:
+            return None
+        try:
+            return resp.json()
+        except Exception:
+            return None
     except httpx.ConnectError:
         raise HTTPException(status_code=503, detail="Scraper service unavailable")
     except httpx.TimeoutException:
@@ -126,7 +148,26 @@ async def cancel_run(run_code: str, admin: AdminDep):
 
 
 @router.delete("/runs/{run_code}")
-async def delete_run(run_code: str, admin: AdminDep):
+async def delete_run(
+    run_code: str,
+    admin: AdminDep,
+    session: SessionDep,
+    delete_catalog_places: bool = Query(False),
+):
+    if delete_catalog_places:
+        from sqlmodel import select
+
+        from app.api.v1.admin.places import _delete_place_records
+        from app.db.models import Place
+
+        place_codes = await _proxy_json("GET", f"/runs/{run_code}/place-codes")
+        if isinstance(place_codes, list) and place_codes:
+            for pc in place_codes:
+                place = session.exec(select(Place).where(Place.place_code == pc)).first()
+                if place:
+                    _delete_place_records(session, pc)
+            session.commit()
+
     return await _proxy("DELETE", f"/runs/{run_code}")
 
 

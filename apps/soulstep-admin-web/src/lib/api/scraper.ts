@@ -110,8 +110,9 @@ export async function cancelRun(runCode: string): Promise<unknown> {
   return res.data;
 }
 
-export async function deleteRun(runCode: string): Promise<void> {
-  await scraperClient.delete(`/runs/${runCode}`);
+export async function deleteRun(runCode: string, deleteCatalogPlaces = false): Promise<void> {
+  const params = deleteCatalogPlaces ? { delete_catalog_places: true } : undefined;
+  await scraperClient.delete(`/runs/${runCode}`, { params });
 }
 
 export async function getRunActivity(runCode: string): Promise<RunActivity> {

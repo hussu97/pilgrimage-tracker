@@ -182,6 +182,14 @@ By using SQLModel, we maintain Pydantic-like schemas for the API while gaining f
 ### Admin (`/api/v1/admin`) — requires admin role
 Full CRUD for users, places, groups, reviews, check-ins, notifications, translations, content translations, place attributes, bulk operations, data export, audit log, app version management, scraper proxy, ad config management, and analytics queries.
 
+**Admin Place Deletion:**
+- `DELETE /api/v1/admin/places/{place_code}` — delete a place and all related records (images, SEO, reviews, check-ins, favorites, translations, attributes, crawler logs)
+- `DELETE /api/v1/admin/places/batch` — batch delete (body: `{ "place_codes": [...] }`) — returns `{ "deleted": N }`
+- `DELETE /api/v1/admin/places/all` — nuclear reset: delete all places and related records — returns `{ "deleted": N }`
+
+**Admin Scraper Proxy:**
+- `DELETE /api/v1/admin/scraper/runs/{run_code}?delete_catalog_places=true` — delete a scraper run; when `delete_catalog_places=true`, also fetches place_codes from the scraper and removes them from the catalog DB
+
 ## Tests
 
 ```bash
@@ -207,6 +215,15 @@ Tests use in-memory SQLite (`StaticPool`) with migrations and seed patched out. 
 For production deployment options, see [PRODUCTION.md](../PRODUCTION.md) at repo root.
 
 ## Scripts
+
+### Reset Place Data (`scripts/reset_place_data.py`)
+
+Delete all Place records and their dependents (images, SEO, reviews, check-ins, favorites, translations, attributes, crawler logs) from the catalog DB. Use this for a fresh start before a new scraper run.
+
+```bash
+cd soulstep-catalog-api && source .venv/bin/activate
+python scripts/reset_place_data.py
+```
 
 ### Translation Backfill (`scripts/backfill_translations.py`)
 

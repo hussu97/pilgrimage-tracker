@@ -4,6 +4,24 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Delete Place Data: Fresh Start + Per-Run Deletion (2026-03-12)
+
+### Backend
+- **`soulstep-scraper-api/app/api/v1/scraper.py`** — Added `GET /runs/{run_code}/place-codes` endpoint; updated `DELETE /runs/{run_code}` to also cascade-delete `DiscoveryCell` rows
+- **`soulstep-catalog-api/app/api/v1/admin/places.py`** — Added `_delete_place_records()` cascade helper; updated `DELETE /places/{place_code}` to use it; added `DELETE /places/batch` (body: `{ place_codes }`) and `DELETE /places/all` nuclear reset endpoints
+- **`soulstep-catalog-api/app/api/v1/admin/scraper_proxy.py`** — Added `_proxy_json()` helper; updated `DELETE /admin/scraper/runs/{run_code}` to accept `?delete_catalog_places=true` — fetches place_codes from scraper and deletes catalog places before forwarding the run delete
+- **`soulstep-catalog-api/scripts/reset_place_data.py`** (new) — Standalone script to wipe all Place data and related records from the catalog DB
+- **`soulstep-scraper-api/scripts/reset_scraper_data.py`** (new) — Standalone script to wipe all run/place/cell/cache data from the scraper DB
+- **`soulstep-catalog-api/tests/test_admin_places_delete.py`** (new) — 19 tests for single/batch/all delete with full cascade verification
+- **`soulstep-scraper-api/tests/test_run_place_codes.py`** (new) — 7 tests for `GET /runs/{run_code}/place-codes` and DiscoveryCell cascade on run delete
+
+### Frontend (web)
+- **`apps/soulstep-admin-web/src/lib/api/types.ts`** — Added `places_synced: number` to `ScraperRun` interface
+- **`apps/soulstep-admin-web/src/lib/api/scraper.ts`** — Updated `deleteRun(runCode, deleteCatalogPlaces?)` to pass `?delete_catalog_places=true` when requested
+- **`apps/soulstep-admin-web/src/app/pages/scraper/ScraperRunsPage.tsx`** — Replaced `ConfirmDialog` for run deletion with an inline modal including a "Also delete synced catalog places" checkbox (disabled when `places_synced === 0`)
+
+---
+
 ## Batch Place Sync Improvements (2026-03-11)
 
 ### Backend

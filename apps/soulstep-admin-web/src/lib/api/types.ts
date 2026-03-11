@@ -211,6 +211,7 @@ export interface ScraperRun {
   total_items: number | null;
   processed_items: number;
   error_message: string | null;
+  places_synced: number;
   created_at: string;
 }
 

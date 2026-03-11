@@ -14,7 +14,6 @@ import type { DataLocation, ScraperRun } from "@/lib/api/types";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { Pagination } from "@/components/shared/Pagination";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
 import { statusVariant } from "@/lib/utils/scraperStatus";
@@ -36,6 +35,7 @@ export function ScraperRunsPage() {
   const [selectedLocation, setSelectedLocation] = useState("");
   const [starting, setStarting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ScraperRun | null>(null);
+  const [deleteCatalogPlaces, setDeleteCatalogPlaces] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -83,8 +83,9 @@ export function ScraperRunsPage() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    await deleteRun(deleteTarget.run_code);
+    await deleteRun(deleteTarget.run_code, deleteCatalogPlaces);
     setDeleteTarget(null);
+    setDeleteCatalogPlaces(false);
     await load();
   };
 
@@ -285,15 +286,44 @@ export function ScraperRunsPage() {
         onPageSizeChange={setPageSize}
       />
 
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={(o) => !o && setDeleteTarget(null)}
-        title="Delete run?"
-        description={`Delete run "${deleteTarget?.run_code}" and all its scraped data?`}
-        confirmLabel="Delete"
-        destructive
-        onConfirm={() => void handleDelete()}
-      />
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-xl bg-white dark:bg-dark-surface p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-text-main dark:text-white mb-2">
+              Delete Run?
+            </h3>
+            <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4">
+              Delete run <span className="font-mono">{deleteTarget.run_code}</span> and all its scraped data?
+            </p>
+            <label className={`flex items-center gap-2 mb-6 ${deleteTarget.places_synced > 0 ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}>
+              <input
+                type="checkbox"
+                checked={deleteCatalogPlaces}
+                onChange={(e) => setDeleteCatalogPlaces(e.target.checked)}
+                disabled={deleteTarget.places_synced === 0}
+                className="w-4 h-4 accent-red-600"
+              />
+              <span className="text-sm text-text-main dark:text-white">
+                Also delete synced catalog places ({deleteTarget.places_synced} synced)
+              </span>
+            </label>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => { setDeleteTarget(null); setDeleteCatalogPlaces(false); }}
+                className="px-4 py-2 rounded-lg text-sm font-medium border border-input-border dark:border-dark-border text-text-main dark:text-white hover:bg-background-light dark:hover:bg-dark-bg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => void handleDelete()}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

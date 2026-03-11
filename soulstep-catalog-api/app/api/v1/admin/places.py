@@ -12,7 +12,19 @@ from sqlmodel import Session, col, func, select
 
 from app.api.deps import AdminDep
 from app.api.v1.admin.audit_log import record_audit
-from app.db.models import CheckIn, Place, PlaceImage, Review
+from app.db.models import (
+    AICrawlerLog,
+    CheckIn,
+    ContentTranslation,
+    Favorite,
+    GroupPlaceNote,
+    Place,
+    PlaceAttribute,
+    PlaceImage,
+    PlaceSEO,
+    Review,
+    ReviewImage,
+)
 from app.db.session import SessionDep, engine
 from app.services.seo_generator import upsert_place_seo
 
@@ -99,6 +111,49 @@ class AdminPlaceImageItem(BaseModel):
 
 
 _SEO_TRIGGER_FIELDS = {"name", "religion", "place_type", "address", "description", "website_url"}
+
+
+def _delete_place_records(session: Session, place_code: str) -> None:
+    """Delete a place and all its dependent records in FK-safe order."""
+    review_codes = session.exec(
+        select(Review.review_code).where(Review.place_code == place_code)
+    ).all()
+    for rc in review_codes:
+        for ri in session.exec(select(ReviewImage).where(ReviewImage.review_code == rc)).all():
+            session.delete(ri)
+    for r in session.exec(select(Review).where(Review.place_code == place_code)).all():
+        session.delete(r)
+    for img in session.exec(select(PlaceImage).where(PlaceImage.place_code == place_code)).all():
+        session.delete(img)
+    seo = session.exec(select(PlaceSEO).where(PlaceSEO.place_code == place_code)).first()
+    if seo:
+        session.delete(seo)
+    for attr in session.exec(
+        select(PlaceAttribute).where(PlaceAttribute.place_code == place_code)
+    ).all():
+        session.delete(attr)
+    for ci in session.exec(select(CheckIn).where(CheckIn.place_code == place_code)).all():
+        session.delete(ci)
+    for fav in session.exec(select(Favorite).where(Favorite.place_code == place_code)).all():
+        session.delete(fav)
+    for note in session.exec(
+        select(GroupPlaceNote).where(GroupPlaceNote.place_code == place_code)
+    ).all():
+        session.delete(note)
+    for ct in session.exec(
+        select(ContentTranslation).where(
+            ContentTranslation.entity_type == "place",
+            ContentTranslation.entity_code == place_code,
+        )
+    ).all():
+        session.delete(ct)
+    for log in session.exec(
+        select(AICrawlerLog).where(AICrawlerLog.place_code == place_code)
+    ).all():
+        session.delete(log)
+    place = session.exec(select(Place).where(Place.place_code == place_code)).first()
+    if place:
+        session.delete(place)
 
 
 def _regenerate_seo_bg(place_code: str) -> None:
@@ -307,13 +362,40 @@ def patch_place(
     )
 
 
+class BatchDeleteBody(BaseModel):
+    place_codes: list[str]
+
+
+@router.delete("/places/batch", status_code=200)
+def batch_delete_places(body: BatchDeleteBody, admin: AdminDep, session: SessionDep):
+    deleted = 0
+    for place_code in body.place_codes:
+        place = session.exec(select(Place).where(Place.place_code == place_code)).first()
+        if place:
+            record_audit(session, admin, "delete", "place", place_code)
+            _delete_place_records(session, place_code)
+            deleted += 1
+    session.commit()
+    return {"deleted": deleted}
+
+
+@router.delete("/places/all", status_code=200)
+def delete_all_places(admin: AdminDep, session: SessionDep):
+    place_codes = list(session.exec(select(Place.place_code)).all())
+    count = len(place_codes)
+    for pc in place_codes:
+        _delete_place_records(session, pc)
+    session.commit()
+    return {"deleted": count}
+
+
 @router.delete("/places/{place_code}", status_code=204)
 def delete_place(place_code: str, admin: AdminDep, session: SessionDep):
     place = session.exec(select(Place).where(Place.place_code == place_code)).first()
     if not place:
         raise HTTPException(status_code=404, detail="Place not found")
     record_audit(session, admin, "delete", "place", place_code)
-    session.delete(place)
+    _delete_place_records(session, place_code)
     session.commit()
 
 
