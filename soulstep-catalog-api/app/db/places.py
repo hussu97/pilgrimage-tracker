@@ -202,6 +202,9 @@ def create_place(
     description: str | None = None,
     website_url: str | None = None,
     source: str | None = None,
+    city: str | None = None,
+    state: str | None = None,
+    country: str | None = None,
 ) -> Place:
     place = Place(
         place_code=place_code,
@@ -216,6 +219,9 @@ def create_place(
         description=description,
         website_url=website_url,
         source=source,
+        city=city,
+        state=state,
+        country=country,
     )
     session.add(place)
     session.commit()
@@ -237,6 +243,9 @@ def update_place(
     description: str | None = None,
     website_url: str | None = None,
     source: str | None = None,
+    city: str | None = None,
+    state: str | None = None,
+    country: str | None = None,
 ) -> Place | None:
     place = session.exec(select(Place).where(Place.place_code == place_code)).first()
     if not place:
@@ -264,6 +273,12 @@ def update_place(
         place.website_url = website_url
     if source is not None:
         place.source = source
+    if city is not None:
+        place.city = city
+    if state is not None:
+        place.state = state
+    if country is not None:
+        place.country = country
 
     session.add(place)
     session.commit()
@@ -352,10 +367,7 @@ def list_places(
 
     # Bounding-box filter — applied at the SQL level for efficiency
     has_bbox = (
-        min_lat is not None
-        and max_lat is not None
-        and min_lng is not None
-        and max_lng is not None
+        min_lat is not None and max_lat is not None and min_lng is not None and max_lng is not None
     )
     if has_bbox:
         statement = statement.where(Place.lat >= min_lat, Place.lat <= max_lat)

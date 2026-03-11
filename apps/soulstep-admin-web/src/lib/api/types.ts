@@ -58,6 +58,9 @@ export interface AdminPlace {
   lat: number;
   lng: number;
   address: string;
+  city: string | null;
+  state: string | null;
+  country: string | null;
   source: string | null;
   created_at: string;
   review_count: number;

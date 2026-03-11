@@ -157,6 +157,41 @@ async def download_place_images(run_code: str, engine, max_workers: int = 20) ->
     )
 
 
+def _extract_address_components(
+    components: list[dict],
+) -> tuple[str | None, str | None, str | None]:
+    """Extract (city, state, country) from a GMaps addressComponents list.
+
+    GMaps types hierarchy used:
+      city    → locality > sublocality_level_1 > administrative_area_level_2
+      state   → administrative_area_level_1
+      country → country (longText e.g. "United Arab Emirates")
+    """
+    city = state = country = None
+    city_priority = ["locality", "sublocality_level_1", "administrative_area_level_2"]
+    city_found_at: int | None = None
+
+    for component in components:
+        types = component.get("types") or []
+        long_text = component.get("longText", "").strip() or None
+        if not long_text:
+            continue
+
+        if "country" in types:
+            country = long_text
+        elif "administrative_area_level_1" in types:
+            state = long_text
+        else:
+            for priority, type_name in enumerate(city_priority):
+                if type_name in types:
+                    if city_found_at is None or priority < city_found_at:
+                        city = long_text
+                        city_found_at = priority
+                    break
+
+    return city, state, country
+
+
 class GmapsCollector(BaseCollector):
     """Fetches place details from Google Places API (New) with enhanced field mask."""
 
@@ -170,6 +205,7 @@ class GmapsCollector(BaseCollector):
         "id",
         "displayName",
         "formattedAddress",
+        "addressComponents",
         "location",
         "types",
         "photos",
@@ -559,6 +595,9 @@ class GmapsCollector(BaseCollector):
         else:
             description = f"A {place_type_name} located in {clean_address(formatted_address)}."
 
+        address_components = response.get("addressComponents") or []
+        city, state, country = _extract_address_components(address_components)
+
         location = response.get("location", {})
         lat = location.get("latitude", 0)
         lng = location.get("longitude", 0)
@@ -602,6 +641,9 @@ class GmapsCollector(BaseCollector):
             "utc_offset_minutes": utc_offset_minutes,
             "attributes": attributes,
             "external_reviews": external_reviews,
+            "city": city,
+            "state": state,
+            "country": country,
             "source": "gmaps",
             "vicinity": formatted_address,
             "business_status": business_status,

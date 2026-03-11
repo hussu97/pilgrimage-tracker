@@ -49,6 +49,9 @@ class ScrapedPlace(SQLModel, table=True):
     description_score: float | None = Field(default=None)
     quality_score: float | None = Field(default=None)
     quality_gate: str | None = Field(default=None)
+    city: str | None = Field(default=None, index=True)
+    state: str | None = Field(default=None, index=True)
+    country: str | None = Field(default=None, index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

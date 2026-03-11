@@ -559,6 +559,9 @@ def _upsert_single_place(place_data, session: Session):
             description=place_data.description,
             website_url=place_data.website_url,
             source=place_data.source,
+            city=getattr(place_data, "city", None),
+            state=getattr(place_data, "state", None),
+            country=getattr(place_data, "country", None),
         )
     else:
         row = places_db.create_place(
@@ -575,6 +578,9 @@ def _upsert_single_place(place_data, session: Session):
             description=place_data.description,
             website_url=place_data.website_url,
             source=place_data.source,
+            city=getattr(place_data, "city", None),
+            state=getattr(place_data, "state", None),
+            country=getattr(place_data, "country", None),
         )
 
     if place_data.image_blobs:

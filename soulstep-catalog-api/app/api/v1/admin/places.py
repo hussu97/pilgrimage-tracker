@@ -37,6 +37,9 @@ class AdminPlaceListItem(BaseModel):
     lat: float
     lng: float
     address: str
+    city: str | None
+    state: str | None
+    country: str | None
     source: str | None
     created_at: datetime
     review_count: int
@@ -131,7 +134,8 @@ def list_places(
     search: str | None = None,
     religion: str | None = None,
     place_type: str | None = None,
-    city_country: str | None = None,
+    city: str | None = None,
+    country: str | None = None,
 ):
     stmt = select(Place)
     if search:
@@ -140,8 +144,10 @@ def list_places(
         stmt = stmt.where(Place.religion == religion)
     if place_type:
         stmt = stmt.where(Place.place_type == place_type)
-    if city_country:
-        stmt = stmt.where(col(Place.address).ilike(f"%{city_country}%"))
+    if city:
+        stmt = stmt.where(Place.city == city)
+    if country:
+        stmt = stmt.where(Place.country == country)
 
     total = session.exec(select(func.count()).select_from(stmt.subquery())).one()
     stmt = (
@@ -161,6 +167,9 @@ def list_places(
                 lat=p.lat,
                 lng=p.lng,
                 address=p.address,
+                city=p.city,
+                state=p.state,
+                country=p.country,
                 source=p.source,
                 created_at=p.created_at,
                 review_count=review_count,
@@ -201,6 +210,9 @@ def create_place(body: CreatePlaceBody, admin: AdminDep, session: SessionDep):
         lat=place.lat,
         lng=place.lng,
         address=place.address,
+        city=place.city,
+        state=place.state,
+        country=place.country,
         source=place.source,
         created_at=place.created_at,
         review_count=0,
@@ -228,6 +240,9 @@ def get_place(place_code: str, admin: AdminDep, session: SessionDep):
         lat=place.lat,
         lng=place.lng,
         address=place.address,
+        city=place.city,
+        state=place.state,
+        country=place.country,
         source=place.source,
         created_at=place.created_at,
         review_count=review_count,
@@ -278,6 +293,9 @@ def patch_place(
         lat=place.lat,
         lng=place.lng,
         address=place.address,
+        city=place.city,
+        state=place.state,
+        country=place.country,
         source=place.source,
         created_at=place.created_at,
         review_count=review_count,

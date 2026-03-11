@@ -506,6 +506,9 @@ def _flush_detail_buffer(
             raw_data=details,
             quality_score=quality_score,
             quality_gate=quality_gate,
+            city=details.get("city"),
+            state=details.get("state"),
+            country=details.get("country"),
         )
         session.add(scraped_place)
 

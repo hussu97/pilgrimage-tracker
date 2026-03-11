@@ -274,6 +274,9 @@ class PlaceCreate(BaseModel):
     description: str | None = None
     website_url: str | None = None
     source: str | None = None
+    city: str | None = None
+    state: str | None = None
+    country: str | None = None
     attributes: list[PlaceAttributeInput] | None = None
     external_reviews: list[ExternalReviewInput] | None = None
     translations: PlaceTranslationInput | None = None
