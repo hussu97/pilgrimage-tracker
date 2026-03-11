@@ -493,10 +493,11 @@ class WikipediaCollector(BaseCollector):
           term associated with districts, malls, roads, etc., reject outright.
 
         Layer 3 — Distinctive token gap penalty:
-          If the place name contains ≥ 2 tokens that are absent from the article
-          title (after excluding noise and religious tokens) AND the Jaccard score
-          is below 0.6, reject — the article is unlikely to describe this specific
-          building even though it shares some common tokens.
+          If the place name contains tokens absent from the article title (after
+          excluding noise and religious tokens) AND the Jaccard score is below 0.6,
+          reject.  The missing-token threshold depends on the Jaccard score:
+          • jaccard == 0.0 → threshold 1 (zero shared tokens means any mismatch rejects)
+          • jaccard  > 0.0 → threshold 2 (some overlap; require 2+ unmatched tokens)
 
         When neither layer gives a definitive answer, the article is accepted so
         that downstream quality scoring can make the final call.
@@ -556,8 +557,11 @@ class WikipediaCollector(BaseCollector):
         # Layer 3: distinctive token gap penalty
         # Tokens in the place name that are absent from the article title,
         # excluding noise words and generic religious terms.
+        # When jaccard is exactly 0.0 (zero shared tokens), even 1 missing distinctive
+        # token is enough to reject — there is no overlap to justify the match at all.
         distinctive_missing = place_tokens - title_tokens - _NOISE_TOKENS - _RELIGIOUS_TOKENS
-        if len(distinctive_missing) >= 2 and jaccard < 0.6:
+        gap_threshold = 1 if jaccard == 0.0 else 2
+        if len(distinctive_missing) >= gap_threshold and jaccard < 0.6:
             logger.info(
                 "wikipedia relevance rejected %r — %d distinctive tokens missing %s (jaccard=%.2f)",
                 article_title,
