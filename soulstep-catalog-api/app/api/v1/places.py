@@ -257,7 +257,7 @@ def get_recommended_places(
     out = []
     for p in results:
         images = place_images.get_images(p.place_code, session)
-        img_url = images[0].url if images else None
+        img_url = images[0]["url"] if images else None
         dist = None
         if lat is not None and lng is not None:
             dist = round(_haversine_km(lat, lng, p.lat, p.lng) * 10) / 10
