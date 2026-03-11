@@ -167,46 +167,57 @@ async def get_places_in_rectangle(
     client: httpx.AsyncClient | None = None,
 ) -> tuple[list[str], bool]:
     """
-    Find all places of given types within a bounding box using the Places API.
-    Returns (list of place resource names, is_saturated).
+    Find all places of given types within a bounding box using the Places API
+    (searchText endpoint — the only endpoint that supports rectangle restriction).
+
+    Makes one searchText call per place type sequentially, aggregates results.
+    Returns (deduplicated list of place resource names, is_saturated).
+    is_saturated is True if ANY type returned the maximum 20 results.
 
     Accepts an optional httpx.AsyncClient for connection reuse across calls.
     """
-    url = "https://places.googleapis.com/v1/places:searchNearby"
+    url = "https://places.googleapis.com/v1/places:searchText"
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": api_key,
         "X-Goog-FieldMask": "places.name",
     }
-    body = {
-        "includedTypes": place_types,
-        "locationRestriction": {
-            "rectangle": {
-                "low": {"latitude": lat_min, "longitude": lng_min},
-                "high": {"latitude": lat_max, "longitude": lng_max},
-            }
-        },
-        "maxResultCount": 20,
+    rectangle = {
+        "low": {"latitude": lat_min, "longitude": lng_min},
+        "high": {"latitude": lat_max, "longitude": lng_max},
     }
 
-    if client is not None:
-        resp = await client.post(url, json=body, headers=headers)
-    else:
-        async with httpx.AsyncClient(timeout=35.0) as c:
-            resp = await c.post(url, json=body, headers=headers)
+    all_names: set[str] = set()
+    is_saturated = False
 
-    if resp.status_code != 200:
-        error_data = resp.json() if resp.content else {}
-        error_msg = error_data.get("error", {}).get("message", "Unknown error")
-        raise Exception(f"Places API searchNearby failed (HTTP {resp.status_code}): {error_msg}")
+    for ptype in place_types:
+        body = {
+            # textQuery is required by searchText; use the type name as a
+            # meaningful search term (e.g. "mosque", "hindu temple").
+            "textQuery": ptype.replace("_", " "),
+            "includedType": ptype,
+            "locationRestriction": {"rectangle": rectangle},
+            "maxResultCount": 20,
+        }
 
-    response = resp.json()
-    places_data = response.get("places", [])
-    place_resource_names = [p["name"] for p in places_data if "name" in p]
+        if client is not None:
+            resp = await client.post(url, json=body, headers=headers)
+        else:
+            async with httpx.AsyncClient(timeout=35.0) as c:
+                resp = await c.post(url, json=body, headers=headers)
 
-    is_saturated = len(place_resource_names) == 20
+        if resp.status_code != 200:
+            error_data = resp.json() if resp.content else {}
+            error_msg = error_data.get("error", {}).get("message", "Unknown error")
+            raise Exception(f"Places API searchText failed (HTTP {resp.status_code}): {error_msg}")
 
-    return place_resource_names, is_saturated
+        places_data = resp.json().get("places", [])
+        names = [p["name"] for p in places_data if "name" in p]
+        all_names.update(names)
+        if len(names) == 20:
+            is_saturated = True
+
+    return list(all_names), is_saturated
 
 
 def calculate_search_radius(
