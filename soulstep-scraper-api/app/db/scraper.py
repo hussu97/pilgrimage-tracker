@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from app.db.models import DataLocation, ScrapedPlace, ScraperRun
 from app.db.session import engine
 from app.logger import get_logger
-from app.pipeline.place_quality import GATE_SYNC, passes_gate
+from app.pipeline.place_quality import GATE_SYNC, is_name_specific_enough, passes_gate
 from app.scrapers.gmaps import run_gmaps_scraper
 
 logger = get_logger(__name__)
@@ -462,12 +462,16 @@ async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
             select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
         ).all()
 
-        places = [p for p in all_places if passes_gate(p.quality_score, GATE_SYNC)]
+        places = [
+            p
+            for p in all_places
+            if passes_gate(p.quality_score, GATE_SYNC) and is_name_specific_enough(p.name or "")
+        ]
         filtered_count = len(all_places) - len(places)
 
         if filtered_count:
             logger.info(
-                "Sync quality gate: skipping %d/%d places below threshold (%.2f)",
+                "Sync gate: skipping %d/%d places (below quality threshold %.2f or name not specific enough)",
                 filtered_count,
                 len(all_places),
                 GATE_SYNC,

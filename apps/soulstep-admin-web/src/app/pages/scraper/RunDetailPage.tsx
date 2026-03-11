@@ -31,7 +31,7 @@ import { usePolling } from "@/lib/hooks/usePolling";
 import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
 import { statusVariant } from "@/lib/utils/scraperStatus";
-import { ArrowLeft, Play, RefreshCw, Trash2, UploadCloud, XCircle } from "lucide-react";
+import { ArrowLeft, ExternalLink, Play, RefreshCw, Trash2, UploadCloud, XCircle } from "lucide-react";
 
 function enrichVariant(s: string) {
   if (s === "complete") return "success" as const;
@@ -91,9 +91,9 @@ function QualityBreakdownPanel({
     ? breakdown.gate.replace(/_/g, " ")
     : "passed all gates";
   const totalColor =
-    breakdown.total_score >= 0.4
+    breakdown.total_score >= 0.7
       ? "text-green-600 dark:text-green-400"
-      : breakdown.total_score >= 0.2
+      : breakdown.total_score >= 0.5
       ? "text-yellow-600 dark:text-yellow-400"
       : "text-red-500 dark:text-red-400";
 
@@ -797,12 +797,13 @@ export function RunDetailPage() {
                 const qs = p._quality_score;
                 const qColor =
                   qs != null
-                    ? qs >= 0.4
+                    ? qs >= 0.7
                       ? "text-green-600 dark:text-green-400"
-                      : qs >= 0.2
+                      : qs >= 0.5
                       ? "text-yellow-600 dark:text-yellow-400"
                       : "text-red-500"
                     : "text-text-secondary dark:text-dark-text-secondary";
+                const googlePlaceId = (p.google_place_id as string) || (placeCode.startsWith("gplc_") ? placeCode.slice(5) : null);
                 return (
                   <div
                     key={placeCode}
@@ -819,8 +820,22 @@ export function RunDetailPage() {
                         })
                       }
                     >
-                      <span className="text-sm font-medium text-text-main dark:text-white truncate">
-                        {p.name}
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-sm font-medium text-text-main dark:text-white truncate">
+                          {p.name}
+                        </span>
+                        {googlePlaceId && (
+                          <a
+                            href={`https://www.google.com/maps/place/?q=place_id:${googlePlaceId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex-shrink-0 text-text-secondary dark:text-dark-text-secondary hover:text-primary transition-colors"
+                            title="Open in Google Maps"
+                          >
+                            <ExternalLink size={12} />
+                          </a>
+                        )}
                       </span>
                       <span className="font-mono text-xs text-text-secondary dark:text-dark-text-secondary truncate">
                         {placeCode}

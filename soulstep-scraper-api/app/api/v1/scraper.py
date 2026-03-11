@@ -33,6 +33,7 @@ from app.models.schemas import (
     ScraperRunResponse,
     ScraperStatsResponse,
 )
+from app.pipeline.place_quality import GATE_ENRICHMENT, GATE_IMAGE_DOWNLOAD, GATE_SYNC
 
 router = APIRouter()
 
@@ -600,9 +601,9 @@ def get_quality_metrics(
 
     # Near-threshold counts (±0.05 band around each gate threshold)
     thresholds = [
-        ("below_image_gate", 0.20),
-        ("below_enrichment_gate", 0.35),
-        ("below_sync_gate", 0.40),
+        ("below_image_gate", GATE_IMAGE_DOWNLOAD),
+        ("below_enrichment_gate", GATE_ENRICHMENT),
+        ("below_sync_gate", GATE_SYNC),
     ]
     near_threshold: list[NearThresholdCount] = []
     for gate_label, threshold in thresholds:

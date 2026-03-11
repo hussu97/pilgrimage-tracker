@@ -426,7 +426,7 @@ class TestEnrichPlace:
             place = ScrapedPlace(
                 run_code="run_col",
                 place_code="gplc_col1",
-                name="Test",
+                name="Test Mosque",
                 raw_data={"lat": 25.0, "lng": 55.0},
             )
             session.add(place)
@@ -535,7 +535,7 @@ class TestEnrichPlace:
             place = ScrapedPlace(
                 run_code="run_tags",
                 place_code="gplc_tags1",
-                name="Test",
+                name="Test Mosque",
                 raw_data={"lat": 25.0, "lng": 55.0},
             )
             session.add(place)

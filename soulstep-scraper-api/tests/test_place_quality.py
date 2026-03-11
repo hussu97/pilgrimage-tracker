@@ -13,6 +13,7 @@ from app.pipeline.place_quality import (
     GATE_SYNC,
     get_quality_gate,
     is_generic_name,
+    is_name_specific_enough,
     passes_gate,
     score_place_quality,
 )
@@ -161,7 +162,7 @@ class TestScorePlaceQuality:
             name="Unique Specific Name Here",
         )
         score = score_place_quality(raw)
-        # 0.18 (bayesian) + 0.15 (operational) + 0.105 (name 3 words * 0.15) + 0.05 (type base)
+        # 0.18 (bayesian) + 0.15 (operational) + 0.25 (name 3 words * 0.25)
         assert score > 0.0
 
     def test_photo_count_0(self):
@@ -196,7 +197,7 @@ class TestScorePlaceQuality:
     def test_generic_name_scores_zero_for_name_factor(self):
         raw_generic = _make_raw(name="Mosque")
         raw_specific = _make_raw(name="Al-Aqsa Mosque")
-        # Generic name gives 0.0 for name factor (weight 0.15), so specific > generic
+        # Generic name gives 0.0 for name factor (weight 0.25), so specific > generic
         assert score_place_quality(raw_specific) > score_place_quality(raw_generic)
 
     def test_3_plus_words_beats_2_words_beats_1_word(self):
@@ -206,11 +207,6 @@ class TestScorePlaceQuality:
         raw_2 = _make_raw(name="Blue Mosque")
         raw_1 = _make_raw(name="Hagia")
         assert score_place_quality(raw_3) > score_place_quality(raw_2) > score_place_quality(raw_1)
-
-    def test_tourist_attraction_type_bonus(self):
-        raw_tourist = _make_raw(gmaps_types=["mosque", "tourist_attraction"])
-        raw_basic = _make_raw(gmaps_types=["mosque"])
-        assert score_place_quality(raw_tourist) > score_place_quality(raw_basic)
 
     def test_fallback_attributes_list(self):
         """Older raw_data that stores rating/count only in attributes list should still score."""
@@ -238,15 +234,15 @@ class TestScorePlaceQuality:
 class TestGetQualityGate:
     def test_below_image_gate(self):
         assert get_quality_gate(0.0) == "below_image_gate"
-        assert get_quality_gate(0.19) == "below_image_gate"
+        assert get_quality_gate(0.49) == "below_image_gate"
 
     def test_below_enrichment_gate(self):
         assert get_quality_gate(GATE_IMAGE_DOWNLOAD) == "below_enrichment_gate"
-        assert get_quality_gate(0.34) == "below_enrichment_gate"
+        assert get_quality_gate(0.55) == "below_enrichment_gate"
 
     def test_below_sync_gate(self):
         assert get_quality_gate(GATE_ENRICHMENT) == "below_sync_gate"
-        assert get_quality_gate(0.39) == "below_sync_gate"
+        assert get_quality_gate(0.65) == "below_sync_gate"
 
     def test_passes_all_gates(self):
         assert get_quality_gate(GATE_SYNC) is None
@@ -264,10 +260,32 @@ class TestPassesGate:
         assert passes_gate(None, GATE_SYNC) is True
 
     def test_above_threshold_passes(self):
-        assert passes_gate(0.5, GATE_ENRICHMENT) is True
+        assert passes_gate(0.75, GATE_ENRICHMENT) is True
 
     def test_at_threshold_passes(self):
         assert passes_gate(GATE_ENRICHMENT, GATE_ENRICHMENT) is True
 
     def test_below_threshold_fails(self):
         assert passes_gate(0.1, GATE_ENRICHMENT) is False
+
+
+# ── is_name_specific_enough ───────────────────────────────────────────────────
+
+
+class TestIsNameSpecificEnough:
+    def test_two_word_name_passes(self):
+        assert is_name_specific_enough("Blue Mosque") is True
+        assert is_name_specific_enough("Al-Aqsa Mosque") is True
+
+    def test_three_plus_word_name_passes(self):
+        assert is_name_specific_enough("Church of the Holy Sepulchre") is True
+        assert is_name_specific_enough("Sheikh Zayed Grand Mosque") is True
+
+    def test_generic_bare_word_fails(self):
+        assert is_name_specific_enough("Mosque") is False
+        assert is_name_specific_enough("Church") is False
+        assert is_name_specific_enough("Al Masjid") is False
+
+    def test_single_word_non_generic_fails(self):
+        assert is_name_specific_enough("Hagia") is False
+        assert is_name_specific_enough("Pantheon") is False

@@ -7,12 +7,18 @@ operations: image download, enrichment, and sync.
 
 Gate thresholds
 ---------------
-GATE_IMAGE_DOWNLOAD : 0.20  — filters truly junk places (permanently closed, zero data)
-GATE_ENRICHMENT     : 0.35  — main cost saver (no reviews, no photos, generic names)
-GATE_SYNC           : 0.40  — ensures only minimum-viable places reach the platform
+GATE_IMAGE_DOWNLOAD : 0.50  — filters junk places (permanently closed, zero data)
+GATE_ENRICHMENT     : 0.60  — main cost saver (no reviews, no photos, vague names)
+GATE_SYNC           : 0.70  — ensures only solid places reach the platform
 
 Filtered places are still stored in ScrapedPlace with their score and gate label
 so runs can be re-processed with different thresholds without re-scraping.
+
+Name specificity hard gate
+--------------------------
+Places with a name shorter than 2 meaningful words (e.g. "Mosque", "Hagia") are
+blocked from enrichment and sync regardless of quality score.  Use
+`is_name_specific_enough()` for this check.
 
 Backwards-compat: quality_score IS NULL passes through all gates (existing runs).
 """
@@ -21,9 +27,9 @@ from __future__ import annotations
 
 # ── Gate thresholds ──────────────────────────────────────────────────────────
 
-GATE_IMAGE_DOWNLOAD: float = 0.20
-GATE_ENRICHMENT: float = 0.35
-GATE_SYNC: float = 0.40
+GATE_IMAGE_DOWNLOAD: float = 0.50
+GATE_ENRICHMENT: float = 0.60
+GATE_SYNC: float = 0.70
 
 # ── Generic place-type words (shared with enrichment.py) ─────────────────────
 
@@ -105,6 +111,16 @@ def is_generic_name(name: str) -> bool:
     return normalized in _GENERIC_PLACE_TERMS
 
 
+def is_name_specific_enough(name: str) -> bool:
+    """Return True if the name is specific enough for enrichment and sync.
+
+    Requires at least 2 meaningful words (specificity score ≥ 0.7).
+    Single-word names (e.g. "Hagia") and bare type words (e.g. "Mosque") are
+    not specific enough — external collectors would find nothing useful.
+    """
+    return _name_specificity(name) >= 0.7
+
+
 # ── Score computation ────────────────────────────────────────────────────────
 
 
@@ -118,8 +134,7 @@ def score_place_quality(raw_data: dict) -> float:
       editorial/generative   0.10
       has website            0.05
       has opening hours      0.05
-      name specificity       0.15
-      place type bonus       0.10
+      name specificity       0.25  (higher weight — also a hard gate for enrichment/sync)
 
     raw_data fields used:
       rating, user_rating_count  — added by build_place_data (direct fields)
@@ -130,7 +145,6 @@ def score_place_quality(raw_data: dict) -> float:
       website_url                — added by build_place_data
       opening_hours              — added by build_place_data
       name                       — added by build_place_data
-      gmaps_types                — added by build_place_data (list of raw gmaps types)
 
     Falls back gracefully for older raw_data that lacks the new direct fields.
     """
@@ -185,18 +199,8 @@ def score_place_quality(raw_data: dict) -> float:
     if opening_hours and any(v != "Hours not available" for v in opening_hours.values()):
         score += 0.05
 
-    # ── 7. Name specificity (0.15) ───────────────────────────────────────────
-    score += _name_specificity(raw_data.get("name", "")) * 0.15
-
-    # ── 8. Place type bonus (0.10) ───────────────────────────────────────────
-    # base 0.5 + 0.25 per qualifying type (tourist_attraction, point_of_interest)
-    gmaps_types: list[str] = raw_data.get("gmaps_types") or []
-    type_factor = 0.5
-    if "tourist_attraction" in gmaps_types:
-        type_factor += 0.25
-    if "point_of_interest" in gmaps_types:
-        type_factor += 0.25
-    score += type_factor * 0.10
+    # ── 7. Name specificity (0.25) ───────────────────────────────────────────
+    score += _name_specificity(raw_data.get("name", "")) * 0.25
 
     return min(1.0, max(0.0, score))
 
@@ -210,7 +214,7 @@ def score_place_quality_breakdown(raw_data: dict) -> dict:
     Returns a dict with:
       total_score  float          capped 0.0–1.0
       gate         str | None     gate label or None if all gates passed
-      factors      list[dict]     8 entries, one per scoring factor
+      factors      list[dict]     7 entries, one per scoring factor
     """
     factors = []
 
@@ -326,10 +330,10 @@ def score_place_quality_breakdown(raw_data: dict) -> dict:
         }
     )
 
-    # ── 7. Name specificity (0.15) ───────────────────────────────────────────
+    # ── 7. Name specificity (0.25) ───────────────────────────────────────────
     name = raw_data.get("name", "")
     raw_7 = _name_specificity(name)
-    weight_7 = 0.15
+    weight_7 = 0.25
     factors.append(
         {
             "name": "Name Specificity",
@@ -337,24 +341,6 @@ def score_place_quality_breakdown(raw_data: dict) -> dict:
             "raw_score": round(raw_7, 4),
             "weighted": round(raw_7 * weight_7, 4),
             "detail": f"name={name!r}, specificity={raw_7}",
-        }
-    )
-
-    # ── 8. Place type bonus (0.10) ───────────────────────────────────────────
-    gmaps_types: list[str] = raw_data.get("gmaps_types") or []
-    type_factor = 0.5
-    if "tourist_attraction" in gmaps_types:
-        type_factor += 0.25
-    if "point_of_interest" in gmaps_types:
-        type_factor += 0.25
-    weight_8 = 0.10
-    factors.append(
-        {
-            "name": "Place Type Bonus",
-            "weight": weight_8,
-            "raw_score": round(type_factor, 4),
-            "weighted": round(type_factor * weight_8, 4),
-            "detail": f"types={gmaps_types}, factor={type_factor}",
         }
     )
 
@@ -373,9 +359,9 @@ def score_place_quality_breakdown(raw_data: dict) -> dict:
 def get_quality_gate(quality_score: float) -> str | None:
     """Return the lowest gate label the score fails, or None if it passes all.
 
-    "below_image_gate"      → score < GATE_IMAGE_DOWNLOAD
-    "below_enrichment_gate" → GATE_IMAGE_DOWNLOAD <= score < GATE_ENRICHMENT
-    "below_sync_gate"       → GATE_ENRICHMENT <= score < GATE_SYNC
+    "below_image_gate"      → score < GATE_IMAGE_DOWNLOAD (0.50)
+    "below_enrichment_gate" → GATE_IMAGE_DOWNLOAD <= score < GATE_ENRICHMENT (0.60)
+    "below_sync_gate"       → GATE_ENRICHMENT <= score < GATE_SYNC (0.70)
     None                    → score >= GATE_SYNC (passes all gates)
     """
     if quality_score < GATE_IMAGE_DOWNLOAD:

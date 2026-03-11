@@ -195,18 +195,18 @@ class TestQualityMetricsNearThreshold:
     def test_near_threshold_band_counting(self, client, db_session):
         _add_location(db_session)
         _add_run(db_session)
-        # 0.20 threshold band: 0.15–0.25
-        _add_place(db_session, place_code="gplc_nt1", quality_score=0.18)
-        _add_place(db_session, place_code="gplc_nt2", quality_score=0.22)
-        # Outside band
-        _add_place(db_session, place_code="gplc_nt3", quality_score=0.70)
+        # GATE_IMAGE_DOWNLOAD=0.50 band: 0.45–0.55
+        _add_place(db_session, place_code="gplc_nt1", quality_score=0.47)
+        _add_place(db_session, place_code="gplc_nt2", quality_score=0.53)
+        # Outside all bands
+        _add_place(db_session, place_code="gplc_nt3", quality_score=0.20)
 
         resp = client.get("/api/v1/scraper/quality-metrics")
         assert resp.status_code == 200
         data = resp.json()
         nt = {n["gate"]: n["count"] for n in data["near_threshold_counts"]}
-        # 0.18 and 0.22 are both in [0.15, 0.25]
+        # 0.47 and 0.53 are both in [0.45, 0.55]
         assert nt["below_image_gate"] == 2
-        # 0.70 is not near 0.35 or 0.40
+        # 0.20 is not near 0.60 or 0.70
         assert nt["below_enrichment_gate"] == 0
         assert nt["below_sync_gate"] == 0

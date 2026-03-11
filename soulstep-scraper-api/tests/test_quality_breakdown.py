@@ -37,9 +37,9 @@ SPARSE_RAW = {
 
 
 class TestScorePlaceQualityBreakdown:
-    def test_returns_8_factors(self):
+    def test_returns_7_factors(self):
         result = score_place_quality_breakdown(RICH_RAW)
-        assert len(result["factors"]) == 8
+        assert len(result["factors"]) == 7
 
     def test_factor_names_present(self):
         result = score_place_quality_breakdown(RICH_RAW)
@@ -51,7 +51,7 @@ class TestScorePlaceQualityBreakdown:
         assert "Has Website" in names
         assert "Opening Hours" in names
         assert "Name Specificity" in names
-        assert "Place Type Bonus" in names
+        assert "Place Type Bonus" not in names
 
     def test_weighted_sum_equals_total_score(self):
         result = score_place_quality_breakdown(RICH_RAW)
@@ -93,12 +93,12 @@ class TestScorePlaceQualityBreakdown:
 
     def test_empty_raw_data(self):
         result = score_place_quality_breakdown({})
-        assert len(result["factors"]) == 8
+        assert len(result["factors"]) == 7
         assert 0.0 <= result["total_score"] <= 1.0
 
     def test_sparse_raw_data_factors(self):
         result = score_place_quality_breakdown(SPARSE_RAW)
-        assert len(result["factors"]) == 8
+        assert len(result["factors"]) == 7
         # Generic name → 0 specificity
         specificity_factor = next(f for f in result["factors"] if f["name"] == "Name Specificity")
         assert specificity_factor["raw_score"] == 0.0
@@ -146,7 +146,7 @@ class TestQualityBreakdownEndpoint:
         assert "total_score" in data
         assert "gate" in data
         assert "factors" in data
-        assert len(data["factors"]) == 8
+        assert len(data["factors"]) == 7
 
     def test_endpoint_total_score_matches_direct_calculation(self, client, db_session):
         _seed_place(db_session, "run_match", "plc_match", RICH_RAW)

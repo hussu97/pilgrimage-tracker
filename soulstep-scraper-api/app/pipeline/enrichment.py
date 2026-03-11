@@ -22,7 +22,12 @@ from app.db.models import RawCollectorData, ScrapedPlace, ScraperRun
 from app.db.session import engine
 from app.logger import get_logger
 from app.pipeline.merger import merge_collector_results
-from app.pipeline.place_quality import GATE_ENRICHMENT, is_generic_name, passes_gate
+from app.pipeline.place_quality import (
+    GATE_ENRICHMENT,
+    is_generic_name,
+    is_name_specific_enough,
+    passes_gate,
+)
 
 logger = get_logger(__name__)
 
@@ -219,13 +224,13 @@ async def _enrich_place(
     raw_data = place.raw_data or {}
     name = place.name
 
-    # Skip enrichment for places whose name is just a bare type word (e.g. "Mosque",
-    # "Masjid", "Church").  External collectors would find nothing useful because
-    # there is no specific proper name to search on.  Use the Google Maps description
-    # that was already stored during the discovery/detail-fetch phase.
-    if _is_generic_name(name):
+    # Skip enrichment for places whose name is not specific enough to search on
+    # (bare type words like "Mosque" or single-word names like "Hagia").
+    # External collectors would find nothing useful without a proper noun.
+    # Use the Google Maps description stored during the detail-fetch phase.
+    if not is_name_specific_enough(name):
         logger.info(
-            "Skipping enrichment for generic name %r (%s) — using gmaps description",
+            "Skipping enrichment for insufficiently specific name %r (%s) — using gmaps description",
             name,
             place.place_code,
         )
