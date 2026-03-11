@@ -31,7 +31,15 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { createGroup, getPlaces, uploadGroupCover } from '@/lib/api/client';
+import {
+  createGroup,
+  getPlaces,
+  uploadGroupCover,
+  getCities,
+  getFeaturedGroups,
+  getGroup,
+} from '@/lib/api/client';
+import type { FeaturedGroup } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
 import { INVITE_LINK_BASE_URL } from '@/lib/constants';
 import { useFeedback, useI18n, useTheme } from '@/app/providers';
@@ -44,6 +52,7 @@ import type { Place } from '@/lib/types';
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CreateGroup'>;
 type JourneyIntent = 'city' | 'faith' | 'route' | 'scratch';
 type Step = 'intent' | 'build' | 'polish' | 'success';
+type BuildSubStep = 'city_pick' | 'faith_pick' | 'route_pick' | null;
 
 // ── Intent cards ──────────────────────────────────────────────────────────────
 
@@ -92,7 +101,19 @@ function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
 }
 
-function generateJourneyName(intent: JourneyIntent, places: Place[]): string {
+function generateJourneyName(
+  intent: JourneyIntent,
+  places: Place[],
+  selectedCity?: string | null,
+  selectedFaith?: string | null,
+  selectedRoute?: FeaturedGroup | null,
+): string {
+  if (intent === 'city' && selectedCity) return `${selectedCity} Sacred Journey`;
+  if (intent === 'faith' && selectedFaith) {
+    const r = selectedFaith.charAt(0).toUpperCase() + selectedFaith.slice(1);
+    return `${r} Journey`;
+  }
+  if (intent === 'route' && selectedRoute) return selectedRoute.name;
   const location = places[0]?.address?.split(',')[0];
   const religion = places[0]?.religion;
   if (intent === 'city' && location) return `${location} Sacred Journey`;
@@ -490,6 +511,72 @@ function makeStyles(isDark: boolean) {
     goButtonText: { color: '#fff', fontWeight: '600' },
 
     errorText: { color: '#b91c1c', marginBottom: 12, fontSize: 14 },
+
+    // Sub-step picker styles
+    subStepTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: textMain,
+      marginBottom: 6,
+    },
+    subStepSubtitle: {
+      fontSize: 13,
+      color: textMuted,
+      marginBottom: 20,
+    },
+    cityCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      backgroundColor: surface,
+      borderRadius: 12,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: border,
+    },
+    cityCardName: { fontSize: 15, fontWeight: '600', color: textMain },
+    cityCardBadge: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: tokens.colors.primary,
+      backgroundColor: isDark ? 'rgba(196,112,84,0.2)' : 'rgba(196,112,84,0.1)',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 8,
+    },
+    faithCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      padding: 18,
+      borderRadius: 14,
+      marginBottom: 12,
+      borderWidth: 2,
+    },
+    faithCardLabel: { fontSize: 16, fontWeight: '700', color: textMain },
+    faithCardDesc: { fontSize: 12, color: textMuted, marginTop: 2 },
+    routeCard: {
+      borderRadius: 14,
+      overflow: 'hidden',
+      marginBottom: 12,
+      backgroundColor: surface,
+      borderWidth: 1,
+      borderColor: border,
+    },
+    routeCardImage: { width: '100%', height: 100 },
+    routeCardImagePlaceholder: {
+      width: '100%',
+      height: 100,
+      backgroundColor: isDark ? tokens.colors.darkBorder : '#e2e8f0',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    routeCardBody: { padding: 12 },
+    routeCardName: { fontSize: 14, fontWeight: '700', color: textMain, marginBottom: 2 },
+    routeCardDesc: { fontSize: 12, color: textMuted, marginBottom: 6 },
+    routeCardMeta: { fontSize: 11, color: tokens.colors.primary, fontWeight: '600' },
   });
 }
 
@@ -512,6 +599,20 @@ export default function CreateGroupScreen() {
   // Step state
   const [step, setStep] = useState<Step>('intent');
   const [intent, setIntent] = useState<JourneyIntent | null>(null);
+
+  // Build step — sub-step state
+  const [buildSubStep, setBuildSubStep] = useState<BuildSubStep>(null);
+  const [selectedCity, setSelectedCity] = useState<{ city: string; city_slug: string } | null>(
+    null,
+  );
+  const [selectedFaith, setSelectedFaith] = useState<string | null>(null);
+  const [selectedRoute, setSelectedRoute] = useState<FeaturedGroup | null>(null);
+  const [cities, setCities] = useState<Array<{ city: string; city_slug: string; count: number }>>(
+    [],
+  );
+  const [citiesLoading, setCitiesLoading] = useState(false);
+  const [featuredRoutes, setFeaturedRoutes] = useState<FeaturedGroup[]>([]);
+  const [routesLoading, setRoutesLoading] = useState(false);
 
   // Build step
   const [allPlaces, setAllPlaces] = useState<Place[]>([]);
@@ -546,43 +647,56 @@ export default function CreateGroupScreen() {
 
   // ── Data fetching ───────────────────────────────────────────────────────────
 
-  const fetchPlaces = useCallback(async (cursor?: string, search?: string) => {
-    const isInitial = !cursor;
-    if (isInitial) setPlacesLoading(true);
-    else setPlacesLoadingMore(true);
-    try {
-      const res = await getPlaces({
-        limit: PAGE_SIZE,
-        cursor: cursor ?? undefined,
-        search: search || undefined,
-        include_checkins: true,
-      });
-      if (isInitial) {
-        setAllPlaces(res.places ?? []);
-      } else {
-        setAllPlaces((prev) => [...prev, ...(res.places ?? [])]);
+  const fetchPlaces = useCallback(
+    async (cursor?: string, search?: string, opts?: { city?: string; religions?: string[] }) => {
+      const isInitial = !cursor;
+      if (isInitial) setPlacesLoading(true);
+      else setPlacesLoadingMore(true);
+      try {
+        const res = await getPlaces({
+          limit: PAGE_SIZE,
+          cursor: cursor ?? undefined,
+          search: search || undefined,
+          include_checkins: true,
+          city: opts?.city,
+          religions: (opts?.religions as any) ?? undefined,
+        });
+        if (isInitial) {
+          setAllPlaces(res.places ?? []);
+        } else {
+          setAllPlaces((prev) => [...prev, ...(res.places ?? [])]);
+        }
+        setNextCursor(res.next_cursor ?? null);
+      } catch {
+        // silently fail
+      } finally {
+        if (isInitial) setPlacesLoading(false);
+        else setPlacesLoadingMore(false);
       }
-      setNextCursor(res.next_cursor ?? null);
-    } catch {
-      // silently fail
-    } finally {
-      if (isInitial) setPlacesLoading(false);
-      else setPlacesLoadingMore(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
-  // Fetch when entering build step
+  // Fetch when entering build step with no sub-step pending
   useEffect(() => {
-    if (step === 'build' && allPlaces.length === 0) {
-      fetchPlaces(undefined, searchQuery);
+    if (step === 'build' && buildSubStep === null && allPlaces.length === 0) {
+      fetchPlaces(undefined, searchQuery, activePlaceFilters);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
+  }, [step, buildSubStep]);
 
   // Auto-fill name when entering polish step
   useEffect(() => {
     if (step === 'polish' && !name && intent) {
-      setName(generateJourneyName(intent, selectedPlaces));
+      setName(
+        generateJourneyName(
+          intent,
+          selectedPlaces,
+          selectedCity?.city,
+          selectedFaith,
+          selectedRoute,
+        ),
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
@@ -603,21 +717,27 @@ export default function CreateGroupScreen() {
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
+  const activePlaceFilters = useMemo(() => {
+    if (intent === 'city' && selectedCity) return { city: selectedCity.city };
+    if (intent === 'faith' && selectedFaith) return { religions: [selectedFaith] };
+    return {};
+  }, [intent, selectedCity, selectedFaith]);
+
   const handleSearchChange = useCallback(
     (text: string) => {
       setSearchQuery(text);
       setAllPlaces([]);
       setNextCursor(null);
-      fetchPlaces(undefined, text);
+      fetchPlaces(undefined, text, activePlaceFilters);
     },
-    [fetchPlaces],
+    [fetchPlaces, activePlaceFilters],
   );
 
   const handleLoadMore = useCallback(() => {
     if (nextCursor && !placesLoadingMore) {
-      fetchPlaces(nextCursor, searchQuery);
+      fetchPlaces(nextCursor, searchQuery, activePlaceFilters);
     }
-  }, [nextCursor, placesLoadingMore, fetchPlaces, searchQuery]);
+  }, [nextCursor, placesLoadingMore, fetchPlaces, searchQuery, activePlaceFilters]);
 
   const togglePlace = useCallback((place: Place) => {
     setSelectedPlaces((prev) => {
@@ -693,11 +813,51 @@ export default function CreateGroupScreen() {
     setShowEndPicker(false);
   };
 
+  // Fetch cities for city picker
+  const fetchCities = useCallback(async () => {
+    setCitiesLoading(true);
+    try {
+      const data = await getCities({ limit: 50 });
+      setCities(data.cities ?? []);
+    } catch {
+      setCities([]);
+    } finally {
+      setCitiesLoading(false);
+    }
+  }, []);
+
+  // Fetch featured routes for route picker
+  const fetchFeaturedRoutes = useCallback(async () => {
+    setRoutesLoading(true);
+    try {
+      const data = await getFeaturedGroups();
+      setFeaturedRoutes(data ?? []);
+    } catch {
+      setFeaturedRoutes([]);
+    } finally {
+      setRoutesLoading(false);
+    }
+  }, []);
+
   // Navigation
   const goNext = () => {
     if (step === 'intent') {
       if (!intent) return;
-      setStep('build');
+      if (intent === 'city') {
+        setStep('build');
+        setBuildSubStep('city_pick');
+        fetchCities();
+      } else if (intent === 'faith') {
+        setStep('build');
+        setBuildSubStep('faith_pick');
+      } else if (intent === 'route') {
+        setStep('build');
+        setBuildSubStep('route_pick');
+        fetchFeaturedRoutes();
+      } else {
+        setStep('build');
+        setBuildSubStep(null);
+      }
     } else if (step === 'build') {
       setStep('polish');
     } else if (step === 'polish') {
@@ -712,8 +872,25 @@ export default function CreateGroupScreen() {
 
   const goBack = () => {
     if (step === 'intent') navigation.goBack();
-    else if (step === 'build') setStep('intent');
-    else if (step === 'polish') setStep('build');
+    else if (step === 'build') {
+      if (buildSubStep !== null) {
+        // From city/faith/route picker, go back to intent
+        setStep('intent');
+        setBuildSubStep(null);
+      } else if (intent !== 'scratch' && (selectedCity || selectedFaith)) {
+        // From filtered place list — restore the sub-step picker
+        if (intent === 'city') {
+          setBuildSubStep('city_pick');
+          setAllPlaces([]);
+        } else if (intent === 'faith') {
+          setBuildSubStep('faith_pick');
+          setAllPlaces([]);
+        }
+      } else {
+        setStep('intent');
+        setBuildSubStep(null);
+      }
+    } else if (step === 'polish') setStep('build');
     else navigation.goBack();
   };
 
@@ -945,6 +1122,238 @@ export default function CreateGroupScreen() {
     );
   }
 
+  // ── Build step – city picker ─────────────────────────────────────────────────
+
+  if (step === 'build' && buildSubStep === 'city_pick') {
+    return (
+      <KeyboardAvoidingView style={styles.container} behavior={undefined}>
+        <View style={[styles.content, { flex: 1, paddingTop: insets.top + 16 }]}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity style={styles.backBtn} onPress={goBack} activeOpacity={0.8}>
+              <MaterialIcons
+                name="arrow-back"
+                size={20}
+                color={isDark ? '#fff' : tokens.colors.textDark}
+              />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{t('journey.newJourney') || 'New Journey'}</Text>
+          </View>
+          {renderStepIndicator()}
+          <Text style={styles.subStepTitle}>{t('journey.pickCity') || 'Choose your city'}</Text>
+          {citiesLoading ? (
+            <ActivityIndicator color={tokens.colors.primary} style={{ marginTop: 24 }} />
+          ) : cities.length === 0 ? (
+            <Text style={[styles.placeAddr, { textAlign: 'center', marginTop: 24 }]}>
+              {t('home.noPlacesFound') || 'No cities found'}
+            </Text>
+          ) : (
+            <FlatList
+              data={cities}
+              keyExtractor={(c) => c.city_slug}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item: c }) => (
+                <TouchableOpacity
+                  style={styles.cityCard}
+                  onPress={() => {
+                    setSelectedCity({ city: c.city, city_slug: c.city_slug });
+                    setBuildSubStep(null);
+                    setAllPlaces([]);
+                    fetchPlaces(undefined, undefined, { city: c.city });
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.cityCardName}>{c.city}</Text>
+                  <Text style={styles.cityCardBadge}>{c.count}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          )}
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  // ── Build step – faith picker ────────────────────────────────────────────────
+
+  if (step === 'build' && buildSubStep === 'faith_pick') {
+    const FAITH_OPTIONS = [
+      {
+        id: 'islam',
+        label: 'Islam',
+        icon: 'mosque',
+        color: '#0891b2',
+        desc: 'Mosques & Islamic sites',
+      },
+      {
+        id: 'hinduism',
+        label: 'Hinduism',
+        icon: 'temple-hindu',
+        color: '#d97706',
+        desc: 'Temples & Hindu sites',
+      },
+      {
+        id: 'christianity',
+        label: 'Christianity',
+        icon: 'church',
+        color: '#7c3aed',
+        desc: 'Churches & Christian sites',
+      },
+    ];
+    return (
+      <KeyboardAvoidingView style={styles.container} behavior={undefined}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.content,
+            { paddingTop: insets.top + 16, paddingBottom: 24 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.headerRow}>
+            <TouchableOpacity style={styles.backBtn} onPress={goBack} activeOpacity={0.8}>
+              <MaterialIcons
+                name="arrow-back"
+                size={20}
+                color={isDark ? '#fff' : tokens.colors.textDark}
+              />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{t('journey.newJourney') || 'New Journey'}</Text>
+          </View>
+          {renderStepIndicator()}
+          <Text style={styles.subStepTitle}>{t('journey.pickFaith') || 'Choose your faith'}</Text>
+          {FAITH_OPTIONS.map((f) => (
+            <TouchableOpacity
+              key={f.id}
+              style={[
+                styles.faithCard,
+                { borderColor: f.color + '40', backgroundColor: f.color + '10' },
+              ]}
+              onPress={() => {
+                setSelectedFaith(f.id);
+                setBuildSubStep(null);
+                setAllPlaces([]);
+                fetchPlaces(undefined, undefined, { religions: [f.id] });
+              }}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.intentIconCircle, { backgroundColor: f.color + '20' }]}>
+                <MaterialIcons name={f.icon as any} size={28} color={f.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.faithCardLabel}>{f.label}</Text>
+                <Text style={styles.faithCardDesc}>{f.desc}</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={20} color={textMuted} />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  // ── Build step – route picker ────────────────────────────────────────────────
+
+  if (step === 'build' && buildSubStep === 'route_pick') {
+    return (
+      <KeyboardAvoidingView style={styles.container} behavior={undefined}>
+        <View style={[styles.content, { flex: 1, paddingTop: insets.top + 16 }]}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity style={styles.backBtn} onPress={goBack} activeOpacity={0.8}>
+              <MaterialIcons
+                name="arrow-back"
+                size={20}
+                color={isDark ? '#fff' : tokens.colors.textDark}
+              />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{t('journey.newJourney') || 'New Journey'}</Text>
+          </View>
+          {renderStepIndicator()}
+          <Text style={styles.subStepTitle}>
+            {t('journey.pickRoute') || 'Choose a famous route'}
+          </Text>
+          {routesLoading ? (
+            <ActivityIndicator color={tokens.colors.primary} style={{ marginTop: 24 }} />
+          ) : featuredRoutes.length === 0 ? (
+            <View style={{ alignItems: 'center', marginTop: 32, gap: 12 }}>
+              <MaterialIcons name="route" size={48} color={textMuted} />
+              <Text style={[styles.placeAddr, { textAlign: 'center' }]}>
+                {t('journey.routeNoResults') || 'No famous routes yet — search manually'}
+              </Text>
+              <TouchableOpacity
+                style={[styles.submitButton, { paddingHorizontal: 24, flex: 0, height: 44 }]}
+                onPress={() => {
+                  setBuildSubStep(null);
+                  fetchPlaces();
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.submitText}>{t('common.search') || 'Search'}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <FlatList
+              data={featuredRoutes}
+              keyExtractor={(r) => r.group_code}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item: route }) => (
+                <TouchableOpacity
+                  style={styles.routeCard}
+                  onPress={async () => {
+                    try {
+                      // Fetch full group detail to get place list
+                      const detail = await getGroup(route.group_code);
+                      if (detail.path_place_codes?.length) {
+                        // Fetch the places by getting a filtered list
+                        const res = await getPlaces({ limit: 100 });
+                        const placesMap = new Map((res.places ?? []).map((p) => [p.place_code, p]));
+                        const ordered = detail.path_place_codes
+                          .map((code) => placesMap.get(code))
+                          .filter(Boolean) as Place[];
+                        setSelectedPlaces(ordered);
+                        setAllPlaces(res.places ?? []);
+                      }
+                      setSelectedRoute(route);
+                      setBuildSubStep(null);
+                    } catch {
+                      // Fall back: just dismiss picker
+                      setSelectedRoute(route);
+                      setBuildSubStep(null);
+                      fetchPlaces();
+                    }
+                  }}
+                  activeOpacity={0.85}
+                >
+                  {route.cover_image_url ? (
+                    <Image
+                      source={{ uri: route.cover_image_url }}
+                      style={styles.routeCardImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.routeCardImagePlaceholder}>
+                      <MaterialIcons name="route" size={36} color={textMuted} />
+                    </View>
+                  )}
+                  <View style={styles.routeCardBody}>
+                    <Text style={styles.routeCardName}>{route.name}</Text>
+                    {route.description ? (
+                      <Text style={styles.routeCardDesc} numberOfLines={2}>
+                        {route.description}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.routeCardMeta}>
+                      {route.total_sites} {route.total_sites === 1 ? 'site' : 'sites'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          )}
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
+
   // ── Build step ──────────────────────────────────────────────────────────────
 
   if (step === 'build') {
@@ -1025,6 +1434,51 @@ export default function CreateGroupScreen() {
                 </View>
               ))}
             </ScrollView>
+          )}
+
+          {/* Active filter context chip */}
+          {(selectedCity || selectedFaith) && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  backgroundColor: isDark ? 'rgba(196,112,84,0.2)' : 'rgba(196,112,84,0.1)',
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 20,
+                }}
+              >
+                <MaterialIcons
+                  name={selectedCity ? 'location-city' : 'auto-awesome'}
+                  size={14}
+                  color={tokens.colors.primary}
+                />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: tokens.colors.primary }}>
+                  {selectedCity
+                    ? selectedCity.city
+                    : selectedFaith
+                      ? selectedFaith.charAt(0).toUpperCase() + selectedFaith.slice(1)
+                      : ''}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (intent === 'city') {
+                      setSelectedCity(null);
+                      setBuildSubStep('city_pick');
+                    } else if (intent === 'faith') {
+                      setSelectedFaith(null);
+                      setBuildSubStep('faith_pick');
+                    }
+                    setAllPlaces([]);
+                  }}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                >
+                  <MaterialIcons name="close" size={14} color={tokens.colors.primary} />
+                </TouchableOpacity>
+              </View>
+            </View>
           )}
 
           {/* Search */}

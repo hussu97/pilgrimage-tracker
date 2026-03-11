@@ -297,6 +297,7 @@ def list_places(
     max_lat: float | None = Query(None, description="North boundary of map viewport"),
     min_lng: float | None = Query(None, description="West boundary of map viewport"),
     max_lng: float | None = Query(None, description="East boundary of map viewport"),
+    city: str | None = Query(None, description="Filter by city name (case-insensitive)"),
 ):
     religions = religion
     result = places_db.list_places(
@@ -320,6 +321,7 @@ def list_places(
         max_lat=max_lat,
         min_lng=min_lng,
         max_lng=max_lng,
+        city=city,
     )
     # Use bulk-fetched attributes, ratings, and images for efficiency
     all_attrs = result["all_attrs"]

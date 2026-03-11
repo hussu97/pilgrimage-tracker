@@ -4,6 +4,24 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Differentiated Step 2 for Each Journey Intent (2026-03-11)
+
+### Backend
+- **`app/api/v1/places.py`** — added `city: str | None` query parameter to `GET /api/v1/places`; passes to `list_places()`
+- **`app/db/places.py`** — added `city: str | None = None` param to `list_places()`; filters via `Place.city.ilike(city)` (case-insensitive)
+- **`app/db/seed_data.json`** — added 13 translation keys (`journey.intent.city/cityDesc/faith/faithDesc/route/routeDesc/scratch/scratchDesc`, `journey.pickCity/pickFaith/pickRoute/routeNoResults`) in all 5 languages (en/ar/hi/te/ml)
+- **`tests/test_places.py`** — added `test_list_filter_by_city` and `test_list_filter_by_city_case_insensitive`
+
+### Frontend (web)
+- **`src/lib/api/client.ts`** — added `city?: string` to `GetPlacesParams`; added `FeaturedGroup` interface and `getFeaturedGroups()` function
+- **`src/app/pages/CreateGroup.tsx`** — Step 2 now shows contextual sub-steps: city picker (grid of city cards) for "Explore My City", faith picker (3 religion cards) for "A Specific Faith", route picker (featured route cards) for "A Famous Route"; "Start from Scratch" unchanged; active filter chip shown in place list; `generateJourneyName` updated to use selected city/faith/route name
+
+### Frontend (mobile)
+- **`src/lib/api/client.ts`** — added `city?: string` to `GetPlacesParams`; added `FeaturedGroup` interface and `getFeaturedGroups()` function
+- **`src/app/screens/CreateGroupScreen.tsx`** — Step 2 now shows contextual sub-steps mirroring web: city picker (FlatList of city cards), faith picker (3 religion cards), route picker (FlatList of featured route cards); back navigation restores picker from filtered place list; active filter chip; `generateJourneyName` updated to use selected city/faith/route
+
+---
+
 ## i18n Audit & Dead Code Removal (2026-03-11)
 
 ### Backend

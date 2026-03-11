@@ -352,6 +352,7 @@ def list_places(
     max_lat: float | None = None,
     min_lng: float | None = None,
     max_lng: float | None = None,
+    city: str | None = None,
 ) -> dict:
     statement = select(Place)
 
@@ -359,6 +360,8 @@ def list_places(
         statement = statement.where(Place.religion.in_(religions))
     if place_type:
         statement = statement.where(Place.place_type == place_type)
+    if city:
+        statement = statement.where(Place.city.ilike(city))
     if search:
         q = f"%{search.lower()}%"
         statement = statement.where(

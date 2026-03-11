@@ -98,6 +98,22 @@ class TestListPlaces:
         assert "plc_near0001" in codes
         assert "plc_far00001" not in codes
 
+    def test_list_filter_by_city(self, client):
+        _create_place(client, "plc_dxb00001", name="Dubai Mosque", city="Dubai")
+        _create_place(client, "plc_lnd00001", name="London Mosque", city="London")
+        resp = client.get(PLACES_URL, params={"city": "Dubai"})
+        assert resp.status_code == 200
+        codes = [p["place_code"] for p in resp.json()["places"]]
+        assert "plc_dxb00001" in codes
+        assert "plc_lnd00001" not in codes
+
+    def test_list_filter_by_city_case_insensitive(self, client):
+        _create_place(client, "plc_dxb00002", name="Dubai Temple", city="Dubai")
+        resp = client.get(PLACES_URL, params={"city": "dubai"})
+        assert resp.status_code == 200
+        codes = [p["place_code"] for p in resp.json()["places"]]
+        assert "plc_dxb00002" in codes
+
     def test_list_search(self, client):
         _create_place(client, "plc_srch0001", name="Grand Mosque Search Test")
         resp = client.get(PLACES_URL, params={"search": "Grand Mosque Search"})

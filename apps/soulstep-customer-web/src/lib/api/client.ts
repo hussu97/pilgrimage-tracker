@@ -174,6 +174,23 @@ export interface GetPlacesParams {
   max_lat?: number;
   min_lng?: number;
   max_lng?: number;
+  city?: string;
+}
+
+export interface FeaturedGroup {
+  group_code: string;
+  name: string;
+  description: string | null;
+  cover_image_url: string | null;
+  total_sites: number;
+  member_count: number;
+  path_place_codes: string[];
+}
+
+export async function getFeaturedGroups(): Promise<FeaturedGroup[]> {
+  const res = await fetch(`${API_BASE}/api/v1/groups/featured`, { headers: clientHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch featured groups');
+  return res.json();
 }
 
 export async function getPlaces(params?: GetPlacesParams): Promise<PlacesResponse> {
@@ -197,6 +214,7 @@ export async function getPlaces(params?: GetPlacesParams): Promise<PlacesRespons
   if (params?.max_lat != null) sp.set('max_lat', String(params.max_lat));
   if (params?.min_lng != null) sp.set('min_lng', String(params.min_lng));
   if (params?.max_lng != null) sp.set('max_lng', String(params.max_lng));
+  if (params?.city) sp.set('city', params.city);
   if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
 
   const qs = sp.toString();

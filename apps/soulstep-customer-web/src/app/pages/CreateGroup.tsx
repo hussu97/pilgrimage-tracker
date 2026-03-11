@@ -14,7 +14,15 @@ import { useAuth, useI18n, useFeedback } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { cn } from '@/lib/utils/cn';
-import { createGroup, getPlaces, uploadGroupCover } from '@/lib/api/client';
+import {
+  createGroup,
+  getPlaces,
+  uploadGroupCover,
+  getCities,
+  getFeaturedGroups,
+  getGroup,
+} from '@/lib/api/client';
+import type { FeaturedGroup } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { Place } from '@/lib/types';
@@ -23,6 +31,7 @@ import type { Place } from '@/lib/types';
 
 type JourneyIntent = 'city' | 'faith' | 'route' | 'scratch';
 type Step = 'intent' | 'build' | 'polish' | 'success';
+type BuildSubStep = 'city_pick' | 'faith_pick' | 'route_pick' | null;
 
 // ── Intent card config ─────────────────────────────────────────────────────────
 
@@ -70,7 +79,19 @@ const INTENT_CARDS: Array<{
 
 // ── Auto name generation ──────────────────────────────────────────────────────
 
-function generateJourneyName(intent: JourneyIntent, places: Place[]): string {
+function generateJourneyName(
+  intent: JourneyIntent,
+  places: Place[],
+  selectedCity?: string | null,
+  selectedFaith?: string | null,
+  selectedRoute?: FeaturedGroup | null,
+): string {
+  if (intent === 'city' && selectedCity) return `${selectedCity} Sacred Journey`;
+  if (intent === 'faith' && selectedFaith) {
+    const r = selectedFaith.charAt(0).toUpperCase() + selectedFaith.slice(1);
+    return `${r} Journey`;
+  }
+  if (intent === 'route' && selectedRoute) return selectedRoute.name;
   const location = places[0]?.address?.split(',')[0];
   const religion = places[0]?.religion;
   if (intent === 'city' && location) return `${location} Sacred Journey`;
@@ -165,7 +186,7 @@ function SelectedPlaceChip({
 export default function CreateGroup() {
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { user } = useAuth();
+  useAuth();
   const { showError } = useFeedback();
   const { trackUmamiEvent } = useUmamiTracking();
   const { coords } = useLocation();
@@ -174,6 +195,20 @@ export default function CreateGroup() {
   // ── Step state ──────────────────────────────────────────────────────────────
   const [step, setStep] = useState<Step>('intent');
   const [intent, setIntent] = useState<JourneyIntent | null>(null);
+
+  // ── Build step sub-step state ────────────────────────────────────────────────
+  const [buildSubStep, setBuildSubStep] = useState<BuildSubStep>(null);
+  const [selectedCity, setSelectedCity] = useState<{ city: string; city_slug: string } | null>(
+    null,
+  );
+  const [selectedFaith, setSelectedFaith] = useState<string | null>(null);
+  const [selectedRoute, setSelectedRoute] = useState<FeaturedGroup | null>(null);
+  const [cities, setCities] = useState<Array<{ city: string; city_slug: string; count: number }>>(
+    [],
+  );
+  const [citiesLoading, setCitiesLoading] = useState(false);
+  const [featuredRoutes, setFeaturedRoutes] = useState<FeaturedGroup[]>([]);
+  const [routesLoading, setRoutesLoading] = useState(false);
 
   // ── Build route state ───────────────────────────────────────────────────────
   const [allPlaces, setAllPlaces] = useState<Place[]>([]);
@@ -197,37 +232,52 @@ export default function CreateGroup() {
   const [inviteCode, setInviteCode] = useState<string | null>(null);
 
   // ── Load places when entering build step ────────────────────────────────────
-  const loadPlaces = useCallback(async () => {
-    setPlacesLoading(true);
-    try {
-      // Fetch nearby places sorted by distance
-      const religions =
-        intent === 'faith' && user?.religions?.length
-          ? user.religions.filter((r: string) => r !== 'all')
-          : undefined;
-      const res = await getPlaces({
-        lat: coords.lat,
-        lng: coords.lng,
-        sort: 'distance',
-        limit: 100,
-        ...(religions?.length ? { religions } : {}),
-      });
-      setAllPlaces(res.places ?? []);
-    } catch {
-      setAllPlaces([]);
-    } finally {
-      setPlacesLoading(false);
-    }
-  }, [intent, coords, user?.religions]);
+  const loadPlaces = useCallback(
+    async (opts?: { city?: string; religions?: string[] }) => {
+      setPlacesLoading(true);
+      try {
+        const res = await getPlaces({
+          lat: coords.lat,
+          lng: coords.lng,
+          sort: 'distance',
+          limit: 100,
+          city: opts?.city,
+          religions: (opts?.religions as any) ?? undefined,
+        });
+        setAllPlaces(res.places ?? []);
+      } catch {
+        setAllPlaces([]);
+      } finally {
+        setPlacesLoading(false);
+      }
+    },
+    [coords],
+  );
 
   useEffect(() => {
-    if (step === 'build') loadPlaces();
-  }, [step, loadPlaces]);
+    if (step === 'build' && buildSubStep === null)
+      loadPlaces(
+        selectedCity
+          ? { city: selectedCity.city }
+          : selectedFaith
+            ? { religions: [selectedFaith] }
+            : undefined,
+      );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, buildSubStep]);
 
   // Auto-generate name when entering polish step
   useEffect(() => {
     if (step === 'polish' && !name && intent) {
-      setName(generateJourneyName(intent, selectedPlaces));
+      setName(
+        generateJourneyName(
+          intent,
+          selectedPlaces,
+          selectedCity?.city,
+          selectedFaith,
+          selectedRoute,
+        ),
+      );
       if (!coverImageUrl && selectedPlaces[0]) {
         // Auto-set cover from first place
         const img = (selectedPlaces[0] as Place & { image_url?: string }).image_url;
@@ -309,8 +359,23 @@ export default function CreateGroup() {
         <button
           onClick={() => {
             if (step === 'intent') navigate(-1);
-            else if (step === 'build') setStep('intent');
-            else if (step === 'polish') setStep('build');
+            else if (step === 'build') {
+              if (buildSubStep !== null) {
+                setStep('intent');
+                setBuildSubStep(null);
+              } else if (intent !== 'scratch' && (selectedCity || selectedFaith)) {
+                if (intent === 'city') {
+                  setBuildSubStep('city_pick');
+                  setAllPlaces([]);
+                } else if (intent === 'faith') {
+                  setBuildSubStep('faith_pick');
+                  setAllPlaces([]);
+                }
+              } else {
+                setStep('intent');
+                setBuildSubStep(null);
+              }
+            } else if (step === 'polish') setStep('build');
           }}
           className="w-9 h-9 rounded-full bg-white dark:bg-dark-surface shadow-sm flex items-center justify-center text-text-muted hover:text-primary transition-colors"
           aria-label={t('common.back')}
@@ -360,6 +425,25 @@ export default function CreateGroup() {
                     whileTap={{ scale: 0.96 }}
                     onClick={() => {
                       setIntent(card.id);
+                      if (card.id === 'city') {
+                        setBuildSubStep('city_pick');
+                        setCitiesLoading(true);
+                        getCities({ limit: 50 })
+                          .then((d) => setCities(d.cities ?? []))
+                          .catch(() => setCities([]))
+                          .finally(() => setCitiesLoading(false));
+                      } else if (card.id === 'faith') {
+                        setBuildSubStep('faith_pick');
+                      } else if (card.id === 'route') {
+                        setBuildSubStep('route_pick');
+                        setRoutesLoading(true);
+                        getFeaturedGroups()
+                          .then((d) => setFeaturedRoutes(d ?? []))
+                          .catch(() => setFeaturedRoutes([]))
+                          .finally(() => setRoutesLoading(false));
+                      } else {
+                        setBuildSubStep(null);
+                      }
                       setStep('build');
                     }}
                     className={cn(
@@ -393,152 +477,402 @@ export default function CreateGroup() {
           {/* ── Step 2: Build Route ─────────────────────────────────────────── */}
           {step === 'build' && (
             <motion.div
-              key="build"
+              key={`build-${buildSubStep ?? 'list'}`}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               className="flex flex-col h-full"
             >
-              {/* Selected places strip */}
-              {selectedPlaces.length > 0 && (
-                <div className="px-4 py-2 border-b border-slate-100 dark:border-dark-border">
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-                    <span className="text-xs font-semibold text-text-muted dark:text-dark-text-secondary flex-shrink-0">
-                      {selectedPlaces.length} selected
-                    </span>
-                    <AnimatePresence>
-                      {selectedPlaces.map((p, i) => (
-                        <SelectedPlaceChip
-                          key={p.place_code}
-                          place={p}
-                          index={i}
-                          onRemove={() => togglePlace(p)}
-                        />
+              {/* ── City picker sub-step ──────────────────────────────────────── */}
+              {buildSubStep === 'city_pick' && (
+                <div className="px-4 py-6 max-w-xl mx-auto w-full">
+                  <p className="text-lg font-bold text-text-primary dark:text-white mb-1">
+                    {t('journey.pickCity') || 'Choose your city'}
+                  </p>
+                  <p className="text-sm text-text-muted dark:text-dark-text-secondary mb-5">
+                    {t('journey.intent.cityDesc') || 'Discover sacred sites near you'}
+                  </p>
+                  {citiesLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <span className="material-symbols-outlined text-3xl text-slate-300 animate-spin">
+                        progress_activity
+                      </span>
+                    </div>
+                  ) : cities.length === 0 ? (
+                    <p className="text-center text-text-muted py-8 text-sm">
+                      {t('home.noPlacesFound')}
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {cities.map((c) => (
+                        <button
+                          key={c.city_slug}
+                          onClick={() => {
+                            setSelectedCity({ city: c.city, city_slug: c.city_slug });
+                            setBuildSubStep(null);
+                            setAllPlaces([]);
+                            loadPlaces({ city: c.city });
+                          }}
+                          className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white dark:bg-dark-surface border border-slate-200 dark:border-dark-border hover:border-primary/40 transition-all text-left"
+                        >
+                          <span className="text-sm font-semibold text-text-primary dark:text-white">
+                            {c.city}
+                          </span>
+                          <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-lg">
+                            {c.count}
+                          </span>
+                        </button>
                       ))}
-                    </AnimatePresence>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Faith picker sub-step ────────────────────────────────────── */}
+              {buildSubStep === 'faith_pick' && (
+                <div className="px-4 py-6 max-w-xl mx-auto w-full">
+                  <p className="text-lg font-bold text-text-primary dark:text-white mb-1">
+                    {t('journey.pickFaith') || 'Choose your faith'}
+                  </p>
+                  <p className="text-sm text-text-muted dark:text-dark-text-secondary mb-5">
+                    {t('journey.intent.faithDesc') || 'Focus on one religion or tradition'}
+                  </p>
+                  <div className="space-y-3">
+                    {[
+                      {
+                        id: 'islam',
+                        label: 'Islam',
+                        icon: 'mosque',
+                        color: '#0891b2',
+                        desc: 'Mosques & Islamic sites',
+                      },
+                      {
+                        id: 'hinduism',
+                        label: 'Hinduism',
+                        icon: 'temple_hindu',
+                        color: '#d97706',
+                        desc: 'Temples & Hindu sites',
+                      },
+                      {
+                        id: 'christianity',
+                        label: 'Christianity',
+                        icon: 'church',
+                        color: '#7c3aed',
+                        desc: 'Churches & Christian sites',
+                      },
+                    ].map((f) => (
+                      <button
+                        key={f.id}
+                        onClick={() => {
+                          setSelectedFaith(f.id);
+                          setBuildSubStep(null);
+                          setAllPlaces([]);
+                          loadPlaces({ religions: [f.id] });
+                        }}
+                        className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 hover:shadow-md transition-all text-left"
+                        style={{ borderColor: f.color + '40', background: f.color + '10' }}
+                      >
+                        <div
+                          className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{ background: f.color + '20' }}
+                        >
+                          <span
+                            className="material-symbols-outlined text-[28px]"
+                            style={{ color: f.color, fontVariationSettings: "'FILL' 1" }}
+                          >
+                            {f.icon}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-text-primary dark:text-white">
+                            {f.label}
+                          </p>
+                          <p className="text-xs text-text-muted dark:text-dark-text-secondary">
+                            {f.desc}
+                          </p>
+                        </div>
+                        <span className="material-symbols-outlined text-[20px] text-text-muted">
+                          chevron_right
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
 
-              {/* Search */}
-              <div className="px-4 py-3 border-b border-slate-100 dark:border-dark-border">
-                <div className="relative">
-                  <span
-                    className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-text-muted"
-                    aria-hidden
-                  >
-                    search
-                  </span>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={t('groups.searchPlaces')}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-surface text-sm text-text-primary dark:text-white placeholder:text-text-muted dark:placeholder:text-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                </div>
-              </div>
-
-              {/* Place list */}
-              <div className="flex-1 overflow-y-auto px-4 py-2">
-                {placesLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <span className="material-symbols-outlined text-3xl text-slate-300 animate-spin">
-                      progress_activity
-                    </span>
-                  </div>
-                ) : filteredPlaces.length === 0 ? (
-                  <p className="text-center text-text-muted py-8 text-sm">
-                    {t('home.noPlacesFound')}
+              {/* ── Route picker sub-step ────────────────────────────────────── */}
+              {buildSubStep === 'route_pick' && (
+                <div className="px-4 py-6 max-w-xl mx-auto w-full">
+                  <p className="text-lg font-bold text-text-primary dark:text-white mb-1">
+                    {t('journey.pickRoute') || 'Choose a famous route'}
                   </p>
-                ) : (
-                  <div className="space-y-1 pb-24">
-                    {filteredPlaces.map((place) => {
-                      const isSelected = selectedCodes.has(place.place_code);
-                      return (
-                        <motion.button
-                          key={place.place_code}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => togglePlace(place)}
-                          className={cn(
-                            'w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left',
-                            isSelected
-                              ? 'bg-primary/10 dark:bg-primary/15 border border-primary/30'
-                              : 'bg-white dark:bg-dark-surface border border-transparent hover:border-slate-200 dark:hover:border-dark-border',
-                          )}
+                  <p className="text-sm text-text-muted dark:text-dark-text-secondary mb-5">
+                    {t('journey.intent.routeDesc') || 'Follow a known pilgrimage path'}
+                  </p>
+                  {routesLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <span className="material-symbols-outlined text-3xl text-slate-300 animate-spin">
+                        progress_activity
+                      </span>
+                    </div>
+                  ) : featuredRoutes.length === 0 ? (
+                    <div className="text-center py-8 space-y-3">
+                      <span className="material-symbols-outlined text-5xl text-slate-300">
+                        route
+                      </span>
+                      <p className="text-sm text-text-muted">
+                        {t('journey.routeNoResults') || 'No famous routes yet — search manually'}
+                      </p>
+                      <button
+                        onClick={() => {
+                          setBuildSubStep(null);
+                          loadPlaces();
+                        }}
+                        className="px-5 py-2 rounded-xl bg-primary text-white text-sm font-semibold"
+                      >
+                        {t('common.search') || 'Search manually'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {featuredRoutes.map((route) => (
+                        <button
+                          key={route.group_code}
+                          onClick={async () => {
+                            try {
+                              const detail = await getGroup(route.group_code);
+                              if (detail.path_place_codes?.length) {
+                                const res = await getPlaces({ limit: 100 });
+                                const placesMap = new Map(
+                                  (res.places ?? []).map((p) => [p.place_code, p]),
+                                );
+                                const ordered = detail.path_place_codes
+                                  .map((code: string) => placesMap.get(code))
+                                  .filter(Boolean) as Place[];
+                                setSelectedPlaces(ordered);
+                                setAllPlaces(res.places ?? []);
+                              }
+                              setSelectedRoute(route);
+                              setBuildSubStep(null);
+                            } catch {
+                              setSelectedRoute(route);
+                              setBuildSubStep(null);
+                              loadPlaces();
+                            }
+                          }}
+                          className="w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-surface hover:shadow-md transition-all text-left"
                         >
-                          {/* Thumbnail */}
-                          <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-dark-border flex-shrink-0 overflow-hidden">
-                            {(place as Place & { image_url?: string }).image_url ? (
-                              <img
-                                src={getFullImageUrl(
-                                  (place as Place & { image_url?: string }).image_url!,
-                                )}
-                                alt=""
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <span
-                                  className="material-symbols-outlined text-xl text-slate-400"
-                                  aria-hidden
-                                  style={{ fontVariationSettings: "'FILL' 1" }}
-                                >
-                                  place
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          {/* Info */}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-text-primary dark:text-white truncate">
-                              {place.name}
-                            </p>
-                            <p className="text-[11px] text-text-muted dark:text-dark-text-secondary capitalize truncate">
-                              {place.religion} · {place.address}
-                            </p>
-                          </div>
-                          {/* Check */}
-                          <div
-                            className={cn(
-                              'w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all',
-                              isSelected
-                                ? 'bg-primary text-white'
-                                : 'border-2 border-slate-300 dark:border-dark-border',
-                            )}
-                          >
-                            {isSelected && (
-                              <span
-                                className="material-symbols-outlined text-[14px]"
-                                style={{ fontVariationSettings: "'FILL' 1" }}
-                              >
-                                check
+                          {route.cover_image_url ? (
+                            <img
+                              src={getFullImageUrl(route.cover_image_url)}
+                              alt=""
+                              className="w-full h-28 object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-28 bg-slate-100 dark:bg-dark-border flex items-center justify-center">
+                              <span className="material-symbols-outlined text-4xl text-slate-400">
+                                route
                               </span>
+                            </div>
+                          )}
+                          <div className="p-3">
+                            <p className="text-sm font-bold text-text-primary dark:text-white">
+                              {route.name}
+                            </p>
+                            {route.description && (
+                              <p className="text-xs text-text-muted dark:text-dark-text-secondary mt-0.5 line-clamp-2">
+                                {route.description}
+                              </p>
                             )}
+                            <p className="text-xs text-primary font-semibold mt-1">
+                              {route.total_sites} sites
+                            </p>
                           </div>
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Continue CTA */}
-              <div className="fixed bottom-0 left-0 right-0 md:static p-4 bg-white/90 dark:bg-dark-bg/90 backdrop-blur-sm border-t border-slate-100 dark:border-dark-border">
-                <button
-                  onClick={() => setStep('polish')}
-                  className={cn(
-                    'w-full py-3 rounded-xl font-semibold text-white transition-all',
-                    selectedPlaces.length > 0
-                      ? 'bg-primary hover:bg-primary-hover'
-                      : 'bg-primary/50 cursor-default',
+                        </button>
+                      ))}
+                    </div>
                   )}
-                >
-                  {selectedPlaces.length > 0
-                    ? `Continue with ${selectedPlaces.length} place${selectedPlaces.length > 1 ? 's' : ''}`
-                    : 'Continue without places'}
-                </button>
-              </div>
+                </div>
+              )}
+
+              {/* ── Place list (main build view) ──────────────────────────────── */}
+              {buildSubStep === null && (
+                <>
+                  {/* Active filter chip */}
+                  {(selectedCity || selectedFaith) && (
+                    <div className="px-4 pt-3 pb-1">
+                      <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary rounded-full px-3 py-1 text-xs font-semibold">
+                        <span
+                          className="material-symbols-outlined text-[14px]"
+                          style={{ fontVariationSettings: "'FILL' 1" }}
+                        >
+                          {selectedCity ? 'location_city' : 'auto_awesome'}
+                        </span>
+                        {selectedCity
+                          ? selectedCity.city
+                          : selectedFaith
+                            ? selectedFaith.charAt(0).toUpperCase() + selectedFaith.slice(1)
+                            : ''}
+                        <button
+                          onClick={() => {
+                            if (intent === 'city') {
+                              setSelectedCity(null);
+                              setBuildSubStep('city_pick');
+                              setAllPlaces([]);
+                            } else if (intent === 'faith') {
+                              setSelectedFaith(null);
+                              setBuildSubStep('faith_pick');
+                              setAllPlaces([]);
+                            }
+                          }}
+                          aria-label="Clear filter"
+                          className="ml-1 hover:text-primary-hover"
+                        >
+                          <span className="material-symbols-outlined text-[12px]">close</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selected places strip */}
+                  {selectedPlaces.length > 0 && (
+                    <div className="px-4 py-2 border-b border-slate-100 dark:border-dark-border">
+                      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                        <span className="text-xs font-semibold text-text-muted dark:text-dark-text-secondary flex-shrink-0">
+                          {selectedPlaces.length} selected
+                        </span>
+                        <AnimatePresence>
+                          {selectedPlaces.map((p, i) => (
+                            <SelectedPlaceChip
+                              key={p.place_code}
+                              place={p}
+                              index={i}
+                              onRemove={() => togglePlace(p)}
+                            />
+                          ))}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Search */}
+                  <div className="px-4 py-3 border-b border-slate-100 dark:border-dark-border">
+                    <div className="relative">
+                      <span
+                        className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-text-muted"
+                        aria-hidden
+                      >
+                        search
+                      </span>
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder={t('groups.searchPlaces')}
+                        className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-surface text-sm text-text-primary dark:text-white placeholder:text-text-muted dark:placeholder:text-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Place list */}
+                  <div className="flex-1 overflow-y-auto px-4 py-2">
+                    {placesLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <span className="material-symbols-outlined text-3xl text-slate-300 animate-spin">
+                          progress_activity
+                        </span>
+                      </div>
+                    ) : filteredPlaces.length === 0 ? (
+                      <p className="text-center text-text-muted py-8 text-sm">
+                        {t('home.noPlacesFound')}
+                      </p>
+                    ) : (
+                      <div className="space-y-1 pb-24">
+                        {filteredPlaces.map((place) => {
+                          const isSelected = selectedCodes.has(place.place_code);
+                          return (
+                            <motion.button
+                              key={place.place_code}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => togglePlace(place)}
+                              className={cn(
+                                'w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left',
+                                isSelected
+                                  ? 'bg-primary/10 dark:bg-primary/15 border border-primary/30'
+                                  : 'bg-white dark:bg-dark-surface border border-transparent hover:border-slate-200 dark:hover:border-dark-border',
+                              )}
+                            >
+                              <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-dark-border flex-shrink-0 overflow-hidden">
+                                {(place as Place & { image_url?: string }).image_url ? (
+                                  <img
+                                    src={getFullImageUrl(
+                                      (place as Place & { image_url?: string }).image_url!,
+                                    )}
+                                    alt=""
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <span
+                                      className="material-symbols-outlined text-xl text-slate-400"
+                                      aria-hidden
+                                      style={{ fontVariationSettings: "'FILL' 1" }}
+                                    >
+                                      place
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-text-primary dark:text-white truncate">
+                                  {place.name}
+                                </p>
+                                <p className="text-[11px] text-text-muted dark:text-dark-text-secondary capitalize truncate">
+                                  {place.religion} · {place.address}
+                                </p>
+                              </div>
+                              <div
+                                className={cn(
+                                  'w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all',
+                                  isSelected
+                                    ? 'bg-primary text-white'
+                                    : 'border-2 border-slate-300 dark:border-dark-border',
+                                )}
+                              >
+                                {isSelected && (
+                                  <span
+                                    className="material-symbols-outlined text-[14px]"
+                                    style={{ fontVariationSettings: "'FILL' 1" }}
+                                  >
+                                    check
+                                  </span>
+                                )}
+                              </div>
+                            </motion.button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Continue CTA */}
+                  <div className="fixed bottom-0 left-0 right-0 md:static p-4 bg-white/90 dark:bg-dark-bg/90 backdrop-blur-sm border-t border-slate-100 dark:border-dark-border">
+                    <button
+                      onClick={() => setStep('polish')}
+                      className={cn(
+                        'w-full py-3 rounded-xl font-semibold text-white transition-all',
+                        selectedPlaces.length > 0
+                          ? 'bg-primary hover:bg-primary-hover'
+                          : 'bg-primary/50 cursor-default',
+                      )}
+                    >
+                      {selectedPlaces.length > 0
+                        ? `Continue with ${selectedPlaces.length} place${selectedPlaces.length > 1 ? 's' : ''}`
+                        : 'Continue without places'}
+                    </button>
+                  </div>
+                </>
+              )}
             </motion.div>
           )}
 
