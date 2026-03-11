@@ -16,7 +16,6 @@ import ProfileScreen from './screens/ProfileScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
 import CheckInsListScreen from './screens/CheckInsListScreen';
 import FavoritesScreen from './screens/FavoritesScreen';
-import GroupsScreen from './screens/GroupsScreen';
 import CreateGroupScreen from './screens/CreateGroupScreen';
 import GroupDetailScreen from './screens/GroupDetailScreen';
 import JoinGroupScreen from './screens/JoinGroupScreen';

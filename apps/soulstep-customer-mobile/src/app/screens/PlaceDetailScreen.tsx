@@ -710,7 +710,7 @@ export default function PlaceDetailScreen() {
                       <Text style={styles.groupsEmptyText}>
                         {groups.length === 0
                           ? t('groups.noGroupsYetShort')
-                          : "This place isn't in any of your groups yet"}
+                          : t('placeDetail.noGroupsYet')}
                       </Text>
                       <TouchableOpacity onPress={() => setAddToGroupOpen(true)}>
                         <Text style={styles.groupsAddMoreLink}>{t('groups.addPlace')}</Text>
@@ -761,10 +761,10 @@ export default function PlaceDetailScreen() {
 
           {/* Nearby & Similar */}
           {place?.nearby_places && place.nearby_places.length > 0 && (
-            <NearbyPlaces title="Nearby Sacred Sites" places={place.nearby_places} />
+            <NearbyPlaces title={t('placeDetail.nearbyTitle')} places={place.nearby_places} />
           )}
           {place?.similar_places && place.similar_places.length > 0 && (
-            <NearbyPlaces title="Similar Places" places={place.similar_places} />
+            <NearbyPlaces title={t('placeDetail.similarTitle')} places={place.similar_places} />
           )}
 
           {/* Reviews */}
@@ -1211,7 +1211,7 @@ function makeStyles(isDark: boolean) {
     reviewDate: { fontSize: 12, color: textMuted },
     reviewCardRight: { alignItems: 'flex-end' },
     starRow: { flexDirection: 'row', gap: 2 },
-    star: { fontSize: 13, color: '#f59e0b' },
+    star: { fontSize: 13, color: tokens.colors.goldRank },
     reviewActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
     reviewActionBtn: { paddingVertical: 2 },
     reviewActionEdit: { fontSize: 13, color: tokens.colors.primary, fontWeight: '600' },

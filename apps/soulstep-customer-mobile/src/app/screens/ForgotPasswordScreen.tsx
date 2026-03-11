@@ -26,8 +26,8 @@ function makeStyles(isDark: boolean) {
   const textDark = isDark ? '#ffffff' : tokens.colors.textDark;
   const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
   const inputText = isDark ? '#ffffff' : tokens.colors.textMain;
-  const backBtnBg = isDark ? 'rgba(255,255,255,0.1)' : '#F1F5F9';
-  const backIconColor = isDark ? '#ffffff' : '#334155';
+  const backBtnBg = isDark ? 'rgba(255,255,255,0.1)' : tokens.colors.silverLight;
+  const backIconColor = isDark ? '#ffffff' : tokens.colors.navIconLight;
   const successIconBg = isDark ? 'rgba(16,185,129,0.2)' : '#D1FAE5';
 
   return StyleSheet.create({
@@ -83,7 +83,7 @@ function makeStyles(isDark: boolean) {
       backgroundColor: surface,
       color: inputText,
     },
-    error: { color: '#dc2626', fontSize: 14, marginBottom: 12, fontWeight: '500' },
+    error: { color: tokens.colors.error, fontSize: 14, marginBottom: 12, fontWeight: '500' },
     primaryButton: {
       backgroundColor: tokens.colors.primary,
       paddingVertical: 16,

@@ -60,7 +60,7 @@ export default function NearbyPlaces({ title, places }: NearbyPlacesProps) {
                 </Text>
                 {place.average_rating != null && (
                   <View style={s.ratingRow}>
-                    <MaterialIcons name="star" size={11} color="#f59e0b" />
+                    <MaterialIcons name="star" size={11} color={tokens.colors.goldRank} />
                     <Text style={s.rating}>{place.average_rating.toFixed(1)}</Text>
                   </View>
                 )}
@@ -129,7 +129,7 @@ function makeStyles(isDark: boolean) {
     rating: {
       fontSize: 10,
       fontWeight: '600',
-      color: '#f59e0b',
+      color: tokens.colors.goldRank,
     },
     religion: {
       fontSize: 10,

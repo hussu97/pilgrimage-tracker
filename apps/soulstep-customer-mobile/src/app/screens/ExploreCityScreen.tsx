@@ -13,7 +13,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getCityPlaces, getCityReligionPlaces } from '@/lib/api/client';
-import { useTheme } from '@/app/providers';
+import { useTheme, useI18n } from '@/app/providers';
 import { tokens } from '@/lib/theme';
 import type { RootStackParamList } from '@/app/navigation';
 
@@ -45,6 +45,7 @@ export default function ExploreCityScreen() {
   const route = useRoute<Route>();
   const { citySlug } = route.params;
   const { isDark } = useTheme();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const s = makeStyles(isDark);
 
@@ -101,7 +102,7 @@ export default function ExploreCityScreen() {
         </View>
       ) : places.length === 0 ? (
         <View style={s.center}>
-          <Text style={s.emptyText}>No sacred sites found.</Text>
+          <Text style={s.emptyText}>{t('explore.noSites')}</Text>
         </View>
       ) : (
         <FlatList

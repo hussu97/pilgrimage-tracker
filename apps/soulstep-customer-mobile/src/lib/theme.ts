@@ -66,6 +66,11 @@ export const tokens = {
     bronzeRankLight: '#fff7ed',
     bronzeRankDark: 'rgba(234,88,12,0.15)',
     silverLight: '#f1f5f9',
+    // Form error colors
+    error: '#dc2626',
+    errorDark: '#b91c1c',
+    // Navigation / icon colors
+    navIconLight: '#334155',
     // Activity indicator
     activityGreen: '#22c55e',
     activityGreenGlow: 'rgba(34, 197, 94, 0.6)',

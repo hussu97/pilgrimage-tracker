@@ -4,6 +4,34 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## i18n Audit & Dead Code Removal (2026-03-11)
+
+### Backend
+- **`app/db/seed_data.json`** — added 15 new translation keys (`explore.*`, `placeDetail.nearbyTitle/similarTitle/noGroupsYet`, `places.allSacredSites/browseSubtitle`, `onboarding.next`) in all 5 languages; backfilled 56 missing Telugu (`te`) and Malayalam (`ml`) keys (ads, consent, dashboard, journey.*, map, onboarding, nav); all 5 languages now have 435 keys
+
+### Frontend (web)
+- **Dead code removed**: deleted `FilterSheet.tsx`, `HomeHeader.tsx`, `PlaceListView.tsx` (places components) and `SearchOverlay.tsx` (search component) — none were imported anywhere
+- **`src/lib/api/client.ts`** — removed unused `createGroupInvite()` and `getPlaceNotes()` functions
+- **`src/app/pages/ExploreCities.tsx`** — replaced 5 hardcoded strings with `t('explore.*')` keys
+- **`src/app/pages/ExploreCity.tsx`** — replaced 3 hardcoded strings with `t('explore.*')` keys
+- **`src/app/pages/PlaceDetail.tsx`** — replaced 4 hardcoded strings (`NearbyPlaces` titles ×2 each, `noGroupsYet`) with `t('placeDetail.*')` keys
+
+### Frontend (mobile)
+- **`src/app/navigation.tsx`** — removed stale `GroupsScreen` import (it is a bottom-tab screen, not a stack screen)
+- **`src/app/screens/ExploreCitiesScreen.tsx`** — replaced 4 hardcoded strings with `t('explore.*')` and `useI18n`
+- **`src/app/screens/ExploreCityScreen.tsx`** — replaced 1 hardcoded string with `t('explore.noSites')`
+- **`src/app/screens/PlacesScreen.tsx`** — replaced 2 hardcoded strings; replaced `'#f59e0b'` with `tokens.colors.goldRank`
+- **`src/app/screens/OnboardingScreen.tsx`** — replaced hardcoded `'Next →'` with `t('onboarding.next')`
+- **`src/app/screens/PlaceDetailScreen.tsx`** — replaced `NearbyPlaces` titles and `noGroupsYet` with `t()` keys; replaced `'#f59e0b'` with `tokens.colors.goldRank`
+- **`src/components/places/PlaceReviewsList.tsx`** / **`NearbyPlaces.tsx`** — replaced `'#f59e0b'` with `tokens.colors.goldRank`
+- **Auth screens** (`LoginScreen`, `RegisterScreen`, `ForgotPasswordScreen`, `ResetPasswordScreen`) — replaced `'#F1F5F9'` → `tokens.colors.silverLight`, `'#334155'` → `tokens.colors.navIconLight`, `'#dc2626'` → `tokens.colors.error`, `'#b91c1c'` → `tokens.colors.errorDark`
+- **`src/lib/theme.ts`** — added `error`, `errorDark`, `navIconLight` color tokens
+
+### Docs
+- **`CLAUDE.md`** Rule 7 — updated supported languages to list all 5 (en, ar, hi, te, ml)
+
+---
+
 ## Journey UX Pivot — Phases 2–6: Dashboard, Creation, Map, Detail, Onboarding (2026-03-11)
 
 ### Frontend (web)

@@ -16,7 +16,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { getPlaces } from '@/lib/api/client';
 import type { Place } from '@/lib/types';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
-import { useTheme } from '@/app/providers';
+import { useTheme, useI18n } from '@/app/providers';
 import { tokens } from '@/lib/theme';
 import type { RootStackParamList } from '@/app/navigation';
 
@@ -37,6 +37,7 @@ const RELIGIONS = [
 export default function PlacesScreen() {
   const navigation = useNavigation<Nav>();
   const { isDark } = useTheme();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const s = makeStyles(isDark);
 
@@ -104,7 +105,7 @@ export default function PlacesScreen() {
             <Text style={s.religion}>{item.religion}</Text>
             {item.average_rating != null && (
               <View style={s.ratingRow}>
-                <MaterialIcons name="star" size={11} color="#f59e0b" />
+                <MaterialIcons name="star" size={11} color={tokens.colors.goldRank} />
                 <Text style={s.rating}>{item.average_rating.toFixed(1)}</Text>
               </View>
             )}
@@ -121,8 +122,8 @@ export default function PlacesScreen() {
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
         <View>
-          <Text style={s.title}>All Sacred Sites</Text>
-          <Text style={s.subtitle}>Browse places of worship worldwide</Text>
+          <Text style={s.title}>{t('places.allSacredSites')}</Text>
+          <Text style={s.subtitle}>{t('places.browseSubtitle')}</Text>
         </View>
       </View>
 
@@ -252,7 +253,7 @@ function makeStyles(isDark: boolean) {
       textTransform: 'capitalize',
     },
     ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-    rating: { fontSize: 10, fontWeight: '600', color: '#f59e0b' },
+    rating: { fontSize: 10, fontWeight: '600', color: tokens.colors.goldRank },
     footer: { padding: 20, alignItems: 'center' },
   });
 }

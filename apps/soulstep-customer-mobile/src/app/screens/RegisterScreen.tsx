@@ -59,7 +59,7 @@ function makeStyles(isDark: boolean) {
   const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
   const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
   const inputText = isDark ? '#ffffff' : tokens.colors.textMain;
-  const backBtnBg = isDark ? 'rgba(255,255,255,0.1)' : '#F1F5F9';
+  const backBtnBg = isDark ? 'rgba(255,255,255,0.1)' : tokens.colors.silverLight;
 
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: bg },
@@ -100,7 +100,7 @@ function makeStyles(isDark: boolean) {
     ruleIconMet: { color: tokens.colors.openNow },
     ruleText: { fontSize: 11, color: textMuted },
     ruleTextMet: { color: tokens.colors.openNow },
-    error: { color: '#dc2626', fontSize: 14, marginBottom: 12, fontWeight: '500' },
+    error: { color: tokens.colors.error, fontSize: 14, marginBottom: 12, fontWeight: '500' },
     primaryButton: {
       backgroundColor: tokens.colors.primary,
       paddingVertical: 16,
@@ -197,7 +197,11 @@ export default function RegisterScreen() {
           style={styles.backButton}
           activeOpacity={0.7}
         >
-          <MaterialIcons name="arrow-back" size={20} color={isDark ? '#ffffff' : '#334155'} />
+          <MaterialIcons
+            name="arrow-back"
+            size={20}
+            color={isDark ? '#ffffff' : tokens.colors.navIconLight}
+          />
         </TouchableOpacity>
 
         <View style={styles.logoIconContainer}>

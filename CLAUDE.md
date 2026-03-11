@@ -46,11 +46,11 @@ Keep the following READMEs accurate and up to date. After any change that affect
 
 ## 7. Internationalization (i18n)
 All customer-facing strings must come from the backend translation API — never hardcode UI copy.
-- **Supported languages:** English (default), Arabic, Hindi
-- **Backend endpoints:** `GET /api/v1/languages`, `GET /api/v1/translations?lang=en|ar|hi`
+- **Supported languages:** English (default), Arabic, Hindi, Telugu, Malayalam
+- **Backend endpoints:** `GET /api/v1/languages`, `GET /api/v1/translations?lang=en|ar|hi|te|ml`
 - **Fallback:** English when a key is missing for the requested language
 - **RTL:** Enable RTL layout when locale is Arabic (`ar`)
-- When adding/changing UI copy, update translation keys for all three languages in the backend seed/source.
+- When adding/changing UI copy, update translation keys for all five languages in the backend seed/source.
 
 ## 8. Datetime Columns
 

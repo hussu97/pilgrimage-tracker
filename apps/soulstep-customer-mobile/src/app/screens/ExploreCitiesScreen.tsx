@@ -12,7 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getCities } from '@/lib/api/client';
-import { useTheme } from '@/app/providers';
+import { useTheme, useI18n } from '@/app/providers';
 import { tokens } from '@/lib/theme';
 import type { RootStackParamList } from '@/app/navigation';
 
@@ -27,6 +27,7 @@ interface City {
 export default function ExploreCitiesScreen() {
   const navigation = useNavigation<Nav>();
   const { isDark } = useTheme();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const s = makeStyles(isDark);
 
@@ -51,13 +52,13 @@ export default function ExploreCitiesScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
           <Text style={s.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={s.title}>Explore by City</Text>
+        <Text style={s.title}>{t('explore.title')}</Text>
       </View>
 
       <View style={s.searchWrapper}>
         <TextInput
           style={s.searchInput}
-          placeholder="Search cities..."
+          placeholder={t('explore.searchPlaceholder')}
           placeholderTextColor={isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted}
           value={search}
           onChangeText={setSearch}
@@ -70,7 +71,7 @@ export default function ExploreCitiesScreen() {
         </View>
       ) : filtered.length === 0 ? (
         <View style={s.center}>
-          <Text style={s.emptyText}>No cities found.</Text>
+          <Text style={s.emptyText}>{t('explore.noCities')}</Text>
         </View>
       ) : (
         <FlatList
@@ -89,7 +90,10 @@ export default function ExploreCitiesScreen() {
                 {item.city}
               </Text>
               <Text style={s.siteCount}>
-                {item.count} {item.count === 1 ? 'site' : 'sites'}
+                {t(item.count === 1 ? 'explore.siteCount' : 'explore.sitesCount').replace(
+                  '{count}',
+                  String(item.count),
+                )}
               </Text>
             </TouchableOpacity>
           )}

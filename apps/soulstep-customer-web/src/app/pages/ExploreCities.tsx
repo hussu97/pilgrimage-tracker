@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useHead } from '@/lib/hooks/useHead';
+import { useI18n } from '@/app/providers';
 import * as api from '@/lib/api/client';
 
 interface City {
@@ -10,6 +11,7 @@ interface City {
 }
 
 export default function ExploreCities() {
+  const { t } = useI18n();
   useHead({
     title: 'Explore Sacred Sites by City',
     description:
@@ -39,14 +41,16 @@ export default function ExploreCities() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-text-main dark:text-white mb-2">Explore by City</h1>
+      <h1 className="text-2xl font-bold text-text-main dark:text-white mb-2">
+        {t('explore.title')}
+      </h1>
       <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-6">
-        Find sacred sites in cities around the world.
+        {t('explore.subtitle')}
       </p>
 
       <input
         type="search"
-        placeholder="Search cities..."
+        placeholder={t('explore.searchPlaceholder')}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         className="w-full px-4 py-2.5 rounded-xl border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface text-sm text-text-main dark:text-white placeholder-text-muted dark:placeholder-dark-text-secondary focus:outline-none focus:ring-2 focus:ring-primary mb-6"
@@ -70,7 +74,10 @@ export default function ExploreCities() {
                 {city.city}
               </p>
               <p className="text-xs text-text-muted dark:text-dark-text-secondary mt-1">
-                {city.count} {city.count === 1 ? 'site' : 'sites'}
+                {t(city.count === 1 ? 'explore.siteCount' : 'explore.sitesCount').replace(
+                  '{count}',
+                  String(city.count),
+                )}
               </p>
             </Link>
           ))}
@@ -79,7 +86,7 @@ export default function ExploreCities() {
 
       {!loading && filtered.length === 0 && (
         <p className="text-center text-text-muted dark:text-dark-text-secondary py-8">
-          No cities found.
+          {t('explore.noCities')}
         </p>
       )}
     </div>

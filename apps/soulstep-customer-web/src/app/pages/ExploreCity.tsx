@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useHead } from '@/lib/hooks/useHead';
+import { useI18n } from '@/app/providers';
 import * as api from '@/lib/api/client';
 
 const RELIGIONS = [
@@ -24,6 +25,7 @@ interface CityPlace {
 }
 
 export default function ExploreCity() {
+  const { t } = useI18n();
   const { city } = useParams<{ city: string }>();
   const [places, setPlaces] = useState<CityPlace[]>([]);
   const [cityName, setCityName] = useState('');
@@ -56,14 +58,14 @@ export default function ExploreCity() {
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="flex items-center gap-2 mb-4 text-sm text-text-muted dark:text-dark-text-secondary">
         <Link to="/explore" className="hover:text-primary transition-colors">
-          All Cities
+          {t('explore.allCities')}
         </Link>
         <span>/</span>
         <span className="text-text-main dark:text-white font-medium">{cityName || city}</span>
       </div>
 
       <h1 className="text-2xl font-bold text-text-main dark:text-white mb-2">
-        Sacred Sites in {cityName || city}
+        {t('explore.cityTitle').replace('{city}', cityName || city || '')}
       </h1>
 
       <div className="flex gap-2 flex-wrap mb-6">
@@ -91,7 +93,7 @@ export default function ExploreCity() {
         </div>
       ) : places.length === 0 ? (
         <p className="text-center text-text-muted dark:text-dark-text-secondary py-12">
-          No sacred sites found.
+          {t('explore.noSites')}
         </p>
       ) : (
         <div className="space-y-2">

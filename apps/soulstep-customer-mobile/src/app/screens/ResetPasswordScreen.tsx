@@ -40,7 +40,7 @@ function makeStyles(isDark: boolean) {
       backgroundColor: surface,
       color: inputText,
     },
-    error: { color: '#b91c1c', fontSize: 14, marginBottom: 12 },
+    error: { color: tokens.colors.errorDark, fontSize: 14, marginBottom: 12 },
     button: {
       backgroundColor: tokens.colors.primary,
       paddingVertical: 14,

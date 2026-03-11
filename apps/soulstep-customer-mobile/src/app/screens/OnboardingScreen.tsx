@@ -255,7 +255,9 @@ export default function OnboardingScreen() {
         {/* CTA */}
         <View style={styles.footer}>
           <TouchableOpacity style={styles.ctaButton} onPress={next} activeOpacity={0.85}>
-            <Text style={styles.ctaText}>{isLast ? t('onboarding.getStarted') : 'Next →'}</Text>
+            <Text style={styles.ctaText}>
+              {isLast ? t('onboarding.getStarted') : t('onboarding.next')}
+            </Text>
           </TouchableOpacity>
         </View>
       </Animated.View>

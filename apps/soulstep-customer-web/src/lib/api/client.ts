@@ -579,18 +579,6 @@ export async function getGroupMembers(groupCode: string): Promise<GroupMember[]>
   return res.json();
 }
 
-export async function createGroupInvite(
-  groupCode: string,
-): Promise<{ invite_code: string; invite_url: string }> {
-  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/invite`, {
-    method: 'POST',
-    headers: authHeaders(),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail ?? 'Failed to create invite');
-  return data;
-}
-
 export async function getGroupLeaderboard(groupCode: string): Promise<LeaderboardEntry[]> {
   const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/leaderboard`, {
     headers: authHeaders(),
@@ -652,14 +640,6 @@ export async function getGroupChecklist(groupCode: string): Promise<ChecklistRes
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch checklist');
-  return res.json();
-}
-
-export async function getPlaceNotes(groupCode: string, placeCode: string): Promise<PlaceNote[]> {
-  const res = await authFetch(`${API_BASE}/api/v1/groups/${groupCode}/places/${placeCode}/notes`, {
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error('Failed to fetch notes');
   return res.json();
 }
 

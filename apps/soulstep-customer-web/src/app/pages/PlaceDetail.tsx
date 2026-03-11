@@ -1017,12 +1017,12 @@ export default function PlaceDetail() {
 
             {/* Nearby sacred sites */}
             {place.nearby_places && place.nearby_places.length > 0 && (
-              <NearbyPlaces title="Nearby Sacred Sites" places={place.nearby_places} />
+              <NearbyPlaces title={t('placeDetail.nearbyTitle')} places={place.nearby_places} />
             )}
 
             {/* Similar places */}
             {place.similar_places && place.similar_places.length > 0 && (
-              <NearbyPlaces title="Similar Places" places={place.similar_places} />
+              <NearbyPlaces title={t('placeDetail.similarTitle')} places={place.similar_places} />
             )}
           </div>
 
@@ -1143,7 +1143,7 @@ export default function PlaceDetail() {
                           <p className="text-sm text-slate-500 dark:text-dark-text-secondary mb-3">
                             {groups.length === 0
                               ? t('groups.noGroupsYetShort')
-                              : "This place isn't in any of your groups yet"}
+                              : t('placeDetail.noGroupsYet')}
                           </p>
                           <button
                             onClick={() => setAddToGroupOpen(true)}
@@ -1212,12 +1212,12 @@ export default function PlaceDetail() {
 
             {/* Nearby sacred sites */}
             {place.nearby_places && place.nearby_places.length > 0 && (
-              <NearbyPlaces title="Nearby Sacred Sites" places={place.nearby_places} />
+              <NearbyPlaces title={t('placeDetail.nearbyTitle')} places={place.nearby_places} />
             )}
 
             {/* Similar places */}
             {place.similar_places && place.similar_places.length > 0 && (
-              <NearbyPlaces title="Similar Places" places={place.similar_places} />
+              <NearbyPlaces title={t('placeDetail.similarTitle')} places={place.similar_places} />
             )}
           </div>
 

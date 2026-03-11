@@ -106,7 +106,7 @@ function makeStyles(isDark: boolean) {
     reviewDate: { fontSize: 12, color: textMuted },
     reviewCardRight: { alignItems: 'flex-end' },
     starRow: { flexDirection: 'row', gap: 2 },
-    star: { fontSize: 13, color: '#f59e0b' },
+    star: { fontSize: 13, color: tokens.colors.goldRank },
     reviewActions: { flexDirection: 'row', gap: 8, marginTop: 4 },
     reviewActionBtn: { paddingVertical: 2 },
     reviewActionEdit: { fontSize: 13, color: tokens.colors.primary, fontWeight: '600' },
@@ -173,7 +173,7 @@ function PlaceReviewsList({
         <Text style={styles.sectionTitle}>{t('placeDetail.recentReviews')}</Text>
         {(averageRating != null || (reviewCount != null && reviewCount > 0)) && (
           <View style={styles.reviewMeta}>
-            <MaterialIcons name="star" size={14} color="#f59e0b" />
+            <MaterialIcons name="star" size={14} color={tokens.colors.goldRank} />
             <Text style={styles.reviewMetaText}>{averageRating?.toFixed(1) ?? '—'}</Text>
             <Text style={styles.reviewMetaMuted}>({reviewCount ?? 0})</Text>
           </View>
