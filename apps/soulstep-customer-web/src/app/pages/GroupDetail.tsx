@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth, useFeedback, useI18n } from '@/app/providers';
@@ -20,6 +20,7 @@ import { shareUrl } from '@/lib/share';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import ErrorState from '@/components/common/ErrorState';
 import GroupCheckInModal from '@/components/groups/GroupCheckInModal';
+import JourneyMapView from '@/components/groups/JourneyMapView';
 import type { Group, LeaderboardEntry, ActivityItem, GroupMember } from '@/lib/types';
 import type { ChecklistResponse, PlaceNote } from '@/lib/types/groups';
 import AdBanner from '@/components/ads/AdBanner';
@@ -92,11 +93,16 @@ export default function GroupDetail() {
   const [checkInModal, setCheckInModal] = useState<{ placeCode: string; placeName: string } | null>(
     null,
   );
+  const [checkInSuccess, setCheckInSuccess] = useState<string | null>(null); // placeCode that just checked in
   const [noteInputs, setNoteInputs] = useState<Record<string, string>>({});
   const [noteSubmitting, setNoteSubmitting] = useState<Record<string, boolean>>({});
 
   // Invite state
   const [showFullLeaderboard, setShowFullLeaderboard] = useState(false);
+  const [mapExpanded, setMapExpanded] = useState(false);
+
+  // Highlight a place when clicking map marker
+  const highlightRef = useRef<string | null>(null);
 
   // Member management state
   const [confirmAction, setConfirmAction] = useState<{
@@ -305,8 +311,31 @@ export default function GroupDetail() {
     { key: 'members', label: t('groups.membersTab'), icon: 'group' },
   ];
 
+  // Build map places from checklist
+  const mapPlaces = (checklist?.places ?? [])
+    .filter((p) => p.latitude != null && p.longitude != null)
+    .map((p) => ({
+      place_code: p.place_code,
+      name: p.name,
+      latitude: p.latitude!,
+      longitude: p.longitude!,
+      user_checked_in: p.user_checked_in,
+    }));
+
+  const handleMapPlaceSelect = (placeCode: string) => {
+    highlightRef.current = placeCode;
+    setExpandedPlace(placeCode);
+    // Switch to route tab if not already there
+    setTab('route');
+    // Scroll to the place card after a tick
+    setTimeout(() => {
+      const el = document.getElementById(`place-card-${placeCode}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
+
   return (
-    <div className="max-w-lg mx-auto pb-32 dark:bg-dark-bg min-h-screen">
+    <div className="max-w-lg lg:max-w-none lg:mx-0 mx-auto pb-28 dark:bg-dark-bg min-h-screen">
       {/* ── HERO SECTION ────────────────────────────────────────────── */}
       <div className="relative w-full h-52 overflow-hidden">
         {group.cover_image_url ? (
@@ -347,6 +376,16 @@ export default function GroupDetail() {
                 aria-label={t('groups.editGroup')}
               >
                 <span className="material-symbols-outlined text-base">settings</span>
+              </button>
+            )}
+            {inviteUrl && (
+              <button
+                type="button"
+                onClick={() => shareUrl(group.name, inviteUrl)}
+                className="p-2 rounded-full bg-black/30 backdrop-blur-md border border-white/20 text-white hover:bg-black/45 transition-colors"
+                aria-label={t('journey.inviteFriends') || 'Invite'}
+              >
+                <span className="material-symbols-outlined text-base">person_add</span>
               </button>
             )}
             <button
@@ -394,680 +433,812 @@ export default function GroupDetail() {
         </div>
       </div>
 
-      {/* Description + map link */}
-      <div className="px-4 pt-3 pb-1 flex items-start justify-between gap-3">
-        {group.description && (
-          <p className="text-text-muted dark:text-dark-text-secondary text-sm flex-1">
+      {/* Description */}
+      {group.description && (
+        <div className="px-4 pt-3 pb-1">
+          <p className="text-text-muted dark:text-dark-text-secondary text-sm">
             {group.description}
           </p>
-        )}
-        <Link
-          to="/map"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-primary text-primary text-xs font-semibold hover:bg-primary/10 shrink-0 whitespace-nowrap"
-        >
-          <span className="material-symbols-outlined text-sm">map</span>
-          {t('nav.map')}
-        </Link>
-      </div>
+        </div>
+      )}
 
-      {/* ── TAB PILLS ────────────────────────────────────────────────── */}
-      <div className="relative flex px-4 pt-2 overflow-x-auto gap-1">
-        {tabs.map((t_) => (
-          <button
-            key={t_.key}
-            type="button"
-            onClick={() => setTab(t_.key)}
-            className={cn(
-              'relative flex items-center gap-1.5 px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors rounded-lg z-10',
-              tab === t_.key
-                ? 'text-primary'
-                : 'text-slate-500 dark:text-dark-text-secondary hover:text-slate-700 dark:hover:text-white',
-            )}
-          >
-            <span
-              className={cn(
-                'material-symbols-outlined text-lg transition-transform',
-                tab === t_.key && 'scale-110',
-              )}
-            >
-              {t_.icon}
-            </span>
-            <span>{t_.label}</span>
-            {tab === t_.key && (
-              <motion.div
-                layoutId="activeTab"
-                className="absolute inset-0 bg-primary/10 dark:bg-primary/15 rounded-lg -z-10"
-                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              />
-            )}
-          </button>
-        ))}
-      </div>
-      <div className="h-px bg-slate-200 dark:bg-dark-border" />
-
-      {/* ── TAB CONTENT ───────────────────────────────────────────────── */}
-      <div className="px-4 pt-5">
-        <AnimatePresence mode="wait">
-          {/* ROUTE TAB */}
-          {tab === 'route' && (
-            <motion.div
-              key="route"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.18 }}
-            >
-              {checklist && checklist.total_places > 0 && (
-                <div className="mb-5 space-y-2">
-                  <div>
-                    <div className="flex justify-between text-xs font-semibold text-slate-600 dark:text-dark-text-secondary mb-1">
-                      <span>{t('groups.groupProgress')}</span>
-                      <span>{checklist.group_progress}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-slate-200 dark:bg-dark-border overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all"
-                        style={{ width: `${checklist.group_progress}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs font-semibold text-slate-600 dark:text-dark-text-secondary mb-1">
-                      <span>{t('groups.yourProgress')}</span>
-                      <span>{checklist.personal_progress}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-slate-200 dark:bg-dark-border overflow-hidden">
-                      <div
-                        className="h-full bg-emerald-500 rounded-full transition-all"
-                        style={{ width: `${checklist.personal_progress}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {!checklist || checklist.places.length === 0 ? (
-                <div className="text-center py-10">
-                  <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-dark-border mb-2">
-                    route
-                  </span>
-                  <p className="text-slate-500 dark:text-dark-text-secondary font-medium">
-                    {t('groups.noPlacesInItinerary')}
-                  </p>
-                  {isAdmin && (
-                    <p className="text-sm text-slate-400 mt-1">
-                      {t('groups.addPlacesToItinerary')}
-                    </p>
+      {/* Desktop 2-column / Mobile single column layout */}
+      <div className="lg:grid lg:grid-cols-5 lg:gap-8 lg:px-6 lg:pt-4">
+        {/* ── LEFT COLUMN (itinerary + tabs) ─────── */}
+        <div className="lg:col-span-3">
+          {/* ── TAB PILLS ────────────────────────────────────────────────── */}
+          <div className="relative flex px-4 lg:px-0 pt-2 overflow-x-auto gap-1">
+            {tabs.map((t_) => (
+              <button
+                key={t_.key}
+                type="button"
+                onClick={() => setTab(t_.key)}
+                className={cn(
+                  'relative flex items-center gap-1.5 px-4 py-3 text-sm font-semibold whitespace-nowrap transition-colors rounded-lg z-10',
+                  tab === t_.key
+                    ? 'text-primary'
+                    : 'text-slate-500 dark:text-dark-text-secondary hover:text-slate-700 dark:hover:text-white',
+                )}
+              >
+                <span
+                  className={cn(
+                    'material-symbols-outlined text-lg transition-transform',
+                    tab === t_.key && 'scale-110',
                   )}
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/groups/${groupCode}/edit`)}
-                      className="mt-4 px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold"
-                    >
-                      {t('groups.editGroup')}
-                    </button>
-                  )}
-                </div>
-              ) : (
-                /* ── TIMELINE ITINERARY ── */
-                <ol className="relative">
-                  {checklist.places.map((place, index) => (
-                    <motion.div
-                      key={place.place_code}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <li className="relative flex gap-3 mb-3">
-                        {/* Left timeline line + badge */}
-                        <div className="flex flex-col items-center shrink-0" style={{ width: 32 }}>
-                          {/* Circular number badge */}
-                          <div
-                            className={cn(
-                              'w-8 h-8 rounded-full flex items-center justify-center border-2 font-bold text-sm z-10',
-                              place.user_checked_in
-                                ? 'bg-emerald-500 border-emerald-500 text-white'
-                                : 'bg-white dark:bg-dark-surface border-primary text-primary',
-                            )}
-                          >
-                            {place.user_checked_in ? (
-                              <span className="material-symbols-outlined text-sm">check</span>
-                            ) : (
-                              index + 1
-                            )}
-                          </div>
-                          {/* Connecting line (not after last item) */}
-                          {index < checklist.places.length - 1 && (
-                            <div className="w-0.5 flex-1 bg-slate-200 dark:bg-dark-border mt-1 min-h-[16px]" />
-                          )}
+                >
+                  {t_.icon}
+                </span>
+                <span>{t_.label}</span>
+                {tab === t_.key && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute inset-0 bg-primary/10 dark:bg-primary/15 rounded-lg -z-10"
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  />
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="h-px bg-slate-200 dark:bg-dark-border" />
+
+          {/* ── TAB CONTENT ───────────────────────────────────────────────── */}
+          <div className="px-4 lg:px-0 pt-5">
+            <AnimatePresence mode="wait">
+              {/* ROUTE TAB */}
+              {tab === 'route' && (
+                <motion.div
+                  key="route"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  {checklist && checklist.total_places > 0 && (
+                    <div className="mb-5 space-y-2">
+                      <div>
+                        <div className="flex justify-between text-xs font-semibold text-slate-600 dark:text-dark-text-secondary mb-1">
+                          <span>{t('groups.groupProgress')}</span>
+                          <span>{checklist.group_progress}%</span>
                         </div>
+                        <div className="h-2 rounded-full bg-slate-200 dark:bg-dark-border overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all"
+                            style={{ width: `${checklist.group_progress}%` }}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-xs font-semibold text-slate-600 dark:text-dark-text-secondary mb-1">
+                          <span>{t('groups.yourProgress')}</span>
+                          <span>{checklist.personal_progress}%</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-slate-200 dark:bg-dark-border overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 rounded-full transition-all"
+                            style={{ width: `${checklist.personal_progress}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-                        {/* Place card */}
-                        <div className="flex-1 rounded-2xl border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-surface overflow-hidden mb-1">
-                          <button
-                            type="button"
-                            className="w-full flex items-center gap-3 p-3 text-left"
-                            onClick={() =>
-                              setExpandedPlace(
-                                expandedPlace === place.place_code ? null : place.place_code,
-                              )
-                            }
-                          >
-                            {place.image_url ? (
-                              <img
-                                src={getFullImageUrl(place.image_url ?? undefined)}
-                                alt={place.name}
-                                className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
-                              />
-                            ) : (
-                              <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-dark-border flex items-center justify-center flex-shrink-0">
-                                <span className="material-icons text-slate-400 dark:text-dark-text-secondary text-xl">
-                                  place
-                                </span>
+                  {!checklist || checklist.places.length === 0 ? (
+                    <div className="text-center py-10">
+                      <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-dark-border mb-2">
+                        route
+                      </span>
+                      <p className="text-slate-500 dark:text-dark-text-secondary font-medium">
+                        {t('groups.noPlacesInItinerary')}
+                      </p>
+                      {isAdmin && (
+                        <p className="text-sm text-slate-400 mt-1">
+                          {t('groups.addPlacesToItinerary')}
+                        </p>
+                      )}
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/groups/${groupCode}/edit`)}
+                          className="mt-4 px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold"
+                        >
+                          {t('groups.editGroup')}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    /* ── TIMELINE ITINERARY ── */
+                    <ol className="relative">
+                      {checklist.places.map((place, index) => (
+                        <motion.div
+                          key={place.place_code}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                        >
+                          <li className="relative flex gap-3 mb-3">
+                            {/* Left timeline line + badge */}
+                            <div
+                              className="flex flex-col items-center shrink-0"
+                              style={{ width: 32 }}
+                            >
+                              {/* Circular number badge */}
+                              <div
+                                className={cn(
+                                  'w-8 h-8 rounded-full flex items-center justify-center border-2 font-bold text-sm z-10',
+                                  place.user_checked_in
+                                    ? 'bg-emerald-500 border-emerald-500 text-white'
+                                    : 'bg-white dark:bg-dark-surface border-primary text-primary',
+                                )}
+                              >
+                                {place.user_checked_in ? (
+                                  <span className="material-symbols-outlined text-sm">check</span>
+                                ) : (
+                                  index + 1
+                                )}
                               </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-slate-800 dark:text-white text-sm truncate">
-                                {place.name}
-                              </p>
-                              {place.address && (
-                                <p className="text-xs text-slate-400 dark:text-dark-text-secondary truncate">
-                                  {place.address}
-                                </p>
-                              )}
-                              {place.check_in_count > 0 && (
-                                <div className="flex items-center gap-1 mt-1">
-                                  <div className="flex -space-x-1">
-                                    {place.checked_in_by.slice(0, 3).map((ci) => (
-                                      <div
-                                        key={ci.user_code}
-                                        className="w-5 h-5 rounded-full bg-primary/20 border border-white dark:border-dark-surface flex items-center justify-center text-primary text-[10px] font-bold"
-                                        title={ci.display_name}
-                                      >
-                                        {ci.display_name.charAt(0)}
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <span className="text-[10px] text-slate-400 dark:text-dark-text-secondary">
-                                    {place.check_in_count} {t('groups.checkedIn')}
-                                  </span>
-                                </div>
+                              {/* Connecting line (not after last item) */}
+                              {index < checklist.places.length - 1 && (
+                                <div className="w-0.5 flex-1 bg-slate-200 dark:bg-dark-border mt-1 min-h-[16px]" />
                               )}
                             </div>
-                            {/* Inline check-in button (not yet checked) */}
-                            {!place.user_checked_in && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setCheckInModal({
-                                    placeCode: place.place_code,
-                                    placeName: place.name,
-                                  });
-                                }}
-                                className="shrink-0 px-2.5 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90"
-                              >
-                                {t('groups.checkIn')}
-                              </button>
-                            )}
-                            <span
+
+                            {/* Place card */}
+                            <div
+                              id={`place-card-${place.place_code}`}
                               className={cn(
-                                'material-symbols-outlined text-slate-400 transition-transform ml-1',
-                                expandedPlace === place.place_code && 'rotate-180',
+                                'flex-1 rounded-2xl border bg-white dark:bg-dark-surface overflow-hidden mb-1 transition-colors duration-300',
+                                checkInSuccess === place.place_code
+                                  ? 'border-emerald-400 dark:border-emerald-500'
+                                  : 'border-slate-200 dark:border-dark-border',
                               )}
                             >
-                              expand_more
-                            </span>
-                          </button>
-
-                          {/* Expanded content */}
-                          {expandedPlace === place.place_code && (
-                            <div className="px-4 pb-4 border-t border-slate-100 dark:border-dark-border pt-3 space-y-3">
-                              <div className="flex gap-2">
-                                <Link
-                                  to={`/places/${place.place_code}`}
-                                  className="flex-1 py-2 text-center text-sm font-semibold text-primary border border-primary rounded-xl hover:bg-primary/10"
-                                >
-                                  {t('home.details')}
-                                </Link>
-                                {!place.user_checked_in && (
+                              <button
+                                type="button"
+                                className="w-full flex items-center gap-3 p-3 text-left"
+                                onClick={() =>
+                                  setExpandedPlace(
+                                    expandedPlace === place.place_code ? null : place.place_code,
+                                  )
+                                }
+                              >
+                                {place.image_url ? (
+                                  <img
+                                    src={getFullImageUrl(place.image_url ?? undefined)}
+                                    alt={place.name}
+                                    className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
+                                  />
+                                ) : (
+                                  <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-dark-border flex items-center justify-center flex-shrink-0">
+                                    <span className="material-icons text-slate-400 dark:text-dark-text-secondary text-xl">
+                                      place
+                                    </span>
+                                  </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-semibold text-slate-800 dark:text-white text-sm truncate">
+                                    {place.name}
+                                  </p>
+                                  {place.address && (
+                                    <p className="text-xs text-slate-400 dark:text-dark-text-secondary truncate">
+                                      {place.address}
+                                    </p>
+                                  )}
+                                  {place.check_in_count > 0 && (
+                                    <div className="flex items-center gap-1 mt-1">
+                                      <div className="flex -space-x-1">
+                                        {place.checked_in_by.slice(0, 3).map((ci) => (
+                                          <div
+                                            key={ci.user_code}
+                                            className="w-5 h-5 rounded-full bg-primary/20 border border-white dark:border-dark-surface flex items-center justify-center text-primary text-[10px] font-bold"
+                                            title={ci.display_name}
+                                          >
+                                            {ci.display_name.charAt(0)}
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <span className="text-[10px] text-slate-400 dark:text-dark-text-secondary">
+                                        {place.check_in_count} {t('groups.checkedIn')}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                {/* Inline check-in button (not yet checked in, or just checked in) */}
+                                {checkInSuccess === place.place_code ? (
+                                  <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: [0, 1.2, 0.95, 1] }}
+                                    transition={{ duration: 0.4, times: [0, 0.4, 0.7, 1] }}
+                                    className="shrink-0 w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center"
+                                  >
+                                    <span
+                                      className="material-symbols-outlined text-white text-base"
+                                      style={{ fontVariationSettings: "'FILL' 1" }}
+                                    >
+                                      check
+                                    </span>
+                                  </motion.div>
+                                ) : !place.user_checked_in ? (
                                   <button
                                     type="button"
-                                    onClick={() =>
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       setCheckInModal({
                                         placeCode: place.place_code,
                                         placeName: place.name,
-                                      })
-                                    }
-                                    className="flex-1 py-2 text-center text-sm font-semibold text-white bg-primary rounded-xl hover:bg-primary/90"
+                                      });
+                                    }}
+                                    className="shrink-0 px-2.5 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 active:scale-95 transition-all"
                                   >
                                     {t('groups.checkIn')}
                                   </button>
-                                )}
-                              </div>
+                                ) : null}
+                                <span
+                                  className={cn(
+                                    'material-symbols-outlined text-slate-400 transition-transform ml-1',
+                                    expandedPlace === place.place_code && 'rotate-180',
+                                  )}
+                                >
+                                  expand_more
+                                </span>
+                              </button>
 
-                              {/* Who checked in */}
-                              {place.checked_in_by.length > 0 && (
-                                <div>
-                                  <p className="text-xs font-semibold text-slate-500 dark:text-dark-text-secondary mb-1">
-                                    {t('groups.checkedIn')}
-                                  </p>
-                                  <div className="space-y-1">
-                                    {place.checked_in_by.map((ci) => (
-                                      <div
-                                        key={ci.user_code}
-                                        className="flex items-center gap-2 text-sm"
-                                      >
-                                        <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
-                                          {ci.display_name.charAt(0)}
-                                        </div>
-                                        <span className="font-medium text-slate-700 dark:text-white">
-                                          {ci.display_name}
+                              {/* Expanded content */}
+                              {expandedPlace === place.place_code && (
+                                <div className="px-4 pb-4 border-t border-slate-100 dark:border-dark-border pt-3 space-y-3">
+                                  <div className="flex gap-2">
+                                    <Link
+                                      to={`/places/${place.place_code}`}
+                                      className="flex-1 py-2 text-center text-sm font-semibold text-primary border border-primary rounded-xl hover:bg-primary/10"
+                                    >
+                                      {t('home.details')}
+                                    </Link>
+                                    {place.user_checked_in && (
+                                      <div className="flex-1 py-2 text-center text-sm font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl flex items-center justify-center gap-1.5">
+                                        <span
+                                          className="material-symbols-outlined text-base"
+                                          style={{ fontVariationSettings: "'FILL' 1" }}
+                                        >
+                                          check_circle
                                         </span>
-                                        <span className="text-xs text-slate-400">
-                                          {new Date(ci.checked_in_at).toLocaleDateString()}
-                                        </span>
+                                        {t('groups.checkedIn')}
                                       </div>
-                                    ))}
+                                    )}
+                                  </div>
+
+                                  {/* Who checked in */}
+                                  {place.checked_in_by.length > 0 && (
+                                    <div>
+                                      <p className="text-xs font-semibold text-slate-500 dark:text-dark-text-secondary mb-1">
+                                        {t('groups.checkedIn')}
+                                      </p>
+                                      <div className="space-y-1">
+                                        {place.checked_in_by.map((ci) => (
+                                          <div
+                                            key={ci.user_code}
+                                            className="flex items-center gap-2 text-sm"
+                                          >
+                                            <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
+                                              {ci.display_name.charAt(0)}
+                                            </div>
+                                            <span className="font-medium text-slate-700 dark:text-white">
+                                              {ci.display_name}
+                                            </span>
+                                            <span className="text-xs text-slate-400">
+                                              {new Date(ci.checked_in_at).toLocaleDateString()}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Notes */}
+                                  <div>
+                                    {place.notes.length > 0 && (
+                                      <div className="space-y-1.5 mb-3">
+                                        {place.notes.map((note) => (
+                                          <div
+                                            key={note.note_code}
+                                            className="flex items-start gap-2 p-2 rounded-lg bg-slate-50 dark:bg-dark-bg"
+                                          >
+                                            <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold flex-shrink-0">
+                                              {(note.display_name || '?').charAt(0)}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                              <p className="text-xs text-slate-700 dark:text-white">
+                                                {note.text}
+                                              </p>
+                                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                                {note.display_name}
+                                              </p>
+                                            </div>
+                                            {(note.user_code === user?.user_code || isAdmin) && (
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  handleDeleteNote(place.place_code, note.note_code)
+                                                }
+                                                className="p-1 text-slate-400 hover:text-red-500"
+                                                aria-label="Delete note"
+                                              >
+                                                <span className="material-symbols-outlined text-sm">
+                                                  delete
+                                                </span>
+                                              </button>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                    {/* WhatsApp-style note input */}
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="text"
+                                        value={noteInputs[place.place_code] ?? ''}
+                                        onChange={(e) =>
+                                          setNoteInputs((prev) => ({
+                                            ...prev,
+                                            [place.place_code]: e.target.value,
+                                          }))
+                                        }
+                                        placeholder={t('groups.writeNote')}
+                                        className="flex-1 h-10 text-xs border border-slate-200 dark:border-dark-border rounded-full px-4 bg-white dark:bg-dark-bg text-slate-700 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-primary"
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') handleAddNote(place.place_code);
+                                        }}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddNote(place.place_code)}
+                                        disabled={
+                                          noteSubmitting[place.place_code] ||
+                                          !noteInputs[place.place_code]?.trim()
+                                        }
+                                        className="w-9 h-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0 disabled:opacity-50 hover:bg-primary-hover transition-colors"
+                                      >
+                                        {noteSubmitting[place.place_code] ? (
+                                          <span className="material-symbols-outlined animate-spin text-white text-sm">
+                                            progress_activity
+                                          </span>
+                                        ) : (
+                                          <span className="material-symbols-outlined text-white text-sm">
+                                            send
+                                          </span>
+                                        )}
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               )}
+                            </div>
+                          </li>
+                        </motion.div>
+                      ))}
+                    </ol>
+                  )}
+                </motion.div>
+              )}
 
-                              {/* Notes */}
-                              <div>
-                                {place.notes.length > 0 && (
-                                  <div className="space-y-1.5 mb-3">
-                                    {place.notes.map((note) => (
-                                      <div
-                                        key={note.note_code}
-                                        className="flex items-start gap-2 p-2 rounded-lg bg-slate-50 dark:bg-dark-bg"
-                                      >
-                                        <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold flex-shrink-0">
-                                          {(note.display_name || '?').charAt(0)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-xs text-slate-700 dark:text-white">
-                                            {note.text}
-                                          </p>
-                                          <p className="text-[10px] text-slate-400 mt-0.5">
-                                            {note.display_name}
-                                          </p>
-                                        </div>
-                                        {(note.user_code === user?.user_code || isAdmin) && (
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              handleDeleteNote(place.place_code, note.note_code)
-                                            }
-                                            className="p-1 text-slate-400 hover:text-red-500"
-                                            aria-label="Delete note"
-                                          >
-                                            <span className="material-symbols-outlined text-sm">
-                                              delete
-                                            </span>
-                                          </button>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                {/* WhatsApp-style note input */}
-                                <div className="flex items-center gap-2">
-                                  <input
-                                    type="text"
-                                    value={noteInputs[place.place_code] ?? ''}
-                                    onChange={(e) =>
-                                      setNoteInputs((prev) => ({
-                                        ...prev,
-                                        [place.place_code]: e.target.value,
-                                      }))
-                                    }
-                                    placeholder={t('groups.writeNote')}
-                                    className="flex-1 h-10 text-xs border border-slate-200 dark:border-dark-border rounded-full px-4 bg-white dark:bg-dark-bg text-slate-700 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-primary"
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') handleAddNote(place.place_code);
-                                    }}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAddNote(place.place_code)}
-                                    disabled={
-                                      noteSubmitting[place.place_code] ||
-                                      !noteInputs[place.place_code]?.trim()
-                                    }
-                                    className="w-9 h-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0 disabled:opacity-50 hover:bg-primary-hover transition-colors"
-                                  >
-                                    {noteSubmitting[place.place_code] ? (
-                                      <span className="material-symbols-outlined animate-spin text-white text-sm">
-                                        progress_activity
-                                      </span>
-                                    ) : (
-                                      <span className="material-symbols-outlined text-white text-sm">
-                                        send
-                                      </span>
-                                    )}
-                                  </button>
-                                </div>
+              {/* ACTIVITY TAB */}
+              {tab === 'activity' && (
+                <motion.div
+                  key="activity"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  {activity.length === 0 ? (
+                    <p className="text-text-muted dark:text-dark-text-secondary text-sm py-4">
+                      {t('groups.noRecentActivity')}
+                    </p>
+                  ) : (
+                    <ul className="space-y-3">
+                      {activity.map((item, i) => (
+                        <li key={`${item.user_code}-${item.place_code}-${i}`}>
+                          <Link
+                            to={`/places/${item.place_code}`}
+                            className="flex items-start gap-3 p-4 rounded-2xl border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:bg-slate-50 dark:hover:bg-dark-surface/80 transition-all"
+                          >
+                            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 font-bold shrink-0">
+                              {(item.display_name || '?').charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-slate-600 dark:text-slate-300">
+                                <span className="font-bold text-slate-900 dark:text-white">
+                                  {item.display_name}
+                                </span>{' '}
+                                {t('groups.checkedInAt')}{' '}
+                                <span className="font-bold text-primary">{item.place_name}</span>
+                              </p>
+                              {item.note && (
+                                <p className="text-xs text-slate-500 dark:text-dark-text-secondary mt-0.5 italic">
+                                  "{item.note}"
+                                </p>
+                              )}
+                              <p className="text-[10px] text-slate-400 mt-1">
+                                {new Date(item.checked_in_at).toLocaleString()}
+                              </p>
+                            </div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </motion.div>
+              )}
+
+              {/* MEMBERS TAB */}
+              {tab === 'members' && (
+                <motion.div
+                  key="members"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <div className="space-y-3">
+                    {members.map((member) => (
+                      <div
+                        key={member.user_code}
+                        className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-surface"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0">
+                          {member.display_name.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-slate-800 dark:text-white text-sm">
+                            {member.display_name}
+                          </p>
+                          <p className="text-xs text-slate-400 dark:text-dark-text-secondary">
+                            {member.role === 'admin' ? t('groups.admin') : t('groups.member')}
+                            {member.is_creator ? ' · Creator' : ''}
+                          </p>
+                        </div>
+                        {isAdmin && member.user_code !== user?.user_code && !member.is_creator && (
+                          <div className="flex gap-1">
+                            {member.role === 'member' ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setConfirmAction({
+                                    type: 'promote',
+                                    userCode: member.user_code,
+                                    displayName: member.display_name,
+                                  })
+                                }
+                                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-border hover:text-primary"
+                                title={t('groups.promoteMember')}
+                              >
+                                <span className="material-symbols-outlined text-sm">
+                                  arrow_upward
+                                </span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setConfirmAction({
+                                    type: 'demote',
+                                    userCode: member.user_code,
+                                    displayName: member.display_name,
+                                  })
+                                }
+                                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-border hover:text-slate-600"
+                                title={t('groups.demoteMember')}
+                              >
+                                <span className="material-symbols-outlined text-sm">
+                                  arrow_downward
+                                </span>
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setConfirmAction({
+                                  type: 'remove',
+                                  userCode: member.user_code,
+                                  displayName: member.display_name,
+                                })
+                              }
+                              className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500"
+                              title={t('groups.removeMember')}
+                            >
+                              <span className="material-symbols-outlined text-sm">
+                                person_remove
+                              </span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    <div className="pt-4 space-y-2 border-t border-slate-200 dark:border-dark-border">
+                      {!isCreator && (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmAction({ type: 'leave' })}
+                          className="w-full py-3 rounded-xl border border-slate-200 dark:border-dark-border text-slate-600 dark:text-dark-text-secondary text-sm font-semibold hover:bg-slate-50 dark:hover:bg-dark-border flex items-center justify-center gap-2"
+                        >
+                          <span className="material-symbols-outlined text-base">logout</span>
+                          {t('groups.leaveGroup')}
+                        </button>
+                      )}
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => setConfirmAction({ type: 'delete' })}
+                          className="w-full py-3 rounded-xl border border-red-200 dark:border-red-900 text-red-500 text-sm font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center gap-2"
+                        >
+                          <span className="material-symbols-outlined text-base">delete</span>
+                          {t('groups.deleteGroup')}
+                        </button>
+                      )}
+                    </div>
+
+                    {inviteUrl && (
+                      <div className="pt-2">
+                        <p className="text-xs text-slate-500 dark:text-dark-text-secondary mb-2">
+                          {t('groups.shareInviteLink')}
+                        </p>
+                        <div className="flex gap-2">
+                          <input
+                            readOnly
+                            value={inviteUrl}
+                            className="flex-1 text-xs border border-slate-200 dark:border-dark-border rounded-xl px-3 py-2.5 bg-white dark:bg-dark-surface text-slate-600 dark:text-white"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => shareUrl(group.name, inviteUrl)}
+                            className="px-3 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/90 flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-sm">share</span>
+                            {t('common.share')}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Leaderboard section in members tab */}
+                    {leaderboard.length > 0 && (
+                      <div className="pt-4 border-t border-slate-200 dark:border-dark-border">
+                        <p className="text-sm font-bold text-slate-700 dark:text-white mb-3">
+                          {t('groups.leaderboard')}
+                        </p>
+                        <div className="flex justify-center items-end gap-3 mb-4 pt-2 px-2">
+                          {leaderboard[1] && (
+                            <div className="flex flex-col items-center flex-1">
+                              <div className="w-12 h-12 rounded-full border-2 border-slate-200 bg-white dark:bg-dark-surface flex items-center justify-center text-slate-700 dark:text-white font-bold text-base mb-2">
+                                {leaderboard[1].display_name.charAt(0)}
                               </div>
+                              <p className="text-xs font-bold text-slate-700 dark:text-white truncate w-full text-center">
+                                {leaderboard[1].display_name}
+                              </p>
+                              <p className="text-[10px] text-slate-400 uppercase tracking-tight">
+                                {leaderboard[1].places_visited} {t('groups.places')}
+                              </p>
+                              <div className="mt-3 h-14 w-full rounded-t-xl bg-slate-100 dark:bg-dark-border" />
+                            </div>
+                          )}
+                          {leaderboard[0] && (
+                            <div className="flex flex-col items-center flex-1 z-10">
+                              <div className="w-16 h-16 rounded-full border-[3px] border-amber-400 bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center text-amber-800 dark:text-amber-300 font-black text-xl mb-2">
+                                {leaderboard[0].display_name.charAt(0)}
+                              </div>
+                              <p className="text-xs font-black text-slate-800 dark:text-white truncate w-full text-center">
+                                {leaderboard[0].display_name}
+                              </p>
+                              <p className="text-[10px] font-bold text-amber-600 uppercase tracking-tight">
+                                {leaderboard[0].places_visited} {t('groups.places')}
+                              </p>
+                              <div className="mt-3 h-20 w-full rounded-t-xl bg-amber-100 dark:bg-amber-900/20" />
+                            </div>
+                          )}
+                          {leaderboard[2] && (
+                            <div className="flex flex-col items-center flex-1">
+                              <div className="w-12 h-12 rounded-full border-2 border-orange-200 bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center text-orange-700 dark:text-orange-300 font-bold text-base mb-2">
+                                {leaderboard[2].display_name.charAt(0)}
+                              </div>
+                              <p className="text-xs font-bold text-slate-700 dark:text-white truncate w-full text-center">
+                                {leaderboard[2].display_name}
+                              </p>
+                              <p className="text-[10px] text-slate-400 uppercase tracking-tight">
+                                {leaderboard[2].places_visited} {t('groups.places')}
+                              </p>
+                              <div className="mt-3 h-10 w-full rounded-t-xl bg-orange-100 dark:bg-orange-900/20" />
                             </div>
                           )}
                         </div>
-                      </li>
-                    </motion.div>
-                  ))}
-                </ol>
-              )}
-            </motion.div>
-          )}
-
-          {/* ACTIVITY TAB */}
-          {tab === 'activity' && (
-            <motion.div
-              key="activity"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.18 }}
-            >
-              {activity.length === 0 ? (
-                <p className="text-text-muted dark:text-dark-text-secondary text-sm py-4">
-                  {t('groups.noRecentActivity')}
-                </p>
-              ) : (
-                <ul className="space-y-3">
-                  {activity.map((item, i) => (
-                    <li key={`${item.user_code}-${item.place_code}-${i}`}>
-                      <Link
-                        to={`/places/${item.place_code}`}
-                        className="flex items-start gap-3 p-4 rounded-2xl border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:bg-slate-50 dark:hover:bg-dark-surface/80 transition-all"
-                      >
-                        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 font-bold shrink-0">
-                          {(item.display_name || '?').charAt(0)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-slate-600 dark:text-slate-300">
-                            <span className="font-bold text-slate-900 dark:text-white">
-                              {item.display_name}
-                            </span>{' '}
-                            {t('groups.checkedInAt')}{' '}
-                            <span className="font-bold text-primary">{item.place_name}</span>
-                          </p>
-                          {item.note && (
-                            <p className="text-xs text-slate-500 dark:text-dark-text-secondary mt-0.5 italic">
-                              "{item.note}"
-                            </p>
-                          )}
-                          <p className="text-[10px] text-slate-400 mt-1">
-                            {new Date(item.checked_in_at).toLocaleString()}
-                          </p>
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </motion.div>
-          )}
-
-          {/* MEMBERS TAB */}
-          {tab === 'members' && (
-            <motion.div
-              key="members"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.18 }}
-            >
-              <div className="space-y-3">
-                {members.map((member) => (
-                  <div
-                    key={member.user_code}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-surface"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0">
-                      {member.display_name.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-800 dark:text-white text-sm">
-                        {member.display_name}
-                      </p>
-                      <p className="text-xs text-slate-400 dark:text-dark-text-secondary">
-                        {member.role === 'admin' ? t('groups.admin') : t('groups.member')}
-                        {member.is_creator ? ' · Creator' : ''}
-                      </p>
-                    </div>
-                    {isAdmin && member.user_code !== user?.user_code && !member.is_creator && (
-                      <div className="flex gap-1">
-                        {member.role === 'member' ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setConfirmAction({
-                                type: 'promote',
-                                userCode: member.user_code,
-                                displayName: member.display_name,
-                              })
-                            }
-                            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-border hover:text-primary"
-                            title={t('groups.promoteMember')}
-                          >
-                            <span className="material-symbols-outlined text-sm">arrow_upward</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setConfirmAction({
-                                type: 'demote',
-                                userCode: member.user_code,
-                                displayName: member.display_name,
-                              })
-                            }
-                            className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-border hover:text-slate-600"
-                            title={t('groups.demoteMember')}
-                          >
-                            <span className="material-symbols-outlined text-sm">
-                              arrow_downward
-                            </span>
-                          </button>
+                        {leaderboard.length > 3 && (
+                          <>
+                            {(showFullLeaderboard ? leaderboard : leaderboard.slice(3)).map(
+                              (entry) => (
+                                <div
+                                  key={entry.user_code}
+                                  className="flex items-center gap-3 p-3 rounded-xl border border-input-border dark:border-dark-border bg-surface dark:bg-dark-surface mb-2"
+                                >
+                                  <span className="text-sm font-medium text-text-muted dark:text-dark-text-secondary w-6">
+                                    #{entry.rank}
+                                  </span>
+                                  <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold shrink-0">
+                                    {entry.display_name.charAt(0)}
+                                  </div>
+                                  <span className="font-medium text-text-main dark:text-white flex-1 truncate">
+                                    {entry.display_name}
+                                  </span>
+                                  <span className="text-sm text-text-muted dark:text-dark-text-secondary">
+                                    {entry.places_visited} {t('groups.places')}
+                                  </span>
+                                </div>
+                              ),
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setShowFullLeaderboard((v) => !v)}
+                              className="text-primary font-medium text-sm mt-2"
+                            >
+                              {showFullLeaderboard
+                                ? t('common.showLess')
+                                : t('groups.viewFullLeaderboard')}
+                            </button>
+                          </>
                         )}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setConfirmAction({
-                              type: 'remove',
-                              userCode: member.user_code,
-                              displayName: member.display_name,
-                            })
-                          }
-                          className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500"
-                          title={t('groups.removeMember')}
-                        >
-                          <span className="material-symbols-outlined text-sm">person_remove</span>
-                        </button>
                       </div>
                     )}
                   </div>
-                ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
-                <div className="pt-4 space-y-2 border-t border-slate-200 dark:border-dark-border">
-                  {!isCreator && (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmAction({ type: 'leave' })}
-                      className="w-full py-3 rounded-xl border border-slate-200 dark:border-dark-border text-slate-600 dark:text-dark-text-secondary text-sm font-semibold hover:bg-slate-50 dark:hover:bg-dark-border flex items-center justify-center gap-2"
-                    >
-                      <span className="material-symbols-outlined text-base">logout</span>
-                      {t('groups.leaveGroup')}
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmAction({ type: 'delete' })}
-                      className="w-full py-3 rounded-xl border border-red-200 dark:border-red-900 text-red-500 text-sm font-semibold hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center justify-center gap-2"
-                    >
-                      <span className="material-symbols-outlined text-base">delete</span>
-                      {t('groups.deleteGroup')}
-                    </button>
-                  )}
-                </div>
-
-                {inviteUrl && (
-                  <div className="pt-2">
-                    <p className="text-xs text-slate-500 dark:text-dark-text-secondary mb-2">
-                      {t('groups.shareInviteLink')}
-                    </p>
-                    <div className="flex gap-2">
-                      <input
-                        readOnly
-                        value={inviteUrl}
-                        className="flex-1 text-xs border border-slate-200 dark:border-dark-border rounded-xl px-3 py-2.5 bg-white dark:bg-dark-surface text-slate-600 dark:text-white"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => shareUrl(group.name, inviteUrl)}
-                        className="px-3 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/90 flex items-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-sm">share</span>
-                        {t('common.share')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Leaderboard section in members tab */}
-                {leaderboard.length > 0 && (
-                  <div className="pt-4 border-t border-slate-200 dark:border-dark-border">
-                    <p className="text-sm font-bold text-slate-700 dark:text-white mb-3">
-                      {t('groups.leaderboard')}
-                    </p>
-                    <div className="flex justify-center items-end gap-3 mb-4 pt-2 px-2">
-                      {leaderboard[1] && (
-                        <div className="flex flex-col items-center flex-1">
-                          <div className="w-12 h-12 rounded-full border-2 border-slate-200 bg-white dark:bg-dark-surface flex items-center justify-center text-slate-700 dark:text-white font-bold text-base mb-2">
-                            {leaderboard[1].display_name.charAt(0)}
-                          </div>
-                          <p className="text-xs font-bold text-slate-700 dark:text-white truncate w-full text-center">
-                            {leaderboard[1].display_name}
-                          </p>
-                          <p className="text-[10px] text-slate-400 uppercase tracking-tight">
-                            {leaderboard[1].places_visited} {t('groups.places')}
-                          </p>
-                          <div className="mt-3 h-14 w-full rounded-t-xl bg-slate-100 dark:bg-dark-border" />
-                        </div>
-                      )}
-                      {leaderboard[0] && (
-                        <div className="flex flex-col items-center flex-1 z-10">
-                          <div className="w-16 h-16 rounded-full border-[3px] border-amber-400 bg-amber-50 dark:bg-amber-900/30 flex items-center justify-center text-amber-800 dark:text-amber-300 font-black text-xl mb-2">
-                            {leaderboard[0].display_name.charAt(0)}
-                          </div>
-                          <p className="text-xs font-black text-slate-800 dark:text-white truncate w-full text-center">
-                            {leaderboard[0].display_name}
-                          </p>
-                          <p className="text-[10px] font-bold text-amber-600 uppercase tracking-tight">
-                            {leaderboard[0].places_visited} {t('groups.places')}
-                          </p>
-                          <div className="mt-3 h-20 w-full rounded-t-xl bg-amber-100 dark:bg-amber-900/20" />
-                        </div>
-                      )}
-                      {leaderboard[2] && (
-                        <div className="flex flex-col items-center flex-1">
-                          <div className="w-12 h-12 rounded-full border-2 border-orange-200 bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center text-orange-700 dark:text-orange-300 font-bold text-base mb-2">
-                            {leaderboard[2].display_name.charAt(0)}
-                          </div>
-                          <p className="text-xs font-bold text-slate-700 dark:text-white truncate w-full text-center">
-                            {leaderboard[2].display_name}
-                          </p>
-                          <p className="text-[10px] text-slate-400 uppercase tracking-tight">
-                            {leaderboard[2].places_visited} {t('groups.places')}
-                          </p>
-                          <div className="mt-3 h-10 w-full rounded-t-xl bg-orange-100 dark:bg-orange-900/20" />
-                        </div>
-                      )}
-                    </div>
-                    {leaderboard.length > 3 && (
-                      <>
-                        {(showFullLeaderboard ? leaderboard : leaderboard.slice(3)).map((entry) => (
-                          <div
-                            key={entry.user_code}
-                            className="flex items-center gap-3 p-3 rounded-xl border border-input-border dark:border-dark-border bg-surface dark:bg-dark-surface mb-2"
-                          >
-                            <span className="text-sm font-medium text-text-muted dark:text-dark-text-secondary w-6">
-                              #{entry.rank}
-                            </span>
-                            <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-semibold shrink-0">
-                              {entry.display_name.charAt(0)}
-                            </div>
-                            <span className="font-medium text-text-main dark:text-white flex-1 truncate">
-                              {entry.display_name}
-                            </span>
-                            <span className="text-sm text-text-muted dark:text-dark-text-secondary">
-                              {entry.places_visited} {t('groups.places')}
-                            </span>
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={() => setShowFullLeaderboard((v) => !v)}
-                          className="text-primary font-medium text-sm mt-2"
-                        >
-                          {showFullLeaderboard
-                            ? t('common.showLess')
-                            : t('groups.viewFullLeaderboard')}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Ad banner */}
-      <div className="px-6 pb-6 mt-4">
-        <AdBanner slot="group-detail-bottom" format="horizontal" />
-      </div>
-
-      {/* ── GLASS CONTEXTUAL BOTTOM BAR ──────────────────────────────── */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 flex justify-center pointer-events-none">
-        <div className="w-full max-w-lg px-4 pb-safe pointer-events-auto">
-          <div className="mb-3 mx-1 px-4 py-3 rounded-2xl bg-white/80 dark:bg-dark-surface/80 backdrop-blur-md border border-white/30 dark:border-dark-border/60 shadow-lg flex items-center gap-2">
-            {isAdmin ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/groups/${groupCode}/edit`)}
-                  className="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-primary/90 transition-colors"
-                >
-                  <span className="material-symbols-outlined text-sm">add_location</span>
-                  {t('groups.addPlace')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => shareUrl(group.name, window.location.href)}
-                  className="flex-1 py-2.5 rounded-xl border border-primary text-primary text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-primary/10 transition-colors"
-                >
-                  <span className="material-symbols-outlined text-sm">share</span>
-                  {t('common.share')}
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                onClick={() => shareUrl(group.name, inviteUrl || window.location.href)}
-                className="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold flex items-center justify-center gap-1.5 hover:bg-primary/90 transition-colors"
-              >
-                <span className="material-symbols-outlined text-sm">person_add</span>
-                {t('journey.inviteFriends')}
-              </button>
-            )}
+          {/* Ad banner */}
+          <div className="px-4 lg:px-0 pb-6 mt-4">
+            <AdBanner slot="group-detail-bottom" format="horizontal" />
           </div>
         </div>
+        {/* end left column */}
+
+        {/* ── RIGHT COLUMN (desktop sidebar) ─────── */}
+        <div className="lg:col-span-2 lg:sticky lg:top-24 lg:self-start hidden lg:block space-y-5 pb-6">
+          {/* Journey Map */}
+          {mapPlaces.length > 0 && (
+            <div>
+              <p className="text-sm font-bold text-slate-700 dark:text-white mb-2">
+                {t('nav.map') || 'Map'}
+              </p>
+              <JourneyMapView
+                places={mapPlaces}
+                onPlaceSelect={handleMapPlaceSelect}
+                className="h-56"
+              />
+            </div>
+          )}
+
+          {/* Member list sidebar */}
+          {members.length > 0 && (
+            <div>
+              <p className="text-sm font-bold text-slate-700 dark:text-white mb-2">
+                {t('groups.membersTab') || 'Members'} ({members.length})
+              </p>
+              <div className="space-y-2">
+                {members.slice(0, 5).map((member) => (
+                  <div
+                    key={member.user_code}
+                    className="flex items-center gap-2 p-2.5 rounded-xl border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs shrink-0">
+                      {member.display_name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-slate-800 dark:text-white text-xs truncate">
+                        {member.display_name}
+                      </p>
+                      <p className="text-[10px] text-slate-400 dark:text-dark-text-secondary">
+                        {member.role === 'admin' ? t('groups.admin') : t('groups.member')}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {members.length > 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setTab('members')}
+                    className="text-xs text-primary font-semibold"
+                  >
+                    +{members.length - 5} {t('common.showMore') || 'more'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Leaderboard sidebar */}
+          {leaderboard.length > 0 && (
+            <div>
+              <p className="text-sm font-bold text-slate-700 dark:text-white mb-2">
+                {t('groups.leaderboard') || 'Leaderboard'}
+              </p>
+              <div className="space-y-1.5">
+                {leaderboard.slice(0, 5).map((entry, i) => (
+                  <div
+                    key={entry.user_code}
+                    className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface"
+                  >
+                    <span
+                      className={cn(
+                        'text-xs font-bold w-5 text-center',
+                        i === 0 ? 'text-amber-500' : i === 1 ? 'text-slate-400' : 'text-orange-400',
+                      )}
+                    >
+                      #{i + 1}
+                    </span>
+                    <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
+                      {entry.display_name.charAt(0)}
+                    </div>
+                    <span className="flex-1 text-xs font-medium text-slate-800 dark:text-white truncate">
+                      {entry.display_name}
+                    </span>
+                    <span className="text-xs text-text-muted dark:text-dark-text-secondary">
+                      {entry.places_visited}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+      {/* end desktop grid */}
+
+      {/* Mobile map section (collapsible, below tabs) */}
+      {mapPlaces.length > 0 && (
+        <div className="lg:hidden px-4 pb-4">
+          <button
+            type="button"
+            onClick={() => setMapExpanded((v) => !v)}
+            className="flex items-center gap-2 text-sm font-semibold text-primary mb-2"
+          >
+            <span className="material-symbols-outlined text-base">map</span>
+            {mapExpanded ? t('common.hideMap') || 'Hide Map' : t('common.showMap') || 'Show Map'}
+            <span
+              className={cn(
+                'material-symbols-outlined text-base transition-transform',
+                mapExpanded && 'rotate-180',
+              )}
+            >
+              expand_more
+            </span>
+          </button>
+          {mapExpanded && (
+            <JourneyMapView
+              places={mapPlaces}
+              onPlaceSelect={handleMapPlaceSelect}
+              className="h-52"
+            />
+          )}
+        </div>
+      )}
+
+      {/* ── FAB: Add Place (admin only) ──────────────────────────────── */}
+      {(isAdmin || isCreator) && (
+        <motion.button
+          type="button"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => navigate(`/journeys/${groupCode}/edit-places`)}
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-white shadow-xl shadow-primary/30 flex items-center justify-center hover:bg-primary-hover transition-colors"
+          aria-label={t('groups.addPlace') || 'Add Place'}
+        >
+          <span
+            className="material-symbols-outlined text-[26px]"
+            style={{ fontVariationSettings: "'FILL' 1" }}
+          >
+            add_location_alt
+          </span>
+        </motion.button>
+      )}
 
       {/* Confirm dialog */}
       {confirmAction && (
@@ -1136,44 +1307,14 @@ export default function GroupDetail() {
           placeName={checkInModal.placeName}
           onClose={() => setCheckInModal(null)}
           onSuccess={() => {
+            const successCode = checkInModal.placeCode;
             setCheckInModal(null);
+            setCheckInSuccess(successCode);
             fetchData();
+            setTimeout(() => setCheckInSuccess(null), 2000);
           }}
         />
       )}
-
-      {/* Glass contextual bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-[600] bg-white/90 dark:bg-dark-bg/90 backdrop-blur-lg border-t border-white/30 dark:border-white/5 px-4 py-3 flex items-center justify-center gap-3">
-        {isAdmin || isCreator ? (
-          <>
-            <button
-              type="button"
-              onClick={() => navigate(`/journeys/${groupCode}/edit-places`)}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-[0.97] transition-all"
-            >
-              <span className="material-symbols-outlined text-[18px]">add_location_alt</span>
-              {t('groups.addPlace')}
-            </button>
-            <button
-              type="button"
-              onClick={() => shareUrl(inviteUrl, group?.name ?? 'Journey')}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white text-sm font-semibold hover:bg-soft-blue dark:hover:bg-dark-surface active:scale-[0.97] transition-all"
-            >
-              <span className="material-symbols-outlined text-[18px]">share</span>
-              {t('common.share')}
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            onClick={() => shareUrl(inviteUrl, group?.name ?? 'Journey')}
-            className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 active:scale-[0.97] transition-all"
-          >
-            <span className="material-symbols-outlined text-[18px]">person_add</span>
-            {t('journey.inviteFriends')}
-          </button>
-        )}
-      </div>
     </div>
   );
 }

@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth, useI18n } from '@/app/providers';
 import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
 import { cn } from '@/lib/utils/cn';
 import { getGroups } from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
+import JoinJourneyModal from '@/components/groups/JoinJourneyModal';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
 import type { Group } from '@/lib/types';
@@ -51,6 +53,8 @@ function isRecentlyActive(iso: string | null | undefined): boolean {
   }
 }
 
+type FilterTab = 'all' | 'active' | 'completed';
+
 export default function Groups() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -59,6 +63,8 @@ export default function Groups() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [filterTab, setFilterTab] = useState<FilterTab>('all');
+  const [joinOpen, setJoinOpen] = useState(false);
 
   const fetchGroups = useCallback(() => {
     if (!user) {
@@ -77,15 +83,63 @@ export default function Groups() {
     fetchGroups();
   }, [fetchGroups]);
 
+  // Derived stats
+  const totalVisited = groups.reduce((acc, g) => acc + (g.sites_visited ?? 0), 0);
+  const completedCount = groups.filter(
+    (g) => (g.total_sites ?? 0) > 0 && (g.sites_visited ?? 0) >= (g.total_sites ?? 0),
+  ).length;
+  const activeCount = groups.filter(
+    (g) =>
+      (g.total_sites ?? 0) > 0 &&
+      (g.sites_visited ?? 0) > 0 &&
+      (g.sites_visited ?? 0) < (g.total_sites ?? 0),
+  ).length;
+
+  // Calculate streak (consecutive days with activity)
+  const streak = Math.min(7, groups.filter((g) => isRecentlyActive(g.last_activity)).length);
+
+  const filteredGroups = groups.filter((g) => {
+    if (filterTab === 'completed') {
+      return (g.total_sites ?? 0) > 0 && (g.sites_visited ?? 0) >= (g.total_sites ?? 0);
+    }
+    if (filterTab === 'active') {
+      return (g.total_sites ?? 0) > 0 && (g.sites_visited ?? 0) < (g.total_sites ?? 0);
+    }
+    return true;
+  });
+
+  const filterTabs: { key: FilterTab; label: string }[] = [
+    { key: 'all', label: t('common.all') || 'All' },
+    { key: 'active', label: t('groups.active') || 'Active' },
+    { key: 'completed', label: t('common.done') || 'Completed' },
+  ];
+
   return (
     <div className="min-h-screen bg-background-light dark:bg-dark-bg">
       <header className="sticky top-0 z-40 bg-white dark:bg-dark-surface border-b border-slate-100 dark:border-dark-border px-4 md:px-6 py-4 flex items-center justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-text-dark dark:text-white">
-          {t('groups.myGroups')}
-        </h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-text-dark dark:text-white">
+            {t('groups.myJourneys') || t('groups.myGroups')}
+          </h1>
+          {groups.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-bold">
+              {groups.length}
+            </span>
+          )}
+        </div>
+        {user && (
+          <button
+            type="button"
+            onClick={() => setJoinOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold hover:bg-primary/20 transition-colors"
+          >
+            <span className="material-symbols-outlined text-base">group_add</span>
+            <span className="hidden sm:inline">{t('journey.joinWithCode') || 'Join'}</span>
+          </button>
+        )}
       </header>
 
-      <main className="max-w-md md:max-w-4xl mx-auto px-4 md:px-6 py-6 pb-28">
+      <main className="max-w-md md:max-w-4xl xl:max-w-6xl mx-auto px-4 md:px-6 py-6 pb-28">
         {/* Visitor empty state */}
         {!user && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -128,132 +182,244 @@ export default function Groups() {
         )}
 
         {user && !loading && !error && groups.length > 0 && (
-          <div className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
-            {groups.map((g) => {
-              const total = g.total_sites ?? 0;
-              const visited = g.sites_visited ?? 0;
-              const pct = total > 0 ? Math.min(100, Math.round((visited / total) * 100)) : 0;
-              const level = progressLevel(visited, total, t);
-              const lastActive = formatRelative(g.last_activity ?? undefined, t);
-              const recently = isRecentlyActive(g.last_activity);
-              const isDone = level === t('common.done') || level === 'Done';
-              const isNew = level === t('groups.progressNew') || level === 'New';
-              const coverUrl = g.cover_image_url ? getFullImageUrl(g.cover_image_url) : null;
-              return (
-                <Link
-                  key={g.group_code}
-                  to={`/groups/${g.group_code}`}
+          <>
+            {/* Stats bar */}
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="grid grid-cols-3 gap-3 mb-6"
+            >
+              <div className="rounded-2xl bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border p-3 text-center shadow-sm">
+                <p className="text-xl font-bold text-text-primary dark:text-white">
+                  {totalVisited}
+                </p>
+                <p className="text-[10px] text-text-muted dark:text-dark-text-secondary font-medium mt-0.5">
+                  {t('groups.placesVisited') || 'Sites Visited'}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border p-3 text-center shadow-sm">
+                <p className="text-xl font-bold text-text-primary dark:text-white">
+                  {groups.length}
+                </p>
+                <p className="text-[10px] text-text-muted dark:text-dark-text-secondary font-medium mt-0.5">
+                  {t('groups.journeyCount') || 'Journeys'}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border p-3 text-center shadow-sm">
+                <p className="text-xl font-bold text-text-primary dark:text-white">
+                  {streak > 0 ? `${streak}🔥` : completedCount}
+                </p>
+                <p className="text-[10px] text-text-muted dark:text-dark-text-secondary font-medium mt-0.5">
+                  {streak > 0
+                    ? t('groups.activeStreak') || 'Active Streak'
+                    : t('groups.completed') || 'Completed'}
+                </p>
+              </div>
+            </motion.div>
+
+            {/* Filter tabs */}
+            <div className="flex gap-1 mb-5 p-1 rounded-2xl bg-slate-100 dark:bg-dark-surface w-fit">
+              {filterTabs.map((tab) => (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setFilterTab(tab.key)}
                   className={cn(
-                    'block rounded-2xl p-4 border border-slate-100 dark:border-white/5 bg-white dark:bg-dark-surface hover:shadow-md transition-all',
-                    isDone && 'opacity-60 hover:opacity-100',
+                    'px-4 py-2 rounded-xl text-sm font-semibold transition-all',
+                    filterTab === tab.key
+                      ? 'bg-white dark:bg-dark-bg text-primary shadow-sm'
+                      : 'text-text-muted dark:text-dark-text-secondary hover:text-text-primary dark:hover:text-white',
                   )}
                 >
-                  {/* Top row: cover + info + avatars */}
-                  <div className="flex items-start justify-between mb-3">
-                    {/* Cover thumbnail */}
-                    {coverUrl ? (
-                      <img
-                        src={coverUrl}
-                        alt={g.name}
-                        className="w-12 h-12 rounded-xl object-cover shrink-0 mr-3"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-xl bg-primary/10 dark:bg-primary/20 flex items-center justify-center shrink-0 mr-3">
-                        <span className="material-icons text-primary text-2xl">groups</span>
-                      </div>
-                    )}
-
-                    {/* Name + description + last active */}
-                    <div className="flex-1 min-w-0 pr-3">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <h3 className="font-bold text-text-dark dark:text-white text-base tracking-tight truncate">
-                          {g.name}
-                        </h3>
-                        {recently && (
-                          <span
-                            className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"
-                            style={{ boxShadow: '0 0 8px rgba(34,197,94,0.6)' }}
-                          />
-                        )}
-                        {isDone && (
-                          <span className="material-icons text-green-500 text-sm shrink-0">
-                            check_circle
-                          </span>
-                        )}
-                      </div>
-                      {g.description && (
-                        <p className="text-xs text-text-muted dark:text-dark-text-secondary truncate mb-0.5">
-                          {g.description}
-                        </p>
-                      )}
-                      <p className="text-xs text-text-muted dark:text-dark-text-secondary font-medium">
-                        {lastActive
-                          ? t('groups.lastActive').replace('{relative}', lastActive)
-                          : g.created_at
-                            ? `${t('groups.created')} ${new Date(g.created_at).toLocaleDateString()}`
-                            : ''}
-                      </p>
-                    </div>
-
-                    {/* Member avatars */}
-                    <div className="flex -space-x-2 shrink-0">
-                      {[...Array(Math.min(2, g.member_count ?? 0))].map((_, i) => (
-                        <div
-                          key={i}
-                          className="h-8 w-8 rounded-full border-2 border-white dark:border-dark-bg bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary ring-1 ring-slate-100 dark:ring-dark-border"
-                        >
-                          {i + 1}
-                        </div>
-                      ))}
-                      {(g.member_count ?? 0) > 2 && (
-                        <div className="h-8 w-8 rounded-full border-2 border-white dark:border-dark-bg bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold text-text-muted dark:text-dark-text-secondary ring-1 ring-slate-100 dark:ring-dark-border">
-                          +{(g.member_count ?? 0) - 2}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Sites count + level badge */}
-                  <div className="flex justify-between items-center text-xs text-text-muted dark:text-dark-text-secondary mb-2 font-medium">
-                    <span>
-                      {t('groups.sitesCount')
-                        .replace('{visited}', String(visited))
-                        .replace('{total}', String(total || '—'))}
+                  {tab.label}
+                  {tab.key === 'active' && activeCount > 0 && (
+                    <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold">
+                      {activeCount}
                     </span>
-                    {level && (
-                      <span
-                        className={cn(
-                          'px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border',
-                          isDone
-                            ? 'text-green-600 bg-green-50 dark:bg-green-950/40 border-green-500/20'
-                            : isNew
-                              ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500/20'
-                              : 'text-primary bg-soft-blue dark:bg-primary/20 border-primary/20',
-                        )}
-                      >
-                        {level}
-                      </span>
-                    )}
-                  </div>
+                  )}
+                  {tab.key === 'completed' && completedCount > 0 && (
+                    <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 text-[10px] font-bold">
+                      {completedCount}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
 
-                  {/* Progress bar */}
-                  <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-[3px] overflow-hidden">
-                    <div
-                      className={cn(
-                        'h-full rounded-full transition-all',
-                        isDone
-                          ? 'bg-green-500 dark:shadow-[0_0_8px_rgba(34,197,94,0.5)]'
-                          : 'bg-primary dark:shadow-[0_0_8px_rgba(59,130,246,0.5)]',
-                      )}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+            {/* Journey cards */}
+            <AnimatePresence mode="popLayout">
+              {filteredGroups.length === 0 ? (
+                <motion.p
+                  key="empty-filter"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-text-muted dark:text-dark-text-secondary text-sm py-6 text-center"
+                >
+                  {t('groups.noGroupsYet')}
+                </motion.p>
+              ) : (
+                <div className="space-y-4 lg:grid lg:grid-cols-3 lg:gap-6 lg:space-y-0">
+                  {filteredGroups.map((g, index) => {
+                    const total = g.total_sites ?? 0;
+                    const visited = g.sites_visited ?? 0;
+                    const pct = total > 0 ? Math.min(100, Math.round((visited / total) * 100)) : 0;
+                    const level = progressLevel(visited, total, t);
+                    const lastActive = formatRelative(g.last_activity ?? undefined, t);
+                    const recently = isRecentlyActive(g.last_activity);
+                    const isDone = pct >= 100 && total > 0;
+                    const isNew = visited === 0;
+                    const coverUrl = g.cover_image_url ? getFullImageUrl(g.cover_image_url) : null;
+
+                    return (
+                      <motion.div
+                        key={g.group_code}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ delay: index * 0.05, duration: 0.25 }}
+                        layout
+                      >
+                        <Link
+                          to={`/groups/${g.group_code}`}
+                          className={cn(
+                            'block rounded-2xl overflow-hidden border border-slate-100 dark:border-white/5 bg-white dark:bg-dark-surface hover:shadow-lg transition-all duration-200',
+                            isDone && 'opacity-70 hover:opacity-100',
+                          )}
+                        >
+                          {/* Cover image with gradient overlay */}
+                          <div className="relative h-32 lg:h-40 bg-gradient-to-br from-primary/20 to-primary/5">
+                            {coverUrl ? (
+                              <>
+                                <img
+                                  src={coverUrl}
+                                  alt={g.name}
+                                  className="absolute inset-0 w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                              </>
+                            ) : (
+                              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                                <span
+                                  className="material-symbols-outlined text-5xl text-primary/30"
+                                  style={{ fontVariationSettings: "'FILL' 1" }}
+                                >
+                                  route
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Badges on image */}
+                            <div className="absolute top-2.5 left-2.5 right-2.5 flex items-start justify-between">
+                              <div className="flex items-center gap-1.5">
+                                {recently && (
+                                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/90 text-white text-[10px] font-bold backdrop-blur-sm">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                    Active
+                                  </span>
+                                )}
+                                {isDone && (
+                                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/90 text-white text-[10px] font-bold backdrop-blur-sm">
+                                    <span className="material-symbols-outlined text-[12px]">
+                                      check
+                                    </span>
+                                    Done
+                                  </span>
+                                )}
+                              </div>
+                              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/40 backdrop-blur-sm text-white text-[10px] font-semibold">
+                                <span className="material-symbols-outlined text-[12px]">
+                                  person
+                                </span>
+                                {g.member_count ?? 0}
+                              </span>
+                            </div>
+
+                            {/* Journey name on image */}
+                            {coverUrl && (
+                              <div className="absolute bottom-2.5 left-3 right-3">
+                                <h3 className="font-bold text-white text-sm leading-tight line-clamp-1 drop-shadow">
+                                  {g.name}
+                                </h3>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Card body */}
+                          <div className="p-3.5">
+                            {!coverUrl && (
+                              <h3 className="font-bold text-text-dark dark:text-white text-sm mb-1 truncate">
+                                {g.name}
+                              </h3>
+                            )}
+
+                            {g.description && (
+                              <p className="text-xs text-text-muted dark:text-dark-text-secondary truncate mb-2">
+                                {g.description}
+                              </p>
+                            )}
+
+                            {/* Progress bar */}
+                            <div className="mb-2">
+                              <div className="flex justify-between text-[10px] text-text-muted dark:text-dark-text-secondary font-medium mb-1">
+                                <span>
+                                  {visited}/{total || '—'} {t('groups.places') || 'places'}
+                                </span>
+                                {level && (
+                                  <span
+                                    className={cn(
+                                      'px-1.5 py-0 rounded text-[9px] font-bold uppercase tracking-wider border',
+                                      isDone
+                                        ? 'text-green-600 bg-green-50 dark:bg-green-950/40 border-green-500/20'
+                                        : isNew
+                                          ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 border-indigo-500/20'
+                                          : 'text-primary bg-soft-blue dark:bg-primary/20 border-primary/20',
+                                    )}
+                                  >
+                                    {level}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                                <motion.div
+                                  className={cn(
+                                    'h-full rounded-full',
+                                    isDone ? 'bg-green-500' : 'bg-primary',
+                                  )}
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${pct}%` }}
+                                  transition={{ duration: 0.6, delay: index * 0.05 + 0.2 }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Footer row */}
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] text-text-muted dark:text-dark-text-secondary">
+                                {lastActive
+                                  ? t('groups.lastActive').replace('{relative}', lastActive)
+                                  : g.created_at
+                                    ? `${t('groups.created')} ${new Date(g.created_at).toLocaleDateString()}`
+                                    : ''}
+                              </p>
+                              {!isDone && visited > 0 && (
+                                <span className="text-[10px] font-semibold text-primary">
+                                  {t('journey.continueJourney') || 'Continue'} →
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </AnimatePresence>
+          </>
         )}
       </main>
+
+      <JoinJourneyModal open={joinOpen} onClose={() => setJoinOpen(false)} />
     </div>
   );
 }

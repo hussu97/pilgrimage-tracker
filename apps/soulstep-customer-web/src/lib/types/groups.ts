@@ -69,6 +69,8 @@ export interface ChecklistPlace {
   religion: string | null;
   address: string | null;
   image_url: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   checked_in_by: ChecklistCheckIn[];
   user_checked_in: boolean;
   check_in_count: number;
