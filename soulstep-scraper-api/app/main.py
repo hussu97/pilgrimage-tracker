@@ -13,10 +13,10 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1 import api_router
 from app.db.models import ScraperRun
-from app.db.seed_geo import seed_geo_boundaries
-from app.db.seed_place_types import seed_place_type_mappings
 from app.db.session import engine, run_migrations
 from app.logger import get_logger, mask_secret, set_trace_context, setup_logging
+from app.seeds.geo import seed_geo_boundaries
+from app.seeds.place_types import seed_place_type_mappings
 
 load_dotenv()
 setup_logging()
@@ -34,13 +34,26 @@ def _validate_startup_config() -> None:
     """
     logger.info("=== SoulStep Scraper API — startup config check ===")
 
+    # GOOGLE_MAPS_API_KEY is required for discovery and detail fetching.
+    # Log a critical-level warning (not a hard exit so Cloud Run health probe still responds).
+    gmaps_key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
+    if gmaps_key:
+        logger.info(
+            "  [SET]  GOOGLE_MAPS_API_KEY = %s  (Google Maps scraper + enrichment)",
+            mask_secret(gmaps_key),
+        )
+    else:
+        logger.critical(
+            "GOOGLE_MAPS_API_KEY is not set — discovery and detail fetching will fail. "
+            "Set this env var before starting a scraper run."
+        )
+
     # Optional API keys — collectors degrade gracefully when absent
     optional_keys: dict[str, str] = {
-        "GOOGLE_MAPS_API_KEY": "Google Maps scraper + enrichment",
         "FOURSQUARE_API_KEY": "Foursquare enrichment (optional)",
         "OUTSCRAPER_API_KEY": "Outscraper extended reviews (optional)",
         "BESTTIME_API_KEY": "BestTime busyness data (optional)",
-        "ANTHROPIC_API_KEY": "LLM description tie-breaking (optional)",
+        "GEMINI_API_KEY": "LLM description tie-breaking (optional)",
     }
 
     configured: list[str] = []
@@ -53,10 +66,11 @@ def _validate_startup_config() -> None:
             missing.append(f"  [MISS] {var}  ({description})")
 
     if configured:
-        logger.info("Configured API keys:\n%s", "\n".join(configured))
+        logger.info("Configured optional API keys:\n%s", "\n".join(configured))
     if missing:
         logger.warning(
-            "Missing API keys — affected collectors will be skipped:\n%s", "\n".join(missing)
+            "Missing optional API keys — affected collectors will be skipped:\n%s",
+            "\n".join(missing),
         )
 
     # General non-secret config

@@ -933,8 +933,8 @@ echo -n "your-foursquare-key" | \
 echo -n "your-outscraper-key" | \
   gcloud secrets create SCRAPER_OUTSCRAPER_API_KEY --data-file=- --replication-policy=automatic
 
-echo -n "your-anthropic-key" | \
-  gcloud secrets create SCRAPER_ANTHROPIC_API_KEY --data-file=- --replication-policy=automatic
+echo -n "your-gemini-key" | \
+  gcloud secrets create SCRAPER_GEMINI_API_KEY --data-file=- --replication-policy=automatic
 ```
 
 Grant the compute service account access:
@@ -942,7 +942,7 @@ Grant the compute service account access:
 PROJECT_NUMBER=$(gcloud projects describe project-fa2d7f52-2bc4-4a46-8ae --format="value(projectNumber)")
 SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
-for SECRET in SCRAPER_GOOGLE_MAPS_API_KEY SCRAPER_BESTTIME_API_KEY SCRAPER_FOURSQUARE_API_KEY SCRAPER_OUTSCRAPER_API_KEY SCRAPER_ANTHROPIC_API_KEY; do
+for SECRET in SCRAPER_GOOGLE_MAPS_API_KEY SCRAPER_BESTTIME_API_KEY SCRAPER_FOURSQUARE_API_KEY SCRAPER_OUTSCRAPER_API_KEY SCRAPER_GEMINI_API_KEY; do
   gcloud secrets add-iam-policy-binding $SECRET \
     --member="serviceAccount:${SA}" \
     --role="roles/secretmanager.secretAccessor" 2>/dev/null || true
@@ -969,7 +969,7 @@ gcloud run deploy soulstep-scraper-api \
   --platform managed \
   --region europe-west1 \
   --no-allow-unauthenticated \
-  --set-secrets "GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,BESTTIME_API_KEY=SCRAPER_BESTTIME_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,OUTSCRAPER_API_KEY=SCRAPER_OUTSCRAPER_API_KEY:latest,ANTHROPIC_API_KEY=SCRAPER_ANTHROPIC_API_KEY:latest" \
+  --set-secrets "GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,BESTTIME_API_KEY=SCRAPER_BESTTIME_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,OUTSCRAPER_API_KEY=SCRAPER_OUTSCRAPER_API_KEY:latest,GEMINI_API_KEY=SCRAPER_GEMINI_API_KEY:latest" \
   --set-env-vars "MAIN_SERVER_URL=https://soulstep-catalog-api-834941457147.europe-west1.run.app,SCRAPER_TIMEZONE=Asia/Dubai,SCRAPER_DB_PATH=/tmp/scraper.db,LOG_FORMAT=json" \
   --memory 1Gi \
   --cpu 1 \
@@ -1112,7 +1112,7 @@ gcloud run services update soulstep-scraper-api \
 BESTTIME_API_KEY=SCRAPER_BESTTIME_API_KEY:latest,\
 FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,\
 OUTSCRAPER_API_KEY=SCRAPER_OUTSCRAPER_API_KEY:latest,\
-ANTHROPIC_API_KEY=SCRAPER_ANTHROPIC_API_KEY:latest,\
+GEMINI_API_KEY=SCRAPER_GEMINI_API_KEY:latest,\
 DATABASE_URL=SCRAPER_DATABASE_URL:latest"
 ```
 

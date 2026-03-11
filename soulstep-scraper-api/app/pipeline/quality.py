@@ -148,7 +148,7 @@ async def assess_descriptions(
     if (
         len(scored) >= 2
         and (scored[0]["score"] - scored[1]["score"]) < LLM_TIE_BREAK_THRESHOLD
-        and os.environ.get("ANTHROPIC_API_KEY")
+        and os.environ.get("GEMINI_API_KEY")
     ):
         llm_result = await _llm_tiebreak(scored[0], scored[1], place_name)
         if llm_result:
@@ -168,7 +168,7 @@ async def _llm_tiebreak(
     place_name: str,
 ) -> dict[str, Any] | None:
     """
-    Use Claude Haiku to break a tie between two close description candidates.
+    Use Gemini to break a tie between two close description candidates.
 
     Runs asynchronously so multiple per-place tie-breaks can proceed in
     parallel when many places are being enriched concurrently.
@@ -178,9 +178,14 @@ async def _llm_tiebreak(
     try:
         import json
 
-        import anthropic
+        import google.generativeai as genai
 
-        client = anthropic.AsyncAnthropic()
+        api_key = os.environ.get("GEMINI_API_KEY")
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            generation_config={"response_mime_type": "application/json"},
+        )
 
         prompt = f"""You are evaluating two descriptions for "{place_name}", a pilgrimage/religious site.
 
@@ -195,19 +200,8 @@ Pick the most informative, accurate, and contextually rich description. If both 
 Respond in this exact JSON format:
 {{"choice": "A" or "B" or "synthesized", "text": "the chosen or synthesized description"}}"""
 
-        response = await client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=500,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
-        content = response.content[0].text.strip()
-        # Handle case where LLM wraps in markdown code block
-        if content.startswith("```"):
-            content = content.split("```")[1]
-            if content.startswith("json"):
-                content = content[4:]
-            content = content.strip()
+        response = await model.generate_content_async(prompt)
+        content = response.text.strip()
 
         parsed = json.loads(content)
         choice = parsed.get("choice", "")

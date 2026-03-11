@@ -5,9 +5,5 @@ sqlmodel
 requests
 httpx
 python-dotenv
-anthropic
+google-generativeai
 psycopg2-binary
-pytest>=8.0.0
-pytest-asyncio>=0.23.0
-pytest-cov>=5.0.0
-ruff>=0.3.0

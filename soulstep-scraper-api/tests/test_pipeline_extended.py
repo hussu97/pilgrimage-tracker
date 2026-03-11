@@ -114,7 +114,7 @@ class TestQualityScoringExtended:
         with patch(
             "app.pipeline.quality._llm_tiebreak", new=AsyncMock(return_value=mock_llm_result)
         ):
-            with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test_key"}, clear=False):
+            with patch.dict(os.environ, {"GEMINI_API_KEY": "test_key"}, clear=False):
                 result = await assess_descriptions(candidates, "Test Mosque")
 
         assert result["method"] == "llm"
@@ -131,7 +131,7 @@ class TestQualityScoringExtended:
         ]
 
         with patch("app.pipeline.quality._llm_tiebreak", new=AsyncMock(return_value=None)):
-            with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test_key"}, clear=False):
+            with patch.dict(os.environ, {"GEMINI_API_KEY": "test_key"}, clear=False):
                 result = await assess_descriptions(candidates, "Test")
 
         assert result["method"] == "heuristic"
@@ -139,21 +139,19 @@ class TestQualityScoringExtended:
 
     async def test_llm_tiebreak_choice_a(self):
         """_llm_tiebreak selects candidate A."""
-        import sys
-
         from app.pipeline.quality import _llm_tiebreak
 
         candidate_a = {"text": "Description A", "source": "wikipedia", "score": 0.7}
         candidate_b = {"text": "Description B", "source": "knowledge_graph", "score": 0.62}
 
-        mock_anthropic = MagicMock()
-        mock_client = MagicMock()
-        mock_anthropic.AsyncAnthropic.return_value = mock_client
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock(text='{"choice": "A", "text": "Description A"}')]
-        mock_client.messages.create = AsyncMock(return_value=mock_response)
+        mock_model = MagicMock()
+        mock_response = MagicMock(text='{"choice": "A", "text": "Description A"}')
+        mock_model.generate_content_async = AsyncMock(return_value=mock_response)
 
-        with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+        with (
+            patch("google.generativeai.configure"),
+            patch("google.generativeai.GenerativeModel", return_value=mock_model),
+        ):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test Mosque")
 
         assert result is not None
@@ -162,44 +160,40 @@ class TestQualityScoringExtended:
 
     async def test_llm_tiebreak_choice_b(self):
         """_llm_tiebreak selects candidate B."""
-        import sys
-
         from app.pipeline.quality import _llm_tiebreak
 
         candidate_a = {"text": "Description A", "source": "wikipedia", "score": 0.65}
         candidate_b = {"text": "Description B", "source": "knowledge_graph", "score": 0.60}
 
-        mock_anthropic = MagicMock()
-        mock_client = MagicMock()
-        mock_anthropic.AsyncAnthropic.return_value = mock_client
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock(text='{"choice": "B", "text": "Description B"}')]
-        mock_client.messages.create = AsyncMock(return_value=mock_response)
+        mock_model = MagicMock()
+        mock_response = MagicMock(text='{"choice": "B", "text": "Description B"}')
+        mock_model.generate_content_async = AsyncMock(return_value=mock_response)
 
-        with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+        with (
+            patch("google.generativeai.configure"),
+            patch("google.generativeai.GenerativeModel", return_value=mock_model),
+        ):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result["source"] == "knowledge_graph"
 
     async def test_llm_tiebreak_synthesized(self):
         """_llm_tiebreak returns a synthesized description."""
-        import sys
-
         from app.pipeline.quality import _llm_tiebreak
 
         candidate_a = {"text": "Description A", "source": "wikipedia", "score": 0.68}
         candidate_b = {"text": "Description B", "source": "knowledge_graph", "score": 0.62}
 
-        mock_anthropic = MagicMock()
-        mock_client = MagicMock()
-        mock_anthropic.AsyncAnthropic.return_value = mock_client
-        mock_response = MagicMock()
-        mock_response.content = [
-            MagicMock(text='{"choice": "synthesized", "text": "Combined best description."}')
-        ]
-        mock_client.messages.create = AsyncMock(return_value=mock_response)
+        mock_model = MagicMock()
+        mock_response = MagicMock(
+            text='{"choice": "synthesized", "text": "Combined best description."}'
+        )
+        mock_model.generate_content_async = AsyncMock(return_value=mock_response)
 
-        with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+        with (
+            patch("google.generativeai.configure"),
+            patch("google.generativeai.GenerativeModel", return_value=mock_model),
+        ):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result["source"] == "llm_synthesized"
@@ -208,43 +202,38 @@ class TestQualityScoringExtended:
 
     async def test_llm_tiebreak_unknown_choice(self):
         """Unknown choice from LLM should return None."""
-        import sys
-
         from app.pipeline.quality import _llm_tiebreak
 
         candidate_a = {"text": "Desc A", "source": "wikipedia", "score": 0.7}
         candidate_b = {"text": "Desc B", "source": "knowledge_graph", "score": 0.65}
 
-        mock_anthropic = MagicMock()
-        mock_client = MagicMock()
-        mock_anthropic.AsyncAnthropic.return_value = mock_client
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock(text='{"choice": "C", "text": ""}')]
-        mock_client.messages.create = AsyncMock(return_value=mock_response)
+        mock_model = MagicMock()
+        mock_response = MagicMock(text='{"choice": "C", "text": ""}')
+        mock_model.generate_content_async = AsyncMock(return_value=mock_response)
 
-        with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+        with (
+            patch("google.generativeai.configure"),
+            patch("google.generativeai.GenerativeModel", return_value=mock_model),
+        ):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result is None
 
-    async def test_llm_tiebreak_markdown_wrapped_json(self):
-        """LLM response wrapped in markdown code block should be parsed correctly."""
-        import sys
-
+    async def test_llm_tiebreak_clean_json(self):
+        """Gemini with response_mime_type=application/json returns clean JSON."""
         from app.pipeline.quality import _llm_tiebreak
 
         candidate_a = {"text": "Desc A", "source": "wikipedia", "score": 0.7}
         candidate_b = {"text": "Desc B", "source": "knowledge_graph", "score": 0.63}
 
-        mock_anthropic = MagicMock()
-        mock_client = MagicMock()
-        mock_anthropic.AsyncAnthropic.return_value = mock_client
-        mock_response = MagicMock()
-        # LLM wraps JSON in markdown code block
-        mock_response.content = [MagicMock(text='```json\n{"choice": "A", "text": "Desc A"}\n```')]
-        mock_client.messages.create = AsyncMock(return_value=mock_response)
+        mock_model = MagicMock()
+        mock_response = MagicMock(text='{"choice": "A", "text": "Desc A"}')
+        mock_model.generate_content_async = AsyncMock(return_value=mock_response)
 
-        with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+        with (
+            patch("google.generativeai.configure"),
+            patch("google.generativeai.GenerativeModel", return_value=mock_model),
+        ):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result is not None
@@ -252,38 +241,34 @@ class TestQualityScoringExtended:
 
     async def test_llm_tiebreak_exception_returns_none(self):
         """Exception during LLM call should return None gracefully."""
-        import sys
-
         from app.pipeline.quality import _llm_tiebreak
 
         candidate_a = {"text": "Desc A", "source": "wikipedia", "score": 0.7}
         candidate_b = {"text": "Desc B", "source": "knowledge_graph", "score": 0.65}
 
-        mock_anthropic = MagicMock()
-        mock_anthropic.AsyncAnthropic.side_effect = Exception("API unavailable")
-
-        with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+        with (
+            patch("google.generativeai.configure"),
+            patch("google.generativeai.GenerativeModel", side_effect=Exception("API unavailable")),
+        ):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result is None
 
     async def test_llm_tiebreak_empty_text_uses_candidate_a(self):
         """When LLM returns empty text for choice A, fall back to candidate_a text."""
-        import sys
-
         from app.pipeline.quality import _llm_tiebreak
 
         candidate_a = {"text": "Fallback A", "source": "wikipedia", "score": 0.7}
         candidate_b = {"text": "Desc B", "source": "knowledge_graph", "score": 0.63}
 
-        mock_anthropic = MagicMock()
-        mock_client = MagicMock()
-        mock_anthropic.AsyncAnthropic.return_value = mock_client
-        mock_response = MagicMock()
-        mock_response.content = [MagicMock(text='{"choice": "A", "text": ""}')]
-        mock_client.messages.create = AsyncMock(return_value=mock_response)
+        mock_model = MagicMock()
+        mock_response = MagicMock(text='{"choice": "A", "text": ""}')
+        mock_model.generate_content_async = AsyncMock(return_value=mock_response)
 
-        with patch.dict(sys.modules, {"anthropic": mock_anthropic}):
+        with (
+            patch("google.generativeai.configure"),
+            patch("google.generativeai.GenerativeModel", return_value=mock_model),
+        ):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result["text"] == "Fallback A"  # Falls back to candidate_a text

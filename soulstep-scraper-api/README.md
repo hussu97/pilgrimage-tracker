@@ -34,7 +34,7 @@ A FastAPI service that discovers sacred places via Google Maps, enriches them fr
     OUTSCRAPER_API_KEY=
 
     # LLM-based description assessment (leave blank for heuristic-only)
-    ANTHROPIC_API_KEY=
+    GEMINI_API_KEY=
     ```
 
 3.  **Run Server**:

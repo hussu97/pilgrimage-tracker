@@ -272,8 +272,8 @@ Each collector implements `BaseCollector` ABC and returns a `CollectorResult` da
 
 **`quality.py`**: Hybrid heuristic + LLM description assessment:
 - Heuristic scoring (0.0–1.0): source reliability (40%), length/detail (30%), specificity (30%)
-- LLM tie-breaking (optional): when top 2 candidates are within 0.15, Claude Haiku picks or synthesizes the best description
-- Only triggered for ~10-20% of places; disabled without `ANTHROPIC_API_KEY`
+- LLM tie-breaking (optional): when top 2 candidates are within 0.15, Gemini picks or synthesizes the best description
+- Only triggered for ~10-20% of places; disabled without `GEMINI_API_KEY`
 
 **`merger.py`**: Combines all collector outputs with priority rules:
 - **Name**: gmaps (authoritative)

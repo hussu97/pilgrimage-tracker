@@ -64,7 +64,7 @@ SECRET_ENV_VARS: frozenset[str] = frozenset(
         "BESTTIME_API_KEY",
         "FOURSQUARE_API_KEY",
         "OUTSCRAPER_API_KEY",
-        "ANTHROPIC_API_KEY",
+        "GEMINI_API_KEY",
         "DATABASE_URL",
         "SECRET_KEY",
     }

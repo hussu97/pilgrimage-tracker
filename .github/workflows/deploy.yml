@@ -370,5 +370,5 @@ jobs:
             --timeout 3600 \
             --max-instances 1 \
             --set-env-vars "MAIN_SERVER_URL=https://soulstep-catalog-api-${{ env.PROJECT_NUMBER }}.${{ env.REGION }}.run.app,LOG_FORMAT=json,LOG_LEVEL=DEBUG,GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }},SCRAPER_TIMEZONE=Asia/Dubai,SCRAPER_DB_PATH=/tmp/scraper.db" \
-            --set-secrets "DATABASE_URL=SCRAPER_DATABASE_URL:latest,GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,ANTHROPIC_API_KEY=SCRAPER_ANTHROPIC_API_KEY:latest" \
+            --set-secrets "DATABASE_URL=SCRAPER_DATABASE_URL:latest,GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,GEMINI_API_KEY=SCRAPER_GEMINI_API_KEY:latest" \
             --quiet

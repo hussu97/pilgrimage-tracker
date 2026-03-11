@@ -4,6 +4,19 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Scraper: Migrate LLM Tie-Breaking from Anthropic to Google Gemini (2026-03-11)
+
+### Backend (scraper)
+- **`requirements.txt`** — replaced `anthropic` with `google-generativeai`
+- **`app/pipeline/quality.py`** — `_llm_tiebreak()` now uses `google.generativeai.GenerativeModel` (`gemini-2.0-flash`) with `response_mime_type="application/json"` for clean JSON output; env var check updated from `ANTHROPIC_API_KEY` to `GEMINI_API_KEY`
+- **`app/main.py`** — startup config check updated to `GEMINI_API_KEY`
+- **`app/logger.py`** — `SECRET_ENV_VARS` updated from `ANTHROPIC_API_KEY` to `GEMINI_API_KEY`
+- **`.env.example`** — replaced Anthropic key entry with `GEMINI_API_KEY` (get free key at aistudio.google.com)
+- **`tests/test_pipeline_extended.py`** — all `_llm_tiebreak` mocks migrated from `anthropic` to `google.generativeai` using `patch("google.generativeai.configure")` / `patch("google.generativeai.GenerativeModel")`
+- **`ARCHITECTURE.md`**, **`PRODUCTION.md`**, **`docs/local-scraper-sync.md`**, **`.github/workflows/deploy.yml`**, **`soulstep-scraper-api/README.md`** — all references updated from `ANTHROPIC_API_KEY`/`SCRAPER_ANTHROPIC_API_KEY` to `GEMINI_API_KEY`/`SCRAPER_GEMINI_API_KEY`
+
+---
+
 ## Fix: Image Download 302 Redirect + Resume Gap (2026-03-11)
 
 ### Backend (scraper)
