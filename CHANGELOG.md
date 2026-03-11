@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Web Quick Fixes: Scroll Padding, Navigation, Carousel, FAB, Alignment (2026-03-12)
+
+### Frontend (web)
+- **`apps/soulstep-customer-web/src/app/pages/Favorites.tsx`** — Changed empty-state CTA link from `/home` to `/map` so users are directed to the map discovery page
+- **`apps/soulstep-customer-web/src/app/pages/Home.tsx`** — Increased popular places fetch limit from 10 to 40; removed `.slice(0, 10)` cap on popular places data; removed "Show More" link from Popular Places section header
+- **`apps/soulstep-customer-web/src/app/pages/Groups.tsx`** — Removed the `+` FAB (Floating Action Button) fixed at the bottom-right of the Groups page
+- **`apps/soulstep-customer-web/src/app/pages/CreateGroup.tsx`** — Added `justify-center` to the step indicator row container for centered alignment
+
+---
+
 ## Delete Place Data: Fresh Start + Per-Run Deletion (2026-03-12)
 
 ### Backend

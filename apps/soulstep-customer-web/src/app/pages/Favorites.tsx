@@ -76,7 +76,7 @@ export default function Favorites() {
           description={t('home.explorePlaces')}
           action={
             <Link
-              to="/home"
+              to="/map"
               className="inline-block py-2 px-4 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
               {t('profile.exploreCta')}

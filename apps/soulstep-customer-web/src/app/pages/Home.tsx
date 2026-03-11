@@ -122,7 +122,7 @@ async function getPopularPlaces(): Promise<PopularPlace[]> {
     sort: 'rating',
     include_rating: 'true',
     include_checkins: 'true',
-    limit: '10',
+    limit: '40',
   });
   const res = await fetch(`${API_BASE}/api/v1/places?${qs}`, { credentials: 'include' });
   if (!res.ok) return [];
@@ -599,7 +599,7 @@ export default function Home() {
   const fetchPopular = useCallback(async () => {
     try {
       const [places, cities] = await Promise.all([getPopularPlaces(), getPopularCities()]);
-      setPopularPlaces(places.slice(0, 10));
+      setPopularPlaces(places);
       setPopularCities(cities.slice(0, 10));
     } catch {
       // silently skip
@@ -719,9 +719,6 @@ export default function Home() {
                   <h2 className="text-base font-bold text-text-primary dark:text-white">
                     {t('dashboard.popularPlaces')}
                   </h2>
-                  <Link to="/places" className="text-xs font-semibold text-primary">
-                    {t('common.showMore')}
-                  </Link>
                 </div>
                 <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
                   {popularPlaces.map((place) => (

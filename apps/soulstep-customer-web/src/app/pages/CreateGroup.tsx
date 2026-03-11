@@ -111,7 +111,7 @@ function StepIndicator({ step }: { step: Step }) {
   const labels = ['Choose Intent', 'Build Route', 'Review'];
   const idx = steps.indexOf(step);
   return (
-    <div className="flex items-center gap-2 px-4 py-3">
+    <div className="flex items-center justify-center gap-2 px-4 py-3">
       {steps.map((s, i) => (
         <div key={s} className="flex items-center gap-2 flex-1">
           <div

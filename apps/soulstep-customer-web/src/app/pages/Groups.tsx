@@ -254,16 +254,6 @@ export default function Groups() {
           </div>
         )}
       </main>
-
-      {user && (
-        <Link
-          to="/groups/new"
-          className="fixed bottom-24 right-4 md:right-6 z-50 h-14 w-14 rounded-full bg-primary text-white shadow-lg flex items-center justify-center hover:bg-primary-hover active:scale-90 transition-all"
-          aria-label={t('groups.createGroup')}
-        >
-          <span className="material-icons text-2xl">add</span>
-        </Link>
-      )}
     </div>
   );
 }
