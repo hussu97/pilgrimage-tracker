@@ -33,6 +33,35 @@ def _TSTZ(**kw) -> Column:  # noqa: N802
     return Column(_UTCAwareDateTime(), **kw)
 
 
+class Country(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    country_code: str = Field(index=True, unique=True)
+    iso_code: str | None = Field(default=None, index=True)
+    name: str = Field(index=True, unique=True)
+    translations: dict = Field(default={}, sa_column=Column(JSON))
+
+
+class State(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("name", "country_code"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    state_code: str = Field(index=True, unique=True)
+    name: str = Field(index=True)
+    country_code: str = Field(index=True, foreign_key="country.country_code")
+    translations: dict = Field(default={}, sa_column=Column(JSON))
+
+
+class City(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("name", "country_code"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    city_code: str = Field(index=True, unique=True)
+    name: str = Field(index=True)
+    country_code: str = Field(index=True, foreign_key="country.country_code")
+    state_code: str | None = Field(default=None, index=True, foreign_key="state.state_code")
+    translations: dict = Field(default={}, sa_column=Column(JSON))
+
+
 class User(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_code: str = Field(index=True, unique=True)
@@ -87,6 +116,9 @@ class Place(SQLModel, table=True):
     city: str | None = Field(default=None, index=True)
     state: str | None = Field(default=None, index=True)
     country: str | None = Field(default=None, index=True)
+    city_code: str | None = Field(default=None, index=True, foreign_key="city.city_code")
+    state_code: str | None = Field(default=None, index=True, foreign_key="state.state_code")
+    country_code: str | None = Field(default=None, index=True, foreign_key="country.country_code")
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),

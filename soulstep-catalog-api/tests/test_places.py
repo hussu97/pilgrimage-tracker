@@ -339,3 +339,82 @@ class TestFavorites:
         _create_place(client, "plc_favauth1")
         resp = client.post(f"{PLACES_URL}/plc_favauth1/favorite")
         assert resp.status_code == 401
+
+
+class TestLocationCodes:
+    """Verify that batch upsert resolves location strings to city/state/country codes."""
+
+    def test_batch_upsert_populates_location_codes(self, client):
+        resp = client.post(
+            f"{PLACES_URL}/batch",
+            json={
+                "places": [
+                    {
+                        **{
+                            "place_code": "plc_loc_test1",
+                            "name": "Location Test Mosque",
+                            "religion": "islam",
+                            "place_type": "mosque",
+                            "lat": 25.2048,
+                            "lng": 55.2708,
+                            "address": "123 Test St",
+                        },
+                        "city": "Dubai",
+                        "state": "Dubai Emirate",
+                        "country": "United Arab Emirates",
+                        "image_urls": [],
+                        "attributes": [],
+                    }
+                ]
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["synced"] == 1
+
+        detail = client.get(f"{PLACES_URL}/plc_loc_test1")
+        assert detail.status_code == 200
+        data = detail.json()
+        assert data["country_code"] == "ctr_united_arab_emirates"
+        assert data["state_code"] == "sta_dubai_emirate"
+        assert data["city_code"] == "cty_dubai"
+
+    def test_batch_upsert_idempotent_location_codes(self, client):
+        """Re-sending same place with same location strings keeps same codes."""
+        payload = {
+            "places": [
+                {
+                    **{
+                        "place_code": "plc_loc_idem1",
+                        "name": "Idempotent Mosque",
+                        "religion": "islam",
+                        "place_type": "mosque",
+                        "lat": 25.2,
+                        "lng": 55.27,
+                        "address": "456 Test St",
+                    },
+                    "city": "Mecca",
+                    "state": None,
+                    "country": "Saudi Arabia",
+                    "image_urls": [],
+                    "attributes": [],
+                }
+            ]
+        }
+        r1 = client.post(f"{PLACES_URL}/batch", json=payload)
+        assert r1.status_code == 200
+        r2 = client.post(f"{PLACES_URL}/batch", json=payload)
+        assert r2.status_code == 200
+
+        detail = client.get(f"{PLACES_URL}/plc_loc_idem1")
+        data = detail.json()
+        assert data["country_code"] is not None
+        assert data["city_code"] is not None
+
+    def test_place_without_location_strings_has_null_codes(self, client):
+        _create_place(client, "plc_noloc001")
+        detail = client.get(f"{PLACES_URL}/plc_noloc001")
+        assert detail.status_code == 200
+        data = detail.json()
+        assert data["city_code"] is None
+        assert data["state_code"] is None
+        assert data["country_code"] is None

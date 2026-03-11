@@ -13,7 +13,7 @@ import re
 from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import func, select
 
-from app.db.models import Place
+from app.db.models import City, Place
 from app.db.session import SessionDep
 
 router = APIRouter()
@@ -49,15 +49,27 @@ def list_cities(
         .limit(limit)
     ).all()
 
-    cities = [
-        {
-            "city": city,
-            "city_slug": _city_to_slug(city),
-            "count": count,
-        }
-        for city, count in rows
-        if city
-    ]
+    # Build a lookup map from city name → City row (for city_code + translations)
+    city_names = [city for city, _ in rows if city]
+    city_rows = (
+        session.exec(select(City).where(City.name.in_(city_names))).all() if city_names else []
+    )
+    city_map = {c.name: c for c in city_rows}
+
+    cities = []
+    for city, count in rows:
+        if not city:
+            continue
+        city_row = city_map.get(city)
+        cities.append(
+            {
+                "city": city,
+                "city_slug": _city_to_slug(city),
+                "city_code": city_row.city_code if city_row else None,
+                "translations": city_row.translations if city_row else None,
+                "count": count,
+            }
+        )
 
     total = session.exec(
         select(func.count()).select_from(

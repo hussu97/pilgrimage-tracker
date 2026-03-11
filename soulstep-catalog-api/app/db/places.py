@@ -205,6 +205,9 @@ def create_place(
     city: str | None = None,
     state: str | None = None,
     country: str | None = None,
+    city_code: str | None = None,
+    state_code: str | None = None,
+    country_code: str | None = None,
 ) -> Place:
     place = Place(
         place_code=place_code,
@@ -222,6 +225,9 @@ def create_place(
         city=city,
         state=state,
         country=country,
+        city_code=city_code,
+        state_code=state_code,
+        country_code=country_code,
     )
     session.add(place)
     session.commit()
@@ -246,6 +252,9 @@ def update_place(
     city: str | None = None,
     state: str | None = None,
     country: str | None = None,
+    city_code: str | None = None,
+    state_code: str | None = None,
+    country_code: str | None = None,
 ) -> Place | None:
     place = session.exec(select(Place).where(Place.place_code == place_code)).first()
     if not place:
@@ -279,6 +288,12 @@ def update_place(
         place.state = state
     if country is not None:
         place.country = country
+    if city_code is not None:
+        place.city_code = city_code
+    if state_code is not None:
+        place.state_code = state_code
+    if country_code is not None:
+        place.country_code = country_code
 
     session.add(place)
     session.commit()

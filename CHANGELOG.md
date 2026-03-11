@@ -4,6 +4,22 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Location Codes: Country/State/City Tables (2026-03-11)
+
+### Backend
+- **`app/db/models.py`** — added `Country`, `State`, `City` SQLModel tables with `*_code` stable identifiers, `iso_code`, `name`, and multilingual `translations` JSON; added nullable `city_code`, `state_code`, `country_code` FK columns to `Place`
+- **`app/db/locations.py`** (new) — `get_or_create_country/state/city` helpers with deterministic slug codes and case-insensitive lookup; `resolve_location_codes(city, state, country, session)` returns `(city_code, state_code, country_code)` tuple
+- **`migrations/versions/0019_location_codes.py`** (new) — creates `country`, `state`, `city` tables; adds `city_code`, `state_code`, `country_code` nullable columns to `place`
+- **`app/db/seed_data.json`** — added `"locations"` section with 5 countries (UAE, India, Saudi Arabia, Israel, Turkey), 4 states, and 6 cities with 5-language translations
+- **`app/db/seed.py`** — `_seed_locations()` upserts Country/State/City from seed data; called in `run_seed_system()`
+- **`app/api/v1/places.py`** — `_upsert_single_place()` calls `resolve_location_codes()` and passes codes to `create_place`/`update_place`; `_place_to_item()` now includes `city`, `state`, `country`, `city_code`, `state_code`, `country_code` in all place responses
+- **`app/db/places.py`** — `create_place` and `update_place` accept optional `city_code`, `state_code`, `country_code` params
+- **`app/api/v1/cities.py`** — `list_cities` now enriches each city entry with `city_code` and `translations` from the `City` table (falls back to `null` for cities not yet in the table)
+- **`tests/test_locations.py`** (new) — 16 unit tests for `get_or_create_*` idempotency, scoping, and `resolve_location_codes` partial/full/null cases
+- **`tests/test_places.py`** — added `TestLocationCodes` with 3 integration tests verifying `city_code`/`state_code`/`country_code` populated by batch upsert and null for places without location strings
+
+---
+
 ## Differentiated Step 2 for Each Journey Intent (2026-03-11)
 
 ### Backend

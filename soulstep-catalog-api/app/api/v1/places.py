@@ -14,6 +14,7 @@ from app.db import places as places_db
 from app.db import reviews as reviews_db
 from app.db import store as user_store
 from app.db.enums import ImageType, NotificationType, OpenStatus, Religion, ReviewSource
+from app.db.locations import resolve_location_codes
 from app.db.models import Place, PlaceSEO
 from app.db.places import _haversine_km
 from app.db.session import SessionDep
@@ -62,6 +63,12 @@ def _place_to_item(
         "description": trans.get("description", place.description),
         "created_at": place.created_at,
         "distance": d,
+        "city": place.city,
+        "state": place.state,
+        "country": place.country,
+        "city_code": getattr(place, "city_code", None),
+        "state_code": getattr(place, "state_code", None),
+        "country_code": getattr(place, "country_code", None),
     }
 
     # Add UTC offset
@@ -658,6 +665,13 @@ def _persist_place_translations(place_code: str, translations, session: Session)
 
 def _upsert_single_place(place_data, session: Session):
     """Create or update a single place and its related data (images, attrs, reviews, translations)."""
+    city_str = getattr(place_data, "city", None)
+    state_str = getattr(place_data, "state", None)
+    country_str = getattr(place_data, "country", None)
+    city_code, state_code, country_code = resolve_location_codes(
+        city_str, state_str, country_str, session
+    )
+
     existing = places_db.get_place_by_code(place_data.place_code, session)
     if existing:
         row = places_db.update_place(
@@ -674,9 +688,12 @@ def _upsert_single_place(place_data, session: Session):
             description=place_data.description,
             website_url=place_data.website_url,
             source=place_data.source,
-            city=getattr(place_data, "city", None),
-            state=getattr(place_data, "state", None),
-            country=getattr(place_data, "country", None),
+            city=city_str,
+            state=state_str,
+            country=country_str,
+            city_code=city_code,
+            state_code=state_code,
+            country_code=country_code,
         )
     else:
         row = places_db.create_place(
@@ -693,9 +710,12 @@ def _upsert_single_place(place_data, session: Session):
             description=place_data.description,
             website_url=place_data.website_url,
             source=place_data.source,
-            city=getattr(place_data, "city", None),
-            state=getattr(place_data, "state", None),
-            country=getattr(place_data, "country", None),
+            city=city_str,
+            state=state_str,
+            country=country_str,
+            city_code=city_code,
+            state_code=state_code,
+            country_code=country_code,
         )
 
     if place_data.image_blobs:

@@ -13,7 +13,7 @@ from app.db import notifications as notifications_db
 from app.db import place_attributes as attr_db
 from app.db import places as places_db
 from app.db import store
-from app.db.models import AppVersionConfig
+from app.db.models import AppVersionConfig, City, Country, State
 from app.db.session import Session, engine
 
 logger = logging.getLogger(__name__)
@@ -58,6 +58,8 @@ def run_seed_system(seed_path: str | Path | None = None) -> None:
         _seed_content_translations(data["content_translations"])
     if "app_version_config" in data:
         _seed_app_version_config(data["app_version_config"])
+    if "locations" in data:
+        _seed_locations(data["locations"])
 
 
 def _seed_content_translations(rows: list[dict]) -> None:
@@ -91,6 +93,55 @@ def _seed_app_version_config(rows: list[dict]) -> None:
                         latest_version=row.get("latest_version", ""),
                         store_url=row.get("store_url", ""),
                         updated_at=datetime.now(UTC),
+                    )
+                )
+        session.commit()
+
+
+def _seed_locations(locations: dict) -> None:
+    """Upsert Country, State, City rows from seed data. Safe to call repeatedly.
+
+    Seeded entities use the code from seed_data.json (not the auto-generated slug code).
+    """
+    with Session(engine) as session:
+        for row in locations.get("countries", []):
+            existing = session.exec(
+                select(Country).where(Country.country_code == row["code"])
+            ).first()
+            if existing is None:
+                session.add(
+                    Country(
+                        country_code=row["code"],
+                        iso_code=row.get("iso_code"),
+                        name=row["name"],
+                        translations=row.get("translations", {}),
+                    )
+                )
+        session.commit()
+
+        for row in locations.get("states", []):
+            existing = session.exec(select(State).where(State.state_code == row["code"])).first()
+            if existing is None:
+                session.add(
+                    State(
+                        state_code=row["code"],
+                        name=row["name"],
+                        country_code=row["country_code"],
+                        translations=row.get("translations", {}),
+                    )
+                )
+        session.commit()
+
+        for row in locations.get("cities", []):
+            existing = session.exec(select(City).where(City.city_code == row["code"])).first()
+            if existing is None:
+                session.add(
+                    City(
+                        city_code=row["code"],
+                        name=row["name"],
+                        country_code=row["country_code"],
+                        state_code=row.get("state_code"),
+                        translations=row.get("translations", {}),
                     )
                 )
         session.commit()

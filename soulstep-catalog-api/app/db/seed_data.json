@@ -3043,5 +3043,199 @@
       "mime_type": "image/png",
       "display_order": 0
     }
-  ]
+  ],
+  "locations": {
+    "countries": [
+      {
+        "code": "ctr_united_arab_emirates",
+        "iso_code": "AE",
+        "name": "United Arab Emirates",
+        "translations": {
+          "en": "United Arab Emirates",
+          "ar": "الإمارات العربية المتحدة",
+          "hi": "संयुक्त अरब अमीरात",
+          "te": "సంయుక్త అరబ్ ఎమిరేట్స్",
+          "ml": "യുണൈറ്റഡ് അറബ് എമിറേറ്റ്സ്"
+        }
+      },
+      {
+        "code": "ctr_india",
+        "iso_code": "IN",
+        "name": "India",
+        "translations": {
+          "en": "India",
+          "ar": "الهند",
+          "hi": "भारत",
+          "te": "భారతదేశం",
+          "ml": "ഇന്ത്യ"
+        }
+      },
+      {
+        "code": "ctr_saudi_arabia",
+        "iso_code": "SA",
+        "name": "Saudi Arabia",
+        "translations": {
+          "en": "Saudi Arabia",
+          "ar": "المملكة العربية السعودية",
+          "hi": "सऊदी अरब",
+          "te": "సౌదీ అరేబియా",
+          "ml": "സൗദി അറേബ്യ"
+        }
+      },
+      {
+        "code": "ctr_israel",
+        "iso_code": "IL",
+        "name": "Israel",
+        "translations": {
+          "en": "Israel",
+          "ar": "إسرائيل",
+          "hi": "इज़राइल",
+          "te": "ఇజ్రాయెల్",
+          "ml": "ഇസ്രായേൽ"
+        }
+      },
+      {
+        "code": "ctr_turkey",
+        "iso_code": "TR",
+        "name": "Turkey",
+        "translations": {
+          "en": "Turkey",
+          "ar": "تركيا",
+          "hi": "तुर्की",
+          "te": "టర్కీ",
+          "ml": "തുർക്കി"
+        }
+      }
+    ],
+    "states": [
+      {
+        "code": "sta_dubai_emirate",
+        "name": "Dubai Emirate",
+        "country_code": "ctr_united_arab_emirates",
+        "translations": {
+          "en": "Dubai Emirate",
+          "ar": "إمارة دبي",
+          "hi": "दुबई अमीरात",
+          "te": "దుబాయ్ ఎమిరేట్",
+          "ml": "ദുബായ് എമിറേറ്റ്"
+        }
+      },
+      {
+        "code": "sta_abu_dhabi_emirate",
+        "name": "Abu Dhabi Emirate",
+        "country_code": "ctr_united_arab_emirates",
+        "translations": {
+          "en": "Abu Dhabi Emirate",
+          "ar": "إمارة أبوظبي",
+          "hi": "अबू धाबी अमीरात",
+          "te": "అబుదాబి ఎమిరేట్",
+          "ml": "അബുദാബി എമിറേറ്റ്"
+        }
+      },
+      {
+        "code": "sta_mecca_region",
+        "name": "Mecca Region",
+        "country_code": "ctr_saudi_arabia",
+        "translations": {
+          "en": "Mecca Region",
+          "ar": "منطقة مكة المكرمة",
+          "hi": "मक्का क्षेत्र",
+          "te": "మక్కా ప్రాంతం",
+          "ml": "മക്കാ മേഖല"
+        }
+      },
+      {
+        "code": "sta_medina_region",
+        "name": "Medina Region",
+        "country_code": "ctr_saudi_arabia",
+        "translations": {
+          "en": "Medina Region",
+          "ar": "منطقة المدينة المنورة",
+          "hi": "मदीना क्षेत्र",
+          "te": "మదీనా ప్రాంతం",
+          "ml": "മദീന മേഖല"
+        }
+      }
+    ],
+    "cities": [
+      {
+        "code": "cty_dubai",
+        "name": "Dubai",
+        "country_code": "ctr_united_arab_emirates",
+        "state_code": "sta_dubai_emirate",
+        "translations": {
+          "en": "Dubai",
+          "ar": "دبي",
+          "hi": "दुबई",
+          "te": "దుబాయ్",
+          "ml": "ദുബായ്"
+        }
+      },
+      {
+        "code": "cty_abu_dhabi",
+        "name": "Abu Dhabi",
+        "country_code": "ctr_united_arab_emirates",
+        "state_code": "sta_abu_dhabi_emirate",
+        "translations": {
+          "en": "Abu Dhabi",
+          "ar": "أبوظبي",
+          "hi": "अबू धाबी",
+          "te": "అబుదాబి",
+          "ml": "അബുദാബി"
+        }
+      },
+      {
+        "code": "cty_mecca",
+        "name": "Mecca",
+        "country_code": "ctr_saudi_arabia",
+        "state_code": "sta_mecca_region",
+        "translations": {
+          "en": "Mecca",
+          "ar": "مكة المكرمة",
+          "hi": "मक्का",
+          "te": "మక్కా",
+          "ml": "മക്ക"
+        }
+      },
+      {
+        "code": "cty_medina",
+        "name": "Medina",
+        "country_code": "ctr_saudi_arabia",
+        "state_code": "sta_medina_region",
+        "translations": {
+          "en": "Medina",
+          "ar": "المدينة المنورة",
+          "hi": "मदीना",
+          "te": "మదీనా",
+          "ml": "മദീന"
+        }
+      },
+      {
+        "code": "cty_jerusalem",
+        "name": "Jerusalem",
+        "country_code": "ctr_israel",
+        "state_code": null,
+        "translations": {
+          "en": "Jerusalem",
+          "ar": "القدس",
+          "hi": "यरूशलेम",
+          "te": "జెరూసలేం",
+          "ml": "ജറുസലേം"
+        }
+      },
+      {
+        "code": "cty_istanbul",
+        "name": "Istanbul",
+        "country_code": "ctr_turkey",
+        "state_code": null,
+        "translations": {
+          "en": "Istanbul",
+          "ar": "إسطنبول",
+          "hi": "इस्तांबुल",
+          "te": "ఇస్తాంబుల్",
+          "ml": "ഇസ്താംബൂൾ"
+        }
+      }
+    ]
+  }
 }
