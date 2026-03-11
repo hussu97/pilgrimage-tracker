@@ -177,7 +177,7 @@ class TestAssessDescriptions:
         assert result["text"] == "A mosque"
 
     async def test_llm_tiebreak_not_triggered_without_key(self):
-        """LLM should not be called when ANTHROPIC_API_KEY is not set."""
+        """LLM should not be called when GEMINI_API_KEY is not set."""
         from app.pipeline.quality import assess_descriptions
 
         candidates = [
@@ -194,7 +194,7 @@ class TestAssessDescriptions:
                 "score": None,
             },
         ]
-        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}, clear=False):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": ""}, clear=False):
             result = await assess_descriptions(candidates, "Test Mosque")
         assert result["method"] == "heuristic"
 
