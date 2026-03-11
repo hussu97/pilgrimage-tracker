@@ -12,6 +12,14 @@ _database_url = os.environ.get("DATABASE_URL")
 if _database_url:
     db_url = _database_url
     connect_args: dict = {}
+    _pool_config: dict = {
+        "pool_size": 3,
+        "max_overflow": 5,
+        "pool_timeout": 30,
+        "pool_recycle": 1800,
+        "pool_pre_ping": True,
+    }
+    engine = create_engine(db_url, echo=False, connect_args=connect_args, **_pool_config)
 else:
     # SCRAPER_DB_PATH lets you relocate the SQLite file to a persistent volume.
     # Default: scraper.db in the working directory (fine for local dev).
@@ -19,8 +27,14 @@ else:
     _db_path = os.environ.get("SCRAPER_DB_PATH", "scraper.db")
     db_url = f"sqlite:///{_db_path}"
     connect_args = {"check_same_thread": False}
+    # NullPool gives each Session its own fresh connection and closes it on
+    # checkin.  This prevents SQLAlchemy's default SingletonThreadPool from
+    # sharing one DBAPI connection across concurrent async sessions, which
+    # can cause StaleDataError / PendingRollbackError when the enrichment
+    # pipeline runs up to 10 workers concurrently in the same asyncio thread.
+    from sqlalchemy.pool import NullPool
 
-engine = create_engine(db_url, echo=False, connect_args=connect_args)
+    engine = create_engine(db_url, echo=False, connect_args=connect_args, poolclass=NullPool)
 
 
 def create_db_and_tables():

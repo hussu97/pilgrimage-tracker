@@ -182,9 +182,27 @@ async def run_enrichment_pipeline(run_code: str):
                     await _enrich_place(place, run_code, collectors, worker_session)
                 except Exception as exc:
                     logger.error("%s: enrichment failed: %s", place_code, exc)
-                    place.enrichment_status = "failed"
-                    worker_session.add(place)
-                    worker_session.commit()
+                    try:
+                        # Roll back any failed transaction before attempting further writes.
+                        worker_session.rollback()
+                        # Re-query after rollback — the in-memory object may be stale.
+                        place = worker_session.exec(
+                            select(ScrapedPlace)
+                            .where(ScrapedPlace.place_code == place_code)
+                            .where(ScrapedPlace.run_code == run_code)
+                        ).first()
+                        if place:
+                            place.enrichment_status = "failed"
+                            worker_session.add(place)
+                            worker_session.commit()
+                    except Exception as save_err:
+                        logger.error(
+                            "%s: could not persist failed status: %s", place_code, save_err
+                        )
+                        try:
+                            worker_session.rollback()
+                        except Exception:
+                            pass
 
             completed_count += 1
             logger.info(

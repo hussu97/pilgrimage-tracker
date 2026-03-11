@@ -70,11 +70,15 @@ async def run_scraper_task(run_code: str):
 
         except Exception as e:
             logger.error("Run %s failed: %s", run_code, e, exc_info=True)
-            session.refresh(run)
-            run.status = "failed"
-            run.error_message = str(e)[:500]
-            session.add(run)
-            session.commit()
+            try:
+                session.rollback()
+                session.refresh(run)
+                run.status = "failed"
+                run.error_message = str(e)[:500]
+                session.add(run)
+                session.commit()
+            except Exception as save_err:
+                logger.error("Could not persist failed status for run %s: %s", run_code, save_err)
 
 
 async def resume_scraper_task(run_code: str):
@@ -225,11 +229,15 @@ async def resume_scraper_task(run_code: str):
 
         except Exception as e:
             logger.error("Resume of run %s failed: %s", run_code, e, exc_info=True)
-            session.refresh(run)
-            run.status = "failed"
-            run.error_message = str(e)[:500]
-            session.add(run)
-            session.commit()
+            try:
+                session.rollback()
+                session.refresh(run)
+                run.status = "failed"
+                run.error_message = str(e)[:500]
+                session.add(run)
+                session.commit()
+            except Exception as save_err:
+                logger.error("Could not persist failed status for run %s: %s", run_code, save_err)
 
 
 # Religion values accepted by the server schema.
@@ -450,17 +458,20 @@ async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
                 if batch_synced > 0:
                     synced_counter.increment(batch_synced)
                 else:
-                    # Entire batch failed — retry individually (concurrently)
+                    # Entire batch failed — retry individually (throttled to 5 concurrent)
                     failed_codes = [e.split(":")[0] for e in failed_entries]
                     retry_payloads = [
                         payloads_by_code[c] for c in failed_codes if c in payloads_by_code
                     ]
                     if retry_payloads:
+                        retry_sem = asyncio.Semaphore(5)
+
+                        async def _throttled_individual(pl: dict) -> tuple[int, list[str]]:
+                            async with retry_sem:
+                                return await _post_individual_async(pl, server_url, shared_client)
+
                         ind_results = await asyncio.gather(
-                            *[
-                                _post_individual_async(pl, server_url, shared_client)
-                                for pl in retry_payloads
-                            ]
+                            *[_throttled_individual(pl) for pl in retry_payloads]
                         )
                         for extra_synced, extra_failures in ind_results:
                             synced_counter.increment(extra_synced)
