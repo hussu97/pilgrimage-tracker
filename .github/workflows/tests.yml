@@ -55,11 +55,11 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: soulstep-catalog-api/requirements.txt
+          cache-dependency-path: soulstep-catalog-api/requirements-dev.txt
 
       - name: Install dependencies
         run: |
-          pip install -r soulstep-catalog-api/requirements.txt
+          pip install -r soulstep-catalog-api/requirements-dev.txt
           pip install pip-audit
 
       - name: Dependency vulnerability scan (pip-audit)
@@ -82,11 +82,11 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: soulstep-scraper-api/requirements.txt
+          cache-dependency-path: soulstep-scraper-api/requirements-dev.txt
 
       - name: Install dependencies
         run: |
-          pip install -r soulstep-scraper-api/requirements.txt
+          pip install -r soulstep-scraper-api/requirements-dev.txt
           pip install pip-audit
 
       - name: Dependency vulnerability scan (pip-audit)
