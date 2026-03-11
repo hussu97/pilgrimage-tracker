@@ -198,6 +198,68 @@ def _place_detail(
     return out
 
 
+@router.get("/recommended")
+def get_recommended_places(
+    session: SessionDep,
+    user: OptionalUserDep,
+    lat: float | None = Query(None),
+    lng: float | None = Query(None),
+    religions: list[str] | None = Query(None),
+    limit: int = Query(20, le=100),
+):
+    """Return personalised place recommendations: nearby + matching religion preference.
+
+    If lat/lng are provided, sorts by distance. Falls back to a random sample
+    if no location is given. Excludes places the user has already checked in to.
+    """
+    from sqlalchemy import or_ as _or
+    from sqlmodel import select as _select
+
+    # Fetch places by religion preference
+    stmt = _select(Place)
+    valid_religions = [r for r in (religions or []) if r and r != "all"]
+    if valid_religions:
+        stmt = stmt.where(_or(*[Place.religion == r for r in valid_religions]))
+    places_raw = session.exec(stmt.limit(200)).all()
+
+    # Exclude already-checked-in places for authenticated users
+    excluded: set[str] = set()
+    if user:
+        user_checkins = check_ins_db.get_check_ins_for_users([user.user_code], session)
+        excluded = {c.place_code for c in user_checkins}
+
+    candidates = [p for p in places_raw if p.place_code not in excluded]
+
+    # Sort by distance if location provided
+    if lat is not None and lng is not None:
+        candidates.sort(key=lambda p: _haversine_km(lat, lng, p.lat, p.lng))
+
+    results = candidates[:limit]
+
+    # Build lightweight response
+    out = []
+    for p in results:
+        images = place_images.get_images(p.place_code, session)
+        img_url = images[0].url if images else None
+        dist = None
+        if lat is not None and lng is not None:
+            dist = round(_haversine_km(lat, lng, p.lat, p.lng) * 10) / 10
+        out.append(
+            {
+                "place_code": p.place_code,
+                "name": p.name,
+                "religion": p.religion,
+                "address": p.address,
+                "city": p.city,
+                "lat": p.lat,
+                "lng": p.lng,
+                "image_url": img_url,
+                "distance_km": dist,
+            }
+        )
+    return out
+
+
 @router.get("")
 def list_places(
     session: SessionDep,

@@ -4,6 +4,7 @@ from io import BytesIO
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import RedirectResponse, Response
 from PIL import Image
+from sqlmodel import select
 
 from app.api.deps import UserDep
 from app.db import check_ins as check_ins_db
@@ -14,6 +15,8 @@ from app.db import notifications as notifications_db
 from app.db import places as places_db
 from app.db import store as user_store
 from app.db.enums import GroupRole, NotificationType
+from app.db.models import Group
+from app.db.places import _haversine_km
 from app.db.session import SessionDep
 from app.models.schemas import (
     GroupCreateBody,
@@ -117,6 +120,33 @@ def list_groups(user: UserDep, session: SessionDep):
                 "next_place_code": next_place_code,
                 "next_place_name": next_place_name,
                 "featured": i == 0,
+            }
+        )
+    return out
+
+
+@router.get("/featured")
+def list_featured_groups(session: SessionDep):
+    """Return public featured journeys for the Popular Journeys carousel.
+    No authentication required — only is_featured=True groups are returned.
+    """
+    groups = session.exec(select(Group).where(Group.is_featured == True).limit(20)).all()  # noqa: E712
+    out = []
+    for g in groups:
+        member_count = len(
+            groups_db.get_members_bulk([g.group_code], session).get(g.group_code, [])
+        )
+        out.append(
+            {
+                "group_code": g.group_code,
+                "name": g.name,
+                "description": g.description,
+                "cover_image_url": g.cover_image_url,
+                "is_private": g.is_private,
+                "path_place_codes": g.path_place_codes or [],
+                "total_sites": len(g.path_place_codes or []),
+                "member_count": member_count,
+                "created_at": g.created_at,
             }
         )
     return out
@@ -538,6 +568,53 @@ def get_checklist(group_code: str, user: UserDep, session: SessionDep):
         "group_progress": round(group_visited / total * 100) if total else 0,
         "personal_progress": round(personal_visited / total * 100) if total else 0,
     }
+
+
+@router.post("/{group_code}/optimize-route")
+def optimize_route(group_code: str, user: UserDep, session: SessionDep):
+    """Reorder path_place_codes using a nearest-neighbor greedy algorithm.
+
+    Starts from the first place in the current itinerary and repeatedly picks
+    the closest unvisited place, minimising total walk distance.  Requires
+    admin membership.
+    """
+    g = groups_db.get_group_by_code(group_code, session)
+    if not g:
+        raise HTTPException(status_code=404, detail="Group not found")
+    members = groups_db.get_members(group_code, session)
+    _is_admin = any(m[0] == user.user_code and m[1] == GroupRole.ADMIN for m in members)
+    if not _is_admin:
+        raise HTTPException(status_code=403, detail="Admin required")
+    path = list(g.path_place_codes or [])
+    if len(path) < 3:
+        return {"path_place_codes": path, "changed": False}
+
+    place_list = places_db.get_places_by_codes(path, session)
+    place_map = {p.place_code: p for p in place_list}
+    # Filter to only codes we actually found in DB
+    valid = [c for c in path if c in place_map]
+    if len(valid) < 3:
+        return {"path_place_codes": path, "changed": False}
+
+    # Nearest-neighbour starting from index 0
+    ordered = [valid[0]]
+    remaining = set(valid[1:])
+    while remaining:
+        last = place_map[ordered[-1]]
+        nearest = min(
+            remaining,
+            key=lambda c: _haversine_km(last.lat, last.lng, place_map[c].lat, place_map[c].lng),
+        )
+        ordered.append(nearest)
+        remaining.remove(nearest)
+
+    changed = ordered != valid
+    if changed:
+        g.path_place_codes = ordered
+        session.add(g)
+        session.commit()
+        session.refresh(g)
+    return {"path_place_codes": ordered, "changed": changed}
 
 
 @router.post("/{group_code}/places/{place_code}")

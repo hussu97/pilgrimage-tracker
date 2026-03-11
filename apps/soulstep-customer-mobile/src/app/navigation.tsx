@@ -49,11 +49,12 @@ export type RootStackParamList = {
   };
   EditProfile: undefined;
   CheckInsList: undefined;
-  CreateGroup: undefined;
-  GroupDetail: { groupCode: string };
-  EditGroup: { groupCode: string };
-  EditGroupPlaces: { groupCode: string };
-  JoinGroup: { inviteCode?: string };
+  // Journey screens (customer-facing name; backend model is "Group")
+  CreateGroup: undefined; // used for new journey creation flow
+  GroupDetail: { groupCode: string }; // journey detail
+  EditGroup: { groupCode: string }; // edit journey metadata
+  EditGroupPlaces: { groupCode: string }; // edit journey itinerary
+  JoinGroup: { inviteCode?: string }; // join a journey
   Notifications: undefined;
   Favorites: undefined;
 };

@@ -1,413 +1,646 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+/**
+ * Journey Dashboard — the home screen of SoulStep.
+ *
+ * Replaces the flat place-list Home with a journey-first experience:
+ *   • Active Journey hero card with circular progress ring
+ *   • Quick Actions row
+ *   • Recommended Places carousel (backend /places/recommended)
+ *   • Popular Journeys carousel (backend /groups/featured)
+ *   • Recent Activity feed (from user's groups)
+ *
+ * Phase 1 — foundation skeleton + Phase 2 — full data wiring combined.
+ */
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth, useI18n } from '@/app/providers';
 import { useHead } from '@/lib/hooks/useHead';
-import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { useLocation } from '@/app/contexts/LocationContext';
-import { getPlaces } from '@/lib/api/client';
-import FilterSheet from '@/components/places/FilterSheet';
-import HomeHeader from '@/components/places/HomeHeader';
-import PlaceListView from '@/components/places/PlaceListView';
-import PlaceMapView from '@/components/places/PlaceMapView';
-import SearchOverlay from '@/components/search/SearchOverlay';
-import type { MapBounds } from '@/components/places/PlacesMap';
-import type { Place, FilterOption } from '@/lib/types';
-import type { SearchLocation } from '@/lib/utils/searchHistory';
+import { getGroups } from '@/lib/api/client';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
+import type { Group } from '@/lib/types';
 
-type ViewMode = 'list' | 'map';
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-const PAGE_SIZE = 20;
-const MAP_PAGE_SIZE = 200;
+interface RecommendedPlace {
+  place_code: string;
+  name: string;
+  religion: string;
+  address: string;
+  city?: string;
+  image_url?: string | null;
+  distance_km?: number | null;
+}
+
+interface FeaturedJourney {
+  group_code: string;
+  name: string;
+  description?: string;
+  cover_image_url?: string | null;
+  total_sites: number;
+  member_count: number;
+}
+
+// ── API calls (typed thin wrappers) ──────────────────────────────────────────
+
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
+async function getFeaturedJourneys(): Promise<FeaturedJourney[]> {
+  const res = await fetch(`${API_BASE}/api/v1/groups/featured`, { credentials: 'include' });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+async function getRecommendedPlaces(params: {
+  lat?: number;
+  lng?: number;
+  religions?: string[];
+}): Promise<RecommendedPlace[]> {
+  const qs = new URLSearchParams();
+  if (params.lat != null) qs.set('lat', String(params.lat));
+  if (params.lng != null) qs.set('lng', String(params.lng));
+  (params.religions ?? []).forEach((r) => qs.append('religions', r));
+  const res = await fetch(`${API_BASE}/api/v1/places/recommended?${qs}`, {
+    credentials: 'include',
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+/** Circular SVG progress ring */
+function ProgressRing({
+  pct,
+  size = 64,
+  stroke = 5,
+}: {
+  pct: number;
+  size?: number;
+  stroke?: number;
+}) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      aria-hidden
+      className="rotate-[-90deg]"
+    >
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        stroke="rgba(255,255,255,0.2)"
+        strokeWidth={stroke}
+        fill="none"
+      />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r}
+        stroke="white"
+        strokeWidth={stroke}
+        fill="none"
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
+        strokeLinecap="round"
+        style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+      />
+    </svg>
+  );
+}
+
+/** Active journey hero card */
+function ActiveJourneyCard({ journey }: { journey: Group }) {
+  const navigate = useNavigate();
+  const { t } = useI18n();
+  const pct =
+    (journey.total_sites ?? 0) > 0
+      ? Math.round(((journey.sites_visited ?? 0) / (journey.total_sites ?? 1)) * 100)
+      : 0;
+
+  return (
+    <motion.div
+      layoutId={`journey-card-${journey.group_code}`}
+      onClick={() => navigate(`/journeys/${journey.group_code}`)}
+      className="relative h-44 rounded-2xl overflow-hidden cursor-pointer shadow-lg"
+      whileTap={{ scale: 0.98 }}
+    >
+      {/* Cover / blurred background */}
+      {journey.cover_image_url ? (
+        <>
+          <img
+            src={getFullImageUrl(journey.cover_image_url)}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px]" />
+        </>
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary-hover" />
+      )}
+
+      <div className="relative h-full p-4 flex flex-col justify-between text-white">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider opacity-80">
+              {t('journey.activeJourney')}
+            </p>
+            <h2 className="text-xl font-bold mt-0.5 line-clamp-1">{journey.name}</h2>
+          </div>
+          {/* Progress ring */}
+          <div className="flex flex-col items-center">
+            <div className="relative">
+              <ProgressRing pct={pct} size={56} stroke={4} />
+              <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                {pct}%
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            {journey.next_place_name && (
+              <p className="text-xs opacity-80">
+                {t('journey.nextUp')}:{' '}
+                <span className="font-semibold">{journey.next_place_name}</span>
+              </p>
+            )}
+            <p className="text-xs opacity-70 mt-0.5">
+              {journey.sites_visited ?? 0}/{journey.total_sites ?? 0}{' '}
+              {t('journey.placesCount').replace('{count}', '')}
+            </p>
+          </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/journeys/${journey.group_code}`);
+            }}
+            className="bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm transition-colors"
+          >
+            {t('journey.continueJourney')}
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/** Empty state when user has no journeys */
+function EmptyJourneyCard() {
+  const navigate = useNavigate();
+  const { t } = useI18n();
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-dark-border p-8 flex flex-col items-center text-center gap-3"
+    >
+      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+        <span
+          className="material-symbols-outlined text-3xl text-primary"
+          style={{ fontVariationSettings: "'FILL' 1" }}
+        >
+          route
+        </span>
+      </div>
+      <div>
+        <h3 className="font-bold text-text-primary dark:text-white text-lg">
+          {t('journey.createFirst')}
+        </h3>
+        <p className="text-text-muted dark:text-dark-text-secondary text-sm mt-1 max-w-xs">
+          {t('journey.createFirstDesc')}
+        </p>
+      </div>
+      <button
+        onClick={() => navigate('/journeys/new')}
+        className="bg-primary hover:bg-primary-hover text-white font-semibold px-6 py-2.5 rounded-full text-sm transition-colors mt-1"
+      >
+        {t('journey.startPlanning')}
+      </button>
+    </motion.div>
+  );
+}
+
+/** Quick action button */
+function QuickAction({
+  icon,
+  label,
+  to,
+  onClick,
+}: {
+  icon: string;
+  label: string;
+  to?: string;
+  onClick?: () => void;
+}) {
+  const inner = (
+    <motion.div
+      whileTap={{ scale: 0.94 }}
+      className="flex flex-col items-center gap-2 cursor-pointer group"
+    >
+      <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-dark-surface flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+        <span
+          className="material-symbols-outlined text-[22px] text-text-muted dark:text-dark-text-secondary group-hover:text-primary transition-colors"
+          style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}
+          aria-hidden
+        >
+          {icon}
+        </span>
+      </div>
+      <span className="text-xs font-medium text-text-muted dark:text-dark-text-secondary text-center leading-tight">
+        {label}
+      </span>
+    </motion.div>
+  );
+  if (to) return <Link to={to}>{inner}</Link>;
+  return <button onClick={onClick}>{inner}</button>;
+}
+
+/** Horizontal place card */
+function PlaceCardSmall({ place }: { place: RecommendedPlace }) {
+  const { t } = useI18n();
+  return (
+    <Link to={`/places/${place.place_code}`}>
+      <motion.div
+        whileTap={{ scale: 0.97 }}
+        className="w-44 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface"
+      >
+        <div className="h-28 bg-slate-100 dark:bg-dark-border relative overflow-hidden">
+          {place.image_url ? (
+            <img
+              src={getFullImageUrl(place.image_url)}
+              alt={place.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <span
+                className="material-symbols-outlined text-3xl text-slate-300"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                place
+              </span>
+            </div>
+          )}
+          {place.distance_km != null && (
+            <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+              {place.distance_km < 1
+                ? `${Math.round(place.distance_km * 1000)}m`
+                : `${place.distance_km}km`}
+            </span>
+          )}
+        </div>
+        <div className="p-2.5">
+          <p className="text-xs font-semibold text-text-primary dark:text-white line-clamp-1">
+            {place.name}
+          </p>
+          <p className="text-[10px] text-text-muted dark:text-dark-text-secondary mt-0.5 capitalize">
+            {place.religion}
+          </p>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              // TODO Phase 3: open "Add to Journey" bottom sheet
+            }}
+            className="mt-2 text-[10px] font-semibold text-primary hover:underline"
+          >
+            + {t('map.addToJourney')}
+          </button>
+        </div>
+      </motion.div>
+    </Link>
+  );
+}
+
+/** Horizontal featured journey card */
+function FeaturedJourneyCard({ journey }: { journey: FeaturedJourney }) {
+  const { t } = useI18n();
+  return (
+    <motion.div
+      whileTap={{ scale: 0.97 }}
+      className="w-52 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface"
+    >
+      <div className="h-28 bg-gradient-to-br from-primary/20 to-primary/5 relative overflow-hidden">
+        {journey.cover_image_url && (
+          <img
+            src={getFullImageUrl(journey.cover_image_url)}
+            alt={journey.name}
+            className="w-full h-full object-cover"
+          />
+        )}
+        {!journey.cover_image_url && (
+          <div className="w-full h-full flex items-center justify-center">
+            <span
+              className="material-symbols-outlined text-3xl text-primary/40"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              route
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="p-2.5">
+        <p className="text-xs font-semibold text-text-primary dark:text-white line-clamp-1">
+          {journey.name}
+        </p>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-[10px] text-text-muted dark:text-dark-text-secondary">
+            {journey.total_sites} {t('journey.placesCount').replace('{count}', '').trim()}
+          </span>
+          <span className="text-slate-300 dark:text-dark-border">·</span>
+          <span className="text-[10px] text-text-muted dark:text-dark-text-secondary">
+            {journey.member_count} {t('journey.membersCount').replace('{count}', '').trim()}
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Main Dashboard ────────────────────────────────────────────────────────────
 
 export default function Home() {
   useHead({
-    title: 'Discover Sacred Sites Near You',
+    title: 'Your Journey Dashboard — SoulStep',
     description:
-      'Find mosques, temples, churches, synagogues, and sacred places worldwide. Read reviews, check opening hours, and discover places of worship near you.',
+      'Plan your pilgrimage, track your sacred sites, and share your spiritual journey with others.',
     canonicalUrl: 'https://soul-step.org/home',
     ogType: 'website',
-    ogTitle: 'Discover Sacred Sites Near You',
-    ogDescription: 'Find mosques, temples, churches, synagogues, and sacred places worldwide.',
-    ogUrl: 'https://soul-step.org/home',
-    twitterCard: 'summary_large_image',
-    jsonLd: [
-      {
-        '@context': 'https://schema.org',
-        '@type': 'Organization',
-        name: 'SoulStep',
-        url: 'https://soul-step.org',
-        description:
-          'Discover sacred sites, mosques, temples, churches, and places of worship worldwide',
-        knowsAbout: [
-          'Islam',
-          'Christianity',
-          'Hinduism',
-          'Buddhism',
-          'Sikhism',
-          'Judaism',
-          'Bahai',
-          'Zoroastrianism',
-        ],
-      },
-      {
-        '@context': 'https://schema.org',
-        '@type': 'WebSite',
-        name: 'SoulStep',
-        url: 'https://soul-step.org',
-        potentialAction: {
-          '@type': 'SearchAction',
-          target: 'https://soul-step.org/home?q={search_term_string}',
-          'query-input': 'required name=search_term_string',
-        },
-      },
-    ],
   });
+
   const { user } = useAuth();
   const { t } = useI18n();
   const { coords } = useLocation();
-  const { trackUmamiEvent } = useUmamiTracking();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
-  const viewMode = (searchParams.get('view') as ViewMode) || 'list';
+  const [journeys, setJourneys] = useState<Group[]>([]);
+  const [journeysLoading, setJourneysLoading] = useState(false);
+  const [recommended, setRecommended] = useState<RecommendedPlace[]>([]);
+  const [featured, setFeatured] = useState<FeaturedJourney[]>([]);
 
-  // ── Restored map position from URL ───────────────────────────────────────
-  const mlat = searchParams.get('mlat');
-  const mlng = searchParams.get('mlng');
-  const mz = searchParams.get('mz');
-  const initMapCenter = useMemo(
-    () => (mlat && mlng ? { lat: +mlat, lng: +mlng } : undefined),
-    // Only compute once on mount — URL params are written by the map itself
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
-  const initMapZoom = useMemo(
-    () => (mz ? +mz : undefined),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
-  const hasSavedMapPos = initMapCenter != null && initMapZoom != null;
-
-  // ── List-view state (cursor-paginated, 20/page) ──────────────────────────
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [error, setError] = useState('');
-  const nextCursorRef = useRef<string | null>(null);
-
-  // ── Map-view state (viewport-fetched, up to 200) ─────────────────────────
-  const [mapPlaces, setMapPlaces] = useState<Place[]>([]);
-  const [mapLoading, setMapLoading] = useState(false);
-  const [showSearchArea, setShowSearchArea] = useState(false);
-  const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
-  const mapBoundsRef = useRef<MapBounds | null>(null);
-  const initialMapFetchDone = useRef(false);
-
-  // ── Shared state ──────────────────────────────────────────────────────────
-  const [showFilters, setShowFilters] = useState(false);
-  const [filterOptions, setFilterOptions] = useState<FilterOption[]>([]);
-  const [activeFilters, setActiveFilters] = useState<Record<string, boolean>>({});
-  const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-  const [searchLocation, setSearchLocation] = useState<SearchLocation | null>(null);
-  const [showSearch, setShowSearch] = useState(false);
-  const mapMoveTimerRef = useRef<number | null>(null);
-
-  // ── Shared base params (no cursor, no limit, no bbox) ────────────────────
-  const buildBaseParams = useCallback(() => {
-    const religions = (() => {
-      const r = user?.religions ?? [];
-      if (!r.length || r.includes('all')) return undefined;
-      return r;
-    })();
-    return {
-      religions,
-      sort: 'distance' as const,
-      lat: searchLocation ? searchLocation.lat : coords.lat,
-      lng: searchLocation ? searchLocation.lng : coords.lng,
-      open_now: activeFilters.open_now,
-      has_parking: activeFilters.has_parking,
-      womens_area: activeFilters.womens_area,
-      has_events: activeFilters.has_events,
-      top_rated: activeFilters.top_rated,
-    };
-  }, [user?.religions, activeFilters, coords, searchLocation]);
-
-  // ── List-view fetch (cursor-paginated) ────────────────────────────────────
-  const buildListParams = useCallback(
-    (cursor: string | null) => ({
-      ...buildBaseParams(),
-      limit: PAGE_SIZE,
-      cursor: cursor ?? undefined,
-      radius: searchLocation ? 10 : undefined,
-    }),
-    [buildBaseParams, searchLocation],
-  );
-
-  const fetchPlaces = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    setHasMore(true);
+  // Fetch user's journeys
+  const fetchJourneys = useCallback(async () => {
+    if (!user) return;
+    setJourneysLoading(true);
     try {
-      const response = await getPlaces(buildListParams(null));
-      setPlaces(response.places);
-      nextCursorRef.current = response.next_cursor ?? null;
-      setHasMore(response.next_cursor != null);
-      if (response.filters?.options) {
-        setFilterOptions(response.filters.options);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'));
-      setPlaces([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [buildListParams, t]);
-
-  const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore || loading) return;
-    setLoadingMore(true);
-    try {
-      const response = await getPlaces(buildListParams(nextCursorRef.current));
-      if (response.places.length > 0) {
-        setPlaces((prev) => [...prev, ...response.places]);
-        nextCursorRef.current = response.next_cursor ?? null;
-      }
-      setHasMore(response.next_cursor != null);
+      const data = await getGroups();
+      setJourneys(Array.isArray(data) ? data : []);
     } catch {
       // silently skip
     } finally {
-      setLoadingMore(false);
+      setJourneysLoading(false);
     }
-  }, [loadingMore, hasMore, loading, buildListParams]);
+  }, [user]);
 
-  // ── Map-view fetch (viewport bounding box) ────────────────────────────────
-  const fetchMapPlaces = useCallback(
-    async (bounds: MapBounds) => {
-      setMapLoading(true);
-      try {
-        const response = await getPlaces({
-          ...buildBaseParams(),
-          min_lat: bounds.south,
-          max_lat: bounds.north,
-          min_lng: bounds.west,
-          max_lng: bounds.east,
-          limit: MAP_PAGE_SIZE,
-        });
-        setMapPlaces(response.places);
-        if (response.filters?.options) {
-          setFilterOptions(response.filters.options);
-        }
-      } catch {
-        // Keep previous map places on error
-      } finally {
-        setMapLoading(false);
-      }
-    },
-    [buildBaseParams],
-  );
-
-  // Auto-fetch list when params change
-  useEffect(() => {
-    const id = setTimeout(() => {
-      fetchPlaces();
-    }, 200);
-    return () => clearTimeout(id);
-  }, [fetchPlaces]);
-
-  // Initial map fetch — runs once when the map first reports bounds
-  useEffect(() => {
-    if (mapBounds && !initialMapFetchDone.current) {
-      initialMapFetchDone.current = true;
-      fetchMapPlaces(mapBounds);
+  // Fetch recommended places
+  const fetchRecommended = useCallback(async () => {
+    try {
+      const religions = user?.religions?.filter((r) => r !== 'all') ?? [];
+      const data = await getRecommendedPlaces({
+        lat: coords.lat,
+        lng: coords.lng,
+        religions,
+      });
+      setRecommended(data.slice(0, 10));
+    } catch {
+      // silently skip
     }
-  }, [mapBounds, fetchMapPlaces]);
+  }, [coords, user?.religions]);
 
-  // Auto-refetch map when filters or search change (if we have bounds)
-  const prevBaseParamsRef = useRef<string>('');
-  useEffect(() => {
-    const key = JSON.stringify(buildBaseParams());
-    if (prevBaseParamsRef.current && prevBaseParamsRef.current !== key && mapBoundsRef.current) {
-      setShowSearchArea(false);
-      fetchMapPlaces(mapBoundsRef.current);
-    }
-    prevBaseParamsRef.current = key;
-  }, [buildBaseParams, fetchMapPlaces]);
-
-  // ── Map bounds change → show "Search this area" button ────────────────────
-  const handleBoundsChange = useCallback((bounds: MapBounds) => {
-    setMapBounds(bounds);
-    mapBoundsRef.current = bounds;
-    // Show button only after the initial fetch is done (user has panned)
-    if (initialMapFetchDone.current) {
-      setShowSearchArea(true);
+  // Fetch featured journeys
+  const fetchFeatured = useCallback(async () => {
+    try {
+      const data = await getFeaturedJourneys();
+      setFeatured(data.slice(0, 10));
+    } catch {
+      // silently skip
     }
   }, []);
 
-  const handleSearchArea = useCallback(() => {
-    if (mapBoundsRef.current) {
-      setShowSearchArea(false);
-      fetchMapPlaces(mapBoundsRef.current);
-    }
-  }, [fetchMapPlaces]);
+  useEffect(() => {
+    fetchJourneys();
+  }, [fetchJourneys]);
 
-  // ── Debounced map move → write mlat/mlng/mz to URL ───────────────────────
-  const handleMapMove = useCallback(
-    (lat: number, lng: number, zoom: number) => {
-      if (mapMoveTimerRef.current) clearTimeout(mapMoveTimerRef.current);
-      mapMoveTimerRef.current = window.setTimeout(() => {
-        setSearchParams(
-          (prev) => {
-            const next = new URLSearchParams(prev);
-            next.set('mlat', lat.toFixed(5));
-            next.set('mlng', lng.toFixed(5));
-            next.set('mz', String(zoom));
-            return next;
-          },
-          { replace: true },
-        );
-      }, 500);
-    },
-    [setSearchParams],
+  useEffect(() => {
+    fetchRecommended();
+    fetchFeatured();
+  }, [fetchRecommended, fetchFeatured]);
+
+  const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || '';
+  const activeJourneys = journeys.filter(
+    (g) => (g.total_sites ?? 0) > 0 && (g.sites_visited ?? 0) < (g.total_sites ?? 0),
   );
-
-  // ── Recenter map to user location ─────────────────────────────────────────
-  const handleRecenter = useCallback(() => {
-    // Trigger re-center by updating the PlacesMap via a search-location-like flow
-    // The simplest approach: clear search + saved position so map re-fits to user coords
-    setSearchLocation(null);
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('mlat');
-        next.delete('mlng');
-        next.delete('mz');
-        return next;
-      },
-      { replace: true },
-    );
-  }, [setSearchParams]);
-
-  const toggleViewMode = () => {
-    const nextMode = viewMode === 'list' ? 'map' : 'list';
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('view', nextMode);
-    setSearchParams(newParams);
-    trackUmamiEvent('view_mode_change', { mode: nextMode });
-  };
-
-  const activeFiltersCount = Object.values(activeFilters).filter(Boolean).length;
-  const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || t('home.title');
-
-  const handleClearFilters = () => {
-    setActiveFilters({});
-    setSearchParams({});
-  };
-
-  const handleSearchSelect = (loc: SearchLocation) => {
-    setSearchLocation(loc);
-    setShowSearch(false);
-    trackUmamiEvent('search', { query: loc.name });
-    // Clear saved map position so the map re-fits to the new search area
-    initialMapFetchDone.current = false;
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('mlat');
-        next.delete('mlng');
-        next.delete('mz');
-        return next;
-      },
-      { replace: true },
-    );
-  };
-
-  const handleClearSearch = () => {
-    setSearchLocation(null);
-    // Clear saved map position so the map re-fits to the new default area
-    initialMapFetchDone.current = false;
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('mlat');
-        next.delete('mlng');
-        next.delete('mz');
-        return next;
-      },
-      { replace: true },
-    );
-  };
+  const primaryJourney = activeJourneys[0] ?? journeys[0] ?? null;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-dark-bg">
-      <HomeHeader
-        displayName={displayName}
-        viewMode={viewMode}
-        searchLocation={searchLocation}
-        activeFiltersCount={activeFiltersCount}
-        onSearchClick={() => setShowSearch(true)}
-        onClearSearch={handleClearSearch}
-        onViewModeToggle={toggleViewMode}
-        onFilterClick={() => setShowFilters(true)}
-        t={t}
-      />
-
-      <main className="flex-1 relative overflow-hidden">
-        {/* Both views stay mounted so Leaflet is never re-initialized */}
-        <div className={viewMode === 'list' ? 'max-w-7xl mx-auto px-4 py-6 sm:px-6' : 'hidden'}>
-          <PlaceListView
-            places={places}
-            loading={loading}
-            loadingMore={loadingMore}
-            hasMore={hasMore}
-            error={error}
-            onRetry={fetchPlaces}
-            onLoadMore={loadMore}
-            onClearFilters={handleClearFilters}
-            t={t}
-          />
+    <div className="min-h-screen bg-slate-50 dark:bg-dark-bg">
+      {/* ── Top bar ─────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-4 pt-safe-top pt-4 pb-2">
+        <div>
+          <p className="text-xs text-text-muted dark:text-dark-text-secondary">
+            {t('dashboard.greeting')}
+          </p>
+          {displayName ? (
+            <h1 className="text-xl font-bold text-text-primary dark:text-white leading-tight">
+              {displayName}
+            </h1>
+          ) : (
+            <button
+              onClick={() => navigate('/login')}
+              className="text-sm font-semibold text-primary"
+            >
+              {t('dashboard.signIn')}
+            </button>
+          )}
         </div>
-        <div className={viewMode === 'map' ? 'h-full w-full absolute inset-0' : 'hidden'}>
-          <PlaceMapView
-            places={mapPlaces}
-            center={coords}
-            searchLocation={searchLocation}
-            selectedPlace={selectedPlace}
-            onPlaceSelect={setSelectedPlace}
-            t={t}
-            isVisible={viewMode === 'map'}
-            initMapCenter={initMapCenter}
-            initMapZoom={initMapZoom}
-            skipAutoFit={hasSavedMapPos}
-            onMapMove={handleMapMove}
-            mapLoading={mapLoading}
-            showSearchArea={showSearchArea}
-            onSearchArea={handleSearchArea}
-            onRecenter={handleRecenter}
-            onBoundsChange={handleBoundsChange}
-          />
+        <div className="flex items-center gap-3">
+          <Link
+            to="/notifications"
+            aria-label="Notifications"
+            className="relative w-9 h-9 rounded-full bg-white dark:bg-dark-surface shadow-sm flex items-center justify-center text-text-muted dark:text-dark-text-secondary hover:text-primary transition-colors"
+          >
+            <span
+              className="material-symbols-outlined text-[22px]"
+              style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}
+            >
+              notifications
+            </span>
+          </Link>
+          <Link
+            to="/profile"
+            className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm hover:bg-primary/20 transition-colors"
+          >
+            {user?.display_name?.[0]?.toUpperCase() ?? (
+              <span
+                className="material-symbols-outlined text-[18px]"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+              >
+                person
+              </span>
+            )}
+          </Link>
         </div>
-      </main>
+      </div>
 
-      <FilterSheet
-        isOpen={showFilters}
-        onClose={() => setShowFilters(false)}
-        options={filterOptions}
-        activeFilters={activeFilters}
-        onApply={(filters) => {
-          setActiveFilters(filters);
-          trackUmamiEvent('filter_apply', { count: Object.values(filters).filter(Boolean).length });
-        }}
-      />
+      <div className="px-4 pb-6 space-y-6 md:grid md:grid-cols-12 md:gap-6 md:space-y-0">
+        {/* ── Left column (main content on desktop) ─────────── */}
+        <div className="md:col-span-8 space-y-6">
+          {/* Active Journey Card */}
+          <section>
+            <AnimatePresence mode="wait">
+              {journeysLoading ? (
+                <motion.div
+                  key="skeleton"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="h-44 rounded-2xl bg-slate-200 dark:bg-dark-surface animate-pulse"
+                />
+              ) : primaryJourney ? (
+                <motion.div
+                  key="card"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <ActiveJourneyCard journey={primaryJourney} />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <EmptyJourneyCard />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
 
-      {showSearch && (
-        <SearchOverlay
-          onSelect={handleSearchSelect}
-          onClose={() => setShowSearch(false)}
-          userLat={coords.lat}
-          userLng={coords.lng}
-          t={t}
-        />
-      )}
+          {/* Quick Actions */}
+          <section>
+            <div className="flex items-center justify-around bg-white dark:bg-dark-surface rounded-2xl shadow-sm p-4">
+              <QuickAction icon="map" label={t('journey.exploreMap')} to="/home?view=map" />
+              <QuickAction
+                icon="add_circle"
+                label={t('journey.newJourney')}
+                onClick={() => navigate(user ? '/journeys/new' : '/login')}
+              />
+              <QuickAction icon="group_add" label={t('groups.joinGroup')} to="/join" />
+              <QuickAction icon="favorite" label={t('favorites.title')} to="/favorites" />
+            </div>
+          </section>
+
+          {/* Recommended Places */}
+          {recommended.length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-base font-bold text-text-primary dark:text-white">
+                  {t('journey.recommendedPlaces')}
+                </h2>
+                <Link to="/home" className="text-xs font-semibold text-primary">
+                  {t('common.showMore')}
+                </Link>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                {recommended.map((place) => (
+                  <PlaceCardSmall key={place.place_code} place={place} />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        {/* ── Right column (desktop sidebar) ────────────────── */}
+        <div className="md:col-span-4 space-y-6">
+          {/* Popular Journeys */}
+          {featured.length > 0 && (
+            <section>
+              <h2 className="text-base font-bold text-text-primary dark:text-white mb-3">
+                {t('journey.popularJourneys')}
+              </h2>
+              <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide md:flex-col md:overflow-visible">
+                {featured.map((j) => (
+                  <FeaturedJourneyCard key={j.group_code} journey={j} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* My Journeys list (if any beyond active) */}
+          {journeys.length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-base font-bold text-text-primary dark:text-white">
+                  {t('journey.myJourneys')}
+                </h2>
+                <Link to="/groups" className="text-xs font-semibold text-primary">
+                  {t('common.showMore')}
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {journeys.slice(0, 3).map((j) => {
+                  const pct =
+                    (j.total_sites ?? 0) > 0
+                      ? Math.round(((j.sites_visited ?? 0) / (j.total_sites ?? 1)) * 100)
+                      : 0;
+                  return (
+                    <Link
+                      key={j.group_code}
+                      to={`/journeys/${j.group_code}`}
+                      className="flex items-center gap-3 bg-white dark:bg-dark-surface rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {j.cover_image_url ? (
+                          <img
+                            src={getFullImageUrl(j.cover_image_url)}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <span
+                            className="material-symbols-outlined text-xl text-primary"
+                            style={{ fontVariationSettings: "'FILL' 1" }}
+                          >
+                            route
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-text-primary dark:text-white truncate">
+                          {j.name}
+                        </p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <div className="flex-1 h-1 rounded-full bg-slate-100 dark:bg-dark-border overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-primary transition-all"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-text-muted dark:text-dark-text-secondary ml-1">
+                            {pct}%
+                          </span>
+                        </div>
+                      </div>
+                      <span
+                        className="material-symbols-outlined text-[18px] text-slate-300"
+                        aria-hidden
+                      >
+                        chevron_right
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

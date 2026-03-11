@@ -45,6 +45,7 @@ const EditProfile = lazyWithReload(() => import('@/app/pages/EditProfile'));
 const CheckInsList = lazyWithReload(() => import('@/app/pages/CheckInsList'));
 const Favorites = lazyWithReload(() => import('@/app/pages/Favorites'));
 const Groups = lazyWithReload(() => import('@/app/pages/Groups'));
+const JourneyDashboard = lazyWithReload(() => import('@/app/pages/Home'));
 const CreateGroup = lazyWithReload(() => import('@/app/pages/CreateGroup'));
 const GroupDetail = lazyWithReload(() => import('@/app/pages/GroupDetail'));
 const JoinGroup = lazyWithReload(() => import('@/app/pages/JoinGroup'));
@@ -174,6 +175,56 @@ export function AppRoutes() {
               </Layout>
             }
           />
+          {/* Journey routes (customer-facing aliases — backend still uses "group") */}
+          <Route
+            path="/journeys"
+            element={
+              <Layout>
+                <JourneyDashboard />
+              </Layout>
+            }
+          />
+          <Route
+            path="/journeys/new"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <CreateGroup />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/journeys/:groupCode"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <GroupDetail />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/journeys/:groupCode/edit"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <EditGroup />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          <Route
+            path="/journeys/:groupCode/edit-places"
+            element={
+              <Layout>
+                <ProtectedRoute>
+                  <EditGroupPlaces />
+                </ProtectedRoute>
+              </Layout>
+            }
+          />
+          {/* Legacy group routes — keep for deep-link compatibility */}
           <Route
             path="/groups"
             element={

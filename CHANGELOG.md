@@ -4,6 +4,29 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Journey UX Pivot — Phase 1: Foundation & Navigation (2026-03-11)
+
+### Backend
+- **`app/db/models.py`** — added `is_featured: bool = False` to `Group` model
+- **`migrations/versions/0018_group_is_featured.py`** — migration for `is_featured` column
+- **`app/api/v1/groups.py`** — added `GET /api/v1/groups/featured` (public, no auth) and `POST /api/v1/groups/{code}/optimize-route` (nearest-neighbour reorder)
+- **`app/api/v1/places.py`** — added `GET /api/v1/places/recommended` (nearby + religion-filtered, excludes checked-in places)
+- **`app/db/seed_data.json`** — added `journey.*`, `onboarding.*`, `dashboard.*`, and additional `map.*`/`nav.*` translation keys for en, ar, hi
+- **`tests/test_journey_phase1.py`** (new) — 13 tests: featured groups, optimize-route, recommended places
+
+### Frontend (web)
+- **`src/components/layout/Layout.tsx`** — replaced 3-tab bottom nav with minimal 2-item bar (Dashboard + Map) and elevated center FAB for "New Journey"; updated desktop top nav to logo + Map + New Journey button + avatar
+- **`src/app/routes.tsx`** — added `/journeys/*` route aliases (journey detail, new, edit, edit-places); kept `/groups/*` routes for deep-link compatibility
+- **`src/app/pages/Home.tsx`** — complete rewrite as Journey Dashboard: active journey hero card with circular progress ring, quick-actions row, recommended places carousel, popular journeys carousel, my journeys list; Framer Motion animations
+- **`src/__tests__/journeyPhase1.test.ts`** (new) — 14 tests: progress calc, haversine, nearest-neighbour ordering, URL helpers
+
+### Frontend (mobile)
+- **`src/components/layout/Layout.tsx`** — replaced bottom-tabs navigator with minimal 2-item bar (Dashboard + Map) + center FAB for "New Journey"; glass blur background
+- **`src/app/navigation.tsx`** — updated `RootStackParamList` comments to use "Journey" terminology
+- **`src/__tests__/journeyPhase1.test.ts`** (new) — 14 tests in parity with web
+
+---
+
 ## SEO/GEO/AI Discoverability — Full Roadmap Implementation (2026-03-11)
 
 ### Backend

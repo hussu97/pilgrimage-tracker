@@ -182,6 +182,10 @@ class Group(SQLModel, table=True):
     cover_image_url: str | None = None
     start_date: date | None = None
     end_date: date | None = None
+    is_featured: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="0"),
+    )
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
