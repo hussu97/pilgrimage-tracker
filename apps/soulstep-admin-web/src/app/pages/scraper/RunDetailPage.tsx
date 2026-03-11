@@ -206,6 +206,13 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
     activity.places_total > 0
       ? Math.round((activity.places_complete / activity.places_total) * 100)
       : 0;
+  const filterPct =
+    activity.places_total > 0
+      ? Math.min(
+          100 - enrichPct,
+          Math.round(((activity.places_filtered ?? 0) / activity.places_total) * 100),
+        )
+      : 0;
   const syncPct =
     activity.places_total > 0
       ? Math.min(100, Math.round((activity.places_synced / activity.places_total) * 100))
@@ -374,17 +381,21 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
             {(activity.places_filtered ?? 0) > 0 && (
               <>
                 <span className="text-text-secondary">·</span>
-                <span className="text-text-secondary dark:text-dark-text-secondary">
+                <span className="text-amber-500 dark:text-amber-400 font-semibold">
                   {activity.places_filtered} filtered
                 </span>
               </>
             )}
           </div>
           {activity.places_total > 0 && (
-            <div className="w-full bg-background-light dark:bg-dark-bg rounded-full h-1.5">
+            <div className="w-full bg-background-light dark:bg-dark-bg rounded-full h-1.5 overflow-hidden flex">
               <div
-                className="bg-green-500 h-1.5 rounded-full transition-all duration-700"
+                className="bg-green-500 h-1.5 transition-all duration-700"
                 style={{ width: `${enrichPct}%` }}
+              />
+              <div
+                className="bg-amber-400 h-1.5 transition-all duration-700"
+                style={{ width: `${filterPct}%` }}
               />
             </div>
           )}
