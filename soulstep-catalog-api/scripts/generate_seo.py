@@ -111,7 +111,7 @@ def _translate_texts(
         from google.cloud import translate_v3 as translate
     except ImportError:
         logger.error(
-            "google-cloud-translate is not installed. " "Run: pip install google-cloud-translate"
+            "google-cloud-translate is not installed. Run: pip install google-cloud-translate"
         )
         raise
 

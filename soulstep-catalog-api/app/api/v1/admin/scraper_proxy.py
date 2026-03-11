@@ -15,8 +15,7 @@ router = APIRouter()
 
 # GCP metadata server — available on Cloud Run, GCE, etc.
 _METADATA_TOKEN_URL = (
-    "http://metadata.google.internal/computeMetadata/v1/instance"
-    "/service-accounts/default/identity"
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity"
 )
 
 

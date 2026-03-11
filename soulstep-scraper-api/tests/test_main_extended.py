@@ -12,7 +12,7 @@ Covers:
 import asyncio
 import os
 import sys
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -241,9 +241,20 @@ class TestLogError:
 class TestDbSession:
     def test_create_db_and_tables(self):
         """create_db_and_tables() should run without raising."""
-        from app.db.session import create_db_and_tables
+        from sqlalchemy.pool import StaticPool
+        from sqlmodel import create_engine
 
-        create_db_and_tables()  # Idempotent — safe to call again
+        test_engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        import app.db.models  # noqa: F401 — register models before create_all
+
+        with patch("app.db.session.engine", test_engine):
+            from app.db.session import create_db_and_tables
+
+            create_db_and_tables()  # Idempotent — safe to call again
 
     def test_get_db_session_yields_session(self):
         """get_db_session() generator yields a valid Session object."""

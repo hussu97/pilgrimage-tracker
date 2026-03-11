@@ -19,8 +19,10 @@ describe('getFullImageUrl()', () => {
   });
 
   it('returns relative paths as-is when no VITE_API_URL set', async () => {
+    vi.stubEnv('VITE_API_URL', '');
     const { getFullImageUrl } = await import('@/lib/utils/imageUtils');
     const result = getFullImageUrl('/api/v1/places/pl_abc/images/1');
+    vi.unstubAllEnvs();
     expect(result).toBe('/api/v1/places/pl_abc/images/1');
   });
 });

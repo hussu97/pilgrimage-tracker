@@ -105,8 +105,9 @@ class TestDownloadPlaceImages:
 
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(
-            side_effect=lambda *a, **k: called.append(1)
-            or MagicMock(status_code=200, content=b"data")
+            side_effect=lambda *a, **k: (
+                called.append(1) or MagicMock(status_code=200, content=b"data")
+            )
         )
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)

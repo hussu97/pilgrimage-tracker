@@ -377,10 +377,10 @@ def share_place(place_code: str, session: SessionDep, request: Request):
   {redirect_script}
   <main>
     <h1>{name_escaped}</h1>
-    {f'<p><strong>Address:</strong> {address_escaped}</p>' if address_escaped else ''}
-    {f'<p><strong>Rating:</strong> {_html.escape(rating_str)}</p>' if rating_str else ''}
+    {f"<p><strong>Address:</strong> {address_escaped}</p>" if address_escaped else ""}
+    {f"<p><strong>Rating:</strong> {_html.escape(rating_str)}</p>" if rating_str else ""}
     {img_tag}
-    {f'<p>{_html.escape(description_display)}</p>' if description_display else ''}
+    {f"<p>{_html.escape(description_display)}</p>" if description_display else ""}
     {faq_html}
     {related_html}
     <p>{fallback_link}</p>
@@ -710,8 +710,7 @@ def share_coverage(request: Request, session: SessionDep):
         "zoroastrianism": "Zoroastrianism (Fire Temples)",
     }
     religion_rows_html = "\n".join(
-        f"      <tr><td>{_html.escape(religion_labels.get(r, r.title()))}</td>"
-        f"<td>{c:,}</td></tr>"
+        f"      <tr><td>{_html.escape(religion_labels.get(r, r.title()))}</td><td>{c:,}</td></tr>"
         for r, c in sorted(religion_counts.items(), key=lambda x: -x[1])
     )
 
@@ -951,9 +950,9 @@ def share_place_lang(lang: str, place_code: str, session: SessionDep, request: R
 <body>
   <main>
     <h1>{name_escaped}</h1>
-    {f'<p><strong>Address:</strong> {address_escaped}</p>' if address_escaped else ''}
+    {f"<p><strong>Address:</strong> {address_escaped}</p>" if address_escaped else ""}
     {img_tag}
-    {f'<p>{_html.escape(description_display)}</p>' if description_display else ''}
+    {f"<p>{_html.escape(description_display)}</p>" if description_display else ""}
     <p>{fallback_link}</p>
   </main>
 </body>
