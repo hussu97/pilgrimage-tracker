@@ -130,8 +130,8 @@ def score_place_quality(raw_data: dict) -> float:
     Factors and weights:
       rating + review count  0.30  (Bayesian-adjusted)
       business status        0.15
-      photo count            0.10
-      editorial/generative   0.10
+      photo count            0.15  (5-tier: 0 / 1 / 2-4 / 5-9 / 10+)
+      editorial summary      0.05  (bonus only — rare field, no penalty for absence)
       has website            0.05
       has opening hours      0.05
       name specificity       0.25  (higher weight — also a hard gate for enrichment/sync)
@@ -141,7 +141,6 @@ def score_place_quality(raw_data: dict) -> float:
       business_status            — added by build_place_data
       image_urls, image_blobs    — photo count proxy
       has_editorial              — added by build_place_data
-      has_generative             — added by build_place_data
       website_url                — added by build_place_data
       opening_hours              — added by build_place_data
       name                       — added by build_place_data
@@ -175,19 +174,19 @@ def score_place_quality(raw_data: dict) -> float:
     elif status == "CLOSED_TEMPORARILY":
         score += 0.075
 
-    # ── 3. Photo count (0.10) ─────────────────────────────────────────────────
+    # ── 3. Photo count (0.15) — 5-tier granularity ───────────────────────────
     photo_count = len(raw_data.get("image_urls") or []) + len(raw_data.get("image_blobs") or [])
-    if photo_count >= 2:
-        score += 0.10
+    if photo_count >= 10:
+        score += 0.15
+    elif photo_count >= 5:
+        score += 0.1125  # 0.75 * 0.15
+    elif photo_count >= 2:
+        score += 0.075  # 0.50 * 0.15
     elif photo_count == 1:
-        score += 0.05
+        score += 0.03  # 0.20 * 0.15
 
-    # ── 4. Editorial / generative summary (0.10) ─────────────────────────────
-    has_editorial: bool = bool(raw_data.get("has_editorial", False))
-    has_generative: bool = bool(raw_data.get("has_generative", False))
-    if has_editorial:
-        score += 0.10
-    elif has_generative:
+    # ── 4. Editorial summary (0.05, bonus only) ───────────────────────────────
+    if raw_data.get("has_editorial"):
         score += 0.05
 
     # ── 5. Has website (0.05) ────────────────────────────────────────────────
@@ -260,42 +259,40 @@ def score_place_quality_breakdown(raw_data: dict) -> dict:
         }
     )
 
-    # ── 3. Photo count (0.10) ─────────────────────────────────────────────────
+    # ── 3. Photo count (0.15) — 5-tier granularity ───────────────────────────
     photo_count = len(raw_data.get("image_urls") or []) + len(raw_data.get("image_blobs") or [])
-    if photo_count >= 2:
+    if photo_count >= 10:
         raw_3 = 1.0
+    elif photo_count >= 5:
+        raw_3 = 0.75
+    elif photo_count >= 2:
+        raw_3 = 0.50
     elif photo_count == 1:
-        raw_3 = 0.5
+        raw_3 = 0.20
     else:
         raw_3 = 0.0
-    weight_3 = 0.10
+    weight_3 = 0.15
     factors.append(
         {
             "name": "Photo Count",
             "weight": weight_3,
             "raw_score": round(raw_3, 4),
             "weighted": round(raw_3 * weight_3, 4),
-            "detail": f"photos={photo_count}",
+            "detail": f"photos={photo_count} (tiers: 0/1/2-4/5-9/10+)",
         }
     )
 
-    # ── 4. Editorial / generative summary (0.10) ─────────────────────────────
+    # ── 4. Editorial summary (0.05, bonus only) ───────────────────────────────
     has_editorial: bool = bool(raw_data.get("has_editorial", False))
-    has_generative: bool = bool(raw_data.get("has_generative", False))
-    if has_editorial:
-        raw_4 = 1.0
-    elif has_generative:
-        raw_4 = 0.5
-    else:
-        raw_4 = 0.0
-    weight_4 = 0.10
+    raw_4 = 1.0 if has_editorial else 0.0
+    weight_4 = 0.05
     factors.append(
         {
             "name": "Editorial Summary",
             "weight": weight_4,
             "raw_score": round(raw_4, 4),
             "weighted": round(raw_4 * weight_4, 4),
-            "detail": f"has_editorial={has_editorial}, has_generative={has_generative}",
+            "detail": f"has_editorial={has_editorial}",
         }
     )
 

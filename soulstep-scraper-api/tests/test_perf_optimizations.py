@@ -480,7 +480,7 @@ class TestFetchDetailsSplit:
             "rating": 4.2,
         }
         extended_resp = {
-            "generativeSummary": {"overview": {"text": "A great place."}},
+            "accessibilityOptions": {"wheelchairAccessibleEntrance": True},
         }
 
         responses = [essential_resp, extended_resp]
@@ -495,7 +495,7 @@ class TestFetchDetailsSplit:
             result = await collector.fetch_details_split("places/Y", "fake", rl)
 
         assert call_idx[0] == 2  # both essential + extended called
-        assert result.get("generativeSummary") is not None
+        assert result.get("accessibilityOptions") is not None
 
     async def test_extended_skipped_for_unrated(self):
         """A place with no rating (None) should skip the extended call."""

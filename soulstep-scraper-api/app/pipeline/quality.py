@@ -21,7 +21,6 @@ SOURCE_RELIABILITY = {
     "gmaps_editorial": 0.35,
     "knowledge_graph": 0.30,
     "wikidata": 0.25,
-    "gmaps_generative": 0.20,
     "wikipedia_short": 0.15,
     "knowledge_graph_short": 0.10,
 }

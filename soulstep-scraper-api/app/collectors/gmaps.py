@@ -226,7 +226,6 @@ class GmapsCollector(BaseCollector):
     FIELD_MASK_EXTENDED = [
         "reviews",
         "accessibilityOptions",
-        "generativeSummary",
         "parkingOptions",
         "paymentOptions",
         "allowsDogs",
@@ -350,20 +349,6 @@ class GmapsCollector(BaseCollector):
 
         if editorial_text:
             result.descriptions.append(make_description(editorial_text, "en", "gmaps_editorial"))
-
-        # Generative summary (longer, AI-generated)
-        generative = response.get("generativeSummary", {})
-        if isinstance(generative, dict):
-            gen_text = generative.get("overview", {})
-            if isinstance(gen_text, dict):
-                gen_text = gen_text.get("text", "")
-            elif not isinstance(gen_text, str):
-                gen_text = ""
-        else:
-            gen_text = ""
-
-        if gen_text:
-            result.descriptions.append(make_description(gen_text, "en", "gmaps_generative"))
 
         # --- Contact ---
         result.contact.update(ContactExtractor.from_gmaps_response(response))
@@ -576,19 +561,6 @@ class GmapsCollector(BaseCollector):
         else:
             editorial = ""
 
-        # Get generative summary (extended fields — may be absent if not fetched)
-        generative_summary = response.get("generativeSummary", {})
-        if isinstance(generative_summary, dict):
-            gen_overview = generative_summary.get("overview", {})
-            if isinstance(gen_overview, dict):
-                generative_text = gen_overview.get("text", "")
-            elif isinstance(gen_overview, str):
-                generative_text = gen_overview
-            else:
-                generative_text = ""
-        else:
-            generative_text = ""
-
         formatted_address = response.get("formattedAddress", "")
         if editorial:
             description = editorial
@@ -652,6 +624,5 @@ class GmapsCollector(BaseCollector):
             "rating": response.get("rating"),
             "user_rating_count": response.get("userRatingCount"),
             "has_editorial": bool(editorial),
-            "has_generative": bool(generative_text),
             "gmaps_types": result_types,
         }

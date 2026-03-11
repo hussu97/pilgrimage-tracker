@@ -22,7 +22,6 @@ class TestGmapsCollectorExtract:
     def _full_response(self):
         return {
             "editorialSummary": {"text": "A historic mosque in Jerusalem."},
-            "generativeSummary": {"overview": {"text": "Al-Aqsa is the third holiest mosque."}},
             "nationalPhoneNumber": "+972-2-1234",
             "internationalPhoneNumber": "+972221234",
             "googleMapsUri": "https://maps.google.com/?cid=123",
@@ -75,7 +74,7 @@ class TestGmapsCollectorExtract:
         assert result.status == "success"
         sources = {d["source"] for d in result.descriptions}
         assert "gmaps_editorial" in sources
-        assert "gmaps_generative" in sources
+        assert "gmaps_generative" not in sources
         assert result.contact["phone_national"] == "+972-2-1234"
         assert result.contact["google_maps_url"] == "https://maps.google.com/?cid=123"
         assert result.contact["website"] == "https://alaqsa.org"
@@ -112,42 +111,6 @@ class TestGmapsCollectorExtract:
         assert result.contact == {}
         assert result.images == []
         assert result.reviews == []
-
-    def test_extract_generative_summary_plain_string(self):
-        """overview that is a plain string (not a dict)."""
-        from app.collectors.gmaps import GmapsCollector
-
-        collector = GmapsCollector()
-        result = collector._extract(
-            {"generativeSummary": {"overview": "Plain text overview."}},
-            "gplc_test",
-            "key",
-        )
-        gen_descs = [d for d in result.descriptions if d["source"] == "gmaps_generative"]
-        assert len(gen_descs) == 1
-        assert gen_descs[0]["text"] == "Plain text overview."
-
-    def test_extract_generative_overview_non_string_non_dict(self):
-        """overview as integer — should produce empty gen_text, no description added."""
-        from app.collectors.gmaps import GmapsCollector
-
-        collector = GmapsCollector()
-        result = collector._extract(
-            {"generativeSummary": {"overview": 12345}},
-            "gplc_test",
-            "key",
-        )
-        gen_descs = [d for d in result.descriptions if d["source"] == "gmaps_generative"]
-        assert gen_descs == []
-
-    def test_extract_generative_not_dict(self):
-        """generativeSummary as a raw string should produce no description."""
-        from app.collectors.gmaps import GmapsCollector
-
-        collector = GmapsCollector()
-        result = collector._extract({"generativeSummary": "raw string"}, "gplc_test", "key")
-        gen_descs = [d for d in result.descriptions if d["source"] == "gmaps_generative"]
-        assert gen_descs == []
 
     def test_extract_photo_without_name_skipped(self):
         """Photos without a 'name' field should be skipped."""

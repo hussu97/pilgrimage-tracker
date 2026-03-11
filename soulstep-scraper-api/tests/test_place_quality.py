@@ -68,7 +68,6 @@ def _make_raw(
     image_urls=None,
     image_blobs=None,
     has_editorial=True,
-    has_generative=False,
     website_url="https://example.com",
     opening_hours=None,
     gmaps_types=None,
@@ -87,7 +86,6 @@ def _make_raw(
         "image_urls": image_urls or [],
         "image_blobs": image_blobs or [],
         "has_editorial": has_editorial,
-        "has_generative": has_generative,
         "website_url": website_url,
         "opening_hours": opening_hours,
         "gmaps_types": gmaps_types,
@@ -117,7 +115,6 @@ class TestScorePlaceQuality:
             user_rating_count=0,
             image_urls=[],
             has_editorial=False,
-            has_generative=False,
             website_url="",
             opening_hours={},
             gmaps_types=[],
@@ -153,7 +150,6 @@ class TestScorePlaceQuality:
             rating=0,
             user_rating_count=0,
             has_editorial=False,
-            has_generative=False,
             image_urls=[],
             website_url="",
             opening_hours={},
@@ -165,24 +161,30 @@ class TestScorePlaceQuality:
         # 0.18 (bayesian) + 0.15 (operational) + 0.25 (name 3 words * 0.25)
         assert score > 0.0
 
-    def test_photo_count_0(self):
-        raw_no = _make_raw(image_urls=[], image_blobs=[])
-        raw_one = _make_raw(image_urls=["url1"], image_blobs=[])
-        raw_two = _make_raw(image_urls=["url1", "url2"], image_blobs=[])
-        s0 = score_place_quality(raw_no)
-        s1 = score_place_quality(raw_one)
-        s2 = score_place_quality(raw_two)
-        assert s0 < s1 < s2
+    def test_photo_count_granular(self):
+        """Photo score increases across all 5 tiers."""
 
-    def test_editorial_beats_generative(self):
-        raw_ed = _make_raw(has_editorial=True, has_generative=False)
-        raw_gen = _make_raw(has_editorial=False, has_generative=True)
-        raw_none = _make_raw(has_editorial=False, has_generative=False)
-        assert (
-            score_place_quality(raw_ed)
-            > score_place_quality(raw_gen)
-            > score_place_quality(raw_none)
-        )
+        def make(urls):
+            return _make_raw(image_urls=urls, image_blobs=[])
+
+        s0 = score_place_quality(make([]))
+        s1 = score_place_quality(make(["u1"]))
+        s2 = score_place_quality(make(["u1", "u2"]))
+        s5 = score_place_quality(make([f"u{i}" for i in range(5)]))
+        s10 = score_place_quality(make([f"u{i}" for i in range(10)]))
+        assert s0 < s1 < s2 < s5 < s10
+
+    def test_editorial_adds_bonus(self):
+        raw_ed = _make_raw(has_editorial=True)
+        raw_none = _make_raw(has_editorial=False)
+        assert score_place_quality(raw_ed) > score_place_quality(raw_none)
+
+    def test_no_editorial_no_penalty(self):
+        """Absence of editorial should not cause large score drop — it's a small bonus."""
+        raw_none = _make_raw(has_editorial=False)
+        score = score_place_quality(raw_none)
+        # Without editorial (0.05 bonus), a good place should still score >= 0.70
+        assert score >= 0.70
 
     def test_website_adds_score(self):
         raw_with = _make_raw(website_url="https://example.com")
@@ -215,7 +217,6 @@ class TestScorePlaceQuality:
             "business_status": "OPERATIONAL",
             "image_urls": ["url1"],
             "has_editorial": False,
-            "has_generative": False,
             "website_url": "",
             "opening_hours": {},
             "gmaps_types": [],
