@@ -1,0 +1,14 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "SoulStep",
+  "name_for_model": "soulstep",
+  "description_for_human": "Discover sacred sites, mosques, temples, churches, and places of worship worldwide",
+  "description_for_model": "Search and retrieve information about sacred sites and places of worship globally. Supports filtering by religion, location, ratings, and opening hours.",
+  "api": {
+    "type": "openapi",
+    "url": "https://soulstep-api-834941457147.europe-west1.run.app/openapi.json"
+  },
+  "logo_url": "https://soul-step.org/logo.png",
+  "contact_email": "contact@soul-step.org",
+  "legal_info_url": "https://soul-step.org/about"
+}

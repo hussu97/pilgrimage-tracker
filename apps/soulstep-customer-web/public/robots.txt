@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+
+# Allow AI assistants
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+Sitemap: https://soulstep-api-834941457147.europe-west1.run.app/sitemap.xml
