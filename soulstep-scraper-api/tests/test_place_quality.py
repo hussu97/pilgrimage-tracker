@@ -239,15 +239,15 @@ class TestScorePlaceQuality:
 class TestGetQualityGate:
     def test_below_image_gate(self):
         assert get_quality_gate(0.0) == "below_image_gate"
-        assert get_quality_gate(0.49) == "below_image_gate"
+        assert get_quality_gate(0.59) == "below_image_gate"
 
     def test_below_enrichment_gate(self):
         assert get_quality_gate(GATE_IMAGE_DOWNLOAD) == "below_enrichment_gate"
-        assert get_quality_gate(0.55) == "below_enrichment_gate"
+        assert get_quality_gate(0.65) == "below_enrichment_gate"
 
     def test_below_sync_gate(self):
         assert get_quality_gate(GATE_ENRICHMENT) == "below_sync_gate"
-        assert get_quality_gate(0.65) == "below_sync_gate"
+        assert get_quality_gate(0.75) == "below_sync_gate"
 
     def test_passes_all_gates(self):
         assert get_quality_gate(GATE_SYNC) is None
