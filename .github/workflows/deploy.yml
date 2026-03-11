@@ -63,14 +63,14 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: soulstep-catalog-api/requirements.txt
+          cache-dependency-path: soulstep-catalog-api/requirements-dev.txt
 
       - name: Install dependencies
-        run: pip install -r soulstep-catalog-api/requirements.txt
+        run: pip install -r soulstep-catalog-api/requirements-dev.txt
 
       - name: Lint (ruff)
         working-directory: soulstep-catalog-api
-        run: pip install ruff && ruff check app/
+        run: ruff check app/
 
       - name: Run pytest
         working-directory: soulstep-catalog-api
@@ -160,14 +160,14 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: soulstep-scraper-api/requirements.txt
+          cache-dependency-path: soulstep-scraper-api/requirements-dev.txt
 
       - name: Install dependencies
-        run: pip install -r soulstep-scraper-api/requirements.txt
+        run: pip install -r soulstep-scraper-api/requirements-dev.txt
 
       - name: Lint (ruff)
         working-directory: soulstep-scraper-api
-        run: pip install ruff && ruff check app/
+        run: ruff check app/
 
       - name: Run pytest
         working-directory: soulstep-scraper-api
