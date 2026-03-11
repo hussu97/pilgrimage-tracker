@@ -4,6 +4,43 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Mobile Phase 4 — Join Modal, Journeys Redesign, Journey Detail FAB + Map, Check-in UX (2026-03-12)
+
+### Frontend (mobile)
+
+**Phase 4A — Join with Code Modal**
+
+- **`JoinJourneyModal.tsx`** (new component) — Animated bottom-sheet modal (`React Native Modal` + `Animated.spring` slide-up, translateY 400→0) for joining a journey with an invite code; clipboard paste button; debounced 600ms preview fetch; preview card with journey name/member count; states (idle → loading-preview → preview → joining → success → error); success animated checkmark; auto-close + navigate to `GroupDetail` after 1.5s; dark mode
+- **`HomeScreen.tsx`** — "Join with Code" quick action now opens `JoinJourneyModal` instead of navigating to `JoinGroup` screen
+- **`GroupsScreen.tsx`** — Added "Join" icon button in header that also opens `JoinJourneyModal`
+
+**Phase 4B — Groups/Journeys Redesign**
+
+- **`GroupsScreen.tsx`** — Full premium redesign: horizontal stats banner (journey count, places visited, total sites); section header with count badge; journey cards now full-width `height:200` cards with cover image + gradient overlay, level badge, activity dot, member avatar stack, progress bar, "Continue →" CTA; staggered entrance animations (`Animated.timing`, 100ms per-card delay, `useNativeDriver:true`); FAB confirmed absent
+
+**Phase 4C — Journey Detail: Remove Glass Bar, Add FAB**
+
+- **`GroupDetailScreen.tsx`** — Removed entire glass contextual bottom bar; added floating "Add Place" FAB (`position:absolute`, `right:24`, `bottom:insets.bottom+24`, spring mount animation, admin-only, navigates to `EditGroupPlaces`); share + invite icon buttons moved to hero header row
+
+**Phase 4D — Journey Detail: Check-in UX Upgrade**
+
+- **`GroupDetailScreen.tsx`** — Duplicate check-in button in expanded section removed; inline check-in button now cycles through states: idle → loading (`ActivityIndicator`) → success (animated green checkmark, `Animated.spring`); `expo-haptics` `impactAsync(Medium)` on success; checklist re-fetched on success for immediate progress update
+
+**Phase 4E — Journey Map View**
+
+- **`JourneyMapView.tsx`** (new component) — `WebView`-based Leaflet map showing only this journey's places; auto-fits bounds; numbered markers (green=checked, primary=unvisited); marker tap fires `onPlaceSelect(placeCode)` prop; props: `places[]`, `onPlaceSelect?`, `height?`
+- **`GroupDetailScreen.tsx`** — Map View section added below route tab content; selecting a marker expands that place card
+
+**Tests**
+
+- **`src/__tests__/journeyPhase4.test.ts`** (new, 30 tests) — Pure logic: invite code validation, error categorization, stats calc, progress level keys, check-in state transitions, map marker JSON
+
+### Backend (translations)
+
+- Added 17 new translation keys × 5 languages in `seed_data.json`: `groups.journey/journeys/placesVisited/totalSites/myJourneys/completed/enterInviteCode/joinJourney/pasteOrTypeCode/joinedSuccess/redirectingToJourney/alreadyMember/journeyFull/invalidCode/joinFailed/mapView`, `common.paste`
+
+---
+
 ## Web Phase 4 & 5 — Join Modal, Journeys Redesign, Journey Detail FAB + Map, Desktop Layout Overhaul (2026-03-12)
 
 ### Frontend (web)

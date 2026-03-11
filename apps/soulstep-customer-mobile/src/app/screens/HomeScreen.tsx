@@ -36,6 +36,7 @@ import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { getGroups } from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
+import JoinJourneyModal from '@/components/groups/JoinJourneyModal';
 import type { Group, Place } from '@/lib/types';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
@@ -688,6 +689,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [addToJourneyPlace, setAddToJourneyPlace] = useState<RecommendedPlace | null>(null);
   const [placeCount, setPlaceCount] = useState(0);
+  const [joinModalVisible, setJoinModalVisible] = useState(false);
 
   // Animated count ticker
   const countAnim = useRef(new Animated.Value(0)).current;
@@ -969,7 +971,7 @@ export default function HomeScreen() {
         color: ACTION_COLORS.join,
         label: t('journey.joinWithCode'),
         sub: t('journey.joinExisting'),
-        onPress: () => navigation.navigate('JoinGroup', {}),
+        onPress: () => setJoinModalVisible(true),
       },
       {
         key: 'favorites',
@@ -1285,6 +1287,7 @@ export default function HomeScreen() {
           onClose={() => setAddToJourneyPlace(null)}
         />
       )}
+      <JoinJourneyModal visible={joinModalVisible} onClose={() => setJoinModalVisible(false)} />
     </View>
   );
 }

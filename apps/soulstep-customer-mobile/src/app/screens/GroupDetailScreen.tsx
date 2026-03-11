@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
+  Animated,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Image as ExpoImage } from 'expo-image';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { RouteProp } from '@react-navigation/native';
@@ -46,6 +48,7 @@ import type {
 import { tokens } from '@/lib/theme';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import GroupCheckInSheet from '@/components/groups/GroupCheckInSheet';
+import JourneyMapView from '@/components/groups/JourneyMapView';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'GroupDetail'>;
 type GroupDetailRoute = RouteProp<RootStackParamList, 'GroupDetail'>;
@@ -628,55 +631,55 @@ function makeStyles(isDark: boolean) {
       marginTop: 4,
     },
 
-    // Glass contextual bottom bar
-    glassBar: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      paddingHorizontal: 16,
-      paddingTop: 12,
+    // Map section
+    mapSection: {
+      marginHorizontal: 16,
+      marginTop: 16,
+      marginBottom: 4,
     },
-    glassBarInner: {
-      flexDirection: 'row',
-      gap: 10,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      borderRadius: 20,
-      backgroundColor: isDark ? 'rgba(36,36,36,0.88)' : 'rgba(255,255,255,0.88)',
-      borderWidth: 1,
-      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.5)',
-      // shadow
+    mapSectionTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: textMain,
+      marginBottom: 8,
+    },
+
+    // FAB
+    fab: {
+      position: 'absolute',
+      right: 24,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: tokens.colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.1,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.25,
       shadowRadius: 8,
       elevation: 8,
     },
-    glassBarBtn: {
-      flex: 1,
-      flexDirection: 'row',
+
+    // Check-in states
+    checkInLoadingBtn: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 8,
+      backgroundColor: isDark ? tokens.colors.darkSurface : '#f1f5f9',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 6,
-      paddingVertical: 11,
-      borderRadius: 12,
-      backgroundColor: tokens.colors.primary,
+      minWidth: 60,
     },
-    glassBarBtnOutline: {
-      flex: 1,
-      flexDirection: 'row',
+    checkInSuccessBtn: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 8,
+      backgroundColor: isDark ? '#1a3a2a' : '#dcfce7',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 6,
-      paddingVertical: 11,
-      borderRadius: 12,
-      borderWidth: 1.5,
-      borderColor: tokens.colors.primary,
-      backgroundColor: 'transparent',
+      minWidth: 60,
     },
-    glassBarBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-    glassBarBtnTextOutline: { color: tokens.colors.primary, fontSize: 13, fontWeight: '700' },
   });
 }
 
@@ -747,12 +750,33 @@ export default function GroupDetailScreen() {
   const [showFullLeaderboard, setShowFullLeaderboard] = useState(false);
   const [memberActionLoading, setMemberActionLoading] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // Per-place check-in UI state: null = idle, 'loading' = in progress, 'success' = done
+  const [checkInUiState, setCheckInUiState] = useState<
+    Record<string, 'loading' | 'success' | null>
+  >({});
+  // Success checkmark scale animations
+  const checkmarkScales = useRef<Record<string, Animated.Value>>({});
+  // FAB spring animation
+  const fabScale = useRef(new Animated.Value(0)).current;
 
   const isAdmin = useMemo(
     () => members.some((m) => m.user_code === user?.user_code && m.role === 'admin'),
     [members, user],
   );
   const isCreator = useMemo(() => group?.created_by_user_code === user?.user_code, [group, user]);
+
+  // Animate FAB in once isAdmin is determined and we have group data
+  useEffect(() => {
+    if (!loading && group && isAdmin) {
+      fabScale.setValue(0);
+      Animated.spring(fabScale, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 120,
+        friction: 8,
+      }).start();
+    }
+  }, [loading, group, isAdmin, fabScale]);
 
   const fetchData = useCallback(async () => {
     if (!groupCode) return;
@@ -920,6 +944,14 @@ export default function GroupDetailScreen() {
     }
   };
 
+  // Helper to get or create a checkmark Animated.Value for a place
+  const getCheckmarkScale = useCallback((placeCode: string) => {
+    if (!checkmarkScales.current[placeCode]) {
+      checkmarkScales.current[placeCode] = new Animated.Value(0);
+    }
+    return checkmarkScales.current[placeCode];
+  }, []);
+
   const inviteUrl = group?.invite_code
     ? INVITE_LINK_BASE_URL
       ? `${INVITE_LINK_BASE_URL}/join?code=${group.invite_code}`
@@ -990,7 +1022,7 @@ export default function GroupDetailScreen() {
     >
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + (isAdmin ? 100 : 40) }}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
@@ -1042,6 +1074,13 @@ export default function GroupDetailScreen() {
                 activeOpacity={0.8}
               >
                 <MaterialIcons name="share" size={17} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.glassBtnIcon}
+                onPress={() => shareUrl(group.name, inviteUrl || '')}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="person-add" size={17} color="#fff" />
               </TouchableOpacity>
             </View>
           </View>
@@ -1234,24 +1273,50 @@ export default function GroupDetailScreen() {
                                 )}
                               </View>
 
-                              {/* Inline check-in button */}
-                              {!place.user_checked_in ? (
-                                <TouchableOpacity
-                                  style={styles.checkInInlineBtn}
-                                  onPress={() =>
-                                    setCheckInSheet({
-                                      visible: true,
-                                      placeCode: place.place_code,
-                                      placeName: place.name,
-                                    })
-                                  }
-                                  activeOpacity={0.8}
-                                >
-                                  <Text style={styles.checkInInlineBtnText}>
-                                    {t('groups.checkIn')}
-                                  </Text>
-                                </TouchableOpacity>
-                              ) : null}
+                              {/* Inline check-in button with premium UX */}
+                              {(() => {
+                                const uiState = checkInUiState[place.place_code];
+                                const checkScale = getCheckmarkScale(place.place_code);
+                                if (place.user_checked_in || uiState === 'success') {
+                                  return (
+                                    <Animated.View
+                                      style={[
+                                        styles.checkInSuccessBtn,
+                                        { transform: [{ scale: checkScale }] },
+                                      ]}
+                                    >
+                                      <MaterialIcons name="check" size={16} color="#16a34a" />
+                                    </Animated.View>
+                                  );
+                                }
+                                if (uiState === 'loading') {
+                                  return (
+                                    <View style={styles.checkInLoadingBtn}>
+                                      <ActivityIndicator
+                                        size="small"
+                                        color={tokens.colors.primary}
+                                      />
+                                    </View>
+                                  );
+                                }
+                                return (
+                                  <TouchableOpacity
+                                    style={styles.checkInInlineBtn}
+                                    onPress={() =>
+                                      setCheckInSheet({
+                                        visible: true,
+                                        placeCode: place.place_code,
+                                        placeName: place.name,
+                                      })
+                                    }
+                                    activeOpacity={0.8}
+                                  >
+                                    <Text style={styles.checkInInlineBtnText}>
+                                      {t('groups.checkIn')}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })()}
 
                               <MaterialIcons
                                 name={isExpanded ? 'expand-less' : 'expand-more'}
@@ -1266,7 +1331,7 @@ export default function GroupDetailScreen() {
                               <View style={styles.placeExpanded}>
                                 <View style={styles.divider} />
 
-                                {/* Action buttons */}
+                                {/* Action buttons — details only; check-in is inline */}
                                 <View style={styles.actionRow}>
                                   <TouchableOpacity
                                     style={styles.detailsBtn}
@@ -1279,25 +1344,9 @@ export default function GroupDetailScreen() {
                                   >
                                     <Text style={styles.detailsBtnText}>{t('home.details')}</Text>
                                   </TouchableOpacity>
-                                  {!place.user_checked_in && (
-                                    <TouchableOpacity
-                                      style={styles.checkInBtn}
-                                      onPress={() =>
-                                        setCheckInSheet({
-                                          visible: true,
-                                          placeCode: place.place_code,
-                                          placeName: place.name,
-                                        })
-                                      }
-                                      activeOpacity={0.8}
-                                    >
-                                      <Text style={styles.checkInBtnText}>
-                                        {t('groups.checkIn')}
-                                      </Text>
-                                    </TouchableOpacity>
-                                  )}
                                 </View>
-                                {place.user_checked_in && (
+                                {(place.user_checked_in ||
+                                  checkInUiState[place.place_code] === 'success') && (
                                   <View style={styles.alreadyCheckedBtn}>
                                     <Text style={styles.alreadyCheckedText}>
                                       ✓ {t('groups.checkedIn')}
@@ -1646,6 +1695,27 @@ export default function GroupDetailScreen() {
             </View>
           )}
 
+          {/* Map view section */}
+          {activeTab === 'route' && checklist && checklist.places.length > 0 && (
+            <View style={styles.mapSection}>
+              <Text style={styles.mapSectionTitle}>{t('groups.mapView')}</Text>
+              <JourneyMapView
+                places={checklist.places.map((p) => ({
+                  place_code: p.place_code,
+                  name: p.name,
+                  latitude: 0,
+                  longitude: 0,
+                  user_checked_in: p.user_checked_in,
+                }))}
+                onPlaceSelect={(placeCode) => {
+                  setExpandedPlaceCode(placeCode);
+                  setActiveTab('route');
+                }}
+                height={240}
+              />
+            </View>
+          )}
+
           {/* Ad: bottom of tab content */}
           <View style={{ marginTop: 16 }}>
             <AdBannerNative slot="group-detail-bottom" format="banner" />
@@ -1653,40 +1723,27 @@ export default function GroupDetailScreen() {
         </View>
       </ScrollView>
 
-      {/* ── GLASS CONTEXTUAL BOTTOM BAR ── */}
-      <View style={[styles.glassBar, { paddingBottom: insets.bottom + 12 }]}>
-        <View style={styles.glassBarInner}>
-          {isAdmin ? (
-            <>
-              <TouchableOpacity
-                style={styles.glassBarBtn}
-                onPress={() => navigation.navigate('EditGroup', { groupCode })}
-                activeOpacity={0.8}
-              >
-                <MaterialIcons name="add-location" size={16} color="#fff" />
-                <Text style={styles.glassBarBtnText}>{t('groups.addPlace')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.glassBarBtnOutline}
-                onPress={() => shareUrl(group.name, inviteUrl || '')}
-                activeOpacity={0.8}
-              >
-                <MaterialIcons name="share" size={16} color={tokens.colors.primary} />
-                <Text style={styles.glassBarBtnTextOutline}>{t('common.share')}</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <TouchableOpacity
-              style={styles.glassBarBtn}
-              onPress={() => shareUrl(group.name, inviteUrl || '')}
-              activeOpacity={0.8}
-            >
-              <MaterialIcons name="person-add" size={16} color="#fff" />
-              <Text style={styles.glassBarBtnText}>{t('journey.inviteFriends')}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
+      {/* ── FAB: Add Place (admin only) ── */}
+      {isAdmin && (
+        <Animated.View
+          style={[styles.fab, { bottom: insets.bottom + 24 }, { transform: [{ scale: fabScale }] }]}
+          pointerEvents="box-none"
+        >
+          <TouchableOpacity
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onPress={() => navigation.navigate('EditGroupPlaces', { groupCode })}
+            activeOpacity={0.85}
+          >
+            <MaterialIcons name="add-location" size={26} color="#fff" />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
       {/* Check-in sheet */}
       <GroupCheckInSheet
@@ -1696,7 +1753,25 @@ export default function GroupDetailScreen() {
         placeName={checkInSheet.placeName}
         onClose={() => setCheckInSheet({ visible: false, placeCode: '', placeName: '' })}
         onSuccess={() => {
+          const checkedPlaceCode = checkInSheet.placeCode;
           setCheckInSheet({ visible: false, placeCode: '', placeName: '' });
+          // Haptic feedback
+          try {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          } catch {
+            // expo-haptics may not be available
+          }
+          // Show success animation on the inline button
+          setCheckInUiState((prev) => ({ ...prev, [checkedPlaceCode]: 'success' }));
+          const scale = getCheckmarkScale(checkedPlaceCode);
+          scale.setValue(0);
+          Animated.spring(scale, {
+            toValue: 1,
+            useNativeDriver: true,
+            tension: 200,
+            friction: 8,
+          }).start();
+          // Refresh checklist to update progress display
           fetchChecklist();
         }}
       />

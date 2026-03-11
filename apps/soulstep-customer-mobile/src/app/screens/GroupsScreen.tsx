@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  Animated,
 } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,6 +20,7 @@ import type { Group } from '@/lib/types';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { tokens } from '@/lib/theme';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
+import JoinJourneyModal from '@/components/groups/JoinJourneyModal';
 
 type MainTabParamList = {
   Home: undefined;
@@ -25,25 +28,6 @@ type MainTabParamList = {
   Groups: undefined;
   Profile: undefined;
 };
-
-function formatRelative(iso: string | null | undefined, t: (key: string) => string): string {
-  if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffM = Math.floor(diffMs / 60000);
-    const diffH = Math.floor(diffM / 60);
-    const diffD = Math.floor(diffH / 24);
-    if (diffM < 1) return t('common.timeJustNow');
-    if (diffM < 60) return t('common.timeMinutesAgo').replace('{count}', String(diffM));
-    if (diffH < 24) return t('common.timeHoursAgo').replace('{count}', String(diffH));
-    if (diffD < 7) return t('common.timeDaysAgo').replace('{count}', String(Math.max(1, diffD)));
-    return d.toLocaleDateString();
-  } catch {
-    return '';
-  }
-}
 
 function progressLevel(sites: number, total: number, t: (key: string) => string): string {
   if (total <= 0) return '';
@@ -74,7 +58,6 @@ function makeStyles(isDark: boolean) {
   const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
   const textMain = isDark ? '#ffffff' : tokens.colors.textDark;
   const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
-  const textSecondary = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary;
 
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: bg },
@@ -83,17 +66,45 @@ function makeStyles(isDark: boolean) {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: 24,
-      paddingBottom: 16,
+      paddingHorizontal: 20,
+      paddingBottom: 12,
     },
+    headerLeft: { flex: 1 },
     title: {
-      fontSize: 28,
+      fontSize: 26,
       fontWeight: '700',
       color: textMain,
       letterSpacing: -0.5,
     },
+    countBadge: {
+      marginTop: 2,
+      fontSize: 12,
+      fontWeight: '600',
+      color: tokens.colors.primary,
+    },
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    joinBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: isDark ? 'rgba(176,86,61,0.15)' : 'rgba(176,86,61,0.1)',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: isDark ? 'rgba(176,86,61,0.3)' : 'rgba(176,86,61,0.2)',
+    },
+    joinBtnText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: tokens.colors.primary,
+    },
     loader: { marginVertical: 24 },
-    errorWrap: { marginBottom: 16 },
+    errorWrap: { marginBottom: 16, paddingHorizontal: 20 },
     errorText: { color: '#b91c1c', marginBottom: 8 },
     retryButton: { alignSelf: 'flex-start' },
     retryText: { color: tokens.colors.primary, fontWeight: '600' },
@@ -105,6 +116,7 @@ function makeStyles(isDark: boolean) {
       borderWidth: 1,
       borderColor: border,
       backgroundColor: surface,
+      marginHorizontal: 20,
     },
     emptyIcon: { fontSize: 48, marginBottom: 16, color: textMuted },
     emptyTitle: { fontSize: 18, fontWeight: '600', color: textMain, marginBottom: 8 },
@@ -116,127 +128,275 @@ function makeStyles(isDark: boolean) {
       borderRadius: tokens.borderRadius.xl,
     },
     emptyCtaText: { color: '#fff', fontWeight: '600' },
-    avatarRowSmall: { flexDirection: 'row' },
-    rowCard: {
-      backgroundColor: surface,
-      borderRadius: tokens.borderRadius['2xl'],
-      padding: 16,
+
+    // ── Stats banner ──
+    statsBanner: {
+      flexDirection: 'row',
+      marginHorizontal: 20,
+      marginBottom: 16,
+      borderRadius: 16,
+      overflow: 'hidden',
+      backgroundColor: isDark ? tokens.colors.darkSurface : tokens.colors.surface,
       borderWidth: 1,
       borderColor: border,
-      marginBottom: 12,
-      ...tokens.shadow.card,
     },
-    completedCard: { opacity: 0.6 },
-    rowTop: {
+    statItem: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 12,
+    },
+    statDivider: {
+      width: 1,
+      backgroundColor: border,
+      marginVertical: 8,
+    },
+    statValue: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: tokens.colors.primary,
+      letterSpacing: -0.5,
+    },
+    statLabel: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: textMuted,
+      marginTop: 2,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+
+    // ── Section header ──
+    sectionHeader: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 20,
       marginBottom: 12,
     },
-    coverImage: {
-      width: 48,
-      height: 48,
-      borderRadius: tokens.borderRadius.xl,
-      marginRight: 12,
+    sectionTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: textMain,
     },
-    coverFallback: {
-      width: 48,
-      height: 48,
-      borderRadius: tokens.borderRadius.xl,
-      marginRight: 12,
-      backgroundColor: isDark ? tokens.colors.primaryAlphaDark : tokens.colors.softBlue,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    coverFallbackText: { fontSize: 24, color: tokens.colors.primary },
-    rowLeft: { flex: 1, marginRight: 12, minWidth: 0 },
-    rowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-    rowName: { fontSize: 16, fontWeight: '700', color: textMain, flex: 1 },
-    rowDoneIcon: { fontSize: 14, color: tokens.colors.openNow },
-    activityDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: tokens.colors.activityGreen,
-    },
-    rowDescription: { fontSize: 12, color: textMuted, marginBottom: 2 },
-    rowLastActive: { fontSize: 12, color: textMuted },
-    smallAvatar: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: isDark ? '#2a3a5e' : tokens.colors.softBlue,
-      borderWidth: 2,
-      borderColor: isDark ? tokens.colors.darkBorder : '#fff',
-    },
-    smallAvatarPlus: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: isDark ? '#2a2a2e' : '#f1f5f9',
-      borderWidth: 2,
-      borderColor: isDark ? tokens.colors.darkBorder : '#fff',
-      marginLeft: -8,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    smallAvatarPlusText: { fontSize: 9, fontWeight: '700', color: textMuted },
-    rowProgressMeta: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 6,
-    },
-    rowSitesCount: { fontSize: 12, fontWeight: '500', color: textSecondary },
-    levelBadge: {
+    sectionBadge: {
       paddingHorizontal: 8,
       paddingVertical: 2,
+      borderRadius: 10,
+      backgroundColor: isDark ? 'rgba(176,86,61,0.2)' : 'rgba(176,86,61,0.1)',
+    },
+    sectionBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: tokens.colors.primary,
+    },
+
+    // ── Premium journey card ──
+    journeyCard: {
+      marginHorizontal: 20,
+      marginBottom: 16,
+      borderRadius: 20,
+      overflow: 'hidden',
+      height: 200,
+      ...tokens.shadow.cardMd,
+    },
+    cardImage: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    },
+    cardGradientOverlay: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: '70%',
+      backgroundColor: 'rgba(0,0,0,0)',
+    },
+    cardOverlay: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: '60%',
+      backgroundColor: 'rgba(0,0,0,0.55)',
+    },
+    cardFallback: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: tokens.colors.primary,
+    },
+    cardFallbackAccent: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: isDark ? 'rgba(176,86,61,0.6)' : 'rgba(176,86,61,0.8)',
+    },
+    cardContent: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: 14,
+    },
+    cardTopRow: {
+      position: 'absolute',
+      top: 10,
+      left: 12,
+      right: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    activityDot: {
+      width: 8,
+      height: 8,
       borderRadius: 4,
-      backgroundColor: isDark ? '#1a2a4e' : '#eff6ff',
+      backgroundColor: tokens.colors.activityGreen,
+    },
+    levelBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 10,
+      backgroundColor: 'rgba(255,255,255,0.2)',
       borderWidth: 1,
-      borderColor: 'rgba(59,130,246,0.2)',
+      borderColor: 'rgba(255,255,255,0.3)',
     },
     levelBadgeDone: {
-      backgroundColor: isDark ? '#1a3a2e' : '#dcfce7',
-      borderColor: 'rgba(34,197,94,0.2)',
-    },
-    levelBadgeNew: {
-      backgroundColor: isDark ? '#1a1a3e' : '#eef2ff',
-      borderColor: 'rgba(99,102,241,0.2)',
+      backgroundColor: 'rgba(22,163,74,0.3)',
+      borderColor: 'rgba(22,163,74,0.5)',
     },
     levelBadgeText: {
       fontSize: 10,
       fontWeight: '700',
-      color: tokens.colors.primary,
+      color: '#fff',
       textTransform: 'uppercase',
     },
-    levelBadgeTextDone: { color: '#16a34a' },
-    levelBadgeTextNew: { color: '#4f46e5' },
-    rowBarBg: {
-      height: 3,
-      backgroundColor: isDark ? tokens.colors.darkBorder : '#f1f5f9',
-      borderRadius: 2,
-      overflow: 'hidden',
+    cardName: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: '#fff',
+      marginBottom: 4,
+      letterSpacing: -0.3,
     },
-    rowBarFill: {
-      height: '100%',
-      backgroundColor: tokens.colors.primary,
-      borderRadius: 2,
+    cardMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 8,
     },
-    rowBarFillDone: { backgroundColor: tokens.colors.openNow },
-    fab: {
-      position: 'absolute',
-      right: 24,
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: tokens.colors.primary,
+    cardMetaLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    cardMetaText: {
+      fontSize: 11,
+      color: 'rgba(255,255,255,0.8)',
+    },
+    avatarStack: {
+      flexDirection: 'row',
+    },
+    smallAvatar: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: isDark ? '#2a3a5e' : tokens.colors.softBlue,
+      borderWidth: 1.5,
+      borderColor: 'rgba(255,255,255,0.4)',
+      marginLeft: -6,
       alignItems: 'center',
       justifyContent: 'center',
-      ...tokens.shadow.elevated,
     },
-    fabText: { fontSize: 28, color: '#fff', fontWeight: '300' },
+    smallAvatarFirst: {
+      marginLeft: 0,
+    },
+    smallAvatarPlus: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: 'rgba(0,0,0,0.3)',
+      borderWidth: 1.5,
+      borderColor: 'rgba(255,255,255,0.3)',
+      marginLeft: -6,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    smallAvatarPlusText: { fontSize: 8, fontWeight: '700', color: '#fff' },
+    progressBarBg: {
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      overflow: 'hidden',
+      marginBottom: 8,
+    },
+    progressBarFill: {
+      height: '100%',
+      backgroundColor: '#fff',
+      borderRadius: 2,
+    },
+    progressBarFillDone: {
+      backgroundColor: tokens.colors.openNow,
+    },
+    cardBottom: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    progressText: {
+      fontSize: 11,
+      color: 'rgba(255,255,255,0.7)',
+    },
+    continueBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      backgroundColor: 'rgba(255,255,255,0.2)',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.3)',
+    },
+    continueBtnText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: '#fff',
+    },
   });
+}
+
+// Animated card wrapper
+function AnimatedCard({ index, children }: { index: number; children: React.ReactNode }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 350,
+      delay: index * 100,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(translateY, {
+      toValue: 0,
+      duration: 350,
+      delay: index * 100,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeAnim, translateY, index]);
+
+  return (
+    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY }] }}>
+      {children}
+    </Animated.View>
+  );
 }
 
 export default function GroupsScreen() {
@@ -251,6 +411,7 @@ export default function GroupsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [joinModalVisible, setJoinModalVisible] = useState(false);
 
   const fetchGroups = useCallback(() => {
     if (!user) {
@@ -298,17 +459,22 @@ export default function GroupsScreen() {
   const textMain = isDark ? '#ffffff' : tokens.colors.textDark;
   const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
 
+  // Stats
+  const totalVisited = groups.reduce((sum, g) => sum + (g.sites_visited ?? 0), 0);
+
   // Visitor empty state
   if (!user) {
     return (
       <View style={[styles.container, { backgroundColor: bg }]}>
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <Text style={styles.title}>{t('groups.myGroups')}</Text>
+          <View style={styles.headerLeft}>
+            <Text style={styles.title}>{t('groups.myGroups')}</Text>
+          </View>
         </View>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={{
-            paddingHorizontal: 24,
+            paddingHorizontal: 0,
             paddingBottom: insets.bottom + 100,
             flexGrow: 1,
             justifyContent: 'center',
@@ -357,13 +523,31 @@ export default function GroupsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: bg }]}>
+      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.title}>{t('groups.myGroups')}</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.title}>{t('groups.myGroups')}</Text>
+          {groups.length > 0 && (
+            <Text style={styles.countBadge}>
+              {groups.length} {groups.length === 1 ? t('groups.journey') : t('groups.journeys')}
+            </Text>
+          )}
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.joinBtn}
+            onPress={() => setJoinModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="group-add" size={14} color={tokens.colors.primary} />
+            <Text style={styles.joinBtnText}>{t('journey.joinWithCode')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 100 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -392,49 +576,81 @@ export default function GroupsScreen() {
             <Text style={[styles.emptyDesc, { color: textMuted }]}>
               {t('groups.noGroupsDescription')}
             </Text>
+            <TouchableOpacity style={styles.emptyCta} onPress={navToCreate} activeOpacity={0.8}>
+              <Text style={styles.emptyCtaText}>{t('journey.startPlanning')}</Text>
+            </TouchableOpacity>
           </View>
         )}
 
         {!loading && !error && groups.length > 0 && (
           <>
-            {groups.map((g) => {
+            {/* Stats banner */}
+            <View style={styles.statsBanner}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{groups.length}</Text>
+                <Text style={styles.statLabel}>{t('groups.journeys')}</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{totalVisited}</Text>
+                <Text style={styles.statLabel}>{t('groups.placesVisited')}</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {groups.reduce((sum, g) => sum + (g.total_sites ?? 0), 0)}
+                </Text>
+                <Text style={styles.statLabel}>{t('groups.totalSites')}</Text>
+              </View>
+            </View>
+
+            {/* Section header */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{t('groups.myJourneys')}</Text>
+              <View style={styles.sectionBadge}>
+                <Text style={styles.sectionBadgeText}>{groups.length}</Text>
+              </View>
+            </View>
+
+            {/* Journey cards */}
+            {groups.map((g, idx) => {
               const total = g.total_sites ?? 0;
               const visited = g.sites_visited ?? 0;
               const pct = total > 0 ? Math.min(100, Math.round((visited / total) * 100)) : 0;
               const level = progressLevel(visited, total, t);
-              const lastActive = formatRelative(g.last_activity ?? undefined, t);
               const recently = isRecentlyActive(g.last_activity);
               const isDone = level === t('groups.progressDone');
-              const isNew = level === t('groups.progressNew');
               const coverUrl = g.cover_image_url ? getFullImageUrl(g.cover_image_url) : null;
+              const memberCount = g.member_count ?? 0;
+
               return (
-                <TouchableOpacity
-                  key={g.group_code}
-                  style={[styles.rowCard, isDone && styles.completedCard]}
-                  onPress={() => navToGroup(g.group_code)}
-                  activeOpacity={0.8}
-                >
-                  {/* Top row: cover + info + avatars */}
-                  <View style={styles.rowTop}>
-                    {/* Cover thumbnail */}
+                <AnimatedCard key={g.group_code} index={idx}>
+                  <TouchableOpacity
+                    style={styles.journeyCard}
+                    onPress={() => navToGroup(g.group_code)}
+                    activeOpacity={0.88}
+                  >
+                    {/* Background image or fallback */}
                     {coverUrl ? (
-                      <ExpoImage
-                        source={{ uri: coverUrl }}
-                        style={styles.coverImage}
-                        contentFit="cover"
-                      />
+                      <>
+                        <ExpoImage
+                          source={{ uri: coverUrl }}
+                          style={styles.cardImage}
+                          contentFit="cover"
+                        />
+                        <View style={styles.cardOverlay} />
+                      </>
                     ) : (
-                      <View style={styles.coverFallback}>
-                        <Text style={styles.coverFallbackText}>◆</Text>
+                      <View
+                        style={[styles.cardFallback, { backgroundColor: tokens.colors.primary }]}
+                      >
+                        <View style={styles.cardFallbackAccent} />
                       </View>
                     )}
 
-                    {/* Name + description + last active */}
-                    <View style={styles.rowLeft}>
-                      <View style={styles.rowTitleRow}>
-                        <Text style={styles.rowName} numberOfLines={1}>
-                          {g.name}
-                        </Text>
+                    {/* Top row: activity dot + level badge */}
+                    <View style={styles.cardTopRow}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         {recently && (
                           <View
                             style={[
@@ -448,81 +664,84 @@ export default function GroupsScreen() {
                             ]}
                           />
                         )}
-                        {isDone && <Text style={styles.rowDoneIcon}>✓</Text>}
                       </View>
-                      {g.description ? (
-                        <Text style={styles.rowDescription} numberOfLines={1}>
-                          {g.description}
-                        </Text>
+                      {level ? (
+                        <View style={[styles.levelBadge, isDone && styles.levelBadgeDone]}>
+                          <Text style={styles.levelBadgeText}>{level}</Text>
+                        </View>
                       ) : null}
-                      <Text style={styles.rowLastActive}>
-                        {lastActive
-                          ? t('groups.lastActive').replace('{relative}', lastActive)
-                          : g.created_at
-                            ? `${t('groups.created')} ${new Date(g.created_at).toLocaleDateString()}`
-                            : ''}
-                      </Text>
                     </View>
 
-                    {/* Member avatars */}
-                    <View style={styles.avatarRowSmall}>
-                      {[1, 2].slice(0, Math.min(2, g.member_count ?? 0)).map((i) => (
-                        <View key={i} style={[styles.smallAvatar, i >= 1 && { marginLeft: -8 }]} />
-                      ))}
-                      {(g.member_count ?? 0) > 2 && (
-                        <View style={styles.smallAvatarPlus}>
-                          <Text style={styles.smallAvatarPlusText}>
-                            +{(g.member_count ?? 0) - 2}
+                    {/* Bottom content */}
+                    <View style={styles.cardContent}>
+                      <Text style={styles.cardName} numberOfLines={1}>
+                        {g.name}
+                      </Text>
+
+                      {/* Meta row: member avatars + sites count */}
+                      <View style={styles.cardMeta}>
+                        <View style={styles.cardMetaLeft}>
+                          {/* Avatar stack */}
+                          {memberCount > 0 && (
+                            <View style={styles.avatarStack}>
+                              {[0, 1, 2].slice(0, Math.min(3, memberCount)).map((i) => (
+                                <View
+                                  key={i}
+                                  style={[styles.smallAvatar, i === 0 && styles.smallAvatarFirst]}
+                                />
+                              ))}
+                              {memberCount > 3 && (
+                                <View style={styles.smallAvatarPlus}>
+                                  <Text style={styles.smallAvatarPlusText}>+{memberCount - 3}</Text>
+                                </View>
+                              )}
+                            </View>
+                          )}
+                          <Text style={styles.cardMetaText}>
+                            {memberCount} {t('groups.members')}
                           </Text>
                         </View>
-                      )}
-                    </View>
-                  </View>
-
-                  {/* Sites count + level badge */}
-                  <View style={styles.rowProgressMeta}>
-                    <Text style={styles.rowSitesCount}>
-                      {t('groups.sitesCount')
-                        .replace('{visited}', String(visited))
-                        .replace('{total}', String(total || '—'))}
-                    </Text>
-                    {level ? (
-                      <View
-                        style={[
-                          styles.levelBadge,
-                          isDone && styles.levelBadgeDone,
-                          isNew && styles.levelBadgeNew,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.levelBadgeText,
-                            isDone && styles.levelBadgeTextDone,
-                            isNew && styles.levelBadgeTextNew,
-                          ]}
-                        >
-                          {level}
+                        <Text style={styles.cardMetaText}>
+                          {visited}/{total} {t('groups.places')}
                         </Text>
                       </View>
-                    ) : null}
-                  </View>
 
-                  {/* Progress bar */}
-                  <View style={styles.rowBarBg}>
-                    <View
-                      style={[
-                        styles.rowBarFill,
-                        { width: `${pct}%` as `${number}%` },
-                        isDone && styles.rowBarFillDone,
-                      ]}
-                    />
-                  </View>
-                </TouchableOpacity>
+                      {/* Progress bar */}
+                      <View style={styles.progressBarBg}>
+                        <View
+                          style={[
+                            styles.progressBarFill,
+                            { width: `${pct}%` as `${number}%` },
+                            isDone && styles.progressBarFillDone,
+                          ]}
+                        />
+                      </View>
+
+                      {/* Bottom: percentage + Continue CTA */}
+                      <View style={styles.cardBottom}>
+                        <Text style={styles.progressText}>
+                          {pct}% {t('groups.completed')}
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.continueBtn}
+                          onPress={() => navToGroup(g.group_code)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.continueBtnText}>{t('journey.continueJourney')}</Text>
+                          <MaterialIcons name="arrow-forward" size={12} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                </AnimatedCard>
               );
             })}
           </>
         )}
       </ScrollView>
+
+      {/* Join Journey Modal */}
+      <JoinJourneyModal visible={joinModalVisible} onClose={() => setJoinModalVisible(false)} />
     </View>
   );
 }
