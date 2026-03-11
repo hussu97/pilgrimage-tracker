@@ -220,6 +220,75 @@ def get_async_rate_limiter() -> AsyncRateLimiter:
     return _async_rate_limiter_instance
 
 
+class CircuitBreaker:
+    """
+    Async circuit breaker for external API calls.
+
+    After `failure_threshold` consecutive failures the circuit opens and all
+    subsequent calls raise RuntimeError immediately, giving the downstream
+    service time to recover.  After `reset_timeout_s` seconds the breaker
+    enters the half-open state: the next call is allowed through.  On success
+    it closes; on failure it opens again immediately.
+
+    Usage::
+
+        cb = CircuitBreaker(name="wikipedia")
+        result = await cb.call(fetch_wikipedia(name))
+    """
+
+    def __init__(
+        self,
+        failure_threshold: int = 5,
+        reset_timeout_s: float = 60.0,
+        name: str = "unnamed",
+    ) -> None:
+        self._failure_threshold = failure_threshold
+        self._reset_timeout_s = reset_timeout_s
+        self._name = name
+        self._consecutive_failures = 0
+        self._opened_at: float | None = None
+        self._lock = asyncio.Lock()
+
+    @property
+    def is_open(self) -> bool:
+        """True when the circuit is open and calls should be rejected."""
+        if self._opened_at is None:
+            return False
+        if time.monotonic() - self._opened_at >= self._reset_timeout_s:
+            return False  # half-open: allow next call through
+        return True
+
+    async def call(self, coro):
+        """Execute *coro*, tracking success/failure.
+
+        Raises RuntimeError immediately if the circuit is open.
+        Re-raises any exception from *coro* after recording the failure.
+        """
+        async with self._lock:
+            if self.is_open:
+                raise RuntimeError(f"Circuit breaker '{self._name}' is open — skipping call")
+
+        try:
+            result = await coro
+            async with self._lock:
+                if self._consecutive_failures > 0:
+                    logger.info("Circuit breaker '%s' closed after successful call", self._name)
+                self._consecutive_failures = 0
+                self._opened_at = None
+            return result
+        except Exception:
+            async with self._lock:
+                self._consecutive_failures += 1
+                if self._consecutive_failures >= self._failure_threshold:
+                    self._opened_at = time.monotonic()
+                    logger.warning(
+                        "Circuit breaker '%s' opened after %d consecutive failures",
+                        self._name,
+                        self._consecutive_failures,
+                    )
+            raise
+
+
 async def async_request_with_backoff(
     method: str,
     url: str,

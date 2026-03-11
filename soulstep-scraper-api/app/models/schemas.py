@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DataLocationCreate(BaseModel):
@@ -11,7 +11,7 @@ class DataLocationCreate(BaseModel):
     country: str | None = None
     state: str | None = None  # State/province level (e.g., "California", "Maharashtra")
     city: str | None = None  # City level (most granular)
-    max_results: int | None = None  # Limit results for testing
+    max_results: int | None = Field(default=None, ge=1, le=100_000)  # Limit results for testing
     force_refresh: bool | None = False  # Ignore cached places and force fresh fetch
     stale_threshold_days: int | None = 90  # Re-fetch if cached data older than this
 

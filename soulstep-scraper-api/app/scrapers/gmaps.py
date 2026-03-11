@@ -16,6 +16,13 @@ from typing import Any
 import httpx
 from sqlmodel import Session, desc, select
 
+from app.config import settings
+from app.constants import (
+    DEFAULT_STALE_THRESHOLD_DAYS,
+    DETAIL_FLUSH_BATCH_SIZE,
+    MAX_DISCOVERY_RADIUS_M,
+    MIN_DISCOVERY_RADIUS_M,
+)
 from app.db.models import GeoBoundary, PlaceTypeMapping, RawCollectorData, ScrapedPlace, ScraperRun
 from app.logger import get_logger
 from app.scrapers.base import (
@@ -28,10 +35,10 @@ from app.scrapers.cell_store import DiscoveryCellStore, GlobalCellStore
 
 logger = get_logger(__name__)
 
-# Configuration
-MIN_RADIUS = 500  # minimum radius for quadtree subdivision
-MAX_RADIUS = 50000  # Google Places API hard limit for searchNearby radius
-STALE_THRESHOLD_DAYS = 90  # Re-fetch place details if older than this
+# Configuration (kept as module-level aliases for code that reads them directly)
+MIN_RADIUS = MIN_DISCOVERY_RADIUS_M
+MAX_RADIUS = MAX_DISCOVERY_RADIUS_M
+STALE_THRESHOLD_DAYS = DEFAULT_STALE_THRESHOLD_DAYS
 
 
 def get_place_type_mappings(session: Session) -> dict[str, list[str]]:
@@ -561,7 +568,8 @@ async def discover_places(
     global_cache = GlobalCellStore(_engine)
 
     # Semaphore caps concurrent API calls across all coroutines.
-    api_semaphore = asyncio.Semaphore(10)
+    # Configurable via SCRAPER_DISCOVERY_CONCURRENCY env var (default 10).
+    api_semaphore = asyncio.Semaphore(settings.discovery_concurrency)
     rate_limiter = get_async_rate_limiter()
 
     async with httpx.AsyncClient(timeout=35.0) as discovery_client:
@@ -702,8 +710,9 @@ async def fetch_place_details(
 
     rate_limiter = get_async_rate_limiter()
     counter = AtomicCounter(initial=cached_count)
-    BATCH_SIZE = 10
-    fetch_sem = asyncio.Semaphore(20)  # max 20 concurrent detail fetches
+    flush_batch_size = DETAIL_FLUSH_BATCH_SIZE
+    # Configurable via SCRAPER_DETAIL_CONCURRENCY env var (default 20).
+    fetch_sem = asyncio.Semaphore(settings.detail_concurrency)
 
     # Buffer and lock for thread-safe batch writes (asyncio is single-threaded,
     # but we still need the buffer list to be consistent across await points)
@@ -760,7 +769,7 @@ async def fetch_place_details(
 
         buffer.append((place_name, details, response))
 
-        if len(buffer) >= BATCH_SIZE:
+        if len(buffer) >= flush_batch_size:
             _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
             buffer.clear()
 

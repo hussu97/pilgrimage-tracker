@@ -1,0 +1,53 @@
+"""
+Named constants for the SoulStep Scraper API.
+
+Centralises all magic numbers so they can be found and changed in one place.
+Import from here rather than duplicating literals across modules.
+"""
+
+# ── Sync pipeline ─────────────────────────────────────────────────────────────
+
+# Number of places sent to the server in a single batch POST.
+SYNC_BATCH_SIZE: int = 25
+
+# Maximum number of concurrent batch POST requests during sync.
+SYNC_BATCH_CONCURRENCY: int = 3
+
+# ── Detail-fetch pipeline ─────────────────────────────────────────────────────
+
+# Number of place details written to the DB in one flush during fetch_place_details.
+DETAIL_FLUSH_BATCH_SIZE: int = 10
+
+# ── Discovery (quadtree) ──────────────────────────────────────────────────────
+
+# Minimum bounding-box radius (metres) at which quadtree stops subdividing.
+MIN_DISCOVERY_RADIUS_M: int = 500
+
+# Google Places API hard limit for searchNearby radius (metres).
+MAX_DISCOVERY_RADIUS_M: int = 50_000
+
+# Maximum results returned by a single Google Places searchNearby call.
+GMAPS_MAX_RESULTS_PER_CALL: int = 20
+
+# ── Cache / staleness ─────────────────────────────────────────────────────────
+
+# Default number of days before a cached place detail is considered stale.
+DEFAULT_STALE_THRESHOLD_DAYS: int = 90
+
+# ── Concurrency limits ────────────────────────────────────────────────────────
+
+# Default max concurrent Google Maps discovery API calls.
+DEFAULT_DISCOVERY_CONCURRENCY: int = 10
+
+# Default max concurrent Google Maps detail-fetch API calls.
+DEFAULT_DETAIL_CONCURRENCY: int = 20
+
+# Default max concurrent places enriched in parallel.
+DEFAULT_ENRICHMENT_CONCURRENCY: int = 10
+
+# Number of places shown in the "currently enriching" snapshot in the activity endpoint.
+ENRICHING_SNAPSHOT_LIMIT: int = 5
+
+# ── Quality gate thresholds ───────────────────────────────────────────────────
+# These are authoritative in app/pipeline/place_quality.py.
+# Do NOT override them here — import from place_quality directly.

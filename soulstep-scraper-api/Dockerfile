@@ -11,6 +11,11 @@ COPY . .
 # Set SCRAPER_DB_PATH=/data/scraper.db and mount a volume at /data.
 RUN mkdir -p /data
 
+# Run as a non-root user to reduce attack surface.
+RUN adduser --disabled-password --no-create-home appuser \
+    && chown -R appuser /app /data
+USER appuser
+
 # Cloud Run injects PORT=8080; fall back to 8080 for local docker run too.
 EXPOSE 8080
 

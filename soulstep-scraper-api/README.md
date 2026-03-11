@@ -17,7 +17,8 @@ A FastAPI service that discovers sacred places via Google Maps, enriches them fr
     cd soulstep-scraper-api
     python3 -m venv .venv
     source .venv/bin/activate
-    pip install -r requirements.txt
+    pip install -r requirements.txt          # production dependencies
+    pip install -r requirements-dev.txt      # adds pytest, ruff (dev/test only)
     ```
 
 2.  **Environment Variables**:
@@ -32,10 +33,36 @@ A FastAPI service that discovers sacred places via Google Maps, enriches them fr
     BESTTIME_API_KEY=
     FOURSQUARE_API_KEY=
     OUTSCRAPER_API_KEY=
+    KNOWLEDGE_GRAPH_API_KEY=
 
     # LLM-based description assessment (leave blank for heuristic-only)
     GEMINI_API_KEY=
+
+    # Database (default: SQLite at ./scraper.db, set for PostgreSQL)
+    SCRAPER_DB_URL=
+    SCRAPER_DB_PATH=./scraper.db
+
+    # Concurrency tuning (optional, defaults shown)
+    SCRAPER_DISCOVERY_CONCURRENCY=10
+    SCRAPER_DETAIL_CONCURRENCY=20
+    SCRAPER_ENRICHMENT_CONCURRENCY=10
     ```
+
+    | Variable | Required | Default | Description |
+    |---|---|---|---|
+    | `GOOGLE_MAPS_API_KEY` | **Yes** | — | Google Maps/Places API key for discovery and detail fetch |
+    | `MAIN_SERVER_URL` | **Yes** | `http://127.0.0.1:3000` | Base URL of the SoulStep Catalog API |
+    | `SCRAPER_TIMEZONE` | No | `UTC` | Timezone for normalising opening hours |
+    | `GEMINI_API_KEY` | No | — | Enables LLM tie-breaking in description selection |
+    | `BESTTIME_API_KEY` | No | — | Enables BestTime collector (busyness forecasts) |
+    | `FOURSQUARE_API_KEY` | No | — | Enables Foursquare collector (tips, popularity) |
+    | `OUTSCRAPER_API_KEY` | No | — | Enables Outscraper collector (extended reviews) |
+    | `KNOWLEDGE_GRAPH_API_KEY` | No | — | Enables Knowledge Graph collector (entity descriptions) |
+    | `SCRAPER_DB_URL` | No | — | Full SQLAlchemy DB URL (overrides `SCRAPER_DB_PATH`) |
+    | `SCRAPER_DB_PATH` | No | `./scraper.db` | Path to SQLite database file |
+    | `SCRAPER_DISCOVERY_CONCURRENCY` | No | `10` | Max concurrent Google Maps search calls during discovery |
+    | `SCRAPER_DETAIL_CONCURRENCY` | No | `20` | Max concurrent place detail fetches |
+    | `SCRAPER_ENRICHMENT_CONCURRENCY` | No | `10` | Max places enriched concurrently |
 
 3.  **Run Server**:
     ```bash
@@ -50,6 +77,28 @@ A FastAPI service that discovers sacred places via Google Maps, enriches them fr
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    A[API Request\nPOST /runs] --> B[Discovery\nGMaps quadtree search]
+    B --> C[Detail Fetch\nGMaps Places API]
+    C --> D[Image Download\nPhoto CDN]
+    D --> E{Quality Gate\nGATE_IMAGE = 0.50}
+    E -->|below| F[Filtered out]
+    E -->|pass| G{Quality Gate\nGATE_ENRICHMENT = 0.60}
+    G -->|below| F
+    G -->|pass| H[Enrichment Pipeline]
+    H --> H1[Phase 0: OSM/Overpass\namenities, tags, names]
+    H1 --> H2[Phase 1: Wikipedia + Wikidata\ndescriptions, heritage, socials]
+    H2 --> H3[Phase 2: KnowledgeGraph + BestTime\n+ Foursquare + Outscraper]
+    H3 --> I[Quality Assessment\nheuristic scoring + LLM tie-break]
+    I --> J[Data Merge\npriority-based conflict resolution]
+    J --> K{Quality Gate\nGATE_SYNC = 0.70}
+    K -->|below| F
+    K -->|pass| L[Sync to Catalog API\nPOST /places/batch]
+```
+
+### Pipeline stages (ASCII fallback)
+
 ```
 Discovery (gmaps quadtree)
     │
@@ -57,28 +106,33 @@ Discovery (gmaps quadtree)
 Primary Details (gmaps Places API - enhanced field mask)
     │
     ▼
-Enrichment Pipeline (collectors in dependency order)
-    ├── OSM/Overpass     →  amenities, contact, wikipedia/wikidata tags, multilingual names
-    ├── Wikipedia        →  descriptions (en/ar/hi), images
-    ├── Wikidata         →  founding date, heritage status, socials, structured data
-    ├── Knowledge Graph  →  entity descriptions, schema.org types (FREE, 100k/day)
-    ├── BestTime         →  busyness forecasts (optional, paid)
-    ├── Foursquare       →  tips, popularity (optional, paid)
-    └── Outscraper       →  extended Google reviews (optional, paid)
+Image Download (Google Photo CDN)
     │
-    ▼
+    ▼  ← GATE_IMAGE_DOWNLOAD (0.50) filters permanently closed / zero-data places
+Enrichment Pipeline (collectors in dependency order)
+    ├── Phase 0: OSM/Overpass     →  amenities, contact, wikipedia/wikidata tags, multilingual names
+    ├── Phase 1: Wikipedia        →  descriptions (en/ar/hi), images
+    │           Wikidata          →  founding date, heritage status, socials, structured data
+    └── Phase 2: Knowledge Graph  →  entity descriptions, schema.org types (FREE, 100k/day)
+                BestTime          →  busyness forecasts (optional, paid)
+                Foursquare        →  tips, popularity (optional, paid)
+                Outscraper        →  extended Google reviews (optional, paid)
+    │
+    ▼  ← GATE_ENRICHMENT (0.60) applied before Phase 0 starts
 Quality Assessment (heuristic + LLM hybrid)
     │
-    ▼
-Store final merged data → Sync to server
+    ▼  ← GATE_SYNC (0.70) applied before sync
+Sync to Catalog API
 ```
 
 ### Directory Structure
 
 ```
 soulstep-scraper-api/app/
+  config.py              # Centralised Settings (all env vars read once)
+  constants.py           # Named constants (batch sizes, concurrency defaults, radii)
   scrapers/
-    base.py              # generate_code, make_request_with_backoff
+    base.py              # RateLimiter, AsyncRateLimiter, AtomicCounter, CircuitBreaker
     gmaps.py             # Discovery (quadtree search, dedup) + detail fetching
   collectors/
     __init__.py
@@ -94,9 +148,22 @@ soulstep-scraper-api/app/
     registry.py          # Collector discovery + factory
   pipeline/
     __init__.py
-    enrichment.py        # Orchestrator: runs collectors in order
-    quality.py           # Description scoring + LLM tie-breaking
+    enrichment.py        # Orchestrator: runs collectors in dependency phases
+    quality.py           # Description scoring + LLM tie-breaking (Gemini)
     merger.py            # Combines all collector outputs into final data
+    place_quality.py     # Place-level quality scoring (0.0–1.0) + gate thresholds
+  seeds/
+    geo.py               # Pre-seeded geographic boundaries
+    place_types.py       # Default place-type → religion mappings
+  services/
+    run_activity.py      # get_activity_snapshot() — polled by admin UI
+    quality_metrics.py   # compute_quality_metrics() — aggregate quality stats
+  db/
+    models.py            # SQLModel ORM models
+    session.py           # Engine + SessionDep
+    scraper.py           # Orchestration (run, resume, sync)
+  api/v1/
+    scraper.py           # FastAPI router — all scraper endpoints
 ```
 
 ## Geographic Boundaries
@@ -251,7 +318,7 @@ Descriptions from all sources are scored using heuristics (0.0-1.0):
 - **Length/detail** (30%): Longer descriptions score higher
 - **Specificity** (30%): Place name mentions + relevant keywords
 
-When the top 2 candidates are within 0.15, an LLM (Claude Haiku) can optionally break the tie or synthesize a combined description. This is only triggered for ~10-20% of places.
+When the top 2 candidates are within 0.15, Gemini (`gemini-2.5-flash`) can optionally break the tie or synthesize a combined description. Requires `GEMINI_API_KEY`. This is only triggered for ~10-20% of places.
 
 ## Troubleshooting
 

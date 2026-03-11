@@ -4,6 +4,42 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Scraper API: Comprehensive Audit & Enhancement (2026-03-11)
+
+### Backend (scraper)
+
+**Architecture / Structure**
+- **`app/config.py`** (new) — centralised `Settings` class; all env vars read once at import time; eliminates scattered `os.environ.get()` calls across 8+ files
+- **`app/constants.py`** (new) — named constants for all magic numbers (`SYNC_BATCH_SIZE`, `SYNC_BATCH_CONCURRENCY`, `DETAIL_FLUSH_BATCH_SIZE`, `MIN_DISCOVERY_RADIUS_M`, `MAX_DISCOVERY_RADIUS_M`, etc.)
+- **`app/seeds/geo.py`** and **`app/seeds/place_types.py`** (new) — seed files moved from `app/db/` to a dedicated `app/seeds/` package; `app/main.py` updated imports
+- **`app/services/run_activity.py`** (new) — `get_activity_snapshot()` extracted from 60-line inline query in API layer
+- **`app/services/quality_metrics.py`** (new) — `compute_quality_metrics()` extracted from 160-line inline statistics in API layer
+- **`app/api/v1/scraper.py`** — thin `get_run_activity` and `get_quality_metrics` endpoints now delegate to service functions
+
+**Concurrency & Resilience**
+- **`app/scrapers/base.py`** — added `CircuitBreaker` class: opens after N consecutive failures, closes after `reset_timeout_s`, supports half-open probe
+- **`app/scrapers/gmaps.py`** — discovery and detail-fetch semaphores now use `settings.discovery_concurrency` / `settings.detail_concurrency` (env `SCRAPER_DISCOVERY_CONCURRENCY` / `SCRAPER_DETAIL_CONCURRENCY`, defaults 10/20)
+- **`app/pipeline/enrichment.py`** — enrichment semaphore uses `settings.enrichment_concurrency` (env `SCRAPER_ENRICHMENT_CONCURRENCY`, default 10)
+- **`app/db/scraper.py`** — removed dead sync wrappers (`post_batch`, `handle_sync_failures`); replaced `nonlocal int` counter with `AtomicCounter` in `sync_run_to_server_async`; shared `httpx.AsyncClient` reused across all batch workers
+
+**Reliability**
+- **`app/pipeline/place_quality.py`** — fixed `AttributeError` when `raw_data["name"]` is `None` (now uses `or ""` guard)
+- **`app/models/schemas.py`** — `DataLocationCreate.max_results` validated with `ge=1, le=100_000`
+- **`app/main.py`** — `GOOGLE_MAPS_API_KEY` logs at `CRITICAL` level on startup if missing
+- **`Dockerfile`** — runs as non-root `appuser` (security best practice)
+
+**Dependencies**
+- **`requirements-dev.txt`** (new) — dev/test deps (`pytest`, `pytest-asyncio`, `pytest-cov`, `ruff`) separated from production `requirements.txt`
+
+**Tests**
+- **`tests/test_backoff.py`** — added `TestCircuitBreaker` (7 tests): success, below-threshold failures, open-after-threshold, reset on success, half-open after timeout, `is_open` property
+- **`tests/test_quality_breakdown.py`** — added `TestQualityScoringEdgeCases` (10 tests): all-zero inputs, null name, extremely long name, generic/specific names, status scores, rating edge cases, type stability
+
+**Documentation**
+- **`soulstep-scraper-api/README.md`** — added Mermaid pipeline diagram, ASCII fallback diagram with gate thresholds annotated, updated directory structure listing all new files, full env var reference table, corrected LLM provider to Gemini, added `requirements-dev.txt` install step
+
+---
+
 ## Scraper: Migrate LLM Tie-Breaking from Anthropic to Google Gemini (2026-03-11)
 
 ### Backend (scraper)

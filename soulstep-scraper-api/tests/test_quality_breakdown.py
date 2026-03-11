@@ -155,3 +155,70 @@ class TestQualityBreakdownEndpoint:
         data = res.json()
         expected = score_place_quality(RICH_RAW)
         assert abs(data["total_score"] - expected) < 0.001
+
+
+# ── Edge-case tests for quality scoring ───────────────────────────────────────
+
+
+class TestQualityScoringEdgeCases:
+    def test_all_zero_inputs(self):
+        """All-zero raw_data should produce a low but valid score."""
+        result = score_place_quality_breakdown(
+            {
+                "rating": 0,
+                "user_rating_count": 0,
+            }
+        )
+        assert 0.0 <= result["total_score"] <= 1.0
+        assert len(result["factors"]) == 7
+
+    def test_null_name_field(self):
+        """Missing name should not raise — specificity factor handles None."""
+        result = score_place_quality_breakdown({"name": None})
+        assert 0.0 <= result["total_score"] <= 1.0
+
+    def test_extremely_long_name(self):
+        """A very long name should still produce a valid score."""
+        result = score_place_quality_breakdown({"name": "A" * 500})
+        assert 0.0 <= result["total_score"] <= 1.0
+
+    def test_single_word_generic_name_zero_specificity(self):
+        """A single generic word like 'Mosque' should score 0 on name specificity."""
+        result = score_place_quality_breakdown({"name": "Mosque"})
+        spec = next(f for f in result["factors"] if f["name"] == "Name Specificity")
+        assert spec["raw_score"] == 0.0
+
+    def test_specific_two_word_name_nonzero_specificity(self):
+        """A specific two-word name should score > 0 on name specificity."""
+        result = score_place_quality_breakdown({"name": "Al-Aqsa Mosque"})
+        spec = next(f for f in result["factors"] if f["name"] == "Name Specificity")
+        assert spec["raw_score"] > 0.0
+
+    def test_permanently_closed_low_status_score(self):
+        """CLOSED_PERMANENTLY should produce zero business status score."""
+        result = score_place_quality_breakdown({"business_status": "CLOSED_PERMANENTLY"})
+        status = next(f for f in result["factors"] if f["name"] == "Business Status")
+        assert status["raw_score"] == 0.0
+
+    def test_operational_status_full_score(self):
+        """OPERATIONAL business status should produce maximum status score."""
+        result = score_place_quality_breakdown({"business_status": "OPERATIONAL"})
+        status = next(f for f in result["factors"] if f["name"] == "Business Status")
+        assert status["raw_score"] == 1.0
+
+    def test_high_rating_high_reviews_max_rating_factor(self):
+        """Rating 4.9 with 10 000 reviews should produce near-max rating factor."""
+        result = score_place_quality_breakdown({"rating": 4.9, "user_rating_count": 10000})
+        rating = next(f for f in result["factors"] if f["name"] == "Rating & Reviews")
+        assert rating["raw_score"] >= 0.9
+
+    def test_score_is_float_not_int(self):
+        """total_score must be a float."""
+        result = score_place_quality_breakdown(RICH_RAW)
+        assert isinstance(result["total_score"], float)
+
+    def test_score_stable_across_calls(self):
+        """Calling score_place_quality twice with identical input returns identical result."""
+        score_a = score_place_quality(RICH_RAW)
+        score_b = score_place_quality(RICH_RAW)
+        assert score_a == score_b

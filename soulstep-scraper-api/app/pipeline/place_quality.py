@@ -331,7 +331,7 @@ def score_place_quality_breakdown(raw_data: dict) -> dict:
     )
 
     # ── 7. Name specificity (0.25) ───────────────────────────────────────────
-    name = raw_data.get("name", "")
+    name = raw_data.get("name") or ""
     raw_7 = _name_specificity(name)
     weight_7 = 0.25
     factors.append(

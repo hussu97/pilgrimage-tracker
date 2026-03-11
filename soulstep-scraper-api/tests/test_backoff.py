@@ -1,13 +1,16 @@
 """
-Tests for make_request_with_backoff in app.scrapers.base.
+Tests for make_request_with_backoff and CircuitBreaker in app.scrapers.base.
 
 Verifies retry logic, exponential back-off durations, and early-exit
-behaviour on non-rate-limit errors.
+behaviour on non-rate-limit errors.  Also tests circuit-breaker open/close
+transitions.
 """
 
 from unittest.mock import MagicMock, patch
 
-from app.scrapers.base import make_request_with_backoff
+import pytest
+
+from app.scrapers.base import CircuitBreaker, make_request_with_backoff
 
 
 def _make_response(status_code: int) -> MagicMock:
@@ -124,3 +127,84 @@ class TestMakeRequestWithBackoff:
             call_kwargs = mock_req.call_args.kwargs
             assert call_kwargs["headers"] == {"X-Key": "val"}
             assert call_kwargs["params"] == {"q": "test"}
+
+
+# ── CircuitBreaker ─────────────────────────────────────────────────────────────
+
+
+class TestCircuitBreaker:
+    async def test_success_passes_through(self):
+        """Successful coroutine returns its result."""
+        cb = CircuitBreaker(failure_threshold=3, reset_timeout_s=60.0, name="test")
+        result = await cb.call(_async_ok("hello"))
+        assert result == "hello"
+
+    async def test_circuit_stays_closed_below_threshold(self):
+        """Fewer than failure_threshold errors keep the circuit closed."""
+        cb = CircuitBreaker(failure_threshold=3, reset_timeout_s=60.0, name="test")
+        for _ in range(2):
+            with pytest.raises(ValueError):
+                await cb.call(_async_fail())
+        # Circuit still closed — next call should still execute (and fail)
+        with pytest.raises(ValueError):
+            await cb.call(_async_fail())
+
+    async def test_circuit_opens_after_threshold(self):
+        """After failure_threshold consecutive failures the circuit opens."""
+        cb = CircuitBreaker(failure_threshold=3, reset_timeout_s=60.0, name="test")
+        for _ in range(3):
+            with pytest.raises(ValueError):
+                await cb.call(_async_fail())
+        # Circuit is now open — must raise RuntimeError without executing coro
+        # Close the coroutine to avoid ResourceWarning about unawaited coroutine
+        coro = _async_ok("should not execute")
+        with pytest.raises(RuntimeError, match="open"):
+            await cb.call(coro)
+        coro.close()  # clean up if RuntimeError was raised before awaiting
+
+    async def test_success_resets_failure_count(self):
+        """A successful call after failures resets consecutive failure count."""
+        cb = CircuitBreaker(failure_threshold=3, reset_timeout_s=60.0, name="test")
+        # Two failures
+        for _ in range(2):
+            with pytest.raises(ValueError):
+                await cb.call(_async_fail())
+        # Successful call resets counter
+        await cb.call(_async_ok("ok"))
+        assert cb._consecutive_failures == 0
+        assert cb._opened_at is None
+
+    async def test_circuit_half_open_after_timeout(self):
+        """After reset_timeout_s, circuit enters half-open and allows a call."""
+
+        cb = CircuitBreaker(failure_threshold=2, reset_timeout_s=0.0, name="test")
+        for _ in range(2):
+            with pytest.raises(ValueError):
+                await cb.call(_async_fail())
+        # reset_timeout_s=0 → already past timeout
+        assert not cb.is_open
+        # Should execute (and fail) rather than raise RuntimeError
+        with pytest.raises(ValueError):
+            await cb.call(_async_fail())
+
+    async def test_is_open_returns_false_when_closed(self):
+        cb = CircuitBreaker(failure_threshold=3, name="test")
+        assert not cb.is_open
+
+    async def test_is_open_returns_true_when_opened(self):
+        cb = CircuitBreaker(failure_threshold=2, reset_timeout_s=9999, name="test")
+        for _ in range(2):
+            with pytest.raises(ValueError):
+                await cb.call(_async_fail())
+        assert cb.is_open
+
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+
+async def _async_ok(value):
+    return value
+
+
+async def _async_fail():
+    raise ValueError("simulated failure")

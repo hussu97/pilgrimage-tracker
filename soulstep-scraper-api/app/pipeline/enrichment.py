@@ -18,6 +18,7 @@ from sqlmodel import Session, select
 
 from app.collectors.base import BaseCollector, CollectorResult
 from app.collectors.registry import get_enrichment_collectors
+from app.config import settings
 from app.db.models import RawCollectorData, ScrapedPlace, ScraperRun
 from app.db.session import engine
 from app.logger import get_logger
@@ -151,7 +152,8 @@ async def run_enrichment_pipeline(run_code: str):
     )
     logger.info("Enrichment: processing %d places", len(place_codes))
 
-    sem = asyncio.Semaphore(10)
+    # Configurable via SCRAPER_ENRICHMENT_CONCURRENCY env var (default 10).
+    sem = asyncio.Semaphore(settings.enrichment_concurrency)
     completed_count = 0
     cancelled = False
 
