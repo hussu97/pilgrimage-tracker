@@ -149,37 +149,60 @@ def set_images_from_blobs(
     """Delete existing images and bulk insert from blob list (used during sync).
 
     Each blob dict must have 'data' (base64 str) and optionally 'mime_type'.
-    When GCS is enabled, images are uploaded to GCS instead of stored as blobs.
+    When GCS is enabled, images are uploaded in parallel before any DB writes
+    so the DB session is not held open during slow network I/O.
     """
     import base64
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     from app.services.image_storage import PREFIX_PLACES, get_image_storage, is_gcs_enabled
 
-    _clear_images(place_code, session)
+    # Decode all blobs first (CPU-only, fast)
+    decoded = [
+        (i, base64.b64decode(blob["data"]), blob.get("mime_type", "image/jpeg"))
+        for i, blob in enumerate(blobs)
+    ]
 
-    storage = get_image_storage() if is_gcs_enabled() else None
+    if is_gcs_enabled():
+        storage = get_image_storage()
 
-    for i, blob in enumerate(blobs):
-        data = base64.b64decode(blob["data"])
-        mime_type = blob.get("mime_type", "image/jpeg")
+        # Upload all images to GCS in parallel (GCS client is thread-safe).
+        # Cap at 10 workers — enough to saturate a GCS connection without
+        # overwhelming the process or the bucket's per-prefix throughput.
+        def _upload(args: tuple) -> tuple[int, str, str]:
+            idx, data, mime_type = args
+            url = storage.upload(data, mime_type, PREFIX_PLACES)
+            return idx, url, mime_type
 
-        if storage is not None:
-            gcs_url = storage.upload(data, mime_type, PREFIX_PLACES)
-            image = PlaceImage(
-                place_code=place_code,
-                image_type=ImageType.GCS,
-                gcs_url=gcs_url,
-                mime_type=mime_type,
-                display_order=i,
+        results: list[tuple[int, str, str]] = []
+        with ThreadPoolExecutor(max_workers=min(10, len(decoded))) as pool:
+            futures = {pool.submit(_upload, item): item[0] for item in decoded}
+            for fut in as_completed(futures):
+                results.append(fut.result())
+
+        # Now do all DB writes in one shot (session was not held during uploads)
+        _clear_images(place_code, session)
+        for idx, gcs_url, mime_type in sorted(results):
+            session.add(
+                PlaceImage(
+                    place_code=place_code,
+                    image_type=ImageType.GCS,
+                    gcs_url=gcs_url,
+                    mime_type=mime_type,
+                    display_order=idx,
+                )
             )
-        else:
-            image = PlaceImage(
-                place_code=place_code,
-                image_type=ImageType.BLOB,
-                blob_data=data,
-                mime_type=mime_type,
-                display_order=i,
+    else:
+        _clear_images(place_code, session)
+        for i, data, mime_type in decoded:
+            session.add(
+                PlaceImage(
+                    place_code=place_code,
+                    image_type=ImageType.BLOB,
+                    blob_data=data,
+                    mime_type=mime_type,
+                    display_order=i,
+                )
             )
-        session.add(image)
 
     session.commit()
