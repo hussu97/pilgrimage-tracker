@@ -1,4 +1,15 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+/**
+ * CreateGroupScreen — Journey Creation Flow (Phase 3)
+ *
+ * 4-step flow:
+ *  1. intent  — pick a journey type (4 tappable cards)
+ *  2. build   — search + select places, see selected strip
+ *  3. polish  — name, description, cover image, dates, privacy
+ *  4. success — animated check, invite share, navigate
+ *
+ * Mirrors apps/soulstep-customer-web/src/app/pages/CreateGroup.tsx
+ */
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,18 +17,19 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  FlatList,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Image,
   Alert,
+  Animated,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { createGroup, getPlaces, uploadGroupCover } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
@@ -27,31 +39,92 @@ import { useAds } from '@/components/ads/AdProvider';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
-import PlaceSelector from '@/components/groups/PlaceSelector';
 import type { Place } from '@/lib/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CreateGroup'>;
-type Step = 'details' | 'places' | 'review';
+type JourneyIntent = 'city' | 'faith' | 'route' | 'scratch';
+type Step = 'intent' | 'build' | 'polish' | 'success';
 
-const PAGE_SIZE = 10;
+// ── Intent cards ──────────────────────────────────────────────────────────────
+
+interface IntentCard {
+  id: JourneyIntent;
+  icon: string;
+  titleKey: string;
+  subtitleKey: string;
+  color: string;
+}
+
+const INTENT_CARDS: IntentCard[] = [
+  {
+    id: 'city',
+    icon: 'location-city',
+    titleKey: 'journey.intent.city',
+    subtitleKey: 'journey.intent.cityDesc',
+    color: tokens.colors.primary,
+  },
+  {
+    id: 'faith',
+    icon: 'auto-awesome',
+    titleKey: 'journey.intent.faith',
+    subtitleKey: 'journey.intent.faithDesc',
+    color: '#7c3aed',
+  },
+  {
+    id: 'route',
+    icon: 'route',
+    titleKey: 'journey.intent.route',
+    subtitleKey: 'journey.intent.routeDesc',
+    color: '#0891b2',
+  },
+  {
+    id: 'scratch',
+    icon: 'edit',
+    titleKey: 'journey.intent.scratch',
+    subtitleKey: 'journey.intent.scratchDesc',
+    color: '#059669',
+  },
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDate(d: Date): string {
   return d.toISOString().split('T')[0];
 }
 
+function generateJourneyName(intent: JourneyIntent, places: Place[]): string {
+  const location = places[0]?.address?.split(',')[0];
+  const religion = places[0]?.religion;
+  if (intent === 'city' && location) return `${location} Sacred Journey`;
+  if (intent === 'faith' && religion) {
+    const r = religion.charAt(0).toUpperCase() + religion.slice(1);
+    return location ? `${location} ${r} Circuit` : `${r} Journey`;
+  }
+  if (intent === 'route') return 'Pilgrimage Route';
+  return 'My Sacred Journey';
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
 function makeStyles(isDark: boolean) {
-  const bg = isDark ? tokens.colors.darkBg : tokens.colors.surfaceTint;
+  const bg = isDark ? tokens.colors.darkBg : tokens.colors.backgroundLight;
   const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
   const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
   const textMain = isDark ? '#ffffff' : tokens.colors.textDark;
   const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
-  const textSecondary = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary;
 
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: bg },
     scroll: { flex: 1 },
     content: { paddingHorizontal: 20 },
-    headerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
+
+    // Header
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 20,
+    },
     backBtn: {
       width: 40,
       height: 40,
@@ -63,6 +136,8 @@ function makeStyles(isDark: boolean) {
       justifyContent: 'center',
     },
     headerTitle: { fontSize: 18, fontWeight: '700', color: textMain, flex: 1 },
+
+    // Step indicator
     stepRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -87,7 +162,116 @@ function makeStyles(isDark: boolean) {
       backgroundColor: isDark ? tokens.colors.darkBorder : '#e2e8f0',
     },
     stepLineActive: { backgroundColor: tokens.colors.primary },
-    label: { fontSize: 13, fontWeight: '600', color: textSecondary, marginBottom: 6 },
+
+    // Intent cards
+    intentCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      padding: 16,
+      borderRadius: 14,
+      borderWidth: 2,
+      borderColor: 'transparent',
+      backgroundColor: surface,
+      marginBottom: 12,
+    },
+    intentCardSelected: {
+      borderColor: tokens.colors.primary,
+    },
+    intentIconCircle: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    intentTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: textMain,
+      marginBottom: 2,
+    },
+    intentSubtitle: {
+      fontSize: 12,
+      color: textMuted,
+    },
+
+    // Build step – selected strip
+    selectedStrip: {
+      minHeight: 40,
+      marginBottom: 12,
+    },
+    selectedChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: isDark ? 'rgba(196,112,84,0.2)' : 'rgba(196,112,84,0.1)',
+      borderRadius: 8,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      marginRight: 8,
+    },
+    chipNum: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      backgroundColor: tokens.colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    chipNumText: { fontSize: 9, fontWeight: '700', color: '#fff' },
+    chipName: { fontSize: 12, fontWeight: '500', color: tokens.colors.primary, maxWidth: 100 },
+    chipRemove: { padding: 2 },
+
+    // Build step – place row
+    searchInput: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: surface,
+      borderWidth: 1,
+      borderColor: border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      height: 44,
+      marginBottom: 12,
+    },
+    searchText: { flex: 1, fontSize: 14, color: textMain },
+    placeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      backgroundColor: surface,
+      borderRadius: 12,
+      marginBottom: 8,
+    },
+    placeThumb: { width: 44, height: 44, borderRadius: 8, backgroundColor: border },
+    placeInfo: { flex: 1 },
+    placeName: { fontSize: 13, fontWeight: '600', color: textMain },
+    placeAddr: { fontSize: 11, color: textMuted, marginTop: 1 },
+    placeCheck: {
+      width: 24,
+      height: 24,
+      borderRadius: 6,
+      borderWidth: 2,
+      borderColor: border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    placeCheckActive: {
+      backgroundColor: tokens.colors.primary,
+      borderColor: tokens.colors.primary,
+    },
+
+    // Polish step – form
+    label: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted,
+      marginBottom: 6,
+    },
     field: { marginBottom: 16 },
     input: {
       borderWidth: 1,
@@ -102,10 +286,9 @@ function makeStyles(isDark: boolean) {
     inputError: { borderColor: '#ef4444' },
     errorMsg: { fontSize: 12, color: '#ef4444', marginTop: 4 },
     textArea: { minHeight: 80, textAlignVertical: 'top', paddingVertical: 12, height: undefined },
-    // Cover image
     coverPlaceholder: {
       width: '100%',
-      height: 170,
+      height: 160,
       borderRadius: 14,
       borderWidth: 2,
       borderStyle: 'dashed',
@@ -118,7 +301,7 @@ function makeStyles(isDark: boolean) {
     },
     coverPreview: {
       width: '100%',
-      height: 170,
+      height: 160,
       borderRadius: 14,
       overflow: 'hidden',
       marginBottom: 16,
@@ -142,7 +325,8 @@ function makeStyles(isDark: boolean) {
     },
     coverBtnText: { fontSize: 11, fontWeight: '600', color: tokens.colors.textDark },
     coverBtnRemove: { fontSize: 11, fontWeight: '600', color: '#ef4444' },
-    // Date picker field
+    dateRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+    dateCol: { flex: 1 },
     dateField: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -156,9 +340,6 @@ function makeStyles(isDark: boolean) {
     },
     dateText: { fontSize: 15, color: textMain, flex: 1 },
     datePlaceholder: { fontSize: 15, color: textMuted, flex: 1 },
-    dateRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-    dateCol: { flex: 1 },
-    // DatePicker toolbar (iOS)
     pickerToolbar: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -172,7 +353,11 @@ function makeStyles(isDark: boolean) {
     pickerToolbarBtn: { paddingHorizontal: 8, paddingVertical: 4 },
     pickerToolbarCancel: { fontSize: 14, fontWeight: '500', color: textMuted },
     pickerToolbarDone: { fontSize: 14, fontWeight: '600', color: tokens.colors.primary },
-    checkRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+    checkRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
     checkbox: {
       width: 22,
       height: 22,
@@ -183,9 +368,39 @@ function makeStyles(isDark: boolean) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    checkboxChecked: { backgroundColor: tokens.colors.primary, borderColor: tokens.colors.primary },
+    checkboxChecked: {
+      backgroundColor: tokens.colors.primary,
+      borderColor: tokens.colors.primary,
+    },
     checkLabel: { fontSize: 14, color: textMain },
     optionalTag: { fontSize: 12, color: textMuted, marginLeft: 4 },
+
+    // Review summary in polish step
+    reviewCard: {
+      backgroundColor: surface,
+      borderWidth: 1,
+      borderColor: border,
+      borderRadius: 14,
+      padding: 16,
+      marginBottom: 16,
+    },
+    reviewTitle: { fontSize: 17, fontWeight: '700', color: textMain, marginBottom: 4 },
+    reviewMeta: { fontSize: 12, color: textMuted, marginBottom: 4 },
+    reviewPlaceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      backgroundColor: isDark ? tokens.colors.darkBg : '#f8fafc',
+      borderRadius: 8,
+      marginBottom: 4,
+    },
+    reviewPlaceIdx: { fontSize: 12, fontWeight: '700', color: tokens.colors.primary, width: 20 },
+    reviewPlaceName: { fontSize: 13, fontWeight: '500', color: textMain, flex: 1 },
+    reviewPlaceRel: { fontSize: 11, color: textMuted },
+
+    // Footer
     footer: {
       flexDirection: 'row',
       gap: 12,
@@ -216,46 +431,43 @@ function makeStyles(isDark: boolean) {
     },
     submitDisabled: { opacity: 0.7 },
     submitText: { color: '#fff', fontWeight: '600' },
-    reviewCard: {
-      backgroundColor: surface,
-      borderWidth: 1,
-      borderColor: border,
-      borderRadius: 14,
-      padding: 16,
-      marginBottom: 16,
-    },
-    reviewTitle: { fontSize: 18, fontWeight: '700', color: textMain, marginBottom: 4 },
-    reviewDesc: { fontSize: 14, color: textMuted, marginBottom: 8 },
-    reviewMeta: { fontSize: 12, color: textMuted, marginBottom: 4 },
-    placeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingVertical: 6,
-      paddingHorizontal: 10,
-      backgroundColor: isDark ? tokens.colors.darkBg : '#f8fafc',
-      borderRadius: 8,
-      marginBottom: 4,
-    },
-    placeIndex: { fontSize: 12, fontWeight: '700', color: tokens.colors.primary, width: 20 },
-    placeName: { fontSize: 13, fontWeight: '500', color: textMain, flex: 1 },
-    placeReligion: { fontSize: 11, color: textMuted },
-    errorText: { color: '#b91c1c', marginBottom: 12, fontSize: 14 },
-    successContent: { paddingHorizontal: 24, alignItems: 'center' },
-    successIconWrap: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      backgroundColor: isDark ? '#1a2a4e' : tokens.colors.softBlue,
+
+    // Success
+    successWrap: {
+      flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 16,
+      paddingHorizontal: 32,
     },
-    successIcon: { fontSize: 28, color: tokens.colors.primary, fontWeight: '700' },
-    successTitle: { fontSize: 20, fontWeight: '600', color: textMain, marginBottom: 8 },
-    successSub: { fontSize: 14, color: textMuted, marginBottom: 16 },
-    inviteRow: { width: '100%', marginBottom: 12 },
-    inviteCode: { fontSize: 12, color: textMuted },
+    successIconOuter: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      backgroundColor: isDark ? 'rgba(196,112,84,0.15)' : 'rgba(196,112,84,0.1)',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 20,
+    },
+    successTitle: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: textMain,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    successSub: {
+      fontSize: 14,
+      color: textMuted,
+      textAlign: 'center',
+      marginBottom: 24,
+    },
+    inviteCode: {
+      fontSize: 12,
+      color: textMuted,
+      textAlign: 'center',
+      marginBottom: 20,
+      paddingHorizontal: 8,
+    },
     shareButton: {
       width: '100%',
       height: 48,
@@ -276,8 +488,15 @@ function makeStyles(isDark: boolean) {
       justifyContent: 'center',
     },
     goButtonText: { color: '#fff', fontWeight: '600' },
+
+    errorText: { color: '#b91c1c', marginBottom: 12, fontSize: 14 },
   });
 }
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+const PAGE_SIZE = 20;
+const STEP_LABELS: Step[] = ['intent', 'build', 'polish'];
 
 export default function CreateGroupScreen() {
   const insets = useSafeAreaInsets();
@@ -288,8 +507,21 @@ export default function CreateGroupScreen() {
   const { consent } = useAds();
   const { trackUmamiEvent } = useUmamiTracking('CreateGroup', consent.analytics);
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
+  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
 
-  const [step, setStep] = useState<Step>('details');
+  // Step state
+  const [step, setStep] = useState<Step>('intent');
+  const [intent, setIntent] = useState<JourneyIntent | null>(null);
+
+  // Build step
+  const [allPlaces, setAllPlaces] = useState<Place[]>([]);
+  const [selectedPlaces, setSelectedPlaces] = useState<Place[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [placesLoading, setPlacesLoading] = useState(false);
+  const [placesLoadingMore, setPlacesLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+
+  // Polish step
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState('');
   const [description, setDescription] = useState('');
@@ -301,81 +533,80 @@ export default function CreateGroupScreen() {
   const [showEndPicker, setShowEndPicker] = useState(false);
   const tempStartDate = useRef<Date | null>(null);
   const tempEndDate = useRef<Date | null>(null);
-  const [selectedPlaceCodes, setSelectedPlaceCodes] = useState<string[]>([]);
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [placesLoading, setPlacesLoading] = useState(false);
-  const [placesLoadingMore, setPlacesLoadingMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [placesSearch, setPlacesSearch] = useState('');
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
+  // Submit
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [submitError, setSubmitError] = useState('');
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [groupCode, setGroupCode] = useState<string | null>(null);
 
-  const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
+  // Success animation
+  const successScale = useRef(new Animated.Value(0)).current;
+  const successOpacity = useRef(new Animated.Value(0)).current;
 
-  // Get user location on mount
-  useEffect(() => {
-    (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-          setUserLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
-        }
-      } catch {
-        // Location not available — proceed without it
+  // ── Data fetching ───────────────────────────────────────────────────────────
+
+  const fetchPlaces = useCallback(async (cursor?: string, search?: string) => {
+    const isInitial = !cursor;
+    if (isInitial) setPlacesLoading(true);
+    else setPlacesLoadingMore(true);
+    try {
+      const res = await getPlaces({
+        limit: PAGE_SIZE,
+        cursor: cursor ?? undefined,
+        search: search || undefined,
+        include_checkins: true,
+      });
+      if (isInitial) {
+        setAllPlaces(res.places ?? []);
+      } else {
+        setAllPlaces((prev) => [...prev, ...(res.places ?? [])]);
       }
-    })();
+      setNextCursor(res.next_cursor ?? null);
+    } catch {
+      // silently fail
+    } finally {
+      if (isInitial) setPlacesLoading(false);
+      else setPlacesLoadingMore(false);
+    }
   }, []);
 
-  const fetchPlaces = useCallback(
-    async (cursor?: string, search?: string) => {
-      const isInitial = !cursor;
-      if (isInitial) setPlacesLoading(true);
-      else setPlacesLoadingMore(true);
-      try {
-        const res = await getPlaces({
-          limit: PAGE_SIZE,
-          cursor: cursor ?? undefined,
-          search: search || undefined,
-          include_checkins: true,
-          ...(userLocation
-            ? { lat: userLocation.lat, lng: userLocation.lng, sort: 'proximity' }
-            : {}),
-        });
-        if (isInitial) {
-          setPlaces(res.places ?? []);
-        } else {
-          setPlaces((prev) => [...prev, ...(res.places ?? [])]);
-        }
-        setNextCursor(res.next_cursor ?? null);
-      } catch {
-        // silently fail
-      } finally {
-        if (isInitial) setPlacesLoading(false);
-        else setPlacesLoadingMore(false);
-      }
-    },
-    [userLocation],
-  );
-
-  // Fetch places when entering places step
+  // Fetch when entering build step
   useEffect(() => {
-    if (step === 'places' && places.length === 0) {
-      fetchPlaces(undefined, placesSearch);
+    if (step === 'build' && allPlaces.length === 0) {
+      fetchPlaces(undefined, searchQuery);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  const handlePlacesSearch = useCallback(
+  // Auto-fill name when entering polish step
+  useEffect(() => {
+    if (step === 'polish' && !name && intent) {
+      setName(generateJourneyName(intent, selectedPlaces));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
+
+  // Success animation
+  useEffect(() => {
+    if (step === 'success') {
+      Animated.parallel([
+        Animated.spring(successScale, { toValue: 1, useNativeDriver: true }),
+        Animated.timing(successOpacity, {
+          toValue: 1,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [step, successScale, successOpacity]);
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
+
+  const handleSearchChange = useCallback(
     (text: string) => {
-      setPlacesSearch(text);
-      setPlaces([]);
+      setSearchQuery(text);
+      setAllPlaces([]);
       setNextCursor(null);
       fetchPlaces(undefined, text);
     },
@@ -384,10 +615,21 @@ export default function CreateGroupScreen() {
 
   const handleLoadMore = useCallback(() => {
     if (nextCursor && !placesLoadingMore) {
-      fetchPlaces(nextCursor, placesSearch);
+      fetchPlaces(nextCursor, searchQuery);
     }
-  }, [nextCursor, placesLoadingMore, fetchPlaces, placesSearch]);
+  }, [nextCursor, placesLoadingMore, fetchPlaces, searchQuery]);
 
+  const togglePlace = useCallback((place: Place) => {
+    setSelectedPlaces((prev) => {
+      const exists = prev.some((p) => p.place_code === place.place_code);
+      return exists ? prev.filter((p) => p.place_code !== place.place_code) : [...prev, place];
+    });
+  }, []);
+
+  const isSelected = (place: Place) =>
+    selectedPlaces.some((p) => p.place_code === place.place_code);
+
+  // Cover image
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -429,54 +671,56 @@ export default function CreateGroupScreen() {
     ]);
   };
 
-  // DatePicker helpers — iOS Cancel/Done
+  // Date pickers
   const openStartPicker = () => {
     setShowEndPicker(false);
     tempStartDate.current = startDate;
     setShowStartPicker(true);
   };
-
   const openEndPicker = () => {
     setShowStartPicker(false);
     tempEndDate.current = endDate;
     setShowEndPicker(true);
   };
-
   const confirmStartDate = () => setShowStartPicker(false);
   const cancelStartDate = () => {
     setStartDate(tempStartDate.current);
     setShowStartPicker(false);
   };
-
   const confirmEndDate = () => setShowEndPicker(false);
   const cancelEndDate = () => {
     setEndDate(tempEndDate.current);
     setShowEndPicker(false);
   };
 
+  // Navigation
   const goNext = () => {
-    if (step === 'details') {
+    if (step === 'intent') {
+      if (!intent) return;
+      setStep('build');
+    } else if (step === 'build') {
+      setStep('polish');
+    } else if (step === 'polish') {
       if (!name.trim()) {
         setNameError(t('groups.nameRequired'));
         return;
       }
       setNameError('');
-      setStep('places');
-    } else if (step === 'places') {
-      setStep('review');
+      handleSubmit();
     }
   };
 
   const goBack = () => {
-    if (step === 'details') navigation.goBack();
-    else if (step === 'places') setStep('details');
-    else setStep('places');
+    if (step === 'intent') navigation.goBack();
+    else if (step === 'build') setStep('intent');
+    else if (step === 'polish') setStep('build');
+    else navigation.goBack();
   };
 
+  // Submit
   const handleSubmit = async () => {
-    if (!name.trim()) return;
     setSubmitting(true);
-    setError('');
+    setSubmitError('');
     try {
       let coverImageUrl: string | undefined;
       if (coverUri) {
@@ -484,96 +728,78 @@ export default function CreateGroupScreen() {
           const result = await uploadGroupCover(coverUri);
           coverImageUrl = result.url;
         } catch (err) {
-          setError(err instanceof Error ? err.message : t('common.error'));
+          setSubmitError(err instanceof Error ? err.message : t('common.error'));
           showError(t('feedback.error'));
           setSubmitting(false);
           return;
         }
       }
-
       const g = await createGroup({
         name: name.trim(),
         description: description.trim() || undefined,
         is_private: isPrivate,
-        path_place_codes: selectedPlaceCodes.length > 0 ? selectedPlaceCodes : undefined,
+        path_place_codes:
+          selectedPlaces.length > 0 ? selectedPlaces.map((p) => p.place_code) : undefined,
         cover_image_url: coverImageUrl,
         start_date: startDate ? formatDate(startDate) : undefined,
         end_date: endDate ? formatDate(endDate) : undefined,
       });
-      trackUmamiEvent('group_create', { place_count: selectedPlaceCodes.length });
+      trackUmamiEvent('journey_create', { place_count: selectedPlaces.length, intent: intent });
       setInviteCode(g.invite_code);
       setGroupCode(g.group_code);
+      setStep('success');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'));
+      setSubmitError(err instanceof Error ? err.message : t('common.error'));
       showError(t('feedback.error'));
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Share
   const inviteMessage = inviteCode
     ? INVITE_LINK_BASE_URL
       ? `${INVITE_LINK_BASE_URL}/join?code=${inviteCode}`
-      : `Join my SoulStep group with code: ${inviteCode}`
+      : `Join my SoulStep journey with code: ${inviteCode}`
     : '';
 
   const handleShare = async () => {
-    if (inviteMessage) await shareUrl(t('groups.createGroup'), inviteMessage);
+    if (inviteMessage) await shareUrl(t('journey.newJourney') || 'New Journey', inviteMessage);
   };
 
-  // Success state
-  if (inviteCode && groupCode) {
-    return (
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
-          styles.successContent,
-          { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 },
-        ]}
-      >
-        <TouchableOpacity
-          style={[styles.backBtn, { alignSelf: 'flex-start' }]}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.8}
-        >
-          <MaterialIcons
-            name="arrow-back"
-            size={20}
-            color={isDark ? '#fff' : tokens.colors.textDark}
-          />
-        </TouchableOpacity>
-        <View style={styles.successIconWrap}>
-          <Text style={styles.successIcon}>✓</Text>
+  // ── Step indicator ──────────────────────────────────────────────────────────
+
+  const stepIndex = STEP_LABELS.indexOf(step as Step);
+
+  const renderStepIndicator = () => (
+    <View style={styles.stepRow}>
+      {STEP_LABELS.map((s, i) => (
+        <View key={s} style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View
+            style={[
+              styles.stepDot,
+              i <= stepIndex && step !== 'success' ? styles.stepDotActive : {},
+            ]}
+          >
+            <Text
+              style={[
+                styles.stepDotText,
+                i <= stepIndex && step !== 'success' ? styles.stepDotTextActive : {},
+              ]}
+            >
+              {i < stepIndex ? '✓' : String(i + 1)}
+            </Text>
+          </View>
+          {i < STEP_LABELS.length - 1 && (
+            <View style={[styles.stepLine, i < stepIndex ? styles.stepLineActive : {}]} />
+          )}
         </View>
-        <Text style={styles.successTitle}>{t('groups.groupCreated')}</Text>
-        <Text style={styles.successSub}>{t('groups.shareInviteLink')}</Text>
-        <View style={styles.inviteRow}>
-          <Text style={styles.inviteCode} numberOfLines={1}>
-            {inviteMessage}
-          </Text>
-        </View>
-        <TouchableOpacity style={styles.shareButton} onPress={handleShare} activeOpacity={0.8}>
-          <Text style={styles.shareButtonText}>{t('common.share')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.goButton}
-          onPress={() => navigation.replace('GroupDetail', { groupCode })}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.goButtonText}>{t('groups.goToGroup')}</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    );
-  }
+      ))}
+    </View>
+  );
 
-  const steps: Step[] = ['details', 'places', 'review'];
-  const stepIndex = steps.indexOf(step);
+  // ── iOS date picker with toolbar ────────────────────────────────────────────
 
-  const selectedPlaceObjects = selectedPlaceCodes
-    .map((code) => places.find((p) => p.place_code === code))
-    .filter(Boolean) as Place[];
-
-  // Render iOS date picker with Cancel/Done toolbar
   const renderIOSDatePicker = (
     value: Date,
     onChange: (date: Date) => void,
@@ -601,10 +827,103 @@ export default function CreateGroupScreen() {
     </View>
   );
 
-  // Footer action buttons (sticky)
-  const renderFooter = () => {
-    if (step === 'details') {
-      return (
+  // ── Success screen ──────────────────────────────────────────────────────────
+
+  if (step === 'success') {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <View style={styles.successWrap}>
+          <Animated.View
+            style={[
+              styles.successIconOuter,
+              { transform: [{ scale: successScale }], opacity: successOpacity },
+            ]}
+          >
+            <MaterialIcons name="check-circle" size={48} color={tokens.colors.primary} />
+          </Animated.View>
+          <Animated.Text style={[styles.successTitle, { opacity: successOpacity }]}>
+            {t('journey.successTitle') || 'Journey Created!'}
+          </Animated.Text>
+          <Animated.Text style={[styles.successSub, { opacity: successOpacity }]}>
+            {t('journey.successDesc') || 'Your sacred journey is ready to explore.'}
+          </Animated.Text>
+          {inviteMessage ? (
+            <Text style={styles.inviteCode} numberOfLines={2}>
+              {inviteMessage}
+            </Text>
+          ) : null}
+          <TouchableOpacity style={styles.shareButton} onPress={handleShare} activeOpacity={0.8}>
+            <Text style={styles.shareButtonText}>
+              {t('journey.inviteFriends') || 'Invite Friends'}
+            </Text>
+          </TouchableOpacity>
+          {groupCode && (
+            <TouchableOpacity
+              style={styles.goButton}
+              onPress={() => navigation.replace('GroupDetail', { groupCode })}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.goButtonText}>
+                {t('journey.startExploring') || 'Start Exploring'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // ── Intent step ─────────────────────────────────────────────────────────────
+
+  if (step === 'intent') {
+    return (
+      <KeyboardAvoidingView style={styles.container} behavior={undefined}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.content,
+            { paddingTop: insets.top + 16, paddingBottom: 24 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.headerRow}>
+            <TouchableOpacity style={styles.backBtn} onPress={goBack} activeOpacity={0.8}>
+              <MaterialIcons
+                name="arrow-back"
+                size={20}
+                color={isDark ? '#fff' : tokens.colors.textDark}
+              />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{t('journey.newJourney') || 'New Journey'}</Text>
+          </View>
+
+          {renderStepIndicator()}
+
+          <Text style={[styles.label, { fontSize: 15, marginBottom: 16 }]}>
+            {t('dashboard.whatDrawsYou') || 'What kind of journey?'}
+          </Text>
+
+          {INTENT_CARDS.map((card) => (
+            <TouchableOpacity
+              key={card.id}
+              style={[styles.intentCard, intent === card.id && styles.intentCardSelected]}
+              onPress={() => setIntent(card.id)}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.intentIconCircle, { backgroundColor: card.color + '20' }]}>
+                <MaterialIcons name={card.icon as any} size={24} color={card.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.intentTitle}>{t(card.titleKey) || card.id}</Text>
+                <Text style={styles.intentSubtitle}>{t(card.subtitleKey) || ''}</Text>
+              </View>
+              {intent === card.id && (
+                <MaterialIcons name="check-circle" size={22} color={tokens.colors.primary} />
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
         <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
           <TouchableOpacity
             style={styles.cancelButton}
@@ -613,53 +932,58 @@ export default function CreateGroupScreen() {
           >
             <Text style={styles.cancelText}>{t('common.cancel')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.submitButton} onPress={goNext} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={[styles.submitButton, !intent && styles.submitDisabled]}
+            onPress={goNext}
+            disabled={!intent}
+            activeOpacity={0.8}
+          >
             <Text style={styles.submitText}>{t('common.next')}</Text>
           </TouchableOpacity>
         </View>
-      );
-    }
-    if (step === 'places') {
-      return (
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-          <TouchableOpacity style={styles.cancelButton} onPress={goBack} activeOpacity={0.8}>
-            <Text style={styles.cancelText}>{t('common.back')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.submitButton} onPress={goNext} activeOpacity={0.8}>
-            <Text style={styles.submitText}>{t('common.next')}</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-    // review
-    return (
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-        <TouchableOpacity style={styles.cancelButton} onPress={goBack} activeOpacity={0.8}>
-          <Text style={styles.cancelText}>{t('common.back')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.submitButton, submitting && styles.submitDisabled]}
-          onPress={handleSubmit}
-          disabled={submitting}
-          activeOpacity={0.8}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#ffffff" size="small" />
-          ) : (
-            <Text style={styles.submitText}>{t('groups.createAndInvite')}</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+      </KeyboardAvoidingView>
     );
-  };
+  }
 
-  return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      {step === 'places' ? (
-        // Places step: PlaceSelector has its own FlatList, no outer ScrollView
+  // ── Build step ──────────────────────────────────────────────────────────────
+
+  if (step === 'build') {
+    const renderPlaceItem = ({ item: place }: { item: Place }) => {
+      const selected = isSelected(place);
+      const thumb = place.images?.[0]?.url;
+      return (
+        <TouchableOpacity
+          style={styles.placeRow}
+          onPress={() => togglePlace(place)}
+          activeOpacity={0.85}
+        >
+          {thumb ? (
+            <Image source={{ uri: thumb }} style={styles.placeThumb} resizeMode="cover" />
+          ) : (
+            <View style={[styles.placeThumb, { alignItems: 'center', justifyContent: 'center' }]}>
+              <MaterialIcons name="place" size={22} color={textMuted} />
+            </View>
+          )}
+          <View style={styles.placeInfo}>
+            <Text style={styles.placeName} numberOfLines={1}>
+              {place.name}
+            </Text>
+            <Text style={styles.placeAddr} numberOfLines={1} capitalize>
+              {place.religion} · {place.address}
+            </Text>
+          </View>
+          <View style={[styles.placeCheck, selected && styles.placeCheckActive]}>
+            {selected && <MaterialIcons name="check" size={14} color="#fff" />}
+          </View>
+        </TouchableOpacity>
+      );
+    };
+
+    return (
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={[styles.content, { flex: 1, paddingTop: insets.top + 16 }]}>
           {/* Header */}
           <View style={styles.headerRow}>
@@ -670,294 +994,311 @@ export default function CreateGroupScreen() {
                 color={isDark ? '#fff' : tokens.colors.textDark}
               />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>{t('groups.createGroup')}</Text>
+            <Text style={styles.headerTitle}>{t('journey.newJourney') || 'New Journey'}</Text>
           </View>
 
-          {/* Step indicator */}
-          <View style={styles.stepRow}>
-            {steps.map((s, i) => (
-              <View key={s} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={[styles.stepDot, i <= stepIndex ? styles.stepDotActive : {}]}>
-                  <Text
-                    style={[styles.stepDotText, i <= stepIndex ? styles.stepDotTextActive : {}]}
-                  >
-                    {i < stepIndex ? '✓' : String(i + 1)}
-                  </Text>
-                </View>
-                {i < steps.length - 1 && (
-                  <View style={[styles.stepLine, i < stepIndex ? styles.stepLineActive : {}]} />
-                )}
-              </View>
-            ))}
-          </View>
+          {renderStepIndicator()}
 
-          <PlaceSelector
-            selectedCodes={selectedPlaceCodes}
-            onChange={setSelectedPlaceCodes}
-            places={places}
-            loading={placesLoading}
-            onLoadMore={handleLoadMore}
-            hasMore={!!nextCursor}
-            loadingMore={placesLoadingMore}
-            onSearchChange={handlePlacesSearch}
-            searchValue={placesSearch}
-          />
-        </View>
-      ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[
-            styles.content,
-            { paddingTop: insets.top + 16, paddingBottom: 24 },
-          ]}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Header */}
-          <View style={styles.headerRow}>
-            <TouchableOpacity style={styles.backBtn} onPress={goBack} activeOpacity={0.8}>
-              <MaterialIcons
-                name="arrow-back"
-                size={20}
-                color={isDark ? '#fff' : tokens.colors.textDark}
-              />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>{t('groups.createGroup')}</Text>
-          </View>
-
-          {/* Step indicator */}
-          <View style={styles.stepRow}>
-            {steps.map((s, i) => (
-              <View key={s} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <View style={[styles.stepDot, i <= stepIndex ? styles.stepDotActive : {}]}>
-                  <Text
-                    style={[styles.stepDotText, i <= stepIndex ? styles.stepDotTextActive : {}]}
-                  >
-                    {i < stepIndex ? '✓' : String(i + 1)}
-                  </Text>
-                </View>
-                {i < steps.length - 1 && (
-                  <View style={[styles.stepLine, i < stepIndex ? styles.stepLineActive : {}]} />
-                )}
-              </View>
-            ))}
-          </View>
-
-          {/* Step 1: Details */}
-          {step === 'details' && (
-            <View>
-              {/* Cover Image Picker */}
-              {coverUri ? (
-                <View style={styles.coverPreview}>
-                  <Image source={{ uri: coverUri }} style={styles.coverImage} resizeMode="cover" />
-                  <View style={styles.coverOverlay}>
-                    <TouchableOpacity
-                      style={styles.coverBtn}
-                      onPress={showCoverOptions}
-                      activeOpacity={0.8}
-                    >
-                      <MaterialIcons name="edit" size={14} color={tokens.colors.textDark} />
-                      <Text style={styles.coverBtnText}>{t('groups.changeCoverPhoto')}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.coverBtn}
-                      onPress={() => setCoverUri(null)}
-                      activeOpacity={0.8}
-                    >
-                      <MaterialIcons name="close" size={14} color="#ef4444" />
-                      <Text style={styles.coverBtnRemove}>{t('groups.removeCoverPhoto')}</Text>
-                    </TouchableOpacity>
+          {/* Selected places strip */}
+          {selectedPlaces.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.selectedStrip}
+              contentContainerStyle={{ paddingBottom: 8 }}
+            >
+              {selectedPlaces.map((place, idx) => (
+                <View key={place.place_code} style={styles.selectedChip}>
+                  <View style={styles.chipNum}>
+                    <Text style={styles.chipNumText}>{idx + 1}</Text>
                   </View>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.coverPlaceholder}
-                  onPress={showCoverOptions}
-                  activeOpacity={0.8}
-                >
-                  <MaterialIcons name="photo-camera" size={32} color={textMuted} />
-                  <Text style={{ fontSize: 14, fontWeight: '500', color: textMuted }}>
-                    {t('groups.addCoverPhoto')}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: textMuted }}>{t('groups.optional')}</Text>
-                </TouchableOpacity>
-              )}
-
-              <View style={styles.field}>
-                <Text style={styles.label}>{t('groups.nameLabel')} *</Text>
-                <TextInput
-                  style={[styles.input, nameError ? styles.inputError : {}]}
-                  value={name}
-                  onChangeText={(v) => {
-                    setName(v);
-                    if (nameError) setNameError('');
-                  }}
-                  placeholder={t('groups.groupNamePlaceholder')}
-                  placeholderTextColor={textMuted}
-                  autoCapitalize="words"
-                />
-                {nameError ? <Text style={styles.errorMsg}>{nameError}</Text> : null}
-              </View>
-
-              <View style={styles.field}>
-                <Text style={styles.label}>
-                  {t('groups.descriptionLabel')}
-                  <Text style={styles.optionalTag}> {t('groups.optional')}</Text>
-                </Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder={t('groups.descriptionPlaceholder')}
-                  placeholderTextColor={textMuted}
-                  multiline
-                />
-              </View>
-
-              <View style={styles.dateRow}>
-                <View style={styles.dateCol}>
-                  <Text style={styles.label}>
-                    {t('groups.startDate')}
-                    <Text style={styles.optionalTag}> {t('groups.optional')}</Text>
+                  <Text style={styles.chipName} numberOfLines={1}>
+                    {place.name}
                   </Text>
                   <TouchableOpacity
-                    style={styles.dateField}
-                    onPress={openStartPicker}
-                    activeOpacity={0.8}
+                    style={styles.chipRemove}
+                    onPress={() => togglePlace(place)}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                   >
-                    <MaterialIcons name="calendar-today" size={18} color={textMuted} />
-                    {startDate ? (
-                      <Text style={styles.dateText}>{formatDate(startDate)}</Text>
-                    ) : (
-                      <Text style={styles.datePlaceholder}>YYYY-MM-DD</Text>
-                    )}
+                    <MaterialIcons name="close" size={14} color={tokens.colors.primary} />
                   </TouchableOpacity>
                 </View>
-                <View style={styles.dateCol}>
-                  <Text style={styles.label}>
-                    {t('groups.endDate')}
-                    <Text style={styles.optionalTag}> {t('groups.optional')}</Text>
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.dateField}
-                    onPress={openEndPicker}
-                    activeOpacity={0.8}
-                  >
-                    <MaterialIcons name="calendar-today" size={18} color={textMuted} />
-                    {endDate ? (
-                      <Text style={styles.dateText}>{formatDate(endDate)}</Text>
-                    ) : (
-                      <Text style={styles.datePlaceholder}>YYYY-MM-DD</Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              </View>
+              ))}
+            </ScrollView>
+          )}
 
-              {showStartPicker &&
-                (Platform.OS === 'ios' ? (
-                  renderIOSDatePicker(
-                    startDate ?? new Date(),
-                    setStartDate,
-                    cancelStartDate,
-                    confirmStartDate,
-                  )
-                ) : (
-                  <DateTimePicker
-                    value={startDate ?? new Date()}
-                    mode="date"
-                    display="default"
-                    themeVariant={isDark ? 'dark' : 'light'}
-                    onChange={(_, date) => {
-                      setShowStartPicker(false);
-                      if (date) setStartDate(date);
-                    }}
-                  />
-                ))}
-              {showEndPicker &&
-                (Platform.OS === 'ios' ? (
-                  renderIOSDatePicker(
-                    endDate ?? new Date(),
-                    setEndDate,
-                    cancelEndDate,
-                    confirmEndDate,
-                  )
-                ) : (
-                  <DateTimePicker
-                    value={endDate ?? new Date()}
-                    mode="date"
-                    display="default"
-                    themeVariant={isDark ? 'dark' : 'light'}
-                    onChange={(_, date) => {
-                      setShowEndPicker(false);
-                      if (date) setEndDate(date);
-                    }}
-                  />
-                ))}
+          {/* Search */}
+          <View style={styles.searchInput}>
+            <MaterialIcons name="search" size={20} color={textMuted} />
+            <TextInput
+              style={styles.searchText}
+              value={searchQuery}
+              onChangeText={handleSearchChange}
+              placeholder={t('common.search') || 'Search places…'}
+              placeholderTextColor={textMuted}
+              returnKeyType="search"
+            />
+            {searchQuery ? (
+              <TouchableOpacity onPress={() => handleSearchChange('')}>
+                <MaterialIcons name="close" size={18} color={textMuted} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
 
+          {placesLoading ? (
+            <ActivityIndicator color={tokens.colors.primary} style={{ marginTop: 24 }} />
+          ) : (
+            <FlatList
+              data={allPlaces}
+              keyExtractor={(p) => p.place_code}
+              renderItem={renderPlaceItem}
+              onEndReached={handleLoadMore}
+              onEndReachedThreshold={0.3}
+              keyboardShouldPersistTaps="handled"
+              ListFooterComponent={
+                placesLoadingMore ? (
+                  <ActivityIndicator color={tokens.colors.primary} style={{ marginVertical: 16 }} />
+                ) : null
+              }
+            />
+          )}
+        </View>
+
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+          <TouchableOpacity style={styles.cancelButton} onPress={goBack} activeOpacity={0.8}>
+            <Text style={styles.cancelText}>{t('common.back')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.submitButton} onPress={goNext} activeOpacity={0.8}>
+            <Text style={styles.submitText}>
+              {selectedPlaces.length > 0
+                ? `${t('common.next')} (${selectedPlaces.length})`
+                : t('common.next')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  // ── Polish step ─────────────────────────────────────────────────────────────
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 16, paddingBottom: 24 }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity style={styles.backBtn} onPress={goBack} activeOpacity={0.8}>
+            <MaterialIcons
+              name="arrow-back"
+              size={20}
+              color={isDark ? '#fff' : tokens.colors.textDark}
+            />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{t('journey.newJourney') || 'New Journey'}</Text>
+        </View>
+
+        {renderStepIndicator()}
+
+        {/* Cover image */}
+        {coverUri ? (
+          <View style={styles.coverPreview}>
+            <Image source={{ uri: coverUri }} style={styles.coverImage} resizeMode="cover" />
+            <View style={styles.coverOverlay}>
               <TouchableOpacity
-                style={styles.checkRow}
-                onPress={() => setIsPrivate((p) => !p)}
+                style={styles.coverBtn}
+                onPress={showCoverOptions}
                 activeOpacity={0.8}
               >
-                <View style={[styles.checkbox, isPrivate && styles.checkboxChecked]}>
-                  {isPrivate ? <MaterialIcons name="check" size={16} color="#fff" /> : null}
-                </View>
-                <Text style={styles.checkLabel}>{t('groups.privateGroup')}</Text>
-                <Text style={styles.optionalTag}>{t('groups.optional')}</Text>
+                <MaterialIcons name="edit" size={14} color={tokens.colors.textDark} />
+                <Text style={styles.coverBtnText}>{t('groups.changeCoverPhoto')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.coverBtn}
+                onPress={() => setCoverUri(null)}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="close" size={14} color="#ef4444" />
+                <Text style={styles.coverBtnRemove}>{t('groups.removeCoverPhoto')}</Text>
               </TouchableOpacity>
             </View>
-          )}
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.coverPlaceholder}
+            onPress={showCoverOptions}
+            activeOpacity={0.8}
+          >
+            <MaterialIcons name="photo-camera" size={32} color={textMuted} />
+            <Text style={{ fontSize: 14, fontWeight: '500', color: textMuted }}>
+              {t('groups.addCoverPhoto')}
+            </Text>
+            <Text style={{ fontSize: 12, color: textMuted }}>{t('groups.optional')}</Text>
+          </TouchableOpacity>
+        )}
 
-          {/* Step 3: Review */}
-          {step === 'review' && (
-            <View>
-              <Text style={[styles.label, { fontSize: 16, marginBottom: 16 }]}>
-                {t('groups.reviewYourGroup')}
-              </Text>
-              <View style={styles.reviewCard}>
-                {coverUri && (
-                  <Image
-                    source={{ uri: coverUri }}
-                    style={{ width: '100%', height: 120, borderRadius: 10, marginBottom: 12 }}
-                    resizeMode="cover"
-                  />
-                )}
-                <Text style={styles.reviewTitle}>{name}</Text>
-                {description ? <Text style={styles.reviewDesc}>{description}</Text> : null}
-                {(startDate || endDate) && (
-                  <Text style={styles.reviewMeta}>
-                    📅 {startDate ? formatDate(startDate) : ''} {startDate && endDate ? '–' : ''}{' '}
-                    {endDate ? formatDate(endDate) : ''}
-                  </Text>
-                )}
-                {isPrivate && <Text style={styles.reviewMeta}>🔒 {t('groups.privateGroup')}</Text>}
-              </View>
-              {selectedPlaceObjects.length > 0 && (
-                <View style={{ marginBottom: 16 }}>
-                  <Text style={[styles.label, { marginBottom: 8 }]}>
-                    {t('groups.placesInItinerary').replace(
-                      '{count}',
-                      String(selectedPlaceObjects.length),
-                    )}
-                  </Text>
-                  {selectedPlaceObjects.map((place, i) => (
-                    <View key={place.place_code} style={styles.placeRow}>
-                      <Text style={styles.placeIndex}>{i + 1}</Text>
-                      <Text style={styles.placeName} numberOfLines={1}>
-                        {place.name}
-                      </Text>
-                      <Text style={styles.placeReligion}>{place.religion}</Text>
-                    </View>
-                  ))}
-                </View>
+        {/* Name */}
+        <View style={styles.field}>
+          <Text style={styles.label}>{t('groups.nameLabel')} *</Text>
+          <TextInput
+            style={[styles.input, nameError ? styles.inputError : {}]}
+            value={name}
+            onChangeText={(v) => {
+              setName(v);
+              if (nameError) setNameError('');
+            }}
+            placeholder={t('groups.groupNamePlaceholder')}
+            placeholderTextColor={textMuted}
+            autoCapitalize="words"
+          />
+          {nameError ? <Text style={styles.errorMsg}>{nameError}</Text> : null}
+        </View>
+
+        {/* Description */}
+        <View style={styles.field}>
+          <Text style={styles.label}>
+            {t('groups.descriptionLabel')}
+            <Text style={styles.optionalTag}> {t('groups.optional')}</Text>
+          </Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={description}
+            onChangeText={setDescription}
+            placeholder={t('groups.descriptionPlaceholder')}
+            placeholderTextColor={textMuted}
+            multiline
+          />
+        </View>
+
+        {/* Date range */}
+        <View style={styles.dateRow}>
+          <View style={styles.dateCol}>
+            <Text style={styles.label}>
+              {t('groups.startDate')}
+              <Text style={styles.optionalTag}> {t('groups.optional')}</Text>
+            </Text>
+            <TouchableOpacity
+              style={styles.dateField}
+              onPress={openStartPicker}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="calendar-today" size={18} color={textMuted} />
+              {startDate ? (
+                <Text style={styles.dateText}>{formatDate(startDate)}</Text>
+              ) : (
+                <Text style={styles.datePlaceholder}>YYYY-MM-DD</Text>
               )}
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
-            </View>
-          )}
-        </ScrollView>
-      )}
+            </TouchableOpacity>
+          </View>
+          <View style={styles.dateCol}>
+            <Text style={styles.label}>
+              {t('groups.endDate')}
+              <Text style={styles.optionalTag}> {t('groups.optional')}</Text>
+            </Text>
+            <TouchableOpacity style={styles.dateField} onPress={openEndPicker} activeOpacity={0.8}>
+              <MaterialIcons name="calendar-today" size={18} color={textMuted} />
+              {endDate ? (
+                <Text style={styles.dateText}>{formatDate(endDate)}</Text>
+              ) : (
+                <Text style={styles.datePlaceholder}>YYYY-MM-DD</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
 
-      {/* Sticky footer buttons */}
-      {renderFooter()}
+        {showStartPicker &&
+          (Platform.OS === 'ios' ? (
+            renderIOSDatePicker(
+              startDate ?? new Date(),
+              setStartDate,
+              cancelStartDate,
+              confirmStartDate,
+            )
+          ) : (
+            <DateTimePicker
+              value={startDate ?? new Date()}
+              mode="date"
+              display="default"
+              themeVariant={isDark ? 'dark' : 'light'}
+              onChange={(_, date) => {
+                setShowStartPicker(false);
+                if (date) setStartDate(date);
+              }}
+            />
+          ))}
+        {showEndPicker &&
+          (Platform.OS === 'ios' ? (
+            renderIOSDatePicker(endDate ?? new Date(), setEndDate, cancelEndDate, confirmEndDate)
+          ) : (
+            <DateTimePicker
+              value={endDate ?? new Date()}
+              mode="date"
+              display="default"
+              themeVariant={isDark ? 'dark' : 'light'}
+              onChange={(_, date) => {
+                setShowEndPicker(false);
+                if (date) setEndDate(date);
+              }}
+            />
+          ))}
+
+        {/* Private toggle */}
+        <TouchableOpacity
+          style={styles.checkRow}
+          onPress={() => setIsPrivate((p) => !p)}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.checkbox, isPrivate && styles.checkboxChecked]}>
+            {isPrivate ? <MaterialIcons name="check" size={16} color="#fff" /> : null}
+          </View>
+          <Text style={styles.checkLabel}>{t('groups.privateGroup')}</Text>
+          <Text style={styles.optionalTag}>{t('groups.optional')}</Text>
+        </TouchableOpacity>
+
+        {/* Selected places summary */}
+        {selectedPlaces.length > 0 && (
+          <View style={styles.reviewCard}>
+            <Text style={[styles.label, { fontSize: 13, marginBottom: 10 }]}>
+              {t('journey.placesCount') || `${selectedPlaces.length} places`}
+            </Text>
+            {selectedPlaces.map((place, i) => (
+              <View key={place.place_code} style={styles.reviewPlaceRow}>
+                <Text style={styles.reviewPlaceIdx}>{i + 1}</Text>
+                <Text style={styles.reviewPlaceName} numberOfLines={1}>
+                  {place.name}
+                </Text>
+                <Text style={styles.reviewPlaceRel}>{place.religion}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
+      </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+        <TouchableOpacity style={styles.cancelButton} onPress={goBack} activeOpacity={0.8}>
+          <Text style={styles.cancelText}>{t('common.back')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.submitButton, submitting && styles.submitDisabled]}
+          onPress={goNext}
+          disabled={submitting}
+          activeOpacity={0.8}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#ffffff" size="small" />
+          ) : (
+            <Text style={styles.submitText}>{t('journey.createJourney') || 'Create Journey'}</Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </KeyboardAvoidingView>
   );
 }
