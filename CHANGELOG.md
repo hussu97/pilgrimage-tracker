@@ -4,6 +4,20 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Web Phase 3 — Place Count Ticker, 2.3 Carousels, City Metrics, Map UX, Images, Journey Rename (2026-03-12)
+
+### Frontend (web)
+- **`Home.tsx`** — Replaced greeting/welcome/user-name header with an animated place count ticker: fetches `GET /api/v1/places/count` on mount, animates from 0 → total using `requestAnimationFrame` with ease-out cubic over 1200ms; displays count prominently with `t('dashboard.totalPlaces')` subtitle; notification bell and profile icon remain on the right; dark mode compliant
+- **`Home.tsx`** — Applied 2.3-item peek carousel width to all horizontal carousel cards (popular places, recommended places, popular journeys): `w-[calc((100vw-2.5rem)/2.3)] lg:w-48 flex-shrink-0` with `hover:scale-[1.02] transition-transform duration-200` on each card; scroll containers use `flex flex-nowrap overflow-x-auto`; on desktop (`lg:`), popular-places and recommended carousels become CSS grids (`lg:grid-cols-3 xl:grid-cols-4`)
+- **`ExploreCity.tsx`** — Added city metrics banner below the page title: fetches `GET /api/v1/cities?include_metrics=true`, shows total places count and check-ins last 30 days as stat columns with a divider, plus a color-coded popularity badge ("Trending" → amber, "Popular" → blue, "Growing" → green); card-style with `dark:bg-dark-surface` and `dark:border-dark-border`
+- **`PlaceMapView.tsx`** — Enhanced bottom place sheet: upgraded shadow to `shadow-[0_-8px_40px_rgba(0,0,0,0.18)]`; converted the vertical place list inside the bottom sheet to a horizontal carousel using `w-[75vw] max-w-xs flex-shrink-0` cards with `hover:scale-[1.02] transition-transform duration-200`
+- **`GroupDetail.tsx`** — Added gray fallback div with `<span className="material-icons">place</span>` icon when a checklist place has no `image_url`, ensuring every place row always shows an image element
+- **`Groups.tsx`** — Audited for hardcoded strings; all display strings already use `t()` keys that resolve to journey terminology — no changes required
+- **`seed_data.json`** — Added `explore.totalSites` and `explore.checkins30d` translation keys for all 5 languages (en, ar, hi, te, ml)
+- **`src/__tests__/phase3Redesign.test.ts`** — Added 16 pure-logic tests covering place count parsing, popularity badge derivation, ease-out cubic ticker, and carousel card class helpers (22 test files, 225 tests total)
+
+---
+
 ## Mobile Phase 3 — Place Count Ticker, 2.3 Carousels, City Metrics, Map UX, Images, Journey Rename (2026-03-12)
 
 ### Frontend (mobile)

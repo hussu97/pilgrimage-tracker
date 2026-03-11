@@ -10,7 +10,7 @@
  *   • Popular Journeys carousel (backend /groups/featured)
  *   • Recent Activity feed (from user's groups)
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth, useI18n } from '@/app/providers';
@@ -135,6 +135,13 @@ async function getPopularCities(): Promise<PopularCity[]> {
   if (!res.ok) return [];
   const data = await res.json();
   return data.cities ?? [];
+}
+
+async function getPlacesCount(): Promise<number> {
+  const res = await fetch(`${API_BASE}/api/v1/places/count`, { credentials: 'include' });
+  if (!res.ok) return 0;
+  const data = await res.json();
+  return data.count ?? data.total ?? 0;
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -372,7 +379,7 @@ function PlaceCardSmall({ place }: { place: RecommendedPlace }) {
     <Link to={`/places/${place.place_code}`}>
       <motion.div
         whileTap={{ scale: 0.97 }}
-        className="w-44 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface"
+        className="w-[calc((100vw-2.5rem)/2.3)] lg:w-48 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:scale-[1.02] transition-transform duration-200"
       >
         <div className="h-28 bg-slate-100 dark:bg-dark-border relative overflow-hidden">
           {place.image_url ? (
@@ -428,7 +435,7 @@ function PopularPlaceCard({ place }: { place: PopularPlace }) {
     <Link to={`/places/${place.place_code}`}>
       <motion.div
         whileTap={{ scale: 0.97 }}
-        className="w-48 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface"
+        className="w-[calc((100vw-2.5rem)/2.3)] lg:w-48 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:scale-[1.02] transition-transform duration-200"
       >
         <div className="h-28 bg-slate-100 dark:bg-dark-border relative overflow-hidden">
           {imgUrl ? (
@@ -488,7 +495,7 @@ function FeaturedJourneyCard({ journey }: { journey: FeaturedJourney }) {
   return (
     <motion.div
       whileTap={{ scale: 0.97 }}
-      className="w-52 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface"
+      className="w-[calc((100vw-2.5rem)/2.3)] lg:w-52 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:scale-[1.02] transition-transform duration-200"
     >
       <div className="h-28 bg-gradient-to-br from-primary/20 to-primary/5 relative overflow-hidden">
         {journey.cover_image_url && (
@@ -527,6 +534,50 @@ function FeaturedJourneyCard({ journey }: { journey: FeaturedJourney }) {
   );
 }
 
+/** Animated place count ticker — counts up from 0 to total */
+function PlaceCountTicker({ total }: { total: number }) {
+  const { t } = useI18n();
+  const [displayed, setDisplayed] = useState(0);
+  const rafRef = useRef<number | null>(null);
+  const startRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (total <= 0) return;
+    const duration = 1200; // ms
+    const start = performance.now();
+    startRef.current = start;
+
+    const tick = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayed(Math.round(eased * total));
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    };
+  }, [total]);
+
+  const formatted = displayed.toLocaleString();
+
+  return (
+    <div>
+      <p className="text-3xl font-bold text-text-primary dark:text-white tabular-nums leading-none">
+        {formatted}
+      </p>
+      <p className="text-xs text-text-muted dark:text-dark-text-secondary mt-0.5">
+        {t('dashboard.totalPlaces')}
+      </p>
+    </div>
+  );
+}
+
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -549,6 +600,7 @@ export default function Home() {
   const [featured, setFeatured] = useState<FeaturedJourney[]>([]);
   const [popularPlaces, setPopularPlaces] = useState<PopularPlace[]>([]);
   const [popularCities, setPopularCities] = useState<PopularCity[]>([]);
+  const [placeCount, setPlaceCount] = useState(0);
 
   // Redirect to onboarding on first visit (no user + no flag)
   useEffect(() => {
@@ -606,6 +658,15 @@ export default function Home() {
     }
   }, []);
 
+  const fetchPlaceCount = useCallback(async () => {
+    try {
+      const count = await getPlacesCount();
+      setPlaceCount(count);
+    } catch {
+      // silently skip
+    }
+  }, []);
+
   useEffect(() => {
     fetchJourneys();
   }, [fetchJourneys]);
@@ -614,9 +675,9 @@ export default function Home() {
     fetchRecommended();
     fetchFeatured();
     fetchPopular();
-  }, [fetchRecommended, fetchFeatured, fetchPopular]);
+    fetchPlaceCount();
+  }, [fetchRecommended, fetchFeatured, fetchPopular, fetchPlaceCount]);
 
-  const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || '';
   const activeJourneys = journeys.filter(
     (g) => (g.total_sites ?? 0) > 0 && (g.sites_visited ?? 0) < (g.total_sites ?? 0),
   );
@@ -627,23 +688,7 @@ export default function Home() {
       <div className="max-w-2xl md:max-w-4xl mx-auto">
         {/* ── Top bar ─────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-4 pt-safe-top pt-4 pb-2">
-          <div>
-            <p className="text-xs text-text-muted dark:text-dark-text-secondary">
-              {t('dashboard.greeting')}
-            </p>
-            {displayName ? (
-              <h1 className="text-xl font-bold text-text-primary dark:text-white leading-tight">
-                {displayName}
-              </h1>
-            ) : (
-              <button
-                onClick={() => navigate('/login')}
-                className="text-sm font-semibold text-primary"
-              >
-                {t('dashboard.signIn')}
-              </button>
-            )}
-          </div>
+          <PlaceCountTicker total={placeCount} />
           <div className="flex items-center gap-3">
             <Link
               to="/notifications"
@@ -720,7 +765,7 @@ export default function Home() {
                     {t('dashboard.popularPlaces')}
                   </h2>
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide lg:grid lg:grid-cols-3 xl:grid-cols-4 lg:overflow-visible lg:flex-none">
                   {popularPlaces.map((place) => (
                     <PopularPlaceCard key={place.place_code} place={place} />
                   ))}
@@ -774,7 +819,7 @@ export default function Home() {
                     {t('common.showMore')}
                   </Link>
                 </div>
-                <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide lg:grid lg:grid-cols-3 xl:grid-cols-4 lg:overflow-visible lg:flex-none">
                   {recommended.map((place) => (
                     <PlaceCardSmall key={place.place_code} place={place} />
                   ))}
@@ -791,7 +836,7 @@ export default function Home() {
                 <h2 className="text-base font-bold text-text-primary dark:text-white mb-3">
                   {t('journey.popularJourneys')}
                 </h2>
-                <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide md:flex-col md:overflow-visible">
+                <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide md:flex-col md:overflow-visible md:flex-none">
                   {featured.map((j) => (
                     <FeaturedJourneyCard key={j.group_code} journey={j} />
                   ))}

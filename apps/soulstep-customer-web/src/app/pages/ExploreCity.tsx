@@ -4,6 +4,12 @@ import { useHead } from '@/lib/hooks/useHead';
 import { useI18n } from '@/app/providers';
 import * as api from '@/lib/api/client';
 
+interface CityMetrics {
+  count: number;
+  checkins_30d?: number;
+  popularity_label?: string | null;
+}
+
 const RELIGIONS = [
   { value: '', label: 'All' },
   { value: 'islam', label: 'Islam' },
@@ -24,6 +30,64 @@ interface CityPlace {
   seo_slug?: string;
 }
 
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
+async function getCityMetrics(citySlug: string): Promise<CityMetrics | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/cities?include_metrics=true&limit=200`, {
+      credentials: 'include',
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const cities: Array<{
+      city_slug: string;
+      count: number;
+      checkins_30d?: number;
+      popularity_label?: string | null;
+    }> = data.cities ?? [];
+    const match = cities.find((c) => c.city_slug === citySlug);
+    if (!match) return null;
+    return {
+      count: match.count,
+      checkins_30d: match.checkins_30d,
+      popularity_label: match.popularity_label,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function PopularityBadge({ label }: { label: string }) {
+  const cls =
+    label === 'Trending'
+      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+      : label === 'Popular'
+        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+        : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${cls}`}
+    >
+      {label === 'Trending' && (
+        <span className="material-symbols-outlined text-[14px]" aria-hidden>
+          local_fire_department
+        </span>
+      )}
+      {label === 'Popular' && (
+        <span className="material-symbols-outlined text-[14px]" aria-hidden>
+          star
+        </span>
+      )}
+      {label === 'Growing' && (
+        <span className="material-symbols-outlined text-[14px]" aria-hidden>
+          trending_up
+        </span>
+      )}
+      {label}
+    </span>
+  );
+}
+
 export default function ExploreCity() {
   const { t } = useI18n();
   const { city } = useParams<{ city: string }>();
@@ -31,6 +95,7 @@ export default function ExploreCity() {
   const [cityName, setCityName] = useState('');
   const [loading, setLoading] = useState(true);
   const [religion, setReligion] = useState('');
+  const [metrics, setMetrics] = useState<CityMetrics | null>(null);
 
   useHead({
     title: cityName ? `Sacred Sites in ${cityName}` : 'Explore City',
@@ -54,6 +119,11 @@ export default function ExploreCity() {
       .catch(() => setLoading(false));
   }, [city, religion]);
 
+  useEffect(() => {
+    if (!city) return;
+    getCityMetrics(city).then(setMetrics);
+  }, [city]);
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="flex items-center gap-2 mb-4 text-sm text-text-muted dark:text-dark-text-secondary">
@@ -67,6 +137,39 @@ export default function ExploreCity() {
       <h1 className="text-2xl font-bold text-text-main dark:text-white mb-2">
         {t('explore.cityTitle').replace('{city}', cityName || city || '')}
       </h1>
+
+      {/* Metrics banner */}
+      {metrics && (
+        <div className="flex items-center gap-4 mb-4 p-4 rounded-2xl bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border shadow-sm flex-wrap">
+          <div className="flex flex-col">
+            <span className="text-xl font-bold text-text-main dark:text-white tabular-nums">
+              {metrics.count.toLocaleString()}
+            </span>
+            <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
+              {t('explore.totalSites') || 'Total sites'}
+            </span>
+          </div>
+          {metrics.checkins_30d != null && (
+            <>
+              <div className="w-px h-8 bg-slate-100 dark:bg-dark-border" />
+              <div className="flex flex-col">
+                <span className="text-xl font-bold text-text-main dark:text-white tabular-nums">
+                  {metrics.checkins_30d.toLocaleString()}
+                </span>
+                <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
+                  {t('explore.checkins30d') || 'Check-ins (30d)'}
+                </span>
+              </div>
+            </>
+          )}
+          {metrics.popularity_label && (
+            <>
+              <div className="w-px h-8 bg-slate-100 dark:bg-dark-border" />
+              <PopularityBadge label={metrics.popularity_label} />
+            </>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-2 flex-wrap mb-6">
         {RELIGIONS.map((r) => (

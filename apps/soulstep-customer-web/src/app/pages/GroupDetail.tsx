@@ -554,12 +554,18 @@ export default function GroupDetail() {
                               )
                             }
                           >
-                            {place.image_url && (
+                            {place.image_url ? (
                               <img
                                 src={getFullImageUrl(place.image_url ?? undefined)}
                                 alt={place.name}
                                 className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
                               />
+                            ) : (
+                              <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-dark-border flex items-center justify-center flex-shrink-0">
+                                <span className="material-icons text-slate-400 dark:text-dark-text-secondary text-xl">
+                                  place
+                                </span>
+                              </div>
                             )}
                             <div className="flex-1 min-w-0">
                               <p className="font-semibold text-slate-800 dark:text-white text-sm truncate">

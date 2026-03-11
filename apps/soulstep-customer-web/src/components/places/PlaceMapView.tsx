@@ -189,7 +189,7 @@ export default function PlaceMapView({
 
           {/* ── Mobile: draggable bottom sheet (overlay) ────────────────────── */}
           <div
-            className="md:hidden absolute bottom-0 left-0 right-0 z-[1000] flex flex-col bg-white/95 dark:bg-dark-surface backdrop-blur-xl rounded-t-3xl shadow-2xl border-t border-input-border/50 dark:border-dark-border"
+            className="md:hidden absolute bottom-0 left-0 right-0 z-[1000] flex flex-col bg-white/95 dark:bg-dark-surface backdrop-blur-xl rounded-t-3xl shadow-[0_-8px_40px_rgba(0,0,0,0.18)] border-t border-input-border/50 dark:border-dark-border"
             style={{
               height: sheetPx ? `${sheetPx}px` : `${PEEK_RATIO * 100}%`,
               transition: isDragging ? 'none' : 'height 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -235,11 +235,18 @@ export default function PlaceMapView({
                     {countLabel}
                   </p>
                 </div>
-                {/* Scrollable card list */}
-                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-                  {visiblePlaces.map((place) => (
-                    <PlaceCardUnified key={place.place_code} place={place} t={t} />
-                  ))}
+                {/* Scrollable card list — horizontal carousel on mobile, vertical list when expanded */}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3">
+                  <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                    {visiblePlaces.map((place) => (
+                      <div
+                        key={place.place_code}
+                        className="w-[75vw] max-w-xs flex-shrink-0 hover:scale-[1.02] transition-transform duration-200"
+                      >
+                        <PlaceCardUnified place={place} t={t} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </>
             )}
