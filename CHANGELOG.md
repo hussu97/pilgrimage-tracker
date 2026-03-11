@@ -4,6 +4,31 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Journey UX Pivot — Phases 2–6: Dashboard, Creation, Map, Detail, Onboarding (2026-03-11)
+
+### Frontend (web)
+- **`src/app/pages/CreateGroup.tsx`** — rewrite as 4-step Journey Creation flow: intent → build → polish → success; Framer Motion stagger-in intent cards, AnimatePresence chips, `generateJourneyName()` auto-naming
+- **`src/app/pages/MapDiscovery.tsx`** (new) — full-screen Leaflet map with floating translucent search bar + religion filter chips overlay; 400ms debounced `getPlaces` fetch
+- **`src/app/routes.tsx`** — added `/map` route; updated map link in Layout
+- **`src/components/layout/Layout.tsx`** — map tab now links to `/map`; updated `isMap` detection
+- **`src/app/pages/GroupDetail.tsx`** — Journey Detail redesign: hero with cover image + progress ring + glass back/share buttons; vertical timeline itinerary with number badges + connecting line; Route/Activity/Members tabs with Framer Motion transitions; glass contextual bottom bar
+- **`src/app/pages/Onboarding.tsx`** (new) — 3-card swipeable onboarding flow with Framer Motion AnimatePresence; dot indicators; `localStorage('onboarding_done')` first-visit gate
+- **`src/app/pages/Home.tsx`** — added `useEffect` redirect to `/onboarding` on first visit (no user + no onboarding flag)
+- **`src/__tests__/onboarding.test.ts`** (new) — 8 Vitest tests for redirect logic
+
+### Frontend (mobile)
+- **`src/app/screens/HomeScreen.tsx`** — rewrite as Journey Dashboard: active journey hero card with progress ring, quick actions, recommended places carousel, popular journeys carousel, empty state
+- **`src/app/screens/CreateGroupScreen.tsx`** — rewrite as 4-step Journey Creation flow mirroring web; `Animated` success reveal; same `generateJourneyName()` and translation keys
+- **`src/app/screens/MapDiscoveryScreen.tsx`** (new) — full-screen WebView (Leaflet via CDN), floating search + religion chips overlay, bottom horizontal snap carousel synced with map pins via WebView messaging
+- **`src/app/screens/GroupDetailScreen.tsx`** — Journey Detail redesign: hero with cover image + glass buttons + progress badge; Route/Activity/Members tab pills; timeline itinerary with circular number badges; glass contextual bottom bar
+- **`src/app/screens/OnboardingScreen.tsx`** (new) — 3-card horizontal FlatList (pagingEnabled); dot indicators; `AsyncStorage('onboarding_done')` first-visit gate
+- **`src/app/navigation.tsx`** — added `MapDiscovery`, `Onboarding` to `RootStackParamList` and stack
+- **`src/components/layout/Layout.tsx`** — Map tab navigates to `MapDiscovery` screen
+- **`src/app/screens/SplashScreen.tsx`** — checks `onboarding_done` flag; routes to `Onboarding` vs `Main`
+- **`src/__tests__/onboarding.test.ts`** (new) — 7 Jest tests (parity with web)
+
+---
+
 ## Journey UX Pivot — Phase 1: Foundation & Navigation (2026-03-11)
 
 ### Backend

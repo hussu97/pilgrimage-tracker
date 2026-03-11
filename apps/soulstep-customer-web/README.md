@@ -86,6 +86,25 @@ Tests live in `src/__tests__/`. Uses Vitest. Covers pure logic (utilities, hooks
 
 ## Parity reference (for mobile)
 
-Canonical **screens** (see `app/routes.tsx` and `app/pages/`): Splash, Login, Register, ForgotPassword, ResetPassword, Home, PlaceDetail, WriteReview, Profile, EditProfile, CheckInsList, Favorites, Groups, CreateGroup, EditGroup, EditGroupPlaces, GroupDetail, JoinGroup, Notifications, Places (`/places`), ExploreCities (`/explore`), ExploreCity (`/explore/:city`, `/explore/:city/:religion`), Developers (`/developers`).
+Canonical **screens / routes** (see `app/routes.tsx` and `app/pages/`):
 
-**API surface** (see `lib/api/client.ts`): auth (login, register, forgot/reset, me), users (getMe, updateMe, check-ins, stats, favorites, settings), places (getPlaces, getPlace, reviews, checkIn, favorite, createReview), reviews (updateReview, deleteReview), groups (list, create, get, by-invite, join-by-code, join, members, invite, leaderboard, activity, checklist, addPlace, notes), notifications (get, markRead), cities (getCities, getCityPlaces, getCityReligionPlaces), i18n (getLanguages, getTranslations). Types in `lib/types/index.ts` use `user_code`, `place_code`, `religions` array.
+| Route | Page |
+|---|---|
+| `/` | → `/home` |
+| `/home` | Journey Dashboard (Home.tsx) — active journey card, quick actions, recommended + popular carousels |
+| `/onboarding` | 3-card first-visit onboarding flow |
+| `/map` | Map-First Discovery (MapDiscovery.tsx) — full-screen Leaflet + search/filter overlay |
+| `/places/:placeCode` | Place Detail |
+| `/journeys/new` | Journey Creation 4-step flow (CreateGroup.tsx) |
+| `/journeys/:groupCode` | Journey Detail (GroupDetail.tsx) — hero, timeline, tabs, glass bar |
+| `/journeys/:groupCode/edit` | Edit Journey |
+| `/journeys/:groupCode/edit-places` | Edit Journey Places |
+| `/groups/*` | Legacy aliases (deep-link compat) |
+| `/explore` | Explore Cities |
+| `/explore/:city` | Explore City |
+| `/places` | All Sacred Sites list |
+| `/profile` | Profile |
+| `/login` / `/register` | Auth |
+| `/developers` | API Docs |
+
+**API surface** (see `lib/api/client.ts`): auth (login, register, forgot/reset, me), users (getMe, updateMe, check-ins, stats, favorites, settings), places (getPlaces, getPlace, reviews, checkIn, favorite, createReview, **getRecommended**), reviews (updateReview, deleteReview), groups (list, create, get, by-invite, join-by-code, join, members, invite, leaderboard, activity, checklist, addPlace, notes, **getFeatured**, **optimizeRoute**), notifications (get, markRead), cities (getCities, getCityPlaces, getCityReligionPlaces), i18n (getLanguages, getTranslations). Types in `lib/types/index.ts` use `user_code`, `place_code`, `religions` array.

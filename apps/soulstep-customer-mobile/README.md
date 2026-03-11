@@ -59,7 +59,13 @@ Configure `app.json` / `app.config.js` (icons, splash, scheme). Submit to App St
 - `index.js` – Entry point.
 - `app.json` / `eas.json` – Expo config and EAS Build config.
 - `src/app/` – App shell: `App.tsx`, `providers.tsx`, `navigation.tsx`, `contexts/`, and all screens under `screens/`.
-- `src/app/screens/` – Screen components: SplashScreen, LoginScreen, RegisterScreen, ForgotPasswordScreen, ResetPasswordScreen, HomeScreen, PlaceDetailScreen, WriteReviewScreen, ProfileScreen, EditProfileScreen, CheckInsListScreen, FavoritesScreen, GroupsScreen, CreateGroupScreen, EditGroupScreen, EditGroupPlacesScreen, GroupDetailScreen, JoinGroupScreen, NotificationsScreen, SearchScreen, ExploreCitiesScreen, ExploreCityScreen, PlacesScreen.
+- `src/app/screens/` – Screen components:
+  - **Core journey flow**: `HomeScreen` (Journey Dashboard), `OnboardingScreen` (first-visit 3-card flow), `MapDiscoveryScreen` (full-screen WebView map + horizontal carousel), `CreateGroupScreen` (4-step journey creation), `GroupDetailScreen` (journey detail — hero, timeline, tabs, glass bar)
+  - **Auth**: `LoginScreen`, `RegisterScreen`, `ForgotPasswordScreen`, `ResetPasswordScreen`
+  - **Places**: `PlaceDetailScreen`, `WriteReviewScreen`, `PlacesScreen`, `ExploreCitiesScreen`, `ExploreCityScreen`
+  - **User**: `ProfileScreen`, `EditProfileScreen`, `CheckInsListScreen`, `FavoritesScreen`, `NotificationsScreen`
+  - **Groups (legacy)**: `GroupsScreen`, `EditGroupScreen`, `EditGroupPlacesScreen`, `JoinGroupScreen`
+  - **Utility**: `SplashScreen`, `SearchScreen`
 - `src/lib/` – Shared utilities: `api/client.ts` (API client), `types/` (TypeScript types), `theme.ts`, `constants.ts`, `share.ts`, `hooks/` (useAnalytics — batched event ingestion, consent gating, AppState background flush, in-memory session ID), `utils/`.
 - `src/stores/` – State stores.
 - `src/components/` – Shared UI components: `ads/` (AdProvider, AdBannerNative, AdInterstitial, useAdConsent, ad-constants), `consent/` (ConsentBanner), `analytics/` (AnalyticsProviderConnected).
