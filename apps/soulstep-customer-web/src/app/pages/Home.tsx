@@ -384,6 +384,13 @@ export default function Home() {
   const [recommended, setRecommended] = useState<RecommendedPlace[]>([]);
   const [featured, setFeatured] = useState<FeaturedJourney[]>([]);
 
+  // Redirect to onboarding on first visit (no user + no flag)
+  useEffect(() => {
+    if (!user && !localStorage.getItem('onboarding_done')) {
+      navigate('/onboarding', { replace: true });
+    }
+  }, [user, navigate]);
+
   // Fetch user's journeys
   const fetchJourneys = useCallback(async () => {
     if (!user) return;

@@ -57,6 +57,7 @@ const ExploreCities = lazyWithReload(() => import('@/app/pages/ExploreCities'));
 const ExploreCity = lazyWithReload(() => import('@/app/pages/ExploreCity'));
 const Developers = lazyWithReload(() => import('@/app/pages/Developers'));
 const MapDiscovery = lazyWithReload(() => import('@/app/pages/MapDiscovery'));
+const Onboarding = lazyWithReload(() => import('@/app/pages/Onboarding'));
 
 /**
  * Wraps children in an ErrorBoundary keyed to the current pathname.
@@ -342,6 +343,7 @@ export function AppRoutes() {
               </Layout>
             }
           />
+          <Route path="/onboarding" element={<Onboarding />} />
           <Route path="*" element={<Navigate to="/home" replace />} />
         </Routes>
       </Suspense>

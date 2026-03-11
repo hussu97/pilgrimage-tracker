@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/app/navigation';
@@ -20,17 +21,28 @@ function makeStyles(isDark: boolean) {
 export default function SplashScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Splash'>>();
   const { ready } = useI18n();
-  const { loading } = useAuth();
+  const { loading, user } = useAuth();
   const { isDark } = useTheme();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
-  // Once auth and i18n are ready, always go to Main (Home tab).
-  // If the user is not authenticated, the Profile tab will show the login landing page.
+  // Once auth and i18n are ready, decide where to navigate:
+  // - If no user AND onboarding not done → Onboarding
+  // - If user exists OR onboarding done → Main
   useEffect(() => {
-    if (ready && !loading) {
-      navigation.replace('Main');
-    }
-  }, [ready, loading, navigation]);
+    if (!ready || loading) return;
+    (async () => {
+      try {
+        const done = await AsyncStorage.getItem('onboarding_done');
+        if (!done && !user) {
+          navigation.replace('Onboarding');
+        } else {
+          navigation.replace('Main');
+        }
+      } catch {
+        navigation.replace('Main');
+      }
+    })();
+  }, [ready, loading, user, navigation]);
 
   return (
     <View style={styles.container}>
