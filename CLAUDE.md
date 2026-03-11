@@ -151,6 +151,171 @@ Web and mobile must use the **same translation keys** for the same UI strings. W
 4. Audit both apps when adding new keys to catch any matching hardcoded strings
 5. Interpolation pattern: `.replace('{placeholder}', value)` — the `t()` function is a simple key lookup with no built-in interpolation
 
+## 17. Horizontal Carousels
+All horizontal scrolling lists must show exactly **2.3 items** in view (creating a peek effect that signals scrollability).
+
+**Mobile (React Native):**
+```ts
+const screenWidth = Dimensions.get('window').width;
+const cardWidth = Math.min((screenWidth - 40) / 2.3, 200); // cap at 200px for tablets
+// Map/discovery carousels (single-peek): screenWidth * 0.75
+```
+- Apply `{ width: cardWidth }` inline to each card View
+- Use `horizontal` FlatList/ScrollView with `showsHorizontalScrollIndicator={false}`
+
+**Web (Tailwind):**
+```
+w-[calc((100vw-2.5rem)/2.3)] flex-shrink-0   ← mobile carousel card
+lg:w-48 flex-shrink-0                         ← desktop fixed width
+```
+- Scroll container: `flex flex-nowrap overflow-x-auto gap-3`
+- On desktop (`lg:`), convert carousels to CSS grids: `lg:grid lg:grid-cols-3 xl:grid-cols-4`
+- Map/discovery carousel card width: `w-[75vw] max-w-xs`
+
+## 18. Bottom Scroll Padding
+All scrollable screens must account for the bottom navigation bar so content is never hidden.
+
+**Mobile:** Use `useSafeAreaInsets()` from `react-native-safe-area-context`:
+```ts
+const insets = useSafeAreaInsets();
+// Main screens:
+contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
+// Detail screens without tab bar:
+contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
+```
+Never use a hardcoded `paddingBottom: 32` on a main-tab screen's ScrollView/FlatList.
+
+**Web:** Layout-wrapped pages must have at minimum `pb-24` on the main content container. The Layout component applies this globally — don't override it downward.
+
+## 19. Desktop Layout Patterns
+All customer web pages must be responsive with these standard breakpoints:
+
+**Content width:**
+- Container: `max-w-6xl mx-auto` at `lg:`, `max-w-7xl` at `xl:`
+- Never use `max-w-4xl` as the top-level content container on lg+ screens
+
+**Two-column layouts** (detail pages: GroupDetail, PlaceDetail, etc.):
+```
+lg:grid lg:grid-cols-5 lg:gap-8
+  left (content):  lg:col-span-3
+  right (sidebar): lg:col-span-2 lg:sticky lg:top-24
+```
+
+**Homepage layout:**
+```
+lg:grid lg:grid-cols-5 lg:gap-8
+  left (60%):  lg:col-span-3  — main content, grids
+  right (40%): lg:col-span-2 lg:sticky lg:top-24  — quick actions, stats
+```
+
+**Map page:**
+```
+lg:flex lg:h-screen
+  left panel:  lg:w-80 lg:overflow-y-auto lg:border-r  — filters + list
+  map:         lg:flex-1  — fills remaining space
+```
+
+**Typography scaling:**
+- Page headers: `text-2xl lg:text-3xl`
+- Section headers: `text-lg lg:text-xl`
+- Body: `text-sm lg:text-base`
+- Cards at desktop: add `lg:p-6` for more breathing room
+
+## 20. FAB (Floating Action Button) Pattern
+Use FABs for the single primary action on a screen. Never show a bottom action bar with multiple buttons.
+
+**Mobile:**
+```ts
+// Positioning
+position: 'absolute', right: 24, bottom: insets.bottom + 24
+
+// Mount animation (spring)
+const fabScale = useRef(new Animated.Value(0)).current;
+useEffect(() => {
+  Animated.spring(fabScale, { toValue: 1, useNativeDriver: true }).start();
+}, []);
+```
+- Icon: Material Icon (e.g. `add`, `add_location`)
+- Background: primary color from tokens
+- Only show for users with the relevant permission (e.g. journey admin)
+
+**Web:**
+```
+fixed bottom-6 right-6 z-50
+hover:scale-110 transition-transform duration-200
+```
+
+## 21. Modal / Bottom Sheet Pattern
+Use animated modals instead of separate screens for focused, single-task flows (join by code, share, quick filters, etc.).
+
+**Mobile:** `Modal` with transparent background + spring slide-up animation:
+```ts
+// translateY from 300 → 0 on open, 0 → 300 on close
+Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true }).start();
+```
+- Handle bar pill at top, backdrop tap to dismiss
+- States: idle → loading → preview/result → success → error
+- Success: animated green checkmark (Animated.spring scale 0→1.2→1), then auto-dismiss after 1.5s
+
+**Web:** `framer-motion` AnimatePresence with `y: 60 → 0` slide:
+```tsx
+<AnimatePresence>
+  {open && <motion.div initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }} />}
+</AnimatePresence>
+```
+- Backdrop: `fixed inset-0 bg-black/50`, click to close
+
+## 22. Card Design — Journeys / Groups
+Journey/group cards must follow this premium pattern in both apps:
+
+- **Cover image:** full-width hero image from the first place's photo (`photos?.[0]?.url`); fallback to a solid primary-color gradient
+- **Gradient overlay:** dark-to-transparent gradient over the bottom third of the image (for text legibility)
+- **Content on image:** journey name (bold, white), member count chip, progress indicator
+- **Progress bar:** shows checked places / total places ratio; primary color fill
+- **CTA:** "Continue →" button for active journeys
+- **Stagger entrance:** each card animates in with a 100ms offset delay (framer-motion on web, `Animated.timing` with delay on mobile)
+
+## 23. Check-in UX Pattern
+Check-in button interactions must always follow this state machine:
+
+```
+idle → [press] → loading (spinner) → success (green checkmark) or error (red message)
+```
+
+- **Loading:** replace button content with `ActivityIndicator` (mobile) or spinner div (web) — do NOT disable and gray out the entire button
+- **Success animation:** spring-scale checkmark from 0→1.2→1 (mobile: `Animated.spring`; web: Tailwind `scale-0 → scale-110 → scale-100` transition)
+- **Progress update:** hero progress counter must re-render immediately after success — do not wait for a page refresh
+- **Haptics (mobile only):** fire `Haptics.impactAsync(ImpactFeedbackStyle.Medium)` on success if `expo-haptics` is available
+- One check-in button per place — never duplicate it from a bottom bar AND inline row
+
+## 24. Place Images — Always Show
+Every component that renders a place item (list row, card, carousel tile) must always display an image:
+
+- Source: `photos?.[0]?.url` or `primary_photo?.url` (check which field the endpoint returns)
+- **Fallback** when no image URL: a container with `bg-gray-100 dark:bg-dark-surface` and a centered `place` Material Icon
+
+**Mobile:**
+```tsx
+{imageUrl ? (
+  <Image source={{ uri: imageUrl }} style={styles.thumb} />
+) : (
+  <View style={styles.thumbFallback}>
+    <MaterialIcons name="place" size={24} color={tokens.colors.textSecondary} />
+  </View>
+)}
+```
+
+**Web:**
+```tsx
+{imageUrl ? (
+  <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
+) : (
+  <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-dark-surface">
+    <span className="material-icons text-gray-400">place</span>
+  </div>
+)}
+```
+
 ## 16. Admin Pagination Standard
 All paginated tables in `apps/soulstep-admin-web` must use the following page size options, in this exact order:
 
