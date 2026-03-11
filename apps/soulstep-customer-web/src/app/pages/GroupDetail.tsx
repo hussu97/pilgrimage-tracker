@@ -512,236 +512,243 @@ export default function GroupDetail() {
               ) : (
                 /* ── TIMELINE ITINERARY ── */
                 <ol className="relative">
-                  {checklist.places.map((place, idx) => (
-                    <li key={place.place_code} className="relative flex gap-3 mb-3">
-                      {/* Left timeline line + badge */}
-                      <div className="flex flex-col items-center shrink-0" style={{ width: 32 }}>
-                        {/* Circular number badge */}
-                        <div
-                          className={cn(
-                            'w-8 h-8 rounded-full flex items-center justify-center border-2 font-bold text-sm z-10',
-                            place.user_checked_in
-                              ? 'bg-emerald-500 border-emerald-500 text-white'
-                              : 'bg-white dark:bg-dark-surface border-primary text-primary',
-                          )}
-                        >
-                          {place.user_checked_in ? (
-                            <span className="material-symbols-outlined text-sm">check</span>
-                          ) : (
-                            idx + 1
-                          )}
-                        </div>
-                        {/* Connecting line (not after last item) */}
-                        {idx < checklist.places.length - 1 && (
-                          <div className="w-0.5 flex-1 bg-slate-200 dark:bg-dark-border mt-1 min-h-[16px]" />
-                        )}
-                      </div>
-
-                      {/* Place card */}
-                      <div className="flex-1 rounded-2xl border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-surface overflow-hidden mb-1">
-                        <button
-                          type="button"
-                          className="w-full flex items-center gap-3 p-3 text-left"
-                          onClick={() =>
-                            setExpandedPlace(
-                              expandedPlace === place.place_code ? null : place.place_code,
-                            )
-                          }
-                        >
-                          {place.image_url && (
-                            <img
-                              src={getFullImageUrl(place.image_url ?? undefined)}
-                              alt={place.name}
-                              className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
-                            />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-slate-800 dark:text-white text-sm truncate">
-                              {place.name}
-                            </p>
-                            {place.address && (
-                              <p className="text-xs text-slate-400 dark:text-dark-text-secondary truncate">
-                                {place.address}
-                              </p>
-                            )}
-                            {place.check_in_count > 0 && (
-                              <div className="flex items-center gap-1 mt-1">
-                                <div className="flex -space-x-1">
-                                  {place.checked_in_by.slice(0, 3).map((ci) => (
-                                    <div
-                                      key={ci.user_code}
-                                      className="w-5 h-5 rounded-full bg-primary/20 border border-white dark:border-dark-surface flex items-center justify-center text-primary text-[10px] font-bold"
-                                      title={ci.display_name}
-                                    >
-                                      {ci.display_name.charAt(0)}
-                                    </div>
-                                  ))}
-                                </div>
-                                <span className="text-[10px] text-slate-400 dark:text-dark-text-secondary">
-                                  {place.check_in_count} {t('groups.checkedIn')}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          {/* Inline check-in button (not yet checked) */}
-                          {!place.user_checked_in && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCheckInModal({
-                                  placeCode: place.place_code,
-                                  placeName: place.name,
-                                });
-                              }}
-                              className="shrink-0 px-2.5 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90"
-                            >
-                              {t('groups.checkIn')}
-                            </button>
-                          )}
-                          <span
+                  {checklist.places.map((place, index) => (
+                    <motion.div
+                      key={place.place_code}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <li className="relative flex gap-3 mb-3">
+                        {/* Left timeline line + badge */}
+                        <div className="flex flex-col items-center shrink-0" style={{ width: 32 }}>
+                          {/* Circular number badge */}
+                          <div
                             className={cn(
-                              'material-symbols-outlined text-slate-400 transition-transform ml-1',
-                              expandedPlace === place.place_code && 'rotate-180',
+                              'w-8 h-8 rounded-full flex items-center justify-center border-2 font-bold text-sm z-10',
+                              place.user_checked_in
+                                ? 'bg-emerald-500 border-emerald-500 text-white'
+                                : 'bg-white dark:bg-dark-surface border-primary text-primary',
                             )}
                           >
-                            expand_more
-                          </span>
-                        </button>
+                            {place.user_checked_in ? (
+                              <span className="material-symbols-outlined text-sm">check</span>
+                            ) : (
+                              index + 1
+                            )}
+                          </div>
+                          {/* Connecting line (not after last item) */}
+                          {index < checklist.places.length - 1 && (
+                            <div className="w-0.5 flex-1 bg-slate-200 dark:bg-dark-border mt-1 min-h-[16px]" />
+                          )}
+                        </div>
 
-                        {/* Expanded content */}
-                        {expandedPlace === place.place_code && (
-                          <div className="px-4 pb-4 border-t border-slate-100 dark:border-dark-border pt-3 space-y-3">
-                            <div className="flex gap-2">
-                              <Link
-                                to={`/places/${place.place_code}`}
-                                className="flex-1 py-2 text-center text-sm font-semibold text-primary border border-primary rounded-xl hover:bg-primary/10"
-                              >
-                                {t('home.details')}
-                              </Link>
-                              {!place.user_checked_in && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setCheckInModal({
-                                      placeCode: place.place_code,
-                                      placeName: place.name,
-                                    })
-                                  }
-                                  className="flex-1 py-2 text-center text-sm font-semibold text-white bg-primary rounded-xl hover:bg-primary/90"
-                                >
-                                  {t('groups.checkIn')}
-                                </button>
-                              )}
-                            </div>
-
-                            {/* Who checked in */}
-                            {place.checked_in_by.length > 0 && (
-                              <div>
-                                <p className="text-xs font-semibold text-slate-500 dark:text-dark-text-secondary mb-1">
-                                  {t('groups.checkedIn')}
+                        {/* Place card */}
+                        <div className="flex-1 rounded-2xl border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-surface overflow-hidden mb-1">
+                          <button
+                            type="button"
+                            className="w-full flex items-center gap-3 p-3 text-left"
+                            onClick={() =>
+                              setExpandedPlace(
+                                expandedPlace === place.place_code ? null : place.place_code,
+                              )
+                            }
+                          >
+                            {place.image_url && (
+                              <img
+                                src={getFullImageUrl(place.image_url ?? undefined)}
+                                alt={place.name}
+                                className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-slate-800 dark:text-white text-sm truncate">
+                                {place.name}
+                              </p>
+                              {place.address && (
+                                <p className="text-xs text-slate-400 dark:text-dark-text-secondary truncate">
+                                  {place.address}
                                 </p>
-                                <div className="space-y-1">
-                                  {place.checked_in_by.map((ci) => (
-                                    <div
-                                      key={ci.user_code}
-                                      className="flex items-center gap-2 text-sm"
-                                    >
-                                      <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
+                              )}
+                              {place.check_in_count > 0 && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <div className="flex -space-x-1">
+                                    {place.checked_in_by.slice(0, 3).map((ci) => (
+                                      <div
+                                        key={ci.user_code}
+                                        className="w-5 h-5 rounded-full bg-primary/20 border border-white dark:border-dark-surface flex items-center justify-center text-primary text-[10px] font-bold"
+                                        title={ci.display_name}
+                                      >
                                         {ci.display_name.charAt(0)}
                                       </div>
-                                      <span className="font-medium text-slate-700 dark:text-white">
-                                        {ci.display_name}
-                                      </span>
-                                      <span className="text-xs text-slate-400">
-                                        {new Date(ci.checked_in_at).toLocaleDateString()}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Notes */}
-                            <div>
-                              {place.notes.length > 0 && (
-                                <div className="space-y-1.5 mb-3">
-                                  {place.notes.map((note) => (
-                                    <div
-                                      key={note.note_code}
-                                      className="flex items-start gap-2 p-2 rounded-lg bg-slate-50 dark:bg-dark-bg"
-                                    >
-                                      <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold flex-shrink-0">
-                                        {(note.display_name || '?').charAt(0)}
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-xs text-slate-700 dark:text-white">
-                                          {note.text}
-                                        </p>
-                                        <p className="text-[10px] text-slate-400 mt-0.5">
-                                          {note.display_name}
-                                        </p>
-                                      </div>
-                                      {(note.user_code === user?.user_code || isAdmin) && (
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            handleDeleteNote(place.place_code, note.note_code)
-                                          }
-                                          className="p-1 text-slate-400 hover:text-red-500"
-                                          aria-label="Delete note"
-                                        >
-                                          <span className="material-symbols-outlined text-sm">
-                                            delete
-                                          </span>
-                                        </button>
-                                      )}
-                                    </div>
-                                  ))}
+                                    ))}
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 dark:text-dark-text-secondary">
+                                    {place.check_in_count} {t('groups.checkedIn')}
+                                  </span>
                                 </div>
                               )}
-                              {/* WhatsApp-style note input */}
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="text"
-                                  value={noteInputs[place.place_code] ?? ''}
-                                  onChange={(e) =>
-                                    setNoteInputs((prev) => ({
-                                      ...prev,
-                                      [place.place_code]: e.target.value,
-                                    }))
-                                  }
-                                  placeholder={t('groups.writeNote')}
-                                  className="flex-1 h-10 text-xs border border-slate-200 dark:border-dark-border rounded-full px-4 bg-white dark:bg-dark-bg text-slate-700 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-primary"
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleAddNote(place.place_code);
-                                  }}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleAddNote(place.place_code)}
-                                  disabled={
-                                    noteSubmitting[place.place_code] ||
-                                    !noteInputs[place.place_code]?.trim()
-                                  }
-                                  className="w-9 h-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0 disabled:opacity-50 hover:bg-primary-hover transition-colors"
+                            </div>
+                            {/* Inline check-in button (not yet checked) */}
+                            {!place.user_checked_in && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCheckInModal({
+                                    placeCode: place.place_code,
+                                    placeName: place.name,
+                                  });
+                                }}
+                                className="shrink-0 px-2.5 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90"
+                              >
+                                {t('groups.checkIn')}
+                              </button>
+                            )}
+                            <span
+                              className={cn(
+                                'material-symbols-outlined text-slate-400 transition-transform ml-1',
+                                expandedPlace === place.place_code && 'rotate-180',
+                              )}
+                            >
+                              expand_more
+                            </span>
+                          </button>
+
+                          {/* Expanded content */}
+                          {expandedPlace === place.place_code && (
+                            <div className="px-4 pb-4 border-t border-slate-100 dark:border-dark-border pt-3 space-y-3">
+                              <div className="flex gap-2">
+                                <Link
+                                  to={`/places/${place.place_code}`}
+                                  className="flex-1 py-2 text-center text-sm font-semibold text-primary border border-primary rounded-xl hover:bg-primary/10"
                                 >
-                                  {noteSubmitting[place.place_code] ? (
-                                    <span className="material-symbols-outlined animate-spin text-white text-sm">
-                                      progress_activity
-                                    </span>
-                                  ) : (
-                                    <span className="material-symbols-outlined text-white text-sm">
-                                      send
-                                    </span>
-                                  )}
-                                </button>
+                                  {t('home.details')}
+                                </Link>
+                                {!place.user_checked_in && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setCheckInModal({
+                                        placeCode: place.place_code,
+                                        placeName: place.name,
+                                      })
+                                    }
+                                    className="flex-1 py-2 text-center text-sm font-semibold text-white bg-primary rounded-xl hover:bg-primary/90"
+                                  >
+                                    {t('groups.checkIn')}
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Who checked in */}
+                              {place.checked_in_by.length > 0 && (
+                                <div>
+                                  <p className="text-xs font-semibold text-slate-500 dark:text-dark-text-secondary mb-1">
+                                    {t('groups.checkedIn')}
+                                  </p>
+                                  <div className="space-y-1">
+                                    {place.checked_in_by.map((ci) => (
+                                      <div
+                                        key={ci.user_code}
+                                        className="flex items-center gap-2 text-sm"
+                                      >
+                                        <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
+                                          {ci.display_name.charAt(0)}
+                                        </div>
+                                        <span className="font-medium text-slate-700 dark:text-white">
+                                          {ci.display_name}
+                                        </span>
+                                        <span className="text-xs text-slate-400">
+                                          {new Date(ci.checked_in_at).toLocaleDateString()}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Notes */}
+                              <div>
+                                {place.notes.length > 0 && (
+                                  <div className="space-y-1.5 mb-3">
+                                    {place.notes.map((note) => (
+                                      <div
+                                        key={note.note_code}
+                                        className="flex items-start gap-2 p-2 rounded-lg bg-slate-50 dark:bg-dark-bg"
+                                      >
+                                        <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold flex-shrink-0">
+                                          {(note.display_name || '?').charAt(0)}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-xs text-slate-700 dark:text-white">
+                                            {note.text}
+                                          </p>
+                                          <p className="text-[10px] text-slate-400 mt-0.5">
+                                            {note.display_name}
+                                          </p>
+                                        </div>
+                                        {(note.user_code === user?.user_code || isAdmin) && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleDeleteNote(place.place_code, note.note_code)
+                                            }
+                                            className="p-1 text-slate-400 hover:text-red-500"
+                                            aria-label="Delete note"
+                                          >
+                                            <span className="material-symbols-outlined text-sm">
+                                              delete
+                                            </span>
+                                          </button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {/* WhatsApp-style note input */}
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    value={noteInputs[place.place_code] ?? ''}
+                                    onChange={(e) =>
+                                      setNoteInputs((prev) => ({
+                                        ...prev,
+                                        [place.place_code]: e.target.value,
+                                      }))
+                                    }
+                                    placeholder={t('groups.writeNote')}
+                                    className="flex-1 h-10 text-xs border border-slate-200 dark:border-dark-border rounded-full px-4 bg-white dark:bg-dark-bg text-slate-700 dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-primary"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleAddNote(place.place_code);
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddNote(place.place_code)}
+                                    disabled={
+                                      noteSubmitting[place.place_code] ||
+                                      !noteInputs[place.place_code]?.trim()
+                                    }
+                                    className="w-9 h-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0 disabled:opacity-50 hover:bg-primary-hover transition-colors"
+                                  >
+                                    {noteSubmitting[place.place_code] ? (
+                                      <span className="material-symbols-outlined animate-spin text-white text-sm">
+                                        progress_activity
+                                      </span>
+                                    ) : (
+                                      <span className="material-symbols-outlined text-white text-sm">
+                                        send
+                                      </span>
+                                    )}
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    </li>
+                          )}
+                        </div>
+                      </li>
+                    </motion.div>
                   ))}
                 </ol>
               )}

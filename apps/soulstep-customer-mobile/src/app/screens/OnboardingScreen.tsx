@@ -3,9 +3,17 @@
  * On completion or skip, sets AsyncStorage 'onboarding_done' = '1'
  * and navigates to Main.
  */
-import { useRef, useState, useMemo } from 'react';
-import type { ListRenderItemInfo } from 'react-native';
-import { View, Text, TouchableOpacity, FlatList, Dimensions, StyleSheet } from 'react-native';
+import { useRef, useState, useMemo, useCallback } from 'react';
+import type { ListRenderItemInfo, ViewToken } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  Dimensions,
+  StyleSheet,
+  Animated,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -151,6 +159,20 @@ export default function OnboardingScreen() {
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList<CardData>>(null);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (viewableItems.length > 0) {
+        Animated.sequence([
+          Animated.timing(fadeAnim, { toValue: 0.7, duration: 150, useNativeDriver: true }),
+          Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+        ]).start();
+      }
+    },
+    [fadeAnim],
+  );
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
 
   async function finish() {
     try {
@@ -212,26 +234,31 @@ export default function OnboardingScreen() {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={onMomentumScrollEnd}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
         scrollEventThrottle={16}
         style={{ flex: 1 }}
       />
 
-      {/* Dots */}
-      <View style={styles.dotsRow}>
-        {CARDS.map((_, i) => (
-          <View
-            key={i}
-            style={[styles.dot, i === currentIndex ? styles.dotActive : styles.dotInactive]}
-          />
-        ))}
-      </View>
+      {/* Dots + CTA wrapped in fade animation */}
+      <Animated.View style={{ opacity: fadeAnim }}>
+        {/* Dots */}
+        <View style={styles.dotsRow}>
+          {CARDS.map((_, i) => (
+            <View
+              key={i}
+              style={[styles.dot, i === currentIndex ? styles.dotActive : styles.dotInactive]}
+            />
+          ))}
+        </View>
 
-      {/* CTA */}
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.ctaButton} onPress={next} activeOpacity={0.85}>
-          <Text style={styles.ctaText}>{isLast ? t('onboarding.getStarted') : 'Next →'}</Text>
-        </TouchableOpacity>
-      </View>
+        {/* CTA */}
+        <View style={styles.footer}>
+          <TouchableOpacity style={styles.ctaButton} onPress={next} activeOpacity={0.85}>
+            <Text style={styles.ctaText}>{isLast ? t('onboarding.getStarted') : 'Next →'}</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
     </View>
   );
 }

@@ -647,7 +647,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.emptyBtn}
             onPress={() => navigation.navigate(user ? 'CreateGroup' : 'Login')}
-            activeOpacity={0.85}
+            activeOpacity={0.8}
           >
             <Text style={styles.emptyBtnText}>{t('journey.startPlanning')}</Text>
           </TouchableOpacity>
@@ -747,7 +747,7 @@ export default function HomeScreen() {
               key={a.label}
               style={styles.quickAction}
               onPress={a.onPress}
-              activeOpacity={0.75}
+              activeOpacity={0.8}
             >
               <View style={styles.quickActionIcon}>
                 <MaterialIcons name={a.icon} size={22} color={textMuted} />

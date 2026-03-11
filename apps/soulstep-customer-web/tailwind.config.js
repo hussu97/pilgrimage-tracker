@@ -55,6 +55,7 @@ export default {
         'heart-pop': 'heartPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
         'slide-up': 'slideUp 0.3s ease-out forwards',
         'fade-in': 'fadeIn 0.25s ease-out forwards',
+        breathe: 'breathe 3s ease-in-out infinite',
       },
       keyframes: {
         shimmer: {
@@ -79,6 +80,10 @@ export default {
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
+        },
+        breathe: {
+          '0%, 100%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.02)' },
         },
       },
     },

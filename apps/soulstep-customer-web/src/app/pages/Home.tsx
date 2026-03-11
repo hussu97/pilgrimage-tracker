@@ -108,6 +108,7 @@ function ProgressRing({
         strokeDasharray={circ}
         strokeDashoffset={offset}
         strokeLinecap="round"
+        className="animate-[breathe_3s_ease-in-out_infinite]"
         style={{ transition: 'stroke-dashoffset 0.6s ease' }}
       />
     </svg>
