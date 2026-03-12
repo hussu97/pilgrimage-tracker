@@ -468,37 +468,34 @@ class TestFetchDetailsSplit:
 
         assert call_count[0] == 1  # only essential call
 
-    async def test_extended_fetched_for_operational_with_rating(self):
-        """OPERATIONAL places with a rating should trigger the extended call."""
+    async def test_single_call_for_any_place(self):
+        """fetch_details_split always issues exactly one _fetch_details call (merged mask)."""
         from app.collectors.gmaps import GmapsCollector
 
         collector = GmapsCollector()
         rl = self._make_rate_limiter()
 
-        essential_resp = {
+        full_resp = {
             "businessStatus": "OPERATIONAL",
             "rating": 4.2,
-        }
-        extended_resp = {
             "accessibilityOptions": {"wheelchairAccessibleEntrance": True},
         }
-
-        responses = [essential_resp, extended_resp]
-        call_idx = [0]
+        call_count = [0]
 
         def fake_fetch(place_name, api_key, field_mask=None, http_session=None):
-            r = responses[call_idx[0]]
-            call_idx[0] += 1
-            return dict(r)
+            call_count[0] += 1
+            # Merged call must use the full FIELD_MASK (both essential + extended fields)
+            assert field_mask == collector.FIELD_MASK
+            return dict(full_resp)
 
         with patch.object(collector, "_fetch_details", new=AsyncMock(side_effect=fake_fetch)):
             result = await collector.fetch_details_split("places/Y", "fake", rl)
 
-        assert call_idx[0] == 2  # both essential + extended called
+        assert call_count[0] == 1  # always exactly one merged call
         assert result.get("accessibilityOptions") is not None
 
-    async def test_extended_skipped_for_unrated(self):
-        """A place with no rating (None) should skip the extended call."""
+    async def test_single_call_for_unrated_place(self):
+        """An unrated place also gets exactly one merged call (not two)."""
         from app.collectors.gmaps import GmapsCollector
 
         collector = GmapsCollector()

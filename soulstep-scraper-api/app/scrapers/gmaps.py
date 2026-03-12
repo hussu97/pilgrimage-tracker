@@ -904,4 +904,4 @@ async def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> No
         session.add(run)
         session.commit()
 
-    await download_place_images(run_code, _img_engine, max_workers=20)
+    await download_place_images(run_code, _img_engine)

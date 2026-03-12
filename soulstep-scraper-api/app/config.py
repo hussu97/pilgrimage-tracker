@@ -59,6 +59,11 @@ class Settings:
     overpass_concurrency: int = int(os.environ.get("SCRAPER_OVERPASS_CONCURRENCY", "2"))
     # Max jitter sleep (seconds) added before each Overpass call to spread burst.
     overpass_jitter_max: float = float(os.environ.get("SCRAPER_OVERPASS_JITTER_MAX", "1.5"))
+    # Max photos stored per place. Billed at $0.007/1000 per photo media request.
+    # 3 is enough for list cards + detail hero; raise to 5-10 only if needed.
+    max_photos: int = int(os.environ.get("SCRAPER_MAX_PHOTOS", "3"))
+    # Max concurrent image downloads (plain CDN, no API rate limit).
+    image_concurrency: int = int(os.environ.get("SCRAPER_IMAGE_CONCURRENCY", "40"))
 
 
 settings = Settings()

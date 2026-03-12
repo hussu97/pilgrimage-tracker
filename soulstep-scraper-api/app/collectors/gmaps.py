@@ -16,6 +16,7 @@ import httpx
 from sqlmodel import Session, select
 
 from app.collectors.base import BaseCollector, CollectorResult
+from app.config import settings
 from app.logger import get_logger
 from app.scrapers.gmaps import (
     clean_address,
@@ -60,21 +61,27 @@ async def _download_image(url: str, client: httpx.AsyncClient | None = None) -> 
             return None
 
 
-async def download_place_images(run_code: str, engine, max_workers: int = 20) -> None:
+_IMAGE_DB_BATCH = 50  # places committed per DB transaction during image write-back
+
+
+async def download_place_images(run_code: str, engine, max_workers: int | None = None) -> None:
     """Phase 3: Download images for all places in a run and store blobs in raw_data.
 
-    This is called after fetch_place_details() so that detail fetching is not
-    blocked by image downloads. Uses a shared httpx.AsyncClient for connection
-    reuse and asyncio.gather for parallelism.
+    Called after fetch_place_details() so detail fetching is not blocked.
+    Uses a shared httpx.AsyncClient + asyncio.gather for parallel downloads.
 
-    CDN photo URLs (places.googleapis.com/v1/.../media) are not billed API calls,
-    so no rate limiting is needed here.
+    Photo media requests (places.googleapis.com/v1/.../media) ARE billed by
+    Google at $0.007 per 1000 requests. Photo count per place is capped by
+    SCRAPER_MAX_PHOTOS (default 3) to control cost and download time.
 
-    Quality gate: places with quality_score below GATE_IMAGE_DOWNLOAD are skipped.
-    Backwards-compat: quality_score IS NULL passes through (existing runs).
+    Quality gate: places below GATE_IMAGE_DOWNLOAD are skipped.
+    DB writes: committed in batches of _IMAGE_DB_BATCH places to avoid a
+    single giant transaction that blocks the DB and spikes memory usage.
     """
     from app.db.models import ScrapedPlace
     from app.pipeline.place_quality import GATE_IMAGE_DOWNLOAD, passes_gate
+
+    concurrency = max_workers if max_workers is not None else settings.image_concurrency
 
     with Session(engine) as session:
         places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
@@ -98,10 +105,15 @@ async def download_place_images(run_code: str, engine, max_workers: int = 20) ->
         logger.info("Image download: no pending images for run %s", run_code)
         return
 
-    logger.info("Image download: downloading %d images for %d places", len(tasks), len(place_map))
+    logger.info(
+        "Image download: %d images for %d places (concurrency=%d)",
+        len(tasks),
+        len(place_map),
+        concurrency,
+    )
 
-    # Download in parallel using a shared client and a semaphore for concurrency control
-    sem = asyncio.Semaphore(max_workers)
+    # Download all images in parallel — no API rate limit for photo media
+    sem = asyncio.Semaphore(concurrency)
     results: dict[tuple[int, int], bytes] = {}
 
     async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as http_client:
@@ -114,41 +126,51 @@ async def download_place_images(run_code: str, engine, max_workers: int = 20) ->
 
         await asyncio.gather(*[_fetch(pid, idx, url) for pid, idx, url in tasks])
 
-    # Group results by place and write back
-    blobs_by_place: dict[int, list[dict]] = {}
+    # Group downloaded bytes by place
+    blobs_by_place: dict[int, list[tuple[int, bytes]]] = {}
     for (place_id, idx), content in results.items():
         blobs_by_place.setdefault(place_id, []).append((idx, content))
 
     downloaded = sum(len(v) for v in blobs_by_place.values())
     images_failed = len(tasks) - downloaded
 
+    # Write blobs back in batches to keep transactions small
+    place_ids = list(blobs_by_place.keys())
+    for batch_start in range(0, len(place_ids), _IMAGE_DB_BATCH):
+        batch = place_ids[batch_start : batch_start + _IMAGE_DB_BATCH]
+        with Session(engine) as session:
+            for place_id in batch:
+                place = session.get(ScrapedPlace, place_id)
+                if not place:
+                    continue
+                raw = dict(place.raw_data or {})
+                sorted_blobs = [
+                    {
+                        "data": base64.b64encode(content).decode("ascii"),
+                        "mime_type": "image/jpeg",
+                    }
+                    for _, content in sorted(blobs_by_place[place_id], key=lambda x: x[0])
+                ]
+                raw["image_blobs"] = sorted_blobs
+                raw["image_urls"] = []  # clear URLs now that blobs exist
+                place.raw_data = raw
+                session.add(place)
+            session.commit()
+        logger.debug(
+            "Image write-back: committed batch %d/%d",
+            min(batch_start + _IMAGE_DB_BATCH, len(place_ids)),
+            len(place_ids),
+        )
+
+    # Persist final counters in a separate small transaction
+    from app.db.models import ScraperRun
+
     with Session(engine) as session:
-        for place_id, blob_list in blobs_by_place.items():
-            place = session.get(ScrapedPlace, place_id)
-            if not place:
-                continue
-            raw = dict(place.raw_data or {})
-            sorted_blobs = [
-                {
-                    "data": base64.b64encode(content).decode("ascii"),
-                    "mime_type": "image/jpeg",
-                }
-                for _, content in sorted(blob_list, key=lambda x: x[0])
-            ]
-            raw["image_blobs"] = sorted_blobs
-            raw["image_urls"] = []  # clear URLs now that blobs exist
-            place.raw_data = raw
-            session.add(place)
-
-        # Persist progress counters so the admin UI can display them
-        from app.db.models import ScraperRun
-
         run_record = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
         if run_record:
             run_record.images_downloaded = downloaded
             run_record.images_failed = images_failed
             session.add(run_record)
-
         session.commit()
 
     logger.info(
@@ -422,7 +444,7 @@ class GmapsCollector(BaseCollector):
             )
 
         # --- Images ---
-        for photo in response.get("photos", [])[:10]:
+        for photo in response.get("photos", [])[: settings.max_photos]:
             photo_name = photo.get("name")
             if not photo_name:
                 continue
@@ -457,10 +479,12 @@ class GmapsCollector(BaseCollector):
         async gather), this method performs no DB access and is fully coroutine-safe.
         When they are None a session must be provided and the maps are queried on the fly.
         """
-        # Process images (up to 10) — URLs only, no download during detail fetch
+        # Process images — URLs only, no download during detail fetch.
+        # Count capped by SCRAPER_MAX_PHOTOS (default 3); each photo media
+        # request is billed at $0.007/1000, so fewer photos = lower cost.
         photo_urls = []
 
-        for photo in response.get("photos", [])[:10]:
+        for photo in response.get("photos", [])[: settings.max_photos]:
             photo_name = photo.get("name")
             if not photo_name:
                 continue

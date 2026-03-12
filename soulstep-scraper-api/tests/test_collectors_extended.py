@@ -89,8 +89,10 @@ class TestGmapsCollectorExtract:
         assert "payment_options" in attr_codes
         assert "accessibility_details" in attr_codes
 
-        # All 4 photos returned (collector takes up to 10)
-        assert len(result.images) == 4
+        # Photos capped by SCRAPER_MAX_PHOTOS (default 3); fixture has 4 but only 3 stored
+        from app.config import settings as _s
+
+        assert len(result.images) == min(4, _s.max_photos)
         assert all(img["source"] == "gmaps" for img in result.images)
 
         # Reviews
