@@ -21,6 +21,7 @@ class TestAutocomplete:
     def test_valid_query_returns_suggestions(self, client):
         """Happy path: Google returns suggestions, we map them correctly."""
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.json.return_value = {
             "suggestions": [
                 {
@@ -52,6 +53,7 @@ class TestAutocomplete:
     def test_with_lat_lng_bias(self, client):
         """Lat/lng bias params are accepted and forwarded."""
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.json.return_value = {"suggestions": []}
         mock_response.raise_for_status = MagicMock()
 
@@ -85,6 +87,7 @@ class TestAutocomplete:
     def test_no_results(self, client):
         """Google returns empty suggestions list."""
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.json.return_value = {"suggestions": []}
         mock_response.raise_for_status = MagicMock()
 
@@ -111,6 +114,7 @@ class TestPlaceDetails:
     def test_valid_place_id(self, client):
         """Happy path: returns lat/lng and place info."""
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "ChIJ_test_2",
             "displayName": {"text": "Grand Mosque"},

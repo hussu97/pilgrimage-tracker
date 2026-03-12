@@ -10,6 +10,7 @@ import asyncio
 import math
 import os
 import re
+import time
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -32,6 +33,7 @@ from app.scrapers.base import (
     get_async_rate_limiter,
 )
 from app.scrapers.cell_store import DiscoveryCellStore, GlobalCellStore
+from app.services.query_log import log_query
 
 logger = get_logger(__name__)
 
@@ -188,20 +190,43 @@ async def get_places_in_circle(
         "maxResultCount": 20,
     }
 
+    t0 = time.perf_counter()
     if client is not None:
         resp = await client.post(url, json=body, headers=headers)
     else:
         async with httpx.AsyncClient(timeout=35.0) as c:
             resp = await c.post(url, json=body, headers=headers)
+    duration_ms = (time.perf_counter() - t0) * 1000
 
     if resp.status_code != 200:
         error_data = resp.json() if resp.content else {}
         error_msg = error_data.get("error", {}).get("message", "Unknown error")
+        log_query(
+            service="gmaps",
+            endpoint="searchNearby",
+            method="POST",
+            status_code=resp.status_code,
+            duration_ms=duration_ms,
+            caller="get_places_in_circle",
+            request_info={"lat": lat, "lng": lng, "radius_m": radius, "types": place_types},
+            error=error_msg,
+        )
         raise Exception(f"Places API searchNearby failed (HTTP {resp.status_code}): {error_msg}")
 
     places_data = resp.json().get("places", [])
     names = [p["name"] for p in places_data if "name" in p]
     is_saturated = len(names) == 20
+
+    log_query(
+        service="gmaps",
+        endpoint="searchNearby",
+        method="POST",
+        status_code=resp.status_code,
+        duration_ms=duration_ms,
+        caller="get_places_in_circle",
+        request_info={"lat": lat, "lng": lng, "radius_m": radius, "types": place_types},
+        response_info={"count": len(names), "saturated": is_saturated},
+    )
 
     return names, is_saturated
 

@@ -3,6 +3,7 @@ Search proxy endpoints — keeps Google Places API key server-side.
 """
 
 import logging
+import time
 
 import requests
 from fastapi import APIRouter, Query, Request
@@ -10,6 +11,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.core import config
+from app.services.query_log import log_query
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,7 @@ def autocomplete(
         }
 
     try:
+        t0 = time.perf_counter()
         resp = requests.post(
             GOOGLE_PLACES_AUTOCOMPLETE_URL,
             json=payload,
@@ -53,10 +56,31 @@ def autocomplete(
             },
             timeout=5,
         )
+        duration_ms = (time.perf_counter() - t0) * 1000
         resp.raise_for_status()
         data = resp.json()
+        log_query(
+            "gmaps",
+            "autocomplete",
+            "POST",
+            resp.status_code,
+            duration_ms,
+            "autocomplete",
+            request_info={"q": q[:50]},
+            response_info={"count": len(data.get("suggestions", []))},
+        )
     except Exception as exc:
         logger.error("Google Places autocomplete failed: %s", exc)
+        log_query(
+            "gmaps",
+            "autocomplete",
+            "POST",
+            None,
+            0.0,
+            "autocomplete",
+            request_info={"q": q[:50]},
+            error=str(exc),
+        )
         return {"suggestions": [], "error": "search_unavailable"}
 
     suggestions = []
@@ -98,6 +122,7 @@ def place_details(request: Request, place_id: str = Query(...)):
 
     url = GOOGLE_PLACE_DETAILS_URL.format(place_id=place_id)
     try:
+        t0 = time.perf_counter()
         resp = requests.get(
             url,
             headers={
@@ -106,10 +131,30 @@ def place_details(request: Request, place_id: str = Query(...)):
             },
             timeout=5,
         )
+        duration_ms = (time.perf_counter() - t0) * 1000
         resp.raise_for_status()
         data = resp.json()
+        log_query(
+            "gmaps",
+            "placeDetails",
+            "GET",
+            resp.status_code,
+            duration_ms,
+            "place_details",
+            request_info={"place_id": place_id},
+        )
     except Exception as exc:
         logger.error("Google Places details failed for %s: %s", place_id, exc)
+        log_query(
+            "gmaps",
+            "placeDetails",
+            "GET",
+            None,
+            0.0,
+            "place_details",
+            request_info={"place_id": place_id},
+            error=str(exc),
+        )
         return {
             "error": "search_unavailable",
             "place_id": place_id,

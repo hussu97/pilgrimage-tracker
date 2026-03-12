@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import os
+import time
 from typing import Any
 
 import httpx
@@ -22,6 +23,7 @@ from app.scrapers.gmaps import (
     get_gmaps_type_to_our_type,
     process_weekly_hours,
 )
+from app.services.query_log import log_query
 from app.utils.extractors import ContactExtractor, ReviewExtractor, make_description
 
 logger = get_logger(__name__)
@@ -287,18 +289,47 @@ class GmapsCollector(BaseCollector):
             "X-Goog-FieldMask": ",".join(mask),
             "languageCode": "en",
         }
+        # Determine which tier is being fetched for the log
+        tier = (
+            "ESSENTIAL"
+            if field_mask == self.FIELD_MASK_ESSENTIAL
+            else ("EXTENDED" if field_mask == self.FIELD_MASK_EXTENDED else "FULL")
+        )
+
+        t0 = time.perf_counter()
         if client is not None:
             resp = await client.get(url, headers=headers)
         else:
             async with httpx.AsyncClient(timeout=35.0) as c:
                 resp = await c.get(url, headers=headers)
+        duration_ms = (time.perf_counter() - t0) * 1000
 
         if resp.status_code != 200:
             error_data = resp.json() if resp.content else {}
             error_msg = error_data.get("error", {}).get("message", "Unknown error")
+            log_query(
+                service="gmaps",
+                endpoint="getPlace",
+                method="GET",
+                status_code=resp.status_code,
+                duration_ms=duration_ms,
+                caller="_fetch_details",
+                request_info={"place_name": place_name, "tier": tier},
+                error=error_msg,
+            )
             raise Exception(
                 f"Places API get place details failed (HTTP {resp.status_code}): {error_msg}"
             )
+
+        log_query(
+            service="gmaps",
+            endpoint="getPlace",
+            method="GET",
+            status_code=resp.status_code,
+            duration_ms=duration_ms,
+            caller="_fetch_details",
+            request_info={"place_name": place_name, "tier": tier},
+        )
 
         return resp.json()
 
