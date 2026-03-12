@@ -150,7 +150,7 @@ By using SQLModel, we maintain Pydantic-like schemas for the API while gaining f
 - `PATCH /api/v1/notifications/{notificationCode}/read` — mark notification as read
 
 ### Search (`/api/v1/search`)
-- `GET /api/v1/search/autocomplete` — place name autocomplete
+- `GET /api/v1/search/autocomplete` — place name autocomplete (proxies Google Places; results cached in-process for 10 min, max 500 entries)
 - `GET /api/v1/search/place-details` — fetch place details by place ID
 
 ### Visitors (`/api/v1/visitors`)

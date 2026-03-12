@@ -4,6 +4,28 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Google Places API Cost & Observability (2026-03-13)
+
+### Backend (soulstep-scraper-api)
+
+- **`app/services/query_log.py`** (new) — lightweight external-query logger; records every outbound Google Places API call (endpoint, HTTP status, duration_ms, caller, sanitized request/response params) without leaking API keys. Uses `RotatingFileHandler` (5 MB × 3) when `LOG_FORMAT=text` and `K_SERVICE` is unset (local dev); propagates to stdout JSON on Cloud Run. Cloud Logging filter: `jsonPayload.event="external_query" AND jsonPayload.service="gmaps"` — filter by `jsonPayload.caller` to isolate `searchNearby` vs `getPlace` vs `autocomplete`.
+- **`app/scrapers/gmaps.py`** — `get_places_in_circle()` instrumented: logs `searchNearby` POST calls with lat/lng/radius/types and result count.
+- **`app/collectors/gmaps.py`** — `_fetch_details()` instrumented: logs `getPlace` GET calls with place name and field-mask tier (FULL after merge).
+- **`app/collectors/gmaps.py`** — `fetch_details_split()` merged from two-stage (ESSENTIAL → conditional EXTENDED) into a single `getPlace` call using the full `FIELD_MASK`. At a typical 70% qualification rate, this reduces detail-fetch API calls by ~41% and cuts cost by ~11%. Breakeven is 57.5% — above that the merged call is cheaper.
+- **`app/collectors/gmaps.py`** — `SCRAPER_MAX_PHOTOS` (default 4) caps photos per place in both `build_place_data()` and `_extract()`. Photo media requests are billed at $0.007/1000; capping at 4 vs the previous hardcoded 10 cuts photo API calls by 60%.
+- **`app/collectors/gmaps.py`** — `download_place_images()` now uses `SCRAPER_IMAGE_CONCURRENCY` (default 40, was hardcoded 20) and commits DB write-backs in batches of 50 places (`_IMAGE_DB_BATCH`) instead of one giant transaction — reduces peak memory and shortens DB lock time on large runs.
+- **`app/config.py`** — added `max_photos` (`SCRAPER_MAX_PHOTOS`, default 4) and `image_concurrency` (`SCRAPER_IMAGE_CONCURRENCY`, default 40) settings.
+
+### Backend (soulstep-catalog-api)
+
+- **`app/services/query_log.py`** (new) — self-contained external-query logger (mirrors scraper version); uses a local `_MaskingFormatter` with no private imports from catalog logging infra.
+- **`app/api/v1/search.py`** — `autocomplete()` and `place_details()` instrumented with `log_query()` to record every live Google Places call.
+- **`app/api/v1/search.py`** — `autocomplete()` gains an in-process TTL cache (10 min, max 500 entries, FIFO eviction). Cache key is `(q.lower().strip(), lat_bucket_0.1°, lng_bucket_0.1°)`. A user typing a search query character-by-character triggers only the first call; subsequent identical queries within 10 min are served from cache. Zero new dependencies — stdlib `threading.Lock` + `time.monotonic()`.
+- **`tests/test_search.py`** — 4 new cache tests (hit, case-insensitive key, distinct queries, TTL expiry); autouse `_clear_autocomplete_cache` fixture added to `conftest.py`.
+- **`.gitignore`** — added `logs/` to ignore local rotating log files from both services.
+
+---
+
 ## API Optimization + Skeleton Loading (2026-03-12)
 
 ### Backend

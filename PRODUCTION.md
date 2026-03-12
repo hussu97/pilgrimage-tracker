@@ -125,6 +125,13 @@ All environment variables documented here. Plan-specific sections reference this
 | `SCRAPER_TIMEZONE` | No | UTC fallback | IANA timezone for places without Google UTC offset (e.g. `Asia/Dubai`) |
 | `SCRAPER_DB_PATH` | No | `scraper.db` (cwd) | Path to the SQLite database file — **set to `/data/scraper.db` in production** and mount a persistent volume at `/data` |
 | `DATABASE_URL` | No | _(empty)_ | PostgreSQL connection string — when set, the scraper uses PostgreSQL instead of SQLite. Takes priority over `SCRAPER_DB_PATH`. See [§6.4](#64-scraper-database-options) |
+| `SCRAPER_DISCOVERY_CONCURRENCY` | No | `10` | Max concurrent `searchNearby` calls during quadtree discovery |
+| `SCRAPER_DETAIL_CONCURRENCY` | No | `20` | Max concurrent `getPlace` calls during detail fetch |
+| `SCRAPER_ENRICHMENT_CONCURRENCY` | No | `10` | Max places enriched concurrently |
+| `SCRAPER_MAX_PHOTOS` | No | `4` | Photos stored per place. Photo media requests are billed at $0.007/1000 — lower values reduce cost and Phase 3 download time |
+| `SCRAPER_IMAGE_CONCURRENCY` | No | `40` | Max concurrent image downloads in Phase 3 (CDN, no API rate limit) |
+| `LOG_FORMAT` | No | `json` | `json` = structured stdout (Cloud Run / Cloud Logging); `text` = human-readable + local `logs/external_queries.log` file |
+| `LOG_LEVEL` | No | `INFO` | Python log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 
 ### 2.3 Web Frontend (`apps/soulstep-customer-web/`)
 

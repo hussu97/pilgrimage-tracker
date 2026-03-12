@@ -46,6 +46,12 @@ A FastAPI service that discovers sacred places via Google Maps, enriches them fr
     SCRAPER_DISCOVERY_CONCURRENCY=10
     SCRAPER_DETAIL_CONCURRENCY=20
     SCRAPER_ENRICHMENT_CONCURRENCY=10
+    SCRAPER_MAX_PHOTOS=4
+    SCRAPER_IMAGE_CONCURRENCY=40
+
+    # Logging
+    LOG_FORMAT=text    # "text" for local dev (also writes logs/external_queries.log); "json" for Cloud Run
+    LOG_LEVEL=INFO
     ```
 
     | Variable | Required | Default | Description |
@@ -60,9 +66,13 @@ A FastAPI service that discovers sacred places via Google Maps, enriches them fr
     | `KNOWLEDGE_GRAPH_API_KEY` | No | — | Enables Knowledge Graph collector (entity descriptions) |
     | `SCRAPER_DB_URL` | No | — | Full SQLAlchemy DB URL (overrides `SCRAPER_DB_PATH`) |
     | `SCRAPER_DB_PATH` | No | `./scraper.db` | Path to SQLite database file |
-    | `SCRAPER_DISCOVERY_CONCURRENCY` | No | `10` | Max concurrent Google Maps search calls during discovery |
-    | `SCRAPER_DETAIL_CONCURRENCY` | No | `20` | Max concurrent place detail fetches |
+    | `SCRAPER_DISCOVERY_CONCURRENCY` | No | `10` | Max concurrent `searchNearby` calls during quadtree discovery |
+    | `SCRAPER_DETAIL_CONCURRENCY` | No | `20` | Max concurrent `getPlace` calls during detail fetch |
     | `SCRAPER_ENRICHMENT_CONCURRENCY` | No | `10` | Max places enriched concurrently |
+    | `SCRAPER_MAX_PHOTOS` | No | `4` | Photos stored per place. Photo media requests are billed at $0.007/1000 — lower values reduce cost and Phase 3 time |
+    | `SCRAPER_IMAGE_CONCURRENCY` | No | `40` | Max concurrent image downloads in Phase 3 (CDN, no API rate limit) |
+    | `LOG_FORMAT` | No | `json` | `json` = structured stdout (Cloud Run); `text` = human-readable + writes `logs/external_queries.log` locally |
+    | `LOG_LEVEL` | No | `INFO` | Python log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 
 3.  **Run Server**:
     ```bash
@@ -125,6 +135,34 @@ Quality Assessment (heuristic + LLM hybrid)
 Sync to Catalog API
 ```
 
+### Google Places API Cost Notes
+
+| Phase | Endpoint | SKU | Rate |
+|-------|----------|-----|------|
+| Discovery | `searchNearby` POST | Places - Nearby Search | $0.040 / 1000 |
+| Detail fetch | `getPlace` GET (full mask) | Places - Advanced | $0.040 / 1000 |
+| Image download | `{photo}/media` GET | Places - Photo Media | $0.007 / 1000 |
+
+**Detail fetch** uses a single merged `getPlace` call with all fields (ESSENTIAL + EXTENDED combined). The previous two-stage approach (cheap ESSENTIAL first, expensive EXTENDED conditionally) was cheaper only if <57.5% of places qualified for the extended call. At the typical 70%+ qualification rate for established religious sites, the single merged call is both cheaper (~11%) and faster (~41% fewer API calls).
+
+**Image download** is capped at `SCRAPER_MAX_PHOTOS` (default 4) per place. Set lower to reduce cost/time; set up to 10 if you need a fuller photo gallery.
+
+### External Query Logging
+
+Every outbound Google Places API call is logged by `app/services/query_log.py`:
+
+- **Local dev** (`LOG_FORMAT=text`): appended to `logs/external_queries.log` (rotating, 5 MB × 3 backups)
+- **Cloud Run** (`LOG_FORMAT=json`): stdout → Cloud Logging
+
+**Cloud Logging filter** to see all external API calls:
+```
+jsonPayload.event="external_query" AND jsonPayload.service="gmaps"
+```
+Filter by `jsonPayload.caller` to isolate by source:
+- `get_places_in_circle` — discovery `searchNearby` calls
+- `_fetch_details` — per-place `getPlace` calls
+- `autocomplete` / `place_details` — catalog API search proxy calls
+
 ### Directory Structure
 
 ```
@@ -158,6 +196,7 @@ soulstep-scraper-api/app/
   services/
     run_activity.py      # get_activity_snapshot() — polled by admin UI
     quality_metrics.py   # compute_quality_metrics() — aggregate quality stats
+    query_log.py         # log_query() — records every outbound Google Places API call
   db/
     models.py            # SQLModel ORM models
     session.py           # Engine + SessionDep
