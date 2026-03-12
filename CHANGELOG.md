@@ -4,6 +4,39 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## API Optimization + Skeleton Loading (2026-03-12)
+
+### Backend
+
+- **`app/db/places.py`** — Added `get_nearby_places()` with bounding-box SQL pre-filter + Haversine; replaces full-table scan for nearby places in place detail and share endpoints
+- **`app/db/check_ins.py`** — Added `count_places_visited_bulk()`: single GROUP BY query for multiple users; eliminates leaderboard N+1
+- **`app/db/store.py`** — Added `get_users_bulk()`: batch-fetch users by codes in one query
+- **`app/db/groups.py`** — Fixed `get_leaderboard()`, `get_last_activity()`, `get_group_progress()`, `get_activity()` to use bulk queries instead of per-user loops
+- **`app/api/v1/places.py`** — `_place_detail()` now bulk-fetches images + ratings for related places; `get_place_reviews()` bulk-fetches review authors; nearby places uses `get_nearby_places()`
+- **`app/api/v1/groups.py`** — Leaderboard route uses `get_users_bulk()`
+- **`app/api/v1/homepage.py`** (new) — `GET /api/v1/homepage` composite endpoint returning groups, recommended_places, featured_journeys, popular_places, popular_cities, place_count in a single round-trip
+- **Tests** — Added `test_homepage.py` (8 tests), `test_places.py` additions (nearby bounding box, bulk helpers), updated group mock fixtures
+
+### Frontend (web)
+
+- **`src/lib/api/client.ts`** — Added `getHomepage()` function + `HomepageData`, `GetHomepageParams`, and related types
+- **`src/app/pages/Home.tsx`** — Replaced 6 separate API calls with single `getHomepage()` call; shows `HomeSkeleton` while loading
+- **`src/components/common/Skeleton.tsx`** (new) — `SkeletonBox`, `SkeletonCircle`, `SkeletonText` primitives with shimmer animation
+- **`src/components/common/skeletons/`** (new) — `HomeSkeleton`, `GroupListSkeleton`, `GroupDetailSkeleton`, `PlaceDetailSkeleton`, `ProfileSkeleton`, `CarouselSkeleton`
+- **Groups, GroupDetail, PlaceDetail, Profile** — Replaced loading spinners with skeleton screens
+- **Tests** — `homepage.test.ts` (2 tests), `skeleton.test.ts` (5 tests)
+
+### Frontend (mobile)
+
+- **`src/lib/api/client.ts`** — Added `getHomepage()` function + matching types (same interface as web)
+- **`src/app/screens/HomeScreen.tsx`** — Replaced 6 separate API calls with single `getHomepage()` call; shows `HomeSkeleton` while loading
+- **`src/components/common/Skeleton.tsx`** (new) — `SkeletonBox`, `SkeletonCircle`, `SkeletonText` with pulsing opacity animation
+- **`src/components/common/skeletons/`** (new) — `HomeSkeleton`, `GroupListSkeleton`, `GroupDetailSkeleton`, `PlaceDetailSkeleton`, `ProfileSkeleton`, `CarouselSkeleton`
+- **GroupDetail, PlaceDetail, Profile screens** — Replaced `ActivityIndicator` spinners with skeleton screens
+- **Tests** — `homepage.test.ts` (2 tests), `skeleton.test.ts` (5 tests)
+
+---
+
 ## Mobile Phase 4 — Join Modal, Journeys Redesign, Journey Detail FAB + Map, Check-in UX (2026-03-12)
 
 ### Frontend (mobile)
