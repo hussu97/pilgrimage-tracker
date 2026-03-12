@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+import app.api.v1.search as _search_mod
+
 
 class TestAutocomplete:
     def test_short_query_rejected(self, client):
@@ -99,6 +101,91 @@ class TestAutocomplete:
 
         assert resp.status_code == 200
         assert resp.json()["suggestions"] == []
+
+
+class TestAutocompleteCache:
+    def test_cache_hit_skips_google_call(self, client):
+        """Second identical request must be served from cache, not Google."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "suggestions": [
+                {
+                    "placePrediction": {
+                        "placeId": "ChIJ_cache_1",
+                        "structuredFormat": {
+                            "mainText": {"text": "Medina"},
+                            "secondaryText": {"text": "Saudi Arabia"},
+                        },
+                    }
+                }
+            ]
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with (
+            patch("app.api.v1.search.config.GOOGLE_MAPS_API_KEY", "fake-key"),
+            patch("app.api.v1.search.requests.post", return_value=mock_response) as mock_post,
+        ):
+            client.get("/api/v1/search/autocomplete", params={"q": "Medina"})
+            client.get("/api/v1/search/autocomplete", params={"q": "Medina"})
+
+        # Google should only be called once
+        assert mock_post.call_count == 1
+
+    def test_cache_key_case_insensitive(self, client):
+        """'Medina' and 'medina' must share the same cache entry."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"suggestions": []}
+        mock_response.raise_for_status = MagicMock()
+
+        with (
+            patch("app.api.v1.search.config.GOOGLE_MAPS_API_KEY", "fake-key"),
+            patch("app.api.v1.search.requests.post", return_value=mock_response) as mock_post,
+        ):
+            client.get("/api/v1/search/autocomplete", params={"q": "Medina"})
+            client.get("/api/v1/search/autocomplete", params={"q": "medina"})
+
+        assert mock_post.call_count == 1
+
+    def test_different_queries_not_shared(self, client):
+        """Different query strings must each make a separate Google call."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"suggestions": []}
+        mock_response.raise_for_status = MagicMock()
+
+        with (
+            patch("app.api.v1.search.config.GOOGLE_MAPS_API_KEY", "fake-key"),
+            patch("app.api.v1.search.requests.post", return_value=mock_response) as mock_post,
+        ):
+            client.get("/api/v1/search/autocomplete", params={"q": "Mecca"})
+            client.get("/api/v1/search/autocomplete", params={"q": "Medina"})
+
+        assert mock_post.call_count == 2
+
+    def test_cache_expires(self, client, monkeypatch):
+        """After TTL the cache entry is evicted and Google is called again."""
+        import time as _time
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"suggestions": []}
+        mock_response.raise_for_status = MagicMock()
+
+        # Seed a cache entry that is already expired
+        ck = _search_mod._cache_key("Cairo", None, None)
+        _search_mod._autocomplete_cache[ck] = (_time.monotonic() - 1, {"suggestions": []})
+
+        with (
+            patch("app.api.v1.search.config.GOOGLE_MAPS_API_KEY", "fake-key"),
+            patch("app.api.v1.search.requests.post", return_value=mock_response) as mock_post,
+        ):
+            client.get("/api/v1/search/autocomplete", params={"q": "Cairo"})
+
+        # Expired entry → should have called Google
+        assert mock_post.call_count == 1
 
 
 class TestPlaceDetails:

@@ -3,6 +3,7 @@ Search proxy endpoints — keeps Google Places API key server-side.
 """
 
 import logging
+import threading
 import time
 
 import requests
@@ -21,6 +22,44 @@ limiter = Limiter(key_func=get_remote_address)
 GOOGLE_PLACES_AUTOCOMPLETE_URL = "https://places.googleapis.com/v1/places:autocomplete"
 GOOGLE_PLACE_DETAILS_URL = "https://places.googleapis.com/v1/places/{place_id}"
 
+# ---------------------------------------------------------------------------
+# In-process TTL cache for autocomplete (avoids redundant Google API calls
+# from keystroke-by-keystroke typing). Thread-safe via a single lock.
+# TTL: 10 minutes. Max: 500 entries (oldest evicted when full).
+# ---------------------------------------------------------------------------
+_AUTOCOMPLETE_CACHE_TTL = 600  # seconds
+_AUTOCOMPLETE_CACHE_MAX = 500
+_autocomplete_cache: dict[tuple, tuple[float, dict]] = {}  # key → (expires_at, result)
+_autocomplete_lock = threading.Lock()
+
+
+def _cache_key(q: str, lat: float | None, lng: float | None) -> tuple:
+    """Stable cache key: normalise query, bucket lat/lng to 0.1° (~11 km)."""
+    lat_bucket = round(lat, 1) if lat is not None else None
+    lng_bucket = round(lng, 1) if lng is not None else None
+    return (q.lower().strip(), lat_bucket, lng_bucket)
+
+
+def _cache_get(key: tuple) -> dict | None:
+    with _autocomplete_lock:
+        entry = _autocomplete_cache.get(key)
+        if entry is None:
+            return None
+        expires_at, result = entry
+        if time.monotonic() > expires_at:
+            del _autocomplete_cache[key]
+            return None
+        return result
+
+
+def _cache_set(key: tuple, result: dict) -> None:
+    with _autocomplete_lock:
+        # Evict oldest entry if at capacity (simple FIFO)
+        if len(_autocomplete_cache) >= _AUTOCOMPLETE_CACHE_MAX:
+            oldest = next(iter(_autocomplete_cache))
+            del _autocomplete_cache[oldest]
+        _autocomplete_cache[key] = (time.monotonic() + _AUTOCOMPLETE_CACHE_TTL, result)
+
 
 @router.get("/autocomplete")
 @limiter.limit("30/minute")
@@ -30,11 +69,21 @@ def autocomplete(
     lat: float | None = Query(default=None),
     lng: float | None = Query(default=None),
 ):
-    """Proxy to Google Places autocomplete. Returns suggestions list."""
+    """Proxy to Google Places autocomplete. Returns suggestions list.
+
+    Results are cached in-process for 10 minutes to avoid redundant API calls
+    from keystroke-by-keystroke typing in the frontend search box.
+    """
     api_key = config.GOOGLE_MAPS_API_KEY
     if not api_key:
         logger.warning("GOOGLE_MAPS_API_KEY is not configured — autocomplete disabled")
         return {"suggestions": [], "error": "search_not_configured"}
+
+    # Cache hit — return without calling Google
+    ck = _cache_key(q, lat, lng)
+    cached = _cache_get(ck)
+    if cached is not None:
+        return cached
 
     payload: dict = {"input": q}
     if lat is not None and lng is not None:
@@ -101,7 +150,9 @@ def autocomplete(
                 }
             )
 
-    return {"suggestions": suggestions}
+    result = {"suggestions": suggestions}
+    _cache_set(ck, result)
+    return result
 
 
 @router.get("/place-details")

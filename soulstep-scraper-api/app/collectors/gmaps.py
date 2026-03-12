@@ -333,9 +333,6 @@ class GmapsCollector(BaseCollector):
 
         return resp.json()
 
-    # Minimum quality bar for fetching extended (expensive) fields
-    _EXTENDED_MIN_RATING: float = 1.0
-
     async def fetch_details_split(
         self,
         place_name: str,
@@ -343,28 +340,17 @@ class GmapsCollector(BaseCollector):
         rate_limiter,
         client: httpx.AsyncClient | None = None,
     ) -> dict:
-        """Two-stage detail fetch: essential fields first, extended fields conditionally.
+        """Single-call detail fetch using the full combined field mask.
 
-        Places with businessStatus != OPERATIONAL or rating < _EXTENDED_MIN_RATING
-        skip the extended (Atmosphere-tier) call, saving ~15-30% in API cost.
-        Returns the merged response dict.
+        Previously used a two-stage approach (ESSENTIAL then conditional EXTENDED),
+        but at typical qualification rates (>57.5% of places are OPERATIONAL + rated),
+        the merged call is cheaper and halves the API call count for detail fetching.
+
+        Breakeven: if >57.5% of places qualify for EXTENDED, merged is cheaper.
+        At 70% qual. rate: saves ~11% cost + 70 API calls per 100 places.
         """
         await rate_limiter.acquire("gmaps_details")
-        essential = await self._fetch_details(
-            place_name, api_key, self.FIELD_MASK_ESSENTIAL, client
-        )
-
-        # Quality gate: only fetch expensive extended fields for live, rated places
-        status = essential.get("businessStatus", "")
-        rating = essential.get("rating") or 0.0
-        if status == "OPERATIONAL" and float(rating) >= self._EXTENDED_MIN_RATING:
-            await rate_limiter.acquire("gmaps_details")
-            extended = await self._fetch_details(
-                place_name, api_key, self.FIELD_MASK_EXTENDED, client
-            )
-            essential.update(extended)
-
-        return essential
+        return await self._fetch_details(place_name, api_key, self.FIELD_MASK, client)
 
     def _extract(self, response: dict, place_code: str, api_key: str) -> CollectorResult:
         """Extract structured data from the API response."""

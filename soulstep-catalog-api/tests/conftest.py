@@ -97,6 +97,16 @@ def _reset_db(test_engine):
         session.commit()
 
 
+@pytest.fixture(autouse=True)
+def _clear_autocomplete_cache():
+    """Clear the in-process autocomplete cache before each test to prevent cross-test pollution."""
+    import app.api.v1.search as _search_mod
+
+    _search_mod._autocomplete_cache.clear()
+    yield
+    _search_mod._autocomplete_cache.clear()
+
+
 @pytest.fixture()
 def db_session(test_engine):
     """Per-test database session."""
