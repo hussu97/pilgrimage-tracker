@@ -97,15 +97,6 @@ function makeStyles(isDark: boolean) {
       alignItems: 'center',
       gap: 10,
     },
-    iconCircle: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-      ...tokens.shadow.card,
-    },
     avatarCircle: {
       width: 36,
       height: 36,
@@ -655,17 +646,6 @@ export default function HomeScreen() {
           <Text style={styles.tickerSubtitle}>{t('dashboard.totalPlaces')}</Text>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.iconCircle}
-            onPress={() => navigation.navigate('Notifications')}
-            accessibilityLabel="Notifications"
-          >
-            <MaterialIcons
-              name="notifications-none"
-              size={20}
-              color={isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary}
-            />
-          </TouchableOpacity>
           <TouchableOpacity
             style={styles.avatarCircle}
             onPress={() => navigation.navigate('Main')}

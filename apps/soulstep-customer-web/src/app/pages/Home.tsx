@@ -347,9 +347,9 @@ function PlaceCardSmall({ place }: { place: RecommendedPlace }) {
     <Link to={`/places/${place.place_code}`}>
       <motion.div
         whileTap={{ scale: 0.97 }}
-        className="w-[calc((100vw-2.5rem)/2.3)] lg:w-48 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:scale-[1.02] transition-transform duration-200"
+        className="w-[calc((100vw-2.5rem)/2.3)] lg:w-full flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:scale-[1.02] hover:shadow-md transition-all duration-200"
       >
-        <div className="h-28 bg-slate-100 dark:bg-dark-border relative overflow-hidden">
+        <div className="h-28 lg:h-44 bg-slate-100 dark:bg-dark-border relative overflow-hidden">
           {place.image_url ? (
             <img
               src={getFullImageUrl(place.image_url)}
@@ -374,7 +374,7 @@ function PlaceCardSmall({ place }: { place: RecommendedPlace }) {
             </span>
           )}
         </div>
-        <div className="p-2.5">
+        <div className="p-2.5 lg:p-4">
           <p className="text-xs font-semibold text-text-primary dark:text-white line-clamp-1">
             {place.name}
           </p>
@@ -403,9 +403,9 @@ function PopularPlaceCard({ place }: { place: PopularPlace }) {
     <Link to={`/places/${place.place_code}`}>
       <motion.div
         whileTap={{ scale: 0.97 }}
-        className="w-[calc((100vw-2.5rem)/2.3)] lg:w-48 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:scale-[1.02] transition-transform duration-200"
+        className="w-[calc((100vw-2.5rem)/2.3)] lg:w-full flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:scale-[1.02] hover:shadow-md transition-all duration-200"
       >
-        <div className="h-28 bg-slate-100 dark:bg-dark-border relative overflow-hidden">
+        <div className="h-28 lg:h-44 bg-slate-100 dark:bg-dark-border relative overflow-hidden">
           {imgUrl ? (
             <img src={imgUrl} alt={place.name} className="w-full h-full object-cover" />
           ) : (
@@ -426,7 +426,7 @@ function PopularPlaceCard({ place }: { place: PopularPlace }) {
             </span>
           )}
         </div>
-        <div className="p-2.5">
+        <div className="p-2.5 lg:p-4">
           <p className="text-xs font-semibold text-text-primary dark:text-white line-clamp-1">
             {place.name}
           </p>
@@ -510,7 +510,7 @@ function CityCollageCard({ city }: { city: HomepagePopularCity }) {
     <Link to={`/cities/${city.city_slug}`}>
       <motion.div
         whileTap={{ scale: 0.97 }}
-        className="w-[calc((100vw-2.5rem)/2.3)] lg:w-52 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:scale-[1.02] transition-transform duration-200 cursor-pointer"
+        className="w-[calc((100vw-2.5rem)/2.3)] lg:w-full flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border hover:scale-[1.02] hover:shadow-md transition-all duration-200 cursor-pointer"
       >
         <div className="h-36 relative overflow-hidden bg-slate-100 dark:bg-dark-border">
           {images.length === 0 ? (
@@ -669,33 +669,20 @@ export default function Home() {
           {/* ── Top bar ─────────────────────────────────────────── */}
           <div className="flex items-center justify-between px-4 pt-safe-top pt-4 pb-2">
             <PlaceCountTicker total={placeCount} />
-            <div className="flex items-center gap-3">
-              <Link
-                to="/notifications"
-                aria-label="Notifications"
-                className="relative w-9 h-9 rounded-full bg-white dark:bg-dark-surface shadow-sm flex items-center justify-center text-text-muted dark:text-dark-text-secondary hover:text-primary transition-colors"
-              >
+            {/* Profile avatar — mobile only; desktop header has its own */}
+            <Link
+              to="/profile"
+              className="lg:hidden w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm hover:bg-primary/20 transition-colors"
+            >
+              {user?.display_name?.[0]?.toUpperCase() ?? (
                 <span
-                  className="material-symbols-outlined text-[22px]"
-                  style={{ fontVariationSettings: "'FILL' 0, 'wght' 400" }}
+                  className="material-symbols-outlined text-[18px]"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
                 >
-                  notifications
+                  person
                 </span>
-              </Link>
-              <Link
-                to="/profile"
-                className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm hover:bg-primary/20 transition-colors"
-              >
-                {user?.display_name?.[0]?.toUpperCase() ?? (
-                  <span
-                    className="material-symbols-outlined text-[18px]"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    person
-                  </span>
-                )}
-              </Link>
-            </div>
+              )}
+            </Link>
           </div>
 
           <div className="px-4 pb-6 space-y-5 lg:grid lg:grid-cols-5 lg:gap-8 lg:space-y-0">
@@ -745,7 +732,7 @@ export default function Home() {
                       {t('dashboard.popularPlaces')}
                     </h2>
                   </div>
-                  <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide lg:grid lg:grid-cols-3 xl:grid-cols-4 lg:overflow-visible lg:flex-none">
+                  <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:flex-none">
                     {popularPlaces.map((place) => (
                       <PopularPlaceCard key={place.place_code} place={place} />
                     ))}
@@ -753,18 +740,18 @@ export default function Home() {
                 </section>
               )}
 
-              {/* Popular Cities — collage carousel (hidden on desktop, shown in sidebar) */}
+              {/* Popular Cities — collage carousel on mobile, 3-col grid on desktop */}
               {popularCities.length > 0 && (
-                <section className="lg:hidden">
+                <section>
                   <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-base font-bold text-text-primary dark:text-white">
+                    <h2 className="text-base lg:text-lg font-bold text-text-primary dark:text-white">
                       {t('dashboard.popularCities')}
                     </h2>
                     <Link to="/cities" className="text-xs font-semibold text-primary">
                       {t('common.showMore')}
                     </Link>
                   </div>
-                  <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                  <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:flex-none">
                     {popularCities.map((city) => (
                       <CityCollageCard key={city.city_slug} city={city} />
                     ))}
@@ -783,7 +770,7 @@ export default function Home() {
                       {t('common.showMore')}
                     </Link>
                   </div>
-                  <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide lg:grid lg:grid-cols-3 xl:grid-cols-4 lg:overflow-visible lg:flex-none">
+                  <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:flex-none">
                     {recommended.map((place) => (
                       <PlaceCardSmall key={place.place_code} place={place} />
                     ))}
@@ -808,7 +795,7 @@ export default function Home() {
                 </section>
               )}
 
-              {/* Popular Cities — desktop sidebar list */}
+              {/* Popular Cities — desktop sidebar collage grid */}
               {popularCities.length > 0 && (
                 <section className="hidden lg:block">
                   <div className="flex items-center justify-between mb-3">
@@ -819,43 +806,9 @@ export default function Home() {
                       {t('common.showMore')}
                     </Link>
                   </div>
-                  <div className="space-y-2">
-                    {popularCities.slice(0, 6).map((city) => (
-                      <Link
-                        key={city.city_slug}
-                        to={`/cities/${city.city_slug}`}
-                        className="flex items-center gap-3 bg-white dark:bg-dark-surface rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow group"
-                      >
-                        <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 dark:bg-dark-border">
-                          {(city.top_images ?? []).length > 0 ? (
-                            <img
-                              src={getFullImageUrl(city.top_images[0])}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <span className="material-icons text-xl text-slate-300">
-                                location_city
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-text-primary dark:text-white truncate">
-                            {city.city}
-                          </p>
-                          <p className="text-xs text-text-muted dark:text-dark-text-secondary">
-                            {city.count} {t('nav.places').toLowerCase()}
-                          </p>
-                        </div>
-                        <span
-                          className="material-symbols-outlined text-[18px] text-slate-300 group-hover:text-primary transition-colors"
-                          aria-hidden
-                        >
-                          chevron_right
-                        </span>
-                      </Link>
+                  <div className="grid grid-cols-2 gap-3">
+                    {popularCities.slice(0, 4).map((city) => (
+                      <CityCollageCard key={city.city_slug} city={city} />
                     ))}
                   </div>
                 </section>

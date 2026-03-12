@@ -88,8 +88,8 @@ export default function Layout({ children }: { children: ReactNode }) {
             {t('journey.newJourney') || 'New Journey'}
           </button>
 
-          {/* Avatar / Sign In */}
-          {user ? (
+          {/* Avatar — only when signed in */}
+          {user && (
             <div className="relative">
               <Link
                 to="/profile"
@@ -102,13 +102,6 @@ export default function Layout({ children }: { children: ReactNode }) {
                 {user.display_name?.[0]?.toUpperCase() ?? 'U'}
               </Link>
             </div>
-          ) : (
-            <Link
-              to="/login"
-              className="text-text-muted hover:text-primary font-medium transition-colors dark:text-dark-text-secondary text-sm"
-            >
-              {t('auth.login')}
-            </Link>
           )}
         </nav>
       </header>
@@ -139,15 +132,15 @@ export default function Layout({ children }: { children: ReactNode }) {
               to="/home"
               aria-current={isDashboard ? 'page' : undefined}
               className={cn(
-                'flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all duration-200 active:scale-90',
+                'flex items-center justify-center py-3 px-6 rounded-xl transition-all duration-200 active:scale-90',
                 isDashboard ? 'text-primary' : 'text-slate-400 dark:text-dark-text-secondary',
               )}
             >
               {isDashboard && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />
               )}
               <span
-                className="material-symbols-outlined text-[26px] transition-all duration-200"
+                className="material-symbols-outlined text-[30px] transition-all duration-200"
                 style={
                   isDashboard
                     ? { fontVariationSettings: "'FILL' 1, 'wght' 600" }
@@ -157,34 +150,23 @@ export default function Layout({ children }: { children: ReactNode }) {
               >
                 home
               </span>
-              <span
-                className={cn(
-                  'text-[9px] font-bold tracking-tight uppercase',
-                  isDashboard ? 'opacity-100' : 'opacity-50 text-[8px]',
-                )}
-              >
-                {t('nav.dashboard') || 'Dashboard'}
-              </span>
             </Link>
 
             {/* Center FAB — New Journey */}
-            <div className="flex flex-col items-center" style={{ marginBottom: '12px' }}>
+            <div className="flex items-center justify-center" style={{ marginBottom: '12px' }}>
               <button
                 onClick={() => navigate(user ? '/journeys/new' : '/login')}
                 aria-label={t('journey.newJourney') || 'New Journey'}
-                className="w-14 h-14 rounded-full bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/30 flex items-center justify-center transition-all duration-200 active:scale-95"
+                className="w-14 h-14 rounded-full bg-primary hover:bg-primary-hover text-white shadow-lg shadow-primary/30 flex items-center justify-center transition-all duration-200 active:scale-90"
               >
                 <span
-                  className="material-symbols-outlined text-[28px]"
+                  className="material-symbols-outlined text-[30px]"
                   aria-hidden
                   style={{ fontVariationSettings: "'FILL' 1" }}
                 >
                   add
                 </span>
               </button>
-              <span className="text-[8px] font-bold tracking-tight uppercase text-primary mt-1 opacity-80">
-                {t('journey.newJourney') || 'Journey'}
-              </span>
             </div>
 
             {/* Explore Map */}
@@ -192,12 +174,12 @@ export default function Layout({ children }: { children: ReactNode }) {
               to="/map"
               aria-current={isMap ? 'page' : undefined}
               className={cn(
-                'flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all duration-200 active:scale-90',
+                'flex items-center justify-center py-3 px-6 rounded-xl transition-all duration-200 active:scale-90',
                 isMap ? 'text-primary' : 'text-slate-400 dark:text-dark-text-secondary',
               )}
             >
               <span
-                className="material-symbols-outlined text-[26px] transition-all duration-200"
+                className="material-symbols-outlined text-[30px] transition-all duration-200"
                 style={
                   isMap
                     ? { fontVariationSettings: "'FILL' 1, 'wght' 600" }
@@ -205,15 +187,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                 }
                 aria-hidden
               >
-                map
-              </span>
-              <span
-                className={cn(
-                  'text-[9px] font-bold tracking-tight uppercase',
-                  isMap ? 'opacity-100' : 'opacity-50 text-[8px]',
-                )}
-              >
-                {t('nav.map') || 'Map'}
+                explore
               </span>
             </Link>
           </div>
