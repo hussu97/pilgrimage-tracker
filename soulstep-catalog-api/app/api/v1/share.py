@@ -24,7 +24,6 @@ from app.db import place_images
 from app.db import places as places_db
 from app.db import reviews as reviews_db
 from app.db.models import Place, PlaceSEO
-from app.db.places import _haversine_km
 from app.db.session import SessionDep
 from app.services.meta_tags import build_place_meta_tags
 from app.services.structured_data import (
@@ -174,14 +173,10 @@ def _build_faq_html(faqs: list[dict]) -> str:
 
 def _get_nearby_places(place: Place, session, limit: int = 5) -> list[Place]:
     """Return up to `limit` places within 10 km, excluding `place` itself."""
-    all_places = session.exec(select(Place).where(Place.place_code != place.place_code)).all()
-    nearby = []
-    for p in all_places:
-        dist = _haversine_km(place.lat, place.lng, p.lat, p.lng)
-        if dist <= 10.0:
-            nearby.append((dist, p))
-    nearby.sort(key=lambda x: x[0])
-    return [p for _, p in nearby[:limit]]
+    nearby_with_dist = places_db.get_nearby_places(
+        place.lat, place.lng, 10.0, place.place_code, session, limit=limit
+    )
+    return [p for _, p in nearby_with_dist]
 
 
 def _get_similar_places(place: Place, session, limit: int = 5) -> list[Place]:

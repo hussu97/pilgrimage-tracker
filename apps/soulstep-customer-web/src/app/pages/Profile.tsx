@@ -5,6 +5,7 @@ import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
 import { getMyStats, getSettings, updateSettings } from '@/lib/api/client';
 import { cn } from '@/lib/utils/cn';
 import ErrorState from '@/components/common/ErrorState';
+import ProfileSkeleton from '@/components/common/skeletons/ProfileSkeleton';
 import type { UserStats, Religion } from '@/lib/types';
 import AdBanner from '@/components/ads/AdBanner';
 
@@ -116,6 +117,8 @@ export default function Profile() {
     setTheme(t2);
     if (user) updateSettings({ theme: t2 }).catch(() => {});
   };
+
+  if (loading && !user) return <ProfileSkeleton />;
 
   return (
     <div className="relative min-h-screen bg-background-light dark:bg-dark-bg">

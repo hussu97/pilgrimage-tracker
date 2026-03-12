@@ -90,7 +90,8 @@ class TestGroupsDbExtra:
         )
 
         mock_check_ins = MagicMock()
-        mock_check_ins.count_places_visited.return_value = 3
+        # New bulk API: count_places_visited_bulk returns a dict keyed by user_code
+        mock_check_ins.count_places_visited_bulk.return_value = {"usr_lb01": 3}
 
         result = groups_db.get_leaderboard(group.group_code, mock_check_ins, db_session)
         assert len(result) == 1
@@ -112,7 +113,8 @@ class TestGroupsDbExtra:
         )
 
         mock_check_ins = MagicMock()
-        mock_check_ins.get_check_ins_by_user.return_value = []
+        # New bulk API: get_check_ins_for_users returns a flat list of check-ins
+        mock_check_ins.get_check_ins_for_users.return_value = []
         mock_places = MagicMock()
 
         result = groups_db.get_group_progress(
@@ -136,21 +138,29 @@ class TestGroupsDbExtra:
         )
 
         mock_chk = MagicMock()
+        mock_chk.user_code = "usr_act01"
         mock_chk.place_code = "plc_act001"
         mock_chk.checked_in_at = datetime(2025, 1, 1, 12, 0, 0)
+        mock_chk.note = None
+        mock_chk.photo_url = None
+        mock_chk.group_code = group.group_code
 
+        # New bulk API: get_check_ins_for_users returns a flat list of CheckIn objects
         mock_check_ins = MagicMock()
-        mock_check_ins.get_check_ins_by_user.return_value = [mock_chk]
+        mock_check_ins.get_check_ins_for_users.return_value = [mock_chk]
 
         mock_user_store = MagicMock()
         mock_user = MagicMock()
         mock_user.display_name = "Tester"
-        mock_user_store.get_user_by_code.return_value = mock_user
+        # New bulk API: get_users_bulk returns a dict keyed by user_code
+        mock_user_store.get_users_bulk.return_value = {"usr_act01": mock_user}
 
         mock_places = MagicMock()
         mock_place = MagicMock()
         mock_place.name = "Test Mosque"
-        mock_places.get_place_by_code.return_value = mock_place
+        # New bulk API: get_places_by_codes returns a list of place objects
+        mock_places.get_places_by_codes.return_value = [mock_place]
+        mock_place.place_code = "plc_act001"
 
         result = groups_db.get_activity(
             group.group_code, mock_check_ins, mock_user_store, mock_places, db_session, limit=10

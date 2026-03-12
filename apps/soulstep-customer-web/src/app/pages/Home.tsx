@@ -16,48 +16,23 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth, useI18n } from '@/app/providers';
 import { useHead } from '@/lib/hooks/useHead';
 import { useLocation } from '@/app/contexts/LocationContext';
-import { getGroups } from '@/lib/api/client';
+import { getHomepage } from '@/lib/api/client';
+import type {
+  HomepageData,
+  HomepageRecommendedPlace,
+  HomepagePopularPlace,
+  HomepageFeaturedJourney,
+} from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import JoinJourneyModal from '@/components/groups/JoinJourneyModal';
+import HomeSkeleton from '@/components/common/skeletons/HomeSkeleton';
 import type { Group } from '@/lib/types';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ── Type aliases for local use ─────────────────────────────────────────────────
 
-interface RecommendedPlace {
-  place_code: string;
-  name: string;
-  religion: string;
-  address: string;
-  city?: string;
-  image_url?: string | null;
-  distance_km?: number | null;
-}
-
-interface PopularPlace {
-  place_code: string;
-  name: string;
-  religion: string;
-  images: { url: string }[];
-  average_rating?: number | null;
-  review_count?: number | null;
-  total_checkins_count?: number | null;
-  distance?: number | null;
-}
-
-interface PopularCity {
-  city: string;
-  city_slug: string;
-  count: number;
-}
-
-interface FeaturedJourney {
-  group_code: string;
-  name: string;
-  description?: string;
-  cover_image_url?: string | null;
-  total_sites: number;
-  member_count: number;
-}
+type RecommendedPlace = HomepageRecommendedPlace;
+type PopularPlace = HomepagePopularPlace & { total_checkins_count?: number | null };
+type FeaturedJourney = HomepageFeaturedJourney;
 
 // ── Quick action accent colors ────────────────────────────────────────────────
 
@@ -91,59 +66,6 @@ const ACTION_CONFIG = [
     textClass: 'text-rose-500',
   },
 ] as const;
-
-// ── API calls (typed thin wrappers) ──────────────────────────────────────────
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
-
-async function getFeaturedJourneys(): Promise<FeaturedJourney[]> {
-  const res = await fetch(`${API_BASE}/api/v1/groups/featured`, { credentials: 'include' });
-  if (!res.ok) return [];
-  return res.json();
-}
-
-async function getRecommendedPlaces(params: {
-  lat?: number;
-  lng?: number;
-  religions?: string[];
-}): Promise<RecommendedPlace[]> {
-  const qs = new URLSearchParams();
-  if (params.lat != null) qs.set('lat', String(params.lat));
-  if (params.lng != null) qs.set('lng', String(params.lng));
-  (params.religions ?? []).forEach((r) => qs.append('religions', r));
-  const res = await fetch(`${API_BASE}/api/v1/places/recommended?${qs}`, {
-    credentials: 'include',
-  });
-  if (!res.ok) return [];
-  return res.json();
-}
-
-async function getPopularPlaces(): Promise<PopularPlace[]> {
-  const qs = new URLSearchParams({
-    sort: 'rating',
-    include_rating: 'true',
-    include_checkins: 'true',
-    limit: '40',
-  });
-  const res = await fetch(`${API_BASE}/api/v1/places?${qs}`, { credentials: 'include' });
-  if (!res.ok) return [];
-  const data = await res.json();
-  return Array.isArray(data) ? data : (data.places ?? data.items ?? []);
-}
-
-async function getPopularCities(): Promise<PopularCity[]> {
-  const res = await fetch(`${API_BASE}/api/v1/cities?limit=10`, { credentials: 'include' });
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.cities ?? [];
-}
-
-async function getPlacesCount(): Promise<number> {
-  const res = await fetch(`${API_BASE}/api/v1/places/count`, { credentials: 'include' });
-  if (!res.ok) return 0;
-  const data = await res.json();
-  return data.count ?? data.total ?? 0;
-}
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -640,13 +562,8 @@ export default function Home() {
   const navigate = useNavigate();
 
   const [joinOpen, setJoinOpen] = useState(false);
-  const [journeys, setJourneys] = useState<Group[]>([]);
-  const [journeysLoading, setJourneysLoading] = useState(false);
-  const [recommended, setRecommended] = useState<RecommendedPlace[]>([]);
-  const [featured, setFeatured] = useState<FeaturedJourney[]>([]);
-  const [popularPlaces, setPopularPlaces] = useState<PopularPlace[]>([]);
-  const [popularCities, setPopularCities] = useState<PopularCity[]>([]);
-  const [placeCount, setPlaceCount] = useState(0);
+  const [homeData, setHomeData] = useState<HomepageData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Redirect to onboarding on first visit (no user + no flag)
   useEffect(() => {
@@ -655,74 +572,32 @@ export default function Home() {
     }
   }, [user, navigate]);
 
-  // Fetch user's journeys
-  const fetchJourneys = useCallback(async () => {
-    if (!user) return;
-    setJourneysLoading(true);
+  const loadHomepage = useCallback(async () => {
+    setLoading(true);
     try {
-      const data = await getGroups();
-      setJourneys(Array.isArray(data) ? data : []);
+      const religions = user?.religions?.filter((r) => r !== 'all') ?? [];
+      const data = await getHomepage({ lat: coords.lat, lng: coords.lng, religions });
+      setHomeData(data);
     } catch {
       // silently skip
     } finally {
-      setJourneysLoading(false);
+      setLoading(false);
     }
-  }, [user]);
-
-  // Fetch recommended places
-  const fetchRecommended = useCallback(async () => {
-    try {
-      const religions = user?.religions?.filter((r) => r !== 'all') ?? [];
-      const data = await getRecommendedPlaces({
-        lat: coords.lat,
-        lng: coords.lng,
-        religions,
-      });
-      setRecommended(data.slice(0, 10));
-    } catch {
-      // silently skip
-    }
-  }, [coords, user?.religions]);
-
-  // Fetch featured journeys
-  const fetchFeatured = useCallback(async () => {
-    try {
-      const data = await getFeaturedJourneys();
-      setFeatured(data.slice(0, 10));
-    } catch {
-      // silently skip
-    }
-  }, []);
-
-  const fetchPopular = useCallback(async () => {
-    try {
-      const [places, cities] = await Promise.all([getPopularPlaces(), getPopularCities()]);
-      setPopularPlaces(places);
-      setPopularCities(cities.slice(0, 10));
-    } catch {
-      // silently skip
-    }
-  }, []);
-
-  const fetchPlaceCount = useCallback(async () => {
-    try {
-      const count = await getPlacesCount();
-      setPlaceCount(count);
-    } catch {
-      // silently skip
-    }
-  }, []);
+  }, [user?.religions, coords]);
 
   useEffect(() => {
-    fetchJourneys();
-  }, [fetchJourneys]);
+    loadHomepage();
+  }, [loadHomepage]);
 
-  useEffect(() => {
-    fetchRecommended();
-    fetchFeatured();
-    fetchPopular();
-    fetchPlaceCount();
-  }, [fetchRecommended, fetchFeatured, fetchPopular, fetchPlaceCount]);
+  const journeys = homeData?.groups ?? [];
+  const journeysLoading = loading && !homeData;
+  const recommended = homeData?.recommended_places ?? [];
+  const featured = homeData?.featured_journeys ?? [];
+  const popularPlaces = homeData?.popular_places ?? [];
+  const popularCities = homeData?.popular_cities ?? [];
+  const placeCount = homeData?.place_count ?? 0;
+
+  if (loading && !homeData) return <HomeSkeleton />;
 
   const activeJourneys = journeys.filter(
     (g) => (g.total_sites ?? 0) > 0 && (g.sites_visited ?? 0) < (g.total_sites ?? 0),

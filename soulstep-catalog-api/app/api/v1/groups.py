@@ -410,9 +410,12 @@ def get_leaderboard(group_code: str, user: UserDep, session: SessionDep):
     if not groups_db.is_member(group_code, user.user_code, session):
         raise HTTPException(status_code=403, detail="Not a member")
     entries = groups_db.get_leaderboard(group_code, check_ins_db, session)
+    # Bulk-fetch users for all entries in one query
+    user_codes = [e["user_code"] for e in entries]
+    users_map = user_store.get_users_bulk(user_codes, session)
     out = []
     for e in entries:
-        u = user_store.get_user_by_code(e["user_code"], session)
+        u = users_map.get(e["user_code"])
         out.append(
             {
                 "user_code": e["user_code"],

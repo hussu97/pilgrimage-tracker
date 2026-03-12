@@ -159,15 +159,11 @@ def _place_detail(
     out["seo_og_image_url"] = seo.og_image_url if seo else None
     out["updated_at"] = place.created_at.isoformat() if place.created_at else None
 
-    # Nearby places (within 10 km)
-    all_places = session.exec(select(Place).where(Place.place_code != place.place_code)).all()
-    nearby_with_dist = []
-    for p in all_places:
-        dist = _haversine_km(place.lat, place.lng, p.lat, p.lng)
-        if dist <= 10.0:
-            nearby_with_dist.append((dist, p))
-    nearby_with_dist.sort(key=lambda x: x[0])
-    nearby_places = [p for _, p in nearby_with_dist[:5]]
+    # Nearby places (within 10 km) — bounding-box pre-filter to avoid full scan
+    nearby_with_dist = places_db.get_nearby_places(
+        place.lat, place.lng, 10.0, place.place_code, session, limit=5
+    )
+    nearby_places = [p for _, p in nearby_with_dist]
 
     # Similar places (same religion)
     similar_places = session.exec(
@@ -185,17 +181,25 @@ def _place_detail(
     )
     seo_map = {s.place_code: s for s in seo_rows}
 
+    # Bulk fetch images and ratings for related places (avoids N+1)
+    related_images_bulk = (
+        place_images.get_images_bulk(related_codes, session) if related_codes else {}
+    )
+    related_ratings_bulk = (
+        reviews_db.get_aggregate_ratings_bulk(related_codes, session) if related_codes else {}
+    )
+
     def _related_item(p) -> dict:
         rel_seo = seo_map.get(p.place_code)
-        rel_images = place_images.get_images(p.place_code, session=session)
-        agg = reviews_db.get_aggregate_rating(p.place_code, session)
+        rel_imgs = related_images_bulk.get(p.place_code, [])
+        agg = related_ratings_bulk.get(p.place_code)
         return {
             "place_code": p.place_code,
             "name": p.name,
             "address": p.address,
             "religion": p.religion,
             "seo_slug": rel_seo.slug if rel_seo else None,
-            "image_url": rel_images[0]["url"] if rel_images else None,
+            "image_url": rel_imgs[0]["url"] if rel_imgs else None,
             "average_rating": agg["average"] if agg else None,
             "lat": p.lat,
             "lng": p.lng,
@@ -424,6 +428,12 @@ def get_place_reviews(
     if lang and lang != "en":
         all_review_translations = ct_db.bulk_get_translations("review", review_codes, lang, session)
 
+    # Bulk-fetch users for non-anonymous reviews in one query
+    non_anon_codes = [
+        r.user_code for r in rows if r.user_code and not getattr(r, "is_anonymous", False)
+    ]
+    users_map = user_store.get_users_bulk(non_anon_codes, session) if non_anon_codes else {}
+
     out = []
     for r in rows:
         source = getattr(r, "source", ReviewSource.USER)
@@ -461,11 +471,7 @@ def get_place_reviews(
         else:
             # User review
             is_anon = getattr(r, "is_anonymous", False)
-            user = (
-                user_store.get_user_by_code(r.user_code, session)
-                if r.user_code and not is_anon
-                else None
-            )
+            user = users_map.get(r.user_code) if r.user_code and not is_anon else None
             out.append(
                 {
                     "review_code": r.review_code,

@@ -54,6 +54,19 @@ def count_places_visited(user_code: str, session: Session) -> int:
     return session.exec(statement).one()
 
 
+def count_places_visited_bulk(user_codes: list[str], session: Session) -> dict[str, int]:
+    """Bulk count distinct places visited per user."""
+    if not user_codes:
+        return {}
+    statement = (
+        select(CheckIn.user_code, func.count(func.distinct(CheckIn.place_code)).label("cnt"))
+        .where(CheckIn.user_code.in_(user_codes))
+        .group_by(CheckIn.user_code)
+    )
+    results = session.exec(statement).all()
+    return {r.user_code: r.cnt for r in results}
+
+
 def count_check_ins_this_year(user_code: str, session: Session) -> int:
     year = datetime.now(UTC).year
     statement = select(func.count(CheckIn.id)).where(

@@ -16,6 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
+import ProfileSkeleton from '@/components/common/skeletons/ProfileSkeleton';
 import AdBannerNative from '@/components/ads/AdBannerNative';
 import { getMyStats, updateSettings } from '@/lib/api/client';
 import type { UserStats, Religion } from '@/lib/types';
@@ -444,6 +445,10 @@ export default function ProfileScreen() {
       /* ignore */
     }
   };
+
+  if (loading && !user) {
+    return <ProfileSkeleton isDark={isDark} />;
+  }
 
   return (
     <View style={[styles.container]}>

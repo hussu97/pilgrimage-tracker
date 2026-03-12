@@ -36,6 +36,7 @@ import {
 import { shareUrl } from '@/lib/share';
 import { INVITE_LINK_BASE_URL } from '@/lib/constants';
 import { useAuth, useFeedback, useI18n, useTheme } from '@/app/providers';
+import GroupDetailSkeleton from '@/components/common/skeletons/GroupDetailSkeleton';
 import AdBannerNative from '@/components/ads/AdBannerNative';
 import type { RootStackParamList } from '@/app/navigation';
 import type {
@@ -984,12 +985,8 @@ export default function GroupDetailScreen() {
     );
   }
 
-  if (loading && !refreshing) {
-    return (
-      <View style={[styles.centered, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="small" color={tokens.colors.primary} />
-      </View>
-    );
+  if (loading && !group) {
+    return <GroupDetailSkeleton isDark={isDark} />;
   }
 
   if (error || !group) {

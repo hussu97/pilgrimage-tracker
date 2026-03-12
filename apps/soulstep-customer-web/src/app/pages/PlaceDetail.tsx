@@ -34,6 +34,7 @@ import AdBanner from '@/components/ads/AdBanner';
 import PlaceFAQ from '@/components/places/PlaceFAQ';
 import Breadcrumb from '@/components/common/Breadcrumb';
 import NearbyPlaces from '@/components/places/NearbyPlaces';
+import PlaceDetailSkeleton from '@/components/common/skeletons/PlaceDetailSkeleton';
 
 function ReviewsSection({
   placeCode,
@@ -568,11 +569,7 @@ export default function PlaceDetail() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-[40vh] flex items-center justify-center">
-        <p className="text-text-muted">{t('common.loading')}</p>
-      </div>
-    );
+    return <PlaceDetailSkeleton />;
   }
 
   if (notFound || (!place && error)) {

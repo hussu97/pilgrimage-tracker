@@ -42,6 +42,14 @@ def get_user_by_code(user_code: str, session: Session) -> User | None:
     return session.exec(select(User).where(User.user_code == user_code)).first()
 
 
+def get_users_bulk(user_codes: list[str], session: Session) -> dict[str, "User"]:
+    """Batch-fetch users by a list of codes in a single query."""
+    if not user_codes:
+        return {}
+    users = session.exec(select(User).where(User.user_code.in_(user_codes))).all()
+    return {u.user_code: u for u in users}
+
+
 def get_user_by_email(email: str, session: Session) -> User | None:
     return session.exec(select(User).where(User.email == email.lower())).first()
 

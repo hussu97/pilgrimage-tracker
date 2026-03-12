@@ -124,26 +124,23 @@ def get_leaderboard(group_code: str, check_ins_db, session: Session) -> list[dic
     members = get_members(group_code, session)
     if not members:
         return []
-    counts = {}
-    for user_code, _role, _joined in members:
-        counts[user_code] = check_ins_db.count_places_visited(user_code, session)
-    sorted_users = sorted(counts.items(), key=lambda x: -x[1])
+    member_codes = [uc for uc, _role, _joined in members]
+    counts = check_ins_db.count_places_visited_bulk(member_codes, session)
+    sorted_users = sorted(member_codes, key=lambda uc: -counts.get(uc, 0))
     return [
-        {"user_code": u, "places_visited": c, "rank": i + 1}
-        for i, (u, c) in enumerate(sorted_users)
+        {"user_code": u, "places_visited": counts.get(u, 0), "rank": i + 1}
+        for i, u in enumerate(sorted_users)
     ]
 
 
 def get_last_activity(group_code: str, check_ins_db, session: Session) -> str | None:
     members = get_members(group_code, session)
-    user_codes = {m[0] for m in members}
-    latest = None
-    for uc in user_codes:
-        for chk in check_ins_db.get_check_ins_by_user(uc, session):
-            chk_time = chk.checked_in_at.isoformat().replace("+00:00", "Z")
-            if latest is None or chk_time > latest:
-                latest = chk_time
-    return latest
+    user_codes = [m[0] for m in members]
+    all_check_ins = check_ins_db.get_check_ins_for_users(user_codes, session)
+    if not all_check_ins:
+        return None
+    latest = max(all_check_ins, key=lambda chk: chk.checked_in_at)
+    return latest.checked_in_at.isoformat().replace("+00:00", "Z")
 
 
 def get_group_progress(
@@ -153,11 +150,9 @@ def get_group_progress(
     session: Session,
 ) -> dict:
     members = get_members(group_code, session)
-    user_codes = {m[0] for m in members}
-    visited_place_codes = set()
-    for uc in user_codes:
-        for chk in check_ins_db.get_check_ins_by_user(uc, session):
-            visited_place_codes.add(chk.place_code)
+    user_codes = [m[0] for m in members]
+    all_check_ins = check_ins_db.get_check_ins_for_users(user_codes, session)
+    visited_place_codes = {chk.place_code for chk in all_check_ins}
 
     group = get_group_by_code(group_code, session)
     path = group.path_place_codes if group else []
@@ -261,35 +256,34 @@ def get_activity(
     group_code: str, check_ins_db, user_store, places_db, session: Session, limit: int = 20
 ) -> list[dict]:
     members = get_members(group_code, session)
-    user_codes = {m[0] for m in members}
+    user_codes = [m[0] for m in members]
 
-    # Collect all check-ins from all members
-    all_check_ins = []
-    for uc in user_codes:
-        for chk in check_ins_db.get_check_ins_by_user(uc, session):
-            all_check_ins.append((chk, uc))
+    # Single bulk query for all check-ins
+    all_check_ins = check_ins_db.get_check_ins_for_users(user_codes, session)
 
     # Sort by time and take top N
-    all_check_ins.sort(key=lambda x: x[0].checked_in_at, reverse=True)
+    all_check_ins.sort(key=lambda chk: chk.checked_in_at, reverse=True)
     top_check_ins = all_check_ins[:limit]
 
     # Bulk fetch users and places for the top N check-ins
-    relevant_user_codes = {uc for _, uc in top_check_ins}
-    relevant_place_codes = {chk.place_code for chk, _ in top_check_ins}
+    relevant_user_codes = list({chk.user_code for chk in top_check_ins})
+    relevant_place_codes = list({chk.place_code for chk in top_check_ins})
 
-    users_map = {uc: user_store.get_user_by_code(uc, session) for uc in relevant_user_codes}
-    places_map = {pc: places_db.get_place_by_code(pc, session) for pc in relevant_place_codes}
+    users_map = user_store.get_users_bulk(relevant_user_codes, session)
+    places_map = {
+        p.place_code: p for p in places_db.get_places_by_codes(relevant_place_codes, session)
+    }
 
     # Build output using cached data
     out = []
-    for chk, uc in top_check_ins:
-        user = users_map.get(uc)
+    for chk in top_check_ins:
+        u = users_map.get(chk.user_code)
         place = places_map.get(chk.place_code)
         out.append(
             {
                 "type": NotificationType.CHECK_IN,
-                "user_code": uc,
-                "display_name": user.display_name if user else "Unknown",
+                "user_code": chk.user_code,
+                "display_name": u.display_name if u else "Unknown",
                 "place_code": chk.place_code,
                 "place_name": place.name if place else chk.place_code,
                 "checked_in_at": chk.checked_in_at.isoformat().replace("+00:00", "Z"),

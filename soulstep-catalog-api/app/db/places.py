@@ -188,6 +188,43 @@ def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     return R * c
 
 
+def get_nearby_places(
+    lat: float,
+    lng: float,
+    radius_km: float,
+    exclude_code: str,
+    session: Session,
+    limit: int = 5,
+) -> list[tuple[float, "Place"]]:
+    """Return up to `limit` places within radius_km, excluding exclude_code.
+
+    Uses a bounding-box SQL filter first, then Haversine for precision.
+    """
+    delta_lat = radius_km / 111.0
+    delta_lng = radius_km / (111.0 * math.cos(math.radians(lat)))
+    min_lat = lat - delta_lat
+    max_lat = lat + delta_lat
+    min_lng = lng - delta_lng
+    max_lng = lng + delta_lng
+
+    stmt = select(Place).where(
+        Place.lat >= min_lat,
+        Place.lat <= max_lat,
+        Place.lng >= min_lng,
+        Place.lng <= max_lng,
+        Place.place_code != exclude_code,
+    )
+    candidates = session.exec(stmt).all()
+
+    with_dist = [
+        (_haversine_km(lat, lng, p.lat, p.lng), p)
+        for p in candidates
+        if _haversine_km(lat, lng, p.lat, p.lng) <= radius_km
+    ]
+    with_dist.sort(key=lambda x: x[0])
+    return with_dist[:limit]
+
+
 def create_place(
     place_code: str,
     session: Session,

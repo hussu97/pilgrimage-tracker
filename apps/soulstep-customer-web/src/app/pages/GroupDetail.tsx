@@ -19,6 +19,7 @@ import {
 import { shareUrl } from '@/lib/share';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import ErrorState from '@/components/common/ErrorState';
+import GroupDetailSkeleton from '@/components/common/skeletons/GroupDetailSkeleton';
 import GroupCheckInModal from '@/components/groups/GroupCheckInModal';
 import JourneyMapView from '@/components/groups/JourneyMapView';
 import type { Group, LeaderboardEntry, ActivityItem, GroupMember } from '@/lib/types';
@@ -268,13 +269,7 @@ export default function GroupDetail() {
   }
 
   if (loading) {
-    return (
-      <div className="max-w-md mx-auto px-4 py-8 flex justify-center">
-        <span className="material-symbols-outlined animate-spin text-primary text-3xl">
-          progress_activity
-        </span>
-      </div>
-    );
+    return <GroupDetailSkeleton />;
   }
 
   if (error || !group) {

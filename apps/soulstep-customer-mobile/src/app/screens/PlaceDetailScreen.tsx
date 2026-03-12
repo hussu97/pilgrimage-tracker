@@ -27,6 +27,7 @@ import {
 } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
 import { useAuth, useFeedback, useI18n, useTheme } from '@/app/providers';
+import PlaceDetailSkeleton from '@/components/common/skeletons/PlaceDetailSkeleton';
 import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
 import { useAds } from '@/components/ads/AdProvider';
@@ -310,13 +311,8 @@ export default function PlaceDetailScreen() {
     );
   }
 
-  if (loading) {
-    return (
-      <View style={[styles.centered, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="small" color={tokens.colors.primary} />
-        <Text style={styles.muted}>{t('common.loading')}</Text>
-      </View>
-    );
+  if (loading && !place) {
+    return <PlaceDetailSkeleton isDark={isDark} />;
   }
 
   if (notFound || (error && !place)) {

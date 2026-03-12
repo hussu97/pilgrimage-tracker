@@ -839,3 +839,76 @@ export async function getCityReligionPlaces(
   if (!res.ok) throw new Error('City/religion not found');
   return res.json();
 }
+
+// ─── Homepage (composite) ─────────────────────────────────────────────────────
+
+export interface HomepageRecommendedPlace {
+  place_code: string;
+  name: string;
+  religion: string;
+  address: string;
+  city?: string;
+  image_url?: string | null;
+  distance_km?: number | null;
+  lat: number;
+  lng: number;
+}
+
+export interface HomepagePopularPlace {
+  place_code: string;
+  name: string;
+  religion: string;
+  address: string;
+  city?: string;
+  lat: number;
+  lng: number;
+  images: { url: string }[];
+  average_rating?: number | null;
+  review_count?: number | null;
+  distance?: number | null;
+}
+
+export interface HomepagePopularCity {
+  city: string;
+  city_slug: string;
+  count: number;
+}
+
+export interface HomepageFeaturedJourney {
+  group_code: string;
+  name: string;
+  description?: string | null;
+  cover_image_url?: string | null;
+  is_private: boolean;
+  path_place_codes: string[];
+  total_sites: number;
+  member_count: number;
+  created_at: string;
+}
+
+export interface HomepageData {
+  groups: Group[];
+  recommended_places: HomepageRecommendedPlace[];
+  featured_journeys: HomepageFeaturedJourney[];
+  popular_places: HomepagePopularPlace[];
+  popular_cities: HomepagePopularCity[];
+  place_count: number;
+}
+
+export interface GetHomepageParams {
+  lat?: number | null;
+  lng?: number | null;
+  religions?: string[];
+}
+
+export async function getHomepage(params?: GetHomepageParams): Promise<HomepageData> {
+  const sp = new URLSearchParams();
+  if (params?.lat != null) sp.set('lat', String(params.lat));
+  if (params?.lng != null) sp.set('lng', String(params.lng));
+  (params?.religions ?? []).forEach((r) => sp.append('religions', r));
+  const qs = sp.toString();
+  const url = `${API_BASE}/api/v1/homepage${qs ? `?${qs}` : ''}`;
+  const res = await authFetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch homepage data');
+  return res.json();
+}

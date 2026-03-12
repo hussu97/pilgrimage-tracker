@@ -20,7 +20,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
   FlatList,
   Image,
@@ -31,60 +30,15 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Constants from 'expo-constants';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
-import { getGroups } from '@/lib/api/client';
+import { getHomepage, type HomepageData, type HomepageRecommendedPlace } from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 import JoinJourneyModal from '@/components/groups/JoinJourneyModal';
-import type { Group, Place } from '@/lib/types';
+import HomeSkeleton from '@/components/common/skeletons/HomeSkeleton';
+import type { Group } from '@/lib/types';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
-
-// ── API base ──────────────────────────────────────────────────────────────────
-
-const API_BASE: string =
-  Constants.expoConfig?.extra?.apiUrl ?? process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:3000';
-
-// ── Local types ───────────────────────────────────────────────────────────────
-
-interface RecommendedPlace {
-  place_code: string;
-  name: string;
-  religion: string;
-  address: string;
-  city?: string;
-  image_url?: string | null;
-  distance_km?: number | null;
-}
-
-interface PopularPlace {
-  place_code: string;
-  name: string;
-  religion: string;
-  address?: string;
-  city?: string;
-  images: { url: string }[];
-  average_rating?: number | null;
-  review_count?: number | null;
-  total_checkins_count?: number | null;
-  distance?: number | null;
-}
-
-interface PopularCity {
-  city: string;
-  city_slug: string;
-  count: number;
-}
-
-interface FeaturedJourney {
-  group_code: string;
-  name: string;
-  description?: string;
-  cover_image_url?: string | null;
-  total_sites: number;
-  member_count: number;
-}
 
 // ── Quick action accent colors ────────────────────────────────────────────────
 
@@ -94,76 +48,6 @@ const ACTION_COLORS = {
   join: '#8B5CF6',
   favorites: '#F43F5E',
 } as const;
-
-// ── API thin wrappers ─────────────────────────────────────────────────────────
-
-async function fetchFeaturedJourneys(): Promise<FeaturedJourney[]> {
-  try {
-    const res = await fetch(`${API_BASE}/api/v1/groups/featured`);
-    if (!res.ok) return [];
-    return res.json();
-  } catch {
-    return [];
-  }
-}
-
-async function fetchRecommendedPlaces(params: {
-  lat?: number | null;
-  lng?: number | null;
-  religions?: string[];
-}): Promise<RecommendedPlace[]> {
-  try {
-    const qs = new URLSearchParams();
-    if (params.lat != null) qs.set('lat', String(params.lat));
-    if (params.lng != null) qs.set('lng', String(params.lng));
-    (params.religions ?? []).forEach((r) => qs.append('religions', r));
-    const url = `${API_BASE}/api/v1/places/recommended?${qs.toString()}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    return res.json();
-  } catch {
-    return [];
-  }
-}
-
-async function fetchPopularPlaces(): Promise<PopularPlace[]> {
-  try {
-    const qs = new URLSearchParams({
-      sort: 'rating',
-      include_rating: 'true',
-      include_checkins: 'true',
-      limit: '40',
-    });
-    const res = await fetch(`${API_BASE}/api/v1/places?${qs.toString()}`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data) ? data : (data.places ?? data.items ?? []);
-  } catch {
-    return [];
-  }
-}
-
-async function fetchPopularCities(): Promise<PopularCity[]> {
-  try {
-    const res = await fetch(`${API_BASE}/api/v1/cities?limit=10`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.cities ?? [];
-  } catch {
-    return [];
-  }
-}
-
-async function fetchPlaceCount(): Promise<number> {
-  try {
-    const res = await fetch(`${API_BASE}/api/v1/places/count`);
-    if (!res.ok) return 0;
-    const data = await res.json();
-    return typeof data.total === 'number' ? data.total : 0;
-  } catch {
-    return 0;
-  }
-}
 
 // ── makeStyles ────────────────────────────────────────────────────────────────
 
@@ -680,15 +564,10 @@ export default function HomeScreen() {
 
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
-  const [journeys, setJourneys] = useState<Group[]>([]);
-  const [journeysLoading, setJourneysLoading] = useState(false);
-  const [recommended, setRecommended] = useState<RecommendedPlace[]>([]);
-  const [featured, setFeatured] = useState<FeaturedJourney[]>([]);
-  const [popularPlaces, setPopularPlaces] = useState<PopularPlace[]>([]);
-  const [popularCities, setPopularCities] = useState<PopularCity[]>([]);
+  const [homeData, setHomeData] = useState<HomepageData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [addToJourneyPlace, setAddToJourneyPlace] = useState<RecommendedPlace | null>(null);
-  const [placeCount, setPlaceCount] = useState(0);
+  const [addToJourneyPlace, setAddToJourneyPlace] = useState<HomepageRecommendedPlace | null>(null);
   const [joinModalVisible, setJoinModalVisible] = useState(false);
 
   // Animated count ticker
@@ -702,89 +581,30 @@ export default function HomeScreen() {
 
   // ── Data fetching ──
 
-  const loadJourneys = useCallback(async () => {
-    if (!user) {
-      setJourneys([]);
-      return;
-    }
-    setJourneysLoading(true);
+  const loadHomepage = useCallback(async () => {
+    setLoading(true);
     try {
-      const data = await getGroups();
-      setJourneys(Array.isArray(data) ? data : []);
+      const religions = (user?.religions ?? []).filter((r) => r !== 'all');
+      const data = await getHomepage({ religions });
+      setHomeData(data);
     } catch {
       // silently skip
     } finally {
-      setJourneysLoading(false);
-    }
-  }, [user]);
-
-  const loadRecommended = useCallback(async () => {
-    try {
-      const religions = (user?.religions ?? []).filter((r) => r !== 'all');
-      const data = await fetchRecommendedPlaces({ religions });
-      setRecommended(data.slice(0, 10));
-    } catch {
-      // silently skip
+      setLoading(false);
     }
   }, [user?.religions]);
 
-  const loadFeatured = useCallback(async () => {
-    try {
-      const data = await fetchFeaturedJourneys();
-      setFeatured(data.slice(0, 10));
-    } catch {
-      // silently skip
-    }
-  }, []);
-
-  const loadPopularPlaces = useCallback(async () => {
-    try {
-      const data = await fetchPopularPlaces();
-      setPopularPlaces(data);
-    } catch {
-      // silently skip
-    }
-  }, []);
-
-  const loadPopularCities = useCallback(async () => {
-    try {
-      const data = await fetchPopularCities();
-      setPopularCities(data.slice(0, 10));
-    } catch {
-      // silently skip
-    }
-  }, []);
-
-  const loadPlaceCount = useCallback(async () => {
-    try {
-      const count = await fetchPlaceCount();
-      setPlaceCount(count);
-    } catch {
-      // silently skip
-    }
-  }, []);
-
-  const loadAll = useCallback(async () => {
-    await Promise.all([
-      loadJourneys(),
-      loadRecommended(),
-      loadFeatured(),
-      loadPopularPlaces(),
-      loadPopularCities(),
-      loadPlaceCount(),
-    ]);
-  }, [
-    loadJourneys,
-    loadRecommended,
-    loadFeatured,
-    loadPopularPlaces,
-    loadPopularCities,
-    loadPlaceCount,
-  ]);
-
   useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+    loadHomepage();
+  }, [loadHomepage]);
+
+  // Derive data from homeData
+  const journeys = homeData?.groups ?? [];
+  const recommended = homeData?.recommended_places ?? [];
+  const featured = homeData?.featured_journeys ?? [];
+  const popularPlaces = homeData?.popular_places ?? [];
+  const popularCities = homeData?.popular_cities ?? [];
+  const placeCount = homeData?.place_count ?? 0;
 
   // Animate count ticker when placeCount changes
   useEffect(() => {
@@ -805,13 +625,13 @@ export default function HomeScreen() {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadAll();
+    await loadHomepage();
     setRefreshing(false);
-  }, [loadAll]);
+  }, [loadHomepage]);
 
   // ── Derived state ──
 
-  const activeJourneys = journeys.filter(
+  const activeJourneys = (journeys as Group[]).filter(
     (g) => (g.total_sites ?? 0) > 0 && (g.sites_visited ?? 0) < (g.total_sites ?? 0),
   );
   const primaryJourney: Group | null = activeJourneys[0] ?? journeys[0] ?? null;
@@ -863,7 +683,7 @@ export default function HomeScreen() {
   }
 
   function renderHeroCard() {
-    if (journeysLoading) {
+    if (loading && !homeData) {
       return <View style={styles.skeleton} />;
     }
 
@@ -1256,6 +1076,10 @@ export default function HomeScreen() {
   }
 
   // ── Render ──
+
+  if (loading && !homeData) {
+    return <HomeSkeleton isDark={isDark} />;
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>

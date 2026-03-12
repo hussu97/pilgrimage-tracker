@@ -9,6 +9,7 @@ import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import JoinJourneyModal from '@/components/groups/JoinJourneyModal';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
+import GroupListSkeleton from '@/components/common/skeletons/GroupListSkeleton';
 import type { Group } from '@/lib/types';
 
 function formatRelative(iso: string | null | undefined, t: (key: string) => string): string {
@@ -169,7 +170,7 @@ export default function Groups() {
           </div>
         )}
 
-        {user && loading && <p className="text-text-muted">{t('common.loading')}</p>}
+        {user && loading && groups.length === 0 && <GroupListSkeleton />}
         {user && error && (
           <ErrorState message={error} onRetry={fetchGroups} retryLabel={t('common.retry')} />
         )}

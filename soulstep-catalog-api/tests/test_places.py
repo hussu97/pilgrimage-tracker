@@ -583,3 +583,131 @@ class TestPlacesCount:
         _create_place(client, "plc_cnt_t001")
         resp = client.get(f"{PLACES_URL}/count")
         assert isinstance(resp.json()["total"], int)
+
+
+# ── get_nearby_places bounding-box helper ──────────────────────────────────────
+
+
+class TestGetNearbyPlaces:
+    def test_returns_nearby_excludes_far_and_self(self, client, test_engine):
+        """get_nearby_places returns places within radius and excludes the given place_code."""
+        from sqlmodel import Session
+
+        from app.db import places as places_db
+        from app.db.enums import Religion
+
+        with Session(test_engine) as session:
+            places_db.create_place(
+                "plc_nb_ref01",
+                session,
+                "Ref Place",
+                Religion.ISLAM,
+                "mosque",
+                lat=51.5074,
+                lng=-0.1278,
+                address="London",
+            )
+            places_db.create_place(
+                "plc_nb_near1",
+                session,
+                "Near Place",
+                Religion.ISLAM,
+                "mosque",
+                lat=51.5074 + 0.004,
+                lng=-0.1278,
+                address="London",
+            )
+            places_db.create_place(
+                "plc_nb_far01",
+                session,
+                "Far Place",
+                Religion.ISLAM,
+                "mosque",
+                lat=53.0,
+                lng=-0.1278,
+                address="Far Away",
+            )
+
+            results = places_db.get_nearby_places(51.5074, -0.1278, 5.0, "plc_nb_ref01", session)
+            codes = [p.place_code for _, p in results]
+            assert "plc_nb_near1" in codes
+            assert "plc_nb_far01" not in codes
+            assert "plc_nb_ref01" not in codes
+
+    def test_returns_empty_when_no_nearby(self, client, test_engine):
+        """get_nearby_places returns empty list when no places are within radius."""
+        from sqlmodel import Session
+
+        from app.db import places as places_db
+        from app.db.enums import Religion
+
+        with Session(test_engine) as session:
+            places_db.create_place(
+                "plc_nb_iso01",
+                session,
+                "Isolated Place",
+                Religion.ISLAM,
+                "mosque",
+                lat=10.0,
+                lng=10.0,
+                address="Somewhere",
+            )
+
+            results = places_db.get_nearby_places(51.5074, -0.1278, 5.0, "plc_nb_iso01", session)
+            assert results == []
+
+
+# ── count_places_visited_bulk ──────────────────────────────────────────────────
+
+
+class TestCountPlacesVisitedBulk:
+    def test_empty_list_returns_empty_dict(self, client, test_engine):
+        """count_places_visited_bulk with empty list returns {}."""
+        from sqlmodel import Session
+
+        from app.db import check_ins as check_ins_db
+
+        with Session(test_engine) as session:
+            result = check_ins_db.count_places_visited_bulk([], session)
+            assert result == {}
+
+    def test_counts_distinct_places_per_user(self, client, test_engine):
+        """count_places_visited_bulk counts distinct visited places per user."""
+        from sqlmodel import Session
+
+        from app.db import check_ins as check_ins_db
+        from app.db import places as places_db
+        from app.db import store as user_store
+        from app.db.enums import Religion
+
+        with Session(test_engine) as session:
+            user_store.create_user(
+                "usr_bk_u001", "bulk_vis1@example.com", "hash", "BulkUser1", session
+            )
+            places_db.create_place(
+                "plc_bk_p001",
+                session,
+                "P1",
+                Religion.ISLAM,
+                "mosque",
+                lat=0.0,
+                lng=0.0,
+                address="A",
+            )
+            places_db.create_place(
+                "plc_bk_p002",
+                session,
+                "P2",
+                Religion.ISLAM,
+                "mosque",
+                lat=0.1,
+                lng=0.0,
+                address="B",
+            )
+            # Two check-ins to same place should count as 1
+            check_ins_db.create_check_in("usr_bk_u001", "plc_bk_p001", session)
+            check_ins_db.create_check_in("usr_bk_u001", "plc_bk_p001", session)
+            check_ins_db.create_check_in("usr_bk_u001", "plc_bk_p002", session)
+
+            result = check_ins_db.count_places_visited_bulk(["usr_bk_u001"], session)
+            assert result.get("usr_bk_u001") == 2
