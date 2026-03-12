@@ -740,9 +740,9 @@ export default function Home() {
                 </section>
               )}
 
-              {/* Popular Cities — collage carousel on mobile, 3-col grid on desktop */}
+              {/* Popular Cities — collage carousel on mobile only; desktop shows in sidebar */}
               {popularCities.length > 0 && (
-                <section>
+                <section className="lg:hidden">
                   <div className="flex items-center justify-between mb-3">
                     <h2 className="text-base lg:text-lg font-bold text-text-primary dark:text-white">
                       {t('dashboard.popularCities')}
@@ -807,7 +807,7 @@ export default function Home() {
                     </Link>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    {popularCities.slice(0, 4).map((city) => (
+                    {popularCities.slice(0, 8).map((city) => (
                       <CityCollageCard key={city.city_slug} city={city} />
                     ))}
                   </div>
