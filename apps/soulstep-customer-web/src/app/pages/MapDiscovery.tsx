@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PlaceMapView from '@/components/places/PlaceMapView';
 import { getPlaces } from '@/lib/api/client';
 import type { Place } from '@/lib/types';
@@ -25,6 +26,7 @@ type ActiveFilters = Record<BoolFilter['key'], boolean>;
 export default function MapDiscovery() {
   const { t } = useI18n();
   const { coords } = useLocation();
+  const navigate = useNavigate();
 
   const [places, setPlaces] = useState<Place[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
@@ -83,14 +85,16 @@ export default function MapDiscovery() {
     setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const activeCount = Object.values(filters).filter(Boolean).length;
+
   return (
-    // Full-screen container: position relative so overlay children can be absolute
+    // Full-screen container
     // Desktop: flex layout with left panel + map filling remaining space
     <div className="fixed inset-0 z-0 w-full h-full lg:flex">
-      {/* ── Desktop left panel (filters + search) ── */}
-      <div className="hidden lg:flex lg:flex-col lg:w-80 lg:shrink-0 lg:h-full lg:overflow-y-auto lg:border-r lg:border-slate-200 dark:lg:border-dark-border bg-white dark:bg-dark-surface z-[700] pt-[64px]">
-        <div className="p-4 flex flex-col gap-3 flex-1">
-          {/* Search bar */}
+      {/* ── Desktop left panel (search + filters + places list) ── */}
+      <div className="hidden lg:flex lg:flex-col lg:w-80 lg:shrink-0 lg:h-full lg:border-r lg:border-slate-200 dark:lg:border-dark-border bg-white dark:bg-dark-surface z-[700] pt-[64px]">
+        {/* Search bar */}
+        <div className="px-4 pt-4 pb-3 shrink-0">
           <div className="flex items-center gap-2 bg-slate-50 dark:bg-dark-bg rounded-2xl border border-input-border dark:border-dark-border px-4 py-2.5">
             <span
               className="material-symbols-outlined text-[20px] text-slate-400 dark:text-dark-text-secondary shrink-0"
@@ -117,9 +121,11 @@ export default function MapDiscovery() {
               </button>
             )}
           </div>
+        </div>
 
-          {/* Bool filter chips — vertical on desktop */}
-          <div className="flex flex-col gap-1.5">
+        {/* Filter pills — horizontal scrollable row, same as mobile */}
+        <div className="px-4 pb-3 shrink-0">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
             {BOOL_FILTERS.map((f) => {
               const isActive = filters[f.key];
               return (
@@ -127,53 +133,131 @@ export default function MapDiscovery() {
                   key={f.key}
                   onClick={() => toggleFilter(f.key)}
                   className={[
-                    'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150 text-left',
+                    'shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-150',
                     isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-slate-600 dark:text-dark-text-secondary hover:bg-slate-50 dark:hover:bg-dark-bg',
+                      ? 'bg-primary text-white shadow-md shadow-primary/30'
+                      : 'bg-slate-100 dark:bg-dark-bg text-slate-600 dark:text-dark-text-secondary border border-slate-200 dark:border-dark-border hover:bg-slate-200 dark:hover:bg-dark-border',
                   ].join(' ')}
                 >
                   <span
-                    className="material-symbols-outlined text-[18px]"
+                    className="material-symbols-outlined text-[14px]"
                     aria-hidden
                     style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
                   >
                     {f.icon}
                   </span>
                   {f.label}
-                  {isActive && <span className="ml-auto w-2 h-2 rounded-full bg-primary" />}
                 </button>
               );
             })}
           </div>
 
-          {/* Place count */}
+          {/* Result count + active filter badge */}
           {!loading && (
+            <div className="flex items-center gap-2 mt-2 px-1">
+              <p className="text-xs text-slate-400 dark:text-dark-text-secondary">
+                {places.length} {t('nav.places') || 'places'} {t('common.found') || 'found'}
+              </p>
+              {activeCount > 0 && (
+                <button
+                  onClick={() =>
+                    setFilters({
+                      open_now: false,
+                      has_parking: false,
+                      womens_area: false,
+                      top_rated: false,
+                      has_events: false,
+                    })
+                  }
+                  className="text-xs text-primary font-semibold hover:underline"
+                >
+                  {t('common.clear') || 'Clear'}
+                </button>
+              )}
+            </div>
+          )}
+          {loading && (
             <p className="text-xs text-slate-400 dark:text-dark-text-secondary mt-2 px-1">
-              {places.length} {t('nav.places').toLowerCase()} {t('common.found') || 'found'}
+              {t('common.loading') || 'Loading…'}
             </p>
           )}
+        </div>
 
-          {/* Vertical place list */}
-          {selectedPlace && (
-            <div className="mt-2 p-3 rounded-2xl border border-primary/20 bg-primary/5 dark:bg-primary/10">
-              <p className="text-xs font-bold text-primary mb-1">
-                {t('common.selected') || 'Selected'}
-              </p>
-              <p className="text-sm font-semibold text-slate-800 dark:text-white">
-                {selectedPlace.name}
-              </p>
-              {selectedPlace.address && (
-                <p className="text-xs text-slate-500 dark:text-dark-text-secondary mt-0.5">
-                  {selectedPlace.address}
-                </p>
-              )}
+        {/* Divider */}
+        <div className="h-px bg-slate-100 dark:bg-dark-border shrink-0 mx-4" />
+
+        {/* Places list — scrollable */}
+        <div className="flex-1 overflow-y-auto px-3 py-2">
+          {places.map((place) => {
+            const isSelected = selectedPlace?.place_code === place.place_code;
+            const imageUrl = place.images?.[0]?.url;
+            return (
               <button
-                onClick={() => setSelectedPlace(null)}
-                className="mt-2 text-xs text-primary font-semibold"
+                key={place.place_code}
+                onClick={() => setSelectedPlace(isSelected ? null : place)}
+                className={[
+                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1 text-left transition-all duration-150',
+                  isSelected
+                    ? 'bg-primary/10 dark:bg-primary/15'
+                    : 'hover:bg-slate-50 dark:hover:bg-dark-bg',
+                ].join(' ')}
               >
-                {t('common.close') || 'Clear'}
+                {/* Thumbnail */}
+                <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 bg-slate-100 dark:bg-dark-bg flex items-center justify-center">
+                  {imageUrl ? (
+                    <img src={imageUrl} alt={place.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="material-icons text-[18px] text-slate-400 dark:text-dark-text-secondary">
+                      place
+                    </span>
+                  )}
+                </div>
+
+                {/* Text */}
+                <div className="flex-1 min-w-0">
+                  <p
+                    className={`text-sm font-semibold truncate ${isSelected ? 'text-primary' : 'text-slate-800 dark:text-white'}`}
+                  >
+                    {place.name}
+                  </p>
+                  {place.address && (
+                    <p className="text-xs text-slate-400 dark:text-dark-text-secondary truncate mt-0.5">
+                      {place.address}
+                    </p>
+                  )}
+                </div>
+
+                {/* Open badge */}
+                {place.is_open_now && (
+                  <span className="shrink-0 w-2 h-2 rounded-full bg-green-500" title="Open" />
+                )}
               </button>
+            );
+          })}
+
+          {!loading && places.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <span className="material-icons text-4xl text-slate-300 dark:text-dark-border mb-2">
+                search_off
+              </span>
+              <p className="text-sm text-slate-400 dark:text-dark-text-secondary">
+                {t('search.noResults') || 'No places found'}
+              </p>
+            </div>
+          )}
+
+          {/* Navigate to place detail on double-click / explicit tap */}
+          {selectedPlace && (
+            <div className="sticky bottom-0 bg-white dark:bg-dark-surface pt-2 pb-3 border-t border-slate-100 dark:border-dark-border mt-2">
+              <div className="px-1">
+                <p className="text-xs font-bold text-primary mb-1 truncate">{selectedPlace.name}</p>
+                <button
+                  onClick={() => navigate(`/places/${selectedPlace.place_code}`)}
+                  className="w-full py-2 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-colors"
+                >
+                  {t('place.viewDetails') || 'View Details'} →
+                </button>
+              </div>
             </div>
           )}
         </div>
