@@ -36,7 +36,7 @@ const CARDS: Card[] = [
   },
 ];
 
-const variants = {
+const cardVariants = {
   enter: (dir: number) => ({ x: dir > 0 ? '100%' : '-100%', opacity: 0 }),
   center: { x: 0, opacity: 1 },
   exit: (dir: number) => ({ x: dir < 0 ? '100%' : '-100%', opacity: 0 }),
@@ -66,9 +66,9 @@ export default function Onboarding() {
   const isLast = index === CARDS.length - 1;
 
   return (
-    <div className="min-h-screen bg-white dark:bg-dark-bg flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-[#FAF6F1] dark:bg-dark-bg flex flex-col overflow-hidden">
       {/* Skip button */}
-      <div className="flex justify-end p-4">
+      <div className="flex justify-end p-4 lg:p-6">
         <button
           onClick={finish}
           className="text-sm font-medium text-slate-500 dark:text-dark-text-secondary hover:text-primary transition-colors px-3 py-1"
@@ -77,27 +77,50 @@ export default function Onboarding() {
         </button>
       </div>
 
-      {/* Card area */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 pb-4">
-        <div className="w-full max-w-sm relative overflow-hidden" style={{ height: 380 }}>
+      {/* Center column */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 pb-6 gap-0">
+        {/* ── Logo ─────────────────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="mb-6 lg:mb-8 flex flex-col items-center"
+        >
+          <div className="relative">
+            {/* Soft glow halo behind logo */}
+            <div className="absolute inset-0 rounded-[28px] bg-primary/10 blur-2xl scale-110" />
+            <img
+              src="/logo.png"
+              alt="SoulStep"
+              className="relative w-28 h-28 lg:w-40 lg:h-40 xl:w-44 xl:h-44 rounded-[28px] shadow-xl dark:ring-2 dark:ring-white/10"
+              draggable={false}
+            />
+          </div>
+        </motion.div>
+
+        {/* ── Sliding cards ─────────────────────────────────────────── */}
+        <div
+          className="w-full max-w-sm lg:max-w-md relative overflow-hidden"
+          style={{ height: 340 }}
+        >
           <AnimatePresence initial={false} custom={direction} mode="popLayout">
             <motion.div
               key={index}
               custom={direction}
-              variants={variants}
+              variants={cardVariants}
               initial="enter"
               animate="center"
               exit="exit"
               transition={{ type: 'tween', duration: 0.35 }}
-              className={`absolute inset-0 rounded-3xl bg-gradient-to-br ${card.gradient} flex flex-col items-center justify-center p-8 border border-slate-100 dark:border-dark-border shadow-lg`}
+              className={`absolute inset-0 rounded-3xl bg-gradient-to-br ${card.gradient} flex flex-col items-center justify-center p-8 border border-white/60 dark:border-dark-border shadow-lg backdrop-blur-sm`}
             >
               {/* Icon */}
-              <div className="mb-6 w-20 h-20 rounded-full bg-white/60 dark:bg-dark-surface/60 flex items-center justify-center shadow-sm">
+              <div className="mb-6 w-20 h-20 rounded-full bg-white/60 dark:bg-dark-surface/60 flex items-center justify-center shadow-sm ring-1 ring-white/80 dark:ring-white/10">
                 <span className="material-symbols-outlined text-5xl text-primary">{card.icon}</span>
               </div>
 
               {/* Title */}
-              <h2 className="text-2xl font-bold text-slate-800 dark:text-white text-center mb-3">
+              <h2 className="text-2xl lg:text-3xl font-bold text-slate-800 dark:text-white text-center mb-3">
                 {t(card.titleKey)}
               </h2>
 
@@ -109,7 +132,7 @@ export default function Onboarding() {
           </AnimatePresence>
         </div>
 
-        {/* Dot indicators */}
+        {/* ── Dot indicators ────────────────────────────────────────── */}
         <div className="flex gap-2 mt-6">
           {CARDS.map((_, i) => (
             <button
@@ -126,8 +149,8 @@ export default function Onboarding() {
           ))}
         </div>
 
-        {/* CTA button */}
-        <div className="mt-8 w-full max-w-sm">
+        {/* ── CTA button ────────────────────────────────────────────── */}
+        <div className="mt-6 lg:mt-8 w-full max-w-sm lg:max-w-md">
           <button
             onClick={next}
             className="w-full py-3.5 rounded-2xl bg-primary text-white font-semibold text-base shadow-md hover:bg-primary-hover active:scale-[0.98] transition-all"

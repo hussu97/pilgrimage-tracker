@@ -31,15 +31,7 @@ interface City {
   top_images: string[];
 }
 
-function CityCollageCard({
-  city,
-  onPress,
-  isDark,
-}: {
-  city: City;
-  onPress: () => void;
-  isDark: boolean;
-}) {
+function CityCollageCard({ city, onPress }: { city: City; onPress: () => void }) {
   const images = city.top_images ?? [];
 
   const renderImages = () => {
@@ -194,7 +186,6 @@ export default function ExploreCitiesScreen() {
           renderItem={({ item }) => (
             <CityCollageCard
               city={item}
-              isDark={isDark}
               onPress={() => navigation.push('ExploreCity', { citySlug: item.city_slug })}
             />
           )}

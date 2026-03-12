@@ -3,7 +3,7 @@
  * On completion or skip, sets AsyncStorage 'onboarding_done' = '1'
  * and navigates to Main.
  */
-import { useRef, useState, useMemo, useCallback } from 'react';
+import { useRef, useState, useMemo, useCallback, useEffect } from 'react';
 import type { ListRenderItemInfo, ViewToken } from 'react-native';
 import {
   View,
@@ -13,15 +13,23 @@ import {
   Dimensions,
   StyleSheet,
   Animated,
+  Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/app/navigation';
 import { useI18n, useTheme } from '@/app/providers';
 import { tokens } from '@/lib/theme';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const LOGO = require('../../../assets/logo.png') as number;
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Clamp logo size: 140 on phones, 180 on tablets
+const LOGO_SIZE = Math.min(Math.round(SCREEN_WIDTH * 0.38), 180);
 
 interface CardData {
   titleKey: string;
@@ -59,20 +67,52 @@ function makeStyles(isDark: boolean) {
   return StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: isDark ? tokens.colors.darkBg : tokens.colors.surface,
+      backgroundColor: isDark ? tokens.colors.darkBg : '#FAF6F1',
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'flex-end',
       paddingHorizontal: 20,
-      paddingTop: 16,
-      paddingBottom: 8,
+      paddingTop: 8,
+      paddingBottom: 4,
     },
     skipText: {
       fontSize: 14,
       fontWeight: '600',
       color: isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary,
     },
+    // ── Logo section ──────────────────────────────────────
+    logoSection: {
+      alignItems: 'center',
+      paddingVertical: 16,
+    },
+    logoGlow: {
+      // Outer glow container — slightly larger, provides the halo effect
+      width: LOGO_SIZE + 20,
+      height: LOGO_SIZE + 20,
+      borderRadius: (LOGO_SIZE + 20) / 4,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? 'rgba(176,86,61,0.12)' : 'rgba(176,86,61,0.08)',
+    },
+    logo: {
+      width: LOGO_SIZE,
+      height: LOGO_SIZE,
+      borderRadius: LOGO_SIZE / 5,
+      ...(isDark
+        ? {
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.1)',
+          }
+        : {
+            shadowColor: '#B0563D',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.18,
+            shadowRadius: 20,
+            elevation: 8,
+          }),
+    },
+    // ── Cards ─────────────────────────────────────────────
     cardWrapper: {
       width: SCREEN_WIDTH,
       flex: 1,
@@ -83,43 +123,44 @@ function makeStyles(isDark: boolean) {
     card: {
       width: '100%',
       borderRadius: tokens.borderRadius['3xl'],
-      padding: 32,
+      padding: 28,
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 340,
+      minHeight: 260,
     },
     iconContainer: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.6)',
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.7)',
       alignItems: 'center',
       justifyContent: 'center',
-      marginBottom: 24,
+      marginBottom: 20,
     },
     iconText: {
-      fontSize: 40,
+      fontSize: 36,
     },
     cardTitle: {
-      fontSize: 22,
+      fontSize: 21,
       fontWeight: '700',
       color: isDark ? tokens.colors.surface : tokens.colors.textDark,
       textAlign: 'center',
-      marginBottom: 12,
+      marginBottom: 10,
     },
     cardDesc: {
-      fontSize: 15,
-      lineHeight: 22,
+      fontSize: 14,
+      lineHeight: 21,
       color: isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary,
       textAlign: 'center',
     },
+    // ── Bottom controls ───────────────────────────────────
     dotsRow: {
       flexDirection: 'row',
       justifyContent: 'center',
       alignItems: 'center',
       gap: 8,
-      marginTop: 24,
-      marginBottom: 8,
+      marginTop: 20,
+      marginBottom: 6,
     },
     dot: {
       height: 8,
@@ -135,14 +176,18 @@ function makeStyles(isDark: boolean) {
     },
     footer: {
       paddingHorizontal: 24,
-      paddingBottom: 40,
-      paddingTop: 8,
+      paddingTop: 6,
     },
     ctaButton: {
       backgroundColor: tokens.colors.primary,
       borderRadius: tokens.borderRadius['2xl'],
       paddingVertical: 14,
       alignItems: 'center',
+      shadowColor: tokens.colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.35,
+      shadowRadius: 12,
+      elevation: 6,
     },
     ctaText: {
       color: '#fff',
@@ -156,10 +201,22 @@ export default function OnboardingScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'Onboarding'>>();
   const { t } = useI18n();
   const { isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef<FlatList<CardData>>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const logoAnim = useRef(new Animated.Value(0)).current;
+
+  // Logo entrance animation on mount
+  useEffect(() => {
+    Animated.spring(logoAnim, {
+      toValue: 1,
+      friction: 6,
+      tension: 80,
+      useNativeDriver: true,
+    }).start();
+  }, [logoAnim]);
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
@@ -216,13 +273,41 @@ export default function OnboardingScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Skip */}
       <View style={styles.header}>
         <TouchableOpacity onPress={finish} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ── Logo ───────────────────────────────────────────── */}
+      <Animated.View
+        style={[
+          styles.logoSection,
+          {
+            opacity: logoAnim,
+            transform: [
+              {
+                translateY: logoAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-20, 0],
+                }),
+              },
+              {
+                scale: logoAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.85, 1],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <View style={styles.logoGlow}>
+          <Image source={LOGO} style={styles.logo} resizeMode="cover" />
+        </View>
+      </Animated.View>
 
       {/* Cards */}
       <FlatList
@@ -253,7 +338,7 @@ export default function OnboardingScreen() {
         </View>
 
         {/* CTA */}
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 24 }]}>
           <TouchableOpacity style={styles.ctaButton} onPress={next} activeOpacity={0.85}>
             <Text style={styles.ctaText}>
               {isLast ? t('onboarding.getStarted') : t('onboarding.next')}
