@@ -26,6 +26,7 @@ import type {
 } from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import JoinJourneyModal from '@/components/groups/JoinJourneyModal';
+import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 import HomeSkeleton from '@/components/common/skeletons/HomeSkeleton';
 import type { Group } from '@/lib/types';
 
@@ -341,7 +342,13 @@ function QuickActionsGrid({
 }
 
 /** Horizontal place card — recommended */
-function PlaceCardSmall({ place }: { place: RecommendedPlace }) {
+function PlaceCardSmall({
+  place,
+  onAddToJourney,
+}: {
+  place: RecommendedPlace;
+  onAddToJourney: (place: RecommendedPlace) => void;
+}) {
   const { t } = useI18n();
   return (
     <Link to={`/places/${place.place_code}`}>
@@ -384,7 +391,7 @@ function PlaceCardSmall({ place }: { place: RecommendedPlace }) {
           <button
             onClick={(e) => {
               e.preventDefault();
-              // TODO: open "Add to Journey" modal
+              onAddToJourney(place);
             }}
             className="mt-2 text-[10px] font-semibold text-primary hover:underline"
           >
@@ -507,7 +514,7 @@ function CityCollageCard({ city }: { city: HomepagePopularCity }) {
   const { t } = useI18n();
   const images = city.top_images ?? [];
   return (
-    <Link to={`/cities/${city.city_slug}`}>
+    <Link to={`/explore/${city.city_slug}`}>
       <motion.div
         whileTap={{ scale: 0.97 }}
         className="w-[calc((100vw-2.5rem)/2.3)] lg:w-full flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border hover:scale-[1.02] hover:shadow-md transition-all duration-200 cursor-pointer"
@@ -620,6 +627,7 @@ export default function Home() {
   const navigate = useNavigate();
 
   const [joinOpen, setJoinOpen] = useState(false);
+  const [addToJourneyPlace, setAddToJourneyPlace] = useState<RecommendedPlace | null>(null);
   const [homeData, setHomeData] = useState<HomepageData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -747,7 +755,7 @@ export default function Home() {
                     <h2 className="text-base lg:text-lg font-bold text-text-primary dark:text-white">
                       {t('dashboard.popularCities')}
                     </h2>
-                    <Link to="/cities" className="text-xs font-semibold text-primary">
+                    <Link to="/explore" className="text-xs font-semibold text-primary">
                       {t('common.showMore')}
                     </Link>
                   </div>
@@ -772,7 +780,13 @@ export default function Home() {
                   </div>
                   <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:flex-none">
                     {recommended.map((place) => (
-                      <PlaceCardSmall key={place.place_code} place={place} />
+                      <PlaceCardSmall
+                        key={place.place_code}
+                        place={place}
+                        onAddToJourney={(p) =>
+                          user ? setAddToJourneyPlace(p) : navigate('/login')
+                        }
+                      />
                     ))}
                   </div>
                 </section>
@@ -802,7 +816,7 @@ export default function Home() {
                     <h2 className="text-base lg:text-lg font-bold text-text-primary dark:text-white">
                       {t('dashboard.popularCities')}
                     </h2>
-                    <Link to="/cities" className="text-xs font-semibold text-primary">
+                    <Link to="/explore" className="text-xs font-semibold text-primary">
                       {t('common.showMore')}
                     </Link>
                   </div>
@@ -888,6 +902,16 @@ export default function Home() {
 
       {/* Join Journey Modal */}
       <JoinJourneyModal open={joinOpen} onClose={() => setJoinOpen(false)} />
+
+      {/* Add to Journey sheet */}
+      {addToJourneyPlace && (
+        <AddToGroupSheet
+          placeCode={addToJourneyPlace.place_code}
+          placeName={addToJourneyPlace.name}
+          onClose={() => setAddToJourneyPlace(null)}
+          t={t}
+        />
+      )}
     </>
   );
 }
