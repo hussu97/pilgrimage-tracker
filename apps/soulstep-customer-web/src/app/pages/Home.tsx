@@ -22,6 +22,7 @@ import type {
   HomepageRecommendedPlace,
   HomepagePopularPlace,
   HomepageFeaturedJourney,
+  HomepagePopularCity,
 } from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import JoinJourneyModal from '@/components/groups/JoinJourneyModal';
@@ -501,6 +502,63 @@ function FeaturedJourneyCard({ journey }: { journey: FeaturedJourney }) {
   );
 }
 
+/** City collage card — shows a 1/2/3-image collage with city name overlay */
+function CityCollageCard({ city }: { city: HomepagePopularCity }) {
+  const { t } = useI18n();
+  const images = city.top_images ?? [];
+  return (
+    <Link to={`/cities/${city.city_slug}`}>
+      <motion.div
+        whileTap={{ scale: 0.97 }}
+        className="w-[calc((100vw-2.5rem)/2.3)] lg:w-52 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:scale-[1.02] transition-transform duration-200 cursor-pointer"
+      >
+        <div className="h-36 relative overflow-hidden bg-slate-100 dark:bg-dark-border">
+          {images.length === 0 ? (
+            <div className="w-full h-full flex items-center justify-center">
+              <span className="material-icons text-4xl text-slate-300">location_city</span>
+            </div>
+          ) : images.length === 1 ? (
+            <img
+              src={getFullImageUrl(images[0])}
+              alt={city.city}
+              className="w-full h-full object-cover"
+            />
+          ) : images.length === 2 ? (
+            <div className="flex h-full gap-px">
+              <img src={getFullImageUrl(images[0])} alt="" className="w-1/2 h-full object-cover" />
+              <img src={getFullImageUrl(images[1])} alt="" className="w-1/2 h-full object-cover" />
+            </div>
+          ) : (
+            <div className="flex h-full gap-px">
+              <img src={getFullImageUrl(images[0])} alt="" className="w-1/2 h-full object-cover" />
+              <div className="w-1/2 flex flex-col gap-px">
+                <img
+                  src={getFullImageUrl(images[1])}
+                  alt=""
+                  className="flex-1 w-full object-cover"
+                />
+                <img
+                  src={getFullImageUrl(images[2])}
+                  alt=""
+                  className="flex-1 w-full object-cover"
+                />
+              </div>
+            </div>
+          )}
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/15 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 p-3">
+            <p className="text-sm font-bold text-white line-clamp-1">{city.city}</p>
+            <p className="text-[10px] text-white/75 mt-0.5">
+              {city.count} {t('nav.places').toLowerCase()}
+            </p>
+          </div>
+        </div>
+      </motion.div>
+    </Link>
+  );
+}
+
 /** Animated place count ticker — counts up from 0 to total */
 function PlaceCountTicker({ total }: { total: number }) {
   const { t } = useI18n();
@@ -642,7 +700,7 @@ export default function Home() {
 
           <div className="px-4 pb-6 space-y-5 lg:grid lg:grid-cols-5 lg:gap-8 lg:space-y-0">
             {/* ── Left column (main content on desktop) ─────────── */}
-            <div className="lg:col-span-3 space-y-5">
+            <div className="lg:col-span-3 space-y-5 lg:space-y-8">
               {/* Active Journey Card */}
               <section>
                 <AnimatePresence mode="wait">
@@ -695,36 +753,20 @@ export default function Home() {
                 </section>
               )}
 
-              {/* Popular Cities */}
+              {/* Popular Cities — collage carousel (hidden on desktop, shown in sidebar) */}
               {popularCities.length > 0 && (
-                <section>
+                <section className="lg:hidden">
                   <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-base lg:text-lg font-bold text-text-primary dark:text-white">
+                    <h2 className="text-base font-bold text-text-primary dark:text-white">
                       {t('dashboard.popularCities')}
                     </h2>
                     <Link to="/cities" className="text-xs font-semibold text-primary">
                       {t('common.showMore')}
                     </Link>
                   </div>
-                  <div className="flex gap-2.5 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                  <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
                     {popularCities.map((city) => (
-                      <Link
-                        key={city.city_slug}
-                        to={`/cities/${city.city_slug}`}
-                        className="flex-shrink-0"
-                      >
-                        <motion.div
-                          whileTap={{ scale: 0.96 }}
-                          className="px-4 py-2.5 rounded-full bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border shadow-sm hover:shadow-md hover:border-primary/40 transition-all text-center min-w-[72px]"
-                        >
-                          <p className="text-sm font-semibold text-text-primary dark:text-white whitespace-nowrap">
-                            {city.city}
-                          </p>
-                          <p className="text-[10px] text-text-muted dark:text-dark-text-secondary mt-0.5">
-                            {city.count} {t('nav.places').toLowerCase()}
-                          </p>
-                        </motion.div>
-                      </Link>
+                      <CityCollageCard key={city.city_slug} city={city} />
                     ))}
                   </div>
                 </section>
@@ -751,7 +793,7 @@ export default function Home() {
             </div>
 
             {/* ── Right column (desktop sidebar) ────────────────── */}
-            <div className="lg:col-span-2 lg:sticky lg:top-24 space-y-6">
+            <div className="lg:col-span-2 lg:sticky lg:top-24 space-y-8">
               {/* Popular Journeys */}
               {featured.length > 0 && (
                 <section>
@@ -761,6 +803,59 @@ export default function Home() {
                   <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide md:flex-col md:overflow-visible md:flex-none">
                     {featured.map((j) => (
                       <FeaturedJourneyCard key={j.group_code} journey={j} />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Popular Cities — desktop sidebar list */}
+              {popularCities.length > 0 && (
+                <section className="hidden lg:block">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-base lg:text-lg font-bold text-text-primary dark:text-white">
+                      {t('dashboard.popularCities')}
+                    </h2>
+                    <Link to="/cities" className="text-xs font-semibold text-primary">
+                      {t('common.showMore')}
+                    </Link>
+                  </div>
+                  <div className="space-y-2">
+                    {popularCities.slice(0, 6).map((city) => (
+                      <Link
+                        key={city.city_slug}
+                        to={`/cities/${city.city_slug}`}
+                        className="flex items-center gap-3 bg-white dark:bg-dark-surface rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow group"
+                      >
+                        <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100 dark:bg-dark-border">
+                          {(city.top_images ?? []).length > 0 ? (
+                            <img
+                              src={getFullImageUrl(city.top_images[0])}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <span className="material-icons text-xl text-slate-300">
+                                location_city
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-text-primary dark:text-white truncate">
+                            {city.city}
+                          </p>
+                          <p className="text-xs text-text-muted dark:text-dark-text-secondary">
+                            {city.count} {t('nav.places').toLowerCase()}
+                          </p>
+                        </div>
+                        <span
+                          className="material-symbols-outlined text-[18px] text-slate-300 group-hover:text-primary transition-colors"
+                          aria-hidden
+                        >
+                          chevron_right
+                        </span>
+                      </Link>
                     ))}
                   </div>
                 </section>

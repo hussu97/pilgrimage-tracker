@@ -872,6 +872,7 @@ export interface HomepagePopularCity {
   city: string;
   city_slug: string;
   count: number;
+  top_images: string[];
 }
 
 export interface HomepageFeaturedJourney {

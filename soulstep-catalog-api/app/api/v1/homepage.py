@@ -218,11 +218,39 @@ def get_homepage(
     )
     city_rows = session.exec(city_stmt).all()
     cities_out = []
+    city_names_list = []
     for row in city_rows:
         city_name = row[0] if isinstance(row, tuple) else row.city
         cnt = row[1] if isinstance(row, tuple) else row.cnt
         slug = city_name.lower().replace(" ", "-") if city_name else ""
-        cities_out.append({"city": city_name, "city_slug": slug, "count": cnt})
+        city_names_list.append(city_name)
+        cities_out.append({"city": city_name, "city_slug": slug, "count": cnt, "top_images": []})
+
+    # Fetch top 3 place images per city for the collage display
+    if city_names_list:
+        city_places_stmt = (
+            select(Place.city, Place.place_code).where(Place.city.in_(city_names_list)).limit(300)
+        )
+        city_place_rows = session.exec(city_places_stmt).all()
+        city_place_codes: dict[str, list[str]] = {}
+        for r in city_place_rows:
+            c = r[0] if isinstance(r, tuple) else r.city
+            pc = r[1] if isinstance(r, tuple) else r.place_code
+            city_place_codes.setdefault(c, []).append(pc)
+
+        all_city_codes = [pc for codes in city_place_codes.values() for pc in codes]
+        city_place_images = place_images.get_images_bulk(all_city_codes, session)
+
+        for city_item in cities_out:
+            pcs = city_place_codes.get(city_item["city"], [])
+            imgs: list[str] = []
+            for pc in pcs:
+                place_imgs = city_place_images.get(pc, [])
+                if place_imgs and place_imgs[0].get("url"):
+                    imgs.append(place_imgs[0]["url"])
+                if len(imgs) >= 3:
+                    break
+            city_item["top_images"] = imgs
 
     # ── Place count ────────────────────────────────────────────────────────────
     total_count = session.exec(select(func.count(Place.id))).one()

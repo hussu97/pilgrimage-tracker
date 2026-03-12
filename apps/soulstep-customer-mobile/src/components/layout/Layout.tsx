@@ -2,15 +2,15 @@
  * Layout — Journey-first navigation shell.
  *
  * Replaces the 3-tab bottom navigator with:
- *   • Minimal 2-item bottom bar (Dashboard | Map)
+ *   • Minimal 2-item bottom bar (Dashboard | Map) — icons only, no labels
  *   • Center elevated FAB for "New Journey"
  *
  * Screens are managed by the root stack navigator in navigation.tsx.
  * This Layout renders as the "Main" screen and hosts the tab-like routing
  * by rendering the correct child based on the active tab state.
  */
-import React, { useState, useEffect } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, TouchableOpacity, StyleSheet, Platform, Animated } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurView } from 'expo-blur';
@@ -45,52 +45,36 @@ function makeStyles(isDark: boolean) {
       flexDirection: 'row',
       alignItems: 'flex-end',
       justifyContent: 'space-between',
-      paddingHorizontal: 32,
-      paddingTop: 8,
+      paddingHorizontal: 40,
+      paddingTop: 10,
     },
     tabItem: {
       alignItems: 'center',
       justifyContent: 'center',
-      paddingVertical: 4,
-      paddingHorizontal: 16,
-      gap: 2,
-    },
-    tabLabel: {
-      fontSize: 9,
-      fontWeight: '700',
-      letterSpacing: 0.8,
-      textTransform: 'uppercase',
+      paddingVertical: 6,
+      paddingHorizontal: 20,
     },
     fabWrapper: {
       alignItems: 'center',
-      marginBottom: 12,
+      marginBottom: 10,
     },
     fab: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
       backgroundColor: tokens.colors.primary,
       alignItems: 'center',
       justifyContent: 'center',
       shadowColor: tokens.colors.primary,
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.35,
-      shadowRadius: 8,
-      elevation: 8,
-    },
-    fabLabel: {
-      fontSize: 8,
-      fontWeight: '700',
-      letterSpacing: 0.6,
-      textTransform: 'uppercase',
-      color: tokens.colors.primary,
-      marginTop: 3,
-      opacity: 0.8,
+      shadowOpacity: 0.4,
+      shadowRadius: 10,
+      elevation: 10,
     },
     activePill: {
       position: 'absolute',
       top: -2,
-      width: 24,
+      width: 20,
       height: 3,
       borderRadius: 2,
       backgroundColor: tokens.colors.primary,
@@ -108,6 +92,29 @@ export default function Layout() {
 
   const [activeTab, setActiveTab] = useState<TabName>('Dashboard');
   const [_unreadCount, setUnreadCount] = useState(0);
+
+  // Press-scale animations for each nav item
+  const dashAnim = useRef(new Animated.Value(1)).current;
+  const mapAnim = useRef(new Animated.Value(1)).current;
+  const fabAnim = useRef(new Animated.Value(1)).current;
+
+  const pressIn = (anim: Animated.Value) => {
+    Animated.spring(anim, {
+      toValue: 0.8,
+      useNativeDriver: true,
+      speed: 40,
+      bounciness: 0,
+    }).start();
+  };
+
+  const pressOut = (anim: Animated.Value) => {
+    Animated.spring(anim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 20,
+      bounciness: 12,
+    }).start();
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -136,7 +143,8 @@ export default function Layout() {
         ? tokens.colors.darkTextSecondary
         : tokens.colors.textMuted;
 
-  const BAR_HEIGHT = 64 + (insets.bottom || 20);
+  // Bar height: paddingTop(10) + FAB(60) + fabMarginBottom(10) + paddingBottom(insets)
+  const BAR_HEIGHT = 80 + (insets.bottom || 20);
 
   return (
     <View style={styles.container}>
@@ -156,24 +164,17 @@ export default function Layout() {
           <TouchableOpacity
             style={styles.tabItem}
             onPress={() => setActiveTab('Dashboard')}
-            activeOpacity={0.7}
+            onPressIn={() => pressIn(dashAnim)}
+            onPressOut={() => pressOut(dashAnim)}
+            activeOpacity={1}
             accessibilityRole="button"
             accessibilityLabel={t('nav.dashboard') || 'Dashboard'}
             accessibilityState={{ selected: activeTab === 'Dashboard' }}
           >
             {activeTab === 'Dashboard' && <View style={styles.activePill} />}
-            <MaterialIcons name="home" size={26} color={textColor(activeTab === 'Dashboard')} />
-            <Text
-              style={[
-                styles.tabLabel,
-                {
-                  color: textColor(activeTab === 'Dashboard'),
-                  opacity: activeTab === 'Dashboard' ? 1 : 0.5,
-                },
-              ]}
-            >
-              {t('nav.dashboard') || 'Dashboard'}
-            </Text>
+            <Animated.View style={{ transform: [{ scale: dashAnim }] }}>
+              <MaterialIcons name="home" size={30} color={textColor(activeTab === 'Dashboard')} />
+            </Animated.View>
           </TouchableOpacity>
 
           {/* Center FAB — New Journey */}
@@ -181,34 +182,33 @@ export default function Layout() {
             <TouchableOpacity
               style={styles.fab}
               onPress={handleNewJourney}
-              activeOpacity={0.85}
+              onPressIn={() => pressIn(fabAnim)}
+              onPressOut={() => pressOut(fabAnim)}
+              activeOpacity={1}
               accessibilityRole="button"
               accessibilityLabel={t('journey.newJourney') || 'New Journey'}
             >
-              <MaterialIcons name="add" size={30} color="white" />
+              <Animated.View style={{ transform: [{ scale: fabAnim }] }}>
+                <MaterialIcons name="add" size={32} color="white" />
+              </Animated.View>
             </TouchableOpacity>
-            <Text style={styles.fabLabel}>{t('journey.newJourney') || 'Journey'}</Text>
           </View>
 
           {/* Map tab */}
           <TouchableOpacity
             style={styles.tabItem}
             onPress={handleMapTab}
-            activeOpacity={0.7}
+            onPressIn={() => pressIn(mapAnim)}
+            onPressOut={() => pressOut(mapAnim)}
+            activeOpacity={1}
             accessibilityRole="button"
             accessibilityLabel={t('nav.map') || 'Map'}
             accessibilityState={{ selected: activeTab === 'Map' }}
           >
             {activeTab === 'Map' && <View style={styles.activePill} />}
-            <MaterialIcons name="map" size={26} color={textColor(activeTab === 'Map')} />
-            <Text
-              style={[
-                styles.tabLabel,
-                { color: textColor(activeTab === 'Map'), opacity: activeTab === 'Map' ? 1 : 0.5 },
-              ]}
-            >
-              {t('nav.map') || 'Map'}
-            </Text>
+            <Animated.View style={{ transform: [{ scale: mapAnim }] }}>
+              <MaterialIcons name="explore" size={30} color={textColor(activeTab === 'Map')} />
+            </Animated.View>
           </TouchableOpacity>
         </View>
       </BlurView>
