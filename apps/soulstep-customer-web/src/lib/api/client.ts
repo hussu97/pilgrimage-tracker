@@ -809,10 +809,15 @@ export async function updateVisitorSettings(
 export async function getCities(params?: {
   limit?: number;
   offset?: number;
-}): Promise<{ cities: Array<{ city: string; city_slug: string; count: number }>; total: number }> {
+  include_images?: boolean;
+}): Promise<{
+  cities: Array<{ city: string; city_slug: string; count: number; top_images: string[] }>;
+  total: number;
+}> {
   const q = new URLSearchParams();
   if (params?.limit != null) q.set('limit', String(params.limit));
   if (params?.offset != null) q.set('offset', String(params.offset));
+  if (params?.include_images) q.set('include_images', 'true');
   const res = await fetch(`${API_BASE}/api/v1/cities?${q}`, { headers: clientHeaders() });
   if (!res.ok) throw new Error('Failed to fetch cities');
   return res.json();

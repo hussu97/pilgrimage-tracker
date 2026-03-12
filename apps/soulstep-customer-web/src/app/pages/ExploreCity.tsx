@@ -10,24 +10,13 @@ interface CityMetrics {
   popularity_label?: string | null;
 }
 
-const RELIGIONS = [
-  { value: '', label: 'All' },
-  { value: 'islam', label: 'Islam' },
-  { value: 'christianity', label: 'Christianity' },
-  { value: 'hinduism', label: 'Hinduism' },
-  { value: 'buddhism', label: 'Buddhism' },
-  { value: 'sikhism', label: 'Sikhism' },
-  { value: 'judaism', label: 'Judaism' },
-  { value: 'bahai', label: "Bahá'í" },
-  { value: 'zoroastrianism', label: 'Zoroastrianism' },
-];
-
 interface CityPlace {
   place_code: string;
   name: string;
   religion: string;
   address: string;
   seo_slug?: string;
+  images?: { url: string }[];
 }
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -88,13 +77,61 @@ function PopularityBadge({ label }: { label: string }) {
   );
 }
 
+function PlaceCard({ place }: { place: CityPlace }) {
+  const imageUrl = place.images?.[0]?.url ?? null;
+  const to = place.seo_slug
+    ? `/places/${place.place_code}/${place.seo_slug}`
+    : `/places/${place.place_code}`;
+
+  return (
+    <Link
+      to={to}
+      className="rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border hover:shadow-lg transition-all duration-200 group cursor-pointer block"
+    >
+      {/* Image section */}
+      <div className="h-44 relative bg-gray-100 dark:bg-dark-surface overflow-hidden">
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={place.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-dark-surface">
+            <span className="material-icons text-gray-400 text-4xl">place</span>
+          </div>
+        )}
+
+        {/* Dark gradient overlay on bottom third */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+
+        {/* Religion badge — top right */}
+        {place.religion && (
+          <div className="absolute top-2 right-2">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold text-white bg-black/40 backdrop-blur-sm capitalize">
+              {place.religion}
+            </span>
+          </div>
+        )}
+
+        {/* Name + address inside gradient area */}
+        <div className="absolute bottom-0 left-0 right-0 p-3">
+          <p className="text-sm font-bold text-white line-clamp-1">{place.name}</p>
+          {place.address && (
+            <p className="text-xs text-white/70 line-clamp-1 mt-0.5">{place.address}</p>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export default function ExploreCity() {
   const { t } = useI18n();
   const { city } = useParams<{ city: string }>();
   const [places, setPlaces] = useState<CityPlace[]>([]);
   const [cityName, setCityName] = useState('');
   const [loading, setLoading] = useState(true);
-  const [religion, setReligion] = useState('');
   const [metrics, setMetrics] = useState<CityMetrics | null>(null);
 
   useHead({
@@ -109,15 +146,15 @@ export default function ExploreCity() {
   useEffect(() => {
     if (!city) return;
     setLoading(true);
-    const fetchFn = religion ? api.getCityReligionPlaces(city, religion) : api.getCityPlaces(city);
-    fetchFn
+    api
+      .getCityPlaces(city)
       .then((data) => {
         setPlaces(data.places ?? []);
         setCityName(data.city ?? '');
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [city, religion]);
+  }, [city]);
 
   useEffect(() => {
     if (!city) return;
@@ -125,7 +162,7 @@ export default function ExploreCity() {
   }, [city]);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center gap-2 mb-4 text-sm text-text-muted dark:text-dark-text-secondary">
         <Link to="/explore" className="hover:text-primary transition-colors">
           {t('explore.allCities')}
@@ -134,13 +171,13 @@ export default function ExploreCity() {
         <span className="text-text-main dark:text-white font-medium">{cityName || city}</span>
       </div>
 
-      <h1 className="text-2xl font-bold text-text-main dark:text-white mb-2">
+      <h1 className="text-2xl lg:text-3xl font-bold text-text-main dark:text-white mb-2">
         {t('explore.cityTitle').replace('{city}', cityName || city || '')}
       </h1>
 
       {/* Metrics banner */}
       {metrics && (
-        <div className="flex items-center gap-4 mb-4 p-4 rounded-2xl bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border shadow-sm flex-wrap">
+        <div className="flex items-center gap-4 mb-6 p-4 rounded-2xl bg-white dark:bg-dark-surface border border-slate-100 dark:border-dark-border shadow-sm flex-wrap">
           <div className="flex flex-col">
             <span className="text-xl font-bold text-text-main dark:text-white tabular-nums">
               {metrics.count.toLocaleString()}
@@ -171,23 +208,6 @@ export default function ExploreCity() {
         </div>
       )}
 
-      <div className="flex gap-2 flex-wrap mb-6">
-        {RELIGIONS.map((r) => (
-          <Link
-            key={r.value}
-            to={r.value ? `/explore/${city}/${r.value}` : `/explore/${city}`}
-            onClick={() => setReligion(r.value)}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              religion === r.value
-                ? 'bg-primary text-white'
-                : 'bg-slate-100 dark:bg-dark-surface text-text-secondary dark:text-dark-text-secondary hover:bg-slate-200 dark:hover:bg-dark-border'
-            }`}
-          >
-            {r.label}
-          </Link>
-        ))}
-      </div>
-
       {loading ? (
         <div className="flex justify-center py-12">
           <span className="material-symbols-outlined text-3xl animate-spin text-slate-300">
@@ -199,31 +219,10 @@ export default function ExploreCity() {
           {t('explore.noSites')}
         </p>
       ) : (
-        <div className="space-y-2">
-          {places.map((place) => {
-            const to = place.seo_slug
-              ? `/places/${place.place_code}/${place.seo_slug}`
-              : `/places/${place.place_code}`;
-            return (
-              <Link
-                key={place.place_code}
-                to={to}
-                className="flex items-center gap-4 p-4 rounded-xl border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:shadow-md transition-shadow group"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-text-main dark:text-white group-hover:text-primary transition-colors truncate">
-                    {place.name}
-                  </p>
-                  <p className="text-xs text-text-secondary dark:text-dark-text-secondary truncate mt-0.5">
-                    {place.address}
-                  </p>
-                </div>
-                <span className="text-xs font-medium text-text-muted dark:text-dark-text-secondary capitalize shrink-0">
-                  {place.religion}
-                </span>
-              </Link>
-            );
-          })}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {places.map((place) => (
+            <PlaceCard key={place.place_code} place={place} />
+          ))}
         </div>
       )}
     </div>

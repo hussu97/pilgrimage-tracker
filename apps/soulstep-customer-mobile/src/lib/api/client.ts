@@ -892,12 +892,18 @@ export async function updateVisitorSettings(
 
 // ─── Cities ───────────────────────────────────────────────────────────────────
 
-export async function getCities(params?: { limit?: number; offset?: number }): Promise<{
-  cities: Array<{ city: string; city_slug: string; count: number }>;
+export async function getCities(params?: {
+  limit?: number;
+  offset?: number;
+  include_images?: boolean;
+}): Promise<{
+  cities: Array<{ city: string; city_slug: string; count: number; top_images: string[] }>;
+  total: number;
 }> {
   const qs = new URLSearchParams();
   if (params?.limit != null) qs.set('limit', String(params.limit));
   if (params?.offset != null) qs.set('offset', String(params.offset));
+  if (params?.include_images) qs.set('include_images', 'true');
   const query = qs.toString();
   const res = await fetch(`${API_BASE}/api/v1/cities${query ? `?${query}` : ''}`, {
     headers: clientHeaders(),

@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import func, select
 
+from app.db import place_images
 from app.db.models import CheckIn, City, Place
 from app.db.session import SessionDep
 
@@ -52,6 +53,9 @@ def list_cities(
     offset: int = Query(0),
     include_metrics: bool = Query(
         False, description="Include 30-day check-in metrics and popularity label per city"
+    ),
+    include_images: bool = Query(
+        False, description="Include up to 3 top image URLs per city for collage display"
     ),
 ):
     """List all cities with place counts, sorted by count descending."""
@@ -95,6 +99,31 @@ def list_cities(
                 if city_name:
                     checkins_by_city[city_name] = checkins_by_city.get(city_name, 0) + cnt
 
+    # Fetch top 3 place images per city when requested (mirrors homepage.py pattern)
+    city_top_images: dict[str, list[str]] = {}
+    if include_images and city_names:
+        city_place_rows = session.exec(
+            select(Place.city, Place.place_code).where(Place.city.in_(city_names)).limit(300)
+        ).all()
+        city_place_codes: dict[str, list[str]] = {}
+        for r in city_place_rows:
+            c = r[0] if isinstance(r, tuple) else r.city
+            pc = r[1] if isinstance(r, tuple) else r.place_code
+            city_place_codes.setdefault(c, []).append(pc)
+
+        all_city_codes = [pc for codes in city_place_codes.values() for pc in codes]
+        bulk_images = place_images.get_images_bulk(all_city_codes, session)
+
+        for cname, codes in city_place_codes.items():
+            imgs: list[str] = []
+            for pc in codes:
+                place_imgs = bulk_images.get(pc, [])
+                if place_imgs and place_imgs[0].get("url"):
+                    imgs.append(place_imgs[0]["url"])
+                if len(imgs) >= 3:
+                    break
+            city_top_images[cname] = imgs
+
     cities = []
     for city, count in rows:
         if not city:
@@ -111,6 +140,8 @@ def list_cities(
             checkins_30d = checkins_by_city.get(city, 0)
             entry["checkins_30d"] = checkins_30d
             entry["popularity_label"] = _derive_popularity_label(checkins_30d)
+        if include_images:
+            entry["top_images"] = city_top_images.get(city, [])
         cities.append(entry)
 
     total = session.exec(
@@ -159,6 +190,7 @@ def list_places_in_city(
         else []
     )
     seo_map = {s.place_code: s for s in seo_rows}
+    img_map = place_images.get_images_bulk(place_codes, session) if place_codes else {}
 
     return {
         "city": matching_city,
@@ -176,6 +208,7 @@ def list_places_in_city(
                 "lat": p.lat,
                 "lng": p.lng,
                 "seo_slug": seo_map.get(p.place_code, None) and seo_map[p.place_code].slug,
+                "images": [{"url": img["url"]} for img in img_map.get(p.place_code, [])[:1]],
             }
             for p in places
         ],
@@ -221,6 +254,7 @@ def list_places_in_city_by_religion(
         else []
     )
     seo_map = {s.place_code: s for s in seo_rows}
+    img_map = place_images.get_images_bulk(place_codes, session) if place_codes else {}
 
     return {
         "city": matching_city,
@@ -239,6 +273,7 @@ def list_places_in_city_by_religion(
                 "lat": p.lat,
                 "lng": p.lng,
                 "seo_slug": seo_map.get(p.place_code, None) and seo_map[p.place_code].slug,
+                "images": [{"url": img["url"]} for img in img_map.get(p.place_code, [])[:1]],
             }
             for p in places
         ],
