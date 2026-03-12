@@ -153,7 +153,7 @@ export default function PlaceMapView({
       {(visiblePlaces.length > 0 || selectedPlace !== null) && (
         <>
           {/* ── Desktop: left side panel (overlay) ─────────────────────────── */}
-          <div className="hidden md:flex flex-col absolute left-3 top-3 bottom-3 w-80 z-[500] bg-white/95 dark:bg-dark-surface backdrop-blur-xl rounded-2xl shadow-xl border border-input-border/60 dark:border-dark-border overflow-hidden">
+          <div className="hidden md:flex lg:hidden flex-col absolute left-3 top-3 bottom-3 w-80 z-[500] bg-white/95 dark:bg-dark-surface backdrop-blur-xl rounded-2xl shadow-xl border border-input-border/60 dark:border-dark-border overflow-hidden">
             <div className="px-4 py-3 border-b border-input-border dark:border-dark-border shrink-0">
               {selectedPlace !== null ? (
                 <div className="flex items-center justify-between gap-2">
