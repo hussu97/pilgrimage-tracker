@@ -20,10 +20,12 @@ import type {
   AuthResponse,
   BroadcastResult,
   BulkResult,
+  BulkTranslationJob,
   ContentTranslationListResponse,
   CreateContentTranslationBody,
   CreatePlaceBody,
   CreateTranslationBody,
+  JobListResponse,
   Language,
   LoginBody,
   PaginatedResponse,
@@ -32,6 +34,7 @@ import type {
   PatchReviewBody,
   PatchUserBody,
   PlaceAttributeDefinition,
+  StartJobBody,
   TranslationEntry,
   UpdateAppVersionBody,
   UpdateContentTranslationBody,
@@ -471,4 +474,35 @@ export async function regenerateSEO(placeCode: string, force = false): Promise<S
 export async function bulkGenerateSEO(body: { force?: boolean; limit?: number }): Promise<GenerateResponse> {
   const res = await apiClient.post<GenerateResponse>("/admin/seo/generate", body);
   return res.data;
+}
+
+// ── Bulk Translation Jobs ─────────────────────────────────────────────────────
+
+export async function startTranslationJob(body: StartJobBody): Promise<BulkTranslationJob> {
+  const res = await apiClient.post<BulkTranslationJob>("/admin/translations/jobs", body);
+  return res.data;
+}
+
+export async function listTranslationJobs(params?: {
+  page?: number;
+  page_size?: number;
+}): Promise<JobListResponse> {
+  const res = await apiClient.get<JobListResponse>("/admin/translations/jobs", { params });
+  return res.data;
+}
+
+export async function getTranslationJob(jobCode: string): Promise<BulkTranslationJob> {
+  const res = await apiClient.get<BulkTranslationJob>(`/admin/translations/jobs/${jobCode}`);
+  return res.data;
+}
+
+export async function cancelTranslationJob(jobCode: string): Promise<BulkTranslationJob> {
+  const res = await apiClient.post<BulkTranslationJob>(
+    `/admin/translations/jobs/${jobCode}/cancel`
+  );
+  return res.data;
+}
+
+export async function deleteTranslationJob(jobCode: string): Promise<void> {
+  await apiClient.delete(`/admin/translations/jobs/${jobCode}`);
 }

@@ -723,6 +723,45 @@ export interface AnalyticsEventListResponse {
   page_size: number;
 }
 
+// ── Bulk Translation Jobs ─────────────────────────────────────────────────────
+
+export interface BulkTranslationJob {
+  job_code: string;
+  status:
+    | "pending"
+    | "running"
+    | "completed"
+    | "completed_with_errors"
+    | "failed"
+    | "cancelled";
+  target_langs: string[];
+  entity_types: string[];
+  source_lang: string;
+  total_items: number;
+  completed_items: number;
+  failed_items: number;
+  skipped_items: number;
+  progress_pct: number;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface StartJobBody {
+  target_langs: string[];
+  entity_types?: string[];
+  source_lang?: string;
+  multi_size?: number;
+}
+
+export interface JobListResponse {
+  items: BulkTranslationJob[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 // ── Map types ────────────────────────────────────────────────────────────────
 
 export interface MapCellItem {

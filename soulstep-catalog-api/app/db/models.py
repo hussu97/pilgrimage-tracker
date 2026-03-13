@@ -469,6 +469,37 @@ class AdminBroadcast(SQLModel, table=True):
     )
 
 
+class BulkTranslationJob(SQLModel, table=True):
+    """Tracks a long-running bulk content-translation job.
+
+    Each job translates all missing ContentTranslation rows for the
+    requested entity_types and target_langs using the browser backend.
+    """
+
+    __tablename__ = "bulk_translation_job"
+
+    id: int | None = Field(default=None, primary_key=True)
+    job_code: str = Field(index=True, unique=True)  # "btj_" + token_hex(8)
+    created_by_user_code: str = Field(foreign_key="user.user_code")
+    status: str = Field(default="pending", index=True)
+    # pending | running | completed | completed_with_errors | failed | cancelled
+    target_langs: list[str] = Field(default=[], sa_column=Column(JSON))
+    entity_types: list[str] = Field(default=[], sa_column=Column(JSON))
+    source_lang: str = Field(default="en")
+    total_items: int = Field(default=0)
+    completed_items: int = Field(default=0)
+    failed_items: int = Field(default=0)
+    skipped_items: int = Field(default=0)
+    error_message: str | None = None
+    started_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
+    completed_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
+    cancel_requested_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+
+
 class AICrawlerLog(SQLModel, table=True):
     """Records visits from AI-assistant crawlers to share/pre-render pages.
 

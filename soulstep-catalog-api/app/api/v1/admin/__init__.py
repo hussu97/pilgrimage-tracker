@@ -6,6 +6,7 @@ from app.api.v1.admin import (
     app_versions,
     audit_log,
     bulk,
+    bulk_translations,
     check_ins,
     city_aliases,
     content_translations,
@@ -30,6 +31,7 @@ admin_router.include_router(places.router, tags=["admin-places"])
 admin_router.include_router(reviews.router, tags=["admin-reviews"])
 admin_router.include_router(check_ins.router, tags=["admin-check-ins"])
 admin_router.include_router(groups.router, tags=["admin-groups"])
+admin_router.include_router(bulk_translations.router, tags=["admin-bulk-translations"])
 admin_router.include_router(translations.router, tags=["admin-translations"])
 admin_router.include_router(app_versions.router, tags=["admin-app-versions"])
 admin_router.include_router(content_translations.router, tags=["admin-content-translations"])
