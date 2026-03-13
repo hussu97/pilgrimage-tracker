@@ -156,6 +156,7 @@ def client(test_engine):
     with (
         patch("app.main.run_migrations"),
         patch("app.main.run_seed_system"),
+        patch("app.api.v1.places.engine", test_engine),
     ):
         with TestClient(app, raise_server_exceptions=True) as c:
             # Disable rate limiting on both limiter instances AFTER app startup
