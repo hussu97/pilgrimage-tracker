@@ -7,9 +7,9 @@ operations: image download, enrichment, and sync.
 
 Gate thresholds
 ---------------
-GATE_IMAGE_DOWNLOAD : 0.80  — filters junk places (permanently closed, zero data)
-GATE_ENRICHMENT     : 0.80  — main cost saver (no reviews, no photos, vague names)
-GATE_SYNC           : 0.80  — ensures only solid places reach the platform
+GATE_IMAGE_DOWNLOAD : 0.75  — filters junk places (permanently closed, zero data)
+GATE_ENRICHMENT     : 0.75  — main cost saver (no reviews, no photos, vague names)
+GATE_SYNC           : 0.75  — ensures only solid places reach the platform
 
 Filtered places are still stored in ScrapedPlace with their score and gate label
 so runs can be re-processed with different thresholds without re-scraping.
@@ -27,9 +27,9 @@ from __future__ import annotations
 
 # ── Gate thresholds ──────────────────────────────────────────────────────────
 
-GATE_IMAGE_DOWNLOAD: float = 0.80
-GATE_ENRICHMENT: float = 0.80
-GATE_SYNC: float = 0.80
+GATE_IMAGE_DOWNLOAD: float = 0.75
+GATE_ENRICHMENT: float = 0.75
+GATE_SYNC: float = 0.75
 
 # ── Generic place-type words (shared with enrichment.py) ─────────────────────
 
@@ -354,9 +354,9 @@ def score_place_quality_breakdown(raw_data: dict) -> dict:
 def get_quality_gate(quality_score: float) -> str | None:
     """Return the lowest gate label the score fails, or None if it passes all.
 
-    "below_image_gate"      → score < GATE_IMAGE_DOWNLOAD (0.80)
-    "below_enrichment_gate" → GATE_IMAGE_DOWNLOAD <= score < GATE_ENRICHMENT (0.80)
-    "below_sync_gate"       → GATE_ENRICHMENT <= score < GATE_SYNC (0.80)
+    "below_image_gate"      → score < GATE_IMAGE_DOWNLOAD (0.75)
+    "below_enrichment_gate" → GATE_IMAGE_DOWNLOAD <= score < GATE_ENRICHMENT (0.75)
+    "below_sync_gate"       → GATE_ENRICHMENT <= score < GATE_SYNC (0.75)
     None                    → score >= GATE_SYNC (passes all gates)
     """
     if quality_score < GATE_IMAGE_DOWNLOAD:
