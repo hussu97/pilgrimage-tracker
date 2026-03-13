@@ -71,5 +71,15 @@ class Settings:
     gate_enrichment: float = float(os.environ.get("SCRAPER_GATE_ENRICHMENT", "0.75"))
     gate_sync: float = float(os.environ.get("SCRAPER_GATE_SYNC", "0.75"))
 
+    # ── Post-sync automation ──────────────────────────────────────────────────
+    # If true, automatically call the catalog API's SEO generation endpoint after
+    # sync completes. Requires SCRAPER_CATALOG_ADMIN_TOKEN to be set.
+    trigger_seo_after_sync: bool = (
+        os.environ.get("SCRAPER_TRIGGER_SEO_AFTER_SYNC", "false").lower() == "true"
+    )
+    # JWT Bearer token for the catalog API admin endpoints.
+    # Obtain by logging in as an admin user: POST /api/v1/auth/login
+    catalog_admin_token: str = os.environ.get("SCRAPER_CATALOG_ADMIN_TOKEN", "")
+
 
 settings = Settings()

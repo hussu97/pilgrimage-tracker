@@ -2,6 +2,7 @@
 Tests for sync_run_to_server and its sanitisation helpers in app.db.scraper.
 """
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from sqlmodel import Session
@@ -12,6 +13,7 @@ from app.db.scraper import (
     _sanitize_attributes,
     _sanitize_religion,
     _sanitize_reviews,
+    _trigger_seo_generation_async,
     sync_run_to_server,
 )
 
@@ -377,3 +379,204 @@ class TestSyncRunToServer:
             run = s.exec(_select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
             assert run is not None
             assert any("plc_fd1" in entry for entry in (run.sync_failure_details or []))
+
+
+# ── _trigger_seo_generation_async ─────────────────────────────────────────────
+
+
+class TestTriggerSeoGenerationAsync:
+    """Unit tests for _trigger_seo_generation_async (no network calls)."""
+
+    def _run(self, coro):
+        return asyncio.run(coro)
+
+    def test_success_200_logs_generated_count(self, caplog):
+        """200 response → logs generated/skipped/errors counts at INFO."""
+        import logging
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"generated": 42, "skipped": 10, "errors": 0}
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_resp)
+
+        with patch("app.db.scraper.httpx.AsyncClient", return_value=mock_client):
+            with caplog.at_level(logging.INFO, logger="app.db.scraper"):
+                self._run(_trigger_seo_generation_async("http://127.0.0.1:3000", "tok_abc"))
+
+        assert any("42" in r.message for r in caplog.records)
+
+    def test_non_200_logs_warning(self, caplog):
+        """Non-200 response → logs warning with status code."""
+        import logging
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 401
+        mock_resp.text = "Unauthorized"
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_resp)
+
+        with patch("app.db.scraper.httpx.AsyncClient", return_value=mock_client):
+            with caplog.at_level(logging.WARNING, logger="app.db.scraper"):
+                self._run(_trigger_seo_generation_async("http://127.0.0.1:3000", "tok_bad"))
+
+        assert any("401" in r.message for r in caplog.records)
+
+    def test_exception_does_not_raise(self):
+        """Network error must be caught — function must not raise."""
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(side_effect=Exception("connection refused"))
+
+        with patch("app.db.scraper.httpx.AsyncClient", return_value=mock_client):
+            # Should complete without raising
+            self._run(_trigger_seo_generation_async("http://127.0.0.1:3000", "tok_err"))
+
+    def test_correct_url_constructed(self):
+        """Endpoint URL must be <server_url>/api/v1/admin/seo/generate."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"generated": 0, "skipped": 0, "errors": 0}
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_resp)
+
+        with patch("app.db.scraper.httpx.AsyncClient", return_value=mock_client):
+            self._run(_trigger_seo_generation_async("https://api.example.com", "tok_url"))
+
+        called_url = mock_client.post.call_args[0][0]
+        assert called_url == "https://api.example.com/api/v1/admin/seo/generate"
+
+    def test_bearer_token_in_headers(self):
+        """Authorization header must be 'Bearer <token>'."""
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"generated": 0, "skipped": 0, "errors": 0}
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_resp)
+
+        with patch("app.db.scraper.httpx.AsyncClient", return_value=mock_client):
+            self._run(_trigger_seo_generation_async("http://127.0.0.1:3000", "my_token_123"))
+
+        call_kwargs = mock_client.post.call_args[1]
+        assert call_kwargs["headers"]["Authorization"] == "Bearer my_token_123"
+
+
+# ── Auto-SEO trigger integration ──────────────────────────────────────────────
+
+
+class TestAutoSeoTriggerInSync:
+    """Tests that sync_run_to_server calls _trigger_seo_generation_async when configured."""
+
+    def test_trigger_called_when_enabled_with_token(self, test_engine, db_session, monkeypatch):
+        """When trigger_seo_after_sync=True and token set, SEO generation is called."""
+        run_code = "run_seo_trigger"
+        _make_place(run_code, "plc_seo01", db_session)
+
+        monkeypatch.setattr(scraper_module, "engine", test_engine)
+
+        fake_settings = MagicMock()
+        fake_settings.trigger_seo_after_sync = True
+        fake_settings.catalog_admin_token = "admin_jwt_token"
+
+        seo_trigger = AsyncMock()
+
+        with (
+            patch("app.db.scraper._post_batch_async", AsyncMock(return_value=(1, []))),
+            patch("app.db.scraper._trigger_seo_generation_async", seo_trigger),
+        ):
+            # Patch settings inside the module at call time
+            async def _patched_sync(*args, **kwargs):
+                # Temporarily swap settings inside the coroutine
+                import app.config as _cfg
+
+                orig = _cfg.settings
+                _cfg.settings = fake_settings
+                try:
+                    await scraper_module.sync_run_to_server_async(*args, **kwargs)
+                finally:
+                    _cfg.settings = orig
+
+            import asyncio as _asyncio
+
+            _asyncio.run(_patched_sync(run_code, "http://127.0.0.1:3000"))
+
+        seo_trigger.assert_called_once_with("http://127.0.0.1:3000", "admin_jwt_token")
+
+    def test_trigger_not_called_when_disabled(self, test_engine, db_session, monkeypatch):
+        """When trigger_seo_after_sync=False, SEO generation must not be called."""
+        run_code = "run_seo_disabled"
+        _make_place(run_code, "plc_seo02", db_session)
+
+        monkeypatch.setattr(scraper_module, "engine", test_engine)
+
+        fake_settings = MagicMock()
+        fake_settings.trigger_seo_after_sync = False
+        fake_settings.catalog_admin_token = "some_token"
+
+        seo_trigger = AsyncMock()
+
+        with patch("app.db.scraper._post_batch_async", AsyncMock(return_value=(1, []))):
+            import asyncio as _asyncio
+
+            import app.config as _cfg
+
+            orig = _cfg.settings
+            _cfg.settings = fake_settings
+            try:
+                with patch("app.db.scraper._trigger_seo_generation_async", seo_trigger):
+                    _asyncio.run(
+                        scraper_module.sync_run_to_server_async(run_code, "http://127.0.0.1:3000")
+                    )
+            finally:
+                _cfg.settings = orig
+
+        seo_trigger.assert_not_called()
+
+    def test_warning_logged_when_token_missing(self, test_engine, db_session, monkeypatch, caplog):
+        """trigger_seo_after_sync=True but no token → warning logged, SEO not called."""
+        import logging
+
+        run_code = "run_seo_no_token"
+        _make_place(run_code, "plc_seo03", db_session)
+
+        monkeypatch.setattr(scraper_module, "engine", test_engine)
+
+        fake_settings = MagicMock()
+        fake_settings.trigger_seo_after_sync = True
+        fake_settings.catalog_admin_token = ""  # empty — not set
+
+        seo_trigger = AsyncMock()
+
+        with patch("app.db.scraper._post_batch_async", AsyncMock(return_value=(1, []))):
+            import asyncio as _asyncio
+
+            import app.config as _cfg
+
+            orig = _cfg.settings
+            _cfg.settings = fake_settings
+            try:
+                with (
+                    patch("app.db.scraper._trigger_seo_generation_async", seo_trigger),
+                    caplog.at_level(logging.WARNING, logger="app.db.scraper"),
+                ):
+                    _asyncio.run(
+                        scraper_module.sync_run_to_server_async(run_code, "http://127.0.0.1:3000")
+                    )
+            finally:
+                _cfg.settings = orig
+
+        seo_trigger.assert_not_called()
+        assert any("SCRAPER_CATALOG_ADMIN_TOKEN" in r.message for r in caplog.records)

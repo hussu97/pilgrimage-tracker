@@ -379,6 +379,35 @@ async def _post_individual_async(
         return 0, [f"{place_code}: {reason}"]
 
 
+async def _trigger_seo_generation_async(server_url: str, admin_token: str) -> None:
+    """POST to the catalog API's bulk SEO generation endpoint after sync.
+
+    Fire-and-forget: logs results but never raises so that a slow or failing
+    SEO generation step cannot roll back a completed sync.
+    """
+    url = f"{server_url}/api/v1/admin/seo/generate"
+    headers = {
+        "Authorization": f"Bearer {admin_token}",
+        "Content-Type": "application/json",
+    }
+    logger.info("Auto-SEO: triggering bulk generation at %s", url)
+    try:
+        async with httpx.AsyncClient(timeout=600.0) as client:
+            resp = await client.post(url, json={"force": False}, headers=headers)
+        if resp.status_code == 200:
+            data = resp.json()
+            logger.info(
+                "Auto-SEO complete: %d generated, %d skipped, %d errors",
+                data.get("generated", 0),
+                data.get("skipped", 0),
+                data.get("errors", 0),
+            )
+        else:
+            logger.warning("Auto-SEO returned HTTP %d: %s", resp.status_code, resp.text[:200])
+    except Exception as exc:
+        logger.error("Auto-SEO generation failed (sync still succeeded): %s", exc)
+
+
 async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
     """Async orchestrator: build payloads → concurrent batch POSTs → individual fallbacks.
 
@@ -394,37 +423,49 @@ async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
         server_url = f"http://{server_url}"
     server_url = server_url.rstrip("/")
 
-    # Load places and apply quality gate
-    with Session(engine) as session:
-        all_places = session.exec(
-            select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
-        ).all()
-
-        quality_filtered: list = []
-        name_filtered: list = []
-        places = []
-        for p in all_places:
+    # Load places in batches to avoid OOM on large runs (10K × 30KB ≈ 300MB if loaded at once)
+    _LOAD_BATCH = 1000
+    quality_filtered: list = []
+    name_filtered: list = []
+    places = []
+    offset = 0
+    logger.info("Loading places for sync (run=%s, batch_size=%d)...", run_code, _LOAD_BATCH)
+    while True:
+        with Session(engine) as session:
+            batch = session.exec(
+                select(ScrapedPlace)
+                .where(ScrapedPlace.run_code == run_code)
+                .offset(offset)
+                .limit(_LOAD_BATCH)
+            ).all()
+        if not batch:
+            break
+        for p in batch:
             if not passes_gate(p.quality_score, GATE_SYNC):
                 quality_filtered.append(p)
             elif not is_name_specific_enough(p.name or ""):
                 name_filtered.append(p)
             else:
                 places.append(p)
+        if len(batch) < _LOAD_BATCH:
+            break
+        offset += _LOAD_BATCH
 
-        if quality_filtered or name_filtered:
-            logger.info(
-                "Sync gate: skipping %d/%d places (%d below quality threshold %.2f, %d name not specific enough)",
-                len(quality_filtered) + len(name_filtered),
-                len(all_places),
-                len(quality_filtered),
-                GATE_SYNC,
-                len(name_filtered),
-            )
+    if quality_filtered or name_filtered:
+        logger.info(
+            "Sync gate: skipping %d/%d places (%d below quality threshold %.2f, %d name not specific enough)",
+            len(quality_filtered) + len(name_filtered),
+            len(quality_filtered) + len(name_filtered) + len(places),
+            len(quality_filtered),
+            GATE_SYNC,
+            len(name_filtered),
+        )
 
-        total = len(places)
-        payloads = build_sync_payloads(list(places))
-        payloads_by_code = {p["place_code"]: p for p in payloads}
+    total = len(places)
+    payloads = build_sync_payloads(list(places))
+    payloads_by_code = {p["place_code"]: p for p in payloads}
 
+    with Session(engine) as session:
         run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
         if run:
             run.stage = "syncing"
@@ -519,6 +560,18 @@ async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
             run.sync_failure_details = all_failure_details[:500]  # cap at 500 entries
             session.add(run)
             session.commit()
+
+    # Auto-SEO: if configured, trigger bulk SEO generation for newly synced places
+    from app.config import settings as _settings
+
+    if _settings.trigger_seo_after_sync:
+        if _settings.catalog_admin_token:
+            await _trigger_seo_generation_async(server_url, _settings.catalog_admin_token)
+        else:
+            logger.warning(
+                "SCRAPER_TRIGGER_SEO_AFTER_SYNC=true but SCRAPER_CATALOG_ADMIN_TOKEN is not set "
+                "— run 'scripts/generate_seo.py --generate' manually after import"
+            )
 
 
 def sync_run_to_server(run_code: str, server_url: str) -> None:

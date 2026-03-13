@@ -286,6 +286,34 @@ docker run --rm \
 
 ---
 
+### 3.9 Post-Sync SEO Generation (Docker)
+
+After syncing 10K+ places, all imported places have `seo_slug = NULL`.
+Run SEO generation using one of these methods:
+
+**Option A — Automatic (recommended for production)**
+Set env vars on the scraper service:
+- `SCRAPER_TRIGGER_SEO_AFTER_SYNC=true`
+- `SCRAPER_CATALOG_ADMIN_TOKEN=<jwt_from_admin_login>`
+SEO generation will fire automatically after each sync completes.
+
+**Option B — Manual script**
+```bash
+cd soulstep-catalog-api && source .venv/bin/activate
+python scripts/generate_seo.py --generate
+python scripts/generate_seo.py --translate  # requires GOOGLE_CLOUD_PROJECT
+```
+
+**Option C — Admin API**
+```bash
+curl -X POST https://your-catalog-url/api/v1/admin/seo/generate \
+  -H "Authorization: Bearer <admin_jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"force": false}'
+```
+
+---
+
 ## 4. Plan B — Render + Vercel (Free Tier)
 
 Recommended free-tier setup: **Render** for the backend API (and optionally the scraper), **Neon** for the database (generous free tier, no expiry), **Vercel** for the web frontend.
@@ -549,6 +577,34 @@ jobs:
 ```
 
 For the full list of available jobs, see [§6.3](#63-scheduled-jobs).
+
+---
+
+### 4.8 Post-Sync SEO Generation (Render)
+
+After syncing 10K+ places, all imported places have `seo_slug = NULL`.
+Run SEO generation using one of these methods:
+
+**Option A — Automatic (recommended for production)**
+Set env vars on the scraper service:
+- `SCRAPER_TRIGGER_SEO_AFTER_SYNC=true`
+- `SCRAPER_CATALOG_ADMIN_TOKEN=<jwt_from_admin_login>`
+SEO generation will fire automatically after each sync completes.
+
+**Option B — Manual script**
+```bash
+cd soulstep-catalog-api && source .venv/bin/activate
+python scripts/generate_seo.py --generate
+python scripts/generate_seo.py --translate  # requires GOOGLE_CLOUD_PROJECT
+```
+
+**Option C — Admin API**
+```bash
+curl -X POST https://your-catalog-url/api/v1/admin/seo/generate \
+  -H "Authorization: Bearer <admin_jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"force": false}'
+```
 
 ---
 
@@ -1158,6 +1214,46 @@ docker run -d \
 ```
 
 Then start the scraper normally — it will automatically run Alembic migrations against the local PostgreSQL database on startup.
+
+---
+
+#### g. Post-Sync SEO Generation (GCP)
+
+After syncing 10K+ places, all imported places have `seo_slug = NULL`.
+Run SEO generation using one of these methods:
+
+**Option A — Automatic (recommended for production)**
+Set env vars on the scraper service:
+- `SCRAPER_TRIGGER_SEO_AFTER_SYNC=true`
+- `SCRAPER_CATALOG_ADMIN_TOKEN=<jwt_from_admin_login>`
+SEO generation will fire automatically after each sync completes.
+
+Store the admin token in Secret Manager:
+```bash
+echo -n "your-admin-jwt-token" | \
+  gcloud secrets create SCRAPER_CATALOG_ADMIN_TOKEN --data-file=- --replication-policy=automatic
+
+# Then add to the scraper Cloud Run service:
+gcloud run services update soulstep-scraper-api \
+  --region europe-west1 \
+  --set-secrets "SCRAPER_CATALOG_ADMIN_TOKEN=SCRAPER_CATALOG_ADMIN_TOKEN:latest" \
+  --set-env-vars "SCRAPER_TRIGGER_SEO_AFTER_SYNC=true"
+```
+
+**Option B — Manual script**
+```bash
+cd soulstep-catalog-api && source .venv/bin/activate
+python scripts/generate_seo.py --generate
+python scripts/generate_seo.py --translate  # requires GOOGLE_CLOUD_PROJECT
+```
+
+**Option C — Admin API**
+```bash
+curl -X POST https://your-catalog-url/api/v1/admin/seo/generate \
+  -H "Authorization: Bearer <admin_jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"force": false}'
+```
 
 ---
 

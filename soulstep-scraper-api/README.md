@@ -71,6 +71,11 @@ A FastAPI service that discovers sacred places via Google Maps, enriches them fr
     | `SCRAPER_ENRICHMENT_CONCURRENCY` | No | `10` | Max places enriched concurrently |
     | `SCRAPER_MAX_PHOTOS` | No | `3` | Photos stored per place. Photo media requests are billed at $0.007/1000 — lower values reduce cost and Phase 3 time |
     | `SCRAPER_IMAGE_CONCURRENCY` | No | `40` | Max concurrent image downloads in Phase 3 (CDN, no API rate limit) |
+    | `SCRAPER_GATE_IMAGE_DOWNLOAD` | No | `0.75` | Quality gate threshold for image download phase (0.0–1.0; lower = more places pass) |
+    | `SCRAPER_GATE_ENRICHMENT` | No | `0.75` | Quality gate threshold for enrichment phase |
+    | `SCRAPER_GATE_SYNC` | No | `0.75` | Quality gate threshold for sync phase |
+    | `SCRAPER_TRIGGER_SEO_AFTER_SYNC` | No | `false` | Set to `true` to auto-trigger bulk SEO generation on the catalog API after sync completes |
+    | `SCRAPER_CATALOG_ADMIN_TOKEN` | No | — | JWT Bearer token for catalog API admin endpoints (required when `SCRAPER_TRIGGER_SEO_AFTER_SYNC=true`). Obtain via `POST /api/v1/auth/login` |
     | `LOG_FORMAT` | No | `json` | `json` = structured stdout (Cloud Run); `text` = human-readable + writes `logs/external_queries.log` locally |
     | `LOG_LEVEL` | No | `INFO` | Python log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 
