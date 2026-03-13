@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from secrets import token_hex
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlmodel import Session, col, select
 
@@ -29,6 +29,10 @@ from app.services.browser_translation import translate_batch_browser_parallel
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Active asyncio tasks for running jobs. Kept here so the lifespan can cancel
+# them on shutdown (avoids uvicorn blocking indefinitely on thread-based tasks).
+_active_job_tasks: set[asyncio.Task] = set()
 
 # Translatable fields by entity type
 _PLACE_FIELDS = ["name", "description"]
@@ -350,7 +354,6 @@ async def start_translation_job(
     body: StartJobBody,
     admin: AdminDep,
     session: SessionDep,
-    background_tasks: BackgroundTasks,
 ) -> BulkTranslationJobOut:
     """Start a new bulk translation job."""
     multi_size = max(1, min(8, body.multi_size))
@@ -368,7 +371,12 @@ async def start_translation_job(
     session.commit()
     session.refresh(job)
 
-    background_tasks.add_task(asyncio.run, _run_bulk_translation_job(job_code, multi_size))
+    # Use asyncio.create_task so the job runs in the main event loop (same loop
+    # as the browser pool) and can be cancelled on shutdown — avoids the
+    # previous asyncio.run-in-thread approach which blocked uvicorn indefinitely.
+    task = asyncio.create_task(_run_bulk_translation_job(job_code, multi_size))
+    _active_job_tasks.add(task)
+    task.add_done_callback(_active_job_tasks.discard)
 
     logger.info(
         "bulk_translation: created job %s (langs=%s entity_types=%s multi_size=%d)",

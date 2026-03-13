@@ -88,15 +88,32 @@ def list_content_translations(
     )
     rows = session.exec(stmt).all()
 
+    # Batch-load place/city names to avoid N+1 queries to Cloud SQL.
+    place_codes = {r.entity_code for r in rows if r.entity_type == "place"}
+    city_codes = {r.entity_code for r in rows if r.entity_type == "city"}
+
+    place_names: dict[str, str] = {}
+    if place_codes:
+        places = session.exec(
+            select(Place.place_code, Place.name).where(col(Place.place_code).in_(place_codes))
+        ).all()
+        place_names = dict(places)
+
+    city_names: dict[str, str] = {}
+    if city_codes:
+        cities = session.exec(
+            select(City.city_code, City.name).where(col(City.city_code).in_(city_codes))
+        ).all()
+        city_names = dict(cities)
+
     items = []
     for row in rows:
-        place_name = None
         if row.entity_type == "place":
-            place = session.exec(select(Place).where(Place.place_code == row.entity_code)).first()
-            place_name = place.name if place else None
+            place_name = place_names.get(row.entity_code)
         elif row.entity_type == "city":
-            city = session.exec(select(City).where(City.city_code == row.entity_code)).first()
-            place_name = city.name if city else None
+            place_name = city_names.get(row.entity_code)
+        else:
+            place_name = None
         items.append(
             AdminContentTranslation(
                 id=row.id,

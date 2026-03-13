@@ -132,6 +132,15 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    # Cancel any in-flight bulk translation jobs so uvicorn doesn't block on them.
+    from app.api.v1.admin.bulk_translations import _active_job_tasks
+
+    if _active_job_tasks:
+        logger.info("Cancelling %d active translation job(s) for shutdown", len(_active_job_tasks))
+        for task in list(_active_job_tasks):
+            task.cancel()
+        await asyncio.gather(*_active_job_tasks, return_exceptions=True)
+
     # Shut down the browser pool if the browser translation backend is active.
     if os.environ.get("TRANSLATION_BACKEND") == "browser":
         from app.services.browser_translation import shutdown_pool
