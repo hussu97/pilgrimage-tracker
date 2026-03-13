@@ -18,7 +18,7 @@ from app.db.enums import ImageType, NotificationType, OpenStatus, Religion, Revi
 from app.db.locations import resolve_location_codes
 from app.db.models import Place, PlaceSEO
 from app.db.places import _haversine_km
-from app.db.session import SessionDep
+from app.db.session import SessionDep, engine
 from app.models.schemas import CheckInBody, PlaceBatch, PlaceCreate, ReviewCreateBody
 from app.services.place_specifications import build_specifications
 from app.services.place_timings import build_timings
@@ -763,19 +763,26 @@ def _upsert_single_place(
         row = places_db.create_place(place_code=place_data.place_code, **shared_kwargs)
         action = "created"
 
-    if place_data.image_blobs:
-        try:
-            place_images.set_images_from_blobs(
-                place_data.place_code, place_data.image_blobs, session=session
+    # Only upload/set images if the place is new, or if it has no images yet.
+    # Skipping re-upload for existing places with images prevents redundant GCS
+    # uploads on every sync run (scraper sends the same blobs each time).
+    if not place_images.has_images(place_data.place_code, session):
+        if place_data.image_blobs:
+            try:
+                place_images.set_images_from_blobs(
+                    place_data.place_code, place_data.image_blobs, session=session
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to store image blobs for %s: %s",
+                    place_data.place_code,
+                    e,
+                    exc_info=True,
+                )
+        elif place_data.image_urls:
+            place_images.set_images_from_urls(
+                place_data.place_code, place_data.image_urls, session=session
             )
-        except Exception as e:
-            logger.error(
-                "Failed to store image blobs for %s: %s", place_data.place_code, e, exc_info=True
-            )
-    elif place_data.image_urls:
-        place_images.set_images_from_urls(
-            place_data.place_code, place_data.image_urls, session=session
-        )
 
     if place_data.attributes:
         attr_db.bulk_upsert_attributes(place_data.place_code, place_data.attributes, session)
@@ -792,22 +799,92 @@ def _upsert_single_place(
     return row, action
 
 
+_BATCH_CHUNK_SIZE = 50
+
+
+def _process_chunk(chunk: list[PlaceCreate]) -> list[dict]:
+    """Upsert one chunk of places using a dedicated short-lived session.
+
+    Opens and closes its own Session so the connection is returned to the pool
+    as soon as the chunk finishes. A DB-level error (e.g. pool timeout) only
+    affects this chunk; the caller continues with the remaining chunks.
+    """
+    chunk_codes = [p.place_code for p in chunk]
+    results: list[dict] = []
+
+    with Session(engine) as session:
+        # Pre-fetch existing rows for this chunk in one SELECT
+        try:
+            existing_rows = session.exec(
+                select(Place).where(Place.place_code.in_(chunk_codes))
+            ).all()
+        except Exception as e:
+            # Can't even acquire a connection for this chunk — mark all as failed
+            logger.warning("Chunk pre-fetch failed (%s places): %s", len(chunk), e)
+            return [
+                {"place_code": p.place_code, "ok": False, "error": f"db_unavailable: {e}"}
+                for p in chunk
+            ]
+
+        existing_map: dict[str, Place] = {p.place_code: p for p in existing_rows}
+        loc_cache: dict[tuple, tuple] = {}
+
+        for place_data in chunk:
+            try:
+                _, action = _upsert_single_place(place_data, session, existing_map, loc_cache)
+                results.append({"place_code": place_data.place_code, "ok": True, "action": action})
+            except IntegrityError:
+                # Race condition: concurrent request inserted this place between our
+                # pre-fetch and our INSERT. Roll back, re-fetch the row, then update.
+                session.rollback()
+                try:
+                    existing = places_db.get_place_by_code(place_data.place_code, session)
+                    if existing:
+                        existing_map[place_data.place_code] = existing
+                    _, action = _upsert_single_place(place_data, session, existing_map, loc_cache)
+                    results.append(
+                        {"place_code": place_data.place_code, "ok": True, "action": action}
+                    )
+                except Exception as retry_err:
+                    session.rollback()
+                    logger.warning(
+                        "Failed to upsert place %s after IntegrityError retry: %s",
+                        place_data.place_code,
+                        retry_err,
+                        exc_info=True,
+                    )
+                    results.append(
+                        {
+                            "place_code": place_data.place_code,
+                            "ok": False,
+                            "error": str(retry_err),
+                        }
+                    )
+            except Exception as e:
+                session.rollback()
+                logger.warning(
+                    "Failed to upsert place %s: %s", place_data.place_code, e, exc_info=True
+                )
+                results.append({"place_code": place_data.place_code, "ok": False, "error": str(e)})
+
+    return results
+
+
 @router.post("/batch")
-def batch_create_places(
-    body: PlaceBatch,
-    session: SessionDep,
-):
+def batch_create_places(body: PlaceBatch):
     """Create or update multiple places in a single request (up to 500).
 
-    Optimisations vs processing places one-by-one:
-    - Duplicate place_codes are deduplicated (last entry wins) before any DB work.
-    - All existing Place rows for the batch are pre-fetched in a single SELECT.
+    Places are processed in chunks of up to 50. Each chunk uses its own
+    short-lived DB session so a connection-pool timeout or transient DB error
+    only fails that chunk's places — the remaining chunks still run.
+
+    Optimisations within each chunk:
+    - Existing Place rows are pre-fetched in a single SELECT per chunk.
     - Location strings are resolved once per unique (city, state, country) tuple
-      and cached for the duration of the request.
-    - Attributes for each place are upserted in a single round-trip instead of
-      one commit per attribute.
-    - A failed place triggers a session rollback so subsequent places are
-      unaffected; already-committed places in the same batch are not rolled back.
+      and cached for the duration of the chunk.
+    - Attributes are upserted in a single round-trip instead of one commit each.
+    - A failed place triggers a session rollback; already-committed places are
+      not rolled back.
 
     Returns a summary with per-place action ("created" | "updated") and errors.
     """
@@ -817,44 +894,10 @@ def batch_create_places(
         seen[p.place_code] = p
     places = list(seen.values())
 
-    # Pre-fetch all existing Place rows in one query
-    place_codes = [p.place_code for p in places]
-    existing_rows = session.exec(select(Place).where(Place.place_code.in_(place_codes))).all()
-    existing_map: dict[str, Place] = {p.place_code: p for p in existing_rows}
-
-    # Per-batch location code cache: (city, state, country) → (city_code, state_code, country_code)
-    loc_cache: dict[tuple, tuple] = {}
-
-    results = []
-    for place_data in places:
-        try:
-            _, action = _upsert_single_place(place_data, session, existing_map, loc_cache)
-            results.append({"place_code": place_data.place_code, "ok": True, "action": action})
-        except IntegrityError:
-            # Race condition: a concurrent request inserted this place between our
-            # pre-fetch and our INSERT. Roll back, re-fetch the row, then update.
-            session.rollback()
-            try:
-                existing = places_db.get_place_by_code(place_data.place_code, session)
-                if existing:
-                    existing_map[place_data.place_code] = existing
-                _, action = _upsert_single_place(place_data, session, existing_map, loc_cache)
-                results.append({"place_code": place_data.place_code, "ok": True, "action": action})
-            except Exception as retry_err:
-                session.rollback()
-                logger.warning(
-                    "Failed to upsert place %s after IntegrityError retry: %s",
-                    place_data.place_code,
-                    retry_err,
-                    exc_info=True,
-                )
-                results.append(
-                    {"place_code": place_data.place_code, "ok": False, "error": str(retry_err)}
-                )
-        except Exception as e:
-            session.rollback()
-            logger.warning("Failed to upsert place %s: %s", place_data.place_code, e, exc_info=True)
-            results.append({"place_code": place_data.place_code, "ok": False, "error": str(e)})
+    results: list[dict] = []
+    for i in range(0, len(places), _BATCH_CHUNK_SIZE):
+        chunk = places[i : i + _BATCH_CHUNK_SIZE]
+        results.extend(_process_chunk(chunk))
 
     success = sum(1 for r in results if r["ok"])
     duplicates = len(body.places) - len(places)

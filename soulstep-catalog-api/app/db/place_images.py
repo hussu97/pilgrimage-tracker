@@ -109,6 +109,14 @@ def get_images_bulk(place_codes: list[str], session: Session) -> dict[str, list[
     return result
 
 
+def has_images(place_code: str, session: Session) -> bool:
+    """Return True if the place already has at least one stored image."""
+    return (
+        session.exec(select(PlaceImage).where(PlaceImage.place_code == place_code).limit(1)).first()
+        is not None
+    )
+
+
 def get_image_by_id(image_id: int, session: Session) -> PlaceImage | None:
     """Get a single image by ID."""
     return session.get(PlaceImage, image_id)
