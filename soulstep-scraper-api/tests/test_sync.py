@@ -380,6 +380,86 @@ class TestSyncRunToServer:
             assert run is not None
             assert any("plc_fd1" in entry for entry in (run.sync_failure_details or []))
 
+    def test_failed_only_retries_only_failed_places(self, test_engine, db_session, monkeypatch):
+        """failed_only=True must only sync the places listed in sync_failure_details."""
+        from sqlmodel import select as _select
+
+        from app.db.models import DataLocation, ScraperRun
+
+        run_code = "run_failed_only"
+        loc = DataLocation(code="loc_fo1", name="FO Loc", source_type="gmaps", config={})
+        db_session.add(loc)
+        db_session.commit()
+        # Run already has one success and one failure from a previous sync
+        run = ScraperRun(
+            run_code=run_code,
+            location_code="loc_fo1",
+            status="completed",
+            places_synced=1,
+            places_sync_failed=1,
+            sync_failure_details=["plc_fail1: HTTP 503"],
+        )
+        db_session.add(run)
+        db_session.commit()
+        _make_place(run_code, "plc_ok1", db_session)  # previously succeeded
+        _make_place(run_code, "plc_fail1", db_session)  # previously failed
+
+        monkeypatch.setattr(scraper_module, "engine", test_engine)
+
+        sent_codes: list[str] = []
+
+        async def _capture_batch(batch, server_url, client):
+            sent_codes.extend(p["place_code"] for p in batch)
+            return (len(batch), [])
+
+        with patch("app.db.scraper._post_batch_async", _capture_batch):
+            sync_run_to_server(run_code, "http://127.0.0.1:3000", failed_only=True)
+
+        # Only the previously failed place should be sent
+        assert "plc_fail1" in sent_codes
+        assert "plc_ok1" not in sent_codes
+
+        # places_synced should be base (1) + newly synced (1) = 2; failures cleared
+        with Session(test_engine) as s:
+            run = s.exec(_select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+            assert run is not None
+            assert run.places_synced == 2
+            assert run.places_sync_failed == 0
+
+    def test_failed_only_noop_when_no_failures(self, test_engine, db_session, monkeypatch):
+        """failed_only=True with no recorded failures must exit without syncing anything."""
+        from sqlmodel import select as _select
+
+        from app.db.models import DataLocation, ScraperRun
+
+        run_code = "run_failed_only_empty"
+        loc = DataLocation(code="loc_fo2", name="FO Loc 2", source_type="gmaps", config={})
+        db_session.add(loc)
+        db_session.commit()
+        run = ScraperRun(
+            run_code=run_code,
+            location_code="loc_fo2",
+            status="completed",
+            places_synced=5,
+            sync_failure_details=[],
+        )
+        db_session.add(run)
+        db_session.commit()
+
+        monkeypatch.setattr(scraper_module, "engine", test_engine)
+
+        async_batch = AsyncMock(return_value=(0, []))
+        with patch("app.db.scraper._post_batch_async", async_batch):
+            sync_run_to_server(run_code, "http://127.0.0.1:3000", failed_only=True)
+
+        async_batch.assert_not_called()
+
+        # places_synced must be unchanged
+        with Session(test_engine) as s:
+            run = s.exec(_select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+            assert run is not None
+            assert run.places_synced == 5
+
 
 # ── _trigger_seo_generation_async ─────────────────────────────────────────────
 

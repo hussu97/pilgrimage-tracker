@@ -212,6 +212,7 @@ export interface ScraperRun {
   processed_items: number;
   error_message: string | null;
   places_synced: number;
+  places_sync_failed: number;
   created_at: string;
 }
 

@@ -239,7 +239,14 @@ def view_raw_collector_data(
 
 
 @router.post("/runs/{run_code}/sync")
-def sync_run(run_code: str, background_tasks: BackgroundTasks, session: SessionDep):
+def sync_run(
+    run_code: str,
+    background_tasks: BackgroundTasks,
+    session: SessionDep,
+    failed_only: bool = Query(
+        False, description="Retry only places that failed in the previous sync"
+    ),
+):
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -250,13 +257,21 @@ def sync_run(run_code: str, background_tasks: BackgroundTasks, session: SessionD
             detail=f"Cannot sync run with status '{run.status}'. Run must be completed, interrupted, failed, or cancelled.",
         )
 
+    if failed_only and not run.sync_failure_details:
+        raise HTTPException(status_code=400, detail="No sync failures recorded for this run")
+
     from app.config import settings
 
     server_url = settings.main_server_url
 
-    background_tasks.add_task(sync_run_to_server, run.run_code, server_url)
+    background_tasks.add_task(sync_run_to_server, run.run_code, server_url, failed_only)
 
-    return {"status": "sync_started", "run_code": run_code, "target_server": server_url}
+    return {
+        "status": "sync_started",
+        "run_code": run_code,
+        "target_server": server_url,
+        "failed_only": failed_only,
+    }
 
 
 @router.post("/runs/{run_code}/re-enrich")

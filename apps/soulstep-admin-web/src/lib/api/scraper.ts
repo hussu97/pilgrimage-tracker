@@ -90,8 +90,9 @@ export async function getRunRawData(
   return res.data;
 }
 
-export async function syncRun(runCode: string): Promise<unknown> {
-  const res = await scraperClient.post(`/runs/${runCode}/sync`);
+export async function syncRun(runCode: string, options?: { failedOnly?: boolean }): Promise<unknown> {
+  const params = options?.failedOnly ? { failed_only: true } : undefined;
+  const res = await scraperClient.post(`/runs/${runCode}/sync`, undefined, { params });
   return res.data;
 }
 

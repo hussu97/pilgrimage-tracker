@@ -469,11 +469,17 @@ async def _trigger_seo_generation_async(server_url: str, admin_token: str) -> No
         logger.error("Auto-SEO generation failed (sync still succeeded): %s", exc)
 
 
-async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
+async def sync_run_to_server_async(
+    run_code: str, server_url: str, failed_only: bool = False
+) -> None:
     """Async orchestrator: build payloads → concurrent batch POSTs → individual fallbacks.
 
     Quality gate: places with quality_score below GATE_SYNC are skipped.
     Backwards-compat: quality_score IS NULL passes through (existing runs).
+
+    When failed_only=True, only the places recorded in sync_failure_details are
+    retried.  The existing places_synced count is preserved as a base and the
+    new synced count is added on top.
 
     Batches are sent concurrently (semaphore of 3) to reduce wall-clock time.
     Individual fallback POSTs are also async.
@@ -484,33 +490,75 @@ async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
         server_url = f"http://{server_url}"
     server_url = server_url.rstrip("/")
 
-    # Load places in batches to avoid OOM on large runs (10K × 30KB ≈ 300MB if loaded at once)
     _LOAD_BATCH = 1000
     quality_filtered: list = []
     name_filtered: list = []
     places = []
-    offset = 0
-    logger.info("Loading places for sync (run=%s, batch_size=%d)...", run_code, _LOAD_BATCH)
-    while True:
+    base_synced = 0  # previous synced count to preserve when failed_only=True
+
+    if failed_only:
+        # Resolve the set of place codes that previously failed
         with Session(engine) as session:
-            batch = session.exec(
-                select(ScrapedPlace)
-                .where(ScrapedPlace.run_code == run_code)
-                .offset(offset)
-                .limit(_LOAD_BATCH)
-            ).all()
-        if not batch:
-            break
-        for p in batch:
-            if not passes_gate(p.quality_score, GATE_SYNC):
-                quality_filtered.append(p)
-            elif not is_name_specific_enough(p.name or ""):
-                name_filtered.append(p)
-            else:
-                places.append(p)
-        if len(batch) < _LOAD_BATCH:
-            break
-        offset += _LOAD_BATCH
+            run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+            if not run:
+                logger.warning("Run %s not found for failed-only resync", run_code)
+                return
+            failure_details = list(run.sync_failure_details or [])
+            base_synced = run.places_synced
+
+        if not failure_details:
+            logger.info("No sync failures recorded for run %s — nothing to retry", run_code)
+            return
+
+        failed_codes = {entry.split(":")[0].strip() for entry in failure_details}
+        logger.info("Retrying %d failed place(s) for run %s", len(failed_codes), run_code)
+
+        offset = 0
+        while True:
+            with Session(engine) as session:
+                batch = session.exec(
+                    select(ScrapedPlace)
+                    .where(ScrapedPlace.run_code == run_code)
+                    .where(ScrapedPlace.place_code.in_(list(failed_codes)))
+                    .offset(offset)
+                    .limit(_LOAD_BATCH)
+                ).all()
+            if not batch:
+                break
+            for p in batch:
+                if not passes_gate(p.quality_score, GATE_SYNC):
+                    quality_filtered.append(p)
+                elif not is_name_specific_enough(p.name or ""):
+                    name_filtered.append(p)
+                else:
+                    places.append(p)
+            if len(batch) < _LOAD_BATCH:
+                break
+            offset += _LOAD_BATCH
+    else:
+        # Load all places for this run in batches to avoid OOM (10K × 30KB ≈ 300MB)
+        offset = 0
+        logger.info("Loading places for sync (run=%s, batch_size=%d)...", run_code, _LOAD_BATCH)
+        while True:
+            with Session(engine) as session:
+                batch = session.exec(
+                    select(ScrapedPlace)
+                    .where(ScrapedPlace.run_code == run_code)
+                    .offset(offset)
+                    .limit(_LOAD_BATCH)
+                ).all()
+            if not batch:
+                break
+            for p in batch:
+                if not passes_gate(p.quality_score, GATE_SYNC):
+                    quality_filtered.append(p)
+                elif not is_name_specific_enough(p.name or ""):
+                    name_filtered.append(p)
+                else:
+                    places.append(p)
+            if len(batch) < _LOAD_BATCH:
+                break
+            offset += _LOAD_BATCH
 
     if quality_filtered or name_filtered:
         logger.info(
@@ -530,10 +578,11 @@ async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
         run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
         if run:
             run.stage = "syncing"
-            run.places_synced = 0
             run.places_sync_failed = 0
-            run.places_sync_quality_filtered = len(quality_filtered)
-            run.places_sync_name_filtered = len(name_filtered)
+            if not failed_only:
+                run.places_synced = 0
+                run.places_sync_quality_filtered = len(quality_filtered)
+                run.places_sync_name_filtered = len(name_filtered)
             session.add(run)
         session.commit()
 
@@ -593,7 +642,7 @@ async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
                     select(ScraperRun).where(ScraperRun.run_code == run_code)
                 ).first()
                 if run:
-                    run.places_synced = synced_counter.value
+                    run.places_synced = base_synced + synced_counter.value
                     run.places_sync_failed = len(all_failure_details)
                     session.add(run)
                     session.commit()
@@ -616,7 +665,7 @@ async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
         run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
         if run:
             run.stage = None
-            run.places_synced = synced_counter.value
+            run.places_synced = base_synced + synced_counter.value
             run.places_sync_failed = failed_count
             run.sync_failure_details = all_failure_details[:500]  # cap at 500 entries
             session.add(run)
@@ -635,10 +684,10 @@ async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
             )
 
 
-def sync_run_to_server(run_code: str, server_url: str) -> None:
+def sync_run_to_server(run_code: str, server_url: str, failed_only: bool = False) -> None:
     """Synchronous entry-point — runs the async implementation in an event loop.
 
     Called from FastAPI background tasks (which run in a thread) and from
     existing tests via asyncio.run / monkeypatching.
     """
-    asyncio.run(sync_run_to_server_async(run_code, server_url))
+    asyncio.run(sync_run_to_server_async(run_code, server_url, failed_only=failed_only))

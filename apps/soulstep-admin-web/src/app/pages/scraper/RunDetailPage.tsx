@@ -833,6 +833,7 @@ export function RunDetailPage() {
     try {
       if (action === "cancel") await cancelRun(runCode);
       else if (action === "sync") await syncRun(runCode);
+      else if (action === "sync-failed") await syncRun(runCode, { failedOnly: true });
       else if (action === "re-enrich") await reEnrichRun(runCode);
       else if (action === "resume") await resumeRun(runCode);
       await loadRun();
@@ -924,6 +925,14 @@ export function RunDetailPage() {
                   <RefreshCw size={13} /> Re-enrich
                 </button>
               </>
+            )}
+            {!isSyncing && run.places_sync_failed > 0 && run.status in { completed: 1, interrupted: 1, failed: 1, cancelled: 1 } && (
+              <button
+                onClick={() => void handleAction("sync-failed")}
+                className="flex items-center gap-1.5 rounded-lg border border-orange-300 dark:border-orange-700 px-3 py-1.5 text-xs font-medium text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+              >
+                <UploadCloud size={13} /> Resync Failed ({run.places_sync_failed.toLocaleString()})
+              </button>
             )}
             <button
               onClick={() => setConfirmDelete(true)}
