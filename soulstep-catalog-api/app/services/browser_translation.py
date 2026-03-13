@@ -152,12 +152,17 @@ async def _check_for_captcha(page) -> bool:
     try:
         content = await page.content()
         if "unusual traffic" in content.lower() or "recaptcha" in content.lower():
+            logger.warning(
+                "browser_translation: CAPTCHA / unusual-traffic text found in page content"
+            )
             return True
         captcha_frame = await page.query_selector("iframe[src*='recaptcha']")
         if captcha_frame:
+            logger.warning("browser_translation: reCAPTCHA iframe detected in DOM")
             return True
     except Exception:
         pass
+    logger.debug("browser_translation: no CAPTCHA detected")
     return False
 
 
@@ -165,22 +170,43 @@ async def _wait_for_translation(page, timeout_ms: int = 10000) -> str | None:
     """Poll output selectors until text stabilises (same value twice)."""
     deadline = time.monotonic() + timeout_ms / 1000
     prev_text = ""
+    poll_count = 0
 
     while time.monotonic() < deadline:
+        poll_count += 1
         for selector in _OUTPUT_SELECTORS:
             try:
                 el = await page.query_selector(selector)
                 if el:
                     text = (await el.inner_text()).strip()
                     if text and text == prev_text:
+                        logger.debug(
+                            "browser_translation: output stable after %d polls via selector %r → %r",
+                            poll_count,
+                            selector,
+                            text[:60],
+                        )
                         return text
                     if text:
+                        logger.debug(
+                            "browser_translation: poll %d — candidate text via %r: %r",
+                            poll_count,
+                            selector,
+                            text[:60],
+                        )
                         prev_text = text
                         break
             except Exception:
                 pass
         await asyncio.sleep(0.2)
 
+    remaining = deadline - time.monotonic()
+    logger.warning(
+        "browser_translation: _wait_for_translation timed out after %d polls (%.1fs elapsed, last candidate: %r)",
+        poll_count,
+        timeout_ms / 1000 + remaining,  # elapsed ≈ timeout + leftover
+        prev_text[:60] if prev_text else "<none>",
+    )
     return None
 
 
@@ -276,17 +302,31 @@ class BrowserSessionPool:
             for session in self._sessions:
                 if not session.in_use and session.translation_count < _MAX_TRANSLATIONS:
                     session.in_use = True
+                    logger.debug(
+                        "BrowserSessionPool: reusing existing session (count=%d/%d, translations=%d/%d)",
+                        sum(1 for s in self._sessions if s.in_use),
+                        len(self._sessions),
+                        session.translation_count,
+                        _MAX_TRANSLATIONS,
+                    )
                     return session
             # Create a new session if pool isn't full
             if len(self._sessions) < self._pool_size:
                 session = await self._create_session()
                 session.in_use = True
                 self._sessions.append(session)
-                logger.debug(
-                    "BrowserSessionPool: created new session (total=%d)", len(self._sessions)
+                logger.info(
+                    "BrowserSessionPool: created new session (total=%d, pool_size=%d)",
+                    len(self._sessions),
+                    self._pool_size,
                 )
                 return session
             # Pool full — wait for a session to become available (spin)
+            logger.debug(
+                "BrowserSessionPool: pool full (%d/%d in use), waiting for a free session",
+                sum(1 for s in self._sessions if s.in_use),
+                self._pool_size,
+            )
         # Outside lock: wait briefly and retry
         await asyncio.sleep(0.5)
         return await self.acquire()
@@ -295,15 +335,26 @@ class BrowserSessionPool:
         async with self._lock:
             if recycle or session.translation_count >= _MAX_TRANSLATIONS:
                 # Close and remove this session
+                reason = "forced-recycle" if recycle else f"max-translations ({_MAX_TRANSLATIONS})"
                 try:
                     await session.context.close()
                 except Exception:
                     pass
                 if session in self._sessions:
                     self._sessions.remove(session)
-                logger.debug("BrowserSessionPool: recycled session")
+                logger.info(
+                    "BrowserSessionPool: recycled session (reason=%s, remaining=%d)",
+                    reason,
+                    len(self._sessions),
+                )
             else:
                 session.in_use = False
+                logger.debug(
+                    "BrowserSessionPool: released session back to pool (translations=%d/%d, pool=%d)",
+                    session.translation_count,
+                    _MAX_TRANSLATIONS,
+                    len(self._sessions),
+                )
 
     async def shutdown(self) -> None:
         async with self._lock:
@@ -357,7 +408,16 @@ async def translate_single_browser(
     Returns the translated string, or None on failure.
     """
     if not text or not text.strip():
+        logger.debug("browser_translation: skipping empty text")
         return None
+
+    logger.info(
+        "browser_translation: translating %d chars to %r (source=%r): %r…",
+        len(text),
+        target_lang,
+        source_lang,
+        text[:60],
+    )
 
     pool = _get_pool()
     session = await pool.acquire()
@@ -370,8 +430,14 @@ async def translate_single_browser(
         # Navigate only on first use or if page URL is wrong
         current_url = page.url
         if not current_url.startswith("https://translate.google.com"):
+            logger.info(
+                "browser_translation: navigating to translate.google.com (current=%r)", current_url
+            )
             await page.goto(url, wait_until="domcontentloaded", timeout=15000)
+            logger.debug("browser_translation: navigation complete")
             await _random_delay(500, 1500)
+        else:
+            logger.debug("browser_translation: reusing existing page at %r", current_url)
 
         # Check for CAPTCHA before proceeding
         if await _check_for_captcha(page):
@@ -382,11 +448,14 @@ async def translate_single_browser(
         input_selector = "textarea[aria-label]"
         try:
             await page.wait_for_selector(input_selector, timeout=5000)
+            logger.debug("browser_translation: input textarea found")
         except Exception:
             # Re-navigate on selector miss
+            logger.warning("browser_translation: input textarea not found, re-navigating")
             await page.goto(url, wait_until="domcontentloaded", timeout=15000)
             await _random_delay(500, 1000)
             await page.wait_for_selector(input_selector, timeout=5000)
+            logger.debug("browser_translation: input textarea found after re-navigation")
 
         # Clear existing input
         await page.click(input_selector)
@@ -395,20 +464,25 @@ async def translate_single_browser(
         await _random_delay(100, 300)
 
         # Type the text in a human-like way
+        logger.debug("browser_translation: typing %d chars into input", len(text))
         await _human_type(page, input_selector, text)
         await _random_delay(300, 700)
 
         # Wait for translation output
+        logger.debug("browser_translation: waiting for translation output (attempt 1)")
         result = await _wait_for_translation(page, timeout_ms=10000)
 
         if result is None:
             # Retry once with a fresh page load
-            logger.warning("browser_translation: timeout, retrying with fresh page load")
+            logger.warning(
+                "browser_translation: attempt 1 timed out — retrying with fresh page load"
+            )
             await page.goto(url, wait_until="domcontentloaded", timeout=15000)
             await _random_delay(500, 1000)
             await page.wait_for_selector(input_selector, timeout=5000)
             await _human_type(page, input_selector, text)
             await _random_delay(300, 700)
+            logger.debug("browser_translation: waiting for translation output (attempt 2)")
             result = await _wait_for_translation(page, timeout_ms=10000)
 
         if result is None:
@@ -417,10 +491,11 @@ async def translate_single_browser(
             )
 
         session.translation_count += 1
-        logger.debug(
-            "browser_translation: translated %d chars → %s (session count=%d)",
+        logger.info(
+            "browser_translation: success — %d chars → %r, result: %r… (session translations=%d)",
             len(text),
             target_lang,
+            result[:60],
             session.translation_count,
         )
         return result
@@ -432,7 +507,9 @@ async def translate_single_browser(
         logger.warning("browser_translation: %s", exc)
         return None
     except Exception as exc:
-        logger.error("browser_translation: unexpected error: %s: %s", type(exc).__name__, exc)
+        logger.error(
+            "browser_translation: unexpected error: %s: %s", type(exc).__name__, exc, exc_info=True
+        )
         recycle = True
         return None
     finally:
@@ -453,23 +530,39 @@ async def translate_batch_browser(
     if not texts:
         return []
 
+    non_empty = sum(1 for t in texts if t and t.strip())
+    logger.info(
+        "browser_translation: batch start — %d items (%d non-empty) → %r",
+        len(texts),
+        non_empty,
+        target_lang,
+    )
+
     results: list[str | None] = [None] * len(texts)
     breaker = _CircuitBreaker(max_failures=3)
     backoff_s = 5.0
+    success_count = 0
 
     for i, text in enumerate(texts):
         if not text or not text.strip():
+            logger.debug("browser_translation: batch[%d/%d] skipping empty", i + 1, len(texts))
             continue
 
         if breaker.is_open:
             logger.error(
-                "browser_translation: circuit breaker open after 3 consecutive failures — aborting batch"
+                "browser_translation: circuit breaker open after 3 consecutive failures — aborting batch at item %d/%d",
+                i + 1,
+                len(texts),
             )
             break
 
+        logger.debug("browser_translation: batch[%d/%d] translating…", i + 1, len(texts))
+
         # Delay between translations (1-3s)
         if i > 0:
-            await asyncio.sleep(random.uniform(1.0, 3.0))
+            delay = random.uniform(1.0, 3.0)
+            logger.debug("browser_translation: inter-item delay %.2fs", delay)
+            await asyncio.sleep(delay)
 
         result = await translate_single_browser(
             text, target_lang=target_lang, source_lang=source_lang
@@ -478,7 +571,11 @@ async def translate_batch_browser(
         if result is None:
             breaker.record_failure()
             logger.warning(
-                "browser_translation: failure #%d (backoff=%.1fs)", breaker._failures, backoff_s
+                "browser_translation: batch[%d/%d] failed (consecutive_failures=%d, backoff=%.1fs)",
+                i + 1,
+                len(texts),
+                breaker._failures,
+                backoff_s,
             )
             await asyncio.sleep(backoff_s)
             backoff_s = min(backoff_s * 2, 60.0)
@@ -486,7 +583,15 @@ async def translate_batch_browser(
             breaker.record_success()
             backoff_s = 5.0  # reset backoff on success
             results[i] = result
+            success_count += 1
 
+    logger.info(
+        "browser_translation: batch complete — %d/%d succeeded, %d/%d failed",
+        success_count,
+        non_empty,
+        non_empty - success_count,
+        non_empty,
+    )
     return results
 
 
