@@ -41,6 +41,7 @@ import {
 } from '@/lib/api/client';
 import type { FeaturedGroup } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
+import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import { INVITE_LINK_BASE_URL } from '@/lib/constants';
 import { useFeedback, useI18n, useTheme } from '@/app/providers';
 import { useAds } from '@/components/ads/AdProvider';
@@ -268,7 +269,7 @@ function makeStyles(isDark: boolean) {
       borderRadius: 12,
       marginBottom: 8,
     },
-    placeThumb: { width: 44, height: 44, borderRadius: 8, backgroundColor: border },
+    placeThumb: { width: 56, height: 56, borderRadius: 10, backgroundColor: border },
     placeInfo: { flex: 1 },
     placeName: { fontSize: 13, fontWeight: '600', color: textMain },
     placeAddr: { fontSize: 11, color: textMuted, marginTop: 1 },
@@ -525,9 +526,7 @@ function makeStyles(isDark: boolean) {
       marginBottom: 20,
     },
     cityCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+      flexDirection: 'column' as const,
       paddingHorizontal: 16,
       paddingVertical: 14,
       backgroundColor: surface,
@@ -535,6 +534,22 @@ function makeStyles(isDark: boolean) {
       marginBottom: 8,
       borderWidth: 1,
       borderColor: border,
+      gap: 8,
+    },
+    cityCardRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center' as const,
+      justifyContent: 'space-between' as const,
+    },
+    cityImageStrip: {
+      flexDirection: 'row' as const,
+      gap: 6,
+    },
+    cityImage: {
+      width: 64,
+      height: 48,
+      borderRadius: 8,
+      backgroundColor: border,
     },
     cityCardName: { fontSize: 15, fontWeight: '600', color: textMain },
     cityCardBadge: {
@@ -607,9 +622,9 @@ export default function CreateGroupScreen() {
   );
   const [selectedFaith, setSelectedFaith] = useState<string | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<FeaturedGroup | null>(null);
-  const [cities, setCities] = useState<Array<{ city: string; city_slug: string; count: number }>>(
-    [],
-  );
+  const [cities, setCities] = useState<
+    Array<{ city: string; city_slug: string; count: number; top_images?: string[] }>
+  >([]);
   const [citiesLoading, setCitiesLoading] = useState(false);
   const [featuredRoutes, setFeaturedRoutes] = useState<FeaturedGroup[]>([]);
   const [routesLoading, setRoutesLoading] = useState(false);
@@ -817,7 +832,7 @@ export default function CreateGroupScreen() {
   const fetchCities = useCallback(async () => {
     setCitiesLoading(true);
     try {
-      const data = await getCities({ limit: 50 });
+      const data = await getCities({ limit: 50, include_images: true });
       setCities(data.cities ?? []);
     } catch {
       setCities([]);
@@ -877,6 +892,10 @@ export default function CreateGroupScreen() {
         // From city/faith/route picker, go back to intent
         setStep('intent');
         setBuildSubStep(null);
+        setSelectedCity(null);
+        setSelectedFaith(null);
+        setAllPlaces([]);
+        setSelectedPlaces([]);
       } else if (intent !== 'scratch' && (selectedCity || selectedFaith)) {
         // From filtered place list — restore the sub-step picker
         if (intent === 'city') {
@@ -1084,7 +1103,13 @@ export default function CreateGroupScreen() {
             <TouchableOpacity
               key={card.id}
               style={[styles.intentCard, intent === card.id && styles.intentCardSelected]}
-              onPress={() => setIntent(card.id)}
+              onPress={() => {
+                setSelectedCity(null);
+                setSelectedFaith(null);
+                setAllPlaces([]);
+                setSelectedPlaces([]);
+                setIntent(card.id);
+              }}
               activeOpacity={0.85}
             >
               <View style={[styles.intentIconCircle, { backgroundColor: card.color + '20' }]}>
@@ -1162,8 +1187,27 @@ export default function CreateGroupScreen() {
                   }}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.cityCardName}>{c.city}</Text>
-                  <Text style={styles.cityCardBadge}>{c.count}</Text>
+                  <View style={styles.cityCardRow}>
+                    <Text style={styles.cityCardName}>{c.city}</Text>
+                    <Text style={styles.cityCardBadge}>{c.count}</Text>
+                  </View>
+                  {(c.top_images?.length ?? 0) > 0 && (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.cityImageStrip}
+                      scrollEnabled={false}
+                    >
+                      {c.top_images!.slice(0, 3).map((imgUrl, idx) => (
+                        <Image
+                          key={idx}
+                          source={{ uri: getFullImageUrl(imgUrl) }}
+                          style={styles.cityImage}
+                          resizeMode="cover"
+                        />
+                      ))}
+                    </ScrollView>
+                  )}
                 </TouchableOpacity>
               )}
             />
@@ -1359,7 +1403,7 @@ export default function CreateGroupScreen() {
   if (step === 'build') {
     const renderPlaceItem = ({ item: place }: { item: Place }) => {
       const selected = isSelected(place);
-      const thumb = place.images?.[0]?.url;
+      const thumb = place.images?.[0]?.url ? getFullImageUrl(place.images[0].url) : undefined;
       return (
         <TouchableOpacity
           style={styles.placeRow}
@@ -1377,9 +1421,28 @@ export default function CreateGroupScreen() {
             <Text style={styles.placeName} numberOfLines={1}>
               {place.name}
             </Text>
-            <Text style={styles.placeAddr} numberOfLines={1} capitalize>
-              {place.religion} · {place.address}
+            <Text style={styles.placeAddr} numberOfLines={1}>
+              {place.religion.charAt(0).toUpperCase() + place.religion.slice(1)} · {place.address}
             </Text>
+            {(place.distance != null ||
+              place.open_status === 'open' ||
+              place.open_status === 'closed') && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                {place.distance != null && (
+                  <Text style={[styles.placeAddr, { marginTop: 0 }]}>
+                    {place.distance < 1
+                      ? `${Math.round(place.distance * 1000)}m`
+                      : `${place.distance.toFixed(1)}km`}
+                  </Text>
+                )}
+                {place.open_status === 'open' && (
+                  <Text style={{ fontSize: 10, fontWeight: '600', color: '#10b981' }}>Open</Text>
+                )}
+                {place.open_status === 'closed' && (
+                  <Text style={{ fontSize: 10, fontWeight: '600', color: '#ef4444' }}>Closed</Text>
+                )}
+              </View>
+            )}
           </View>
           <View style={[styles.placeCheck, selected && styles.placeCheckActive]}>
             {selected && <MaterialIcons name="check" size={14} color="#fff" />}

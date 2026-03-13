@@ -203,9 +203,9 @@ export default function CreateGroup() {
   );
   const [selectedFaith, setSelectedFaith] = useState<string | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<FeaturedGroup | null>(null);
-  const [cities, setCities] = useState<Array<{ city: string; city_slug: string; count: number }>>(
-    [],
-  );
+  const [cities, setCities] = useState<
+    Array<{ city: string; city_slug: string; count: number; top_images?: string[] }>
+  >([]);
   const [citiesLoading, setCitiesLoading] = useState(false);
   const [featuredRoutes, setFeaturedRoutes] = useState<FeaturedGroup[]>([]);
   const [routesLoading, setRoutesLoading] = useState(false);
@@ -353,7 +353,7 @@ export default function CreateGroup() {
   // ── Rendered steps ─────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-dark-bg flex flex-col">
+    <div className="min-h-screen bg-slate-50 dark:bg-dark-bg flex flex-col lg:max-w-3xl lg:mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-2">
         <button
@@ -363,6 +363,10 @@ export default function CreateGroup() {
               if (buildSubStep !== null) {
                 setStep('intent');
                 setBuildSubStep(null);
+                setSelectedCity(null);
+                setSelectedFaith(null);
+                setAllPlaces([]);
+                setSelectedPlaces([]);
               } else if (intent !== 'scratch' && (selectedCity || selectedFaith)) {
                 if (intent === 'city') {
                   setBuildSubStep('city_pick');
@@ -410,7 +414,7 @@ export default function CreateGroup() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="px-4 py-6 max-w-xl mx-auto"
+              className="px-4 py-6 w-full"
             >
               <p className="text-text-muted dark:text-dark-text-secondary text-sm mb-6">
                 What kind of journey are you planning?
@@ -424,11 +428,15 @@ export default function CreateGroup() {
                     transition={{ delay: i * 0.08 }}
                     whileTap={{ scale: 0.96 }}
                     onClick={() => {
+                      setSelectedCity(null);
+                      setSelectedFaith(null);
+                      setAllPlaces([]);
+                      setSelectedPlaces([]);
                       setIntent(card.id);
                       if (card.id === 'city') {
                         setBuildSubStep('city_pick');
                         setCitiesLoading(true);
-                        getCities({ limit: 50 })
+                        getCities({ limit: 50, include_images: true })
                           .then((d) => setCities(d.cities ?? []))
                           .catch(() => setCities([]))
                           .finally(() => setCitiesLoading(false));
@@ -485,7 +493,7 @@ export default function CreateGroup() {
             >
               {/* ── City picker sub-step ──────────────────────────────────────── */}
               {buildSubStep === 'city_pick' && (
-                <div className="px-4 py-6 max-w-xl mx-auto w-full">
+                <div className="px-4 py-6 w-full">
                   <p className="text-lg font-bold text-text-primary dark:text-white mb-1">
                     {t('journey.pickCity') || 'Choose your city'}
                   </p>
@@ -513,14 +521,28 @@ export default function CreateGroup() {
                             setAllPlaces([]);
                             loadPlaces({ city: c.city });
                           }}
-                          className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white dark:bg-dark-surface border border-slate-200 dark:border-dark-border hover:border-primary/40 transition-all text-left"
+                          className="w-full flex flex-col gap-2 px-4 py-3 rounded-xl bg-white dark:bg-dark-surface border border-slate-200 dark:border-dark-border hover:border-primary/40 transition-all text-left"
                         >
-                          <span className="text-sm font-semibold text-text-primary dark:text-white">
-                            {c.city}
-                          </span>
-                          <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-lg">
-                            {c.count}
-                          </span>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold text-text-primary dark:text-white">
+                              {c.city}
+                            </span>
+                            <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-lg">
+                              {c.count}
+                            </span>
+                          </div>
+                          {(c.top_images?.length ?? 0) > 0 && (
+                            <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+                              {c.top_images!.slice(0, 4).map((imgUrl, idx) => (
+                                <img
+                                  key={idx}
+                                  src={getFullImageUrl(imgUrl)}
+                                  alt=""
+                                  className="w-16 h-12 rounded-lg object-cover flex-shrink-0"
+                                />
+                              ))}
+                            </div>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -530,7 +552,7 @@ export default function CreateGroup() {
 
               {/* ── Faith picker sub-step ────────────────────────────────────── */}
               {buildSubStep === 'faith_pick' && (
-                <div className="px-4 py-6 max-w-xl mx-auto w-full">
+                <div className="px-4 py-6 w-full">
                   <p className="text-lg font-bold text-text-primary dark:text-white mb-1">
                     {t('journey.pickFaith') || 'Choose your faith'}
                   </p>
@@ -602,7 +624,7 @@ export default function CreateGroup() {
 
               {/* ── Route picker sub-step ────────────────────────────────────── */}
               {buildSubStep === 'route_pick' && (
-                <div className="px-4 py-6 max-w-xl mx-auto w-full">
+                <div className="px-4 py-6 w-full">
                   <p className="text-lg font-bold text-text-primary dark:text-white mb-1">
                     {t('journey.pickRoute') || 'Choose a famous route'}
                   </p>
@@ -802,12 +824,10 @@ export default function CreateGroup() {
                                   : 'bg-white dark:bg-dark-surface border border-transparent hover:border-slate-200 dark:hover:border-dark-border',
                               )}
                             >
-                              <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-dark-border flex-shrink-0 overflow-hidden">
-                                {(place as Place & { image_url?: string }).image_url ? (
+                              <div className="w-14 h-14 rounded-lg bg-slate-100 dark:bg-dark-border flex-shrink-0 overflow-hidden">
+                                {place.images?.[0]?.url ? (
                                   <img
-                                    src={getFullImageUrl(
-                                      (place as Place & { image_url?: string }).image_url!,
-                                    )}
+                                    src={getFullImageUrl(place.images[0].url)}
                                     alt=""
                                     className="w-full h-full object-cover"
                                   />
@@ -830,6 +850,25 @@ export default function CreateGroup() {
                                 <p className="text-[11px] text-text-muted dark:text-dark-text-secondary capitalize truncate">
                                   {place.religion} · {place.address}
                                 </p>
+                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                  {place.distance != null && (
+                                    <span className="text-[10px] font-semibold text-text-muted dark:text-dark-text-secondary">
+                                      {place.distance < 1
+                                        ? `${Math.round(place.distance * 1000)}m`
+                                        : `${place.distance.toFixed(1)}km`}
+                                    </span>
+                                  )}
+                                  {place.open_status === 'open' && (
+                                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                      Open
+                                    </span>
+                                  )}
+                                  {place.open_status === 'closed' && (
+                                    <span className="text-[10px] font-semibold text-red-500 dark:text-red-400">
+                                      Closed
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <div
                                 className={cn(
@@ -883,7 +922,7 @@ export default function CreateGroup() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="px-4 py-6 max-w-xl mx-auto space-y-5 pb-32"
+              className="px-4 py-6 w-full space-y-5 pb-32"
             >
               {/* Cover image */}
               <div>
