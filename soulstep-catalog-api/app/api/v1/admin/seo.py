@@ -26,7 +26,7 @@ from sqlmodel import func, select
 from app.api.deps import AdminDep
 from app.db import places as places_db
 from app.db import reviews as reviews_db
-from app.db.models import AICrawlerLog, Place, PlaceSEO
+from app.db.models import AICrawlerLog, ContentTranslation, Place, PlaceSEO
 from app.db.session import SessionDep
 from app.services import seo_generator
 
@@ -37,12 +37,17 @@ router = APIRouter()
 # ── Pydantic schemas ───────────────────────────────────────────────────────────
 
 
+_PRICE_PER_MILLION_CHARS = 20.0
+
+
 class SEOStats(BaseModel):
     total_places: int
     places_with_seo: int
     places_missing_seo: int
     places_manually_edited: int
     coverage_pct: float
+    translation_chars: int
+    translation_cost_usd: float
 
 
 class SEOListItem(BaseModel):
@@ -130,8 +135,15 @@ def get_seo_stats(admin: AdminDep, session: SessionDep) -> SEOStats:
         select(func.count(PlaceSEO.id)).where(PlaceSEO.is_manually_edited.is_(True))
     ).one()
 
+    translation_chars: int = session.exec(
+        select(func.coalesce(func.sum(func.length(ContentTranslation.translated_text)), 0)).where(
+            ContentTranslation.entity_type == "place_seo"
+        )
+    ).one()
+
     missing = total - with_seo
     coverage = round((with_seo / total * 100) if total > 0 else 0.0, 1)
+    translation_cost = round(translation_chars / 1_000_000 * _PRICE_PER_MILLION_CHARS, 4)
 
     return SEOStats(
         total_places=total,
@@ -139,6 +151,8 @@ def get_seo_stats(admin: AdminDep, session: SessionDep) -> SEOStats:
         places_missing_seo=missing,
         places_manually_edited=manually_edited,
         coverage_pct=coverage,
+        translation_chars=translation_chars,
+        translation_cost_usd=translation_cost,
     )
 
 

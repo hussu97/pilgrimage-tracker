@@ -602,6 +602,8 @@ export interface SEOStats {
   places_missing_seo: number;
   places_manually_edited: number;
   coverage_pct: number;
+  translation_chars: number;
+  translation_cost_usd: number;
 }
 
 export interface SEOListItem {

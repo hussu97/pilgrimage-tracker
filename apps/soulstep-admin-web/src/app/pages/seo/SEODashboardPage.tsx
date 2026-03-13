@@ -8,7 +8,7 @@ import { SearchInput } from "@/components/shared/SearchInput";
 import { StatCard } from "@/components/shared/StatCard";
 import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
-import { BarChart2, CheckCircle, AlertCircle, PenLine, RefreshCw } from "lucide-react";
+import { BarChart2, CheckCircle, AlertCircle, PenLine, RefreshCw, DollarSign } from "lucide-react";
 import type { Column } from "@/components/shared/DataTable";
 
 export function SEODashboardPage() {
@@ -147,7 +147,7 @@ export function SEODashboardPage() {
 
       {/* Stats */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <StatCard label="Total Places" value={stats.total_places} />
           <StatCard
             label="With SEO"
@@ -155,6 +155,18 @@ export function SEODashboardPage() {
           />
           <StatCard label="Missing SEO" value={stats.places_missing_seo} />
           <StatCard label="Manually Edited" value={stats.places_manually_edited} />
+          <div className="bg-white dark:bg-dark-surface rounded-lg border border-input-border dark:border-dark-border p-4 flex flex-col gap-1">
+            <div className="flex items-center gap-1.5 text-xs text-text-secondary dark:text-dark-text-secondary">
+              <DollarSign size={13} />
+              Translation Cost
+            </div>
+            <div className="text-xl font-semibold text-text-main dark:text-white">
+              ${stats.translation_cost_usd.toFixed(4)}
+            </div>
+            <div className="text-xs text-text-secondary dark:text-dark-text-secondary">
+              {stats.translation_chars.toLocaleString()} chars translated
+            </div>
+          </div>
         </div>
       )}
 
