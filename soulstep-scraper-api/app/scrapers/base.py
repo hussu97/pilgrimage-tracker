@@ -128,9 +128,19 @@ class ThreadSafeIdSet:
             return item in self._set
 
     def to_list(self) -> list[str]:
-        """Return a snapshot of all IDs currently in the set."""
+        """Return a snapshot of all IDs currently in the set.
+
+        Use list(set_instance) or iterate directly if you don't need the list
+        object itself — both acquire the lock for a single copy operation.
+        """
         with self._lock:
             return list(self._set)
+
+    def __iter__(self):
+        """Iterate over a snapshot of current IDs (acquires lock once for the copy)."""
+        with self._lock:
+            snapshot = list(self._set)
+        return iter(snapshot)
 
 
 class AtomicCounter:

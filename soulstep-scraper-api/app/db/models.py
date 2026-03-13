@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import UniqueConstraint
 from sqlmodel import JSON, Column, Field, SQLModel
 
 
@@ -40,6 +41,7 @@ class ScraperRun(SQLModel, table=True):
 
 
 class ScrapedPlace(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("run_code", "place_code", name="uq_scrapedplace_run_place"),)
     id: int | None = Field(default=None, primary_key=True)
     run_code: str = Field(foreign_key="scraperrun.run_code", index=True)
     place_code: str = Field(index=True)

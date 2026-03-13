@@ -371,7 +371,14 @@ def get_quality_gate(quality_score: float) -> str | None:
 
 
 def passes_gate(quality_score: float | None, threshold: float) -> bool:
-    """Return True if the score meets the threshold or is NULL (backwards-compat)."""
+    """Return True if the score meets the threshold or is NULL (backwards-compat).
+
+    NULL scores pass all gates so that places scraped before quality scoring was
+    introduced (pre-0008 migration) are not silently filtered. Log at DEBUG level
+    so operators can identify unscored places in production runs.
+    """
     if quality_score is None:
+        # Backwards-compat: unscored places always pass. If this is unexpected,
+        # check that the detail-fetch phase ran score_place_quality() correctly.
         return True
     return quality_score >= threshold
