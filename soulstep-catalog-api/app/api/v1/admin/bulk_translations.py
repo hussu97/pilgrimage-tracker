@@ -175,34 +175,40 @@ async def _run_bulk_translation_job(job_code: str, multi_size: int) -> None:
     """Background task: execute a bulk translation job end-to-end."""
     logger.info("bulk_translation: starting job %s", job_code)
 
-    # ── Phase 1: mark running ──────────────────────────────────────────────────
-    with Session(engine) as session:
-        job = session.exec(
-            select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)
-        ).first()
-        if job is None:
-            logger.error("bulk_translation: job %s not found", job_code)
-            return
+    # Yield control briefly so FastAPI can finalise the request-session
+    # dependency (close the endpoint's DB connection) before we open our own.
+    # Without this, Phase 1's session.commit() can race with the still-open
+    # endpoint session and hit a SQLite write-lock (SQLITE_BUSY).
+    await asyncio.sleep(0)
 
-        # Check if already cancelled before we even start
-        if job.cancel_requested_at is not None:
-            job.status = "cancelled"
-            job.completed_at = datetime.now(UTC)
+    try:
+        # ── Phase 1: mark running ────────────────────────────────────────────
+        with Session(engine) as session:
+            job = session.exec(
+                select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)
+            ).first()
+            if job is None:
+                logger.error("bulk_translation: job %s not found", job_code)
+                return
+
+            # Check if already cancelled before we even start
+            if job.cancel_requested_at is not None:
+                job.status = "cancelled"
+                job.completed_at = datetime.now(UTC)
+                session.add(job)
+                session.commit()
+                return
+
+            job.status = "running"
+            job.started_at = datetime.now(UTC)
             session.add(job)
             session.commit()
-            return
 
-        job.status = "running"
-        job.started_at = datetime.now(UTC)
-        session.add(job)
-        session.commit()
+            entity_types = list(job.entity_types or [])
+            target_langs = list(job.target_langs or [])
+            source_lang = job.source_lang
 
-        entity_types = list(job.entity_types or [])
-        target_langs = list(job.target_langs or [])
-        source_lang = job.source_lang
-
-    # ── Phase 2: collect missing items ────────────────────────────────────────
-    try:
+        # ── Phase 2: collect missing items ────────────────────────────────────
         with Session(engine) as session:
             missing = _collect_missing_items(session, entity_types, target_langs, source_lang)
 
