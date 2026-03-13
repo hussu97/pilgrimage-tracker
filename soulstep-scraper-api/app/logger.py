@@ -93,14 +93,16 @@ class _SecretMaskingFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         # Copy to avoid mutating the original record (other handlers may use it)
         record = logging.makeLogRecord(record.__dict__)
-        record.msg = mask_message(str(record.msg))
-        # Resolve %-style args so they are included in the masked message
+        # Resolve %-style args FIRST so format specifiers (e.g. %s) are not
+        # eaten by secret-masking regexes before substitution happens.
         if record.args:
             try:
-                record.msg = record.msg % record.args
-                record.args = None
+                record.msg = str(record.msg) % record.args
             except Exception:
-                pass
+                record.msg = str(record.msg)
+            record.args = None
+        # Now mask secrets in the fully-formatted message string.
+        record.msg = mask_message(str(record.msg))
         return super().format(record)
 
 

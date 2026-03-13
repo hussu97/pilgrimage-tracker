@@ -2,7 +2,7 @@
 WikipediaCollector — fetches descriptions and images from Wikipedia REST API.
 
 Uses the OSM wikipedia tag if available, otherwise falls back to search.
-Fetches English, Arabic, and Hindi extracts when available.
+Fetches English and Arabic extracts when available.
 
 Search-based lookups are validated for relevance before use, because Wikipedia's
 keyword search may return unrelated articles (e.g. "Al Futtaim Masjid" → "Dubai Marina").
@@ -303,14 +303,14 @@ class WikipediaCollector(BaseCollector):
             # Try to get the article title for other languages
             title = en_info.get("title", name)
 
-            # Arabic, Hindi, and Telugu extracts
+            # Arabic extract
             import asyncio as _asyncio
 
             lang_results = await _asyncio.gather(
-                *[self._fetch_by_title(title, lang) for lang in ["ar", "hi", "te"]],
+                *[self._fetch_by_title(title, lang) for lang in ["ar"]],
                 return_exceptions=True,
             )
-            for lang, lang_info in zip(["ar", "hi", "te"], lang_results, strict=False):
+            for lang, lang_info in zip(["ar"], lang_results, strict=False):
                 if isinstance(lang_info, Exception) or not lang_info:
                     continue
                 if lang_info.get("description"):

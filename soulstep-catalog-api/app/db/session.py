@@ -17,10 +17,10 @@ pool_config = {}
 if not database_url.startswith("sqlite"):
     # For PostgreSQL/MySQL, configure connection pool
     pool_config = {
-        "pool_size": 5,
-        "max_overflow": 10,
-        "pool_timeout": 30,
-        "pool_recycle": 1800,
+        "pool_size": 3,
+        "max_overflow": 2,
+        "pool_timeout": 10,
+        "pool_recycle": 300,
         "pool_pre_ping": True,
     }
 engine = create_engine(database_url, echo=False, connect_args=connect_args, **pool_config)
