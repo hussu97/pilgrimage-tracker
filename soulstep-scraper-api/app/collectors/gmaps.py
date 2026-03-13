@@ -309,8 +309,8 @@ class GmapsCollector(BaseCollector):
             "Content-Type": "application/json",
             "X-Goog-Api-Key": api_key,
             "X-Goog-FieldMask": ",".join(mask),
-            "languageCode": "en",
         }
+        params = {"languageCode": "en"}
         # Determine which tier is being fetched for the log
         tier = (
             "ESSENTIAL"
@@ -320,10 +320,10 @@ class GmapsCollector(BaseCollector):
 
         t0 = time.perf_counter()
         if client is not None:
-            resp = await client.get(url, headers=headers)
+            resp = await client.get(url, headers=headers, params=params)
         else:
             async with httpx.AsyncClient(timeout=35.0) as c:
-                resp = await c.get(url, headers=headers)
+                resp = await c.get(url, headers=headers, params=params)
         duration_ms = (time.perf_counter() - t0) * 1000
 
         if resp.status_code != 200:

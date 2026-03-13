@@ -6,7 +6,7 @@ import re
 
 from sqlmodel import Session, select
 
-from app.db.models import City, Country, State
+from app.db.models import City, CityAlias, Country, State
 
 
 def _make_code(prefix: str, name: str) -> str:
@@ -98,6 +98,32 @@ def get_or_create_city(
     return city
 
 
+def get_or_create_city_alias(
+    alias_name: str,
+    canonical_city_code: str,
+    country_code: str | None,
+    session: Session,
+) -> CityAlias:
+    """Look up or create a CityAlias mapping."""
+    name_stripped = alias_name.strip()
+    existing = session.exec(
+        select(CityAlias).where(
+            CityAlias.alias_name.ilike(name_stripped),
+            CityAlias.country_code == country_code,
+        )
+    ).first()
+    if existing:
+        return existing
+    alias = CityAlias(
+        alias_name=name_stripped,
+        canonical_city_code=canonical_city_code,
+        country_code=country_code,
+    )
+    session.add(alias)
+    session.flush()
+    return alias
+
+
 def resolve_location_codes(
     city: str | None,
     state: str | None,
@@ -125,7 +151,24 @@ def resolve_location_codes(
         state_code = state_obj.state_code
 
     if city and country_code:
-        city_obj = get_or_create_city(city, country_code, state_code, session)
-        city_code = city_obj.city_code
+        # Check alias table first — maps dirty/localized names to canonical cities
+        alias = session.exec(
+            select(CityAlias).where(
+                CityAlias.alias_name.ilike(city.strip()),
+                CityAlias.country_code == country_code,
+            )
+        ).first()
+        if alias is None:
+            alias = session.exec(
+                select(CityAlias).where(
+                    CityAlias.alias_name.ilike(city.strip()),
+                    CityAlias.country_code == None,  # noqa: E711
+                )
+            ).first()
+        if alias:
+            city_code = alias.canonical_city_code
+        else:
+            city_obj = get_or_create_city(city, country_code, state_code, session)
+            city_code = city_obj.city_code
 
     return city_code, state_code, country_code

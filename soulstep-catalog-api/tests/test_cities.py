@@ -259,3 +259,122 @@ class TestCityMetrics:
         assert mecca is not None
         assert mecca["checkins_30d"] == 55
         assert mecca["popularity_label"] == "Trending"
+
+
+class TestCitiesDeduplication:
+    """Tests that verify GROUP BY city_code deduplication works."""
+
+    def test_dedup_by_city_code(self, client, db_session):
+        """Two places with different city strings but same city_code appear as one entry."""
+        from app.db.models import City, Country, Place
+
+        # Create country and canonical city
+        country = Country(country_code="ctr_uae_dedup", name="UAE Dedup", translations={})
+        db_session.add(country)
+        db_session.flush()
+        city = City(
+            city_code="cty_dubai_dedup",
+            name="Dubai",
+            country_code="ctr_uae_dedup",
+            translations={},
+        )
+        db_session.add(city)
+        db_session.flush()
+
+        # Place 1: English name, has city_code
+        p1 = Place(
+            place_code="plc_dedup001",
+            name="Mosque A",
+            religion="islam",
+            place_type="mosque",
+            lat=25.0,
+            lng=55.0,
+            address="Test",
+            city="Dubai",
+            city_code="cty_dubai_dedup",
+            country_code="ctr_uae_dedup",
+        )
+        # Place 2: Arabic name, same city_code
+        p2 = Place(
+            place_code="plc_dedup002",
+            name="Mosque B",
+            religion="islam",
+            place_type="mosque",
+            lat=25.1,
+            lng=55.1,
+            address="Test",
+            city="دبي",
+            city_code="cty_dubai_dedup",
+            country_code="ctr_uae_dedup",
+        )
+        db_session.add(p1)
+        db_session.add(p2)
+        db_session.commit()
+
+        resp = client.get(CITIES_URL)
+        assert resp.status_code == 200
+        cities = resp.json()["cities"]
+        dubai_entries = [c for c in cities if c["city_code"] == "cty_dubai_dedup"]
+        assert len(dubai_entries) == 1, "Two places with same city_code should merge into one"
+        assert dubai_entries[0]["count"] == 2
+
+    def test_places_no_city_code_still_appear(self, client, db_session):
+        """Places with city_code=None but a city string still appear in the list."""
+        from app.db.models import Place
+
+        p = Place(
+            place_code="plc_nocode001",
+            name="Old Mosque",
+            religion="islam",
+            place_type="mosque",
+            lat=30.0,
+            lng=31.0,
+            address="Cairo",
+            city="Cairo",
+            city_code=None,
+        )
+        db_session.add(p)
+        db_session.commit()
+
+        resp = client.get(CITIES_URL)
+        assert resp.status_code == 200
+        cities = resp.json()["cities"]
+        cairo = next((c for c in cities if c["city"] == "Cairo"), None)
+        assert cairo is not None
+
+    def test_dedup_city_slug_route_uses_city_code(self, client, db_session):
+        """The /{city_slug} route returns all places matched by city_code."""
+        from app.db.models import City, Country, Place
+
+        country = Country(country_code="ctr_uae_slug", name="UAE Slug", translations={})
+        db_session.add(country)
+        db_session.flush()
+        city = City(
+            city_code="cty_dubai_slug",
+            name="Dubai",
+            country_code="ctr_uae_slug",
+            translations={},
+        )
+        db_session.add(city)
+        db_session.flush()
+
+        for i, city_str in enumerate(["Dubai", "دبي", "Deira"]):
+            p = Place(
+                place_code=f"plc_slug_dedup{i:03d}",
+                name=f"Place {i}",
+                religion="islam",
+                place_type="mosque",
+                lat=25.0 + i,
+                lng=55.0,
+                address="Test",
+                city=city_str,
+                city_code="cty_dubai_slug",
+                country_code="ctr_uae_slug",
+            )
+            db_session.add(p)
+        db_session.commit()
+
+        resp = client.get(f"{CITIES_URL}/dubai")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] == 3

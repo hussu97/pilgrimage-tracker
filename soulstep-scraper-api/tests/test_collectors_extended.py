@@ -1758,3 +1758,82 @@ class TestOsmCollectorExtended:
         ):
             tags = await collector._query_overpass(25.0, 55.0)
         assert tags == {}
+
+
+class TestExtractAddressComponents:
+    """Unit tests for _extract_address_components in collectors/gmaps.py."""
+
+    def _make_component(self, long_text: str, types: list[str]) -> dict:
+        return {"longText": long_text, "types": types}
+
+    def test_extracts_city_state_country(self):
+        from app.collectors.gmaps import _extract_address_components
+
+        components = [
+            self._make_component("Dubai", ["locality", "political"]),
+            self._make_component("Dubai Emirate", ["administrative_area_level_1", "political"]),
+            self._make_component("United Arab Emirates", ["country", "political"]),
+        ]
+        city, state, country = _extract_address_components(components)
+        assert city == "Dubai"
+        assert state == "Dubai Emirate"
+        assert country == "United Arab Emirates"
+
+    def test_falls_back_to_sublocality(self):
+        from app.collectors.gmaps import _extract_address_components
+
+        components = [
+            self._make_component("Deira", ["sublocality_level_1", "political"]),
+            self._make_component("United Arab Emirates", ["country", "political"]),
+        ]
+        city, state, country = _extract_address_components(components)
+        assert city == "Deira"
+
+    def test_locality_takes_priority_over_sublocality(self):
+        from app.collectors.gmaps import _extract_address_components
+
+        components = [
+            self._make_component("Dubai", ["locality", "political"]),
+            self._make_component("Deira", ["sublocality_level_1", "political"]),
+        ]
+        city, _, _ = _extract_address_components(components)
+        assert city == "Dubai"
+
+    def test_empty_components_returns_nones(self):
+        from app.collectors.gmaps import _extract_address_components
+
+        city, state, country = _extract_address_components([])
+        assert city is None
+        assert state is None
+        assert country is None
+
+    def test_blank_long_text_skipped(self):
+        from app.collectors.gmaps import _extract_address_components
+
+        components = [{"longText": "  ", "types": ["locality"]}]
+        city, _, _ = _extract_address_components(components)
+        assert city is None
+
+
+class TestFetchDetailsLanguageCodeQueryParam:
+    """Verify languageCode=en is sent as a query param, not a header."""
+
+    def test_language_code_in_params_not_headers(self):
+        """_fetch_details should use params={'languageCode': 'en'}, not a header."""
+        import inspect
+
+        from app.collectors.gmaps import GmapsCollector
+
+        source = inspect.getsource(GmapsCollector._fetch_details)
+        # Should NOT have languageCode in headers dict
+        assert "languageCode" not in source.split("headers = {")[1].split("}")[0]
+
+    def test_language_code_passed_as_params(self):
+        """The source should contain params={'languageCode': 'en'}."""
+        import inspect
+
+        from app.collectors.gmaps import GmapsCollector
+
+        source = inspect.getsource(GmapsCollector._fetch_details)
+        assert "languageCode" in source
+        assert "params" in source

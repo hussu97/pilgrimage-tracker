@@ -184,6 +184,7 @@ async def get_places_in_circle(
     }
     body = {
         "includedTypes": place_types,
+        "languageCode": "en",
         "locationRestriction": {
             "circle": {"center": {"latitude": lat, "longitude": lng}, "radius": radius}
         },

@@ -62,6 +62,21 @@ class City(SQLModel, table=True):
     translations: dict = Field(default={}, sa_column=Column(JSON))
 
 
+class CityAlias(SQLModel, table=True):
+    """Maps localized/dirty city name variants to a canonical City row."""
+
+    __table_args__ = (UniqueConstraint("alias_name", "country_code"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    alias_name: str = Field(index=True)
+    canonical_city_code: str = Field(index=True, foreign_key="city.city_code")
+    country_code: str | None = Field(default=None, index=True, foreign_key="country.country_code")
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+
+
 class User(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_code: str = Field(index=True, unique=True)

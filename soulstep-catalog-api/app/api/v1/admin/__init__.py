@@ -7,6 +7,7 @@ from app.api.v1.admin import (
     audit_log,
     bulk,
     check_ins,
+    city_aliases,
     content_translations,
     export,
     groups,
@@ -42,3 +43,6 @@ admin_router.include_router(seo.router, tags=["admin-seo"])
 admin_router.include_router(ads.router, tags=["admin-ads"])
 admin_router.include_router(health.router, tags=["admin-health"])
 admin_router.include_router(analytics.router, tags=["admin-analytics"])
+admin_router.include_router(
+    city_aliases.router, prefix="/city-aliases", tags=["Admin - City Aliases"]
+)

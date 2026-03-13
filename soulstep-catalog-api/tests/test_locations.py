@@ -2,6 +2,7 @@
 
 from app.db.locations import (
     get_or_create_city,
+    get_or_create_city_alias,
     get_or_create_country,
     get_or_create_state,
     resolve_location_codes,
@@ -149,3 +150,58 @@ class TestResolveLocationCodes:
         assert city_code is None
         assert state_code is None
         assert country_code is None
+
+
+class TestCityAliases:
+    """Tests for the CityAlias lookup in resolve_location_codes."""
+
+    def test_alias_resolves_to_canonical_city(self, db_session):
+        """An alias name resolves to the canonical city_code."""
+
+        country = get_or_create_country("United Arab Emirates", db_session)
+        db_session.commit()
+        city = get_or_create_city("Dubai", country.country_code, None, db_session)
+        db_session.commit()
+
+        get_or_create_city_alias("دبي", city.city_code, country.country_code, db_session)
+        db_session.commit()
+
+        city_code, _, _ = resolve_location_codes("دبي", None, "United Arab Emirates", db_session)
+        assert city_code == city.city_code
+
+    def test_alias_without_country_scoping(self, db_session):
+        """A global alias (country_code=None) resolves for any country."""
+        country = get_or_create_country("Saudi Arabia", db_session)
+        db_session.commit()
+        city = get_or_create_city("Mecca", country.country_code, None, db_session)
+        db_session.commit()
+
+        get_or_create_city_alias("Makkah", city.city_code, None, db_session)
+        db_session.commit()
+
+        city_code, _, _ = resolve_location_codes("Makkah", None, "Saudi Arabia", db_session)
+        assert city_code == city.city_code
+
+    def test_unknown_city_still_creates(self, db_session):
+        """A name with no alias still creates a new city row normally."""
+        get_or_create_country("United Arab Emirates", db_session)
+        db_session.commit()
+
+        city_code, state_code, country_code = resolve_location_codes(
+            "Sharjah", None, "United Arab Emirates", db_session
+        )
+        db_session.commit()
+        assert city_code == "cty_sharjah"
+
+    def test_alias_idempotent(self, db_session):
+        """get_or_create_city_alias called twice returns the same row."""
+        country = get_or_create_country("India", db_session)
+        db_session.commit()
+        city = get_or_create_city("Mumbai", country.country_code, None, db_session)
+        db_session.commit()
+
+        a1 = get_or_create_city_alias("Bombay", city.city_code, None, db_session)
+        db_session.commit()
+        a2 = get_or_create_city_alias("Bombay", city.city_code, None, db_session)
+        db_session.commit()
+        assert a1.id == a2.id
