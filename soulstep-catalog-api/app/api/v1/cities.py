@@ -82,14 +82,29 @@ def list_cities(
     )
     city_by_code: dict[str, City] = {c.city_code: c for c in city_objs}
 
-    # Build combined list: city_code rows first, then string-only rows
+    # Build combined list: city_code rows first, then string-only rows.
+    # Deduplicate: if a string-only row has the same normalised name as an existing
+    # city_code row, merge the count into the city_code entry rather than showing
+    # the city twice.
     combined: list[tuple[str, str | None, int, City | None]] = []
+    seen_names: dict[str, int] = {}  # normalised name → index in combined
     for city_code_val, count in code_rows:
         city_obj = city_by_code.get(city_code_val)
         city_name = city_obj.name if city_obj else city_code_val
+        norm = city_name.strip().lower()
+        seen_names[norm] = len(combined)
         combined.append((city_name, city_code_val, count, city_obj))
     for city_name, count in str_rows:
-        if city_name:
+        if not city_name:
+            continue
+        norm = city_name.strip().lower()
+        if norm in seen_names:
+            # Merge into the existing city_code entry
+            idx = seen_names[norm]
+            old = combined[idx]
+            combined[idx] = (old[0], old[1], old[2] + count, old[3])
+        else:
+            seen_names[norm] = len(combined)
             combined.append((city_name, None, count, None))
 
     # Sort by count descending, paginate
