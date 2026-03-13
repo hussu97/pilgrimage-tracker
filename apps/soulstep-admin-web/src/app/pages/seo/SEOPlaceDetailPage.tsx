@@ -32,6 +32,7 @@ export function SEOPlaceDetailPage() {
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [withTranslations, setWithTranslations] = useState(false);
 
   // Edit state (English only)
   const [editSlug, setEditSlug] = useState("");
@@ -95,7 +96,7 @@ export function SEOPlaceDetailPage() {
     ) return;
     setRegenerating(true);
     try {
-      const updated = await regenerateSEO(placeCode, force || seo?.is_manually_edited === true);
+      const updated = await regenerateSEO(placeCode, force || seo?.is_manually_edited === true, withTranslations);
       setSEO(updated);
       resetEditState(updated);
       setEditing(false);
@@ -157,13 +158,23 @@ export function SEOPlaceDetailPage() {
               <PenLine size={11} /> Manually edited
             </span>
           )}
+          <label className="flex items-center gap-1.5 text-sm text-text-secondary dark:text-dark-text-secondary cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={withTranslations}
+              onChange={(e) => setWithTranslations(e.target.checked)}
+              className="rounded"
+              disabled={regenerating}
+            />
+            + translations
+          </label>
           <button
             onClick={() => handleRegenerate()}
             disabled={regenerating}
             className="flex items-center gap-1.5 text-sm px-3 py-1.5 border border-input-border dark:border-dark-border rounded-lg hover:bg-background-light dark:hover:bg-dark-bg text-text-main dark:text-white disabled:opacity-50 transition-colors"
           >
             <RefreshCw size={13} className={regenerating ? "animate-spin" : ""} />
-            Regenerate
+            {regenerating ? (withTranslations ? "Regenerating + translating…" : "Regenerating…") : "Regenerate"}
           </button>
           {isEnglish && !editing && (
             <button
@@ -323,13 +334,26 @@ export function SEOPlaceDetailPage() {
         /* ── Non-English tab: read-only translations ── */
         <div className="space-y-4">
           {Object.keys(langTranslations).length === 0 ? (
-            <div className="bg-white dark:bg-dark-surface rounded-lg border border-input-border dark:border-dark-border p-6 text-center">
+            <div className="bg-white dark:bg-dark-surface rounded-lg border border-input-border dark:border-dark-border p-6 text-center space-y-3">
               <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
                 No translations yet for <strong>{tabLang?.name ?? activeTab}</strong>.
               </p>
-              <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-2 font-mono bg-background-light dark:bg-dark-bg px-3 py-1.5 rounded inline-block mt-3">
-                python -m scripts.generate_seo --translate --langs {activeTab}
-              </p>
+              <button
+                onClick={() => {
+                  setWithTranslations(true);
+                  void handleRegenerate(seo.is_manually_edited);
+                }}
+                disabled={regenerating || !seo.seo_title}
+                className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                <RefreshCw size={13} className={regenerating ? "animate-spin" : ""} />
+                Generate translations now
+              </button>
+              {!seo.seo_title && (
+                <p className="text-xs text-text-secondary dark:text-dark-text-secondary">
+                  Generate English SEO first before translating.
+                </p>
+              )}
             </div>
           ) : (
             <div

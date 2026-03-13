@@ -26,6 +26,7 @@ from sqlmodel import func, select
 from app.api.deps import AdminDep
 from app.db import places as places_db
 from app.db import reviews as reviews_db
+from app.db.enums import Language
 from app.db.models import AICrawlerLog, ContentTranslation, Place, PlaceSEO
 from app.db.session import SessionDep
 from app.services import seo_generator
@@ -102,12 +103,16 @@ class PatchSEOBody(BaseModel):
 class BulkGenerateBody(BaseModel):
     force: bool = False  # If True, overwrite manually-edited records
     limit: int | None = None  # Max places to process (None = all)
+    translate: bool = False  # If True, also translate generated SEO to non-English langs
+    translate_langs: list[str] | None = None  # Languages to translate to (None = all non-English)
 
 
 class GenerateResponse(BaseModel):
     generated: int
     skipped: int
     errors: int
+    translated: int = 0
+    translation_errors: int = 0
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -139,6 +144,111 @@ def _get_seo_translations(place_code: str, session) -> dict[str, dict[str, str |
     for row in rows:
         result.setdefault(row.lang, {})[row.field] = row.translated_text
     return result
+
+
+_NON_ENGLISH_LANGS: list[str] = [lang for lang in Language if lang != Language.EN]
+
+
+def _upsert_translation(
+    session,
+    entity_code: str,
+    field: str,
+    lang: str,
+    translated_text: str,
+) -> None:
+    """Insert or update a single ContentTranslation row."""
+    existing = session.exec(
+        select(ContentTranslation).where(
+            ContentTranslation.entity_type == "place_seo",
+            ContentTranslation.entity_code == entity_code,
+            ContentTranslation.field == field,
+            ContentTranslation.lang == lang,
+        )
+    ).first()
+
+    now = datetime.now(UTC)
+    import os
+
+    source = f"admin_api:{os.environ.get('TRANSLATION_BACKEND', 'api')}"
+    if existing:
+        existing.translated_text = translated_text
+        existing.source = source
+        existing.updated_at = now
+        session.add(existing)
+    else:
+        session.add(
+            ContentTranslation(
+                entity_type="place_seo",
+                entity_code=entity_code,
+                field=field,
+                lang=lang,
+                translated_text=translated_text,
+                source=source,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+
+
+def _translate_place_seo(
+    seo: PlaceSEO,
+    session,
+    langs: list[str],
+    force: bool = False,
+) -> tuple[int, int]:
+    """Translate a single PlaceSEO record into the given languages.
+
+    Returns (translated_count, error_count).
+    """
+    from app.services.translation_service import translate_batch
+
+    written = 0
+    errors = 0
+
+    # Pre-load existing translations to avoid redundant API calls
+    existing_rows = session.exec(
+        select(ContentTranslation.lang, ContentTranslation.field).where(
+            ContentTranslation.entity_type == "place_seo",
+            ContentTranslation.entity_code == seo.place_code,
+            ContentTranslation.lang.in_(langs),
+        )
+    ).all()
+    already_done: frozenset[tuple[str, str]] = frozenset(existing_rows)
+
+    for lang in langs:
+        entries: list[tuple[str, str]] = []  # (field, text)
+        for field in _SEO_TRANSLATE_FIELDS:
+            value = getattr(seo, field, None)
+            if not value:
+                continue
+            if not force and (lang, field) in already_done:
+                continue
+            entries.append((field, value))
+
+        if not entries:
+            continue
+
+        texts = [text for _, text in entries]
+        try:
+            translated = translate_batch(texts, target_lang=lang)
+            for (field, _), translated_text in zip(entries, translated, strict=False):
+                if translated_text is None:
+                    logger.warning(
+                        "Translation returned None for place_seo/%s/%s → %s",
+                        seo.place_code,
+                        field,
+                        lang,
+                    )
+                    errors += 1
+                    continue
+                _upsert_translation(session, seo.place_code, field, lang, translated_text)
+                written += 1
+            session.commit()
+        except Exception as exc:
+            logger.error("Translation error for place_seo/%s → %s: %s", seo.place_code, lang, exc)
+            errors += len(entries)
+
+    return written, errors
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
@@ -350,10 +460,12 @@ def regenerate_single(
     admin: AdminDep,
     session: SessionDep,
     force: bool = False,
+    translate: bool = False,
 ) -> SEODetail:
     """Regenerate SEO content for a single place.
 
     Pass `force=true` to overwrite manually-edited content.
+    Pass `translate=true` to also translate to all non-English languages.
     """
     place = _get_place_or_404(place_code, session)
     rating_data = reviews_db.get_aggregate_rating(place_code, session)
@@ -365,7 +477,19 @@ def regenerate_single(
         force=force,
     )
 
-    logger.info("Admin %s regenerated SEO for %s", admin.user_code, place_code)
+    if translate:
+        written, errors = _translate_place_seo(seo, session, langs=_NON_ENGLISH_LANGS, force=force)
+        logger.info(
+            "Admin %s translated SEO for %s: written=%d errors=%d",
+            admin.user_code,
+            place_code,
+            written,
+            errors,
+        )
+
+    logger.info(
+        "Admin %s regenerated SEO for %s (translate=%s)", admin.user_code, place_code, translate
+    )
 
     return SEODetail(
         place_code=place.place_code,
@@ -415,30 +539,58 @@ def bulk_generate_seo(
     generated = 0
     skipped = 0
     errors = 0
+    translated = 0
+    translation_errors = 0
+
+    translate_langs = body.translate_langs or _NON_ENGLISH_LANGS
+
+    generated_seos: list[PlaceSEO] = []
 
     for place in places:
         try:
             rating_data = reviews_db.get_aggregate_rating(place.place_code, session)
-            seo_generator.upsert_place_seo(
+            seo = seo_generator.upsert_place_seo(
                 place=place,
                 session=session,
                 rating_data=rating_data,
                 force=body.force,
             )
             generated += 1
+            if body.translate:
+                generated_seos.append(seo)
         except Exception as exc:
             logger.error("SEO generation failed for %s: %s", place.place_code, exc)
             errors += 1
 
+    if body.translate and generated_seos:
+        logger.info(
+            "Admin %s bulk SEO: translating %d records to %s",
+            admin.user_code,
+            len(generated_seos),
+            translate_langs,
+        )
+        for seo in generated_seos:
+            w, e = _translate_place_seo(seo, session, langs=translate_langs, force=body.force)
+            translated += w
+            translation_errors += e
+
     logger.info(
-        "Admin %s bulk SEO: generated=%d skipped=%d errors=%d",
+        "Admin %s bulk SEO: generated=%d skipped=%d errors=%d translated=%d translation_errors=%d",
         admin.user_code,
         generated,
         skipped,
         errors,
+        translated,
+        translation_errors,
     )
 
-    return GenerateResponse(generated=generated, skipped=skipped, errors=errors)
+    return GenerateResponse(
+        generated=generated,
+        skipped=skipped,
+        errors=errors,
+        translated=translated,
+        translation_errors=translation_errors,
+    )
 
 
 # ── AI citation monitoring ──────────────────────────────────────────────────────

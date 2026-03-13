@@ -18,6 +18,7 @@ export function SEODashboardPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [withTranslations, setWithTranslations] = useState(false);
   const [search, setSearch] = useState("");
   const [religion, setReligion] = useState("");
   const [missingOnly, setMissingOnly] = useState(false);
@@ -47,11 +48,17 @@ export function SEODashboardPage() {
   useEffect(() => { void load(); }, [load]);
 
   const handleBulkGenerate = async () => {
-    if (!window.confirm("Generate SEO content for all places missing it? This may take a moment.")) return;
+    const msg = withTranslations
+      ? "Generate SEO content for all places missing it, then translate to AR, HI, TE, ML? This may take several minutes."
+      : "Generate SEO content for all places missing it? This may take a moment.";
+    if (!window.confirm(msg)) return;
     setGenerating(true);
     try {
-      const result = await bulkGenerateSEO({ force: false });
-      alert(`SEO generation complete: ${result.generated} generated, ${result.errors} errors.`);
+      const result = await bulkGenerateSEO({ force: false, translate: withTranslations });
+      const translationNote = withTranslations
+        ? ` Translations: ${result.translated} written, ${result.translation_errors} errors.`
+        : "";
+      alert(`SEO generation complete: ${result.generated} generated, ${result.errors} errors.${translationNote}`);
       void load();
     } finally {
       setGenerating(false);
@@ -135,14 +142,26 @@ export function SEODashboardPage() {
             Manage SEO metadata, slugs, and discoverability for all sacred sites.
           </p>
         </div>
-        <button
-          onClick={handleBulkGenerate}
-          disabled={generating}
-          className="flex items-center gap-2 px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
-        >
-          <RefreshCw size={14} className={generating ? "animate-spin" : ""} />
-          {generating ? "Generating…" : "Bulk Generate"}
-        </button>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5 text-sm text-text-secondary dark:text-dark-text-secondary cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={withTranslations}
+              onChange={(e) => setWithTranslations(e.target.checked)}
+              className="rounded"
+              disabled={generating}
+            />
+            + translations
+          </label>
+          <button
+            onClick={handleBulkGenerate}
+            disabled={generating}
+            className="flex items-center gap-2 px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            <RefreshCw size={14} className={generating ? "animate-spin" : ""} />
+            {generating ? (withTranslations ? "Generating + translating…" : "Generating…") : "Bulk Generate"}
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
