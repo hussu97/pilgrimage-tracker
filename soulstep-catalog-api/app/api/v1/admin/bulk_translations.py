@@ -22,7 +22,7 @@ from sqlmodel import Session, col, select
 
 from app.api.deps import AdminDep
 from app.db import content_translations as ct_db
-from app.db.models import BulkTranslationJob, Place, Review
+from app.db.models import BulkTranslationJob, City, Place, PlaceAttributeDefinition, Review
 from app.db.session import SessionDep, engine
 from app.services.browser_translation import translate_batch_browser_parallel
 
@@ -33,6 +33,8 @@ router = APIRouter()
 # Translatable fields by entity type
 _PLACE_FIELDS = ["name", "description"]
 _REVIEW_FIELDS = ["title", "body"]
+_CITY_FIELDS = ["name"]
+_ATTRIBUTE_DEF_FIELDS = ["name"]
 
 
 # ── Pydantic schemas ───────────────────────────────────────────────────────────
@@ -133,6 +135,34 @@ def _collect_missing_items(
                         )
                         if existing is None:
                             missing.append(("review", row.review_code, field, lang, en_text))
+
+            elif entity_type == "city":
+                rows = session.exec(select(City)).all()
+                for row in rows:
+                    for field in _CITY_FIELDS:
+                        en_text = getattr(row, field, None)
+                        if not en_text or not en_text.strip():
+                            continue
+                        existing = ct_db.get_translation(
+                            "city", row.city_code, field, lang, session
+                        )
+                        if existing is None:
+                            missing.append(("city", row.city_code, field, lang, en_text))
+
+            elif entity_type == "attribute_def":
+                rows = session.exec(select(PlaceAttributeDefinition)).all()
+                for row in rows:
+                    for field in _ATTRIBUTE_DEF_FIELDS:
+                        en_text = getattr(row, field, None)
+                        if not en_text or not en_text.strip():
+                            continue
+                        existing = ct_db.get_translation(
+                            "attribute_def", row.attribute_code, field, lang, session
+                        )
+                        if existing is None:
+                            missing.append(
+                                ("attribute_def", row.attribute_code, field, lang, en_text)
+                            )
 
     return missing
 

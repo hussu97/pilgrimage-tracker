@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlmodel import col, func, select
 
 from app.api.deps import AdminDep
-from app.db.models import ContentTranslation, Place
+from app.db.models import City, ContentTranslation, Place
 from app.db.session import SessionDep
 
 router = APIRouter()
@@ -94,6 +94,9 @@ def list_content_translations(
         if row.entity_type == "place":
             place = session.exec(select(Place).where(Place.place_code == row.entity_code)).first()
             place_name = place.name if place else None
+        elif row.entity_type == "city":
+            city = session.exec(select(City).where(City.city_code == row.entity_code)).first()
+            place_name = city.name if city else None
         items.append(
             AdminContentTranslation(
                 id=row.id,

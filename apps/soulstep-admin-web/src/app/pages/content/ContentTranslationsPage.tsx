@@ -3,6 +3,7 @@ import {
   createContentTranslation,
   deleteContentTranslation,
   listContentTranslations,
+  listLanguages,
   updateContentTranslation,
 } from "@/lib/api/admin";
 import type { AdminContentTranslation } from "@/lib/api/types";
@@ -12,9 +13,8 @@ import { Pagination } from "@/components/shared/Pagination";
 import { usePagination } from "@/lib/hooks/usePagination";
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
 
-const ENTITY_TYPES = ["place", "attribute_def", "spec_value"];
-const LANGS = ["ar", "hi", "te", "ml"];
-const FIELDS = ["name", "description", "address", "label", "value"];
+const ENTITY_TYPES = ["place", "city", "review", "attribute_def", "spec_value"];
+const FIELDS = ["name", "description", "address", "label", "value", "title", "body"];
 
 interface CreateForm {
   entity_type: string;
@@ -39,8 +39,18 @@ export function ContentTranslationsPage() {
   const [items, setItems] = useState<AdminContentTranslation[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [langs, setLangs] = useState<string[]>(["ar", "hi", "te", "ml"]);
   const [entityTypeFilter, setEntityTypeFilter] = useState("");
   const [langFilter, setLangFilter] = useState("");
+
+  useEffect(() => {
+    listLanguages()
+      .then((all) => {
+        const nonEn = all.filter((l) => l.code !== "en").map((l) => l.code);
+        if (nonEn.length > 0) setLangs(nonEn);
+      })
+      .catch(() => {/* keep defaults */});
+  }, []);
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<CreateForm>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
@@ -254,7 +264,7 @@ export function ContentTranslationsPage() {
                 onChange={(e) => setCreateForm((f) => ({ ...f, lang: e.target.value }))}
                 className="w-full rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-bg px-3 py-2 text-sm text-text-main dark:text-white outline-none focus:border-primary"
               >
-                {LANGS.map((l) => <option key={l} value={l}>{l}</option>)}
+                {langs.map((l) => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
             <div>
@@ -313,7 +323,7 @@ export function ContentTranslationsPage() {
           className="rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface px-3 py-2 text-sm text-text-main dark:text-white outline-none focus:border-primary"
         >
           <option value="">All languages</option>
-          {LANGS.map((l) => <option key={l} value={l}>{l}</option>)}
+          {langs.map((l) => <option key={l} value={l}>{l}</option>)}
         </select>
         <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
           {total} total

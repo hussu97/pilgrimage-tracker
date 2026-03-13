@@ -40,7 +40,12 @@ export function computeProgress(completed: number, total: number): number {
 // ── Available langs / entity types ────────────────────────────────────────────
 
 const LANGS = ["ar", "hi", "te", "ml"] as const;
-const ENTITY_TYPES = ["place", "review"] as const;
+const ENTITY_TYPES = [
+  { value: "place", label: "Place" },
+  { value: "review", label: "Review" },
+  { value: "city", label: "City" },
+  { value: "attribute_def", label: "Attribute Definition" },
+] as const;
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -370,19 +375,19 @@ export function BulkTranslationsPage() {
                   Entity Types
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {ENTITY_TYPES.map((type) => (
+                  {ENTITY_TYPES.map(({ value, label }) => (
                     <label
-                      key={type}
+                      key={value}
                       className="flex items-center gap-1.5 cursor-pointer select-none"
                     >
                       <input
                         type="checkbox"
-                        checked={selectedTypes.includes(type)}
-                        onChange={() => toggleType(type)}
+                        checked={selectedTypes.includes(value)}
+                        onChange={() => toggleType(value)}
                         className="h-4 w-4 rounded border-input-border dark:border-dark-border accent-primary"
                       />
-                      <span className="text-sm capitalize text-text-main dark:text-white">
-                        {type}
+                      <span className="text-sm text-text-main dark:text-white">
+                        {label}
                       </span>
                     </label>
                   ))}
