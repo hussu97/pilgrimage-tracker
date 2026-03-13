@@ -439,11 +439,19 @@ async def translate_single_browser(
         page = session.page
         url = f"https://translate.google.com/?sl={source_lang}&tl={target_lang}&op=translate"
 
-        # Navigate only on first use or if page URL is wrong
+        # Navigate if on wrong domain OR wrong target language.
+        # The tl= check is critical: sessions are reused across language passes,
+        # so a session previously used for Arabic must re-navigate for Malayalam.
         current_url = page.url
-        if not current_url.startswith("https://translate.google.com"):
+        needs_nav = not current_url.startswith("https://translate.google.com") or (
+            f"tl={target_lang}" not in current_url
+        )
+        if needs_nav:
             logger.info(
-                "browser_translation: navigating to translate.google.com (current=%r)", current_url
+                "browser_translation: navigating to translate.google.com "
+                "(current=%r, target_lang=%r)",
+                current_url,
+                target_lang,
             )
             await page.goto(url, wait_until="domcontentloaded", timeout=15000)
             logger.debug("browser_translation: navigation complete")
@@ -662,8 +670,9 @@ async def translate_multi_browser(
             "browser_translation: translate_multi — browser returned None, falling back to individual calls"
         )
     else:
-        # Split on sentinel markers 【N】
-        parts = re.split(r"【(\d+)】", raw)
+        # Split on sentinel markers — match both 【N】 (full-width, as sent) and
+        # [N] (ASCII, which Google Translate sometimes substitutes for them).
+        parts = re.split(r"[【\[](\d+)[】\]]", raw)
         # parts layout: ['', '1', 'text1', '2', 'text2', ...]
         # Collect odd-indexed (number labels) and even-indexed (text segments after label)
         segments: list[str] = []

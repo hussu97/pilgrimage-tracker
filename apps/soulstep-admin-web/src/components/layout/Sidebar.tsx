@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
@@ -22,7 +22,7 @@ import {
   Zap,
 } from "lucide-react";
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { label: string; to: string; icon: React.ElementType; end?: boolean }[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard },
   { label: "Users", to: "/users", icon: Users },
   { label: "Places", to: "/places", icon: MapPin },
@@ -32,7 +32,7 @@ const NAV_ITEMS = [
   { label: "Scraper", to: "/scraper", icon: Database },
   { label: "Coverage Map", to: "/coverage-map", icon: Globe },
   { label: "Quality", to: "/quality", icon: BarChart3 },
-  { label: "UI Translations", to: "/translations", icon: Languages },
+  { label: "UI Translations", to: "/translations", icon: Languages, end: true },
   { label: "Content Translations", to: "/content-translations", icon: Globe },
   { label: "Bulk Translations", to: "/translations/bulk", icon: Zap },
   { label: "SEO", to: "/seo", icon: Search },
@@ -95,11 +95,11 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-          {NAV_ITEMS.map(({ label, to, icon: Icon }) => (
+          {NAV_ITEMS.map(({ label, to, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
-              end={to === "/"}
+              end={end ?? to === "/"}
               onClick={onMobileClose}
               className={({ isActive }) =>
                 cn(
