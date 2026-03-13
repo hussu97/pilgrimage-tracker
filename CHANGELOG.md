@@ -4,6 +4,14 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Scraper config: reduce SCRAPER_MAX_PHOTOS default 4 → 3 (2026-03-13)
+
+### Backend (soulstep-scraper-api)
+
+- **`app/config.py`** — `SCRAPER_MAX_PHOTOS` default changed from `4` to `3`. Saves ~$65 per UAE scrape run; existing comments in `gmaps.py` and tests already referenced 3 as the intended default.
+
+---
+
 ## Google Places API Cost & Observability (2026-03-13)
 
 ### Backend (soulstep-scraper-api)

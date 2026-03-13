@@ -46,7 +46,7 @@ A FastAPI service that discovers sacred places via Google Maps, enriches them fr
     SCRAPER_DISCOVERY_CONCURRENCY=10
     SCRAPER_DETAIL_CONCURRENCY=20
     SCRAPER_ENRICHMENT_CONCURRENCY=10
-    SCRAPER_MAX_PHOTOS=4
+    SCRAPER_MAX_PHOTOS=3
     SCRAPER_IMAGE_CONCURRENCY=40
 
     # Logging
@@ -69,7 +69,7 @@ A FastAPI service that discovers sacred places via Google Maps, enriches them fr
     | `SCRAPER_DISCOVERY_CONCURRENCY` | No | `10` | Max concurrent `searchNearby` calls during quadtree discovery |
     | `SCRAPER_DETAIL_CONCURRENCY` | No | `20` | Max concurrent `getPlace` calls during detail fetch |
     | `SCRAPER_ENRICHMENT_CONCURRENCY` | No | `10` | Max places enriched concurrently |
-    | `SCRAPER_MAX_PHOTOS` | No | `4` | Photos stored per place. Photo media requests are billed at $0.007/1000 — lower values reduce cost and Phase 3 time |
+    | `SCRAPER_MAX_PHOTOS` | No | `3` | Photos stored per place. Photo media requests are billed at $0.007/1000 — lower values reduce cost and Phase 3 time |
     | `SCRAPER_IMAGE_CONCURRENCY` | No | `40` | Max concurrent image downloads in Phase 3 (CDN, no API rate limit) |
     | `LOG_FORMAT` | No | `json` | `json` = structured stdout (Cloud Run); `text` = human-readable + writes `logs/external_queries.log` locally |
     | `LOG_LEVEL` | No | `INFO` | Python log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
@@ -145,7 +145,7 @@ Sync to Catalog API
 
 **Detail fetch** uses a single merged `getPlace` call with all fields (ESSENTIAL + EXTENDED combined). The previous two-stage approach (cheap ESSENTIAL first, expensive EXTENDED conditionally) was cheaper only if <57.5% of places qualified for the extended call. At the typical 70%+ qualification rate for established religious sites, the single merged call is both cheaper (~11%) and faster (~41% fewer API calls).
 
-**Image download** is capped at `SCRAPER_MAX_PHOTOS` (default 4) per place. Set lower to reduce cost/time; set up to 10 if you need a fuller photo gallery.
+**Image download** is capped at `SCRAPER_MAX_PHOTOS` (default 3) per place. Set lower to reduce cost/time; set up to 10 if you need a fuller photo gallery.
 
 ### External Query Logging
 

@@ -128,7 +128,7 @@ All environment variables documented here. Plan-specific sections reference this
 | `SCRAPER_DISCOVERY_CONCURRENCY` | No | `10` | Max concurrent `searchNearby` calls during quadtree discovery |
 | `SCRAPER_DETAIL_CONCURRENCY` | No | `20` | Max concurrent `getPlace` calls during detail fetch |
 | `SCRAPER_ENRICHMENT_CONCURRENCY` | No | `10` | Max places enriched concurrently |
-| `SCRAPER_MAX_PHOTOS` | No | `4` | Photos stored per place. Photo media requests are billed at $0.007/1000 — lower values reduce cost and Phase 3 download time |
+| `SCRAPER_MAX_PHOTOS` | No | `3` | Photos stored per place. Photo media requests are billed at $0.007/1000 — lower values reduce cost and Phase 3 download time |
 | `SCRAPER_IMAGE_CONCURRENCY` | No | `40` | Max concurrent image downloads in Phase 3 (CDN, no API rate limit) |
 | `LOG_FORMAT` | No | `json` | `json` = structured stdout (Cloud Run / Cloud Logging); `text` = human-readable + local `logs/external_queries.log` file |
 | `LOG_LEVEL` | No | `INFO` | Python log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
