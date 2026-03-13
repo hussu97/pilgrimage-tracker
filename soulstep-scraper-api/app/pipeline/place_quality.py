@@ -175,14 +175,14 @@ def score_place_quality(raw_data: dict) -> float:
         score += 0.075
 
     # ── 3. Photo count (0.15) — 3-tier (scraper fetches max 3 images) ───────────
-    # 3+: best (1.0) | 2: medium (0.67) | 1: low (0.33) | 0: none (0.0)
+    # 3+: best (1.0) | 2: medium (0.40) | 1: low (0.10) | 0: none (0.0)
     photo_count = len(raw_data.get("image_urls") or []) + len(raw_data.get("image_blobs") or [])
     if photo_count >= 3:
         score += 0.15
     elif photo_count >= 2:
-        score += 0.10  # 0.67 * 0.15
+        score += 0.06  # 0.40 * 0.15
     elif photo_count >= 1:
-        score += 0.05  # 0.33 * 0.15
+        score += 0.015  # 0.10 * 0.15
 
     # ── 4. Editorial summary (0.05, bonus only) ───────────────────────────────
     if raw_data.get("has_editorial"):
@@ -259,14 +259,14 @@ def score_place_quality_breakdown(raw_data: dict) -> dict:
     )
 
     # ── 3. Photo count (0.15) — 3-tier (scraper fetches max 3 images) ───────────
-    # 3+: best (1.0) | 2: medium (0.67) | 1: low (0.33) | 0: none (0.0)
+    # 3+: best (1.0) | 2: medium (0.40) | 1: low (0.10) | 0: none (0.0)
     photo_count = len(raw_data.get("image_urls") or []) + len(raw_data.get("image_blobs") or [])
     if photo_count >= 3:
         raw_3 = 1.0
     elif photo_count >= 2:
-        raw_3 = 0.67
+        raw_3 = 0.40
     elif photo_count >= 1:
-        raw_3 = 0.33
+        raw_3 = 0.10
     else:
         raw_3 = 0.0
     weight_3 = 0.15
