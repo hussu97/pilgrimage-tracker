@@ -4,19 +4,22 @@
 Two modes:
     1. Generate English SEO (slug, title, meta_description, rich_description, FAQs)
        for all places that are missing it.
-    2. Translate existing English SEO content to Arabic (ar) and Hindi (hi)
-       using the Google Cloud Translation API v3.
+    2. Translate existing English SEO content to Arabic (ar), Hindi (hi), Telugu (te),
+       and Malayalam (ml) using the configured translation backend.
        Translations are stored in ContentTranslation(entity_type="place_seo").
+
+Translation backend is controlled by the TRANSLATION_BACKEND env var (default: api).
+See translation_service.py for details.
 
 Usage:
     # Generate English SEO for all places missing it:
     python -m scripts.generate_seo --generate
 
-    # Generate + translate to Arabic and Hindi:
-    python -m scripts.generate_seo --generate --translate --langs ar hi
+    # Generate + translate to all 4 non-English languages:
+    python -m scripts.generate_seo --generate --translate --langs ar hi te ml
 
     # Translate only (English SEO already generated):
-    python -m scripts.generate_seo --translate --langs ar hi
+    python -m scripts.generate_seo --translate --langs ar hi te ml
 
     # Dry run (no writes):
     python -m scripts.generate_seo --generate --translate --dry-run
@@ -28,12 +31,14 @@ Usage:
     python -m scripts.generate_seo --generate --limit 100
 
     # Estimate cost before translating:
-    python -m scripts.generate_seo --translate --langs ar hi --estimate
+    python -m scripts.generate_seo --translate --langs ar hi te ml --estimate
 
-Environment variables required for translation:
-    GOOGLE_CLOUD_PROJECT  — GCP project ID
-    GOOGLE_APPLICATION_CREDENTIALS — path to service account key (non-GCP hosts)
-    DATABASE_URL — PostgreSQL connection string (defaults to SQLite in dev)
+Environment variables:
+    TRANSLATION_BACKEND   — api (default) | browser
+    TRANSLATION_FALLBACK  — true | false (default); fall back to API when browser fails
+    GOOGLE_CLOUD_PROJECT  — required only for TRANSLATION_BACKEND=api
+    GOOGLE_APPLICATION_CREDENTIALS — path to service account key (non-GCP hosts, api backend)
+    DATABASE_URL          — PostgreSQL connection string (defaults to SQLite in dev)
 """
 
 from __future__ import annotations
@@ -105,34 +110,13 @@ _RELIGION_TERMINOLOGY: dict[str, dict[str, str]] = {
 }
 
 
-# ── Google Cloud Translation helpers ─────────────────────────────────────────
+# ── Translation helpers ───────────────────────────────────────────────────────
 
 
 class _MultiFieldEntry(NamedTuple):
     seo: PlaceSEO
     field: str
     text: str
-
-
-def _translate_texts(
-    texts: list[str],
-    target_lang: str,
-    project_id: str,
-    client: object,
-) -> list[str]:
-    """Translate a batch of texts using Google Cloud Translation API v3."""
-    parent = f"projects/{project_id}/locations/global"
-
-    response = client.translate_text(
-        request={
-            "parent": parent,
-            "contents": texts,
-            "mime_type": "text/plain",
-            "source_language_code": "en",
-            "target_language_code": target_lang,
-        }
-    )
-    return [t.translated_text for t in response.translations]
 
 
 def _upsert_translation(
@@ -166,9 +150,10 @@ def _upsert_translation(
         return False
 
     now = datetime.now(UTC)
+    source = f"translation_service:{os.environ.get('TRANSLATION_BACKEND', 'api')}"
     if existing:
         existing.translated_text = translated_text
-        existing.source = "google_translate"
+        existing.source = source
         existing.updated_at = now
         session.add(existing)
     else:
@@ -179,7 +164,7 @@ def _upsert_translation(
                 field=field,
                 lang=lang,
                 translated_text=translated_text,
-                source="google_translate",
+                source=source,
                 created_at=now,
                 updated_at=now,
             )
@@ -252,14 +237,19 @@ def run_generate(
 def run_translate(
     session: Session,
     langs: list[str],
-    project_id: str,
     force: bool = False,
     limit: int | None = None,
     dry_run: bool = False,
     batch_size: int = 100,
     estimate: bool = False,
 ) -> dict[str, int]:
-    """Translate PlaceSEO content into the specified languages."""
+    """Translate PlaceSEO content into the specified languages.
+
+    Uses translation_service.translate_batch() so the TRANSLATION_BACKEND env var
+    controls which backend is used (api or browser).
+    """
+    from app.services.translation_service import translate_batch
+
     seo_rows = session.exec(select(PlaceSEO)).all()
     if limit is not None:
         seo_rows = seo_rows[:limit]
@@ -271,20 +261,8 @@ def run_translate(
     total_skipped = 0
     total_errors = 0
 
-    # estimate mode: accumulate char counts without calling the API
+    # estimate mode: accumulate char counts without calling any translation backend
     estimate_chars: dict[str, int] = {}
-
-    # Build the gRPC client once (skip when estimating — no credentials needed)
-    client = None
-    if not dry_run and not estimate:
-        try:
-            from google.cloud import translate_v3 as translate
-        except ImportError:
-            logger.error(
-                "google-cloud-translate is not installed. Run: pip install google-cloud-translate"
-            )
-            raise
-        client = translate.TranslationServiceClient()
 
     for lang in langs:
         logger.info("Translating %d SEO records to '%s'...", len(translatable), lang)
@@ -303,7 +281,7 @@ def run_translate(
         for batch_start in range(0, len(translatable), batch_size):
             batch = translatable[batch_start : batch_start + batch_size]
 
-            # Flatten all fields into a single entries list for one API call per batch
+            # Flatten all fields into a single entries list for one backend call per batch
             entries: list[_MultiFieldEntry] = []
             for seo in batch:
                 for field in _SEO_TRANSLATE_FIELDS:
@@ -336,9 +314,18 @@ def run_translate(
                 continue
 
             try:
-                translated = _translate_texts(texts, lang, project_id, client)
+                translated = translate_batch(texts, target_lang=lang)
 
                 for entry, translated_text in zip(entries, translated, strict=False):
+                    if translated_text is None:
+                        logger.warning(
+                            "Translation returned None for place_seo/%s/%s → %s",
+                            entry.seo.place_code,
+                            entry.field,
+                            lang,
+                        )
+                        total_errors += 1
+                        continue
                     written = _upsert_translation(
                         session,
                         entity_code=entry.seo.place_code,
@@ -354,7 +341,7 @@ def run_translate(
 
             except Exception as exc:
                 logger.error(
-                    "Translation API error (lang=%s, batch_start=%d): %s",
+                    "Translation error (lang=%s, batch_start=%d): %s",
                     lang,
                     batch_start,
                     exc,
@@ -448,13 +435,15 @@ def main() -> None:
 
     run_migrations()
 
-    project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
-    if args.translate and not project_id and not args.estimate and not args.dry_run:
-        logger.error(
-            "GOOGLE_CLOUD_PROJECT env var is required for translation. "
-            "Set it to your GCP project ID."
-        )
-        sys.exit(1)
+    backend = os.environ.get("TRANSLATION_BACKEND", "api")
+    if args.translate and not args.estimate and not args.dry_run:
+        if backend == "api" and not os.environ.get("GOOGLE_CLOUD_PROJECT"):
+            logger.error(
+                "TRANSLATION_BACKEND=api requires GOOGLE_CLOUD_PROJECT to be set. "
+                "Set it to your GCP project ID, or switch to TRANSLATION_BACKEND=browser."
+            )
+            sys.exit(1)
+        logger.info("Translation backend: %s", backend)
 
     with Session(engine) as session:
         if args.generate:
@@ -477,7 +466,6 @@ def main() -> None:
             stats = run_translate(
                 session=session,
                 langs=args.langs,
-                project_id=project_id,
                 force=args.force,
                 limit=args.limit,
                 dry_run=args.dry_run,
