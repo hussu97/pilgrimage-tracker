@@ -131,7 +131,7 @@ export function SEOPlaceDetailPage() {
 
   const tabLang = languages.find((l) => l.code === activeTab);
   const isEnglish = activeTab === "en";
-  const langTranslations = seo.translations[activeTab] ?? {};
+  const langTranslations = seo.translations?.[activeTab] ?? {};
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -200,7 +200,7 @@ export function SEOPlaceDetailPage() {
           <nav className="flex gap-1 overflow-x-auto">
             {languages.map((lang) => {
               const hasTranslations =
-                lang.code === "en" || Object.keys(seo.translations[lang.code] ?? {}).length > 0;
+                lang.code === "en" || Object.keys(seo.translations?.[lang.code] ?? {}).length > 0;
               return (
                 <button
                   key={lang.code}
