@@ -9,6 +9,7 @@ import {
   Switch,
   Modal,
   Pressable,
+  TextInput,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -18,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import ProfileSkeleton from '@/components/common/skeletons/ProfileSkeleton';
 import AdBannerNative from '@/components/ads/AdBannerNative';
-import { getMyStats, updateSettings } from '@/lib/api/client';
+import { getMyStats, updateSettings, updateMe } from '@/lib/api/client';
 import type { UserStats, Religion } from '@/lib/types';
 import { tokens } from '@/lib/theme';
 
@@ -340,6 +341,28 @@ function makeStyles(isDark: boolean) {
       fontSize: 15,
       fontWeight: '600',
     },
+    // Name editing
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 8,
+    },
+    nameInput: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: textPrimary,
+      letterSpacing: -0.5,
+      borderBottomWidth: 2,
+      borderBottomColor: tokens.colors.primary,
+      paddingVertical: 2,
+      paddingHorizontal: 0,
+      minWidth: 120,
+      flex: 1,
+    },
+    editNameBtn: {
+      padding: 4,
+    },
     // Units toggle pills
     unitsPills: {
       flexDirection: 'row',
@@ -384,6 +407,10 @@ export default function ProfileScreen() {
   const [langSheetOpen, setLangSheetOpen] = useState(false);
   const [pathSheetOpen, setPathSheetOpen] = useState(false);
   const [selectedReligions, setSelectedReligions] = useState<Religion[]>([]);
+  const [nameEditing, setNameEditing] = useState(false);
+  const [nameValue, setNameValue] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
+  const [localName, setLocalName] = useState<string | null>(null);
 
   const styles = useMemo(() => makeStyles(isDark), [isDark]);
 
@@ -409,7 +436,7 @@ export default function ProfileScreen() {
   const mutedColor = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
   const iconBg = isDark ? '#2a2a3e' : tokens.colors.blueTint;
 
-  const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || '';
+  const displayName = localName ?? user?.display_name?.trim() ?? user?.email?.split('@')[0] ?? '';
   const visits = stats?.visits ?? stats?.placesVisited ?? 0;
   const reviews = stats?.reviews ?? 0;
   const joinedStr = user ? formatJoinedDate(user.created_at) : '';
@@ -419,6 +446,29 @@ export default function ProfileScreen() {
     : religions.length > 0
       ? religions.map((r) => r.charAt(0).toUpperCase() + r.slice(1)).join(', ')
       : t('profile.myPathSubtext');
+
+  const startNameEdit = () => {
+    setNameValue(localName ?? displayName);
+    setNameEditing(true);
+  };
+
+  const saveNameEdit = async () => {
+    const trimmed = nameValue.trim();
+    if (!trimmed || trimmed === (localName ?? displayName)) {
+      setNameEditing(false);
+      return;
+    }
+    setNameSaving(true);
+    try {
+      await updateMe({ display_name: trimmed });
+      setLocalName(trimmed);
+    } catch {
+      /* ignore */
+    } finally {
+      setNameSaving(false);
+      setNameEditing(false);
+    }
+  };
 
   const openPathSheet = () => {
     setSelectedReligions(user?.religions ?? []);
@@ -470,9 +520,37 @@ export default function ProfileScreen() {
           <>
             {/* Profile header: name + join date */}
             <View style={styles.profileHeader}>
-              <Text style={styles.displayName}>{displayName}</Text>
+              {nameEditing ? (
+                <View style={styles.nameRow}>
+                  <TextInput
+                    value={nameValue}
+                    onChangeText={setNameValue}
+                    onSubmitEditing={saveNameEdit}
+                    onBlur={saveNameEdit}
+                    autoFocus
+                    maxLength={80}
+                    style={styles.nameInput}
+                    returnKeyType="done"
+                    editable={!nameSaving}
+                  />
+                  {nameSaving && <ActivityIndicator size="small" color={tokens.colors.primary} />}
+                </View>
+              ) : (
+                <View style={styles.nameRow}>
+                  <Text style={[styles.displayName, { marginBottom: 0, flex: 1 }]}>
+                    {displayName}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={startNameEdit}
+                    style={styles.editNameBtn}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialIcons name="edit" size={20} color={mutedColor} />
+                  </TouchableOpacity>
+                </View>
+              )}
               {joinedStr ? (
-                <View style={styles.joinedRow}>
+                <View style={[styles.joinedRow, { marginTop: 8 }]}>
                   <MaterialIcons name="calendar-today" size={14} color={mutedColor} />
                   <Text style={styles.joinedText}>
                     {t('profile.joined').replace('{date}', joinedStr)}

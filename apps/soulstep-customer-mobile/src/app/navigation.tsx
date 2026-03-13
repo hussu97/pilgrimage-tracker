@@ -13,7 +13,6 @@ import HomeScreen from './screens/HomeScreen';
 import PlaceDetailScreen from './screens/PlaceDetailScreen';
 import WriteReviewScreen from './screens/WriteReviewScreen';
 import ProfileScreen from './screens/ProfileScreen';
-import EditProfileScreen from './screens/EditProfileScreen';
 import CheckInsListScreen from './screens/CheckInsListScreen';
 import FavoritesScreen from './screens/FavoritesScreen';
 import CreateGroupScreen from './screens/CreateGroupScreen';
@@ -48,7 +47,6 @@ export type RootStackParamList = {
     title?: string;
     body?: string;
   };
-  EditProfile: undefined;
   CheckInsList: undefined;
   // Journey screens (customer-facing name; backend model is "Group")
   CreateGroup: undefined; // used for new journey creation flow
@@ -92,7 +90,6 @@ function RootStack() {
       <Stack.Screen name="ResetPassword" component={withScreenBoundary(ResetPasswordScreen)} />
       <Stack.Screen name="PlaceDetail" component={withScreenBoundary(PlaceDetailScreen)} />
       <Stack.Screen name="WriteReview" component={withScreenBoundary(WriteReviewScreen)} />
-      <Stack.Screen name="EditProfile" component={withScreenBoundary(EditProfileScreen)} />
       <Stack.Screen name="CheckInsList" component={withScreenBoundary(CheckInsListScreen)} />
       <Stack.Screen name="CreateGroup" component={withScreenBoundary(CreateGroupScreen)} />
       <Stack.Screen name="GroupDetail" component={withScreenBoundary(GroupDetailScreen)} />

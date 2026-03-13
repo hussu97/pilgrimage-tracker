@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useI18n, useTheme } from '@/app/providers';
 import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
-import { getMyStats, getSettings, updateSettings } from '@/lib/api/client';
+import { getMyStats, getSettings, updateSettings, updateMe } from '@/lib/api/client';
 import { cn } from '@/lib/utils/cn';
 import ErrorState from '@/components/common/ErrorState';
 import ProfileSkeleton from '@/components/common/skeletons/ProfileSkeleton';
@@ -40,6 +40,11 @@ export default function Profile() {
   const [pathOpen, setPathOpen] = useState(false);
   const [selectedReligions, setSelectedReligions] = useState<Religion[]>([]);
   const [, setNotifOn] = useState(true);
+  const [nameEditing, setNameEditing] = useState(false);
+  const [nameValue, setNameValue] = useState('');
+  const [nameSaving, setNameSaving] = useState(false);
+  const [localName, setLocalName] = useState<string | null>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -61,7 +66,7 @@ export default function Profile() {
     else setLoading(false);
   }, [user, fetchData]);
 
-  const displayName = user?.display_name?.trim() || user?.email?.split('@')[0] || '';
+  const displayName = localName ?? user?.display_name?.trim() ?? user?.email?.split('@')[0] ?? '';
   const visits = stats?.visits ?? stats?.placesVisited ?? 0;
   const reviews = stats?.reviews ?? 0;
   const joinedStr = user ? formatJoinedDate(user.created_at) : '';
@@ -112,6 +117,30 @@ export default function Profile() {
     }
   };
 
+  const startNameEdit = () => {
+    setNameValue(localName ?? displayName);
+    setNameEditing(true);
+    setTimeout(() => nameInputRef.current?.focus(), 0);
+  };
+
+  const saveNameEdit = async () => {
+    const trimmed = nameValue.trim();
+    if (!trimmed || trimmed === (localName ?? displayName)) {
+      setNameEditing(false);
+      return;
+    }
+    setNameSaving(true);
+    try {
+      await updateMe({ display_name: trimmed });
+      setLocalName(trimmed);
+    } catch {
+      /* ignore */
+    } finally {
+      setNameSaving(false);
+      setNameEditing(false);
+    }
+  };
+
   const handleThemeToggle = (on: boolean) => {
     const t2 = on ? 'dark' : 'light';
     setTheme(t2);
@@ -150,9 +179,42 @@ export default function Profile() {
               </div>
             </div>
             <div className="text-center">
-              <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-                {displayName}
-              </h2>
+              {nameEditing ? (
+                <div className="flex items-center gap-2 justify-center">
+                  <input
+                    ref={nameInputRef}
+                    value={nameValue}
+                    onChange={(e) => setNameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveNameEdit();
+                      if (e.key === 'Escape') setNameEditing(false);
+                    }}
+                    onBlur={saveNameEdit}
+                    disabled={nameSaving}
+                    className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight bg-transparent border-b-2 border-primary outline-none text-center w-48"
+                    maxLength={80}
+                  />
+                  {nameSaving && (
+                    <span className="material-symbols-outlined text-xl text-primary animate-spin">
+                      progress_activity
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 justify-center">
+                  <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
+                    {displayName}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={startNameEdit}
+                    className="text-slate-400 dark:text-dark-text-secondary hover:text-primary dark:hover:text-primary transition-colors"
+                    aria-label="Edit name"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">edit</span>
+                  </button>
+                </div>
+              )}
               {joinedStr && (
                 <p className="inline-flex items-center gap-1.5 mt-2.5 text-slate-400 dark:text-dark-text-secondary text-xs font-semibold uppercase tracking-wider">
                   <span className="material-symbols-outlined text-[16px]">calendar_today</span>
@@ -395,21 +457,6 @@ export default function Profile() {
                 </span>
               </Link>
             </div>
-          </section>
-        )}
-
-        {/* Edit profile button — only for authenticated users */}
-        {user && (
-          <section className="px-2 mb-6">
-            <Link
-              to="/profile/edit"
-              className="w-full bg-slate-900 dark:bg-white/10 hover:bg-slate-800 dark:hover:bg-white/20 text-white font-bold py-4 px-4 rounded-2xl transition-all shadow-xl shadow-slate-200 dark:shadow-none flex items-center justify-center gap-2 group"
-            >
-              <span className="material-symbols-outlined text-xl group-hover:scale-110 transition-transform">
-                edit
-              </span>
-              {t('profile.editProfile')}
-            </Link>
           </section>
         )}
 

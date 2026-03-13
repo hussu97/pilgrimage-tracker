@@ -41,7 +41,6 @@ const Home = lazyWithReload(() => import('@/app/pages/Home'));
 const PlaceDetail = lazyWithReload(() => import('@/app/pages/PlaceDetail'));
 const WriteReview = lazyWithReload(() => import('@/app/pages/WriteReview'));
 const Profile = lazyWithReload(() => import('@/app/pages/Profile'));
-const EditProfile = lazyWithReload(() => import('@/app/pages/EditProfile'));
 const CheckInsList = lazyWithReload(() => import('@/app/pages/CheckInsList'));
 const Favorites = lazyWithReload(() => import('@/app/pages/Favorites'));
 const Groups = lazyWithReload(() => import('@/app/pages/Groups'));
@@ -144,16 +143,6 @@ export function AppRoutes() {
             element={
               <Layout>
                 <Profile />
-              </Layout>
-            }
-          />
-          <Route
-            path="/profile/edit"
-            element={
-              <Layout>
-                <ProtectedRoute>
-                  <EditProfile />
-                </ProtectedRoute>
               </Layout>
             }
           />
