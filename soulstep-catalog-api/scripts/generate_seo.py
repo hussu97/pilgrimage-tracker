@@ -27,6 +27,9 @@ Usage:
     # Limit to N places:
     python -m scripts.generate_seo --generate --limit 100
 
+    # Estimate cost before translating:
+    python -m scripts.generate_seo --translate --langs ar hi --estimate
+
 Environment variables required for translation:
     GOOGLE_CLOUD_PROJECT  — GCP project ID
     GOOGLE_APPLICATION_CREDENTIALS — path to service account key (non-GCP hosts)
@@ -41,6 +44,7 @@ import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import NamedTuple
 
 # Ensure the project root is importable
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -59,6 +63,9 @@ from app.services import seo_generator  # noqa: E402
 
 setup_logging()
 logger = logging.getLogger("generate_seo")
+
+_PRICE_PER_MILLION_CHARS = 20.0
+
 
 # ── Translation fields exported to ContentTranslation ────────────────────────
 
@@ -101,21 +108,19 @@ _RELIGION_TERMINOLOGY: dict[str, dict[str, str]] = {
 # ── Google Cloud Translation helpers ─────────────────────────────────────────
 
 
+class _MultiFieldEntry(NamedTuple):
+    seo: PlaceSEO
+    field: str
+    text: str
+
+
 def _translate_texts(
     texts: list[str],
     target_lang: str,
     project_id: str,
+    client: object,
 ) -> list[str]:
     """Translate a batch of texts using Google Cloud Translation API v3."""
-    try:
-        from google.cloud import translate_v3 as translate
-    except ImportError:
-        logger.error(
-            "google-cloud-translate is not installed. Run: pip install google-cloud-translate"
-        )
-        raise
-
-    client = translate.TranslationServiceClient()
     parent = f"projects/{project_id}/locations/global"
 
     response = client.translate_text(
@@ -251,13 +256,14 @@ def run_translate(
     force: bool = False,
     limit: int | None = None,
     dry_run: bool = False,
+    batch_size: int = 100,
+    estimate: bool = False,
 ) -> dict[str, int]:
     """Translate PlaceSEO content into the specified languages."""
     seo_rows = session.exec(select(PlaceSEO)).all()
     if limit is not None:
         seo_rows = seo_rows[:limit]
 
-    # Build reverse lookup: place_code → SEO row
     # Skip rows that are all-empty on translatable fields
     translatable = [s for s in seo_rows if any(getattr(s, f, None) for f in _SEO_TRANSLATE_FIELDS)]
 
@@ -265,81 +271,118 @@ def run_translate(
     total_skipped = 0
     total_errors = 0
 
+    # estimate mode: accumulate char counts without calling the API
+    estimate_chars: dict[str, int] = {}
+
+    # Build the gRPC client once (skip when estimating — no credentials needed)
+    client = None
+    if not dry_run and not estimate:
+        try:
+            from google.cloud import translate_v3 as translate
+        except ImportError:
+            logger.error(
+                "google-cloud-translate is not installed. Run: pip install google-cloud-translate"
+            )
+            raise
+        client = translate.TranslationServiceClient()
+
     for lang in langs:
         logger.info("Translating %d SEO records to '%s'...", len(translatable), lang)
 
-        # Process in batches of 50 to stay within API request size limits
-        batch_size = 50
+        # Bulk-load existing translations for this language in one query
+        existing_rows = session.exec(
+            select(ContentTranslation.entity_code, ContentTranslation.field).where(
+                ContentTranslation.entity_type == "place_seo",
+                ContentTranslation.lang == lang,
+            )
+        ).all()
+        already_translated: frozenset[tuple[str, str]] = frozenset(existing_rows)
+
+        lang_chars = 0
+
         for batch_start in range(0, len(translatable), batch_size):
             batch = translatable[batch_start : batch_start + batch_size]
 
-            for field in _SEO_TRANSLATE_FIELDS:
-                # Collect texts and corresponding SEO rows that have this field
-                texts: list[str] = []
-                seo_batch: list[PlaceSEO] = []
-                for seo in batch:
+            # Flatten all fields into a single entries list for one API call per batch
+            entries: list[_MultiFieldEntry] = []
+            for seo in batch:
+                for field in _SEO_TRANSLATE_FIELDS:
                     value = getattr(seo, field, None)
                     if not value:
                         continue
-
-                    # Skip if translation already exists and not forcing
-                    if not force:
-                        existing = session.exec(
-                            select(ContentTranslation).where(
-                                ContentTranslation.entity_type == "place_seo",
-                                ContentTranslation.entity_code == seo.place_code,
-                                ContentTranslation.field == field,
-                                ContentTranslation.lang == lang,
-                            )
-                        ).first()
-                        if existing:
-                            total_skipped += 1
-                            continue
-
-                    texts.append(value)
-                    seo_batch.append(seo)
-
-                if not texts:
-                    continue
-
-                try:
-                    if dry_run:
-                        for seo in seo_batch:
-                            logger.info(
-                                "[dry-run] would translate place_seo/%s/%s → %s",
-                                seo.place_code,
-                                field,
-                                lang,
-                            )
-                            total_written += 1
+                    if not force and (seo.place_code, field) in already_translated:
+                        total_skipped += 1
                         continue
+                    entries.append(_MultiFieldEntry(seo=seo, field=field, text=value))
 
-                    translated = _translate_texts(texts, lang, project_id)
+            if not entries:
+                continue
 
-                    for seo, translated_text in zip(seo_batch, translated, strict=False):
-                        written = _upsert_translation(
-                            session,
-                            entity_code=seo.place_code,
-                            field=field,
-                            lang=lang,
-                            translated_text=translated_text,
-                            dry_run=False,
-                        )
-                        if written:
-                            total_written += 1
+            texts = [e.text for e in entries]
 
-                    if not dry_run:
-                        session.commit()
+            if estimate:
+                lang_chars += sum(len(t) for t in texts)
+                continue
 
-                except Exception as exc:
-                    logger.error(
-                        "Translation API error (lang=%s, field=%s, batch_start=%d): %s",
+            if dry_run:
+                for entry in entries:
+                    logger.info(
+                        "[dry-run] would translate place_seo/%s/%s → %s",
+                        entry.seo.place_code,
+                        entry.field,
                         lang,
-                        field,
-                        batch_start,
-                        exc,
                     )
-                    total_errors += len(texts)
+                    total_written += 1
+                continue
+
+            try:
+                translated = _translate_texts(texts, lang, project_id, client)
+
+                for entry, translated_text in zip(entries, translated, strict=False):
+                    written = _upsert_translation(
+                        session,
+                        entity_code=entry.seo.place_code,
+                        field=entry.field,
+                        lang=lang,
+                        translated_text=translated_text,
+                        dry_run=False,
+                    )
+                    if written:
+                        total_written += 1
+
+                session.commit()
+
+            except Exception as exc:
+                logger.error(
+                    "Translation API error (lang=%s, batch_start=%d): %s",
+                    lang,
+                    batch_start,
+                    exc,
+                )
+                total_errors += len(texts)
+
+        if estimate:
+            estimate_chars[lang] = lang_chars
+
+    if estimate:
+        total_chars = sum(estimate_chars.values())
+        estimated_cost = total_chars / 1_000_000 * _PRICE_PER_MILLION_CHARS
+        logger.info("=== ESTIMATE SUMMARY ===")
+        for lang, chars in estimate_chars.items():
+            lang_cost = chars / 1_000_000 * _PRICE_PER_MILLION_CHARS
+            logger.info(
+                "  %s: %d items, %d chars (~$%.4f)",
+                lang,
+                len(translatable),
+                chars,
+                lang_cost,
+            )
+        logger.info("  Total chars:  %d", total_chars)
+        logger.info(
+            "  Estimated cost: $%.4f  (at $%.2f/M chars)",
+            estimated_cost,
+            _PRICE_PER_MILLION_CHARS,
+        )
 
     return {"written": total_written, "skipped": total_skipped, "errors": total_errors}
 
@@ -385,6 +428,18 @@ def main() -> None:
         action="store_true",
         help="Log what would be written without making any DB changes.",
     )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=100,
+        metavar="N",
+        help="Records per API call (default: 100; max: 1024).",
+    )
+    parser.add_argument(
+        "--estimate",
+        action="store_true",
+        help="Preview character count and cost without making API calls.",
+    )
 
     args = parser.parse_args()
 
@@ -394,7 +449,7 @@ def main() -> None:
     run_migrations()
 
     project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
-    if args.translate and not project_id:
+    if args.translate and not project_id and not args.estimate and not args.dry_run:
         logger.error(
             "GOOGLE_CLOUD_PROJECT env var is required for translation. "
             "Set it to your GCP project ID."
@@ -426,6 +481,8 @@ def main() -> None:
                 force=args.force,
                 limit=args.limit,
                 dry_run=args.dry_run,
+                batch_size=args.batch_size,
+                estimate=args.estimate,
             )
             logger.info(
                 "Translation complete: written=%d skipped=%d errors=%d",
