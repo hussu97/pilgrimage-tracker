@@ -37,10 +37,6 @@ import { apiClient } from "@/lib/api/client";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function ok<T>(data: T) {
-  return Promise.resolve({ data });
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -357,8 +353,8 @@ describe("listAppVersions", () => {
 describe("updateAppVersion", () => {
   it("PUTs /admin/app-versions/:platform", async () => {
     mockPut.mockResolvedValue({ data: { platform: "ios" } });
-    await admin.updateAppVersion("ios", { min_version: "2.0" });
-    expect(mockPut).toHaveBeenCalledWith("/admin/app-versions/ios", { min_version: "2.0" });
+    await admin.updateAppVersion("ios", { min_version_hard: "2.0" });
+    expect(mockPut).toHaveBeenCalledWith("/admin/app-versions/ios", { min_version_hard: "2.0" });
   });
 });
 
@@ -377,7 +373,7 @@ describe("listContentTranslations", () => {
 describe("createContentTranslation", () => {
   it("POSTs to /admin/content-translations", async () => {
     mockPost.mockResolvedValue({ data: { id: 1 } });
-    const body = { entity_type: "place", entity_code: "plc_1", lang: "ar", field: "name", value: "مسجد" };
+    const body = { entity_type: "place", entity_code: "plc_1", lang: "ar", field: "name", translated_text: "مسجد" };
     await admin.createContentTranslation(body);
     expect(mockPost).toHaveBeenCalledWith("/admin/content-translations", body);
   });
@@ -386,8 +382,8 @@ describe("createContentTranslation", () => {
 describe("updateContentTranslation", () => {
   it("PUTs /admin/content-translations/:id", async () => {
     mockPut.mockResolvedValue({ data: { id: 5 } });
-    await admin.updateContentTranslation(5, { value: "updated" });
-    expect(mockPut).toHaveBeenCalledWith("/admin/content-translations/5", { value: "updated" });
+    await admin.updateContentTranslation(5, { translated_text: "updated" });
+    expect(mockPut).toHaveBeenCalledWith("/admin/content-translations/5", { translated_text: "updated" });
   });
 });
 
@@ -571,8 +567,8 @@ describe("getSEODetail", () => {
 describe("patchSEO", () => {
   it("PATCHes /admin/seo/places/:code", async () => {
     mockPatch.mockResolvedValue({ data: { place_code: "plc_1" } });
-    await admin.patchSEO("plc_1", { meta_title: "Title" });
-    expect(mockPatch).toHaveBeenCalledWith("/admin/seo/places/plc_1", { meta_title: "Title" });
+    await admin.patchSEO("plc_1", { seo_title: "Title" });
+    expect(mockPatch).toHaveBeenCalledWith("/admin/seo/places/plc_1", { seo_title: "Title" });
   });
 });
 
