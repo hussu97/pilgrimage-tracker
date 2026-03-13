@@ -381,6 +381,10 @@ class BrowserSessionPool:
                     await self._browser.close()
                 except Exception:
                     pass
+            # Brief drain so the Node.js Playwright driver finishes flushing
+            # its outgoing message queue before we close the pipe — prevents
+            # an EPIPE error on the Node.js side during shutdown.
+            await asyncio.sleep(0.2)
             if self._playwright:
                 try:
                     await self._playwright.stop()
