@@ -192,6 +192,18 @@ class TestAdminSEOStats:
         assert "coverage_pct" in data
         assert data["total_places"] >= 1
 
+    def test_stats_translation_cost_fields(self, client, db_session):
+        headers = _admin_headers(client, db_session)
+        resp = client.get("/api/v1/admin/seo/stats", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "translation_chars" in data
+        assert "translation_cost_usd" in data
+        assert isinstance(data["translation_chars"], int)
+        assert isinstance(data["translation_cost_usd"], float)
+        assert data["translation_chars"] >= 0
+        assert data["translation_cost_usd"] >= 0.0
+
 
 class TestAdminSEOList:
     def test_list_ok(self, client, db_session):
