@@ -239,7 +239,7 @@ def _build_opening_hours_table(opening_hours: dict | None) -> str:
     if not opening_hours or not isinstance(opening_hours, dict):
         return ""
     rows = "\n".join(
-        f"    <tr><td>{_html.escape(day)}</td>" f"<td><time>{_html.escape(hours)}</time></td></tr>"
+        f"    <tr><td>{_html.escape(day)}</td><td><time>{_html.escape(hours)}</time></td></tr>"
         for day, hours in opening_hours.items()
     )
     return f"""

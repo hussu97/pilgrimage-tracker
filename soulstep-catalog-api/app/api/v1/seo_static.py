@@ -264,8 +264,7 @@ def ai_plugin_json() -> JSONResponse:
             "name_for_human": "SoulStep",
             "name_for_model": "soulstep",
             "description_for_human": (
-                "Discover sacred sites, mosques, temples, churches, "
-                "and places of worship worldwide"
+                "Discover sacred sites, mosques, temples, churches, and places of worship worldwide"
             ),
             "description_for_model": (
                 "Search and retrieve information about sacred sites and places "
