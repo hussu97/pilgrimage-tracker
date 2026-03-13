@@ -26,6 +26,10 @@ describe("statusVariant", () => {
     expect(statusVariant("pending")).toBe("neutral");
   });
 
+  it("returns warning for interrupted", () => {
+    expect(statusVariant("interrupted")).toBe("warning");
+  });
+
   it("returns neutral for empty string", () => {
     expect(statusVariant("")).toBe("neutral");
   });

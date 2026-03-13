@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatGateLabel, formatScore, gateColor } from "@/lib/utils/qualityMetrics";
+import { formatGateLabel, formatScore, gateColor, scoreBarColor, scoreTextColor } from "@/lib/utils/qualityMetrics";
 
 describe("formatScore", () => {
   it("returns '—' for null", () => {
@@ -46,6 +46,40 @@ describe("gateColor", () => {
 
   it("returns gray for unknown gate", () => {
     expect(gateColor("unknown_gate")).toBe("#6b7280");
+  });
+});
+
+describe("scoreBarColor", () => {
+  it("returns green for scores at or above threshold (0.75)", () => {
+    expect(scoreBarColor(0.75)).toBe("bg-green-500");
+    expect(scoreBarColor(1.0)).toBe("bg-green-500");
+  });
+
+  it("returns yellow for scores between 0.5 and threshold", () => {
+    expect(scoreBarColor(0.5)).toBe("bg-yellow-400");
+    expect(scoreBarColor(0.74)).toBe("bg-yellow-400");
+  });
+
+  it("returns red for scores below 0.5", () => {
+    expect(scoreBarColor(0)).toBe("bg-red-400");
+    expect(scoreBarColor(0.49)).toBe("bg-red-400");
+  });
+});
+
+describe("scoreTextColor", () => {
+  it("returns green text for scores at or above threshold", () => {
+    expect(scoreTextColor(0.75)).toBe("text-green-600 dark:text-green-400");
+    expect(scoreTextColor(1.0)).toBe("text-green-600 dark:text-green-400");
+  });
+
+  it("returns yellow text for scores between 0.5 and threshold", () => {
+    expect(scoreTextColor(0.5)).toBe("text-yellow-600 dark:text-yellow-400");
+    expect(scoreTextColor(0.74)).toBe("text-yellow-600 dark:text-yellow-400");
+  });
+
+  it("returns red text for scores below 0.5", () => {
+    expect(scoreTextColor(0)).toBe("text-red-500 dark:text-red-400");
+    expect(scoreTextColor(0.49)).toBe("text-red-500 dark:text-red-400");
   });
 });
 

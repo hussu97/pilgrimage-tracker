@@ -107,6 +107,23 @@ def _clear_autocomplete_cache():
     _search_mod._autocomplete_cache.clear()
 
 
+@pytest.fixture(autouse=True)
+def _clear_i18n_overrides_cache():
+    """Clear the in-process DB-overrides TTL cache before each test.
+
+    _db_overrides_cache in app.api.v1.i18n is a module-level dict with a 1-hour
+    TTL.  Without this fixture a test that seeds a DB override populates the
+    cache, then _reset_db removes the DB row, but the cached value remains and
+    leaks into the next test (e.g. test_unknown_lang_falls_back_to_english sees
+    a stale 'override.merge.test' key in the English response).
+    """
+    import app.api.v1.i18n as _i18n_mod
+
+    _i18n_mod._db_overrides_cache.clear()
+    yield
+    _i18n_mod._db_overrides_cache.clear()
+
+
 @pytest.fixture()
 def db_session(test_engine):
     """Per-test database session."""
