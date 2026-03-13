@@ -195,9 +195,9 @@ class TestQualityMetricsNearThreshold:
     def test_near_threshold_band_counting(self, client, db_session):
         _add_location(db_session)
         _add_run(db_session)
-        # All gates are now 0.80 — band is [0.75, 0.85]
-        _add_place(db_session, place_code="gplc_nt1", quality_score=0.77)
-        _add_place(db_session, place_code="gplc_nt2", quality_score=0.83)
+        # All gates are now 0.75 — band is [0.70, 0.80]
+        _add_place(db_session, place_code="gplc_nt1", quality_score=0.72)
+        _add_place(db_session, place_code="gplc_nt2", quality_score=0.78)
         # Outside the band
         _add_place(db_session, place_code="gplc_nt3", quality_score=0.20)
 
@@ -205,7 +205,7 @@ class TestQualityMetricsNearThreshold:
         assert resp.status_code == 200
         data = resp.json()
         nt = {n["gate"]: n["count"] for n in data["near_threshold_counts"]}
-        # 0.77 and 0.83 are both in [0.75, 0.85] — all three gate bands overlap at 0.80
+        # 0.72 and 0.78 are both in [0.70, 0.80] — all three gate bands overlap at 0.75
         assert nt["below_image_gate"] == 2
         assert nt["below_enrichment_gate"] == 2
         assert nt["below_sync_gate"] == 2

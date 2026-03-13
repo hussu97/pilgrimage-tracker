@@ -18,7 +18,7 @@ import { usePagination } from "@/lib/hooks/usePagination";
 import { getQualityMetrics } from "@/lib/api/scraper";
 import { listRuns } from "@/lib/api/scraper";
 import type { QualityMetrics, ScraperRun } from "@/lib/api/types";
-import { formatGateLabel, formatScore, gateColor } from "@/lib/utils/qualityMetrics";
+import { GATE_THRESHOLD, formatGateLabel, formatScore, gateColor } from "@/lib/utils/qualityMetrics";
 import { formatDate } from "@/lib/utils";
 
 const TOOLTIP_STYLE = {
@@ -156,9 +156,7 @@ export function QualityMetricsPage() {
                   <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} />
                   <Tooltip contentStyle={TOOLTIP_STYLE} />
                   <Bar dataKey="count" fill="#6366f1" radius={[3, 3, 0, 0]} />
-                  <ReferenceLine x="0.6-0.7" stroke="#ef4444" strokeDasharray="4 2" label={{ value: "0.60 img", fill: "#ef4444", fontSize: 10 }} />
-                  <ReferenceLine x="0.7-0.8" stroke="#f59e0b" strokeDasharray="4 2" label={{ value: "0.70 enrich", fill: "#f59e0b", fontSize: 10 }} />
-                  <ReferenceLine x="0.8-0.9" stroke="#f97316" strokeDasharray="4 2" label={{ value: "0.80 sync", fill: "#f97316", fontSize: 10 }} />
+                  <ReferenceLine x="0.7-0.8" stroke="#6366f1" strokeDasharray="4 2" label={{ value: `${GATE_THRESHOLD} gate`, fill: "#6366f1", fontSize: 10 }} />
                 </BarChart>
               </ResponsiveContainer>
             </Panel>

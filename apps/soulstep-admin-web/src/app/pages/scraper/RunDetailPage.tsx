@@ -35,6 +35,7 @@ import { SearchInput } from "@/components/shared/SearchInput";
 import { usePolling } from "@/lib/hooks/usePolling";
 import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
+import { scoreBarColor, scoreTextColor } from "@/lib/utils/qualityMetrics";
 import { statusVariant } from "@/lib/utils/scraperStatus";
 import { ArrowLeft, Check, Copy, ExternalLink, Play, RefreshCw, Trash2, UploadCloud, XCircle } from "lucide-react";
 import { CellsMap } from "./CellsMap";
@@ -69,18 +70,6 @@ function CopyButton({ text }: { text: string }) {
 }
 
 // ── Quality Breakdown Panel ──────────────────────────────────────────────────
-
-function factorColor(rawScore: number) {
-  if (rawScore >= 0.8) return "bg-green-500";
-  if (rawScore >= 0.5) return "bg-yellow-400";
-  return "bg-red-400";
-}
-
-function factorTextColor(rawScore: number) {
-  if (rawScore >= 0.8) return "text-green-600 dark:text-green-400";
-  if (rawScore >= 0.5) return "text-yellow-600 dark:text-yellow-400";
-  return "text-red-500 dark:text-red-400";
-}
 
 function QualityBreakdownPanel({
   runCode,
@@ -118,12 +107,7 @@ function QualityBreakdownPanel({
   const gateLabel = breakdown.gate
     ? breakdown.gate.replace(/_/g, " ")
     : "passed all gates";
-  const totalColor =
-    breakdown.total_score >= 0.7
-      ? "text-green-600 dark:text-green-400"
-      : breakdown.total_score >= 0.5
-      ? "text-yellow-600 dark:text-yellow-400"
-      : "text-red-500 dark:text-red-400";
+  const totalColor = scoreTextColor(breakdown.total_score);
 
   return (
     <div className="px-4 py-3 bg-background-light dark:bg-dark-bg space-y-3 border-t border-input-border dark:border-dark-border">
@@ -153,7 +137,7 @@ function QualityBreakdownPanel({
             <div className="space-y-0.5">
               <div className="w-full bg-input-border dark:bg-dark-border rounded-full h-1.5">
                 <div
-                  className={`h-1.5 rounded-full transition-all ${factorColor(f.raw_score)}`}
+                  className={`h-1.5 rounded-full transition-all ${scoreBarColor(f.raw_score)}`}
                   style={{ width: `${Math.round(f.raw_score * 100)}%` }}
                 />
               </div>
@@ -161,7 +145,7 @@ function QualityBreakdownPanel({
                 {f.detail}
               </p>
             </div>
-            <span className={`text-xs font-medium text-right ${factorTextColor(f.raw_score)}`}>
+            <span className={`text-xs font-medium text-right ${scoreTextColor(f.raw_score)}`}>
               {(f.raw_score * 100).toFixed(0)}%
             </span>
             <span className="text-xs text-text-secondary dark:text-dark-text-secondary text-right font-mono">
@@ -1086,11 +1070,7 @@ export function RunDetailPage() {
                 const qs = p._quality_score;
                 const qColor =
                   qs != null
-                    ? qs >= 0.7
-                      ? "text-green-600 dark:text-green-400"
-                      : qs >= 0.5
-                      ? "text-yellow-600 dark:text-yellow-400"
-                      : "text-red-500"
+                    ? scoreTextColor(qs)
                     : "text-text-secondary dark:text-dark-text-secondary";
                 const googlePlaceId = (p.google_place_id as string) || (placeCode.startsWith("gplc_") ? placeCode.slice(5) : null);
                 return (

@@ -22,10 +22,10 @@ from app.pipeline.place_quality import (
 
 
 class TestGateConstants:
-    def test_all_gates_equal_0_8(self):
-        assert GATE_IMAGE_DOWNLOAD == 0.80
-        assert GATE_ENRICHMENT == 0.80
-        assert GATE_SYNC == 0.80
+    def test_all_gates_equal_0_75(self):
+        assert GATE_IMAGE_DOWNLOAD == 0.75
+        assert GATE_ENRICHMENT == 0.75
+        assert GATE_SYNC == 0.75
 
     def test_gates_in_valid_range(self):
         assert 0.0 < GATE_IMAGE_DOWNLOAD < 1.0
@@ -235,13 +235,13 @@ class TestScorePlaceQuality:
 class TestGetQualityGate:
     def test_below_image_gate(self):
         assert get_quality_gate(0.0) == "below_image_gate"
-        assert get_quality_gate(0.79) == "below_image_gate"
+        assert get_quality_gate(0.74) == "below_image_gate"
         assert get_quality_gate(0.65) == "below_image_gate"
 
     def test_passes_all_gates(self):
-        # All three thresholds are 0.80 — score >= 0.80 passes everything
+        # All three thresholds are 0.75 — score >= 0.75 passes everything
         assert get_quality_gate(GATE_SYNC) is None
-        assert get_quality_gate(0.80) is None
+        assert get_quality_gate(0.75) is None
         assert get_quality_gate(1.0) is None
 
 
