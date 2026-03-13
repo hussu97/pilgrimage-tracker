@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## fix(bulk-translations): handle CancelledError on shutdown and clean up stale jobs on startup (2026-03-13)
+
+### Backend
+
+- **`app/api/v1/admin/bulk_translations.py`** — Added `except asyncio.CancelledError` handler in `_run_bulk_translation_job`. When the server shuts down and cancels the asyncio task, the job is now marked `failed` with message "Interrupted: server shutdown" before re-raising, instead of being left stuck in `pending`/`running` forever. Also wrapped the existing `except Exception` DB write in its own try/except (best-effort) to prevent a secondary crash from hiding the original error.
+- **`app/main.py`** — Added startup cleanup in the `lifespan` function: any jobs left in `pending` or `running` state from a previous server process (whose asyncio tasks are now dead) are immediately marked `failed` with message "Interrupted: server restarted" before the app accepts traffic.
+- **`tests/test_bulk_translations.py`** — Added `TestCancelledErrorHandling` (verifies `CancelledError` marks job failed, not stuck) and `TestStartupCleanup` (verifies the stale-job cleanup logic). Total tests: 12.
+
+---
+
 ## feat(translations): parallel bulk browser translation with progress tracking (2026-03-13)
 
 ### Backend

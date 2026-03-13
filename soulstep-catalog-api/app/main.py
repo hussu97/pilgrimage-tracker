@@ -118,6 +118,35 @@ async def lifespan(app: FastAPI):
     # scripts/reset_db.py --with-demo-data for that.
     run_seed_system()
 
+    # Mark any stale bulk-translation jobs left in "pending" or "running" state
+    # by a previous server process (their asyncio tasks are now dead).
+    try:
+        from sqlmodel import Session, select
+
+        from app.db.models import BulkTranslationJob
+        from app.db.session import engine
+
+        with Session(engine) as session:
+            stale = session.exec(
+                select(BulkTranslationJob).where(
+                    BulkTranslationJob.status.in_(["pending", "running"])  # type: ignore[attr-defined]
+                )
+            ).all()
+            if stale:
+                from datetime import UTC, datetime
+
+                for job in stale:
+                    job.status = "failed"
+                    job.error_message = "Interrupted: server restarted"
+                    job.completed_at = datetime.now(UTC)
+                    session.add(job)
+                session.commit()
+                logger.info(
+                    "lifespan: marked %d stale bulk-translation job(s) as failed", len(stale)
+                )
+    except Exception:
+        logger.exception("lifespan: failed to clean up stale bulk-translation jobs")
+
     # Warn early if the browser translation backend is selected but Playwright
     # is not installed — better to surface this at startup than on first use.
     if os.environ.get("TRANSLATION_BACKEND") == "browser":

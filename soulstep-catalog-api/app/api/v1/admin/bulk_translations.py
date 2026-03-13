@@ -338,18 +338,39 @@ async def _run_bulk_translation_job(job_code: str, multi_size: int) -> None:
             failed_total,
         )
 
+    except asyncio.CancelledError:
+        # Server is shutting down — mark the job as interrupted so it doesn't
+        # stay stuck in "pending" or "running" on the next startup.
+        logger.warning("bulk_translation: job %s cancelled (server shutdown)", job_code)
+        try:
+            with Session(engine) as session:
+                job = session.exec(
+                    select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)
+                ).first()
+                if job and job.status in ("pending", "running"):
+                    job.status = "failed"
+                    job.error_message = "Interrupted: server shutdown"
+                    job.completed_at = datetime.now(UTC)
+                    session.add(job)
+                    session.commit()
+        except Exception:
+            pass  # Best-effort — don't block the shutdown
+        raise  # Re-raise so asyncio properly marks the task as cancelled
     except Exception as exc:
         logger.exception("bulk_translation: job %s failed with exception", job_code)
-        with Session(engine) as session:
-            job = session.exec(
-                select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)
-            ).first()
-            if job:
-                job.status = "failed"
-                job.error_message = f"{type(exc).__name__}: {exc}"
-                job.completed_at = datetime.now(UTC)
-                session.add(job)
-                session.commit()
+        try:
+            with Session(engine) as session:
+                job = session.exec(
+                    select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)
+                ).first()
+                if job:
+                    job.status = "failed"
+                    job.error_message = f"{type(exc).__name__}: {exc}"
+                    job.completed_at = datetime.now(UTC)
+                    session.add(job)
+                    session.commit()
+        except Exception:
+            pass  # Best-effort
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────

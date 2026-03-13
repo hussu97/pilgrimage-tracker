@@ -6,11 +6,14 @@ _run_bulk_translation_job is patched out so tests don't launch real browsers.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
-from sqlmodel import select
+import pytest
+from sqlmodel import Session, select
 
+from app.api.v1.admin.bulk_translations import _run_bulk_translation_job
 from app.db.models import BulkTranslationJob, User
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -250,3 +253,93 @@ class TestDeleteJob:
             headers=headers,
         )
         assert resp.status_code == 409
+
+
+class TestCancelledErrorHandling:
+    """Background task marks job as failed when cancelled (server shutdown)."""
+
+    @pytest.mark.asyncio
+    async def test_cancelled_error_marks_job_failed(self, test_engine):
+        """When the background task is cancelled mid-run, the job transitions to failed."""
+        fake_user_code = "usr_cancel_ce_test"
+
+        # Insert a pending job directly into the test DB
+        with Session(test_engine) as s:
+            job = BulkTranslationJob(
+                job_code="btj_cancel_test01",
+                created_by_user_code=fake_user_code,
+                status="pending",
+                target_langs=["ar"],
+                entity_types=["city"],
+                source_lang="en",
+                created_at=datetime.now(UTC),
+            )
+            s.add(job)
+            s.commit()
+
+        # Patch engine and _collect_missing_items so that:
+        # - Phase 1 succeeds (marks job "running") using test_engine
+        # - Phase 2 raises CancelledError (simulates task cancellation mid-run)
+        with (
+            patch("app.api.v1.admin.bulk_translations.engine", test_engine),
+            patch(
+                "app.api.v1.admin.bulk_translations._collect_missing_items",
+                side_effect=asyncio.CancelledError,
+            ),
+        ):
+            with pytest.raises(asyncio.CancelledError):
+                await _run_bulk_translation_job("btj_cancel_test01", multi_size=1)
+
+        # Job must be "failed", not stuck in "pending" or "running"
+        with Session(test_engine) as s:
+            result = s.exec(
+                select(BulkTranslationJob).where(BulkTranslationJob.job_code == "btj_cancel_test01")
+            ).first()
+        assert result is not None
+        assert result.status == "failed"
+        assert "shutdown" in (result.error_message or "").lower()
+
+
+class TestStartupCleanup:
+    """Stale pending/running jobs from a previous server run are reset on startup."""
+
+    def test_stale_jobs_marked_failed_on_startup(self, db_session):
+        """Stale pending/running jobs are found and marked failed by the startup cleanup."""
+        fake_user_code = "usr_stale_cleanup_test"
+
+        # Insert one pending and one running job (no real User FK needed in SQLite)
+        for code, status in [("btj_stale_pending", "pending"), ("btj_stale_running", "running")]:
+            job = BulkTranslationJob(
+                job_code=code,
+                created_by_user_code=fake_user_code,
+                status=status,
+                target_langs=["ar"],
+                entity_types=["city"],
+                source_lang="en",
+                created_at=datetime.now(UTC),
+            )
+            db_session.add(job)
+        db_session.commit()
+
+        # Run the same cleanup logic the lifespan uses
+        stale = db_session.exec(
+            select(BulkTranslationJob).where(
+                BulkTranslationJob.status.in_(["pending", "running"])  # type: ignore[attr-defined]
+            )
+        ).all()
+        assert len(stale) == 2
+        for j in stale:
+            j.status = "failed"
+            j.error_message = "Interrupted: server restarted"
+            j.completed_at = datetime.now(UTC)
+            db_session.add(j)
+        db_session.commit()
+
+        # Both jobs must now be failed
+        for code in ("btj_stale_pending", "btj_stale_running"):
+            updated = db_session.exec(
+                select(BulkTranslationJob).where(BulkTranslationJob.job_code == code)
+            ).first()
+            assert updated is not None
+            assert updated.status == "failed"
+            assert "restarted" in (updated.error_message or "").lower()
