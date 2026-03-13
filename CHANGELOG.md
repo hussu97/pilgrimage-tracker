@@ -4,6 +4,19 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## perf(backend): catalog service audit — latency, DB indexes, readability (2026-03-13)
+
+### Backend
+
+- **`app/api/v1/users.py`** — Fixed N+1 in `_format_check_ins()`: replaced per-row `get_place_by_code()` + `get_images()` calls with single bulk fetches (`get_places_by_codes()` + `get_images_bulk()`). User with 50 check-ins: 100+ queries → 2 queries.
+- **`app/api/v1/groups.py`** — Fixed N+1 in `list_featured_groups()`: replaced `get_members_bulk([single_code])` in a loop with one `get_members_bulk(all_codes)` call. Fixed N+1 in `get_checklist()`: replaced per-member `get_user_by_code()` loops with a single `get_users_bulk()` covering members + note authors.
+- **`app/api/v1/i18n.py`** — Added in-memory TTL cache for UITranslation DB overrides (1h per language). Added `Cache-Control` headers: `max-age=86400` for `/languages`, `max-age=3600` for `/translations`.
+- **`app/api/v1/places.py`** — Deduplicated Haversine calculation in `get_recommended_places()` (distances computed once, stored with candidates, reused in output). Added `?include_related=true` param to place detail (skip nearby/similar fetches when false). Added `Cache-Control: public, max-age=600` to `/places/count`. Moved lazy `from sqlmodel import func` import to module top. Extracted `_normalize_hours()` helper. Added named constants: `NEARBY_RADIUS_KM`, `NEARBY_LIMIT`, `SIMILAR_LIMIT`, `RECOMMENDED_CANDIDATE_LIMIT`. Bulk-fetch images in `get_recommended_places()` via `get_images_bulk()`.
+- **`app/db/models.py`** — Added `Index` import; added `__table_args__` with compound indexes to `CheckIn` model (`ix_checkin_user_date`, `ix_checkin_place_user`, `ix_checkin_group_place`). Added `index=True` to `GroupPlaceNote.user_code`.
+- **`migrations/versions/0021_compound_indexes.py`** (new) — Adds 7 compound indexes: `checkin(user_code, checked_in_at)`, `checkin(place_code, user_code)`, `checkin(group_code, place_code)`, `review(place_code, created_at)`, `favorite(place_code)`, `contenttranslation(entity_code, lang)`, `analytics_event(event_type, created_at)`.
+
+---
+
 ## feat(backend): headless browser translation backend (2026-03-13)
 
 ### Backend

@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, LargeBinary, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Index, LargeBinary, UniqueConstraint
 from sqlalchemy import types as sa_types
 from sqlmodel import JSON, Column, Field, SQLModel
 
@@ -199,6 +199,12 @@ class ReviewImage(SQLModel, table=True):
 
 
 class CheckIn(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_checkin_user_date", "user_code", "checked_in_at"),
+        Index("ix_checkin_place_user", "place_code", "user_code"),
+        Index("ix_checkin_group_place", "group_code", "place_code"),
+    )
+
     id: int | None = Field(default=None, primary_key=True)
     check_in_code: str = Field(index=True, unique=True)
     user_code: str = Field(index=True, foreign_key="user.user_code")
@@ -258,7 +264,7 @@ class GroupPlaceNote(SQLModel, table=True):
     note_code: str = Field(index=True, unique=True)
     group_code: str = Field(index=True, foreign_key="group.group_code")
     place_code: str = Field(index=True, foreign_key="place.place_code")
-    user_code: str = Field(foreign_key="user.user_code")
+    user_code: str = Field(index=True, foreign_key="user.user_code")
     text: str
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),

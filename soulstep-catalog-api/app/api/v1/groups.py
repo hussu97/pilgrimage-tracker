@@ -131,11 +131,14 @@ def list_featured_groups(session: SessionDep):
     No authentication required — only is_featured=True groups are returned.
     """
     groups = session.exec(select(Group).where(Group.is_featured == True).limit(20)).all()  # noqa: E712
+    if not groups:
+        return []
+    # Bulk-fetch all member counts in a single query instead of one per group
+    all_group_codes = [g.group_code for g in groups]
+    all_members = groups_db.get_members_bulk(all_group_codes, session)
     out = []
     for g in groups:
-        member_count = len(
-            groups_db.get_members_bulk([g.group_code], session).get(g.group_code, [])
-        )
+        member_count = len(all_members.get(g.group_code, []))
         out.append(
             {
                 "group_code": g.group_code,
@@ -493,20 +496,17 @@ def get_checklist(group_code: str, user: UserDep, session: SessionDep):
     # Batch fetch notes for all places
     notes_by_place = notes_db.get_notes_bulk(group_code, path, session)
 
-    # Build user display name map
-    user_display_names: dict[str, str] = {}
-    for uc in member_codes:
-        u = user_store.get_user_by_code(uc, session)
-        user_display_names[uc] = u.display_name if u else "Unknown"
-
-    # Build per-place note display name map
-    note_user_codes = set()
+    # Collect all user codes needed (members + note authors) for a single bulk fetch
+    note_user_codes: set[str] = set()
     for note_list in notes_by_place.values():
         for note in note_list:
             note_user_codes.add(note.user_code)
-    for uc in note_user_codes - set(member_codes):
-        u = user_store.get_user_by_code(uc, session)
-        user_display_names[uc] = u.display_name if u else "Unknown"
+    all_user_codes_needed = list(set(member_codes) | note_user_codes)
+    users_bulk = user_store.get_users_bulk(all_user_codes_needed, session)
+    user_display_names: dict[str, str] = {
+        uc: (users_bulk[uc].display_name if uc in users_bulk else "Unknown")
+        for uc in all_user_codes_needed
+    }
 
     group_visited = 0
     personal_visited = 0
