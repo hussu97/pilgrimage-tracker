@@ -357,6 +357,8 @@ Migrations run automatically on API startup (see [§6.1](#61-database-migrations
    | **Start Command** | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
    | **Instance Type** | Free |
 
+   > **Browser translation backend (optional):** If you set `TRANSLATION_BACKEND=browser`, Playwright and Chromium must be installed separately — they are intentionally excluded from `requirements.txt` to keep the default footprint small (~200 MB for Chromium). Change the build command to: `pip install -r requirements.txt && pip install playwright && playwright install chromium --with-deps`.
+
 4. Click **Advanced** → **Add Environment Variable** → add each variable below:
 
    | Key | Value |

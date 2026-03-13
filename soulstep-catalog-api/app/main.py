@@ -117,7 +117,26 @@ async def lifespan(app: FastAPI):
     # Demo data (places, users, groups) is never loaded automatically — use
     # scripts/reset_db.py --with-demo-data for that.
     run_seed_system()
+
+    # Warn early if the browser translation backend is selected but Playwright
+    # is not installed — better to surface this at startup than on first use.
+    if os.environ.get("TRANSLATION_BACKEND") == "browser":
+        try:
+            import playwright  # noqa: F401
+        except ImportError:
+            logger.warning(
+                "TRANSLATION_BACKEND=browser but Playwright is not installed. "
+                "Install it with: pip install playwright && playwright install chromium. "
+                "Translation calls will fail until Playwright is available."
+            )
+
     yield
+
+    # Shut down the browser pool if the browser translation backend is active.
+    if os.environ.get("TRANSLATION_BACKEND") == "browser":
+        from app.services.browser_translation import shutdown_pool
+
+        await shutdown_pool()
 
 
 _OPENAPI_TAGS = [

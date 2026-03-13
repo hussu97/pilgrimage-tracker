@@ -336,6 +336,26 @@ Description provenance tracked via `description_source` (e.g., "wikipedia", "gma
 
 ---
 
+## 8b. Translation Backends
+
+`app/services/translation_service.py` exposes `translate_text()` and `translate_batch()` with a pluggable backend selected by `TRANSLATION_BACKEND`:
+
+| Backend | Value | How it works |
+|---|---|---|
+| Google Cloud API (default) | `api` | `google-cloud-translate` SDK, requires `GOOGLE_CLOUD_PROJECT` + ADC credentials |
+| Headless browser | `browser` | Playwright drives `translate.google.com` directly — no GCP credentials needed |
+
+The browser backend (`app/services/browser_translation.py`) uses:
+- **`BrowserSessionPool`** — reusable Chromium contexts (configurable via `BROWSER_POOL_SIZE`, recycled after `BROWSER_MAX_TRANSLATIONS` uses)
+- **Stealth patches** — removes `navigator.webdriver`, mocks plugins/chrome.runtime to avoid bot detection
+- **Human-like typing** — 50–150ms per character with random pauses
+- **`_CircuitBreaker`** — aborts batch after 3 consecutive failures; exponential backoff (5s → 60s)
+- **CAPTCHA detection** — recycles context on block
+
+Set `TRANSLATION_FALLBACK=true` to retry via the API backend when the browser returns `None`.
+
+---
+
 ## 9. Client Identification & Force Update
 
 ### 9.1 Client Headers
