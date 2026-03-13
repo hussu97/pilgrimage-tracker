@@ -16,7 +16,9 @@ import asyncio
 import logging
 import os
 import random
+import re
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
@@ -250,6 +252,9 @@ class BrowserSessionPool:
         self._browser = None
         self._lock = asyncio.Lock()
         self._initialized = False
+        # Semaphore prevents thundering-herd spin when asyncio.gather tasks all
+        # hit acquire() simultaneously — limits concurrency to pool_size.
+        self._sem = asyncio.Semaphore(pool_size)
 
     async def _init(self) -> None:
         if self._initialized:
@@ -296,6 +301,9 @@ class BrowserSessionPool:
         return _BrowserSession(context=context, page=page)
 
     async def acquire(self) -> _BrowserSession:
+        # Semaphore gates entry so that at most pool_size coroutines proceed
+        # concurrently — avoids the spin loop when all pool slots are busy.
+        await self._sem.acquire()
         async with self._lock:
             await self._init()
             # Find an idle session that hasn't exceeded max translations
@@ -321,13 +329,14 @@ class BrowserSessionPool:
                     self._pool_size,
                 )
                 return session
-            # Pool full — wait for a session to become available (spin)
-            logger.debug(
-                "BrowserSessionPool: pool full (%d/%d in use), waiting for a free session",
+            # Should not reach here if semaphore is set correctly, but guard anyway
+            logger.warning(
+                "BrowserSessionPool: pool full (%d/%d in use) even after semaphore — releasing sem",
                 sum(1 for s in self._sessions if s.in_use),
                 self._pool_size,
             )
-        # Outside lock: wait briefly and retry
+        # Release sem and retry
+        self._sem.release()
         await asyncio.sleep(0.5)
         return await self.acquire()
 
@@ -355,6 +364,9 @@ class BrowserSessionPool:
                     _MAX_TRANSLATIONS,
                     len(self._sessions),
                 )
+        # Always release the semaphore after the lock block so the next waiter
+        # can proceed.
+        self._sem.release()
 
     async def shutdown(self) -> None:
         async with self._lock:
@@ -591,6 +603,155 @@ async def translate_batch_browser(
         non_empty,
         non_empty - success_count,
         non_empty,
+    )
+    return results
+
+
+# ── Delimiter-based multi-text translation ─────────────────────────────────────
+async def translate_multi_browser(
+    texts: list[str],
+    target_lang: str,
+    source_lang: str = "en",
+) -> list[str | None]:
+    """Translate multiple texts in a single browser request using sentinel delimiters.
+
+    Joins texts as "【1】text1\\n【2】text2\\n…", sends as one translation, then splits
+    the output back. If the sentinel count doesn't match (translator merges/splits
+    segments), falls back to individual translate_single_browser calls per item.
+
+    Returns a list of the same length as input; empty/whitespace inputs → None.
+    """
+    if not texts:
+        return []
+
+    # Build sentinel-delimited block; track which indices are non-empty
+    non_empty_indices: list[int] = []
+    non_empty_texts: list[str] = []
+    for i, t in enumerate(texts):
+        if t and t.strip():
+            non_empty_indices.append(i)
+            non_empty_texts.append(t)
+
+    results: list[str | None] = [None] * len(texts)
+
+    if not non_empty_texts:
+        return results
+
+    if len(non_empty_texts) == 1:
+        # Single item — just use translate_single_browser directly
+        translated = await translate_single_browser(
+            non_empty_texts[0], target_lang=target_lang, source_lang=source_lang
+        )
+        results[non_empty_indices[0]] = translated
+        return results
+
+    # Build the delimited block
+    block_parts = [f"【{i + 1}】{text}" for i, text in enumerate(non_empty_texts)]
+    block = "\n".join(block_parts)
+
+    logger.debug(
+        "browser_translation: translate_multi — sending %d texts as delimited block (%d chars)",
+        len(non_empty_texts),
+        len(block),
+    )
+
+    raw = await translate_single_browser(block, target_lang=target_lang, source_lang=source_lang)
+
+    if raw is None:
+        logger.warning(
+            "browser_translation: translate_multi — browser returned None, falling back to individual calls"
+        )
+    else:
+        # Split on sentinel markers 【N】
+        parts = re.split(r"【(\d+)】", raw)
+        # parts layout: ['', '1', 'text1', '2', 'text2', ...]
+        # Collect odd-indexed (number labels) and even-indexed (text segments after label)
+        segments: list[str] = []
+        i = 1
+        while i < len(parts) - 1:
+            segments.append(parts[i + 1].strip())
+            i += 2
+
+        if len(segments) == len(non_empty_texts):
+            for idx, seg in zip(non_empty_indices, segments, strict=False):
+                results[idx] = seg if seg else None
+            logger.debug(
+                "browser_translation: translate_multi — sentinel split OK, %d segments",
+                len(segments),
+            )
+            return results
+
+        logger.warning(
+            "browser_translation: translate_multi — sentinel count mismatch "
+            "(expected %d, got %d); falling back to individual calls",
+            len(non_empty_texts),
+            len(segments),
+        )
+
+    # Fallback: translate each non-empty text individually
+    for idx, text in zip(non_empty_indices, non_empty_texts, strict=False):
+        translated = await translate_single_browser(
+            text, target_lang=target_lang, source_lang=source_lang
+        )
+        results[idx] = translated
+
+    return results
+
+
+# ── Fan-out parallel batch translation ────────────────────────────────────────
+async def translate_batch_browser_parallel(
+    texts: list[str],
+    target_lang: str,
+    source_lang: str = "en",
+    multi_size: int = 5,
+    on_result: Callable[[int, str | None], Awaitable[None]] | None = None,
+) -> list[str | None]:
+    """Translate a list of texts in parallel micro-batches via translate_multi_browser.
+
+    Partitions texts into chunks of `multi_size`, then fans them out via
+    asyncio.gather. The BrowserSessionPool semaphore limits true concurrency to
+    pool_size. For each resolved item, the optional `on_result(global_index, text)`
+    async callback is fired immediately (used for interrupt-resilient DB saves).
+
+    Returns a list of the same length as input.
+    """
+    if not texts:
+        return []
+
+    results: list[str | None] = [None] * len(texts)
+
+    async def process_batch(start: int, chunk: list[str]) -> None:
+        translated_chunk = await translate_multi_browser(
+            chunk, target_lang=target_lang, source_lang=source_lang
+        )
+        for local_i, translated in enumerate(translated_chunk):
+            global_i = start + local_i
+            results[global_i] = translated
+            if on_result is not None:
+                await on_result(global_i, translated)
+
+    # Partition into micro-batches and gather
+    batches = []
+    for start in range(0, len(texts), multi_size):
+        chunk = texts[start : start + multi_size]
+        batches.append(process_batch(start, chunk))
+
+    logger.info(
+        "browser_translation: parallel batch — %d texts → %d micro-batches of size %d → %r",
+        len(texts),
+        len(batches),
+        multi_size,
+        target_lang,
+    )
+
+    await asyncio.gather(*batches)
+
+    success_count = sum(1 for r in results if r is not None)
+    logger.info(
+        "browser_translation: parallel batch complete — %d/%d succeeded → %r",
+        success_count,
+        len(texts),
+        target_lang,
     )
     return results
 

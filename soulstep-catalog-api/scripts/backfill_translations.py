@@ -45,6 +45,8 @@ from app.db.models import Place, PlaceAttribute, Review  # noqa: E402
 from app.db.session import engine  # noqa: E402
 from app.services.translation_service import translate_batch  # noqa: E402
 
+_TRANSLATION_BACKEND = os.environ.get("TRANSLATION_BACKEND", "api")
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 # Ensure translation_service logs are also visible
@@ -198,30 +200,69 @@ def _backfill_places(
                     logger.info("    [DRY] would translate %s/%s", place.place_code, field)
                 continue
 
-            results = translate_batch(texts, target_lang=lang)
-            batch_ok = sum(1 for r in results if r is not None)
-            batch_fail = sum(1 for r in results if r is None)
-            if batch_fail > 0:
-                logger.warning(
-                    "  Batch result: %d translated, %d failed (returned None)",
-                    batch_ok,
-                    batch_fail,
-                )
-            for (place, field, _), translated in zip(chunk, results, strict=False):
-                if translated:
-                    ct_db.upsert_translation(
-                        entity_type="place",
-                        entity_code=place.place_code,
-                        field=field,
-                        lang=lang,
-                        text=translated,
-                        source="google_translate",
-                        session=session,
-                    )
-                    translated_count += 1
+            if _TRANSLATION_BACKEND == "browser":
+                from app.services.browser_translation import translate_batch_browser_parallel
 
-            if rate_limit_delay > 0:
-                time.sleep(rate_limit_delay)
+                _translated_count_local = [0]
+                _chunk = chunk
+                _lang = lang
+
+                async def _on_result_place(
+                    local_i: int,
+                    translated: str | None,
+                    _c: list = _chunk,
+                    _l: str = _lang,
+                    _cnt: list = _translated_count_local,
+                ) -> None:
+                    p, f, _ = _c[local_i]
+                    if translated:
+                        ct_db.upsert_translation(
+                            entity_type="place",
+                            entity_code=p.place_code,
+                            field=f,
+                            lang=_l,
+                            text=translated,
+                            source="browser_translate",
+                            session=session,
+                        )
+                        session.commit()
+                        _cnt[0] += 1
+
+                import asyncio as _asyncio
+
+                _asyncio.run(
+                    translate_batch_browser_parallel(
+                        texts,
+                        target_lang=lang,
+                        on_result=_on_result_place,
+                    )
+                )
+                translated_count += _translated_count_local[0]
+            else:
+                results = translate_batch(texts, target_lang=lang)
+                batch_ok = sum(1 for r in results if r is not None)
+                batch_fail = sum(1 for r in results if r is None)
+                if batch_fail > 0:
+                    logger.warning(
+                        "  Batch result: %d translated, %d failed (returned None)",
+                        batch_ok,
+                        batch_fail,
+                    )
+                for (place, field, _), translated in zip(chunk, results, strict=False):
+                    if translated:
+                        ct_db.upsert_translation(
+                            entity_type="place",
+                            entity_code=place.place_code,
+                            field=field,
+                            lang=lang,
+                            text=translated,
+                            source="google_translate",
+                            session=session,
+                        )
+                        translated_count += 1
+
+                if rate_limit_delay > 0:
+                    time.sleep(rate_limit_delay)
 
     return translated_count, total_chars
 
@@ -314,30 +355,69 @@ def _backfill_reviews(
                     logger.info("    [DRY] would translate %s/%s", review.review_code, field)
                 continue
 
-            results = translate_batch(texts, target_lang=lang)
-            batch_ok = sum(1 for r in results if r is not None)
-            batch_fail = sum(1 for r in results if r is None)
-            if batch_fail > 0:
-                logger.warning(
-                    "  Batch result: %d translated, %d failed (returned None)",
-                    batch_ok,
-                    batch_fail,
-                )
-            for (review, field, _), translated in zip(chunk, results, strict=False):
-                if translated:
-                    ct_db.upsert_translation(
-                        entity_type="review",
-                        entity_code=review.review_code,
-                        field=field,
-                        lang=lang,
-                        text=translated,
-                        source="google_translate",
-                        session=session,
-                    )
-                    translated_count += 1
+            if _TRANSLATION_BACKEND == "browser":
+                from app.services.browser_translation import translate_batch_browser_parallel
 
-            if rate_limit_delay > 0:
-                time.sleep(rate_limit_delay)
+                _translated_count_local = [0]
+                _chunk = chunk
+                _lang = lang
+
+                async def _on_result_review(
+                    local_i: int,
+                    translated: str | None,
+                    _c: list = _chunk,
+                    _l: str = _lang,
+                    _cnt: list = _translated_count_local,
+                ) -> None:
+                    rev, f, _ = _c[local_i]
+                    if translated:
+                        ct_db.upsert_translation(
+                            entity_type="review",
+                            entity_code=rev.review_code,
+                            field=f,
+                            lang=_l,
+                            text=translated,
+                            source="browser_translate",
+                            session=session,
+                        )
+                        session.commit()
+                        _cnt[0] += 1
+
+                import asyncio as _asyncio
+
+                _asyncio.run(
+                    translate_batch_browser_parallel(
+                        texts,
+                        target_lang=lang,
+                        on_result=_on_result_review,
+                    )
+                )
+                translated_count += _translated_count_local[0]
+            else:
+                results = translate_batch(texts, target_lang=lang)
+                batch_ok = sum(1 for r in results if r is not None)
+                batch_fail = sum(1 for r in results if r is None)
+                if batch_fail > 0:
+                    logger.warning(
+                        "  Batch result: %d translated, %d failed (returned None)",
+                        batch_ok,
+                        batch_fail,
+                    )
+                for (review, field, _), translated in zip(chunk, results, strict=False):
+                    if translated:
+                        ct_db.upsert_translation(
+                            entity_type="review",
+                            entity_code=review.review_code,
+                            field=field,
+                            lang=lang,
+                            text=translated,
+                            source="google_translate",
+                            session=session,
+                        )
+                        translated_count += 1
+
+                if rate_limit_delay > 0:
+                    time.sleep(rate_limit_delay)
 
     return translated_count, total_chars
 

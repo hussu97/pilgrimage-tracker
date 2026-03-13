@@ -4,6 +4,43 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## feat(translations): parallel bulk browser translation with progress tracking (2026-03-13)
+
+### Backend
+
+- **`app/db/models.py`** — Added `BulkTranslationJob` SQLModel table (`bulk_translation_job`) with status, target_langs/entity_types JSON columns, progress counters (total/completed/failed/skipped), and cancellation support via `cancel_requested_at`. All datetime fields use `_TSTZ()`.
+- **`migrations/versions/0022_bulk_translation_job.py`** (new) — Creates `bulk_translation_job` table with FK to `user.user_code`, `sa.JSON` for list columns, `sa.DateTime(timezone=True)` for timestamps.
+- **`app/services/browser_translation.py`** — Added `asyncio.Semaphore` to `BrowserSessionPool` (prevents thundering-herd spin on parallel acquire). Added `translate_multi_browser()` (delimiter trick: joins N texts as `【1】text1\n【2】text2\n…`, translates in one request, splits on sentinels; falls back to individual calls on count mismatch). Added `translate_batch_browser_parallel()` (fan-out via `asyncio.gather`, partitioned into micro-batches; `on_result` async callback fires per resolved item for interrupt-resilient DB saves).
+- **`app/api/v1/admin/bulk_translations.py`** (new) — Five admin endpoints: `POST /admin/translations/jobs` (create + launch BG task), `GET /admin/translations/jobs` (list paginated, newest first), `GET /admin/translations/jobs/{job_code}` (live progress), `POST /admin/translations/jobs/{job_code}/cancel` (set `cancel_requested_at`), `DELETE /admin/translations/jobs/{job_code}` (remove completed/failed, 409 if running). Background task collects missing `(entity_type, entity_code, field, lang, en_text)` tuples, translates via `translate_batch_browser_parallel`, saves each result immediately via fresh `Session(engine)`, updates progress counters in DB.
+- **`app/api/v1/admin/__init__.py`** — Registered `bulk_translations.router` before `translations.router` to prevent path ambiguity with `GET /translations/{key}`.
+- **`scripts/backfill_translations.py`** — `_backfill_places` and `_backfill_reviews` now detect `TRANSLATION_BACKEND=browser` and call `translate_batch_browser_parallel` with a sync-safe `on_result` callback instead of `translate_batch()`.
+- **`tests/test_bulk_translations.py`** (new) — 10 integration tests: start job (returns pending, job_code prefix), admin-only guard (403), list empty, list paginated, get live progress, 404 on missing, cancel pending/409 on completed, delete completed/409 on running.
+- **`tests/test_browser_translation_parallel.py`** (new) — 5 unit tests: multi-browser happy path, sentinel mismatch fallback, empty position preservation, on_result callback fires per item, semaphore limits concurrency.
+
+### Frontend (web)
+
+- **`apps/soulstep-admin-web/src/lib/api/types.ts`** — Added `BulkTranslationJob`, `StartJobBody`, `JobListResponse` interfaces.
+- **`apps/soulstep-admin-web/src/lib/api/admin.ts`** — Added `startTranslationJob`, `listTranslationJobs`, `getTranslationJob`, `cancelTranslationJob`, `deleteTranslationJob`.
+- **`apps/soulstep-admin-web/src/app/pages/content/BulkTranslationsPage.tsx`** (new) — Full page: header + New Job button, StatCards (Total/Active/Completed/Failed), DataTable with status badge, inline progress bar (`completed/total` + animated fill), Cancel/Delete actions, auto-poll every 3s while any job is active, modal bottom-sheet form (lang checkboxes ar/hi/te/ml, entity type checkboxes, multi_size slider 1–8).
+- **`apps/soulstep-admin-web/src/app/router.tsx`** — Added route `/translations/bulk → BulkTranslationsPage`.
+- **`apps/soulstep-admin-web/src/components/layout/Sidebar.tsx`** — Added "Bulk Translations" nav link with Zap icon under Content section.
+- **`apps/soulstep-admin-web/src/__tests__/bulkTranslations.test.ts`** (new) — 10 pure logic tests: `computeProgress` (zero/partial/full/overflow), `STATUS_COLORS` (all keys present, all include `dark:` token), API endpoint path stubs for start/list/cancel.
+
+---
+
+## perf(backend): catalog service audit — latency, DB indexes, readability (2026-03-13)
+
+### Backend
+
+- **`app/api/v1/users.py`** — Fixed N+1 in `_format_check_ins()`: replaced per-row `get_place_by_code()` + `get_images()` calls with single bulk fetches (`get_places_by_codes()` + `get_images_bulk()`). User with 50 check-ins: 100+ queries → 2 queries.
+- **`app/api/v1/groups.py`** — Fixed N+1 in `list_featured_groups()`: replaced `get_members_bulk([single_code])` in a loop with one `get_members_bulk(all_codes)` call. Fixed N+1 in `get_checklist()`: replaced per-member `get_user_by_code()` loops with a single `get_users_bulk()` covering members + note authors.
+- **`app/api/v1/i18n.py`** — Added in-memory TTL cache for UITranslation DB overrides (1h per language). Added `Cache-Control` headers: `max-age=86400` for `/languages`, `max-age=3600` for `/translations`.
+- **`app/api/v1/places.py`** — Deduplicated Haversine calculation in `get_recommended_places()` (distances computed once, stored with candidates, reused in output). Added `?include_related=true` param to place detail (skip nearby/similar fetches when false). Added `Cache-Control: public, max-age=600` to `/places/count`. Moved lazy `from sqlmodel import func` import to module top. Extracted `_normalize_hours()` helper. Added named constants: `NEARBY_RADIUS_KM`, `NEARBY_LIMIT`, `SIMILAR_LIMIT`, `RECOMMENDED_CANDIDATE_LIMIT`. Bulk-fetch images in `get_recommended_places()` via `get_images_bulk()`.
+- **`app/db/models.py`** — Added `Index` import; added `__table_args__` with compound indexes to `CheckIn` model (`ix_checkin_user_date`, `ix_checkin_place_user`, `ix_checkin_group_place`). Added `index=True` to `GroupPlaceNote.user_code`.
+- **`migrations/versions/0021_compound_indexes.py`** (new) — Adds 7 compound indexes: `checkin(user_code, checked_in_at)`, `checkin(place_code, user_code)`, `checkin(group_code, place_code)`, `review(place_code, created_at)`, `favorite(place_code)`, `contenttranslation(entity_code, lang)`, `analytics_event(event_type, created_at)`.
+
+---
+
 ## feat(backend): headless browser translation backend (2026-03-13)
 
 ### Backend

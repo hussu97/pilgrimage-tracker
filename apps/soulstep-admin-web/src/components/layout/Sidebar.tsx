@@ -19,6 +19,7 @@ import {
   BarChart2,
   BarChart3,
   Globe,
+  Zap,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -32,6 +33,7 @@ const NAV_ITEMS = [
   { label: "Coverage Map", to: "/coverage-map", icon: Globe },
   { label: "Quality", to: "/quality", icon: BarChart3 },
   { label: "Content", to: "/translations", icon: Languages },
+  { label: "Bulk Translations", to: "/translations/bulk", icon: Zap },
   { label: "SEO", to: "/seo", icon: Search },
   { label: "Analytics", to: "/analytics", icon: BarChart2 },
   { label: "Audit Log", to: "/audit-log", icon: FileText },

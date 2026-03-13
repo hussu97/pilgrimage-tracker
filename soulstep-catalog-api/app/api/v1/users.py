@@ -62,16 +62,19 @@ def _parse_iso_datetime(iso_str: str):
 
 
 def _format_check_ins(rows, session) -> list:
+    if not rows:
+        return []
+    # Bulk-fetch all places and images in 2 queries instead of 2*N
+    place_codes = [r.place_code for r in rows]
+    places_map = {p.place_code: p for p in places_db.get_places_by_codes(place_codes, session)}
+    images_bulk = place_images.get_images_bulk(place_codes, session)
+
     out = []
     for r in rows:
-        place = places_db.get_place_by_code(r.place_code, session)
+        place = places_map.get(r.place_code)
         date_str, time_str = _parse_iso_datetime(r.checked_in_at)
-        place_image_url = None
-        images = []
-        if place:
-            images = place_images.get_images(place.place_code, session)
-            if images and len(images) > 0:
-                place_image_url = images[0]["url"]
+        images = images_bulk.get(r.place_code, []) if place else []
+        place_image_url = images[0]["url"] if images else None
         place_payload = None
         if place:
             place_payload = {
