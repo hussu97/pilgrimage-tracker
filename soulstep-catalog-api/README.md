@@ -208,6 +208,11 @@ Tests use in-memory SQLite (`StaticPool`) with migrations and seed patched out. 
 - `GOOGLE_MAPS_API_KEY` — (optional, for scraper) Google Maps API key for `soulstep-scraper-api/gmaps.py`. Not required for server operation, only for running the scraper to discover new places.
 - `GOOGLE_TRANSLATE_API_KEY` — (optional) Google Cloud Translation API key. Required only for running `scripts/backfill_translations.py`. Enable "Cloud Translation API" at console.cloud.google.com.
 - `GOOGLE_CLOUD_PROJECT` — (optional) GCP project ID. Required alongside `GOOGLE_TRANSLATE_API_KEY` for the v3 translation endpoint.
+- `TRANSLATION_BACKEND` — (optional) `api` (default) or `browser`. `browser` uses a Playwright headless browser to drive translate.google.com — no GCP credentials required but slower. Requires `playwright install chromium` after `pip install -r requirements.txt`.
+- `TRANSLATION_FALLBACK` — (optional) `true` | `false` (default). When `true`, if the browser backend returns None the request retries via the API backend.
+- `BROWSER_POOL_SIZE` — (optional, browser backend only) concurrent browser contexts, default `2`.
+- `BROWSER_MAX_TRANSLATIONS` — (optional, browser backend only) translations per context before recycling, default `50`.
+- `BROWSER_HEADLESS` — (optional, browser backend only) `true` (default) or `false` (show browser window for debugging).
 - `IMAGE_STORAGE` — (optional) `blob` (default, stores images in DB) or `gcs` (upload to Google Cloud Storage).
 - `GCS_BUCKET_NAME` — (optional) GCS bucket name. Required when `IMAGE_STORAGE=gcs`. Bucket objects must be publicly readable.
 - `GOOGLE_APPLICATION_CREDENTIALS` — (optional) Path to a GCP service account JSON key. Required on non-GCP hosts when using `IMAGE_STORAGE=gcs` or the translation backfill script. Not needed on Cloud Run (uses workload identity).

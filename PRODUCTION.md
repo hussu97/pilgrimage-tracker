@@ -325,9 +325,11 @@ Migrations run automatically on API startup (see [§6.1](#61-database-migrations
    | **Region** | Same region as your database |
    | **Root Directory** | `soulstep-catalog-api` |
    | **Runtime** | `Python 3` |
-   | **Build Command** | `pip install -r requirements.txt` |
+   | **Build Command** | `pip install -r requirements.txt && playwright install chromium --with-deps` |
    | **Start Command** | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
    | **Instance Type** | Free |
+
+   > **Note:** The `playwright install chromium --with-deps` step is only required when `TRANSLATION_BACKEND=browser`. If you are using the default `api` backend, you can use `pip install -r requirements.txt` without the Playwright install step to keep build times shorter.
 
 4. Click **Advanced** → **Add Environment Variable** → add each variable below:
 

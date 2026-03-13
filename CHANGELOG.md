@@ -4,6 +4,27 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## feat(backend): headless browser translation backend (2026-03-13)
+
+### Backend
+
+- **`app/services/browser_translation.py`** (new) — Playwright-based translation backend that drives `translate.google.com` directly. Features: `BrowserSessionPool` (configurable pool size, context recycling), stealth JS patches (removes `navigator.webdriver`, mocks plugins/chrome.runtime), human-like typing (50–150ms/char), CAPTCHA detection, `_CircuitBreaker` (aborts batch after 3 consecutive failures), exponential backoff (5s → 60s cap), sync wrappers for script use.
+- **`app/services/translation_service.py`** — refactored to route between backends. Old logic moved to `_translate_text_api()` / `_translate_batch_api()`. New public `translate_text()` and `translate_batch()` honour `TRANSLATION_BACKEND` env var and optional `TRANSLATION_FALLBACK`.
+- **`app/main.py`** — lifespan shutdown calls `shutdown_pool()` when `TRANSLATION_BACKEND=browser`.
+- **`requirements.txt`** — added `playwright>=1.40.0`.
+- **`tests/test_browser_translation.py`** (new) — 18 mocked tests: pool lifecycle, stealth patches, happy path, CAPTCHA → None, timeout → None, circuit breaker, batch empty-position preservation, routing (api/browser), and fallback behaviour.
+
+### New environment variables
+| Variable | Default | Purpose |
+|---|---|---|
+| `TRANSLATION_BACKEND` | `api` | `api` or `browser` |
+| `TRANSLATION_FALLBACK` | `false` | Fall back to API when browser returns None |
+| `BROWSER_POOL_SIZE` | `2` | Concurrent browser contexts |
+| `BROWSER_MAX_TRANSLATIONS` | `50` | Translations per context before recycling |
+| `BROWSER_HEADLESS` | `true` | Headless mode (`false` for debugging) |
+
+---
+
 ## Fix: frontend test coverage thresholds (2026-03-13)
 
 ### Frontend (web)

@@ -118,6 +118,11 @@ async def lifespan(app: FastAPI):
     # scripts/reset_db.py --with-demo-data for that.
     run_seed_system()
     yield
+    # Shut down the browser pool if the browser translation backend is active.
+    if os.environ.get("TRANSLATION_BACKEND") == "browser":
+        from app.services.browser_translation import shutdown_pool
+
+        await shutdown_pool()
 
 
 _OPENAPI_TAGS = [
