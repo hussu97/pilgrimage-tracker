@@ -92,9 +92,9 @@ flowchart TD
     A[API Request\nPOST /runs] --> B[Discovery\nGMaps quadtree search]
     B --> C[Detail Fetch\nGMaps Places API]
     C --> D[Image Download\nPhoto CDN]
-    D --> E{Quality Gate\nGATE_IMAGE = 0.50}
+    D --> E{Quality Gate\nGATE_IMAGE = 0.80}
     E -->|below| F[Filtered out]
-    E -->|pass| G{Quality Gate\nGATE_ENRICHMENT = 0.60}
+    E -->|pass| G{Quality Gate\nGATE_ENRICHMENT = 0.80}
     G -->|below| F
     G -->|pass| H[Enrichment Pipeline]
     H --> H1[Phase 0: OSM/Overpass\namenities, tags, names]
@@ -102,7 +102,7 @@ flowchart TD
     H2 --> H3[Phase 2: KnowledgeGraph + BestTime\n+ Foursquare + Outscraper]
     H3 --> I[Quality Assessment\nheuristic scoring + LLM tie-break]
     I --> J[Data Merge\npriority-based conflict resolution]
-    J --> K{Quality Gate\nGATE_SYNC = 0.70}
+    J --> K{Quality Gate\nGATE_SYNC = 0.80}
     K -->|below| F
     K -->|pass| L[Sync to Catalog API\nPOST /places/batch]
 ```
@@ -118,7 +118,7 @@ Primary Details (gmaps Places API - enhanced field mask)
     ▼
 Image Download (Google Photo CDN)
     │
-    ▼  ← GATE_IMAGE_DOWNLOAD (0.50) filters permanently closed / zero-data places
+    ▼  ← GATE_IMAGE_DOWNLOAD (0.80) filters permanently closed / zero-data places
 Enrichment Pipeline (collectors in dependency order)
     ├── Phase 0: OSM/Overpass     →  amenities, contact, wikipedia/wikidata tags, multilingual names
     ├── Phase 1: Wikipedia        →  descriptions (en/ar/hi), images
@@ -128,10 +128,10 @@ Enrichment Pipeline (collectors in dependency order)
                 Foursquare        →  tips, popularity (optional, paid)
                 Outscraper        →  extended Google reviews (optional, paid)
     │
-    ▼  ← GATE_ENRICHMENT (0.60) applied before Phase 0 starts
+    ▼  ← GATE_ENRICHMENT (0.80) applied before Phase 0 starts
 Quality Assessment (heuristic + LLM hybrid)
     │
-    ▼  ← GATE_SYNC (0.70) applied before sync
+    ▼  ← GATE_SYNC (0.80) applied before sync
 Sync to Catalog API
 ```
 
