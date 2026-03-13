@@ -821,6 +821,10 @@ https://soulstep-catalog-api-xxxxxxxxxxxx-uc.a.run.app
 > **GCS image storage (GCP):** On Cloud Run, grant the Cloud Run service account `roles/storage.objectAdmin` on the bucket — no `GOOGLE_APPLICATION_CREDENTIALS` file needed (workload identity / ADC is used automatically). Create the bucket: `gcloud storage buckets create gs://soulstep-images --location=REGION`. Grant public read: `gcloud storage buckets add-iam-policy-binding gs://soulstep-images --member=allUsers --role=roles/storage.objectViewer`.
 
 > **Cold starts:** `--min-instances 0` = free (scales to zero when idle). Set `--min-instances 1` to eliminate cold starts (~$10/month for one always-on instance).
+>
+> **Startup migration latency:** On cold start the app runs Alembic migrations, which requires establishing a Cloud SQL connection (~5s for the first IAM-authenticated connection). To eliminate this:
+> - **Option A — always-warm:** use `--min-instances 1` so the container never fully shuts down.
+> - **Option B — separate migration step:** run migrations as a pre-deploy Cloud Run Job, then set `RUN_MIGRATIONS_ON_START=false` in the service env vars. The app skips `run_migrations()` when this var is `false`.
 
 #### Update CORS after deploying the web frontend (§5.7)
 

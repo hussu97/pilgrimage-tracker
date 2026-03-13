@@ -100,4 +100,13 @@ def run_migrations() -> None:
                 command.stamp(cfg, "head")
                 return  # Already at current head; upgrade would be a no-op
 
+            # Fast-path: skip upgrade if already at head (avoids full migration
+            # script traversal on every startup when no migrations are pending).
+            from alembic.script import ScriptDirectory
+
+            script = ScriptDirectory.from_config(cfg)
+            head_rev = script.get_current_head()
+            if ver and ver[0] == head_rev:
+                return  # Already at head — nothing to run
+
         command.upgrade(cfg, "head")
