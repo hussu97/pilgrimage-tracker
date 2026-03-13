@@ -205,13 +205,22 @@ async def run_enrichment_pipeline(run_code: str):
                             pass
 
             completed_count += 1
-            logger.info(
+            logger.debug(
                 "[%d/%d] Enriched %r (%s)",
                 completed_count,
                 len(place_codes),
                 place_name,
                 place_code,
             )
+            if completed_count % 100 == 0 or completed_count == len(place_codes):
+                pct = completed_count / len(place_codes) * 100
+                logger.info(
+                    "Enrichment progress: %d/%d places (%.1f%%) for run %s",
+                    completed_count,
+                    len(place_codes),
+                    pct,
+                    run_code,
+                )
 
             # Cancellation check after each place completes
             with Session(engine) as check_session:

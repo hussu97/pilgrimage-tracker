@@ -19,4 +19,4 @@ USER appuser
 # Cloud Run injects PORT=8080; fall back to 8080 for local docker run too.
 EXPOSE 8080
 
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

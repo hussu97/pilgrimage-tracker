@@ -14,6 +14,7 @@ from __future__ import annotations
 import threading
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.db.models import GlobalGmapsCache
@@ -84,26 +85,34 @@ class GlobalGmapsCacheStore:
         quality_score: float | None = None,
     ) -> GlobalGmapsCache:
         """Persist a GMaps response (upsert: replace if same place_code exists)."""
+        cached_at = datetime.now(UTC)
         with self._lock:
             entry = GlobalGmapsCache(
                 place_code=place_code,
                 raw_response=raw_response,
                 quality_score=quality_score,
-                cached_at=datetime.now(UTC),
+                cached_at=cached_at,
             )
 
             with Session(self._engine) as session:
-                # Delete stale entry with same place_code if present
-                old = session.exec(
-                    select(GlobalGmapsCache).where(GlobalGmapsCache.place_code == place_code)
-                ).first()
-                if old:
-                    session.delete(old)
-                    session.flush()
-
-                session.add(entry)
-                session.commit()
-                session.refresh(entry)
+                try:
+                    session.add(entry)
+                    session.commit()
+                    session.refresh(entry)
+                except IntegrityError:
+                    # Race: another task already inserted this place_code — update it.
+                    session.rollback()
+                    existing = session.exec(
+                        select(GlobalGmapsCache).where(GlobalGmapsCache.place_code == place_code)
+                    ).first()
+                    if existing:
+                        existing.raw_response = raw_response
+                        existing.quality_score = quality_score
+                        existing.cached_at = cached_at
+                        session.add(existing)
+                        session.commit()
+                        session.refresh(existing)
+                        entry = existing
 
             self._cache[place_code] = entry
             return entry

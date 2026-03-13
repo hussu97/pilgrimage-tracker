@@ -54,7 +54,7 @@ class RateLimiter:
         "gmaps_search": 10.0,  # was 2.0 — Google allows ~100 QPS, keep conservative
         "gmaps_details": 15.0,  # was 5.0
         "gmaps_photo": 15.0,  # was 5.0 — CDN, not billed; still throttle slightly
-        "overpass": 1.0,
+        "overpass": 5.0,  # public Overpass API tolerates 5-10 RPS; was 1.0
         "osm": 1.0,
         "wikipedia": 5.0,
         "wikidata": 5.0,

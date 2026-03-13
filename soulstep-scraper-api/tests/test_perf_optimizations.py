@@ -62,9 +62,10 @@ class TestDownloadPlaceImages:
         engine = _make_engine()
         self._make_place(engine, "run1", ["http://example.com/img.jpg"])
 
+        _valid_jpeg = b"\xff\xd8\xff" + b"\x00" * 1024
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.content = b"fake_jpeg_data"
+        mock_resp.content = _valid_jpeg
 
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(return_value=mock_resp)

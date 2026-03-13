@@ -46,7 +46,19 @@ async def _download_image(url: str, client: httpx.AsyncClient | None = None) -> 
                 async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as c:
                     resp = await c.get(url)
             if resp.status_code == 200:
-                return resp.content
+                content = resp.content
+                # Validate JPEG magic bytes (\xff\xd8\xff) and minimum size (>1 KB)
+                if len(content) < 1024:
+                    logger.warning(
+                        "Downloaded image too small (%d bytes), skipping: %s",
+                        len(content),
+                        url,
+                    )
+                    return None
+                if content[:3] != b"\xff\xd8\xff":
+                    logger.warning("Downloaded image failed JPEG header check, skipping: %s", url)
+                    return None
+                return content
             return None
         except (httpx.ConnectError, httpx.RemoteProtocolError) as e:
             if attempt < _MAX_IMAGE_ATTEMPTS - 1:

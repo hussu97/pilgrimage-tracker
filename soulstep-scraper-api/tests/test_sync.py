@@ -317,3 +317,63 @@ class TestSyncRunToServer:
 
         all_sent = [code for batch in sent_batches for code in batch]
         assert "plc_null" in all_sent
+
+    def test_partial_batch_failures_retried_individually(
+        self, test_engine, db_session, monkeypatch
+    ):
+        """Partial-success batch: synced > 0 but some failed — failed entries must be retried."""
+        run_code = "run_partial"
+        _make_place(run_code, "plc_p01", db_session)
+        _make_place(run_code, "plc_p02", db_session)
+        _make_place(run_code, "plc_p03", db_session)
+
+        monkeypatch.setattr(scraper_module, "engine", test_engine)
+
+        # Batch: 2 synced, 1 failed — the old code silently dropped plc_p03
+        async_batch = AsyncMock(return_value=(2, ["plc_p03: server error 500"]))
+        retried = []
+
+        async def _capture_individual(payload, server_url, client):
+            retried.append(payload["place_code"])
+            return (1, [])
+
+        with (
+            patch("app.db.scraper._post_batch_async", async_batch),
+            patch("app.db.scraper._post_individual_async", _capture_individual),
+        ):
+            sync_run_to_server(run_code, "http://127.0.0.1:3000")
+
+        # The failed place must have been retried individually
+        assert "plc_p03" in retried
+
+    def test_sync_failure_details_persisted(self, test_engine, db_session, monkeypatch):
+        """Failed place codes are stored in run.sync_failure_details after sync."""
+        from sqlmodel import select as _select
+
+        from app.db.models import DataLocation, ScraperRun
+
+        run_code = "run_fail_details"
+        loc = DataLocation(code="loc_fd1", name="FD Loc", source_type="gmaps", config={})
+        db_session.add(loc)
+        db_session.commit()
+        run = ScraperRun(run_code=run_code, location_code="loc_fd1", status="completed")
+        db_session.add(run)
+        db_session.commit()
+        _make_place(run_code, "plc_fd1", db_session)
+
+        monkeypatch.setattr(scraper_module, "engine", test_engine)
+
+        # Batch fails, individual retry also fails
+        async_batch = AsyncMock(return_value=(0, ["plc_fd1: HTTP 422"]))
+        async_individual = AsyncMock(return_value=(0, ["plc_fd1: HTTP 422"]))
+
+        with (
+            patch("app.db.scraper._post_batch_async", async_batch),
+            patch("app.db.scraper._post_individual_async", async_individual),
+        ):
+            sync_run_to_server(run_code, "http://127.0.0.1:3000")
+
+        with Session(test_engine) as s:
+            run = s.exec(_select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+            assert run is not None
+            assert any("plc_fd1" in entry for entry in (run.sync_failure_details or []))

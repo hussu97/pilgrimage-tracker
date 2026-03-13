@@ -65,5 +65,11 @@ class Settings:
     # Max concurrent image downloads (plain CDN, no API rate limit).
     image_concurrency: int = int(os.environ.get("SCRAPER_IMAGE_CONCURRENCY", "40"))
 
+    # ── Quality gate thresholds (0.0–1.0) ────────────────────────────────────
+    # Tune per-run via env vars to allow more/fewer places through each gate.
+    gate_image_download: float = float(os.environ.get("SCRAPER_GATE_IMAGE_DOWNLOAD", "0.75"))
+    gate_enrichment: float = float(os.environ.get("SCRAPER_GATE_ENRICHMENT", "0.75"))
+    gate_sync: float = float(os.environ.get("SCRAPER_GATE_SYNC", "0.75"))
+
 
 settings = Settings()

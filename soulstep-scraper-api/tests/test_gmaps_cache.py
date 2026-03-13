@@ -98,3 +98,31 @@ class TestGlobalGmapsCacheStore:
         entry = store.get("gplc_noscore")
         assert entry is not None
         assert entry.quality_score is None
+
+    def test_concurrent_save_same_place_code_no_integrity_error(self, cache_engine):
+        """Two saves for the same place_code must not raise IntegrityError — second wins."""
+        import threading
+
+        from app.scrapers.gmaps_cache import GlobalGmapsCacheStore
+
+        store = GlobalGmapsCacheStore(cache_engine, ttl_days=90)
+        errors = []
+
+        def _save(response: dict, score: float) -> None:
+            try:
+                store.save("gplc_race", response, quality_score=score)
+            except Exception as exc:
+                errors.append(exc)
+
+        t1 = threading.Thread(target=_save, args=({"name": "First"}, 0.6))
+        t2 = threading.Thread(target=_save, args=({"name": "Second"}, 0.8))
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+        assert errors == [], f"Unexpected errors: {errors}"
+        # One of the two saves won — the entry must still be readable
+        entry = store.get("gplc_race")
+        assert entry is not None
+        assert entry.raw_response["name"] in ("First", "Second")

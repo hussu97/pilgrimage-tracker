@@ -457,12 +457,20 @@ async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
 
                 if batch_synced > 0:
                     synced_counter.increment(batch_synced)
-                else:
-                    # Entire batch failed — retry individually (throttled to 5 concurrent)
+
+                # Retry any per-place failures individually — handles both full batch failure
+                # (batch_synced == 0) and partial success (batch_synced > 0, some failed).
+                if failed_entries:
                     failed_codes = [e.split(":")[0] for e in failed_entries]
                     retry_payloads = [
                         payloads_by_code[c] for c in failed_codes if c in payloads_by_code
                     ]
+                    # Entries not matching a known code (e.g. batch-level HTTP errors) → log as-is
+                    unmatched = [
+                        e for e in failed_entries if e.split(":")[0] not in payloads_by_code
+                    ]
+                    all_failure_details.extend(unmatched)
+
                     if retry_payloads:
                         retry_sem = asyncio.Semaphore(5)
 
@@ -476,12 +484,6 @@ async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
                         for extra_synced, extra_failures in ind_results:
                             synced_counter.increment(extra_synced)
                             all_failure_details.extend(extra_failures)
-                    else:
-                        all_failure_details.extend(failed_entries)
-
-                all_failure_details.extend(
-                    e for e in failed_entries if e.split(":")[0] not in payloads_by_code
-                )
 
             # Persist progress after every batch
             with Session(engine) as session:
@@ -507,13 +509,14 @@ async def sync_run_to_server_async(run_code: str, server_url: str) -> None:
     if all_failure_details:
         logger.warning("Failed places:\n%s", "\n".join(f"  - {d}" for d in all_failure_details))
 
-    # Clear syncing stage when done
+    # Clear syncing stage when done; persist failure details for the sync report
     with Session(engine) as session:
         run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
         if run:
             run.stage = None
             run.places_synced = synced_counter.value
             run.places_sync_failed = failed_count
+            run.sync_failure_details = all_failure_details[:500]  # cap at 500 entries
             session.add(run)
             session.commit()
 

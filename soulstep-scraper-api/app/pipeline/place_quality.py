@@ -25,11 +25,13 @@ Backwards-compat: quality_score IS NULL passes through all gates (existing runs)
 
 from __future__ import annotations
 
+import os as _os
+
 # ── Gate thresholds ──────────────────────────────────────────────────────────
 
-GATE_IMAGE_DOWNLOAD: float = 0.75
-GATE_ENRICHMENT: float = 0.75
-GATE_SYNC: float = 0.75
+GATE_IMAGE_DOWNLOAD: float = float(_os.environ.get("SCRAPER_GATE_IMAGE_DOWNLOAD", "0.75"))
+GATE_ENRICHMENT: float = float(_os.environ.get("SCRAPER_GATE_ENRICHMENT", "0.75"))
+GATE_SYNC: float = float(_os.environ.get("SCRAPER_GATE_SYNC", "0.75"))
 
 # ── Generic place-type words (shared with enrichment.py) ─────────────────────
 

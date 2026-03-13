@@ -33,6 +33,7 @@ class ScraperRun(SQLModel, table=True):
     places_sync_failed: int = Field(default=0)
     places_sync_quality_filtered: int = Field(default=0)
     places_sync_name_filtered: int = Field(default=0)
+    sync_failure_details: list[str] = Field(default=[], sa_column=Column(JSON))
     places_filtered: int = Field(default=0)
     detail_fetch_cached: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

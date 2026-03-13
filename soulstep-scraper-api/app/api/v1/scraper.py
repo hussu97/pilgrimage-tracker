@@ -593,6 +593,51 @@ def delete_place_type_mapping(mapping_id: int, session: SessionDep):
 # ── Quality Metrics ─────────────────────────────────────────────────────────
 
 
+@router.get("/runs/{run_code}/sync-report")
+def get_sync_report(run_code: str, session: SessionDep):
+    """Return a detailed sync report for a completed run.
+
+    Includes:
+    - Summary counts (synced, failed, quality-filtered, name-filtered)
+    - List of failed place codes with error reasons (up to 500)
+    - Quality breakdown by enrichment status
+    """
+    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    all_places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
+
+    total_scraped = len(all_places)
+    enrichment_complete = sum(1 for p in all_places if p.enrichment_status == "complete")
+    enrichment_failed = sum(1 for p in all_places if p.enrichment_status == "failed")
+    enrichment_filtered = sum(1 for p in all_places if p.enrichment_status == "filtered")
+
+    quality_by_gate: dict[str, int] = {}
+    for p in all_places:
+        if p.quality_gate:
+            quality_by_gate[p.quality_gate] = quality_by_gate.get(p.quality_gate, 0) + 1
+
+    return {
+        "run_code": run_code,
+        "status": run.status,
+        "summary": {
+            "total_scraped": total_scraped,
+            "places_synced": run.places_synced,
+            "places_sync_failed": run.places_sync_failed,
+            "places_quality_filtered": run.places_sync_quality_filtered,
+            "places_name_filtered": run.places_sync_name_filtered,
+        },
+        "enrichment": {
+            "complete": enrichment_complete,
+            "failed": enrichment_failed,
+            "filtered": enrichment_filtered,
+        },
+        "quality_gate_breakdown": quality_by_gate,
+        "sync_failures": run.sync_failure_details or [],
+    }
+
+
 @router.get("/quality-metrics", response_model=QualityMetricsResponse)
 def get_quality_metrics(
     session: SessionDep,
