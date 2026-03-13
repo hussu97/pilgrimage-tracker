@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from sqlmodel import select
 
-from app.db.models import DataLocation, RawCollectorData, ScrapedPlace, ScraperRun
+from app.db.models import DataLocation, DiscoveryCell, RawCollectorData, ScrapedPlace, ScraperRun
 
 
 def _make_location(db_session, code="loc_del1", name="Delete Me"):
@@ -125,3 +125,28 @@ class TestDeleteDataLocation:
         loc = _make_location(db_session, code="loc_dx6")
         resp = client.delete(f"/api/v1/scraper/data-locations/{loc.code}")
         assert resp.status_code == 200
+
+    def test_delete_cascades_to_discovery_cells(self, client, db_session):
+        loc = _make_location(db_session, code="loc_dx7")
+        run = _make_run(db_session, loc.code, run_code="run_dx7")
+        run_code = run.run_code
+        cell = DiscoveryCell(
+            run_code=run_code,
+            lat_min=24.0,
+            lat_max=24.5,
+            lng_min=54.0,
+            lng_max=54.5,
+            depth=0,
+            radius_m=5000.0,
+            result_count=5,
+            saturated=False,
+        )
+        db_session.add(cell)
+        db_session.commit()
+
+        client.delete(f"/api/v1/scraper/data-locations/{loc.code}")
+
+        remaining = db_session.exec(
+            select(DiscoveryCell).where(DiscoveryCell.run_code == run_code)
+        ).all()
+        assert len(remaining) == 0

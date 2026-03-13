@@ -1,6 +1,8 @@
 import math
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from sqlalchemy import delete as _delete
+from sqlalchemy import update as _update
 from sqlmodel import func, select
 
 from app.db.models import (
@@ -33,6 +35,8 @@ from app.services.quality_metrics import compute_quality_metrics
 from app.services.run_activity import get_activity_snapshot
 
 router = APIRouter()
+
+_TERMINAL_STATUSES = {"completed", "interrupted", "failed", "cancelled"}
 
 
 @router.post("/data-locations", response_model=DataLocationResponse)
@@ -88,17 +92,14 @@ def delete_data_location(code: str, session: SessionDep):
     if not loc:
         raise HTTPException(status_code=404, detail="Data location not found")
 
-    runs = session.exec(select(ScraperRun).where(ScraperRun.location_code == code)).all()
-    for run in runs:
-        for place in session.exec(
-            select(ScrapedPlace).where(ScrapedPlace.run_code == run.run_code)
-        ).all():
-            session.delete(place)
-        for rd in session.exec(
-            select(RawCollectorData).where(RawCollectorData.run_code == run.run_code)
-        ).all():
-            session.delete(rd)
-        session.delete(run)
+    run_codes = session.exec(
+        select(ScraperRun.run_code).where(ScraperRun.location_code == code)
+    ).all()
+    for run_code in run_codes:
+        session.exec(_delete(ScrapedPlace).where(ScrapedPlace.run_code == run_code))
+        session.exec(_delete(RawCollectorData).where(RawCollectorData.run_code == run_code))
+        session.exec(_delete(DiscoveryCell).where(DiscoveryCell.run_code == run_code))
+    session.exec(_delete(ScraperRun).where(ScraperRun.location_code == code))
 
     session.delete(loc)
     session.commit()
@@ -241,6 +242,12 @@ def sync_run(run_code: str, background_tasks: BackgroundTasks, session: SessionD
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
+    if run.status not in _TERMINAL_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot sync run with status '{run.status}'. Run must be completed, interrupted, failed, or cancelled.",
+        )
+
     from app.config import settings
 
     server_url = settings.main_server_url
@@ -257,16 +264,23 @@ def re_enrich_run(run_code: str, background_tasks: BackgroundTasks, session: Ses
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
-    if not places:
+    if run.status not in _TERMINAL_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot re-enrich run with status '{run.status}'. Run must be completed, interrupted, failed, or cancelled.",
+        )
+
+    place_count = session.exec(
+        select(func.count()).select_from(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
+    ).one()
+    if not place_count:
         raise HTTPException(status_code=400, detail="No places found for this run")
 
-    # Reset enrichment status
-    for place in places:
-        place.enrichment_status = "pending"
-        place.description_source = None
-        place.description_score = None
-        session.add(place)
+    session.exec(
+        _update(ScrapedPlace)
+        .where(ScrapedPlace.run_code == run_code)
+        .values(enrichment_status="pending", description_source=None, description_score=None)
+    )
     session.commit()
 
     from app.pipeline.enrichment import run_enrichment_pipeline
@@ -276,7 +290,7 @@ def re_enrich_run(run_code: str, background_tasks: BackgroundTasks, session: Ses
     return {
         "status": "re_enrichment_started",
         "run_code": run_code,
-        "place_count": len(places),
+        "place_count": place_count,
     }
 
 
@@ -339,14 +353,9 @@ def delete_run(run_code: str, session: SessionDep):
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    for place in session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all():
-        session.delete(place)
-    for rd in session.exec(
-        select(RawCollectorData).where(RawCollectorData.run_code == run_code)
-    ).all():
-        session.delete(rd)
-    for cell in session.exec(select(DiscoveryCell).where(DiscoveryCell.run_code == run_code)).all():
-        session.delete(cell)
+    session.exec(_delete(ScrapedPlace).where(ScrapedPlace.run_code == run_code))
+    session.exec(_delete(RawCollectorData).where(RawCollectorData.run_code == run_code))
+    session.exec(_delete(DiscoveryCell).where(DiscoveryCell.run_code == run_code))
 
     session.delete(run)
     session.commit()
@@ -472,11 +481,16 @@ def get_map_cells(session: SessionDep, run_code: str | None = Query(None)):
 
 
 @router.get("/map/places", response_model=list[MapPlaceItem])
-def get_map_places(session: SessionDep, run_code: str | None = Query(None)):
-    """Return all scraped places with valid lat/lng, optionally filtered by run."""
+def get_map_places(
+    session: SessionDep,
+    run_code: str | None = Query(None),
+    limit: int = Query(5000, ge=1, le=10000),
+):
+    """Return scraped places with valid lat/lng, optionally filtered by run."""
     q = select(ScrapedPlace)
     if run_code:
         q = q.where(ScrapedPlace.run_code == run_code)
+    q = q.limit(limit)
     out = []
     for p in session.exec(q).all():
         coords = _extract_lat_lng(p.raw_data or {})
@@ -606,17 +620,28 @@ def get_sync_report(run_code: str, session: SessionDep):
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    all_places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
+    def _count_enrichment(status: str) -> int:
+        return session.exec(
+            select(func.count())
+            .select_from(ScrapedPlace)
+            .where(ScrapedPlace.run_code == run_code)
+            .where(ScrapedPlace.enrichment_status == status)
+        ).one()
 
-    total_scraped = len(all_places)
-    enrichment_complete = sum(1 for p in all_places if p.enrichment_status == "complete")
-    enrichment_failed = sum(1 for p in all_places if p.enrichment_status == "failed")
-    enrichment_filtered = sum(1 for p in all_places if p.enrichment_status == "filtered")
+    total_scraped = session.exec(
+        select(func.count()).select_from(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
+    ).one()
+    enrichment_complete = _count_enrichment("complete")
+    enrichment_failed = _count_enrichment("failed")
+    enrichment_filtered = _count_enrichment("filtered")
 
-    quality_by_gate: dict[str, int] = {}
-    for p in all_places:
-        if p.quality_gate:
-            quality_by_gate[p.quality_gate] = quality_by_gate.get(p.quality_gate, 0) + 1
+    gate_counts = session.exec(
+        select(ScrapedPlace.quality_gate, func.count())
+        .where(ScrapedPlace.run_code == run_code)
+        .where(ScrapedPlace.quality_gate.is_not(None))
+        .group_by(ScrapedPlace.quality_gate)
+    ).all()
+    quality_by_gate = dict(gate_counts)
 
     return {
         "run_code": run_code,
