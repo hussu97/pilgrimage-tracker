@@ -462,16 +462,21 @@ export async function patchSEO(placeCode: string, body: PatchSEOBody): Promise<S
   return res.data;
 }
 
-export async function regenerateSEO(placeCode: string, force = false): Promise<SEODetail> {
+export async function regenerateSEO(placeCode: string, force = false, translate = false): Promise<SEODetail> {
   const res = await apiClient.post<SEODetail>(
     `/admin/seo/places/${placeCode}/generate`,
     null,
-    { params: { force } }
+    { params: { force, translate } }
   );
   return res.data;
 }
 
-export async function bulkGenerateSEO(body: { force?: boolean; limit?: number }): Promise<GenerateResponse> {
+export async function bulkGenerateSEO(body: {
+  force?: boolean;
+  limit?: number;
+  translate?: boolean;
+  translate_langs?: string[];
+}): Promise<GenerateResponse> {
   const res = await apiClient.post<GenerateResponse>("/admin/seo/generate", body);
   return res.data;
 }

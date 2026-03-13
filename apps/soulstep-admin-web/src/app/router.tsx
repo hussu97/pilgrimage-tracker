@@ -26,6 +26,7 @@ import { TranslationsPage } from "./pages/content/TranslationsPage";
 import { AppVersionsPage } from "./pages/content/AppVersionsPage";
 import { ContentTranslationsPage } from "./pages/content/ContentTranslationsPage";
 import { PlaceAttributesPage } from "./pages/content/PlaceAttributesPage";
+import { BulkTranslationsPage } from "./pages/content/BulkTranslationsPage";
 import { AuditLogPage } from "./pages/audit-log/AuditLogPage";
 import { NotificationManagementPage } from "./pages/notifications/NotificationManagementPage";
 import { SEODashboardPage } from "./pages/seo/SEODashboardPage";
@@ -92,6 +93,7 @@ export const routes = [
               { path: "/app-versions", element: <AppVersionsPage /> },
               { path: "/content-translations", element: <ContentTranslationsPage /> },
               { path: "/place-attributes", element: <PlaceAttributesPage /> },
+              { path: "/translations/bulk", element: <BulkTranslationsPage /> },
               // SEO & Discoverability
               { path: "/seo", element: <SEODashboardPage /> },
               { path: "/seo/:placeCode", element: <SEOPlaceDetailPage /> },

@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, LargeBinary, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Index, LargeBinary, UniqueConstraint
 from sqlalchemy import types as sa_types
 from sqlmodel import JSON, Column, Field, SQLModel
 
@@ -199,6 +199,12 @@ class ReviewImage(SQLModel, table=True):
 
 
 class CheckIn(SQLModel, table=True):
+    __table_args__ = (
+        Index("ix_checkin_user_date", "user_code", "checked_in_at"),
+        Index("ix_checkin_place_user", "place_code", "user_code"),
+        Index("ix_checkin_group_place", "group_code", "place_code"),
+    )
+
     id: int | None = Field(default=None, primary_key=True)
     check_in_code: str = Field(index=True, unique=True)
     user_code: str = Field(index=True, foreign_key="user.user_code")
@@ -258,7 +264,7 @@ class GroupPlaceNote(SQLModel, table=True):
     note_code: str = Field(index=True, unique=True)
     group_code: str = Field(index=True, foreign_key="group.group_code")
     place_code: str = Field(index=True, foreign_key="place.place_code")
-    user_code: str = Field(foreign_key="user.user_code")
+    user_code: str = Field(index=True, foreign_key="user.user_code")
     text: str
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
@@ -457,6 +463,37 @@ class AdminBroadcast(SQLModel, table=True):
     payload: dict[str, Any] = Field(default={}, sa_column=Column(JSON))
     recipient_type: str  # "all" | "targeted"
     recipient_count: int = Field(default=0)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+
+
+class BulkTranslationJob(SQLModel, table=True):
+    """Tracks a long-running bulk content-translation job.
+
+    Each job translates all missing ContentTranslation rows for the
+    requested entity_types and target_langs using the browser backend.
+    """
+
+    __tablename__ = "bulk_translation_job"
+
+    id: int | None = Field(default=None, primary_key=True)
+    job_code: str = Field(index=True, unique=True)  # "btj_" + token_hex(8)
+    created_by_user_code: str = Field(foreign_key="user.user_code")
+    status: str = Field(default="pending", index=True)
+    # pending | running | completed | completed_with_errors | failed | cancelled
+    target_langs: list[str] = Field(default=[], sa_column=Column(JSON))
+    entity_types: list[str] = Field(default=[], sa_column=Column(JSON))
+    source_lang: str = Field(default="en")
+    total_items: int = Field(default=0)
+    completed_items: int = Field(default=0)
+    failed_items: int = Field(default=0)
+    skipped_items: int = Field(default=0)
+    error_message: str | None = None
+    started_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
+    completed_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
+    cancel_requested_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),

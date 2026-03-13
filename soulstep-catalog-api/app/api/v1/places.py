@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from app.api.deps import OptionalUserDep, UserDep
 from app.db import check_ins as check_ins_db
@@ -26,7 +26,18 @@ from app.services.timezone_utils import get_today_name
 
 logger = logging.getLogger(__name__)
 
+# ── Named constants ────────────────────────────────────────────────────────────
+NEARBY_RADIUS_KM = 10.0
+NEARBY_LIMIT = 5
+SIMILAR_LIMIT = 5
+RECOMMENDED_CANDIDATE_LIMIT = 200
+
 router = APIRouter()
+
+
+def _normalize_hours(hours_dict: dict) -> dict:
+    """Replace the sentinel '00:00-23:59' with 'OPEN_24_HOURS' in a hours dict."""
+    return {k: ("OPEN_24_HOURS" if v == "00:00-23:59" else v) for k, v in hours_dict.items()}
 
 
 def _place_to_item(
@@ -99,11 +110,7 @@ def _place_to_item(
 
     # Normalize full opening_hours dict: replace "00:00-23:59" with "OPEN_24_HOURS" marker
     if place.opening_hours and isinstance(place.opening_hours, dict):
-        normalized_hours = {
-            k: ("OPEN_24_HOURS" if v == "00:00-23:59" else v)
-            for k, v in place.opening_hours.items()
-        }
-        out["opening_hours"] = normalized_hours
+        out["opening_hours"] = _normalize_hours(place.opening_hours)
 
     if getattr(place, "website_url", None):
         out["website_url"] = place.website_url
@@ -126,6 +133,7 @@ def _place_detail(
     lat: float | None = None,
     lng: float | None = None,
     lang: str | None = None,
+    include_related: bool = True,
 ) -> dict:
     # Fetch attributes once and reuse
     attrs = attr_db.get_attributes_dict(place.place_code, session)
@@ -159,63 +167,66 @@ def _place_detail(
     out["seo_og_image_url"] = seo.og_image_url if seo else None
     out["updated_at"] = place.created_at.isoformat() if place.created_at else None
 
-    # Nearby places (within 10 km) — bounding-box pre-filter to avoid full scan
-    nearby_with_dist = places_db.get_nearby_places(
-        place.lat, place.lng, 10.0, place.place_code, session, limit=5
-    )
-    nearby_places = [p for _, p in nearby_with_dist]
+    if include_related:
+        # Nearby places (within 10 km) — bounding-box pre-filter to avoid full scan
+        nearby_with_dist = places_db.get_nearby_places(
+            place.lat, place.lng, NEARBY_RADIUS_KM, place.place_code, session, limit=NEARBY_LIMIT
+        )
+        nearby_places = [p for _, p in nearby_with_dist]
 
-    # Similar places (same religion)
-    similar_places = session.exec(
-        select(Place)
-        .where(Place.religion == place.religion, Place.place_code != place.place_code)
-        .limit(5)
-    ).all()
+        # Similar places (same religion)
+        similar_places = session.exec(
+            select(Place)
+            .where(Place.religion == place.religion, Place.place_code != place.place_code)
+            .limit(SIMILAR_LIMIT)
+        ).all()
 
-    # Build SEO slug map for related places
-    related_codes = [p.place_code for p in nearby_places + similar_places]
-    seo_rows = (
-        session.exec(select(PlaceSEO).where(PlaceSEO.place_code.in_(related_codes))).all()
-        if related_codes
-        else []
-    )
-    seo_map = {s.place_code: s for s in seo_rows}
+        # Build SEO slug map for related places
+        related_codes = [p.place_code for p in nearby_places + similar_places]
+        seo_rows = (
+            session.exec(select(PlaceSEO).where(PlaceSEO.place_code.in_(related_codes))).all()
+            if related_codes
+            else []
+        )
+        seo_map = {s.place_code: s for s in seo_rows}
 
-    # Bulk fetch images and ratings for related places (avoids N+1)
-    related_images_bulk = (
-        place_images.get_images_bulk(related_codes, session) if related_codes else {}
-    )
-    related_ratings_bulk = (
-        reviews_db.get_aggregate_ratings_bulk(related_codes, session) if related_codes else {}
-    )
+        # Bulk fetch images and ratings for related places (avoids N+1)
+        related_images_bulk = (
+            place_images.get_images_bulk(related_codes, session) if related_codes else {}
+        )
+        related_ratings_bulk = (
+            reviews_db.get_aggregate_ratings_bulk(related_codes, session) if related_codes else {}
+        )
 
-    def _related_item(p) -> dict:
-        rel_seo = seo_map.get(p.place_code)
-        rel_imgs = related_images_bulk.get(p.place_code, [])
-        agg = related_ratings_bulk.get(p.place_code)
-        return {
-            "place_code": p.place_code,
-            "name": p.name,
-            "address": p.address,
-            "religion": p.religion,
-            "seo_slug": rel_seo.slug if rel_seo else None,
-            "image_url": rel_imgs[0]["url"] if rel_imgs else None,
-            "average_rating": agg["average"] if agg else None,
-            "lat": p.lat,
-            "lng": p.lng,
-        }
+        def _related_item(p) -> dict:
+            rel_seo = seo_map.get(p.place_code)
+            rel_imgs = related_images_bulk.get(p.place_code, [])
+            agg = related_ratings_bulk.get(p.place_code)
+            return {
+                "place_code": p.place_code,
+                "name": p.name,
+                "address": p.address,
+                "religion": p.religion,
+                "seo_slug": rel_seo.slug if rel_seo else None,
+                "image_url": rel_imgs[0]["url"] if rel_imgs else None,
+                "average_rating": agg["average"] if agg else None,
+                "lat": p.lat,
+                "lng": p.lng,
+            }
 
-    out["nearby_places"] = [_related_item(p) for p in nearby_places]
-    out["similar_places"] = [_related_item(p) for p in similar_places]
+        out["nearby_places"] = [_related_item(p) for p in nearby_places]
+        out["similar_places"] = [_related_item(p) for p in similar_places]
+    else:
+        out["nearby_places"] = []
+        out["similar_places"] = []
     return out
 
 
 @router.get("/count")
-def get_places_count(session: SessionDep):
+def get_places_count(session: SessionDep, response: Response):
     """Return the total count of all places in the database."""
-    from sqlmodel import func as _func
-
-    total = session.exec(select(_func.count(Place.id))).one()
+    total = session.exec(select(func.count(Place.id))).one()
+    response.headers["Cache-Control"] = "public, max-age=600"
     return {"total": total}
 
 
@@ -251,20 +262,23 @@ def get_recommended_places(
 
     candidates = [p for p in places_raw if p.place_code not in excluded]
 
-    # Sort by distance if location provided
+    # Sort by distance if location provided; compute distance once (avoid double calculation)
     if lat is not None and lng is not None:
-        candidates.sort(key=lambda p: _haversine_km(lat, lng, p.lat, p.lng))
+        candidates_with_dist = [(p, _haversine_km(lat, lng, p.lat, p.lng)) for p in candidates]
+        candidates_with_dist.sort(key=lambda pd: pd[1])
+        results_with_dist = candidates_with_dist[:limit]
+    else:
+        results_with_dist = [(p, None) for p in candidates[:limit]]
 
-    results = candidates[:limit]
+    result_codes = [p.place_code for p, _ in results_with_dist]
+    result_images = place_images.get_images_bulk(result_codes, session)
 
     # Build lightweight response
     out = []
-    for p in results:
-        images = place_images.get_images(p.place_code, session)
-        img_url = images[0]["url"] if images else None
-        dist = None
-        if lat is not None and lng is not None:
-            dist = round(_haversine_km(lat, lng, p.lat, p.lng) * 10) / 10
+    for p, raw_dist in results_with_dist:
+        imgs = result_images.get(p.place_code, [])
+        img_url = imgs[0]["url"] if imgs else None
+        dist = round(raw_dist * 10) / 10 if raw_dist is not None else None
         out.append(
             {
                 "place_code": p.place_code,
@@ -392,11 +406,16 @@ def get_place(
     lang: str | None = Query(
         None, description="BCP-47 language code for localized content (e.g. ar, hi, te)"
     ),
+    include_related: bool = Query(
+        True, description="Include nearby and similar places (set false to reduce latency)"
+    ),
 ):
     place = places_db.get_place_by_code(place_code, session)
     if not place:
         raise HTTPException(status_code=404, detail="Place not found")
-    out = _place_detail(place, session, lat=lat, lng=lng, lang=lang)
+    out = _place_detail(
+        place, session, lat=lat, lng=lng, lang=lang, include_related=include_related
+    )
     if user:
         out["user_has_checked_in"] = check_ins_db.has_checked_in(
             user.user_code, place_code, session

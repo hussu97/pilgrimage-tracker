@@ -664,6 +664,8 @@ export interface GenerateResponse {
   generated: number;
   skipped: number;
   errors: number;
+  translated: number;
+  translation_errors: number;
 }
 
 // Analytics
