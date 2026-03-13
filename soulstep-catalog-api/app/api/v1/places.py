@@ -1,8 +1,9 @@
 import logging
+import time
 
 from fastapi import APIRouter, HTTPException, Query, Response
 from fastapi.responses import RedirectResponse
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, func, select
 
 from app.api.deps import OptionalUserDep, UserDep
@@ -802,72 +803,114 @@ def _upsert_single_place(
 _BATCH_CHUNK_SIZE = 50
 
 
+_MAX_CHUNK_RETRIES = 3
+
+
 def _process_chunk(chunk: list[PlaceCreate]) -> list[dict]:
     """Upsert one chunk of places using a dedicated short-lived session.
 
     Opens and closes its own Session so the connection is returned to the pool
     as soon as the chunk finishes. A DB-level error (e.g. pool timeout) only
     affects this chunk; the caller continues with the remaining chunks.
+
+    Retries up to _MAX_CHUNK_RETRIES times on OperationalError (pool timeout /
+    transient connection error) with exponential backoff (1s, 2s).
     """
     chunk_codes = [p.place_code for p in chunk]
-    results: list[dict] = []
+    last_op_err: OperationalError | None = None
 
-    with Session(engine) as session:
-        # Pre-fetch existing rows for this chunk in one SELECT
-        try:
-            existing_rows = session.exec(
-                select(Place).where(Place.place_code.in_(chunk_codes))
-            ).all()
-        except Exception as e:
-            # Can't even acquire a connection for this chunk — mark all as failed
-            logger.warning("Chunk pre-fetch failed (%s places): %s", len(chunk), e)
-            return [
-                {"place_code": p.place_code, "ok": False, "error": f"db_unavailable: {e}"}
-                for p in chunk
-            ]
+    for attempt in range(_MAX_CHUNK_RETRIES):
+        if attempt:
+            delay = 2 ** (attempt - 1)  # 1s, 2s
+            logger.warning(
+                "Chunk DB retry %d/%d (%d places) in %ds: %s",
+                attempt + 1,
+                _MAX_CHUNK_RETRIES,
+                len(chunk),
+                delay,
+                last_op_err,
+            )
+            time.sleep(delay)
 
-        existing_map: dict[str, Place] = {p.place_code: p for p in existing_rows}
-        loc_cache: dict[tuple, tuple] = {}
-
-        for place_data in chunk:
+        results: list[dict] = []
+        with Session(engine) as session:
             try:
-                _, action = _upsert_single_place(place_data, session, existing_map, loc_cache)
-                results.append({"place_code": place_data.place_code, "ok": True, "action": action})
-            except IntegrityError:
-                # Race condition: concurrent request inserted this place between our
-                # pre-fetch and our INSERT. Roll back, re-fetch the row, then update.
-                session.rollback()
+                existing_rows = session.exec(
+                    select(Place).where(Place.place_code.in_(chunk_codes))
+                ).all()
+            except OperationalError as e:
+                # Pool timeout or transient connection error — retry
+                last_op_err = e
+                continue
+            except Exception as e:
+                logger.warning("Chunk pre-fetch failed (%s places): %s", len(chunk), e)
+                return [
+                    {"place_code": p.place_code, "ok": False, "error": f"db_unavailable: {e}"}
+                    for p in chunk
+                ]
+
+            existing_map: dict[str, Place] = {p.place_code: p for p in existing_rows}
+            loc_cache: dict[tuple, tuple] = {}
+
+            for place_data in chunk:
                 try:
-                    existing = places_db.get_place_by_code(place_data.place_code, session)
-                    if existing:
-                        existing_map[place_data.place_code] = existing
                     _, action = _upsert_single_place(place_data, session, existing_map, loc_cache)
                     results.append(
                         {"place_code": place_data.place_code, "ok": True, "action": action}
                     )
-                except Exception as retry_err:
+                except IntegrityError:
+                    # Race condition: concurrent request inserted this place between our
+                    # pre-fetch and our INSERT. Roll back, re-fetch the row, then update.
+                    session.rollback()
+                    try:
+                        existing = places_db.get_place_by_code(place_data.place_code, session)
+                        if existing:
+                            existing_map[place_data.place_code] = existing
+                        _, action = _upsert_single_place(
+                            place_data, session, existing_map, loc_cache
+                        )
+                        results.append(
+                            {"place_code": place_data.place_code, "ok": True, "action": action}
+                        )
+                    except Exception as retry_err:
+                        session.rollback()
+                        logger.warning(
+                            "Failed to upsert place %s after IntegrityError retry: %s",
+                            place_data.place_code,
+                            retry_err,
+                            exc_info=True,
+                        )
+                        results.append(
+                            {
+                                "place_code": place_data.place_code,
+                                "ok": False,
+                                "error": str(retry_err),
+                            }
+                        )
+                except Exception as e:
                     session.rollback()
                     logger.warning(
-                        "Failed to upsert place %s after IntegrityError retry: %s",
+                        "Failed to upsert place %s: %s",
                         place_data.place_code,
-                        retry_err,
+                        e,
                         exc_info=True,
                     )
                     results.append(
-                        {
-                            "place_code": place_data.place_code,
-                            "ok": False,
-                            "error": str(retry_err),
-                        }
+                        {"place_code": place_data.place_code, "ok": False, "error": str(e)}
                     )
-            except Exception as e:
-                session.rollback()
-                logger.warning(
-                    "Failed to upsert place %s: %s", place_data.place_code, e, exc_info=True
-                )
-                results.append({"place_code": place_data.place_code, "ok": False, "error": str(e)})
 
-    return results
+        return results  # success
+
+    logger.warning(
+        "Chunk pre-fetch failed after %d attempts (%d places): %s",
+        _MAX_CHUNK_RETRIES,
+        len(chunk),
+        last_op_err,
+    )
+    return [
+        {"place_code": p.place_code, "ok": False, "error": f"db_unavailable: {last_op_err}"}
+        for p in chunk
+    ]
 
 
 @router.post("/batch")

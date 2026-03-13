@@ -10,18 +10,27 @@ sqlite_url = f"sqlite:///{sqlite_file_name}"
 database_url = os.environ.get("DATABASE_URL", sqlite_url)
 
 # connect_args={"check_same_thread": False} is required for SQLite
-connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
+connect_args = (
+    {"check_same_thread": False}
+    if database_url.startswith("sqlite")
+    else {"connect_timeout": 5}  # TCP timeout for initial Cloud SQL connection (seconds)
+)
 
 # Connection pool configuration
 pool_config = {}
 if not database_url.startswith("sqlite"):
-    # For PostgreSQL/MySQL, configure connection pool
+    # For PostgreSQL/Cloud SQL: pool_size + max_overflow must stay under the
+    # instance's max_connections limit (db-f1-micro=25, db-g1-small=50).
+    # Multiply by the number of worker processes when sizing — e.g. 2 workers
+    # × 15 total = 30, which fits a g1-small but not f1-micro.
+    # pool_timeout is intentionally short: fail fast so requests don't queue
+    # up behind a saturated pool and cause cascading latency.
     pool_config = {
-        "pool_size": 3,
-        "max_overflow": 2,
-        "pool_timeout": 10,
-        "pool_recycle": 300,
-        "pool_pre_ping": True,
+        "pool_size": 8,  # persistent connections per process
+        "max_overflow": 4,  # burst headroom — 12 total per process
+        "pool_timeout": 5,  # fail fast — surface pool pressure quickly
+        "pool_recycle": 120,  # recycle idle connections every 2 min
+        "pool_pre_ping": True,  # drop stale connections before use
     }
 engine = create_engine(database_url, echo=False, connect_args=connect_args, **pool_config)
 

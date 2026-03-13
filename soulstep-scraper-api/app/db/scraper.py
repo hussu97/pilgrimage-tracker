@@ -315,39 +315,74 @@ def build_sync_payloads(places: list[ScrapedPlace]) -> list[dict]:
     return payloads
 
 
+_TRANSIENT_HTTP = {503, 504, 429}
+_MAX_HTTP_RETRIES = 3
+
+
 async def _post_batch_async(
     batch: list[dict],
     server_url: str,
     client: httpx.AsyncClient,
 ) -> tuple[int, list[str]]:
-    """POST one batch to /api/v1/places/batch. Returns (synced_count, failed_entries)."""
+    """POST one batch to /api/v1/places/batch. Returns (synced_count, failed_entries).
+
+    Retries up to _MAX_HTTP_RETRIES times on 503/504/429 or network errors
+    with exponential backoff (2s, 4s). Non-transient errors (4xx, 500) are
+    returned immediately as failures without retrying.
+    """
     batch_codes = [p["place_code"] for p in batch]
-    try:
-        resp = await client.post(
-            f"{server_url}/api/v1/places/batch",
-            json={"places": batch},
-        )
-        if resp.status_code in [200, 201]:
-            data = resp.json()
-            synced = data.get("synced", 0)
-            failed: list[str] = []
-            for r in data.get("results", []):
-                if not r.get("ok"):
-                    reason = r.get("error", "unknown error")
-                    failed.append(f"{r['place_code']}: {reason}")
-                    logger.warning("[FAIL] %s: %s", r["place_code"], reason)
-                else:
-                    logger.debug("[OK]   %s", r["place_code"])
-            return synced, failed
-        else:
-            logger.warning(
-                "Batch endpoint returned %d, falling back to individual POSTs", resp.status_code
+
+    for attempt in range(_MAX_HTTP_RETRIES):
+        if attempt:
+            await asyncio.sleep(2**attempt)  # 2s, 4s
+
+        try:
+            resp = await client.post(
+                f"{server_url}/api/v1/places/batch",
+                json={"places": batch},
             )
-            return 0, [f"{code}: batch HTTP {resp.status_code}" for code in batch_codes]
-    except Exception as e:
-        reason = f"{type(e).__name__}: {e}"
-        logger.error("[FAIL] Batch request failed: %s", reason)
-        return 0, [f"{code}: {reason}" for code in batch_codes]
+            if resp.status_code in [200, 201]:
+                data = resp.json()
+                synced = data.get("synced", 0)
+                failed: list[str] = []
+                for r in data.get("results", []):
+                    if not r.get("ok"):
+                        reason = r.get("error", "unknown error")
+                        failed.append(f"{r['place_code']}: {reason}")
+                        logger.warning("[FAIL] %s: %s", r["place_code"], reason)
+                    else:
+                        logger.debug("[OK]   %s", r["place_code"])
+                return synced, failed
+            elif resp.status_code in _TRANSIENT_HTTP:
+                logger.warning(
+                    "Batch endpoint returned %d (attempt %d/%d) — retrying",
+                    resp.status_code,
+                    attempt + 1,
+                    _MAX_HTTP_RETRIES,
+                )
+                continue
+            else:
+                logger.warning(
+                    "Batch endpoint returned %d, falling back to individual POSTs",
+                    resp.status_code,
+                )
+                return 0, [f"{code}: batch HTTP {resp.status_code}" for code in batch_codes]
+        except (httpx.TimeoutException, httpx.ConnectError) as e:
+            logger.warning(
+                "Batch network error (attempt %d/%d): %s — retrying",
+                attempt + 1,
+                _MAX_HTTP_RETRIES,
+                e,
+            )
+            if attempt == _MAX_HTTP_RETRIES - 1:
+                return 0, [f"{code}: {type(e).__name__}: {e}" for code in batch_codes]
+        except Exception as e:
+            reason = f"{type(e).__name__}: {e}"
+            logger.error("[FAIL] Batch request failed: %s", reason)
+            return 0, [f"{code}: {reason}" for code in batch_codes]
+
+    logger.error("[FAIL] Batch retries exhausted for %d places", len(batch))
+    return 0, [f"{code}: retries_exhausted" for code in batch_codes]
 
 
 async def _post_individual_async(
@@ -355,28 +390,54 @@ async def _post_individual_async(
     server_url: str,
     client: httpx.AsyncClient,
 ) -> tuple[int, list[str]]:
-    """Fall back to a single individual POST. Returns (synced_count, failure_details)."""
+    """Fall back to a single individual POST. Returns (synced_count, failure_details).
+
+    Retries on 503/504/429 and network errors with exponential backoff (2s, 4s).
+    """
     import json as _json
 
     place_code = payload["place_code"]
-    try:
-        r = await client.post(f"{server_url}/api/v1/places", json=payload)
-        if r.status_code not in [200, 201]:
-            reason = f"HTTP {r.status_code}"
-            logger.warning("[FAIL] %s: %s — %s", place_code, reason, r.text[:200])
-            if r.status_code == 422:
-                logger.debug(
-                    "Payload that caused 422:\n%s",
-                    _json.dumps(payload, indent=2, default=str),
+
+    for attempt in range(_MAX_HTTP_RETRIES):
+        if attempt:
+            await asyncio.sleep(2**attempt)  # 2s, 4s
+
+        try:
+            r = await client.post(f"{server_url}/api/v1/places", json=payload)
+            if r.status_code in [200, 201]:
+                logger.debug("[OK]   %s", place_code)
+                return 1, []
+            elif r.status_code in _TRANSIENT_HTTP:
+                logger.warning(
+                    "[RETRY] %s: HTTP %d (attempt %d/%d)",
+                    place_code,
+                    r.status_code,
+                    attempt + 1,
+                    _MAX_HTTP_RETRIES,
                 )
+                continue
+            else:
+                reason = f"HTTP {r.status_code}"
+                logger.warning("[FAIL] %s: %s — %s", place_code, reason, r.text[:200])
+                if r.status_code == 422:
+                    logger.debug(
+                        "Payload that caused 422:\n%s",
+                        _json.dumps(payload, indent=2, default=str),
+                    )
+                return 0, [f"{place_code}: {reason}"]
+        except (httpx.TimeoutException, httpx.ConnectError) as e:
+            logger.warning(
+                "[RETRY] %s: %s (attempt %d/%d)", place_code, e, attempt + 1, _MAX_HTTP_RETRIES
+            )
+            if attempt == _MAX_HTTP_RETRIES - 1:
+                return 0, [f"{place_code}: {type(e).__name__}: {e}"]
+        except Exception as e:
+            reason = f"{type(e).__name__}: {e}"
+            logger.warning("[FAIL] %s: %s", place_code, reason)
             return 0, [f"{place_code}: {reason}"]
-        else:
-            logger.debug("[OK]   %s", place_code)
-            return 1, []
-    except Exception as e:
-        reason = f"{type(e).__name__}: {e}"
-        logger.warning("[FAIL] %s: %s", place_code, reason)
-        return 0, [f"{place_code}: {reason}"]
+
+    logger.warning("[FAIL] %s: retries exhausted", place_code)
+    return 0, [f"{place_code}: retries_exhausted"]
 
 
 async def _trigger_seo_generation_async(server_url: str, admin_token: str) -> None:
