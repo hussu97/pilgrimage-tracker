@@ -16,6 +16,7 @@ from app.db.models import (
 )
 from app.db.scraper import generate_code, resume_scraper_task, run_scraper_task, sync_run_to_server
 from app.db.session import SessionDep
+from app.logger import get_logger
 from app.models.schemas import (
     CollectorStatusResponse,
     DataLocationCreate,
@@ -34,6 +35,7 @@ from app.models.schemas import (
 from app.services.quality_metrics import compute_quality_metrics
 from app.services.run_activity import get_activity_snapshot
 
+logger = get_logger(__name__)
 router = APIRouter()
 
 _TERMINAL_STATUSES = {"completed", "interrupted", "failed", "cancelled"}
@@ -670,3 +672,46 @@ def get_quality_metrics(
 ):
     """Aggregate quality scoring statistics across all runs (or a single run)."""
     return compute_quality_metrics(session, run_code)
+
+
+# ── Image Cleanup ────────────────────────────────────────────────────────────
+
+
+async def _run_cleanup_images_bg() -> None:
+    """Background task: retry image downloads across all runs."""
+    from app.collectors.gmaps import cleanup_image_downloads
+    from app.config import settings
+    from app.db.session import engine
+
+    try:
+        result = await cleanup_image_downloads(engine, settings.google_maps_api_key)
+        logger.info(
+            "Image cleanup finished: pending=%d downloaded=%d refreshed=%d failed=%d",
+            result["pending_places"],
+            result["downloaded"],
+            result["refreshed_from_google"],
+            result["failed"],
+        )
+    except Exception:
+        logger.exception("Image cleanup background task failed")
+
+
+@router.post("/cleanup/images")
+async def cleanup_images(background_tasks: BackgroundTasks):
+    """Retry image downloads for all ScrapedPlaces with pending image_urls.
+
+    Scans every ScrapedPlace across all runs for entries that have image_urls
+    but no image_blobs (download failed during the original run).
+
+    Strategy:
+    1. Try existing URLs — usually valid for ~1 week after scraping.
+    2. For places where all URLs fail (expired), call the Google Places API
+       using the stored google_place_id to get fresh photo references, then retry.
+
+    Runs as a background task; results are logged to the server log.
+    """
+    background_tasks.add_task(_run_cleanup_images_bg)
+    return {
+        "status": "started",
+        "message": "Image cleanup running in background. Check server logs for results.",
+    }

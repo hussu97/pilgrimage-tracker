@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getScraperStats } from "@/lib/api/scraper";
+import { getScraperStats, retryFailedImages } from "@/lib/api/scraper";
 import type { ScraperStats } from "@/lib/api/types";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatDate } from "@/lib/utils";
 import { statusVariant as runStatusVariant } from "@/lib/utils/scraperStatus";
-import { Database, MapPin, Play, Layers } from "lucide-react";
+import { Database, MapPin, Play, Layers, ImageOff, Loader2 } from "lucide-react";
 
 const SCRAPER_SECTIONS = [
   { label: "Data Locations", to: "/scraper/data-locations", description: "Manage geographic locations to scrape." },
@@ -18,6 +18,8 @@ const SCRAPER_SECTIONS = [
 export function ScraperOverviewPage() {
   const [stats, setStats] = useState<ScraperStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
+  const [retryResult, setRetryResult] = useState<{ ok: boolean; message: string } | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -30,6 +32,19 @@ export function ScraperOverviewPage() {
       }
     })();
   }, []);
+
+  async function handleRetryImages() {
+    setRetrying(true);
+    setRetryResult(null);
+    try {
+      const result = await retryFailedImages();
+      setRetryResult({ ok: true, message: result.message });
+    } catch {
+      setRetryResult({ ok: false, message: "Failed to reach scraper service." });
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -94,6 +109,49 @@ export function ScraperOverviewPage() {
               </p>
             </Link>
           ))}
+        </div>
+      </div>
+
+      {/* Maintenance */}
+      <div>
+        <h2 className="text-base font-semibold text-text-main dark:text-white mb-3">Maintenance</h2>
+        <div className="rounded-xl border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface p-5 space-y-3">
+          <div className="flex items-start gap-3">
+            <ImageOff size={18} className="mt-0.5 shrink-0 text-text-secondary dark:text-dark-text-secondary" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-text-main dark:text-white text-sm">Retry Failed Images</p>
+              <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-0.5">
+                Re-attempts image downloads for all scraped places where images failed to download
+                during the original run. Falls back to re-fetching fresh photo URLs from Google if
+                the stored URLs have expired.
+              </p>
+              {retryResult && (
+                <p
+                  className={`text-xs mt-2 font-medium ${
+                    retryResult.ok
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-red-600 dark:text-red-400"
+                  }`}
+                >
+                  {retryResult.message}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={() => void handleRetryImages()}
+              disabled={retrying}
+              className="shrink-0 flex items-center gap-1.5 rounded-lg border border-input-border dark:border-dark-border px-3 py-1.5 text-xs font-medium text-text-main dark:text-white hover:border-primary dark:hover:border-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {retrying ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" />
+                  Starting…
+                </>
+              ) : (
+                "Run cleanup"
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

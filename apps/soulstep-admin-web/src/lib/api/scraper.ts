@@ -175,6 +175,13 @@ export async function deletePlaceTypeMapping(id: number): Promise<void> {
   await scraperClient.delete(`/place-type-mappings/${id}`);
 }
 
+// ── Cleanup ────────────────────────────────────────────────────────────────────
+
+export async function retryFailedImages(): Promise<{ status: string; message: string }> {
+  const res = await scraperClient.post<{ status: string; message: string }>("/cleanup/images");
+  return res.data;
+}
+
 // ── Quality Metrics ────────────────────────────────────────────────────────────
 
 export async function getQualityMetrics(params?: { run_code?: string }): Promise<QualityMetrics> {

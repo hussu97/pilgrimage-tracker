@@ -198,6 +198,17 @@ async def get_quality_metrics(admin: AdminDep, request: Request):
     return await _proxy("GET", "/quality-metrics", params=params)
 
 
+@router.post("/cleanup/images")
+async def cleanup_images(admin: AdminDep):
+    """Trigger the scraper's image cleanup worker.
+
+    Retries image downloads for all ScrapedPlaces that have pending image_urls
+    but no image_blobs. Runs in the background on the scraper service; results
+    are written to the scraper service logs.
+    """
+    return await _proxy("POST", "/cleanup/images")
+
+
 @router.get("/place-type-mappings")
 async def list_place_type_mappings(admin: AdminDep, request: Request):
     params = dict(request.query_params)
