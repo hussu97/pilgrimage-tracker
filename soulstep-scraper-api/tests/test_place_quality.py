@@ -22,11 +22,10 @@ from app.pipeline.place_quality import (
 
 
 class TestGateConstants:
-    def test_image_gate_below_enrichment_gate(self):
-        assert GATE_IMAGE_DOWNLOAD < GATE_ENRICHMENT
-
-    def test_enrichment_gate_below_sync_gate(self):
-        assert GATE_ENRICHMENT < GATE_SYNC
+    def test_all_gates_equal_0_8(self):
+        assert GATE_IMAGE_DOWNLOAD == 0.80
+        assert GATE_ENRICHMENT == 0.80
+        assert GATE_SYNC == 0.80
 
     def test_gates_in_valid_range(self):
         assert 0.0 < GATE_IMAGE_DOWNLOAD < 1.0
@@ -162,21 +161,18 @@ class TestScorePlaceQuality:
         assert score > 0.0
 
     def test_photo_count_granular(self):
-        """Photo score increases across all 5 tiers: 0 / 1-4 / 5-7 / 8-9 / 10+."""
+        """Photo score increases across 3 tiers: 0=none / 1=low / 2=medium / 3+=best."""
 
         def make(n):
             return _make_raw(image_urls=[f"u{i}" for i in range(n)], image_blobs=[])
 
-        s0 = score_place_quality(make(0))
-        s1 = score_place_quality(make(1))  # bad
-        s4 = score_place_quality(make(4))  # bad (same tier as 1)
-        s5 = score_place_quality(make(5))  # mediocre
-        s7 = score_place_quality(make(7))  # mediocre (same tier as 5)
-        s8 = score_place_quality(make(8))  # good
-        s9 = score_place_quality(make(9))  # good (same tier as 8)
-        s10 = score_place_quality(make(10))  # full
+        s0 = score_place_quality(make(0))  # none
+        s1 = score_place_quality(make(1))  # low
+        s2 = score_place_quality(make(2))  # medium
+        s3 = score_place_quality(make(3))  # best
+        s5 = score_place_quality(make(5))  # best (same tier as 3)
 
-        assert s0 < s1 == s4 < s5 == s7 < s8 == s9 < s10
+        assert s0 < s1 < s2 < s3 == s5
 
     def test_editorial_adds_bonus(self):
         raw_ed = _make_raw(has_editorial=True)
@@ -239,18 +235,13 @@ class TestScorePlaceQuality:
 class TestGetQualityGate:
     def test_below_image_gate(self):
         assert get_quality_gate(0.0) == "below_image_gate"
-        assert get_quality_gate(0.59) == "below_image_gate"
-
-    def test_below_enrichment_gate(self):
-        assert get_quality_gate(GATE_IMAGE_DOWNLOAD) == "below_enrichment_gate"
-        assert get_quality_gate(0.65) == "below_enrichment_gate"
-
-    def test_below_sync_gate(self):
-        assert get_quality_gate(GATE_ENRICHMENT) == "below_sync_gate"
-        assert get_quality_gate(0.75) == "below_sync_gate"
+        assert get_quality_gate(0.79) == "below_image_gate"
+        assert get_quality_gate(0.65) == "below_image_gate"
 
     def test_passes_all_gates(self):
+        # All three thresholds are 0.80 — score >= 0.80 passes everything
         assert get_quality_gate(GATE_SYNC) is None
+        assert get_quality_gate(0.80) is None
         assert get_quality_gate(1.0) is None
 
 
@@ -265,7 +256,7 @@ class TestPassesGate:
         assert passes_gate(None, GATE_SYNC) is True
 
     def test_above_threshold_passes(self):
-        assert passes_gate(0.75, GATE_ENRICHMENT) is True
+        assert passes_gate(0.85, GATE_ENRICHMENT) is True
 
     def test_at_threshold_passes(self):
         assert passes_gate(GATE_ENRICHMENT, GATE_ENRICHMENT) is True

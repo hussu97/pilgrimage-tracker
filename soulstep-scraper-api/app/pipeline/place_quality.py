@@ -7,8 +7,8 @@ operations: image download, enrichment, and sync.
 
 Gate thresholds
 ---------------
-GATE_IMAGE_DOWNLOAD : 0.60  — filters junk places (permanently closed, zero data)
-GATE_ENRICHMENT     : 0.70  — main cost saver (no reviews, no photos, vague names)
+GATE_IMAGE_DOWNLOAD : 0.80  — filters junk places (permanently closed, zero data)
+GATE_ENRICHMENT     : 0.80  — main cost saver (no reviews, no photos, vague names)
 GATE_SYNC           : 0.80  — ensures only solid places reach the platform
 
 Filtered places are still stored in ScrapedPlace with their score and gate label
@@ -27,8 +27,8 @@ from __future__ import annotations
 
 # ── Gate thresholds ──────────────────────────────────────────────────────────
 
-GATE_IMAGE_DOWNLOAD: float = 0.60
-GATE_ENRICHMENT: float = 0.70
+GATE_IMAGE_DOWNLOAD: float = 0.80
+GATE_ENRICHMENT: float = 0.80
 GATE_SYNC: float = 0.80
 
 # ── Generic place-type words (shared with enrichment.py) ─────────────────────
@@ -174,15 +174,13 @@ def score_place_quality(raw_data: dict) -> float:
     elif status == "CLOSED_TEMPORARILY":
         score += 0.075
 
-    # ── 3. Photo count (0.15) — 5-tier granularity ───────────────────────────
-    # 10: full | 8-9: good | 5-7: mediocre | 1-4: bad | 0: none
+    # ── 3. Photo count (0.15) — 3-tier (scraper fetches max 3 images) ───────────
+    # 3+: best (1.0) | 2: medium (0.40) | 1: low (0.10) | 0: none (0.0)
     photo_count = len(raw_data.get("image_urls") or []) + len(raw_data.get("image_blobs") or [])
-    if photo_count >= 10:
+    if photo_count >= 3:
         score += 0.15
-    elif photo_count >= 8:
-        score += 0.1125  # 0.75 * 0.15
-    elif photo_count >= 5:
-        score += 0.075  # 0.50 * 0.15
+    elif photo_count >= 2:
+        score += 0.06  # 0.40 * 0.15
     elif photo_count >= 1:
         score += 0.015  # 0.10 * 0.15
 
@@ -260,15 +258,13 @@ def score_place_quality_breakdown(raw_data: dict) -> dict:
         }
     )
 
-    # ── 3. Photo count (0.15) — 5-tier granularity ───────────────────────────
-    # 10: full | 8-9: good | 5-7: mediocre | 1-4: bad | 0: none
+    # ── 3. Photo count (0.15) — 3-tier (scraper fetches max 3 images) ───────────
+    # 3+: best (1.0) | 2: medium (0.40) | 1: low (0.10) | 0: none (0.0)
     photo_count = len(raw_data.get("image_urls") or []) + len(raw_data.get("image_blobs") or [])
-    if photo_count >= 10:
+    if photo_count >= 3:
         raw_3 = 1.0
-    elif photo_count >= 8:
-        raw_3 = 0.75
-    elif photo_count >= 5:
-        raw_3 = 0.50
+    elif photo_count >= 2:
+        raw_3 = 0.40
     elif photo_count >= 1:
         raw_3 = 0.10
     else:
@@ -280,7 +276,7 @@ def score_place_quality_breakdown(raw_data: dict) -> dict:
             "weight": weight_3,
             "raw_score": round(raw_3, 4),
             "weighted": round(raw_3 * weight_3, 4),
-            "detail": f"photos={photo_count} (tiers: 0/1-4/5-7/8-9/10+)",
+            "detail": f"photos={photo_count} (tiers: 0=none/1=low/2=medium/3+=best)",
         }
     )
 
@@ -358,8 +354,8 @@ def score_place_quality_breakdown(raw_data: dict) -> dict:
 def get_quality_gate(quality_score: float) -> str | None:
     """Return the lowest gate label the score fails, or None if it passes all.
 
-    "below_image_gate"      → score < GATE_IMAGE_DOWNLOAD (0.60)
-    "below_enrichment_gate" → GATE_IMAGE_DOWNLOAD <= score < GATE_ENRICHMENT (0.70)
+    "below_image_gate"      → score < GATE_IMAGE_DOWNLOAD (0.80)
+    "below_enrichment_gate" → GATE_IMAGE_DOWNLOAD <= score < GATE_ENRICHMENT (0.80)
     "below_sync_gate"       → GATE_ENRICHMENT <= score < GATE_SYNC (0.80)
     None                    → score >= GATE_SYNC (passes all gates)
     """

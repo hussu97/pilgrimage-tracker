@@ -17,6 +17,7 @@ Dependencies: sqlmodel, sqlalchemy (already in requirements)
 """
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -25,20 +26,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlmodel import Session, create_engine, func, select
 
-# Known sublocality/admin area names that pollute city data
-KNOWN_DIRTY_CITY_NAMES = {
-    "Deira",
-    "Bur Dubai",
-    "Jumeirah",
-    "Al Karama",
-    "Dubai Municipality",
-    "Al Qusais",
-    "Umm Hurair",
-    "Al Nahda",
-    "Hor Al Anz",
-    "Greater Cairo",
-    "Giza Governorate",
-    "Nasr City",
+# Load dirty city names from the companion JSON file (dirty_city_names.json).
+# The JSON is grouped by region for readability; we flatten all groups into a
+# single set here. Edit dirty_city_names.json to add or remove entries.
+_DATA_FILE = os.path.join(os.path.dirname(__file__), "dirty_city_names.json")
+with open(_DATA_FILE) as _f:
+    _raw = json.load(_f)
+KNOWN_DIRTY_CITY_NAMES: set[str] = {
+    name for key, group in _raw.items() if not key.startswith("_") for name in group
 }
 
 
