@@ -114,4 +114,28 @@ describe('buildMapHtml()', () => {
     const html = buildMapHtml([], CENTER_LAT, CENTER_LNG);
     expect(html).toContain('"type":"mapMoved"');
   });
+
+  it('uses place_type as address when address is empty', () => {
+    const places = makePlaces([{ address: '', place_type: 'mosque' }]);
+    const html = buildMapHtml(places, CENTER_LAT, CENTER_LNG);
+    expect(html).toContain('"address":"mosque"');
+  });
+
+  it('uses empty string address when both address and place_type are absent', () => {
+    const places = makePlaces([{ address: '', place_type: '' }]);
+    const html = buildMapHtml(places, CENTER_LAT, CENTER_LNG);
+    expect(html).toContain('"address":""');
+  });
+
+  it('sets openStatus to closed when is_open_now is false', () => {
+    const places = makePlaces([{ is_open_now: false, open_status: undefined }]);
+    const html = buildMapHtml(places, CENTER_LAT, CENTER_LNG);
+    expect(html).toContain('"openStatus":"closed"');
+  });
+
+  it('uses open_status field directly when provided', () => {
+    const places = makePlaces([{ open_status: 'open' as unknown as undefined }]);
+    const html = buildMapHtml(places, CENTER_LAT, CENTER_LNG);
+    expect(html).toContain('"openStatus":"open"');
+  });
 });

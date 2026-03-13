@@ -91,6 +91,27 @@ describe('shareUrl()', () => {
     expect(result).toBe('copied');
   });
 
+  it('uses empty origin when window is undefined (SSR/Node fallback)', async () => {
+    Object.defineProperty(global, 'window', {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(global, 'navigator', {
+      value: { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } },
+      writable: true,
+      configurable: true,
+    });
+    const result = await shareUrl('Test', '/relative');
+    expect(result).toBe('copied');
+    // Restore window for subsequent tests
+    Object.defineProperty(global, 'window', {
+      value: { location: { origin: 'https://example.com' } },
+      writable: true,
+      configurable: true,
+    });
+  });
+
   it('falls back to clipboard when navigator.share throws a non-AbortError', async () => {
     const networkError = new Error('network error');
     const shareMock = vi.fn().mockRejectedValue(networkError);

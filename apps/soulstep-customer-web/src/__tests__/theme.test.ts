@@ -143,6 +143,63 @@ describe('initTheme()', () => {
       }),
     });
   });
+
+  it('change listener re-applies system theme when stored theme is system', () => {
+    let capturedCallback: (() => void) | undefined;
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: () => ({
+        matches: false,
+        addEventListener: (_event: string, cb: () => void) => {
+          capturedCallback = cb;
+        },
+        removeEventListener: vi.fn(),
+      }),
+    });
+    storageMock.setItem(THEME_STORAGE_KEY, 'system');
+    initTheme();
+    expect(capturedCallback).toBeDefined();
+    capturedCallback!();
+    // System theme + light preference → no dark class
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
+    // Restore
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: (_query: string) => ({
+        matches: mockMatchMediaMatches.value,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    });
+  });
+
+  it('change listener does nothing when stored theme is not system', () => {
+    let capturedCallback: (() => void) | undefined;
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: () => ({
+        matches: false,
+        addEventListener: (_event: string, cb: () => void) => {
+          capturedCallback = cb;
+        },
+        removeEventListener: vi.fn(),
+      }),
+    });
+    storageMock.setItem(THEME_STORAGE_KEY, 'dark');
+    initTheme();
+    capturedCallback!();
+    // dark theme stored → dark class was applied by initTheme
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    // Restore
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: (_query: string) => ({
+        matches: mockMatchMediaMatches.value,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }),
+    });
+  });
 });
 
 describe('getStoredTheme()', () => {

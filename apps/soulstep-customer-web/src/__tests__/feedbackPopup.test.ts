@@ -73,4 +73,11 @@ describe('createFeedbackStateLogic()', () => {
     const logic = createFeedbackStateLogic();
     expect(logic.getState().visible).toBe(false);
   });
+
+  it('clearTimer does not throw when no timer is active', () => {
+    const logic = createFeedbackStateLogic();
+    // No show() called — timer is null; clearTimer should be a no-op
+    expect(() => logic.clearTimer()).not.toThrow();
+    expect(logic.getState().visible).toBe(false);
+  });
 });

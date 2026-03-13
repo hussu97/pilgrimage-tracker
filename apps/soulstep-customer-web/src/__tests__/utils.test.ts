@@ -38,6 +38,12 @@ describe('cn()', () => {
   it('handles numeric input', () => {
     expect(cn(42 as unknown as string)).toBe('42');
   });
+
+  it('skips empty-string results from nested arrays', () => {
+    // cn([false]) recurses and returns '' — the if (result) guard should skip it
+    expect(cn([false as unknown as string])).toBe('');
+    expect(cn('keep', [false as unknown as string])).toBe('keep');
+  });
 });
 
 // ─── crowdColorClass utility ──────────────────────────────────────────────────

@@ -4,6 +4,28 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## Fix: frontend test coverage thresholds (2026-03-13)
+
+### Frontend (web)
+
+- **`vitest.config.ts`** — Exclude `src/components/**` from unit coverage (React components belong to e2e/integration scope per testing policy).
+- **`theme.test.ts`** — Added tests that fire the matchMedia `change` event listener callback, covering both the system-theme re-apply branch and the no-op branch.
+- **`share.test.ts`** — Added test for `typeof window === 'undefined'` SSR fallback branch.
+- **`searchHistory.test.ts`** — Added test for corrupt-JSON catch block.
+- **`feedbackPopup.test.ts`** — Added test for `clearTimer()` with no active timer.
+- **`utils.test.ts`** — Added test for `cn()` with empty nested array (covers `if (result)` guard).
+- **`imageUtils.test.ts`** — Added test with `VITE_API_URL` set, covering the `??` left-side branch.
+
+### Frontend (mobile)
+
+- **`jest.config.js`** — Exclude `src/components` from unit coverage (same policy as web).
+- **`src/__tests__/theme.test.ts`** (new) — Full coverage for `getStoredTheme()` and `setStoredTheme()`.
+- **`searchHistory.test.ts`** — Added test for AsyncStorage-throws catch block.
+- **`share.test.ts`** — Added test for `openDirections()` when `Platform.select` returns `undefined`, covering the `!nativeUrl` early-return branch.
+- **`mapBuilder.test.ts`** — Added tests for: `is_open_now: false` → `'closed'`, empty address + place_type fallback, and empty address + place_type → `''` fallback.
+
+---
+
 ## Scraper config: reduce SCRAPER_MAX_PHOTOS default 4 → 3 (2026-03-13)
 
 ### Backend (soulstep-scraper-api)

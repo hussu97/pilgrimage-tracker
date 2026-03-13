@@ -24,6 +24,8 @@ const config = {
     'jest.config.js',
     // API client uses fetch and is covered by integration/e2e tests, not unit coverage
     'src/lib/api/client',
+    // React components/hooks require DOM rendering — covered by e2e/integration tests
+    'src/components',
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',

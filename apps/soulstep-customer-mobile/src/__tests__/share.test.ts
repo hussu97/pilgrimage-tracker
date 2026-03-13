@@ -117,3 +117,22 @@ describe('openDirections() on Android', () => {
     expect(mockCanOpenURL).toHaveBeenCalledWith(expect.stringContaining('geo:25.2048,55.2708'));
   });
 });
+
+describe('openDirections() — no native URL (web/unknown platform)', () => {
+  beforeEach(() => {
+    // Platform.select returns undefined — neither ios nor android
+    mockPlatformSelect.mockImplementation(() => undefined);
+  });
+
+  it('directly opens fallback Google Maps URL when nativeUrl is undefined', async () => {
+    mockOpenURL.mockResolvedValue(undefined);
+
+    openDirections(25.2048, 55.2708, 'Dubai');
+    await flushPromises();
+
+    expect(mockCanOpenURL).not.toHaveBeenCalled();
+    expect(mockOpenURL).toHaveBeenCalledWith(
+      expect.stringContaining('maps.google.com/?daddr=25.2048,55.2708'),
+    );
+  });
+});

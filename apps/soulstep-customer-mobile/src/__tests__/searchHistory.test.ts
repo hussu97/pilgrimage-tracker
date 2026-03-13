@@ -22,6 +22,16 @@ describe('getSearchHistory', () => {
     const result = await getSearchHistory();
     expect(result).toEqual([item]);
   });
+
+  it('returns empty array when AsyncStorage throws', async () => {
+    const original = AsyncStorage.getItem;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (AsyncStorage as any).getItem = jest.fn().mockRejectedValueOnce(new Error('storage error'));
+    const result = await getSearchHistory();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (AsyncStorage as any).getItem = original;
+    expect(result).toEqual([]);
+  });
 });
 
 describe('addSearchHistory', () => {

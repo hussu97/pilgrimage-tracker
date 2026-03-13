@@ -43,6 +43,11 @@ describe('getSearchHistory', () => {
     addSearchHistory(item);
     expect(getSearchHistory()).toEqual([item]);
   });
+
+  it('returns empty array when stored value is corrupt JSON', () => {
+    storageMock.setItem('search_history', 'not-valid-json{{{');
+    expect(getSearchHistory()).toEqual([]);
+  });
 });
 
 describe('addSearchHistory', () => {
