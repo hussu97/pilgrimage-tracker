@@ -362,6 +362,32 @@ class TestScraperRuns:
         resp = client.post("/api/v1/scraper/runs/run_nonexistent/cancel")
         assert resp.status_code == 404
 
+    def test_sync_running_run_returns_400(self, client, db_session):
+        loc = _create_location_in_db(db_session, "SRun1")
+        run = ScraperRun(run_code="run_sync_active_1", location_code=loc.code, status="running")
+        db_session.add(run)
+        db_session.commit()
+        resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/sync")
+        assert resp.status_code == 400
+        assert "running" in resp.json()["detail"].lower()
+
+    def test_sync_pending_run_returns_400(self, client, db_session):
+        loc = _create_location_in_db(db_session, "SPen1")
+        run = ScraperRun(run_code="run_sync_pending_1", location_code=loc.code, status="pending")
+        db_session.add(run)
+        db_session.commit()
+        resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/sync")
+        assert resp.status_code == 400
+
+    def test_re_enrich_running_run_returns_400(self, client, db_session):
+        loc = _create_location_in_db(db_session, "RERun1")
+        run = ScraperRun(run_code="run_reenrich_active_1", location_code=loc.code, status="running")
+        db_session.add(run)
+        db_session.commit()
+        _create_place_in_db(db_session, run.run_code, place_code="gplc_rer1")
+        resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/re-enrich")
+        assert resp.status_code == 400
+
 
 # ── TestCollectors ────────────────────────────────────────────────────────────
 
