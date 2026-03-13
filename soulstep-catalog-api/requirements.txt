@@ -17,4 +17,5 @@ google-cloud-storage>=2.14.0
 python-json-logger>=2.0.7
 prometheus-fastapi-instrumentator>=6.1.0
 httpx>=0.27.0
-playwright>=1.40.0
+# playwright>=1.40.0  # Optional: only needed when TRANSLATION_BACKEND=browser
+#   Install manually: pip install playwright && playwright install chromium

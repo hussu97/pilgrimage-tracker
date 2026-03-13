@@ -228,7 +228,14 @@ class BrowserSessionPool:
     async def _init(self) -> None:
         if self._initialized:
             return
-        from playwright.async_api import async_playwright
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError as exc:
+            raise ImportError(
+                "Playwright is not installed. "
+                "Install it with: pip install playwright && playwright install chromium\n"
+                "Only needed when TRANSLATION_BACKEND=browser."
+            ) from exc
 
         self._playwright = await async_playwright().start()
         self._browser = await self._playwright.chromium.launch(
