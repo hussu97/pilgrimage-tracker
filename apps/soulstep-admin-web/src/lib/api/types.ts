@@ -647,6 +647,7 @@ export interface SEODetail {
   is_manually_edited: boolean;
   generated_at: string | null;
   updated_at: string | null;
+  translations: Record<string, Record<string, string | null>>;  // lang -> {field -> text}
 }
 
 export interface PatchSEOBody {

@@ -6,10 +6,10 @@ across the place catalogue. Supports bulk generation and per-place editing.
 Routes:
     GET  /admin/seo/stats                     — Health metrics
     GET  /admin/seo/places                    — Paginated list with SEO coverage
-    GET  /admin/seo/places/{place_code}       — SEO detail for one place
-    PATCH /admin/seo/places/{place_code}      — Update SEO content (manual edit)
+    GET  /admin/seo/places/{place_code}       — SEO detail for one place (includes translations)
+    PATCH /admin/seo/places/{place_code}      — Update SEO content (manual edit), returns SEODetail with translations
     POST /admin/seo/generate                  — Bulk trigger SEO generation
-    POST /admin/seo/places/{place_code}/generate — Regenerate single place SEO
+    POST /admin/seo/places/{place_code}/generate — Regenerate single place SEO, returns SEODetail with translations
 """
 
 from __future__ import annotations
@@ -86,6 +86,7 @@ class SEODetail(BaseModel):
     is_manually_edited: bool
     generated_at: datetime | None
     updated_at: datetime | None
+    translations: dict[str, dict[str, str | None]]  # lang -> {field -> text}
 
 
 class PatchSEOBody(BaseModel):
@@ -121,6 +122,23 @@ def _get_place_or_404(place_code: str, session) -> Place:
 
 def _get_seo(place_code: str, session) -> PlaceSEO | None:
     return session.exec(select(PlaceSEO).where(PlaceSEO.place_code == place_code)).first()
+
+
+_SEO_TRANSLATE_FIELDS = ("seo_title", "meta_description", "rich_description")
+
+
+def _get_seo_translations(place_code: str, session) -> dict[str, dict[str, str | None]]:
+    """Return {lang: {field: translated_text}} for all ContentTranslation rows for this place's SEO."""
+    rows = session.exec(
+        select(ContentTranslation).where(
+            ContentTranslation.entity_type == "place_seo",
+            ContentTranslation.entity_code == place_code,
+        )
+    ).all()
+    result: dict[str, dict[str, str | None]] = {}
+    for row in rows:
+        result.setdefault(row.lang, {})[row.field] = row.translated_text
+    return result
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────────
@@ -249,6 +267,7 @@ def get_seo_detail(
         is_manually_edited=seo.is_manually_edited if seo else False,
         generated_at=seo.generated_at if seo else None,
         updated_at=seo.updated_at if seo else None,
+        translations=_get_seo_translations(place_code, session),
     )
 
 
@@ -317,6 +336,7 @@ def patch_seo(
         is_manually_edited=seo.is_manually_edited,
         generated_at=seo.generated_at,
         updated_at=seo.updated_at,
+        translations=_get_seo_translations(place_code, session),
     )
 
 
@@ -362,6 +382,7 @@ def regenerate_single(
         is_manually_edited=seo.is_manually_edited,
         generated_at=seo.generated_at,
         updated_at=seo.updated_at,
+        translations=_get_seo_translations(place_code, session),
     )
 
 

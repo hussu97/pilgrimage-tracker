@@ -62,6 +62,7 @@ from sqlmodel import Session, select  # noqa: E402
 
 from app.core.logging_config import setup_logging  # noqa: E402
 from app.db import reviews as reviews_db  # noqa: E402
+from app.db.enums import Language  # noqa: E402
 from app.db.models import ContentTranslation, Place, PlaceSEO  # noqa: E402
 from app.db.session import engine, run_migrations  # noqa: E402
 from app.services import seo_generator  # noqa: E402
@@ -377,6 +378,9 @@ def run_translate(
 # ── CLI entry point ────────────────────────────────────────────────────────────
 
 
+_NON_ENGLISH_LANGS = [lang for lang in Language if lang != Language.EN]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate and translate SEO content for SoulStep places."
@@ -394,9 +398,9 @@ def main() -> None:
     parser.add_argument(
         "--langs",
         nargs="+",
-        default=["ar", "hi"],
+        default=_NON_ENGLISH_LANGS,
         metavar="LANG",
-        help="Target language codes for translation (default: ar hi).",
+        help=f"Target language codes for translation (default: all non-English: {' '.join(_NON_ENGLISH_LANGS)}).",
     )
     parser.add_argument(
         "--force",
