@@ -8,7 +8,7 @@ Import from here rather than duplicating literals across modules.
 # ── Sync pipeline ─────────────────────────────────────────────────────────────
 
 # Number of places sent to the server in a single batch POST.
-SYNC_BATCH_SIZE: int = 50
+SYNC_BATCH_SIZE: int = 25
 
 # Batches are sent sequentially (one at a time) to avoid overwhelming the catalog
 # service. This constant is kept for reference but is no longer used as a semaphore.
