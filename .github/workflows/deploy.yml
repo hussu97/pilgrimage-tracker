@@ -44,9 +44,13 @@ jobs:
               - '.github/workflows/deploy.yml'
             web:
               - 'apps/soulstep-customer-web/**'
+              - 'firebase.json'
+              - '.firebaserc'
               - '.github/workflows/deploy.yml'
             admin:
               - 'apps/soulstep-admin-web/**'
+              - 'firebase.json'
+              - '.firebaserc'
               - '.github/workflows/deploy.yml'
 
   # ── Gate: tests must pass before any deployment ────────────────────────────
