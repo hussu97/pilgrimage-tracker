@@ -318,6 +318,101 @@ jobs:
         #   2. Note the site ID (e.g. soulstep-admin) and update .firebaserc targets.admin
         run: npx firebase-tools deploy --only hosting:admin --project ${{ env.PROJECT_ID }}
 
+  # ── Deploy: Cloud Run Jobs → update image on every catalog change ───────────
+
+  deploy-jobs:
+    name: Update Cloud Run Jobs
+    needs: [changes, deploy-api]
+    if: needs.changes.outputs.catalog == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate with GCP (keyless)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.SA_EMAIL }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker auth for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      - name: Build and push sync-places image
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/sync-places:${{ github.sha }}"
+          docker build -f Dockerfile.sync -t "$IMAGE" ./soulstep-catalog-api
+          docker push "$IMAGE"
+
+      - name: Build and push translate-content image
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/translate-content:${{ github.sha }}"
+          docker build -f Dockerfile.translate -t "$IMAGE" ./soulstep-catalog-api
+          docker push "$IMAGE"
+
+      - name: Update or create Cloud Run Jobs
+        run: |
+          CLOUDSQL="${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db"
+          API="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/api:${{ github.sha }}"
+          SYNC="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/sync-places:${{ github.sha }}"
+          TRANSLATE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/translate-content:${{ github.sha }}"
+
+          # update if exists, create if not — idempotent on every push
+          _upsert() {
+            local name=$1; shift
+            gcloud run jobs update "$name" --region ${{ env.REGION }} "$@" 2>/dev/null \
+              || gcloud run jobs create "$name" --region ${{ env.REGION }} "$@"
+          }
+
+          # a. cleanup-job (uses api image)
+          _upsert cleanup-job \
+            --image "$API" \
+            --set-cloudsql-instances "$CLOUDSQL" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
+            --command "python" --args="-m,app.jobs.cleanup_orphaned_images" \
+            --max-retries 1 --task-timeout 300 --memory 512Mi --cpu 1
+
+          # b. backfill-translations (uses api image)
+          _upsert backfill-translations \
+            --image "$API" \
+            --set-cloudsql-instances "$CLOUDSQL" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
+            --set-env-vars "GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}" \
+            --command "python" --args="-m,scripts.backfill_translations,--langs,ar,hi" \
+            --max-retries 1 --task-timeout 600 --memory 512Mi --cpu 1
+
+          # c. backfill-timezones (uses api image)
+          _upsert backfill-timezones \
+            --image "$API" \
+            --set-cloudsql-instances "$CLOUDSQL" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
+            --command "python" --args="-m,app.jobs.backfill_timezones" \
+            --max-retries 1 --task-timeout 300 --memory 512Mi --cpu 1
+
+          # d. sync-places (uses sync-places image)
+          # SCRAPER_DATABASE_URL already exists in Secret Manager (shared with scraper service)
+          _upsert sync-places \
+            --image "$SYNC" \
+            --set-cloudsql-instances "$CLOUDSQL" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,SCRAPER_DATABASE_URL=SCRAPER_DATABASE_URL:latest" \
+            --memory 1Gi --cpu 1 \
+            --task-timeout 1800 --max-retries 1
+
+          # e. translate-content (uses translate-content image)
+          _upsert translate-content \
+            --image "$TRANSLATE" \
+            --set-cloudsql-instances "$CLOUDSQL" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
+            --memory 4Gi --cpu 2 \
+            --task-timeout 86400 --max-retries 0
+
   # ── Deploy: Scraper API → Cloud Run ─────────────────────────────────────────
 
   deploy-scraper:

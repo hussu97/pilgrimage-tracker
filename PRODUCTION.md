@@ -1265,6 +1265,8 @@ curl -X POST https://your-catalog-url/api/v1/admin/seo/generate \
 
 ### 5.10 Scheduled Jobs (Cloud Scheduler + Cloud Run Jobs)
 
+> **CI-managed:** All five jobs below are created/updated automatically by the `deploy-jobs` workflow job in `.github/workflows/deploy.yml` on every push to `main` that touches `soulstep-catalog-api/`. The `gcloud` commands in each section are for reference or manual (non-CI) deployments only.
+
 #### a. Cleanup job
 
 Cloud Run Jobs run to completion then exit — perfect for cron tasks.
@@ -1405,15 +1407,7 @@ gcloud run jobs create sync-places \
   --max-retries 1
 ```
 
-**Add `SCRAPER_DATABASE_URL` to Secret Manager:**
-
-```bash
-echo -n "postgresql://user:pass@host/scraperdb" | \
-  gcloud secrets create SCRAPER_DATABASE_URL --data-file=-
-gcloud secrets add-iam-policy-binding SCRAPER_DATABASE_URL \
-  --member="serviceAccount:${SERVICE_ACCOUNT}" \
-  --role="roles/secretmanager.secretAccessor"
-```
+**Secret:** `SCRAPER_DATABASE_URL` is already in Secret Manager — it is shared with the scraper service (`SCRAPER_DATABASE_URL` → scraper's `DATABASE_URL`). No extra setup needed.
 
 **Schedule daily at 2 AM UTC:**
 
@@ -1506,6 +1500,18 @@ python -m app.jobs.translate_content
 ---
 
 ### 5.11 CI/CD (GitHub Actions for GCP)
+
+The workflow in `.github/workflows/deploy.yml` handles the full deployment pipeline on every push to `main`, including building and updating all Cloud Run Jobs automatically.
+
+**Workflow jobs summary:**
+
+| Job | Trigger | What it does |
+|---|---|---|
+| `deploy-api` | `catalog` path changed | Builds `api` image, deploys Cloud Run service |
+| `deploy-jobs` | `catalog` path changed (after `deploy-api`) | Builds `sync-places` + `translate-content` images; updates/creates all 5 Cloud Run Jobs |
+| `deploy-web` | `web` path changed | Builds + deploys customer web to Firebase Hosting |
+| `deploy-admin-web` | `admin` path changed | Builds + deploys admin web to Firebase Hosting |
+| `deploy-scraper` | `scraper` path changed | Builds `scraper` image, deploys Cloud Run service |
 
 To automate GCP deployments from the existing `.github/workflows/deploy.yml`, you need a dedicated service account with the right permissions.
 

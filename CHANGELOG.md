@@ -4,6 +4,15 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## feat(ci): auto-deploy all Cloud Run Jobs from GitHub Actions (2026-03-14)
+
+### Backend / CI
+
+- **`.github/workflows/deploy.yml`** — Added `deploy-jobs` workflow job (runs after `deploy-api` on every catalog change): builds and pushes `sync-places` and `translate-content` Docker images; updates or creates all five Cloud Run Jobs (`cleanup-job`, `backfill-translations`, `backfill-timezones`, `sync-places`, `translate-content`) using an idempotent `update || create` pattern so CI handles both first-time provisioning and image rollouts.
+- **`PRODUCTION.md`** — §5.10 intro: noted all jobs are CI-managed. §5.10d: replaced the manual "Add SCRAPER_DATABASE_URL to Secret Manager" block with a note that the secret is already shared with the scraper service. §5.11: added workflow job summary table.
+
+---
+
 ## feat(jobs): daily Cloud Run workers for place sync and content translation (2026-03-14)
 
 ### Backend
