@@ -4,8 +4,9 @@ Shared test fixtures for the data_scraper test suite.
 Uses an in-memory SQLite database (StaticPool) so tests are fully isolated
 from any real data files and run without filesystem side-effects.
 
-Each test gets a fresh database (function-scoped engine) so there is no
-state leakage between tests.
+The engine is session-scoped (schema created once). Per-test data isolation
+is provided by the `_reset_db` autouse fixture, which deletes all rows after
+each test — far faster than recreating the schema 686+ times.
 """
 
 import os
@@ -44,9 +45,12 @@ def reset_rate_limiter():
 # ── DB / session fixtures ──────────────────────────────────────────────────────
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def test_engine():
-    """Fresh in-memory SQLite engine per test — guarantees data isolation."""
+    """
+    Single in-memory SQLite engine shared across the entire test session.
+    Schema is created once; per-test isolation is handled by `_reset_db`.
+    """
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -57,6 +61,16 @@ def test_engine():
     SQLModel.metadata.create_all(engine)
     yield engine
     SQLModel.metadata.drop_all(engine)
+
+
+@pytest.fixture(autouse=True)
+def _reset_db(test_engine):
+    """Delete all rows after each test — provides isolation without recreating the schema."""
+    yield
+    with Session(test_engine) as session:
+        for table in reversed(SQLModel.metadata.sorted_tables):
+            session.execute(table.delete())
+        session.commit()
 
 
 @pytest.fixture()

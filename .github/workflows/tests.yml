@@ -49,6 +49,20 @@ jobs:
               - '.firebaserc'
               - '.github/workflows/tests.yml'
               - '.github/workflows/deploy.yml'
+      # Export results so deploy.yml can consume the exact same detection
+      - name: Save path filter outputs
+        run: |
+          printf '{"catalog":"%s","scraper":"%s","web":"%s","admin":"%s"}' \
+            "${{ steps.filter.outputs.catalog }}" \
+            "${{ steps.filter.outputs.scraper }}" \
+            "${{ steps.filter.outputs.web }}" \
+            "${{ steps.filter.outputs.admin }}" \
+            > path-outputs.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: path-filter-outputs
+          path: path-outputs.json
+          retention-days: 1
 
   soulstep-catalog-api:
     name: soulstep-catalog-api tests
@@ -62,20 +76,36 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
-          cache-dependency-path: soulstep-catalog-api/requirements-dev.txt
+
+      - name: Cache virtualenv
+        id: cache-venv-catalog
+        uses: actions/cache@v4
+        with:
+          path: soulstep-catalog-api/.venv
+          key: venv-catalog-${{ runner.os }}-py3.11-${{ hashFiles('soulstep-catalog-api/requirements-dev.txt') }}
 
       - name: Install dependencies
+        if: steps.cache-venv-catalog.outputs.cache-hit != 'true'
+        working-directory: soulstep-catalog-api
         run: |
-          pip install -r soulstep-catalog-api/requirements-dev.txt
-          pip install pip-audit
+          python -m venv .venv
+          .venv/bin/pip install --quiet -r requirements-dev.txt
+          .venv/bin/pip install --quiet pip-audit
 
       - name: Dependency vulnerability scan (pip-audit)
-        run: pip-audit -r soulstep-catalog-api/requirements.txt --skip-editable || true
+        working-directory: soulstep-catalog-api
+        run: .venv/bin/pip-audit -r requirements.txt --skip-editable || true
 
       - name: Run pytest
         working-directory: soulstep-catalog-api
-        run: python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing --cov-fail-under=80
+        run: >-
+          .venv/bin/python -m pytest tests/
+          -n auto
+          --tb=short
+          --cov=app
+          --cov-report=term-missing
+          --cov-fail-under=80
+          --durations=10
 
   soulstep-scraper-api:
     name: soulstep-scraper-api tests
@@ -89,20 +119,36 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: pip
-          cache-dependency-path: soulstep-scraper-api/requirements-dev.txt
+
+      - name: Cache virtualenv
+        id: cache-venv-scraper
+        uses: actions/cache@v4
+        with:
+          path: soulstep-scraper-api/.venv
+          key: venv-scraper-${{ runner.os }}-py3.11-${{ hashFiles('soulstep-scraper-api/requirements-dev.txt') }}
 
       - name: Install dependencies
+        if: steps.cache-venv-scraper.outputs.cache-hit != 'true'
+        working-directory: soulstep-scraper-api
         run: |
-          pip install -r soulstep-scraper-api/requirements-dev.txt
-          pip install pip-audit
+          python -m venv .venv
+          .venv/bin/pip install --quiet -r requirements-dev.txt
+          .venv/bin/pip install --quiet pip-audit
 
       - name: Dependency vulnerability scan (pip-audit)
-        run: pip-audit -r soulstep-scraper-api/requirements.txt --skip-editable || true
+        working-directory: soulstep-scraper-api
+        run: .venv/bin/pip-audit -r requirements.txt --skip-editable || true
 
       - name: Run pytest
         working-directory: soulstep-scraper-api
-        run: python -m pytest tests/ -v --tb=short --cov=app --cov-report=term-missing --cov-fail-under=80
+        run: >-
+          .venv/bin/python -m pytest tests/
+          -n auto
+          --tb=short
+          --cov=app
+          --cov-report=term-missing
+          --cov-fail-under=80
+          --durations=10
 
   soulstep-customer-web:
     name: Soulstep Customer Web frontend tests
