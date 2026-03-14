@@ -18,8 +18,13 @@ def upsert_translation(
     text: str,
     source: str = "scraper",
     session: Session = None,
+    commit: bool = True,
 ) -> None:
-    """Insert or update a translation row."""
+    """Insert or update a translation row.
+
+    Pass commit=False when batching multiple upserts in a single session —
+    the caller is then responsible for calling session.commit().
+    """
     existing = session.exec(
         select(ContentTranslation).where(
             and_(
@@ -50,7 +55,8 @@ def upsert_translation(
                 updated_at=now,
             )
         )
-    session.commit()
+    if commit:
+        session.commit()
 
 
 def get_translation(

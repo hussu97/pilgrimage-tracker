@@ -146,6 +146,7 @@ def _flush_translations(
                     text=text,
                     source="browser_translate",
                     session=s,
+                    commit=False,
                 )
             j = s.exec(
                 select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)

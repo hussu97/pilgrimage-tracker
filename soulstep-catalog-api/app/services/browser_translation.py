@@ -652,7 +652,10 @@ async def translate_single_browser(
         recycle = True
         return None
     finally:
-        await pool.release(session, recycle=recycle)
+        try:
+            await pool.release(session, recycle=recycle)
+        except Exception:
+            logger.warning("browser_translation: failed to release session back to pool")
 
 
 # ── Batch translation ──────────────────────────────────────────────────────────
@@ -778,7 +781,7 @@ async def translate_batch_browser_parallel(
     )
 
     tasks = [translate_one(i, text) for i, text in enumerate(texts) if text and text.strip()]
-    await asyncio.gather(*tasks)
+    await asyncio.gather(*tasks, return_exceptions=True)
 
     success_count = sum(1 for r in results if r is not None)
     logger.info(
