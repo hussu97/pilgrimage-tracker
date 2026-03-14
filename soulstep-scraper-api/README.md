@@ -21,6 +21,15 @@ A FastAPI service that discovers sacred places via Google Maps, enriches them fr
     pip install -r requirements-dev.txt      # adds pytest, ruff (dev/test only)
     ```
 
+    **Browser automation (optional — required for `SCRAPER_BACKEND=browser`):**
+    ```bash
+    # Install Playwright + timezonefinder + google-cloud-run
+    pip install -r requirements-job.txt
+
+    # Download Chromium browser binary
+    playwright install chromium
+    ```
+
 2.  **Environment Variables**:
     Create a `.env` file in `soulstep-scraper-api/` (copy from `.env.example`):
     ```env
