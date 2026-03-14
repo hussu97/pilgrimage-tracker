@@ -209,6 +209,18 @@ async def cleanup_images(admin: AdminDep):
     return await _proxy("POST", "/cleanup/images")
 
 
+@router.get("/map/cells")
+async def get_map_cells(admin: AdminDep, request: Request):
+    params = dict(request.query_params)
+    return await _proxy("GET", "/map/cells", params=params)
+
+
+@router.get("/map/places")
+async def get_map_places(admin: AdminDep, request: Request):
+    params = dict(request.query_params)
+    return await _proxy("GET", "/map/places", params=params)
+
+
 @router.get("/place-type-mappings")
 async def list_place_type_mappings(admin: AdminDep, request: Request):
     params = dict(request.query_params)

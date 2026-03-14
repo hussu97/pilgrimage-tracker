@@ -35,13 +35,16 @@ const _scraperBase = import.meta.env.VITE_SCRAPER_API_URL
 export const scraperClient = axios.create({ baseURL: _scraperBase });
 
 // Attach Bearer token on every request (from in-memory state)
-apiClient.interceptors.request.use((config) => {
+function _attachToken(config: import("axios").InternalAxiosRequestConfig) {
   const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
-});
+}
+
+apiClient.interceptors.request.use(_attachToken);
+scraperClient.interceptors.request.use(_attachToken);
 
 // On 401, clear in-memory token and redirect to login.
 // Guard against redirecting when already on /login — otherwise AuthProvider's
