@@ -465,15 +465,23 @@ jobs:
             --set-secrets "DATABASE_URL=SCRAPER_DATABASE_URL:latest,GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,GEMINI_API_KEY=SCRAPER_GEMINI_API_KEY:latest" \
             --quiet
 
-      - name: Update Cloud Run Job image (if job exists)
+      - name: Upsert Cloud Run Job (soulstep-scraper-job)
         run: |
           JOB_IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/scraper-job:${{ github.sha }}"
-          if gcloud run jobs describe soulstep-scraper-job --region ${{ env.REGION }} --quiet 2>/dev/null; then
-            gcloud run jobs update soulstep-scraper-job \
-              --image "$JOB_IMAGE" \
-              --region ${{ env.REGION }} \
-              --quiet
-          else
-            echo "Cloud Run Job 'soulstep-scraper-job' does not exist yet — skipping update."
-            echo "Create it with: gcloud run jobs create soulstep-scraper-job --image $JOB_IMAGE --memory 2Gi --cpu 2 --task-timeout 86400 --max-retries 1 --region ${{ env.REGION }}"
-          fi
+          CLOUDSQL="${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db"
+
+          # update if exists, create if not — same pattern as deploy-jobs
+          _upsert() {
+            local name=$1; shift
+            gcloud run jobs update "$name" --region ${{ env.REGION }} "$@" 2>/dev/null \
+              || gcloud run jobs create "$name" --region ${{ env.REGION }} "$@"
+          }
+
+          _upsert soulstep-scraper-job \
+            --image "$JOB_IMAGE" \
+            --add-cloudsql-instances "$CLOUDSQL" \
+            --set-secrets "DATABASE_URL=SCRAPER_DATABASE_URL:latest,GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,GEMINI_API_KEY=SCRAPER_GEMINI_API_KEY:latest" \
+            --set-env-vars "SCRAPER_BACKEND=browser,SCRAPER_DISPATCH=local,GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }},SCRAPER_TIMEZONE=Asia/Dubai,LOG_FORMAT=json,LOG_LEVEL=DEBUG" \
+            --memory 2Gi --cpu 2 \
+            --task-timeout 86400 --max-retries 1 \
+            --quiet
