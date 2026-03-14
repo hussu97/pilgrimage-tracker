@@ -133,7 +133,7 @@ def test_translate_single_browser_happy_path():
 
     # Simulate stable output
     output_el = AsyncMock()
-    output_el.inner_text = AsyncMock(side_effect=["مرحبا", "مرحبا"])
+    output_el.inner_text = AsyncMock(side_effect=["مرحبا", "مرحبا", "مرحبا"])
 
     async def mock_query_selector(selector):
         if "HwtZe" in selector or "result" in selector or "W297wb" in selector:
