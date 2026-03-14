@@ -206,16 +206,13 @@ Tests use in-memory SQLite (`StaticPool`) with migrations and seed patched out. 
 - `PORT` — port (default: 3000)
 - `DATABASE_URL` — (optional for production) PostgreSQL connection string; when unset, SQLite (`soulstep.db`) is used for dev.
 - `GOOGLE_MAPS_API_KEY` — (optional, for scraper) Google Maps API key for `soulstep-scraper-api/gmaps.py`. Not required for server operation, only for running the scraper to discover new places.
-- `GOOGLE_TRANSLATE_API_KEY` — (optional) Google Cloud Translation API key. Required only for running `scripts/backfill_translations.py`. Enable "Cloud Translation API" at console.cloud.google.com.
-- `GOOGLE_CLOUD_PROJECT` — (optional) GCP project ID. Required alongside `GOOGLE_TRANSLATE_API_KEY` for the v3 translation endpoint.
-- `TRANSLATION_BACKEND` — (optional) `api` (default) or `browser`. `browser` uses a Playwright headless browser to drive translate.google.com — no GCP credentials required but slower. Playwright is **not** in `requirements.txt`; install separately only when needed: `pip install playwright && playwright install chromium`.
-- `TRANSLATION_FALLBACK` — (optional) `true` | `false` (default). When `true`, if the browser backend returns None the request retries via the API backend.
-- `BROWSER_POOL_SIZE` — (optional, browser backend only) concurrent browser contexts, default `2`.
-- `BROWSER_MAX_TRANSLATIONS` — (optional, browser backend only) translations per context before recycling, default `50`.
-- `BROWSER_HEADLESS` — (optional, browser backend only) `true` (default) or `false` (show browser window for debugging).
+- `GOOGLE_CLOUD_PROJECT` — (optional) GCP project ID. Used by the `translate-content` Cloud Run Job (browser-based translation) and GCS image backend.
+- `BROWSER_POOL_SIZE` — (optional) concurrent browser contexts for the translation worker, default `2`.
+- `BROWSER_MAX_TRANSLATIONS` — (optional) translations per browser context before recycling, default `50`.
+- `BROWSER_HEADLESS` — (optional) `true` (default) or `false` (show browser for debugging).
 - `IMAGE_STORAGE` — (optional) `blob` (default, stores images in DB) or `gcs` (upload to Google Cloud Storage).
 - `GCS_BUCKET_NAME` — (optional) GCS bucket name. Required when `IMAGE_STORAGE=gcs`. Bucket objects must be publicly readable.
-- `GOOGLE_APPLICATION_CREDENTIALS` — (optional) Path to a GCP service account JSON key. Required on non-GCP hosts when using `IMAGE_STORAGE=gcs` or the translation backfill script. Not needed on Cloud Run (uses workload identity).
+- `GOOGLE_APPLICATION_CREDENTIALS` — (optional) Path to a GCP service account JSON key. Required on non-GCP hosts when using `IMAGE_STORAGE=gcs`. Not needed on Cloud Run (uses workload identity).
 
 For production deployment options, see [PRODUCTION.md](../PRODUCTION.md) at repo root.
 
@@ -229,41 +226,3 @@ Delete all Place records and their dependents (images, SEO, reviews, check-ins, 
 cd soulstep-catalog-api && source .venv/bin/activate
 python scripts/reset_place_data.py
 ```
-
-### Translation Backfill (`scripts/backfill_translations.py`)
-
-Backfills `ContentTranslation` rows for existing Place and Review records.
-
-**Fields translated:** `name`, `description` for places; `title`, `body` for reviews. `address` is intentionally excluded — location identifiers are understood universally without translation.
-
-**Prerequisites:**
-1. `gcloud auth application-default login`
-2. Set `GOOGLE_CLOUD_PROJECT` in `.env`
-
-**Usage:**
-```bash
-# Dry run — show what would be translated without writing
-python -m scripts.backfill_translations --dry-run
-
-# Estimate cost before running (no API calls made)
-python -m scripts.backfill_translations --estimate
-
-# Skip short reviews (e.g. < 20 chars like "Great!")
-python -m scripts.backfill_translations --min-review-length 20
-
-# Target specific languages only
-python -m scripts.backfill_translations --langs ar hi
-
-# Full run with rate limiting
-python -m scripts.backfill_translations --batch-size 50 --rate-limit-delay 0.5
-```
-
-**Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--langs` | all non-English | Languages to backfill (from `seed_data.json`) |
-| `--dry-run` | off | Print actions without writing to DB |
-| `--estimate` | off | Show char count + estimated cost ($20/M chars) — no API calls |
-| `--batch-size` | 50 | Translation batch size |
-| `--rate-limit-delay` | 0.5 | Seconds to sleep between API batches |
-| `--min-review-length` | 0 | Skip review fields shorter than N chars (0 = translate all) |

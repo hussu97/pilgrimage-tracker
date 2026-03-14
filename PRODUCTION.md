@@ -107,7 +107,7 @@ All environment variables documented here. Plan-specific sections reference this
 | `ADSENSE_PUBLISHER_ID` | No | _(empty)_ | Google AdSense publisher ID (e.g. `ca-pub-xxxxxxxxxxxxxxxx`) |
 | `ADMOB_APP_ID_IOS` | No | _(empty)_ | Google AdMob App ID for iOS |
 | `ADMOB_APP_ID_ANDROID` | No | _(empty)_ | Google AdMob App ID for Android |
-| `GOOGLE_CLOUD_PROJECT` | No | _(empty)_ | GCP project ID — required for the translation backfill script (`scripts/backfill_translations.py`). When empty, the script skips machine translation and only runs the legacy attribute migration |
+| `GOOGLE_CLOUD_PROJECT` | No | _(empty)_ | GCP project ID — used by the `translate-content` Cloud Run Job and GCS image backend |
 | `GOOGLE_APPLICATION_CREDENTIALS` | No | _(empty)_ | Path to a GCP service account JSON key with the **Cloud Translation API** and **Storage Object Admin** roles. Not needed on GCP Cloud Run (uses built-in ADC). Required for Docker / Render / any non-GCP host |
 | `IMAGE_STORAGE` | No | `blob` | `blob` = store images as DB blobs (dev default); `gcs` = upload to Google Cloud Storage |
 | `GCS_BUCKET_NAME` | No | _(empty)_ | GCS bucket name (required when `IMAGE_STORAGE=gcs`). Bucket objects must be publicly readable |
@@ -251,42 +251,7 @@ Example cron entry (on the host):
 
 For the full list of available jobs, see [§6.3](#63-scheduled-jobs).
 
-### 3.8 Translation Backfill (Docker)
-
-Requires the one-time GCP setup described in [§6.2a](#a-one-time-gcp-setup). Then:
-
-Add the service account key and env vars to your `.env`:
-
-```dotenv
-GOOGLE_CLOUD_PROJECT=your-gcp-project-id
-GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/translate-key.json
-```
-
-Mount the key file when running the backfill:
-
-```bash
-# Dry run first (no writes)
-docker exec <api_container> python -m scripts.backfill_translations --dry-run
-
-# Full run (translate Arabic + Hindi)
-docker exec <api_container> python -m scripts.backfill_translations --langs ar hi
-```
-
-If the key is not baked into the image, mount it at runtime:
-
-```bash
-docker run --rm \
-  -v $(pwd)/translate-key.json:/app/credentials/translate-key.json:ro \
-  -e GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/translate-key.json \
-  -e GOOGLE_CLOUD_PROJECT=your-gcp-project-id \
-  -e DATABASE_URL=postgresql://... \
-  soulstep-catalog-api \
-  python -m scripts.backfill_translations --langs ar hi
-```
-
----
-
-### 3.9 Post-Sync SEO Generation (Docker)
+### 3.8 Post-Sync SEO Generation (Docker)
 
 After syncing 10K+ places, all imported places have `seo_slug = NULL`.
 Run SEO generation using one of these methods:
@@ -505,51 +470,7 @@ push to main
 
 ---
 
-### 4.6 Translation Backfill on Render
-
-The backfill script requires Google Cloud Translation API credentials. Since Render is not GCP, you must provide a service account key.
-
-Complete the one-time GCP setup described in [§6.2a](#a-one-time-gcp-setup), then:
-
-1. Add environment variables to the **Render API service**:
-
-   | Key | Value |
-   |---|---|
-   | `GOOGLE_CLOUD_PROJECT` | Your GCP project ID |
-   | `GOOGLE_APPLICATION_CREDENTIALS` | `/etc/secrets/gcp-key.json` |
-   | `IMAGE_STORAGE` | `gcs` (optional — enable GCS image backend) |
-   | `GCS_BUCKET_NAME` | Your GCS bucket name (optional) |
-
-2. **Store the key as a Render secret file:**
-   - Go to your API service → **Environment** → **Secret Files**.
-   - Click **Add Secret File** → filename: `gcp-key.json`, paste the full JSON contents of the service account key.
-   - Render mounts secret files at `/etc/secrets/<filename>`.
-   - The same key file is used for both Translation API and Cloud Storage — ensure the service account has both `roles/cloudtranslate.user` and `roles/storage.objectAdmin`.
-
-#### Running the backfill
-
-Use Render's **Shell** tab or SSH into the service:
-
-```bash
-# Dry run
-python -m scripts.backfill_translations --dry-run
-
-# Full run
-python -m scripts.backfill_translations --langs ar hi
-```
-
-Alternatively, trigger it via a one-off Render Job or from GitHub Actions:
-
-```bash
-# From GitHub Actions — hit the API container via SSH or a one-off Render job
-curl -X POST https://api.render.com/deploy/srv-xxx?key=yyy  # redeploy after adding env vars
-```
-
-> **Tip:** You can also run the script locally against the production database by setting `DATABASE_URL` to the Neon connection string and `GOOGLE_CLOUD_PROJECT` + `gcloud auth application-default login` on your machine.
-
----
-
-### 4.7 Scheduled Jobs on Render
+### 4.6 Scheduled Jobs on Render
 
 **Option A — Render Cron Job (paid plans only):**
 
@@ -1308,67 +1229,7 @@ To trigger manually at any time:
 gcloud run jobs execute cleanup-job --region REGION
 ```
 
-#### b. Translation backfill job
-
-On GCP, the translation backfill is the **simplest** — Cloud Run Jobs automatically have Application Default Credentials (ADC) via the compute service account. No service account key file is needed.
-
-**Prerequisites:**
-
-1. **Enable the Cloud Translation API** (already included in the [§5.1](#51-prerequisites) enable APIs command).
-
-2. **Grant the compute service account the translation role:**
-   ```bash
-   PROJECT_NUMBER=$(gcloud projects describe PROJECT_ID --format="value(projectNumber)")
-   SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
-
-   gcloud projects add-iam-policy-binding PROJECT_ID \
-     --member="serviceAccount:${SERVICE_ACCOUNT}" \
-     --role="roles/cloudtranslate.user"
-   ```
-
-**Create the Cloud Run Job:**
-
-```bash
-gcloud run jobs create backfill-translations \
-  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest \
-  --region REGION \
-  --set-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
-  --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
-  --set-env-vars "GOOGLE_CLOUD_PROJECT=PROJECT_ID" \
-  --command "python" \
-  --args="-m,scripts.backfill_translations,--langs,ar,hi" \
-  --max-retries 1 \
-  --task-timeout 600 \
-  --memory 512Mi
-```
-
-**Run it:**
-
-```bash
-# One-off execution
-gcloud run jobs execute backfill-translations --region REGION --wait
-```
-
-**Schedule it (optional — e.g. weekly to catch new content):**
-
-```bash
-gcloud scheduler jobs create http run-backfill-translations \
-  --location REGION \
-  --schedule "0 3 * * 0" \
-  --time-zone "UTC" \
-  --uri "https://REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/PROJECT_ID/jobs/backfill-translations:run" \
-  --http-method POST \
-  --oauth-service-account-email "${SERVICE_ACCOUNT}"
-```
-
-> **Dry run:** To test without writing, update the job args temporarily:
-> ```bash
-> gcloud run jobs update backfill-translations --region REGION \
->   --args="-m,scripts.backfill_translations,--langs,ar,hi,--dry-run"
-> gcloud run jobs execute backfill-translations --region REGION --wait
-> ```
-
-#### c. Timezone backfill job
+#### b. Timezone backfill job
 
 ```bash
 gcloud run jobs create backfill-timezones \
@@ -1390,7 +1251,7 @@ Reads all scraped places from the scraper PostgreSQL DB and upserts them into th
 **Build and push the sync image:**
 
 ```bash
-docker build -f Dockerfile.sync -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/sync-places:latest .
+docker build --platform linux/amd64 -f Dockerfile.sync -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/sync-places:latest .
 docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/sync-places:latest
 ```
 
@@ -1443,7 +1304,7 @@ Translates all missing content translations (places, reviews, cities, attribute 
 **Build and push the translation image:**
 
 ```bash
-docker build -f Dockerfile.translate -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/translate-content:latest .
+docker build --platform linux/amd64 -f Dockerfile.translate -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/translate-content:latest .
 docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/translate-content:latest
 ```
 
@@ -1562,7 +1423,7 @@ deploy-gcp-api:
 
     - name: Build and push image
       run: |
-        docker build \
+        docker build --platform linux/amd64 \
           -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:${{ github.sha }} \
           ./soulstep-catalog-api
         docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:${{ github.sha }}
@@ -1637,57 +1498,7 @@ Alembic migrations run **automatically on API startup** via `alembic upgrade hea
 Notable migrations:
 - `0004_groups_revamp` adds: `checkin.group_code` (nullable FK, indexed), `group.cover_image_url / start_date / end_date / updated_at`, and the new `groupplacenote` table. No new environment variables or external services are required.
 
-### 6.2 Translation Backfill
-
-The `scripts/backfill_translations.py` script machine-translates Place and Review content into Arabic and Hindi using the **Google Cloud Translation API v3**. It authenticates via **Application Default Credentials (ADC)** — a GCP service account key JSON file, not interactive OAuth.
-
-#### a. One-time GCP setup
-
-1. **Create a GCP project** (or reuse an existing one) and note the project ID.
-2. **Enable the Cloud Translation API:**
-   ```bash
-   gcloud services enable translate.googleapis.com --project YOUR_PROJECT_ID
-   ```
-3. **Create a service account and download a key:**
-   ```bash
-   gcloud iam service-accounts create soulstep-translate \
-     --display-name "SoulStep Translation" \
-     --project YOUR_PROJECT_ID
-
-   gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
-     --member="serviceAccount:soulstep-translate@YOUR_PROJECT_ID.iam.gserviceaccount.com" \
-     --role="roles/cloudtranslate.user"
-
-   gcloud iam service-accounts keys create translate-key.json \
-     --iam-account="soulstep-translate@YOUR_PROJECT_ID.iam.gserviceaccount.com"
-   ```
-4. **Keep `translate-key.json` safe** — you'll mount it into the container.
-
-> **On GCP Cloud Run:** You don't need a key file — ADC is automatic. See [§5.10b](#b-translation-backfill-job).
-
-#### b. Script usage
-
-```bash
-# Dry run (no writes)
-python -m scripts.backfill_translations --dry-run
-
-# Full run — translate Arabic + Hindi
-python -m scripts.backfill_translations --langs ar hi
-
-# Generate only (skip translation, only run legacy attribute migration)
-python -m scripts.backfill_translations
-```
-
-#### c. Cost note
-
-Google Cloud Translation API v3 charges ~$20 per million characters. A typical backfill of a few hundred places costs well under $1.
-
-Plan-specific execution:
-- **Docker:** See [§3.8](#38-translation-backfill-docker)
-- **Render:** See [§4.6](#46-translation-backfill-on-render)
-- **GCP:** See [§5.10b](#b-translation-backfill-job)
-
-### 6.3 Scheduled Jobs
+### 6.2 Scheduled Jobs
 
 Available jobs (run from the `soulstep-catalog-api` working directory):
 
@@ -1695,7 +1506,6 @@ Available jobs (run from the `soulstep-catalog-api` working directory):
 |---|---|---|---|
 | Cleanup orphaned images | `python -m app.jobs.cleanup_orphaned_images` | Daily (e.g. 2 AM UTC) | Removes review images no longer referenced by any review |
 | Backfill timezones | `python -m app.jobs.backfill_timezones` | One-off after adding new places | Populates timezone data for places missing it |
-| Backfill translations | `python -m scripts.backfill_translations --langs ar hi` | One-off or weekly | Machine-translates place/review content (see [§6.2](#62-translation-backfill)) |
 
 Plan-specific scheduling:
 - **Docker:** Host cron — see [§3.7](#37-scheduled-jobs-docker)

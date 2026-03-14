@@ -4,11 +4,23 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## refactor(jobs): remove backfill-translations worker (2026-03-14)
+
+### Backend
+
+- **`scripts/backfill_translations.py`** — deleted; superseded by the `translate-content` Cloud Run Job which covers all four languages (ar/hi/te/ml), all entity types (place/review/city/attribute_def), and now includes the legacy `name_{lang}` PlaceAttribute migration.
+- **`app/jobs/translate_content.py`** — added `_migrate_legacy_attributes()` (migrates old scraper `name_{lang}` PlaceAttribute rows into `ContentTranslation` with `source="scraper"`, idempotent); called at job startup before the main translation loop.
+- **`.github/workflows/deploy.yml`** — removed `backfill-translations` Cloud Run Job from the `deploy-jobs` step.
+- **`PRODUCTION.md`** — removed §3.8 (Docker backfill), §4.6 (Render backfill), §5.10b (GCP backfill job), §6.2 (Translation Backfill reference section), and the scheduled jobs table row.
+- **`soulstep-catalog-api/README.md`** — removed Translation Backfill script section and cleaned up env var entries.
+
+---
+
 ## feat(ci): auto-deploy all Cloud Run Jobs from GitHub Actions (2026-03-14)
 
 ### Backend / CI
 
-- **`.github/workflows/deploy.yml`** — Added `deploy-jobs` workflow job (runs after `deploy-api` on every catalog change): builds and pushes `sync-places` and `translate-content` Docker images; updates or creates all five Cloud Run Jobs (`cleanup-job`, `backfill-translations`, `backfill-timezones`, `sync-places`, `translate-content`) using an idempotent `update || create` pattern so CI handles both first-time provisioning and image rollouts.
+- **`.github/workflows/deploy.yml`** — Added `deploy-jobs` workflow job (runs after `deploy-api` on every catalog change): builds and pushes `sync-places` and `translate-content` Docker images; updates or creates four Cloud Run Jobs (`cleanup-job`, `backfill-timezones`, `sync-places`, `translate-content`) using an idempotent `update || create` pattern so CI handles both first-time provisioning and image rollouts.
 - **`PRODUCTION.md`** — §5.10 intro: noted all jobs are CI-managed. §5.10d: replaced the manual "Add SCRAPER_DATABASE_URL to Secret Manager" block with a note that the secret is already shared with the scraper service. §5.11: added workflow job summary table.
 
 ---
