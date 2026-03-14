@@ -203,7 +203,7 @@ jobs:
       - name: Build and push Docker image
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/api:${{ github.sha }}"
-          docker build -t "$IMAGE" ./soulstep-catalog-api
+          docker build --platform linux/amd64 -t "$IMAGE" ./soulstep-catalog-api
           docker push "$IMAGE"
 
       - name: Scan Docker image for vulnerabilities (Trivy)
@@ -348,13 +348,13 @@ jobs:
       - name: Build and push sync-places image
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/sync-places:${{ github.sha }}"
-          docker build -f Dockerfile.sync -t "$IMAGE" ./soulstep-catalog-api
+          docker build --platform linux/amd64 -f Dockerfile.sync -t "$IMAGE" ./soulstep-catalog-api
           docker push "$IMAGE"
 
       - name: Build and push translate-content image
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/translate-content:${{ github.sha }}"
-          docker build -f Dockerfile.translate -t "$IMAGE" ./soulstep-catalog-api
+          docker build --platform linux/amd64 -f Dockerfile.translate -t "$IMAGE" ./soulstep-catalog-api
           docker push "$IMAGE"
 
       - name: Update or create Cloud Run Jobs
@@ -434,7 +434,7 @@ jobs:
       - name: Build and push Docker image
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/scraper:${{ github.sha }}"
-          docker build -t "$IMAGE" ./soulstep-scraper-api
+          docker build --platform linux/amd64 -t "$IMAGE" ./soulstep-scraper-api
           docker push "$IMAGE"
 
       - name: Scan Docker image for vulnerabilities (Trivy)
