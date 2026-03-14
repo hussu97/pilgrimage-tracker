@@ -2,16 +2,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   cancelTranslationJob,
   deleteTranslationJob,
+  exportUntranslated,
+  bulkUpsertTranslations,
   listTranslationJobs,
   startTranslationJob,
 } from "@/lib/api/admin";
-import type { BulkTranslationJob } from "@/lib/api/types";
+import type { BulkTranslationJob, BulkUpsertItem } from "@/lib/api/types";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { Pagination } from "@/components/shared/Pagination";
 import { StatCard } from "@/components/shared/StatCard";
 import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
-import { Plus, Zap, X, Ban, Trash2 } from "lucide-react";
+import { Plus, Zap, X, Ban, Trash2, Download, Upload } from "lucide-react";
 
 // ── Status badge colors (dark-mode safe) ──────────────────────────────────────
 
@@ -148,6 +150,48 @@ export function BulkTranslationsPage() {
     setSelectedTypes((prev) =>
       prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
     );
+  };
+
+  // ── Manual Translation (Claude.ai workflow) ──────────────────────────────────
+
+  const [exportLoading, setExportLoading] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importToast, setImportToast] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExport = async () => {
+    setExportLoading(true);
+    try {
+      const data = await exportUntranslated();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `untranslated_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleImport = async (file: File) => {
+    setImportLoading(true);
+    setImportToast(null);
+    try {
+      const text = await file.text();
+      const items = JSON.parse(text) as BulkUpsertItem[];
+      const result = await bulkUpsertTranslations(items);
+      setImportToast(
+        `Created ${result.created}, updated ${result.updated} translations` +
+          (result.errors.length > 0 ? ` (${result.errors.length} errors)` : "")
+      );
+    } catch (err) {
+      setImportToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setImportLoading(false);
+      if (importInputRef.current) importInputRef.current.value = "";
+    }
   };
 
   const columns: Column<BulkTranslationJob>[] = [
@@ -313,6 +357,62 @@ export function BulkTranslationsPage() {
         onPageChange={setPage}
         onPageSizeChange={setPageSize}
       />
+
+      {/* Manual Translation (Claude.ai) Card */}
+      <div className="rounded-xl border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface p-5 space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-text-main dark:text-white flex items-center gap-2">
+            <span className="text-lg">🤖</span>
+            Manual Translation (Claude.ai)
+          </h2>
+          <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-1">
+            Export missing translations, run them through the local Claude.ai script, then import the results.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          {/* Export */}
+          <button
+            onClick={() => void handleExport()}
+            disabled={exportLoading}
+            className="flex items-center gap-2 rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-bg px-4 py-2 text-sm font-medium text-text-main dark:text-white hover:bg-background-light dark:hover:bg-dark-surface disabled:opacity-50 transition-colors"
+          >
+            <Download size={14} />
+            {exportLoading ? "Exporting…" : "Download untranslated (JSON)"}
+          </button>
+
+          {/* Import */}
+          <label
+            className={`flex items-center gap-2 rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-bg px-4 py-2 text-sm font-medium text-text-main dark:text-white hover:bg-background-light dark:hover:bg-dark-surface transition-colors cursor-pointer ${importLoading ? "opacity-50 pointer-events-none" : ""}`}
+          >
+            <Upload size={14} />
+            {importLoading ? "Importing…" : "Upload translated (JSON)"}
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".json"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleImport(file);
+              }}
+            />
+          </label>
+        </div>
+
+        {/* Result toast */}
+        {importToast && (
+          <div className="flex items-start justify-between gap-2 rounded-lg bg-background-light dark:bg-dark-bg border border-input-border dark:border-dark-border px-4 py-3">
+            <p className="text-sm text-text-main dark:text-white">{importToast}</p>
+            <button
+              onClick={() => setImportToast(null)}
+              className="text-text-secondary dark:text-dark-text-secondary hover:text-text-main dark:hover:text-white transition-colors flex-shrink-0"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* New Job Modal */}
       {showModal && (

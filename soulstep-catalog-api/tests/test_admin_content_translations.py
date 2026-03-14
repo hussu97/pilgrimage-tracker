@@ -202,3 +202,147 @@ def test_delete_content_translation_404(client, db_session):
     headers = _admin_headers(client, db_session)
     resp = client.delete("/api/v1/admin/content-translations/999999", headers=headers)
     assert resp.status_code == 404
+
+
+# ── Tests: export-untranslated ─────────────────────────────────────────────────
+
+
+def test_export_untranslated_requires_admin(client):
+    resp = client.get("/api/v1/admin/content-translations/export-untranslated")
+    assert resp.status_code == 401
+
+
+def test_export_untranslated_returns_missing_langs(client, db_session):
+    """Place with no translations should appear with all target langs missing."""
+    _make_place(db_session, code="plc_exp001")
+    headers = _admin_headers(client, db_session)
+    resp = client.get(
+        "/api/v1/admin/content-translations/export-untranslated?langs=ar,hi",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    item = next((p for p in data if p["entity_code"] == "plc_exp001"), None)
+    assert item is not None
+    assert set(item["missing_langs"]) == {"ar", "hi"}
+    assert "name" in item["fields"]
+
+
+def test_export_untranslated_excludes_already_translated(client, db_session):
+    """Place with ar translations for all fields should not appear when only ar is requested."""
+    place = _make_place(db_session, code="plc_exp002")
+    _make_ct(db_session, entity_code=place.place_code, field="name", lang="ar", text="اسم")
+    _make_ct(db_session, entity_code=place.place_code, field="address", lang="ar", text="عنوان")
+    headers = _admin_headers(client, db_session)
+    resp = client.get(
+        "/api/v1/admin/content-translations/export-untranslated?langs=ar",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    codes = [p["entity_code"] for p in data]
+    assert "plc_exp002" not in codes
+
+
+def test_export_untranslated_invalid_langs(client, db_session):
+    headers = _admin_headers(client, db_session)
+    resp = client.get(
+        "/api/v1/admin/content-translations/export-untranslated?langs=",
+        headers=headers,
+    )
+    assert resp.status_code == 422
+
+
+# ── Tests: bulk-upsert ────────────────────────────────────────────────────────
+
+
+def test_bulk_upsert_requires_admin(client):
+    resp = client.post("/api/v1/admin/content-translations/bulk-upsert", json=[])
+    assert resp.status_code == 401
+
+
+def test_bulk_upsert_creates_new_records(client, db_session):
+    headers = _admin_headers(client, db_session)
+    items = [
+        {
+            "entity_type": "place",
+            "entity_code": "plc_bulk001",
+            "field": "name",
+            "lang": "ar",
+            "translated_text": "مسجد عربي",
+            "source": "claude_ai",
+        },
+        {
+            "entity_type": "place",
+            "entity_code": "plc_bulk001",
+            "field": "name",
+            "lang": "hi",
+            "translated_text": "हिंदी नाम",
+            "source": "claude_ai",
+        },
+    ]
+    resp = client.post(
+        "/api/v1/admin/content-translations/bulk-upsert",
+        json=items,
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["created"] == 2
+    assert data["updated"] == 0
+    assert data["errors"] == []
+
+
+def test_bulk_upsert_updates_existing_records(client, db_session):
+    place = _make_place(db_session, code="plc_bulk002")
+    _make_ct(db_session, entity_code=place.place_code, field="name", lang="ar", text="قديم")
+    headers = _admin_headers(client, db_session)
+
+    items = [
+        {
+            "entity_type": "place",
+            "entity_code": place.place_code,
+            "field": "name",
+            "lang": "ar",
+            "translated_text": "جديد",
+            "source": "claude_ai",
+        }
+    ]
+    resp = client.post(
+        "/api/v1/admin/content-translations/bulk-upsert",
+        json=items,
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["created"] == 0
+    assert data["updated"] == 1
+
+    # Verify DB was updated
+    from sqlmodel import select
+
+    from app.db.models import ContentTranslation
+
+    row = db_session.exec(
+        select(ContentTranslation).where(
+            ContentTranslation.entity_code == place.place_code,
+            ContentTranslation.field == "name",
+            ContentTranslation.lang == "ar",
+        )
+    ).first()
+    assert row is not None
+    assert row.translated_text == "جديد"
+    assert row.source == "claude_ai"
+
+
+def test_bulk_upsert_empty_body(client, db_session):
+    headers = _admin_headers(client, db_session)
+    resp = client.post(
+        "/api/v1/admin/content-translations/bulk-upsert",
+        json=[],
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["created"] == 0
+    assert data["updated"] == 0

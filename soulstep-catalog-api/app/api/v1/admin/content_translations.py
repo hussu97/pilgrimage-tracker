@@ -18,6 +18,9 @@ from app.db.session import SessionDep
 
 router = APIRouter()
 
+# Fields eligible for Claude.ai translation
+TRANSLATABLE_PLACE_FIELDS: list[str] = ["name", "description", "address"]
+
 
 # ── Schemas ────────────────────────────────────────────────────────────────────
 
@@ -229,3 +232,162 @@ def delete_content_translation(
         raise HTTPException(status_code=404, detail="Content translation not found")
     session.delete(row)
     session.commit()
+
+
+# ── Export / Bulk-upsert (Claude.ai workflow) ─────────────────────────────────
+
+
+class UntranslatedPlaceItem(BaseModel):
+    entity_type: str
+    entity_code: str
+    place_name: str
+    fields: dict[str, str]
+    missing_langs: list[str]
+
+
+class BulkUpsertItem(BaseModel):
+    entity_type: str
+    entity_code: str
+    field: str
+    lang: str
+    translated_text: str
+    source: str = "claude_ai"
+
+
+class BulkUpsertResult(BaseModel):
+    created: int
+    updated: int
+    errors: list[str]
+
+
+@router.get(
+    "/content-translations/export-untranslated",
+    response_model=list[UntranslatedPlaceItem],
+)
+def export_untranslated(
+    admin: AdminDep,
+    session: SessionDep,
+    langs: str = Query(default="ar,hi,te,ml", description="Comma-separated lang codes"),
+):
+    """Return all (place, field, lang) triples that are missing a ContentTranslation row.
+
+    The exported JSON is the input format for translate_content_claude.py.
+    """
+    target_langs = [lang_code.strip() for lang_code in langs.split(",") if lang_code.strip()]
+    if not target_langs:
+        raise HTTPException(status_code=422, detail="langs must not be empty")
+
+    # Fetch all places with at least a name
+    places = session.exec(
+        select(Place.place_code, Place.name, Place.description, Place.address)
+    ).all()
+
+    # Fetch all existing ContentTranslation keys for places in one query
+    existing_stmt = select(
+        ContentTranslation.entity_code,
+        ContentTranslation.field,
+        ContentTranslation.lang,
+    ).where(ContentTranslation.entity_type == "place")
+    existing_rows = session.exec(existing_stmt).all()
+    # Build set of (entity_code, field, lang) that already exist
+    existing: set[tuple[str, str, str]] = {(r[0], r[1], r[2]) for r in existing_rows}
+
+    result: list[UntranslatedPlaceItem] = []
+    for place_code, name, description, address in places:
+        # Build the source fields dict (only non-None values)
+        source_fields: dict[str, str] = {}
+        if name:
+            source_fields["name"] = name
+        if description:
+            source_fields["description"] = description
+        if address:
+            source_fields["address"] = address
+
+        if not source_fields:
+            continue
+
+        # Determine which langs are missing for ANY of these fields
+        missing_langs: set[str] = set()
+        for field_name in source_fields:
+            for lang in target_langs:
+                if (place_code, field_name, lang) not in existing:
+                    missing_langs.add(lang)
+
+        if not missing_langs:
+            continue
+
+        # Only export fields that are missing in at least one of the missing langs
+        fields_to_export: dict[str, str] = {}
+        for field_name, text in source_fields.items():
+            for lang in missing_langs:
+                if (place_code, field_name, lang) not in existing:
+                    fields_to_export[field_name] = text
+                    break
+
+        result.append(
+            UntranslatedPlaceItem(
+                entity_type="place",
+                entity_code=place_code,
+                place_name=name or "",
+                fields=fields_to_export,
+                missing_langs=sorted(missing_langs),
+            )
+        )
+
+    return result
+
+
+@router.post(
+    "/content-translations/bulk-upsert",
+    response_model=BulkUpsertResult,
+)
+def bulk_upsert_translations(
+    body: list[BulkUpsertItem],
+    admin: AdminDep,
+    session: SessionDep,
+):
+    """Upsert a flat array of translation records.
+
+    Uses INSERT … ON CONFLICT DO UPDATE logic via SQLModel select + update.
+    Returns counts of created, updated, and any error messages.
+    """
+    created = 0
+    updated = 0
+    errors: list[str] = []
+    now = datetime.now(UTC)
+
+    for item in body:
+        try:
+            existing = session.exec(
+                select(ContentTranslation).where(
+                    ContentTranslation.entity_type == item.entity_type,
+                    ContentTranslation.entity_code == item.entity_code,
+                    ContentTranslation.field == item.field,
+                    ContentTranslation.lang == item.lang,
+                )
+            ).first()
+
+            if existing:
+                existing.translated_text = item.translated_text
+                existing.source = item.source
+                existing.updated_at = now
+                session.add(existing)
+                updated += 1
+            else:
+                row = ContentTranslation(
+                    entity_type=item.entity_type,
+                    entity_code=item.entity_code,
+                    field=item.field,
+                    lang=item.lang,
+                    translated_text=item.translated_text,
+                    source=item.source,
+                    created_at=now,
+                    updated_at=now,
+                )
+                session.add(row)
+                created += 1
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"{item.entity_type}:{item.entity_code}:{item.field}:{item.lang} — {exc}")
+
+    session.commit()
+    return BulkUpsertResult(created=created, updated=updated, errors=errors)

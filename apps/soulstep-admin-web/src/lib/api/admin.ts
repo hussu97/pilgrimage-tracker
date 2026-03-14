@@ -21,6 +21,8 @@ import type {
   BroadcastResult,
   BulkResult,
   BulkTranslationJob,
+  BulkUpsertItem,
+  BulkUpsertResult,
   ContentTranslationListResponse,
   CreateContentTranslationBody,
   CreatePlaceBody,
@@ -36,6 +38,7 @@ import type {
   PlaceAttributeDefinition,
   StartJobBody,
   TranslationEntry,
+  UntranslatedPlaceItem,
   UpdateAppVersionBody,
   UpdateContentTranslationBody,
   UpsertTranslationBody,
@@ -510,4 +513,25 @@ export async function cancelTranslationJob(jobCode: string): Promise<BulkTransla
 
 export async function deleteTranslationJob(jobCode: string): Promise<void> {
   await apiClient.delete(`/admin/translations/jobs/${jobCode}`);
+}
+
+// ── Claude.ai Manual Translation Workflow ─────────────────────────────────────
+
+export async function exportUntranslated(langs?: string): Promise<UntranslatedPlaceItem[]> {
+  const params = langs ? { langs } : {};
+  const res = await apiClient.get<UntranslatedPlaceItem[]>(
+    "/admin/content-translations/export-untranslated",
+    { params }
+  );
+  return res.data;
+}
+
+export async function bulkUpsertTranslations(
+  items: BulkUpsertItem[]
+): Promise<BulkUpsertResult> {
+  const res = await apiClient.post<BulkUpsertResult>(
+    "/admin/content-translations/bulk-upsert",
+    items
+  );
+  return res.data;
 }

@@ -765,6 +765,31 @@ export interface JobListResponse {
   page_size: number;
 }
 
+// ── Claude.ai Manual Translation Workflow ─────────────────────────────────────
+
+export interface UntranslatedPlaceItem {
+  entity_type: string;
+  entity_code: string;
+  place_name: string;
+  fields: Record<string, string>;
+  missing_langs: string[];
+}
+
+export interface BulkUpsertItem {
+  entity_type: string;
+  entity_code: string;
+  field: string;
+  lang: string;
+  translated_text: string;
+  source: string;
+}
+
+export interface BulkUpsertResult {
+  created: number;
+  updated: number;
+  errors: string[];
+}
+
 // ── Map types ────────────────────────────────────────────────────────────────
 
 export interface MapCellItem {
