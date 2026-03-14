@@ -187,7 +187,7 @@ class TestScraperRuns:
     def test_create_run_success(self, client, db_session):
         """Create a run for an existing location (patches the background task)."""
         loc = _create_location_in_db(db_session, "Run Test")
-        with patch("app.jobs.dispatcher.dispatch_run"):
+        with patch("app.api.v1.scraper.dispatch_run"):
             resp = client.post(
                 "/api/v1/scraper/runs",
                 json={"location_code": loc.code},
