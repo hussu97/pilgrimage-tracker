@@ -492,8 +492,15 @@ async def start_translation_job(
     Returns 409 if a job is already running — each job spawns its own Chromium
     instance(s) so concurrent jobs would exhaust system resources.
     """
-    # Guard against concurrent jobs
+    # Guard against concurrent jobs — prune any threads that have already exited
+    # (a thread may still be in its finally/cleanup block after the job finishes,
+    # so we check is_alive() rather than just whether the dict is non-empty).
     with _thread_lock:
+        dead = [jc for jc, t in _active_job_threads.items() if not t.is_alive()]
+        for jc in dead:
+            _active_job_threads.pop(jc, None)
+            _cancel_events.pop(jc, None)
+
         if _active_job_threads:
             raise HTTPException(
                 status_code=409,
