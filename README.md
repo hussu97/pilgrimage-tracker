@@ -71,6 +71,6 @@ Starts the Expo dev server. Run on iOS simulator, Android emulator, or device vi
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) – System design, data model, API outline.
 - [CHANGELOG.md](CHANGELOG.md) – Implemented changes over time.
-- [PRODUCTION.md](PRODUCTION.md) – Go-to-production plans (Docker, free tier e.g. Render/Vercel, GCP).
+- [PRODUCTION.md](PRODUCTION.md) – Go-to-production plans (Docker, free tier e.g. Render/Firebase, GCP).
 - [ROADMAP.md](ROADMAP.md) – Planned features and milestones.
 - **Service READMEs:** [soulstep-catalog-api/README.md](soulstep-catalog-api/README.md), [soulstep-scraper-api/README.md](soulstep-scraper-api/README.md), [apps/soulstep-customer-web/README.md](apps/soulstep-customer-web/README.md), [apps/soulstep-customer-mobile/README.md](apps/soulstep-customer-mobile/README.md), [apps/soulstep-admin-web/README.md](apps/soulstep-admin-web/README.md).

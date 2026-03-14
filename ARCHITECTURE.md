@@ -218,7 +218,7 @@ The web app uses a TypeScript architecture with clear separation of concerns und
 - **HTTPS only;** secure cookies or httpOnly refresh token if using cookie-based refresh.
 - **Rate limiting and validation** on auth and write endpoints.
 - **CORS** configured for web origin(s); Expo app uses same API origin.
-- **Deployment:** Backend on a VPS or PaaS (e.g. Railway, Render); DB managed (e.g. Supabase, Neon). Web app on Vercel/Netlify or same host as API. iOS/Android built via Expo (EAS or local) and submitted to App Store / Play Store.
+- **Deployment:** Backend on a VPS or PaaS (e.g. Railway, Render); DB managed (e.g. Supabase, Neon). Web app on Firebase Hosting or same host as API. iOS/Android built via Expo (EAS or local) and submitted to App Store / Play Store.
 
 ---
 

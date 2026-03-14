@@ -9,7 +9,7 @@ After every feature, fix, or notable change, add an entry to **CHANGELOG.md**. O
 ## 3. Production Plan Maintenance
 Keep **PRODUCTION.md** up to date with three deployment plans:
 1. **Docker** – Docker Compose / container images
-2. **Free online services** – Render (backend), Vercel (frontend), free Postgres/storage
+2. **Free online services** – Render (backend), Firebase Hosting (frontend), free Postgres/storage
 3. **GCP** – Cloud Run, App Engine, Cloud SQL, Storage, etc.
 
 Update the relevant plan(s) when adding new env vars, services, DB migrations, or build commands.

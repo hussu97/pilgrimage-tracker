@@ -21,10 +21,10 @@ This document outlines how to deploy SoulStep to production. **Update the releva
   - [3.6 GCS Image Storage (Docker)](#36-gcs-image-storage-docker)
   - [3.7 Scheduled Jobs (Docker)](#37-scheduled-jobs-docker)
   - [3.8 Translation Backfill (Docker)](#38-translation-backfill-docker)
-- [4. Plan B — Render + Vercel (Free Tier)](#4-plan-b--render--vercel-free-tier)
+- [4. Plan B — Render + Firebase Hosting (Free Tier)](#4-plan-b--render--firebase-hosting-free-tier)
   - [4.1 Create Database (Neon)](#41-create-database-neon)
   - [4.2 Deploy Backend API (Render)](#42-deploy-backend-api-render)
-  - [4.3 Deploy Web Frontend (Vercel)](#43-deploy-web-frontend-vercel)
+  - [4.3 Deploy Web Frontend (Firebase Hosting)](#43-deploy-web-frontend-firebase-hosting)
   - [4.4 Data Scraper on Render (optional)](#44-data-scraper-on-render-optional)
   - [4.5 CI/CD (GitHub Actions)](#45-cicd-github-actions)
   - [4.6 Translation Backfill on Render](#46-translation-backfill-on-render)
@@ -72,7 +72,7 @@ Current system: **Backend** (Python FastAPI in `soulstep-catalog-api/`), **Web a
 | Plan | Backend | DB | Web | Mobile |
 |---|---|---|---|---|
 | **A — Docker** | Docker container (`soulstep-catalog-api/Dockerfile`) | Postgres in Compose or external | nginx Docker image (`apps/soulstep-customer-web/Dockerfile`) | EAS build, submit to stores |
-| **B — Free** | Render Web Service | Render Postgres / Supabase / Neon | Vercel | EAS build |
+| **B — Free** | Render Web Service | Render Postgres / Supabase / Neon | Firebase Hosting | EAS build |
 | **C — GCP** | Cloud Run | Cloud SQL (PostgreSQL 15) | Firebase Hosting | EAS build |
 
 All plans share the same operations (migrations, backfill scripts, scheduled jobs) documented in [§6 Operations Guide](#6-operations-guide), the same mobile build process in [§7 Mobile](#7-mobile), and the same SEO setup in [§8 SEO](#8-seo--search-engine-submission).
@@ -289,9 +289,9 @@ curl -X POST https://your-catalog-url/api/v1/admin/seo/generate \
 
 ---
 
-## 4. Plan B — Render + Vercel (Free Tier)
+## 4. Plan B — Render + Firebase Hosting (Free Tier)
 
-Recommended free-tier setup: **Render** for the backend API (and optionally the scraper), **Neon** for the database (generous free tier, no expiry), **Vercel** for the web frontend.
+Recommended free-tier setup: **Render** for the backend API (and optionally the scraper), **Neon** for the database (generous free tier, no expiry), **Firebase Hosting** for the web frontend.
 
 Migrations run automatically on API startup (see [§6.1](#61-database-migrations)). For mobile builds, see [§7](#7-mobile).
 
@@ -340,10 +340,10 @@ Migrations run automatically on API startup (see [§6.1](#61-database-migrations
    |---|---|
    | `DATABASE_URL` | The Neon (or Render Postgres) connection string from §4.1 |
    | `JWT_SECRET` | A long random string — generate with `openssl rand -hex 32` |
-   | `CORS_ORIGINS` | `https://your-app.vercel.app` (you'll get this URL in §4.3; update it then) |
+   | `CORS_ORIGINS` | Your Firebase Hosting URL (e.g. `https://soulstep.web.app`); update after §4.3 |
    | `JWT_EXPIRE` | `30m` |
    | `REFRESH_EXPIRE` | `30d` |
-   | `RESET_URL_BASE` | `https://your-app.vercel.app` (same as CORS_ORIGINS) |
+   | `RESET_URL_BASE` | Your Firebase Hosting URL (same as CORS_ORIGINS) |
    | `RESEND_API_KEY` | Optional — leave empty if not using email |
    | `RESEND_FROM_EMAIL` | `noreply@soul-step.org` (only needed with Resend) |
 
@@ -354,30 +354,40 @@ Migrations run automatically on API startup (see [§6.1](#61-database-migrations
 
 ---
 
-### 4.3 Deploy Web Frontend (Vercel)
+### 4.3 Deploy Web Frontend (Firebase Hosting)
 
-1. Go to [vercel.com](https://vercel.com) → **Add New Project** → import the `soulstep` repo.
-2. On the **Configure Project** screen:
+1. Install the Firebase CLI and log in:
+   ```bash
+   npm install -g firebase-tools
+   firebase login
+   ```
 
-   | Setting | Value |
-   |---|---|
-   | **Root Directory** | `apps/soulstep-customer-web` |
-   | **Framework Preset** | `Vite` (Vercel auto-detects) |
-   | **Build Command** | `npm run build` |
-   | **Output Directory** | `dist` |
+2. In the `apps/soulstep-customer-web` directory, initialise Firebase:
+   ```bash
+   cd apps/soulstep-customer-web
+   firebase init hosting
+   ```
+   - Select your Firebase project (or create one at [console.firebase.google.com](https://console.firebase.google.com)).
+   - Set **public directory** to `dist`.
+   - Choose **Yes** to configure as a single-page app (rewrites all URLs to `index.html`).
+   - Do **not** overwrite `dist/index.html`.
 
-3. Under **Environment Variables**, add:
+3. Build and set the API URL (baked in at build time):
+   ```bash
+   VITE_API_URL=https://soulstep-catalog-api.onrender.com npm run build
+   ```
 
-   | Key | Value |
-   |---|---|
-   | `VITE_API_URL` | `https://soulstep-catalog-api.onrender.com` (your Render API URL from §4.2) |
+4. Deploy:
+   ```bash
+   firebase deploy --only hosting
+   ```
+   Firebase prints your hosting URL (e.g. `https://soulstep.web.app`). Copy it.
 
-4. Click **Deploy**. Once deployed, copy your Vercel URL (e.g. `https://soulstep.vercel.app`).
-5. **Go back to Render** → your API service → **Environment** tab → update `CORS_ORIGINS` and `RESET_URL_BASE` to your Vercel URL, then **Save** (Render will redeploy automatically).
+5. **Go back to Render** → your API service → **Environment** tab → update `CORS_ORIGINS` and `RESET_URL_BASE` to your Firebase Hosting URL, then **Save** (Render will redeploy automatically).
 
-> **VITE_API_URL is baked in at build time.** If you ever change the API URL, update this env var in Vercel and redeploy.
+> **VITE_API_URL is baked in at build time.** If you ever change the API URL, rebuild and redeploy.
 
-> **Get Vercel IDs for GitHub Actions:** In your Vercel project → **Settings → General** → note the **Project ID**. Your **Org/Team ID** is at [vercel.com/account](https://vercel.com/account) → Settings → copy the **ID** under your username/team. You'll need both in [§4.5](#45-cicd-github-actions).
+> **Custom domain:** Firebase Hosting → **Add custom domain** → follow the DNS verification steps.
 
 ---
 
@@ -433,7 +443,7 @@ The workflow at `.github/workflows/deploy.yml` runs on every push to `main`:
 
 1. Runs server tests (`pytest`) and web build (`tsc + vite build`)
 2. On success, triggers the Render deploy hook (redeploys the API)
-3. On success, runs `vercel build --prod` + `vercel deploy --prebuilt --prod`
+3. On success, runs `firebase deploy --only hosting` (deploys the web frontend)
 
 #### Get the Render Deploy Hook
 
@@ -450,9 +460,7 @@ Under **Secrets** (encrypted):
 |---|---|
 | `RENDER_API_DEPLOY_HOOK_URL` | Render → API service → Settings → Deploy Hook |
 | `RENDER_SCRAPER_DEPLOY_HOOK_URL` | Render → Scraper service → Settings → Deploy Hook (skip if not using scraper) |
-| `VERCEL_TOKEN` | [vercel.com/account/tokens](https://vercel.com/account/tokens) → **Create Token** |
-| `VERCEL_ORG_ID` | Vercel → Account Settings → copy the **ID** field |
-| `VERCEL_PROJECT_ID` | Vercel → Project → Settings → General → copy **Project ID** |
+| `FIREBASE_TOKEN` | Run `firebase login:ci` locally → copy the printed token |
 
 Under **Variables** (non-secret):
 
@@ -474,7 +482,7 @@ The deploy jobs reference the `production` environment. To create it:
 push to main
   ├── test-server (pytest)   ─┐
   └── test-web (tsc + build) ─┴─ both must pass ──► deploy-backend (Render hook)
-                                                  └► deploy-web (Vercel CLI)
+                                                  └► deploy-web (Firebase CLI)
                                                   └► deploy-scraper (Render hook, if DEPLOY_SCRAPER=true)
 ```
 
@@ -1517,7 +1525,7 @@ Add `GCP_SA_KEY` (the full JSON) as a GitHub Actions secret.
 
 #### Example deploy jobs to add to `.github/workflows/deploy.yml`
 
-Replace or extend the Render/Vercel jobs with these:
+Replace or extend the Render/Firebase jobs with these:
 
 ```yaml
 deploy-gcp-api:
