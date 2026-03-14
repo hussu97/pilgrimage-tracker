@@ -87,10 +87,13 @@ Copy `.env.example` to `.env` and fill in values. Key variables:
 - `POST /api/v1/places/batch` — batch create places (scraper sync)
 - `GET /api/v1/places/{placeCode}/image/{imageCode}` — serve place image
 
+### Homepage (`/api/v1/homepage`)
+- `GET /api/v1/homepage` — composite page data: groups, recommended_places, featured_journeys, popular_places, popular_cities, place_count (query: lat, lng, religions, lang)
+
 ### Cities (`/api/v1/cities`)
-- `GET /api/v1/cities` — all cities with place counts (query: limit, offset)
-- `GET /api/v1/cities/{city_slug}` — places in a city (query: page, page_size≤200)
-- `GET /api/v1/cities/{city_slug}/{religion}` — city places filtered by religion
+- `GET /api/v1/cities` — all cities with place counts (query: limit, offset, include_metrics, include_images)
+- `GET /api/v1/cities/{city_slug}` — places in a city (query: page, page_size≤200, lang)
+- `GET /api/v1/cities/{city_slug}/{religion}` — city places filtered by religion (query: page, page_size≤200, lang)
 
 ### Reviews (`/api/v1/reviews`)
 - `PATCH /api/v1/reviews/{reviewCode}` — update review

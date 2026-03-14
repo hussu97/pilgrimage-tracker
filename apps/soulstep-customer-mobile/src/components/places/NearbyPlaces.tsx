@@ -6,7 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/app/navigation';
 import type { NearbyPlace } from '@/lib/types';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
-import { useTheme } from '@/app/providers';
+import { useTheme, useI18n } from '@/app/providers';
 import { tokens } from '@/lib/theme';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>;
@@ -19,6 +19,7 @@ interface NearbyPlacesProps {
 export default function NearbyPlaces({ title, places }: NearbyPlacesProps) {
   const navigation = useNavigation<Nav>();
   const { isDark } = useTheme();
+  const { t } = useI18n();
   const s = makeStyles(isDark);
 
   if (!places || places.length === 0) return null;
@@ -64,7 +65,7 @@ export default function NearbyPlaces({ title, places }: NearbyPlacesProps) {
                     <Text style={s.rating}>{place.average_rating.toFixed(1)}</Text>
                   </View>
                 )}
-                <Text style={s.religion}>{place.religion}</Text>
+                <Text style={s.religion}>{t(`common.${place.religion}`) || place.religion}</Text>
               </View>
             </TouchableOpacity>
           );

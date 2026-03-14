@@ -378,3 +378,139 @@ class TestCitiesDeduplication:
         assert resp.status_code == 200
         data = resp.json()
         assert data["total"] == 3
+
+
+class TestCityLangTranslations:
+    """Tests for ?lang= query parameter on city endpoints."""
+
+    def test_city_places_lang_overlays_translations(self, client, db_session):
+        """GET /cities/{slug}?lang=ar overlays Arabic translations on place names."""
+        from datetime import UTC, datetime
+
+        from app.db.models import ContentTranslation, Place
+
+        place = Place(
+            place_code="plc_lang_city001",
+            name="Historic Mosque",
+            religion="islam",
+            place_type="mosque",
+            lat=25.0,
+            lng=55.0,
+            address="Main Street",
+            city="Dubai",
+        )
+        db_session.add(place)
+        db_session.commit()
+
+        now = datetime.now(UTC)
+        db_session.add(
+            ContentTranslation(
+                entity_type="place",
+                entity_code="plc_lang_city001",
+                field="name",
+                lang="ar",
+                translated_text="مكان مقدس",
+                source="test",
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        db_session.commit()
+
+        resp = client.get(f"{CITIES_URL}/dubai?lang=ar")
+        assert resp.status_code == 200
+        data = resp.json()
+        our_place = next((p for p in data["places"] if p["place_code"] == "plc_lang_city001"), None)
+        assert our_place is not None
+        assert our_place["name"] == "مكان مقدس"
+
+    def test_city_places_lang_en_no_overlay(self, client, db_session):
+        """GET /cities/{slug}?lang=en returns original English names."""
+        from app.db.models import Place
+
+        place = Place(
+            place_code="plc_lang_city_en001",
+            name="English Mosque",
+            religion="islam",
+            place_type="mosque",
+            lat=25.0,
+            lng=55.0,
+            address="English Street",
+            city="London",
+        )
+        db_session.add(place)
+        db_session.commit()
+
+        resp = client.get(f"{CITIES_URL}/london?lang=en")
+        assert resp.status_code == 200
+        data = resp.json()
+        our_place = next(
+            (p for p in data["places"] if p["place_code"] == "plc_lang_city_en001"), None
+        )
+        assert our_place is not None
+        assert our_place["name"] == "English Mosque"
+
+    def test_city_religion_places_lang_overlays_translations(self, client, db_session):
+        """GET /cities/{slug}/{religion}?lang=ar overlays translations."""
+        from datetime import UTC, datetime
+
+        from app.db.models import ContentTranslation, Place
+
+        place = Place(
+            place_code="plc_lang_rel001",
+            name="Sacred Temple",
+            religion="hinduism",
+            place_type="temple",
+            lat=28.6,
+            lng=77.2,
+            address="Temple Road",
+            city="Delhi",
+        )
+        db_session.add(place)
+        db_session.commit()
+
+        now = datetime.now(UTC)
+        db_session.add(
+            ContentTranslation(
+                entity_type="place",
+                entity_code="plc_lang_rel001",
+                field="name",
+                lang="ar",
+                translated_text="معبد مقدس",
+                source="test",
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        db_session.commit()
+
+        resp = client.get(f"{CITIES_URL}/delhi/hinduism?lang=ar")
+        assert resp.status_code == 200
+        data = resp.json()
+        our_place = next((p for p in data["places"] if p["place_code"] == "plc_lang_rel001"), None)
+        assert our_place is not None
+        assert our_place["name"] == "معبد مقدس"
+
+    def test_city_places_no_lang_returns_english(self, client, db_session):
+        """Without lang param, place names are returned in English."""
+        from app.db.models import Place
+
+        place = Place(
+            place_code="plc_nolang001",
+            name="Original Name",
+            religion="islam",
+            place_type="mosque",
+            lat=25.0,
+            lng=55.0,
+            address="Some Street",
+            city="Abu Dhabi",
+        )
+        db_session.add(place)
+        db_session.commit()
+
+        resp = client.get(f"{CITIES_URL}/abu-dhabi")
+        assert resp.status_code == 200
+        data = resp.json()
+        our_place = next((p for p in data["places"] if p["place_code"] == "plc_nolang001"), None)
+        assert our_place is not None
+        assert our_place["name"] == "Original Name"

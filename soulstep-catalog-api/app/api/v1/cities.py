@@ -14,6 +14,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import func, select
 
+from app.db import content_translations as ct_db
 from app.db import place_images
 from app.db.models import CheckIn, City, Place
 from app.db.session import SessionDep
@@ -231,6 +232,7 @@ def list_places_in_city(
     session: SessionDep,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, le=200),
+    lang: str | None = Query(None),
 ):
     """List places in a city (matched by slug)."""
     city_slug = city_slug.lower()
@@ -277,8 +279,19 @@ def list_places_in_city(
     seo_map = {s.place_code: s for s in seo_rows}
     img_map = place_images.get_images_bulk(place_codes, session) if place_codes else {}
 
+    # Overlay place translations
+    place_trans: dict[str, dict[str, str]] = {}
+    if lang and lang != "en" and place_codes:
+        place_trans = ct_db.bulk_get_translations("place", place_codes, lang, session)
+
+    # Overlay city name translation
+    translated_city_name = city_name
+    if lang and lang != "en" and canonical_city:
+        city_translations = canonical_city.translations or {}
+        translated_city_name = city_translations.get(lang, city_name)
+
     return {
-        "city": city_name,
+        "city": translated_city_name,
         "city_slug": city_slug,
         "total": total,
         "page": page,
@@ -286,10 +299,10 @@ def list_places_in_city(
         "places": [
             {
                 "place_code": p.place_code,
-                "name": p.name,
+                "name": place_trans.get(p.place_code, {}).get("name", p.name),
                 "religion": p.religion,
                 "place_type": p.place_type,
-                "address": p.address,
+                "address": place_trans.get(p.place_code, {}).get("address", p.address),
                 "lat": p.lat,
                 "lng": p.lng,
                 "seo_slug": seo_map.get(p.place_code, None) and seo_map[p.place_code].slug,
@@ -307,6 +320,7 @@ def list_places_in_city_by_religion(
     session: SessionDep,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, le=200),
+    lang: str | None = Query(None),
 ):
     """List places in a city filtered by religion."""
     city_slug = city_slug.lower()
@@ -362,8 +376,19 @@ def list_places_in_city_by_religion(
     seo_map = {s.place_code: s for s in seo_rows}
     img_map = place_images.get_images_bulk(place_codes, session) if place_codes else {}
 
+    # Overlay place translations
+    place_trans: dict[str, dict[str, str]] = {}
+    if lang and lang != "en" and place_codes:
+        place_trans = ct_db.bulk_get_translations("place", place_codes, lang, session)
+
+    # Overlay city name translation
+    translated_city_name = city_name
+    if lang and lang != "en" and canonical_city:
+        city_translations = canonical_city.translations or {}
+        translated_city_name = city_translations.get(lang, city_name)
+
     return {
-        "city": city_name,
+        "city": translated_city_name,
         "city_slug": city_slug,
         "religion": religion,
         "total": total,
@@ -372,10 +397,10 @@ def list_places_in_city_by_religion(
         "places": [
             {
                 "place_code": p.place_code,
-                "name": p.name,
+                "name": place_trans.get(p.place_code, {}).get("name", p.name),
                 "religion": p.religion,
                 "place_type": p.place_type,
-                "address": p.address,
+                "address": place_trans.get(p.place_code, {}).get("address", p.address),
                 "lat": p.lat,
                 "lng": p.lng,
                 "seo_slug": seo_map.get(p.place_code, None) and seo_map[p.place_code].slug,

@@ -4,6 +4,30 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-15] — Fix missing content translations across frontend apps
+
+### Backend
+- `GET /api/v1/homepage` now accepts `lang` query param; overlays translated `name`/`address` on popular and recommended places, and translated city names using `City.translations`
+- `GET /api/v1/cities/{city_slug}` and `GET /api/v1/cities/{city_slug}/{religion}` now accept `lang` query param; overlays translated place names/addresses and translated city name
+- Added 14 new UI translation keys to `seed_data.json` (all 5 languages): `common.buddhism`, `common.sikhism`, `common.judaism`, `common.bahai`, `common.zoroastrianism`, `common.all`, and `common.place_type.*` (mosque, temple, church, synagogue, gurdwara, shrine, monastery, cathedral)
+- Added backend tests for `lang` overlay on homepage, city, and city+religion endpoints
+
+### Frontend (web)
+- `getCityPlaces()`, `getCityReligionPlaces()`, `getHomepage()` API client methods now pass `lang=<locale>` when locale is non-English
+- `Places.tsx`: religion filter labels use `t(r.labelKey)` instead of hardcoded English; place cards show `t(\`common.${religion}\`)` with English fallback
+- `Home.tsx`: popular and recommended place cards show translated religion label
+- `ExploreCity.tsx`: place religion badge uses `t()` translation key
+- `ExploreCities.tsx`: city names display `city.translations?.[locale] || city.city` using backend-provided translations
+- Added `translationHelpers.test.ts` covering religion/place_type key mapping and fallback behaviour
+
+### Frontend (mobile)
+- `getCityPlaces()`, `getCityReligionPlaces()`, `getHomepage()` API client methods now pass `lang=<locale>` when locale is non-English
+- `HomeScreen.tsx`, `ExploreCityScreen.tsx`, `NearbyPlaces.tsx`: religion labels use `t(\`common.${religion}\`)` with English fallback
+- `ExploreCitiesScreen.tsx`: city names use `city.translations?.[locale] || city.city`
+- Added `translationHelpers.test.ts` in parity with web
+
+---
+
 ## [2026-03-15]
 
 ### Backend

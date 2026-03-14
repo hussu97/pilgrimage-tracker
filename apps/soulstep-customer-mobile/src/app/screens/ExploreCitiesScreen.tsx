@@ -29,9 +29,18 @@ interface City {
   city_slug: string;
   count: number;
   top_images: string[];
+  translations?: Record<string, string> | null;
 }
 
-function CityCollageCard({ city, onPress }: { city: City; onPress: () => void }) {
+function CityCollageCard({
+  city,
+  onPress,
+  locale,
+}: {
+  city: City;
+  onPress: () => void;
+  locale: string;
+}) {
   const images = city.top_images ?? [];
 
   const renderImages = () => {
@@ -80,7 +89,7 @@ function CityCollageCard({ city, onPress }: { city: City; onPress: () => void })
       <View style={styles.cardOverlay} />
       <View style={styles.cardTextArea}>
         <Text style={styles.cardCityName} numberOfLines={1}>
-          {city.city}
+          {city.translations?.[locale] || city.city}
         </Text>
         <Text style={styles.cardSiteCount}>
           {city.count} {city.count === 1 ? 'site' : 'sites'}
@@ -93,7 +102,7 @@ function CityCollageCard({ city, onPress }: { city: City; onPress: () => void })
 export default function ExploreCitiesScreen() {
   const navigation = useNavigation<Nav>();
   const { isDark } = useTheme();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const insets = useSafeAreaInsets();
 
   const [cities, setCities] = useState<City[]>([]);
@@ -186,6 +195,7 @@ export default function ExploreCitiesScreen() {
           renderItem={({ item }) => (
             <CityCollageCard
               city={item}
+              locale={locale}
               onPress={() => navigation.push('ExploreCity', { citySlug: item.city_slug })}
             />
           )}

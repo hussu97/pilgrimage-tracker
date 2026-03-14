@@ -860,7 +860,7 @@ export default function HomeScreen() {
                     {item.name}
                   </Text>
                   <Text style={styles.popularPlaceReligion} numberOfLines={1}>
-                    {item.religion}
+                    {t(`common.${item.religion}`) || item.religion}
                   </Text>
                   <View style={styles.popularPlaceMeta}>
                     {item.average_rating != null && item.average_rating > 0 && (
@@ -978,7 +978,7 @@ export default function HomeScreen() {
                     {item.name}
                   </Text>
                   <Text style={styles.placeCardReligion} numberOfLines={1}>
-                    {item.religion}
+                    {t(`common.${item.religion}`) || item.religion}
                   </Text>
                   <TouchableOpacity
                     style={styles.addToJourneyBtn}

@@ -6,11 +6,12 @@ from sqlmodel import func, select
 
 from app.api.deps import OptionalUserDep
 from app.db import check_ins as check_ins_db
+from app.db import content_translations as ct_db
 from app.db import groups as groups_db
 from app.db import place_images
 from app.db import places as places_db
 from app.db import reviews as reviews_db
-from app.db.models import Group, Place
+from app.db.models import City, Group, Place
 from app.db.places import _haversine_km
 from app.db.session import SessionDep
 
@@ -24,6 +25,7 @@ def get_homepage(
     lat: float | None = Query(None),
     lng: float | None = Query(None),
     religions: list[str] | None = Query(None),
+    lang: str | None = Query(None),
 ):
     """Single composite endpoint returning all homepage data.
 
@@ -144,6 +146,13 @@ def get_homepage(
 
     popular_sorted = sorted(popular_raw, key=lambda p: _avg(p.place_code), reverse=True)[:20]
 
+    # Fetch translations for popular places
+    popular_trans: dict[str, dict[str, str]] = {}
+    if lang and lang != "en":
+        popular_trans = ct_db.bulk_get_translations(
+            "place", [p.place_code for p in popular_sorted], lang, session
+        )
+
     popular_out = []
     for p in popular_sorted:
         imgs = popular_images.get(p.place_code, [])
@@ -151,12 +160,13 @@ def get_homepage(
         dist = None
         if lat is not None and lng is not None:
             dist = round(_haversine_km(lat, lng, p.lat, p.lng) * 10) / 10
+        trans = popular_trans.get(p.place_code, {})
         popular_out.append(
             {
                 "place_code": p.place_code,
-                "name": p.name,
+                "name": trans.get("name", p.name),
                 "religion": p.religion,
-                "address": p.address,
+                "address": trans.get("address", p.address),
                 "city": p.city,
                 "lat": p.lat,
                 "lng": p.lng,
@@ -187,6 +197,11 @@ def get_homepage(
     rec_codes = [p.place_code for p in rec_results]
     rec_images = place_images.get_images_bulk(rec_codes, session)
 
+    # Fetch translations for recommended places
+    rec_trans: dict[str, dict[str, str]] = {}
+    if lang and lang != "en":
+        rec_trans = ct_db.bulk_get_translations("place", rec_codes, lang, session)
+
     rec_out = []
     for p in rec_results:
         imgs = rec_images.get(p.place_code, [])
@@ -194,12 +209,13 @@ def get_homepage(
         dist = None
         if lat is not None and lng is not None:
             dist = round(_haversine_km(lat, lng, p.lat, p.lng) * 10) / 10
+        trans = rec_trans.get(p.place_code, {})
         rec_out.append(
             {
                 "place_code": p.place_code,
-                "name": p.name,
+                "name": trans.get("name", p.name),
                 "religion": p.religion,
-                "address": p.address,
+                "address": trans.get("address", p.address),
                 "city": p.city,
                 "lat": p.lat,
                 "lng": p.lng,
@@ -251,6 +267,15 @@ def get_homepage(
                 if len(imgs) >= 3:
                     break
             city_item["top_images"] = imgs
+
+    # Overlay translated city names
+    if lang and lang != "en" and cities_out:
+        city_objs_for_trans = session.exec(select(City).where(City.name.in_(city_names_list))).all()
+        city_trans_map = {c.name: (c.translations or {}) for c in city_objs_for_trans}
+        for city_item in cities_out:
+            trans = city_trans_map.get(city_item["city"], {}).get(lang)
+            if trans:
+                city_item["city"] = trans
 
     # ── Place count ────────────────────────────────────────────────────────────
     total_count = session.exec(select(func.count(Place.id))).one()

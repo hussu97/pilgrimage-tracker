@@ -170,7 +170,7 @@ export default function ExploreCityScreen() {
                     {item.address}
                   </Text>
                 </View>
-                <Text style={s.placeReligion}>{item.religion}</Text>
+                <Text style={s.placeReligion}>{t(`common.${item.religion}`) || item.religion}</Text>
               </TouchableOpacity>
             );
           }}

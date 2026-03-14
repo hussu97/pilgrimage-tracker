@@ -386,7 +386,7 @@ function PlaceCardSmall({
             {place.name}
           </p>
           <p className="text-[10px] text-text-muted dark:text-dark-text-secondary mt-0.5 capitalize">
-            {place.religion}
+            {t(`common.${place.religion}`) || place.religion}
           </p>
           <button
             onClick={(e) => {
@@ -405,6 +405,7 @@ function PlaceCardSmall({
 
 /** Horizontal popular place card — with rating + checkins */
 function PopularPlaceCard({ place }: { place: PopularPlace }) {
+  const { t } = useI18n();
   const imgUrl = place.images?.[0]?.url ? getFullImageUrl(place.images[0].url) : null;
   return (
     <Link to={`/places/${place.place_code}`}>
@@ -438,7 +439,7 @@ function PopularPlaceCard({ place }: { place: PopularPlace }) {
             {place.name}
           </p>
           <p className="text-[10px] text-text-muted dark:text-dark-text-secondary mt-0.5 capitalize">
-            {place.religion}
+            {t(`common.${place.religion}`) || place.religion}
           </p>
           <div className="flex items-center gap-2 mt-1.5">
             {place.average_rating != null && place.average_rating > 0 && (

@@ -7,15 +7,15 @@ import type { Place } from '@/lib/types';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 
 const RELIGIONS = [
-  { value: '', label: 'All' },
-  { value: 'islam', label: 'Islam' },
-  { value: 'christianity', label: 'Christianity' },
-  { value: 'hinduism', label: 'Hinduism' },
-  { value: 'buddhism', label: 'Buddhism' },
-  { value: 'sikhism', label: 'Sikhism' },
-  { value: 'judaism', label: 'Judaism' },
-  { value: 'bahai', label: "Bahá'í" },
-  { value: 'zoroastrianism', label: 'Zoroastrianism' },
+  { value: '', labelKey: 'common.all' },
+  { value: 'islam', labelKey: 'common.islam' },
+  { value: 'christianity', labelKey: 'common.christianity' },
+  { value: 'hinduism', labelKey: 'common.hinduism' },
+  { value: 'buddhism', labelKey: 'common.buddhism' },
+  { value: 'sikhism', labelKey: 'common.sikhism' },
+  { value: 'judaism', labelKey: 'common.judaism' },
+  { value: 'bahai', labelKey: 'common.bahai' },
+  { value: 'zoroastrianism', labelKey: 'common.zoroastrianism' },
 ];
 
 export default function Places() {
@@ -99,7 +99,7 @@ export default function Places() {
                 : 'bg-slate-100 dark:bg-dark-surface text-text-secondary dark:text-dark-text-secondary hover:bg-slate-200 dark:hover:bg-dark-border'
             }`}
           >
-            {r.label}
+            {t(r.labelKey)}
           </button>
         ))}
       </div>
@@ -148,7 +148,7 @@ export default function Places() {
                   </p>
                   <div className="flex items-center gap-2 mt-2">
                     <span className="text-[10px] font-medium text-text-muted dark:text-dark-text-secondary capitalize">
-                      {place.religion}
+                      {t(`common.${place.religion}`) || place.religion}
                     </span>
                     {place.average_rating != null && (
                       <span className="flex items-center gap-0.5 text-[10px] text-amber-500 font-semibold">

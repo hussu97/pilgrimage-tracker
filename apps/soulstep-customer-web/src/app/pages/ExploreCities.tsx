@@ -11,10 +11,11 @@ interface City {
   city_slug: string;
   count: number;
   top_images: string[];
+  translations?: Record<string, string>;
 }
 
 function CityCollageCard({ city }: { city: City }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const images = city.top_images ?? [];
 
   return (
@@ -73,7 +74,9 @@ function CityCollageCard({ city }: { city: City }) {
 
       {/* Text content */}
       <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-1 group-hover:translate-y-0 transition-transform duration-200">
-        <p className="text-sm font-bold text-white leading-tight line-clamp-1">{city.city}</p>
+        <p className="text-sm font-bold text-white leading-tight line-clamp-1">
+          {city.translations?.[locale] || city.city}
+        </p>
         <p className="text-xs text-white/70 mt-0.5">
           {t(city.count === 1 ? 'explore.siteCount' : 'explore.sitesCount').replace(
             '{count}',

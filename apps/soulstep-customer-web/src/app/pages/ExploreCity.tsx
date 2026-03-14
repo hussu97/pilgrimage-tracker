@@ -78,6 +78,7 @@ function PopularityBadge({ label }: { label: string }) {
 }
 
 function PlaceCard({ place }: { place: CityPlace }) {
+  const { t } = useI18n();
   const imageUrl = place.images?.[0]?.url ?? null;
   const to = place.seo_slug
     ? `/places/${place.place_code}/${place.seo_slug}`
@@ -109,7 +110,7 @@ function PlaceCard({ place }: { place: CityPlace }) {
         {place.religion && (
           <div className="absolute top-2 right-2">
             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold text-white bg-black/40 backdrop-blur-sm capitalize">
-              {place.religion}
+              {t(`common.${place.religion}`) || place.religion}
             </span>
           </div>
         )}

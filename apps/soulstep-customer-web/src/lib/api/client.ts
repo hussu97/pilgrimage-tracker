@@ -824,10 +824,11 @@ export async function getCities(params?: {
 }
 
 export async function getCityPlaces(citySlug: string, page = 1): Promise<any> {
-  const res = await fetch(
-    `${API_BASE}/api/v1/cities/${encodeURIComponent(citySlug)}?page=${page}`,
-    { headers: clientHeaders() },
-  );
+  const sp = new URLSearchParams({ page: String(page) });
+  if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
+  const res = await fetch(`${API_BASE}/api/v1/cities/${encodeURIComponent(citySlug)}?${sp}`, {
+    headers: clientHeaders(),
+  });
   if (!res.ok) throw new Error('City not found');
   return res.json();
 }
@@ -837,8 +838,10 @@ export async function getCityReligionPlaces(
   religion: string,
   page = 1,
 ): Promise<any> {
+  const sp = new URLSearchParams({ page: String(page) });
+  if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
   const res = await fetch(
-    `${API_BASE}/api/v1/cities/${encodeURIComponent(citySlug)}/${encodeURIComponent(religion)}?page=${page}`,
+    `${API_BASE}/api/v1/cities/${encodeURIComponent(citySlug)}/${encodeURIComponent(religion)}?${sp}`,
     { headers: clientHeaders() },
   );
   if (!res.ok) throw new Error('City/religion not found');
@@ -912,6 +915,7 @@ export async function getHomepage(params?: GetHomepageParams): Promise<HomepageD
   if (params?.lat != null) sp.set('lat', String(params.lat));
   if (params?.lng != null) sp.set('lng', String(params.lng));
   (params?.religions ?? []).forEach((r) => sp.append('religions', r));
+  if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
   const qs = sp.toString();
   const url = `${API_BASE}/api/v1/homepage${qs ? `?${qs}` : ''}`;
   const res = await authFetch(url, { headers: authHeaders() });
