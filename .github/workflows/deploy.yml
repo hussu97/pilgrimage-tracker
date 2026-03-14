@@ -438,13 +438,13 @@ jobs:
       - name: Build and push API image (lean — no Playwright)
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/scraper:${{ github.sha }}"
-          docker build --platform linux/amd64 -f Dockerfile -t "$IMAGE" ./soulstep-scraper-api
+          docker build --platform linux/amd64 -f soulstep-scraper-api/Dockerfile -t "$IMAGE" ./soulstep-scraper-api
           docker push "$IMAGE"
 
       - name: Build and push Job image (Playwright + Chromium)
         run: |
           JOB_IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/scraper-job:${{ github.sha }}"
-          docker build --platform linux/amd64 -f Dockerfile.job -t "$JOB_IMAGE" ./soulstep-scraper-api
+          docker build --platform linux/amd64 -f soulstep-scraper-api/Dockerfile.job -t "$JOB_IMAGE" ./soulstep-scraper-api
           docker push "$JOB_IMAGE"
 
       - name: Scan API image for vulnerabilities (Trivy)

@@ -43,7 +43,7 @@
         {
           "source": "/api/**",
           "run": {
-            "serviceId": "soulstep-api",
+            "serviceId": "soulstep-catalog-api",
             "region": "europe-west1"
           }
         },
@@ -79,7 +79,7 @@
         {
           "source": "/api/**",
           "run": {
-            "serviceId": "soulstep-api",
+            "serviceId": "soulstep-catalog-api",
             "region": "europe-west1"
           }
         },
