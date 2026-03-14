@@ -41,8 +41,8 @@ def test_translate_multi_browser_happy_path():
     """Separator-delimited block is split back correctly for 3 texts."""
     from app.services.browser_translation import translate_multi_browser
 
-    # Simulate Google returning the block with separators intact (new <<<N>>> format)
-    raw_translated = "مرحبا\n\n<<<2>>>\n\nالعالم\n\n<<<3>>>\n\nكيف حالك"
+    # Simulate Google returning the block with separators intact (:::N::: format)
+    raw_translated = "مرحبا\n\n:::2:::\n\nالعالم\n\n:::3:::\n\nكيف حالك"
 
     async def run():
         with patch(
@@ -58,11 +58,11 @@ def test_translate_multi_browser_happy_path():
 
 
 def test_translate_multi_browser_happy_path_bracket_mutation():
-    """Fallback regex patterns handle Google partially stripping <<<N>>> brackets."""
+    """Fallback regex patterns handle Google partially stripping :::N::: colons."""
     from app.services.browser_translation import translate_multi_browser
 
-    # Google partially stripped brackets: <<<2>>> → <2>
-    raw_translated = "مرحبا\n\n<2>\n\nالعالم\n\n<3>\n\nكيف حالك"
+    # Google partially stripped colons: :::2::: → :2:
+    raw_translated = "مرحبا\n\n:2:\n\nالعالم\n\n:3:\n\nكيف حالك"
 
     async def run():
         with patch(

@@ -738,21 +738,22 @@ async def translate_batch_browser(
 # ── Delimiter-based multi-text translation ─────────────────────────────────────
 
 # Separator placed *between* texts (not as a prefix before each one).
-# Uses a number-only format: <<<N>>> — no alphabetic word so Google Translate
-# cannot transliterate it into Arabic/Hindi/Telugu/Malayalam scripts.
-# Numbers and angle-bracket punctuation are universally preserved.
-_SEP_FMT = "<<<{n}>>>"
+# Uses :::N::: — colons are pure ASCII punctuation that no language script
+# transliterates, mirrors, or adds extra characters to (unlike angle brackets,
+# which Tamil/Malayalam renderers add an extra '>' to).
+_SEP_FMT = ":::{n}:::"
 
 # Fallback parse patterns ordered from strictest to loosest.
-# Google may strip or replace the angle brackets — we try all variants.
-# Legacy SEP:N patterns are included for any in-flight translations from the old format.
+# Google may strip some colons — we try progressively looser matches.
+# Legacy <<<N>>> and SEP:N patterns are included for backward compatibility.
 _SEP_PATTERNS = [
-    r"<<<\d+>>>",  # exact: <<<2>>>
-    r"<{1,3}\d+>{1,3}",  # partial brackets: <2> or <<2>>
-    r"«\d+»",  # French guillemet substitution: «2»
-    r"\[{1,2}\d+\]{1,2}",  # square brackets: [[2]] or [2]
-    r"\(\(?\d+\)?\)",  # parens: ((2)) or (2)
-    # Legacy patterns (old <<<SEP:N>>> format)
+    r":::\d+:::",  # exact: :::2:::
+    r":+\d+:+",  # partial colons: :2: or ::2::
+    # Legacy <<<N>>> patterns
+    r"<<<\d+>>>",
+    r"<{1,3}\d+>{1,3}",
+    r"«\d+»",
+    # Legacy <<<SEP:N>>> patterns
     r"<<<SEP:\d+>>>",
     r"<{1,3}SEP:\d+>{1,3}",
     r"\[{1,2}SEP:\d+\]{1,2}",
