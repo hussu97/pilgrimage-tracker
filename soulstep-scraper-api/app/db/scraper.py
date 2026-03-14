@@ -369,9 +369,10 @@ async def _post_batch_async(
                 return 0, [f"{code}: batch HTTP {resp.status_code}" for code in batch_codes]
         except (httpx.TimeoutException, httpx.ConnectError) as e:
             logger.warning(
-                "Batch network error (attempt %d/%d): %s — retrying",
+                "Batch network error (attempt %d/%d): %s(%s) — retrying",
                 attempt + 1,
                 _MAX_HTTP_RETRIES,
+                type(e).__name__,
                 e,
             )
             if attempt == _MAX_HTTP_RETRIES - 1:
@@ -594,7 +595,11 @@ async def sync_run_to_server_async(
     # One shared client for all batches — reuses the underlying connection pool.
     # Batches are sent sequentially (one at a time) so the catalog service is not
     # overwhelmed by concurrent large payloads.
-    async with httpx.AsyncClient(timeout=60.0) as shared_client:
+    # Batch payloads can be 15–30 MB (50 places × 3 base64 image blobs each), so
+    # the write timeout must be generous enough to finish sending the body, and the
+    # read timeout must cover the catalog server's synchronous processing time.
+    _batch_timeout = httpx.Timeout(connect=10.0, write=120.0, read=300.0, pool=10.0)
+    async with httpx.AsyncClient(timeout=_batch_timeout) as shared_client:
         batch_starts = list(range(0, len(payloads), SYNC_BATCH_SIZE))
         for batch_start in batch_starts:
             batch = payloads[batch_start : batch_start + SYNC_BATCH_SIZE]
