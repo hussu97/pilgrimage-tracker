@@ -149,6 +149,54 @@ async def _human_type(page, selector: str, text: str) -> None:
             await asyncio.sleep(random.randint(200, 600) / 1000)
 
 
+async def _log_page_diagnostics(page, label: str = "") -> None:
+    """Log URL, title, and a HTML snippet to help diagnose unexpected page states in GCP logs."""
+    try:
+        url = page.url
+        title = await page.title()
+        html = await page.content()
+        # Truncate to keep Cloud Logging entries under the 256 KB limit
+        html_snippet = html[:3000].replace("\n", " ")
+        logger.warning(
+            "browser_translation: page-diagnostics %s | url=%r | title=%r | html_snippet=%r",
+            label,
+            url,
+            title,
+            html_snippet,
+        )
+    except Exception as exc:
+        logger.warning("browser_translation: _log_page_diagnostics failed: %s", exc)
+
+
+async def _dismiss_consent_banner(page) -> bool:
+    """Accept Google's cookie/consent banner if present (common for Cloud Run IPs).
+
+    Returns True if a banner was found and dismissed.
+    """
+    # Common selectors used by Google's consent flow across regions
+    consent_selectors = [
+        "button[aria-label='Accept all']",
+        "button[aria-label='Agree to all']",
+        "button[id='L2AGLb']",  # Classic "I agree" button id
+        "form[action*='consent'] button",
+        ".tHlp8d",  # Consent page main accept button class
+    ]
+    for sel in consent_selectors:
+        try:
+            btn = await page.query_selector(sel)
+            if btn:
+                logger.info(
+                    "browser_translation: consent banner detected (selector=%r), clicking accept",
+                    sel,
+                )
+                await btn.click()
+                await _random_delay(800, 1500)
+                return True
+        except Exception:
+            pass
+    return False
+
+
 async def _check_for_captcha(page) -> bool:
     """Return True if a CAPTCHA or 'unusual traffic' block is visible."""
     try:
@@ -491,6 +539,8 @@ async def translate_single_browser(
             await page.goto(url, wait_until="domcontentloaded", timeout=15000)
             logger.debug("browser_translation: navigation complete")
             await _random_delay(500, 1500)
+            # Handle cookie/consent banner that Google shows for datacenter IPs
+            await _dismiss_consent_banner(page)
         else:
             logger.debug("browser_translation: reusing existing page at %r", current_url)
 
@@ -499,18 +549,46 @@ async def translate_single_browser(
             logger.warning("browser_translation: CAPTCHA detected, recycling context")
             raise CaptchaDetectedError("CAPTCHA detected on translate.google.com")
 
-        # Find the input area
-        input_selector = "textarea[aria-label]"
-        try:
-            await page.wait_for_selector(input_selector, timeout=5000)
-            logger.debug("browser_translation: input textarea found")
-        except Exception:
-            # Re-navigate on selector miss
-            logger.warning("browser_translation: input textarea not found, re-navigating")
+        # Find the input area — try multiple selectors as Google changes DOM periodically
+        _INPUT_SELECTORS = [
+            "textarea[aria-label]",
+            "textarea.er8xn",
+            "div[aria-label='Source text'][contenteditable='true']",
+            "[contenteditable='true'][role='textbox']",
+        ]
+
+        async def _find_input_selector(timeout_ms: int) -> str | None:
+            deadline = time.monotonic() + timeout_ms / 1000
+            while time.monotonic() < deadline:
+                for sel in _INPUT_SELECTORS:
+                    try:
+                        el = await page.query_selector(sel)
+                        if el:
+                            logger.debug("browser_translation: input found via selector %r", sel)
+                            return sel
+                    except Exception:
+                        pass
+                await asyncio.sleep(0.3)
+            return None
+
+        input_selector = await _find_input_selector(5000)
+        if input_selector is None:
+            # Re-navigate once more and log diagnostics to help debug
+            logger.warning(
+                "browser_translation: input not found — re-navigating and logging diagnostics"
+            )
+            await _log_page_diagnostics(page, label="before-re-nav")
             await page.goto(url, wait_until="domcontentloaded", timeout=15000)
             await _random_delay(500, 1000)
-            await page.wait_for_selector(input_selector, timeout=15000)
-            logger.debug("browser_translation: input textarea found after re-navigation")
+            await _dismiss_consent_banner(page)
+            input_selector = await _find_input_selector(15000)
+            if input_selector is None:
+                await _log_page_diagnostics(page, label="after-re-nav")
+                raise TranslationTimeoutError(
+                    "Could not find translation input after re-navigation — "
+                    "page may be blocked or DOM changed"
+                )
+        logger.debug("browser_translation: using input selector %r", input_selector)
 
         # Clear existing input
         await page.click(input_selector)
@@ -534,8 +612,14 @@ async def translate_single_browser(
             )
             await page.goto(url, wait_until="domcontentloaded", timeout=15000)
             await _random_delay(500, 1000)
-            await page.wait_for_selector(input_selector, timeout=15000)
-            await _human_type(page, input_selector, text)
+            await _dismiss_consent_banner(page)
+            retry_selector = await _find_input_selector(15000)
+            if retry_selector is None:
+                await _log_page_diagnostics(page, label="attempt-2-no-input")
+                raise TranslationTimeoutError(
+                    "Could not find translation input on attempt 2 — page may be blocked"
+                )
+            await _human_type(page, retry_selector, text)
             await _random_delay(300, 700)
             logger.debug("browser_translation: waiting for translation output (attempt 2)")
             result = await _wait_for_translation(page, timeout_ms=10000)
