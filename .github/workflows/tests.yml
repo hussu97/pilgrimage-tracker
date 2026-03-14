@@ -85,10 +85,11 @@ jobs:
           key: venv-catalog-${{ runner.os }}-py3.11-${{ hashFiles('soulstep-catalog-api/requirements-dev.txt') }}
 
       - name: Install dependencies
-        if: steps.cache-venv-catalog.outputs.cache-hit != 'true'
         working-directory: soulstep-catalog-api
         run: |
-          python -m venv .venv
+          if [ ! -f .venv/bin/python ]; then
+            python -m venv .venv
+          fi
           .venv/bin/pip install --quiet -r requirements-dev.txt
           .venv/bin/pip install --quiet pip-audit
 
@@ -128,10 +129,11 @@ jobs:
           key: venv-scraper-${{ runner.os }}-py3.11-${{ hashFiles('soulstep-scraper-api/requirements-dev.txt') }}
 
       - name: Install dependencies
-        if: steps.cache-venv-scraper.outputs.cache-hit != 'true'
         working-directory: soulstep-scraper-api
         run: |
-          python -m venv .venv
+          if [ ! -f .venv/bin/python ]; then
+            python -m venv .venv
+          fi
           .venv/bin/pip install --quiet -r requirements-dev.txt
           .venv/bin/pip install --quiet pip-audit
 
