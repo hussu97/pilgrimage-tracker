@@ -336,6 +336,51 @@ Description provenance tracked via `description_source` (e.g., "wikipedia", "gma
 
 ---
 
+## 8c. Browser-Based Google Maps Scraper Backend
+
+`SCRAPER_BACKEND` selects the discovery and detail-fetch engine used by `run_gmaps_scraper()`:
+
+| `SCRAPER_BACKEND` | Behavior | Cost | Speed |
+|---|---|---|---|
+| `api` (default) | Google Places API (New) — HTTP calls via `GmapsCollector` | ~$0.008/place | ~3h/10K places |
+| `browser` | Playwright drives Google Maps in Chromium — no API key needed | $0 | ~24–48h/10K places |
+
+### New files (browser mode)
+
+| File | Purpose |
+|---|---|
+| `app/services/browser_stealth.py` | Stealth JS patches: removes `navigator.webdriver`, mocks plugins/chrome.runtime; randomises UA, viewport, timezone per session |
+| `app/services/browser_pool.py` | `MapsBrowserPool` — reusable Chromium contexts with circuit breaker (3 consecutive blocks → 10 min pause), CAPTCHA detection, session recycled every 30 navigations |
+| `app/scrapers/gmaps_browser.py` | Browser-based quadtree discovery + `run_gmaps_scraper_browser()` — same quadtree logic as the API scraper, driven via Playwright |
+| `app/collectors/gmaps_browser.py` | `BrowserGmapsCollector` — drop-in replacement for `GmapsCollector`; returns the same `CollectorResult` shape |
+| `tests/test_browser_gmaps.py` | 43 unit tests for the browser scraper stack |
+
+### Config vars
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `SCRAPER_BACKEND` | No | `api` | `api` = Google Places API; `browser` = Playwright/Chromium |
+| `MAPS_BROWSER_POOL_SIZE` | No | `2` | Number of concurrent Chromium contexts in `MapsBrowserPool` |
+| `MAPS_BROWSER_MAX_PAGES` | No | `30` | Navigations per browser session before recycling |
+| `MAPS_BROWSER_HEADLESS` | No | `true` | Run Chromium headless (`true`) or visible (`false`) |
+
+### How it integrates
+
+- `app/scrapers/gmaps.py` — `run_gmaps_scraper()` checks `settings.SCRAPER_BACKEND` at the top and delegates to `run_gmaps_scraper_browser()` when set to `browser`. All downstream phases (enrichment, quality, merge, sync) are unchanged.
+- `app/collectors/registry.py` — when `SCRAPER_BACKEND=browser`, `BrowserGmapsCollector` is registered in place of `GmapsCollector`. All other collectors remain active.
+- `requirements.txt` — adds `playwright>=1.40.0` and `timezonefinder>=6.0.0`. `timezonefinder` is used to compute `utc_offset_minutes` from lat/lng (replaces the Google Places API `utc_offset` field).
+- `Dockerfile` — adds Chromium system dependencies and `playwright install chromium`.
+
+### Cloud Run sizing (browser mode)
+
+| Resource | Value |
+|---|---|
+| Memory | 2 GB |
+| CPU | 2 vCPUs |
+| Timeout | 3600 s |
+
+---
+
 ## 8b. Translation Backends
 
 `app/services/translation_service.py` exposes `translate_text()` and `translate_batch()` with a pluggable backend selected by `TRANSLATION_BACKEND`:

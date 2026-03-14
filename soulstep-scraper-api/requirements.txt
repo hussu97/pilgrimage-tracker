@@ -7,3 +7,6 @@ httpx
 python-dotenv
 google-generativeai
 psycopg2-binary
+# Browser scraper backend (only needed when SCRAPER_BACKEND=browser)
+playwright>=1.40.0
+timezonefinder>=6.0.0

@@ -818,7 +818,15 @@ async def fetch_place_details(
 async def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> None:
     """
     Async orchestrator: discover places → fetch and cache details → download images.
+
+    Delegates to the browser-based implementation when SCRAPER_BACKEND=browser.
+    All downstream phases (enrichment, sync) are unchanged regardless of backend.
     """
+    if settings.scraper_backend == "browser":
+        from app.scrapers.gmaps_browser import run_gmaps_scraper_browser
+
+        return await run_gmaps_scraper_browser(run_code, config, session)
+
     from app.collectors.gmaps import GmapsCollector
 
     city = config.get("city")

@@ -71,6 +71,18 @@ class Settings:
     gate_enrichment: float = float(os.environ.get("SCRAPER_GATE_ENRICHMENT", "0.75"))
     gate_sync: float = float(os.environ.get("SCRAPER_GATE_SYNC", "0.75"))
 
+    # ── Browser scraper backend ───────────────────────────────────────────────
+    # Toggle between Google Places API (default) and browser-based scraping.
+    # SCRAPER_BACKEND=browser uses Playwright at $0 API cost (slower, stealth-based).
+    # SCRAPER_BACKEND=api  uses Google Places API (fast, reliable, costs ~$8/10K places).
+    scraper_backend: str = os.environ.get("SCRAPER_BACKEND", "api")
+    # Number of concurrent Playwright browser contexts for Maps scraping.
+    maps_browser_pool_size: int = int(os.environ.get("MAPS_BROWSER_POOL_SIZE", "3"))
+    # Max navigations per browser context before recycling (prevents fingerprinting).
+    maps_browser_max_pages: int = int(os.environ.get("MAPS_BROWSER_MAX_PAGES", "30"))
+    # Run Chromium headless (set false for local debugging).
+    maps_browser_headless: bool = os.environ.get("MAPS_BROWSER_HEADLESS", "true").lower() == "true"
+
     # ── Post-sync automation ──────────────────────────────────────────────────
     # If true, automatically call the catalog API's SEO generation endpoint after
     # sync completes. Requires SCRAPER_CATALOG_ADMIN_TOKEN to be set.

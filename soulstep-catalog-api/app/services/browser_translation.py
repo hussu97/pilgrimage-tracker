@@ -268,20 +268,35 @@ class BrowserSessionPool:
                 "Only needed when TRANSLATION_BACKEND=browser."
             ) from exc
 
-        self._playwright = await async_playwright().start()
-        self._browser = await self._playwright.chromium.launch(
-            headless=_HEADLESS,
-            args=[
-                "--disable-blink-features=AutomationControlled",
-                "--no-first-run",
-                "--no-default-browser-check",
-                "--disable-infobars",
-                "--disable-extensions",
-                "--disable-gpu",
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-            ],
-        )
+        try:
+            self._playwright = await async_playwright().start()
+            self._browser = await self._playwright.chromium.launch(
+                headless=_HEADLESS,
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    "--disable-infobars",
+                    "--disable-extensions",
+                    "--disable-gpu",
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    # Required in Docker: /dev/shm is limited to 64 MB by default;
+                    # without this flag Chromium writes to shared memory and crashes.
+                    "--disable-dev-shm-usage",
+                ],
+            )
+        except Exception:
+            # Reset state so the next acquire() attempt can retry from scratch
+            # instead of orphaning the Playwright server and trying to start a second one.
+            if self._playwright is not None:
+                try:
+                    await self._playwright.stop()
+                except Exception:
+                    pass
+                self._playwright = None
+            self._browser = None
+            raise
         self._initialized = True
         logger.info("BrowserSessionPool: launched Chromium (headless=%s)", _HEADLESS)
 

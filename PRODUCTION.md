@@ -130,6 +130,10 @@ All environment variables documented here. Plan-specific sections reference this
 | `SCRAPER_ENRICHMENT_CONCURRENCY` | No | `10` | Max places enriched concurrently |
 | `SCRAPER_MAX_PHOTOS` | No | `3` | Photos stored per place. Photo media requests are billed at $0.007/1000 — lower values reduce cost and Phase 3 download time |
 | `SCRAPER_IMAGE_CONCURRENCY` | No | `40` | Max concurrent image downloads in Phase 3 (CDN, no API rate limit) |
+| `SCRAPER_BACKEND` | No | `api` | `api` = Google Places API (default); `browser` = Playwright/Chromium ($0 API cost, ~24–48h/10K places) |
+| `MAPS_BROWSER_POOL_SIZE` | No | `2` | Number of concurrent Chromium contexts (browser mode only) |
+| `MAPS_BROWSER_MAX_PAGES` | No | `30` | Navigations per browser session before recycling (browser mode only) |
+| `MAPS_BROWSER_HEADLESS` | No | `true` | Run Chromium headless (`true`) or visible for local debugging (`false`) |
 | `LOG_FORMAT` | No | `json` | `json` = structured stdout (Cloud Run / Cloud Logging); `text` = human-readable + local `logs/external_queries.log` file |
 | `LOG_LEVEL` | No | `INFO` | Python log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 
@@ -191,6 +195,8 @@ docker compose --profile scraper up -d scraper
 | `scraper` | `./soulstep-scraper-api` | `8001` | Optional; activate with `--profile scraper`; SQLite DB persisted in `scraper_data` volume at `/data/scraper.db` |
 
 > **Scraper database:** The scraper uses its own SQLite database (separate from the main API's PostgreSQL). In `docker-compose.yml`, a named volume `scraper_data` is mounted at `/data` inside the container, and `SCRAPER_DB_PATH=/data/scraper.db` tells the app to write there. Without this, `scraper.db` would be lost on every container restart. For persistent PostgreSQL instead, see [§6.4](#64-scraper-database-options).
+
+> **Browser scraper mode (Docker):** To use `SCRAPER_BACKEND=browser`, set the env var in `docker-compose.yml` or your `.env`. The scraper `Dockerfile` already installs Chromium system dependencies and runs `playwright install chromium`, so no extra build steps are required. Increase the scraper container's memory to at least **2 GB** and allow longer run timeouts — browser scraping takes ~24–48h per 10K places compared to ~3h for the API path. `GOOGLE_MAPS_API_KEY` is not required in browser mode.
 
 ### 3.4 Required `.env`
 
@@ -973,6 +979,16 @@ gcloud run deploy soulstep-scraper-api \
 > `--timeout 3600` — scrape runs can take up to 60 min; Cloud Run's default 5-min timeout would kill them.
 >
 > `--max-instances 1` — prevents concurrent runs which would cause SQLite write conflicts.
+
+> **Browser mode (SCRAPER_BACKEND=browser):** Add `SCRAPER_BACKEND=browser` (and optionally `MAPS_BROWSER_POOL_SIZE`, `MAPS_BROWSER_MAX_PAGES`, `MAPS_BROWSER_HEADLESS`) to `--set-env-vars`. Increase resources to `--memory 2Gi --cpu 2`. `GOOGLE_MAPS_API_KEY` is not required and can be omitted from `--set-secrets`. The `Dockerfile` already installs all Chromium dependencies — no image changes are needed.
+>
+> ```bash
+> gcloud run services update soulstep-scraper-api \
+>   --region REGION \
+>   --memory 2Gi \
+>   --cpu 2 \
+>   --update-env-vars "SCRAPER_BACKEND=browser,MAPS_BROWSER_POOL_SIZE=2,MAPS_BROWSER_MAX_PAGES=30,MAPS_BROWSER_HEADLESS=true"
+> ```
 
 Once deployed, copy the **Service URL** — it looks like:
 ```

@@ -4,6 +4,26 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## feat(scraper): browser-based Google Maps scraper backend (2026-03-14)
+
+### Backend
+
+- **`app/services/browser_stealth.py`** (new) — Stealth JS patches (removes `navigator.webdriver`, mocks plugins/chrome.runtime) plus per-session UA, viewport, and timezone randomisation to reduce bot-detection risk.
+- **`app/services/browser_pool.py`** (new) — `MapsBrowserPool`: manages a pool of reusable Playwright Chromium contexts. Circuit breaker pauses all requests for 10 min after 3 consecutive blocks; CAPTCHA detection triggers immediate context recycle; sessions recycled every 30 navigations (configurable via `MAPS_BROWSER_MAX_PAGES`).
+- **`app/scrapers/gmaps_browser.py`** (new) — `run_gmaps_scraper_browser()`: Playwright-driven quadtree discovery and detail extraction from Google Maps at $0 API cost (~24–48h per 10K places vs ~3h for the API path).
+- **`app/collectors/gmaps_browser.py`** (new) — `BrowserGmapsCollector`: drop-in replacement for `GmapsCollector`; returns an identical `CollectorResult` shape so all downstream pipeline stages are unchanged.
+- **`tests/test_browser_gmaps.py`** (new) — 43 unit tests covering pool lifecycle, circuit breaker state machine, CAPTCHA detection, stealth patches, and scraper output shape.
+- **`app/config.py`** — Added `SCRAPER_BACKEND` (`api`|`browser`, default `api`), `MAPS_BROWSER_POOL_SIZE`, `MAPS_BROWSER_MAX_PAGES`, `MAPS_BROWSER_HEADLESS`.
+- **`app/scrapers/gmaps.py`** — `run_gmaps_scraper()` checks `SCRAPER_BACKEND` at the top and delegates to the browser path when `browser` is set; existing API path unchanged.
+- **`app/collectors/registry.py`** — Registers `BrowserGmapsCollector` instead of `GmapsCollector` when `SCRAPER_BACKEND=browser`.
+- **`requirements.txt`** — Added `playwright>=1.40.0` and `timezonefinder>=6.0.0`.
+- **`Dockerfile`** — Added Chromium system dependencies and `playwright install chromium` step.
+- **`ARCHITECTURE.md`** — Added §8c documenting the browser scraper backend, new files, config vars, integration points, and Cloud Run sizing.
+- **`PRODUCTION.md`** — Updated §2.2, §3 (Docker), and §5.9 (GCP) with new env vars and browser-mode Cloud Run sizing.
+- **`soulstep-scraper-api/README.md`** — Added `SCRAPER_BACKEND` toggle section and browser-specific env var table.
+
+---
+
 ## refactor(jobs): remove backfill-translations worker (2026-03-14)
 
 ### Backend

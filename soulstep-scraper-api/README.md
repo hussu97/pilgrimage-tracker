@@ -399,6 +399,55 @@ cd soulstep-scraper-api && source .venv/bin/activate
 python scripts/reset_scraper_data.py
 ```
 
+## Scraper Backend Toggle (`SCRAPER_BACKEND`)
+
+The scraper supports two discovery and detail-fetch backends, selected by the `SCRAPER_BACKEND` env var.
+
+| Value | Behavior | API key required | Cost | Speed |
+|---|---|---|---|---|
+| `api` *(default)* | Google Places API (New) — HTTP calls | Yes (`GOOGLE_MAPS_API_KEY`) | ~$0.008/place | ~3h/10K places |
+| `browser` | Playwright drives Google Maps in Chromium — no API calls | No | $0 | ~24–48h/10K places |
+
+### Browser-specific env vars
+
+| Variable | Default | Description |
+|---|---|---|
+| `SCRAPER_BACKEND` | `api` | Set to `browser` to enable the Playwright/Chromium path |
+| `MAPS_BROWSER_POOL_SIZE` | `2` | Number of concurrent Chromium contexts in `MapsBrowserPool` |
+| `MAPS_BROWSER_MAX_PAGES` | `30` | Navigations per browser session before recycling (reduces fingerprinting risk) |
+| `MAPS_BROWSER_HEADLESS` | `true` | Run Chromium headless; set `false` for local visual debugging |
+
+### How to enable browser mode
+
+Add to your `.env` file:
+
+```env
+SCRAPER_BACKEND=browser
+# GOOGLE_MAPS_API_KEY is not required in browser mode
+MAPS_BROWSER_POOL_SIZE=2
+MAPS_BROWSER_MAX_PAGES=30
+MAPS_BROWSER_HEADLESS=true
+```
+
+### New files (browser mode)
+
+| File | Purpose |
+|---|---|
+| `app/services/browser_stealth.py` | Stealth JS patches + UA/viewport/timezone randomisation |
+| `app/services/browser_pool.py` | `MapsBrowserPool` with circuit breaker, CAPTCHA detection, session recycling |
+| `app/scrapers/gmaps_browser.py` | Browser-based quadtree discovery + `run_gmaps_scraper_browser()` |
+| `app/collectors/gmaps_browser.py` | `BrowserGmapsCollector` — drop-in for `GmapsCollector`, same `CollectorResult` shape |
+| `tests/test_browser_gmaps.py` | 43 unit tests |
+
+### Integration notes
+
+- **All downstream phases unchanged** — enrichment, quality assessment, merging, and sync all receive the same `CollectorResult` shape regardless of which backend ran discovery.
+- **`timezonefinder`** computes `utc_offset_minutes` from lat/lng in browser mode (replaces the Google Places API `utc_offset` field).
+- **Circuit breaker** — 3 consecutive CAPTCHA/block detections pause all requests for 10 minutes before retrying.
+- **Cloud Run sizing (browser mode)** — use `--memory 2Gi --cpu 2 --timeout 3600`.
+
+---
+
 ## Troubleshooting
 
 ### Port 8001 Already in Use
