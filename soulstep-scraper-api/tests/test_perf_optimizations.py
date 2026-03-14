@@ -333,10 +333,9 @@ class TestGlobalCellStore:
         engine = _make_engine()
         store = GlobalCellStore(engine, ttl_days=30)
 
-        place_types = ["mosque", "church"]
-        store.save(25.0, 25.1, 55.0, 55.1, place_types, ["places/A", "places/B"], False)
+        store.save(25.0, 25.1, 55.0, 55.1, "mosque", ["places/A", "places/B"], False)
 
-        hit = store.get(25.0, 25.1, 55.0, 55.1, place_types)
+        hit = store.get(25.0, 25.1, 55.0, 55.1, "mosque")
         assert hit is not None
         assert set(hit.resource_names) == {"places/A", "places/B"}
         assert hit.saturated is False
@@ -346,9 +345,9 @@ class TestGlobalCellStore:
 
         engine = _make_engine()
         store = GlobalCellStore(engine, ttl_days=30)
-        store.save(25.0, 25.1, 55.0, 55.1, ["mosque"], ["places/A"], False)
+        store.save(25.0, 25.1, 55.0, 55.1, "mosque", ["places/A"], False)
 
-        hit = store.get(26.0, 26.1, 55.0, 55.1, ["mosque"])
+        hit = store.get(26.0, 26.1, 55.0, 55.1, "mosque")
         assert hit is None
 
     def test_miss_on_different_place_types(self):
@@ -356,9 +355,9 @@ class TestGlobalCellStore:
 
         engine = _make_engine()
         store = GlobalCellStore(engine, ttl_days=30)
-        store.save(25.0, 25.1, 55.0, 55.1, ["mosque"], ["places/A"], False)
+        store.save(25.0, 25.1, 55.0, 55.1, "mosque", ["places/A"], False)
 
-        hit = store.get(25.0, 25.1, 55.0, 55.1, ["church"])  # different types
+        hit = store.get(25.0, 25.1, 55.0, 55.1, "church")  # different type
         assert hit is None
 
     def test_expired_entry_returns_none(self):
@@ -366,19 +365,18 @@ class TestGlobalCellStore:
         from datetime import UTC, datetime, timedelta
 
         from app.db.models import GlobalDiscoveryCell
-        from app.scrapers.cell_store import GlobalCellStore, _place_types_hash
+        from app.scrapers.cell_store import GlobalCellStore
 
         engine = _make_engine()
 
         # Manually insert an expired cell
-        place_types = ["mosque"]
         with Session(engine) as session:
             cell = GlobalDiscoveryCell(
                 lat_min=25.0,
                 lat_max=25.1,
                 lng_min=55.0,
                 lng_max=55.1,
-                place_types_hash=_place_types_hash(place_types),
+                place_type="mosque",
                 result_count=1,
                 saturated=False,
                 resource_names=["places/OLD"],
@@ -389,7 +387,7 @@ class TestGlobalCellStore:
 
         # Create store with 30-day TTL — expired cell should not be loaded
         store = GlobalCellStore(engine, ttl_days=30)
-        hit = store.get(25.0, 25.1, 55.0, 55.1, place_types)
+        hit = store.get(25.0, 25.1, 55.0, 55.1, "mosque")
         assert hit is None
 
     def test_upsert_replaces_stale_entry(self):
@@ -399,11 +397,10 @@ class TestGlobalCellStore:
         engine = _make_engine()
         store = GlobalCellStore(engine, ttl_days=30)
 
-        place_types = ["mosque"]
-        store.save(25.0, 25.1, 55.0, 55.1, place_types, ["places/OLD"], False)
-        store.save(25.0, 25.1, 55.0, 55.1, place_types, ["places/NEW1", "places/NEW2"], True)
+        store.save(25.0, 25.1, 55.0, 55.1, "mosque", ["places/OLD"], False)
+        store.save(25.0, 25.1, 55.0, 55.1, "mosque", ["places/NEW1", "places/NEW2"], True)
 
-        hit = store.get(25.0, 25.1, 55.0, 55.1, place_types)
+        hit = store.get(25.0, 25.1, 55.0, 55.1, "mosque")
         assert hit is not None
         assert set(hit.resource_names) == {"places/NEW1", "places/NEW2"}
         assert hit.saturated is True
@@ -420,7 +417,7 @@ class TestGlobalCellStore:
         def _save(i: int):
             try:
                 lat = 25.0 + i * 0.1
-                store.save(lat, lat + 0.1, 55.0, 55.1, ["mosque"], [f"places/{i}"], False)
+                store.save(lat, lat + 0.1, 55.0, 55.1, "mosque", [f"places/{i}"], False)
             except Exception as e:
                 errors.append(e)
 

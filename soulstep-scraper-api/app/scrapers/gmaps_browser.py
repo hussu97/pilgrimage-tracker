@@ -7,6 +7,9 @@ scrapers/gmaps.py but uses browser navigation instead of API calls.
 
 Discovery returns the same "places/{id}" resource name format consumed by
 fetch_place_details() so all downstream phases remain unchanged.
+
+Each active place type gets an independent quadtree search pass so no types
+are silently dropped and the cell cache is keyed per-type.
 """
 
 from __future__ import annotations
@@ -62,6 +65,8 @@ def _extract_place_ids_from_links(hrefs: list[str]) -> list[str]:
     """
     place_ids: list[str] = []
     seen: set[str] = set()
+    chij_count = 0
+    cid_count = 0
 
     for href in hrefs:
         # ChIJ canonical place ID (preferred)
@@ -71,6 +76,7 @@ def _extract_place_ids_from_links(hrefs: list[str]) -> list[str]:
             if pid not in seen:
                 seen.add(pid)
                 place_ids.append(f"places/{pid}")
+                chij_count += 1
             continue
 
         # Hex CID pair (0x{a}:0x{b} or URL-encoded 0x{a}%3A0x{b})
@@ -80,7 +86,14 @@ def _extract_place_ids_from_links(hrefs: list[str]) -> list[str]:
             if cid_raw not in seen:
                 seen.add(cid_raw)
                 place_ids.append(f"places/{cid_raw}")
+                cid_count += 1
 
+    logger.debug(
+        "Extracted %d ChIJ + %d hex CID place IDs from %d hrefs",
+        chij_count,
+        cid_count,
+        len(hrefs),
+    )
     return place_ids
 
 
@@ -139,7 +152,7 @@ async def search_area_browser(
     lat_max: float,
     lng_min: float,
     lng_max: float,
-    place_types: list[str],
+    place_type: str,
     existing_ids: ThreadSafeIdSet,
     depth: int = 0,
     max_results: int | None = None,
@@ -149,7 +162,7 @@ async def search_area_browser(
     _consent_dismissed: bool = False,
 ) -> list[str]:
     """
-    Async recursive quadtree browser search for places.
+    Async recursive quadtree browser search for a single place type.
 
     Mirrors search_area() from scrapers/gmaps.py but replaces API calls with
     Playwright browser navigation. Reuses the same cell_store and global_cache
@@ -164,13 +177,16 @@ async def search_area_browser(
         return []
 
     if radius < MIN_RADIUS:
-        logger.debug("%sArea too small (radius < %dm), stopping", indent, MIN_RADIUS)
+        logger.debug(
+            "%s[%s] Area too small (radius < %dm), stopping", indent, place_type, MIN_RADIUS
+        )
         return []
 
     if radius > MAX_RADIUS:
         logger.debug(
-            "%sRadius %.0fm > max (%dm), subdividing without searching",
+            "%s[%s] Radius %.0fm > max (%dm), subdividing without searching",
             indent,
+            place_type,
             radius,
             MAX_RADIUS,
         )
@@ -180,7 +196,7 @@ async def search_area_browser(
             lng_min,
             lng_max,
             [],
-            place_types,
+            place_type,
             existing_ids,
             depth,
             max_results,
@@ -195,8 +211,9 @@ async def search_area_browser(
         cached = cell_store.get(lat_min, lat_max, lng_min, lng_max)
         if cached is not None:
             logger.debug(
-                "%sSkipping cached cell (results=%d, saturated=%s)",
+                "%s[%s] Skipping cached cell (results=%d, saturated=%s)",
                 indent,
+                place_type,
                 cached.result_count,
                 cached.saturated,
             )
@@ -209,7 +226,7 @@ async def search_area_browser(
                 lng_min,
                 lng_max,
                 list(new_ids),
-                place_types,
+                place_type,
                 existing_ids,
                 depth,
                 max_results,
@@ -221,11 +238,12 @@ async def search_area_browser(
 
     # Cross-run global cache check
     if global_cache is not None:
-        global_hit = global_cache.get(lat_min, lat_max, lng_min, lng_max, place_types)
+        global_hit = global_cache.get(lat_min, lat_max, lng_min, lng_max, place_type)
         if global_hit is not None:
             logger.debug(
-                "%sGlobal cache hit (results=%d, saturated=%s)",
+                "%s[%s] Global cache hit (results=%d, saturated=%s)",
                 indent,
+                place_type,
                 global_hit.result_count,
                 global_hit.saturated,
             )
@@ -249,7 +267,7 @@ async def search_area_browser(
                 lng_min,
                 lng_max,
                 list(new_ids),
-                place_types,
+                place_type,
                 existing_ids,
                 depth,
                 max_results,
@@ -259,10 +277,17 @@ async def search_area_browser(
                 indent,
             )
 
-    # Browser search
+    # Browser search — single type, no OR query
     zoom = _radius_to_zoom(radius)
     pool = get_maps_pool()
     place_ids: list[str] = []
+
+    search_url = (
+        f"https://www.google.com/maps/search/{place_type}"
+        f"/@{center_lat:.6f},{center_lng:.6f},{zoom}z"
+        f"?hl=en"
+    )
+    logger.info("%s[%s] Navigating: %s", indent, place_type, search_url)
 
     _sem_ctx = semaphore if semaphore is not None else _NullSemaphore()
     async with _sem_ctx:
@@ -271,17 +296,12 @@ async def search_area_browser(
         try:
             page = session.page
 
-            # Use first 3 types to keep URL manageable; they cover the key types
-            type_query = "%20OR%20".join(place_types[:3])
-            search_url = (
-                f"https://www.google.com/maps/search/{type_query}"
-                f"/@{center_lat:.6f},{center_lng:.6f},{zoom}z"
-                f"?hl=en"
-            )
-
-            logger.debug("%sBrowser search depth=%d url=%s", indent, depth, search_url)
-
             await page.goto(search_url, wait_until="networkidle", timeout=30000)
+
+            title = await page.title()
+            url = page.url
+            logger.info("%s[%s] Page loaded: title=%r url=%s", indent, place_type, title, url)
+
             await asyncio.sleep(random.uniform(2, 4))
 
             if not _consent_dismissed:
@@ -290,10 +310,19 @@ async def search_area_browser(
                 await asyncio.sleep(random.uniform(0.5, 1.5))
 
             if await _check_for_block(page):
-                logger.warning("%sMaps blocked browser — recycling context", indent)
+                logger.warning(
+                    "%s[%s] Maps blocked browser — recycling context", indent, place_type
+                )
                 pool.record_block()
                 recycle = True
                 return []
+
+            logger.debug(
+                "%s[%s] Page content_len=%d",
+                indent,
+                place_type,
+                len(await page.content()),
+            )
 
             pool.record_success()
 
@@ -303,8 +332,13 @@ async def search_area_browser(
                     '[role="feed"], .m6QErb, [aria-label*="Results"]',
                     timeout=15000,
                 )
+                logger.info("%s[%s] Results panel found", indent, place_type)
             except Exception:
-                logger.debug("%sNo results panel found — area may be empty", indent)
+                logger.warning(
+                    "%s[%s] Results panel not found (timeout) — page may be empty or layout changed",
+                    indent,
+                    place_type,
+                )
 
             await asyncio.sleep(random.uniform(1, 3))
 
@@ -330,12 +364,19 @@ async def search_area_browser(
                 """
             )
 
+            logger.info("%s[%s] Extracted %d hrefs from page", indent, place_type, len(hrefs))
+
+            if not hrefs:
+                snippet = (await page.content())[:2000]
+                logger.debug("%s[%s] No hrefs found. Page snippet: %s", indent, place_type, snippet)
+
             place_ids = _extract_place_ids_from_links(hrefs)
             session.nav_count += 1
 
             logger.info(
-                "%sBrowser cell depth=%d center=(%.4f,%.4f) radius=%.0fm found=%d",
+                "%s[%s] Browser cell depth=%d center=(%.4f,%.4f) radius=%.0fm found=%d",
                 indent,
+                place_type,
                 depth,
                 center_lat,
                 center_lng,
@@ -344,11 +385,11 @@ async def search_area_browser(
             )
 
         except (BlockedError, CircuitOpenError) as e:
-            logger.warning("%sBrowser pool error: %s", indent, e)
+            logger.warning("%s[%s] Browser pool error: %s", indent, place_type, e)
             recycle = True
             return []
         except Exception as e:
-            logger.warning("%sBrowser search error: %s", indent, e)
+            logger.warning("%s[%s] Browser search error: %s", indent, place_type, e)
             recycle = True
             return []
         finally:
@@ -360,13 +401,16 @@ async def search_area_browser(
     if cell_store is not None:
         cell_store.save(lat_min, lat_max, lng_min, lng_max, depth, radius, place_ids, is_saturated)
     if global_cache is not None:
-        global_cache.save(lat_min, lat_max, lng_min, lng_max, place_types, place_ids, is_saturated)
+        global_cache.save(lat_min, lat_max, lng_min, lng_max, place_type, place_ids, is_saturated)
 
     if not is_saturated or (max_results and len(existing_ids) >= max_results):
         return list(new_ids)
 
     logger.debug(
-        "%sArea saturated (%d results) — splitting into quadrants...", indent, len(place_ids)
+        "%s[%s] Area saturated (%d results) — splitting into quadrants...",
+        indent,
+        place_type,
+        len(place_ids),
     )
     return await _split_quadrants_browser(
         lat_min,
@@ -374,7 +418,7 @@ async def search_area_browser(
         lng_min,
         lng_max,
         list(new_ids),
-        place_types,
+        place_type,
         existing_ids,
         depth,
         max_results,
@@ -391,7 +435,7 @@ async def _split_quadrants_browser(
     lng_min: float,
     lng_max: float,
     seed_ids: list[str],
-    place_types: list[str],
+    place_type: str,
     existing_ids: ThreadSafeIdSet,
     depth: int,
     max_results: int | None,
@@ -423,7 +467,7 @@ async def _split_quadrants_browser(
                 q_lat_max,
                 q_lng_min,
                 q_lng_max,
-                place_types,
+                place_type,
                 existing_ids,
                 depth + 1,
                 max_results,
@@ -436,7 +480,7 @@ async def _split_quadrants_browser(
     results = await asyncio.gather(*tasks, return_exceptions=True)
     for result in results:
         if isinstance(result, Exception):
-            logger.warning("%sQuadrant browser search failed: %s", indent, result)
+            logger.warning("%s[%s] Quadrant browser search failed: %s", indent, place_type, result)
         else:
             all_ids.extend(result)
 
@@ -448,7 +492,9 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
     Browser-based orchestrator: discover places → fetch details → download images.
 
     Drop-in replacement for run_gmaps_scraper() when SCRAPER_BACKEND=browser.
-    All downstream phases (image download, enrichment, sync) are unchanged.
+    Each active place type gets an independent quadtree search pass; results are
+    deduplicated across passes. All downstream phases (image download, enrichment,
+    sync) are unchanged.
     """
     from app.collectors.gmaps import download_place_images
     from app.collectors.gmaps_browser import BrowserGmapsCollector
@@ -492,34 +538,44 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
     religion_type_map = {m.gmaps_type: m.religion for m in place_type_mappings}
 
     logger.info("=== Browser: Searching for religious places in %s ===", boundary_name)
-    logger.info("Place types: %s", all_gmaps_types)
+    logger.info("Place types (%d): %s", len(all_gmaps_types), all_gmaps_types)
 
     run.stage = "discovery"
     session.add(run)
     session.commit()
 
-    # Discovery phase — browser quadtree search
-    cell_store = DiscoveryCellStore(run_code, _engine)
-    existing_ids = ThreadSafeIdSet()
-    cell_store.pre_seed_id_set(existing_ids)
-    global_cache = GlobalCellStore(_engine)
-
     max_results = config.get("max_results")
     browser_sem = asyncio.Semaphore(settings.discovery_concurrency)
 
-    await search_area_browser(
-        boundary.lat_min,
-        boundary.lat_max,
-        boundary.lng_min,
-        boundary.lng_max,
-        all_gmaps_types,
-        existing_ids,
-        depth=0,
-        max_results=max_results,
-        cell_store=cell_store,
-        global_cache=global_cache,
-        semaphore=browser_sem,
-    )
+    # Shared dedup set — cross-type deduplication so the same place isn't fetched twice
+    existing_ids = ThreadSafeIdSet()
+    global_cache = GlobalCellStore(_engine)
+
+    for i, place_type in enumerate(all_gmaps_types):
+        logger.info("=== Browser pass %d/%d: type=%s ===", i + 1, len(all_gmaps_types), place_type)
+
+        # Each type gets its own cell store (keyed by place_type) for resumability
+        type_cell_store = DiscoveryCellStore(run_code, _engine, place_type=place_type)
+        type_cell_store.pre_seed_id_set(existing_ids)
+
+        prev_count = len(existing_ids)
+        await search_area_browser(
+            boundary.lat_min,
+            boundary.lat_max,
+            boundary.lng_min,
+            boundary.lng_max,
+            place_type=place_type,
+            existing_ids=existing_ids,
+            depth=0,
+            max_results=max_results,
+            cell_store=type_cell_store,
+            global_cache=global_cache,
+            semaphore=browser_sem,
+        )
+        type_count = len(existing_ids) - prev_count
+        logger.info(
+            "Type %s done: found=%d, cumulative=%d", place_type, type_count, len(existing_ids)
+        )
 
     all_resource_names = existing_ids.to_list()
     logger.info("Browser discovery complete: %d places found", len(all_resource_names))

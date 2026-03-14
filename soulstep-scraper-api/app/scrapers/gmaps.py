@@ -351,9 +351,13 @@ async def search_area(
                 )
 
         # Check global cross-run cache before making an API call
+        # Try each place type in order; all types share the same combined API results
         global_hit = None
         if global_cache is not None:
-            global_hit = global_cache.get(lat_min, lat_max, lng_min, lng_max, place_types)
+            for _pt in place_types:
+                global_hit = global_cache.get(lat_min, lat_max, lng_min, lng_max, _pt)
+                if global_hit is not None:
+                    break
 
         if global_hit is not None:
             logger.debug(
@@ -377,11 +381,13 @@ async def search_area(
                     center_lat, center_lng, radius, place_types, api_key, client
                 )
 
-            # Save to global cache for future runs
+            # Save to global cache for future runs — one row per type so browser
+            # passes can hit the cache after an API run populates it
             if global_cache is not None:
-                global_cache.save(
-                    lat_min, lat_max, lng_min, lng_max, place_types, place_ids, is_saturated
-                )
+                for _pt in place_types:
+                    global_cache.save(
+                        lat_min, lat_max, lng_min, lng_max, _pt, place_ids, is_saturated
+                    )
 
         new_ids = existing_ids.add_new(place_ids)
 

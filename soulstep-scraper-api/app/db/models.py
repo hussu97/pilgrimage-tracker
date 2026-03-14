@@ -123,11 +123,12 @@ class DiscoveryCell(SQLModel, table=True):
     result_count: int  # 0-20; if 20, area was saturated and subdivided
     saturated: bool
     resource_names: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    place_type: str = Field(default="", index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class GlobalDiscoveryCell(SQLModel, table=True):
-    """Cross-run discovery cache keyed by bounding box + place_types_hash.
+    """Cross-run discovery cache keyed by bounding box + place_type.
 
     After month 1, recurring runs of the same city can skip 95%+ of discovery
     API calls by reusing cached results that are still within the TTL window.
@@ -142,7 +143,7 @@ class GlobalDiscoveryCell(SQLModel, table=True):
     lat_max: float
     lng_min: float
     lng_max: float
-    place_types_hash: str = Field(index=True)
+    place_type: str = Field(default="", index=True)
     result_count: int
     saturated: bool
     resource_names: list[str] = Field(default_factory=list, sa_column=Column(JSON))

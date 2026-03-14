@@ -489,3 +489,162 @@ class TestCircuitBreaker:
 
         time.sleep(0.05)
         assert not breaker.is_open  # should auto-reset after pause_seconds
+
+
+# ── Per-type search architecture ─────────────────────────────────────────────
+
+
+class TestPerTypeBrowserSearch:
+    @pytest.mark.asyncio
+    async def test_browser_per_type_search_calls_once_per_type(self):
+        """run_gmaps_scraper_browser calls search_area_browser once per active place type."""
+        from unittest.mock import AsyncMock, patch
+
+        from sqlalchemy import StaticPool, create_engine
+        from sqlmodel import Session, SQLModel
+
+        from app.scrapers.gmaps_browser import run_gmaps_scraper_browser
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        SQLModel.metadata.create_all(engine)
+
+        from app.db.models import GeoBoundary, PlaceTypeMapping, ScraperRun
+
+        with Session(engine) as sess:
+            sess.add(
+                ScraperRun(
+                    run_code="run_per_type_test",
+                    location_code="loc_test",
+                    status="running",
+                )
+            )
+            sess.add(
+                GeoBoundary(
+                    name="TestCity",
+                    boundary_type="city",
+                    lat_min=25.0,
+                    lat_max=25.5,
+                    lng_min=55.0,
+                    lng_max=55.5,
+                )
+            )
+            for gmaps_type in ["mosque", "church"]:
+                sess.add(
+                    PlaceTypeMapping(
+                        religion="test",
+                        source_type="gmaps",
+                        gmaps_type=gmaps_type,
+                        our_place_type=gmaps_type,
+                        is_active=True,
+                        display_order=0,
+                    )
+                )
+            sess.commit()
+
+        call_types: list[str] = []
+
+        async def fake_search(
+            lat_min, lat_max, lng_min, lng_max, place_type, existing_ids, **kwargs
+        ):
+            call_types.append(place_type)
+            return []
+
+        with (
+            patch("app.scrapers.gmaps_browser.search_area_browser", side_effect=fake_search),
+            patch("app.scrapers.gmaps_browser.DiscoveryCellStore"),
+            patch("app.scrapers.gmaps_browser.GlobalCellStore"),
+            patch("app.scrapers.gmaps.fetch_place_details", new=AsyncMock()),
+            patch("app.collectors.gmaps.download_place_images", new=AsyncMock()),
+            patch("app.db.session.engine", engine),
+        ):
+            with Session(engine) as sess:
+                await run_gmaps_scraper_browser("run_per_type_test", {"city": "TestCity"}, sess)
+
+        # Should have been called once per active place type
+        assert sorted(call_types) == ["church", "mosque"]
+
+
+class TestDiscoveryCellStorePerType:
+    def _make_engine(self):
+        from sqlalchemy import StaticPool, create_engine
+        from sqlmodel import SQLModel
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        SQLModel.metadata.create_all(engine)
+        return engine
+
+    def test_stores_are_scoped_independently(self):
+        """Two stores for the same run but different types load/save independently."""
+        from app.scrapers.cell_store import DiscoveryCellStore
+
+        engine = self._make_engine()
+        store_mosque = DiscoveryCellStore("run_scope_test", engine, place_type="mosque")
+        store_church = DiscoveryCellStore("run_scope_test", engine, place_type="church")
+
+        store_mosque.save(25.0, 25.1, 55.0, 55.1, 0, 1000.0, ["places/A", "places/B"], False)
+
+        # Mosque store should see the cell, church store should not
+        assert store_mosque.get(25.0, 25.1, 55.0, 55.1) is not None
+        assert store_church.get(25.0, 25.1, 55.0, 55.1) is None
+
+    def test_reloaded_store_only_sees_its_type(self):
+        """A freshly constructed store pre-loads only its own type's cells."""
+        from app.scrapers.cell_store import DiscoveryCellStore
+
+        engine = self._make_engine()
+        store_mosque = DiscoveryCellStore("run_reload_test", engine, place_type="mosque")
+        store_mosque.save(25.0, 25.1, 55.0, 55.1, 0, 1000.0, ["places/X"], False)
+
+        # New store for same run, different type — must not see mosque cell
+        store_church = DiscoveryCellStore("run_reload_test", engine, place_type="church")
+        assert store_church.get(25.0, 25.1, 55.0, 55.1) is None
+
+        # New store for same run, same type — must see the cell
+        store_mosque2 = DiscoveryCellStore("run_reload_test", engine, place_type="mosque")
+        assert store_mosque2.get(25.0, 25.1, 55.0, 55.1) is not None
+
+
+class TestGlobalCellStorePerTypeKey:
+    def _make_engine(self):
+        from sqlalchemy import StaticPool, create_engine
+        from sqlmodel import SQLModel
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        SQLModel.metadata.create_all(engine)
+        return engine
+
+    def test_different_types_are_independent(self):
+        """Saving with place_type='mosque' does not produce a hit for 'temple'."""
+        from app.scrapers.cell_store import GlobalCellStore
+
+        engine = self._make_engine()
+        store = GlobalCellStore(engine)
+        store.save(25.0, 25.1, 55.0, 55.1, "mosque", ["places/A"], False)
+
+        assert store.get(25.0, 25.1, 55.0, 55.1, "mosque") is not None
+        assert store.get(25.0, 25.1, 55.0, 55.1, "temple") is None
+
+    def test_same_type_hit_after_save(self):
+        """A saved entry is returned by get() with the same type."""
+        from app.scrapers.cell_store import GlobalCellStore
+
+        engine = self._make_engine()
+        store = GlobalCellStore(engine)
+        store.save(25.0, 25.1, 55.0, 55.1, "church", ["places/C", "places/D"], True)
+
+        hit = store.get(25.0, 25.1, 55.0, 55.1, "church")
+        assert hit is not None
+        assert hit.result_count == 2
+        assert hit.saturated is True
