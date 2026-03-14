@@ -1,25 +1,28 @@
 """Bulk-translate a .txt export file via bulktranslator.com.
 
 Usage:
-    python scripts/translate_bulktranslator.py untranslated_20260314T120000.txt
+    python scripts/translate_bulktranslator.py untranslated_20260314T120000.txt \\
+        --api-url http://127.0.0.1:3000/api/v1 \\
+        --admin-email admin@example.com \\
+        --admin-password MyPass1!
 
 Reads lines of the form:
     [1:42:1] Sacred Temple
 
 Splits them into batches of 50, submits each batch to bulktranslator.com
-with all 4 target languages selected (AR, HI, ML, TE), then appends the
-translated lines to one output file per language:
+with all 4 target languages selected (AR, HI, ML, TE), then:
 
-    translated_ar.txt
-    translated_hi.txt
-    translated_ml.txt
-    translated_te.txt
+  1. Appends translated lines to one local file per language (audit trail):
+       translated_ar.txt / translated_hi.txt / translated_ml.txt / translated_te.txt
+     File writes use fcntl.flock so multiple parallel sessions are safe.
 
-Lines are appended with a file lock so multiple parallel sessions can run
-safely without clobbering each other.
+  2. If --api-url / CATALOG_API_URL is set, POSTs each language's batch
+     directly to POST /admin/content-translations/import-txt, inserting
+     rows into the production DB.  The token is refreshed automatically
+     if it expires during a long run.
 
 Requirements:
-    pip install playwright filelock
+    pip install playwright requests
     playwright install chromium
 """
 
@@ -27,10 +30,12 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import os
 import sys
 import time
 from pathlib import Path
 
+import requests
 from playwright.sync_api import sync_playwright
 
 # ── Constants ──────────────────────────────────────────────────────────────────
@@ -85,6 +90,34 @@ def _parse_identifier(line: str) -> str | None:
         if end != -1:
             return line[: end + 1]
     return None
+
+
+# ── API helpers ────────────────────────────────────────────────────────────────
+
+
+def _api_login(api_url: str, email: str, password: str) -> str:
+    """Login and return a JWT token."""
+    r = requests.post(
+        f"{api_url}/auth/login",
+        json={"email": email, "password": password},
+        timeout=15,
+    )
+    r.raise_for_status()
+    return r.json()["token"]
+
+
+def _api_import(api_url: str, token: str, lang: str, lines: list[str]) -> dict:
+    """POST translated lines to /admin/content-translations/import-txt."""
+    txt_bytes = "\n".join(lines).encode("utf-8")
+    r = requests.post(
+        f"{api_url}/admin/content-translations/import-txt",
+        headers={"Authorization": f"Bearer {token}"},
+        data={"lang": lang},
+        files={"file": ("translated.txt", txt_bytes, "text/plain")},
+        timeout=60,
+    )
+    r.raise_for_status()
+    return r.json()
 
 
 # ── Browser session ────────────────────────────────────────────────────────────
@@ -193,6 +226,21 @@ def main() -> None:
         default=None,
         help="Only process the first N lines (default: all)",
     )
+    parser.add_argument(
+        "--api-url",
+        default=os.environ.get("CATALOG_API_URL"),
+        help="Catalog API base URL, e.g. http://127.0.0.1:3000/api/v1 (env: CATALOG_API_URL)",
+    )
+    parser.add_argument(
+        "--admin-email",
+        default=os.environ.get("ADMIN_EMAIL"),
+        help="Admin email for API login (env: ADMIN_EMAIL)",
+    )
+    parser.add_argument(
+        "--admin-password",
+        default=os.environ.get("ADMIN_PASSWORD"),
+        help="Admin password for API login (env: ADMIN_PASSWORD)",
+    )
     args = parser.parse_args()
 
     input_path = Path(args.input_file)
@@ -213,6 +261,24 @@ def main() -> None:
 
     batches = _batches(all_lines, args.batch_size)
     print(f"Loaded {len(all_lines)} lines → {len(batches)} batches of ≤{args.batch_size}")
+
+    # ── API setup ──────────────────────────────────────────────────────────────
+    api_url = args.api_url
+    api_token: str | None = None
+
+    if api_url:
+        if not args.admin_email or not args.admin_password:
+            print(
+                "Error: --api-url requires --admin-email and --admin-password "
+                "(or ADMIN_EMAIL / ADMIN_PASSWORD env vars).",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print(f"Logging in to {api_url} as {args.admin_email}…")
+        api_token = _api_login(api_url, args.admin_email, args.admin_password)
+        print("  ✓ Token acquired")
+    else:
+        print("No --api-url provided — translations will be written to files only.")
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(
@@ -239,13 +305,45 @@ def main() -> None:
                     print(f"  ✗ Retry also failed: {exc2} — skipping batch {batch_idx}")
                     continue
 
-            # Append each language's output atomically
+            # Append each language's output atomically + optionally push to DB
             for lang_code, output_lines in results.items():
                 if not output_lines:
                     continue
+
+                # 1. Write to local file (audit trail, parallel-safe)
                 out_file = output_dir / LANG_FILES[lang_code]
                 _append_lines_atomic(out_file, output_lines)
-                print(f"    ✓ {lang_code}: {len(output_lines)} lines → {out_file}")
+                print(f"    ✓ {lang_code}: {len(output_lines)} lines → {out_file}", end="")
+
+                # 2. Push to DB via API
+                if api_url and api_token:
+                    try:
+                        job = _api_import(api_url, api_token, lang_code.lower(), output_lines)
+                        print(
+                            f"  →  DB: {job.get('completed_items', '?')} saved "
+                            f"(job {job.get('job_code', '?')})"
+                        )
+                    except requests.HTTPError as exc:
+                        if exc.response is not None and exc.response.status_code == 401:
+                            # Token expired — re-login and retry once
+                            print("  → token expired, re-logging in…", end="")
+                            api_token = _api_login(api_url, args.admin_email, args.admin_password)
+                            try:
+                                job = _api_import(
+                                    api_url, api_token, lang_code.lower(), output_lines
+                                )
+                                print(
+                                    f"  →  DB: {job.get('completed_items', '?')} saved "
+                                    f"(job {job.get('job_code', '?')})"
+                                )
+                            except Exception as exc2:
+                                print(f"  ✗ DB import failed after re-login: {exc2}")
+                        else:
+                            print(f"  ✗ DB import failed: {exc}")
+                    except Exception as exc:
+                        print(f"  ✗ DB import failed: {exc}")
+                else:
+                    print()  # newline after the file write line
 
             # Brief pause between batches to be polite to the server
             if batch_idx < len(batches):
