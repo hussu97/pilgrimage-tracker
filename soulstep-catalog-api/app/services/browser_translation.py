@@ -169,9 +169,19 @@ async def _check_for_captcha(page) -> bool:
 
 
 async def _wait_for_translation(page, timeout_ms: int = 10000) -> str | None:
-    """Poll output selectors until text stabilises (same value twice)."""
+    """Poll output selectors until text stabilises (same value three times in a row).
+
+    An initial 600 ms delay is applied before polling begins so that Google
+    Translate's SPA has time to start rendering the output — this prevents
+    locking onto a partial/mid-render string that happens to be stable for
+    two quick polls in succession.
+    """
+    # Give the SPA a moment to start rendering before we start sampling.
+    await asyncio.sleep(0.6)
+
     deadline = time.monotonic() + timeout_ms / 1000
     prev_text = ""
+    stable_count = 0
     poll_count = 0
 
     while time.monotonic() < deadline:
@@ -182,14 +192,16 @@ async def _wait_for_translation(page, timeout_ms: int = 10000) -> str | None:
                 if el:
                     text = (await el.inner_text()).strip()
                     if text and text == prev_text:
-                        logger.debug(
-                            "browser_translation: output stable after %d polls via selector %r → %r",
-                            poll_count,
-                            selector,
-                            text[:60],
-                        )
-                        return text
-                    if text:
+                        stable_count += 1
+                        if stable_count >= 3:
+                            logger.debug(
+                                "browser_translation: output stable after %d polls via selector %r → %r",
+                                poll_count,
+                                selector,
+                                text[:60],
+                            )
+                            return text
+                    elif text:
                         logger.debug(
                             "browser_translation: poll %d — candidate text via %r: %r",
                             poll_count,
@@ -197,7 +209,10 @@ async def _wait_for_translation(page, timeout_ms: int = 10000) -> str | None:
                             text[:60],
                         )
                         prev_text = text
+                        stable_count = 1
                         break
+                    else:
+                        stable_count = 0
             except Exception:
                 pass
         await asyncio.sleep(0.2)
@@ -494,7 +509,7 @@ async def translate_single_browser(
             logger.warning("browser_translation: input textarea not found, re-navigating")
             await page.goto(url, wait_until="domcontentloaded", timeout=15000)
             await _random_delay(500, 1000)
-            await page.wait_for_selector(input_selector, timeout=5000)
+            await page.wait_for_selector(input_selector, timeout=15000)
             logger.debug("browser_translation: input textarea found after re-navigation")
 
         # Clear existing input
@@ -519,7 +534,7 @@ async def translate_single_browser(
             )
             await page.goto(url, wait_until="domcontentloaded", timeout=15000)
             await _random_delay(500, 1000)
-            await page.wait_for_selector(input_selector, timeout=5000)
+            await page.wait_for_selector(input_selector, timeout=15000)
             await _human_type(page, input_selector, text)
             await _random_delay(300, 700)
             logger.debug("browser_translation: waiting for translation output (attempt 2)")
