@@ -35,7 +35,7 @@ _DATETIME_COLUMNS: list[tuple[str, str]] = [
 
 
 def upgrade() -> None:
-    if op.get_bind().dialect.name != "postgresql":
+    if op.get_context().connection.dialect.name != "postgresql":
         return  # SQLite: no structural change needed
 
     for table, column in _DATETIME_COLUMNS:
@@ -51,7 +51,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    if op.get_bind().dialect.name != "postgresql":
+    if op.get_context().connection.dialect.name != "postgresql":
         return
 
     for table, column in reversed(_DATETIME_COLUMNS):

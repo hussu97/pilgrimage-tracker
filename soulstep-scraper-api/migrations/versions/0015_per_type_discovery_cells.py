@@ -18,12 +18,12 @@ depends_on: str | Sequence[str] | None = None
 
 
 def _columns(table: str) -> set[str]:
-    conn = op.get_bind()
+    conn = op.get_context().connection
     return {c["name"] for c in inspect(conn).get_columns(table)}
 
 
 def _indexes(table: str) -> set[str]:
-    conn = op.get_bind()
+    conn = op.get_context().connection
     return {i["name"] for i in inspect(conn).get_indexes(table)}
 
 
