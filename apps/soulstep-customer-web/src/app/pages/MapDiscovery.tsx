@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import PlaceCardUnified from '@/components/places/PlaceCardUnified';
 import PlaceMapView from '@/components/places/PlaceMapView';
 import { getPlaces } from '@/lib/api/client';
 import type { Place } from '@/lib/types';
+import type { MapBounds } from '@/components/places/PlacesMap';
 import { useI18n } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
 import { useHead } from '@/lib/hooks/useHead';
@@ -38,47 +39,61 @@ export default function MapDiscovery() {
     has_events: false,
   });
   const [loading, setLoading] = useState(false);
+  const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
+  // Track latest bounds in a ref so the debounced fetch always uses the current value
+  const boundsRef = useRef<MapBounds | null>(null);
 
   useHead({ title: t('map.fullScreen') || 'Explore Map' });
 
-  const fetchPlaces = useCallback(async (searchVal: string, activeFilters: ActiveFilters) => {
-    setLoading(true);
-    try {
-      const resp = await getPlaces({
-        search: searchVal || undefined,
-        limit: 200,
-        open_now: activeFilters.open_now || undefined,
-        has_parking: activeFilters.has_parking || undefined,
-        womens_area: activeFilters.womens_area || undefined,
-        top_rated: activeFilters.top_rated || undefined,
-        has_events: activeFilters.has_events || undefined,
-      });
-      setPlaces(resp.places);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchPlaces = useCallback(
+    async (searchVal: string, activeFilters: ActiveFilters, bounds: MapBounds | null) => {
+      setLoading(true);
+      try {
+        const resp = await getPlaces({
+          search: searchVal || undefined,
+          limit: 100,
+          open_now: activeFilters.open_now || undefined,
+          has_parking: activeFilters.has_parking || undefined,
+          womens_area: activeFilters.womens_area || undefined,
+          top_rated: activeFilters.top_rated || undefined,
+          has_events: activeFilters.has_events || undefined,
+          // Only apply bbox when we have actual viewport bounds
+          min_lat: bounds?.south,
+          max_lat: bounds?.north,
+          min_lng: bounds?.west,
+          max_lng: bounds?.east,
+        });
+        setPlaces(resp.places);
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
-  // Initial fetch
-  useEffect(() => {
-    fetchPlaces('', {
-      open_now: false,
-      has_parking: false,
-      womens_area: false,
-      top_rated: false,
-      has_events: false,
-    });
-  }, [fetchPlaces]);
-
-  // Debounced re-fetch on search/filter change
+  // Refetch when search or filters change (uses latest bounds via ref)
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchPlaces(search, filters);
+      fetchPlaces(search, filters, boundsRef.current);
     }, 400);
     return () => clearTimeout(timer);
   }, [search, filters, fetchPlaces]);
+
+  // Refetch when the viewport moves (debounced to avoid spamming on drag)
+  useEffect(() => {
+    if (!mapBounds) return;
+    boundsRef.current = mapBounds;
+    const timer = setTimeout(() => {
+      fetchPlaces(search, filters, mapBounds);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [mapBounds, search, filters, fetchPlaces]);
+
+  const handleBoundsChange = useCallback((bounds: MapBounds) => {
+    setMapBounds(bounds);
+  }, []);
 
   const toggleFilter = (key: BoolFilter['key']) => {
     setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -222,6 +237,8 @@ export default function MapDiscovery() {
           t={t}
           isVisible
           mapLoading={loading}
+          skipAutoFit
+          onBoundsChange={handleBoundsChange}
         />
 
         {/* Mobile floating search + filter overlay (hidden on desktop) */}
