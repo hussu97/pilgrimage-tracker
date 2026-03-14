@@ -72,8 +72,8 @@ def _extract_place_ids_from_links(hrefs: list[str]) -> list[str]:
     cid_count = 0
 
     for href in hrefs:
-        # ChIJ canonical place ID (preferred)
-        match = re.search(r"!1s(ChIJ[a-zA-Z0-9_\-]+)", href)
+        # ChIJ canonical place ID (preferred) — stored at !19s in Maps URLs
+        match = re.search(r"!19s(ChIJ[a-zA-Z0-9_\-]+)", href)
         if match:
             pid = match.group(1)
             if pid not in seen:
@@ -109,14 +109,16 @@ async def _check_for_block(page) -> bool:
             indicator in lower
             for indicator in [
                 "unusual traffic",
-                "recaptcha",
                 "access denied",
-                "enable javascript",
                 "your computer or network may be sending automated queries",
             ]
         ):
             return True
-        captcha = await page.query_selector("iframe[src*='recaptcha'], #captcha, .captcha")
+        # "enable javascript" is a <noscript> fallback present on every Maps page — do NOT use it.
+        # Only check for a real reCAPTCHA challenge iframe (not just any recaptcha script reference).
+        captcha = await page.query_selector(
+            "iframe[src*='google.com/recaptcha'], iframe[title*='reCAPTCHA'], #captcha, .captcha"
+        )
         if captcha:
             return True
     except Exception:
@@ -364,7 +366,7 @@ async def search_area_browser(
         try:
             page = session.page
 
-            await page.goto(search_url, wait_until="networkidle", timeout=30000)
+            await page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
 
             title = await page.title()
             url = page.url
@@ -622,7 +624,7 @@ async def _search_single_grid_cell(
     try:
         page = session_obj.page
 
-        await page.goto(search_url, wait_until="networkidle", timeout=30000)
+        await page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
         await asyncio.sleep(random.uniform(2, 4))
 
         await _dismiss_consent(page)

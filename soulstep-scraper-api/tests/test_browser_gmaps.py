@@ -135,8 +135,9 @@ class TestCleanImageUrl:
 
 class TestExtractPlaceIds:
     def test_chij_extraction(self):
+        # ChIJ IDs appear at the !19s slot in real Maps URLs
         hrefs = [
-            "https://www.google.com/maps/place/Mosque/@25.2,55.3,17z/data=!3m1!4b1!4m6!3m5!1sChIJabc123def456!8m2!3d25.2!4d55.3",
+            "https://www.google.com/maps/place/Mosque/data=!4m7!3m6!1s0x3e5f:0xff!8m2!3d25.2!4d55.3!19sChIJabc123def456",
         ]
         result = _extract_place_ids_from_links(hrefs)
         assert "places/ChIJabc123def456" in result
@@ -159,16 +160,16 @@ class TestExtractPlaceIds:
 
     def test_deduplication(self):
         hrefs = [
-            "data=!1sChIJabc123",
-            "data=!1sChIJabc123",  # duplicate
+            "data=!19sChIJabc123",
+            "data=!19sChIJabc123",  # duplicate
         ]
         result = _extract_place_ids_from_links(hrefs)
         assert len(result) == 1
 
     def test_chij_preferred_over_hex(self):
-        # If same link has ChIJ, use it (not the hex)
+        # Link has both a hex CID at !1s and a ChIJ at !19s — ChIJ wins
         hrefs = [
-            "data=!1sChIJabc123!4b1",
+            "data=!1s0x3e5f:0xff!19sChIJabc123",
         ]
         result = _extract_place_ids_from_links(hrefs)
         assert result[0] == "places/ChIJabc123"
