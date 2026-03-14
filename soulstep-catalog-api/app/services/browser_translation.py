@@ -418,6 +418,7 @@ async def translate_single_browser(
     text: str,
     target_lang: str,
     source_lang: str = "en",
+    pool: BrowserSessionPool | None = None,
 ) -> str | None:
     """Translate a single string using a headless browser.
 
@@ -435,7 +436,7 @@ async def translate_single_browser(
         text[:60],
     )
 
-    pool = _get_pool()
+    pool = pool or _get_pool()
     session = await pool.acquire()
     recycle = False
 
@@ -624,6 +625,7 @@ async def translate_multi_browser(
     texts: list[str],
     target_lang: str,
     source_lang: str = "en",
+    pool: BrowserSessionPool | None = None,
 ) -> list[str | None]:
     """Translate multiple texts in a single browser request using sentinel delimiters.
 
@@ -652,7 +654,7 @@ async def translate_multi_browser(
     if len(non_empty_texts) == 1:
         # Single item — just use translate_single_browser directly
         translated = await translate_single_browser(
-            non_empty_texts[0], target_lang=target_lang, source_lang=source_lang
+            non_empty_texts[0], target_lang=target_lang, source_lang=source_lang, pool=pool
         )
         results[non_empty_indices[0]] = translated
         return results
@@ -667,7 +669,9 @@ async def translate_multi_browser(
         len(block),
     )
 
-    raw = await translate_single_browser(block, target_lang=target_lang, source_lang=source_lang)
+    raw = await translate_single_browser(
+        block, target_lang=target_lang, source_lang=source_lang, pool=pool
+    )
 
     if raw is None:
         logger.warning(
@@ -704,7 +708,7 @@ async def translate_multi_browser(
     # Fallback: translate each non-empty text individually
     for idx, text in zip(non_empty_indices, non_empty_texts, strict=False):
         translated = await translate_single_browser(
-            text, target_lang=target_lang, source_lang=source_lang
+            text, target_lang=target_lang, source_lang=source_lang, pool=pool
         )
         results[idx] = translated
 
@@ -718,6 +722,8 @@ async def translate_batch_browser_parallel(
     source_lang: str = "en",
     multi_size: int = 5,
     on_result: Callable[[int, str | None], Awaitable[None]] | None = None,
+    pool: BrowserSessionPool | None = None,
+    is_cancelled: Callable[[], bool] | None = None,
 ) -> list[str | None]:
     """Translate a list of texts in parallel micro-batches via translate_multi_browser.
 
@@ -735,7 +741,7 @@ async def translate_batch_browser_parallel(
 
     async def process_batch(start: int, chunk: list[str]) -> None:
         translated_chunk = await translate_multi_browser(
-            chunk, target_lang=target_lang, source_lang=source_lang
+            chunk, target_lang=target_lang, source_lang=source_lang, pool=pool
         )
         for local_i, translated in enumerate(translated_chunk):
             global_i = start + local_i
@@ -743,21 +749,25 @@ async def translate_batch_browser_parallel(
             if on_result is not None:
                 await on_result(global_i, translated)
 
-    # Partition into micro-batches and gather
-    batches = []
-    for start in range(0, len(texts), multi_size):
-        chunk = texts[start : start + multi_size]
-        batches.append(process_batch(start, chunk))
-
+    num_batches = (len(texts) + multi_size - 1) // multi_size
     logger.info(
         "browser_translation: parallel batch — %d texts → %d micro-batches of size %d → %r",
         len(texts),
-        len(batches),
+        num_batches,
         multi_size,
         target_lang,
     )
 
-    await asyncio.gather(*batches)
+    for start in range(0, len(texts), multi_size):
+        if is_cancelled is not None and is_cancelled():
+            logger.info(
+                "browser_translation: cancellation requested, stopping parallel batch at %d/%d",
+                start,
+                len(texts),
+            )
+            break
+        chunk = texts[start : start + multi_size]
+        await process_batch(start, chunk)
 
     success_count = sum(1 for r in results if r is not None)
     logger.info(

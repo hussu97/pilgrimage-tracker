@@ -117,7 +117,7 @@ def test_translate_batch_browser_parallel_on_result_fires():
 
     received: list[tuple[int, str | None]] = []
 
-    async def fake_multi(texts, target_lang, source_lang="en"):
+    async def fake_multi(texts, target_lang, source_lang="en", **kwargs):
         return [f"t_{t}" for t in texts]
 
     async def on_result(idx: int, val: str | None) -> None:

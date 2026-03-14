@@ -1,14 +1,14 @@
 """Integration tests for /admin/translations/jobs endpoints.
 
-All DB operations use in-memory SQLite (StaticPool). The background task
-_run_bulk_translation_job is patched out so tests don't launch real browsers.
+All DB operations use in-memory SQLite (StaticPool). The background thread
+function _run_job_in_thread is patched out so tests don't launch real browsers.
 """
 
 from __future__ import annotations
 
-import asyncio
+import threading
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 from sqlmodel import Session, select
@@ -46,8 +46,29 @@ def _non_admin_headers(client, email="user_bt@example.com", password="Testpass1!
     return {"Authorization": f"Bearer {data['token']}"}
 
 
-# Patch out the real background task so tests don't spin up browsers
-_BG_PATCH = "app.api.v1.admin.bulk_translations._run_bulk_translation_job"
+# Patch out the thread entry point so tests don't spin up browsers or real threads
+_BG_PATCH = "app.api.v1.admin.bulk_translations._run_job_in_thread"
+
+
+# ── Fixtures ───────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def clear_job_tracking():
+    """Clear thread tracking state before and after each test to prevent 409 cascades."""
+    from app.api.v1.admin.bulk_translations import (
+        _active_job_threads,
+        _cancel_events,
+        _thread_lock,
+    )
+
+    with _thread_lock:
+        _active_job_threads.clear()
+        _cancel_events.clear()
+    yield
+    with _thread_lock:
+        _active_job_threads.clear()
+        _cancel_events.clear()
 
 
 # ── Tests ──────────────────────────────────────────────────────────────────────
@@ -57,7 +78,7 @@ class TestStartJob:
     def test_start_job_returns_pending(self, client, db_session):
         """POST returns 200, status=pending, job_code starts with btj_."""
         headers = _admin_headers(client, db_session)
-        with patch(_BG_PATCH, new=AsyncMock()):
+        with patch(_BG_PATCH):
             resp = client.post(
                 "/api/v1/admin/translations/jobs",
                 json={"target_langs": ["ar", "hi"], "entity_types": ["place"]},
@@ -74,13 +95,42 @@ class TestStartJob:
     def test_start_job_requires_admin(self, client, db_session):
         """Non-admin receives 403."""
         headers = _non_admin_headers(client)
-        with patch(_BG_PATCH, new=AsyncMock()):
+        with patch(_BG_PATCH):
             resp = client.post(
                 "/api/v1/admin/translations/jobs",
                 json={"target_langs": ["ar"]},
                 headers=headers,
             )
         assert resp.status_code == 403
+
+    def test_start_job_rejects_concurrent(self, client, db_session):
+        """Starting a second job while one is running returns 409."""
+        from app.api.v1.admin.bulk_translations import (
+            _active_job_threads,
+            _cancel_events,
+            _thread_lock,
+        )
+
+        headers = _admin_headers(client, db_session, email="admin_conc_bt@example.com")
+
+        # Inject a fake "running" thread using a MagicMock so join() is a no-op
+        # and is_alive() can be controlled — avoids RuntimeError from joining an
+        # unstarted real thread during the lifespan shutdown in TestClient teardown.
+        from unittest.mock import MagicMock
+
+        fake_thread = MagicMock(spec=threading.Thread)
+        fake_thread.is_alive.return_value = True
+        with _thread_lock:
+            _active_job_threads["btj_fake"] = fake_thread
+            _cancel_events["btj_fake"] = threading.Event()
+
+        with patch(_BG_PATCH):
+            resp = client.post(
+                "/api/v1/admin/translations/jobs",
+                json={"target_langs": ["ar"]},
+                headers=headers,
+            )
+        assert resp.status_code == 409
 
 
 class TestListJobs:
@@ -95,10 +145,15 @@ class TestListJobs:
 
     def test_list_jobs_pagination(self, client, db_session):
         """page=2 returns correct slice when multiple jobs exist."""
+        from app.api.v1.admin.bulk_translations import (
+            _active_job_threads,
+            _cancel_events,
+            _thread_lock,
+        )
+
         headers = _admin_headers(client, db_session, email="admin_page_bt@example.com")
 
-        # Get admin user code from the first job POST
-        with patch(_BG_PATCH, new=AsyncMock()):
+        with patch(_BG_PATCH):
             for _ in range(3):
                 resp = client.post(
                     "/api/v1/admin/translations/jobs",
@@ -106,6 +161,14 @@ class TestListJobs:
                     headers=headers,
                 )
                 assert resp.status_code == 200
+                # The patched thread target doesn't clean up _active_job_threads, so
+                # we must clear it manually between requests to avoid 409 on the next POST.
+                with _thread_lock:
+                    for t in _active_job_threads.values():
+                        if t.is_alive():
+                            t.join(timeout=1)
+                    _active_job_threads.clear()
+                    _cancel_events.clear()
 
         # Page 2 with page_size=2 should return 1 item
         resp = client.get(
@@ -124,7 +187,7 @@ class TestGetJob:
     def test_get_job(self, client, db_session):
         """GET returns 200 with progress_pct field."""
         headers = _admin_headers(client, db_session, email="admin_get_bt@example.com")
-        with patch(_BG_PATCH, new=AsyncMock()):
+        with patch(_BG_PATCH):
             create_resp = client.post(
                 "/api/v1/admin/translations/jobs",
                 json={"target_langs": ["ar"]},
@@ -149,7 +212,7 @@ class TestCancelJob:
     def test_cancel_pending_job(self, client, db_session):
         """Cancelling a pending job sets cancel_requested_at; status stays pending."""
         headers = _admin_headers(client, db_session, email="admin_cancel_bt@example.com")
-        with patch(_BG_PATCH, new=AsyncMock()):
+        with patch(_BG_PATCH):
             create_resp = client.post(
                 "/api/v1/admin/translations/jobs",
                 json={"target_langs": ["ar"]},
@@ -163,7 +226,6 @@ class TestCancelJob:
         )
         assert resp.status_code == 200
         data = resp.json()
-        # cancel_requested_at should now be set; status remains pending until BG task sees it
         assert data["job_code"] == job_code
 
         # Verify in DB
@@ -173,11 +235,37 @@ class TestCancelJob:
         assert job is not None
         assert job.cancel_requested_at is not None
 
+    def test_cancel_signals_event(self, client, db_session):
+        """Cancelling a job also sets the threading.Event for the running thread."""
+        from app.api.v1.admin.bulk_translations import (
+            _cancel_events,
+            _thread_lock,
+        )
+
+        headers = _admin_headers(client, db_session, email="admin_cancel_ev_bt@example.com")
+        with patch(_BG_PATCH):
+            create_resp = client.post(
+                "/api/v1/admin/translations/jobs",
+                json={"target_langs": ["ar"]},
+                headers=headers,
+            )
+        job_code = create_resp.json()["job_code"]
+
+        # The cancel event should exist for this job
+        with _thread_lock:
+            assert job_code in _cancel_events
+            event = _cancel_events[job_code]
+            assert not event.is_set()
+
+        client.post(f"/api/v1/admin/translations/jobs/{job_code}/cancel", headers=headers)
+
+        # Event should now be set
+        assert event.is_set()
+
     def test_cancel_completed_job(self, client, db_session):
         """Cancelling a completed job returns 409."""
         headers = _admin_headers(client, db_session, email="admin_cancel2_bt@example.com")
 
-        # Manually insert a completed job
         admin_user = db_session.exec(select(User).where(User.is_admin == True)).first()  # noqa: E712
         assert admin_user is not None
         job = BulkTranslationJob(
@@ -224,7 +312,6 @@ class TestDeleteJob:
         )
         assert resp.status_code == 204
 
-        # Verify it's gone
         deleted = db_session.exec(
             select(BulkTranslationJob).where(BulkTranslationJob.job_code == "btj_del01")
         ).first()
@@ -256,14 +343,14 @@ class TestDeleteJob:
 
 
 class TestCancelledErrorHandling:
-    """Background task marks job as failed when cancelled (server shutdown)."""
+    """Background task respects threading.Event-based cancellation."""
 
     @pytest.mark.asyncio
-    async def test_cancelled_error_marks_job_failed(self, test_engine):
-        """When the background task is cancelled mid-run, the job transitions to failed."""
+    async def test_user_cancel_marks_job_cancelled(self, test_engine):
+        """When cancel_event is set AND cancel_requested_at is in DB, job becomes 'cancelled'."""
         fake_user_code = "usr_cancel_ce_test"
 
-        # Insert a pending job directly into the test DB
+        # Insert a pending job with cancel_requested_at already set (user-cancel scenario)
         with Session(test_engine) as s:
             job = BulkTranslationJob(
                 job_code="btj_cancel_test01",
@@ -273,27 +360,73 @@ class TestCancelledErrorHandling:
                 entity_types=["city"],
                 source_lang="en",
                 created_at=datetime.now(UTC),
+                cancel_requested_at=datetime.now(UTC),  # user already requested cancel
             )
             s.add(job)
             s.commit()
 
-        # Patch engine and _collect_missing_items so that:
-        # - Phase 1 succeeds (marks job "running") using test_engine
-        # - Phase 2 raises CancelledError (simulates task cancellation mid-run)
+        cancel_event = threading.Event()
+        cancel_event.set()  # immediately cancelled
+
+        # Patch engine and _collect_missing_items so Phase 1 succeeds but we hit
+        # the between-lang-pass cancellation check during Phase 3
         with (
             patch("app.api.v1.admin.bulk_translations.engine", test_engine),
             patch(
                 "app.api.v1.admin.bulk_translations._collect_missing_items",
-                side_effect=asyncio.CancelledError,
+                return_value=[("city", "cty_test", "name", "ar", "Test City")],
             ),
         ):
-            with pytest.raises(asyncio.CancelledError):
-                await _run_bulk_translation_job("btj_cancel_test01", multi_size=1)
+            await _run_bulk_translation_job(
+                "btj_cancel_test01", multi_size=1, cancel_event=cancel_event
+            )
 
-        # Job must be "failed", not stuck in "pending" or "running"
         with Session(test_engine) as s:
             result = s.exec(
                 select(BulkTranslationJob).where(BulkTranslationJob.job_code == "btj_cancel_test01")
+            ).first()
+        assert result is not None
+        assert result.status == "cancelled"
+
+    @pytest.mark.asyncio
+    async def test_shutdown_cancel_marks_job_failed(self, test_engine):
+        """When cancel_event is set WITHOUT cancel_requested_at in DB, job becomes 'failed'."""
+        fake_user_code = "usr_shutdown_ce_test"
+
+        # Insert a pending job WITHOUT cancel_requested_at (server-shutdown scenario)
+        with Session(test_engine) as s:
+            job = BulkTranslationJob(
+                job_code="btj_shutdown_test01",
+                created_by_user_code=fake_user_code,
+                status="pending",
+                target_langs=["ar"],
+                entity_types=["city"],
+                source_lang="en",
+                created_at=datetime.now(UTC),
+                # cancel_requested_at is NOT set — simulates server shutdown, not user cancel
+            )
+            s.add(job)
+            s.commit()
+
+        cancel_event = threading.Event()
+        cancel_event.set()
+
+        with (
+            patch("app.api.v1.admin.bulk_translations.engine", test_engine),
+            patch(
+                "app.api.v1.admin.bulk_translations._collect_missing_items",
+                return_value=[("city", "cty_test2", "name", "ar", "Test City 2")],
+            ),
+        ):
+            await _run_bulk_translation_job(
+                "btj_shutdown_test01", multi_size=1, cancel_event=cancel_event
+            )
+
+        with Session(test_engine) as s:
+            result = s.exec(
+                select(BulkTranslationJob).where(
+                    BulkTranslationJob.job_code == "btj_shutdown_test01"
+                )
             ).first()
         assert result is not None
         assert result.status == "failed"
@@ -307,7 +440,6 @@ class TestStartupCleanup:
         """Stale pending/running jobs are found and marked failed by the startup cleanup."""
         fake_user_code = "usr_stale_cleanup_test"
 
-        # Insert one pending and one running job (no real User FK needed in SQLite)
         for code, status in [("btj_stale_pending", "pending"), ("btj_stale_running", "running")]:
             job = BulkTranslationJob(
                 job_code=code,
@@ -321,7 +453,6 @@ class TestStartupCleanup:
             db_session.add(job)
         db_session.commit()
 
-        # Run the same cleanup logic the lifespan uses
         stale = db_session.exec(
             select(BulkTranslationJob).where(
                 BulkTranslationJob.status.in_(["pending", "running"])  # type: ignore[attr-defined]
@@ -335,7 +466,6 @@ class TestStartupCleanup:
             db_session.add(j)
         db_session.commit()
 
-        # Both jobs must now be failed
         for code in ("btj_stale_pending", "btj_stale_running"):
             updated = db_session.exec(
                 select(BulkTranslationJob).where(BulkTranslationJob.job_code == code)

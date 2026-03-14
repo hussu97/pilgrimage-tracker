@@ -7,7 +7,24 @@ We mock _make_client() to avoid requiring real GCP credentials in CI.
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from app.services.translation_service import translate_batch, translate_text
+
+# ── fixtures ───────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _force_api_backend(monkeypatch):
+    """Ensure TRANSLATION_BACKEND=api for every test in this module.
+
+    Other test files (e.g. test_bulk_translations.py) may leave the env var set
+    to 'browser', which would cause these tests to hit the Playwright path instead
+    of the mocked Google Cloud API path.
+    """
+    monkeypatch.setenv("TRANSLATION_BACKEND", "api")
+    monkeypatch.delenv("TRANSLATION_FALLBACK", raising=False)
+
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 

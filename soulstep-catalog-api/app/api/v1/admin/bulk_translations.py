@@ -6,12 +6,17 @@ content-translation jobs powered by the headless browser translation backend.
 Each job collects all (entity_type, entity_code, field, lang) tuples that are
 missing from the ContentTranslation table and batch-translates them via
 translate_batch_browser_parallel, saving results incrementally.
+
+The job runs in a dedicated background thread with its own asyncio event loop,
+completely isolated from the FastAPI main event loop so HTTP requests remain
+responsive while a translation job is running.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 from datetime import UTC, datetime
 from secrets import token_hex
 from typing import Annotated
@@ -24,15 +29,17 @@ from app.api.deps import AdminDep
 from app.db import content_translations as ct_db
 from app.db.models import BulkTranslationJob, City, Place, PlaceAttributeDefinition, Review
 from app.db.session import SessionDep, engine
-from app.services.browser_translation import translate_batch_browser_parallel
+from app.services.browser_translation import BrowserSessionPool, translate_batch_browser_parallel
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Active asyncio tasks for running jobs. Kept here so the lifespan can cancel
-# them on shutdown (avoids uvicorn blocking indefinitely on thread-based tasks).
-_active_job_tasks: set[asyncio.Task] = set()
+# ── Thread tracking ─────────────────────────────────────────────────────────────
+# Per-job thread and cancel event. Protected by _thread_lock.
+_active_job_threads: dict[str, threading.Thread] = {}
+_cancel_events: dict[str, threading.Event] = {}
+_thread_lock = threading.Lock()
 
 # Translatable fields by entity type
 _PLACE_FIELDS = ["name", "description"]
@@ -40,8 +47,11 @@ _REVIEW_FIELDS = ["title", "body"]
 _CITY_FIELDS = ["name"]
 _ATTRIBUTE_DEF_FIELDS = ["name"]
 
+# Flush pending translations + update progress counters every N results
+_PROGRESS_UPDATE_INTERVAL = 10
 
-# ── Pydantic schemas ───────────────────────────────────────────────────────────
+
+# ── Pydantic schemas ────────────────────────────────────────────────────────────
 
 
 class StartJobBody(BaseModel):
@@ -97,7 +107,57 @@ class JobListResponse(BaseModel):
     page_size: int
 
 
-# ── Background task ────────────────────────────────────────────────────────────
+# ── Helpers ─────────────────────────────────────────────────────────────────────
+
+
+def _is_job_cancelled(job_code: str, cancel_event: threading.Event | None) -> bool:
+    """Return True if the job should stop.
+
+    Checks the threading.Event first (fast path), then falls back to the DB
+    cancel_requested_at flag (handles cases where the event was never set but
+    the DB was updated, e.g. via a different process).
+    """
+    if cancel_event is not None and cancel_event.is_set():
+        return True
+    try:
+        with Session(engine) as s:
+            job = s.exec(
+                select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)
+            ).first()
+            return job is not None and job.cancel_requested_at is not None
+    except Exception:
+        return False
+
+
+def _flush_translations(
+    pending: list[tuple[str, str, str, str, str]],
+    completed: int,
+    failed: int,
+    job_code: str,
+) -> None:
+    """Write pending translations and update job progress counters in one DB session."""
+    try:
+        with Session(engine) as s:
+            for entity_type, entity_code, field, lang, text in pending:
+                ct_db.upsert_translation(
+                    entity_type=entity_type,
+                    entity_code=entity_code,
+                    field=field,
+                    lang=lang,
+                    text=text,
+                    source="browser_translate",
+                    session=s,
+                )
+            j = s.exec(
+                select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)
+            ).first()
+            if j:
+                j.completed_items = completed
+                j.failed_items = failed
+                s.add(j)
+            s.commit()
+    except Exception:
+        logger.exception("bulk_translation: failed to flush translations for job %s", job_code)
 
 
 def _collect_missing_items(
@@ -171,18 +231,25 @@ def _collect_missing_items(
     return missing
 
 
-async def _run_bulk_translation_job(job_code: str, multi_size: int) -> None:
-    """Background task: execute a bulk translation job end-to-end."""
+# ── Background task ─────────────────────────────────────────────────────────────
+
+
+async def _run_bulk_translation_job(
+    job_code: str,
+    multi_size: int,
+    pool: BrowserSessionPool | None = None,
+    cancel_event: threading.Event | None = None,
+) -> None:
+    """Execute a bulk translation job end-to-end.
+
+    Designed to run inside a dedicated thread's event loop via
+    _run_job_in_thread. The cancel_event allows the thread to be stopped
+    cooperatively between micro-batches without blocking the main FastAPI loop.
+    """
     logger.info("bulk_translation: starting job %s", job_code)
 
-    # Yield control briefly so FastAPI can finalise the request-session
-    # dependency (close the endpoint's DB connection) before we open our own.
-    # Without this, Phase 1's session.commit() can race with the still-open
-    # endpoint session and hit a SQLite write-lock (SQLITE_BUSY).
-    await asyncio.sleep(0)
-
     try:
-        # ── Phase 1: mark running ────────────────────────────────────────────
+        # ── Phase 1: mark running ─────────────────────────────────────────────
         with Session(engine) as session:
             job = session.exec(
                 select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)
@@ -236,8 +303,7 @@ async def _run_bulk_translation_job(job_code: str, multi_size: int) -> None:
                     session.commit()
             return
 
-        # ── Phase 3: translate per-lang group ─────────────────────────────────
-        # Group by language so we can cancel between lang passes
+        # ── Phase 3: translate per-lang group ──────────────────────────────────
         from collections import defaultdict
 
         by_lang: dict[str, list[tuple[int, str, str, str, str]]] = defaultdict(list)
@@ -249,64 +315,57 @@ async def _run_bulk_translation_job(job_code: str, multi_size: int) -> None:
 
         for lang, group in by_lang.items():
             # Check for cancellation between lang passes
-            with Session(engine) as session:
-                job = session.exec(
-                    select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)
-                ).first()
-                if job and job.cancel_requested_at is not None:
-                    job.status = "cancelled"
-                    job.completed_at = datetime.now(UTC)
-                    session.add(job)
-                    session.commit()
-                    logger.info("bulk_translation: job %s cancelled between lang passes", job_code)
-                    return
+            if _is_job_cancelled(job_code, cancel_event):
+                with Session(engine) as session:
+                    job = session.exec(
+                        select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)
+                    ).first()
+                    if job:
+                        # Distinguish user-cancel (cancel_requested_at set) from server shutdown
+                        if job.cancel_requested_at is not None:
+                            job.status = "cancelled"
+                        else:
+                            job.status = "failed"
+                            job.error_message = "Interrupted: server shutdown"
+                        job.completed_at = datetime.now(UTC)
+                        session.add(job)
+                        session.commit()
+                logger.info(
+                    "bulk_translation: job %s stopped between lang passes (lang=%s)",
+                    job_code,
+                    lang,
+                )
+                return
 
             texts = [en_text for _, _, _, _, en_text in group]
             meta = [
                 (entity_type, entity_code, field) for _, entity_type, entity_code, field, _ in group
             ]
 
+            # Accumulate translations in memory; flush every _PROGRESS_UPDATE_INTERVAL results
+            pending_translations: list[tuple[str, str, str, str, str]] = []
+            items_since_flush = 0
+
             async def on_result(
-                local_i: int, translated: str | None, _meta: list = meta, _lang: str = lang
+                local_i: int,
+                translated: str | None,
+                _meta: list = meta,
+                _lang: str = lang,
+                _pending: list = pending_translations,  # bind now to avoid B023
             ) -> None:
-                nonlocal completed_total, failed_total
+                nonlocal completed_total, failed_total, items_since_flush
                 entity_type, entity_code, field = _meta[local_i]
                 if translated:
                     completed_total += 1
-                    with Session(engine) as s:
-                        ct_db.upsert_translation(
-                            entity_type=entity_type,
-                            entity_code=entity_code,
-                            field=field,
-                            lang=_lang,
-                            text=translated,
-                            source="browser_translate",
-                            session=s,
-                        )
-                        # Update progress counters
-                        j = s.exec(
-                            select(BulkTranslationJob).where(
-                                BulkTranslationJob.job_code == job_code
-                            )
-                        ).first()
-                        if j:
-                            j.completed_items = completed_total
-                            j.failed_items = failed_total
-                            s.add(j)
-                            s.commit()
+                    _pending.append((entity_type, entity_code, field, _lang, translated))
                 else:
                     failed_total += 1
-                    with Session(engine) as s:
-                        j = s.exec(
-                            select(BulkTranslationJob).where(
-                                BulkTranslationJob.job_code == job_code
-                            )
-                        ).first()
-                        if j:
-                            j.completed_items = completed_total
-                            j.failed_items = failed_total
-                            s.add(j)
-                            s.commit()
+
+                items_since_flush += 1
+                if items_since_flush >= _PROGRESS_UPDATE_INTERVAL:
+                    _flush_translations(_pending, completed_total, failed_total, job_code)
+                    _pending.clear()
+                    items_since_flush = 0
 
             await translate_batch_browser_parallel(
                 texts,
@@ -314,9 +373,17 @@ async def _run_bulk_translation_job(job_code: str, multi_size: int) -> None:
                 source_lang=source_lang,
                 multi_size=multi_size,
                 on_result=on_result,
+                pool=pool,
+                is_cancelled=lambda: cancel_event is not None and cancel_event.is_set(),
             )
 
-        # ── Phase 4: mark complete ────────────────────────────────────────────
+            # Flush any remaining pending translations after this lang pass completes
+            if pending_translations or items_since_flush > 0:
+                _flush_translations(pending_translations, completed_total, failed_total, job_code)
+                pending_translations.clear()
+                items_since_flush = 0
+
+        # ── Phase 4: mark complete ─────────────────────────────────────────────
         final_status = "completed" if failed_total == 0 else "completed_with_errors"
         with Session(engine) as session:
             job = session.exec(
@@ -338,24 +405,6 @@ async def _run_bulk_translation_job(job_code: str, multi_size: int) -> None:
             failed_total,
         )
 
-    except asyncio.CancelledError:
-        # Server is shutting down — mark the job as interrupted so it doesn't
-        # stay stuck in "pending" or "running" on the next startup.
-        logger.warning("bulk_translation: job %s cancelled (server shutdown)", job_code)
-        try:
-            with Session(engine) as session:
-                job = session.exec(
-                    select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)
-                ).first()
-                if job and job.status in ("pending", "running"):
-                    job.status = "failed"
-                    job.error_message = "Interrupted: server shutdown"
-                    job.completed_at = datetime.now(UTC)
-                    session.add(job)
-                    session.commit()
-        except Exception:
-            pass  # Best-effort — don't block the shutdown
-        raise  # Re-raise so asyncio properly marks the task as cancelled
     except Exception as exc:
         logger.exception("bulk_translation: job %s failed with exception", job_code)
         try:
@@ -373,7 +422,63 @@ async def _run_bulk_translation_job(job_code: str, multi_size: int) -> None:
             pass  # Best-effort
 
 
-# ── Endpoints ──────────────────────────────────────────────────────────────────
+def _run_job_in_thread(job_code: str, multi_size: int) -> None:
+    """Thread entry point: creates its own asyncio event loop and runs the translation job.
+
+    Using a dedicated thread+loop isolates all browser/DB work from the FastAPI
+    main event loop, so HTTP requests remain responsive during a long translation run.
+    """
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    with _thread_lock:
+        cancel_event = _cancel_events.get(job_code)
+
+    pool = BrowserSessionPool()
+    try:
+        loop.run_until_complete(
+            _run_bulk_translation_job(job_code, multi_size, pool=pool, cancel_event=cancel_event)
+        )
+    except Exception:
+        logger.exception("bulk_translation: unhandled exception in thread for job %s", job_code)
+    finally:
+        # If the job is still in a non-terminal state, the thread was interrupted
+        # (e.g., server shutdown signalled the event but the job didn't finish cleanly).
+        try:
+            with Session(engine) as s:
+                job = s.exec(
+                    select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)
+                ).first()
+                if job and job.status in ("pending", "running"):
+                    job.status = "failed"
+                    job.error_message = "Interrupted: server shutdown"
+                    job.completed_at = datetime.now(UTC)
+                    s.add(job)
+                    s.commit()
+                    logger.warning(
+                        "bulk_translation: job %s was still running at thread exit — marked failed",
+                        job_code,
+                    )
+        except Exception:
+            pass  # Best-effort
+
+        # Shut down this thread's browser pool
+        try:
+            loop.run_until_complete(pool.shutdown())
+        except Exception:
+            pass
+        finally:
+            loop.close()
+
+        # Remove from tracking
+        with _thread_lock:
+            _active_job_threads.pop(job_code, None)
+            _cancel_events.pop(job_code, None)
+
+        logger.info("bulk_translation: thread for job %s exited", job_code)
+
+
+# ── Endpoints ───────────────────────────────────────────────────────────────────
 
 
 @router.post("/translations/jobs", response_model=BulkTranslationJobOut)
@@ -382,7 +487,22 @@ async def start_translation_job(
     admin: AdminDep,
     session: SessionDep,
 ) -> BulkTranslationJobOut:
-    """Start a new bulk translation job."""
+    """Start a new bulk translation job.
+
+    Returns 409 if a job is already running — each job spawns its own Chromium
+    instance(s) so concurrent jobs would exhaust system resources.
+    """
+    # Guard against concurrent jobs
+    with _thread_lock:
+        if _active_job_threads:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "A translation job is already running. "
+                    "Cancel or wait for it to finish before starting a new one."
+                ),
+            )
+
     multi_size = max(1, min(8, body.multi_size))
     job_code = "btj_" + token_hex(8)
     job = BulkTranslationJob(
@@ -398,15 +518,22 @@ async def start_translation_job(
     session.commit()
     session.refresh(job)
 
-    # Use asyncio.create_task so the job runs in the main event loop (same loop
-    # as the browser pool) and can be cancelled on shutdown — avoids the
-    # previous asyncio.run-in-thread approach which blocked uvicorn indefinitely.
-    task = asyncio.create_task(_run_bulk_translation_job(job_code, multi_size))
-    _active_job_tasks.add(task)
-    task.add_done_callback(_active_job_tasks.discard)
+    cancel_event = threading.Event()
+    thread = threading.Thread(
+        target=_run_job_in_thread,
+        args=(job_code, multi_size),
+        daemon=True,
+        name=f"bulk-translation-{job_code}",
+    )
+
+    with _thread_lock:
+        _active_job_threads[job_code] = thread
+        _cancel_events[job_code] = cancel_event
+
+    thread.start()
 
     logger.info(
-        "bulk_translation: created job %s (langs=%s entity_types=%s multi_size=%d)",
+        "bulk_translation: started job %s in thread (langs=%s entity_types=%s multi_size=%d)",
         job_code,
         body.target_langs,
         body.entity_types,
@@ -462,8 +589,11 @@ def cancel_translation_job(
     admin: AdminDep,
     session: SessionDep,
 ) -> BulkTranslationJobOut:
-    """Request cancellation of a job. Sets cancel_requested_at; the background task
-    will honour it between lang passes."""
+    """Request cancellation of a job.
+
+    Sets cancel_requested_at in the DB and signals the job's threading.Event.
+    The background thread will honour it between micro-batches.
+    """
     job = session.exec(
         select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)
     ).first()
@@ -478,6 +608,14 @@ def cancel_translation_job(
     session.add(job)
     session.commit()
     session.refresh(job)
+
+    # Signal the thread's cancel event so it stops at the next micro-batch boundary
+    with _thread_lock:
+        cancel_event = _cancel_events.get(job_code)
+        if cancel_event is not None:
+            cancel_event.set()
+            logger.info("bulk_translation: cancel event set for job %s", job_code)
+
     return BulkTranslationJobOut.from_orm(job)
 
 
