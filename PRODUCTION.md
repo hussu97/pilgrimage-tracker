@@ -551,7 +551,7 @@ gcloud run jobs create translate-content \
   --region REGION \
   --set-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
   --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
-  --memory 4Gi --cpu 2 --task-timeout 86400 --max-retries 0
+  --memory 4Gi --cpu 2 --task-timeout 900 --max-retries 0
 
 gcloud scheduler jobs create http daily-translate-content \
   --location REGION --schedule "0 4 * * *" --time-zone "UTC" \
