@@ -715,7 +715,7 @@ async def import_translated_txt(
         if field_name is None:
             continue
 
-        parsed_raw.append((entity_type, entity_id, field_name, m.group("text")))
+        parsed_raw.append((entity_type, entity_id, field_name, m.group("text").strip()))
         ids_by_type.setdefault(entity_type, set()).add(entity_id)
 
     if not parsed_raw:
