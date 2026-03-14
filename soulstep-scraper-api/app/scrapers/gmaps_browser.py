@@ -876,6 +876,15 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
             "Type %s done: found=%d, cumulative=%d", place_type, type_count, len(existing_ids)
         )
 
+        if max_results and len(existing_ids) >= max_results:
+            logger.info(
+                "max_results=%d reached after type %s — skipping remaining %d type(s)",
+                max_results,
+                place_type,
+                len(all_gmaps_types) - i - 1,
+            )
+            break
+
     all_resource_names = existing_ids.to_list()
     logger.info("Browser discovery complete: %d places found", len(all_resource_names))
 
