@@ -1,40 +1,46 @@
-# SoulStep – Mobile app (Expo)
+# SoulStep – Mobile App (Expo)
 
-Expo (React Native) app for SoulStep. Builds for iOS and Android. Uses the same API as the web app; feature parity with `apps/soulstep-customer-web` is maintained (see `.cursor/rules/frontend-replication.mdc`).
+Expo / React Native app for iOS and Android. Feature parity with `apps/soulstep-customer-web` — same API, same screens, same translation keys.
+
+Design reference: `FRONTEND_V3_LIGHT.html` (light mode) / `FRONTEND_V3_DARK.html` (dark mode) at repo root.
 
 ## Prerequisites
 
-- Node.js 18+
-- iOS: Xcode (for simulator or device)
-- Android: Android Studio / SDK (for emulator or device)
-- Optional: [Expo Go](https://expo.dev/go) on a device for quick testing
+- **Node.js 18+**
+- **iOS simulator**: Xcode (macOS only)
+- **Android emulator**: Android Studio with Android SDK
+- **Physical device**: Expo Go app (for quick testing without a native build)
 
-## Run
+## Quick Start
 
-From **repo root**:
+From repo root:
 
 ```bash
 npm install
 npm run dev:mobile
 ```
 
-From this directory:
+Or from this directory:
 
 ```bash
 npm install
 npx expo start
 ```
 
-Then press `i` for iOS simulator, `a` for Android emulator, or scan the QR code with Expo Go.
+Then:
+- Press `i` → iOS simulator
+- Press `a` → Android emulator
+- Scan QR code → Expo Go on device
 
-## Build for iOS/Android
+The backend must be running. For a physical device, set `EXPO_PUBLIC_API_URL` to your machine's LAN IP (e.g. `http://192.168.1.10:3000`) — simulators can use `http://127.0.0.1:3000`.
 
-**Development build (local):**
+## Build for Device
+
+**Local development build:**
 
 ```bash
-npx expo run:ios
-# or
-npx expo run:android
+npx expo run:ios       # requires Xcode
+npx expo run:android   # requires Android Studio
 ```
 
 **Production build (EAS Build):**
@@ -45,32 +51,21 @@ eas build --platform ios
 eas build --platform android
 ```
 
-Configure `app.json` / `app.config.js` (icons, splash, scheme). Submit to App Store / Play Store using EAS Submit or manually.
+Configure `app.json` / `app.config.js` (icons, splash screen, bundle identifier, scheme) before your first EAS build. Submit to App Store / Play Store using `eas submit` or manually.
 
-## Environment
+## Environment Variables
 
-- **`EXPO_PUBLIC_API_URL`** – Base URL of the API.
-- **`EXPO_PUBLIC_ADMOB_APP_ID_IOS`** – Optional. Google AdMob App ID for iOS. Replace the placeholder in `app.json` when ready.
-- **`EXPO_PUBLIC_ADMOB_APP_ID_ANDROID`** – Optional. Google AdMob App ID for Android. Replace the placeholder in `app.json` when ready. When unset, the app defaults to `http://127.0.0.1:3000` so the simulator can reach the backend. For a physical device, set this to your machine’s LAN IP (e.g. `http://192.168.1.10:3000`). The **backend must be running** (e.g. `cd soulstep-catalog-api && uvicorn app.main:app --reload --port 3000`) for the Home screen and other API features to work.
-- **`EXPO_PUBLIC_UMAMI_WEBSITE_ID`** – Optional. Umami Cloud website ID for privacy-friendly analytics. Sends directly to `cloud.umami.is/api/send` (no adblocker risk in native apps). Sign up at https://umami.is → free plan → Add website → copy Website ID. When unset, Umami is disabled.
+Copy `.env.example` to `.env` and set values. All `EXPO_PUBLIC_*` vars are bundled into the JS at build time.
 
-## Structure
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `EXPO_PUBLIC_API_URL` | Yes (device/prod) | `http://127.0.0.1:3000` | Backend API base URL. Simulators can use 127.0.0.1; physical devices need the LAN IP or prod URL. |
+| `EXPO_PUBLIC_INVITE_LINK_BASE_URL` | No | — | Base URL for group invite links. When unset, invite sharing is disabled. |
+| `EXPO_PUBLIC_ADMOB_APP_ID_IOS` | No | — | Google AdMob App ID for iOS (from AdMob console → App settings → App ID) |
+| `EXPO_PUBLIC_ADMOB_APP_ID_ANDROID` | No | — | Google AdMob App ID for Android |
+| `EXPO_PUBLIC_UMAMI_WEBSITE_ID` | No | — | Umami Cloud website ID for analytics. Sends directly to `cloud.umami.is` (no adblocker risk in native apps). |
 
-- `index.js` – Entry point.
-- `app.json` / `eas.json` – Expo config and EAS Build config.
-- `src/app/` – App shell: `App.tsx`, `providers.tsx`, `navigation.tsx`, `contexts/`, and all screens under `screens/`.
-- `src/app/screens/` – Screen components:
-  - **Core journey flow**: `HomeScreen` (Journey Dashboard), `OnboardingScreen` (first-visit 3-card flow), `MapDiscoveryScreen` (full-screen WebView map + horizontal carousel), `CreateGroupScreen` (4-step journey creation), `GroupDetailScreen` (journey detail — hero, timeline, tabs, glass bar)
-  - **Auth**: `LoginScreen`, `RegisterScreen`, `ForgotPasswordScreen`, `ResetPasswordScreen`
-  - **Places**: `PlaceDetailScreen`, `WriteReviewScreen`, `PlacesScreen`, `ExploreCitiesScreen`, `ExploreCityScreen`
-  - **User**: `ProfileScreen`, `EditProfileScreen`, `CheckInsListScreen`, `FavoritesScreen`, `NotificationsScreen`
-  - **Groups (legacy)**: `GroupsScreen`, `EditGroupScreen`, `EditGroupPlacesScreen`, `JoinGroupScreen`
-  - **Utility**: `SplashScreen`, `SearchScreen`
-- `src/lib/` – Shared utilities: `api/client.ts` (API client), `types/` (TypeScript types), `theme.ts`, `constants.ts`, `share.ts`, `hooks/` (useAnalytics — batched event ingestion, consent gating, AppState background flush, in-memory session ID), `utils/`.
-- `src/stores/` – State stores.
-- `src/components/` – Shared UI components: `ads/` (AdProvider, AdBannerNative, AdInterstitial, useAdConsent, ad-constants), `consent/` (ConsentBanner), `analytics/` (AnalyticsProviderConnected).
-
-Design reference: `FRONTEND_V3_LIGHT.html` / `FRONTEND_V3_DARK.html` at repo root. Use the same translation keys and API shapes as `apps/soulstep-customer-web`.
+**EAS secrets** (for production builds): `eas secret:create --name VAR_NAME --value VALUE`
 
 ## Tests
 
@@ -80,12 +75,68 @@ npm test
 
 Tests live in `src/__tests__/`. Uses Jest + jest-expo. Covers pure logic (utilities, hooks, transformers) — not component rendering.
 
-## Error Tracking (GlitchTip / Sentry)
+## Directory Structure
 
-GlitchTip integration requires native Sentry modules which need a full native build (not Expo Go). To enable:
+```
+src/
+  app/
+    App.tsx              # Root component
+    providers.tsx        # Auth + i18n providers
+    navigation.tsx       # Stack and tab navigation definitions
+    screens/             # All screen components (see Screens below)
+    contexts/            # React contexts
+  lib/
+    api/client.ts        # API client (all endpoints)
+    types/               # TypeScript types (uses *_code identifiers)
+    theme.ts             # Design tokens (colors, spacing)
+    constants.ts
+    share.ts
+    hooks/               # useAnalytics, batched event ingestion
+    utils/
+  components/
+    ads/                 # AdProvider, AdBannerNative, AdInterstitial
+    consent/             # ConsentBanner
+    analytics/           # AnalyticsProviderConnected
+    common/              # ErrorBoundary and shared UI
+  stores/                # State stores
+index.js                 # Entry point
+app.json                 # Expo config
+eas.json                 # EAS Build config
+```
+
+## Screens
+
+| Screen | Stack | Description |
+|---|---|---|
+| `HomeScreen` | Bottom tab | Journey Dashboard — active journey card, quick actions, carousels |
+| `OnboardingScreen` | Stack | 3-card first-visit onboarding flow |
+| `MapDiscoveryScreen` | Bottom tab | Full-screen WebView map + horizontal carousel |
+| `PlaceDetailScreen` | Stack | Place detail with FAQ, nearby places |
+| `PlacesScreen` | Stack | All sacred sites list |
+| `ExploreCitiesScreen` | Stack | City browse |
+| `ExploreCityScreen` | Stack | Places in a city |
+| `CreateGroupScreen` | Stack | 4-step journey creation flow |
+| `GroupDetailScreen` | Stack | Journey detail — hero, timeline, tabs, glass bar |
+| `EditGroupScreen` | Stack | Edit journey settings |
+| `EditGroupPlacesScreen` | Stack | Edit journey place list |
+| `ProfileScreen` | Bottom tab | User stats, settings, dark mode |
+| `EditProfileScreen` | Stack | Update display name |
+| `CheckInsListScreen` | Stack | Check-in history |
+| `FavoritesScreen` | Stack | Saved places |
+| `NotificationsScreen` | Stack | Notification list |
+| `LoginScreen` | Auth | Email + password sign-in |
+| `RegisterScreen` | Auth | Account creation |
+| `ForgotPasswordScreen` | Auth | Password reset request |
+| `ResetPasswordScreen` | Auth | Set new password |
+| `SearchScreen` | Stack | Place search |
+| `SplashScreen` | Root | Loading gate (waits for translations + auth) |
+
+## Error Tracking
+
+GlitchTip / Sentry integration requires a full native build (not Expo Go):
 
 ```bash
 npx expo install @sentry/react-native
 ```
 
-Then follow the [Sentry React Native setup guide](https://docs.sentry.io/platforms/react-native/) to configure the DSN and wrap the root component. The `ErrorBoundary` component in `src/components/common/ErrorBoundary.tsx` already has a placeholder comment for `Sentry.captureException(error)` in `componentDidCatch`.
+Follow the [Sentry React Native setup guide](https://docs.sentry.io/platforms/react-native/) to configure the DSN and wrap the root component.

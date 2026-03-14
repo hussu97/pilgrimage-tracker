@@ -1,40 +1,33 @@
-# SoulStep – Admin Web
+# SoulStep – Admin Dashboard
 
-Vite + React + TypeScript + Tailwind admin dashboard for SoulStep. All admin functionality lives in this folder (`apps/soulstep-admin-web`): pages, API client, and components. Requires an admin-role user account on the backend.
+Vite + React + TypeScript + Tailwind admin dashboard. Manages all SoulStep data: users, places, groups, reviews, scraper runs, translations, analytics, and more.
 
 ## Prerequisites
 
-- **Backend must be running** for any API calls to work. From `soulstep-catalog-api/`: `uvicorn app.main:app --reload --port 3000`.
-- An account with `role = admin` in the database.
+- **Backend must be running**: `cd soulstep-catalog-api && uvicorn app.main:app --reload --port 3000`
+- **Admin account**: a user with `role = admin` in the database. On first startup, create one via `POST /api/v1/auth/register`, then update the role directly in the database or via a seed script.
 
-## Run locally
+## Quick Start
 
-1. Start the **backend** first:
-
-   ```bash
-   cd soulstep-catalog-api
-   source .venv/bin/activate
-   uvicorn app.main:app --reload --port 3000
-   ```
+1. Start the backend (see Prerequisites).
 
 2. Start the admin app:
 
-   **Option 1 – from this directory:**
-
    ```bash
+   cd apps/soulstep-admin-web
    npm install
    npm run dev
    ```
 
-   **Option 2 – from repo root (if a monorepo script is configured):**
+   Or from repo root (if monorepo script is configured):
 
    ```bash
    npm run dev:admin
    ```
 
-3. Open **http://127.0.0.1:5174** in your browser (use `127.0.0.1`—not `localhost`—on macOS to avoid IPv6 issues).
+3. Open **http://127.0.0.1:5174** (use `127.0.0.1`, not `localhost`, on macOS).
 
-The dev server **proxies** `/api` requests to `http://127.0.0.1:3000` by default. API requests use relative URLs (`/api/v1/...`) so no env var is needed in dev.
+The dev server proxies `/api` requests to `http://127.0.0.1:3000` by default — no env var needed in dev.
 
 ## Build
 
@@ -42,44 +35,17 @@ The dev server **proxies** `/api` requests to `http://127.0.0.1:3000` by default
 npm run build
 ```
 
-Output: `dist/`.
+Output in `dist/`. In production, the build is deployed to Firebase Hosting (see PRODUCTION.md).
 
-## Environment
+## Environment Variables
 
-- **`API_PROXY_TARGET`** – Optional. Catalog API URL the Vite dev server proxies `/api` calls to (default `http://127.0.0.1:3000`). Not `VITE_`-prefixed — never sent to the browser. Set to the prod catalog API URL for local-dev hybrid mode.
-- **`VITE_SCRAPER_API_URL`** – Optional. When set, scraper API calls go directly to this URL (e.g. `http://127.0.0.1:8001`) instead of through the catalog proxy. Use for local-dev hybrid mode (local scraper + prod catalog).
-- **`VITE_FRONTEND_URL`** – Optional. Customer web URL for SEO place preview links (default `https://soul-step.org`).
+Copy `.env.example` to `.env.local` and set values.
 
-## Structure
-
-Under `src/`:
-
-- **`app/`** – App shell and pages: `App.tsx`, `router.tsx`, `providers/` (auth, theme), and all admin pages under `app/pages/`.
-- **`app/pages/`** – One subdirectory per domain:
-  - `DashboardPage.tsx`, `LoginPage.tsx`, `AccessDeniedPage.tsx`
-  - `users/` – `UsersListPage.tsx`, `UserDetailPage.tsx`
-  - `places/` – `PlacesListPage.tsx` (name search + city/country address filter), `PlaceDetailPage.tsx`, `CreatePlacePage.tsx`
-  - `reviews/` – `ReviewsListPage.tsx`, `ReviewDetailPage.tsx`
-  - `groups/` – `GroupsListPage.tsx`, `GroupDetailPage.tsx`
-  - `check-ins/` – `CheckInsListPage.tsx`
-  - `notifications/` – `NotificationManagementPage.tsx`
-  - `scraper/` – `ScraperOverviewPage.tsx`, `ScraperRunsPage.tsx`, `RunDetailPage.tsx` (4 tabs: Scraped Places, Discovery Cells, Raw Data, **Map**), `DataLocationsPage.tsx`, `CollectorsPage.tsx`, `PlaceTypeMappingsPage.tsx`. Runs list shows current pipeline stage and a Resume button for `interrupted`/`failed` runs. Run detail shows a 3-step stage indicator (Discovery → Detail Fetch → Enrichment), error message alerts, and a Resume button. Scraped Places table has clickable rows: clicking any row expands an inline quality-score breakdown panel. The Map tab renders an OpenStreetMap view with colored rectangles (discovery cells) and dot markers (places). Deleting a run shows a confirmation modal with an optional "Also delete synced catalog places" checkbox (enabled only when `places_synced > 0`).
-  - `QualityMetricsPage.tsx` is now a **top-level route** at `/quality` (sidebar item "Quality"). Old URL `/scraper/quality` redirects to `/quality`.
-  - `content/` – `TranslationsPage.tsx`, `ContentTranslationsPage.tsx`, `PlaceAttributesPage.tsx`, `AppVersionsPage.tsx`
-  - `audit-log/` – `AuditLogPage.tsx`
-  - `analytics/` – `AnalyticsDashboardPage.tsx` — overview stat cards, event trends line chart, event type & platform pie charts, top-places bar chart, paginated raw event log with filters
-- **`components/`** – Shared UI: layout shell, shared widgets, Radix UI primitives.
-- **`lib/`** – API clients (`lib/api/client.ts`, `lib/api/admin.ts`, `lib/api/scraper.ts`, `lib/api/stats.ts`, `lib/api/analytics.ts`), shared types (`lib/api/types.ts`), hooks, utils.
-- **`main.tsx`**, **`index.css`** – Entry and global styles.
-
-## API surface
-
-The admin app calls `/api/v1/admin/*` routes (requires Bearer token with admin role). Key modules:
-
-- **`lib/api/admin.ts`** – Users, places, groups, reviews, check-ins, notifications, translations, content translations, place attributes, bulk operations, data export, audit log, app versions.
-- **`lib/api/scraper.ts`** – Data locations, scraper runs, collectors, place type mappings, quality metrics, `getMapCells()`, `getMapPlaces()` (proxied via catalog API).
-- **`lib/api/stats.ts`** – Dashboard stats.
-- **`lib/api/analytics.ts`** – Analytics overview, top places, trends, event log (`GET /admin/analytics/*`).
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `API_PROXY_TARGET` | No | `http://127.0.0.1:3000` | Catalog API URL for the Vite dev server proxy. **Not `VITE_`-prefixed** — never sent to the browser. Set to the prod catalog URL for local-dev hybrid mode (local admin + prod catalog). |
+| `VITE_SCRAPER_API_URL` | No | — | When set, scraper API calls go directly to this URL (e.g. `http://127.0.0.1:8001`) instead of through the catalog proxy. Use for local-dev hybrid mode (local scraper + prod catalog). |
+| `VITE_FRONTEND_URL` | No | `https://soul-step.org` | Customer web frontend URL — used to generate place preview links in the SEO detail view. |
 
 ## Tests
 
@@ -88,3 +54,83 @@ npm test
 ```
 
 Tests live in `src/__tests__/`. Uses Vitest. Covers pure logic (utilities, hooks).
+
+## Directory Structure
+
+```
+src/
+  app/
+    App.tsx
+    router.tsx
+    providers/           # Auth, theme
+    pages/               # One subdirectory per domain (see Pages below)
+  components/
+    layout/              # Sidebar, header, nav shell
+    shared/              # Pagination, tables, form primitives, Radix UI wrappers
+  lib/
+    api/
+      client.ts          # Base HTTP client
+      admin.ts           # Admin CRUD endpoints (users, places, groups, reviews, …)
+      scraper.ts         # Scraper proxy endpoints (locations, runs, collectors, map)
+      stats.ts           # Dashboard stats
+      analytics.ts       # Analytics endpoints
+    types.ts             # Shared TypeScript types
+    hooks/               # usePagination, useDebounce, …
+    utils/
+  main.tsx
+  index.css
+```
+
+## Pages
+
+| Path | Page | Description |
+|---|---|---|
+| `/` | Dashboard | Overview stats, quick links |
+| `/login` | Login | Admin sign-in |
+| `/users` | UsersList | Paginated user table with search |
+| `/users/:userCode` | UserDetail | User profile, check-ins, groups |
+| `/places` | PlacesList | Name search + city/country filter |
+| `/places/new` | CreatePlace | Manual place creation |
+| `/places/:placeCode` | PlaceDetail | Place detail + SEO status + inline edit |
+| `/reviews` | ReviewsList | All reviews with filters |
+| `/reviews/:reviewCode` | ReviewDetail | Review moderation |
+| `/groups` | GroupsList | All groups |
+| `/groups/:groupCode` | GroupDetail | Group detail + members |
+| `/check-ins` | CheckInsList | All check-ins |
+| `/notifications` | NotificationManagement | Create/delete notifications |
+| `/scraper` | ScraperOverview | Scraper status overview |
+| `/scraper/runs` | ScraperRuns | Paginated run list with stage + resume button |
+| `/scraper/runs/:runCode` | RunDetail | 4 tabs: Places, Cells, Raw Data, Map |
+| `/scraper/locations` | DataLocations | Geographic scraping locations |
+| `/scraper/collectors` | Collectors | Available collector list |
+| `/scraper/place-types` | PlaceTypeMappings | Google type → internal type mappings |
+| `/quality` | QualityMetrics | Score distribution, gate breakdown, per-run summary |
+| `/content/translations` | Translations | All translation keys across 5 languages |
+| `/content/content-translations` | ContentTranslations | Place description translations |
+| `/content/attributes` | PlaceAttributes | Attribute definitions and values |
+| `/content/app-versions` | AppVersions | Mobile version enforcement config |
+| `/audit-log` | AuditLog | Paginated admin action log |
+| `/analytics` | AnalyticsDashboard | Event trends, top places, platform breakdown, raw event log |
+
+## API Surface
+
+The admin app calls `/api/v1/admin/*` (Bearer token, admin role required).
+
+| Module | Covers |
+|---|---|
+| `lib/api/admin.ts` | Users, places, groups, reviews, check-ins, notifications, translations, content translations, place attributes, bulk operations, data export, audit log, app versions, SEO |
+| `lib/api/scraper.ts` | Data locations, scraper runs, collectors, place type mappings, quality metrics, map cells, map places (all proxied via catalog API) |
+| `lib/api/stats.ts` | Dashboard stats (total users, places, check-ins, groups) |
+| `lib/api/analytics.ts` | Overview cards, top-places chart, event trends, paginated raw event log |
+
+## Scraper Map View
+
+The **Map** tab in `RunDetail` renders an OpenStreetMap view with:
+- **Colored rectangles** — discovery cells (quadtree regions searched during discovery)
+- **Dot markers** — scraped places with lat/lng (zero-coord places excluded)
+
+Clicking a scraped place row in the **Places** tab expands an inline quality-score breakdown panel.
+
+## Pagination Standard
+
+All paginated tables use the shared `Pagination` component with page size options: **50** (default), 100, 200, 500, 1000, 2000. Use `usePagination(50)` for all new tables.

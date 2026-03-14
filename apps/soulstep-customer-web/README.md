@@ -1,47 +1,36 @@
-# SoulStep – Web app
+# SoulStep – Web App
 
-Vite + React + TypeScript + Tailwind frontend for SoulStep. **All functionality lives in this folder** (`apps/soulstep-customer-web`): pages, API client, types, and context. It runs in desktop and mobile browsers and talks to the backend API (same contract as the Expo mobile app; see repo root for architecture).
+Vite + React + TypeScript + Tailwind frontend. Runs in desktop and mobile browsers. Feature parity with `apps/soulstep-customer-mobile`.
 
-## Prerequisites
+Design reference: `FRONTEND_V3_LIGHT.html` (light mode) / `FRONTEND_V3_DARK.html` (dark mode) at repo root.
 
-- **Backend must be running** for any API calls to work. From `soulstep-catalog-api/`: `uvicorn app.main:app --reload --port 3000`. If the backend is not on port 3000, see Environment below.
+## Quick Start
 
-## Run locally
-
-1. Start the **backend** first (from repo root or `soulstep-catalog-api/`):
+1. Start the backend:
 
    ```bash
    cd soulstep-catalog-api
-   source .venv/bin/activate   # or .venv\Scripts\activate on Windows
+   source .venv/bin/activate
    uvicorn app.main:app --reload --port 3000
    ```
 
-2. Start the app:
-
-   **Option 1 – from repo root (monorepo script):**
+2. Start the web app (from repo root):
 
    ```bash
    npm install
    npm run dev:web
    ```
 
-   **Option 2 – from this directory:**
+   Or from this directory:
 
    ```bash
    npm install
    npm run dev
    ```
 
-3. Open **http://127.0.0.1:5173** in your browser (use `127.0.0.1`—not `localhost`—on macOS to avoid IPv6 and pending API requests). If the terminal shows "Network: use --host to expose", that's normal for local dev; the app is still available at 127.0.0.1:5173.
+3. Open **http://127.0.0.1:5173** (use `127.0.0.1`, not `localhost`, on macOS to avoid IPv6 issues).
 
-The dev server **proxies** requests to the backend: any request to `/api` is forwarded to `http://127.0.0.1:3000`. The app uses relative URLs (`/api/v1/...`) when `VITE_API_URL` is unset.
-
-**If the app does not call the backend or requests stay "pending":**
-
-1. Ensure the backend is running (see step 1 above).
-2. Open the app at **http://127.0.0.1:5173** (not localhost).
-3. Use the dev server; do not open the built `dist/` files directly (no proxy there).
-4. If the backend runs on another port, set `VITE_PROXY_TARGET=http://127.0.0.1:PORT` before starting the dev server, or set `VITE_API_URL=http://127.0.0.1:PORT` for a direct API URL.
+The dev server proxies `/api` requests to `http://127.0.0.1:3000` automatically.
 
 ## Build
 
@@ -49,62 +38,90 @@ The dev server **proxies** requests to the backend: any request to `/api` is for
 npm run build
 ```
 
-Output: `dist/`. For production, set `VITE_API_URL` to the production API base URL at build time (e.g. `https://api.example.com`).
+Output in `dist/`. Set `VITE_API_URL` to the production API URL at build time.
 
-## Environment
+## Environment Variables
 
-- **`VITE_API_URL`** – Optional. When **unset**, the app uses relative URLs (`/api/v1/...`), so in dev the Vite proxy sends them to the backend. When **set** (e.g. for production or a different backend port), all API requests use this base URL. **Use `127.0.0.1` only—not `localhost`** (localhost can resolve to IPv6 on macOS). Restart the dev server after changing env.
-- **`VITE_PROXY_TARGET`** – Optional. Proxy target for `/api` in dev (default `http://127.0.0.1:3000`). Use `127.0.0.1` only—not `localhost`. Restart the dev server after changing.
-- **`VITE_GLITCHTIP_DSN`** – Optional. GlitchTip (Sentry-compatible) DSN for error tracking. When unset, error tracking is disabled. Obtain from your GlitchTip project settings (e.g. `https://<key>@app.glitchtip.com/<project>`).
-- **`VITE_ADSENSE_PUBLISHER_ID`** – Optional. Google AdSense publisher ID (e.g. `ca-pub-xxxxxxxxxxxxxxxx`). When unset, ad provider uses backend config only.
-- **`VITE_UMAMI_WEBSITE_ID`** – Optional. Umami Cloud website ID for privacy-friendly analytics. The script is proxied via `/umami/script.js` to bypass adblockers (same-origin). Sign up at https://umami.is → free plan → Add website → copy Website ID. When unset, Umami is disabled.
+Copy `.env.example` to `.env` and set values as needed.
 
-## Structure
-
-Under `src/`:
-
-- **`app/`** – App shell and pages: `App.tsx`, `providers.tsx` (auth + i18n), `routes.tsx`, and all screens under `app/pages/` (Splash, Login, Register, Home, PlaceDetail, Profile, Favorites, Groups, Notifications, Settings, etc.).
-- **`components/`** – Shared UI: Layout, ProtectedRoute, PlaceCard, PlacesMap, EmptyState, ErrorState, `ads/` (AdProvider, AdBanner, useAdConsent, ad-constants), `consent/` (ConsentBanner), `analytics/` (AnalyticsProviderConnected).
-- **`lib/`** – API client (`lib/api/client.ts`), shared types (`lib/types/index.ts`), theme, constants, share helpers. The API client calls `/api/v1/*` (relative when `VITE_API_URL` is unset). Hooks: `useAnalytics`, `useAuthRequired`, `useDocumentTitle`, `useHead` (dynamic meta/OG/JSON-LD injection).
-- **`main.tsx`**, **`index.css`** – Entry and global styles.
-
-Design reference: `FRONTEND_V3_LIGHT.html` / `FRONTEND_V3_DARK.html` at repo root.
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `VITE_API_URL` | Yes (prod) | — (relative `/api`) | Production API base URL — baked in at build time. Unset in dev to use the Vite proxy. |
+| `VITE_API_BASE_URL` | No | `https://api.soul-step.org` | Public API URL shown on the Developers page |
+| `VITE_PROXY_TARGET` | No | `http://127.0.0.1:3000` | Dev server proxy target for `/api`. No effect in production builds. |
+| `VITE_ADSENSE_PUBLISHER_ID` | No | — | Google AdSense publisher ID. When unset, ads use backend config only. |
+| `VITE_GLITCHTIP_DSN` | No | — | GlitchTip (Sentry-compatible) DSN for client-side error tracking. |
+| `VITE_UMAMI_WEBSITE_ID` | No | — | Umami Cloud website ID for privacy-friendly analytics. Script proxied via `/umami/script.js`. |
 
 ## Tests
 
 ```bash
-npm test
+npm test                   # Vitest unit tests
+npx tsc --noEmit           # TypeScript type check (Vitest does not type-check)
 ```
 
-Also run the TypeScript check (Vitest does not type-check):
+Tests live in `src/__tests__/`. Covers pure logic (utilities, hooks, transformers) — not component rendering.
 
-```bash
-npx tsc --noEmit
+## Directory Structure
+
+```
+src/
+  app/
+    App.tsx                # Root component
+    providers.tsx          # Auth + i18n providers
+    routes.tsx             # Route definitions
+    pages/                 # All page components
+  components/
+    Layout.tsx             # Responsive nav shell
+    PlaceCard.tsx          # Place list card
+    PlacesMap.tsx          # Leaflet map with place markers
+    ProtectedRoute.tsx     # Auth guard
+    ads/                   # AdProvider, AdBanner, useAdConsent
+    consent/               # ConsentBanner
+    analytics/             # AnalyticsProviderConnected
+  lib/
+    api/client.ts          # API client (all endpoints)
+    types/index.ts         # TypeScript types (uses *_code identifiers)
+    hooks/                 # useAnalytics, useAuthRequired, useDocumentTitle, useHead
+    theme.ts               # Design tokens
+    constants.ts
+    share.ts
+  main.tsx
+  index.css
 ```
 
-Tests live in `src/__tests__/`. Uses Vitest. Covers pure logic (utilities, hooks, transformers) — not component rendering.
+## Routes
 
-## Parity reference (for mobile)
+| Route | Page | Description |
+|---|---|---|
+| `/` | → `/home` | Redirect |
+| `/home` | Home | Journey Dashboard — active journey, quick actions, carousels |
+| `/onboarding` | Onboarding | 3-card first-visit onboarding flow |
+| `/map` | MapDiscovery | Full-screen Leaflet map + search/filter overlay |
+| `/places` | Places | All sacred sites list |
+| `/places/:placeCode` | PlaceDetail | Place detail with JSON-LD, FAQ, nearby places |
+| `/journeys/new` | CreateGroup | 4-step journey creation flow |
+| `/journeys/:groupCode` | GroupDetail | Hero, timeline, tabs, glass bar |
+| `/journeys/:groupCode/edit` | EditGroup | Edit journey settings |
+| `/journeys/:groupCode/edit-places` | EditGroupPlaces | Edit journey place list |
+| `/explore` | ExploreCities | City browse page |
+| `/explore/:city` | ExploreCity | Places in a city |
+| `/profile` | Profile | User stats and settings |
+| `/login` | Login | Email + password sign-in |
+| `/register` | Register | Account creation |
+| `/developers` | Developers | API documentation page |
 
-Canonical **screens / routes** (see `app/routes.tsx` and `app/pages/`):
+## API Surface
 
-| Route | Page |
-|---|---|
-| `/` | → `/home` |
-| `/home` | Journey Dashboard (Home.tsx) — active journey card, quick actions, recommended + popular carousels |
-| `/onboarding` | 3-card first-visit onboarding flow |
-| `/map` | Map-First Discovery (MapDiscovery.tsx) — full-screen Leaflet + search/filter overlay |
-| `/places/:placeCode` | Place Detail |
-| `/journeys/new` | Journey Creation 4-step flow (CreateGroup.tsx) |
-| `/journeys/:groupCode` | Journey Detail (GroupDetail.tsx) — hero, timeline, tabs, glass bar |
-| `/journeys/:groupCode/edit` | Edit Journey |
-| `/journeys/:groupCode/edit-places` | Edit Journey Places |
-| `/groups/*` | Legacy aliases (deep-link compat) |
-| `/explore` | Explore Cities |
-| `/explore/:city` | Explore City |
-| `/places` | All Sacred Sites list |
-| `/profile` | Profile |
-| `/login` / `/register` | Auth |
-| `/developers` | API Docs |
+The API client (`lib/api/client.ts`) covers:
 
-**API surface** (see `lib/api/client.ts`): auth (login, register, forgot/reset, me), users (getMe, updateMe, check-ins, stats, favorites, settings), places (getPlaces, getPlace, reviews, checkIn, favorite, createReview, **getRecommended**), reviews (updateReview, deleteReview), groups (list, create, get, by-invite, join-by-code, join, members, invite, leaderboard, activity, checklist, addPlace, notes, **getFeatured**, **optimizeRoute**), notifications (get, markRead), cities (getCities, getCityPlaces, getCityReligionPlaces), i18n (getLanguages, getTranslations). Types in `lib/types/index.ts` use `user_code`, `place_code`, `religions` array.
+- **Auth**: login, register, forgot-password, reset-password
+- **Users**: getMe, updateMe, getSettings, updateSettings, check-ins, stats, favorites
+- **Places**: getPlaces, getPlace, reviews, checkIn, favorite, createReview, getRecommended
+- **Reviews**: updateReview, deleteReview
+- **Groups**: list, create, get, update, delete, by-invite, join-by-code, join, leave, members, invite, leaderboard, activity, checklist, addPlace, notes, getFeatured, optimizeRoute
+- **Notifications**: get, markRead
+- **Cities**: getCities, getCityPlaces, getCityReligionPlaces
+- **i18n**: getLanguages, getTranslations
+
+All types use `*_code` string identifiers (e.g. `place_code`, `user_code`). See `lib/types/index.ts`.

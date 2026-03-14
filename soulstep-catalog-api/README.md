@@ -1,194 +1,219 @@
-# SoulStep API (Python + FastAPI)
+# SoulStep Catalog API
 
-Backend for SoulStep. Versioned API at `/api/v1`. **Python 3.11+** required. On macOS, use `brew install python@3.12` (or latest) then create the venv with `python3 -m venv .venv`.
+Python + FastAPI backend for SoulStep. Versioned REST API at `/api/v1`. SQLite (dev) / PostgreSQL (prod).
 
-## Run
-
-From this directory (`soulstep-catalog-api/`):
+## Quick Start
 
 ```bash
+cd soulstep-catalog-api
 python3 -m venv .venv
-source .venv/bin/activate   # or .venv\Scripts\activate on Windows
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 3000
 ```
 
-The API will be at `http://localhost:3000`. The web and mobile apps proxy `/api` to this port when running in dev.
+API runs at **http://127.0.0.1:3000**. Interactive docs at `/docs`.
 
-## Troubleshooting
+If port 3000 is occupied: `lsof -ti :3000 | xargs kill -9`
 
-### Port 3000 Already in Use
+## Environment Variables
 
-If you get an "Address already in use" error, the port is still occupied by a previous process. Kill it with:
+Copy `.env.example` to `.env` and fill in values. Key variables:
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `JWT_SECRET` | **Yes (prod)** | `dev-secret-change-in-production` | JWT signing secret |
+| `JWT_EXPIRE` | No | `30m` | Access token lifetime (`30m`, `1h`, `7d`, or integer minutes) |
+| `REFRESH_EXPIRE` | No | `30d` | Refresh token lifetime |
+| `DATABASE_URL` | **Yes (prod)** | SQLite `soulstep.db` | PostgreSQL connection string |
+| `PORT` | No | `3000` | Server listen port |
+| `CORS_ORIGINS` | No | localhost dev origins | Space-separated allowed origins |
+| `FRONTEND_URL` | **Yes (prod)** | `http://localhost:5173` | Public web frontend URL — sitemap, JSON-LD, email links |
+| `API_BASE_URL` | No | `http://localhost:3000` | Public API URL — RSS/Atom feed self links |
+| `RESEND_API_KEY` | No | — | Resend.com key for password-reset emails |
+| `RESEND_FROM_EMAIL` | No | `noreply@soul-step.org` | Sender address for emails |
+| `RESET_URL_BASE` | No | `http://localhost:5173` | Frontend base URL for reset links |
+| `GOOGLE_MAPS_API_KEY` | No | — | Required for place search autocomplete |
+| `GOOGLE_CLOUD_PROJECT` | No | — | GCP project ID — required for GCS image backend and Cloud Translation |
+| `TRANSLATION_BACKEND` | No | `api` | `api` or `browser` |
+| `BROWSER_POOL_SIZE` | No | `2` | Concurrent browser contexts (browser translation only) |
+| `BROWSER_MAX_TRANSLATIONS` | No | `50` | Translations per context before recycling |
+| `BROWSER_TRANSLATE_MULTI_SIZE` | No | `5` | Batch size per multi-translate request |
+| `BROWSER_HEADLESS` | No | `true` | Browser headless mode |
+| `IMAGE_STORAGE` | No | `blob` | `blob` (DB) or `gcs` (Google Cloud Storage) |
+| `GCS_BUCKET_NAME` | No | — | GCS bucket name (required when `IMAGE_STORAGE=gcs`) |
+| `GOOGLE_APPLICATION_CREDENTIALS` | No | — | Service account JSON path — not needed on Cloud Run (uses ADC) |
+| `ADS_ENABLED` | No | `false` | Master ads switch |
+| `ADSENSE_PUBLISHER_ID` | No | — | Google AdSense publisher ID |
+| `ADMOB_APP_ID_IOS` | No | — | AdMob App ID for iOS |
+| `ADMOB_APP_ID_ANDROID` | No | — | AdMob App ID for Android |
+| `MIN_APP_VERSION_SOFT` | No | — | Soft-update version threshold (banner shown below this) |
+| `MIN_APP_VERSION_HARD` | No | — | Hard-update version threshold (HTTP 426 below this) |
+| `LATEST_APP_VERSION` | No | — | Current latest release |
+| `DATA_SCRAPER_URL` | No | — | Scraper API URL for admin proxy endpoints |
+| `SCRAPER_DATABASE_URL` | No | — | Scraper's PostgreSQL URL — used by the sync-places job |
+| `GLITCHTIP_DSN` | No | — | Sentry-compatible DSN for server-side error tracking |
+| `LOG_LEVEL` | No | `INFO` | Log level: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+| `LOG_FORMAT` | No | `json` | `json` (production) or `text` (local dev) |
+
+## API Endpoints
+
+### Core
+- `GET /health` — health check
+- `GET /api/v1/app-version` — min/latest app version config
+
+### Auth (`/api/v1/auth`)
+- `POST /api/v1/auth/register` — register (email, password, display_name)
+- `POST /api/v1/auth/login` — login, returns JWT
+- `POST /api/v1/auth/forgot-password` — request password-reset email
+- `POST /api/v1/auth/reset-password` — reset password with token
+
+### Users (`/api/v1/users`)
+- `GET /api/v1/users/me` — current user profile
+- `PATCH /api/v1/users/me` — update profile (display_name)
+- `GET /api/v1/users/me/settings` — user settings
+- `PATCH /api/v1/users/me/settings` — update settings (theme, language, religions, etc.)
+- `GET /api/v1/users/me/check-ins` — all check-ins for current user
+- `GET /api/v1/users/me/stats` — places visited, check-ins this year
+- `GET /api/v1/users/me/favorites` — favorited places
+
+### Places (`/api/v1/places`)
+- `GET /api/v1/places` — list places (filters: religion, lat/lng/radius, open_now, parking, top_rated, cursor pagination, lang)
+- `GET /api/v1/places/{placeCode}` — place detail
+- `GET /api/v1/places/{placeCode}/reviews` — reviews for a place
+- `POST /api/v1/places/{placeCode}/check-in` — check in
+- `POST /api/v1/places/{placeCode}/favorite` — add to favorites
+- `DELETE /api/v1/places/{placeCode}/favorite` — remove from favorites
+- `POST /api/v1/places/{placeCode}/reviews` — create review
+- `POST /api/v1/places` — create place (scraper sync)
+- `POST /api/v1/places/batch` — batch create places (scraper sync)
+- `GET /api/v1/places/{placeCode}/image/{imageCode}` — serve place image
+
+### Cities (`/api/v1/cities`)
+- `GET /api/v1/cities` — all cities with place counts (query: limit, offset)
+- `GET /api/v1/cities/{city_slug}` — places in a city (query: page, page_size≤200)
+- `GET /api/v1/cities/{city_slug}/{religion}` — city places filtered by religion
+
+### Reviews (`/api/v1/reviews`)
+- `PATCH /api/v1/reviews/{reviewCode}` — update review
+- `DELETE /api/v1/reviews/{reviewCode}` — delete review
+
+### Groups (`/api/v1/groups`)
+- `GET /api/v1/groups` — list user's groups
+- `POST /api/v1/groups` — create group
+- `GET /api/v1/groups/{groupCode}` — group detail
+- `PATCH /api/v1/groups/{groupCode}` — update group
+- `DELETE /api/v1/groups/{groupCode}` — delete group
+- `POST /api/v1/groups/{groupCode}/join` — join group
+- `DELETE /api/v1/groups/{groupCode}/leave` — leave group
+- `GET /api/v1/groups/{groupCode}/members` — list members
+- `DELETE /api/v1/groups/{groupCode}/members/{userCode}` — remove member
+- `PATCH /api/v1/groups/{groupCode}/members/{userCode}/role` — update member role
+- `GET /api/v1/groups/{groupCode}/leaderboard` — check-in leaderboard
+- `GET /api/v1/groups/{groupCode}/activity` — activity feed
+- `GET /api/v1/groups/{groupCode}/checklist` — place checklist
+- `POST /api/v1/groups/{groupCode}/places/{placeCode}` — add place to itinerary
+- `GET /api/v1/groups/{groupCode}/places/{placeCode}/notes` — place notes
+- `POST /api/v1/groups/{groupCode}/places/{placeCode}/notes` — add note
+- `DELETE /api/v1/groups/{groupCode}/notes/{noteCode}` — delete note
+- `POST /api/v1/groups/{groupCode}/invite` — create invite link
+- `GET /api/v1/groups/by-invite/{inviteCode}` — look up group by invite code
+- `POST /api/v1/groups/join-by-invite` — join via invite code
+- `POST /api/v1/groups/{groupCode}/cover` — upload cover image
+- `GET /api/v1/groups/cover-image/{imageCode}` — serve cover image
+
+### Notifications (`/api/v1/notifications`)
+- `GET /api/v1/notifications` — list notifications
+- `PATCH /api/v1/notifications/{notificationCode}/read` — mark as read
+
+### Search (`/api/v1/search`)
+- `GET /api/v1/search/autocomplete` — place name autocomplete (Google Places proxy; cached 10 min)
+- `GET /api/v1/search/place-details` — place details by place ID
+
+### Visitors (`/api/v1/visitors`)
+- `POST /api/v1/visitors` — create anonymous visitor session
+- `GET /api/v1/visitors/{visitorCode}/settings` — visitor settings
+- `PATCH /api/v1/visitors/{visitorCode}/settings` — update visitor settings
+
+### Ads & Consent
+- `GET /api/v1/ads/config?platform=web|ios|android` — ad config; no auth
+- `POST /api/v1/consent` — record consent (auth optional, supports visitor_code)
+- `GET /api/v1/consent` — current consent status
+
+### Analytics (`/api/v1/analytics`)
+- `POST /api/v1/analytics/events` — batch ingest events (max 50/req, 10 req/min)
+
+### i18n
+- `GET /api/v1/languages` — supported languages; no auth
+- `GET /api/v1/translations?lang=en` — translation key→value for locale; no auth
+
+### Share & SEO
+- `GET /share/{shareCode}` — resolve share link
+- `GET /share/about`, `/share/how-it-works`, `/share/coverage` — static info pages
+- `GET /sitemap.xml`, `/sitemap-images.xml` — sitemaps
+- `GET /robots.txt`, `/llms.txt`, `/ai-plugin.json` — AI/search crawler files
+- `GET /feed.xml`, `/feed.atom` — RSS and Atom feeds
+
+### Admin (`/api/v1/admin`) — requires admin role
+
+| Group | Endpoints |
+|---|---|
+| Users | List, get, update, delete, export |
+| Places | List, get, create, update, delete (single/batch/all), bulk SEO |
+| Groups | List, get, update, delete |
+| Reviews | List, get, update, delete |
+| Check-ins | List, delete |
+| Notifications | List, create, delete |
+| Translations | List, get, update all languages |
+| Content translations | Manage place description translations |
+| Place attributes | CRUD for attribute definitions and values |
+| App versions | Manage version enforcement config |
+| SEO | Generate/status, AI citations (`GET /admin/seo/ai-citations`) |
+| Scraper proxy | List runs, delete run (with optional catalog cleanup) |
+| Analytics | Overview, top-places, trends, event log |
+| Audit log | Paginated admin action log |
+
+**Key admin endpoints:**
+- `DELETE /api/v1/admin/places/{place_code}` — delete place and all related records
+- `DELETE /api/v1/admin/places/batch` — batch delete (`{ "place_codes": [...] }`)
+- `DELETE /api/v1/admin/places/all` — delete all places
+- `DELETE /api/v1/admin/scraper/runs/{run_code}?delete_catalog_places=true` — delete scraper run
+
+## Database Migrations
+
+Schema is managed with **Alembic**. Migrations run automatically on startup.
 
 ```bash
-# Find and kill the process on port 3000
-lsof -ti :3000 | xargs kill -9
-```
-
-Or find the process ID first, then kill it:
-
-```bash
-# Find the process
-lsof -i :3000
-
-# Kill it (replace PID with the actual process ID)
-kill -9 PID
-```
-
-## Database Migrations (Alembic)
-
-Schema is managed with **Alembic**. Migrations live in `soulstep-catalog-api/migrations/versions/`. The server runs `alembic upgrade head` automatically on startup so the schema is always up to date.
-
-### Common commands (run from `soulstep-catalog-api/` with venv active)
-
-```bash
-# Apply all pending migrations (done automatically on startup)
+# Apply pending migrations (done automatically on startup)
 alembic upgrade head
 
 # Roll back one migration
 alembic downgrade -1
 
-# Generate a new migration after changing SQLModel models
-alembic revision --autogenerate -m "describe your change"
+# Generate migration after changing models
+alembic revision --autogenerate -m "describe change"
 
-# Show current migration state
+# Show current state
 alembic current
-
-# Show migration history
 alembic history
 ```
 
-### Adding a new model / column
+**Adding a model or column:**
+1. Edit `app/db/models.py`
+2. Run `alembic revision --autogenerate -m "add <thing>"`
+3. Review the generated file in `migrations/versions/`
+4. Apply: `alembic upgrade head` (or restart the server)
 
-1. Edit `app/db/models.py` with your new model or field.
-2. Run `alembic revision --autogenerate -m "add <thing>"` — Alembic compares your SQLModel metadata against the live schema and writes the migration file.
-3. Review the generated file in `migrations/versions/`.
-4. Apply it: `alembic upgrade head` (or just restart the server).
+## Seed Data
 
-## Seed data
+On startup in dev, if `app/db/seed_data.json` is present, the server drops all tables and reseeds from that file. Production schema updates use Alembic only — never run seed against production.
 
-The server uses **SQLModel** with a persistent **SQLite database** (`soulstep.db`). Data is loaded from a **central seed file** on startup:
+To reset and reseed manually:
 
-- **File:** `app/db/seed_data.json` (relative to `soulstep-catalog-api/`). It contains `languages`, `translations` (en, ar, hi), and sample data for all stores.
-- **Runner:** `app/db/seed.py` — `run_seed(seed_path)` drops all tables, rebuilds schema via `alembic upgrade head`, then populates the database from the JSON. It is invoked automatically on app startup when `seed_data.json` is present (dev only — no-op in production).
-- **Reset:** Restart the server to clear and re-run the seed from scratch. Or run it directly: `cd soulstep-catalog-api && source .venv/bin/activate && python -m app.db.seed`.
-
-> **Note:** `run_seed()` drops all tables — never run it against a production database. Production schema updates are handled solely by `alembic upgrade head`.
-
-### Why SQLModel?
-By using SQLModel, we maintain Pydantic-like schemas for the API while gaining full SQL persistence, foreign key constraints, and performance-optimized queries.
-
-## Endpoints (v1)
-
-### Core
-- `GET /health` — health check
-- `GET /api/v1/app-version` — current min/recommended app version; no auth
-
-### Auth (`/api/v1/auth`)
-- `POST /api/v1/auth/register` — register (email, password, display_name)
-- `POST /api/v1/auth/login` — login
-- `POST /api/v1/auth/forgot-password` — request password reset link
-- `POST /api/v1/auth/reset-password` — reset password with token
-
-### Users (`/api/v1/users`)
-- `GET /api/v1/users/me` — current user (Bearer token)
-- `PATCH /api/v1/users/me` — update profile (display_name)
-- `GET /api/v1/users/me/settings` — get user settings (theme, language, units, religions, etc.)
-- `PATCH /api/v1/users/me/settings` — update user settings
-- `GET /api/v1/users/me/check-ins` — current user's check-ins
-- `GET /api/v1/users/me/stats` — places visited, check-ins this year
-- `GET /api/v1/users/me/favorites` — favorited places
-
-### Places (`/api/v1/places`)
-- `GET /api/v1/places` — list places (query: religion, lat, lng, radius, limit≤500, cursor, open_now, has_parking, womens_area, has_events, top_rated, min_lat, max_lat, min_lng, max_lng, lang)
-- `GET /api/v1/places/{placeCode}` — get place detail
-- `GET /api/v1/places/{placeCode}/reviews` — reviews for a place (query: limit, offset, lang — BCP-47 code for translated title/body)
-- `POST /api/v1/places/{placeCode}/check-in` — check in to a place
-- `POST /api/v1/places/{placeCode}/favorite` — add to favorites
-- `DELETE /api/v1/places/{placeCode}/favorite` — remove from favorites
-- `POST /api/v1/places/{placeCode}/reviews` — create a review
-- `POST /api/v1/places` — create a place (scraper sync)
-- `POST /api/v1/places/batch` — batch create places (scraper sync)
-- `GET /api/v1/places/{placeCode}/image/{imageCode}` — serve place image
-
-### Cities (`/api/v1/cities`)
-- `GET /api/v1/cities` — list all cities with place counts, sorted by count desc (query: limit≤500, offset)
-- `GET /api/v1/cities/{city_slug}` — places in a city matched by slug (query: page, page_size≤200)
-- `GET /api/v1/cities/{city_slug}/{religion}` — places in a city filtered by religion
-
-### Reviews (`/api/v1/reviews`)
-- `PATCH /api/v1/reviews/{reviewCode}` — update a review
-- `DELETE /api/v1/reviews/{reviewCode}` — delete a review
-
-### Groups (`/api/v1/groups`)
-- `GET /api/v1/groups` — list user's groups
-- `POST /api/v1/groups` — create a group
-- `GET /api/v1/groups/{groupCode}` — get group detail
-- `PATCH /api/v1/groups/{groupCode}` — update group
-- `DELETE /api/v1/groups/{groupCode}` — delete group
-- `POST /api/v1/groups/{groupCode}/join` — join a group
-- `DELETE /api/v1/groups/{groupCode}/leave` — leave a group
-- `GET /api/v1/groups/{groupCode}/members` — list group members
-- `DELETE /api/v1/groups/{groupCode}/members/{userCode}` — remove a member
-- `PATCH /api/v1/groups/{groupCode}/members/{userCode}/role` — update member role
-- `GET /api/v1/groups/{groupCode}/leaderboard` — group leaderboard
-- `GET /api/v1/groups/{groupCode}/activity` — group activity feed
-- `GET /api/v1/groups/{groupCode}/checklist` — group place checklist
-- `POST /api/v1/groups/{groupCode}/places/{placeCode}` — add place to group itinerary
-- `GET /api/v1/groups/{groupCode}/places/{placeCode}/notes` — get place notes
-- `POST /api/v1/groups/{groupCode}/places/{placeCode}/notes` — add place note
-- `DELETE /api/v1/groups/{groupCode}/notes/{noteCode}` — delete place note
-- `POST /api/v1/groups/{groupCode}/invite` — create invite link
-- `GET /api/v1/groups/by-invite/{inviteCode}` — look up group by invite code
-- `POST /api/v1/groups/join-by-invite` — join group via invite code
-- `POST /api/v1/groups/{groupCode}/cover` — upload group cover image
-- `GET /api/v1/groups/cover-image/{imageCode}` — serve group cover image
-
-### Notifications (`/api/v1/notifications`)
-- `GET /api/v1/notifications` — list notifications
-- `PATCH /api/v1/notifications/{notificationCode}/read` — mark notification as read
-
-### Search (`/api/v1/search`)
-- `GET /api/v1/search/autocomplete` — place name autocomplete (proxies Google Places; results cached in-process for 10 min, max 500 entries)
-- `GET /api/v1/search/place-details` — fetch place details by place ID
-
-### Visitors (`/api/v1/visitors`)
-- `POST /api/v1/visitors` — create an anonymous visitor session
-- `GET /api/v1/visitors/{visitorCode}/settings` — get visitor settings
-- `PATCH /api/v1/visitors/{visitorCode}/settings` — update visitor settings
-
-### Ads & Consent (`/api/v1/ads`, `/api/v1/consent`)
-- `GET /api/v1/ads/config?platform=web|ios|android` — ad config (enabled flag, publisher ID, slot IDs); no auth
-- `POST /api/v1/consent` — record ad/analytics consent; auth optional (supports visitor_code)
-- `GET /api/v1/consent` — current consent status for caller
-
-### Analytics (`/api/v1/analytics`)
-- `POST /api/v1/analytics/events` — batch ingest analytics events (max 50/req, 10 req/min rate limit); auth optional (requires visitor_code if anonymous)
-
-### Admin Analytics (`/api/v1/admin/analytics`) — requires admin role
-- `GET /admin/analytics/overview` — total events, unique users/visitors/sessions, top event types, platform breakdown
-- `GET /admin/analytics/top-places?period=7d&limit=20` — top places by analytics event frequency
-- `GET /admin/analytics/trends?interval=day&period=30d&event_type=` — event count trends over time
-- `GET /admin/analytics/events?page=1&page_size=50&event_type=&platform=` — paginated raw event log with filters
-
-### i18n (`/api/v1`)
-- `GET /api/v1/languages` — list supported languages (code, name); no auth
-- `GET /api/v1/translations?lang=en` — translation key→value for locale; fallback to English for missing keys; no auth
-
-### Share
-- `GET /share/{shareCode}` — resolve a share link (redirect to web app or return place info)
-
-### Admin (`/api/v1/admin`) — requires admin role
-Full CRUD for users, places, groups, reviews, check-ins, notifications, translations, content translations, place attributes, bulk operations, data export, audit log, app version management, scraper proxy, ad config management, and analytics queries.
-
-**Admin Place Deletion:**
-- `DELETE /api/v1/admin/places/{place_code}` — delete a place and all related records (images, SEO, reviews, check-ins, favorites, translations, attributes, crawler logs)
-- `DELETE /api/v1/admin/places/batch` — batch delete (body: `{ "place_codes": [...] }`) — returns `{ "deleted": N }`
-- `DELETE /api/v1/admin/places/all` — nuclear reset: delete all places and related records — returns `{ "deleted": N }`
-
-**Admin Scraper Proxy:**
-- `DELETE /api/v1/admin/scraper/runs/{run_code}?delete_catalog_places=true` — delete a scraper run; when `delete_catalog_places=true`, also fetches place_codes from the scraper and removes them from the catalog DB
+```bash
+cd soulstep-catalog-api && source .venv/bin/activate
+python -m app.db.seed
+```
 
 ## Tests
 
@@ -200,29 +225,39 @@ python -m pytest tests/ -v
 
 Tests use in-memory SQLite (`StaticPool`) with migrations and seed patched out. Each test gets a fresh database.
 
-## Environment
-
-- `JWT_SECRET` — secret for JWT (default: dev secret)
-- `PORT` — port (default: 3000)
-- `DATABASE_URL` — (optional for production) PostgreSQL connection string; when unset, SQLite (`soulstep.db`) is used for dev.
-- `GOOGLE_MAPS_API_KEY` — (optional, for scraper) Google Maps API key for `soulstep-scraper-api/gmaps.py`. Not required for server operation, only for running the scraper to discover new places.
-- `GOOGLE_CLOUD_PROJECT` — (optional) GCP project ID. Used by the `translate-content` Cloud Run Job (browser-based translation) and GCS image backend.
-- `BROWSER_POOL_SIZE` — (optional) concurrent browser contexts for the translation worker, default `2`.
-- `BROWSER_MAX_TRANSLATIONS` — (optional) translations per browser context before recycling, default `50`.
-- `BROWSER_HEADLESS` — (optional) `true` (default) or `false` (show browser for debugging).
-- `IMAGE_STORAGE` — (optional) `blob` (default, stores images in DB) or `gcs` (upload to Google Cloud Storage).
-- `GCS_BUCKET_NAME` — (optional) GCS bucket name. Required when `IMAGE_STORAGE=gcs`. Bucket objects must be publicly readable.
-- `GOOGLE_APPLICATION_CREDENTIALS` — (optional) Path to a GCP service account JSON key. Required on non-GCP hosts when using `IMAGE_STORAGE=gcs`. Not needed on Cloud Run (uses workload identity).
-
-For production deployment options, see [PRODUCTION.md](../PRODUCTION.md) at repo root.
-
 ## Scripts
 
-### Reset Place Data (`scripts/reset_place_data.py`)
+### Reset place data
 
-Delete all Place records and their dependents (images, SEO, reviews, check-ins, favorites, translations, attributes, crawler logs) from the catalog DB. Use this for a fresh start before a new scraper run.
+Delete all Place records and dependents (images, SEO, reviews, check-ins, favorites, translations, attributes, crawler logs):
 
 ```bash
 cd soulstep-catalog-api && source .venv/bin/activate
 python scripts/reset_place_data.py
+```
+
+### Generate SEO
+
+```bash
+python scripts/generate_seo.py --generate            # generate slugs + meta
+python scripts/generate_seo.py --translate           # translate to all 5 languages (requires GOOGLE_CLOUD_PROJECT)
+```
+
+## Directory Structure
+
+```
+soulstep-catalog-api/
+  app/
+    main.py              # FastAPI app, middleware, lifespan
+    api/v1/              # Route handlers (auth, users, places, groups, …)
+    api/v1/admin/        # Admin-only routes
+    db/
+      models.py          # SQLModel ORM models
+      seed.py            # Seed runner
+      seed_data.json     # Seed data (translations, sample places, etc.)
+    services/            # Business logic (seo_generator, meta_tags, structured_data, …)
+    jobs/                # Scheduled job entrypoints
+  migrations/versions/   # Alembic migration files
+  scripts/               # One-off scripts (reset_place_data, generate_seo, …)
+  tests/                 # pytest integration + unit tests
 ```

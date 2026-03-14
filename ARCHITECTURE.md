@@ -1,683 +1,339 @@
 # SoulStep – System Architecture
 
-This document describes the end-to-end architecture for SoulStep: a multi-platform application (desktop web, mobile web, iOS, Android) for discovering, visiting, and tracking religious places. It aligns with the designs in [app-design-prompt-google-stitch.md](app-design-prompt-google-stitch.md) and [DESIGN_FILE.html](DESIGN_FILE.html).
+Multi-platform application for discovering, visiting, and tracking sacred sites. Platforms: desktop web, mobile web, iOS, Android.
 
 ---
 
-## 1. Goals and Constraints
+## 1. High-Level Architecture
 
-- **Platforms:** Desktop web, mobile web, iOS app, Android app.
-- **Frontend:** Single, shared UI codebase where possible so behavior and layout are consistent across all platforms.
-- **Design reference:** DESIGN_FILE.html (Tailwind, Lexend, Material Icons, safe areas, list/map views, religion-specific place details, groups, profile, check-ins).
-
----
-
-## 2. High-Level Architecture
-
-```mermaid
-flowchart TB
-    subgraph clients [Clients - Web and Mobile Replicated]
-        Web[Web App - apps/soulstep-customer-web]
-        iOS[iOS App - apps/soulstep-customer-mobile Expo]
-        Android[Android App - apps/soulstep-customer-mobile Expo]
-    end
-
-    subgraph api [Backend API - versioned /api/v1]
-        Gateway[API Gateway / REST]
-        Auth[Auth Service]
-        Places[Places Service]
-        Users[Users and Profile]
-        CheckIns[Check-ins and Reviews]
-        Groups[Groups Service]
-        Notifications[Notifications]
-        I18n[Languages and Translations]
-    end
-
-    subgraph data [Data]
-        DB[(PostgreSQL)]
-        Geo[Geo Index for proximity]
-        Storage[File Storage - Avatars and Photos]
-    end
-
-    Web --> Gateway
-    iOS --> Gateway
-    Android --> Gateway
-    Gateway --> Auth
-    Gateway --> Places
-    Gateway --> Users
-    Gateway --> CheckIns
-    Gateway --> Groups
-    Gateway --> Notifications
-    Gateway --> I18n
-    Auth --> DB
-    Places --> DB
-    Places --> Geo
-    Users --> DB
-    Users --> Storage
-    CheckIns --> DB
-    Groups --> DB
-    Notifications --> DB
+```
+┌─────────────────────────────────────────────────────────┐
+│  Clients                                                 │
+│  apps/soulstep-customer-web  (Vite + React)              │
+│  apps/soulstep-customer-mobile  (Expo / React Native)    │
+│  apps/soulstep-admin-web  (Vite + React, admin only)     │
+└──────────────────────────┬──────────────────────────────┘
+                           │  REST API  /api/v1
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│  Catalog API  (soulstep-catalog-api/)                    │
+│  Python + FastAPI + SQLModel                             │
+│  SQLite (dev) / PostgreSQL 15 (prod)                     │
+│  GCS for image storage (prod)                            │
+└──────────────────────────┬──────────────────────────────┘
+                           │  POST /api/v1/places/batch
+                           │  (scraper sync)
+                           ▼
+┌─────────────────────────────────────────────────────────┐
+│  Scraper API  (soulstep-scraper-api/)                    │
+│  Python + FastAPI + SQLModel                             │
+│  SQLite (dev) / PostgreSQL (prod, optional)              │
+│  Playwright + Chromium (browser mode)                    │
+└─────────────────────────────────────────────────────────┘
 ```
 
-- **Clients:** Two frontend codebases kept in sync by convention and tooling:
-  - **Web:** `apps/soulstep-customer-web` — React SPA (desktop + mobile web).
-  - **Mobile:** `apps/soulstep-customer-mobile` — **Expo (React Native)** app for iOS/Android. Same API and feature set as web; UI implemented with React Native and Expo. A Cursor rules file enforces feature parity between web and mobile; no shared `packages` folder (see repo layout below).
-- **Backend:** Single **versioned** API (e.g. `/api/v1/...`) talking to PostgreSQL, optional geo index, and file storage.
+**Production hosting:** Cloud Run (API + Scraper) · Cloud SQL (PostgreSQL) · Firebase Hosting (Web + Admin) · GCS (Images)
 
 ---
 
-## 3. Recommended Tech Stack
-
-### 3.1 Frontend (shared codebase)
-
-| Concern | Choice | Rationale |
-|--------|--------|-----------|
-| Framework | React 18+ | Matches design system (components, state), large ecosystem. Web: Vite + React; mobile: Expo (React Native). |
-| Build | Vite | Fast dev and build for web. |
-| Styling | Tailwind CSS | Matches DESIGN_FILE.html (Tailwind, design tokens). |
-| Routing | React Router (web) / Expo Router or React Navigation (mobile) | SPA routing for web; stack/tab navigation for Expo. |
-| State | React Query + Context or Zustand | Server state (places, user, groups) + minimal client state. |
-| Forms/validation | React Hook Form + Zod | Registration, login, reviews, group creation. |
-| Maps | Mapbox GL JS or Leaflet (web); react-native-maps or Expo map (mobile) | List + map view. |
-| Icons/fonts | Material Icons + Lexend (web); Expo vector icons or similar (mobile) | Per DESIGN_FILE. |
-| Native shell | Expo (React Native) | iOS/Android via Expo; access to camera, geolocation, push. |
-
-**Responsive strategy:** One layout with breakpoints (e.g. sm/md/lg) so the same components work on desktop and mobile web; bottom nav on mobile, optional sidebar/top nav on desktop.
-
-### 3.2 Backend
-
-| Concern | Choice | Rationale |
-|--------|--------|-----------|
-| Runtime | Python 3.14 (or 3.11+) | Type hints, async support. Use latest available (e.g. Homebrew on macOS). |
-| Framework | FastAPI | REST API, OpenAPI docs, Pydantic validation. |
-| ORM | SQLModel | Modern ORM for FastAPI (builds on SQLAlchemy and Pydantic). |
-| Server | Uvicorn (ASGI) | Runs FastAPI. |
-| Database | SQLite (Dev) / PostgreSQL (Prod) | Relational data (users, places, check-ins, groups, reviews). |
-| Geo | Lat/lng + distance in DB | Proximity sort “nearest first” (haversine formula). |
-| Auth | JWT; python-jose or PyJWT; passlib; optional OAuth | Matches “Continue with Google/Apple” in designs. |
-| File storage | S3-compatible (boto3) or local uploads | Avatars, place photos, review photos. |
-| Email | SendGrid or similar | Password reset, optional group invites. |
-
-### 3.3 Monorepo Layout (recommended)
+## 2. Monorepo Layout
 
 ```
 soulstep/
-├── apps/
-│   ├── soulstep-customer-web/                 # Vite React app (desktop + mobile web). Own api client, types, constants.
-│   ├── soulstep-customer-mobile/              # Expo (React Native) app. Same API and features as web (no shared packages).
-├── soulstep-catalog-api/                  # Backend API (Python + FastAPI), versioned at /api/v1
+├── soulstep-catalog-api/        # Python + FastAPI backend
 │   ├── app/
-│   │   ├── main.py          # FastAPI app, CORS, router includes
-│   │   ├── api/v1/          # Routers: auth, users, places, reviews, groups, notifications, i18n
-│   │   ├── core/             # Config, security (JWT), dependencies
-│   │   ├── models/          # Pydantic schemas (request/response)
-│   │   └── db/              # Store or SQLAlchemy models; i18n (languages, translations); seed_data.json + seed.py
-│   ├── requirements.txt
-│   └── pyproject.toml       # Optional
-├── .cursor/
-│   └── rules/               # Cursor rules: e.g. replicate frontend UI/features in both web and mobile
-├── DESIGN_FILE.html
-├── app-design-prompt-google-stitch.md
+│   │   ├── main.py              # FastAPI app, middleware, lifespan
+│   │   ├── api/v1/              # Route handlers (auth, users, places, groups, …)
+│   │   ├── api/v1/admin/        # Admin-only routes
+│   │   ├── db/
+│   │   │   ├── models.py        # SQLModel ORM models + _TSTZ() helper
+│   │   │   ├── seed.py          # Seed runner (dev only)
+│   │   │   └── seed_data.json   # Translations + sample data
+│   │   ├── services/            # Business logic (seo, image_storage, translation, …)
+│   │   └── jobs/                # Cloud Run Job entrypoints (sync_places, translate_content, cleanup)
+│   ├── migrations/versions/     # Alembic migration files
+│   ├── scripts/                 # One-off scripts (generate_seo, reset_place_data)
+│   ├── tests/                   # pytest integration + unit tests
+│   ├── Dockerfile               # API service image
+│   ├── Dockerfile.sync          # sync-places job image (no Playwright)
+│   └── Dockerfile.translate     # translate-content job image (with Playwright)
+├── soulstep-scraper-api/        # Python + FastAPI scraper
+│   ├── app/
+│   │   ├── scrapers/            # Discovery + detail fetching (API + browser)
+│   │   ├── collectors/          # Per-source enrichment collectors
+│   │   ├── pipeline/            # Orchestration, quality, merging
+│   │   ├── services/            # Browser pool, stealth, query logging
+│   │   └── jobs/                # Cloud Run Job dispatcher + entrypoint
+│   ├── tests/
+│   ├── Dockerfile               # API service image (~200 MB, no Playwright)
+│   └── Dockerfile.job           # Job image (~900 MB, with Playwright + Chromium)
+├── apps/
+│   ├── soulstep-customer-web/   # Vite + React + Tailwind
+│   ├── soulstep-customer-mobile/ # Expo / React Native
+│   └── soulstep-admin-web/      # Vite + React + Tailwind (admin)
 ├── ARCHITECTURE.md
-└── IMPLEMENTATION_PROMPTS.md
+├── SYSTEMS.md
+├── PRODUCTION.md
+├── CHANGELOG.md
+└── ROADMAP.md
 ```
 
-**Why no shared `packages`:** Shared packages can be hard to maintain in production (e.g. build/deploy and import paths differ for web vs mobile). Instead, **replicate** frontend code in both `apps/soulstep-customer-web` and `apps/soulstep-customer-mobile`. Use a **Cursor rules file** (e.g. in `.cursor/rules/`) that states: *when adding or changing UI or features in one app (web or mobile), replicate the same UI and behavior in the other app so both stay in sync.* Business logic, screens, and design should be identical; only app-specific config (e.g. Expo config, env vars) may differ.
-
-**Expo:** `apps/soulstep-customer-mobile` is an Expo (React Native) app built for iOS/Android. Both web and mobile call the same versioned API. Backend is Python + FastAPI; same API contract so frontends need no backend code changes.
-
-**Migration:** If the project was started with a Node.js/Express backend (e.g. after Prompts 1–3), see the "Migration: Node.js backend → Python/FastAPI" section in [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION_PROMPTS.md) for how to replace the backend with Python + FastAPI without changing the frontend.
+No shared `packages/` folder — web and mobile each have their own API client and types, kept in parity by convention (CLAUDE.md Rule 10).
 
 ---
 
-## 4. Data Model (core entities) — code-based references
+## 3. Tech Stack
 
-All entities are identified by a **stable, autogenerated code** (e.g. `user_code`, `place_code`), not by numeric/serial IDs. Codes are unique per table and used in APIs and foreign keys. They may include a **prefix or suffix** (e.g. `usr_abc12`, `plc_xyz99`) to make them easy to distinguish in logs and URLs; this prefix/suffix is **not** used in business logic — treat the code as an opaque string everywhere in application code.
+### Catalog API
 
-- **User:** user_code (PK, unique string), email, password_hash, display_name, avatar_url, created_at, updated_at.
-- **UserSettings:** user_code (FK), notifications_on, theme, units, language, religions (list).
-- **Visitor:** visitor_code (PK, `vis_` + 16 hex chars), created_at, last_seen_at — anonymous identity for unauthenticated users. Created on first app load; code stored in localStorage/AsyncStorage.
-- **VisitorSettings:** visitor_code (FK), theme, units, language, religions (JSON) — same fields as UserSettings. Merged into UserSettings on login/register (where user settings are still at defaults), then deleted.
-- **Place:** place_code (PK, unique string), name, religion, place_type, lat, lng, address, opening_hours (JSON), utc_offset_minutes (integer, minutes from UTC, e.g. 240 for UTC+4), description, website_url, source (gmaps|overpass|manual). Images stored separately in PlaceImage table.
-- **PlaceImage:** place_code (FK), image_type (url|blob), url, blob_data, mime_type, display_order — stores place images as URLs or binary blobs.
-- **PlaceAttributeDefinition:** attribute_code (PK, unique string), name, data_type (boolean|string|number|json), icon, label_key, is_filterable, is_specification, category, religion (null = all), display_order.
-- **PlaceAttribute:** place_code (FK), attribute_code (FK), value_text, value_json — composite unique (place_code, attribute_code).
-- **CheckIn:** check_in_code (PK), user_code (FK), place_code (FK), checked_in_at, note, photo_url, group_code (FK → Group, nullable, indexed) — a check-in with group_code set counts as both a personal and group check-in.
-- **Review:** review_code (PK), user_code (FK, nullable), place_code (FK), rating (1–5), title, body, photo_urls (JSON), source (user|google), author_name, review_time, language, created_at. Supports both user reviews and Google Maps reviews (when source=google, user_code is null).
-- **ReviewImage:** review_code (FK, nullable), uploaded_by_user_code (FK), blob_data, mime_type, file_size, width, height, display_order, created_at, attached_at — stores review photos as database blobs. Images can exist without a review (orphans) until attached during review creation or cleaned up by scheduled job.
-- **Favorite:** user_code (FK), place_code (FK) — composite PK.
-- **Group:** group_code (PK), name, description, created_by_user_code (FK), invite_code (unique), is_private, path_place_codes (JSON ordered list of place_codes for the itinerary), cover_image_url, start_date, end_date, created_at, updated_at.
-- **GroupMember:** group_code (FK), user_code (FK), role (admin/member), joined_at — composite PK.
-- **GroupPlaceNote:** note_code (PK, unique), group_code (FK), place_code (FK), user_code (FK), text, created_at — collaborative notes attached to a specific place within a group itinerary (e.g., "Meet at 9am").
-- **Notification:** notification_code (PK), user_code (FK), type, payload (JSON), read_at, created_at.
-- **PasswordReset:** token (PK), user_code (FK), expires_at, used_at.
-- **GeoBoundary** (soulstep-scraper-api): name, boundary_type (country|city), country (parent for cities), lat_min, lat_max, lng_min, lng_max — stores geographic boundaries for city-level and country-level scraping.
-
-**Persistence:** The main server uses **SQLModel** with **SQLite** (`soulstep.db`) for local development. Data is refreshed from `seed_data.json` on startup.
-
-### Dynamic Attribute System (EAV Pattern)
-
-Place attributes (capacity, parking, wheelchair access, prayer times, service times, deities, etc.) are stored using an **Entity-Attribute-Value (EAV)** pattern for flexibility:
-
-- **PlaceAttributeDefinition** defines available attributes (e.g., `has_parking`, `capacity`, `denomination`, `wheelchair_accessible`, `prayer_times`, `service_times`, `deities`). Each definition includes metadata: data type, icon, i18n label key, whether it's filterable or a specification, religion-specific constraints, and display order.
-- **PlaceAttribute** stores actual values per place. Values are stored as `value_text` (for booleans, strings, numbers) or `value_json` (for complex data like prayer times, service schedules, deities).
-- **Benefits:** Adding new scraped fields or religion-specific attributes requires only a DB row (not code changes). Specifications and filter chips are dynamically generated from attribute definitions. All place-specific data is stored in attributes, making the schema flexible and extensible.
-
----
-
-## 5. API Outline (REST) — versioned and code-based
-
-All API routes are **versioned** under `/api/v1` (e.g. `/api/v1/places`). Paths and bodies use **entity codes** (e.g. `place_code`, `user_code`), not numeric IDs.
-
-- **Auth:** `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/forgot-password`, `POST /api/v1/auth/reset-password`, `POST /api/v1/auth/refresh`, optional `GET/POST /api/v1/auth/oauth/google|apple`. Register and login accept optional `visitor_code` to merge visitor settings on account creation.
-- **Visitors (unauthenticated):** `POST /api/v1/visitors` (create), `GET /api/v1/visitors/{visitor_code}/settings`, `PATCH /api/v1/visitors/{visitor_code}/settings` — allows anonymous users to persist preferences (language, theme, units, religions) before signing up.
-- **Users:** `GET/PATCH /api/v1/users/me`, `GET /api/v1/users/me/check-ins`, `GET /api/v1/users/me/favorites`, `GET /api/v1/users/me/stats` (responses use `user_code`, `place_code`, etc.).
-- **Settings:** `GET/PATCH /api/v1/users/me/settings` (theme, language, units, **religions**). Preferred religions (list) are used as a filter; empty = show all places.
-- **Places:** `GET /api/v1/places?religion=&religion=&...` (repeat `religion` for multiple; omit for all), plus lat, lng, radius, type, sort. Each item includes `place_code`. `GET /api/v1/places/:placeCode`.
-- **Check-ins:** `POST /api/v1/places/:placeCode/check-in`, `GET /api/v1/users/me/check-ins` (each item references `place_code`, `user_code`).
-- **Reviews:** `GET /api/v1/places/:placeCode/reviews`, `POST /api/v1/places/:placeCode/reviews`, `PATCH/DELETE /api/v1/reviews/:reviewCode`.
-- **Favorites:** `POST/DELETE /api/v1/places/:placeCode/favorite`, `GET /api/v1/users/me/favorites`.
-- **Groups:** `GET /api/v1/groups`, `POST /api/v1/groups`, `GET /api/v1/groups/:groupCode`, `PATCH /api/v1/groups/:groupCode`, `DELETE /api/v1/groups/:groupCode` (admin), `POST /api/v1/groups/:groupCode/join`, `POST /api/v1/groups/:groupCode/leave`, `POST /api/v1/groups/:groupCode/invite`, `GET /api/v1/groups/:groupCode/members`, `DELETE /api/v1/groups/:groupCode/members/:userCode` (admin), `PATCH /api/v1/groups/:groupCode/members/:userCode` (admin, change role), `GET /api/v1/groups/:groupCode/leaderboard`, `GET /api/v1/groups/:groupCode/activity`, `GET /api/v1/groups/:groupCode/checklist`, `GET /api/v1/groups/:groupCode/places/:placeCode/notes`, `POST /api/v1/groups/:groupCode/places/:placeCode/notes`, `DELETE /api/v1/groups/:groupCode/notes/:noteCode`. **Checklist** response includes per-place check-in status, member avatars who checked in, notes, and aggregate progress stats (group_progress %, personal_progress %). **Create/Update body** supports `path_place_codes`, `cover_image_url`, `start_date`, `end_date`. **Check-in** accepts optional `group_code`; when set validates membership and itinerary inclusion, and notifies other group members.
-- **Notifications:** `GET /api/v1/notifications`, `PATCH /api/v1/notifications/:notificationCode/read`.
-- **Ads & Consent (no auth for config):** `GET /api/v1/ads/config?platform=web|ios|android` (ad config: enabled flag + slot IDs), `POST /api/v1/consent` (record user/visitor consent), `GET /api/v1/consent` (current consent status). Admin: `GET /api/v1/admin/ads/config`, `PATCH /api/v1/admin/ads/config/:id`, `GET /api/v1/admin/ads/consent-stats`.
-- **i18n (no auth):** `GET /api/v1/languages` (list of supported languages: code, name), `GET /api/v1/translations?lang=en|ar|hi` (key→value map; fallback to English for missing keys). User preference for language is stored in `GET/PATCH /api/v1/users/me/settings` (`language` field). Frontends use these endpoints for all customer-facing strings and set RTL when locale is Arabic.
-
-All authenticated routes use JWT in `Authorization: Bearer <token>`.
-
----
-
-## 6. Frontend Structure (web and mobile replicated)
-
-### 6.1 Web app (apps/soulstep-customer-web) layout
-
-The web app uses a TypeScript architecture with clear separation of concerns under `apps/soulstep-customer-web/src/`:
-
-- **`app/`** – Application shell: `App.tsx`, `providers.tsx` (Auth, I18n), `routes.tsx`, and all page components under `app/pages/` (Splash, Login, Register, Home, PlaceDetail, Profile, Favorites, Groups, Notifications, Settings, etc.). Entry is `main.tsx` → `App` → providers → routes.
-- **`components/`** – Shared UI: `Layout`, `ProtectedRoute`, `PlaceCard`, `PlacesMap`, `EmptyState`, `ErrorState`, `ads/` (AdProvider, AdBanner, consent hooks), `consent/` (ConsentBanner). Used by pages and layout.
-- **`lib/`** – Shared logic and data: `lib/api/client.ts` (all API calls), `lib/types/index.ts` (Place, User, Group, etc.), `lib/theme.ts`, `lib/constants.ts`, `lib/share.ts`. Types and API client use code-based identifiers (`place_code`, `user_code`, etc.) per ARCHITECTURE §4–5.
-- **State:** Auth and i18n live in `app/providers.tsx` (React context). No separate `stores/` folder; server state (places, groups, etc.) is fetched via `lib/api/client.ts` and held in page/local state or could be extended with React Query.
-- **Assets:** Static assets (e.g. images, favicon) live in `public/`; fonts and icons are loaded via `index.html` (Lexend, Material Symbols).
-
-### 6.2 Mobile app (apps/soulstep-customer-mobile)
-
-- Same routes and flows as web; own `api/` and types; Expo/React Native screens and navigation.
-
-### 6.3 Cross-cutting
-
-- **Routes:** Splash → Login/Register → Preferred religions (multi-select, optional) → Home. Home (list/map), Place detail (by `placeCode`), Profile, Groups list, Group detail (by `groupCode`), Favorites, Settings, Notifications, Write review. Use the same route names and **codes** in both `apps/soulstep-customer-web` and `apps/soulstep-customer-mobile` (e.g. `/places/:placeCode`).
-- **Layout:** Responsive shell with bottom nav on small screens and optional top/side nav on large screens; safe-area padding for notched devices (as in DESIGN_FILE). Implement in both web and mobile.
-- **State:** Current user (with **preferred religions** from settings, used as filter) in context/store; places, place detail, groups, and notifications via API client (and optionally React Query) in each app. Each app has its own API client and types; no shared packages.
-- **i18n:** Both web and mobile fetch languages and translations from the backend (`/api/v1/languages`, `/api/v1/translations?lang=`). Locale from user settings when logged in, else localStorage/AsyncStorage or browser. All customer-facing copy uses translation keys and `t(key)`. When locale is Arabic, set RTL (web: `document.documentElement.dir`; mobile: `I18nManager.forceRTL`).
-- **Design tokens:** Centralize Tailwind theme (primary, background-light, fonts, radii) to match DESIGN_FILE.html in **both** apps.
-- **Cursor rule:** A rule in `.cursor/rules/` must require that when adding or changing UI or features in `apps/soulstep-customer-web`, the same changes are replicated in `apps/soulstep-customer-mobile`, and vice versa, so the two codebases stay in sync.
-
----
-
-## 7. Security and Deployment (summary)
-
-- **HTTPS only;** secure cookies or httpOnly refresh token if using cookie-based refresh.
-- **Rate limiting and validation** on auth and write endpoints.
-- **CORS** configured for web origin(s); Expo app uses same API origin.
-- **Deployment:** Backend on a VPS or PaaS (e.g. Railway, Render); DB managed (e.g. Supabase, Neon). Web app on Firebase Hosting or same host as API. iOS/Android built via Expo (EAS or local) and submitted to App Store / Play Store.
-
----
-
-## 8. Data Enrichment
-
-### 8.1 Overview
-
-The system uses a unified pipeline in `soulstep-scraper-api/` that discovers places via Google Maps, enriches them from multiple online sources (OSM, Wikipedia, Wikidata, Knowledge Graph, and optional paid APIs), assesses description quality, and syncs the best information to the main server.
-
-### 8.2 Scraper API Service Architecture
-
-A separate FastAPI application in `soulstep-scraper-api/` with three layers: **scrapers** (discovery), **collectors** (per-source data fetching), and **pipeline** (orchestration, quality assessment, merging).
-
-- **Stack:** Python 3.14, FastAPI, SQLModel (ORM), SQLite, anthropic (optional).
-- **Core Entities:**
-    - **DataLocation:** Stores source configuration with `source_type` ("gmaps") and flexible `config` JSON field: `{"country": "UAE", "max_results": 5, "force_refresh": false, "stale_threshold_days": 90}`
-    - **ScraperRun:** Tracks individual scraping jobs with status (pending, running, completed, cancelled, failed) and progress tracking (`total_items`, `processed_items`).
-    - **ScrapedPlace:** Stores enriched data with `raw_data` JSON, `enrichment_status` (pending/enriching/complete/failed), `description_source` (which source won), and `description_score`.
-    - **RawCollectorData:** (NEW) Preserves verbatim JSON from each source per place, enabling re-assessment without re-fetching. Fields: `place_code`, `collector_name`, `run_code`, `raw_response`, `status`, `error_message`, `collected_at`.
-
-### 8.3 Scrapers Package (`app/scrapers/`)
-
-**`base.py`**: Shared utilities (`generate_code`, `make_request_with_backoff`)
-
-**`gmaps.py`**: Google Maps discovery + detail-fetching
-- Recursive quadtree subdivision for complete area coverage
-- Enhanced field mask: generativeSummary, phone numbers, parking, payment, accessibility, dogs, children, groups, restroom, outdoor seating, Google Maps URL
-- Cross-run deduplication with configurable staleness threshold
-- Raw responses stored in `RawCollectorData` for later re-assessment
-
-### 8.4 Collectors Package (`app/collectors/`)
-
-Each collector implements `BaseCollector` ABC and returns a `CollectorResult` dataclass with standardised fields: `descriptions`, `attributes`, `contact`, `images`, `reviews`, `tags`, `entity_types`.
-
-| Collector | Source | Cost | Key Extracts |
-|-----------|--------|------|-------------|
-| `GmapsCollector` | Google Places API (New) | ~$0.008/place | Details, photos, reviews, accessibility, parking, payment |
-| `OsmCollector` | Overpass API | Free | Amenities, contact, wikipedia/wikidata tags, multilingual names |
-| `WikipediaCollector` | Wikipedia REST API | Free | Descriptions (en/ar/hi), images |
-| `WikidataCollector` | Wikidata API | Free | Founding date, heritage status, social media, multilingual labels |
-| `KnowledgeGraphCollector` | Google KG Search | Free (100k/day) | Entity descriptions, schema.org types, images |
-| `BestTimeCollector` | BestTime API | Paid (optional) | Busyness forecasts, peak hours |
-| `FoursquareCollector` | Foursquare API | Paid (optional) | Tips, popularity |
-| `OutscraperCollector` | Outscraper API | Paid (optional) | Extended Google reviews |
-
-**Registry** (`registry.py`): Auto-discovers collectors, returns them in dependency order (OSM first for tags, then wikipedia/wikidata which use those tags, then independent collectors).
-
-### 8.5 Pipeline Package (`app/pipeline/`)
-
-**`enrichment.py`**: Orchestrator — runs collectors in dependency order for each place, stores raw data, accumulates tags for downstream collectors.
-
-**`quality.py`**: Hybrid heuristic + LLM description assessment:
-- Heuristic scoring (0.0–1.0): source reliability (40%), length/detail (30%), specificity (30%)
-- LLM tie-breaking (optional): when top 2 candidates are within 0.15, Gemini picks or synthesizes the best description
-- Only triggered for ~10-20% of places; disabled without `GEMINI_API_KEY`
-
-**`merger.py`**: Combines all collector outputs with priority rules:
-- **Name**: gmaps (authoritative)
-- **Description**: quality-scored winner
-- **Contact phone**: gmaps > OSM > Wikidata
-- **Contact socials**: Wikidata > OSM
-- **Attributes**: union across sources (True wins over False for booleans)
-- **Reviews**: gmaps base + outscraper extended + foursquare tips (deduplicated)
-- **Images**: gmaps + wikipedia + knowledge graph (deduplicated)
-
-### 8.6 Data Flow & Integration
-
-1. **Create Data Location:** `POST /api/v1/scraper/data-locations`
-   ```json
-   {"name": "UAE Mosques", "source_type": "gmaps", "country": "UAE", "max_results": 5}
-   ```
-
-2. **Create Run:** `POST /api/v1/scraper/runs` — triggers background pipeline:
-   - **Discovery**: Quadtree search → dedup check → detail fetch via GmapsCollector
-   - **Enrichment**: OSM → Wikipedia → Wikidata → Knowledge Graph → (paid collectors if configured)
-   - **Quality**: Score all descriptions, merge all data with priority rules
-   - Progress tracked; cancellation supported
-
-3. **Additional endpoints:**
-   - `GET /collectors` — list all collectors with enabled/available status
-   - `GET /runs/{run_code}/raw-data` — view raw collector data for debugging
-   - `POST /runs/{run_code}/re-enrich` — re-run enrichment without re-doing discovery
-   - `GET /quality-metrics?run_code=<optional>` — aggregate quality scoring stats (score distribution, gate funnel, near-threshold sensitivity, per-run summary)
-
-4. **Syncing:** `POST /runs/{run_code}/sync` — batch-pushes enriched data to main server
-
-5. **Catalog proxy** (`soulstep-catalog-api/app/api/v1/admin/scraper_proxy.py`) exposes all scraper endpoints under `/admin/scraper/*`, including `GET /admin/scraper/quality-metrics`, forwarding requests to `DATA_SCRAPER_URL` with GCP OIDC auth for production.
-
-### 8.7 Source Tracking
-
-All places include a `source` field:
-- **`gmaps`**: Discovered via Google Maps API
-- **`manual`**: Seeded from `seed_data.json`
-
-Description provenance tracked via `description_source` (e.g., "wikipedia", "gmaps_editorial", "llm_synthesized").
-
-### 8.6 Timezone Handling
-
-**Design decision**: Store local times + UTC offset (not UTC times)
-
-- **Opening hours** are stored in **local time** (24-hour format, e.g., "09:00-17:00") as received from Google Maps
-- **`utc_offset_minutes`** field stores the place's UTC offset in minutes (e.g., 240 for UTC+4, 330 for UTC+5:30)
-- **Source**: Google Maps Places API `utc_offset` field (included in the API response, no extra API call needed)
-- **Why not convert to UTC**: Avoids lossy conversions, day-boundary shifts, and makes local times directly usable by the frontend
-- **Computing `is_open_now`**: Backend converts current UTC time to the place's local time using `utc_offset_minutes`, then compares against stored local opening hours
-- **DST limitation**: Static offset does not handle DST. This is acceptable for the target regions (UAE, India, Saudi Arabia, Middle East, South Asia) which generally do not observe DST. Future upgrade path: add `iana_timezone` field and use Python's `zoneinfo` for DST-aware calculations
-
-**API response changes**:
-- `opening_hours`: Now in local time (was UTC)
-- `opening_hours_today`: New field — today's hours in local time (e.g., "08:00-00:00" or "Closed")
-- `utc_offset_minutes`: New field — integer offset in minutes
-- `is_open_now`: Computed using place's local time
-
-**Backfill**: Existing places with UTC opening hours are migrated to local time + offset=240 (UAE) via `soulstep-catalog-api/app/jobs/backfill_timezones.py`
-
----
-
-## 8c. Browser-Based Google Maps Scraper Backend
-
-`SCRAPER_BACKEND` selects the discovery and detail-fetch engine used by `run_gmaps_scraper()`:
-
-| `SCRAPER_BACKEND` | Behavior | Cost | Speed |
-|---|---|---|---|
-| `api` (default) | Google Places API (New) — HTTP calls via `GmapsCollector` | ~$0.008/place | ~3h/10K places |
-| `browser` | Playwright drives Google Maps in Chromium — no API key needed | $0 | ~24–48h/10K places |
-
-### New files (browser mode)
-
-| File | Purpose |
+| Concern | Choice |
 |---|---|
-| `app/services/browser_stealth.py` | Stealth JS patches: removes `navigator.webdriver`, mocks plugins/chrome.runtime; randomises UA, viewport, timezone per session |
-| `app/services/browser_pool.py` | `MapsBrowserPool` — reusable Chromium contexts with circuit breaker (3 consecutive blocks → 10 min pause), CAPTCHA detection, session recycled every 30 navigations |
-| `app/scrapers/gmaps_browser.py` | Browser-based quadtree discovery + `run_gmaps_scraper_browser()` — same quadtree logic as the API scraper, driven via Playwright |
-| `app/collectors/gmaps_browser.py` | `BrowserGmapsCollector` — drop-in replacement for `GmapsCollector`; returns the same `CollectorResult` shape |
-| `tests/test_browser_gmaps.py` | 43 unit tests for the browser scraper stack |
+| Language | Python 3.11+ |
+| Framework | FastAPI |
+| ORM | SQLModel (SQLAlchemy + Pydantic) |
+| Database | SQLite (dev) / PostgreSQL 15 (prod) |
+| Auth | JWT Bearer tokens; bcrypt password hashing |
+| Migrations | Alembic (auto-run on startup) |
+| Image storage | Database blobs (dev) / Google Cloud Storage (prod) |
+| Email | Resend.com (password reset) |
+| Serving | Uvicorn (ASGI) |
 
-### Config vars
+### Frontend (Web + Admin)
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `SCRAPER_BACKEND` | No | `api` | `api` = Google Places API; `browser` = Playwright/Chromium |
-| `MAPS_BROWSER_POOL_SIZE` | No | `2` | Number of concurrent Chromium contexts in `MapsBrowserPool` |
-| `MAPS_BROWSER_MAX_PAGES` | No | `30` | Navigations per browser session before recycling |
-| `MAPS_BROWSER_HEADLESS` | No | `true` | Run Chromium headless (`true`) or visible (`false`) |
-
-### How it integrates
-
-- `app/scrapers/gmaps.py` — `run_gmaps_scraper()` checks `settings.SCRAPER_BACKEND` at the top and delegates to `run_gmaps_scraper_browser()` when set to `browser`. All downstream phases (enrichment, quality, merge, sync) are unchanged.
-- `app/collectors/registry.py` — when `SCRAPER_BACKEND=browser`, `BrowserGmapsCollector` is registered in place of `GmapsCollector`. All other collectors remain active.
-- `requirements.txt` — base API deps only (no Playwright, no timezonefinder, no google-cloud-run). These are moved to `requirements-job.txt`.
-- `requirements-job.txt` — job-container-only deps: `playwright>=1.40.0`, `timezonefinder>=6.0.0`, `google-cloud-run>=0.10.0`. Only installed in the job image.
-- `Dockerfile` — API Service image (~200 MB): base Python deps only, no Chromium. Used for the Cloud Run **Service**.
-- `Dockerfile.job` — Job image (~900 MB): installs `requirements-job.txt`, adds Chromium system dependencies, and runs `playwright install chromium`. Used for the Cloud Run **Job** (`SCRAPER_DISPATCH=cloud_run`).
-
-### Cloud Run sizing (browser mode)
-
-| Resource | Value |
+| Concern | Choice |
 |---|---|
-| Memory | 2 GB |
-| CPU | 2 vCPUs |
-| Timeout | 3600 s |
+| Framework | React 19 |
+| Build tool | Vite 7 |
+| Language | TypeScript |
+| Styling | Tailwind CSS 3 |
+| Routing | React Router 6 |
+| Maps | Leaflet (react-leaflet) |
+| Icons | Material Symbols Outlined |
+| Font | Lexend |
 
-### Job Dispatcher (`app/jobs/`)
+### Mobile
 
-Controls **how** a scraper run is executed after `POST /runs` or `POST /runs/{code}/resume`. Selected by `SCRAPER_DISPATCH`.
-
-| `SCRAPER_DISPATCH` | Behaviour |
+| Concern | Choice |
 |---|---|
-| `local` (default) | Runs the scraper in-process via FastAPI `BackgroundTasks`. No GCP required. Chromium stays co-located — needs 2 GB RAM on the API service. Works for local dev and simple Cloud Run Service deployments. |
-| `cloud_run` | Calls `google.cloud.run_v2.JobsClient().run_job()` to execute a separate **Cloud Run Job**. The API service stays lightweight (512 MB — no Chromium). The job runs `python -m app.jobs.run`. |
+| Framework | React Native 0.81 |
+| Platform | Expo 54 |
+| Language | TypeScript |
+| Navigation | React Navigation 7 |
+| Maps | Leaflet via react-native-webview |
+| Icons | MaterialIcons from @expo/vector-icons |
 
-**Config vars:**
+---
 
-| Variable | Default | Description |
+## 4. Data Model
+
+All entities use stable `*_code` string identifiers — never numeric IDs. Codes are used as primary and foreign keys in the DB, in API paths and bodies, and in frontend types. Codes may have a readable prefix (e.g. `plc_abc12`) but are treated as opaque strings in business logic.
+
+### Core Entities
+
+| Entity | PK | Key Fields |
 |---|---|---|
-| `SCRAPER_DISPATCH` | `local` | `local` = in-process BackgroundTasks; `cloud_run` = dispatch to Cloud Run Job |
-| `CLOUD_RUN_JOB_NAME` | `soulstep-scraper-job` | Cloud Run Job name (only needed when `SCRAPER_DISPATCH=cloud_run`) |
-| `CLOUD_RUN_REGION` | `us-central1` | GCP region for the job (only needed when `SCRAPER_DISPATCH=cloud_run`) |
+| `User` | `user_code` | email, password_hash, display_name, avatar_url |
+| `UserSettings` | FK → user_code | theme, language, units, religions (JSON) |
+| `Visitor` | `visitor_code` | anonymous identity; merged into UserSettings on signup |
+| `VisitorSettings` | FK → visitor_code | same fields as UserSettings |
+| `Place` | `place_code` | name, religion, place_type, lat/lng, address, opening_hours (JSON local time), utc_offset_minutes, description, website_url, source |
+| `PlaceImage` | FK → place_code | image_type (url/blob), url, blob_data, mime_type, display_order |
+| `PlaceSEO` | FK → place_code | seo_slug, meta_title, meta_description, structured_data (JSON-LD), alt_text, FAQ |
+| `Review` | `review_code` | user_code FK, place_code FK, rating (1–5), title, body, source (user/google) |
+| `ReviewImage` | FK → review_code | blob storage for review photos |
+| `CheckIn` | `check_in_code` | user_code FK, place_code FK, group_code FK (nullable), checked_in_at, note |
+| `Favorite` | composite: user_code + place_code | join table |
 
-**New files:**
+### Groups and Social
 
-| File | Purpose |
+| Entity | PK | Key Fields |
+|---|---|---|
+| `Group` | `group_code` | name, description, created_by, invite_code, is_private, path_place_codes (JSON ordered list), cover_image_url, start_date, end_date |
+| `GroupMember` | composite: group_code + user_code | role (admin/member), joined_at |
+| `GroupPlaceNote` | `note_code` | group_code FK, place_code FK, user_code FK, text — collaborative itinerary notes |
+| `Notification` | `notification_code` | user_code FK, type, payload (JSON), read_at |
+| `PasswordReset` | token | user_code FK, expires_at, used_at |
+
+### Dynamic Attributes (EAV)
+
+| Entity | PK | Key Fields |
+|---|---|---|
+| `PlaceAttributeDefinition` | `attribute_code` | name, data_type, icon, label_key, is_filterable, religion, display_order |
+| `PlaceAttribute` | unique: place_code + attribute_code | value_text, value_json |
+
+EAV allows religion-specific metadata (prayer times for Islam, service times for Christianity, deities for Hinduism) without schema changes.
+
+### Analytics and Ads
+
+| Entity | Key Fields |
 |---|---|
-| `app/jobs/__init__.py` | Package marker |
-| `app/jobs/dispatcher.py` | `dispatch_run()` / `dispatch_resume()` — switches between `local` and `cloud_run` backends at runtime |
-| `app/jobs/run.py` | Cloud Run Job entrypoint — reads `SCRAPER_RUN_CODE` + `SCRAPER_RUN_ACTION` env vars and calls `run_scraper_task` / `resume_scraper_task` without an HTTP server |
-
-**Integration:** `app/api/v1/scraper.py` — `POST /runs` and `POST /runs/{code}/resume` delegate to `dispatch_run()` / `dispatch_resume()` instead of calling `background_tasks.add_task` directly.
-
----
-
-## 8b. Translation Backends
-
-`app/services/translation_service.py` exposes `translate_text()` and `translate_batch()` with a pluggable backend selected by `TRANSLATION_BACKEND`:
-
-| Backend | Value | How it works |
-|---|---|---|
-| Google Cloud API (default) | `api` | `google-cloud-translate` SDK, requires `GOOGLE_CLOUD_PROJECT` + ADC credentials |
-| Headless browser | `browser` | Playwright drives `translate.google.com` directly — no GCP credentials needed |
-
-The browser backend (`app/services/browser_translation.py`) uses:
-- **`BrowserSessionPool`** — reusable Chromium contexts (configurable via `BROWSER_POOL_SIZE`, recycled after `BROWSER_MAX_TRANSLATIONS` uses)
-- **Stealth patches** — removes `navigator.webdriver`, mocks plugins/chrome.runtime to avoid bot detection
-- **Human-like typing** — 50–150ms per character with random pauses
-- **`_CircuitBreaker`** — aborts batch after 3 consecutive failures; exponential backoff (5s → 60s)
-- **CAPTCHA detection** — recycles context on block
-
-Set `TRANSLATION_FALLBACK=true` to retry via the API backend when the browser returns `None`.
+| `AnalyticsEvent` | event_code, event_type, user/visitor_code, session_id, properties (JSON), platform |
+| `ConsentRecord` | user/visitor consent for ads + analytics |
+| `AdConfig` | platform-specific ad config (enabled flag, publisher/slot IDs) |
+| `AICrawlerLog` | AI crawler visit log (bot name, path, user-agent) |
 
 ---
 
-## 9. Client Identification & Force Update
+## 5. API Design
 
-### 9.1 Client Headers
+All routes are versioned under `/api/v1`. Paths and request/response bodies use `*_code` identifiers, never numeric IDs.
 
-Every request from web and mobile includes up to four custom HTTP headers so the
-backend can identify the caller's platform and enforce version requirements:
+**Authentication:** JWT Bearer token in `Authorization` header. Issued on login/register, validated per-request.
 
-| Header | Values | Source |
-|---|---|---|
-| `X-Content-Type` | `mobile` \| `desktop` | Web: UA detection; Mobile: always `mobile` |
-| `X-App-Type` | `app` \| `web` | Web: always `web`; Mobile: always `app` |
-| `X-Platform` | `ios` \| `android` \| `web` | Platform.OS (mobile) or `web` |
-| `X-App-Version` | e.g. `1.2.3` | Mobile only — from `Constants.expoConfig.version` |
+**Client headers** (sent by web and mobile):
 
-On the backend these headers are extracted by `client_context_middleware` and stored in
-a `ContextVar` (`app.core.client_context`) accessible from any downstream code.
+| Header | Values |
+|---|---|
+| `X-Content-Type` | `mobile` or `desktop` |
+| `X-App-Type` | `app` (mobile) or `web` |
+| `X-Platform` | `ios`, `android`, or `web` |
+| `X-App-Version` | e.g. `1.2.3` (mobile only) |
 
-### 9.2 Force Update Mechanism
+**Key endpoint groups:**
+- `/api/v1/auth/*` — register, login, password reset
+- `/api/v1/users/me*` — profile, settings, check-ins, stats, favorites
+- `/api/v1/places*` — list, detail, reviews, check-in, favorite, batch sync
+- `/api/v1/cities*` — city browse + religion filter
+- `/api/v1/groups*` — CRUD, join, invite, leaderboard, activity, checklist, notes
+- `/api/v1/notifications*` — list, mark read
+- `/api/v1/search*` — autocomplete, place details (Google Places proxy)
+- `/api/v1/visitors*` — anonymous visitor sessions
+- `/api/v1/ads*`, `/api/v1/consent*` — ads config + consent
+- `/api/v1/analytics/events` — batch event ingestion (50 max, rate-limited)
+- `/api/v1/languages`, `/api/v1/translations` — i18n, no auth
+- `/share/*`, `/sitemap.xml`, `/robots.txt`, `/feed.xml` — SEO + sharing
+- `/api/v1/admin/*` — full admin CRUD (requires admin role)
+- `/api/v1/app-version` — mobile version enforcement config
 
-Two-tier update enforcement for mobile clients:
+See `soulstep-catalog-api/README.md` for the complete endpoint list.
+
+---
+
+## 6. Key Architectural Decisions
+
+### Datetime Storage
+
+All datetime columns use the `_UTCAwareDateTime` TypeDecorator (`_TSTZ()` helper in `models.py`):
+- **PostgreSQL**: mapped to `TIMESTAMPTZ` — stores and returns tz-aware datetimes
+- **SQLite**: re-attaches `UTC` timezone on read from string storage
+- **Rule**: always use `datetime.now(UTC)`, never `datetime.utcnow()`
+
+### Opening Hours + Timezone
+
+Opening hours are stored in **local time** (24-hour, as received from Google Maps), not UTC.
+
+- `utc_offset_minutes` stored per place (e.g. 240 for UTC+4)
+- `is_open_now` computed on server: current UTC → place local time → compare opening hours
+- Browser scraper mode: `timezonefinder` computes UTC offset from lat/lng
+- No DST handling — acceptable for target regions (UAE, India, Saudi Arabia, South Asia)
+
+### Image Storage
+
+Two backends controlled by `IMAGE_STORAGE` env var:
+
+| Backend | Behavior |
+|---|---|
+| `blob` (default) | Binary data in DB `LargeBinary` column; served via `/api/v1/places/{code}/image/{imageCode}` |
+| `gcs` | Uploaded to GCS bucket; `blob_data` left NULL; served via public GCS URL |
+
+Service abstraction in `app/services/image_storage.py`. On Cloud Run, workload identity (ADC) handles GCS auth automatically.
+
+### Translation Backend
+
+Two translation backends controlled by `TRANSLATION_BACKEND`:
+
+| Backend | How it works |
+|---|---|
+| `api` (default) | Google Cloud Translation API via `google-cloud-translate` SDK |
+| `browser` | Playwright drives `translate.google.com` headlessly — no GCP credentials needed |
+
+The browser backend uses `BrowserSessionPool` (reusable contexts), stealth patches, and a circuit breaker.
+
+### Feature Parity (Web ↔ Mobile)
+
+Both frontends maintain the same screen inventory, API calls, and translation keys. No shared packages — replicate code in both apps. Enforced by convention (CLAUDE.md Rule 10).
+
+### Scraper Backends
+
+Two discovery backends for `soulstep-scraper-api/`:
+
+| `SCRAPER_BACKEND` | Method | API key | Cost | Speed |
+|---|---|---|---|---|
+| `api` (default) | Google Places API HTTP calls | Required | ~$0.008/place | ~3h per 10K |
+| `browser` | Playwright/Chromium | Not required | $0 | ~24–48h per 10K |
+
+All downstream phases (enrichment, quality, merging, sync) are identical regardless of backend.
+
+### Job Dispatcher
+
+Controls how scraper runs execute:
+
+| `SCRAPER_DISPATCH` | Behavior |
+|---|---|
+| `local` (default) | In-process FastAPI BackgroundTasks; no GCP needed |
+| `cloud_run` | Dispatches a Cloud Run Job via GCP Jobs API; API service stays at 512 MB |
+
+---
+
+## 7. Mobile App Update Enforcement
 
 **Soft update (banner):**
-- Mobile app calls `GET /api/v1/app-version?platform=ios|android` on startup.
-- If current version < `min_version_soft`, an `UpdateBanner` is shown on HomeScreen.
-- User can dismiss the banner for the session.
+- Mobile calls `GET /api/v1/app-version?platform=ios|android` on startup
+- If current version < `min_version_soft`, shows an `UpdateBanner` (dismissible)
 
 **Hard update (full block):**
-- `hard_update_middleware` intercepts every `/api/v1/*` request from `X-App-Type: app`.
-- If `X-App-Version` < `MIN_APP_VERSION_HARD` (env var), returns **HTTP 426 Upgrade Required**:
-  ```json
-  { "detail": "update_required", "min_version": "1.0.0", "store_url": "..." }
-  ```
-- The mobile `authFetch` detects 426 and calls `triggerForceUpdate()` via a registered
-  callback, which shows `ForceUpdateModal` — a full-screen modal with no dismiss option.
+- `hard_update_middleware` intercepts every `/api/v1/*` request from `X-App-Type: app`
+- If `X-App-Version` < `MIN_APP_VERSION_HARD`, returns **HTTP 426** — mobile shows `ForceUpdateModal` with no dismiss option
 
-**Configuration sources (priority order):**
-1. `AppVersionConfig` DB table (per-platform rows, editable without redeploy).
-2. Environment variables: `MIN_APP_VERSION_HARD`, `MIN_APP_VERSION_SOFT`,
-   `LATEST_APP_VERSION`, `APP_STORE_URL_IOS`, `APP_STORE_URL_ANDROID`.
+**Configuration priority:** `AppVersionConfig` DB table (per-platform, editable at runtime) overrides env vars.
 
-Web clients are never blocked — the web app always serves the latest bundle.
+Web clients are never blocked — always receive the latest bundle.
 
-### 9.3 New Files
+---
 
-| File | Purpose |
-|---|---|
-| `soulstep-catalog-api/app/core/client_context.py` | ContextVar + semver helpers |
-| `soulstep-catalog-api/app/api/v1/app_version.py` | `GET /api/v1/app-version` endpoint |
-| `soulstep-catalog-api/migrations/versions/0006_app_version_config.py` | DB migration |
-| `apps/soulstep-customer-mobile/src/lib/utils/versionUtils.ts` | Semver comparison utilities |
-| `apps/soulstep-customer-mobile/src/lib/updateContext.tsx` | React context for update state |
-| `apps/soulstep-customer-mobile/src/components/common/ForceUpdateModal.tsx` | Hard update modal |
-| `apps/soulstep-customer-mobile/src/components/common/UpdateBanner.tsx` | Soft update banner |
+## 8. Analytics
+
+Privacy-first analytics pipeline:
+- `POST /api/v1/analytics/events` — batch ingest (up to 50 events/request, 10 req/min rate limit)
+- Events buffered client-side (30s or 10 events), sent as batches
+- Auth optional (supports both authenticated users and anonymous visitors)
+- Admin queries: overview, top-places, trends, raw event log
+
+---
+
+## 9. SEO / GEO Architecture
+
+The catalog API serves all SEO content:
+
+- **Static SEO**: `PlaceSEO` model with `seo_slug`, `meta_title`, `meta_description`, `structured_data` (JSON-LD TouristAttraction), `alt_text`, FAQ
+- **Sitemaps**: `/sitemap.xml` (places + hreflang + images), `/sitemap-images.xml`
+- **AI discoverability**: `/robots.txt` (allows major AI bots), `/llms.txt`, `/ai-plugin.json`
+- **Feeds**: `/feed.xml` (RSS 2.0), `/feed.atom` (Atom 1.0)
+- **AI citation monitoring**: `AICrawlerLog` + `GET /admin/seo/ai-citations`
+
+SEO generation: `scripts/generate_seo.py --generate --translate` (run post-sync or auto-triggered by scraper).
 
 ---
 
 ## 10. API Versioning Policy
 
-All API routes are URL-versioned (e.g. `/api/v1/`, `/api/v2/`). Each version has its own directory under `soulstep-catalog-api/app/api/` with an `__init__.py` that aggregates its routers.
-
-### Stable version
-- **`/api/v1`** is the current stable version. It will be maintained for **12 months after the `/api/v2` general availability date**.
-
-### Breaking vs. non-breaking changes
-- **Breaking changes** (removed fields, changed response shapes, renamed endpoints, changed auth flow) require a new version (`/api/v2`, etc.).
-- **Non-breaking additions** (new optional fields, new endpoints, new query parameters with defaults) may be added to an existing version without a version bump.
-
-### Client migration
-- Mobile clients use `GET /api/v1/app-version` to detect upgrade requirements. Hard-blocking (HTTP 426) is reserved for security-critical or data-integrity breaking changes.
-- Web clients receive the latest bundle on deploy; no client-side version negotiation is needed.
-
-### Response headers
-- All API responses include `X-API-Version: 1` so clients can detect the serving version without inspecting the URL.
-
-### Directory layout
-```
-soulstep-catalog-api/app/api/
-├── v1/          # Current stable — __init__.py aggregates all v1 routers
-└── v2/          # Skeleton — add routers here as v2 endpoints are built
-```
+- Current stable: `/api/v1` — maintained 12 months after `/api/v2` GA
+- **Breaking changes** (removed fields, renamed endpoints, changed auth): require new version
+- **Non-breaking additions** (new optional fields, new endpoints): added to existing version
+- All responses include `X-API-Version: 1`
+- Hard-blocking (HTTP 426) reserved for security-critical or data-integrity breaking changes
 
 ---
 
-## 11. Image Storage
+## 11. Scheduled Jobs (Cloud Run Jobs)
 
-Images (place photos, review photos, group cover images) support two storage backends, controlled by the `IMAGE_STORAGE` env var.
+All jobs use the catalog API package (`soulstep-catalog-api/app/`) with separate Docker images:
 
-### Backends
+| Job | Image | Schedule | Purpose |
+|---|---|---|---|
+| `cleanup-job` | `Dockerfile` | Daily 02:00 UTC | Remove orphaned review images |
+| `backfill-timezones` | `Dockerfile` | One-off | Populate timezone data for places |
+| `sync-places` | `Dockerfile.sync` | Daily 02:00 UTC | Upsert enriched scraper places into catalog |
+| `translate-content` | `Dockerfile.translate` | Daily 04:00 UTC | Translate place/review/city content (ar, hi, te, ml) |
 
-| `IMAGE_STORAGE` | Behavior |
-|---|---|
-| `blob` (default) | Binary data stored in the database `LargeBinary` column. Served via internal API endpoints. Best for local dev. |
-| `gcs` | Images uploaded to Google Cloud Storage and served via public GCS URLs. `blob_data` is left NULL. Recommended for production. |
-
-### Service abstraction
-
-`app/services/image_storage.py` exposes:
-- `BlobStorageBackend` — `upload()` returns `None` (caller stores blob in DB)
-- `GCSStorageBackend` — `upload()` uploads to GCS bucket, returns public URL; `delete()` removes the GCS object
-- `get_image_storage()` — lazy singleton, picks backend from `IMAGE_STORAGE`
-- `is_gcs_enabled()` — boolean helper for conditional logic
-
-### GCS bucket structure
-
-```
-{GCS_BUCKET_NAME}/
-  images/places/          # Place photos (set_images_from_blobs)
-  images/reviews/         # Review upload photos
-  images/group-covers/    # Group cover image uploads
-```
-
-### Frontend compatibility
-
-The `getFullImageUrl()` utility in both web and mobile already handles both modes:
-- Relative URLs (`/api/v1/...`) → API base prepended
-- Full HTTPS URLs (`https://storage.googleapis.com/...`) → passed through as-is
-
-### Required env vars (GCS mode)
-
-| Var | Description |
-|---|---|
-| `IMAGE_STORAGE=gcs` | Enable GCS backend |
-| `GCS_BUCKET_NAME` | Bucket name (must exist, public-readable objects) |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to service account JSON (or use workload identity on GCP) |
-
----
-
-## 12. Analytics & Event Tracking
-
-### 12.1 Overview
-
-A privacy-first analytics pipeline collects batched events from web and mobile clients, stores them in a dedicated `analytics_event` table, and surfaces aggregated insights through admin dashboard queries.
-
-### 12.2 Data Model
-
-```
-analytics_event table:
-  id               INT PK auto
-  event_code       STR unique, indexed ("evt_" + token_hex(8))
-  event_type       STR indexed (enum: page_view | place_view | search | check_in |
-                                      favorite_toggle | review_submit | share |
-                                      filter_change | signup | login)
-  user_code        STR nullable, indexed (authenticated user; no FK — high-volume table)
-  visitor_code     STR nullable, indexed (anonymous visitor; no FK — high-volume table)
-  session_id       STR indexed (UUID per app session)
-  properties       JSON nullable (event-specific data, e.g. {place_code, religion})
-  platform         STR indexed ("web" | "ios" | "android")
-  device_type      STR nullable ("mobile" | "desktop")
-  app_version      STR nullable
-  client_timestamp DATETIME(timezone=True, NOT NULL) — when event happened on device
-  created_at       DATETIME(timezone=True, NOT NULL) — when server received it
-```
-
-No FK constraints on `user_code`/`visitor_code` to avoid write overhead on this high-volume append-only table.
-
-### 12.3 Ingestion Endpoint
-
-**`POST /api/v1/analytics/events`** — rate-limited at 10 req/min per IP, auth optional.
-
-- Accepts a batch of up to 50 events with shared `platform`, `device_type`, `app_version`, `visitor_code`
-- Uses `OptionalUserDep` — works for both authenticated users and anonymous visitors
-- Validates `event_type` against `AnalyticsEventType` enum, rejects unknown types
-- Bulk inserts in a single transaction, generates `event_code` server-side
-- Response: `{ "accepted": N }`
-
-### 12.4 Admin Query Endpoints
-
-All require `AdminDep` (admin role JWT).
-
-| Endpoint | Description |
-|---|---|
-| `GET /admin/analytics/overview` | Total events (all time, 24h, 7d), unique users/visitors/sessions, top event types, platform breakdown |
-| `GET /admin/analytics/top-places?period=7d&limit=20` | Top places by analytics frequency (place_code extracted from properties JSON in Python for SQLite compat) |
-| `GET /admin/analytics/trends?interval=day&period=30d&event_type=` | Event count trends over time; Python-side datetime grouping per `stats.py` pattern |
-| `GET /admin/analytics/events?page=1&page_size=50&event_type=&platform=` | Paginated raw event log with filters (type, platform, user_code, session_id, date_from, date_to) |
-
-### 12.5 Client-Side Hook
-
-Both web and mobile implement `useAnalytics()` and `AnalyticsProviderConnected`:
-
-**Web** (`apps/soulstep-customer-web/src/lib/hooks/useAnalytics.ts`):
-- Session ID: `crypto.randomUUID()` stored in `sessionStorage` (new per browser tab)
-- Buffer: `useRef<Event[]>`, flushes every 30s or at 10 events
-- Flush: `fetch('/api/v1/analytics/events')` — fire-and-forget
-- `navigator.sendBeacon()` on `beforeunload` for reliability
-- Consent gating: reads `analytics` consent from `useAds()` context; no-op if not granted
-- Auto page-view tracking: `usePageViewTracking()` hook via `useLocation()`
-
-**Mobile** (`apps/soulstep-customer-mobile/src/lib/hooks/useAnalytics.ts`):
-- Session ID: UUID v4 generated in memory (reset on cold start via `AppState` listener)
-- Platform from `Platform.OS`, device_type always `"mobile"`, app_version from `expo-constants`
-- Flush on `AppState` `background` transition instead of `sendBeacon`
-- Same consent gating and buffer logic as web
-
----
-
-## 13. Design Alignment
-
-- **Screens to implement** (from DESIGN_FILE.html and app-design-prompt): Splash, Create Account, Login, Forgot Password, Preferred religions (multi-select, optional), Home (list + map), Place detail (Islam/Hinduism/Christianity variants), Check-in flow, Profile and stats, Groups list, Group detail and leaderboard, Favorites, Settings, Notifications, Write review. Empty and error states as specified in the design prompt.
-- **Design system:** Lexend, Material Icons/Symbols, Tailwind with tokens from DESIGN_FILE (primary, borders, radii, safe areas). Support light/dark where designs specify (e.g. Place detail Hindu temple).
-
-This architecture keeps one frontend codebase for desktop, mobile web, and native iOS/Android while supporting a scalable backend and clear separation of concerns. Implementation is split into phased prompts in [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION_PROMPTS.md).
-
----
-
-## 14. Background Workers (Cloud Run Jobs)
-
-Two standalone Cloud Run Jobs run on a daily schedule via Cloud Scheduler. They share the catalog API package (`soulstep-catalog-api/app/`) but use separate Docker images to minimise image size and startup time.
-
-### 14.1 sync-places (`app/jobs/sync_places.py`)
-
-| Property | Value |
-|---|---|
-| Image | `Dockerfile.sync` (python:3.12-slim, no Playwright) |
-| Resources | 1 CPU, 1 GB RAM |
-| Timeout | 30 min |
-| Schedule | Daily 02:00 UTC |
-| Retries | 1 |
-
-**Flow:**
-1. Runs catalog Alembic migrations (`run_migrations()`).
-2. Connects read-only to scraper PostgreSQL via `SCRAPER_DATABASE_URL`.
-3. Reads all `scrapedplace` rows (`place_code`, `name`, `raw_data`, `quality_score`).
-4. Filters: skip `quality_score < 0.75` (NULL passes through) and generic single-word names.
-5. Builds `PlaceCreate` objects from `raw_data` JSON (inlined sanitize helpers for religion, attributes, reviews).
-6. Calls `_process_chunk()` from `app.api.v1.places` in batches of 50 — handles upsert, images, attributes, reviews, translations, and retries.
-7. Exits 0 on success, 1 if any places failed.
-
-**Env vars:** `DATABASE_URL` (catalog DB), `SCRAPER_DATABASE_URL` (scraper DB).
-
-### 14.2 translate-content (`app/jobs/translate_content.py`)
-
-| Property | Value |
-|---|---|
-| Image | `Dockerfile.translate` (python:3.12-slim + Playwright + Chromium) |
-| Resources | 2 CPU, 4 GB RAM |
-| Timeout | 24 h |
-| Schedule | Daily 04:00 UTC (after sync-places) |
-| Retries | 0 (prevents double-translation) |
-
-**Flow:**
-1. Runs catalog Alembic migrations.
-2. Looks up an admin user for `BulkTranslationJob.created_by_user_code`.
-3. Creates a `BulkTranslationJob` row (visible in admin dashboard).
-4. Calls `_collect_missing_items()` for all entity types (`place`, `review`, `city`, `attribute_def`) and all target langs (`ar`, `hi`, `te`, `ml`).
-5. Groups missing items by target language.
-6. Translates via `translate_batch_browser_parallel()` (headless Chromium).
-7. Flushes results to DB incrementally every 10 items via `_flush_translations()`.
-8. Marks `BulkTranslationJob` as `completed` or `completed_with_errors`.
-
-**Env vars:** `DATABASE_URL`, optionally `BROWSER_POOL_SIZE`, `BROWSER_MAX_TRANSLATIONS`, `BROWSER_HEADLESS`, `BROWSER_TRANSLATE_MULTI_SIZE`.
+All jobs are created/updated automatically by `.github/workflows/deploy.yml` on pushes to `main` that touch `soulstep-catalog-api/`.
