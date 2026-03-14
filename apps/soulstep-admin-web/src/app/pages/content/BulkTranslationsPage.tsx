@@ -159,10 +159,20 @@ export function BulkTranslationsPage() {
   const [importToast, setImportToast] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
+  const EXPORT_ENTITY_TYPES = ["place", "city"] as const;
+  const [exportEntityTypes, setExportEntityTypes] = useState<string[]>([...EXPORT_ENTITY_TYPES]);
+
+  const toggleExportType = (type: string) => {
+    setExportEntityTypes((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    );
+  };
+
   const handleExport = async () => {
+    if (exportEntityTypes.length === 0) return;
     setExportLoading(true);
     try {
-      const data = await exportUntranslated();
+      const data = await exportUntranslated(undefined, exportEntityTypes.join(","));
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -370,11 +380,27 @@ export function BulkTranslationsPage() {
           </p>
         </div>
 
+        {/* Entity type filter for export */}
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-xs text-text-secondary dark:text-dark-text-secondary">Export:</p>
+          {EXPORT_ENTITY_TYPES.map((type) => (
+            <label key={type} className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={exportEntityTypes.includes(type)}
+                onChange={() => toggleExportType(type)}
+                className="h-4 w-4 rounded border-input-border dark:border-dark-border accent-primary"
+              />
+              <span className="text-sm capitalize text-text-main dark:text-white">{type}s</span>
+            </label>
+          ))}
+        </div>
+
         <div className="flex flex-wrap gap-3">
           {/* Export */}
           <button
             onClick={() => void handleExport()}
-            disabled={exportLoading}
+            disabled={exportLoading || exportEntityTypes.length === 0}
             className="flex items-center gap-2 rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-bg px-4 py-2 text-sm font-medium text-text-main dark:text-white hover:bg-background-light dark:hover:bg-dark-surface disabled:opacity-50 transition-colors"
           >
             <Download size={14} />

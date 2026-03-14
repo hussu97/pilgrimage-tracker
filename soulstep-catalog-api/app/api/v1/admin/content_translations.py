@@ -268,71 +268,91 @@ def export_untranslated(
     admin: AdminDep,
     session: SessionDep,
     langs: str = Query(default="ar,hi,te,ml", description="Comma-separated lang codes"),
+    entity_types: str = Query(
+        default="place,city", description="Comma-separated entity types to include"
+    ),
 ):
-    """Return all (place, field, lang) triples that are missing a ContentTranslation row.
+    """Return all (entity, field, lang) triples that are missing a ContentTranslation row.
 
+    Supports entity_types=place,city (default: both).
     The exported JSON is the input format for translate_content_claude.py.
     """
-    target_langs = [lang_code.strip() for lang_code in langs.split(",") if lang_code.strip()]
+    target_langs = [lc.strip() for lc in langs.split(",") if lc.strip()]
     if not target_langs:
         raise HTTPException(status_code=422, detail="langs must not be empty")
 
-    # Fetch all places with at least a name
-    places = session.exec(
-        select(Place.place_code, Place.name, Place.description, Place.address)
-    ).all()
+    requested_types = {t.strip() for t in entity_types.split(",") if t.strip()}
+    if not requested_types:
+        raise HTTPException(status_code=422, detail="entity_types must not be empty")
 
-    # Fetch all existing ContentTranslation keys for places in one query
-    existing_stmt = select(
-        ContentTranslation.entity_code,
-        ContentTranslation.field,
-        ContentTranslation.lang,
-    ).where(ContentTranslation.entity_type == "place")
-    existing_rows = session.exec(existing_stmt).all()
-    # Build set of (entity_code, field, lang) that already exist
-    existing: set[tuple[str, str, str]] = {(r[0], r[1], r[2]) for r in existing_rows}
+    # Load all existing translation keys in one query (all entity types at once)
+    existing_rows = session.exec(
+        select(
+            ContentTranslation.entity_type,
+            ContentTranslation.entity_code,
+            ContentTranslation.field,
+            ContentTranslation.lang,
+        )
+    ).all()
+    # (entity_type, entity_code, field, lang)
+    existing: set[tuple[str, str, str, str]] = {(r[0], r[1], r[2], r[3]) for r in existing_rows}
 
     result: list[UntranslatedPlaceItem] = []
-    for place_code, name, description, address in places:
-        # Build the source fields dict (only non-None values)
-        source_fields: dict[str, str] = {}
-        if name:
-            source_fields["name"] = name
-        if description:
-            source_fields["description"] = description
-        if address:
-            source_fields["address"] = address
 
-        if not source_fields:
-            continue
-
-        # Determine which langs are missing for ANY of these fields
+    def _collect(
+        entity_type: str,
+        entity_code: str,
+        entity_name: str,
+        source_fields: dict[str, str],
+    ) -> None:
         missing_langs: set[str] = set()
         for field_name in source_fields:
             for lang in target_langs:
-                if (place_code, field_name, lang) not in existing:
+                if (entity_type, entity_code, field_name, lang) not in existing:
                     missing_langs.add(lang)
 
         if not missing_langs:
-            continue
+            return
 
-        # Only export fields that are missing in at least one of the missing langs
         fields_to_export: dict[str, str] = {}
         for field_name, text in source_fields.items():
             for lang in missing_langs:
-                if (place_code, field_name, lang) not in existing:
+                if (entity_type, entity_code, field_name, lang) not in existing:
                     fields_to_export[field_name] = text
                     break
 
         result.append(
             UntranslatedPlaceItem(
-                entity_type="place",
-                entity_code=place_code,
-                place_name=name or "",
+                entity_type=entity_type,
+                entity_code=entity_code,
+                place_name=entity_name,
                 fields=fields_to_export,
                 missing_langs=sorted(missing_langs),
             )
         )
+
+    # ── Places ─────────────────────────────────────────────────────────────────
+    if "place" in requested_types:
+        places = session.exec(
+            select(Place.place_code, Place.name, Place.description, Place.address)
+        ).all()
+        for place_code, name, description, address in places:
+            source_fields: dict[str, str] = {}
+            if name:
+                source_fields["name"] = name
+            if description:
+                source_fields["description"] = description
+            if address:
+                source_fields["address"] = address
+            if source_fields:
+                _collect("place", place_code, name or "", source_fields)
+
+    # ── Cities ─────────────────────────────────────────────────────────────────
+    if "city" in requested_types:
+        cities = session.exec(select(City.city_code, City.name)).all()
+        for city_code, name in cities:
+            if name:
+                _collect("city", city_code, name, {"name": name})
 
     return result
 

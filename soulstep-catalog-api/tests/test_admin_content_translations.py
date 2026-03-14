@@ -2,7 +2,7 @@
 
 from sqlmodel import select
 
-from app.db.models import ContentTranslation, Place, User
+from app.db.models import City, ContentTranslation, Place, User
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -248,6 +248,56 @@ def test_export_untranslated_invalid_langs(client, db_session):
     headers = _admin_headers(client, db_session)
     resp = client.get(
         "/api/v1/admin/content-translations/export-untranslated?langs=",
+        headers=headers,
+    )
+    assert resp.status_code == 422
+
+
+def test_export_untranslated_includes_cities(client, db_session):
+    """Cities without translations should appear when entity_types includes 'city'."""
+    city = City(city_code="cty_test001", name="Mecca", country_code="SA")
+    db_session.add(city)
+    db_session.commit()
+    _make_place(db_session, code="plc_exp_city")
+
+    headers = _admin_headers(client, db_session)
+    resp = client.get(
+        "/api/v1/admin/content-translations/export-untranslated?langs=ar&entity_types=place,city",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    codes = {item["entity_code"] for item in data}
+    assert "cty_test001" in codes
+    assert "plc_exp_city" in codes
+    city_item = next(i for i in data if i["entity_code"] == "cty_test001")
+    assert city_item["entity_type"] == "city"
+    assert "name" in city_item["fields"]
+
+
+def test_export_untranslated_entity_types_filter(client, db_session):
+    """entity_types=city should exclude places."""
+    city = City(city_code="cty_test002", name="Medina", country_code="SA")
+    db_session.add(city)
+    db_session.commit()
+    _make_place(db_session, code="plc_exp_filter")
+
+    headers = _admin_headers(client, db_session)
+    resp = client.get(
+        "/api/v1/admin/content-translations/export-untranslated?langs=ar&entity_types=city",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    entity_types_in_result = {item["entity_type"] for item in data}
+    assert "place" not in entity_types_in_result
+    assert "city" in entity_types_in_result
+
+
+def test_export_untranslated_invalid_entity_types(client, db_session):
+    headers = _admin_headers(client, db_session)
+    resp = client.get(
+        "/api/v1/admin/content-translations/export-untranslated?entity_types=",
         headers=headers,
     )
     assert resp.status_code == 422

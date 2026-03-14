@@ -517,8 +517,10 @@ export async function deleteTranslationJob(jobCode: string): Promise<void> {
 
 // ── Claude.ai Manual Translation Workflow ─────────────────────────────────────
 
-export async function exportUntranslated(langs?: string): Promise<UntranslatedPlaceItem[]> {
-  const params = langs ? { langs } : {};
+export async function exportUntranslated(langs?: string, entity_types?: string): Promise<UntranslatedPlaceItem[]> {
+  const params: Record<string, string> = {};
+  if (langs) params.langs = langs;
+  if (entity_types) params.entity_types = entity_types;
   const res = await apiClient.get<UntranslatedPlaceItem[]>(
     "/admin/content-translations/export-untranslated",
     { params }
