@@ -49,11 +49,11 @@ class Settings:
     google_cloud_project: str = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
 
     # ── GCS image storage ─────────────────────────────────────────────────────
-    # When set, scraped images are uploaded to this GCS bucket and GCS URLs are
-    # stored instead of base64 blobs. Leave blank to use the default base64 path.
+    # Same env var and bucket as the catalog API (IMAGE_STORAGE=gcs + GCS_BUCKET_NAME).
+    # When set, scraped images are uploaded to images/places/ — matching the catalog's
+    # PREFIX_PLACES — so all place images share one folder regardless of origin.
+    # Leave blank to store images as base64 blobs in the sync payload instead.
     gcs_bucket_name: str = os.environ.get("GCS_BUCKET_NAME", "")
-    # Prefix (folder) within the bucket for place images.
-    gcs_image_prefix: str = os.environ.get("GCS_IMAGE_PREFIX", "places")
 
     # ── Concurrency (configurable via env for tuning) ─────────────────────────
     # Max concurrent Google Places searchNearby calls during discovery.

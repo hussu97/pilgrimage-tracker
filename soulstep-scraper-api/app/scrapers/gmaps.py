@@ -557,11 +557,10 @@ def _flush_detail_buffer(
             from app.services.gcs import is_gcs_configured
             from app.services.gcs import upload_image_bytes as gcs_upload
 
-            place_code = details["place_code"]
             if is_gcs_configured():
                 gcs_urls = []
-                for idx, img_data in enumerate(image_bytes):
-                    url = gcs_upload(place_code, idx, img_data)
+                for img_data in image_bytes:
+                    url = gcs_upload(img_data)
                     if url:
                         gcs_urls.append(url)
                 if gcs_urls:

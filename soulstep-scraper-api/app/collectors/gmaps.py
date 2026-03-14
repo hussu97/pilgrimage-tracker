@@ -227,7 +227,7 @@ async def upload_images_to_gcs(run_code: str, engine) -> None:
             try:
                 data = base64.b64decode(blob["data"])
                 mime_type = blob.get("mime_type", "image/jpeg")
-                url = upload_image_bytes(place.place_code, idx, data, mime_type)
+                url = upload_image_bytes(data, mime_type)
                 if url:
                     gcs_urls.append(url)
                     uploaded_count += 1
