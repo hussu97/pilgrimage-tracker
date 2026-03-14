@@ -209,6 +209,11 @@ async def cleanup_images(admin: AdminDep):
     return await _proxy("POST", "/cleanup/images")
 
 
+@router.get("/runs/{run_code}/places/{place_code}/quality-breakdown")
+async def get_place_quality_breakdown(run_code: str, place_code: str, admin: AdminDep):
+    return await _proxy("GET", f"/runs/{run_code}/places/{place_code}/quality-breakdown")
+
+
 @router.get("/map/cells")
 async def get_map_cells(admin: AdminDep, request: Request):
     params = dict(request.query_params)
