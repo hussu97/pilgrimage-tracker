@@ -2,6 +2,9 @@
 
 SCRAPER_DISPATCH=local       (default) — runs the scraper in-process via FastAPI
                                BackgroundTasks; no GCP required; works locally.
+                               The scraper runs in a dedicated OS thread with its
+                               own asyncio event loop so it never blocks the
+                               FastAPI/uvicorn event loop that handles HTTP requests.
 SCRAPER_DISPATCH=cloud_run   (production) — dispatches a Cloud Run Job execution
                                via the google-cloud-run SDK; requires
                                CLOUD_RUN_JOB_NAME, CLOUD_RUN_REGION, and
@@ -10,11 +13,36 @@ SCRAPER_DISPATCH=cloud_run   (production) — dispatches a Cloud Run Job executi
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import BackgroundTasks
 
 logger = logging.getLogger(__name__)
+
+
+def _run_local(run_code: str) -> None:
+    """Sync wrapper: runs the async scraper task in its own event loop.
+
+    FastAPI's BackgroundTasks dispatches *sync* callables via anyio's thread
+    pool, giving this function its own OS thread.  asyncio.run() then creates
+    a brand-new event loop inside that thread, completely isolated from the
+    uvicorn event loop that serves HTTP requests.
+
+    This prevents the long-running browser automation (Playwright page loads,
+    5–12 s inter-cell delays, scroll loops) from saturating the API event loop
+    and causing request timeouts.
+    """
+    from app.db.scraper import run_scraper_task
+
+    asyncio.run(run_scraper_task(run_code))
+
+
+def _resume_local(run_code: str) -> None:
+    """Sync wrapper for resume — same isolation rationale as _run_local."""
+    from app.db.scraper import resume_scraper_task
+
+    asyncio.run(resume_scraper_task(run_code))
 
 
 def dispatch_run(run_code: str, background_tasks: BackgroundTasks) -> None:
@@ -24,9 +52,7 @@ def dispatch_run(run_code: str, background_tasks: BackgroundTasks) -> None:
     if settings.scraper_dispatch == "cloud_run":
         background_tasks.add_task(_dispatch_cloud_run, run_code, "run")
     else:
-        from app.db.scraper import run_scraper_task
-
-        background_tasks.add_task(run_scraper_task, run_code)
+        background_tasks.add_task(_run_local, run_code)
 
 
 def dispatch_resume(run_code: str, background_tasks: BackgroundTasks) -> None:
@@ -36,9 +62,7 @@ def dispatch_resume(run_code: str, background_tasks: BackgroundTasks) -> None:
     if settings.scraper_dispatch == "cloud_run":
         background_tasks.add_task(_dispatch_cloud_run, run_code, "resume")
     else:
-        from app.db.scraper import resume_scraper_task
-
-        background_tasks.add_task(resume_scraper_task, run_code)
+        background_tasks.add_task(_resume_local, run_code)
 
 
 def _dispatch_cloud_run(run_code: str, action: str = "run") -> None:
