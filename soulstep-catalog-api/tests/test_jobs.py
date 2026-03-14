@@ -378,6 +378,7 @@ class TestTranslateContentMain:
         """When _collect_missing_items returns empty list, job is marked completed quickly."""
         with (
             patch("app.jobs.translate_content.run_migrations"),
+            patch("app.jobs.translate_content._migrate_legacy_attributes", return_value=0),
             patch("app.jobs.translate_content._get_system_user_code", return_value=None),
             patch("app.jobs.translate_content._collect_missing_items", return_value=[]),
             patch("app.jobs.translate_content.translate_batch_browser_parallel"),
@@ -401,6 +402,7 @@ class TestTranslateContentMain:
 
         with (
             patch("app.jobs.translate_content.run_migrations"),
+            patch("app.jobs.translate_content._migrate_legacy_attributes", return_value=0),
             patch("app.jobs.translate_content._get_system_user_code", return_value=None),
             patch("app.jobs.translate_content._collect_missing_items", return_value=missing),
             patch("app.jobs.translate_content._flush_translations"),
