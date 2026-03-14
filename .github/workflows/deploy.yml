@@ -379,16 +379,7 @@ jobs:
             --command "python" --args="-m,app.jobs.cleanup_orphaned_images" \
             --max-retries 1 --task-timeout 300 --memory 512Mi --cpu 1
 
-          # b. backfill-translations (uses api image)
-          _upsert backfill-translations \
-            --image "$API" \
-            --set-cloudsql-instances "$CLOUDSQL" \
-            --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
-            --set-env-vars "GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}" \
-            --command "python" --args="-m,scripts.backfill_translations,--langs,ar,hi" \
-            --max-retries 1 --task-timeout 600 --memory 512Mi --cpu 1
-
-          # c. backfill-timezones (uses api image)
+          # b. backfill-timezones (uses api image)
           _upsert backfill-timezones \
             --image "$API" \
             --set-cloudsql-instances "$CLOUDSQL" \

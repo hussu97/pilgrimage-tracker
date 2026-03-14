@@ -4,6 +4,9 @@ Collects all (entity_type, entity_code, field, lang, en_text) tuples that are
 missing from ContentTranslation, translates via translate_batch_browser_parallel,
 and saves incrementally. Creates a BulkTranslationJob record for admin visibility.
 
+Also migrates legacy name_{lang} PlaceAttribute rows (written by the scraper)
+into ContentTranslation on first run (idempotent).
+
 Usage:
     python -m app.jobs.translate_content
 """
@@ -21,7 +24,8 @@ from app.api.v1.admin.bulk_translations import (
     _collect_missing_items,
     _flush_translations,
 )
-from app.db.models import BulkTranslationJob, User
+from app.db import content_translations as ct_db
+from app.db.models import BulkTranslationJob, PlaceAttribute, User
 from app.db.session import engine, run_migrations
 from app.services.browser_translation import BrowserSessionPool, translate_batch_browser_parallel
 
@@ -35,6 +39,40 @@ _TARGET_LANGS = ["ar", "hi", "te", "ml"]
 _ENTITY_TYPES = ["place", "review", "city", "attribute_def"]
 _SOURCE_LANG = "en"
 _PROGRESS_UPDATE_INTERVAL = 10
+
+# Legacy PlaceAttribute codes written by the scraper (e.g. name_ar, name_hi).
+# Migrated once into ContentTranslation rows with source="scraper".
+_LEGACY_ATTR_LANGS: dict[str, tuple[str, str]] = {
+    f"name_{lang}": ("name", lang) for lang in _TARGET_LANGS
+}
+
+
+def _migrate_legacy_attributes() -> int:
+    """Copy legacy name_{lang} PlaceAttribute rows into ContentTranslation (idempotent)."""
+    migrated = 0
+    with Session(engine) as session:
+        for attr_code, (field, lang) in _LEGACY_ATTR_LANGS.items():
+            attrs = session.exec(
+                select(PlaceAttribute).where(PlaceAttribute.attribute_code == attr_code)
+            ).all()
+            for attr in attrs:
+                if not attr.value_text:
+                    continue
+                existing = ct_db.get_translation("place", attr.place_code, field, lang, session)
+                if existing:
+                    continue
+                ct_db.upsert_translation(
+                    entity_type="place",
+                    entity_code=attr.place_code,
+                    field=field,
+                    lang=lang,
+                    text=attr.value_text,
+                    source="scraper",
+                    session=session,
+                )
+                migrated += 1
+        session.commit()
+    return migrated
 
 
 def _get_system_user_code() -> str | None:
@@ -215,6 +253,10 @@ def main() -> None:
     logger.info("translate_content: running catalog migrations")
     run_migrations()
     logger.info("translate_content: migrations complete")
+
+    # ── Legacy attribute migration ────────────────────────────────────────────
+    migrated = _migrate_legacy_attributes()
+    logger.info("translate_content: migrated %d legacy name_{lang} attribute rows", migrated)
 
     # ── Create job record ─────────────────────────────────────────────────────
     job_code = "btj_worker_" + token_hex(6)
