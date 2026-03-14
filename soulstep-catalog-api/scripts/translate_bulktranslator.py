@@ -305,45 +305,47 @@ def main() -> None:
                     print(f"  ✗ Retry also failed: {exc2} — skipping batch {batch_idx}")
                     continue
 
-            # Append each language's output atomically + optionally push to DB
+            # ── Step 1: write ALL languages to txt first (always safe) ──────────
+            saved: dict[str, list[str]] = {}
             for lang_code, output_lines in results.items():
                 if not output_lines:
                     continue
-
-                # 1. Write to local file (audit trail, parallel-safe)
                 out_file = output_dir / LANG_FILES[lang_code]
                 _append_lines_atomic(out_file, output_lines)
-                print(f"    ✓ {lang_code}: {len(output_lines)} lines → {out_file}", end="")
+                saved[lang_code] = output_lines
+                print(f"    ✓ {lang_code}: {len(output_lines)} lines → {out_file}")
 
-                # 2. Push to DB via API
-                if api_url and api_token:
+            # ── Step 2: import each language's batch into the DB ─────────────
+            if api_url and api_token and saved:
+                for lang_code, output_lines in saved.items():
                     try:
                         job = _api_import(api_url, api_token, lang_code.lower(), output_lines)
                         print(
-                            f"  →  DB: {job.get('completed_items', '?')} saved "
-                            f"(job {job.get('job_code', '?')})"
+                            f"    → DB {lang_code}: {job.get('completed_items', '?')} saved"
+                            f" (job {job.get('job_code', '?')})"
                         )
                     except requests.HTTPError as exc:
                         if exc.response is not None and exc.response.status_code == 401:
                             # Token expired — re-login and retry once
-                            print("  → token expired, re-logging in…", end="")
+                            print(f"    → DB {lang_code}: token expired, re-logging in…")
                             api_token = _api_login(api_url, args.admin_email, args.admin_password)
                             try:
                                 job = _api_import(
                                     api_url, api_token, lang_code.lower(), output_lines
                                 )
                                 print(
-                                    f"  →  DB: {job.get('completed_items', '?')} saved "
-                                    f"(job {job.get('job_code', '?')})"
+                                    f"    → DB {lang_code}: {job.get('completed_items', '?')} saved"
+                                    f" (job {job.get('job_code', '?')})"
                                 )
                             except Exception as exc2:
-                                print(f"  ✗ DB import failed after re-login: {exc2}")
+                                print(
+                                    f"    ✗ DB {lang_code}: failed after re-login: {exc2}"
+                                    " (data safe in txt)"
+                                )
                         else:
-                            print(f"  ✗ DB import failed: {exc}")
+                            print(f"    ✗ DB {lang_code}: failed: {exc} (data safe in txt)")
                     except Exception as exc:
-                        print(f"  ✗ DB import failed: {exc}")
-                else:
-                    print()  # newline after the file write line
+                        print(f"    ✗ DB {lang_code}: failed: {exc} (data safe in txt)")
 
             # Brief pause between batches to be polite to the server
             if batch_idx < len(batches):
