@@ -348,13 +348,13 @@ jobs:
       - name: Build and push sync-places image
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/sync-places:${{ github.sha }}"
-          docker build --platform linux/amd64 -f Dockerfile.sync -t "$IMAGE" ./soulstep-catalog-api
+          docker build --platform linux/amd64 -f soulstep-catalog-api/Dockerfile.sync -t "$IMAGE" ./soulstep-catalog-api
           docker push "$IMAGE"
 
       - name: Build and push translate-content image
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/translate-content:${{ github.sha }}"
-          docker build --platform linux/amd64 -f Dockerfile.translate -t "$IMAGE" ./soulstep-catalog-api
+          docker build --platform linux/amd64 -f soulstep-catalog-api/Dockerfile.translate -t "$IMAGE" ./soulstep-catalog-api
           docker push "$IMAGE"
 
       - name: Update or create Cloud Run Jobs
