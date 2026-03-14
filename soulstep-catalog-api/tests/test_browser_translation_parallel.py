@@ -38,11 +38,31 @@ def _make_session(translation_count: int = 0, in_use: bool = False):
 
 
 def test_translate_multi_browser_happy_path():
-    """Sentinel-delimited block is split back correctly for 3 texts."""
+    """Separator-delimited block is split back correctly for 3 texts."""
     from app.services.browser_translation import translate_multi_browser
 
-    # Simulate the translated block that Google returns
-    raw_translated = "【1】مرحبا\n【2】العالم\n【3】كيف حالك"
+    # Simulate Google returning the block with separators intact
+    raw_translated = "مرحبا\n\n<<<SEP:2>>>\n\nالعالم\n\n<<<SEP:3>>>\n\nكيف حالك"
+
+    async def run():
+        with patch(
+            "app.services.browser_translation.translate_single_browser",
+            new=AsyncMock(return_value=raw_translated),
+        ):
+            result = await translate_multi_browser(
+                ["Hello", "World", "How are you"], target_lang="ar"
+            )
+        assert result == ["مرحبا", "العالم", "كيف حالك"]
+
+    asyncio.run(run())
+
+
+def test_translate_multi_browser_happy_path_bracket_mutation():
+    """Falls back regex patterns handle Google mutating <<<SEP:N>>> brackets."""
+    from app.services.browser_translation import translate_multi_browser
+
+    # Google converted <<<SEP:N>>> to <SEP:N> (partial brackets)
+    raw_translated = "مرحبا\n\n<SEP:2>\n\nالعالم\n\n<SEP:3>\n\nكيف حالك"
 
     async def run():
         with patch(
@@ -58,11 +78,11 @@ def test_translate_multi_browser_happy_path():
 
 
 def test_translate_multi_browser_sentinel_mismatch_fallback():
-    """When sentinel count doesn't match, falls back to individual calls."""
+    """When no separator pattern matches, falls back to individual calls."""
     from app.services.browser_translation import translate_multi_browser
 
-    # Raw output has only 2 segments but we sent 3 texts
-    raw_translated = "【1】مرحبا\n【2】العالم"
+    # Raw output has no recognisable separators (all stripped by Google)
+    raw_translated = "مرحبا العالم"
     individual_calls = []
 
     async def fake_single(text, target_lang, source_lang="en"):
@@ -74,14 +94,15 @@ def test_translate_multi_browser_sentinel_mismatch_fallback():
             "app.services.browser_translation.translate_single_browser",
             side_effect=fake_single,
         ) as mock_single:
-            # First call returns the mismatched raw (used for multi-block attempt)
+            # First call returns the stripped raw (multi-block attempt),
+            # subsequent calls are the individual fallback translations.
             mock_single.side_effect = [raw_translated] + [
                 f"translated_{t}" for t in ["Hello", "World", "How are you"]
             ]
             result = await translate_multi_browser(
                 ["Hello", "World", "How are you"], target_lang="ar"
             )
-        # Fallback should have called individual translations for each text
+        # Fallback should have produced 3 results
         assert len(result) == 3
 
     asyncio.run(run())
