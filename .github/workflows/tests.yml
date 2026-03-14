@@ -77,19 +77,17 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Cache virtualenv
-        id: cache-venv-catalog
+      - name: Cache pip downloads
         uses: actions/cache@v4
         with:
-          path: soulstep-catalog-api/.venv
-          key: venv-catalog-${{ runner.os }}-py3.11-${{ hashFiles('soulstep-catalog-api/requirements-dev.txt') }}
+          path: ~/.cache/pip
+          key: pip-catalog-${{ runner.os }}-py3.11-${{ hashFiles('soulstep-catalog-api/requirements-dev.txt') }}
+          restore-keys: pip-catalog-${{ runner.os }}-py3.11-
 
       - name: Install dependencies
         working-directory: soulstep-catalog-api
         run: |
-          if [ ! -f .venv/bin/python ]; then
-            python -m venv .venv
-          fi
+          python -m venv .venv
           .venv/bin/pip install --quiet -r requirements-dev.txt
           .venv/bin/pip install --quiet pip-audit
 
@@ -121,19 +119,17 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Cache virtualenv
-        id: cache-venv-scraper
+      - name: Cache pip downloads
         uses: actions/cache@v4
         with:
-          path: soulstep-scraper-api/.venv
-          key: venv-scraper-${{ runner.os }}-py3.11-${{ hashFiles('soulstep-scraper-api/requirements-dev.txt') }}
+          path: ~/.cache/pip
+          key: pip-scraper-${{ runner.os }}-py3.11-${{ hashFiles('soulstep-scraper-api/requirements-dev.txt') }}
+          restore-keys: pip-scraper-${{ runner.os }}-py3.11-
 
       - name: Install dependencies
         working-directory: soulstep-scraper-api
         run: |
-          if [ ! -f .venv/bin/python ]; then
-            python -m venv .venv
-          fi
+          python -m venv .venv
           .venv/bin/pip install --quiet -r requirements-dev.txt
           .venv/bin/pip install --quiet pip-audit
 
