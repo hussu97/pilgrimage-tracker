@@ -58,7 +58,7 @@ class StartJobBody(BaseModel):
     target_langs: list[str]  # e.g. ["ar", "hi", "te", "ml"]
     entity_types: list[str] = ["place"]  # ["place", "review"]
     source_lang: str = "en"
-    multi_size: int = 5  # texts per browser request (1–8)
+    multi_size: int = 8  # texts per browser request (1–8)
 
 
 class BulkTranslationJobOut(BaseModel):

@@ -735,17 +735,52 @@ async def translate_batch_browser(
 
 
 # ── Delimiter-based multi-text translation ─────────────────────────────────────
+
+# Separator placed *between* texts (not as a prefix before each one).
+# This prevents Google Translate from interpreting the block as a numbered list
+# (which caused 【N】 prefixes to be stripped after the first item).
+# The token looks like a technical/code reference that translation engines
+# are trained to leave untouched.
+_SEP_FMT = "<<<SEP:{n}>>>"
+
+# Fallback parse patterns ordered from strictest to loosest.
+# Google may convert < > to [ ] or strip some brackets — we try all variants.
+_SEP_PATTERNS = [
+    r"<<<SEP:\d+>>>",  # exact: <<<SEP:2>>>
+    r"<{1,3}SEP:\d+>{1,3}",  # partial brackets stripped: <SEP:2> or <<SEP:2>>
+    r"<{1,3}SEP\s*:\s*\d+>{1,3}",  # spaces around colon: <<<SEP: 2>>>
+    r"\[{1,2}SEP:\d+\]{1,2}",  # angle→square: [[SEP:2]] or [SEP:2]
+    r"SEP:\d+",  # bare token if all brackets stripped
+]
+
+
+def _try_split_segments(raw: str, expected: int) -> list[str] | None:
+    """Attempt to recover `expected` text segments from a translated block.
+
+    Tries each pattern in _SEP_PATTERNS in order.  Returns the list of
+    stripped segments if exactly `expected` non-empty segments are found,
+    otherwise None.
+    """
+    for pat in _SEP_PATTERNS:
+        parts = re.split(pat, raw)
+        segments = [p.strip() for p in parts if p.strip()]
+        if len(segments) == expected:
+            return segments
+    return None
+
+
 async def translate_multi_browser(
     texts: list[str],
     target_lang: str,
     source_lang: str = "en",
     pool: BrowserSessionPool | None = None,
 ) -> list[str | None]:
-    """Translate multiple texts in a single browser request using sentinel delimiters.
+    """Translate multiple texts in a single browser request using separator tokens.
 
-    Joins texts as "【1】text1\\n【2】text2\\n…", sends as one translation, then splits
-    the output back. If the sentinel count doesn't match (translator merges/splits
-    segments), falls back to individual translate_single_browser calls per item.
+    Joins texts as "text1\\n\\n<<<SEP:2>>>\\n\\ntext2\\n\\n<<<SEP:3>>>\\n\\n…",
+    sends as one translation, then recovers segments by splitting on the separator.
+    Tries several fallback regex patterns to handle bracket mutations by Google.
+    If the segment count still doesn't match, falls back to individual calls.
 
     Returns a list of the same length as input; empty/whitespace inputs → None.
     """
@@ -773,9 +808,15 @@ async def translate_multi_browser(
         results[non_empty_indices[0]] = translated
         return results
 
-    # Build the delimited block
-    block_parts = [f"【{i + 1}】{text}" for i, text in enumerate(non_empty_texts)]
-    block = "\n".join(block_parts)
+    # Build separator-delimited block.
+    # Separator sits *between* adjacent texts, numbered after the preceding text
+    # (i.e. <<<SEP:2>>> means "separator before segment 2").
+    block_parts: list[str] = []
+    for i, text in enumerate(non_empty_texts):
+        block_parts.append(text)
+        if i < len(non_empty_texts) - 1:
+            block_parts.append(_SEP_FMT.format(n=i + 2))
+    block = "\n\n".join(block_parts)
 
     logger.debug(
         "browser_translation: translate_multi — sending %d texts as delimited block (%d chars)",
@@ -792,31 +833,20 @@ async def translate_multi_browser(
             "browser_translation: translate_multi — browser returned None, falling back to individual calls"
         )
     else:
-        # Split on sentinel markers — match both 【N】 (full-width, as sent) and
-        # [N] (ASCII, which Google Translate sometimes substitutes for them).
-        parts = re.split(r"[【\[](\d+)[】\]]", raw)
-        # parts layout: ['', '1', 'text1', '2', 'text2', ...]
-        # Collect odd-indexed (number labels) and even-indexed (text segments after label)
-        segments: list[str] = []
-        i = 1
-        while i < len(parts) - 1:
-            segments.append(parts[i + 1].strip())
-            i += 2
-
-        if len(segments) == len(non_empty_texts):
+        segments = _try_split_segments(raw, len(non_empty_texts))
+        if segments is not None:
             for idx, seg in zip(non_empty_indices, segments, strict=False):
                 results[idx] = seg if seg else None
             logger.debug(
-                "browser_translation: translate_multi — sentinel split OK, %d segments",
+                "browser_translation: translate_multi — separator split OK, %d segments",
                 len(segments),
             )
             return results
 
         logger.warning(
-            "browser_translation: translate_multi — sentinel count mismatch "
-            "(expected %d, got %d); falling back to individual calls",
+            "browser_translation: translate_multi — separator count mismatch "
+            "(expected %d); falling back to individual calls",
             len(non_empty_texts),
-            len(segments),
         )
 
     # Fallback: translate each non-empty text individually
@@ -834,7 +864,7 @@ async def translate_batch_browser_parallel(
     texts: list[str],
     target_lang: str,
     source_lang: str = "en",
-    multi_size: int = 5,
+    multi_size: int = 8,
     on_result: Callable[[int, str | None], Awaitable[None]] | None = None,
     pool: BrowserSessionPool | None = None,
     is_cancelled: Callable[[], bool] | None = None,

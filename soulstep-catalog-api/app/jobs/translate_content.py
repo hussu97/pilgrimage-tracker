@@ -208,7 +208,7 @@ async def _run_translation(job_code: str, has_job_record: bool) -> None:
                     _pending.clear()
                     items_since_flush = 0
 
-            multi_size = int(os.environ.get("BROWSER_TRANSLATE_MULTI_SIZE", "5"))
+            multi_size = int(os.environ.get("BROWSER_TRANSLATE_MULTI_SIZE", "8"))
             await translate_batch_browser_parallel(
                 texts,
                 target_lang=lang,
