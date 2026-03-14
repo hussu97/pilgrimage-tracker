@@ -3,15 +3,26 @@
 Tests for:
   GET  /admin/content-translations/export-txt
   POST /admin/content-translations/import-txt
+
+Line format: [type_num:entity_id:field_num] {{ text }}
+  type_num  — 1=place 2=city 3=attribute_def 4=review
+  entity_id — integer primary key
+  field_num — place(1=name 2=description 3=address), city/attr_def(1=name), review(1=title 2=body)
 """
 
 from __future__ import annotations
+
+import re
 
 from sqlmodel import select
 
 from app.db.models import ContentTranslation, Place, User
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
+_LINE_RE = re.compile(
+    r"^\[(?P<type_num>\d+):(?P<entity_id>\d+):(?P<field_num>\d+)\]\s*\{\{\s*(?P<text>.+?)\s*\}\}$"
+)
 
 
 def _register(client, email="admin@example.com", password="Testpass1!", display_name="Admin"):
@@ -61,7 +72,12 @@ def _seed_place(
     )
     db_session.add(place)
     db_session.commit()
+    db_session.refresh(place)
     return place
+
+
+def _make_txt(lines: list[str]) -> bytes:
+    return "\n".join(lines).encode("utf-8")
 
 
 # ── Export .txt tests ──────────────────────────────────────────────────────────
@@ -75,9 +91,9 @@ def test_export_txt_returns_plain_text(client, db_session):
     assert "text/plain" in resp.headers["content-type"]
 
 
-def test_export_txt_correct_line_format(client, db_session):
+def test_export_txt_correct_numeric_format(client, db_session):
     headers = _admin_headers(client, db_session)
-    _seed_place(
+    place = _seed_place(
         db_session, place_code="plc_fmt001", name="Golden Temple", description="A sacred site"
     )
     resp = client.get(
@@ -86,21 +102,36 @@ def test_export_txt_correct_line_format(client, db_session):
         params={"entity_types": "place"},
     )
     assert resp.status_code == 200
-    text = resp.text
-    assert "[place:plc_fmt001:name] {{ Golden Temple }}" in text
-    assert "[place:plc_fmt001:description] {{ A sacred site }}" in text
+    lines = [ln for ln in resp.text.splitlines() if ln.strip()]
+    # All non-blank lines must match the numeric format
+    for line in lines:
+        assert line.startswith("#") or _LINE_RE.match(line), f"Bad line: {line!r}"
+    # Verify specific lines for the seeded place
+    matched = [_LINE_RE.match(ln) for ln in lines if _LINE_RE.match(ln)]
+    type_entity_field = {
+        (m.group("type_num"), m.group("entity_id"), m.group("field_num")) for m in matched
+    }
+    place_id = str(place.id)
+    assert ("1", place_id, "1") in type_entity_field  # name
+    assert ("1", place_id, "2") in type_entity_field  # description
 
 
-def test_export_txt_includes_comment_lines(client, db_session):
+def test_export_txt_no_alphabets_in_brackets(client, db_session):
+    """The [N:N:N] identifier must contain only digits and colons."""
     headers = _admin_headers(client, db_session)
-    _seed_place(db_session, place_code="plc_cmt001", name="Blue Mosque")
+    _seed_place(db_session, place_code="plc_alpha01", name="Alpha Temple")
     resp = client.get(
         "/api/v1/admin/content-translations/export-txt",
         headers=headers,
         params={"entity_types": "place"},
     )
     assert resp.status_code == 200
-    assert "# Blue Mosque (plc_cmt001)" in resp.text
+    for line in resp.text.splitlines():
+        if line.startswith("["):
+            bracket_content = line[1 : line.index("]")]
+            assert bracket_content.replace(
+                ":", ""
+            ).isdigit(), f"Non-numeric bracket content: {bracket_content!r}"
 
 
 def test_export_txt_empty_when_all_translated(client, db_session):
@@ -108,7 +139,6 @@ def test_export_txt_empty_when_all_translated(client, db_session):
 
     headers = _admin_headers(client, db_session)
     _seed_place(db_session, place_code="plc_done001", name="Done Temple")
-    # Seed translations for all langs
     for lang in ["ar", "hi", "te", "ml"]:
         for field in ["name", "description", "address"]:
             ct = ContentTranslation(
@@ -141,18 +171,14 @@ def test_export_txt_requires_admin(client, db_session):
 # ── Import .txt tests ──────────────────────────────────────────────────────────
 
 
-def _make_txt(lines: list[str]) -> bytes:
-    return "\n".join(lines).encode("utf-8")
-
-
 def test_import_txt_creates_translations_and_job(client, db_session):
     headers = _admin_headers(client, db_session)
-    _seed_place(db_session, place_code="plc_imp001", name="Test Place")
+    place = _seed_place(db_session, place_code="plc_imp001", name="Test Place")
+    pid = place.id
     txt = _make_txt(
         [
-            "# Test Place (plc_imp001)",
-            "[place:plc_imp001:name] {{ مكان اختبار }}",
-            "[place:plc_imp001:description] {{ موقع مقدس }}",
+            f"[1:{pid}:1] {{{{ مكان اختبار }}}}",  # name
+            f"[1:{pid}:2] {{{{ موقع مقدس }}}}",  # description
         ]
     )
     resp = client.post(
@@ -168,7 +194,6 @@ def test_import_txt_creates_translations_and_job(client, db_session):
     assert job["completed_items"] == 2
     assert "ar" in job["target_langs"]
 
-    # Verify rows actually saved
     rows = db_session.exec(
         select(ContentTranslation).where(
             ContentTranslation.entity_code == "plc_imp001",
@@ -182,8 +207,10 @@ def test_import_txt_does_not_override_other_languages(client, db_session):
     from datetime import UTC, datetime
 
     headers = _admin_headers(client, db_session)
-    _seed_place(db_session, place_code="plc_iso001", name="Isolation Temple")
-    # Pre-seed an Arabic translation
+    place = _seed_place(db_session, place_code="plc_iso001", name="Isolation Temple")
+    pid = place.id
+
+    # Pre-seed Arabic
     existing = ContentTranslation(
         entity_type="place",
         entity_code="plc_iso001",
@@ -198,11 +225,7 @@ def test_import_txt_does_not_override_other_languages(client, db_session):
     db_session.commit()
 
     # Import Hindi only
-    txt = _make_txt(
-        [
-            "[place:plc_iso001:name] {{ अलगाव मंदिर }}",
-        ]
-    )
+    txt = _make_txt([f"[1:{pid}:1] {{{{ अलगाव मंदिर }}}}"])
     resp = client.post(
         "/api/v1/admin/content-translations/import-txt",
         data={"lang": "hi"},
@@ -211,7 +234,6 @@ def test_import_txt_does_not_override_other_languages(client, db_session):
     )
     assert resp.status_code == 201
 
-    # Arabic row must be untouched
     ar_row = db_session.exec(
         select(ContentTranslation).where(
             ContentTranslation.entity_code == "plc_iso001",
@@ -221,7 +243,6 @@ def test_import_txt_does_not_override_other_languages(client, db_session):
     assert ar_row is not None
     assert ar_row.translated_text == "موجود مسبقاً"
 
-    # Hindi row created
     hi_row = db_session.exec(
         select(ContentTranslation).where(
             ContentTranslation.entity_code == "plc_iso001",
@@ -244,13 +265,7 @@ def test_import_txt_empty_file_returns_422(client, db_session):
 
 def test_import_txt_comments_only_returns_422(client, db_session):
     headers = _admin_headers(client, db_session)
-    txt = _make_txt(
-        [
-            "# Just a comment",
-            "",
-            "# Another comment",
-        ]
-    )
+    txt = _make_txt(["# Just a comment", "", "# Another comment"])
     resp = client.post(
         "/api/v1/admin/content-translations/import-txt",
         data={"lang": "ar"},
@@ -262,7 +277,7 @@ def test_import_txt_comments_only_returns_422(client, db_session):
 
 def test_import_txt_requires_admin(client, db_session):
     non_admin = _non_admin_headers(client)
-    txt = _make_txt(["[place:plc_x:name] {{ Test }}"])
+    txt = _make_txt(["[1:1:1] {{ Test }}"])
     resp = client.post(
         "/api/v1/admin/content-translations/import-txt",
         data={"lang": "ar"},

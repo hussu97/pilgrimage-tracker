@@ -474,9 +474,33 @@ def bulk_upsert_translations(
 
 
 # ── .txt-based export / import (Bulk Translator workflow) ─────────────────────
+#
+# Line format: [type_num:entity_id:field_num] {{ english text }}
+#
+#   type_num   — 1=place  2=city  3=attribute_def  4=review
+#   entity_id  — integer primary key of the entity row
+#   field_num  — per-type: place(1=name 2=description 3=address)
+#                           city/attribute_def(1=name)
+#                           review(1=title 2=body)
+#
+# All three components are pure integers separated by colons, so bulk-translator
+# sites cannot accidentally translate the identifier.
+
+_ENTITY_TYPE_NUM: dict[str, int] = {"place": 1, "city": 2, "attribute_def": 3, "review": 4}
+_ENTITY_NUM_TYPE: dict[int, str] = {v: k for k, v in _ENTITY_TYPE_NUM.items()}
+
+_FIELD_IDX: dict[str, dict[str, int]] = {
+    "place": {"name": 1, "description": 2, "address": 3},
+    "city": {"name": 1},
+    "attribute_def": {"name": 1},
+    "review": {"title": 1, "body": 2},
+}
+_FIELD_NUM: dict[str, dict[int, str]] = {
+    et: {v: k for k, v in fields.items()} for et, fields in _FIELD_IDX.items()
+}
 
 _TXT_LINE_RE = re.compile(
-    r"^\[(?P<entity_type>[^:]+):(?P<entity_code>[^:]+):(?P<field>[^\]]+)\]\s*\{\{\s*(?P<text>.+?)\s*\}\}$"
+    r"^\[(?P<type_num>\d+):(?P<entity_id>\d+):(?P<field_num>\d+)\]\s*\{\{\s*(?P<text>.+?)\s*\}\}$"
 )
 
 
@@ -484,36 +508,43 @@ def _gather_untranslated_items(
     session,
     target_langs: list[str],
     requested_types: set[str],
-) -> list[tuple[str, str, str, str, str]]:
-    """Return (entity_type, entity_code, entity_name, field, en_text) for missing translations."""
+) -> list[tuple[str, int, str, str, str]]:
+    """Return (entity_type, entity_id, entity_code, field, en_text) for missing translations.
+
+    Filters the ContentTranslation lookup to only the requested langs and entity
+    types — avoids loading the entire table when only a subset is needed.
+    """
     existing_rows = session.exec(
         select(
             ContentTranslation.entity_type,
             ContentTranslation.entity_code,
             ContentTranslation.field,
             ContentTranslation.lang,
+        ).where(
+            col(ContentTranslation.lang).in_(target_langs),
+            col(ContentTranslation.entity_type).in_(list(requested_types)),
         )
     ).all()
     existing: set[tuple[str, str, str, str]] = {(r[0], r[1], r[2], r[3]) for r in existing_rows}
 
     items: list[
-        tuple[str, str, str, str, str]
-    ] = []  # (entity_type, entity_code, entity_name, field, en_text)
+        tuple[str, int, str, str, str]
+    ] = []  # (entity_type, entity_id, entity_code, field, en_text)
 
     def _collect(
-        entity_type: str, entity_code: str, entity_name: str, source_fields: dict[str, str]
+        entity_type: str, entity_id: int, entity_code: str, source_fields: dict[str, str]
     ) -> None:
         for field_name, text in source_fields.items():
             for lang in target_langs:
                 if (entity_type, entity_code, field_name, lang) not in existing:
-                    items.append((entity_type, entity_code, entity_name, field_name, text))
-                    break  # include the field once (for any missing lang)
+                    items.append((entity_type, entity_id, entity_code, field_name, text))
+                    break  # field is missing in at least one lang — include it once
 
     if "place" in requested_types:
         places = session.exec(
-            select(Place.place_code, Place.name, Place.description, Place.address)
+            select(Place.id, Place.place_code, Place.name, Place.description, Place.address)
         ).all()
-        for place_code, name, description, address in places:
+        for place_id, place_code, name, description, address in places:
             source_fields: dict[str, str] = {}
             if name:
                 source_fields["name"] = name
@@ -522,33 +553,38 @@ def _gather_untranslated_items(
             if address:
                 source_fields["address"] = address
             if source_fields:
-                _collect("place", place_code, name or "", source_fields)
+                _collect("place", place_id, place_code, source_fields)
 
     if "city" in requested_types:
-        cities = session.exec(select(City.city_code, City.name)).all()
-        for city_code, name in cities:
+        cities = session.exec(select(City.id, City.city_code, City.name)).all()
+        for city_id, city_code, name in cities:
             if name:
-                _collect("city", city_code, name, {"name": name})
+                _collect("city", city_id, city_code, {"name": name})
 
     if "attribute_def" in requested_types:
         attr_defs = session.exec(
-            select(PlaceAttributeDefinition.attribute_code, PlaceAttributeDefinition.name)
+            select(
+                PlaceAttributeDefinition.id,
+                PlaceAttributeDefinition.attribute_code,
+                PlaceAttributeDefinition.name,
+            )
         ).all()
-        for attribute_code, name in attr_defs:
+        for attr_id, attribute_code, name in attr_defs:
             if name:
-                _collect("attribute_def", attribute_code, name, {"name": name})
+                _collect("attribute_def", attr_id, attribute_code, {"name": name})
 
     if "review" in requested_types:
-        reviews = session.exec(select(Review.review_code, Review.title, Review.body)).all()
-        for review_code, title, body in reviews:
+        reviews = session.exec(
+            select(Review.id, Review.review_code, Review.title, Review.body)
+        ).all()
+        for review_id, review_code, title, body in reviews:
             source_fields = {}
             if title:
                 source_fields["title"] = title
             if body:
                 source_fields["body"] = body
             if source_fields:
-                label = (title or body or review_code)[:80]
-                _collect("review", review_code, label, source_fields)
+                _collect("review", review_id, review_code, source_fields)
 
     return items
 
@@ -563,7 +599,11 @@ def export_untranslated_txt(
     langs: str = Query(default="ar,hi,te,ml"),
     entity_types: str = Query(default="place,city,attribute_def,review"),
 ) -> PlainTextResponse:
-    """Export missing translations as a .txt file for use with external bulk translator sites."""
+    """Export missing translations as a .txt file for use with external bulk translator sites.
+
+    Each line: [type_num:entity_id:field_num] {{ english text }}
+    All components are integers — safe from accidental translation.
+    """
     target_langs = [lc.strip() for lc in langs.split(",") if lc.strip()]
     if not target_langs:
         raise HTTPException(status_code=422, detail="langs must not be empty")
@@ -574,24 +614,13 @@ def export_untranslated_txt(
 
     raw_items = _gather_untranslated_items(session, target_langs, requested_types)
 
-    # Group by (entity_type, entity_code, entity_name) preserving insertion order
-    from collections import OrderedDict
-
-    grouped: dict[tuple[str, str, str], list[tuple[str, str]]] = OrderedDict()
-    for entity_type, entity_code, entity_name, field, en_text in raw_items:
-        key = (entity_type, entity_code, entity_name)
-        if key not in grouped:
-            grouped[key] = []
-        grouped[key].append((field, en_text))
-
     lines: list[str] = []
-    for (entity_type, entity_code, entity_name), fields in grouped.items():
-        lines.append(f"# {entity_name} ({entity_code})")
-        for field, en_text in fields:
-            lines.append(f"[{entity_type}:{entity_code}:{field}] {{{{ {en_text} }}}}")
-        lines.append("")
+    for entity_type, entity_id, _entity_code, field, en_text in raw_items:
+        type_num = _ENTITY_TYPE_NUM[entity_type]
+        field_num = _FIELD_IDX[entity_type][field]
+        lines.append(f"[{type_num}:{entity_id}:{field_num}] {{{{ {en_text} }}}}")
 
-    content = "\n".join(lines).strip()
+    content = "\n".join(lines)
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
     filename = f"untranslated_{timestamp}.txt"
 
@@ -655,36 +684,103 @@ async def import_translated_txt(
     lang: str = Form(...),
     file: UploadFile = File(...),
 ) -> _BulkTranslationJobOut:
-    """Import a translated .txt file (one language at a time) and create a job record."""
+    """Import a translated .txt file (one language at a time) and create a job record.
+
+    Parses [type_num:entity_id:field_num] {{ translated text }} lines.
+    Resolves entity codes via batch DB lookups (one query per entity type).
+    """
     raw = await file.read()
     text = raw.decode("utf-8", errors="replace")
 
-    items: list[BulkUpsertItem] = []
-    entity_types_seen: set[str] = set()
+    # ── 1. Parse all numeric identifiers from the file ────────────────────────
+    # parsed_raw: list of (entity_type, entity_id_int, field_name, translated_text)
+    parsed_raw: list[tuple[str, int, str, str]] = []
+    ids_by_type: dict[str, set[int]] = {}  # entity_type → set of integer ids
 
     for line in text.splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
         m = _TXT_LINE_RE.match(line)
-        if m:
-            items.append(
-                BulkUpsertItem(
-                    entity_type=m.group("entity_type"),
-                    entity_code=m.group("entity_code"),
-                    field=m.group("field"),
-                    lang=lang,
-                    translated_text=m.group("text"),
-                    source="txt_import",
-                )
-            )
-            entity_types_seen.add(m.group("entity_type"))
+        if not m:
+            continue
+        type_num = int(m.group("type_num"))
+        entity_id = int(m.group("entity_id"))
+        field_num = int(m.group("field_num"))
 
-    if not items:
+        entity_type = _ENTITY_NUM_TYPE.get(type_num)
+        if entity_type is None:
+            continue
+        field_name = _FIELD_NUM.get(entity_type, {}).get(field_num)
+        if field_name is None:
+            continue
+
+        parsed_raw.append((entity_type, entity_id, field_name, m.group("text")))
+        ids_by_type.setdefault(entity_type, set()).add(entity_id)
+
+    if not parsed_raw:
         raise HTTPException(
             status_code=422, detail="No valid translation lines found in the uploaded file."
         )
 
+    # ── 2. Batch-resolve entity_id → entity_code (one query per entity type) ──
+    code_map: dict[str, dict[int, str]] = {}  # entity_type → {id: code}
+
+    if "place" in ids_by_type:
+        rows = session.exec(
+            select(Place.id, Place.place_code).where(col(Place.id).in_(list(ids_by_type["place"])))
+        ).all()
+        code_map["place"] = {r[0]: r[1] for r in rows}
+
+    if "city" in ids_by_type:
+        rows = session.exec(
+            select(City.id, City.city_code).where(col(City.id).in_(list(ids_by_type["city"])))
+        ).all()
+        code_map["city"] = {r[0]: r[1] for r in rows}
+
+    if "attribute_def" in ids_by_type:
+        rows = session.exec(
+            select(PlaceAttributeDefinition.id, PlaceAttributeDefinition.attribute_code).where(
+                col(PlaceAttributeDefinition.id).in_(list(ids_by_type["attribute_def"]))
+            )
+        ).all()
+        code_map["attribute_def"] = {r[0]: r[1] for r in rows}
+
+    if "review" in ids_by_type:
+        rows = session.exec(
+            select(Review.id, Review.review_code).where(
+                col(Review.id).in_(list(ids_by_type["review"]))
+            )
+        ).all()
+        code_map["review"] = {r[0]: r[1] for r in rows}
+
+    # ── 3. Build BulkUpsertItems (skip lines whose entity no longer exists) ───
+    items: list[BulkUpsertItem] = []
+    entity_types_seen: set[str] = set()
+
+    for entity_type, entity_id, field_name, translated_text in parsed_raw:
+        entity_code = code_map.get(entity_type, {}).get(entity_id)
+        if not entity_code:
+            continue  # entity was deleted since export — skip
+        items.append(
+            BulkUpsertItem(
+                entity_type=entity_type,
+                entity_code=entity_code,
+                field=field_name,
+                lang=lang,
+                translated_text=translated_text,
+                source="txt_import",
+            )
+        )
+        entity_types_seen.add(entity_type)
+
+    if not items:
+        raise HTTPException(
+            status_code=422,
+            detail="No resolvable entities found — the file may be stale or use the wrong format.",
+        )
+
+    # ── 4. Create job record ───────────────────────────────────────────────────
     now = datetime.now(UTC)
     job = BulkTranslationJob(
         job_code="btj_" + token_hex(8),
@@ -702,10 +798,9 @@ async def import_translated_txt(
     session.commit()
     session.refresh(job)
 
-    # Perform the upsert inline (same session)
+    # ── 5. Upsert translations ────────────────────────────────────────────────
     result = bulk_upsert_translations(body=items, admin=admin, session=session)
 
-    # Update job to completed
     job.completed_items = result.created + result.updated
     job.failed_items = len(result.errors)
     job.status = "completed" if not result.errors else "completed_with_errors"
