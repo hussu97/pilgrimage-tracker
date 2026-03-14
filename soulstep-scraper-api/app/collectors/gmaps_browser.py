@@ -47,21 +47,22 @@ _EXTRACT_JS = r"""
         result.lng = parseFloat(urlMatch[2]);
     }
 
-    // Rating — try multiple selectors
+    // Rating — [data-value][aria-label*="stars"] removed by Google; span[role="img"] is current
     const ratingEl =
-        document.querySelector('[data-value][aria-label*="stars"]') ||
-        document.querySelector('span[role="img"][aria-label*="stars"]');
+        document.querySelector('span[role="img"][aria-label*="stars"]') ||
+        document.querySelector('[data-value][aria-label*="stars"]');
     if (ratingEl) {
         const m = (ratingEl.getAttribute('aria-label') || '').match(/([\d.]+)/);
         result.rating = m ? parseFloat(m[1]) : null;
     }
 
-    // Review count
+    // Review count — span[aria-label*="reviews"] is the summary chip; button variant
+    // matches the Reviews *tab* (empty text) so check span first, then parse aria-label.
     const revEl =
-        document.querySelector('button[aria-label*="reviews"]') ||
-        document.querySelector('span[aria-label*="reviews"]');
+        document.querySelector('span[aria-label*="reviews"]') ||
+        document.querySelector('button[aria-label*="reviews"]');
     if (revEl) {
-        const t = (revEl.textContent || revEl.getAttribute('aria-label') || '').replace(/,/g, '');
+        const t = (revEl.getAttribute('aria-label') || revEl.textContent || '').replace(/,/g, '');
         const m = t.match(/(\d+)/);
         result.review_count = m ? parseInt(m[1]) : null;
     }
@@ -100,8 +101,9 @@ _EXTRACT_JS = r"""
     // Google Maps URI (current URL without query params)
     result.google_maps_uri = location.href.split('?')[0];
 
-    // Canonical ChIJ place ID from URL data parameter
-    const pidMatch = location.href.match(/!1s(ChIJ[a-zA-Z0-9_-]+)/);
+    // Canonical ChIJ place ID — Google redirects strip !19s from location.href, so
+    // search the full page HTML where !19s(ChIJ...) is still embedded.
+    const pidMatch = document.documentElement.innerHTML.match(/!19s(ChIJ[a-zA-Z0-9_-]+)/);
     result.place_id = pidMatch ? pidMatch[1] : null;
 
     return result;
