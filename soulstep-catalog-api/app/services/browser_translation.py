@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 logger = logging.getLogger(__name__)
 
 # ── Configuration ──────────────────────────────────────────────────────────────
-_POOL_SIZE = int(os.environ.get("BROWSER_POOL_SIZE", "20"))
+_POOL_SIZE = int(os.environ.get("BROWSER_POOL_SIZE", "10"))
 _MAX_TRANSLATIONS = int(os.environ.get("BROWSER_MAX_TRANSLATIONS", "20"))
 _HEADLESS = os.environ.get("BROWSER_HEADLESS", "true").lower() != "false"
 
