@@ -590,11 +590,12 @@ async def translate_single_browser(
                 )
         logger.debug("browser_translation: using input selector %r", input_selector)
 
-        # Clear existing input
-        await page.click(input_selector)
-        await page.keyboard.press("Control+a")
-        await page.keyboard.press("Backspace")
-        await _random_delay(100, 300)
+        # Clear existing input.
+        # page.fill("") is used instead of Ctrl+A + Backspace because the keyboard
+        # shortcut does not reliably fire the input/change events that Google Translate's
+        # SPA listens to, which causes subsequent calls to append text rather than replace.
+        await page.fill(input_selector, "")
+        await _random_delay(200, 500)  # let Google's output div update after the clear
 
         # Type the text in a human-like way
         logger.debug("browser_translation: typing %d chars into input", len(text))

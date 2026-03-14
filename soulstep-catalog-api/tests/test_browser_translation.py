@@ -160,6 +160,52 @@ def test_translate_single_browser_happy_path():
     asyncio.run(run())
 
 
+# ── Input clearing uses page.fill, not Ctrl+A+Backspace ───────────────────────
+def test_translate_single_browser_uses_fill_to_clear():
+    """translate_single_browser must use page.fill('') to clear the input, not
+    Ctrl+A + Backspace.  This prevents stale content from being appended when
+    a browser session is reused across sequential translation calls."""
+    from app.services.browser_translation import translate_single_browser
+
+    session = _make_session()
+    mock_pool = AsyncMock()
+    mock_pool.acquire = AsyncMock(return_value=session)
+    mock_pool.release = AsyncMock()
+
+    output_el = AsyncMock()
+    output_el.inner_text = AsyncMock(side_effect=["مرحبا", "مرحبا", "مرحبا"])
+
+    async def mock_query_selector(selector):
+        if "HwtZe" in selector or "result" in selector or "W297wb" in selector:
+            return output_el
+        if "textarea" in selector or "contenteditable" in selector:
+            return AsyncMock()
+        return None
+
+    session.page.query_selector = mock_query_selector
+
+    async def run():
+        with patch("app.services.browser_translation._get_pool", return_value=mock_pool):
+            with patch(
+                "app.services.browser_translation._check_for_captcha",
+                new=AsyncMock(return_value=False),
+            ):
+                with patch("app.services.browser_translation._human_type", new=AsyncMock()):
+                    with patch("app.services.browser_translation._random_delay", new=AsyncMock()):
+                        await translate_single_browser("Hello", "ar")
+
+        # page.fill must have been called with empty string to clear
+        session.page.fill.assert_called_once()
+        args = session.page.fill.call_args[0]
+        assert args[1] == "", "page.fill must be called with '' to clear the input"
+        # Ctrl+A and Backspace should NOT be used for clearing
+        for call in session.page.keyboard.press.call_args_list:
+            assert "Control+a" not in str(call), "Ctrl+A should not be used for clearing"
+            assert "Backspace" not in str(call), "Backspace should not be used for clearing"
+
+    asyncio.run(run())
+
+
 # ── CAPTCHA detection ──────────────────────────────────────────────────────────
 def test_captcha_detected_returns_none():
     """translate_single_browser returns None when CAPTCHA is detected."""
