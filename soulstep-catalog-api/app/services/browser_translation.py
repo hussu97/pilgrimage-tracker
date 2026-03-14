@@ -625,6 +625,7 @@ async def translate_single_browser(
             result = await _wait_for_translation(page, timeout_ms=10000)
 
         if result is None:
+            await _log_page_diagnostics(page, label="attempt-2-output-timeout")
             raise TranslationTimeoutError(
                 f"Translation output did not stabilise for text: {text[:50]!r}"
             )
@@ -643,7 +644,10 @@ async def translate_single_browser(
         recycle = True
         return None
     except TranslationTimeoutError as exc:
-        logger.warning("browser_translation: %s", exc)
+        # Recycle the session — a timed-out context is likely throttled by Google
+        # and will keep failing if reused.
+        recycle = True
+        logger.warning("browser_translation: %s (session recycled)", exc)
         return None
     except Exception as exc:
         logger.error(

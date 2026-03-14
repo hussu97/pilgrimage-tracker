@@ -234,7 +234,7 @@ def test_captcha_detected_returns_none():
 
 # ── Timeout / retry ────────────────────────────────────────────────────────────
 def test_translation_timeout_returns_none():
-    """translate_single_browser returns None when output never stabilises."""
+    """translate_single_browser returns None and recycles the session when output never stabilises."""
     from app.services.browser_translation import translate_single_browser
 
     session = _make_session()
@@ -250,13 +250,20 @@ def test_translation_timeout_returns_none():
             ):
                 with patch("app.services.browser_translation._human_type", new=AsyncMock()):
                     with patch("app.services.browser_translation._random_delay", new=AsyncMock()):
-                        # _wait_for_translation always returns None (timeout)
                         with patch(
-                            "app.services.browser_translation._wait_for_translation",
-                            new=AsyncMock(return_value=None),
+                            "app.services.browser_translation._log_page_diagnostics",
+                            new=AsyncMock(),
                         ):
-                            result = await translate_single_browser("Hello", "ar")
+                            # _wait_for_translation always returns None (timeout)
+                            with patch(
+                                "app.services.browser_translation._wait_for_translation",
+                                new=AsyncMock(return_value=None),
+                            ):
+                                result = await translate_single_browser("Hello", "ar")
         assert result is None
+        # Throttled/timed-out session must be recycled so the next caller gets a fresh context
+        _, kwargs = mock_pool.release.call_args
+        assert kwargs.get("recycle") is True
 
     asyncio.run(run())
 
