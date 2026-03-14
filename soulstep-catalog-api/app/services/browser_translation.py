@@ -738,20 +738,25 @@ async def translate_batch_browser(
 # ── Delimiter-based multi-text translation ─────────────────────────────────────
 
 # Separator placed *between* texts (not as a prefix before each one).
-# This prevents Google Translate from interpreting the block as a numbered list
-# (which caused 【N】 prefixes to be stripped after the first item).
-# The token looks like a technical/code reference that translation engines
-# are trained to leave untouched.
-_SEP_FMT = "<<<SEP:{n}>>>"
+# Uses a number-only format: <<<N>>> — no alphabetic word so Google Translate
+# cannot transliterate it into Arabic/Hindi/Telugu/Malayalam scripts.
+# Numbers and angle-bracket punctuation are universally preserved.
+_SEP_FMT = "<<<{n}>>>"
 
 # Fallback parse patterns ordered from strictest to loosest.
-# Google may convert < > to [ ] or strip some brackets — we try all variants.
+# Google may strip or replace the angle brackets — we try all variants.
+# Legacy SEP:N patterns are included for any in-flight translations from the old format.
 _SEP_PATTERNS = [
-    r"<<<SEP:\d+>>>",  # exact: <<<SEP:2>>>
-    r"<{1,3}SEP:\d+>{1,3}",  # partial brackets stripped: <SEP:2> or <<SEP:2>>
-    r"<{1,3}SEP\s*:\s*\d+>{1,3}",  # spaces around colon: <<<SEP: 2>>>
-    r"\[{1,2}SEP:\d+\]{1,2}",  # angle→square: [[SEP:2]] or [SEP:2]
-    r"SEP:\d+",  # bare token if all brackets stripped
+    r"<<<\d+>>>",  # exact: <<<2>>>
+    r"<{1,3}\d+>{1,3}",  # partial brackets: <2> or <<2>>
+    r"«\d+»",  # French guillemet substitution: «2»
+    r"\[{1,2}\d+\]{1,2}",  # square brackets: [[2]] or [2]
+    r"\(\(?\d+\)?\)",  # parens: ((2)) or (2)
+    # Legacy patterns (old <<<SEP:N>>> format)
+    r"<<<SEP:\d+>>>",
+    r"<{1,3}SEP:\d+>{1,3}",
+    r"\[{1,2}SEP:\d+\]{1,2}",
+    r"SEP:\d+",
 ]
 
 
