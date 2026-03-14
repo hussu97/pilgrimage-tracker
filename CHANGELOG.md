@@ -4,6 +4,20 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-15]
+
+### Backend
+- Removed Google Cloud Translation API (`google-cloud-translate` dependency removed); translation now exclusively uses the Cloud Run browser job and local bulktranslator script
+- Removed `POST /admin/translations/jobs` and `POST /admin/translations/jobs/{code}/cancel` endpoints; bulk translation jobs are now created only by the Cloud Run `translate_content` job
+- Moved `_collect_missing_items` and `_flush_translations` helpers into `translate_content.py`; gutted `bulk_translations.py` to read-only (list/get/delete)
+- Removed `--translate` mode from `scripts/generate_seo.py`; SEO translations go through standard translation paths
+
+### Frontend (web)
+- Removed "New Job" button and modal from BulkTranslationsPage admin UI
+- Removed cancel job action from translation jobs table; jobs are now read-only in admin
+
+---
+
 ## fix(scraper): align GCS path with catalog API (2026-03-14)
 
 ### Backend

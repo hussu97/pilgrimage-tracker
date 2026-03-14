@@ -19,14 +19,24 @@ from secrets import token_hex
 
 from sqlmodel import Session, select
 
-from app.api.v1.admin.bulk_translations import (
-    _collect_missing_items,
-    _flush_translations,
-)
 from app.db import content_translations as ct_db
-from app.db.models import BulkTranslationJob, PlaceAttribute, User
+from app.db.models import (
+    BulkTranslationJob,
+    City,
+    Place,
+    PlaceAttribute,
+    PlaceAttributeDefinition,
+    Review,
+    User,
+)
 from app.db.session import engine, run_migrations
 from app.services.browser_translation import BrowserSessionPool, translate_batch_browser_parallel
+
+# ── Translatable fields by entity type ───────────────────────────────────────
+_PLACE_FIELDS = ["name", "description"]
+_REVIEW_FIELDS = ["title", "body"]
+_CITY_FIELDS = ["name"]
+_ATTRIBUTE_DEF_FIELDS = ["name"]
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,6 +54,112 @@ _PROGRESS_UPDATE_INTERVAL = 10
 _LEGACY_ATTR_LANGS: dict[str, tuple[str, str]] = {
     f"name_{lang}": ("name", lang) for lang in _TARGET_LANGS
 }
+
+
+# ── Helpers (moved from bulk_translations.py) ─────────────────────────────────
+
+
+def _flush_translations(
+    pending: list[tuple[str, str, str, str, str]],
+    completed: int,
+    failed: int,
+    job_code: str,
+) -> None:
+    """Write pending translations and update job progress counters in one DB session."""
+    try:
+        with Session(engine) as s:
+            for entity_type, entity_code, field, lang, text in pending:
+                ct_db.upsert_translation(
+                    entity_type=entity_type,
+                    entity_code=entity_code,
+                    field=field,
+                    lang=lang,
+                    text=text,
+                    source="browser_translate",
+                    session=s,
+                    commit=False,
+                )
+            j = s.exec(
+                select(BulkTranslationJob).where(BulkTranslationJob.job_code == job_code)
+            ).first()
+            if j:
+                j.completed_items = completed
+                j.failed_items = failed
+                s.add(j)
+            s.commit()
+    except Exception:
+        logger.exception("translate_content: failed to flush translations for job %s", job_code)
+
+
+def _collect_missing_items(
+    session: Session,
+    entity_types: list[str],
+    target_langs: list[str],
+    source_lang: str,
+) -> list[tuple[str, str, str, str, str]]:
+    """Collect (entity_type, entity_code, field, lang, en_text) tuples missing translation."""
+    missing: list[tuple[str, str, str, str, str]] = []
+
+    for lang in target_langs:
+        if lang == source_lang:
+            continue
+
+        for entity_type in entity_types:
+            if entity_type == "place":
+                rows = session.exec(select(Place)).all()
+                for row in rows:
+                    for field in _PLACE_FIELDS:
+                        en_text = getattr(row, field, None)
+                        if not en_text or not en_text.strip():
+                            continue
+                        existing = ct_db.get_translation(
+                            "place", row.place_code, field, lang, session
+                        )
+                        if existing is None:
+                            missing.append(("place", row.place_code, field, lang, en_text))
+
+            elif entity_type == "review":
+                rows = session.exec(select(Review)).all()
+                for row in rows:
+                    for field in _REVIEW_FIELDS:
+                        en_text = getattr(row, field, None)
+                        if not en_text or not en_text.strip():
+                            continue
+                        existing = ct_db.get_translation(
+                            "review", row.review_code, field, lang, session
+                        )
+                        if existing is None:
+                            missing.append(("review", row.review_code, field, lang, en_text))
+
+            elif entity_type == "city":
+                rows = session.exec(select(City)).all()
+                for row in rows:
+                    for field in _CITY_FIELDS:
+                        en_text = getattr(row, field, None)
+                        if not en_text or not en_text.strip():
+                            continue
+                        existing = ct_db.get_translation(
+                            "city", row.city_code, field, lang, session
+                        )
+                        if existing is None:
+                            missing.append(("city", row.city_code, field, lang, en_text))
+
+            elif entity_type == "attribute_def":
+                rows = session.exec(select(PlaceAttributeDefinition)).all()
+                for row in rows:
+                    for field in _ATTRIBUTE_DEF_FIELDS:
+                        en_text = getattr(row, field, None)
+                        if not en_text or not en_text.strip():
+                            continue
+                        existing = ct_db.get_translation(
+                            "attribute_def", row.attribute_code, field, lang, session
+                        )
+                        if existing is None:
+                            missing.append(
+                                ("attribute_def", row.attribute_code, field, lang, en_text)
+                            )
+
+    return missing
 
 
 def _migrate_legacy_attributes() -> int:

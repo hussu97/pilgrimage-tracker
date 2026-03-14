@@ -604,14 +604,6 @@ describe("bulkGenerateSEO", () => {
 
 // ── Bulk Translation Jobs ─────────────────────────────────────────────────────
 
-describe("startTranslationJob", () => {
-  it("POSTs to /admin/translations/jobs", async () => {
-    mockPost.mockResolvedValue({ data: { job_code: "btj_1" } });
-    await admin.startTranslationJob({ target_langs: ["ar", "hi"] });
-    expect(mockPost).toHaveBeenCalledWith("/admin/translations/jobs", { target_langs: ["ar", "hi"] });
-  });
-});
-
 describe("listTranslationJobs", () => {
   it("GETs /admin/translations/jobs", async () => {
     mockGet.mockResolvedValue({ data: { items: [], total: 0, page: 1, page_size: 50 } });
@@ -625,14 +617,6 @@ describe("getTranslationJob", () => {
     mockGet.mockResolvedValue({ data: { job_code: "btj_1" } });
     await admin.getTranslationJob("btj_1");
     expect(mockGet).toHaveBeenCalledWith("/admin/translations/jobs/btj_1");
-  });
-});
-
-describe("cancelTranslationJob", () => {
-  it("POSTs to /admin/translations/jobs/:code/cancel", async () => {
-    mockPost.mockResolvedValue({ data: { job_code: "btj_1", status: "cancelled" } });
-    await admin.cancelTranslationJob("btj_1");
-    expect(mockPost).toHaveBeenCalledWith("/admin/translations/jobs/btj_1/cancel");
   });
 });
 

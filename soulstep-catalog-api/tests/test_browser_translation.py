@@ -1,4 +1,4 @@
-"""Tests for browser_translation.py and translation_service.py routing.
+"""Tests for browser_translation.py.
 
 All Playwright I/O is mocked — no real browser is launched.
 """
@@ -344,56 +344,3 @@ def test_batch_preserves_empty_positions():
         assert results[3] == "translated"
 
     asyncio.run(run())
-
-
-# ── Routing: translation_service.py ───────────────────────────────────────────
-def test_routing_api_backend(monkeypatch):
-    """TRANSLATION_BACKEND=api routes to the Google API backend."""
-    monkeypatch.setenv("TRANSLATION_BACKEND", "api")
-
-    import app.services.translation_service as ts
-
-    with patch.object(ts, "_translate_text_api", return_value="مرحبا") as mock_api:
-        result = ts.translate_text("Hello", "ar")
-    mock_api.assert_called_once_with("Hello", "ar", "en")
-    assert result == "مرحبا"
-
-
-def test_routing_browser_backend(monkeypatch):
-    """TRANSLATION_BACKEND=browser routes to the browser backend."""
-    monkeypatch.setenv("TRANSLATION_BACKEND", "browser")
-
-    import app.services.translation_service as ts
-
-    with patch.object(ts, "_translate_text_browser", return_value="مرحبا") as mock_browser:
-        result = ts.translate_text("Hello", "ar")
-    mock_browser.assert_called_once_with("Hello", "ar", "en")
-    assert result == "مرحبا"
-
-
-def test_fallback_to_api_when_browser_fails(monkeypatch):
-    """TRANSLATION_FALLBACK=true falls back to API when browser returns None."""
-    monkeypatch.setenv("TRANSLATION_BACKEND", "browser")
-    monkeypatch.setenv("TRANSLATION_FALLBACK", "true")
-
-    import app.services.translation_service as ts
-
-    with patch.object(ts, "_translate_text_browser", return_value=None):
-        with patch.object(ts, "_translate_text_api", return_value="مرحبا") as mock_api:
-            result = ts.translate_text("Hello", "ar")
-    mock_api.assert_called_once()
-    assert result == "مرحبا"
-
-
-def test_no_fallback_when_disabled(monkeypatch):
-    """TRANSLATION_FALLBACK=false does NOT call API when browser returns None."""
-    monkeypatch.setenv("TRANSLATION_BACKEND", "browser")
-    monkeypatch.setenv("TRANSLATION_FALLBACK", "false")
-
-    import app.services.translation_service as ts
-
-    with patch.object(ts, "_translate_text_browser", return_value=None):
-        with patch.object(ts, "_translate_text_api") as mock_api:
-            result = ts.translate_text("Hello", "ar")
-    mock_api.assert_not_called()
-    assert result is None

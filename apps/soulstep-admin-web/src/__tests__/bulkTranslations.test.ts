@@ -81,20 +81,6 @@ describe("API endpoint paths", () => {
     vi.resetModules();
   });
 
-  it("startTranslationJob calls POST /admin/translations/jobs", async () => {
-    const mockPost = vi.fn().mockResolvedValue({ data: { job_code: "btj_test" } });
-    vi.doMock("@/lib/api/client", () => ({
-      apiClient: { post: mockPost, get: vi.fn(), delete: vi.fn() },
-    }));
-
-    const { startTranslationJob } = await import("@/lib/api/admin");
-    await startTranslationJob({ target_langs: ["ar"] });
-    expect(mockPost).toHaveBeenCalledWith(
-      "/admin/translations/jobs",
-      { target_langs: ["ar"] }
-    );
-  });
-
   it("listTranslationJobs calls GET /admin/translations/jobs", async () => {
     const mockGet = vi.fn().mockResolvedValue({ data: { items: [], total: 0, page: 1, page_size: 50 } });
     vi.doMock("@/lib/api/client", () => ({
@@ -109,16 +95,4 @@ describe("API endpoint paths", () => {
     );
   });
 
-  it("cancelTranslationJob calls POST /admin/translations/jobs/{code}/cancel", async () => {
-    const mockPost = vi.fn().mockResolvedValue({ data: {} });
-    vi.doMock("@/lib/api/client", () => ({
-      apiClient: { post: mockPost, get: vi.fn(), delete: vi.fn() },
-    }));
-
-    const { cancelTranslationJob } = await import("@/lib/api/admin");
-    await cancelTranslationJob("btj_abc123");
-    expect(mockPost).toHaveBeenCalledWith(
-      "/admin/translations/jobs/btj_abc123/cancel"
-    );
-  });
 });

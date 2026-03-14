@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  cancelTranslationJob,
   deleteTranslationJob,
   exportUntranslatedTxt,
   importTranslationTxt,
   listTranslationJobs,
-  startTranslationJob,
 } from "@/lib/api/admin";
 import type { BulkTranslationJob } from "@/lib/api/types";
 import { DataTable, type Column } from "@/components/shared/DataTable";
@@ -13,7 +11,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { StatCard } from "@/components/shared/StatCard";
 import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
-import { Plus, Zap, X, Ban, Trash2, Download, Upload } from "lucide-react";
+import { Zap, X, Trash2, Download, Upload } from "lucide-react";
 
 // ── Status badge colors (dark-mode safe) ──────────────────────────────────────
 
@@ -39,16 +37,6 @@ export function computeProgress(completed: number, total: number): number {
   return Math.min(100, (completed / total) * 100);
 }
 
-// ── Available langs / entity types ────────────────────────────────────────────
-
-const LANGS = ["ar", "hi", "te", "ml"] as const;
-const ENTITY_TYPES = [
-  { value: "place", label: "Place" },
-  { value: "review", label: "Review" },
-  { value: "city", label: "City" },
-  { value: "attribute_def", label: "Attribute Definition" },
-] as const;
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function BulkTranslationsPage() {
@@ -56,15 +44,6 @@ export function BulkTranslationsPage() {
   const [jobs, setJobs] = useState<BulkTranslationJob[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-
-  // New job form state
-  const [selectedLangs, setSelectedLangs] = useState<string[]>([...LANGS]);
-  const [selectedTypes, setSelectedTypes] = useState<string[]>(["place"]);
-  const [multiSize, setMultiSize] = useState(5);
-  const [starting, setStarting] = useState(false);
-
-  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -84,27 +63,6 @@ export function BulkTranslationsPage() {
     void load();
   }, [load]);
 
-  // Auto-poll when any job is pending or running
-  useEffect(() => {
-    const hasActive = jobs.some(
-      (j) => j.status === "running" || j.status === "pending"
-    );
-    if (hasActive && !pollTimerRef.current) {
-      pollTimerRef.current = setInterval(() => {
-        void load();
-      }, 3000);
-    } else if (!hasActive && pollTimerRef.current) {
-      clearInterval(pollTimerRef.current);
-      pollTimerRef.current = null;
-    }
-    return () => {
-      if (pollTimerRef.current) {
-        clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-      }
-    };
-  }, [jobs, load]);
-
   // Derived stat counts
   const totalJobs = total;
   const runningJobs = jobs.filter((j) => j.status === "running" || j.status === "pending").length;
@@ -113,43 +71,10 @@ export function BulkTranslationsPage() {
   ).length;
   const failedJobs = jobs.filter((j) => j.status === "failed" || j.status === "cancelled").length;
 
-  const handleStartJob = async () => {
-    if (selectedLangs.length === 0 || selectedTypes.length === 0) return;
-    setStarting(true);
-    try {
-      await startTranslationJob({
-        target_langs: selectedLangs,
-        entity_types: selectedTypes,
-        multi_size: multiSize,
-      });
-      setShowModal(false);
-      await load();
-    } finally {
-      setStarting(false);
-    }
-  };
-
-  const handleCancel = async (jobCode: string) => {
-    await cancelTranslationJob(jobCode);
-    await load();
-  };
-
   const handleDelete = async (jobCode: string) => {
     if (!window.confirm("Delete this job record?")) return;
     await deleteTranslationJob(jobCode);
     await load();
-  };
-
-  const toggleLang = (lang: string) => {
-    setSelectedLangs((prev) =>
-      prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]
-    );
-  };
-
-  const toggleType = (type: string) => {
-    setSelectedTypes((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-    );
   };
 
   // ── Manual Translation (.txt Bulk Translator workflow) ────────────────────────
@@ -300,30 +225,16 @@ export function BulkTranslationsPage() {
       header: "",
       render: (row) => (
         <div className="flex items-center gap-1">
-          {(row.status === "running" || row.status === "pending") && (
-            <button
-              title="Cancel job"
-              onClick={(e) => {
-                e.stopPropagation();
-                void handleCancel(row.job_code);
-              }}
-              className="p-1.5 rounded hover:bg-yellow-50 dark:hover:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400 transition-colors"
-            >
-              <Ban size={13} />
-            </button>
-          )}
-          {!(row.status === "running" || row.status === "pending") && (
-            <button
-              title="Delete job"
-              onClick={(e) => {
-                e.stopPropagation();
-                void handleDelete(row.job_code);
-              }}
-              className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
-            >
-              <Trash2 size={13} />
-            </button>
-          )}
+          <button
+            title="Delete job"
+            onClick={(e) => {
+              e.stopPropagation();
+              void handleDelete(row.job_code);
+            }}
+            className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 transition-colors"
+          >
+            <Trash2 size={13} />
+          </button>
         </div>
       ),
     },
@@ -339,16 +250,9 @@ export function BulkTranslationsPage() {
             Bulk Translations
           </h1>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-0.5">
-            Run parallel browser translation jobs to fill missing content translations.
+            View translation jobs run by the Cloud Run translate_content job.
           </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 transition-colors"
-        >
-          <Plus size={15} />
-          New Job
-        </button>
       </div>
 
       {/* Stat cards */}
@@ -365,7 +269,7 @@ export function BulkTranslationsPage() {
         data={jobs}
         loading={loading}
         rowKey={(r) => r.job_code}
-        emptyMessage="No bulk translation jobs yet. Click 'New Job' to start one."
+        emptyMessage="No bulk translation jobs yet. Jobs are created by the Cloud Run translate_content job."
       />
 
       <Pagination
@@ -471,118 +375,6 @@ export function BulkTranslationsPage() {
           </div>
         )}
       </div>
-
-      {/* New Job Modal */}
-      {showModal && (
-        <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-40 bg-black/50"
-            onClick={() => setShowModal(false)}
-          />
-
-          {/* Sheet */}
-          <div
-            className="fixed bottom-0 left-0 right-0 z-50 mx-auto max-w-xl rounded-t-2xl bg-white dark:bg-dark-surface border border-input-border dark:border-dark-border p-6 space-y-5 transition-transform duration-300"
-          >
-              {/* Handle */}
-              <div className="flex justify-center -mt-2 mb-1">
-                <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-dark-border" />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold text-text-main dark:text-white">
-                  Start New Translation Job
-                </h2>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="p-1.5 rounded-lg hover:bg-background-light dark:hover:bg-dark-bg text-text-secondary dark:text-dark-text-secondary transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              {/* Language checkboxes */}
-              <div>
-                <p className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-2 uppercase tracking-wide">
-                  Target Languages
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {LANGS.map((lang) => (
-                    <label
-                      key={lang}
-                      className="flex items-center gap-1.5 cursor-pointer select-none"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedLangs.includes(lang)}
-                        onChange={() => toggleLang(lang)}
-                        className="h-4 w-4 rounded border-input-border dark:border-dark-border accent-primary"
-                      />
-                      <span className="text-sm font-mono uppercase text-text-main dark:text-white">
-                        {lang}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Entity type checkboxes */}
-              <div>
-                <p className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-2 uppercase tracking-wide">
-                  Entity Types
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {ENTITY_TYPES.map(({ value, label }) => (
-                    <label
-                      key={value}
-                      className="flex items-center gap-1.5 cursor-pointer select-none"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedTypes.includes(value)}
-                        onChange={() => toggleType(value)}
-                        className="h-4 w-4 rounded border-input-border dark:border-dark-border accent-primary"
-                      />
-                      <span className="text-sm text-text-main dark:text-white">
-                        {label}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Multi-size slider */}
-              <div>
-                <p className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-2 uppercase tracking-wide">
-                  Texts per request: {multiSize}
-                </p>
-                <input
-                  type="range"
-                  min={1}
-                  max={8}
-                  value={multiSize}
-                  onChange={(e) => setMultiSize(Number(e.target.value))}
-                  className="w-full accent-primary"
-                />
-                <div className="flex justify-between text-xs text-text-secondary dark:text-dark-text-secondary mt-1">
-                  <span>1 (safer)</span>
-                  <span>8 (faster)</span>
-                </div>
-              </div>
-
-              <button
-                disabled={
-                  starting || selectedLangs.length === 0 || selectedTypes.length === 0
-                }
-                onClick={() => void handleStartJob()}
-                className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50 transition-colors"
-              >
-                {starting ? "Starting…" : "Start Job"}
-              </button>
-          </div>
-        </>
-      )}
     </div>
   );
 }

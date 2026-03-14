@@ -34,9 +34,8 @@ Copy `.env.example` to `.env` and fill in values. Key variables:
 | `RESEND_FROM_EMAIL` | No | `noreply@soul-step.org` | Sender address for emails |
 | `RESET_URL_BASE` | No | `http://localhost:5173` | Frontend base URL for reset links |
 | `GOOGLE_MAPS_API_KEY` | No | — | Required for place search autocomplete |
-| `GOOGLE_CLOUD_PROJECT` | No | — | GCP project ID — required for GCS image backend and Cloud Translation |
-| `TRANSLATION_BACKEND` | No | `api` | `api` or `browser` |
-| `BROWSER_POOL_SIZE` | No | `20` | Concurrent browser contexts (browser translation only) |
+| `GOOGLE_CLOUD_PROJECT` | No | — | GCP project ID — required for GCS image backend |
+| `BROWSER_POOL_SIZE` | No | `20` | Concurrent browser contexts — used by Cloud Run translate_content job |
 | `BROWSER_MAX_TRANSLATIONS` | No | `50` | Translations per context before recycling |
 | `BROWSER_HEADLESS` | No | `true` | Browser headless mode |
 | `IMAGE_STORAGE` | No | `blob` | `blob` (DB) or `gcs` (Google Cloud Storage) |
@@ -239,7 +238,6 @@ python scripts/reset_place_data.py
 
 ```bash
 python scripts/generate_seo.py --generate            # generate slugs + meta
-python scripts/generate_seo.py --translate           # translate to all 5 languages (requires GOOGLE_CLOUD_PROJECT)
 ```
 
 ### Bulk translate content (bulktranslator.com workflow)

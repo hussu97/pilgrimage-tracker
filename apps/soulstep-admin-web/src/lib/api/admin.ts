@@ -36,7 +36,6 @@ import type {
   PatchReviewBody,
   PatchUserBody,
   PlaceAttributeDefinition,
-  StartJobBody,
   TranslationEntry,
   UntranslatedPlaceItem,
   UpdateAppVersionBody,
@@ -486,11 +485,6 @@ export async function bulkGenerateSEO(body: {
 
 // ── Bulk Translation Jobs ─────────────────────────────────────────────────────
 
-export async function startTranslationJob(body: StartJobBody): Promise<BulkTranslationJob> {
-  const res = await apiClient.post<BulkTranslationJob>("/admin/translations/jobs", body);
-  return res.data;
-}
-
 export async function listTranslationJobs(params?: {
   page?: number;
   page_size?: number;
@@ -501,13 +495,6 @@ export async function listTranslationJobs(params?: {
 
 export async function getTranslationJob(jobCode: string): Promise<BulkTranslationJob> {
   const res = await apiClient.get<BulkTranslationJob>(`/admin/translations/jobs/${jobCode}`);
-  return res.data;
-}
-
-export async function cancelTranslationJob(jobCode: string): Promise<BulkTranslationJob> {
-  const res = await apiClient.post<BulkTranslationJob>(
-    `/admin/translations/jobs/${jobCode}/cancel`
-  );
   return res.data;
 }
 

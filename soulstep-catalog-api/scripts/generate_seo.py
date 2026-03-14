@@ -1,28 +1,12 @@
 #!/usr/bin/env python3
-"""Generate and translate SEO content for PlaceSEO records.
+"""Generate English SEO content for PlaceSEO records.
 
-Two modes:
-    1. Generate English SEO (slug, title, meta_description, rich_description, FAQs)
-       for all places that are missing it.
-    2. Translate existing English SEO content to Arabic (ar), Hindi (hi), Telugu (te),
-       and Malayalam (ml) using the configured translation backend.
-       Translations are stored in ContentTranslation(entity_type="place_seo").
-
-Translation backend is controlled by the TRANSLATION_BACKEND env var (default: api).
-See translation_service.py for details.
+Generates English SEO (slug, title, meta_description, rich_description, FAQs)
+for all places that are missing it.
 
 Usage:
     # Generate English SEO for all places missing it:
     python -m scripts.generate_seo --generate
-
-    # Generate + translate to all 4 non-English languages:
-    python -m scripts.generate_seo --generate --translate --langs ar hi te ml
-
-    # Translate only (English SEO already generated):
-    python -m scripts.generate_seo --translate --langs ar hi te ml
-
-    # Dry run (no writes):
-    python -m scripts.generate_seo --generate --translate --dry-run
 
     # Force re-generate even manually-edited records:
     python -m scripts.generate_seo --generate --force
@@ -30,14 +14,10 @@ Usage:
     # Limit to N places:
     python -m scripts.generate_seo --generate --limit 100
 
-    # Estimate cost before translating:
-    python -m scripts.generate_seo --translate --langs ar hi te ml --estimate
+    # Dry run (no writes):
+    python -m scripts.generate_seo --generate --dry-run
 
 Environment variables:
-    TRANSLATION_BACKEND   — api (default) | browser
-    TRANSLATION_FALLBACK  — true | false (default); fall back to API when browser fails
-    GOOGLE_CLOUD_PROJECT  — required only for TRANSLATION_BACKEND=api
-    GOOGLE_APPLICATION_CREDENTIALS — path to service account key (non-GCP hosts, api backend)
     DATABASE_URL          — PostgreSQL connection string (defaults to SQLite in dev)
 """
 
@@ -45,11 +25,8 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import sys
-from datetime import UTC, datetime
 from pathlib import Path
-from typing import NamedTuple
 
 # Ensure the project root is importable
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -62,115 +39,12 @@ from sqlmodel import Session, select  # noqa: E402
 
 from app.core.logging_config import setup_logging  # noqa: E402
 from app.db import reviews as reviews_db  # noqa: E402
-from app.db.enums import Language  # noqa: E402
-from app.db.models import ContentTranslation, Place, PlaceSEO  # noqa: E402
+from app.db.models import Place, PlaceSEO  # noqa: E402
 from app.db.session import engine, run_migrations  # noqa: E402
 from app.services import seo_generator  # noqa: E402
 
 setup_logging()
 logger = logging.getLogger("generate_seo")
-
-_PRICE_PER_MILLION_CHARS = 20.0
-
-
-# ── Translation fields exported to ContentTranslation ────────────────────────
-
-_SEO_TRANSLATE_FIELDS: list[str] = [
-    "seo_title",
-    "meta_description",
-    "rich_description",
-]
-
-# Religion-specific terminology overrides to ensure culturally accurate translation.
-# These are injected as glossary hints (not enforced — the API may still vary).
-_RELIGION_TERMINOLOGY: dict[str, dict[str, str]] = {
-    "islam": {
-        "ar": "مسجد",  # mosque in Arabic
-        "hi": "मस्जिद",  # mosque in Hindi
-    },
-    "hinduism": {
-        "ar": "معبد هندوسي",
-        "hi": "मंदिर",
-    },
-    "christianity": {
-        "ar": "كنيسة",
-        "hi": "चर्च",
-    },
-    "buddhism": {
-        "ar": "معبد بوذي",
-        "hi": "बौद्ध मंदिर",
-    },
-    "sikhism": {
-        "ar": "غوردوارا",
-        "hi": "गुरुद्वारा",
-    },
-    "judaism": {
-        "ar": "كنيس يهودي",
-        "hi": "सिनेगॉग",
-    },
-}
-
-
-# ── Translation helpers ───────────────────────────────────────────────────────
-
-
-class _MultiFieldEntry(NamedTuple):
-    seo: PlaceSEO
-    field: str
-    text: str
-
-
-def _upsert_translation(
-    session: Session,
-    entity_code: str,
-    field: str,
-    lang: str,
-    translated_text: str,
-    dry_run: bool,
-) -> bool:
-    """Upsert a ContentTranslation row. Returns True if written, False if skipped."""
-    existing = session.exec(
-        select(ContentTranslation).where(
-            ContentTranslation.entity_type == "place_seo",
-            ContentTranslation.entity_code == entity_code,
-            ContentTranslation.field == field,
-            ContentTranslation.lang == lang,
-        )
-    ).first()
-
-    if dry_run:
-        action = "would update" if existing else "would insert"
-        logger.info(
-            "[dry-run] %s ContentTranslation(place_seo/%s/%s/%s) = %r",
-            action,
-            entity_code,
-            field,
-            lang,
-            translated_text[:60],
-        )
-        return False
-
-    now = datetime.now(UTC)
-    source = f"translation_service:{os.environ.get('TRANSLATION_BACKEND', 'api')}"
-    if existing:
-        existing.translated_text = translated_text
-        existing.source = source
-        existing.updated_at = now
-        session.add(existing)
-    else:
-        session.add(
-            ContentTranslation(
-                entity_type="place_seo",
-                entity_code=entity_code,
-                field=field,
-                lang=lang,
-                translated_text=translated_text,
-                source=source,
-                created_at=now,
-                updated_at=now,
-            )
-        )
-    return True
 
 
 # ── Generate English SEO ──────────────────────────────────────────────────────
@@ -232,158 +106,12 @@ def run_generate(
     return {"generated": generated, "skipped": skipped, "errors": errors}
 
 
-# ── Translate SEO content ─────────────────────────────────────────────────────
-
-
-def run_translate(
-    session: Session,
-    langs: list[str],
-    force: bool = False,
-    limit: int | None = None,
-    dry_run: bool = False,
-    batch_size: int = 100,
-    estimate: bool = False,
-) -> dict[str, int]:
-    """Translate PlaceSEO content into the specified languages.
-
-    Uses translation_service.translate_batch() so the TRANSLATION_BACKEND env var
-    controls which backend is used (api or browser).
-    """
-    from app.services.translation_service import translate_batch
-
-    seo_rows = session.exec(select(PlaceSEO)).all()
-    if limit is not None:
-        seo_rows = seo_rows[:limit]
-
-    # Skip rows that are all-empty on translatable fields
-    translatable = [s for s in seo_rows if any(getattr(s, f, None) for f in _SEO_TRANSLATE_FIELDS)]
-
-    total_written = 0
-    total_skipped = 0
-    total_errors = 0
-
-    # estimate mode: accumulate char counts without calling any translation backend
-    estimate_chars: dict[str, int] = {}
-
-    for lang in langs:
-        logger.info("Translating %d SEO records to '%s'...", len(translatable), lang)
-
-        # Bulk-load existing translations for this language in one query
-        existing_rows = session.exec(
-            select(ContentTranslation.entity_code, ContentTranslation.field).where(
-                ContentTranslation.entity_type == "place_seo",
-                ContentTranslation.lang == lang,
-            )
-        ).all()
-        already_translated: frozenset[tuple[str, str]] = frozenset(existing_rows)
-
-        lang_chars = 0
-
-        for batch_start in range(0, len(translatable), batch_size):
-            batch = translatable[batch_start : batch_start + batch_size]
-
-            # Flatten all fields into a single entries list for one backend call per batch
-            entries: list[_MultiFieldEntry] = []
-            for seo in batch:
-                for field in _SEO_TRANSLATE_FIELDS:
-                    value = getattr(seo, field, None)
-                    if not value:
-                        continue
-                    if not force and (seo.place_code, field) in already_translated:
-                        total_skipped += 1
-                        continue
-                    entries.append(_MultiFieldEntry(seo=seo, field=field, text=value))
-
-            if not entries:
-                continue
-
-            texts = [e.text for e in entries]
-
-            if estimate:
-                lang_chars += sum(len(t) for t in texts)
-                continue
-
-            if dry_run:
-                for entry in entries:
-                    logger.info(
-                        "[dry-run] would translate place_seo/%s/%s → %s",
-                        entry.seo.place_code,
-                        entry.field,
-                        lang,
-                    )
-                    total_written += 1
-                continue
-
-            try:
-                translated = translate_batch(texts, target_lang=lang)
-
-                for entry, translated_text in zip(entries, translated, strict=False):
-                    if translated_text is None:
-                        logger.warning(
-                            "Translation returned None for place_seo/%s/%s → %s",
-                            entry.seo.place_code,
-                            entry.field,
-                            lang,
-                        )
-                        total_errors += 1
-                        continue
-                    written = _upsert_translation(
-                        session,
-                        entity_code=entry.seo.place_code,
-                        field=entry.field,
-                        lang=lang,
-                        translated_text=translated_text,
-                        dry_run=False,
-                    )
-                    if written:
-                        total_written += 1
-
-                session.commit()
-
-            except Exception as exc:
-                logger.error(
-                    "Translation error (lang=%s, batch_start=%d): %s",
-                    lang,
-                    batch_start,
-                    exc,
-                )
-                total_errors += len(texts)
-
-        if estimate:
-            estimate_chars[lang] = lang_chars
-
-    if estimate:
-        total_chars = sum(estimate_chars.values())
-        estimated_cost = total_chars / 1_000_000 * _PRICE_PER_MILLION_CHARS
-        logger.info("=== ESTIMATE SUMMARY ===")
-        for lang, chars in estimate_chars.items():
-            lang_cost = chars / 1_000_000 * _PRICE_PER_MILLION_CHARS
-            logger.info(
-                "  %s: %d items, %d chars (~$%.4f)",
-                lang,
-                len(translatable),
-                chars,
-                lang_cost,
-            )
-        logger.info("  Total chars:  %d", total_chars)
-        logger.info(
-            "  Estimated cost: $%.4f  (at $%.2f/M chars)",
-            estimated_cost,
-            _PRICE_PER_MILLION_CHARS,
-        )
-
-    return {"written": total_written, "skipped": total_skipped, "errors": total_errors}
-
-
 # ── CLI entry point ────────────────────────────────────────────────────────────
-
-
-_NON_ENGLISH_LANGS = [lang for lang in Language if lang != Language.EN]
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate and translate SEO content for SoulStep places."
+        description="Generate English SEO content for SoulStep places."
     )
     parser.add_argument(
         "--generate",
@@ -391,21 +119,9 @@ def main() -> None:
         help="Generate English SEO content for places missing it.",
     )
     parser.add_argument(
-        "--translate",
-        action="store_true",
-        help="Translate English SEO content to target languages.",
-    )
-    parser.add_argument(
-        "--langs",
-        nargs="+",
-        default=_NON_ENGLISH_LANGS,
-        metavar="LANG",
-        help=f"Target language codes for translation (default: all non-English: {' '.join(_NON_ENGLISH_LANGS)}).",
-    )
-    parser.add_argument(
         "--force",
         action="store_true",
-        help="Overwrite existing SEO / translation records.",
+        help="Overwrite existing SEO records.",
     )
     parser.add_argument(
         "--limit",
@@ -419,35 +135,13 @@ def main() -> None:
         action="store_true",
         help="Log what would be written without making any DB changes.",
     )
-    parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=100,
-        metavar="N",
-        help="Records per API call (default: 100; max: 1024).",
-    )
-    parser.add_argument(
-        "--estimate",
-        action="store_true",
-        help="Preview character count and cost without making API calls.",
-    )
 
     args = parser.parse_args()
 
-    if not args.generate and not args.translate:
-        parser.error("Specify at least one of --generate or --translate.")
+    if not args.generate:
+        parser.error("Specify --generate.")
 
     run_migrations()
-
-    backend = os.environ.get("TRANSLATION_BACKEND", "api")
-    if args.translate and not args.estimate and not args.dry_run:
-        if backend == "api" and not os.environ.get("GOOGLE_CLOUD_PROJECT"):
-            logger.error(
-                "TRANSLATION_BACKEND=api requires GOOGLE_CLOUD_PROJECT to be set. "
-                "Set it to your GCP project ID, or switch to TRANSLATION_BACKEND=browser."
-            )
-            sys.exit(1)
-        logger.info("Translation backend: %s", backend)
 
     with Session(engine) as session:
         if args.generate:
@@ -461,24 +155,6 @@ def main() -> None:
             logger.info(
                 "Generation complete: generated=%d skipped=%d errors=%d",
                 stats["generated"],
-                stats["skipped"],
-                stats["errors"],
-            )
-
-        if args.translate:
-            logger.info("=== Translating SEO content to: %s ===", ", ".join(args.langs))
-            stats = run_translate(
-                session=session,
-                langs=args.langs,
-                force=args.force,
-                limit=args.limit,
-                dry_run=args.dry_run,
-                batch_size=args.batch_size,
-                estimate=args.estimate,
-            )
-            logger.info(
-                "Translation complete: written=%d skipped=%d errors=%d",
-                stats["written"],
                 stats["skipped"],
                 stats["errors"],
             )

@@ -1,10 +1,22 @@
 """Bulk-translate a .txt export file via bulktranslator.com.
 
-Usage:
+Usage (with explicit input file):
     python scripts/translate_bulktranslator.py untranslated_20260314T120000.txt \\
         --api-url http://127.0.0.1:3000/api/v1 \\
         --admin-email admin@example.com \\
         --admin-password MyPass1!
+
+Usage (auto-export — no input file needed):
+    python scripts/translate_bulktranslator.py \\
+        --api-url http://127.0.0.1:3000/api/v1 \\
+        --admin-email admin@example.com \\
+        --admin-password MyPass1!
+
+When no input_file is given (Phase 0), the script authenticates against the
+catalog API and calls GET /admin/content-translations/export-txt with the
+selected --entity-types.  The response is saved to
+  <output-dir>/untranslated_<YYYYMMDDTHHMMSS>.txt
+and that file is used as the input for the translation phases.
 
 Reads lines of the form:
     [1:42:1] Sacred Temple
@@ -35,6 +47,7 @@ import asyncio
 import fcntl
 import os
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 import requests
@@ -54,6 +67,8 @@ LANG_FILES: dict[str, str] = {
     "ML": "translated_ml.txt",
     "TE": "translated_te.txt",
 }
+
+DEFAULT_ENTITY_TYPES = ["place", "city", "attribute_def", "review"]
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -121,6 +136,61 @@ def _api_import(api_url: str, token: str, lang: str, lines: list[str]) -> dict:
     )
     r.raise_for_status()
     return r.json()
+
+
+def _api_export_txt(api_url: str, token: str, entity_types: list[str]) -> str:
+    """Call GET /admin/content-translations/export-txt and return the response text."""
+    entity_types_param = ",".join(entity_types)
+    r = requests.get(
+        f"{api_url}/admin/content-translations/export-txt",
+        headers={"Authorization": f"Bearer {token}"},
+        params={"entity_types": entity_types_param},
+        timeout=120,
+    )
+    r.raise_for_status()
+    return r.text
+
+
+# ── Phase 0: auto-export ───────────────────────────────────────────────────────
+
+
+def _phase0_export(args) -> Path:
+    """Authenticate and export untranslated strings; return path to saved file."""
+    api_url = args.api_url
+    if not api_url:
+        print(
+            "Error: --api-url is required when no input_file is provided.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    if not args.admin_email or not args.admin_password:
+        print(
+            "Error: --admin-email and --admin-password are required when no input_file is provided.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    print("\n── Phase 0: auto-export ──────────────────────────────────────────────────")
+    print(f"Logging in to {api_url} as {args.admin_email}…")
+    token = _api_login(api_url, args.admin_email, args.admin_password)
+    print("  ✓ Token acquired")
+
+    entity_types: list[str] = args.entity_types
+    print(f"Exporting missing translations for entity types: {', '.join(entity_types)}…")
+    export_text = _api_export_txt(api_url, token, entity_types)
+
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
+    export_path = output_dir / f"untranslated_{timestamp}.txt"
+    export_path.write_text(export_text, encoding="utf-8")
+
+    line_count = sum(
+        1 for ln in export_text.splitlines() if ln.strip() and not ln.strip().startswith("#")
+    )
+    print(f"  ✓ Saved {line_count} translatable lines → {export_path}")
+    return export_path
 
 
 # ── Async browser session ───────────────────────────────────────────────────────
@@ -221,10 +291,14 @@ async def _import_lang(api_url: str, token: str, lang_code: str, out_file: Path)
 
 
 async def _run(args) -> None:
-    input_path = Path(args.input_file)
-    if not input_path.exists():
-        print(f"Error: file not found: {input_path}", file=sys.stderr)
-        sys.exit(1)
+    # ── Phase 0: auto-export if no input_file ──────────────────────────────────
+    if args.input_file is None:
+        input_path = _phase0_export(args)
+    else:
+        input_path = Path(args.input_file)
+        if not input_path.exists():
+            print(f"Error: file not found: {input_path}", file=sys.stderr)
+            sys.exit(1)
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -257,6 +331,8 @@ async def _run(args) -> None:
                 file=sys.stderr,
             )
             sys.exit(1)
+        # If we already logged in during Phase 0, re-use the same token by
+        # logging in again (stateless JWTs are fine to re-acquire).
         print(f"Logging in to {api_url} as {args.admin_email}…")
         api_token = await asyncio.to_thread(
             _api_login, api_url, args.admin_email, args.admin_password
@@ -333,8 +409,32 @@ async def _run(args) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Translate export .txt via bulktranslator.com")
-    parser.add_argument("input_file", help="Path to the exported .txt file")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Translate export .txt via bulktranslator.com. "
+            "If no input_file is provided, automatically exports missing translations "
+            "from the catalog API (Phase 0) before running the translation phases."
+        )
+    )
+    parser.add_argument(
+        "input_file",
+        nargs="?",
+        default=None,
+        help=(
+            "Path to the exported .txt file. "
+            "If omitted, the script auto-exports from the API using --admin-email/--admin-password."
+        ),
+    )
+    parser.add_argument(
+        "--entity-types",
+        nargs="+",
+        default=DEFAULT_ENTITY_TYPES,
+        metavar="TYPE",
+        help=(
+            "Entity types to export/translate (default: place city attribute_def review). "
+            "Only used during auto-export (Phase 0) when no input_file is given."
+        ),
+    )
     parser.add_argument(
         "--batch-size",
         type=int,
@@ -366,8 +466,11 @@ def main() -> None:
     )
     parser.add_argument(
         "--api-url",
-        default=os.environ.get("CATALOG_API_URL"),
-        help="Catalog API base URL, e.g. http://127.0.0.1:3000/api/v1 (env: CATALOG_API_URL)",
+        default=os.environ.get("CATALOG_API_URL", "http://127.0.0.1:3000/api/v1"),
+        help=(
+            "Catalog API base URL, e.g. http://127.0.0.1:3000/api/v1 "
+            "(env: CATALOG_API_URL, default: http://127.0.0.1:3000/api/v1)"
+        ),
     )
     parser.add_argument(
         "--admin-email",

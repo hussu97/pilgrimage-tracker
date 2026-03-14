@@ -238,16 +238,16 @@ Two backends controlled by `IMAGE_STORAGE` env var:
 
 Service abstraction in `app/services/image_storage.py`. On Cloud Run, workload identity (ADC) handles GCS auth automatically.
 
-### Translation Backend
+### Translation
 
-Two translation backends controlled by `TRANSLATION_BACKEND`:
+Content is translated through two paths — neither uses the Google Cloud Translation API:
 
-| Backend | How it works |
+| Path | How it works |
 |---|---|
-| `api` (default) | Google Cloud Translation API via `google-cloud-translate` SDK |
-| `browser` | Playwright drives `translate.google.com` headlessly — no GCP credentials needed |
+| **Cloud Run job** (`app/jobs/translate_content.py`) | Nightly incremental sync (daily 04:00 UTC); Playwright drives `translate.google.com` headlessly via `BrowserSessionPool` (reusable contexts, stealth patches, circuit breaker) |
+| **Local script** (`scripts/translate_bulktranslator.py`) | For major batch changes; Playwright drives [bulktranslator.com](https://bulktranslator.com) locally, then imports results via `POST /admin/content-translations/import-txt` |
 
-The browser backend uses `BrowserSessionPool` (reusable contexts), stealth patches, and a circuit breaker.
+The `google-cloud-translate` SDK is not used and is not a dependency.
 
 ### Feature Parity (Web ↔ Mobile)
 
@@ -320,7 +320,7 @@ The catalog API serves all SEO content:
 - **Feeds**: `/feed.xml` (RSS 2.0), `/feed.atom` (Atom 1.0)
 - **AI citation monitoring**: `AICrawlerLog` + `GET /admin/seo/ai-citations`
 
-SEO generation: `scripts/generate_seo.py --generate --translate` (run post-sync or auto-triggered by scraper).
+SEO generation: `scripts/generate_seo.py --generate` (run post-sync or auto-triggered by scraper). Translations are handled separately via the Cloud Run job or bulktranslator script.
 
 ---
 

@@ -147,43 +147,7 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("lifespan: failed to clean up stale bulk-translation jobs")
 
-    # Warn early if the browser translation backend is selected but Playwright
-    # is not installed — better to surface this at startup than on first use.
-    if os.environ.get("TRANSLATION_BACKEND") == "browser":
-        try:
-            import playwright  # noqa: F401
-        except ImportError:
-            logger.warning(
-                "TRANSLATION_BACKEND=browser but Playwright is not installed. "
-                "Install it with: pip install playwright && playwright install chromium. "
-                "Translation calls will fail until Playwright is available."
-            )
-
     yield
-
-    # Signal any active translation job threads to stop and wait briefly for them to finish.
-    from app.api.v1.admin.bulk_translations import _active_job_threads, _cancel_events, _thread_lock
-
-    with _thread_lock:
-        threads_to_join = list(_active_job_threads.values())
-        events_to_signal = list(_cancel_events.values())
-
-    if threads_to_join:
-        logger.info(
-            "Signalling %d active translation job thread(s) to stop for shutdown",
-            len(threads_to_join),
-        )
-        for event in events_to_signal:
-            event.set()
-        for thread in threads_to_join:
-            if thread.is_alive():
-                thread.join(timeout=10)
-
-    # Shut down the browser pool if the browser translation backend is active.
-    if os.environ.get("TRANSLATION_BACKEND") == "browser":
-        from app.services.browser_translation import shutdown_pool
-
-        await shutdown_pool()
 
 
 _OPENAPI_TAGS = [

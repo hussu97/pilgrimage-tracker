@@ -752,13 +752,6 @@ export interface BulkTranslationJob {
   created_at: string;
 }
 
-export interface StartJobBody {
-  target_langs: string[];
-  entity_types?: string[];
-  source_lang?: string;
-  multi_size?: number;
-}
-
 export interface JobListResponse {
   items: BulkTranslationJob[];
   total: number;

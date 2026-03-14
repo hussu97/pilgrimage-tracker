@@ -73,7 +73,6 @@ Throughout this guide, replace:
      cloudbuild.googleapis.com \
      firebase.googleapis.com \
      firebasehosting.googleapis.com \
-     translate.googleapis.com \
      --project PROJECT_ID
    ```
 
@@ -682,9 +681,6 @@ cd soulstep-catalog-api && source .venv/bin/activate
 
 # Generate English SEO slugs + meta
 python scripts/generate_seo.py --generate
-
-# Translate to all 5 languages (requires GOOGLE_CLOUD_PROJECT)
-python scripts/generate_seo.py --translate
 ```
 
 Or auto-trigger after sync by setting on the scraper service:
@@ -748,9 +744,8 @@ Client-side error tracking: set `VITE_GLITCHTIP_DSN` in the web build (via GitHu
 | `RESEND_FROM_EMAIL` | No | `noreply@soul-step.org` | Email sender address |
 | `RESET_URL_BASE` | No | `http://localhost:5173` | Frontend base URL for reset links |
 | `GOOGLE_MAPS_API_KEY` | No | — | Required for place search autocomplete |
-| `GOOGLE_CLOUD_PROJECT` | No | — | GCP project ID — GCS + Cloud Translation |
-| `TRANSLATION_BACKEND` | No | `api` | `api` or `browser` |
-| `BROWSER_POOL_SIZE` | No | `2` | Concurrent browser contexts |
+| `GOOGLE_CLOUD_PROJECT` | No | — | GCP project ID — required for GCS image backend |
+| `BROWSER_POOL_SIZE` | No | `2` | Concurrent browser contexts — used by Cloud Run translate_content job |
 | `BROWSER_MAX_TRANSLATIONS` | No | `50` | Translations per context before recycling |
 | `BROWSER_TRANSLATE_MULTI_SIZE` | No | `5` | Texts per batch request |
 | `BROWSER_HEADLESS` | No | `true` | Browser headless mode |
