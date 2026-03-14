@@ -17,6 +17,8 @@ Browser automation workflow:
   python translate_content_claude.py --input untranslated.json --output translated.json
   python translate_content_claude.py --input untranslated.json --output translated.json --langs ar hi
   python translate_content_claude.py --input untranslated.json --output translated.json --batch-size 8 --concurrency 3
+  python translate_content_claude.py --input untranslated.json --output translated.json --model haiku
+  python translate_content_claude.py --input untranslated.json --output translated.json --response-timeout 600
   python translate_content_claude.py --reset-auth   # delete saved session file to re-login
   python translate_content_claude.py --dry-run      # print first batch prompt, no browser
 
@@ -42,6 +44,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import platform
 import random
 import re
 import sys
@@ -49,6 +52,13 @@ from pathlib import Path
 from typing import Any
 
 AUTH_FILE = Path(__file__).parent / "claude_auth.json"
+
+# Map short model names → substring to match in the model picker dropdown
+MODEL_LABELS: dict[str, str] = {
+    "haiku": "Haiku",
+    "sonnet": "Sonnet",
+    "opus": "Opus",
+}
 
 LANG_NAMES = {
     "ar": "Arabic",
@@ -139,48 +149,48 @@ async def _jitter(lo: float = 0.3, hi: float = 0.9) -> None:
     await asyncio.sleep(random.uniform(lo, hi))
 
 
-async def _human_type(page: Any, text: str, chunk_size: int = 8) -> None:
-    """Type text with randomised per-character delays (avoids bot detection on timing)."""
-    # Type in small chunks with variable delays — pure fill() is instant and detectable
-    i = 0
-    while i < len(text):
-        chunk = text[i : i + random.randint(1, chunk_size)]
-        await page.keyboard.type(chunk, delay=random.randint(18, 65))
-        i += len(chunk)
-        # Occasional longer pause between chunks (simulates thinking/typing bursts)
-        if random.random() < 0.15:
-            await asyncio.sleep(random.uniform(0.05, 0.25))
+async def _paste_text(page: Any, text: str) -> None:
+    """Set clipboard content and paste — orders of magnitude faster than character typing."""
+    await page.evaluate("(t) => navigator.clipboard.writeText(t)", text)
+    await asyncio.sleep(0.1)
+    await page.keyboard.press("ControlOrMeta+v")
 
 
 # ── Prompt construction ────────────────────────────────────────────────────────
 
 
-def build_prompt(places: list[dict[str, Any]], target_langs: list[str]) -> str:
+def build_prompt(items: list[dict[str, Any]], target_langs: list[str]) -> str:
     lang_list = ", ".join(f"{LANG_NAMES.get(lc, lc)} ({lc})" for lc in target_langs)
     lang_keys = ", ".join(f'"{lc}"' for lc in target_langs)
 
     example_langs = {lc: {"name": "...", "description": "..."} for lc in target_langs}
     example = json.dumps(
-        [{"entity_code": "plc_example", **example_langs}],
+        [{"entity_code": "entity_example", **example_langs}],
         ensure_ascii=False,
         indent=2,
     )
 
-    places_json = json.dumps(
-        [{"entity_code": p["entity_code"], **p["fields"]} for p in places],
+    items_json = json.dumps(
+        [
+            {"entity_code": p["entity_code"], "entity_type": p["entity_type"], **p["fields"]}
+            for p in items
+        ],
         ensure_ascii=False,
         indent=2,
     )
 
     return f"""You are translating UI content for "SoulStep" — a sacred sites discovery app (mosques, temples, churches, shrines, mandirs, gurudwaras, etc.).
 
-Translate the place fields below into: {lang_list}.
+Translate the fields below into: {lang_list}.
+
+Entity types may include: place (name, description, address), city (name), attribute_def (name), review (title, body).
 
 Rules:
 - Keep names and addresses concise and accurate
 - Use culturally appropriate religious terminology
+- For review title/body: preserve the original meaning and tone
 - Preserve any {{placeholder}} tokens exactly as-is
-- Only translate fields that are present in each place object
+- Only translate fields that are present in each object
 - Return ONLY valid JSON, no explanation
 
 Required format:
@@ -188,12 +198,12 @@ Required format:
 {example}
 ```
 
-The JSON array must have exactly one object per input place, using the same entity_code.
+The JSON array must have exactly one object per input entity, using the same entity_code.
 Each object must have keys: {lang_keys} — each value is an object mapping field names to translated strings.
 
-Places to translate:
+Entities to translate:
 ```json
-{places_json}
+{items_json}
 ```"""
 
 
@@ -221,6 +231,7 @@ async def _new_stealth_context(browser: Any, storage_state: str | None = None) -
         "locale": "en-US",
         "timezone_id": "America/New_York",
         "java_script_enabled": True,
+        "permissions": ["clipboard-read", "clipboard-write"],
     }
     if storage_state:
         kwargs["storage_state"] = storage_state
@@ -231,6 +242,45 @@ async def _new_stealth_context(browser: Any, storage_state: str | None = None) -
     return ctx
 
 
+async def _select_model(page: Any, model: str | None) -> None:
+    """Click the model picker and select the requested model. No-op if model is None."""
+    if not model:
+        return
+    label = MODEL_LABELS.get(model.lower(), model)
+    try:
+        # The model picker button sits near the chat input — try common selectors
+        picker = page.locator('[data-testid="model-selector-trigger"]')
+        if await picker.count() == 0:
+            picker = (
+                page.locator("button")
+                .filter(has_text=re.compile(r"Claude (Haiku|Sonnet|Opus)", re.I))
+                .first
+            )
+        await picker.click()
+        await _jitter(0.3, 0.7)
+
+        # Click the matching option in the dropdown
+        option = page.locator('[role="option"]').filter(has_text=label).first
+        if await option.count() == 0:
+            option = page.get_by_text(label, exact=False).first
+        await option.click()
+        await _jitter(0.2, 0.5)
+        print(f"  ✓ Model set to: Claude {label}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"  ⚠ Could not select model '{label}': {exc} — using account default")
+
+
+def _detect_chrome_profile() -> Path:
+    """Return the default Chrome User Data directory for the current OS."""
+    os_name = platform.system()
+    if os_name == "Darwin":
+        return Path.home() / "Library" / "Application Support" / "Google" / "Chrome"
+    if os_name == "Linux":
+        return Path.home() / ".config" / "google-chrome"
+    # Windows
+    return Path.home() / "AppData" / "Local" / "Google" / "Chrome" / "User Data"
+
+
 async def _launch_browser(playwright: Any, headless: bool) -> Any:
     """Launch Chrome (preferred) or fall back to Chromium with stealth args."""
     common_kwargs: dict[str, Any] = {
@@ -238,7 +288,6 @@ async def _launch_browser(playwright: Any, headless: bool) -> Any:
         "args": _STEALTH_ARGS,
     }
     try:
-        # Real Chrome binary — has genuine UA, full plugin list, no Chromium markers
         return await playwright.chromium.launch(channel="chrome", **common_kwargs)
     except Exception:  # noqa: BLE001
         print(
@@ -248,15 +297,76 @@ async def _launch_browser(playwright: Any, headless: bool) -> Any:
         return await playwright.chromium.launch(**common_kwargs)
 
 
+async def _connect_cdp(playwright: Any, port: int) -> tuple[Any, Any]:
+    """Connect to an already-running Chrome via CDP.
+
+    Returns (browser, context). The user must have started Chrome with:
+        open -a "Google Chrome" --args --remote-debugging-port=<port>
+    """
+    url = f"http://127.0.0.1:{port}"
+    print(f"✓ Connecting to Chrome via CDP at {url}")
+    browser = await playwright.chromium.connect_over_cdp(url)
+    contexts = browser.contexts
+    if contexts:
+        ctx = contexts[0]
+        print(f"  Using existing context with {len(ctx.pages)} open page(s).")
+    else:
+        ctx = await browser.new_context(
+            viewport={"width": 1280, "height": 800},
+            locale="en-US",
+            permissions=["clipboard-read", "clipboard-write"],
+        )
+        print("  Created new browser context.")
+    await ctx.add_init_script(_STEALTH_JS)
+    return browser, ctx
+
+
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
 
-async def ensure_auth(playwright: Any) -> tuple[Any, Any]:
-    """Return (browser, context). Opens a headed browser for first-time login if needed."""
-    headless = AUTH_FILE.exists()
-    browser = await _launch_browser(playwright, headless=headless)
+async def ensure_auth(
+    playwright: Any, cdp_port: int | None = None, headless: bool = False
+) -> tuple[Any, Any]:
+    """Return (closer, context).
 
-    if headless:
+    - cdp_port set  → connect to running Chrome via CDP; closer = browser
+    - cdp_port None → stealth + claude_auth.json; closer = browser
+    """
+    if cdp_port is not None:
+        browser, ctx = await _connect_cdp(playwright, cdp_port)
+        print("  Verifying claude.ai login…")
+        page = await ctx.new_page()
+        await page.bring_to_front()
+        await page.goto("https://claude.ai", timeout=30000)
+        await page.wait_for_load_state("domcontentloaded", timeout=30000)
+        await _jitter(1.0, 2.0)
+        if "login" in page.url or "onboarding" in page.url:
+            print("⚠ Not logged into claude.ai. Log in in Chrome, then re-run.")
+            await browser.close()
+            sys.exit(1)
+        print(f"✓ Logged in. URL: {page.url}")
+        await page.close()
+        return browser, ctx
+
+    # ── Stealth + cookie-file mode ─────────────────────────────────────────────
+    if not headless and AUTH_FILE.exists():
+        # Visible non-headless run with saved cookies
+        browser = await _launch_browser(playwright, headless=False)
+        ctx = await _new_stealth_context(browser, storage_state=str(AUTH_FILE))
+        page = await ctx.new_page()
+        await page.bring_to_front()
+        await page.goto("https://claude.ai")
+        await page.wait_for_load_state("domcontentloaded")
+        if "login" in page.url or "onboarding" in page.url:
+            print("⚠ Session expired — delete claude_auth.json and re-run to login again.")
+            await browser.close()
+            sys.exit(1)
+        await page.close()
+        print("✓ Loaded existing Claude.ai session (visible, stealth).")
+        return browser, ctx
+
+    if headless and AUTH_FILE.exists():
+        browser = await _launch_browser(playwright, headless=True)
         ctx = await _new_stealth_context(browser, storage_state=str(AUTH_FILE))
         page = await ctx.new_page()
         await page.goto("https://claude.ai")
@@ -267,59 +377,113 @@ async def ensure_auth(playwright: Any) -> tuple[Any, Any]:
             sys.exit(1)
         await page.close()
         print("✓ Loaded existing Claude.ai session (headless + stealth).")
-    else:
-        ctx = await _new_stealth_context(browser)
-        page = await ctx.new_page()
-        await page.goto("https://claude.ai/login")
-        print("\nA browser window has opened. Complete login, then press Enter here...")
-        input()
-        await ctx.storage_state(path=str(AUTH_FILE))
-        await page.close()
-        print(f"✓ Session saved to {AUTH_FILE}.")
+        return browser, ctx
 
+    # No auth file — open browser for first-time login
+    browser = await _launch_browser(playwright, headless=False)
+    ctx = await _new_stealth_context(browser)
+    page = await ctx.new_page()
+    await page.bring_to_front()
+    await page.goto("https://claude.ai/login")
+    print("\nA browser window has opened. Complete login, then press Enter here...")
+    input()
+    await ctx.storage_state(path=str(AUTH_FILE))
+    await page.close()
+    print(f"✓ Session saved to {AUTH_FILE}.")
     return browser, ctx
 
 
 # ── Claude.ai interaction ─────────────────────────────────────────────────────
 
 
-async def translate_batch(ctx: Any, prompt: str) -> list[dict[str, Any]]:
+async def translate_batch(
+    ctx: Any,
+    prompt: str,
+    batch_label: str = "",
+    model: str | None = None,
+    response_timeout: int = 300000,
+) -> list[dict[str, Any]]:
     """Send one prompt to claude.ai/new and return the parsed JSON response."""
+    tag = f"[{batch_label}]" if batch_label else ""
+    print(f"  {tag} Opening new tab → https://claude.ai/new")
     page = await ctx.new_page()
     try:
+        await page.bring_to_front()
         await page.goto("https://claude.ai/new")
-        await page.wait_for_load_state("networkidle", timeout=30000)
+        print(f"  {tag} Waiting for page load (domcontentloaded)…")
+        # domcontentloaded is more reliable than networkidle (claude.ai has persistent WS)
+        await page.wait_for_load_state("domcontentloaded", timeout=30000)
+        print(f"  {tag} Page loaded. URL: {page.url}")
         await _jitter(0.8, 1.8)  # let Cloudflare challenge resolve
 
-        await page.wait_for_selector('[contenteditable="true"]', timeout=25000)
+        print(f"  {tag} Waiting for editor… (URL: {page.url})")
+        # Try multiple selectors in order — claude.ai occasionally changes its markup
+        _editor_selectors = [
+            '[contenteditable="true"]',
+            '[role="textbox"]',
+            "div[contenteditable]",
+            "textarea",
+        ]
+        editor_sel: str | None = None
+        for sel in _editor_selectors:
+            try:
+                await page.wait_for_selector(sel, timeout=10000)
+                editor_sel = sel
+                print(f"  {tag} Editor found with selector: {sel!r}")
+                break
+            except Exception:
+                print(f"  {tag} Selector {sel!r} not found, trying next…")
+        if editor_sel is None:
+            screenshot_path = (
+                Path(__file__).parent / f"debug_batch_{batch_label.replace('/', '-')}.png"
+            )
+            await page.screenshot(path=str(screenshot_path))
+            print(f"  {tag} ✗ No editor found. Screenshot saved to {screenshot_path}")
+            print(f"  {tag} Page title: {await page.title()!r}  URL: {page.url!r}")
+            raise TimeoutError(
+                "Could not find a text editor on the page — see screenshot for what rendered"
+            )
         await _jitter(0.4, 1.0)
 
-        editor = page.locator('[contenteditable="true"]').first
-        # Move mouse to editor first (robotic fill with no cursor movement is detectable)
+        # Select model before typing (picker is near the input area)
+        await _select_model(page, model)
+
+        editor = page.locator(editor_sel).first
         await editor.hover()
         await _jitter(0.2, 0.5)
         await editor.click()
         await _jitter(0.1, 0.3)
 
-        # Type with human-like timing (don't use .fill — it's instant)
-        await _human_type(page, prompt)
+        print(f"  {tag} Pasting prompt ({len(prompt)} chars)…")
+        # Paste via clipboard — avoids the multi-minute char-by-char typing timeout
+        await _paste_text(page, prompt)
         await _jitter(0.3, 0.7)
 
+        print(f"  {tag} Sending message…")
         await page.keyboard.press("Enter")
 
-        # Wait for streaming to finish (send button re-enables)
+        print(
+            f"  {tag} Waiting for Claude to finish streaming (timeout: {response_timeout // 1000}s)…"
+        )
+        # Wait for streaming to finish (send button re-enables when Claude is done)
         await page.wait_for_selector(
             '[aria-label="Send message"]:not([disabled])',
-            timeout=180000,
+            timeout=response_timeout,
         )
+        print(f"  {tag} Response received.")
         await _jitter(0.3, 0.6)
 
         messages = await page.locator('[data-testid="claude-message"]').all()
+        print(f"  {tag} Found {len(messages)} assistant message(s).")
         if not messages:
             raise ValueError("No assistant message found in response")
         raw_text = await messages[-1].inner_text()
-        return extract_json(raw_text)
+        print(f"  {tag} Raw response length: {len(raw_text)} chars. Extracting JSON…")
+        result = extract_json(raw_text)
+        print(f"  {tag} JSON parsed: {len(result)} place(s).")
+        return result
     finally:
+        print(f"  {tag} Closing tab.")
         await page.close()
 
 
@@ -328,18 +492,18 @@ async def translate_batch(ctx: Any, prompt: str) -> list[dict[str, Any]]:
 
 def flatten_response(
     batch_response: list[dict[str, Any]],
-    source_places: list[dict[str, Any]],
+    source_items: list[dict[str, Any]],
     target_langs: list[str],
 ) -> list[dict[str, Any]]:
     """Convert Claude's grouped response to flat BulkUpsertItem dicts."""
     by_code: dict[str, dict[str, Any]] = {r["entity_code"]: r for r in batch_response}
     flat: list[dict[str, Any]] = []
 
-    for place in source_places:
-        code = place["entity_code"]
+    for item in source_items:
+        code = item["entity_code"]
         resp = by_code.get(code)
         if not resp:
-            print(f"  ⚠ No response for {code} ({place.get('place_name', '')})")
+            print(f"  ⚠ No response for {code} ({item.get('place_name', '')})")
             continue
 
         for lang in target_langs:
@@ -348,7 +512,7 @@ def flatten_response(
                 if text and isinstance(text, str):
                     flat.append(
                         {
-                            "entity_type": place["entity_type"],
+                            "entity_type": item["entity_type"],
                             "entity_code": code,
                             "field": field,
                             "lang": lang,
@@ -394,9 +558,9 @@ def _write_prompts(
     ]
 
     for idx, batch in enumerate(batches):
-        place_names = ", ".join(p.get("place_name", p["entity_code"]) for p in batch)
+        entity_labels = ", ".join(p.get("place_name", p["entity_code"]) for p in batch)
         lines += [
-            f"BATCH {idx + 1} of {len(batches)}  ({len(batch)} places: {place_names})",
+            f"BATCH {idx + 1} of {len(batches)}  ({len(batch)} entities: {entity_labels})",
             _DIVIDER,
             build_prompt(batch, target_langs),
             "",
@@ -446,9 +610,9 @@ def _run_interactive(
     print(f"{_DIVIDER}\n")
 
     for idx, batch in enumerate(batches):
-        place_names = ", ".join(p.get("place_name", p["entity_code"]) for p in batch)
+        entity_labels = ", ".join(p.get("place_name", p["entity_code"]) for p in batch)
         print(f"\n{'─' * 72}")
-        print(f"BATCH {idx + 1}/{len(batches)}  ({len(batch)} places: {place_names})")
+        print(f"BATCH {idx + 1}/{len(batches)}  ({len(batch)} entities: {entity_labels})")
         print(f"{'─' * 72}\n")
         print("── PROMPT (copy everything between the markers) ──────────────────────")
         print(">>>START<<<")
@@ -501,15 +665,15 @@ async def run(args: argparse.Namespace) -> None:
         print(f"Input file not found: {input_path}")
         sys.exit(1)
 
-    places: list[dict[str, Any]] = json.loads(input_path.read_text())
-    if not places:
+    items: list[dict[str, Any]] = json.loads(input_path.read_text())
+    if not items:
         print("Input file is empty — nothing to translate.")
         return
 
     target_langs: list[str] = args.langs or list(LANG_NAMES.keys())
 
-    work_items = [p for p in places if any(lc in p.get("missing_langs", []) for lc in target_langs)]
-    print(f"Places to translate: {len(work_items)} (of {len(places)} total)")
+    work_items = [p for p in items if any(lc in p.get("missing_langs", []) for lc in target_langs)]
+    print(f"Entities to translate: {len(work_items)} (of {len(items)} total)")
 
     if not work_items:
         print("Nothing to translate for the selected languages.")
@@ -519,7 +683,7 @@ async def run(args: argparse.Namespace) -> None:
     batches: list[list[dict[str, Any]]] = [
         work_items[i : i + batch_size] for i in range(0, len(work_items), batch_size)
     ]
-    print(f"Batches: {len(batches)} × up to {batch_size} places each")
+    print(f"Batches: {len(batches)} × up to {batch_size} entities each")
 
     if args.prompts_only:
         _write_prompts(batches, target_langs, args.output)
@@ -539,26 +703,52 @@ async def run(args: argparse.Namespace) -> None:
 
     from playwright.async_api import async_playwright  # noqa: PLC0415
 
+    print(f"\n{'═' * 60}")
+    print(f"Model:       {args.model or 'account default'}")
+    print(f"Concurrency: {args.concurrency} tab(s) at a time")
+    print(f"Timeout:     {args.response_timeout}s per batch")
+    print(f"Batch size:  {batch_size} entity/entities")
+    print(f"Total:       {len(batches)} batch(es), {len(work_items)} entity/entities")
+    print(f"{'═' * 60}\n")
+
+    cdp_port: int | None = args.cdp if args.cdp else None
+
     async with async_playwright() as pw:
-        browser, ctx = await ensure_auth(pw)
+        closer, ctx = await ensure_auth(pw, cdp_port=cdp_port, headless=args.headless)
 
         async def process_batch(idx: int, batch: list[dict[str, Any]]) -> None:
+            label = f"Batch {idx + 1}/{len(batches)}"
             async with sem:
-                print(f"\n[Batch {idx + 1}/{len(batches)}] Translating {len(batch)} places…")
+                entity_labels = ", ".join(p.get("place_name", p["entity_code"]) for p in batch)
+                print(f"\n{'─' * 60}")
+                print(f"[{label}] Starting — {len(batch)} entity/entities: {entity_labels}")
+                print(f"[{label}] Languages: {', '.join(target_langs)}")
                 # Stagger concurrent batches so they don't all hit Claude at the same instant
-                await asyncio.sleep(idx * random.uniform(0.5, 1.5))
+                if idx > 0:
+                    delay = idx * random.uniform(0.5, 1.5)
+                    print(f"[{label}] Stagger delay: {delay:.1f}s…")
+                    await asyncio.sleep(delay)
                 prompt = build_prompt(batch, target_langs)
+                print(f"[{label}] Prompt size: {len(prompt)} chars")
                 try:
-                    resp = await translate_batch(ctx, prompt)
+                    resp = await translate_batch(
+                        ctx,
+                        prompt,
+                        batch_label=label,
+                        model=args.model,
+                        response_timeout=args.response_timeout * 1000,
+                    )
                     flat = flatten_response(resp, batch, target_langs)
                     all_flat.extend(flat)
-                    print(f"  ✓ {len(flat)} translation records from batch {idx + 1}")
+                    print(
+                        f"[{label}] ✓ Done — {len(flat)} translation records (total so far: {len(all_flat)})"
+                    )
                 except Exception as exc:  # noqa: BLE001
-                    print(f"  ✗ Batch {idx + 1} failed: {exc}")
+                    print(f"[{label}] ✗ Failed: {exc}")
 
         tasks = [process_batch(i, b) for i, b in enumerate(batches)]
         await asyncio.gather(*tasks)
-        await browser.close()
+        await closer.close()
 
     output_path = Path(args.output)
     output_path.write_text(json.dumps(all_flat, ensure_ascii=False, indent=2))
@@ -587,8 +777,8 @@ def main() -> None:
     parser.add_argument(
         "--concurrency",
         type=int,
-        default=2,
-        help="Parallel browser contexts (default: 2, max recommended: 4)",
+        default=1,
+        help="Parallel tabs/batches (default: 1 = sequential, safe; max recommended: 3)",
     )
     parser.add_argument(
         "--prompts-only",
@@ -609,6 +799,35 @@ def main() -> None:
         "--dry-run",
         action="store_true",
         help="Print first batch prompt only, no browser",
+    )
+    parser.add_argument(
+        "--model",
+        "-m",
+        default=None,
+        help="Model to use: haiku, sonnet, opus (default: account default)",
+    )
+    parser.add_argument(
+        "--response-timeout",
+        type=int,
+        default=300,
+        help="Seconds to wait for Claude's response per batch (default: 300)",
+    )
+    parser.add_argument(
+        "--headless",
+        action="store_true",
+        default=False,
+        help="Run browser in headless mode (default: visible — more reliable against bot detection)",
+    )
+    parser.add_argument(
+        "--cdp",
+        type=int,
+        default=None,
+        metavar="PORT",
+        help=(
+            "Connect to an already-running Chrome via CDP (bypasses Cloudflare). "
+            "Start Chrome first: open -a 'Google Chrome' --args --remote-debugging-port=9222 "
+            "Then pass --cdp 9222"
+        ),
     )
     args = parser.parse_args()
     asyncio.run(run(args))
