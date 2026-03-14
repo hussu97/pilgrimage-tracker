@@ -49,6 +49,21 @@ DEFAULT_ENRICHMENT_CONCURRENCY: int = 10
 # Number of places shown in the "currently enriching" snapshot in the activity endpoint.
 ENRICHING_SNAPSHOT_LIMIT: int = 5
 
+# ── Browser grid discovery ────────────────────────────────────────────────────
+
+# Default side-length (km) for each fixed grid cell used in browser discovery.
+BROWSER_GRID_CELL_SIZE_KM: float = 3.0
+
+# Maximum scroll attempts before giving up on a single browser cell.
+BROWSER_SCROLL_MAX_ATTEMPTS: int = 30
+
+# Number of consecutive scrolls with no new place links before declaring the
+# feed fully loaded (stable threshold).
+BROWSER_SCROLL_STABLE_THRESHOLD: int = 3
+
+# Pixels scrolled inside the results feed per scroll step.
+BROWSER_SCROLL_PIXEL_STEP: int = 800
+
 # ── Quality gate thresholds ───────────────────────────────────────────────────
 # These are authoritative in app/pipeline/place_quality.py.
 # Do NOT override them here — import from place_quality directly.

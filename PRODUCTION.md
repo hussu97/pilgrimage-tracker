@@ -783,6 +783,7 @@ Client-side error tracking: set `VITE_GLITCHTIP_DSN` in the web build (via GitHu
 | `MAPS_BROWSER_POOL_SIZE` | No | `2` | Concurrent Chromium contexts |
 | `MAPS_BROWSER_MAX_PAGES` | No | `30` | Navigations per session before recycling |
 | `MAPS_BROWSER_HEADLESS` | No | `true` | Chromium headless mode |
+| `BROWSER_GRID_CELL_SIZE_KM` | No | `3.0` | Grid cell side-length (km) for browser discovery |
 | `DATABASE_URL` | No | — | PostgreSQL URL (overrides `SCRAPER_DB_PATH`) |
 | `SCRAPER_DB_PATH` | No | `scraper.db` | SQLite path |
 | `SCRAPER_TIMEZONE` | No | `UTC` | Fallback timezone |

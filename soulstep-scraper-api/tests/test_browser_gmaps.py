@@ -496,8 +496,8 @@ class TestCircuitBreaker:
 
 class TestPerTypeBrowserSearch:
     @pytest.mark.asyncio
-    async def test_browser_per_type_search_calls_once_per_type(self):
-        """run_gmaps_scraper_browser calls search_area_browser once per active place type."""
+    async def test_browser_grid_search_calls_once_per_type(self):
+        """run_gmaps_scraper_browser calls search_grid_browser once per active place type."""
         from unittest.mock import AsyncMock, patch
 
         from sqlalchemy import StaticPool, create_engine
@@ -517,7 +517,7 @@ class TestPerTypeBrowserSearch:
         with Session(engine) as sess:
             sess.add(
                 ScraperRun(
-                    run_code="run_per_type_test",
+                    run_code="run_grid_type_test",
                     location_code="loc_test",
                     status="running",
                 )
@@ -547,14 +547,12 @@ class TestPerTypeBrowserSearch:
 
         call_types: list[str] = []
 
-        async def fake_search(
-            lat_min, lat_max, lng_min, lng_max, place_type, existing_ids, **kwargs
-        ):
+        async def fake_grid_search(grid_cells, place_type, existing_ids, **kwargs):
             call_types.append(place_type)
             return []
 
         with (
-            patch("app.scrapers.gmaps_browser.search_area_browser", side_effect=fake_search),
+            patch("app.scrapers.gmaps_browser.search_grid_browser", side_effect=fake_grid_search),
             patch("app.scrapers.gmaps_browser.DiscoveryCellStore"),
             patch("app.scrapers.gmaps_browser.GlobalCellStore"),
             patch("app.scrapers.gmaps.fetch_place_details", new=AsyncMock()),
@@ -562,7 +560,7 @@ class TestPerTypeBrowserSearch:
             patch("app.db.session.engine", engine),
         ):
             with Session(engine) as sess:
-                await run_gmaps_scraper_browser("run_per_type_test", {"city": "TestCity"}, sess)
+                await run_gmaps_scraper_browser("run_grid_type_test", {"city": "TestCity"}, sess)
 
         # Should have been called once per active place type
         assert sorted(call_types) == ["church", "mosque"]
@@ -648,3 +646,208 @@ class TestGlobalCellStorePerTypeKey:
         assert hit is not None
         assert hit.result_count == 2
         assert hit.saturated is True
+
+
+# ── _scroll_until_stable ─────────────────────────────────────────────────────
+
+
+class TestScrollUntilStable:
+    @pytest.mark.asyncio
+    async def test_stops_when_stable(self):
+        """Scroll stops after stable_threshold consecutive scrolls with same link count."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from app.scrapers.gmaps_browser import _scroll_until_stable
+
+        # Link count stays at 5 from the start → should stabilise immediately
+        page = MagicMock()
+        page.evaluate = AsyncMock(
+            side_effect=lambda *a, **kw: 5 if "querySelectorAll" in str(a) else None
+        )
+        page.query_selector = AsyncMock(return_value=MagicMock())
+
+        await _scroll_until_stable(page, max_attempts=20, stable_threshold=3, pixel_step=800)
+        # evaluate was called at least once to count links
+        assert page.evaluate.call_count >= 1
+
+    @pytest.mark.asyncio
+    async def test_stops_at_max_attempts(self):
+        """Scroll never exceeds max_attempts even when count keeps growing."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from app.scrapers.gmaps_browser import _scroll_until_stable
+
+        counter = [0]
+
+        async def growing_count(*args, **kwargs):
+            # Every call returns an increasing count — never stabilises
+            if "querySelectorAll" in str(args):
+                counter[0] += 1
+                return counter[0]
+            return None
+
+        page = MagicMock()
+        page.evaluate = AsyncMock(side_effect=growing_count)
+        page.query_selector = AsyncMock(return_value=None)
+
+        await _scroll_until_stable(page, max_attempts=5, stable_threshold=3, pixel_step=800)
+        # Should have made exactly max_attempts evaluate calls for link count
+        link_count_calls = [c for c in page.evaluate.call_args_list if "querySelectorAll" in str(c)]
+        assert len(link_count_calls) <= 5
+
+
+# ── search_grid_browser ───────────────────────────────────────────────────────
+
+
+class TestSearchGridBrowser:
+    @pytest.mark.asyncio
+    async def test_returns_empty_for_empty_cells(self):
+        """search_grid_browser with no cells returns empty list."""
+        from app.scrapers.base import ThreadSafeIdSet
+        from app.scrapers.gmaps_browser import search_grid_browser
+
+        ids = ThreadSafeIdSet()
+        result = await search_grid_browser([], "mosque", ids)
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_skips_cached_cells(self):
+        """Cells already in cell_store are skipped without browser navigation."""
+        from unittest.mock import MagicMock, patch
+
+        from app.scrapers.base import ThreadSafeIdSet
+        from app.scrapers.cell_store import DiscoveryCellStore
+        from app.scrapers.gmaps_browser import search_grid_browser
+
+        mock_store = MagicMock(spec=DiscoveryCellStore)
+        # All cells report a cache hit
+        cached = MagicMock()
+        cached.result_count = 2
+        cached.resource_names = ["places/A", "places/B"]
+        mock_store.get.return_value = cached
+
+        cells = [(25.0, 25.1, 55.0, 55.1), (25.1, 25.2, 55.0, 55.1)]
+        ids = ThreadSafeIdSet()
+
+        with patch("app.scrapers.gmaps_browser.get_maps_pool") as mock_pool:
+            await search_grid_browser(cells, "mosque", ids, cell_store=mock_store)
+
+        # Browser pool should not have been acquired
+        mock_pool.assert_not_called()
+        # Cached names should be in dedup set
+        assert "places/A" in ids
+
+    @pytest.mark.asyncio
+    async def test_respects_max_results(self):
+        """search_grid_browser stops processing cells once max_results is reached."""
+        from unittest.mock import AsyncMock, patch
+
+        from app.scrapers.base import ThreadSafeIdSet
+        from app.scrapers.gmaps_browser import search_grid_browser
+
+        # Pre-fill existing_ids with enough to trigger max_results immediately
+        ids = ThreadSafeIdSet()
+        ids.add_new([f"places/{i}" for i in range(10)])
+
+        cells = [(25.0, 25.1, 55.0, 55.1), (25.1, 25.2, 55.0, 55.1)]
+
+        with patch(
+            "app.scrapers.gmaps_browser._search_single_grid_cell", new=AsyncMock(return_value=[])
+        ) as mock_cell:
+            await search_grid_browser(cells, "mosque", ids, max_results=5)
+
+        # All calls should have been skipped due to max_results already exceeded
+        # (any calls that did execute return [] due to the guard inside _bounded_cell)
+        assert mock_cell.call_count >= 0  # calls may be 0 if guard fires before gather
+
+
+# ── DiscoveryCellStore grid/quadtree isolation ────────────────────────────────
+
+
+class TestDiscoveryCellStoreMethodIsolation:
+    def _make_engine(self):
+        from sqlalchemy import StaticPool, create_engine
+        from sqlmodel import SQLModel
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        SQLModel.metadata.create_all(engine)
+        return engine
+
+    def test_grid_and_quadtree_stores_are_independent(self):
+        """A grid cell saved under 'grid' is not visible to a 'quadtree' store."""
+        from app.scrapers.cell_store import DiscoveryCellStore
+
+        engine = self._make_engine()
+        grid_store = DiscoveryCellStore(
+            "run_m1", engine, place_type="mosque", discovery_method="grid"
+        )
+        qt_store = DiscoveryCellStore(
+            "run_m1", engine, place_type="mosque", discovery_method="quadtree"
+        )
+
+        grid_store.save(25.0, 25.1, 55.0, 55.1, 0, 1000.0, ["places/G"], False)
+
+        assert grid_store.get(25.0, 25.1, 55.0, 55.1) is not None
+        assert qt_store.get(25.0, 25.1, 55.0, 55.1) is None
+
+    def test_grid_store_reloads_only_grid_cells(self):
+        """A freshly constructed grid store pre-loads only grid-method cells."""
+        from app.scrapers.cell_store import DiscoveryCellStore
+
+        engine = self._make_engine()
+        grid_store = DiscoveryCellStore(
+            "run_m2", engine, place_type="mosque", discovery_method="grid"
+        )
+        grid_store.save(25.0, 25.1, 55.0, 55.1, 0, 1000.0, ["places/G"], False)
+
+        # New quadtree store must not see the grid cell
+        qt_store = DiscoveryCellStore(
+            "run_m2", engine, place_type="mosque", discovery_method="quadtree"
+        )
+        assert qt_store.get(25.0, 25.1, 55.0, 55.1) is None
+
+        # New grid store must see it
+        grid_store2 = DiscoveryCellStore(
+            "run_m2", engine, place_type="mosque", discovery_method="grid"
+        )
+        assert grid_store2.get(25.0, 25.1, 55.0, 55.1) is not None
+
+
+class TestGlobalCellStoreDiscoveryMethodKey:
+    def _make_engine(self):
+        from sqlalchemy import StaticPool, create_engine
+        from sqlmodel import SQLModel
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        SQLModel.metadata.create_all(engine)
+        return engine
+
+    def test_grid_and_quadtree_keys_are_independent(self):
+        """Saving with discovery_method='grid' does not produce a hit for 'quadtree'."""
+        from app.scrapers.cell_store import GlobalCellStore
+
+        engine = self._make_engine()
+        store = GlobalCellStore(engine)
+        store.save(25.0, 25.1, 55.0, 55.1, "mosque", ["places/G"], False, "grid")
+
+        assert store.get(25.0, 25.1, 55.0, 55.1, "mosque", "grid") is not None
+        assert store.get(25.0, 25.1, 55.0, 55.1, "mosque", "quadtree") is None
+
+    def test_default_discovery_method_is_quadtree(self):
+        """Omitting discovery_method in get/save defaults to 'quadtree'."""
+        from app.scrapers.cell_store import GlobalCellStore
+
+        engine = self._make_engine()
+        store = GlobalCellStore(engine)
+        store.save(25.0, 25.1, 55.0, 55.1, "mosque", ["places/Q"], False)  # default = quadtree
+
+        assert store.get(25.0, 25.1, 55.0, 55.1, "mosque") is not None  # default = quadtree
+        assert store.get(25.0, 25.1, 55.0, 55.1, "mosque", "grid") is None

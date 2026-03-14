@@ -71,6 +71,10 @@ class Settings:
     gate_enrichment: float = float(os.environ.get("SCRAPER_GATE_ENRICHMENT", "0.75"))
     gate_sync: float = float(os.environ.get("SCRAPER_GATE_SYNC", "0.75"))
 
+    # ── Browser grid discovery ────────────────────────────────────────────────
+    # Side-length (km) for each fixed grid cell in browser discovery mode.
+    browser_grid_cell_size_km: float = float(os.environ.get("BROWSER_GRID_CELL_SIZE_KM", "3.0"))
+
     # ── Browser scraper backend ───────────────────────────────────────────────
     # Toggle between Google Places API (default) and browser-based scraping.
     # SCRAPER_BACKEND=browser uses Playwright at $0 API cost (slower, stealth-based).

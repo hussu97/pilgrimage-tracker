@@ -585,6 +585,7 @@ async def discover_places(
     within the boundary. The run's total_items is updated and committed after discovery.
     """
     from app.db.session import engine as _engine
+    from app.scrapers.geo_utils import get_boundary_boxes
 
     max_results = config.get("max_results")
 
@@ -605,23 +606,31 @@ async def discover_places(
     api_semaphore = asyncio.Semaphore(settings.discovery_concurrency)
     rate_limiter = get_async_rate_limiter()
 
+    # Multi-box: use sub-boxes if seeded, otherwise fall back to single boundary box
+    boxes = get_boundary_boxes(boundary, session)
+    logger.info("discover_places: %d box(es) for %r", len(boxes), boundary.name)
+
     async with httpx.AsyncClient(timeout=35.0) as discovery_client:
-        await search_area(
-            boundary.lat_min,
-            boundary.lat_max,
-            boundary.lng_min,
-            boundary.lng_max,
-            all_gmaps_types,
-            api_key,
-            existing_ids,
-            depth=0,
-            max_results=max_results,
-            client=discovery_client,
-            cell_store=cell_store,
-            semaphore=api_semaphore,
-            rate_limiter=rate_limiter,
-            global_cache=global_cache,
-        )
+        for box in boxes:
+            await search_area(
+                box.lat_min,
+                box.lat_max,
+                box.lng_min,
+                box.lng_max,
+                all_gmaps_types,
+                api_key,
+                existing_ids,
+                depth=0,
+                max_results=max_results,
+                client=discovery_client,
+                cell_store=cell_store,
+                semaphore=api_semaphore,
+                rate_limiter=rate_limiter,
+                global_cache=global_cache,
+            )
+            if max_results and len(existing_ids) >= max_results:
+                logger.info("Reached max_results limit (%d), stopping after this box", max_results)
+                break
 
     # Use existing_ids.to_list() — includes pre-seeded IDs from resumed runs
     all_resource_names = existing_ids.to_list()

@@ -4,6 +4,27 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## feat(scraper): browser grid discovery + multi-box country borders (2026-03-14)
+
+### Backend
+
+- **`app/constants.py`** — Added `BROWSER_GRID_CELL_SIZE_KM`, `BROWSER_SCROLL_MAX_ATTEMPTS`, `BROWSER_SCROLL_STABLE_THRESHOLD`, `BROWSER_SCROLL_PIXEL_STEP` constants.
+- **`app/config.py`** — Added `browser_grid_cell_size_km` setting (env: `BROWSER_GRID_CELL_SIZE_KM`, default `3.0`).
+- **`app/db/models.py`** — Added `discovery_method` column to `DiscoveryCell` and `GlobalDiscoveryCell` (default `"quadtree"`); new `GeoBoundaryBox` model for multi-box country borders.
+- **`migrations/versions/0016_discovery_method.py`** — Adds `discovery_method TEXT NOT NULL DEFAULT 'quadtree'` to both cell tables; idempotent.
+- **`migrations/versions/0017_geo_boundary_boxes.py`** — Creates `geoboundarybox` table with FK to `geoboundary`.
+- **`app/scrapers/cell_store.py`** — `DiscoveryCellStore` and `GlobalCellStore` now accept `discovery_method` parameter; grid and quadtree cells are keyed independently.
+- **`app/scrapers/grid.py`** (new) — `generate_grid_cells()` divides a bbox into fixed 3 km cells with longitude correction; `generate_multi_box_grid_cells()` combines multiple boxes with overlap deduplication.
+- **`app/scrapers/geo_utils.py`** (new) — `get_boundary_boxes()` returns seeded `GeoBoundaryBox` rows or falls back to single box from `GeoBoundary`.
+- **`app/scrapers/gmaps_browser.py`** — Replaced fixed 3-scroll loop with `_scroll_until_stable()` (stable-count + end-of-list detection); added `_search_single_grid_cell()` and `search_grid_browser()` for grid traversal; orchestrator now uses grid discovery via `search_grid_browser` instead of `search_area_browser`.
+- **`app/scrapers/gmaps.py`** — `discover_places()` now iterates over `get_boundary_boxes()` sub-boxes for multi-box API discovery.
+- **`app/seeds/geo.py`** — Added `COUNTRY_BOXES` dict (India 18 boxes, Pakistan 6, USA 16, UAE 4) and `seed_geo_boundary_boxes()` idempotent seeder.
+- **`tests/test_grid.py`** (new) — 11 tests: grid cell generation, longitude correction, multi-box dedup.
+- **`tests/test_geo_boundary_boxes.py`** (new) — 7 tests: `get_boundary_boxes` fallback, seeder idempotency, correct box count.
+- **`tests/test_browser_gmaps.py`** — Updated per-type test for new `search_grid_browser` architecture; added `TestScrollUntilStable` (2), `TestSearchGridBrowser` (3), `TestDiscoveryCellStoreMethodIsolation` (2), `TestGlobalCellStoreDiscoveryMethodKey` (2).
+
+---
+
 ## feat(scraper): split Docker images — lean API vs full job container (2026-03-14)
 
 ### Backend

@@ -32,7 +32,8 @@ def _cell_key(lat_min: float, lat_max: float, lng_min: float, lng_max: float) ->
 class DiscoveryCellStore:
     """Thread-safe in-memory cache backed by DB persistence for discovery cells.
 
-    Now scoped to a single place_type (empty string = combined/API mode).
+    Scoped to a single place_type (empty string = combined/API mode) and
+    discovery_method ("quadtree" for API, "grid" for browser grid).
 
     Usage:
       store = DiscoveryCellStore(run_code, engine, place_type="mosque")
@@ -48,19 +49,23 @@ class DiscoveryCellStore:
                      resource_names, saturated)
     """
 
-    def __init__(self, run_code: str, engine, place_type: str = "") -> None:
+    def __init__(
+        self, run_code: str, engine, place_type: str = "", discovery_method: str = "quadtree"
+    ) -> None:
         self._run_code = run_code
         self._engine = engine
         self._place_type = place_type
+        self._discovery_method = discovery_method
         self._lock = threading.Lock()
         self._cells: dict[_CellKey, DiscoveryCell] = {}
 
-        # Pre-load existing cells from DB for this run + place_type
+        # Pre-load existing cells from DB for this run + place_type + discovery_method
         with Session(engine) as session:
             existing = session.exec(
                 select(DiscoveryCell)
                 .where(DiscoveryCell.run_code == run_code)
                 .where(DiscoveryCell.place_type == place_type)
+                .where(DiscoveryCell.discovery_method == discovery_method)
             ).all()
 
         for cell in existing:
@@ -69,10 +74,11 @@ class DiscoveryCellStore:
 
         if existing:
             logger.info(
-                "DiscoveryCellStore: pre-loaded %d cells for run %s type=%r",
+                "DiscoveryCellStore: pre-loaded %d cells for run %s type=%r method=%r",
                 len(existing),
                 run_code,
                 place_type,
+                discovery_method,
             )
 
     def get(
@@ -118,6 +124,7 @@ class DiscoveryCellStore:
                 saturated=saturated,
                 resource_names=list(resource_names),
                 place_type=self._place_type,
+                discovery_method=self._discovery_method,
             )
 
             with Session(self._engine) as session:
@@ -197,7 +204,12 @@ class GlobalCellStore:
 
         for cell in existing:
             key = self._make_key(
-                cell.lat_min, cell.lat_max, cell.lng_min, cell.lng_max, cell.place_type
+                cell.lat_min,
+                cell.lat_max,
+                cell.lng_min,
+                cell.lng_max,
+                cell.place_type,
+                cell.discovery_method,
             )
             self._cells[key] = cell
 
@@ -211,6 +223,7 @@ class GlobalCellStore:
         lng_min: float,
         lng_max: float,
         place_type: str,
+        discovery_method: str = "quadtree",
     ) -> tuple:
         return (
             round(lat_min, 8),
@@ -218,6 +231,7 @@ class GlobalCellStore:
             round(lng_min, 8),
             round(lng_max, 8),
             place_type,
+            discovery_method,
         )
 
     def get(
@@ -227,9 +241,10 @@ class GlobalCellStore:
         lng_min: float,
         lng_max: float,
         place_type: str,
+        discovery_method: str = "quadtree",
     ) -> GlobalDiscoveryCell | None:
         """Return a non-expired global cache entry, or None."""
-        key = self._make_key(lat_min, lat_max, lng_min, lng_max, place_type)
+        key = self._make_key(lat_min, lat_max, lng_min, lng_max, place_type, discovery_method)
         cutoff = datetime.now(UTC) - self._ttl
         with self._lock:
             cell = self._cells.get(key)
@@ -253,9 +268,10 @@ class GlobalCellStore:
         place_type: str,
         resource_names: list[str],
         saturated: bool,
+        discovery_method: str = "quadtree",
     ) -> GlobalDiscoveryCell:
         """Persist a global cache entry (upsert: replace if same key exists)."""
-        key = self._make_key(lat_min, lat_max, lng_min, lng_max, place_type)
+        key = self._make_key(lat_min, lat_max, lng_min, lng_max, place_type, discovery_method)
 
         with self._lock:
             cell = GlobalDiscoveryCell(
@@ -264,6 +280,7 @@ class GlobalCellStore:
                 lng_min=lng_min,
                 lng_max=lng_max,
                 place_type=place_type,
+                discovery_method=discovery_method,
                 result_count=len(resource_names),
                 saturated=saturated,
                 resource_names=list(resource_names),
@@ -279,6 +296,7 @@ class GlobalCellStore:
                         GlobalDiscoveryCell.lng_min == lng_min,
                         GlobalDiscoveryCell.lng_max == lng_max,
                         GlobalDiscoveryCell.place_type == place_type,
+                        GlobalDiscoveryCell.discovery_method == discovery_method,
                     )
                 ).first()
                 if old:

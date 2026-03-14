@@ -1,8 +1,8 @@
-"""Seed geographic boundaries for scraping."""
+"""Seed geographic boundaries and multi-box country borders for scraping."""
 
 from sqlmodel import Session, select
 
-from app.db.models import GeoBoundary
+from app.db.models import GeoBoundary, GeoBoundaryBox
 from app.logger import get_logger
 
 logger = get_logger(__name__)
@@ -1752,8 +1752,351 @@ def seed_geo_boundaries(session: Session):
     logger.info("Geographic boundaries seeded successfully.")
 
 
+# ── Multi-box country borders ─────────────────────────────────────────────────
+#
+# Tighter sub-boxes per country reduce wasted search area and avoid
+# cross-border contamination.  ~15-20 boxes per large country, 4-6 for smaller.
+# Keys match GeoBoundary.name values.
+#
+COUNTRY_BOXES: dict[str, list[dict]] = {
+    # ── India (18 boxes) ─────────────────────────────────────────────────────
+    # A single India rectangle covers Pakistan, Bangladesh, Nepal, Sri Lanka.
+    # 18 tighter boxes trace the actual inhabited landmass.
+    "India": [
+        {
+            "label": "northwest_punjab_haryana",
+            "lat_min": 28.5,
+            "lat_max": 32.5,
+            "lng_min": 73.8,
+            "lng_max": 77.5,
+        },
+        {
+            "label": "northwest_rajasthan",
+            "lat_min": 24.0,
+            "lat_max": 30.0,
+            "lng_min": 69.5,
+            "lng_max": 76.5,
+        },
+        {
+            "label": "north_uttarakhand_up_west",
+            "lat_min": 27.5,
+            "lat_max": 31.5,
+            "lng_min": 77.5,
+            "lng_max": 81.5,
+        },
+        {
+            "label": "north_up_east_bihar_west",
+            "lat_min": 25.0,
+            "lat_max": 28.5,
+            "lng_min": 78.5,
+            "lng_max": 84.5,
+        },
+        {
+            "label": "north_bihar_east_jharkhand",
+            "lat_min": 22.5,
+            "lat_max": 27.5,
+            "lng_min": 83.5,
+            "lng_max": 88.0,
+        },
+        {
+            "label": "northeast_west_bengal",
+            "lat_min": 21.5,
+            "lat_max": 27.5,
+            "lng_min": 86.0,
+            "lng_max": 89.5,
+        },
+        {
+            "label": "northeast_assam_meghalaya",
+            "lat_min": 23.5,
+            "lat_max": 27.5,
+            "lng_min": 89.5,
+            "lng_max": 96.0,
+        },
+        {
+            "label": "central_mp_west",
+            "lat_min": 21.5,
+            "lat_max": 25.5,
+            "lng_min": 74.0,
+            "lng_max": 79.0,
+        },
+        {
+            "label": "central_mp_east_chhattisgarh",
+            "lat_min": 19.5,
+            "lat_max": 23.5,
+            "lng_min": 79.0,
+            "lng_max": 84.5,
+        },
+        {
+            "label": "central_odisha",
+            "lat_min": 17.8,
+            "lat_max": 22.5,
+            "lng_min": 82.5,
+            "lng_max": 87.5,
+        },
+        {
+            "label": "west_gujarat",
+            "lat_min": 20.0,
+            "lat_max": 24.5,
+            "lng_min": 68.0,
+            "lng_max": 74.5,
+        },
+        {
+            "label": "west_maharashtra_north",
+            "lat_min": 19.5,
+            "lat_max": 22.5,
+            "lng_min": 73.5,
+            "lng_max": 80.5,
+        },
+        {
+            "label": "west_maharashtra_south_goa",
+            "lat_min": 15.0,
+            "lat_max": 19.5,
+            "lng_min": 73.0,
+            "lng_max": 78.0,
+        },
+        {
+            "label": "south_karnataka",
+            "lat_min": 11.5,
+            "lat_max": 15.5,
+            "lng_min": 74.5,
+            "lng_max": 78.5,
+        },
+        {
+            "label": "south_andhra_telangana",
+            "lat_min": 13.5,
+            "lat_max": 19.5,
+            "lng_min": 77.5,
+            "lng_max": 84.5,
+        },
+        {
+            "label": "south_tamilnadu",
+            "lat_min": 8.0,
+            "lat_max": 13.5,
+            "lng_min": 76.5,
+            "lng_max": 80.5,
+        },
+        {
+            "label": "south_kerala",
+            "lat_min": 8.0,
+            "lat_max": 12.5,
+            "lng_min": 74.8,
+            "lng_max": 77.5,
+        },
+        {
+            "label": "south_ap_coast",
+            "lat_min": 13.5,
+            "lat_max": 17.5,
+            "lng_min": 79.5,
+            "lng_max": 82.5,
+        },
+    ],
+    # ── Pakistan (6 boxes) ───────────────────────────────────────────────────
+    "Pakistan": [
+        {"label": "punjab", "lat_min": 29.0, "lat_max": 33.5, "lng_min": 69.5, "lng_max": 75.5},
+        {"label": "sindh", "lat_min": 23.5, "lat_max": 28.5, "lng_min": 66.5, "lng_max": 71.5},
+        {"label": "kpk", "lat_min": 31.5, "lat_max": 35.5, "lng_min": 69.5, "lng_max": 73.5},
+        {
+            "label": "balochistan",
+            "lat_min": 25.0,
+            "lat_max": 31.5,
+            "lng_min": 60.9,
+            "lng_max": 67.5,
+        },
+        {"label": "ajk", "lat_min": 33.0, "lat_max": 35.0, "lng_min": 73.0, "lng_max": 75.5},
+        {
+            "label": "gilgit_baltistan",
+            "lat_min": 35.0,
+            "lat_max": 37.1,
+            "lng_min": 72.5,
+            "lng_max": 77.8,
+        },
+    ],
+    # ── USA (16 boxes — continental US only) ─────────────────────────────────
+    "USA": [
+        {
+            "label": "pacific_northwest",
+            "lat_min": 45.5,
+            "lat_max": 49.0,
+            "lng_min": -124.5,
+            "lng_max": -116.5,
+        },
+        {
+            "label": "california_north",
+            "lat_min": 37.0,
+            "lat_max": 42.0,
+            "lng_min": -124.5,
+            "lng_max": -119.0,
+        },
+        {
+            "label": "california_south",
+            "lat_min": 32.5,
+            "lat_max": 37.0,
+            "lng_min": -120.5,
+            "lng_max": -114.0,
+        },
+        {
+            "label": "mountain_northwest",
+            "lat_min": 42.0,
+            "lat_max": 49.0,
+            "lng_min": -117.5,
+            "lng_max": -110.5,
+        },
+        {
+            "label": "mountain_southwest",
+            "lat_min": 31.5,
+            "lat_max": 42.5,
+            "lng_min": -114.5,
+            "lng_max": -107.5,
+        },
+        {
+            "label": "great_plains_north",
+            "lat_min": 40.0,
+            "lat_max": 49.0,
+            "lng_min": -110.5,
+            "lng_max": -97.5,
+        },
+        {
+            "label": "great_plains_south",
+            "lat_min": 26.0,
+            "lat_max": 40.0,
+            "lng_min": -107.5,
+            "lng_max": -97.5,
+        },
+        {"label": "texas", "lat_min": 25.5, "lat_max": 36.5, "lng_min": -106.5, "lng_max": -93.5},
+        {
+            "label": "midwest_north",
+            "lat_min": 41.0,
+            "lat_max": 49.0,
+            "lng_min": -97.5,
+            "lng_max": -84.0,
+        },
+        {
+            "label": "midwest_south",
+            "lat_min": 35.0,
+            "lat_max": 41.5,
+            "lng_min": -97.5,
+            "lng_max": -87.5,
+        },
+        {
+            "label": "south_central",
+            "lat_min": 29.0,
+            "lat_max": 35.5,
+            "lng_min": -94.5,
+            "lng_max": -84.5,
+        },
+        {
+            "label": "southeast",
+            "lat_min": 24.5,
+            "lat_max": 35.5,
+            "lng_min": -87.5,
+            "lng_max": -80.0,
+        },
+        {
+            "label": "great_lakes_east",
+            "lat_min": 41.5,
+            "lat_max": 47.5,
+            "lng_min": -84.5,
+            "lng_max": -76.5,
+        },
+        {
+            "label": "northeast",
+            "lat_min": 39.5,
+            "lat_max": 47.5,
+            "lng_min": -80.0,
+            "lng_max": -66.5,
+        },
+        {
+            "label": "mid_atlantic",
+            "lat_min": 36.5,
+            "lat_max": 41.5,
+            "lng_min": -81.0,
+            "lng_max": -73.5,
+        },
+        {"label": "florida", "lat_min": 24.5, "lat_max": 31.0, "lng_min": -87.5, "lng_max": -80.0},
+    ],
+    # ── UAE (4 boxes) ────────────────────────────────────────────────────────
+    "UAE": [
+        {
+            "label": "abu_dhabi_west",
+            "lat_min": 22.5,
+            "lat_max": 24.5,
+            "lng_min": 51.5,
+            "lng_max": 54.5,
+        },
+        {
+            "label": "abu_dhabi_east",
+            "lat_min": 22.5,
+            "lat_max": 24.5,
+            "lng_min": 54.5,
+            "lng_max": 56.5,
+        },
+        {
+            "label": "dubai_sharjah",
+            "lat_min": 24.5,
+            "lat_max": 25.5,
+            "lng_min": 54.5,
+            "lng_max": 56.0,
+        },
+        {
+            "label": "northern_emirates",
+            "lat_min": 25.0,
+            "lat_max": 26.0,
+            "lng_min": 55.5,
+            "lng_max": 56.5,
+        },
+    ],
+}
+
+
+def seed_geo_boundary_boxes(session: Session) -> None:
+    """Seed GeoBoundaryBox rows from COUNTRY_BOXES — idempotent.
+
+    Skips any country whose boxes are already present so repeated runs are safe.
+    """
+    for country_name, box_defs in COUNTRY_BOXES.items():
+        boundary = session.exec(select(GeoBoundary).where(GeoBoundary.name == country_name)).first()
+        if not boundary:
+            logger.warning(
+                "seed_geo_boundary_boxes: GeoBoundary %r not found — skipping", country_name
+            )
+            continue
+
+        existing_count = len(
+            session.exec(
+                select(GeoBoundaryBox).where(GeoBoundaryBox.boundary_id == boundary.id)
+            ).all()
+        )
+        if existing_count:
+            logger.debug(
+                "seed_geo_boundary_boxes: %r already has %d boxes — skipping",
+                country_name,
+                existing_count,
+            )
+            continue
+
+        for box_def in box_defs:
+            session.add(
+                GeoBoundaryBox(
+                    boundary_id=boundary.id,
+                    lat_min=box_def["lat_min"],
+                    lat_max=box_def["lat_max"],
+                    lng_min=box_def["lng_min"],
+                    lng_max=box_def["lng_max"],
+                    label=box_def.get("label"),
+                )
+            )
+
+        session.commit()
+        logger.info(
+            "seed_geo_boundary_boxes: seeded %d boxes for %r",
+            len(box_defs),
+            country_name,
+        )
+
+
 if __name__ == "__main__":
     from app.db.session import engine
 
     with Session(engine) as session:
         seed_geo_boundaries(session)
+        seed_geo_boundary_boxes(session)

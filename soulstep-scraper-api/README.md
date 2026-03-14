@@ -58,6 +58,7 @@ python -m pytest tests/ -v
 | `MAPS_BROWSER_POOL_SIZE` | No | `2` | Concurrent Chromium contexts (browser mode only) |
 | `MAPS_BROWSER_MAX_PAGES` | No | `30` | Navigations per session before recycling (browser mode only) |
 | `MAPS_BROWSER_HEADLESS` | No | `true` | Chromium headless; set `false` for local debugging |
+| `BROWSER_GRID_CELL_SIZE_KM` | No | `3.0` | Grid cell side-length in km for browser discovery mode |
 | `SCRAPER_TIMEZONE` | No | `UTC` | Fallback timezone for places without a Google UTC offset |
 | `DATABASE_URL` | No | — | PostgreSQL URL — overrides `SCRAPER_DB_PATH` when set |
 | `SCRAPER_DB_PATH` | No | `scraper.db` | SQLite database path |

@@ -124,6 +124,7 @@ class DiscoveryCell(SQLModel, table=True):
     saturated: bool
     resource_names: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     place_type: str = Field(default="", index=True)
+    discovery_method: str = Field(default="quadtree")
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -144,10 +145,32 @@ class GlobalDiscoveryCell(SQLModel, table=True):
     lng_min: float
     lng_max: float
     place_type: str = Field(default="", index=True)
+    discovery_method: str = Field(default="quadtree")
     result_count: int
     saturated: bool
     resource_names: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     searched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class GeoBoundaryBox(SQLModel, table=True):
+    """One of potentially many bounding boxes composing a geographic boundary.
+
+    Countries like India or USA span huge areas that include neighboring
+    countries when expressed as a single rectangle.  Splitting them into
+    15-20 tighter boxes greatly reduces wasted search area and avoids
+    cross-border contamination.
+
+    When no boxes exist for a boundary, scrapers fall back to the single
+    bounding box stored on the GeoBoundary row itself.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    boundary_id: int = Field(foreign_key="geoboundary.id", index=True)
+    lat_min: float
+    lat_max: float
+    lng_min: float
+    lng_max: float
+    label: str | None = Field(default=None)  # e.g. "north", "south_coast"
 
 
 class GlobalGmapsCache(SQLModel, table=True):
