@@ -10,3 +10,5 @@ psycopg2-binary
 # Browser scraper backend (only needed when SCRAPER_BACKEND=browser)
 playwright>=1.40.0
 timezonefinder>=6.0.0
+# Cloud Run Job dispatcher (only needed when SCRAPER_DISPATCH=cloud_run)
+google-cloud-run>=0.10.0

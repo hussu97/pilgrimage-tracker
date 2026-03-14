@@ -92,7 +92,7 @@ def test_resume_endpoint_accepts_interrupted(client, db_session):
     loc = _make_location(db_session)
     run = _make_run(db_session, loc.code, status="interrupted", stage="enrichment")
 
-    with patch("app.api.v1.scraper.resume_scraper_task"):
+    with patch("app.jobs.dispatcher.dispatch_resume"):
         resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
 
     assert resp.status_code == 200
@@ -106,7 +106,7 @@ def test_resume_endpoint_accepts_failed(client, db_session):
     loc = _make_location(db_session)
     run = _make_run(db_session, loc.code, status="failed", stage="discovery")
 
-    with patch("app.api.v1.scraper.resume_scraper_task"):
+    with patch("app.jobs.dispatcher.dispatch_resume"):
         resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
 
     assert resp.status_code == 200
@@ -140,7 +140,7 @@ def test_resume_endpoint_accepts_cancelled(client, db_session):
     loc = _make_location(db_session)
     run = _make_run(db_session, loc.code, status="cancelled")
 
-    with patch("app.api.v1.scraper.resume_scraper_task"):
+    with patch("app.jobs.dispatcher.dispatch_resume"):
         resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
 
     assert resp.status_code == 200
@@ -225,7 +225,7 @@ def test_resume_endpoint_accepts_image_download_stage(client, db_session):
     loc = _make_location(db_session)
     run = _make_run(db_session, loc.code, status="interrupted", stage="image_download")
 
-    with patch("app.api.v1.scraper.resume_scraper_task"):
+    with patch("app.jobs.dispatcher.dispatch_resume"):
         resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
 
     assert resp.status_code == 200

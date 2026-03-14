@@ -14,8 +14,9 @@ from app.db.models import (
     ScrapedPlace,
     ScraperRun,
 )
-from app.db.scraper import generate_code, resume_scraper_task, run_scraper_task, sync_run_to_server
+from app.db.scraper import generate_code, sync_run_to_server
 from app.db.session import SessionDep
+from app.jobs.dispatcher import dispatch_resume, dispatch_run
 from app.logger import get_logger
 from app.models.schemas import (
     CollectorStatusResponse,
@@ -170,8 +171,7 @@ def create_run(body: ScraperRunCreate, background_tasks: BackgroundTasks, sessio
     session.commit()
     session.refresh(run)
 
-    # Trigger background task
-    background_tasks.add_task(run_scraper_task, run.run_code)
+    dispatch_run(run.run_code, background_tasks)
 
     return run
 
@@ -324,7 +324,7 @@ def resume_run(run_code: str, background_tasks: BackgroundTasks, session: Sessio
             detail=f"Cannot resume run with status: {run.status}. Only interrupted, failed, or cancelled runs can be resumed.",
         )
 
-    background_tasks.add_task(resume_scraper_task, run.run_code)
+    dispatch_resume(run.run_code, background_tasks)
 
     return {
         "status": run.status,

@@ -448,6 +448,40 @@ MAPS_BROWSER_HEADLESS=true
 
 ---
 
+## Job Dispatcher
+
+Controls how scraper runs are executed after `POST /runs` (and `POST /runs/{code}/resume`). Selected by `SCRAPER_DISPATCH`.
+
+| `SCRAPER_DISPATCH` | Behaviour |
+|---|---|
+| `local` (default) | Runs scraper in-process via FastAPI `BackgroundTasks`. No GCP needed. Works for local dev and simple Cloud Run Service deployments. Chromium stays co-located — needs 2 GB RAM on the API service. |
+| `cloud_run` | Dispatches a Cloud Run Job execution via `google.cloud.run_v2.JobsClient`. API service stays lightweight (512 MB — no Chromium in the API process). |
+
+### Local development
+
+No extra config needed — `SCRAPER_DISPATCH=local` is the default.
+
+### Production (Cloud Run Job)
+
+```env
+SCRAPER_DISPATCH=cloud_run
+CLOUD_RUN_JOB_NAME=soulstep-scraper-job
+CLOUD_RUN_REGION=us-central1
+GOOGLE_CLOUD_PROJECT=your-project
+```
+
+The job reads `SCRAPER_RUN_CODE` and `SCRAPER_RUN_ACTION` from env vars set by the dispatcher and runs `python -m app.jobs.run` (no HTTP server). Deploy the job with `gcloud run jobs create` — see PRODUCTION.md §5.9h for the full command.
+
+### New files
+
+| File | Purpose |
+|---|---|
+| `app/jobs/__init__.py` | Package marker |
+| `app/jobs/dispatcher.py` | `dispatch_run()` / `dispatch_resume()` — switches between `local` and `cloud_run` backends at runtime |
+| `app/jobs/run.py` | Cloud Run Job entrypoint — reads `SCRAPER_RUN_CODE` + `SCRAPER_RUN_ACTION`, calls `run_scraper_task` / `resume_scraper_task` without an HTTP server |
+
+---
+
 ## Troubleshooting
 
 ### Port 8001 Already in Use

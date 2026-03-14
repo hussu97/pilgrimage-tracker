@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## feat(scraper): pluggable job dispatcher for Cloud Run decoupling (2026-03-14)
+
+### Backend
+
+- **`app/jobs/dispatcher.py`** (new) — `dispatch_run()` / `dispatch_resume()` replace direct `BackgroundTasks` calls in `POST /runs` and `POST /runs/{code}/resume`; switches between `local` (in-process) and `cloud_run` (GCP Jobs API) at runtime via `SCRAPER_DISPATCH`.
+- **`app/jobs/run.py`** (new) — Cloud Run Job entrypoint; reads `SCRAPER_RUN_CODE` + `SCRAPER_RUN_ACTION` env vars and runs `run_scraper_task` / `resume_scraper_task` without an HTTP server.
+- **`app/jobs/__init__.py`** (new) — package marker.
+- **`app/config.py`** — Added `SCRAPER_DISPATCH` (`local`|`cloud_run`, default `local`), `CLOUD_RUN_JOB_NAME` (default `soulstep-scraper-job`), `CLOUD_RUN_REGION` (default `us-central1`).
+- **`requirements.txt`** — Added `google-cloud-run>=0.10.0` (only imported when `SCRAPER_DISPATCH=cloud_run`).
+- **`ARCHITECTURE.md`** — Added Job Dispatcher subsection under §8c documenting dispatch modes, config vars, new files, and integration notes.
+- **`PRODUCTION.md`** — Added §5.9g (Cloud Run Job for browser scraper): deploy command, sizing, env vars for API service and job container; added three new env vars to §2.2 scraper table.
+- **`soulstep-scraper-api/README.md`** — Added Job Dispatcher section with dispatch mode table, local/production config, and new files table.
+
+---
+
 ## feat(scraper): browser-based Google Maps scraper backend (2026-03-14)
 
 ### Backend

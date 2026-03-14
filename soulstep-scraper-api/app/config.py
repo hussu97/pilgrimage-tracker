@@ -83,6 +83,19 @@ class Settings:
     # Run Chromium headless (set false for local debugging).
     maps_browser_headless: bool = os.environ.get("MAPS_BROWSER_HEADLESS", "true").lower() == "true"
 
+    # ── Job dispatcher ────────────────────────────────────────────────────────
+    # Controls how scraper runs are dispatched after POST /runs.
+    # SCRAPER_DISPATCH=local       (default) runs in-process via BackgroundTasks.
+    #                               No GCP required; works locally and in simple deployments.
+    # SCRAPER_DISPATCH=cloud_run   dispatches a Cloud Run Job execution.
+    #                               Requires CLOUD_RUN_JOB_NAME, CLOUD_RUN_REGION,
+    #                               and GOOGLE_CLOUD_PROJECT to be set.
+    scraper_dispatch: str = os.environ.get("SCRAPER_DISPATCH", "local")
+    # Cloud Run Job name (without project/region prefix).
+    cloud_run_job_name: str = os.environ.get("CLOUD_RUN_JOB_NAME", "soulstep-scraper-job")
+    # Cloud Run region for job dispatch.
+    cloud_run_region: str = os.environ.get("CLOUD_RUN_REGION", "us-central1")
+
     # ── Post-sync automation ──────────────────────────────────────────────────
     # If true, automatically call the catalog API's SEO generation endpoint after
     # sync completes. Requires SCRAPER_CATALOG_ADMIN_TOKEN to be set.

@@ -134,6 +134,9 @@ All environment variables documented here. Plan-specific sections reference this
 | `MAPS_BROWSER_POOL_SIZE` | No | `2` | Number of concurrent Chromium contexts (browser mode only) |
 | `MAPS_BROWSER_MAX_PAGES` | No | `30` | Navigations per browser session before recycling (browser mode only) |
 | `MAPS_BROWSER_HEADLESS` | No | `true` | Run Chromium headless (`true`) or visible for local debugging (`false`) |
+| `SCRAPER_DISPATCH` | No | `local` | `local` = run scraper in-process via BackgroundTasks; `cloud_run` = dispatch a Cloud Run Job via the GCP Jobs API |
+| `CLOUD_RUN_JOB_NAME` | No | `soulstep-scraper-job` | Cloud Run Job name to execute (only used when `SCRAPER_DISPATCH=cloud_run`) |
+| `CLOUD_RUN_REGION` | No | `us-central1` | GCP region for the Cloud Run Job (only used when `SCRAPER_DISPATCH=cloud_run`) |
 | `LOG_FORMAT` | No | `json` | `json` = structured stdout (Cloud Run / Cloud Logging); `text` = human-readable + local `logs/external_queries.log` file |
 | `LOG_LEVEL` | No | `INFO` | Python log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 
@@ -1197,6 +1200,60 @@ curl -X POST https://your-catalog-url/api/v1/admin/seo/generate \
   -H "Content-Type: application/json" \
   -d '{"force": false}'
 ```
+
+---
+
+#### h. Cloud Run Job for browser scraper (SCRAPER_DISPATCH=cloud_run)
+
+When `SCRAPER_BACKEND=browser` and `SCRAPER_DISPATCH=cloud_run`, the API service dispatches a separate **Cloud Run Job** instead of running Chromium in-process. This keeps the API service at 512 MB RAM while the job handles the heavy Chromium workload.
+
+**How it works:**
+- `POST /runs` and `POST /runs/{code}/resume` call `dispatch_run()` / `dispatch_resume()` in `app/jobs/dispatcher.py`.
+- The dispatcher calls `google.cloud.run_v2.JobsClient().run_job()` to trigger the job.
+- The job runs the same Docker image with entrypoint `python -m app.jobs.run`.
+- The job reads `SCRAPER_RUN_CODE` and `SCRAPER_RUN_ACTION` from env var overrides set by the dispatcher.
+
+**Deploy the Cloud Run Job:**
+
+```bash
+gcloud run jobs create soulstep-scraper-job \
+  --image gcr.io/PROJECT_ID/soulstep-scraper-api:latest \
+  --region us-central1 \
+  --memory 2Gi \
+  --cpu 2 \
+  --task-timeout 86400 \
+  --max-retries 1 \
+  --set-env-vars "SCRAPER_BACKEND=browser,DATABASE_URL=postgresql://...,GOOGLE_CLOUD_PROJECT=PROJECT_ID"
+```
+
+> `--task-timeout 86400` — allows up to 24 hours for large scrape runs.
+>
+> `--max-retries 1` — one automatic retry on failure; set to `0` if you prefer manual resume via `POST /runs/{code}/resume`.
+
+**Update after image changes:**
+
+```bash
+gcloud run jobs update soulstep-scraper-job \
+  --image gcr.io/PROJECT_ID/soulstep-scraper-api:latest \
+  --region us-central1
+```
+
+**API Service env vars needed (on the scraper Cloud Run Service):**
+
+| Variable | Value |
+|---|---|
+| `SCRAPER_DISPATCH` | `cloud_run` |
+| `CLOUD_RUN_JOB_NAME` | `soulstep-scraper-job` |
+| `CLOUD_RUN_REGION` | `us-central1` |
+| `GOOGLE_CLOUD_PROJECT` | `PROJECT_ID` |
+
+```bash
+gcloud run services update soulstep-scraper-api \
+  --region us-central1 \
+  --update-env-vars "SCRAPER_DISPATCH=cloud_run,CLOUD_RUN_JOB_NAME=soulstep-scraper-job,CLOUD_RUN_REGION=us-central1"
+```
+
+With `cloud_run` dispatch the API service no longer runs Chromium, so its memory can stay at **512 MB**.
 
 ---
 
