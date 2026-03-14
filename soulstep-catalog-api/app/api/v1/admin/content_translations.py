@@ -337,6 +337,10 @@ def export_untranslated(
     return result
 
 
+_BULK_UPSERT_MAX = 20_000
+_BULK_UPSERT_CHUNK = 500
+
+
 @router.post(
     "/content-translations/bulk-upsert",
     response_model=BulkUpsertResult,
@@ -348,46 +352,69 @@ def bulk_upsert_translations(
 ):
     """Upsert a flat array of translation records.
 
-    Uses INSERT … ON CONFLICT DO UPDATE logic via SQLModel select + update.
-    Returns counts of created, updated, and any error messages.
+    Optimised: one bulk SELECT to load all existing rows for the affected
+    entity_codes, then process items against an in-memory lookup dict —
+    no per-item SELECT queries. Commits every _BULK_UPSERT_CHUNK rows to
+    keep transaction size bounded.
     """
+    if not body:
+        return BulkUpsertResult(created=0, updated=0, errors=[])
+
+    if len(body) > _BULK_UPSERT_MAX:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Maximum {_BULK_UPSERT_MAX:,} items per request; received {len(body):,}.",
+        )
+
     created = 0
     updated = 0
     errors: list[str] = []
     now = datetime.now(UTC)
 
-    for item in body:
-        try:
-            existing = session.exec(
-                select(ContentTranslation).where(
-                    ContentTranslation.entity_type == item.entity_type,
-                    ContentTranslation.entity_code == item.entity_code,
-                    ContentTranslation.field == item.field,
-                    ContentTranslation.lang == item.lang,
-                )
-            ).first()
+    # ── 1. One bulk SELECT for all entity_codes in this request ───────────────
+    entity_codes = list({item.entity_code for item in body})
+    existing_rows = session.exec(
+        select(ContentTranslation).where(col(ContentTranslation.entity_code).in_(entity_codes))
+    ).all()
 
-            if existing:
-                existing.translated_text = item.translated_text
-                existing.source = item.source
-                existing.updated_at = now
-                session.add(existing)
-                updated += 1
-            else:
-                row = ContentTranslation(
-                    entity_type=item.entity_type,
-                    entity_code=item.entity_code,
-                    field=item.field,
-                    lang=item.lang,
-                    translated_text=item.translated_text,
-                    source=item.source,
-                    created_at=now,
-                    updated_at=now,
-                )
-                session.add(row)
-                created += 1
-        except Exception as exc:  # noqa: BLE001
-            errors.append(f"{item.entity_type}:{item.entity_code}:{item.field}:{item.lang} — {exc}")
+    # (entity_type, entity_code, field, lang) → row  — O(1) lookup per item
+    existing_map: dict[tuple[str, str, str, str], ContentTranslation] = {
+        (r.entity_type, r.entity_code, r.field, r.lang): r for r in existing_rows
+    }
 
-    session.commit()
+    # ── 2. Process in bounded chunks, commit after each ───────────────────────
+    for chunk_start in range(0, len(body), _BULK_UPSERT_CHUNK):
+        chunk = body[chunk_start : chunk_start + _BULK_UPSERT_CHUNK]
+
+        for item in chunk:
+            key = (item.entity_type, item.entity_code, item.field, item.lang)
+            try:
+                existing = existing_map.get(key)
+                if existing:
+                    existing.translated_text = item.translated_text
+                    existing.source = item.source
+                    existing.updated_at = now
+                    updated += 1
+                else:
+                    row = ContentTranslation(
+                        entity_type=item.entity_type,
+                        entity_code=item.entity_code,
+                        field=item.field,
+                        lang=item.lang,
+                        translated_text=item.translated_text,
+                        source=item.source,
+                        created_at=now,
+                        updated_at=now,
+                    )
+                    session.add(row)
+                    # Register in map so duplicate keys in the same payload don't double-insert
+                    existing_map[key] = row
+                    created += 1
+            except Exception as exc:  # noqa: BLE001
+                errors.append(
+                    f"{item.entity_type}:{item.entity_code}:{item.field}:{item.lang} — {exc}"
+                )
+
+        session.commit()
+
     return BulkUpsertResult(created=created, updated=updated, errors=errors)
