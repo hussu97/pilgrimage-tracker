@@ -159,7 +159,7 @@ export function BulkTranslationsPage() {
   const [importToast, setImportToast] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
-  const EXPORT_ENTITY_TYPES = ["place", "city"] as const;
+  const EXPORT_ENTITY_TYPES = ["place", "city", "attribute_def", "review"] as const;
   const [exportEntityTypes, setExportEntityTypes] = useState<string[]>([...EXPORT_ENTITY_TYPES]);
 
   const toggleExportType = (type: string) => {
@@ -383,15 +383,22 @@ export function BulkTranslationsPage() {
         {/* Entity type filter for export */}
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-xs text-text-secondary dark:text-dark-text-secondary">Export:</p>
-          {EXPORT_ENTITY_TYPES.map((type) => (
-            <label key={type} className="flex items-center gap-1.5 cursor-pointer select-none">
+          {(
+            [
+              { value: "place", label: "Places" },
+              { value: "city", label: "Cities" },
+              { value: "attribute_def", label: "Attributes" },
+              { value: "review", label: "Reviews" },
+            ] as const
+          ).map(({ value, label }) => (
+            <label key={value} className="flex items-center gap-1.5 cursor-pointer select-none">
               <input
                 type="checkbox"
-                checked={exportEntityTypes.includes(type)}
-                onChange={() => toggleExportType(type)}
+                checked={exportEntityTypes.includes(value)}
+                onChange={() => toggleExportType(value)}
                 className="h-4 w-4 rounded border-input-border dark:border-dark-border accent-primary"
               />
-              <span className="text-sm capitalize text-text-main dark:text-white">{type}s</span>
+              <span className="text-sm text-text-main dark:text-white">{label}</span>
             </label>
           ))}
         </div>

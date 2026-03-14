@@ -294,6 +294,61 @@ def test_export_untranslated_entity_types_filter(client, db_session):
     assert "city" in entity_types_in_result
 
 
+def test_export_untranslated_includes_attribute_defs(client, db_session):
+    """PlaceAttributeDefinitions without translations should appear when entity_types includes 'attribute_def'."""
+    from app.db.models import PlaceAttributeDefinition
+
+    attr = PlaceAttributeDefinition(
+        attribute_code="attr_test001",
+        name="Prayer Room",
+        data_type="boolean",
+    )
+    db_session.add(attr)
+    db_session.commit()
+
+    headers = _admin_headers(client, db_session)
+    resp = client.get(
+        "/api/v1/admin/content-translations/export-untranslated?langs=ar&entity_types=attribute_def",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    codes = {item["entity_code"] for item in data}
+    assert "attr_test001" in codes
+    item = next(i for i in data if i["entity_code"] == "attr_test001")
+    assert item["entity_type"] == "attribute_def"
+    assert item["fields"]["name"] == "Prayer Room"
+
+
+def test_export_untranslated_includes_reviews(client, db_session):
+    """Reviews with title/body without translations should appear when entity_types includes 'review'."""
+    from app.db.models import Review
+
+    review = Review(
+        review_code="rev_test001",
+        place_code="plc_dummy",
+        rating=5,
+        title="Great mosque",
+        body="Very peaceful place.",
+    )
+    db_session.add(review)
+    db_session.commit()
+
+    headers = _admin_headers(client, db_session)
+    resp = client.get(
+        "/api/v1/admin/content-translations/export-untranslated?langs=ar&entity_types=review",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    codes = {item["entity_code"] for item in data}
+    assert "rev_test001" in codes
+    item = next(i for i in data if i["entity_code"] == "rev_test001")
+    assert item["entity_type"] == "review"
+    assert "title" in item["fields"]
+    assert "body" in item["fields"]
+
+
 def test_export_untranslated_invalid_entity_types(client, db_session):
     headers = _admin_headers(client, db_session)
     resp = client.get(

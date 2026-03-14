@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sqlmodel import col, func, select
 
 from app.api.deps import AdminDep
-from app.db.models import City, ContentTranslation, Place
+from app.db.models import City, ContentTranslation, Place, PlaceAttributeDefinition, Review
 from app.db.session import SessionDep
 
 router = APIRouter()
@@ -269,12 +269,13 @@ def export_untranslated(
     session: SessionDep,
     langs: str = Query(default="ar,hi,te,ml", description="Comma-separated lang codes"),
     entity_types: str = Query(
-        default="place,city", description="Comma-separated entity types to include"
+        default="place,city,attribute_def,review",
+        description="Comma-separated entity types to include",
     ),
 ):
     """Return all (entity, field, lang) triples that are missing a ContentTranslation row.
 
-    Supports entity_types=place,city (default: both).
+    Supports entity_types=place,city,attribute_def,review (default: all four).
     The exported JSON is the input format for translate_content_claude.py.
     """
     target_langs = [lc.strip() for lc in langs.split(",") if lc.strip()]
@@ -353,6 +354,28 @@ def export_untranslated(
         for city_code, name in cities:
             if name:
                 _collect("city", city_code, name, {"name": name})
+
+    # ── Attribute definitions ───────────────────────────────────────────────────
+    if "attribute_def" in requested_types:
+        attr_defs = session.exec(
+            select(PlaceAttributeDefinition.attribute_code, PlaceAttributeDefinition.name)
+        ).all()
+        for attribute_code, name in attr_defs:
+            if name:
+                _collect("attribute_def", attribute_code, name, {"name": name})
+
+    # ── Reviews ────────────────────────────────────────────────────────────────
+    if "review" in requested_types:
+        reviews = session.exec(select(Review.review_code, Review.title, Review.body)).all()
+        for review_code, title, body in reviews:
+            source_fields = {}
+            if title:
+                source_fields["title"] = title
+            if body:
+                source_fields["body"] = body
+            if source_fields:
+                label = title or body or review_code
+                _collect("review", review_code, label[:80], source_fields)
 
     return result
 
