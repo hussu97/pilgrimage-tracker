@@ -4,7 +4,7 @@ import secrets
 import httpx
 from sqlmodel import Session, select
 
-from app.constants import SYNC_BATCH_CONCURRENCY, SYNC_BATCH_SIZE
+from app.constants import SYNC_BATCH_SIZE
 from app.db.models import DataLocation, ScrapedPlace, ScraperRun
 from app.db.session import engine
 from app.logger import get_logger
@@ -590,51 +590,40 @@ async def sync_run_to_server_async(
 
     synced_counter = AtomicCounter(0)
     all_failure_details: list[str] = []
-    batch_sem = asyncio.Semaphore(SYNC_BATCH_CONCURRENCY)
 
     # One shared client for all batches — reuses the underlying connection pool.
+    # Batches are sent sequentially (one at a time) so the catalog service is not
+    # overwhelmed by concurrent large payloads.
     async with httpx.AsyncClient(timeout=60.0) as shared_client:
-
-        async def _process_batch(batch_start: int) -> None:
+        batch_starts = list(range(0, len(payloads), SYNC_BATCH_SIZE))
+        for batch_start in batch_starts:
             batch = payloads[batch_start : batch_start + SYNC_BATCH_SIZE]
-            logger.info(
-                "Sending batch %d: %d places", batch_start // SYNC_BATCH_SIZE + 1, len(batch)
-            )
+            batch_num = batch_start // SYNC_BATCH_SIZE + 1
+            logger.info("Sending batch %d/%d: %d places", batch_num, len(batch_starts), len(batch))
 
-            async with batch_sem:
-                batch_synced, failed_entries = await _post_batch_async(
-                    batch, server_url, shared_client
-                )
+            batch_synced, failed_entries = await _post_batch_async(batch, server_url, shared_client)
 
-                if batch_synced > 0:
-                    synced_counter.increment(batch_synced)
+            if batch_synced > 0:
+                synced_counter.increment(batch_synced)
 
-                # Retry any per-place failures individually — handles both full batch failure
-                # (batch_synced == 0) and partial success (batch_synced > 0, some failed).
-                if failed_entries:
-                    failed_codes = [e.split(":")[0] for e in failed_entries]
-                    retry_payloads = [
-                        payloads_by_code[c] for c in failed_codes if c in payloads_by_code
-                    ]
-                    # Entries not matching a known code (e.g. batch-level HTTP errors) → log as-is
-                    unmatched = [
-                        e for e in failed_entries if e.split(":")[0] not in payloads_by_code
-                    ]
-                    all_failure_details.extend(unmatched)
+            # Retry any per-place failures individually — handles both full batch failure
+            # (batch_synced == 0) and partial success (batch_synced > 0, some failed).
+            if failed_entries:
+                failed_codes = [e.split(":")[0] for e in failed_entries]
+                retry_payloads = [
+                    payloads_by_code[c] for c in failed_codes if c in payloads_by_code
+                ]
+                # Entries not matching a known code (e.g. batch-level HTTP errors) → log as-is
+                unmatched = [e for e in failed_entries if e.split(":")[0] not in payloads_by_code]
+                all_failure_details.extend(unmatched)
 
-                    if retry_payloads:
-                        retry_sem = asyncio.Semaphore(5)
-
-                        async def _throttled_individual(pl: dict) -> tuple[int, list[str]]:
-                            async with retry_sem:
-                                return await _post_individual_async(pl, server_url, shared_client)
-
-                        ind_results = await asyncio.gather(
-                            *[_throttled_individual(pl) for pl in retry_payloads]
+                if retry_payloads:
+                    for pl in retry_payloads:
+                        extra_synced, extra_failures = await _post_individual_async(
+                            pl, server_url, shared_client
                         )
-                        for extra_synced, extra_failures in ind_results:
-                            synced_counter.increment(extra_synced)
-                            all_failure_details.extend(extra_failures)
+                        synced_counter.increment(extra_synced)
+                        all_failure_details.extend(extra_failures)
 
             # Persist progress after every batch
             with Session(engine) as session:
@@ -646,9 +635,6 @@ async def sync_run_to_server_async(
                     run.places_sync_failed = len(all_failure_details)
                     session.add(run)
                     session.commit()
-
-        batch_starts = list(range(0, len(payloads), SYNC_BATCH_SIZE))
-        await asyncio.gather(*[_process_batch(bs) for bs in batch_starts])
 
     failed_count = len(all_failure_details)
     logger.info(
