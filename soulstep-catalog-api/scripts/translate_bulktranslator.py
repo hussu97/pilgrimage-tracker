@@ -14,12 +14,14 @@ with all 4 target languages selected (AR, HI, ML, TE), then:
 
   1. Appends translated lines to one local file per language (audit trail):
        translated_ar.txt / translated_hi.txt / translated_ml.txt / translated_te.txt
-     File writes use fcntl.flock so multiple parallel sessions are safe.
+     File writes use fcntl.flock so multiple parallel tasks are safe.
 
   2. If --api-url / CATALOG_API_URL is set, POSTs each language's batch
      directly to POST /admin/content-translations/import-txt, inserting
      rows into the production DB.  The token is refreshed automatically
      if it expires during a long run.
+
+Batches run in parallel across --concurrency browser tabs (default 3).
 
 Requirements:
     pip install playwright requests
@@ -29,20 +31,21 @@ Requirements:
 from __future__ import annotations
 
 import argparse
+import asyncio
 import fcntl
 import os
 import sys
-import time
 from pathlib import Path
 
 import requests
-from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
 SITE_URL = "https://bulktranslator.com/"
 TARGET_LANGS = ["AR", "HI", "ML", "TE"]
 BATCH_SIZE = 50
+CONCURRENCY = 3  # default parallel browser tabs
 
 # Map site lang code → output filename suffix
 LANG_FILES: dict[str, str] = {
@@ -114,16 +117,16 @@ def _api_import(api_url: str, token: str, lang: str, lines: list[str]) -> dict:
         headers={"Authorization": f"Bearer {token}"},
         data={"lang": lang},
         files={"file": ("translated.txt", txt_bytes, "text/plain")},
-        timeout=60,
+        timeout=300,
     )
     r.raise_for_status()
     return r.json()
 
 
-# ── Browser session ────────────────────────────────────────────────────────────
+# ── Async browser session ───────────────────────────────────────────────────────
 
 
-def _translate_batch(
+async def _translate_batch_async(
     page,
     batch_lines: list[str],
     batch_num: int,
@@ -131,9 +134,7 @@ def _translate_batch(
 ) -> dict[str, list[str]]:
     """Submit one batch to bulktranslator.com and return {lang_code: [output_lines]}."""
 
-    # Build identifiers list in the same order as batch_lines
     identifiers = [_parse_identifier(line) for line in batch_lines]
-    # Source text = everything after the "] " prefix
     source_texts = []
     for line in batch_lines:
         end = line.find("]")
@@ -143,43 +144,37 @@ def _translate_batch(
 
     print(f"  Batch {batch_num}/{total_batches} — {len(batch_lines)} lines")
 
-    # Navigate (first batch navigates fresh; subsequent batches already on page)
-    page.goto(SITE_URL, wait_until="domcontentloaded")
-    page.wait_for_selector("textarea#text", timeout=15_000)
+    await page.goto(SITE_URL, wait_until="domcontentloaded")
+    await page.wait_for_selector("textarea#text", timeout=15_000)
 
-    # Clear and fill source textarea
-    page.fill("textarea#text", paste_text)
+    await page.fill("textarea#text", paste_text)
 
-    # Uncheck all language boxes that might already be ticked, then tick ours
     for lang in TARGET_LANGS:
         cb = page.locator(f'input[name="lang[]"][value="{lang}"]')
-        if not cb.is_checked():
-            cb.check()
+        if not await cb.is_checked():
+            await cb.check()
 
-    # Submit
-    page.click("button#result")
-    page.wait_for_url("**/#result", timeout=30_000)
-    page.wait_for_selector("div.bg-vijay", timeout=30_000)
+    await page.click("button#result")
+    await page.wait_for_url("**/#result", timeout=30_000)
+    await page.wait_for_selector("div.bg-vijay", timeout=30_000)
 
     # Small pause to ensure all result textareas are fully populated
-    time.sleep(1)
+    await asyncio.sleep(1)
 
-    # Extract results
     results: dict[str, list[str]] = {}
-    blocks = page.query_selector_all("div.bg-vijay")
+    blocks = await page.query_selector_all("div.bg-vijay")
     for block in blocks:
-        lang_el = block.query_selector(".target-name")
-        text_el = block.query_selector("textarea")
+        lang_el = await block.query_selector(".target-name")
+        text_el = await block.query_selector("textarea")
         if not lang_el or not text_el:
             continue
-        lang_code = (lang_el.inner_text() or "").strip().upper()
-        translated_blob = text_el.input_value().strip()
+        lang_code = (await lang_el.inner_text() or "").strip().upper()
+        translated_blob = (await text_el.input_value()).strip()
         translated_lines = [ln.strip() for ln in translated_blob.splitlines()]
 
         if lang_code not in TARGET_LANGS:
             continue
 
-        # Zip identifiers with translated lines; skip if counts don't match
         if len(translated_lines) != len(identifiers):
             print(
                 f"    ⚠  {lang_code}: got {len(translated_lines)} lines, "
@@ -200,6 +195,143 @@ def _translate_batch(
 # ── Main ───────────────────────────────────────────────────────────────────────
 
 
+DB_IMPORT_CHUNK = 500  # rows per import-txt call
+
+
+async def _import_lang(api_url: str, token: str, lang_code: str, out_file: Path) -> None:
+    """Read a translated_*.txt file and POST in DB_IMPORT_CHUNK-row sequential calls."""
+    lines = [ln for ln in out_file.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    if not lines:
+        print(f"  {lang_code}: nothing to import (file empty)")
+        return
+
+    chunks = [lines[i : i + DB_IMPORT_CHUNK] for i in range(0, len(lines), DB_IMPORT_CHUNK)]
+    print(f"  {lang_code}: importing {len(lines)} lines in {len(chunks)} chunks…")
+    total_saved = 0
+
+    for idx, chunk in enumerate(chunks, start=1):
+        job = await asyncio.to_thread(_api_import, api_url, token, lang_code.lower(), chunk)
+        saved = job.get("completed_items", 0)
+        total_saved += saved
+        print(
+            f"    {lang_code} chunk {idx}/{len(chunks)}: {saved} saved (job {job.get('job_code', '?')})"
+        )
+
+    print(f"  ✓ {lang_code}: {total_saved} total saved")
+
+
+async def _run(args) -> None:
+    input_path = Path(args.input_file)
+    if not input_path.exists():
+        print(f"Error: file not found: {input_path}", file=sys.stderr)
+        sys.exit(1)
+
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    all_lines = _read_data_lines(input_path)
+    if not all_lines:
+        print("No translatable lines found in input file.")
+        sys.exit(0)
+
+    if args.limit is not None:
+        all_lines = all_lines[: args.limit]
+
+    batches = _batches(all_lines, args.batch_size)
+    active = [(i + 1, b) for i, b in enumerate(batches) if i + 1 >= args.start_batch]
+
+    print(f"Loaded {len(all_lines)} lines → {len(batches)} batches of ≤{args.batch_size}")
+    if args.start_batch > 1:
+        print(f"  Skipping batches 1–{args.start_batch - 1}")
+    print(f"  Running {len(active)} batches with concurrency={args.concurrency}")
+
+    # ── API setup ──────────────────────────────────────────────────────────────
+    api_url = args.api_url
+    api_token: str | None = None
+
+    if api_url:
+        if not args.admin_email or not args.admin_password:
+            print(
+                "Error: --api-url requires --admin-email and --admin-password "
+                "(or ADMIN_EMAIL / ADMIN_PASSWORD env vars).",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print(f"Logging in to {api_url} as {args.admin_email}…")
+        api_token = await asyncio.to_thread(
+            _api_login, api_url, args.admin_email, args.admin_password
+        )
+        print("  ✓ Token acquired")
+    else:
+        print("No --api-url provided — translations will be written to files only.")
+
+    # ── Phase 1: scrape all batches → write to txt files ──────────────────────
+    print("\n── Phase 1: scraping ─────────────────────────────────────────────────────")
+    semaphore = asyncio.Semaphore(args.concurrency)
+
+    async def process_batch(batch_num: int, batch: list[str]) -> None:
+        async with semaphore:
+            page = await context.new_page()
+            try:
+                results = await _translate_batch_async(page, batch, batch_num, len(batches))
+            except Exception as exc:
+                print(f"  ✗ Batch {batch_num} failed: {exc}")
+                print("    Retrying once after 5 s…")
+                await asyncio.sleep(5)
+                try:
+                    results = await _translate_batch_async(page, batch, batch_num, len(batches))
+                except Exception as exc2:
+                    print(f"  ✗ Retry also failed: {exc2} — skipping batch {batch_num}")
+                    return
+            finally:
+                await page.close()
+
+            for lang_code, output_lines in results.items():
+                if not output_lines:
+                    continue
+                out_file = output_dir / LANG_FILES[lang_code]
+                await asyncio.to_thread(_append_lines_atomic, out_file, output_lines)
+                print(
+                    f"    ✓ {lang_code}: {len(output_lines)} lines → {out_file}"
+                    f"  [batch {batch_num}]"
+                )
+
+    async with async_playwright() as pw:
+        browser = await pw.chromium.launch(
+            headless=False,  # visible so you can see what's happening
+            args=["--ignore-certificate-errors"],
+        )
+        context = await browser.new_context(ignore_https_errors=True)
+
+        await asyncio.gather(*[process_batch(num, batch) for num, batch in active])
+
+        await context.close()
+        await browser.close()
+
+    # ── Summary of txt files ───────────────────────────────────────────────────
+    print("\nScraping complete.")
+    for lang_code in TARGET_LANGS:
+        out_file = output_dir / LANG_FILES[lang_code]
+        if out_file.exists():
+            count = sum(1 for ln in out_file.read_text(encoding="utf-8").splitlines() if ln.strip())
+            print(f"  {lang_code}: {count} lines in {out_file}")
+
+    # ── Phase 2: bulk import all 4 languages concurrently ─────────────────────
+    if not api_url or not api_token:
+        print("\nNo --api-url — skipping DB import.")
+        return
+
+    print("\n── Phase 2: DB import (all 4 languages in parallel) ─────────────────────")
+    import_tasks = []
+    for lang_code in TARGET_LANGS:
+        out_file = output_dir / LANG_FILES[lang_code]
+        if out_file.exists():
+            import_tasks.append(_import_lang(api_url, api_token, lang_code, out_file))
+
+    await asyncio.gather(*import_tasks)
+    print("\nDone.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Translate export .txt via bulktranslator.com")
     parser.add_argument("input_file", help="Path to the exported .txt file")
@@ -208,6 +340,12 @@ def main() -> None:
         type=int,
         default=BATCH_SIZE,
         help=f"Lines per batch (default {BATCH_SIZE})",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=CONCURRENCY,
+        help=f"Number of parallel browser tabs (default {CONCURRENCY})",
     )
     parser.add_argument(
         "--output-dir",
@@ -242,124 +380,7 @@ def main() -> None:
         help="Admin password for API login (env: ADMIN_PASSWORD)",
     )
     args = parser.parse_args()
-
-    input_path = Path(args.input_file)
-    if not input_path.exists():
-        print(f"Error: file not found: {input_path}", file=sys.stderr)
-        sys.exit(1)
-
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    all_lines = _read_data_lines(input_path)
-    if not all_lines:
-        print("No translatable lines found in input file.")
-        sys.exit(0)
-
-    if args.limit is not None:
-        all_lines = all_lines[: args.limit]
-
-    batches = _batches(all_lines, args.batch_size)
-    print(f"Loaded {len(all_lines)} lines → {len(batches)} batches of ≤{args.batch_size}")
-
-    # ── API setup ──────────────────────────────────────────────────────────────
-    api_url = args.api_url
-    api_token: str | None = None
-
-    if api_url:
-        if not args.admin_email or not args.admin_password:
-            print(
-                "Error: --api-url requires --admin-email and --admin-password "
-                "(or ADMIN_EMAIL / ADMIN_PASSWORD env vars).",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        print(f"Logging in to {api_url} as {args.admin_email}…")
-        api_token = _api_login(api_url, args.admin_email, args.admin_password)
-        print("  ✓ Token acquired")
-    else:
-        print("No --api-url provided — translations will be written to files only.")
-
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch(
-            headless=False,  # visible so you can see what's happening
-            args=["--ignore-certificate-errors"],
-        )
-        context = browser.new_context(ignore_https_errors=True)
-        page = context.new_page()
-
-        for batch_idx, batch in enumerate(batches, start=1):
-            if batch_idx < args.start_batch:
-                print(f"  Skipping batch {batch_idx}/{len(batches)}")
-                continue
-
-            try:
-                results = _translate_batch(page, batch, batch_idx, len(batches))
-            except Exception as exc:
-                print(f"  ✗ Batch {batch_idx} failed: {exc}")
-                print("    Retrying once after 5 s…")
-                time.sleep(5)
-                try:
-                    results = _translate_batch(page, batch, batch_idx, len(batches))
-                except Exception as exc2:
-                    print(f"  ✗ Retry also failed: {exc2} — skipping batch {batch_idx}")
-                    continue
-
-            # ── Step 1: write ALL languages to txt first (always safe) ──────────
-            saved: dict[str, list[str]] = {}
-            for lang_code, output_lines in results.items():
-                if not output_lines:
-                    continue
-                out_file = output_dir / LANG_FILES[lang_code]
-                _append_lines_atomic(out_file, output_lines)
-                saved[lang_code] = output_lines
-                print(f"    ✓ {lang_code}: {len(output_lines)} lines → {out_file}")
-
-            # ── Step 2: import each language's batch into the DB ─────────────
-            if api_url and api_token and saved:
-                for lang_code, output_lines in saved.items():
-                    try:
-                        job = _api_import(api_url, api_token, lang_code.lower(), output_lines)
-                        print(
-                            f"    → DB {lang_code}: {job.get('completed_items', '?')} saved"
-                            f" (job {job.get('job_code', '?')})"
-                        )
-                    except requests.HTTPError as exc:
-                        if exc.response is not None and exc.response.status_code == 401:
-                            # Token expired — re-login and retry once
-                            print(f"    → DB {lang_code}: token expired, re-logging in…")
-                            api_token = _api_login(api_url, args.admin_email, args.admin_password)
-                            try:
-                                job = _api_import(
-                                    api_url, api_token, lang_code.lower(), output_lines
-                                )
-                                print(
-                                    f"    → DB {lang_code}: {job.get('completed_items', '?')} saved"
-                                    f" (job {job.get('job_code', '?')})"
-                                )
-                            except Exception as exc2:
-                                print(
-                                    f"    ✗ DB {lang_code}: failed after re-login: {exc2}"
-                                    " (data safe in txt)"
-                                )
-                        else:
-                            print(f"    ✗ DB {lang_code}: failed: {exc} (data safe in txt)")
-                    except Exception as exc:
-                        print(f"    ✗ DB {lang_code}: failed: {exc} (data safe in txt)")
-
-            # Brief pause between batches to be polite to the server
-            if batch_idx < len(batches):
-                time.sleep(2)
-
-        context.close()
-        browser.close()
-
-    print("\nDone.")
-    for lang_code in TARGET_LANGS:
-        out_file = output_dir / LANG_FILES[lang_code]
-        if out_file.exists():
-            count = sum(1 for ln in out_file.read_text(encoding="utf-8").splitlines() if ln.strip())
-            print(f"  {lang_code}: {count} lines in {out_file}")
+    asyncio.run(_run(args))
 
 
 if __name__ == "__main__":

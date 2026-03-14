@@ -11,7 +11,7 @@ from typing import Any
 
 from app.core.config import FRONTEND_URL as _FRONTEND_URL
 
-_SUPPORTED_LANGS = ("en", "ar", "hi")
+_SUPPORTED_LANGS = ("en", "ar", "hi", "te", "ml")
 
 
 def build_place_meta_tags(
@@ -19,6 +19,8 @@ def build_place_meta_tags(
     seo: Any | None = None,  # PlaceSEO instance
     image_url: str | None = None,
     lang: str = "en",
+    translated_name: str | None = None,
+    translated_description: str | None = None,
 ) -> str:
     """Return an HTML string of <meta> / <link> tags for a place page."""
     # Canonical URL
@@ -30,14 +32,16 @@ def build_place_meta_tags(
         else f"{_FRONTEND_URL}/places/{place_code}"
     )
 
-    title = (seo.seo_title if seo else None) or place.name
-    description = (seo.meta_description if seo else None) or (
-        place.description[:160] if place.description else f"Visit {place.name} on SoulStep."
+    title = translated_name or (seo.seo_title if seo else None) or place.name
+    description = (
+        translated_description
+        or (seo.meta_description if seo else None)
+        or (place.description[:160] if place.description else f"Visit {place.name} on SoulStep.")
     )
     og_image = (seo.og_image_url if seo else None) or image_url or ""
 
     # OG locale mapping
-    og_locale_map = {"en": "en_US", "ar": "ar_AE", "hi": "hi_IN"}
+    og_locale_map = {"en": "en_US", "ar": "ar_AE", "hi": "hi_IN", "te": "te_IN", "ml": "ml_IN"}
     og_locale = og_locale_map.get(lang, "en_US")
 
     lines: list[str] = [

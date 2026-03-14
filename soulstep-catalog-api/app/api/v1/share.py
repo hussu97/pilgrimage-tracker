@@ -23,7 +23,7 @@ from app.core.config import FRONTEND_URL
 from app.db import place_images
 from app.db import places as places_db
 from app.db import reviews as reviews_db
-from app.db.models import Place, PlaceSEO
+from app.db.models import ContentTranslation, Place, PlaceSEO
 from app.db.session import SessionDep
 from app.services.meta_tags import build_place_meta_tags
 from app.services.structured_data import (
@@ -926,11 +926,25 @@ def share_religion_category(religion: str, session: SessionDep, request: Request
 
 # ── Multi-language place page endpoint ────────────────────────────────────────
 
+_PLACE_LANGS = ("en", "ar", "hi", "te", "ml")
+
+
+def _get_place_translation(session, place_code: str, field: str, lang: str) -> str | None:
+    row = session.exec(
+        select(ContentTranslation).where(
+            ContentTranslation.entity_type == "place",
+            ContentTranslation.entity_code == place_code,
+            ContentTranslation.field == field,
+            ContentTranslation.lang == lang,
+        )
+    ).first()
+    return row.translated_text if row else None
+
 
 @router.get("/{lang}/places/{place_code}", response_class=HTMLResponse, tags=["share"])
 def share_place_lang(lang: str, place_code: str, session: SessionDep, request: Request):
     """Language-specific pre-rendered place page (for hreflang)."""
-    if lang not in ("en", "ar", "hi"):
+    if lang not in _PLACE_LANGS:
         raise HTTPException(status_code=404, detail="Language not supported")
 
     place = places_db.get_place_by_code(place_code, session)
@@ -954,7 +968,23 @@ def share_place_lang(lang: str, place_code: str, session: SessionDep, request: R
     except Exception:
         pass
 
-    meta_tags_html = build_place_meta_tags(place=place, seo=seo, image_url=og_image, lang=lang)
+    # Fetch translated name / description / address for non-English pages
+    t_name = _get_place_translation(session, place_code, "name", lang) if lang != "en" else None
+    t_description = (
+        _get_place_translation(session, place_code, "description", lang) if lang != "en" else None
+    )
+    t_address = (
+        _get_place_translation(session, place_code, "address", lang) if lang != "en" else None
+    )
+
+    meta_tags_html = build_place_meta_tags(
+        place=place,
+        seo=seo,
+        image_url=og_image,
+        lang=lang,
+        translated_name=t_name,
+        translated_description=t_description,
+    )
 
     slug = seo.slug if seo else None
     place_url = (
@@ -970,9 +1000,11 @@ def share_place_lang(lang: str, place_code: str, session: SessionDep, request: R
             rating_data=rating_data,
             review_samples=review_samples,
             image_url=og_image,
+            translated_name=t_name,
+            translated_description=t_description,
         ),
         build_breadcrumb_jsonld(
-            place_name=place.name,
+            place_name=t_name or place.name,
             place_url=place_url,
             religion=place.religion,
         ),
@@ -984,9 +1016,12 @@ def share_place_lang(lang: str, place_code: str, session: SessionDep, request: R
 
     jsonld_html = render_jsonld_script_tags(schemas)
 
-    description_display = (seo.rich_description if seo else None) or place.description or ""
-    name_escaped = _html.escape(place.name)
-    address_escaped = _html.escape(place.address or "")
+    description_display = (
+        t_description or (seo.rich_description if seo else None) or place.description or ""
+    )
+    display_name = t_name or place.name
+    name_escaped = _html.escape(display_name)
+    address_escaped = _html.escape(t_address or place.address or "")
     place_url_escaped = _html.escape(place_url)
     img_tag = (
         f'<img src="{_html.escape(first_image_url)}" alt="{name_escaped}" '

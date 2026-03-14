@@ -39,6 +39,8 @@ def build_place_jsonld(
     review_samples: list[dict[str, Any]] | None = None,
     image_url: str | None = None,
     knowledge_graph_urls: list[str] | None = None,
+    translated_name: str | None = None,
+    translated_description: str | None = None,
 ) -> dict[str, Any]:
     """Build Schema.org JSON-LD for a PlaceOfWorship page.
 
@@ -54,7 +56,7 @@ def build_place_jsonld(
         "@context": "https://schema.org",
         "@type": _place_schema_type(place.religion),
         "additionalType": "https://schema.org/TouristAttraction",
-        "name": place.name,
+        "name": translated_name or place.name,
         "url": place_url,
         "geo": {
             "@type": "GeoCoordinates",
@@ -73,8 +75,10 @@ def build_place_jsonld(
         }
 
     description = (
-        seo.rich_description if seo and seo.rich_description else None
-    ) or place.description
+        translated_description
+        or (seo.rich_description if seo and seo.rich_description else None)
+        or place.description
+    )
     if description:
         schema["description"] = description
 
