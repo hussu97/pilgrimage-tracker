@@ -79,3 +79,5 @@ soulstep-scraper-api/*.db
 soulstep-catalog-api/scripts/claude_auth.json
 soulstep-catalog-api/untranslated.json
 soulstep-catalog-api/translated.json
+soulstep-catalog-api/translation_batches/
+soulstep-catalog-api/translation_outputs/
