@@ -232,6 +232,14 @@ class MapsBrowserPool:
     def record_success(self) -> None:
         self._breaker.record_success()
 
+    def reset_breaker(self) -> None:
+        """Reset circuit breaker between place-type passes so one type's failures
+        don't cascade to the next type."""
+        if self._breaker._open:
+            logger.info("MapsBrowserPool: circuit breaker reset between type passes")
+        self._breaker._open = False
+        self._breaker._failures = 0
+
     async def shutdown(self) -> None:
         async with self._lock:
             for session in self._sessions:

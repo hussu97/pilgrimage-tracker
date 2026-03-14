@@ -730,6 +730,14 @@ async def search_grid_browser(
         if max_results and len(existing_ids) >= max_results:
             return []
         async with _sem:
+            if max_results and len(existing_ids) >= max_results:
+                return []
+            # Inter-cell human-like delay to avoid concurrent-request bot detection
+            delay = random.uniform(
+                settings.maps_browser_cell_delay_min,
+                settings.maps_browser_cell_delay_max,
+            )
+            await asyncio.sleep(delay)
             lat_min, lat_max, lng_min, lng_max = cell
             return await _search_single_grid_cell(
                 lat_min,
@@ -812,7 +820,7 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
     session.commit()
 
     max_results = config.get("max_results")
-    browser_sem = asyncio.Semaphore(settings.discovery_concurrency)
+    browser_sem = asyncio.Semaphore(settings.maps_browser_concurrency)
 
     # Build grid from multi-box boundary (falls back to single box when no sub-boxes seeded)
     boxes = get_boundary_boxes(boundary, session)
@@ -830,7 +838,13 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
     existing_ids = ThreadSafeIdSet()
     global_cache = GlobalCellStore(_engine)
 
+    pool = get_maps_pool()
+
     for i, place_type in enumerate(all_gmaps_types):
+        # Reset circuit breaker between types so one type's failures don't cascade
+        if i > 0:
+            pool.reset_breaker()
+
         logger.info(
             "=== Browser grid pass %d/%d: type=%s cells=%d ===",
             i + 1,

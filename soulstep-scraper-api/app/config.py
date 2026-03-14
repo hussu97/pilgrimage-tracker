@@ -86,6 +86,16 @@ class Settings:
     maps_browser_max_pages: int = int(os.environ.get("MAPS_BROWSER_MAX_PAGES", "30"))
     # Run Chromium headless (set false for local debugging).
     maps_browser_headless: bool = os.environ.get("MAPS_BROWSER_HEADLESS", "true").lower() == "true"
+    # Max concurrent grid cell navigations in browser mode.
+    # Keep at 1 (sequential) to avoid triggering Google's concurrent-request bot detection.
+    # Raise to 2 only if you have rotating proxies / multiple IPs.
+    maps_browser_concurrency: int = int(os.environ.get("MAPS_BROWSER_CONCURRENCY", "1"))
+    # Random delay range (seconds) injected between consecutive cell navigations.
+    # Mimics human think-time between page visits.
+    maps_browser_cell_delay_min: float = float(os.environ.get("MAPS_BROWSER_CELL_DELAY_MIN", "5.0"))
+    maps_browser_cell_delay_max: float = float(
+        os.environ.get("MAPS_BROWSER_CELL_DELAY_MAX", "12.0")
+    )
 
     # ── Job dispatcher ────────────────────────────────────────────────────────
     # Controls how scraper runs are dispatched after POST /runs.
