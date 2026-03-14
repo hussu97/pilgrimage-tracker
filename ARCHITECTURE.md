@@ -558,3 +558,52 @@ Both web and mobile implement `useAnalytics()` and `AnalyticsProviderConnected`:
 - **Design system:** Lexend, Material Icons/Symbols, Tailwind with tokens from DESIGN_FILE (primary, borders, radii, safe areas). Support light/dark where designs specify (e.g. Place detail Hindu temple).
 
 This architecture keeps one frontend codebase for desktop, mobile web, and native iOS/Android while supporting a scalable backend and clear separation of concerns. Implementation is split into phased prompts in [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION_PROMPTS.md).
+
+---
+
+## 14. Background Workers (Cloud Run Jobs)
+
+Two standalone Cloud Run Jobs run on a daily schedule via Cloud Scheduler. They share the catalog API package (`soulstep-catalog-api/app/`) but use separate Docker images to minimise image size and startup time.
+
+### 14.1 sync-places (`app/jobs/sync_places.py`)
+
+| Property | Value |
+|---|---|
+| Image | `Dockerfile.sync` (python:3.12-slim, no Playwright) |
+| Resources | 1 CPU, 1 GB RAM |
+| Timeout | 30 min |
+| Schedule | Daily 02:00 UTC |
+| Retries | 1 |
+
+**Flow:**
+1. Runs catalog Alembic migrations (`run_migrations()`).
+2. Connects read-only to scraper PostgreSQL via `SCRAPER_DATABASE_URL`.
+3. Reads all `scrapedplace` rows (`place_code`, `name`, `raw_data`, `quality_score`).
+4. Filters: skip `quality_score < 0.75` (NULL passes through) and generic single-word names.
+5. Builds `PlaceCreate` objects from `raw_data` JSON (inlined sanitize helpers for religion, attributes, reviews).
+6. Calls `_process_chunk()` from `app.api.v1.places` in batches of 50 — handles upsert, images, attributes, reviews, translations, and retries.
+7. Exits 0 on success, 1 if any places failed.
+
+**Env vars:** `DATABASE_URL` (catalog DB), `SCRAPER_DATABASE_URL` (scraper DB).
+
+### 14.2 translate-content (`app/jobs/translate_content.py`)
+
+| Property | Value |
+|---|---|
+| Image | `Dockerfile.translate` (python:3.12-slim + Playwright + Chromium) |
+| Resources | 2 CPU, 4 GB RAM |
+| Timeout | 24 h |
+| Schedule | Daily 04:00 UTC (after sync-places) |
+| Retries | 0 (prevents double-translation) |
+
+**Flow:**
+1. Runs catalog Alembic migrations.
+2. Looks up an admin user for `BulkTranslationJob.created_by_user_code`.
+3. Creates a `BulkTranslationJob` row (visible in admin dashboard).
+4. Calls `_collect_missing_items()` for all entity types (`place`, `review`, `city`, `attribute_def`) and all target langs (`ar`, `hi`, `te`, `ml`).
+5. Groups missing items by target language.
+6. Translates via `translate_batch_browser_parallel()` (headless Chromium).
+7. Flushes results to DB incrementally every 10 items via `_flush_translations()`.
+8. Marks `BulkTranslationJob` as `completed` or `completed_with_errors`.
+
+**Env vars:** `DATABASE_URL`, optionally `BROWSER_POOL_SIZE`, `BROWSER_MAX_TRANSLATIONS`, `BROWSER_HEADLESS`, `BROWSER_TRANSLATE_MULTI_SIZE`.

@@ -1381,6 +1381,128 @@ gcloud run jobs create backfill-timezones \
 gcloud run jobs execute backfill-timezones --region REGION --wait
 ```
 
+#### d. Daily place sync worker (sync-places)
+
+Reads all scraped places from the scraper PostgreSQL DB and upserts them into the catalog DB. Uses a separate `Dockerfile.sync` image — no uvicorn, no Playwright, just the catalog app package.
+
+**Build and push the sync image:**
+
+```bash
+docker build -f Dockerfile.sync -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/sync-places:latest .
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/sync-places:latest
+```
+
+**Create the Cloud Run Job:**
+
+```bash
+gcloud run jobs create sync-places \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/sync-places:latest \
+  --region REGION \
+  --set-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
+  --set-secrets "DATABASE_URL=DATABASE_URL:latest,SCRAPER_DATABASE_URL=SCRAPER_DATABASE_URL:latest" \
+  --memory 1Gi --cpu 1 \
+  --task-timeout 1800 \
+  --max-retries 1
+```
+
+**Add `SCRAPER_DATABASE_URL` to Secret Manager:**
+
+```bash
+echo -n "postgresql://user:pass@host/scraperdb" | \
+  gcloud secrets create SCRAPER_DATABASE_URL --data-file=-
+gcloud secrets add-iam-policy-binding SCRAPER_DATABASE_URL \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+**Schedule daily at 2 AM UTC:**
+
+```bash
+gcloud scheduler jobs create http daily-sync-places \
+  --location REGION \
+  --schedule "0 2 * * *" \
+  --time-zone "UTC" \
+  --uri "https://REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/PROJECT_ID/jobs/sync-places:run" \
+  --http-method POST \
+  --oauth-service-account-email "${SERVICE_ACCOUNT}"
+```
+
+**Run manually:**
+
+```bash
+gcloud run jobs execute sync-places --region REGION --wait
+```
+
+**Local test:**
+
+```bash
+cd soulstep-catalog-api && source .venv/bin/activate
+SCRAPER_DATABASE_URL=postgresql://... python -m app.jobs.sync_places
+```
+
+---
+
+#### e. Daily content translation worker (translate-content)
+
+Translates all missing content translations (places, reviews, cities, attribute definitions) for all target languages (ar, hi, te, ml) using headless Chromium. Uses a separate `Dockerfile.translate` image that includes Playwright and Chromium.
+
+**Build and push the translation image:**
+
+```bash
+docker build -f Dockerfile.translate -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/translate-content:latest .
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/translate-content:latest
+```
+
+**Create the Cloud Run Job:**
+
+```bash
+gcloud run jobs create translate-content \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/translate-content:latest \
+  --region REGION \
+  --set-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
+  --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
+  --memory 4Gi --cpu 2 \
+  --task-timeout 86400 \
+  --max-retries 0
+```
+
+> **Note:** 24h timeout (`86400`) is intentional — large translation workloads (100k+ items) can run for many hours. `--max-retries 0` prevents double-translation on restarts.
+
+**Schedule daily at 4 AM UTC** (after sync-places finishes):
+
+```bash
+gcloud scheduler jobs create http daily-translate-content \
+  --location REGION \
+  --schedule "0 4 * * *" \
+  --time-zone "UTC" \
+  --uri "https://REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/PROJECT_ID/jobs/translate-content:run" \
+  --http-method POST \
+  --oauth-service-account-email "${SERVICE_ACCOUNT}"
+```
+
+**Run manually:**
+
+```bash
+gcloud run jobs execute translate-content --region REGION --wait
+```
+
+**Local test (requires Playwright installed):**
+
+```bash
+cd soulstep-catalog-api && source .venv/bin/activate
+pip install playwright && playwright install chromium
+python -m app.jobs.translate_content
+```
+
+**Optional env vars:**
+
+| Variable | Default | Description |
+|---|---|---|
+| `BROWSER_POOL_SIZE` | 2 | Concurrent browser contexts |
+| `BROWSER_MAX_TRANSLATIONS` | 50 | Translations per context before recycling |
+| `BROWSER_HEADLESS` | true | Run headless (set false for local debug) |
+| `BROWSER_TRANSLATE_MULTI_SIZE` | 5 | Texts per browser request (1–8) |
+
 ---
 
 ### 5.11 CI/CD (GitHub Actions for GCP)

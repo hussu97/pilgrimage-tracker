@@ -4,6 +4,22 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## feat(jobs): daily Cloud Run workers for place sync and content translation (2026-03-14)
+
+### Backend
+
+- **`app/jobs/sync_places.py`** (new) — Cloud Run Job that reads all `ScrapedPlace` rows from the scraper PostgreSQL DB via `SCRAPER_DATABASE_URL`, applies quality (`>= 0.75`) and name-specificity gates, builds `PlaceCreate` objects from `raw_data` JSON (inlined `_sanitize_religion`, `_sanitize_attributes`, `_sanitize_reviews` helpers), and calls `_process_chunk()` in batches of 50 for full upsert with images, attributes, reviews, and translations.
+- **`app/jobs/translate_content.py`** (new) — Cloud Run Job that runs `_collect_missing_items()` for all entity types and languages (ar, hi, te, ml), translates via `translate_batch_browser_parallel`, flushes incrementally every 10 items, and creates a `BulkTranslationJob` row for admin dashboard visibility.
+- **`Dockerfile.sync`** (new) — Lightweight Python 3.12-slim image for the sync worker (no Playwright, no uvicorn).
+- **`Dockerfile.translate`** (new) — Python 3.12-slim image with Playwright + Chromium system deps for the translation worker.
+- **`tests/test_jobs.py`** (new) — 32 unit tests covering all sanitizer helpers, `_build_place_create`, `main()` flows for both workers, and `translate_content` helpers.
+
+### Docs
+
+- **`PRODUCTION.md`** — Added §5.10d (`sync-places` Cloud Run Job: build, create, schedule at 2 AM UTC, `SCRAPER_DATABASE_URL` secret setup) and §5.10e (`translate-content` Cloud Run Job: build with Playwright, 4 GB/2 CPU, 24h timeout, schedule at 4 AM UTC, env var reference table).
+
+---
+
 ## fix(bulk-translations): handle CancelledError on shutdown and clean up stale jobs on startup (2026-03-13)
 
 ### Backend
