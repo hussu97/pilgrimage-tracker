@@ -187,6 +187,12 @@ def main() -> None:
         default=1,
         help="Skip to this batch number (1-based) — useful for resuming",
     )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Only process the first N lines (default: all)",
+    )
     args = parser.parse_args()
 
     input_path = Path(args.input_file)
@@ -201,6 +207,9 @@ def main() -> None:
     if not all_lines:
         print("No translatable lines found in input file.")
         sys.exit(0)
+
+    if args.limit is not None:
+        all_lines = all_lines[: args.limit]
 
     batches = _batches(all_lines, args.batch_size)
     print(f"Loaded {len(all_lines)} lines → {len(batches)} batches of ≤{args.batch_size}")
