@@ -4,6 +4,17 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## feat(scraper): split Docker images — lean API vs full job container (2026-03-14)
+
+### Backend
+
+- `Dockerfile` — stripped to base deps only; no Playwright, no Chromium (~200 MB image)
+- `Dockerfile.job` — new job image with Playwright + Chromium + job-only deps (~900 MB); used as the Cloud Run Job container
+- `requirements.txt` — removed playwright, timezonefinder, google-cloud-run (moved to requirements-job.txt)
+- `requirements-job.txt` — new; job-container-only deps (playwright, timezonefinder, google-cloud-run)
+
+---
+
 ## feat(scraper): pluggable job dispatcher for Cloud Run decoupling (2026-03-14)
 
 ### Backend

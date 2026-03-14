@@ -1,0 +1,12 @@
+# Job-container-only dependencies.
+# Installed in Dockerfile.job (the Cloud Run Job image) but NOT in Dockerfile
+# (the API Service image). The API service never imports these at runtime.
+#
+# Usage: pip install -r requirements.txt -r requirements-job.txt
+
+# Browser scraper backend
+playwright>=1.40.0
+timezonefinder>=6.0.0
+
+# Cloud Run Job dispatcher
+google-cloud-run>=0.10.0

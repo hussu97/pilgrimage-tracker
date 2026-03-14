@@ -368,8 +368,10 @@ Description provenance tracked via `description_source` (e.g., "wikipedia", "gma
 
 - `app/scrapers/gmaps.py` — `run_gmaps_scraper()` checks `settings.SCRAPER_BACKEND` at the top and delegates to `run_gmaps_scraper_browser()` when set to `browser`. All downstream phases (enrichment, quality, merge, sync) are unchanged.
 - `app/collectors/registry.py` — when `SCRAPER_BACKEND=browser`, `BrowserGmapsCollector` is registered in place of `GmapsCollector`. All other collectors remain active.
-- `requirements.txt` — adds `playwright>=1.40.0` and `timezonefinder>=6.0.0`. `timezonefinder` is used to compute `utc_offset_minutes` from lat/lng (replaces the Google Places API `utc_offset` field).
-- `Dockerfile` — adds Chromium system dependencies and `playwright install chromium`.
+- `requirements.txt` — base API deps only (no Playwright, no timezonefinder, no google-cloud-run). These are moved to `requirements-job.txt`.
+- `requirements-job.txt` — job-container-only deps: `playwright>=1.40.0`, `timezonefinder>=6.0.0`, `google-cloud-run>=0.10.0`. Only installed in the job image.
+- `Dockerfile` — API Service image (~200 MB): base Python deps only, no Chromium. Used for the Cloud Run **Service**.
+- `Dockerfile.job` — Job image (~900 MB): installs `requirements-job.txt`, adds Chromium system dependencies, and runs `playwright install chromium`. Used for the Cloud Run **Job** (`SCRAPER_DISPATCH=cloud_run`).
 
 ### Cloud Run sizing (browser mode)
 

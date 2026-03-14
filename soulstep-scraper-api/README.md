@@ -482,6 +482,29 @@ The job reads `SCRAPER_RUN_CODE` and `SCRAPER_RUN_ACTION` from env vars set by t
 
 ---
 
+## Docker images
+
+Two separate images are built from this directory:
+
+| Image | Dockerfile | Size | Purpose |
+|---|---|---|---|
+| `soulstep-scraper-api` | `Dockerfile` | ~200 MB | Cloud Run Service — HTTP API only, no Playwright |
+| `soulstep-scraper-job` | `Dockerfile.job` | ~900 MB | Cloud Run Job — browser scraper, includes Playwright + Chromium |
+
+Build commands:
+
+```bash
+# API Service image
+docker build --platform linux/amd64 -f Dockerfile -t soulstep-scraper-api .
+
+# Job image (only needed when SCRAPER_DISPATCH=cloud_run)
+docker build --platform linux/amd64 -f Dockerfile.job -t soulstep-scraper-job .
+```
+
+`requirements-job.txt` contains job-only Python deps (playwright, timezonefinder, google-cloud-run). These are never installed in the API Service image.
+
+---
+
 ## Troubleshooting
 
 ### Port 8001 Already in Use

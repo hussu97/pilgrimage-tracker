@@ -1,0 +1,52 @@
+# Job container for browser-based Google Maps scraping.
+#
+# Used as the Cloud Run Job image (soulstep-scraper-job).
+# Includes Playwright + Chromium + job-only Python deps.
+# The API Service uses the lean Dockerfile instead.
+#
+# Build:
+#   docker build --platform linux/amd64 -f Dockerfile.job -t soulstep-scraper-job .
+#
+# Memory: 2 GB  |  CPU: 2 vCPU  |  Timeout: 86400s (24 h)
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install Chromium system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnss3 \
+    libatk-bridge2.0-0 \
+    libdrm2 \
+    libxkbcommon0 \
+    libgbm1 \
+    libasound2 \
+    libxshmfence1 \
+    libatk1.0-0 \
+    libcups2 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libpango-1.0-0 \
+    libcairo2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python deps: base + job-specific (playwright, timezonefinder, google-cloud-run)
+COPY requirements.txt requirements-job.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-job.txt
+
+# Install the Chromium browser binary (~300 MB)
+RUN playwright install chromium --with-deps
+
+COPY . .
+
+RUN mkdir -p /data
+
+RUN adduser --disabled-password --no-create-home appuser \
+    && chown -R appuser /app /data
+USER appuser
+
+# Entry point: reads SCRAPER_RUN_CODE + SCRAPER_RUN_ACTION from env vars.
+# Set by the dispatcher (app/jobs/dispatcher.py) when launching the job.
+CMD ["python", "-m", "app.jobs.run"]

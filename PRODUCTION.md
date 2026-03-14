@@ -170,7 +170,8 @@ Migrations run automatically on API startup (see [§6.1](#61-database-migrations
 | File | Description |
 |---|---|
 | `soulstep-catalog-api/Dockerfile` | FastAPI backend — `python:3.12-slim` |
-| `soulstep-scraper-api/Dockerfile` | Scraper service — `python:3.12-slim` |
+| `soulstep-scraper-api/Dockerfile` | Scraper API Service image — `python:3.12-slim`, base deps only, no Playwright (~200 MB) |
+| `soulstep-scraper-api/Dockerfile.job` | Scraper Job image — base + Playwright + Chromium + job-only deps (~900 MB); used for the Cloud Run Job |
 | `apps/soulstep-customer-web/Dockerfile` | Multi-stage: Node 20 build → nginx:1.27-alpine serve |
 | `apps/soulstep-customer-web/nginx.conf` | nginx SPA config (copied into web image) |
 | `docker-compose.yml` | Wires all services + PostgreSQL |
@@ -199,7 +200,7 @@ docker compose --profile scraper up -d scraper
 
 > **Scraper database:** The scraper uses its own SQLite database (separate from the main API's PostgreSQL). In `docker-compose.yml`, a named volume `scraper_data` is mounted at `/data` inside the container, and `SCRAPER_DB_PATH=/data/scraper.db` tells the app to write there. Without this, `scraper.db` would be lost on every container restart. For persistent PostgreSQL instead, see [§6.4](#64-scraper-database-options).
 
-> **Browser scraper mode (Docker):** To use `SCRAPER_BACKEND=browser`, set the env var in `docker-compose.yml` or your `.env`. The scraper `Dockerfile` already installs Chromium system dependencies and runs `playwright install chromium`, so no extra build steps are required. Increase the scraper container's memory to at least **2 GB** and allow longer run timeouts — browser scraping takes ~24–48h per 10K places compared to ~3h for the API path. `GOOGLE_MAPS_API_KEY` is not required in browser mode.
+> **Browser scraper mode (Docker):** To use `SCRAPER_BACKEND=browser` with `SCRAPER_DISPATCH=local`, build the scraper service from `Dockerfile.job` instead of `Dockerfile` — only the job image includes Playwright and Chromium. Update the `scraper` service in `docker-compose.yml` to `build: { context: ./soulstep-scraper-api, dockerfile: Dockerfile.job }`. Set `SCRAPER_BACKEND=browser` in your `.env`. Increase the scraper container's memory to at least **2 GB** and allow longer run timeouts — browser scraping takes ~24–48h per 10K places compared to ~3h for the API path. `GOOGLE_MAPS_API_KEY` is not required in browser mode.
 
 ### 3.4 Required `.env`
 
@@ -950,7 +951,21 @@ done
 
 ---
 
-#### b. Build and push the scraper image
+#### b. Build and push the scraper images
+
+There are two images — build both if you plan to use `SCRAPER_DISPATCH=cloud_run`:
+
+```bash
+# API Service image (~200 MB) — base deps only, no Playwright
+docker build --platform linux/amd64 -f Dockerfile -t europe-west1-docker.pkg.dev/project-fa2d7f52-2bc4-4a46-8ae/soulstep/scraper:latest .
+docker push europe-west1-docker.pkg.dev/project-fa2d7f52-2bc4-4a46-8ae/soulstep/scraper:latest
+
+# Job image (~900 MB) — Playwright + Chromium + job-only deps (only needed when SCRAPER_DISPATCH=cloud_run)
+docker build --platform linux/amd64 -f Dockerfile.job -t europe-west1-docker.pkg.dev/project-fa2d7f52-2bc4-4a46-8ae/soulstep/scraper-job:latest .
+docker push europe-west1-docker.pkg.dev/project-fa2d7f52-2bc4-4a46-8ae/soulstep/scraper-job:latest
+```
+
+Or build the API Service image with Cloud Build (no local Docker):
 
 ```bash
 gcloud builds submit ./soulstep-scraper-api \
@@ -983,7 +998,7 @@ gcloud run deploy soulstep-scraper-api \
 >
 > `--max-instances 1` — prevents concurrent runs which would cause SQLite write conflicts.
 
-> **Browser mode (SCRAPER_BACKEND=browser):** Add `SCRAPER_BACKEND=browser` (and optionally `MAPS_BROWSER_POOL_SIZE`, `MAPS_BROWSER_MAX_PAGES`, `MAPS_BROWSER_HEADLESS`) to `--set-env-vars`. Increase resources to `--memory 2Gi --cpu 2`. `GOOGLE_MAPS_API_KEY` is not required and can be omitted from `--set-secrets`. The `Dockerfile` already installs all Chromium dependencies — no image changes are needed.
+> **Browser mode (SCRAPER_BACKEND=browser) with `SCRAPER_DISPATCH=local`:** Add `SCRAPER_BACKEND=browser` (and optionally `MAPS_BROWSER_POOL_SIZE`, `MAPS_BROWSER_MAX_PAGES`, `MAPS_BROWSER_HEADLESS`) to `--set-env-vars`. Increase resources to `--memory 2Gi --cpu 2`. Deploy using the **job image** (`Dockerfile.job`) which includes Playwright and Chromium — the default `Dockerfile` (API Service image) does not. `GOOGLE_MAPS_API_KEY` is not required and can be omitted from `--set-secrets`. For a lighter API service with browser scraping in a separate container, use `SCRAPER_DISPATCH=cloud_run` instead (see §5.9h).
 >
 > ```bash
 > gcloud run services update soulstep-scraper-api \
@@ -1049,6 +1064,12 @@ Alternatively, use the **admin dashboard** (soulstep-admin-web) → Scraper sect
 #### e. Redeploy after code changes
 
 ```bash
+# Rebuild and push the API Service image (base deps only — no Playwright)
+docker build --platform linux/amd64 -f Dockerfile \
+  -t europe-west1-docker.pkg.dev/project-fa2d7f52-2bc4-4a46-8ae/soulstep/scraper:latest .
+docker push europe-west1-docker.pkg.dev/project-fa2d7f52-2bc4-4a46-8ae/soulstep/scraper:latest
+
+# Or using Cloud Build:
 gcloud builds submit ./soulstep-scraper-api \
   --tag europe-west1-docker.pkg.dev/project-fa2d7f52-2bc4-4a46-8ae/soulstep/scraper:latest \
   --region europe-west1
@@ -1207,17 +1228,32 @@ curl -X POST https://your-catalog-url/api/v1/admin/seo/generate \
 
 When `SCRAPER_BACKEND=browser` and `SCRAPER_DISPATCH=cloud_run`, the API service dispatches a separate **Cloud Run Job** instead of running Chromium in-process. This keeps the API service at 512 MB RAM while the job handles the heavy Chromium workload.
 
+**Two separate Docker images:**
+
+| Image | Dockerfile | Size | Purpose |
+|---|---|---|---|
+| `soulstep-scraper-api` | `Dockerfile` | ~200 MB | Cloud Run Service — HTTP API only, no Playwright |
+| `soulstep-scraper-job` | `Dockerfile.job` | ~900 MB | Cloud Run Job — browser scraper, includes Playwright + Chromium |
+
 **How it works:**
 - `POST /runs` and `POST /runs/{code}/resume` call `dispatch_run()` / `dispatch_resume()` in `app/jobs/dispatcher.py`.
 - The dispatcher calls `google.cloud.run_v2.JobsClient().run_job()` to trigger the job.
-- The job runs the same Docker image with entrypoint `python -m app.jobs.run`.
+- The job runs `Dockerfile.job` with entrypoint `python -m app.jobs.run`.
 - The job reads `SCRAPER_RUN_CODE` and `SCRAPER_RUN_ACTION` from env var overrides set by the dispatcher.
+
+**Build the job image:**
+
+```bash
+cd soulstep-scraper-api
+docker build --platform linux/amd64 -f Dockerfile.job -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper-job:latest .
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper-job:latest
+```
 
 **Deploy the Cloud Run Job:**
 
 ```bash
 gcloud run jobs create soulstep-scraper-job \
-  --image gcr.io/PROJECT_ID/soulstep-scraper-api:latest \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper-job:latest \
   --region us-central1 \
   --memory 2Gi \
   --cpu 2 \
@@ -1229,12 +1265,19 @@ gcloud run jobs create soulstep-scraper-job \
 > `--task-timeout 86400` — allows up to 24 hours for large scrape runs.
 >
 > `--max-retries 1` — one automatic retry on failure; set to `0` if you prefer manual resume via `POST /runs/{code}/resume`.
+>
+> **API Service memory:** stays at 512 MB — no Chromium in the API image.
+>
+> **Job memory:** 2 GB — Chromium requires headroom for rendering.
 
 **Update after image changes:**
 
 ```bash
+docker build --platform linux/amd64 -f Dockerfile.job -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper-job:latest .
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper-job:latest
+
 gcloud run jobs update soulstep-scraper-job \
-  --image gcr.io/PROJECT_ID/soulstep-scraper-api:latest \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper-job:latest \
   --region us-central1
 ```
 
