@@ -29,18 +29,26 @@ jobs:
             catalog:
               - 'soulstep-catalog-api/**'
               - '.github/workflows/tests.yml'
+              - '.github/workflows/deploy.yml'
             scraper:
               - 'soulstep-scraper-api/**'
               - '.github/workflows/tests.yml'
+              - '.github/workflows/deploy.yml'
             web:
               - 'apps/soulstep-customer-web/**'
+              - 'firebase.json'
+              - '.firebaserc'
               - '.github/workflows/tests.yml'
+              - '.github/workflows/deploy.yml'
             mobile:
               - 'apps/soulstep-customer-mobile/**'
               - '.github/workflows/tests.yml'
             admin:
               - 'apps/soulstep-admin-web/**'
+              - 'firebase.json'
+              - '.firebaserc'
               - '.github/workflows/tests.yml'
+              - '.github/workflows/deploy.yml'
 
   soulstep-catalog-api:
     name: soulstep-catalog-api tests
