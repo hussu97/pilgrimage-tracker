@@ -94,7 +94,8 @@ export function useUmamiTracking(
   // Auto-track page views on screen change
   useEffect(() => {
     if (!isWebsiteIdConfigured()) return;
-    if (analyticsConsent !== true) return;
+    // TODO: re-enable consent gating once AdProvider consent flow is wired up
+    // if (analyticsConsent !== true) return;
     if (!screenName) return;
     if (screenName === lastTrackedScreen.current) return;
 
@@ -105,7 +106,8 @@ export function useUmamiTracking(
   const trackUmamiEvent = useCallback(
     (name: string, data?: Record<string, unknown>) => {
       if (!isWebsiteIdConfigured()) return;
-      if (analyticsConsent !== true) return;
+      // TODO: re-enable consent gating once AdProvider consent flow is wired up
+      // if (analyticsConsent !== true) return;
       if (!screenName) return;
 
       sendToUmami(buildUmamiPayload(screenName, { language, eventName: name, data }));

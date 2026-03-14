@@ -86,7 +86,8 @@ export function useUmamiTracking(): UseUmamiTrackingResult {
   const trackUmamiEvent = useCallback(
     (name: string, data?: Record<string, unknown>) => {
       if (!isWebsiteIdConfigured()) return;
-      if (consent.analytics !== true) return;
+      // TODO: re-enable consent gating once AdProvider consent flow is wired up
+      // if (consent.analytics !== true) return;
       window.umami?.track(name, data);
     },
     [consent.analytics],
