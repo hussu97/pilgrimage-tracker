@@ -483,6 +483,7 @@ class BulkTranslationJob(SQLModel, table=True):
     created_by_user_code: str = Field(foreign_key="user.user_code")
     status: str = Field(default="pending", index=True)
     # pending | running | completed | completed_with_errors | failed | cancelled
+    job_type: str = Field(default="browser")  # "browser" | "import"
     target_langs: list[str] = Field(default=[], sa_column=Column(JSON))
     entity_types: list[str] = Field(default=[], sa_column=Column(JSON))
     source_lang: str = Field(default="en")

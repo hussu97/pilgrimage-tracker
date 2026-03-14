@@ -537,3 +537,34 @@ export async function bulkUpsertTranslations(
   );
   return res.data;
 }
+
+// ── .txt Bulk Translator Workflow ──────────────────────────────────────────────
+
+export async function exportUntranslatedTxt(entity_types?: string): Promise<void> {
+  const params: Record<string, string> = {};
+  if (entity_types) params.entity_types = entity_types;
+  const res = await apiClient.get<Blob>("/admin/content-translations/export-txt", {
+    params,
+    responseType: "blob",
+  });
+  const url = URL.createObjectURL(res.data);
+  const a = document.createElement("a");
+  a.href = url;
+  const disposition = res.headers["content-disposition"] as string | undefined;
+  const match = disposition?.match(/filename="([^"]+)"/);
+  a.download = match?.[1] ?? `untranslated_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function importTranslationTxt(lang: string, file: File): Promise<BulkTranslationJob> {
+  const form = new FormData();
+  form.append("lang", lang);
+  form.append("file", file);
+  // Do NOT set Content-Type — let axios set it with the multipart boundary automatically
+  const res = await apiClient.post<BulkTranslationJob>(
+    "/admin/content-translations/import-txt",
+    form
+  );
+  return res.data;
+}

@@ -63,6 +63,7 @@ class StartJobBody(BaseModel):
 class BulkTranslationJobOut(BaseModel):
     job_code: str
     status: str
+    job_type: str
     target_langs: list[str]
     entity_types: list[str]
     source_lang: str
@@ -84,6 +85,7 @@ class BulkTranslationJobOut(BaseModel):
         return cls(
             job_code=job.job_code,
             status=job.status,
+            job_type=job.job_type,
             target_langs=job.target_langs or [],
             entity_types=job.entity_types or [],
             source_lang=job.source_lang,

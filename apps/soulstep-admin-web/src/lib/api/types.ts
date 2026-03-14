@@ -737,6 +737,7 @@ export interface BulkTranslationJob {
     | "completed_with_errors"
     | "failed"
     | "cancelled";
+  job_type?: string;
   target_langs: string[];
   entity_types: string[];
   source_lang: string;

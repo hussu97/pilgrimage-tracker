@@ -2,12 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   cancelTranslationJob,
   deleteTranslationJob,
-  exportUntranslated,
-  bulkUpsertTranslations,
+  exportUntranslatedTxt,
+  importTranslationTxt,
   listTranslationJobs,
   startTranslationJob,
 } from "@/lib/api/admin";
-import type { BulkTranslationJob, BulkUpsertItem } from "@/lib/api/types";
+import type { BulkTranslationJob } from "@/lib/api/types";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { Pagination } from "@/components/shared/Pagination";
 import { StatCard } from "@/components/shared/StatCard";
@@ -152,12 +152,13 @@ export function BulkTranslationsPage() {
     );
   };
 
-  // ── Manual Translation (Claude.ai workflow) ──────────────────────────────────
+  // ── Manual Translation (.txt Bulk Translator workflow) ────────────────────────
 
   const [exportLoading, setExportLoading] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [importToast, setImportToast] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const [importLang, setImportLang] = useState<string>("ar");
 
   const EXPORT_ENTITY_TYPES = ["place", "city", "attribute_def", "review"] as const;
   const [exportEntityTypes, setExportEntityTypes] = useState<string[]>([...EXPORT_ENTITY_TYPES]);
@@ -172,14 +173,7 @@ export function BulkTranslationsPage() {
     if (exportEntityTypes.length === 0) return;
     setExportLoading(true);
     try {
-      const data = await exportUntranslated(undefined, exportEntityTypes.join(","));
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `untranslated_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await exportUntranslatedTxt(exportEntityTypes.join(","));
     } finally {
       setExportLoading(false);
     }
@@ -189,13 +183,12 @@ export function BulkTranslationsPage() {
     setImportLoading(true);
     setImportToast(null);
     try {
-      const text = await file.text();
-      const items = JSON.parse(text) as BulkUpsertItem[];
-      const result = await bulkUpsertTranslations(items);
+      const job = await importTranslationTxt(importLang, file);
       setImportToast(
-        `Created ${result.created}, updated ${result.updated} translations` +
-          (result.errors.length > 0 ? ` (${result.errors.length} errors)` : "")
+        `Import complete: ${job.completed_items} translations saved` +
+          (job.failed_items > 0 ? ` (${job.failed_items} errors)` : "")
       );
+      await load();
     } catch (err) {
       setImportToast(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -211,6 +204,21 @@ export function BulkTranslationsPage() {
       render: (row) => (
         <span className="font-mono text-xs text-text-secondary dark:text-dark-text-secondary">
           {row.job_code}
+        </span>
+      ),
+    },
+    {
+      key: "job_type",
+      header: "Type",
+      render: (row) => (
+        <span
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+            row.job_type === "import"
+              ? "text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20"
+              : "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20"
+          }`}
+        >
+          {row.job_type === "import" ? "Import" : "Browser"}
         </span>
       ),
     },
@@ -368,21 +376,21 @@ export function BulkTranslationsPage() {
         onPageSizeChange={setPageSize}
       />
 
-      {/* Manual Translation (Claude.ai) Card */}
+      {/* Manual Translation (Bulk Translator) Card */}
       <div className="rounded-xl border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface p-5 space-y-4">
         <div>
           <h2 className="text-base font-semibold text-text-main dark:text-white flex items-center gap-2">
-            <span className="text-lg">🤖</span>
-            Manual Translation (Claude.ai)
+            <span className="material-icons text-base text-primary">translate</span>
+            Manual Translation (Bulk Translator)
           </h2>
           <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-1">
-            Export missing translations, run them through the local Claude.ai script, then import the results.
+            Export missing translations as a .txt file, paste into a bulk translator site, then upload the translated .txt for a single language at a time.
           </p>
         </div>
 
         {/* Entity type filter for export */}
         <div className="flex flex-wrap items-center gap-3">
-          <p className="text-xs text-text-secondary dark:text-dark-text-secondary">Export:</p>
+          <p className="text-xs text-text-secondary dark:text-dark-text-secondary">Export types:</p>
           {(
             [
               { value: "place", label: "Places" },
@@ -403,7 +411,7 @@ export function BulkTranslationsPage() {
           ))}
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 items-center">
           {/* Export */}
           <button
             onClick={() => void handleExport()}
@@ -411,19 +419,36 @@ export function BulkTranslationsPage() {
             className="flex items-center gap-2 rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-bg px-4 py-2 text-sm font-medium text-text-main dark:text-white hover:bg-background-light dark:hover:bg-dark-surface disabled:opacity-50 transition-colors"
           >
             <Download size={14} />
-            {exportLoading ? "Exporting…" : "Download untranslated (JSON)"}
+            {exportLoading ? "Exporting…" : "Download untranslated (.txt)"}
           </button>
+
+          {/* Import language selector */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-secondary dark:text-dark-text-secondary whitespace-nowrap">
+              Import language:
+            </label>
+            <select
+              value={importLang}
+              onChange={(e) => setImportLang(e.target.value)}
+              className="rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-bg px-2 py-1.5 text-sm text-text-main dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="ar">ar — Arabic</option>
+              <option value="hi">hi — Hindi</option>
+              <option value="te">te — Telugu</option>
+              <option value="ml">ml — Malayalam</option>
+            </select>
+          </div>
 
           {/* Import */}
           <label
             className={`flex items-center gap-2 rounded-lg border border-input-border dark:border-dark-border bg-white dark:bg-dark-bg px-4 py-2 text-sm font-medium text-text-main dark:text-white hover:bg-background-light dark:hover:bg-dark-surface transition-colors cursor-pointer ${importLoading ? "opacity-50 pointer-events-none" : ""}`}
           >
             <Upload size={14} />
-            {importLoading ? "Importing…" : "Upload translated (JSON)"}
+            {importLoading ? "Importing…" : "Upload translated (.txt)"}
             <input
               ref={importInputRef}
               type="file"
-              accept=".json"
+              accept=".txt"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
