@@ -135,9 +135,13 @@ def test_translate_single_browser_happy_path():
     output_el = AsyncMock()
     output_el.inner_text = AsyncMock(side_effect=["مرحبا", "مرحبا", "مرحبا"])
 
+    input_el = AsyncMock()
+
     async def mock_query_selector(selector):
         if "HwtZe" in selector or "result" in selector or "W297wb" in selector:
             return output_el
+        if "textarea" in selector or "contenteditable" in selector:
+            return input_el
         return None
 
     session.page.query_selector = mock_query_selector
