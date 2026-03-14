@@ -21,7 +21,7 @@ from app.db.models import ContentTranslation, Place, User
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 _LINE_RE = re.compile(
-    r"^\[(?P<type_num>\d+):(?P<entity_id>\d+):(?P<field_num>\d+)\]\s*\{\{\s*(?P<text>.+?)\s*\}\}$"
+    r"^\[(?P<type_num>\d+):(?P<entity_id>\d+):(?P<field_num>\d+)\]\s+(?P<text>.+)$"
 )
 
 
@@ -177,8 +177,8 @@ def test_import_txt_creates_translations_and_job(client, db_session):
     pid = place.id
     txt = _make_txt(
         [
-            f"[1:{pid}:1] {{{{ مكان اختبار }}}}",  # name
-            f"[1:{pid}:2] {{{{ موقع مقدس }}}}",  # description
+            f"[1:{pid}:1] مكان اختبار",  # name
+            f"[1:{pid}:2] موقع مقدس",  # description
         ]
     )
     resp = client.post(
@@ -225,7 +225,7 @@ def test_import_txt_does_not_override_other_languages(client, db_session):
     db_session.commit()
 
     # Import Hindi only
-    txt = _make_txt([f"[1:{pid}:1] {{{{ अलगाव मंदिर }}}}"])
+    txt = _make_txt([f"[1:{pid}:1] अलगाव मंदिर"])
     resp = client.post(
         "/api/v1/admin/content-translations/import-txt",
         data={"lang": "hi"},
@@ -277,7 +277,7 @@ def test_import_txt_comments_only_returns_422(client, db_session):
 
 def test_import_txt_requires_admin(client, db_session):
     non_admin = _non_admin_headers(client)
-    txt = _make_txt(["[1:1:1] {{ Test }}"])
+    txt = _make_txt(["[1:1:1] Test"])
     resp = client.post(
         "/api/v1/admin/content-translations/import-txt",
         data={"lang": "ar"},

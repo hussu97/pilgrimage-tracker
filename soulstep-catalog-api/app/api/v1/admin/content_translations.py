@@ -500,7 +500,7 @@ _FIELD_NUM: dict[str, dict[int, str]] = {
 }
 
 _TXT_LINE_RE = re.compile(
-    r"^\[(?P<type_num>\d+):(?P<entity_id>\d+):(?P<field_num>\d+)\]\s*\{\{\s*(?P<text>.+?)\s*\}\}$"
+    r"^\[(?P<type_num>\d+):(?P<entity_id>\d+):(?P<field_num>\d+)\]\s+(?P<text>.+)$"
 )
 
 
@@ -618,7 +618,7 @@ def export_untranslated_txt(
     for entity_type, entity_id, _entity_code, field, en_text in raw_items:
         type_num = _ENTITY_TYPE_NUM[entity_type]
         field_num = _FIELD_IDX[entity_type][field]
-        lines.append(f"[{type_num}:{entity_id}:{field_num}] {{{{ {en_text} }}}}")
+        lines.append(f"[{type_num}:{entity_id}:{field_num}] {en_text}")
 
     content = "\n".join(lines)
     timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
