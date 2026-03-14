@@ -149,7 +149,7 @@ jobs:
           --durations=10
 
   soulstep-customer-web:
-    name: Soulstep Customer Web frontend tests
+    name: soulstep-customer-web tests
     needs: changes
     if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
@@ -176,7 +176,7 @@ jobs:
         run: npm run test -- --coverage
 
   soulstep-customer-mobile:
-    name: Soulstep Customer Mobile frontend tests
+    name: soulstep-customer-mobile tests
     needs: changes
     if: needs.changes.outputs.mobile == 'true'
     runs-on: ubuntu-latest

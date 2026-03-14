@@ -58,7 +58,7 @@ jobs:
   # ── Deploy: API → Cloud Run ─────────────────────────────────────────────────
 
   deploy-api:
-    name: Deploy API → Cloud Run
+    name: Deploy soulstep-catalog-api → Cloud Run
     needs: [changes]
     if: needs.changes.outputs.catalog == 'true'
     runs-on: ubuntu-latest
@@ -84,24 +84,24 @@ jobs:
       - name: Configure Docker auth for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
 
-      - name: Build and push Docker image
+      - name: Build and push soulstep-catalog-api image
         run: |
-          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/api:${{ env.HEAD_SHA }}"
+          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:${{ env.HEAD_SHA }}"
           docker build --platform linux/amd64 -t "$IMAGE" ./soulstep-catalog-api
           docker push "$IMAGE"
 
-      - name: Scan Docker image for vulnerabilities (Trivy)
+      - name: Scan soulstep-catalog-api image for vulnerabilities (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/api:${{ env.HEAD_SHA }}"
+          image-ref: "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:${{ env.HEAD_SHA }}"
           format: "table"
           exit-code: "0"
           severity: "CRITICAL,HIGH"
 
-      - name: Deploy to Cloud Run
+      - name: Deploy soulstep-catalog-api to Cloud Run
         run: |
           gcloud run deploy ${{ env.API_SERVICE }} \
-            --image "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/api:${{ env.HEAD_SHA }}" \
+            --image "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:${{ env.HEAD_SHA }}" \
             --region ${{ env.REGION }} \
             --platform managed \
             --allow-unauthenticated \
@@ -111,7 +111,7 @@ jobs:
   # ── Deploy: Web → Firebase Hosting ─────────────────────────────────────────
 
   deploy-web:
-    name: Deploy Web → Firebase Hosting
+    name: Deploy soulstep-customer-web → Firebase Hosting
     needs: [changes]
     if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
@@ -159,7 +159,7 @@ jobs:
   # ── Deploy: Admin Web → Firebase Hosting ────────────────────────────────────
 
   deploy-admin-web:
-    name: Deploy Admin Web → Firebase Hosting
+    name: Deploy soulstep-admin-web → Firebase Hosting
     needs: [changes]
     if: needs.changes.outputs.admin == 'true'
     runs-on: ubuntu-latest
@@ -250,7 +250,7 @@ jobs:
       - name: Update or create Cloud Run Jobs
         run: |
           CLOUDSQL="${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db"
-          API="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/api:${{ env.HEAD_SHA }}"
+          API="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:${{ env.HEAD_SHA }}"
           SYNC="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/sync-places:${{ env.HEAD_SHA }}"
           TRANSLATE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/translate-content:${{ env.HEAD_SHA }}"
 
@@ -297,7 +297,7 @@ jobs:
   # ── Deploy: Scraper API → Cloud Run ─────────────────────────────────────────
 
   deploy-scraper:
-    name: Deploy Scraper API → Cloud Run
+    name: Deploy soulstep-scraper-api → Cloud Run
     needs: [changes]
     if: needs.changes.outputs.scraper == 'true'
     runs-on: ubuntu-latest
@@ -323,30 +323,30 @@ jobs:
       - name: Configure Docker auth for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
 
-      - name: Build and push API image (lean — no Playwright)
+      - name: Build and push soulstep-scraper-api image (lean — no Playwright)
         run: |
-          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/scraper:${{ env.HEAD_SHA }}"
+          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:${{ env.HEAD_SHA }}"
           docker build --platform linux/amd64 -f soulstep-scraper-api/Dockerfile -t "$IMAGE" ./soulstep-scraper-api
           docker push "$IMAGE"
 
-      - name: Build and push Job image (Playwright + Chromium)
+      - name: Build and push soulstep-scraper-api-job image (Playwright + Chromium)
         run: |
-          JOB_IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/scraper-job:${{ env.HEAD_SHA }}"
+          JOB_IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
           docker build --platform linux/amd64 -f soulstep-scraper-api/Dockerfile.job -t "$JOB_IMAGE" ./soulstep-scraper-api
           docker push "$JOB_IMAGE"
 
-      - name: Scan API image for vulnerabilities (Trivy)
+      - name: Scan soulstep-scraper-api image for vulnerabilities (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/scraper:${{ env.HEAD_SHA }}"
+          image-ref: "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:${{ env.HEAD_SHA }}"
           format: "table"
           exit-code: "0"
           severity: "CRITICAL,HIGH"
 
-      - name: Deploy API Service to Cloud Run
+      - name: Deploy soulstep-scraper-api service to Cloud Run
         run: |
           gcloud run deploy ${{ env.SCRAPER_SERVICE }} \
-            --image "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/scraper:${{ env.HEAD_SHA }}" \
+            --image "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:${{ env.HEAD_SHA }}" \
             --region ${{ env.REGION }} \
             --platform managed \
             --no-allow-unauthenticated \
@@ -357,9 +357,9 @@ jobs:
             --set-secrets "DATABASE_URL=SCRAPER_DATABASE_URL:latest,GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,GEMINI_API_KEY=SCRAPER_GEMINI_API_KEY:latest" \
             --quiet
 
-      - name: Upsert Cloud Run Job (soulstep-scraper-job)
+      - name: Upsert Cloud Run Job (soulstep-scraper-api-job)
         run: |
-          JOB_IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/scraper-job:${{ env.HEAD_SHA }}"
+          JOB_IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
           CLOUDSQL="${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db"
 
           # update if exists, create if not — same pattern as deploy-jobs
@@ -369,7 +369,7 @@ jobs:
               || gcloud run jobs create "$name" --region ${{ env.REGION }} "$@"
           }
 
-          _upsert soulstep-scraper-job \
+          _upsert soulstep-scraper-api-job \
             --image "$JOB_IMAGE" \
             --set-cloudsql-instances "$CLOUDSQL" \
             --set-secrets "DATABASE_URL=SCRAPER_DATABASE_URL:latest,GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,GEMINI_API_KEY=SCRAPER_GEMINI_API_KEY:latest" \
