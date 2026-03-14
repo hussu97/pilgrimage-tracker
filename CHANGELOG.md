@@ -4,6 +4,46 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## fix(scraper): align GCS path with catalog API (2026-03-14)
+
+### Backend
+
+- **`app/services/gcs.py`** — Rewrote to use the identical path format as the catalog API: `images/places/{token_hex(16)}.{ext}`, same `GCS_BUCKET_NAME` env var, no `make_public()` (uniform bucket-level access). Old path `places/places/{code}/{idx}.jpg` removed.
+- **`app/config.py`** — Removed `gcs_image_prefix` setting (prefix is now hardcoded to `images/places/` to match catalog). Updated `gcs_bucket_name` comment.
+- **`app/scrapers/gmaps.py`** / **`app/collectors/gmaps.py`** — Updated `upload_image_bytes()` callers to match simplified `(data, mime_type)` signature (no `place_code`/`idx` args).
+
+---
+
+## fix(scraper): GCS image upload pipeline + browser photo capture (2026-03-14)
+
+### Backend
+
+- **`app/services/gcs.py`** (new) — `upload_image_bytes(data, mime_type)` uploads to `GCS_BUCKET_NAME` bucket under `images/places/`; gracefully skips when `google-cloud-storage` is not installed.
+- **`app/config.py`** — Added `gcs_bucket_name` setting (env: `GCS_BUCKET_NAME`).
+- **`requirements.txt`** — Added `google-cloud-storage`.
+- **`app/collectors/gmaps_browser.py`** — Added `_capture_page_images()` to `BrowserGmapsCollector`: after each place page loads, uses `page.evaluate(fetch(...))` to capture up to `SCRAPER_MAX_PHOTOS` image bytes from Google CDN directly in the browser. Bytes stored in `response["_image_bytes"]`; skips the separate httpx image download phase.
+- **`app/scrapers/gmaps.py`** (`_flush_detail_buffer`) — Reads `_image_bytes` from response: if GCS configured → uploads and stores GCS URLs in `image_urls`; otherwise → base64-encodes into `image_blobs`, skipping the httpx download.
+- **`app/collectors/gmaps.py`** — Added `upload_images_to_gcs(run_code, engine)`: post-download phase that uploads stored blobs to GCS and replaces `image_blobs` with `image_urls`. Called after `download_place_images` in both api and browser pipelines when GCS is configured.
+- **`app/scrapers/gmaps.py`** / **`app/scrapers/gmaps_browser.py`** — Wired `upload_images_to_gcs` call after image download when `GCS_BUCKET_NAME` is set.
+
+---
+
+## fix(scraper): stream detail fetch progress to admin UI (2026-03-14)
+
+### Backend
+
+- **`app/scrapers/gmaps.py`** (`fetch_place_details`) — Replaced `asyncio.gather()` collect-all-then-flush pattern with `asyncio.as_completed` so each result is written to the DB as it arrives. `processed_items` now ticks up every batch of 10 during detail fetch instead of jumping from 0 to total at the end. Cancellation checks distributed periodically (every `flush_batch_size × 3` results) rather than blocking until all fetches complete.
+
+---
+
+## fix(map): viewport-bounded place fetching (2026-03-14)
+
+### Frontend (web)
+
+- **`apps/soulstep-customer-web/src/app/pages/MapDiscovery.tsx`** — Map now fetches places for the current viewport only (`min_lat/max_lat/min_lng/max_lng` passed to API). Previously fetched 200 places globally, causing `fitBounds` to zoom the map to world scale and returning far-off results. Added `onBoundsChange` handler, debounced viewport re-fetch (600 ms), `skipAutoFit` to keep map at user location. Search/filter changes reuse latest bounds via ref.
+
+---
+
 ## feat(scraper): browser grid discovery + multi-box country borders (2026-03-14)
 
 ### Backend

@@ -77,6 +77,7 @@ python -m pytest tests/ -v
 | `BESTTIME_API_KEY` | No | — | BestTime collector (busyness forecasts) |
 | `FOURSQUARE_API_KEY` | No | — | Foursquare collector (tips, popularity) |
 | `OUTSCRAPER_API_KEY` | No | — | Outscraper collector (extended reviews) |
+| `GCS_BUCKET_NAME` | No | — | GCS bucket for image storage. Use the **same bucket as the catalog API** (`IMAGE_STORAGE=gcs`). When set, scraped images are uploaded to `images/places/` before sync and GCS URLs are sent instead of base64 blobs. Leave blank to send blobs in the sync payload. |
 | `SCRAPER_TRIGGER_SEO_AFTER_SYNC` | No | `false` | Auto-trigger bulk SEO generation after sync |
 | `SCRAPER_CATALOG_ADMIN_TOKEN` | No | — | Admin JWT for catalog API (required with auto-SEO) |
 | `GOOGLE_CLOUD_PROJECT` | No | — | GCP project ID — used for Cloud Run Jobs |
@@ -88,11 +89,14 @@ python -m pytest tests/ -v
 Each scraper run goes through these stages:
 
 ```
-Discovery         — quadtree searchNearby via Google Maps
+Discovery         — quadtree searchNearby via Google Maps (api) or Playwright grid (browser)
     ↓
-Detail Fetch      — getPlace for each discovered place (full field mask)
+Detail Fetch      — getPlace for each place; progress updated per batch (real-time in admin UI)
+    ↓               browser mode captures photo bytes in-page (no separate API call)
+Image Download    — fetch photos from Google Photo CDN (api mode only; browser mode already has bytes)
     ↓
-Image Download    — fetch photos from Google Photo CDN
+GCS Upload        — upload image blobs to images/places/ in GCS_BUCKET_NAME (when configured);
+    ↓               stores GCS URLs in image_urls; sync sends URLs instead of base64 blobs
     ↓ [GATE_IMAGE_DOWNLOAD = 0.75]
 Enrichment        — multi-source collectors in dependency phases:
     Phase 0: OSM/Overpass     — amenities, contact, multilingual names
@@ -115,7 +119,7 @@ Sync              — POST /places/batch to catalog API
 | `api` (default) | Required | ~$0.008/place | ~3h per 10K places |
 | `browser` | Not required | $0 | ~24–48h per 10K places |
 
-The `browser` backend uses Playwright to drive Google Maps in Chromium, avoiding API billing. All downstream phases (enrichment, quality, sync) work identically regardless of which backend ran discovery.
+The `browser` backend uses Playwright to drive Google Maps in Chromium, avoiding API billing. During detail extraction it captures photo bytes directly from the browser page (intercepted via `page.evaluate`), so the separate image download phase is skipped. All downstream phases (GCS upload, enrichment, quality, sync) work identically regardless of which backend ran discovery.
 
 ### Google Places API cost breakdown
 
@@ -270,6 +274,7 @@ soulstep-scraper-api/app/
   services/
     browser_pool.py      # MapsBrowserPool with circuit breaker + session recycling
     browser_stealth.py   # Stealth JS patches + UA/viewport/timezone randomisation
+    gcs.py               # upload_image_bytes() — GCS upload to images/places/ (mirrors catalog)
     run_activity.py      # get_activity_snapshot() — polled by admin UI
     quality_metrics.py   # compute_quality_metrics() — aggregate quality stats
     query_log.py         # Records every outbound Google Places API call
