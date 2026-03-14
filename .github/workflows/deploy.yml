@@ -26,42 +26,34 @@ jobs:
   # ── Detect changed paths ───────────────────────────────────────────────────
 
   changes:
-    name: Detect changed paths
+    name: Read path filter outputs from tests
     runs-on: ubuntu-latest
     # Only deploy when tests passed — if tests were skipped (no relevant files
     # changed) the conclusion is still 'success', so this correctly gates on failure.
     if: github.event.workflow_run.conclusion == 'success'
+    permissions:
+      actions: read   # required to download artifacts from the triggering run
+      contents: read
     outputs:
       catalog: ${{ steps.filter.outputs.catalog }}
       scraper: ${{ steps.filter.outputs.scraper }}
       web: ${{ steps.filter.outputs.web }}
       admin: ${{ steps.filter.outputs.admin }}
     steps:
-      - uses: actions/checkout@v4
+      # Download the path filter results computed by tests.yml — same detection,
+      # no risk of HEAD~1 drift on multi-commit pushes.
+      - uses: actions/download-artifact@v4
         with:
-          ref: ${{ env.HEAD_SHA }}
-          fetch-depth: 2
-      - uses: dorny/paths-filter@v3
+          name: path-filter-outputs
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Load filter outputs
         id: filter
-        with:
-          base: HEAD~1
-          filters: |
-            catalog:
-              - 'soulstep-catalog-api/**'
-              - '.github/workflows/deploy.yml'
-            scraper:
-              - 'soulstep-scraper-api/**'
-              - '.github/workflows/deploy.yml'
-            web:
-              - 'apps/soulstep-customer-web/**'
-              - 'firebase.json'
-              - '.firebaserc'
-              - '.github/workflows/deploy.yml'
-            admin:
-              - 'apps/soulstep-admin-web/**'
-              - 'firebase.json'
-              - '.firebaserc'
-              - '.github/workflows/deploy.yml'
+        run: |
+          echo "catalog=$(jq -r .catalog path-outputs.json)" >> "$GITHUB_OUTPUT"
+          echo "scraper=$(jq -r .scraper path-outputs.json)" >> "$GITHUB_OUTPUT"
+          echo "web=$(jq -r .web path-outputs.json)"     >> "$GITHUB_OUTPUT"
+          echo "admin=$(jq -r .admin path-outputs.json)" >> "$GITHUB_OUTPUT"
 
   # ── Deploy: API → Cloud Run ─────────────────────────────────────────────────
 
