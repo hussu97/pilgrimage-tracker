@@ -3,22 +3,27 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, status
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from sqlalchemy import text as sa_text
-from sqlmodel import Session
-from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.v1 import api_router
-from app.db.models import ScraperRun
-from app.db.session import engine, run_migrations
-from app.logger import get_logger, mask_secret, set_trace_context, setup_logging
-from app.seeds.geo import seed_geo_boundaries
-from app.seeds.place_types import seed_place_type_mappings
-
+# load_dotenv() MUST run before any app module is imported because session.py
+# reads DATABASE_URL at module-level import time. Importing app modules first
+# causes session.py to see DATABASE_URL=None and silently fall back to SQLite.
 load_dotenv()
+
+from fastapi import FastAPI, Request, status  # noqa: E402
+from fastapi.exceptions import RequestValidationError  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
+from sqlalchemy import text as sa_text  # noqa: E402
+from sqlmodel import Session  # noqa: E402
+from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa: E402
+
+from app.api.v1 import api_router  # noqa: E402
+from app.db.models import ScraperRun  # noqa: E402
+from app.db.session import engine, run_migrations  # noqa: E402
+from app.logger import get_logger, mask_secret, set_trace_context, setup_logging  # noqa: E402
+from app.seeds.geo import seed_geo_boundaries  # noqa: E402
+from app.seeds.place_types import seed_place_type_mappings  # noqa: E402
+
 setup_logging()
 
 logger = get_logger(__name__)
