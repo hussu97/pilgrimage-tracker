@@ -58,7 +58,6 @@ class StartJobBody(BaseModel):
     target_langs: list[str]  # e.g. ["ar", "hi", "te", "ml"]
     entity_types: list[str] = ["place"]  # ["place", "review"]
     source_lang: str = "en"
-    multi_size: int = 8  # texts per browser request (1–8)
 
 
 class BulkTranslationJobOut(BaseModel):
@@ -236,7 +235,6 @@ def _collect_missing_items(
 
 async def _run_bulk_translation_job(
     job_code: str,
-    multi_size: int,
     pool: BrowserSessionPool | None = None,
     cancel_event: threading.Event | None = None,
 ) -> None:
@@ -371,7 +369,6 @@ async def _run_bulk_translation_job(
                 texts,
                 target_lang=lang,
                 source_lang=source_lang,
-                multi_size=multi_size,
                 on_result=on_result,
                 pool=pool,
                 is_cancelled=lambda: cancel_event is not None and cancel_event.is_set(),
@@ -422,7 +419,7 @@ async def _run_bulk_translation_job(
             pass  # Best-effort
 
 
-def _run_job_in_thread(job_code: str, multi_size: int) -> None:
+def _run_job_in_thread(job_code: str) -> None:
     """Thread entry point: creates its own asyncio event loop and runs the translation job.
 
     Using a dedicated thread+loop isolates all browser/DB work from the FastAPI
@@ -437,7 +434,7 @@ def _run_job_in_thread(job_code: str, multi_size: int) -> None:
     pool = BrowserSessionPool()
     try:
         loop.run_until_complete(
-            _run_bulk_translation_job(job_code, multi_size, pool=pool, cancel_event=cancel_event)
+            _run_bulk_translation_job(job_code, pool=pool, cancel_event=cancel_event)
         )
     except Exception:
         logger.exception("bulk_translation: unhandled exception in thread for job %s", job_code)
@@ -510,7 +507,6 @@ async def start_translation_job(
                 ),
             )
 
-    multi_size = max(1, min(8, body.multi_size))
     job_code = "btj_" + token_hex(8)
     job = BulkTranslationJob(
         job_code=job_code,
@@ -528,7 +524,7 @@ async def start_translation_job(
     cancel_event = threading.Event()
     thread = threading.Thread(
         target=_run_job_in_thread,
-        args=(job_code, multi_size),
+        args=(job_code,),
         daemon=True,
         name=f"bulk-translation-{job_code}",
     )
@@ -540,11 +536,10 @@ async def start_translation_job(
     thread.start()
 
     logger.info(
-        "bulk_translation: started job %s in thread (langs=%s entity_types=%s multi_size=%d)",
+        "bulk_translation: started job %s in thread (langs=%s entity_types=%s)",
         job_code,
         body.target_langs,
         body.entity_types,
-        multi_size,
     )
     return BulkTranslationJobOut.from_orm(job)
 

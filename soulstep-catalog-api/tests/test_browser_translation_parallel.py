@@ -34,125 +34,29 @@ def _make_session(translation_count: int = 0, in_use: bool = False):
     return session
 
 
-# ── translate_multi_browser tests ─────────────────────────────────────────────
-
-
-def test_translate_multi_browser_happy_path():
-    """Separator-delimited block is split back correctly for 3 texts."""
-    from app.services.browser_translation import translate_multi_browser
-
-    # Simulate Google returning the block with separators intact (:::N::: format)
-    raw_translated = "مرحبا\n\n:::2:::\n\nالعالم\n\n:::3:::\n\nكيف حالك"
-
-    async def run():
-        with patch(
-            "app.services.browser_translation.translate_single_browser",
-            new=AsyncMock(return_value=raw_translated),
-        ):
-            result = await translate_multi_browser(
-                ["Hello", "World", "How are you"], target_lang="ar"
-            )
-        assert result == ["مرحبا", "العالم", "كيف حالك"]
-
-    asyncio.run(run())
-
-
-def test_translate_multi_browser_happy_path_bracket_mutation():
-    """Fallback regex patterns handle Google partially stripping :::N::: colons."""
-    from app.services.browser_translation import translate_multi_browser
-
-    # Google partially stripped colons: :::2::: → :2:
-    raw_translated = "مرحبا\n\n:2:\n\nالعالم\n\n:3:\n\nكيف حالك"
-
-    async def run():
-        with patch(
-            "app.services.browser_translation.translate_single_browser",
-            new=AsyncMock(return_value=raw_translated),
-        ):
-            result = await translate_multi_browser(
-                ["Hello", "World", "How are you"], target_lang="ar"
-            )
-        assert result == ["مرحبا", "العالم", "كيف حالك"]
-
-    asyncio.run(run())
-
-
-def test_translate_multi_browser_sentinel_mismatch_fallback():
-    """When no separator pattern matches, falls back to individual calls."""
-    from app.services.browser_translation import translate_multi_browser
-
-    # Raw output has no recognisable separators (all stripped by Google)
-    raw_translated = "مرحبا العالم"
-    individual_calls = []
-
-    async def fake_single(text, target_lang, source_lang="en"):
-        individual_calls.append(text)
-        return f"translated_{text}"
-
-    async def run():
-        with patch(
-            "app.services.browser_translation.translate_single_browser",
-            side_effect=fake_single,
-        ) as mock_single:
-            # First call returns the stripped raw (multi-block attempt),
-            # subsequent calls are the individual fallback translations.
-            mock_single.side_effect = [raw_translated] + [
-                f"translated_{t}" for t in ["Hello", "World", "How are you"]
-            ]
-            result = await translate_multi_browser(
-                ["Hello", "World", "How are you"], target_lang="ar"
-            )
-        # Fallback should have produced 3 results
-        assert len(result) == 3
-
-    asyncio.run(run())
-
-
-def test_translate_multi_browser_empty_positions_preserved():
-    """Empty/whitespace inputs are returned as None; only 1 non-empty text → direct call."""
-    from app.services.browser_translation import translate_multi_browser
-
-    # When there is only 1 non-empty text, translate_multi_browser calls
-    # translate_single_browser directly (no sentinel block needed).
-    # The mock should return just the translated text.
-
-    async def run():
-        with patch(
-            "app.services.browser_translation.translate_single_browser",
-            new=AsyncMock(return_value="مرحبا"),
-        ):
-            result = await translate_multi_browser(["Hello", "", "  "], target_lang="ar")
-        assert result[0] == "مرحبا"
-        assert result[1] is None  # empty
-        assert result[2] is None  # whitespace
-
-    asyncio.run(run())
-
-
 # ── translate_batch_browser_parallel tests ────────────────────────────────────
 
 
 def test_translate_batch_browser_parallel_on_result_fires():
-    """on_result callback is called once per item with correct index and value."""
+    """on_result callback is called once per non-empty item with correct index and value."""
     from app.services.browser_translation import translate_batch_browser_parallel
 
     received: list[tuple[int, str | None]] = []
 
-    async def fake_multi(texts, target_lang, source_lang="en", **kwargs):
-        return [f"t_{t}" for t in texts]
+    async def fake_single(text, target_lang, source_lang="en", pool=None):
+        return f"t_{text}"
 
     async def on_result(idx: int, val: str | None) -> None:
         received.append((idx, val))
 
     async def run():
         with patch(
-            "app.services.browser_translation.translate_multi_browser",
-            side_effect=fake_multi,
+            "app.services.browser_translation.translate_single_browser",
+            side_effect=fake_single,
         ):
             result = await translate_batch_browser_parallel(
                 ["a", "b", "c"],
                 target_lang="ar",
-                multi_size=2,
                 on_result=on_result,
             )
         assert result == ["t_a", "t_b", "t_c"]
@@ -160,6 +64,30 @@ def test_translate_batch_browser_parallel_on_result_fires():
         assert len(received) == 3
         # All indices 0–2 should appear
         assert sorted(i for i, _ in received) == [0, 1, 2]
+
+    asyncio.run(run())
+
+
+def test_translate_batch_browser_parallel_empty_positions_preserved():
+    """Empty/whitespace inputs are returned as None; non-empty items are translated."""
+    from app.services.browser_translation import translate_batch_browser_parallel
+
+    async def fake_single(text, target_lang, source_lang="en", pool=None):
+        return f"t_{text}"
+
+    async def run():
+        with patch(
+            "app.services.browser_translation.translate_single_browser",
+            side_effect=fake_single,
+        ):
+            result = await translate_batch_browser_parallel(
+                ["Hello", "", "  ", "World"],
+                target_lang="ar",
+            )
+        assert result[0] == "t_Hello"
+        assert result[1] is None  # empty
+        assert result[2] is None  # whitespace
+        assert result[3] == "t_World"
 
     asyncio.run(run())
 

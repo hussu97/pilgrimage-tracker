@@ -394,9 +394,7 @@ class TestTranslateContentMain:
             ("place", "plc_abc", "description", "ar", "A mosque"),
         ]
 
-        async def fake_translate(
-            texts, *, target_lang, source_lang, multi_size, on_result, pool, is_cancelled
-        ):
+        async def fake_translate(texts, *, target_lang, source_lang, on_result, pool, is_cancelled):
             for i, _ in enumerate(texts):
                 await on_result(i, f"translated_{i}")
 

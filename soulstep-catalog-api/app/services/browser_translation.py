@@ -5,7 +5,7 @@ It simulates a real user interacting with translate.google.com via Playwright,
 avoiding API costs at the expense of speed and fragility.
 
 Environment variables:
-    BROWSER_POOL_SIZE          — concurrent browser contexts (default 2)
+    BROWSER_POOL_SIZE          — concurrent browser contexts (default 10)
     BROWSER_MAX_TRANSLATIONS   — translations per context before recycling (default 50)
     BROWSER_HEADLESS           — run headless (default true)
 """
@@ -16,7 +16,6 @@ import asyncio
 import logging
 import os
 import random
-import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -24,7 +23,7 @@ from dataclasses import dataclass, field
 logger = logging.getLogger(__name__)
 
 # ── Configuration ──────────────────────────────────────────────────────────────
-_POOL_SIZE = int(os.environ.get("BROWSER_POOL_SIZE", "2"))
+_POOL_SIZE = int(os.environ.get("BROWSER_POOL_SIZE", "20"))
 _MAX_TRANSLATIONS = int(os.environ.get("BROWSER_MAX_TRANSLATIONS", "50"))
 _HEADLESS = os.environ.get("BROWSER_HEADLESS", "true").lower() != "false"
 
@@ -735,153 +734,21 @@ async def translate_batch_browser(
     return results
 
 
-# ── Delimiter-based multi-text translation ─────────────────────────────────────
-
-# Separator placed *between* texts (not as a prefix before each one).
-# Uses :::N::: — colons are pure ASCII punctuation that no language script
-# transliterates, mirrors, or adds extra characters to (unlike angle brackets,
-# which Tamil/Malayalam renderers add an extra '>' to).
-_SEP_FMT = ":::{n}:::"
-
-# Fallback parse patterns ordered from strictest to loosest.
-# Google may strip some colons — we try progressively looser matches.
-# Legacy <<<N>>> and SEP:N patterns are included for backward compatibility.
-_SEP_PATTERNS = [
-    r":::\d+:::",  # exact: :::2:::
-    r":+\d+:+",  # partial colons: :2: or ::2::
-    # Legacy <<<N>>> patterns
-    r"<<<\d+>>>",
-    r"<{1,3}\d+>{1,3}",
-    r"«\d+»",
-    # Legacy <<<SEP:N>>> patterns
-    r"<<<SEP:\d+>>>",
-    r"<{1,3}SEP:\d+>{1,3}",
-    r"\[{1,2}SEP:\d+\]{1,2}",
-    r"SEP:\d+",
-]
-
-
-def _try_split_segments(raw: str, expected: int) -> list[str] | None:
-    """Attempt to recover `expected` text segments from a translated block.
-
-    Tries each pattern in _SEP_PATTERNS in order.  Returns the list of
-    stripped segments if exactly `expected` non-empty segments are found,
-    otherwise None.
-    """
-    for pat in _SEP_PATTERNS:
-        parts = re.split(pat, raw)
-        segments = [p.strip() for p in parts if p.strip()]
-        if len(segments) == expected:
-            return segments
-    return None
-
-
-async def translate_multi_browser(
-    texts: list[str],
-    target_lang: str,
-    source_lang: str = "en",
-    pool: BrowserSessionPool | None = None,
-) -> list[str | None]:
-    """Translate multiple texts in a single browser request using separator tokens.
-
-    Joins texts as "text1\\n\\n<<<SEP:2>>>\\n\\ntext2\\n\\n<<<SEP:3>>>\\n\\n…",
-    sends as one translation, then recovers segments by splitting on the separator.
-    Tries several fallback regex patterns to handle bracket mutations by Google.
-    If the segment count still doesn't match, falls back to individual calls.
-
-    Returns a list of the same length as input; empty/whitespace inputs → None.
-    """
-    if not texts:
-        return []
-
-    # Build sentinel-delimited block; track which indices are non-empty
-    non_empty_indices: list[int] = []
-    non_empty_texts: list[str] = []
-    for i, t in enumerate(texts):
-        if t and t.strip():
-            non_empty_indices.append(i)
-            non_empty_texts.append(t)
-
-    results: list[str | None] = [None] * len(texts)
-
-    if not non_empty_texts:
-        return results
-
-    if len(non_empty_texts) == 1:
-        # Single item — just use translate_single_browser directly
-        translated = await translate_single_browser(
-            non_empty_texts[0], target_lang=target_lang, source_lang=source_lang, pool=pool
-        )
-        results[non_empty_indices[0]] = translated
-        return results
-
-    # Build separator-delimited block.
-    # Separator sits *between* adjacent texts, numbered after the preceding text
-    # (i.e. <<<SEP:2>>> means "separator before segment 2").
-    block_parts: list[str] = []
-    for i, text in enumerate(non_empty_texts):
-        block_parts.append(text)
-        if i < len(non_empty_texts) - 1:
-            block_parts.append(_SEP_FMT.format(n=i + 2))
-    block = "\n\n".join(block_parts)
-
-    logger.debug(
-        "browser_translation: translate_multi — sending %d texts as delimited block (%d chars)",
-        len(non_empty_texts),
-        len(block),
-    )
-
-    raw = await translate_single_browser(
-        block, target_lang=target_lang, source_lang=source_lang, pool=pool
-    )
-
-    if raw is None:
-        logger.warning(
-            "browser_translation: translate_multi — browser returned None, falling back to individual calls"
-        )
-    else:
-        segments = _try_split_segments(raw, len(non_empty_texts))
-        if segments is not None:
-            for idx, seg in zip(non_empty_indices, segments, strict=False):
-                results[idx] = seg if seg else None
-            logger.debug(
-                "browser_translation: translate_multi — separator split OK, %d segments",
-                len(segments),
-            )
-            return results
-
-        logger.warning(
-            "browser_translation: translate_multi — separator count mismatch "
-            "(expected %d); falling back to individual calls",
-            len(non_empty_texts),
-        )
-
-    # Fallback: translate each non-empty text individually
-    for idx, text in zip(non_empty_indices, non_empty_texts, strict=False):
-        translated = await translate_single_browser(
-            text, target_lang=target_lang, source_lang=source_lang, pool=pool
-        )
-        results[idx] = translated
-
-    return results
-
-
 # ── Fan-out parallel batch translation ────────────────────────────────────────
 async def translate_batch_browser_parallel(
     texts: list[str],
     target_lang: str,
     source_lang: str = "en",
-    multi_size: int = 8,
     on_result: Callable[[int, str | None], Awaitable[None]] | None = None,
     pool: BrowserSessionPool | None = None,
     is_cancelled: Callable[[], bool] | None = None,
 ) -> list[str | None]:
-    """Translate a list of texts in parallel micro-batches via translate_multi_browser.
+    """Translate a list of texts in parallel using the browser session pool.
 
-    Partitions texts into chunks of `multi_size`, then fans them out via
-    asyncio.gather. The BrowserSessionPool semaphore limits true concurrency to
-    pool_size. For each resolved item, the optional `on_result(global_index, text)`
-    async callback is fired immediately (used for interrupt-resilient DB saves).
+    Fans out one coroutine per non-empty text via asyncio.gather. The
+    BrowserSessionPool semaphore limits true concurrency to pool_size (default 10).
+    For each resolved item, the optional on_result(global_index, text) async
+    callback is fired immediately (used for interrupt-resilient DB saves).
 
     Returns a list of the same length as input.
     """
@@ -890,41 +757,34 @@ async def translate_batch_browser_parallel(
 
     results: list[str | None] = [None] * len(texts)
 
-    async def process_batch(start: int, chunk: list[str]) -> None:
-        translated_chunk = await translate_multi_browser(
-            chunk, target_lang=target_lang, source_lang=source_lang, pool=pool
+    async def translate_one(i: int, text: str) -> None:
+        if is_cancelled is not None and is_cancelled():
+            return
+        translated = await translate_single_browser(
+            text, target_lang=target_lang, source_lang=source_lang, pool=pool
         )
-        for local_i, translated in enumerate(translated_chunk):
-            global_i = start + local_i
-            results[global_i] = translated
-            if on_result is not None:
-                await on_result(global_i, translated)
+        results[i] = translated
+        if on_result is not None:
+            await on_result(i, translated)
 
-    num_batches = (len(texts) + multi_size - 1) // multi_size
+    non_empty_count = sum(1 for t in texts if t and t.strip())
+    pool_size = pool._pool_size if pool is not None else _POOL_SIZE
     logger.info(
-        "browser_translation: parallel batch — %d texts → %d micro-batches of size %d → %r",
+        "browser_translation: parallel batch — %d texts (%d non-empty) → %r (pool_size=%d)",
         len(texts),
-        num_batches,
-        multi_size,
+        non_empty_count,
         target_lang,
+        pool_size,
     )
 
-    for start in range(0, len(texts), multi_size):
-        if is_cancelled is not None and is_cancelled():
-            logger.info(
-                "browser_translation: cancellation requested, stopping parallel batch at %d/%d",
-                start,
-                len(texts),
-            )
-            break
-        chunk = texts[start : start + multi_size]
-        await process_batch(start, chunk)
+    tasks = [translate_one(i, text) for i, text in enumerate(texts) if text and text.strip()]
+    await asyncio.gather(*tasks)
 
     success_count = sum(1 for r in results if r is not None)
     logger.info(
         "browser_translation: parallel batch complete — %d/%d succeeded → %r",
         success_count,
-        len(texts),
+        non_empty_count,
         target_lang,
     )
     return results

@@ -377,9 +377,7 @@ class TestCancelledErrorHandling:
                 return_value=[("city", "cty_test", "name", "ar", "Test City")],
             ),
         ):
-            await _run_bulk_translation_job(
-                "btj_cancel_test01", multi_size=1, cancel_event=cancel_event
-            )
+            await _run_bulk_translation_job("btj_cancel_test01", cancel_event=cancel_event)
 
         with Session(test_engine) as s:
             result = s.exec(
@@ -418,9 +416,7 @@ class TestCancelledErrorHandling:
                 return_value=[("city", "cty_test2", "name", "ar", "Test City 2")],
             ),
         ):
-            await _run_bulk_translation_job(
-                "btj_shutdown_test01", multi_size=1, cancel_event=cancel_event
-            )
+            await _run_bulk_translation_job("btj_shutdown_test01", cancel_event=cancel_event)
 
         with Session(test_engine) as s:
             result = s.exec(
