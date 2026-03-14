@@ -242,6 +242,80 @@ python scripts/generate_seo.py --generate            # generate slugs + meta
 python scripts/generate_seo.py --translate           # translate to all 5 languages (requires GOOGLE_CLOUD_PROJECT)
 ```
 
+### Bulk translate content (bulktranslator.com workflow)
+
+Translates place names, descriptions, and addresses into AR, HI, ML, TE using [bulktranslator.com](https://bulktranslator.com) via a Playwright browser session, then imports results directly into the DB.
+
+#### Prerequisites
+
+```bash
+pip install playwright requests
+playwright install chromium
+```
+
+#### Step 1 — export untranslated rows
+
+```bash
+curl -s -H "Authorization: Bearer <token>" \
+  "http://127.0.0.1:3000/api/v1/admin/content-translations/export-txt" \
+  -o scripts/untranslated.txt
+```
+
+#### Step 2 — run the translator
+
+```bash
+python scripts/translate_bulktranslator.py scripts/untranslated.txt \
+    --batch-size 150 \
+    --concurrency 3 \
+    --api-url http://127.0.0.1:3000/api/v1 \
+    --admin-email admin@example.com \
+    --admin-password MyPass1!
+```
+
+**Phase 1 — scraping:** Opens `--concurrency` browser tabs in parallel, submits batches of `--batch-size` source lines to bulktranslator.com, and appends translated lines to local audit files:
+
+```
+translated_ar.txt  translated_hi.txt  translated_ml.txt  translated_te.txt
+```
+
+**Phase 2 — DB import:** After all scraping completes, reads the 4 txt files and POSTs them to `POST /admin/content-translations/import-txt` in 500-row chunks. All 4 languages run concurrently.
+
+#### All flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--batch-size` | `50` | Lines per browser submission |
+| `--concurrency` | `3` | Parallel browser tabs |
+| `--start-batch` | `1` | Skip to batch N (resume after failure) |
+| `--limit` | all | Process only the first N source lines |
+| `--output-dir` | `.` | Directory for `translated_*.txt` files |
+| `--api-url` | `$CATALOG_API_URL` | Catalog API base URL |
+| `--admin-email` | `$ADMIN_EMAIL` | Admin account email |
+| `--admin-password` | `$ADMIN_PASSWORD` | Admin account password |
+
+Credentials can also be set via env vars `CATALOG_API_URL`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+
+#### Resuming after a failure
+
+If the script stops mid-run, the txt files already contain everything translated so far. Resume from the next batch:
+
+```bash
+python scripts/translate_bulktranslator.py scripts/untranslated.txt \
+    --start-batch 42 --api-url ...
+```
+
+#### Finding missing translations
+
+After a run, check which source lines were never translated (e.g. due to line-count mismatches from the translation site):
+
+```bash
+python scripts/find_missing_translations.py scripts/untranslated.txt
+# outputs missing_ar.txt, missing_hi.txt, etc.
+
+# re-run only the missing lines
+python scripts/translate_bulktranslator.py scripts/missing_ar.txt --api-url ...
+```
+
 ## Directory Structure
 
 ```
