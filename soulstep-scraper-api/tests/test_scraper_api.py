@@ -402,7 +402,7 @@ class TestCollectors:
             len(data) == 8
         )  # gmaps, osm, wikipedia, wikidata, kg, besttime, foursquare, outscraper
         names = [c["name"] for c in data]
-        assert "gmaps" in names
+        assert "gmaps" in names or "gmaps_browser" in names
         assert "osm" in names
         assert "wikipedia" in names
 

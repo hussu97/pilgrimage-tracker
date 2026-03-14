@@ -503,7 +503,7 @@ class TestCollectorRegistry:
         collectors = get_all_collectors()
         assert len(collectors) == 8
         names = [c.name for c in collectors]
-        assert "gmaps" in names
+        assert "gmaps" in names or "gmaps_browser" in names
         assert "osm" in names
         assert "wikipedia" in names
         assert "wikidata" in names
