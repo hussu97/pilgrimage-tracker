@@ -372,6 +372,15 @@ class BrowserGmapsCollector(BaseCollector):
                 data.get("lat") or 0,
                 data.get("lng") or 0,
             )
+
+            # Capture images from the browser context (avoids separate download phase)
+            try:
+                from app.config import settings as _cfg
+
+                data["_image_bytes"] = await self._capture_page_images(page, _cfg.max_photos)
+            except Exception:
+                data["_image_bytes"] = []
+
             return data
 
         except (BlockedError, CircuitOpenError):
@@ -464,6 +473,79 @@ class BrowserGmapsCollector(BaseCollector):
             return reviews if isinstance(reviews, list) else []
         except Exception:
             return []
+
+    async def _capture_page_images(self, page, max_photos: int) -> list[bytes]:
+        """Capture image bytes loaded on the current page from Google photo CDN.
+
+        Uses page.evaluate() to re-fetch the top N photo CDN URLs that the browser
+        has already loaded, then returns raw bytes. Called after page has settled.
+        """
+        from app.config import settings as _settings
+
+        n = max_photos or _settings.max_photos
+
+        try:
+            # Collect src attributes of images matching Google's photo CDN pattern
+            raw_urls: list[str] = await page.evaluate(
+                r"""(n) => {
+                    const imgs = Array.from(document.querySelectorAll('img'));
+                    const seen = new Set();
+                    const results = [];
+                    for (const img of imgs) {
+                        const src = img.src || img.dataset.src || '';
+                        if (
+                            !seen.has(src) &&
+                            src &&
+                            (src.includes('lh3.googleusercontent.com') ||
+                             src.includes('maps.googleapis.com/maps/api/place/photo')) &&
+                            img.naturalWidth > 100 &&
+                            img.naturalHeight > 100
+                        ) {
+                            seen.add(src);
+                            results.push(src);
+                            if (results.length >= n) break;
+                        }
+                    }
+                    return results;
+                }""",
+                n,
+            )
+        except Exception:
+            raw_urls = []
+
+        if not raw_urls:
+            return []
+
+        # Re-fetch each URL from within the browser context (already authenticated/cookied)
+        blobs: list[bytes] = []
+        for url in raw_urls[:n]:
+            try:
+                b64: str | None = await page.evaluate(
+                    r"""async (url) => {
+                        try {
+                            const resp = await fetch(url, {cache: 'force-cache'});
+                            if (!resp.ok) return null;
+                            const buf = await resp.arrayBuffer();
+                            let binary = '';
+                            const bytes = new Uint8Array(buf);
+                            for (let i = 0; i < bytes.byteLength; i++) {
+                                binary += String.fromCharCode(bytes[i]);
+                            }
+                            return btoa(binary);
+                        } catch(e) { return null; }
+                    }""",
+                    url,
+                )
+                if b64:
+                    import base64
+
+                    raw = base64.b64decode(b64)
+                    if len(raw) > 2048:  # > 2 KB → real photo, not icon
+                        blobs.append(raw)
+            except Exception:
+                pass
+
+        return blobs
 
     def _extract_collector_result(self, raw: dict, place_code: str) -> CollectorResult:
         """Convert raw browser data into a CollectorResult."""

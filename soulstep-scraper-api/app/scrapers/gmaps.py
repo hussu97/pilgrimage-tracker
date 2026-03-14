@@ -550,6 +550,38 @@ def _flush_detail_buffer(
             state=details.get("state"),
             country=details.get("country"),
         )
+
+        # Handle browser-captured image bytes: upload to GCS or store as blobs
+        image_bytes: list[bytes] = response.pop("_image_bytes", None) or []
+        if image_bytes:
+            from app.services.gcs import is_gcs_configured
+            from app.services.gcs import upload_image_bytes as gcs_upload
+
+            place_code = details["place_code"]
+            if is_gcs_configured():
+                gcs_urls = []
+                for idx, img_data in enumerate(image_bytes):
+                    url = gcs_upload(place_code, idx, img_data)
+                    if url:
+                        gcs_urls.append(url)
+                if gcs_urls:
+                    raw = dict(scraped_place.raw_data or {})
+                    raw["image_urls"] = gcs_urls
+                    raw.pop("image_blobs", None)
+                    scraped_place.raw_data = raw
+            else:
+                # GCS not configured — store as base64 blobs (skip httpx download)
+                import base64 as _b64
+
+                blobs = [
+                    {"data": _b64.b64encode(b).decode("ascii"), "mime_type": "image/jpeg"}
+                    for b in image_bytes
+                ]
+                raw = dict(scraped_place.raw_data or {})
+                raw["image_blobs"] = blobs
+                raw["image_urls"] = []
+                scraped_place.raw_data = raw
+
         session.add(scraped_place)
 
         raw_record = RawCollectorData(
@@ -789,38 +821,54 @@ async def fetch_place_details(
             async with fetch_sem:
                 return await _fetch_worker(place_name)
 
-        results = await asyncio.gather(
-            *[_bounded_fetch(pn) for pn in to_fetch], return_exceptions=True
-        )
+        # Launch all fetch tasks (concurrency still governed by fetch_sem)
+        tasks = [asyncio.ensure_future(_bounded_fetch(pn)) for pn in to_fetch]
 
-    # Cancellation check and buffer flush (synchronous — single-threaded)
-    session.expire(run)
-    session.refresh(run)
-    if run.status == "cancelled":
-        logger.warning("Run %s was cancelled during detail fetching", run_code)
-        return
+        # Process results incrementally as they arrive — this makes processed_items
+        # tick up in real time so the admin UI progress bar updates every batch.
+        processed_since_cancel_check = 0
+        CANCEL_CHECK_INTERVAL = flush_batch_size * 3
 
-    for result in results:
-        if isinstance(result, Exception):
-            logger.warning("Detail fetch task error: %s", result)
-            counter.increment()
-            continue
+        for coro in asyncio.as_completed(tasks):
+            try:
+                result = await coro
+            except Exception as exc:
+                logger.warning("Detail fetch task error: %s", exc)
+                counter.increment()
+                continue
 
-        place_name, details, response, error = result
+            if isinstance(result, Exception):
+                logger.warning("Detail fetch task error: %s", result)
+                counter.increment()
+                continue
 
-        if error is not None:
-            logger.warning("Error fetching %s: %s", place_name, error)
-            counter.increment()
-            continue
+            place_name, details, response, error = result
 
-        buffer.append((place_name, details, response))
+            if error is not None:
+                logger.warning("Error fetching %s: %s", place_name, error)
+                counter.increment()
+                continue
 
-        if len(buffer) >= flush_batch_size:
+            buffer.append((place_name, details, response))
+
+            if len(buffer) >= flush_batch_size:
+                _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
+                buffer.clear()
+
+            # Periodic cancellation check so we don't hold locks until all fetches finish
+            processed_since_cancel_check += 1
+            if processed_since_cancel_check >= CANCEL_CHECK_INTERVAL:
+                processed_since_cancel_check = 0
+                session.expire(run)
+                session.refresh(run)
+                if run.status == "cancelled":
+                    logger.warning("Run %s was cancelled during detail fetching", run_code)
+                    for t in tasks:
+                        t.cancel()
+                    return
+
+        if buffer:
             _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
-            buffer.clear()
-
-    if buffer:
-        _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
 
     logger.info(
         "=== Details Fetch Summary === fresh=%d  cached=%d  total=%d",
@@ -929,3 +977,11 @@ async def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> No
         session.commit()
 
     await download_place_images(run_code, _img_engine)
+
+    # Upload blobs to GCS when configured (API mode)
+    from app.services.gcs import is_gcs_configured
+
+    if is_gcs_configured():
+        from app.collectors.gmaps import upload_images_to_gcs
+
+        await upload_images_to_gcs(run_code, _img_engine)

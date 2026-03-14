@@ -48,6 +48,13 @@ class Settings:
     # ── GCP (Cloud Run) ───────────────────────────────────────────────────────
     google_cloud_project: str = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
 
+    # ── GCS image storage ─────────────────────────────────────────────────────
+    # When set, scraped images are uploaded to this GCS bucket and GCS URLs are
+    # stored instead of base64 blobs. Leave blank to use the default base64 path.
+    gcs_bucket_name: str = os.environ.get("GCS_BUCKET_NAME", "")
+    # Prefix (folder) within the bucket for place images.
+    gcs_image_prefix: str = os.environ.get("GCS_IMAGE_PREFIX", "places")
+
     # ── Concurrency (configurable via env for tuning) ─────────────────────────
     # Max concurrent Google Places searchNearby calls during discovery.
     discovery_concurrency: int = int(os.environ.get("SCRAPER_DISCOVERY_CONCURRENCY", "10"))

@@ -193,6 +193,69 @@ async def download_place_images(run_code: str, engine, max_workers: int | None =
     )
 
 
+async def upload_images_to_gcs(run_code: str, engine) -> None:
+    """Phase 3b (optional): Upload stored image blobs to GCS and replace with public URLs.
+
+    Called after download_place_images() when GCS_BUCKET_NAME is set.
+    For each ScrapedPlace that has image_blobs, uploads each blob to GCS,
+    stores the public URL in image_urls, and clears image_blobs.
+
+    Safe to skip when GCS is not configured — base64 blobs remain in raw_data.
+    """
+    from app.db.models import ScrapedPlace
+    from app.services.gcs import is_gcs_configured, upload_image_bytes
+
+    if not is_gcs_configured():
+        return
+
+    import base64
+
+    with Session(engine) as session:
+        places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
+
+    uploaded_count = 0
+    failed_count = 0
+
+    for place in places:
+        raw = place.raw_data or {}
+        blobs = raw.get("image_blobs") or []
+        if not blobs:
+            continue
+
+        gcs_urls = []
+        for idx, blob in enumerate(blobs):
+            try:
+                data = base64.b64decode(blob["data"])
+                mime_type = blob.get("mime_type", "image/jpeg")
+                url = upload_image_bytes(place.place_code, idx, data, mime_type)
+                if url:
+                    gcs_urls.append(url)
+                    uploaded_count += 1
+                else:
+                    failed_count += 1
+            except Exception as exc:
+                logger.warning("GCS upload error for %s idx=%d: %s", place.place_code, idx, exc)
+                failed_count += 1
+
+        if gcs_urls:
+            with Session(engine) as session:
+                db_place = session.get(ScrapedPlace, place.id)
+                if db_place:
+                    r = dict(db_place.raw_data or {})
+                    r["image_urls"] = gcs_urls
+                    r["image_blobs"] = []
+                    db_place.raw_data = r
+                    session.add(db_place)
+                    session.commit()
+
+    logger.info(
+        "GCS upload complete: %d uploaded, %d failed (run=%s)",
+        uploaded_count,
+        failed_count,
+        run_code,
+    )
+
+
 async def cleanup_image_downloads(
     engine,
     api_key: str,
