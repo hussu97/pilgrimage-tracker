@@ -36,7 +36,7 @@ Copy `.env.example` to `.env` and fill in values. Key variables:
 | `GOOGLE_MAPS_API_KEY` | No | — | Required for place search autocomplete |
 | `GOOGLE_CLOUD_PROJECT` | No | — | GCP project ID — required for GCS image backend and Cloud Translation |
 | `TRANSLATION_BACKEND` | No | `api` | `api` or `browser` |
-| `BROWSER_POOL_SIZE` | No | `10` | Concurrent browser contexts (browser translation only) |
+| `BROWSER_POOL_SIZE` | No | `20` | Concurrent browser contexts (browser translation only) |
 | `BROWSER_MAX_TRANSLATIONS` | No | `50` | Translations per context before recycling |
 | `BROWSER_HEADLESS` | No | `true` | Browser headless mode |
 | `IMAGE_STORAGE` | No | `blob` | `blob` (DB) or `gcs` (Google Cloud Storage) |

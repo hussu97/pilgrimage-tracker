@@ -5,7 +5,7 @@ It simulates a real user interacting with translate.google.com via Playwright,
 avoiding API costs at the expense of speed and fragility.
 
 Environment variables:
-    BROWSER_POOL_SIZE          — concurrent browser contexts (default 10)
+    BROWSER_POOL_SIZE          — concurrent browser contexts (default 20)
     BROWSER_MAX_TRANSLATIONS   — translations per context before recycling (default 50)
     BROWSER_HEADLESS           — run headless (default true)
 """
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 _POOL_SIZE = int(os.environ.get("BROWSER_POOL_SIZE", "20"))
-_MAX_TRANSLATIONS = int(os.environ.get("BROWSER_MAX_TRANSLATIONS", "50"))
+_MAX_TRANSLATIONS = int(os.environ.get("BROWSER_MAX_TRANSLATIONS", "20"))
 _HEADLESS = os.environ.get("BROWSER_HEADLESS", "true").lower() != "false"
 
 # ── Output selectors (ordered by preference) ──────────────────────────────────
