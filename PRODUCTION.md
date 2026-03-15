@@ -487,7 +487,7 @@ PROJECT_NUMBER=$(gcloud projects describe PROJECT_ID --format="value(projectNumb
 SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 ```
 
-### Cleanup orphaned images (daily 2 AM UTC)
+### Cleanup orphaned images (weekly Mondays 5 AM UTC)
 
 ```bash
 gcloud run jobs create cleanup-job \
@@ -498,15 +498,15 @@ gcloud run jobs create cleanup-job \
   --command "python" --args="-m,app.jobs.cleanup_orphaned_images" \
   --max-retries 1 --task-timeout 300
 
-gcloud scheduler jobs create http run-cleanup-job \
-  --location REGION --schedule "0 2 * * *" --time-zone "UTC" \
-  --uri "https://REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/PROJECT_ID/jobs/cleanup-job:run" \
+gcloud scheduler jobs create http weekly-cleanup-job \
+  --location REGION --schedule "0 5 * * 1" --time-zone "UTC" \
+  --uri "https://run.googleapis.com/v2/projects/PROJECT_ID/locations/REGION/jobs/cleanup-job:run" \
   --http-method POST \
-  --oidc-service-account-email "${SERVICE_ACCOUNT}" \
-  --oidc-token-audience "https://REGION-run.googleapis.com/"
+  --oauth-service-account-email "${SERVICE_ACCOUNT}" \
+  --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform"
 ```
 
-### Timezone backfill (one-off, run manually after adding places)
+### Timezone backfill (weekly, Sundays 3 AM UTC)
 
 ```bash
 gcloud run jobs create backfill-timezones \
@@ -517,7 +517,16 @@ gcloud run jobs create backfill-timezones \
   --command "python" --args="-m,app.jobs.backfill_timezones" \
   --max-retries 1
 
+# Run once manually if needed
 gcloud run jobs execute backfill-timezones --region REGION --wait
+
+# Scheduled weekly run
+gcloud scheduler jobs create http weekly-backfill-timezones \
+  --location REGION --schedule "0 3 * * 0" --time-zone "UTC" \
+  --uri "https://run.googleapis.com/v2/projects/PROJECT_ID/locations/REGION/jobs/backfill-timezones:run" \
+  --http-method POST \
+  --oauth-service-account-email "${SERVICE_ACCOUNT}" \
+  --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform"
 ```
 
 ### Daily place sync (sync-places, daily 2 AM UTC)
@@ -541,18 +550,18 @@ gcloud projects add-iam-policy-binding PROJECT_ID \
   --member="serviceAccount:${SERVICE_ACCOUNT}" \
   --role="roles/run.invoker"
 
-# Cloud Run Jobs require OIDC tokens (not OAuth2) — use --oidc-service-account-email
+# Cloud Run Jobs v2 API requires OAuth2 tokens — use --oauth-service-account-email
 gcloud scheduler jobs create http daily-sync-places \
   --location REGION --schedule "0 2 * * *" --time-zone "UTC" \
-  --uri "https://REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/PROJECT_ID/jobs/sync-places:run" \
+  --uri "https://run.googleapis.com/v2/projects/PROJECT_ID/locations/REGION/jobs/sync-places:run" \
   --http-method POST \
-  --oidc-service-account-email "${SERVICE_ACCOUNT}" \
-  --oidc-token-audience "https://REGION-run.googleapis.com/"
+  --oauth-service-account-email "${SERVICE_ACCOUNT}" \
+  --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform"
 ```
 
 > **IAM note:** The `roles/run.invoker` grant above is required. Without it Cloud Scheduler gets a 403 when
-> triggering the job. Cloud Run Jobs also require **OIDC** auth (`--oidc-*` flags), not OAuth2
-> (`--oauth-service-account-email`) — the latter will silently succeed at job creation but fail at runtime.
+> triggering the job. The v2 Cloud Run Admin API (`run.googleapis.com/v2/...`) requires **OAuth2** auth
+> (`--oauth-service-account-email` + `--oauth-token-scope`), not OIDC — OIDC is only for invoking Cloud Run services.
 
 ### Daily content translation (translate-content, daily 4 AM UTC)
 
@@ -572,10 +581,10 @@ gcloud run jobs create translate-content \
 
 gcloud scheduler jobs create http daily-translate-content \
   --location REGION --schedule "0 4 * * *" --time-zone "UTC" \
-  --uri "https://REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/PROJECT_ID/jobs/translate-content:run" \
+  --uri "https://run.googleapis.com/v2/projects/PROJECT_ID/locations/REGION/jobs/translate-content:run" \
   --http-method POST \
-  --oidc-service-account-email "${SERVICE_ACCOUNT}" \
-  --oidc-token-audience "https://REGION-run.googleapis.com/"
+  --oauth-service-account-email "${SERVICE_ACCOUNT}" \
+  --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform"
 ```
 
 ### Run any job manually
