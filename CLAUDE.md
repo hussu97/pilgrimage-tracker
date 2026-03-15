@@ -316,6 +316,23 @@ Every component that renders a place item (list row, card, carousel tile) must a
 )}
 ```
 
+## 25. Environment Variable Documentation
+
+**ENV_VARS.md** is the single source of truth for all environment variables across every SoulStep service. The `.env.example` file in each service directory is the local-dev mirror of that document — they must stay identical in content at all times.
+
+**When adding, renaming, removing, or changing the default/description of any env var:**
+1. Update `ENV_VARS.md` — add or modify the variable row in the correct service section (Mandatory / Optional / Local Dev Only).
+2. Update the corresponding `.env.example` in the service directory to match.
+3. No discrepancy is allowed between `ENV_VARS.md` and the `.env.example` files.
+
+**Triggers — update both files when you:**
+- Add a new env var to any service
+- Rename or remove an existing env var
+- Change a variable's default value or description
+- Move a variable between Mandatory / Optional / Local Dev Only categories
+
+**Do not** add env var documentation anywhere else (e.g. a new table in PRODUCTION.md or README). Direct readers to ENV_VARS.md instead.
+
 ## 16. Admin Pagination Standard
 All paginated tables in `apps/soulstep-admin-web` must use the following page size options, in this exact order:
 
