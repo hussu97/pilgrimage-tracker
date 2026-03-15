@@ -95,7 +95,7 @@ def _cell_size_to_zoom(
     # Solve: cell_size_km = tiles_across × (360 / 2^Z) × 111 × cos(lat)
     # → 2^Z = tiles_across × 360 × 111 × cos(lat) / cell_size_km
     z = math.log2(tiles_across * 360.0 * 111.0 * cos_lat / cell_size_km)
-    return max(12, min(22, math.ceil(z)))
+    return max(12, min(22, math.floor(z)))
 
 
 def _extract_place_ids_from_links(hrefs: list[str]) -> list[str]:

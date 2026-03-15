@@ -165,10 +165,10 @@ def test_zoom_3km_cell_hyderabad_higher_than_old_zoom12():
 
 
 def test_zoom_3km_cell_hyderabad_within_range():
-    """3 km cell at Hyderabad (~17°N) should land at zoom 15 or 16."""
+    """3 km cell at Hyderabad (~17°N) should land at zoom 15 (floor keeps viewport >= cell)."""
     cell = _make_cell(17.3, 78.5, 3.0)
     zoom = _cell_size_to_zoom(*cell)
-    assert 15 <= zoom <= 16, f"Expected zoom 15–16 for 3km at 17°N, got {zoom}"
+    assert zoom == 15, f"Expected zoom 15 for 3km at 17°N, got {zoom}"
 
 
 def test_zoom_1km_cell_higher_than_3km_cell():
