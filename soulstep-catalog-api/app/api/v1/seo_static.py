@@ -12,19 +12,18 @@ llms.txt:    Structured Markdown file describing SoulStep for AI chatbots.
 from __future__ import annotations
 
 import logging
-import os
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlmodel import func, select
 
-from app.core.config import FRONTEND_URL
+from app.core.config import API_BASE_URL, FRONTEND_URL
 from app.db.models import Place
 from app.db.session import SessionDep
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-_API_BASE = os.environ.get("API_BASE_URL", "http://localhost:3000")
+_API_BASE = API_BASE_URL
 
 
 # ── robots.txt ────────────────────────────────────────────────────────────────

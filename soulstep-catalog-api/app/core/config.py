@@ -1,5 +1,12 @@
+import logging
 import os
 import re
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_jwt_expire(value: str) -> int:
@@ -24,7 +31,14 @@ def _parse_jwt_expire(value: str) -> int:
     )
 
 
-SECRET_KEY = os.environ.get("JWT_SECRET", "dev-secret-change-in-production")
+_JWT_SECRET_DEFAULT = "dev-secret-change-in-production"
+SECRET_KEY = os.environ.get("JWT_SECRET", _JWT_SECRET_DEFAULT)
+if SECRET_KEY == _JWT_SECRET_DEFAULT:
+    logger.warning(
+        "JWT_SECRET is using the insecure default value. "
+        "Set a strong random secret in production: "
+        'python -c "import secrets; print(secrets.token_hex(32))"'
+    )
 # Access token lifetime. Default: 30 minutes.
 JWT_EXPIRE = _parse_jwt_expire(os.environ.get("JWT_EXPIRE", "30m"))
 # Refresh token lifetime. Default: 30 days.
@@ -35,6 +49,13 @@ ALGORITHM = "HS256"
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "noreply@soul-step.org")
 RESET_URL_BASE = os.environ.get("RESET_URL_BASE", "http://localhost:5173")
+
+# Public URL of this API — used in RSS/Atom feeds, robots.txt sitemap, and llms.txt.
+API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:3000")
+
+# Database connection string. Defaults to local SQLite for development.
+_sqlite_url = "sqlite:///soulstep.db"
+DATABASE_URL = os.environ.get("DATABASE_URL", _sqlite_url)
 
 # Frontend URL (for OG share redirect)
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")

@@ -10,7 +10,6 @@ Environment variables:
 """
 
 import logging
-import os
 from contextvars import ContextVar
 
 # GCP trace context — populated per-request by the trace middleware in main.py.
@@ -86,9 +85,10 @@ class _TextFormatter(logging.Formatter):
 
 def setup_logging() -> None:
     """Configure the root logger based on LOG_LEVEL and LOG_FORMAT env vars."""
-    log_level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
-    log_level = getattr(logging, log_level_name, logging.INFO)
-    log_format = os.environ.get("LOG_FORMAT", "json").lower()
+    from app.core.config import LOG_FORMAT, LOG_LEVEL  # local import avoids circular at module load
+
+    log_level = getattr(logging, LOG_LEVEL.upper(), logging.INFO)
+    log_format = LOG_FORMAT.lower()
 
     # Remove any handlers already attached (e.g. from basicConfig or imports)
     root_logger = logging.getLogger()

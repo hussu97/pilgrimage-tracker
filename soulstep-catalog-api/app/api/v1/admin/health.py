@@ -1,11 +1,11 @@
 """Admin health / diagnostics endpoints."""
 
-import os
 import secrets
 
 from fastapi import APIRouter
 
 from app.api.deps import AdminDep
+from app.core.config import GCS_BUCKET_NAME, IMAGE_STORAGE
 
 router = APIRouter()
 
@@ -24,8 +24,8 @@ def gcs_health(admin: AdminDep):
 
     Returns a structured report so you can identify exactly where the chain breaks.
     """
-    image_storage = os.environ.get("IMAGE_STORAGE", "blob")
-    bucket_name = os.environ.get("GCS_BUCKET_NAME", "")
+    image_storage = IMAGE_STORAGE
+    bucket_name = GCS_BUCKET_NAME
 
     report: dict = {
         "IMAGE_STORAGE": image_storage,

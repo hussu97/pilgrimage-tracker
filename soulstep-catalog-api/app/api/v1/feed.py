@@ -11,7 +11,6 @@ Routes registered in main.py:
 from __future__ import annotations
 
 import logging
-import os
 from datetime import UTC, datetime
 from xml.etree import ElementTree as ET
 
@@ -19,14 +18,12 @@ from fastapi import APIRouter
 from fastapi.responses import Response
 from sqlmodel import select
 
-from app.core.config import FRONTEND_URL
+from app.core.config import API_BASE_URL, FRONTEND_URL
 from app.db.models import Place, PlaceSEO
 from app.db.session import SessionDep
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:3000")
 
 _FEED_TITLE = "SoulStep – New Sacred Sites"
 _FEED_DESCRIPTION = (
