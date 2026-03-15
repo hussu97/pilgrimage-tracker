@@ -33,6 +33,7 @@ from app.api.v1 import feed as feed_module  # noqa: E402
 from app.api.v1 import seo_static as seo_static_module  # noqa: E402
 from app.api.v1 import share as share_router_module  # noqa: E402
 from app.api.v1 import sitemap as sitemap_module  # noqa: E402
+from app.api.v1 import umami_proxy as umami_proxy_module  # noqa: E402
 from app.core import config  # noqa: E402
 from app.core.client_context import (  # noqa: E402
     ClientContext,
@@ -393,6 +394,7 @@ app.include_router(share_router_module.router, prefix="/share")
 app.include_router(sitemap_module.router)
 app.include_router(seo_static_module.router)
 app.include_router(feed_module.router)
+app.include_router(umami_proxy_module.router)
 
 # Prometheus metrics — exposes GET /metrics (excluded from OpenAPI schema)
 try:
