@@ -141,7 +141,7 @@ def score_place_quality(raw_data: dict) -> float:
     raw_data fields used:
       rating, user_rating_count  — added by build_place_data (direct fields)
       business_status            — added by build_place_data
-      image_urls, image_blobs    — photo count proxy
+      image_urls                 — photo count proxy
       has_editorial              — added by build_place_data
       website_url                — added by build_place_data
       opening_hours              — added by build_place_data
@@ -178,7 +178,7 @@ def score_place_quality(raw_data: dict) -> float:
 
     # ── 3. Photo count (0.15) — 3-tier (scraper fetches max 3 images) ───────────
     # 3+: best (1.0) | 2: medium (0.40) | 1: low (0.10) | 0: none (0.0)
-    photo_count = len(raw_data.get("image_urls") or []) + len(raw_data.get("image_blobs") or [])
+    photo_count = len(raw_data.get("image_urls") or [])
     if photo_count >= 3:
         score += 0.15
     elif photo_count >= 2:
@@ -262,7 +262,7 @@ def score_place_quality_breakdown(raw_data: dict) -> dict:
 
     # ── 3. Photo count (0.15) — 3-tier (scraper fetches max 3 images) ───────────
     # 3+: best (1.0) | 2: medium (0.40) | 1: low (0.10) | 0: none (0.0)
-    photo_count = len(raw_data.get("image_urls") or []) + len(raw_data.get("image_blobs") or [])
+    photo_count = len(raw_data.get("image_urls") or [])
     if photo_count >= 3:
         raw_3 = 1.0
     elif photo_count >= 2:

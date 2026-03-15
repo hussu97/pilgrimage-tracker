@@ -229,7 +229,7 @@ Opening hours are stored in **local time** (24-hour, as received from Google Map
 
 ### Image Storage
 
-Two backends controlled by `IMAGE_STORAGE` env var:
+**Catalog API** — two backends controlled by `IMAGE_STORAGE` env var:
 
 | Backend | Behavior |
 |---|---|
@@ -237,6 +237,8 @@ Two backends controlled by `IMAGE_STORAGE` env var:
 | `gcs` | Uploaded to GCS bucket; `blob_data` left NULL; served via public GCS URL |
 
 Service abstraction in `app/services/image_storage.py`. On Cloud Run, workload identity (ADC) handles GCS auth automatically.
+
+**Scraper API** — GCS is the only storage path. `GCS_BUCKET_NAME` is required. During Phase 3 (`download_place_images`), the scraper downloads each photo media URL and uploads directly to GCS; the public HTTPS URL is stored in `raw_data["image_urls"]`. No base64 blobs are produced. The sync payload always contains `image_urls` (GCS URLs). Both services use the same bucket and `images/places/` prefix.
 
 ### Translation
 

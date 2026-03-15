@@ -65,7 +65,6 @@ def _make_raw(
     user_rating_count=100,
     business_status="OPERATIONAL",
     image_urls=None,
-    image_blobs=None,
     has_editorial=True,
     website_url="https://example.com",
     opening_hours=None,
@@ -83,7 +82,6 @@ def _make_raw(
         "user_rating_count": user_rating_count,
         "business_status": business_status,
         "image_urls": image_urls or [],
-        "image_blobs": image_blobs or [],
         "has_editorial": has_editorial,
         "website_url": website_url,
         "opening_hours": opening_hours,
@@ -164,7 +162,7 @@ class TestScorePlaceQuality:
         """Photo score increases across 3 tiers: 0=none / 1=low / 2=medium / 3+=best."""
 
         def make(n):
-            return _make_raw(image_urls=[f"u{i}" for i in range(n)], image_blobs=[])
+            return _make_raw(image_urls=[f"u{i}" for i in range(n)])
 
         s0 = score_place_quality(make(0))  # none
         s1 = score_place_quality(make(1))  # low

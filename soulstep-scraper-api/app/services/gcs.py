@@ -8,6 +8,8 @@ URL format:   https://storage.googleapis.com/{bucket}/images/places/{hex}.jpg
 Using the same bucket + prefix as the catalog means scraped images land in the
 same folder as user-uploaded images — no separate folder, no duplication.
 Uniform bucket-level access is assumed (no per-object ACLs / make_public()).
+
+GCS is always required for the scraper — set GCS_BUCKET_NAME in your environment.
 """
 
 from __future__ import annotations
@@ -29,25 +31,21 @@ _EXT_MAP = {
 }
 
 
-def is_gcs_configured() -> bool:
-    """Return True when GCS_BUCKET_NAME is set."""
-    from app.config import settings
-
-    return bool(settings.gcs_bucket_name)
-
-
 def upload_image_bytes(data: bytes, mime_type: str = "image/jpeg") -> str | None:
     """Upload image bytes to GCS and return the public HTTPS URL.
 
     Object path:  images/places/{hex16}.{ext}
-    Returns None if GCS is not configured or the upload fails.
-    Caller should fall back to base64 blob storage on None.
+    Raises RuntimeError if GCS_BUCKET_NAME is not configured.
+    Returns None if the upload fails (transient error).
     """
     from app.config import settings
 
     bucket_name = settings.gcs_bucket_name
     if not bucket_name:
-        return None
+        raise RuntimeError(
+            "GCS_BUCKET_NAME is not set. GCS is required for image storage. "
+            "Set GCS_BUCKET_NAME in your environment."
+        )
 
     ext = _EXT_MAP.get(mime_type, "jpg")
     object_name = f"{_PREFIX_PLACES}{secrets.token_hex(16)}.{ext}"
@@ -64,12 +62,6 @@ def upload_image_bytes(data: bytes, mime_type: str = "image/jpeg") -> str | None
         url = f"https://storage.googleapis.com/{bucket_name}/{object_name}"
         logger.debug("GCS upload OK: %s", url)
         return url
-    except ImportError:
-        logger.warning(
-            "google-cloud-storage not installed; falling back to base64 blob storage. "
-            "Install with: pip install google-cloud-storage"
-        )
-        return None
     except Exception as exc:
         logger.warning("GCS upload failed: %s", exc)
         return None

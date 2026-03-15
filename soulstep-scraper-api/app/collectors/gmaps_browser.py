@@ -720,7 +720,6 @@ class BrowserGmapsCollector(BaseCollector):
             "lng": lng,
             "address": address,
             "image_urls": photo_urls,
-            "image_blobs": [],
             "description": description,
             "website_url": response.get("website") or "",
             "opening_hours": opening_hours,

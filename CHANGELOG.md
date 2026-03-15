@@ -4,6 +4,24 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-15] — Remove blob image storage from scraper (GCS only)
+
+### Backend
+- **Scraper**: GCS is now the only image storage path — removed all base64 blob logic
+- Rewrote `download_place_images()` in `app/collectors/gmaps.py` to download photos and upload directly to GCS in one pass (Phase 3 + Phase 3b merged); GCS public URLs stored in `image_urls`
+- Deleted `upload_images_to_gcs()` and `cleanup_image_downloads()` from `app/collectors/gmaps.py`
+- Deleted `POST /cleanup/images` endpoint and `_run_cleanup_images_bg()` from `app/api/v1/scraper.py`
+- Simplified `_flush_detail_buffer()` in `app/scrapers/gmaps.py` — always uploads browser-captured bytes to GCS (removed blob fallback)
+- Removed Phase 3b blocks from `app/scrapers/gmaps.py` and `app/scrapers/gmaps_browser.py`
+- Simplified `build_sync_payloads()` in `app/db/scraper.py` — sync payload always uses `image_urls`; `image_blobs` removed
+- Removed `image_blobs` from `build_place_data()` return dicts in both collector files
+- Removed `image_blobs` from photo count in `app/pipeline/place_quality.py` (`score_place_quality` and `score_place_quality_breakdown`)
+- Updated `app/services/gcs.py`: removed `is_gcs_configured()`, `upload_image_bytes()` now raises `RuntimeError` when `GCS_BUCKET_NAME` is unset
+- `GCS_BUCKET_NAME` is now a required env var in `.env.example`, `README.md`, `PRODUCTION.md`, and `ARCHITECTURE.md`
+- Deleted `tests/test_image_cleanup.py`; updated `TestDownloadPlaceImages` to verify GCS URL storage
+
+---
+
 ## [2026-03-15] — Fix browser extractor lat/lng always 0
 
 ### Backend

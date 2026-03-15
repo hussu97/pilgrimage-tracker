@@ -811,6 +811,7 @@ Client-side error tracking: set `VITE_GLITCHTIP_DSN` in the web build (via GitHu
 | `GEMINI_API_KEY` | No | — | LLM tie-breaking for description selection |
 | `BESTTIME_API_KEY` | No | — | BestTime collector |
 | `FOURSQUARE_API_KEY` | No | — | Foursquare collector |
+| `GCS_BUCKET_NAME` | Yes | — | GCS bucket for image storage — use the **same bucket as the catalog API**. Scraped images are uploaded to `images/places/` before sync; GCS URLs sent in payload. |
 | `OUTSCRAPER_API_KEY` | No | — | Outscraper collector |
 | `SCRAPER_TRIGGER_SEO_AFTER_SYNC` | No | `false` | Auto-trigger SEO generation after sync |
 | `SCRAPER_CATALOG_ADMIN_TOKEN` | No | — | Admin JWT for auto-SEO |

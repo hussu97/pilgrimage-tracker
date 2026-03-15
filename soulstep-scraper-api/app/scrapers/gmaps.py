@@ -551,34 +551,19 @@ def _flush_detail_buffer(
             country=details.get("country"),
         )
 
-        # Handle browser-captured image bytes: upload to GCS or store as blobs
+        # Handle browser-captured image bytes: upload directly to GCS
         image_bytes: list[bytes] = response.pop("_image_bytes", None) or []
         if image_bytes:
-            from app.services.gcs import is_gcs_configured
             from app.services.gcs import upload_image_bytes as gcs_upload
 
-            if is_gcs_configured():
-                gcs_urls = []
-                for img_data in image_bytes:
-                    url = gcs_upload(img_data)
-                    if url:
-                        gcs_urls.append(url)
-                if gcs_urls:
-                    raw = dict(scraped_place.raw_data or {})
-                    raw["image_urls"] = gcs_urls
-                    raw.pop("image_blobs", None)
-                    scraped_place.raw_data = raw
-            else:
-                # GCS not configured — store as base64 blobs (skip httpx download)
-                import base64 as _b64
-
-                blobs = [
-                    {"data": _b64.b64encode(b).decode("ascii"), "mime_type": "image/jpeg"}
-                    for b in image_bytes
-                ]
+            gcs_urls = []
+            for img_data in image_bytes:
+                url = gcs_upload(img_data)
+                if url:
+                    gcs_urls.append(url)
+            if gcs_urls:
                 raw = dict(scraped_place.raw_data or {})
-                raw["image_blobs"] = blobs
-                raw["image_urls"] = []
+                raw["image_urls"] = gcs_urls
                 scraped_place.raw_data = raw
 
         session.add(scraped_place)
@@ -976,11 +961,3 @@ async def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> No
         session.commit()
 
     await download_place_images(run_code, _img_engine)
-
-    # Upload blobs to GCS when configured (API mode)
-    from app.services.gcs import is_gcs_configured
-
-    if is_gcs_configured():
-        from app.collectors.gmaps import upload_images_to_gcs
-
-        await upload_images_to_gcs(run_code, _img_engine)

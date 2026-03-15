@@ -48,14 +48,15 @@ class TestDownloadPlaceImages:
                 run_code=run_code,
                 place_code="gplc_test1",
                 name="Test Place",
-                raw_data={"image_urls": image_urls, "image_blobs": []},
+                raw_data={"image_urls": image_urls},
             )
             session.add(place)
             session.commit()
             session.refresh(place)
             return place.id
 
-    async def test_downloads_images_and_stores_blobs(self):
+    async def test_downloads_images_and_stores_gcs_urls(self):
+        """Images are downloaded then uploaded to GCS; GCS URLs stored in image_urls."""
         from app.collectors.gmaps import download_place_images
         from app.db.models import ScrapedPlace
 
@@ -72,7 +73,12 @@ class TestDownloadPlaceImages:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("app.collectors.gmaps.httpx.AsyncClient", return_value=mock_client):
+        _gcs_url = "https://storage.googleapis.com/bucket/images/places/abc123.jpg"
+
+        with (
+            patch("app.collectors.gmaps.httpx.AsyncClient", return_value=mock_client),
+            patch("app.services.gcs.upload_image_bytes", return_value=_gcs_url),
+        ):
             await download_place_images("run1", engine, max_workers=1)
 
         with Session(engine) as session:
@@ -80,24 +86,22 @@ class TestDownloadPlaceImages:
                 select(ScrapedPlace).where(ScrapedPlace.run_code == "run1")
             ).first()
             assert place is not None
-            assert place.raw_data["image_blobs"] != []
-            assert place.raw_data["image_urls"] == []
+            assert place.raw_data["image_urls"] == [_gcs_url]
+            assert "image_blobs" not in place.raw_data
 
-    async def test_skips_places_already_having_blobs(self):
-        """Places that already have image_blobs should not be re-downloaded."""
+    async def test_skips_places_already_having_gcs_urls(self):
+        """Places whose URLs already start with the GCS prefix are not re-processed."""
         from app.collectors.gmaps import download_place_images
         from app.db.models import ScrapedPlace
 
         engine = _make_engine()
+        _gcs_url = "https://storage.googleapis.com/bucket/images/places/existing.jpg"
         with Session(engine) as session:
             place = ScrapedPlace(
                 run_code="run2",
                 place_code="gplc_test2",
                 name="Already done",
-                raw_data={
-                    "image_urls": [],
-                    "image_blobs": [{"data": "abc", "mime_type": "image/jpeg"}],
-                },
+                raw_data={"image_urls": [_gcs_url]},
             )
             session.add(place)
             session.commit()
@@ -119,7 +123,7 @@ class TestDownloadPlaceImages:
         assert called == [], "Should not have made any HTTP requests"
 
     async def test_handles_download_failure_gracefully(self):
-        """A 404 response should result in no blobs stored but no crash."""
+        """A 404 response should result in no GCS URL stored but no crash."""
         from app.collectors.gmaps import download_place_images
         from app.db.models import ScrapedPlace
 
@@ -142,8 +146,9 @@ class TestDownloadPlaceImages:
             place = session.exec(
                 select(ScrapedPlace).where(ScrapedPlace.run_code == "run3")
             ).first()
-            # Blobs should still be empty since download failed
-            assert place.raw_data.get("image_blobs") == []
+            # image_urls unchanged (download failed, no GCS upload)
+            assert place.raw_data.get("image_urls") == ["http://example.com/missing.jpg"]
+            assert "image_blobs" not in place.raw_data
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -548,6 +553,6 @@ class TestBuildPlaceDataNoBlobStorage:
         ):
             result = collector.build_place_data(response, "gplc_X", "fake_key", None)
 
-        assert result["image_blobs"] == []
+        assert "image_blobs" not in result
         assert len(result["image_urls"]) == 1
         assert "abc" in result["image_urls"][0]

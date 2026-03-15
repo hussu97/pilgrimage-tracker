@@ -236,7 +236,6 @@ class TestBuildPlaceData:
             "lng",
             "address",
             "image_urls",
-            "image_blobs",
             "description",
             "website_url",
             "opening_hours",
@@ -272,7 +271,7 @@ class TestBuildPlaceData:
         assert result["lat"] == 25.2341
         assert result["lng"] == 55.3041
         assert result["business_status"] == "OPERATIONAL"
-        assert result["image_blobs"] == []
+        assert "image_blobs" not in result
         assert result["source"] == "gmaps_browser"
         assert result["has_editorial"] is False
 

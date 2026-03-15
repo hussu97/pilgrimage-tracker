@@ -306,8 +306,8 @@ class TestGmapsCollectorBuildPlaceData:
         assert place_data["description"] == "A historic mosque."
         assert place_data["website_url"] == "https://alaqsa.org"
         assert place_data["utc_offset_minutes"] == 180
-        # Images are stored as URLs only during detail fetch — blobs downloaded later
-        assert place_data["image_blobs"] == []
+        # Images are stored as URLs only — GCS upload happens in download_place_images()
+        assert "image_blobs" not in place_data
         assert len(place_data["image_urls"]) == 1
         assert len(place_data["external_reviews"]) == 1
         assert place_data["external_reviews"][0]["author_name"] == "Alice"
@@ -326,7 +326,7 @@ class TestGmapsCollectorBuildPlaceData:
                 response, "gplc_ChIJ123", "fake_key", mock_session
             )
 
-        assert place_data["image_blobs"] == []
+        assert "image_blobs" not in place_data
         assert len(place_data["image_urls"]) == 1  # URL always stored
 
     def test_build_place_data_image_exception(self):
@@ -343,7 +343,7 @@ class TestGmapsCollectorBuildPlaceData:
                 response, "gplc_ChIJ123", "fake_key", mock_session
             )
 
-        assert place_data["image_blobs"] == []
+        assert "image_blobs" not in place_data
         assert len(place_data["image_urls"]) == 1
 
     def test_build_place_data_unknown_religion_fallback(self):

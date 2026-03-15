@@ -918,11 +918,3 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
         session.commit()
 
     await download_place_images(run_code, _engine)
-
-    # Upload blobs to GCS when configured (browser mode)
-    from app.services.gcs import is_gcs_configured
-
-    if is_gcs_configured():
-        from app.collectors.gmaps import upload_images_to_gcs
-
-        await upload_images_to_gcs(run_code, _engine)
