@@ -11,19 +11,33 @@ _database_url = os.environ.get("DATABASE_URL")
 
 if _database_url:
     db_url = _database_url
-    # Pool sized for enrichment concurrency (default 10 workers) plus HTTP
-    # request handlers running simultaneously.  Configurable via env vars so
-    # operators can tune without a code deploy.
-    # Budget: pool_size + max_overflow = max concurrent connections this process uses.
-    connect_args: dict = {"connect_timeout": 10}
-    _pool_config: dict = {
-        "pool_size": int(os.environ.get("SCRAPER_POOL_SIZE", "10")),
-        "max_overflow": int(os.environ.get("SCRAPER_MAX_OVERFLOW", "10")),
-        "pool_timeout": int(os.environ.get("SCRAPER_POOL_TIMEOUT", "30")),
-        "pool_recycle": 300,  # 5 min — sync phase batches can take >2 min
-        "pool_pre_ping": True,
-    }
-    engine = create_engine(db_url, echo=False, connect_args=connect_args, **_pool_config)
+    if db_url.startswith("sqlite"):
+        # SQLite in-memory URL used by tests (DATABASE_URL override).
+        # Pool-tuning args are not valid for SQLite's SingletonThreadPool.
+        connect_args: dict = {"check_same_thread": False}
+        from sqlalchemy.pool import StaticPool
+
+        engine = create_engine(
+            db_url,
+            echo=False,
+            connect_args=connect_args,
+            poolclass=StaticPool,
+        )
+    else:
+        # PostgreSQL — apply connection-pool tuning for concurrent enrichment.
+        # Pool sized for enrichment concurrency (default 10 workers) plus HTTP
+        # request handlers running simultaneously.  Configurable via env vars so
+        # operators can tune without a code deploy.
+        # Budget: pool_size + max_overflow = max concurrent connections this process uses.
+        connect_args = {"connect_timeout": 10}
+        _pool_config: dict = {
+            "pool_size": int(os.environ.get("SCRAPER_POOL_SIZE", "10")),
+            "max_overflow": int(os.environ.get("SCRAPER_MAX_OVERFLOW", "10")),
+            "pool_timeout": int(os.environ.get("SCRAPER_POOL_TIMEOUT", "30")),
+            "pool_recycle": 300,  # 5 min — sync phase batches can take >2 min
+            "pool_pre_ping": True,
+        }
+        engine = create_engine(db_url, echo=False, connect_args=connect_args, **_pool_config)
 else:
     # SCRAPER_DB_PATH lets you relocate the SQLite file to a persistent volume.
     # Default: scraper.db in the working directory (fine for local dev).
