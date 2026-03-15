@@ -130,7 +130,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 |---|---|---|
 | `SCRAPER_ALLOWED_ORIGINS` | `http://localhost:5174,http://127.0.0.1:5174` | Comma-separated list of origins allowed to call this scraper API. Typically the admin web app running locally or in production. |
 | `SCRAPER_TIMEZONE` | `UTC` | Fallback IANA timezone for places where Google Maps does not return a UTC offset. Example: `Asia/Dubai` |
-| `SCRAPER_DB_PATH` | `scraper.db` | Path to the SQLite database file. Only used when `DATABASE_URL` is unset. On Cloud Run Jobs use `/tmp/scraper.db` (the filesystem is ephemeral). |
+| `SCRAPER_DB_PATH` | `scraper.db` | Path to the SQLite database file. Only used when `DATABASE_URL` is unset — local development only. **Do not rely on this in production:** Cloud Run containers have an ephemeral filesystem and all SQLite data is lost when the container exits. Set `DATABASE_URL` (PostgreSQL) instead. |
 | `SCRAPER_POOL_SIZE` | `10` | **Conditional** — persistent PostgreSQL connections kept open per process. Only applied when `DATABASE_URL` is a PostgreSQL URL. |
 | `SCRAPER_MAX_OVERFLOW` | `10` | **Conditional** — extra PostgreSQL connections allowed during traffic bursts. Budget: `SCRAPER_POOL_SIZE + SCRAPER_MAX_OVERFLOW` = max concurrent connections. |
 | `SCRAPER_POOL_TIMEOUT` | `30` | **Conditional** — seconds to wait for a free PostgreSQL connection before raising an error. |

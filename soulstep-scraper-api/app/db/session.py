@@ -39,9 +39,9 @@ if _database_url:
         }
         engine = create_engine(db_url, echo=False, connect_args=connect_args, **_pool_config)
 else:
-    # SCRAPER_DB_PATH lets you relocate the SQLite file to a persistent volume.
-    # Default: scraper.db in the working directory (fine for local dev).
-    # Production: set to /data/scraper.db and mount a volume at /data.
+    # SCRAPER_DB_PATH is for local development only.
+    # Cloud Run containers have an ephemeral filesystem — SQLite data is lost
+    # when the container exits.  Set DATABASE_URL (PostgreSQL) in production.
     _db_path = os.environ.get("SCRAPER_DB_PATH", "scraper.db")
     db_url = f"sqlite:///{_db_path}"
     connect_args = {"check_same_thread": False}
