@@ -109,7 +109,10 @@ export default function Layout({ children }: { children: ReactNode }) {
       <main
         id="main-content"
         className={cn(
-          'flex-1 safe-area-top safe-area-bottom md:pb-6 w-full max-w-6xl xl:max-w-7xl mx-auto px-0',
+          // safe-area-bottom is intentionally omitted here — it is defined after
+          // @tailwind utilities in index.css and would override pb-24.
+          // The mobile bottom nav already pads its own safe-area-inset-bottom.
+          'flex-1 safe-area-top md:pb-6 w-full max-w-6xl xl:max-w-7xl mx-auto px-0',
           showBottomNav ? 'pb-24' : 'pb-6',
         )}
       >
