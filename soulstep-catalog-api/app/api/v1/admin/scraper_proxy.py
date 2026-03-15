@@ -4,6 +4,8 @@ All requests are forwarded to the data_scraper service at DATA_SCRAPER_URL.
 Every endpoint requires AdminDep — non-admins receive HTTP 403.
 """
 
+import logging
+
 import httpx
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
@@ -11,6 +13,8 @@ from fastapi.responses import JSONResponse
 from app.api.deps import AdminDep
 from app.core import config
 from app.db.session import SessionDep
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -36,8 +40,22 @@ async def _identity_token(audience: str) -> str | None:
                 headers={"Metadata-Flavor": "Google"},
             )
             resp.raise_for_status()
+            logger.debug(
+                "scraper_proxy: identity token obtained",
+                extra={"audience": audience},
+            )
             return resp.text
-    except Exception:
+    except Exception as exc:
+        logger.warning(
+            "scraper_proxy: failed to fetch identity token — request will proceed without auth"
+            " (expected in local dev; in production this means the metadata server is unreachable"
+            " and the scraper will reject the request with 403)",
+            extra={
+                "audience": audience,
+                "error.type": type(exc).__name__,
+                "error.message": str(exc),
+            },
+        )
         return None
 
 
@@ -45,19 +63,65 @@ async def _proxy(method: str, path: str, **kwargs) -> JSONResponse:
     """Forward a request to the scraper service and return its response."""
     base = config.DATA_SCRAPER_URL.rstrip("/")
     url = base + "/api/v1/scraper" + path
+    logger.info(
+        "scraper_proxy: forwarding request",
+        extra={"proxy.method": method, "proxy.url": url},
+    )
     try:
         token = await _identity_token(base)
         headers = {"Authorization": f"Bearer {token}"} if token else {}
+        if not token:
+            logger.warning(
+                "scraper_proxy: no identity token — forwarding without Authorization header",
+                extra={"proxy.method": method, "proxy.url": url},
+            )
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.request(method, url, headers=headers, **kwargs)
         try:
             content = resp.json() if resp.content else None
         except Exception:
             content = {"detail": resp.text}
+        if resp.status_code >= 400:
+            logger.warning(
+                "scraper_proxy: upstream returned error",
+                extra={
+                    "proxy.method": method,
+                    "proxy.url": url,
+                    "proxy.status_code": resp.status_code,
+                    "proxy.response_body": resp.text[:500] if resp.text else None,
+                },
+            )
+        else:
+            logger.info(
+                "scraper_proxy: upstream responded",
+                extra={
+                    "proxy.method": method,
+                    "proxy.url": url,
+                    "proxy.status_code": resp.status_code,
+                },
+            )
         return JSONResponse(status_code=resp.status_code, content=content)
-    except httpx.ConnectError:
+    except httpx.ConnectError as exc:
+        logger.error(
+            "scraper_proxy: connection error — scraper service unreachable",
+            extra={
+                "proxy.method": method,
+                "proxy.url": url,
+                "proxy.scraper_base_url": base,
+                "error.type": type(exc).__name__,
+                "error.message": str(exc),
+            },
+        )
         raise HTTPException(status_code=503, detail="Scraper service unavailable")
-    except httpx.TimeoutException:
+    except httpx.TimeoutException as exc:
+        logger.error(
+            "scraper_proxy: timeout waiting for scraper service",
+            extra={
+                "proxy.method": method,
+                "proxy.url": url,
+                "error.type": type(exc).__name__,
+            },
+        )
         raise HTTPException(status_code=504, detail="Scraper service timed out")
 
 

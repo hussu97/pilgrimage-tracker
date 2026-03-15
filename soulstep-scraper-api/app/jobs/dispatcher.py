@@ -49,6 +49,10 @@ def dispatch_run(run_code: str, background_tasks: BackgroundTasks) -> None:
     """Dispatch a new scraper run via the configured backend."""
     from app.config import settings
 
+    logger.info(
+        "dispatcher: dispatching run",
+        extra={"run_code": run_code, "dispatch_mode": settings.scraper_dispatch},
+    )
     if settings.scraper_dispatch == "cloud_run":
         background_tasks.add_task(_dispatch_cloud_run, run_code, "run")
     else:
@@ -59,6 +63,10 @@ def dispatch_resume(run_code: str, background_tasks: BackgroundTasks) -> None:
     """Dispatch a resume for an interrupted/failed/cancelled run."""
     from app.config import settings
 
+    logger.info(
+        "dispatcher: dispatching resume",
+        extra={"run_code": run_code, "dispatch_mode": settings.scraper_dispatch},
+    )
     if settings.scraper_dispatch == "cloud_run":
         background_tasks.add_task(_dispatch_cloud_run, run_code, "resume")
     else:
@@ -80,6 +88,10 @@ def _dispatch_cloud_run(run_code: str, action: str = "run") -> None:
     try:
         from google.cloud import run_v2
     except ImportError as exc:
+        logger.error(
+            "dispatcher: google-cloud-run SDK not installed — cannot dispatch Cloud Run Job",
+            extra={"run_code": run_code, "action": action},
+        )
         raise ImportError(
             "google-cloud-run is not installed.\n"
             "Install: pip install google-cloud-run\n"
@@ -92,26 +104,54 @@ def _dispatch_cloud_run(run_code: str, action: str = "run") -> None:
         f"/jobs/{settings.cloud_run_job_name}"
     )
 
-    client = run_v2.JobsClient()
-    request = run_v2.RunJobRequest(
-        name=job_name,
-        overrides=run_v2.RunJobRequest.Overrides(
-            container_overrides=[
-                run_v2.RunJobRequest.Overrides.ContainerOverride(
-                    env=[
-                        run_v2.EnvVar(name="SCRAPER_RUN_CODE", value=run_code),
-                        run_v2.EnvVar(name="SCRAPER_RUN_ACTION", value=action),
-                    ]
-                )
-            ],
-            task_count=1,
-        ),
+    logger.info(
+        "dispatcher: calling Cloud Run Jobs API",
+        extra={
+            "run_code": run_code,
+            "action": action,
+            "job_name": job_name,
+            "cloud_run_job": settings.cloud_run_job_name,
+            "cloud_run_region": settings.cloud_run_region,
+            "google_cloud_project": settings.google_cloud_project,
+        },
     )
 
-    operation = client.run_job(request=request)
-    logger.info(
-        "Cloud Run Job dispatched: run_code=%s action=%s operation=%s",
-        run_code,
-        action,
-        operation.operation.name,
-    )
+    try:
+        client = run_v2.JobsClient()
+        request = run_v2.RunJobRequest(
+            name=job_name,
+            overrides=run_v2.RunJobRequest.Overrides(
+                container_overrides=[
+                    run_v2.RunJobRequest.Overrides.ContainerOverride(
+                        env=[
+                            run_v2.EnvVar(name="SCRAPER_RUN_CODE", value=run_code),
+                            run_v2.EnvVar(name="SCRAPER_RUN_ACTION", value=action),
+                        ]
+                    )
+                ],
+                task_count=1,
+            ),
+        )
+
+        operation = client.run_job(request=request)
+        logger.info(
+            "dispatcher: Cloud Run Job execution triggered",
+            extra={
+                "run_code": run_code,
+                "action": action,
+                "job_name": job_name,
+                "operation_name": operation.operation.name,
+            },
+        )
+    except Exception as exc:
+        logger.error(
+            "dispatcher: failed to trigger Cloud Run Job — run will remain in pending state",
+            extra={
+                "run_code": run_code,
+                "action": action,
+                "job_name": job_name,
+                "error.type": type(exc).__name__,
+                "error.message": str(exc),
+            },
+            exc_info=True,
+        )
