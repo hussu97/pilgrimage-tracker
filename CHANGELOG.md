@@ -4,6 +4,13 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-15] — Fix browser extractor lat/lng always 0
+
+### Backend
+- Fixed JS regex in `_EXTRACT_JS` (`gmaps_browser.py`) that parsed coordinates from the Google Maps URL; old pattern `/@lat,lng\//` never matched because the real URL format is `@lat,lng,zoom/` — updated to `/@lat,lng[,/]/` so coordinates are now correctly extracted
+
+---
+
 ## [2026-03-15] — Fix missing content translations across frontend apps
 
 ### Backend

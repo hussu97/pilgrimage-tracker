@@ -41,7 +41,7 @@ _EXTRACT_JS = r"""
     result.address = addrBtn ? addrBtn.textContent.trim() : null;
 
     // Coordinates from the current URL (Maps updates URL after load)
-    const urlMatch = location.href.match(/@(-?\d+\.\d+),(-?\d+\.\d+)\//);
+    const urlMatch = location.href.match(/@(-?\d+\.\d+),(-?\d+\.\d+)[,/]/);
     if (urlMatch) {
         result.lat = parseFloat(urlMatch[1]);
         result.lng = parseFloat(urlMatch[2]);
