@@ -53,6 +53,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | Variable | Default | Description |
 |---|---|---|
 | `GOOGLE_MAPS_API_KEY` | — | Google Places API key — required for place-search autocomplete. Enable "Places API (New)" at console.cloud.google.com. Without this key, all search-autocomplete requests return empty results. |
+| `SCRAPER_DATABASE_URL` | — | **Conditional** — PostgreSQL connection string for the scraper's database. Required only when running the sync-places Cloud Run Job. Contains credentials — store in Secret Manager, not as a plain env var. |
 
 #### Cloud Run Environment Variables
 
@@ -69,7 +70,6 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `IMAGE_STORAGE` | `blob` | Backend for place images. `blob` — base64-encoded in the database (fine for SQLite and small deployments). `gcs` — Google Cloud Storage (recommended for production). |
 | `GCS_BUCKET_NAME` | — | GCS bucket name. **Conditional** — required when `IMAGE_STORAGE=gcs`. Must match `GCS_BUCKET_NAME` in the scraper so both services share a single bucket. Example: `soulstep-images` |
 | `DATA_SCRAPER_URL` | `http://localhost:8001` | URL of the soulstep-scraper-api instance. Used by admin scraper-proxy endpoints (`/api/v1/admin/scraper/*`). |
-| `SCRAPER_DATABASE_URL` | — | **Conditional** — PostgreSQL connection string for the scraper's database. Required only when running the sync-places Cloud Run Job locally or in production. |
 | `BROWSER_POOL_SIZE` | `20` | Number of concurrent browser contexts for the `translate_content` Cloud Run Job. No effect on normal API operation. |
 | `BROWSER_MAX_TRANSLATIONS` | `50` | Translations to process per browser context before recycling it (prevents memory bloat). No effect on normal API operation. |
 | `BROWSER_HEADLESS` | `true` | Run the browser in headless mode. Set to `false` for local visual debugging. |
