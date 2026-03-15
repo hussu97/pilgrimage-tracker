@@ -530,11 +530,23 @@ gcloud run jobs create sync-places \
   --set-secrets "DATABASE_URL=DATABASE_URL:latest,SCRAPER_DATABASE_URL=SCRAPER_DATABASE_URL:latest" \
   --memory 1Gi --cpu 1 --task-timeout 1800 --max-retries 1
 
+# Grant the scheduler SA permission to invoke Cloud Run jobs (run once per project)
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/run.invoker"
+
+# Cloud Run Jobs require OIDC tokens (not OAuth2) — use --oidc-service-account-email
 gcloud scheduler jobs create http daily-sync-places \
   --location REGION --schedule "0 2 * * *" --time-zone "UTC" \
   --uri "https://REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/PROJECT_ID/jobs/sync-places:run" \
-  --http-method POST --oauth-service-account-email "${SERVICE_ACCOUNT}"
+  --http-method POST \
+  --oidc-service-account-email "${SERVICE_ACCOUNT}" \
+  --oidc-token-audience "https://REGION-run.googleapis.com/"
 ```
+
+> **IAM note:** The `roles/run.invoker` grant above is required. Without it Cloud Scheduler gets a 403 when
+> triggering the job. Cloud Run Jobs also require **OIDC** auth (`--oidc-*` flags), not OAuth2
+> (`--oauth-service-account-email`) — the latter will silently succeed at job creation but fail at runtime.
 
 ### Daily content translation (translate-content, daily 4 AM UTC)
 
@@ -555,7 +567,9 @@ gcloud run jobs create translate-content \
 gcloud scheduler jobs create http daily-translate-content \
   --location REGION --schedule "0 4 * * *" --time-zone "UTC" \
   --uri "https://REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/PROJECT_ID/jobs/translate-content:run" \
-  --http-method POST --oauth-service-account-email "${SERVICE_ACCOUNT}"
+  --http-method POST \
+  --oidc-service-account-email "${SERVICE_ACCOUNT}" \
+  --oidc-token-audience "https://REGION-run.googleapis.com/"
 ```
 
 ### Run any job manually
