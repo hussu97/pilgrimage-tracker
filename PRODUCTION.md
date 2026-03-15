@@ -497,7 +497,9 @@ gcloud run jobs create cleanup-job \
 gcloud scheduler jobs create http run-cleanup-job \
   --location REGION --schedule "0 2 * * *" --time-zone "UTC" \
   --uri "https://REGION-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/PROJECT_ID/jobs/cleanup-job:run" \
-  --http-method POST --oauth-service-account-email "${SERVICE_ACCOUNT}"
+  --http-method POST \
+  --oidc-service-account-email "${SERVICE_ACCOUNT}" \
+  --oidc-token-audience "https://REGION-run.googleapis.com/"
 ```
 
 ### Timezone backfill (one-off, run manually after adding places)
