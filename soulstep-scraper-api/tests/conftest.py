@@ -13,10 +13,15 @@ import os
 import sys
 from unittest.mock import patch
 
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.pool import StaticPool
-from sqlmodel import Session, SQLModel, create_engine
+# ── Force in-memory SQLite BEFORE any app module is imported ──────────────────
+# session.py reads DATABASE_URL from os.environ at module level and creates the
+# engine immediately. Setting it here first ensures tests never touch the real DB.
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
+from sqlmodel import Session, SQLModel, create_engine  # noqa: E402
 
 # Make the data_scraper package importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

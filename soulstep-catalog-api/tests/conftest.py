@@ -19,11 +19,17 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-import bcrypt as _bcrypt_lib
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy.pool import StaticPool
-from sqlmodel import Session, SQLModel, create_engine
+# ── Force in-memory SQLite BEFORE any app module is imported ──────────────────
+# config.py calls load_dotenv() at import time, which would load DATABASE_URL
+# from .env (pointing at prod). Setting it here first wins because os.environ
+# takes priority over dotenv values when the key is already present.
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+
+import bcrypt as _bcrypt_lib  # noqa: E402
+import pytest  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy.pool import StaticPool  # noqa: E402
+from sqlmodel import Session, SQLModel, create_engine  # noqa: E402
 
 # ── i18n seed (session-scoped — loads once, in-memory, no DB needed) ──────────
 

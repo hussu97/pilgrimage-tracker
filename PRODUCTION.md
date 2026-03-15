@@ -171,22 +171,22 @@ echo -n "new-value" | gcloud secrets versions add SECRET_NAME --data-file=-
 **Option A — local Docker:**
 ```bash
 docker build --platform linux/amd64 \
-  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest \
+  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-catalog-api:latest \
   ./soulstep-catalog-api
-docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-catalog-api:latest
 ```
 
 **Option B — Cloud Build (no local Docker):**
 ```bash
 gcloud builds submit ./soulstep-catalog-api \
-  --tag REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest
+  --tag REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-catalog-api:latest
 ```
 
 ### Deploy
 
 ```bash
 gcloud run deploy soulstep-catalog-api \
-  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-catalog-api:latest \
   --platform managed \
   --region REGION \
   --allow-unauthenticated \
@@ -352,15 +352,15 @@ cd soulstep-scraper-api
 
 # API Service image (base deps only, no Playwright ~200 MB)
 docker build --platform linux/amd64 -f Dockerfile \
-  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper:latest .
-docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper:latest
+  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api:latest .
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api:latest
 ```
 
 **Deploy:**
 
 ```bash
 gcloud run deploy soulstep-scraper-api \
-  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper:latest \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api:latest \
   --platform managed \
   --region REGION \
   --no-allow-unauthenticated \
@@ -412,14 +412,14 @@ When `SCRAPER_BACKEND=browser` and `SCRAPER_DISPATCH=cloud_run`, the API dispatc
 **Build the job image** (includes Playwright + Chromium, ~900 MB):
 ```bash
 docker build --platform linux/amd64 -f Dockerfile.job \
-  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper-job:latest .
-docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper-job:latest
+  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:latest .
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:latest
 ```
 
 **Deploy the Cloud Run Job:**
 ```bash
-gcloud run jobs create soulstep-scraper-job \
-  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper-job:latest \
+gcloud run jobs create soulstep-scraper-api-job \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:latest \
   --region REGION \
   --memory 2Gi \
   --cpu 2 \
@@ -432,17 +432,17 @@ gcloud run jobs create soulstep-scraper-job \
 ```bash
 gcloud run services update soulstep-scraper-api \
   --region REGION \
-  --update-env-vars "SCRAPER_DISPATCH=cloud_run,CLOUD_RUN_JOB_NAME=soulstep-scraper-job,CLOUD_RUN_REGION=REGION"
+  --update-env-vars "SCRAPER_DISPATCH=cloud_run,CLOUD_RUN_JOB_NAME=soulstep-scraper-api-job,CLOUD_RUN_REGION=REGION"
 ```
 
 **Update after job image changes:**
 ```bash
 docker build --platform linux/amd64 -f Dockerfile.job \
-  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper-job:latest .
-docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper-job:latest
+  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:latest .
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:latest
 
-gcloud run jobs update soulstep-scraper-job \
-  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/scraper-job:latest \
+gcloud run jobs update soulstep-scraper-api-job \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:latest \
   --region REGION
 ```
 
@@ -487,7 +487,7 @@ SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
 ```bash
 gcloud run jobs create cleanup-job \
-  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-catalog-api:latest \
   --region REGION \
   --set-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
   --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
@@ -506,7 +506,7 @@ gcloud scheduler jobs create http run-cleanup-job \
 
 ```bash
 gcloud run jobs create backfill-timezones \
-  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/api:latest \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-catalog-api:latest \
   --region REGION \
   --set-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
   --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
