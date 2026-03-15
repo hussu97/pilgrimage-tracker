@@ -102,4 +102,4 @@ See each service's `.env.example` for the full variable list.
 | [soulstep-scraper-api/README.md](soulstep-scraper-api/README.md) | Scraper API: setup, usage, architecture, collectors |
 | [apps/soulstep-customer-web/README.md](apps/soulstep-customer-web/README.md) | Web app: setup, routes, env vars, tests |
 | [apps/soulstep-customer-mobile/README.md](apps/soulstep-customer-mobile/README.md) | Mobile app: setup, builds, env vars, tests |
-| [apps/soulstep-admin-web/README.md](apps/soulstep-admin-web/README.md) | Admin dashboard: setup, pages, API surface, env vars |
+| [apps/soulstep-admin-web/README.md](apps/soulstep-admin-web/README.md) | Admin dashboard: setup,  pages, API surface, env vars |
