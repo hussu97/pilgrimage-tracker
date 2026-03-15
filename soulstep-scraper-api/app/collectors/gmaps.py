@@ -31,12 +31,37 @@ logger = get_logger(__name__)
 _MAX_IMAGE_ATTEMPTS = 3
 
 
+def _force_jpeg_url(url: str) -> str:
+    """Append -rj to lh3.googleusercontent.com URLs to force JPEG output.
+
+    Google image serving URLs accept format parameters after the size suffix
+    (e.g. =w800-h600). Without -rj Google may return WebP, which fails our
+    JPEG magic-bytes check.
+    """
+    if "lh3.googleusercontent.com" in url and "=w" in url and "-rj" not in url:
+        return url + "-rj"
+    return url
+
+
+def _is_valid_image(content: bytes) -> bool:
+    """Accept JPEG (\xff\xd8\xff) or WebP (RIFF....WEBP) images."""
+    if content[:3] == b"\xff\xd8\xff":
+        return True
+    if content[:4] == b"RIFF" and content[8:12] == b"WEBP":
+        return True
+    return False
+
+
 async def _download_image(url: str, client: httpx.AsyncClient | None = None) -> bytes | None:
     """Download an image with retries on transient errors.
 
     Google Places photo URLs occasionally fail with UNEXPECTED_EOF_WHILE_READING
     due to Cloud Run egress dropping the connection. A short backoff retry fixes it.
+
+    lh3.googleusercontent.com URLs may return WebP by default; _force_jpeg_url
+    appends -rj to request JPEG explicitly.
     """
+    url = _force_jpeg_url(url)
     for attempt in range(_MAX_IMAGE_ATTEMPTS):
         try:
             if client is not None:
@@ -46,7 +71,7 @@ async def _download_image(url: str, client: httpx.AsyncClient | None = None) -> 
                     resp = await c.get(url)
             if resp.status_code == 200:
                 content = resp.content
-                # Validate JPEG magic bytes (\xff\xd8\xff) and minimum size (>1 KB)
+                # Validate image format (JPEG or WebP) and minimum size (>1 KB)
                 if len(content) < 1024:
                     logger.warning(
                         "Downloaded image too small (%d bytes), skipping: %s",
@@ -54,8 +79,10 @@ async def _download_image(url: str, client: httpx.AsyncClient | None = None) -> 
                         url,
                     )
                     return None
-                if content[:3] != b"\xff\xd8\xff":
-                    logger.warning("Downloaded image failed JPEG header check, skipping: %s", url)
+                if not _is_valid_image(content):
+                    logger.warning(
+                        "Downloaded image failed format check (not JPEG/WebP), skipping: %s", url
+                    )
                     return None
                 return content
             return None

@@ -798,3 +798,96 @@ class TestDownloadImage:
 
         assert captured_kwargs.get("follow_redirects") is True
         assert result == b"\xff\xd8\xff" + b"\x00" * 1024
+
+
+# ── TestForceJpegUrl ───────────────────────────────────────────────────────────
+
+
+class TestForceJpegUrl:
+    """Tests for _force_jpeg_url() — ensures lh3 URLs get -rj appended."""
+
+    def test_lh3_url_with_size_suffix_gets_rj(self):
+        from app.collectors.gmaps import _force_jpeg_url
+
+        url = "https://lh3.googleusercontent.com/gps-cs-s/ABC=w800-h600"
+        assert _force_jpeg_url(url) == url + "-rj"
+
+    def test_lh3_url_already_has_rj_unchanged(self):
+        from app.collectors.gmaps import _force_jpeg_url
+
+        url = "https://lh3.googleusercontent.com/gps-cs-s/ABC=w800-h600-rj"
+        assert _force_jpeg_url(url) == url
+
+    def test_non_lh3_url_unchanged(self):
+        from app.collectors.gmaps import _force_jpeg_url
+
+        url = "https://places.googleapis.com/v1/places/X/photos/Y/media?key=K"
+        assert _force_jpeg_url(url) == url
+
+    def test_lh3_url_without_size_suffix_unchanged(self):
+        from app.collectors.gmaps import _force_jpeg_url
+
+        url = "https://lh3.googleusercontent.com/gps-cs-s/ABC"
+        assert _force_jpeg_url(url) == url
+
+
+# ── TestIsValidImage ───────────────────────────────────────────────────────────
+
+
+class TestIsValidImage:
+    """Tests for _is_valid_image() — accepts JPEG and WebP, rejects others."""
+
+    def test_jpeg_magic_bytes_accepted(self):
+        from app.collectors.gmaps import _is_valid_image
+
+        assert _is_valid_image(b"\xff\xd8\xff" + b"\x00" * 100) is True
+
+    def test_webp_magic_bytes_accepted(self):
+        from app.collectors.gmaps import _is_valid_image
+
+        # RIFF<4 bytes size>WEBP
+        content = b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 100
+        assert _is_valid_image(content) is True
+
+    def test_png_rejected(self):
+        from app.collectors.gmaps import _is_valid_image
+
+        assert _is_valid_image(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100) is False
+
+    def test_empty_rejected(self):
+        from app.collectors.gmaps import _is_valid_image
+
+        assert _is_valid_image(b"") is False
+
+
+class TestDownloadImageWebP:
+    """_download_image accepts WebP responses (not just JPEG)."""
+
+    _VALID_WEBP: bytes = b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 1024
+
+    async def test_webp_response_accepted(self):
+        from app.collectors.gmaps import _download_image
+
+        resp = AsyncMock()
+        resp.status_code = 200
+        resp.content = self._VALID_WEBP
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=resp)
+
+        result = await _download_image("https://lh3.googleusercontent.com/x=w800-h600", mock_client)
+        assert result == self._VALID_WEBP
+
+    async def test_lh3_url_gets_rj_appended_before_request(self):
+        """_download_image rewrites lh3 URLs to force JPEG before fetching."""
+        from app.collectors.gmaps import _download_image
+
+        resp = AsyncMock()
+        resp.status_code = 200
+        resp.content = b"\xff\xd8\xff" + b"\x00" * 1024
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=resp)
+
+        await _download_image("https://lh3.googleusercontent.com/x=w800-h600", mock_client)
+
+        called_url = mock_client.get.call_args[0][0]
+        assert called_url.endswith("-rj")
