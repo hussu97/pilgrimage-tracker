@@ -30,25 +30,30 @@ jobs:
               - 'soulstep-catalog-api/**'
               - '.github/workflows/tests.yml'
               - '.github/workflows/deploy.yml'
+              - 'README.md'
             scraper:
               - 'soulstep-scraper-api/**'
               - '.github/workflows/tests.yml'
               - '.github/workflows/deploy.yml'
+              - 'README.md'
             web:
               - 'apps/soulstep-customer-web/**'
               - 'firebase.json'
               - '.firebaserc'
               - '.github/workflows/tests.yml'
               - '.github/workflows/deploy.yml'
+              - 'README.md'
             mobile:
               - 'apps/soulstep-customer-mobile/**'
               - '.github/workflows/tests.yml'
+              - 'README.md'
             admin:
               - 'apps/soulstep-admin-web/**'
               - 'firebase.json'
               - '.firebaserc'
               - '.github/workflows/tests.yml'
               - '.github/workflows/deploy.yml'
+              - 'README.md'
       # Export results so deploy.yml can consume the exact same detection
       - name: Save path filter outputs
         run: |
