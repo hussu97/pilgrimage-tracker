@@ -281,7 +281,7 @@ class TestSyncRunToServer:
 
         sent_batches = []
 
-        async def _capture_batch(batch, server_url, client):
+        async def _capture_batch(batch, server_url, client, api_key=""):
             sent_batches.append([p["place_code"] for p in batch])
             return (len(batch), [])
 
@@ -310,7 +310,7 @@ class TestSyncRunToServer:
 
         sent_batches = []
 
-        async def _capture_batch(batch, server_url, client):
+        async def _capture_batch(batch, server_url, client, api_key=""):
             sent_batches.append([p["place_code"] for p in batch])
             return (len(batch), [])
 
@@ -335,7 +335,7 @@ class TestSyncRunToServer:
         async_batch = AsyncMock(return_value=(2, ["plc_p03: server error 500"]))
         retried = []
 
-        async def _capture_individual(payload, server_url, client):
+        async def _capture_individual(payload, server_url, client, api_key=""):
             retried.append(payload["place_code"])
             return (1, [])
 
@@ -408,7 +408,7 @@ class TestSyncRunToServer:
 
         sent_codes: list[str] = []
 
-        async def _capture_batch(batch, server_url, client):
+        async def _capture_batch(batch, server_url, client, api_key=""):
             sent_codes.extend(p["place_code"] for p in batch)
             return (len(batch), [])
 
@@ -536,8 +536,8 @@ class TestTriggerSeoGenerationAsync:
         called_url = mock_client.post.call_args[0][0]
         assert called_url == "https://api.example.com/api/v1/admin/seo/generate"
 
-    def test_bearer_token_in_headers(self):
-        """Authorization header must be 'Bearer <token>'."""
+    def test_api_key_in_headers(self):
+        """X-API-Key header must be set to the provided api_key."""
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"generated": 0, "skipped": 0, "errors": 0}
@@ -548,10 +548,10 @@ class TestTriggerSeoGenerationAsync:
         mock_client.post = AsyncMock(return_value=mock_resp)
 
         with patch("app.db.scraper.httpx.AsyncClient", return_value=mock_client):
-            self._run(_trigger_seo_generation_async("http://127.0.0.1:3000", "my_token_123"))
+            self._run(_trigger_seo_generation_async("http://127.0.0.1:3000", "my_api_key_123"))
 
         call_kwargs = mock_client.post.call_args[1]
-        assert call_kwargs["headers"]["Authorization"] == "Bearer my_token_123"
+        assert call_kwargs["headers"]["X-API-Key"] == "my_api_key_123"
 
 
 # ── Auto-SEO trigger integration ──────────────────────────────────────────────
@@ -569,7 +569,7 @@ class TestAutoSeoTriggerInSync:
 
         fake_settings = MagicMock()
         fake_settings.trigger_seo_after_sync = True
-        fake_settings.catalog_admin_token = "admin_jwt_token"
+        fake_settings.catalog_api_key = "admin_jwt_token"
 
         seo_trigger = AsyncMock()
 
@@ -593,7 +593,9 @@ class TestAutoSeoTriggerInSync:
 
             _asyncio.run(_patched_sync(run_code, "http://127.0.0.1:3000"))
 
-        seo_trigger.assert_called_once_with("http://127.0.0.1:3000", "admin_jwt_token")
+        seo_trigger.assert_called_once_with(
+            "http://127.0.0.1:3000", "admin_jwt_token"
+        )  # catalog_api_key value
 
     def test_trigger_not_called_when_disabled(self, test_engine, db_session, monkeypatch):
         """When trigger_seo_after_sync=False, SEO generation must not be called."""
@@ -604,7 +606,7 @@ class TestAutoSeoTriggerInSync:
 
         fake_settings = MagicMock()
         fake_settings.trigger_seo_after_sync = False
-        fake_settings.catalog_admin_token = "some_token"
+        fake_settings.catalog_api_key = "some_token"
 
         seo_trigger = AsyncMock()
 
@@ -636,7 +638,7 @@ class TestAutoSeoTriggerInSync:
 
         fake_settings = MagicMock()
         fake_settings.trigger_seo_after_sync = True
-        fake_settings.catalog_admin_token = ""  # empty — not set
+        fake_settings.catalog_api_key = ""  # empty — not set
 
         seo_trigger = AsyncMock()
 
@@ -659,4 +661,4 @@ class TestAutoSeoTriggerInSync:
                 _cfg.settings = orig
 
         seo_trigger.assert_not_called()
-        assert any("SCRAPER_CATALOG_ADMIN_TOKEN" in r.message for r in caplog.records)
+        assert any("CATALOG_API_KEY" in r.message for r in caplog.records)

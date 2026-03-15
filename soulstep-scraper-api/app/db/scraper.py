@@ -318,6 +318,7 @@ async def _post_batch_async(
     batch: list[dict],
     server_url: str,
     client: httpx.AsyncClient,
+    api_key: str = "",
 ) -> tuple[int, list[str]]:
     """POST one batch to /api/v1/places/batch. Returns (synced_count, failed_entries).
 
@@ -335,6 +336,7 @@ async def _post_batch_async(
             resp = await client.post(
                 f"{server_url}/api/v1/places/batch",
                 json={"places": batch},
+                headers={"X-API-Key": api_key} if api_key else {},
             )
             if resp.status_code in [200, 201]:
                 data = resp.json()
@@ -385,6 +387,7 @@ async def _post_individual_async(
     payload: dict,
     server_url: str,
     client: httpx.AsyncClient,
+    api_key: str = "",
 ) -> tuple[int, list[str]]:
     """Fall back to a single individual POST. Returns (synced_count, failure_details).
 
@@ -399,7 +402,11 @@ async def _post_individual_async(
             await asyncio.sleep(2**attempt)  # 2s, 4s
 
         try:
-            r = await client.post(f"{server_url}/api/v1/places", json=payload)
+            r = await client.post(
+                f"{server_url}/api/v1/places",
+                json=payload,
+                headers={"X-API-Key": api_key} if api_key else {},
+            )
             if r.status_code in [200, 201]:
                 logger.debug("[OK]   %s", place_code)
                 return 1, []
@@ -436,7 +443,7 @@ async def _post_individual_async(
     return 0, [f"{place_code}: retries_exhausted"]
 
 
-async def _trigger_seo_generation_async(server_url: str, admin_token: str) -> None:
+async def _trigger_seo_generation_async(server_url: str, api_key: str) -> None:
     """POST to the catalog API's bulk SEO generation endpoint after sync.
 
     Fire-and-forget: logs results but never raises so that a slow or failing
@@ -444,7 +451,7 @@ async def _trigger_seo_generation_async(server_url: str, admin_token: str) -> No
     """
     url = f"{server_url}/api/v1/admin/seo/generate"
     headers = {
-        "Authorization": f"Bearer {admin_token}",
+        "X-API-Key": api_key,
         "Content-Type": "application/json",
     }
     logger.info("Auto-SEO: triggering bulk generation at %s", url)
@@ -584,6 +591,10 @@ async def sync_run_to_server_async(
 
     logger.info("Syncing %d places to %s in batches of %d", total, server_url, SYNC_BATCH_SIZE)
 
+    from app.config import settings as _settings
+
+    api_key = _settings.catalog_api_key
+
     synced_counter = AtomicCounter(0)
     all_failure_details: list[str] = []
 
@@ -601,7 +612,9 @@ async def sync_run_to_server_async(
             batch_num = batch_start // SYNC_BATCH_SIZE + 1
             logger.info("Sending batch %d/%d: %d places", batch_num, len(batch_starts), len(batch))
 
-            batch_synced, failed_entries = await _post_batch_async(batch, server_url, shared_client)
+            batch_synced, failed_entries = await _post_batch_async(
+                batch, server_url, shared_client, api_key
+            )
 
             if batch_synced > 0:
                 synced_counter.increment(batch_synced)
@@ -620,7 +633,7 @@ async def sync_run_to_server_async(
                 if retry_payloads:
                     for pl in retry_payloads:
                         extra_synced, extra_failures = await _post_individual_async(
-                            pl, server_url, shared_client
+                            pl, server_url, shared_client, api_key
                         )
                         synced_counter.increment(extra_synced)
                         all_failure_details.extend(extra_failures)
@@ -658,14 +671,12 @@ async def sync_run_to_server_async(
             session.commit()
 
     # Auto-SEO: if configured, trigger bulk SEO generation for newly synced places
-    from app.config import settings as _settings
-
     if _settings.trigger_seo_after_sync:
-        if _settings.catalog_admin_token:
-            await _trigger_seo_generation_async(server_url, _settings.catalog_admin_token)
+        if _settings.catalog_api_key:
+            await _trigger_seo_generation_async(server_url, _settings.catalog_api_key)
         else:
             logger.warning(
-                "SCRAPER_TRIGGER_SEO_AFTER_SYNC=true but SCRAPER_CATALOG_ADMIN_TOKEN is not set "
+                "SCRAPER_TRIGGER_SEO_AFTER_SYNC=true but CATALOG_API_KEY is not set "
                 "— run 'scripts/generate_seo.py --generate' manually after import"
             )
 

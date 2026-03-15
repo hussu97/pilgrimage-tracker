@@ -84,6 +84,16 @@ ADSENSE_PUBLISHER_ID = os.environ.get("ADSENSE_PUBLISHER_ID", "")
 ADMOB_APP_ID_IOS = os.environ.get("ADMOB_APP_ID_IOS", "")
 ADMOB_APP_ID_ANDROID = os.environ.get("ADMOB_APP_ID_ANDROID", "")
 
+# Internal service auth — shared secret used by the scraper to call write endpoints.
+# Required in production; set to any placeholder string in local dev (e.g. "dev-key").
+CATALOG_API_KEY = os.environ.get("CATALOG_API_KEY", "")
+if not CATALOG_API_KEY:
+    logger.warning(
+        "CATALOG_API_KEY is not set. "
+        "POST /places and POST /places/batch will reject all requests. "
+        "Set a strong random key: openssl rand -hex 32"
+    )
+
 # Image storage backend
 IMAGE_STORAGE = os.environ.get("IMAGE_STORAGE", "blob")  # "blob" | "gcs"
 GCS_BUCKET_NAME = os.environ.get("GCS_BUCKET_NAME", "")

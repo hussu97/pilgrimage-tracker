@@ -21,9 +21,12 @@ from tests.conftest import SAMPLE_PLACE
 # ── helpers ─────────────────────────────────────────────────────────────────────
 
 
+_API_KEY_HEADERS = {"X-API-Key": "test-api-key"}
+
+
 def _create_place(client, place_code: str = "plc_p3seo001", **overrides):
     data = {**SAMPLE_PLACE, "place_code": place_code, **overrides}
-    resp = client.post("/api/v1/places", json=data)
+    resp = client.post("/api/v1/places", json=data, headers=_API_KEY_HEADERS)
     assert resp.status_code == 200, resp.text
     return resp
 

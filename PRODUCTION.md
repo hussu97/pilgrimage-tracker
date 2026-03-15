@@ -131,6 +131,10 @@ Store sensitive values in Secret Manager — never pass them as plain `--set-env
 echo -n "$(openssl rand -hex 32)" | \
   gcloud secrets create JWT_SECRET --data-file=- --replication-policy=automatic
 
+# Internal service auth key (shared between catalog API and scraper)
+echo -n "$(openssl rand -hex 32)" | \
+  gcloud secrets create catalog-api-key --data-file=- --replication-policy=automatic
+
 # Database URL (from §2.2)
 echo -n "postgresql://soulstep:STRONG_DB_PASSWORD@/soulstep?host=/cloudsql/PROJECT_ID:REGION:soulstep-db" | \
   gcloud secrets create DATABASE_URL --data-file=- --replication-policy=automatic
@@ -191,7 +195,7 @@ gcloud run deploy soulstep-catalog-api \
   --region REGION \
   --allow-unauthenticated \
   --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
-  --set-secrets "JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
+  --set-secrets "JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,RESEND_API_KEY=RESEND_API_KEY:latest,CATALOG_API_KEY=catalog-api-key:latest" \
   --set-env-vars "CORS_ORIGINS=https://PROJECT_ID.web.app https://PROJECT_ID.firebaseapp.com,JWT_EXPIRE=30m,REFRESH_EXPIRE=30d,RESEND_FROM_EMAIL=noreply@soul-step.org,RESET_URL_BASE=https://soul-step.org,IMAGE_STORAGE=gcs,GCS_BUCKET_NAME=soulstep-images,LOG_FORMAT=json" \
   --min-instances 0 \
   --max-instances 10 \
@@ -703,7 +707,7 @@ Or auto-trigger after sync by setting on the scraper service:
 ```bash
 gcloud run services update soulstep-scraper-api --region REGION \
   --update-env-vars "SCRAPER_TRIGGER_SEO_AFTER_SYNC=true" \
-  --set-secrets "SCRAPER_CATALOG_ADMIN_TOKEN=SCRAPER_CATALOG_ADMIN_TOKEN:latest"
+  --update-secrets "CATALOG_API_KEY=catalog-api-key:latest"
 ```
 
 ### AI citation monitoring
@@ -749,6 +753,7 @@ Client-side error tracking: set `VITE_GLITCHTIP_DSN` in the web build (via GitHu
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `JWT_SECRET` | **Yes** | `dev-secret` | JWT signing secret — always override in prod |
+| `CATALOG_API_KEY` | **Yes** | — | Shared secret for scraper→catalog internal calls; store in Secret Manager |
 | `JWT_EXPIRE` | No | `30m` | Access token lifetime |
 | `REFRESH_EXPIRE` | No | `30d` | Refresh token lifetime |
 | `DATABASE_URL` | **Yes (prod)** | SQLite | PostgreSQL connection string |
@@ -814,7 +819,7 @@ Client-side error tracking: set `VITE_GLITCHTIP_DSN` in the web build (via GitHu
 | `GCS_BUCKET_NAME` | Yes | — | GCS bucket for image storage — use the **same bucket as the catalog API**. Scraped images are uploaded to `images/places/` before sync; GCS URLs sent in payload. |
 | `OUTSCRAPER_API_KEY` | No | — | Outscraper collector |
 | `SCRAPER_TRIGGER_SEO_AFTER_SYNC` | No | `false` | Auto-trigger SEO generation after sync |
-| `SCRAPER_CATALOG_ADMIN_TOKEN` | No | — | Admin JWT for auto-SEO |
+| `CATALOG_API_KEY` | No | — | Shared secret for catalog API internal endpoints (required with auto-SEO and place sync) |
 | `GOOGLE_CLOUD_PROJECT` | No | — | GCP project ID |
 | `LOG_FORMAT` | No | `json` | `json` (Cloud Run) or `text` |
 | `LOG_LEVEL` | No | `INFO` | Python log level |

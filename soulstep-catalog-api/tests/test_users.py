@@ -29,6 +29,9 @@ def _auth(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
+_API_KEY_HEADERS = {"X-API-Key": "test-api-key"}
+
+
 def _create_place(client, code: str, **kwargs):
     body = {
         "place_code": code,
@@ -39,7 +42,7 @@ def _create_place(client, code: str, **kwargs):
         "lng": kwargs.get("lng", 55.2708),
         "address": "123 Test St",
     }
-    resp = client.post(PLACES_URL, json=body)
+    resp = client.post(PLACES_URL, json=body, headers=_API_KEY_HEADERS)
     assert resp.status_code in (200, 201), resp.text
     return resp.json()
 

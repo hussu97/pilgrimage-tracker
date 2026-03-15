@@ -5,9 +5,12 @@ from tests.conftest import SAMPLE_PLACE
 PLACES_URL = "/api/v1/places"
 
 
+_API_KEY_HEADERS = {"X-API-Key": "test-api-key"}
+
+
 def _create_place(client, place_code, **overrides):
     data = {**SAMPLE_PLACE, "place_code": place_code, **overrides}
-    return client.post(PLACES_URL, json=data)
+    return client.post(PLACES_URL, json=data, headers=_API_KEY_HEADERS)
 
 
 class TestBoundingBoxFilter:

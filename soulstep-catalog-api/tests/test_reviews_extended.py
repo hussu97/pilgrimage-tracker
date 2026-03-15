@@ -30,6 +30,9 @@ def _auth(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
+_API_KEY_HEADERS = {"X-API-Key": "test-api-key"}
+
+
 def _create_place(client, code: str):
     resp = client.post(
         PLACES_URL,
@@ -42,6 +45,7 @@ def _create_place(client, code: str):
             "lng": 0.0,
             "address": "Addr",
         },
+        headers=_API_KEY_HEADERS,
     )
     assert resp.status_code in (200, 201)
 

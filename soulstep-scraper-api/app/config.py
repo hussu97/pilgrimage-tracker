@@ -124,13 +124,14 @@ class Settings:
 
     # ── Post-sync automation ──────────────────────────────────────────────────
     # If true, automatically call the catalog API's SEO generation endpoint after
-    # sync completes. Requires SCRAPER_CATALOG_ADMIN_TOKEN to be set.
+    # sync completes. Requires CATALOG_API_KEY to be set.
     trigger_seo_after_sync: bool = (
         os.environ.get("SCRAPER_TRIGGER_SEO_AFTER_SYNC", "false").lower() == "true"
     )
-    # JWT Bearer token for the catalog API admin endpoints.
-    # Obtain by logging in as an admin user: POST /api/v1/auth/login
-    catalog_admin_token: str = os.environ.get("SCRAPER_CATALOG_ADMIN_TOKEN", "")
+    # Shared secret for the catalog API's internal endpoints.
+    # Must match CATALOG_API_KEY set on the catalog API service.
+    # Generate with: openssl rand -hex 32
+    catalog_api_key: str = os.environ.get("CATALOG_API_KEY", "")
 
 
 settings = Settings()

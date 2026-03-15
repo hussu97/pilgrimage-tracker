@@ -24,6 +24,7 @@ from unittest.mock import patch
 # from .env (pointing at prod). Setting it here first wins because os.environ
 # takes priority over dotenv values when the key is already present.
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["CATALOG_API_KEY"] = "test-api-key"
 
 import bcrypt as _bcrypt_lib  # noqa: E402
 import pytest  # noqa: E402

@@ -84,7 +84,9 @@ def test_homepage_with_places_in_db(client):
     from tests.conftest import SAMPLE_PLACE
 
     client.post(
-        "/api/v1/places", json={**SAMPLE_PLACE, "place_code": "plc_hp_001", "city": "Dubai"}
+        "/api/v1/places",
+        json={**SAMPLE_PLACE, "place_code": "plc_hp_001", "city": "Dubai"},
+        headers={"X-API-Key": "test-api-key"},
     )
     res = client.get(HOMEPAGE_URL)
     assert res.status_code == 200

@@ -23,7 +23,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from sqlmodel import func, select
 
-from app.api.deps import AdminDep
+from app.api.deps import AdminDep, AdminOrApiKeyDep
 from app.db import places as places_db
 from app.db import reviews as reviews_db
 from app.db.models import AICrawlerLog, ContentTranslation, Place, PlaceSEO
@@ -384,7 +384,7 @@ def regenerate_single(
 @router.post("/seo/generate", response_model=GenerateResponse, tags=["admin-seo"])
 def bulk_generate_seo(
     body: BulkGenerateBody,
-    admin: AdminDep,
+    caller: AdminOrApiKeyDep,
     session: SessionDep,
 ) -> GenerateResponse:
     """Bulk-generate SEO content for all places missing it.
@@ -427,7 +427,7 @@ def bulk_generate_seo(
 
     logger.info(
         "Admin %s bulk SEO: generated=%d skipped=%d errors=%d",
-        admin.user_code,
+        caller.user_code if caller else "api-key",
         generated,
         skipped,
         errors,

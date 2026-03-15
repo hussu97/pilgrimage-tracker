@@ -1,8 +1,9 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.core.config import CATALOG_API_KEY
 from app.core.security import decode_token
 from app.db import store
 from app.db.models import User
@@ -69,3 +70,49 @@ def get_admin_user(current_user: Annotated[User, Depends(get_current_user)]) -> 
 UserDep = Annotated[User, Depends(get_current_user)]
 OptionalUserDep = Annotated[User | None, Depends(get_optional_user)]
 AdminDep = Annotated[User, Depends(get_admin_user)]
+
+
+# ── Internal service auth ──────────────────────────────────────────────────────
+
+
+def validate_api_key(x_api_key: str | None = Header(None, alias="X-API-Key")) -> None:
+    """Validate the X-API-Key header against CATALOG_API_KEY."""
+    if not CATALOG_API_KEY or x_api_key != CATALOG_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing API key"
+        )
+
+
+ApiKeyDep = Annotated[None, Depends(validate_api_key)]
+
+
+def get_admin_or_api_key(
+    x_api_key: str | None = Header(None, alias="X-API-Key"),
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)] = None,
+    request: Request = None,
+    session: SessionDep = None,
+) -> User | None:
+    """Accept either a valid X-API-Key header or a valid admin Bearer JWT.
+
+    Returns None when authenticated via API key, or the admin User when authenticated via JWT.
+    """
+    if x_api_key is not None:
+        if CATALOG_API_KEY and x_api_key == CATALOG_API_KEY:
+            return None  # authenticated via API key; no User object
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
+    # JWT admin path
+    token = _extract_token(credentials, request)
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+    user_code = decode_token(token)
+    if not user_code:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+    user = store.get_user_by_code(user_code, session)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return user
+
+
+AdminOrApiKeyDep = Annotated[User | None, Depends(get_admin_or_api_key)]

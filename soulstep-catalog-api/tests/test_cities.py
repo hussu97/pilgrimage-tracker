@@ -6,6 +6,9 @@ PLACES_URL = "/api/v1/places"
 CITIES_URL = "/api/v1/cities"
 
 
+_API_KEY_HEADERS = {"X-API-Key": "test-api-key"}
+
+
 def _create_place(client, place_code, city, religion="islam", **overrides):
     data = {
         **SAMPLE_PLACE,
@@ -14,7 +17,7 @@ def _create_place(client, place_code, city, religion="islam", **overrides):
         "religion": religion,
         **overrides,
     }
-    return client.post(PLACES_URL, json=data)
+    return client.post(PLACES_URL, json=data, headers=_API_KEY_HEADERS)
 
 
 class TestCitiesList:

@@ -29,8 +29,11 @@ SAMPLE_PLACE = {
 }
 
 
+_API_KEY_HEADERS = {"X-API-Key": "test-api-key"}
+
+
 def _register_place(client):
-    resp = client.post("/api/v1/places", json=SAMPLE_PLACE)
+    resp = client.post("/api/v1/places", json=SAMPLE_PLACE, headers=_API_KEY_HEADERS)
     assert resp.status_code in (200, 201), resp.text
     return resp.json()
 
@@ -111,7 +114,7 @@ class TestBatchCreateTranslations:
                 }
             ]
         }
-        resp = client.post("/api/v1/places/batch", json=payload)
+        resp = client.post("/api/v1/places/batch", json=payload, headers=_API_KEY_HEADERS)
         assert resp.status_code == 200
 
         ar_name = ct_db.get_translation("place", "plc_test0001", "name", "ar", db_session)
@@ -132,7 +135,7 @@ class TestBatchCreateTranslations:
                 }
             ]
         }
-        resp = client.post("/api/v1/places/batch", json=payload)
+        resp = client.post("/api/v1/places/batch", json=payload, headers=_API_KEY_HEADERS)
         assert resp.status_code == 200
         en_row = ct_db.get_translation("place", "plc_test0001", "name", "en", db_session)
         assert en_row is None  # English never stored in ContentTranslation
@@ -222,7 +225,7 @@ _REVIEW_PLACE = {
 
 
 def _setup_review_place(client):
-    resp = client.post("/api/v1/places", json=_REVIEW_PLACE)
+    resp = client.post("/api/v1/places", json=_REVIEW_PLACE, headers=_API_KEY_HEADERS)
     assert resp.status_code in (200, 201), resp.text
 
 

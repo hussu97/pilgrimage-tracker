@@ -6,7 +6,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, func, select
 
-from app.api.deps import OptionalUserDep, UserDep
+from app.api.deps import ApiKeyDep, OptionalUserDep, UserDep
 from app.db import check_ins as check_ins_db
 from app.db import content_translations as ct_db
 from app.db import favorites as favorites_db
@@ -919,7 +919,7 @@ def _process_chunk(chunk: list[PlaceCreate]) -> list[dict]:
 
 
 @router.post("/batch")
-def batch_create_places(body: PlaceBatch):
+def batch_create_places(body: PlaceBatch, _key: ApiKeyDep):
     """Create or update multiple places in a single request (up to 500).
 
     Places are processed in chunks of up to 50. Each chunk uses its own
@@ -963,6 +963,7 @@ def batch_create_places(body: PlaceBatch):
 def create_place(
     body: PlaceCreate,
     session: SessionDep,
+    _key: ApiKeyDep,
 ):
     """
     Create a new place or update an existing one if place_code matches.

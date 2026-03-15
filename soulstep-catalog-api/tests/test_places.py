@@ -18,9 +18,12 @@ def _auth_headers(token):
     return {"Authorization": f"Bearer {token}"}
 
 
+_API_KEY_HEADERS = {"X-API-Key": "test-api-key"}
+
+
 def _create_place(client, place_code, **overrides):
     data = {**SAMPLE_PLACE, "place_code": place_code, **overrides}
-    return client.post(PLACES_URL, json=data)
+    return client.post(PLACES_URL, json=data, headers=_API_KEY_HEADERS)
 
 
 # ── list places ────────────────────────────────────────────────────────────────
@@ -233,7 +236,7 @@ class TestCreatePlace:
         assert resp.json()["name"] == "Updated Name"
 
     def test_create_missing_required_fields_returns_422(self, client):
-        resp = client.post(PLACES_URL, json={"name": "Incomplete"})
+        resp = client.post(PLACES_URL, json={"name": "Incomplete"}, headers=_API_KEY_HEADERS)
         assert resp.status_code == 422
 
 
@@ -347,6 +350,7 @@ class TestLocationCodes:
     def test_batch_upsert_populates_location_codes(self, client):
         resp = client.post(
             f"{PLACES_URL}/batch",
+            headers=_API_KEY_HEADERS,
             json={
                 "places": [
                     {
@@ -400,9 +404,9 @@ class TestLocationCodes:
                 }
             ]
         }
-        r1 = client.post(f"{PLACES_URL}/batch", json=payload)
+        r1 = client.post(f"{PLACES_URL}/batch", json=payload, headers=_API_KEY_HEADERS)
         assert r1.status_code == 200
-        r2 = client.post(f"{PLACES_URL}/batch", json=payload)
+        r2 = client.post(f"{PLACES_URL}/batch", json=payload, headers=_API_KEY_HEADERS)
         assert r2.status_code == 200
 
         detail = client.get(f"{PLACES_URL}/plc_loc_idem1")
@@ -421,7 +425,7 @@ class TestLocationCodes:
 
 
 def _batch(client, places: list[dict]) -> dict:
-    resp = client.post(f"{PLACES_URL}/batch", json={"places": places})
+    resp = client.post(f"{PLACES_URL}/batch", json={"places": places}, headers=_API_KEY_HEADERS)
     assert resp.status_code == 200
     return resp.json()
 
@@ -534,7 +538,9 @@ class TestBatchEndpoint:
     def test_batch_size_limit_422(self, client):
         """Sending more than 500 places should be rejected with 422."""
         too_many = [_place_payload(f"plc_bat_big{i:04d}") for i in range(501)]
-        resp = client.post(f"{PLACES_URL}/batch", json={"places": too_many})
+        resp = client.post(
+            f"{PLACES_URL}/batch", json={"places": too_many}, headers=_API_KEY_HEADERS
+        )
         assert resp.status_code == 422
 
     def test_batch_attributes_persisted(self, client):

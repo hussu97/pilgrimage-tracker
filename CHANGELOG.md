@@ -4,6 +4,22 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-15] — CATALOG_API_KEY: internal service auth for catalog API
+
+### Backend
+- **Catalog API**: Added `CATALOG_API_KEY` env var to `app/core/config.py`; warns on startup if unset
+- Added `validate_api_key` dep + `ApiKeyDep` — validates `X-API-Key` header against `CATALOG_API_KEY`
+- Added `get_admin_or_api_key` dep + `AdminOrApiKeyDep` — accepts either a valid API key or a valid admin Bearer JWT
+- `POST /api/v1/places` and `POST /api/v1/places/batch` now require `X-API-Key` header (`ApiKeyDep`)
+- `POST /api/v1/admin/seo/generate` now accepts API key or admin JWT (`AdminOrApiKeyDep`); removed dependency on `SCRAPER_CATALOG_ADMIN_TOKEN`
+- **Scraper**: Replaced `catalog_admin_token` / `SCRAPER_CATALOG_ADMIN_TOKEN` with `catalog_api_key` / `CATALOG_API_KEY`
+- `_post_batch_async`, `_post_individual_async`, `_trigger_seo_generation_async` now pass `X-API-Key` header
+- **Docker**: Both `api` and `scraper` services now receive `CATALOG_API_KEY` from host env (default: `dev-key`)
+- **Docs**: Updated `.env.example` for both services, `PRODUCTION.md` (Secret Manager), `soulstep-scraper-api/README.md`
+- **Tests**: Catalog API conftest sets `CATALOG_API_KEY=test-api-key`; all `POST /places` and `POST /places/batch` test calls include `X-API-Key` header; scraper sync tests updated for new parameter signatures
+
+---
+
 ## [2026-03-15] — Remove blob image storage from scraper (GCS only)
 
 ### Backend

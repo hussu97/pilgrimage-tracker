@@ -79,7 +79,7 @@ python -m pytest tests/ -v
 | `OUTSCRAPER_API_KEY` | No | — | Outscraper collector (extended reviews) |
 | `GCS_BUCKET_NAME` | Yes | — | GCS bucket for image storage. Use the **same bucket as the catalog API** (`IMAGE_STORAGE=gcs`). Scraped images are uploaded to `images/places/` before sync; GCS public URLs are sent in the sync payload. |
 | `SCRAPER_TRIGGER_SEO_AFTER_SYNC` | No | `false` | Auto-trigger bulk SEO generation after sync |
-| `SCRAPER_CATALOG_ADMIN_TOKEN` | No | — | Admin JWT for catalog API (required with auto-SEO) |
+| `CATALOG_API_KEY` | No | — | Shared secret for catalog API internal endpoints (required for place sync and auto-SEO) |
 | `GOOGLE_CLOUD_PROJECT` | No | — | GCP project ID — used for Cloud Run Jobs |
 | `LOG_FORMAT` | No | `json` | `json` (Cloud Run) or `text` (local dev) |
 | `LOG_LEVEL` | No | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
