@@ -175,32 +175,73 @@ def list_cities(
                         checkins_by_city[cname] = checkins_by_city.get(cname, 0) + cnt
 
     # Fetch top 3 place images per city when requested
+    # Places are ranked by avg rating desc → review count desc → checkin count desc
+    # so the collage always shows the most popular/best-rated places.
     city_top_images: dict[str, list[str]] = {}
     if include_images and page_city_names:
-        city_place_rows = session.exec(
-            select(Place.city, Place.place_code, Place.city_code)
-            .where(Place.city.in_(page_city_names))  # type: ignore[attr-defined]
-            .limit(300)
-        ).all()
+        from app.db import reviews as reviews_db
+
+        # Split into canonical (city_code) and legacy (city string) buckets
+        code_img_items = [(name, cc) for name, cc, _, _ in page_items if cc and name]
+        str_img_items = [name for name, cc, _, _ in page_items if not cc and name]
+
         city_place_codes: dict[str, list[str]] = {}
-        for r in city_place_rows:
-            c = r[0] if isinstance(r, tuple) else r.city
-            pc = r[1] if isinstance(r, tuple) else r.place_code
-            if c:
-                city_place_codes.setdefault(c, []).append(pc)
+
+        if code_img_items:
+            cc_vals = [cc for _, cc in code_img_items]
+            cc_to_name = {cc: name for name, cc in code_img_items}
+            code_rows = session.exec(
+                select(Place.place_code, Place.city_code).where(
+                    Place.city_code.in_(cc_vals)  # type: ignore[attr-defined]
+                )
+            ).all()
+            for pc, cc in code_rows:
+                cname = cc_to_name.get(cc)
+                if cname:
+                    city_place_codes.setdefault(cname, []).append(pc)
+
+        if str_img_items:
+            str_rows = session.exec(
+                select(Place.place_code, Place.city).where(
+                    Place.city.in_(str_img_items)  # type: ignore[attr-defined]
+                )
+            ).all()
+            for pc, city_str in str_rows:
+                if city_str:
+                    city_place_codes.setdefault(city_str, []).append(pc)
 
         all_place_codes = [pc for codes in city_place_codes.values() for pc in codes]
-        bulk_images = place_images.get_images_bulk(all_place_codes, session)
 
-        for cname, codes in city_place_codes.items():
-            imgs: list[str] = []
-            for pc in codes:
-                place_imgs = bulk_images.get(pc, [])
-                if place_imgs and place_imgs[0].get("url"):
-                    imgs.append(place_imgs[0]["url"])
-                if len(imgs) >= 3:
-                    break
-            city_top_images[cname] = imgs
+        if all_place_codes:
+            # Bulk fetch ratings and checkin counts for popularity ordering
+            all_ratings = reviews_db.get_aggregate_ratings_bulk(all_place_codes, session)
+            checkin_cnt_rows = session.exec(
+                select(CheckIn.place_code, func.count(CheckIn.id).label("cnt"))
+                .where(CheckIn.place_code.in_(all_place_codes))  # type: ignore[attr-defined]
+                .group_by(CheckIn.place_code)
+            ).all()
+            checkin_counts: dict[str, int] = dict(checkin_cnt_rows)
+
+            def _place_sort_key(pc: str) -> tuple:
+                r = all_ratings.get(pc, {})
+                return (
+                    -(r.get("average") or 0.0),
+                    -(r.get("count") or 0),
+                    -checkin_counts.get(pc, 0),
+                )
+
+            bulk_images = place_images.get_images_bulk(all_place_codes, session)
+
+            for cname, codes in city_place_codes.items():
+                sorted_codes = sorted(codes, key=_place_sort_key)
+                imgs: list[str] = []
+                for pc in sorted_codes:
+                    place_imgs = bulk_images.get(pc, [])
+                    if place_imgs and place_imgs[0].get("url"):
+                        imgs.append(place_imgs[0]["url"])
+                    if len(imgs) >= 3:
+                        break
+                city_top_images[cname] = imgs
 
     cities = []
     for city_name, city_code_val, count, city_obj in page_items:

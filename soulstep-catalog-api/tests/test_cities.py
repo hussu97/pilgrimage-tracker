@@ -517,3 +517,130 @@ class TestCityLangTranslations:
         our_place = next((p for p in data["places"] if p["place_code"] == "plc_nolang001"), None)
         assert our_place is not None
         assert our_place["name"] == "Original Name"
+
+
+class TestCityImages:
+    """GET /api/v1/cities?include_images=true"""
+
+    def test_images_via_city_code(self, client, db_session):
+        """Cities matched by city_code (not city string) must still return top_images."""
+        from app.db.models import City, Country, Place, PlaceImage
+
+        country = Country(country_code="ctr_img_test", name="India", translations={})
+        db_session.add(country)
+        db_session.flush()
+        city = City(
+            city_code="cty_hyd_img",
+            name="Hyderabad",
+            country_code="ctr_img_test",
+            translations={},
+        )
+        db_session.add(city)
+        db_session.flush()
+
+        # Place linked via city_code (city string intentionally differs / blank)
+        p = Place(
+            place_code="plc_hyd_img01",
+            name="Mecca Masjid",
+            religion="islam",
+            place_type="mosque",
+            lat=17.36,
+            lng=78.47,
+            address="Hyderabad",
+            city=None,  # no city string — only city_code
+            city_code="cty_hyd_img",
+            country_code="ctr_img_test",
+        )
+        db_session.add(p)
+        db_session.flush()
+        img = PlaceImage(
+            place_code="plc_hyd_img01",
+            image_type="url",
+            url="https://example.com/mecca_masjid.jpg",
+        )
+        db_session.add(img)
+        db_session.commit()
+
+        resp = client.get(CITIES_URL, params={"include_images": "true"})
+        assert resp.status_code == 200
+        cities = resp.json()["cities"]
+        hyd = next((c for c in cities if c.get("city_code") == "cty_hyd_img"), None)
+        assert hyd is not None, "Hyderabad city should appear"
+        assert "top_images" in hyd
+        assert len(hyd["top_images"]) == 1
+        assert hyd["top_images"][0] == "https://example.com/mecca_masjid.jpg"
+
+    def test_images_ordered_by_popularity(self, client, db_session):
+        """The collage images come from the highest-rated place, not insertion order."""
+        from app.db.models import City, Country, Place, PlaceImage, Review
+
+        country = Country(country_code="ctr_pop_test", name="Testland", translations={})
+        db_session.add(country)
+        db_session.flush()
+        city = City(
+            city_code="cty_pop_test",
+            name="Popville",
+            country_code="ctr_pop_test",
+            translations={},
+        )
+        db_session.add(city)
+        db_session.flush()
+
+        # Place 1: low-rated, inserted first
+        p_low = Place(
+            place_code="plc_pop_low",
+            name="Low Rated Mosque",
+            religion="islam",
+            place_type="mosque",
+            lat=1.0,
+            lng=1.0,
+            address="Test",
+            city="Popville",
+            city_code="cty_pop_test",
+            country_code="ctr_pop_test",
+        )
+        # Place 2: high-rated, inserted second
+        p_high = Place(
+            place_code="plc_pop_high",
+            name="High Rated Mosque",
+            religion="islam",
+            place_type="mosque",
+            lat=1.1,
+            lng=1.1,
+            address="Test",
+            city="Popville",
+            city_code="cty_pop_test",
+            country_code="ctr_pop_test",
+        )
+        db_session.add(p_low)
+        db_session.add(p_high)
+        db_session.flush()
+
+        db_session.add(
+            PlaceImage(
+                place_code="plc_pop_low", image_type="url", url="https://example.com/low.jpg"
+            )
+        )
+        db_session.add(
+            PlaceImage(
+                place_code="plc_pop_high", image_type="url", url="https://example.com/high.jpg"
+            )
+        )
+
+        # Give p_high a 5-star review, p_low a 1-star review
+        db_session.add(
+            Review(review_code="rv_pop_high", place_code="plc_pop_high", rating=5, text="Great")
+        )
+        db_session.add(
+            Review(review_code="rv_pop_low", place_code="plc_pop_low", rating=1, text="Bad")
+        )
+        db_session.commit()
+
+        resp = client.get(CITIES_URL, params={"include_images": "true"})
+        assert resp.status_code == 200
+        cities = resp.json()["cities"]
+        popville = next((c for c in cities if c.get("city_code") == "cty_pop_test"), None)
+        assert popville is not None
+        assert len(popville["top_images"]) >= 1
+        # The first image must be from the high-rated place
+        assert popville["top_images"][0] == "https://example.com/high.jpg"
