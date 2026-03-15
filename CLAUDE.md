@@ -333,6 +333,37 @@ Every component that renders a place item (list row, card, carousel tile) must a
 
 **Do not** add env var documentation anywhere else (e.g. a new table in PRODUCTION.md or README). Direct readers to ENV_VARS.md instead.
 
+## 26. Canonical Place Components
+
+All place rendering across `apps/soulstep-customer-web` and `apps/soulstep-customer-mobile` must use the canonical shared components below. **Never define inline place card or row JSX inside page/screen files.**
+
+### Card components (image-forward, used in grids and carousels)
+
+| App | Component | Path |
+|-----|-----------|------|
+| Web | `PlaceCardUnified` | `src/components/places/PlaceCardUnified.tsx` |
+| Mobile | `PlaceCard` | `src/components/places/PlaceCard.tsx` |
+
+Both accept a `variant` prop:
+- **`default`** — full card with image hero, glass panel, check-in button. Used in grids (Places page, Favorites, ExploreCity).
+- **`tile`** — 160px-height image, compact glass panel. Used in NearbyPlaces carousels and any horizontal carousel where a smaller footprint is needed.
+- **`recommended`** — same as `default` but shows a "+ Add to Journey" pill button inside the glass panel and hides the check-in button. Used in the Home screen recommended carousel.
+
+Additional props: `onAddToJourney` (called when the "+ Add to Journey" button is tapped, `recommended` variant only), `className` (web only).
+
+### Row components (horizontal row layout, used in lists and timelines)
+
+| App | Component | Path |
+|-----|-----------|------|
+| Web | `PlaceListRow` | `src/components/places/PlaceListRow.tsx` |
+| Mobile | `PlaceListRow` | `src/components/places/PlaceListRow.tsx` |
+
+Both accept: `place`, `t`, `leftBadge?`, `rightSlot?`, `isHighlighted?`, `onClick`/`onPress`.
+
+Used in: PlaceSelector (journey creation), GroupDetail timeline, ExploreCityScreen list.
+
+---
+
 ## 16. Admin Pagination Standard
 All paginated tables in `apps/soulstep-admin-web` must use the following page size options, in this exact order:
 

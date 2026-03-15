@@ -8,17 +8,15 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { Image as ExpoImage } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
 import { getPlaces } from '@/lib/api/client';
 import type { Place } from '@/lib/types';
-import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import { useTheme, useI18n } from '@/app/providers';
 import { tokens } from '@/lib/theme';
 import type { RootStackParamList } from '@/app/navigation';
+import PlaceCard from '@/components/places/PlaceCard';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -78,41 +76,7 @@ export default function PlacesScreen() {
   }, [religion, fetchPlaces]);
 
   const renderPlace = ({ item }: { item: Place }) => {
-    const imgUrl = item.images?.[0]?.url ? getFullImageUrl(item.images[0].url) : null;
-    return (
-      <TouchableOpacity
-        style={s.card}
-        onPress={() => navigation.push('PlaceDetail', { placeCode: item.place_code })}
-        activeOpacity={0.8}
-      >
-        <View style={s.imgWrapper}>
-          {imgUrl ? (
-            <ExpoImage source={{ uri: imgUrl }} style={s.img} contentFit="cover" />
-          ) : (
-            <View style={[s.img, s.imgPlaceholder]}>
-              <MaterialIcons name="place" size={24} color={tokens.colors.textMuted} />
-            </View>
-          )}
-        </View>
-        <View style={s.cardBody}>
-          <Text style={s.placeName} numberOfLines={2}>
-            {item.name}
-          </Text>
-          <Text style={s.placeAddress} numberOfLines={1}>
-            {item.address}
-          </Text>
-          <View style={s.meta}>
-            <Text style={s.religion}>{item.religion}</Text>
-            {item.average_rating != null && (
-              <View style={s.ratingRow}>
-                <MaterialIcons name="star" size={11} color={tokens.colors.goldRank} />
-                <Text style={s.rating}>{item.average_rating.toFixed(1)}</Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
+    return <PlaceCard place={item} />;
   };
 
   return (

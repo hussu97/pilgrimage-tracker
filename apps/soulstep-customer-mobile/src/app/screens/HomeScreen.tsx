@@ -36,7 +36,8 @@ import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 import JoinJourneyModal from '@/components/groups/JoinJourneyModal';
 import HomeSkeleton from '@/components/common/skeletons/HomeSkeleton';
-import type { Group } from '@/lib/types';
+import PlaceCard from '@/components/places/PlaceCard';
+import type { Group, Place } from '@/lib/types';
 import type { RootStackParamList } from '@/app/navigation';
 import { tokens } from '@/lib/theme';
 
@@ -825,63 +826,11 @@ export default function HomeScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.carousel}
-          renderItem={({ item }) => {
-            const imgUri = item.images?.[0]?.url ? getFullImageUrl(item.images[0].url) : null;
-            return (
-              <TouchableOpacity
-                style={[styles.popularPlaceCard, { width: cardWidth }]}
-                activeOpacity={0.88}
-                onPress={() => navigation.navigate('PlaceDetail', { placeCode: item.place_code })}
-              >
-                {imgUri ? (
-                  <View>
-                    <Image
-                      source={{ uri: imgUri }}
-                      style={styles.popularPlaceImage}
-                      resizeMode="cover"
-                    />
-                    {item.distance != null && (
-                      <View style={styles.placeDistanceBadge}>
-                        <Text style={styles.placeDistanceText}>
-                          {item.distance < 1
-                            ? `${Math.round(item.distance * 1000)}m`
-                            : `${item.distance.toFixed(1)}km`}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                ) : (
-                  <View style={styles.popularPlaceImageFallback}>
-                    <MaterialIcons name="place" size={32} color={textMuted} />
-                  </View>
-                )}
-                <View style={styles.popularPlaceBody}>
-                  <Text style={styles.popularPlaceName} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.popularPlaceReligion} numberOfLines={1}>
-                    {t(`common.${item.religion}`) || item.religion}
-                  </Text>
-                  <View style={styles.popularPlaceMeta}>
-                    {item.average_rating != null && item.average_rating > 0 && (
-                      <View style={styles.popularPlaceMetaChip}>
-                        <Text style={styles.ratingStarText}>★</Text>
-                        <Text style={styles.popularPlaceMetaText}>
-                          {item.average_rating.toFixed(1)}
-                        </Text>
-                      </View>
-                    )}
-                    {item.total_checkins_count != null && item.total_checkins_count > 0 && (
-                      <View style={styles.popularPlaceMetaChip}>
-                        <MaterialIcons name="check-circle-outline" size={11} color={textMuted} />
-                        <Text style={styles.popularPlaceMetaText}>{item.total_checkins_count}</Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
+          renderItem={({ item }) => (
+            <View style={{ width: cardWidth }}>
+              <PlaceCard place={item as unknown as Place} />
+            </View>
+          )}
         />
       </View>
     );
@@ -944,54 +893,21 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.carousel}
           renderItem={({ item }) => {
-            const imgUri = item.image_url ? getFullImageUrl(item.image_url) : null;
+            const placeObj = {
+              place_code: item.place_code,
+              name: item.name,
+              address: item.address,
+              images: item.image_url ? [{ url: item.image_url }] : [],
+              distance: item.distance_km,
+            } as unknown as Place;
             return (
-              <TouchableOpacity
-                style={[styles.placeCardSmall, { width: cardWidth }]}
-                activeOpacity={0.88}
-                onPress={() => navigation.navigate('PlaceDetail', { placeCode: item.place_code })}
-              >
-                {imgUri ? (
-                  <View>
-                    <Image
-                      source={{ uri: imgUri }}
-                      style={styles.placeCardImage}
-                      resizeMode="cover"
-                    />
-                    {item.distance_km != null && (
-                      <View style={styles.placeDistanceBadge}>
-                        <Text style={styles.placeDistanceText}>
-                          {item.distance_km < 1
-                            ? `${Math.round(item.distance_km * 1000)}m`
-                            : `${item.distance_km.toFixed(1)}km`}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                ) : (
-                  <View style={styles.placeCardImageFallback}>
-                    <MaterialIcons name="place" size={28} color={textMuted} />
-                  </View>
-                )}
-                <View style={styles.placeCardBody}>
-                  <Text style={styles.placeCardName} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.placeCardReligion} numberOfLines={1}>
-                    {t(`common.${item.religion}`) || item.religion}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.addToJourneyBtn}
-                    activeOpacity={0.75}
-                    onPress={(e) => {
-                      e.stopPropagation?.();
-                      setAddToJourneyPlace(item);
-                    }}
-                  >
-                    <Text style={styles.addToJourneyText}>+ {t('map.addToJourney')}</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
+              <View style={{ width: cardWidth }}>
+                <PlaceCard
+                  place={placeObj}
+                  variant="recommended"
+                  onAddToJourney={() => setAddToJourneyPlace(item)}
+                />
+              </View>
             );
           }}
         />

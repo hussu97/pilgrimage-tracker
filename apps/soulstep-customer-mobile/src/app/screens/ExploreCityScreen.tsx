@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -15,10 +14,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getCityPlaces } from '@/lib/api/client';
 import { useTheme, useI18n } from '@/app/providers';
-import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import { tokens } from '@/lib/theme';
 import type { RootStackParamList } from '@/app/navigation';
+import type { Place } from '@/lib/types';
 import Constants from 'expo-constants';
+import PlaceListRow from '@/components/places/PlaceListRow';
 
 const API_BASE: string =
   Constants.expoConfig?.extra?.apiUrl ?? process.env.EXPO_PUBLIC_API_URL ?? 'http://127.0.0.1:3000';
@@ -139,39 +139,30 @@ export default function ExploreCityScreen() {
           keyExtractor={(p) => p.place_code}
           contentContainerStyle={s.listContent}
           renderItem={({ item }) => {
-            const imgUri = item.images?.[0]?.url ? getFullImageUrl(item.images[0].url) : null;
+            const placeObj = {
+              place_code: item.place_code,
+              name: item.name,
+              address: item.address,
+              images: item.images ?? [],
+            } as unknown as Place;
             return (
-              <TouchableOpacity
-                style={s.placeRow}
+              <PlaceListRow
+                place={placeObj}
+                t={t}
                 onPress={() =>
                   navigation.push('PlaceDetail', {
                     placeCode: item.place_code,
                     slug: item.seo_slug,
                   })
                 }
-                activeOpacity={0.8}
-              >
-                {imgUri ? (
-                  <Image source={{ uri: imgUri }} style={s.placeThumb} resizeMode="cover" />
-                ) : (
-                  <View style={s.placeThumbFallback}>
-                    <MaterialIcons
-                      name="place"
-                      size={20}
-                      color={isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted}
-                    />
-                  </View>
-                )}
-                <View style={s.placeInfo}>
-                  <Text style={s.placeName} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={s.placeAddress} numberOfLines={1}>
-                    {item.address}
-                  </Text>
-                </View>
-                <Text style={s.placeReligion}>{t(`common.${item.religion}`) || item.religion}</Text>
-              </TouchableOpacity>
+                rightSlot={
+                  item.religion ? (
+                    <Text style={s.placeReligion}>
+                      {t(`common.${item.religion}`) || item.religion}
+                    </Text>
+                  ) : undefined
+                }
+              />
             );
           }}
         />

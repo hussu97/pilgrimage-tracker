@@ -15,6 +15,8 @@ interface PlaceCardProps {
   place: Place;
   compact?: boolean;
   isActive?: boolean;
+  variant?: 'default' | 'recommended' | 'tile';
+  onAddToJourney?: () => void;
 }
 
 function formatCount(n: number): string {
@@ -22,7 +24,13 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-function PlaceCard({ place, compact = false, isActive = false }: PlaceCardProps) {
+function PlaceCard({
+  place,
+  compact = false,
+  isActive = false,
+  variant = 'default',
+  onAddToJourney,
+}: PlaceCardProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'PlaceDetail'>>();
   const { t } = useI18n();
   const { isDark, units } = useTheme();
@@ -53,8 +61,11 @@ function PlaceCard({ place, compact = false, isActive = false }: PlaceCardProps)
   const [imgIdx, setImgIdx] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
 
+  const imageHeight = variant === 'tile' ? 160 : 280;
+
   useEffect(() => {
-    if (compact || images.length <= 1 || !isActive || containerWidth === 0) return;
+    if (compact || variant === 'tile' || images.length <= 1 || !isActive || containerWidth === 0)
+      return;
     const id = setInterval(() => {
       setImgIdx((prev) => {
         const next = (prev + 1) % images.length;
@@ -63,7 +74,7 @@ function PlaceCard({ place, compact = false, isActive = false }: PlaceCardProps)
       });
     }, 3000);
     return () => clearInterval(id);
-  }, [compact, images.length, isActive, containerWidth]);
+  }, [compact, variant, images.length, isActive, containerWidth]);
 
   if (compact) {
     return (
@@ -134,14 +145,14 @@ function PlaceCard({ place, compact = false, isActive = false }: PlaceCardProps)
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, { height: imageHeight }]}
       onPress={() => navigation.navigate('PlaceDetail', { placeCode: place.place_code })}
       activeOpacity={0.9}
       accessibilityRole="button"
       accessibilityLabel={place.name}
     >
       {/* Image carousel (or single image) */}
-      {images.length > 1 ? (
+      {images.length > 1 && variant !== 'tile' ? (
         <View
           style={StyleSheet.absoluteFill}
           onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width)}
@@ -163,7 +174,7 @@ function PlaceCard({ place, compact = false, isActive = false }: PlaceCardProps)
                 <Image
                   key={i}
                   source={{ uri: src }}
-                  style={{ width: containerWidth, height: 280 }}
+                  style={{ width: containerWidth, height: imageHeight }}
                   contentFit="cover"
                   cachePolicy="memory-disk"
                   transition={200}
@@ -179,7 +190,7 @@ function PlaceCard({ place, compact = false, isActive = false }: PlaceCardProps)
             />
           )}
         </View>
-      ) : images.length === 1 ? (
+      ) : images.length >= 1 ? (
         <Image
           source={{ uri: images[0] }}
           style={StyleSheet.absoluteFill}
@@ -216,17 +227,28 @@ function PlaceCard({ place, compact = false, isActive = false }: PlaceCardProps)
             </View>
           )}
         </View>
-        {place.user_has_checked_in && (
-          <View style={styles.badgeVisited}>
-            <MaterialIcons name="check" size={11} color="#fff" />
-            <Text style={styles.badgeText}>{t('places.visited')}</Text>
-          </View>
-        )}
+        {/* Top-right: distance pill stacked above visited badge */}
+        <View style={styles.topBadgesRight}>
+          {place.distance != null && (
+            <View style={styles.distancePill}>
+              <Text style={styles.distancePillText}>{formatDistance(place.distance, units)}</Text>
+            </View>
+          )}
+          {place.user_has_checked_in && (
+            <View style={styles.badgeVisited}>
+              <MaterialIcons name="check" size={11} color="#fff" />
+              <Text style={styles.badgeText}>{t('places.visited')}</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Bottom glass info panel */}
-      <View style={styles.glassPanel}>
-        <Text style={styles.cardName} numberOfLines={1}>
+      <View style={[styles.glassPanel, variant === 'tile' && styles.glassPanelTile]}>
+        <Text
+          style={[styles.cardName, variant === 'tile' && styles.cardNameTile]}
+          numberOfLines={1}
+        >
           {place.name}
         </Text>
         <View style={styles.locationRow}>
@@ -238,9 +260,6 @@ function PlaceCard({ place, compact = false, isActive = false }: PlaceCardProps)
         <View style={styles.glassDivider} />
         <View style={styles.metaRow}>
           <View style={styles.metaLeft}>
-            {place.distance != null && (
-              <Text style={styles.distanceText}>{formatDistance(place.distance, units)}</Text>
-            )}
             {rating != null && (
               <View style={styles.ratingPill}>
                 <MaterialIcons name="star" size={10} color="#facc15" />
@@ -251,7 +270,7 @@ function PlaceCard({ place, compact = false, isActive = false }: PlaceCardProps)
               </View>
             )}
           </View>
-          {!place.user_has_checked_in && (
+          {variant !== 'recommended' && !place.user_has_checked_in && (
             <TouchableOpacity
               style={styles.checkInBtn}
               onPress={() => navigation.navigate('PlaceDetail', { placeCode: place.place_code })}
@@ -263,6 +282,17 @@ function PlaceCard({ place, compact = false, isActive = false }: PlaceCardProps)
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Add to Journey button — recommended variant only */}
+        {variant === 'recommended' && onAddToJourney && (
+          <TouchableOpacity
+            style={styles.addToJourneyBtn}
+            onPress={onAddToJourney}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.addToJourneyText}>+ {t('map.addToJourney')}</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -365,7 +395,6 @@ const styles = StyleSheet.create({
 
   // ── Regular (list view) ─────────────────────────────────────────────────
   card: {
-    height: 280,
     borderRadius: tokens.borderRadius['3xl'], // 24px – large card outer
     overflow: 'hidden',
     ...tokens.shadow.card,
@@ -381,11 +410,32 @@ const styles = StyleSheet.create({
     right: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   topBadgesLeft: {
     flexDirection: 'row',
     gap: 6,
+  },
+  topBadgesRight: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  // Distance pill — top-right glass style
+  distancePill: {
+    backgroundColor: 'rgba(0,0,0,0.40)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.20)',
+    borderRadius: tokens.borderRadius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  distancePillText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   // Open badge – semi-transparent glass
   badgeOpen: {
@@ -465,11 +515,17 @@ const styles = StyleSheet.create({
     borderRadius: tokens.borderRadius['2xl'], // 16px
     padding: 14,
   },
+  glassPanelTile: {
+    padding: 10,
+  },
   cardName: {
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
     marginBottom: 3,
+  },
+  cardNameTile: {
+    fontSize: 13,
   },
   locationRow: {
     flexDirection: 'row',
@@ -499,13 +555,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  distanceText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: 'rgba(255,255,255,0.75)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
   ratingPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -531,6 +580,20 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   checkInText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#0f172a',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  addToJourneyBtn: {
+    marginTop: 10,
+    backgroundColor: 'rgba(255,255,255,0.90)',
+    borderRadius: tokens.borderRadius.full,
+    paddingVertical: 7,
+    alignItems: 'center',
+  },
+  addToJourneyText: {
     fontSize: 10,
     fontWeight: '700',
     color: '#0f172a',

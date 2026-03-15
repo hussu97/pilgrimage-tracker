@@ -7,6 +7,9 @@ import { formatDistance } from '@/lib/utils/place-utils';
 interface PlaceCardUnifiedProps {
   place: Place;
   t: (key: string) => string;
+  variant?: 'default' | 'recommended' | 'tile';
+  onAddToJourney?: (e: React.MouseEvent) => void;
+  className?: string;
 }
 
 function formatCount(n: number): string {
@@ -14,19 +17,27 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
+function PlaceCardUnified({
+  place,
+  t,
+  variant = 'default',
+  onAddToJourney,
+  className,
+}: PlaceCardUnifiedProps) {
   const openStatus =
     place.open_status ??
     (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : 'unknown');
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
+  const imageHeight = variant === 'tile' ? 'h-[160px]' : 'h-[280px]';
+  const nameSizeClass = variant === 'tile' ? 'text-[13px]' : 'text-[15px]';
 
   return (
     <Link
       to={`/places/${place.place_code}`}
-      className="group relative block rounded-3xl overflow-hidden shadow-soft hover:shadow-xl transition-all duration-500 hover:-translate-y-1"
+      className={`group relative block rounded-3xl overflow-hidden shadow-soft hover:shadow-xl transition-all duration-500 hover:-translate-y-1 ${className ?? ''}`}
     >
-      <div className="relative h-[280px] overflow-hidden">
+      <div className={`relative ${imageHeight} overflow-hidden`}>
         {place.images?.[0]?.url ? (
           <img
             src={getFullImageUrl(place.images[0].url)}
@@ -58,15 +69,28 @@ function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
           )}
         </div>
 
-        {/* Visited badge – top right */}
-        {place.user_has_checked_in && (
-          <div className="absolute top-4 right-4 z-10">
+        {/* Top-right: distance pill stacked above visited badge */}
+        <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-1.5">
+          {place.distance != null && (
+            <span
+              className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold text-white uppercase tracking-[0.08em] border"
+              style={{
+                background: 'rgba(0,0,0,0.40)',
+                borderColor: 'rgba(255,255,255,0.20)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+              }}
+            >
+              {formatDistance(place.distance)}
+            </span>
+          )}
+          {place.user_has_checked_in && (
             <span className="badge-visited">
               <span className="material-symbols-outlined text-[12px]">check</span>
               {t('places.visited')}
             </span>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Glass info panel – bottom */}
         <div
@@ -78,7 +102,7 @@ function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
             WebkitBackdropFilter: 'blur(12px)',
           }}
         >
-          <h3 className="text-white font-semibold text-[15px] leading-tight truncate mb-1">
+          <h3 className={`text-white font-semibold leading-tight truncate mb-1 ${nameSizeClass}`}>
             {place.name}
           </h3>
           <div className="flex items-center gap-1 mb-2.5">
@@ -88,11 +112,6 @@ function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
           <div className="h-px bg-white/20 mb-2.5" />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              {place.distance != null && (
-                <span className="text-[10px] font-bold text-white/75 uppercase tracking-[0.08em]">
-                  {formatDistance(place.distance)}
-                </span>
-              )}
               {rating != null && (
                 <div
                   className="flex items-center gap-1 px-2 py-1 rounded-full border shrink-0"
@@ -114,7 +133,7 @@ function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
                 </div>
               )}
             </div>
-            {!place.user_has_checked_in && (
+            {variant !== 'recommended' && !place.user_has_checked_in && (
               <div className="ml-2 px-3.5 py-1.5 rounded-full bg-white shrink-0">
                 <span className="text-[10px] font-bold text-slate-900 uppercase tracking-[0.08em]">
                   {t('places.checkIn')}
@@ -122,6 +141,19 @@ function PlaceCardUnified({ place, t }: PlaceCardUnifiedProps) {
               </div>
             )}
           </div>
+
+          {/* Add to Journey button — recommended variant only */}
+          {variant === 'recommended' && onAddToJourney && (
+            <button
+              type="button"
+              onClick={onAddToJourney}
+              className="mt-2.5 w-full px-3.5 py-1.5 rounded-full bg-white/90 hover:bg-white transition-colors text-center"
+            >
+              <span className="text-[10px] font-bold text-slate-900 uppercase tracking-[0.08em]">
+                + {t('map.addToJourney')}
+              </span>
+            </button>
+          )}
         </div>
       </div>
     </Link>

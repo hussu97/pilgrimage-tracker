@@ -45,9 +45,11 @@ import type {
   ActivityItem,
   GroupMember,
   ChecklistResponse,
+  Place,
 } from '@/lib/types';
 import { tokens } from '@/lib/theme';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
+import PlaceListRow from '@/components/places/PlaceListRow';
 import GroupCheckInSheet from '@/components/groups/GroupCheckInSheet';
 import JourneyMapView from '@/components/groups/JourneyMapView';
 
@@ -1211,29 +1213,68 @@ export default function GroupDetailScreen() {
 
                           {/* Right: place card */}
                           <View style={styles.timelineCard}>
-                            <TouchableOpacity
-                              style={styles.placeHeader}
+                            <PlaceListRow
+                              place={
+                                {
+                                  place_code: place.place_code,
+                                  name: place.name,
+                                  address: place.address ?? '',
+                                  images: place.image_url ? [{ url: place.image_url }] : [],
+                                } as unknown as Place
+                              }
+                              t={t}
                               onPress={() =>
                                 setExpandedPlaceCode(isExpanded ? null : place.place_code)
                               }
-                              activeOpacity={0.8}
-                            >
-                              {/* Thumbnail */}
-                              {place.image_url ? (
-                                <ExpoImage
-                                  source={{ uri: getFullImageUrl(place.image_url) }}
-                                  style={styles.placeThumb}
-                                  contentFit="cover"
-                                />
-                              ) : (
+                              rightSlot={
                                 <View
-                                  style={[
-                                    styles.placeThumb,
-                                    { alignItems: 'center', justifyContent: 'center' },
-                                  ]}
+                                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
                                 >
+                                  {(() => {
+                                    const uiState = checkInUiState[place.place_code];
+                                    const checkScale = getCheckmarkScale(place.place_code);
+                                    if (place.user_checked_in || uiState === 'success') {
+                                      return (
+                                        <Animated.View
+                                          style={[
+                                            styles.checkInSuccessBtn,
+                                            { transform: [{ scale: checkScale }] },
+                                          ]}
+                                        >
+                                          <MaterialIcons name="check" size={16} color="#16a34a" />
+                                        </Animated.View>
+                                      );
+                                    }
+                                    if (uiState === 'loading') {
+                                      return (
+                                        <View style={styles.checkInLoadingBtn}>
+                                          <ActivityIndicator
+                                            size="small"
+                                            color={tokens.colors.primary}
+                                          />
+                                        </View>
+                                      );
+                                    }
+                                    return (
+                                      <TouchableOpacity
+                                        style={styles.checkInInlineBtn}
+                                        onPress={() =>
+                                          setCheckInSheet({
+                                            visible: true,
+                                            placeCode: place.place_code,
+                                            placeName: place.name,
+                                          })
+                                        }
+                                        activeOpacity={0.8}
+                                      >
+                                        <Text style={styles.checkInInlineBtnText}>
+                                          {t('groups.checkIn')}
+                                        </Text>
+                                      </TouchableOpacity>
+                                    );
+                                  })()}
                                   <MaterialIcons
-                                    name="place"
+                                    name={isExpanded ? 'expand-less' : 'expand-more'}
                                     size={20}
                                     color={
                                       isDark
@@ -1242,87 +1283,22 @@ export default function GroupDetailScreen() {
                                     }
                                   />
                                 </View>
-                              )}
-
-                              {/* Info */}
-                              <View style={styles.placeInfo}>
-                                <Text style={styles.placeName} numberOfLines={1}>
-                                  {place.name}
-                                </Text>
-                                {place.address ? (
-                                  <Text style={styles.placeSubtext} numberOfLines={1}>
-                                    {place.address}
-                                  </Text>
-                                ) : null}
-                                {place.check_in_count > 0 && (
-                                  <View style={styles.placeAvatarRow}>
-                                    {place.checked_in_by.slice(0, 3).map((ci) => (
-                                      <View key={ci.user_code} style={styles.placeAvatarChip}>
-                                        <Text style={styles.placeAvatarInitial}>
-                                          {ci.display_name.charAt(0)}
-                                        </Text>
-                                      </View>
-                                    ))}
-                                    <Text style={styles.placeCheckedCount}>
-                                      {place.check_in_count} {t('groups.checkedIn')}
+                              }
+                            />
+                            {place.check_in_count > 0 && (
+                              <View style={styles.placeAvatarRow}>
+                                {place.checked_in_by.slice(0, 3).map((ci) => (
+                                  <View key={ci.user_code} style={styles.placeAvatarChip}>
+                                    <Text style={styles.placeAvatarInitial}>
+                                      {ci.display_name.charAt(0)}
                                     </Text>
                                   </View>
-                                )}
+                                ))}
+                                <Text style={styles.placeCheckedCount}>
+                                  {place.check_in_count} {t('groups.checkedIn')}
+                                </Text>
                               </View>
-
-                              {/* Inline check-in button with premium UX */}
-                              {(() => {
-                                const uiState = checkInUiState[place.place_code];
-                                const checkScale = getCheckmarkScale(place.place_code);
-                                if (place.user_checked_in || uiState === 'success') {
-                                  return (
-                                    <Animated.View
-                                      style={[
-                                        styles.checkInSuccessBtn,
-                                        { transform: [{ scale: checkScale }] },
-                                      ]}
-                                    >
-                                      <MaterialIcons name="check" size={16} color="#16a34a" />
-                                    </Animated.View>
-                                  );
-                                }
-                                if (uiState === 'loading') {
-                                  return (
-                                    <View style={styles.checkInLoadingBtn}>
-                                      <ActivityIndicator
-                                        size="small"
-                                        color={tokens.colors.primary}
-                                      />
-                                    </View>
-                                  );
-                                }
-                                return (
-                                  <TouchableOpacity
-                                    style={styles.checkInInlineBtn}
-                                    onPress={() =>
-                                      setCheckInSheet({
-                                        visible: true,
-                                        placeCode: place.place_code,
-                                        placeName: place.name,
-                                      })
-                                    }
-                                    activeOpacity={0.8}
-                                  >
-                                    <Text style={styles.checkInInlineBtnText}>
-                                      {t('groups.checkIn')}
-                                    </Text>
-                                  </TouchableOpacity>
-                                );
-                              })()}
-
-                              <MaterialIcons
-                                name={isExpanded ? 'expand-less' : 'expand-more'}
-                                size={20}
-                                color={
-                                  isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted
-                                }
-                              />
-                            </TouchableOpacity>
+                            )}
 
                             {isExpanded && (
                               <View style={styles.placeExpanded}>

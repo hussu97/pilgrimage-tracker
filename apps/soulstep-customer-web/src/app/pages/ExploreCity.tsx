@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import { useHead } from '@/lib/hooks/useHead';
 import { useI18n } from '@/app/providers';
 import * as api from '@/lib/api/client';
+import PlaceCardUnified from '@/components/places/PlaceCardUnified';
+import type { Place } from '@/lib/types';
 
 interface CityMetrics {
   count: number;
@@ -74,56 +76,6 @@ function PopularityBadge({ label }: { label: string }) {
       )}
       {label}
     </span>
-  );
-}
-
-function PlaceCard({ place }: { place: CityPlace }) {
-  const { t } = useI18n();
-  const imageUrl = place.images?.[0]?.url ?? null;
-  const to = place.seo_slug
-    ? `/places/${place.place_code}/${place.seo_slug}`
-    : `/places/${place.place_code}`;
-
-  return (
-    <Link
-      to={to}
-      className="rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border hover:shadow-lg transition-all duration-200 group cursor-pointer block"
-    >
-      {/* Image section */}
-      <div className="h-44 relative bg-gray-100 dark:bg-dark-surface overflow-hidden">
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={place.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gray-100 dark:bg-dark-surface">
-            <span className="material-icons text-gray-400 text-4xl">place</span>
-          </div>
-        )}
-
-        {/* Dark gradient overlay on bottom third */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-
-        {/* Religion badge — top right */}
-        {place.religion && (
-          <div className="absolute top-2 right-2">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold text-white bg-black/40 backdrop-blur-sm capitalize">
-              {t(`common.${place.religion}`) || place.religion}
-            </span>
-          </div>
-        )}
-
-        {/* Name + address inside gradient area */}
-        <div className="absolute bottom-0 left-0 right-0 p-3">
-          <p className="text-sm font-bold text-white line-clamp-1">{place.name}</p>
-          {place.address && (
-            <p className="text-xs text-white/70 line-clamp-1 mt-0.5">{place.address}</p>
-          )}
-        </div>
-      </div>
-    </Link>
   );
 }
 
@@ -221,9 +173,15 @@ export default function ExploreCity() {
         </p>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {places.map((place) => (
-            <PlaceCard key={place.place_code} place={place} />
-          ))}
+          {places.map((place) => {
+            const placeObj = {
+              place_code: place.place_code,
+              name: place.name,
+              address: place.address,
+              images: place.images ?? [],
+            } as unknown as Place;
+            return <PlaceCardUnified key={place.place_code} place={placeObj} t={t} />;
+          })}
         </div>
       )}
     </div>

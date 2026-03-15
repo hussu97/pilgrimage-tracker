@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useI18n } from '@/app/providers';
-import { cn } from '@/lib/utils/cn';
-import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { Place } from '@/lib/types';
+import PlaceListRow from '@/components/places/PlaceListRow';
 
 interface PlaceSelectorProps {
   selectedCodes: string[];
@@ -118,7 +117,7 @@ function PlaceSelector({ selectedCodes, onChange, places, loading }: PlaceSelect
         />
       </div>
 
-      {/* Place cards */}
+      {/* Place list */}
       {loading ? (
         <div className="flex justify-center py-8">
           <span className="material-symbols-outlined animate-spin text-primary text-3xl">
@@ -135,45 +134,20 @@ function PlaceSelector({ selectedCodes, onChange, places, loading }: PlaceSelect
             filteredPlaces.map((place) => {
               const checked = selectedCodes.includes(place.place_code);
               return (
-                <button
+                <PlaceListRow
                   key={place.place_code}
-                  type="button"
+                  place={place}
+                  t={t}
+                  isHighlighted={checked}
                   onClick={() => togglePlace(place.place_code)}
-                  className={cn(
-                    'relative flex items-center gap-3 p-3 rounded-xl text-left transition-all active:scale-[0.98]',
-                    checked
-                      ? 'border-2 border-primary bg-primary/5 dark:bg-primary/10'
-                      : 'border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-surface hover:border-slate-300 dark:hover:border-dark-border',
-                  )}
-                >
-                  {/* Place image */}
-                  <div className="w-14 h-14 rounded-lg bg-slate-100 dark:bg-dark-border flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {place.images?.[0]?.url ? (
-                      <img
-                        src={getFullImageUrl(place.images[0].url)}
-                        alt={place.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="material-symbols-outlined text-slate-400 dark:text-dark-text-secondary">
-                        mosque
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-700 dark:text-white truncate">
-                      {place.name}
-                    </p>
-                    <p className="text-xs text-slate-400 dark:text-dark-text-secondary truncate">
-                      {place.address}
-                    </p>
-                  </div>
-                  {checked && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                      <span className="material-symbols-outlined text-white text-xs">check</span>
-                    </div>
-                  )}
-                </button>
+                  rightSlot={
+                    checked ? (
+                      <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                        <span className="material-symbols-outlined text-white text-xs">check</span>
+                      </div>
+                    ) : undefined
+                  }
+                />
               );
             })
           )}

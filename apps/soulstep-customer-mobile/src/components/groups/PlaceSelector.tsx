@@ -7,14 +7,12 @@ import {
   FlatList,
   StyleSheet,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useI18n, useTheme } from '@/app/providers';
 import { tokens } from '@/lib/theme';
-import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { Place } from '@/lib/types';
-import { formatDistance } from '@/lib/utils/place-utils';
+import PlaceListRow from '@/components/places/PlaceListRow';
 
 interface PlaceSelectorProps {
   selectedCodes: string[];
@@ -29,10 +27,10 @@ interface PlaceSelectorProps {
 }
 
 function makeStyles(isDark: boolean) {
-  const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
-  const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
   const textMain = isDark ? '#ffffff' : tokens.colors.textDark;
   const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
+  const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
+  const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
 
   return StyleSheet.create({
     container: { flex: 1 },
@@ -66,51 +64,7 @@ function makeStyles(isDark: boolean) {
       backgroundColor: surface,
       marginBottom: 12,
     },
-    // Place card
-    placeCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      padding: 12,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: border,
-      backgroundColor: surface,
-      marginBottom: 8,
-    },
-    placeCardSelected: {
-      borderWidth: 2,
-      borderColor: tokens.colors.primary,
-      backgroundColor: isDark ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.03)',
-    },
-    placeImage: {
-      width: 52,
-      height: 52,
-      borderRadius: 10,
-      backgroundColor: isDark ? tokens.colors.darkBorder : '#f1f5f9',
-      alignItems: 'center',
-      justifyContent: 'center',
-      overflow: 'hidden',
-    },
-    placeImg: { width: 52, height: 52 },
-    placeName: { fontSize: 14, fontWeight: '500', color: textMain },
-    placeAddress: { fontSize: 11, color: textMuted, marginTop: 2 },
-    placeMeta: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      marginTop: 3,
-    },
-    placeMetaItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 2,
-    },
-    placeMetaText: { fontSize: 11, color: textMuted },
     checkBadge: {
-      position: 'absolute',
-      top: 8,
-      right: 8,
       width: 20,
       height: 20,
       borderRadius: 10,
@@ -119,6 +73,7 @@ function makeStyles(isDark: boolean) {
       justifyContent: 'center',
     },
     emptyText: { textAlign: 'center', color: textMuted, padding: 20 },
+    gap8: { marginBottom: 8 },
   });
 }
 
@@ -247,55 +202,23 @@ export default function PlaceSelector({
         onEndReached={hasMore ? onLoadMore : undefined}
         onEndReachedThreshold={0.5}
         keyboardShouldPersistTaps="handled"
+        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
         renderItem={({ item }) => {
           const checked = selectedCodes.includes(item.place_code);
           return (
-            <TouchableOpacity
-              style={[styles.placeCard, checked && styles.placeCardSelected]}
+            <PlaceListRow
+              place={item}
+              t={t}
+              isHighlighted={checked}
               onPress={() => togglePlace(item.place_code)}
-              activeOpacity={0.9}
-            >
-              <View style={styles.placeImage}>
-                {item.images?.[0]?.url ? (
-                  <Image
-                    source={{ uri: getFullImageUrl(item.images[0].url) }}
-                    style={styles.placeImg}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <MaterialIcons name="place" size={24} color={textMuted} />
-                )}
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.placeName} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={styles.placeAddress} numberOfLines={1}>
-                  {item.address}
-                </Text>
-                {(item.distance != null || item.total_checkins_count != null) && (
-                  <View style={styles.placeMeta}>
-                    {item.distance != null && (
-                      <View style={styles.placeMetaItem}>
-                        <MaterialIcons name="near-me" size={11} color={textMuted} />
-                        <Text style={styles.placeMetaText}>{formatDistance(item.distance)}</Text>
-                      </View>
-                    )}
-                    {item.total_checkins_count != null && (
-                      <View style={styles.placeMetaItem}>
-                        <MaterialIcons name="check-circle" size={11} color={textMuted} />
-                        <Text style={styles.placeMetaText}>{item.total_checkins_count}</Text>
-                      </View>
-                    )}
+              rightSlot={
+                checked ? (
+                  <View style={styles.checkBadge}>
+                    <MaterialIcons name="check" size={14} color="#fff" />
                   </View>
-                )}
-              </View>
-              {checked && (
-                <View style={styles.checkBadge}>
-                  <MaterialIcons name="check" size={14} color="#fff" />
-                </View>
-              )}
-            </TouchableOpacity>
+                ) : undefined
+              }
+            />
           );
         }}
       />

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useI18n, useFeedback } from '@/app/providers';
 import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
 import { getMyFavorites, removeFavorite } from '@/lib/api/client';
-import PlaceCard from '@/components/places/PlaceCard';
+import PlaceCardUnified from '@/components/places/PlaceCardUnified';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
 import type { Place } from '@/lib/types';
@@ -89,7 +89,7 @@ export default function Favorites() {
           {places.map((place, idx) => (
             <Fragment key={place.place_code}>
               <div className="relative group/card">
-                <PlaceCard place={place} />
+                <PlaceCardUnified place={place} t={t} />
                 <button
                   type="button"
                   onClick={(e) => handleRemove(e, place.place_code)}

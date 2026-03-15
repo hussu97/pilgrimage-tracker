@@ -22,9 +22,10 @@ import ErrorState from '@/components/common/ErrorState';
 import GroupDetailSkeleton from '@/components/common/skeletons/GroupDetailSkeleton';
 import GroupCheckInModal from '@/components/groups/GroupCheckInModal';
 import JourneyMapView from '@/components/groups/JourneyMapView';
-import type { Group, LeaderboardEntry, ActivityItem, GroupMember } from '@/lib/types';
+import type { Group, LeaderboardEntry, ActivityItem, GroupMember, Place } from '@/lib/types';
 import type { ChecklistResponse, PlaceNote } from '@/lib/types/groups';
 import AdBanner from '@/components/ads/AdBanner';
+import PlaceListRow from '@/components/places/PlaceListRow';
 
 type Tab = 'route' | 'activity' | 'members';
 
@@ -578,105 +579,85 @@ export default function GroupDetail() {
                             </div>
 
                             {/* Place card */}
-                            <div
-                              id={`place-card-${place.place_code}`}
-                              className={cn(
-                                'flex-1 rounded-2xl border bg-white dark:bg-dark-surface overflow-hidden mb-1 transition-colors duration-300',
-                                checkInSuccess === place.place_code
-                                  ? 'border-emerald-400 dark:border-emerald-500'
-                                  : 'border-slate-200 dark:border-dark-border',
-                              )}
-                            >
-                              <button
-                                type="button"
-                                className="w-full flex items-center gap-3 p-3 text-left"
+                            <div id={`place-card-${place.place_code}`} className="flex-1 mb-1">
+                              <PlaceListRow
+                                place={
+                                  {
+                                    place_code: place.place_code,
+                                    name: place.name,
+                                    address: place.address,
+                                    images: place.image_url ? [{ url: place.image_url }] : [],
+                                  } as unknown as Place
+                                }
+                                t={t}
+                                isHighlighted={checkInSuccess === place.place_code}
                                 onClick={() =>
                                   setExpandedPlace(
                                     expandedPlace === place.place_code ? null : place.place_code,
                                   )
                                 }
-                              >
-                                {place.image_url ? (
-                                  <img
-                                    src={getFullImageUrl(place.image_url ?? undefined)}
-                                    alt={place.name}
-                                    className="w-11 h-11 rounded-xl object-cover flex-shrink-0"
-                                  />
-                                ) : (
-                                  <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-dark-border flex items-center justify-center flex-shrink-0">
-                                    <span className="material-icons text-slate-400 dark:text-dark-text-secondary text-xl">
-                                      place
-                                    </span>
-                                  </div>
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-semibold text-slate-800 dark:text-white text-sm truncate">
-                                    {place.name}
-                                  </p>
-                                  {place.address && (
-                                    <p className="text-xs text-slate-400 dark:text-dark-text-secondary truncate">
-                                      {place.address}
-                                    </p>
-                                  )}
-                                  {place.check_in_count > 0 && (
-                                    <div className="flex items-center gap-1 mt-1">
-                                      <div className="flex -space-x-1">
-                                        {place.checked_in_by.slice(0, 3).map((ci) => (
-                                          <div
-                                            key={ci.user_code}
-                                            className="w-5 h-5 rounded-full bg-primary/20 border border-white dark:border-dark-surface flex items-center justify-center text-primary text-[10px] font-bold"
-                                            title={ci.display_name}
-                                          >
-                                            {ci.display_name.charAt(0)}
-                                          </div>
-                                        ))}
-                                      </div>
-                                      <span className="text-[10px] text-slate-400 dark:text-dark-text-secondary">
-                                        {place.check_in_count} {t('groups.checkedIn')}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                                {/* Inline check-in button (not yet checked in, or just checked in) */}
-                                {checkInSuccess === place.place_code ? (
-                                  <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: [0, 1.2, 0.95, 1] }}
-                                    transition={{ duration: 0.4, times: [0, 0.4, 0.7, 1] }}
-                                    className="shrink-0 w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center"
-                                  >
+                                rightSlot={
+                                  <>
+                                    {/* Check-in button / success indicator */}
+                                    {checkInSuccess === place.place_code ? (
+                                      <motion.div
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: [0, 1.2, 0.95, 1] }}
+                                        transition={{ duration: 0.4, times: [0, 0.4, 0.7, 1] }}
+                                        className="shrink-0 w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center"
+                                      >
+                                        <span
+                                          className="material-symbols-outlined text-white text-sm"
+                                          style={{ fontVariationSettings: "'FILL' 1" }}
+                                        >
+                                          check
+                                        </span>
+                                      </motion.div>
+                                    ) : !place.user_checked_in ? (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setCheckInModal({
+                                            placeCode: place.place_code,
+                                            placeName: place.name,
+                                          });
+                                        }}
+                                        className="shrink-0 px-2.5 py-1 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 active:scale-95 transition-all"
+                                      >
+                                        {t('groups.checkIn')}
+                                      </button>
+                                    ) : null}
                                     <span
-                                      className="material-symbols-outlined text-white text-base"
-                                      style={{ fontVariationSettings: "'FILL' 1" }}
+                                      className={cn(
+                                        'material-symbols-outlined text-slate-400 transition-transform',
+                                        expandedPlace === place.place_code && 'rotate-180',
+                                      )}
                                     >
-                                      check
+                                      expand_more
                                     </span>
-                                  </motion.div>
-                                ) : !place.user_checked_in ? (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setCheckInModal({
-                                        placeCode: place.place_code,
-                                        placeName: place.name,
-                                      });
-                                    }}
-                                    className="shrink-0 px-2.5 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 active:scale-95 transition-all"
-                                  >
-                                    {t('groups.checkIn')}
-                                  </button>
-                                ) : null}
-                                <span
-                                  className={cn(
-                                    'material-symbols-outlined text-slate-400 transition-transform ml-1',
-                                    expandedPlace === place.place_code && 'rotate-180',
-                                  )}
-                                >
-                                  expand_more
-                                </span>
-                              </button>
-
+                                  </>
+                                }
+                              />
+                              {/* Avatar row for check-ins */}
+                              {place.check_in_count > 0 && (
+                                <div className="flex items-center gap-1 mt-1 px-3">
+                                  <div className="flex -space-x-1">
+                                    {place.checked_in_by.slice(0, 3).map((ci) => (
+                                      <div
+                                        key={ci.user_code}
+                                        className="w-5 h-5 rounded-full bg-primary/20 border border-white dark:border-dark-surface flex items-center justify-center text-primary text-[10px] font-bold"
+                                        title={ci.display_name}
+                                      >
+                                        {ci.display_name.charAt(0)}
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <span className="text-[10px] text-slate-400 dark:text-dark-text-secondary">
+                                    {place.check_in_count} {t('groups.checkedIn')}
+                                  </span>
+                                </div>
+                              )}
                               {/* Expanded content */}
                               {expandedPlace === place.place_code && (
                                 <div className="px-4 pb-4 border-t border-slate-100 dark:border-dark-border pt-3 space-y-3">

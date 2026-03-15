@@ -20,7 +20,6 @@ import { getHomepage } from '@/lib/api/client';
 import type {
   HomepageData,
   HomepageRecommendedPlace,
-  HomepagePopularPlace,
   HomepageFeaturedJourney,
   HomepagePopularCity,
 } from '@/lib/api/client';
@@ -28,12 +27,12 @@ import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import JoinJourneyModal from '@/components/groups/JoinJourneyModal';
 import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 import HomeSkeleton from '@/components/common/skeletons/HomeSkeleton';
-import type { Group } from '@/lib/types';
+import type { Group, Place } from '@/lib/types';
+import PlaceCardUnified from '@/components/places/PlaceCardUnified';
 
 // ── Type aliases for local use ─────────────────────────────────────────────────
 
 type RecommendedPlace = HomepageRecommendedPlace;
-type PopularPlace = HomepagePopularPlace & { total_checkins_count?: number | null };
 type FeaturedJourney = HomepageFeaturedJourney;
 
 // ── Quick action accent colors ────────────────────────────────────────────────
@@ -341,130 +340,6 @@ function QuickActionsGrid({
   );
 }
 
-/** Horizontal place card — recommended */
-function PlaceCardSmall({
-  place,
-  onAddToJourney,
-}: {
-  place: RecommendedPlace;
-  onAddToJourney: (place: RecommendedPlace) => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <Link to={`/places/${place.place_code}`}>
-      <motion.div
-        whileTap={{ scale: 0.97 }}
-        className="w-[calc((100vw-2.5rem)/2.3)] lg:w-full flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:scale-[1.02] hover:shadow-md transition-all duration-200"
-      >
-        <div className="h-28 lg:h-44 bg-slate-100 dark:bg-dark-border relative overflow-hidden">
-          {place.image_url ? (
-            <img
-              src={getFullImageUrl(place.image_url)}
-              alt={place.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span
-                className="material-symbols-outlined text-3xl text-slate-300"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                place
-              </span>
-            </div>
-          )}
-          {place.distance_km != null && (
-            <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
-              {place.distance_km < 1
-                ? `${Math.round(place.distance_km * 1000)}m`
-                : `${place.distance_km}km`}
-            </span>
-          )}
-        </div>
-        <div className="p-2.5 lg:p-4">
-          <p className="text-xs font-semibold text-text-primary dark:text-white line-clamp-1">
-            {place.name}
-          </p>
-          <p className="text-[10px] text-text-muted dark:text-dark-text-secondary mt-0.5 capitalize">
-            {t(`common.${place.religion}`) || place.religion}
-          </p>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              onAddToJourney(place);
-            }}
-            className="mt-2 text-[10px] font-semibold text-primary hover:underline"
-          >
-            + {t('map.addToJourney')}
-          </button>
-        </div>
-      </motion.div>
-    </Link>
-  );
-}
-
-/** Horizontal popular place card — with rating + checkins */
-function PopularPlaceCard({ place }: { place: PopularPlace }) {
-  const { t } = useI18n();
-  const imgUrl = place.images?.[0]?.url ? getFullImageUrl(place.images[0].url) : null;
-  return (
-    <Link to={`/places/${place.place_code}`}>
-      <motion.div
-        whileTap={{ scale: 0.97 }}
-        className="w-[calc((100vw-2.5rem)/2.3)] lg:w-full flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:scale-[1.02] hover:shadow-md transition-all duration-200"
-      >
-        <div className="h-28 lg:h-44 bg-slate-100 dark:bg-dark-border relative overflow-hidden">
-          {imgUrl ? (
-            <img src={imgUrl} alt={place.name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span
-                className="material-symbols-outlined text-3xl text-slate-300"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                place
-              </span>
-            </div>
-          )}
-          {place.distance != null && (
-            <span className="absolute bottom-1.5 right-1.5 bg-black/60 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
-              {place.distance < 1
-                ? `${Math.round(place.distance * 1000)}m`
-                : `${place.distance.toFixed(1)}km`}
-            </span>
-          )}
-        </div>
-        <div className="p-2.5 lg:p-4">
-          <p className="text-xs font-semibold text-text-primary dark:text-white line-clamp-1">
-            {place.name}
-          </p>
-          <p className="text-[10px] text-text-muted dark:text-dark-text-secondary mt-0.5 capitalize">
-            {t(`common.${place.religion}`) || place.religion}
-          </p>
-          <div className="flex items-center gap-2 mt-1.5">
-            {place.average_rating != null && place.average_rating > 0 && (
-              <span className="flex items-center gap-0.5 text-[10px] font-semibold text-amber-500">
-                ★ {place.average_rating.toFixed(1)}
-              </span>
-            )}
-            {place.total_checkins_count != null && place.total_checkins_count > 0 && (
-              <span className="flex items-center gap-0.5 text-[10px] text-text-muted dark:text-dark-text-secondary">
-                <span
-                  className="material-symbols-outlined text-[12px]"
-                  style={{ fontVariationSettings: "'FILL' 0" }}
-                >
-                  check_circle
-                </span>
-                {place.total_checkins_count}
-              </span>
-            )}
-          </div>
-        </div>
-      </motion.div>
-    </Link>
-  );
-}
-
 /** Horizontal featured journey card */
 function FeaturedJourneyCard({ journey }: { journey: FeaturedJourney }) {
   const { t } = useI18n();
@@ -553,9 +428,16 @@ function CityCollageCard({ city }: { city: HomepagePopularCity }) {
               </div>
             </div>
           )}
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/15 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 p-3">
+          {/* Glass overlay */}
+          <div
+            className="absolute bottom-3 left-3 right-3 rounded-2xl p-3 border"
+            style={{
+              background: 'rgba(255,255,255,0.15)',
+              borderColor: 'rgba(255,255,255,0.25)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+            }}
+          >
             <p className="text-sm font-bold text-white line-clamp-1">{city.city}</p>
             <p className="text-[10px] text-white/75 mt-0.5">
               {city.count} {t('nav.places').toLowerCase()}
@@ -743,7 +625,12 @@ export default function Home() {
                   </div>
                   <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:flex-none">
                     {popularPlaces.map((place) => (
-                      <PopularPlaceCard key={place.place_code} place={place} />
+                      <PlaceCardUnified
+                        key={place.place_code}
+                        place={place as unknown as Place}
+                        t={t}
+                        className="w-[calc((100vw-2.5rem)/2.3)] lg:w-full flex-shrink-0"
+                      />
                     ))}
                   </div>
                 </section>
@@ -780,15 +667,32 @@ export default function Home() {
                     </Link>
                   </div>
                   <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:flex-none">
-                    {recommended.map((place) => (
-                      <PlaceCardSmall
-                        key={place.place_code}
-                        place={place}
-                        onAddToJourney={(p) =>
-                          user ? setAddToJourneyPlace(p) : navigate('/login')
-                        }
-                      />
-                    ))}
+                    {recommended.map((place) => {
+                      const placeObj = {
+                        place_code: place.place_code,
+                        name: place.name,
+                        address: '',
+                        images: place.image_url ? [{ url: place.image_url }] : [],
+                        distance: place.distance_km ?? null,
+                      } as unknown as Place;
+                      return (
+                        <PlaceCardUnified
+                          key={place.place_code}
+                          place={placeObj}
+                          t={t}
+                          variant="recommended"
+                          onAddToJourney={(e) => {
+                            e.preventDefault();
+                            if (user) {
+                              setAddToJourneyPlace(place);
+                            } else {
+                              navigate('/login');
+                            }
+                          }}
+                          className="w-[calc((100vw-2.5rem)/2.3)] lg:w-full flex-shrink-0"
+                        />
+                      );
+                    })}
                   </div>
                 </section>
               )}
