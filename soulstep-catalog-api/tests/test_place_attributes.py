@@ -1,12 +1,14 @@
 """
 Tests for app.db.place_attributes:
-upsert_attribute, get_attributes_dict, bulk_get_attributes_for_places, get_attribute_definitions.
+upsert_attribute, get_attributes_dict, bulk_get_attributes_for_places,
+bulk_upsert_attributes, get_attribute_definitions.
 """
 
 from sqlmodel import Session
 
 from app.db import place_attributes as attr_db
 from app.db.models import Place, PlaceAttributeDefinition
+from app.models.schemas import PlaceAttributeInput
 
 
 def _make_place(session: Session, code: str, name: str = "Test Place") -> Place:
@@ -87,6 +89,49 @@ class TestUpsertAttribute:
         _make_place(db_session, "plc_attr0007")
         d = attr_db.get_attributes_dict("plc_attr0007", db_session)
         assert d == {}
+
+
+# ── bulk_upsert_attributes ────────────────────────────────────────────────────
+
+
+class TestBulkUpsertAttributes:
+    def test_skips_unknown_attribute_codes(self, db_session):
+        """Unknown codes (not in PlaceAttributeDefinition) must be silently skipped."""
+        _make_place(db_session, "plc_bua0001")
+        _make_attr_def(db_session, "rating")
+
+        attrs = [
+            PlaceAttributeInput(attribute_code="rating", value="4.5"),
+            PlaceAttributeInput(attribute_code="about_sunday_open__hours", value="False"),
+            PlaceAttributeInput(attribute_code="about__reviews__stars", value="False"),
+        ]
+        attr_db.bulk_upsert_attributes("plc_bua0001", attrs, db_session)
+        db_session.commit()
+
+        d = attr_db.get_attributes_dict("plc_bua0001", db_session)
+        assert d == {"rating": "4.5"}
+
+    def test_upserts_known_attributes(self, db_session):
+        _make_place(db_session, "plc_bua0002")
+        _make_attr_def(db_session, "has_parking")
+        _make_attr_def(db_session, "capacity")
+
+        attrs = [
+            PlaceAttributeInput(attribute_code="has_parking", value=True),
+            PlaceAttributeInput(attribute_code="capacity", value="200"),
+        ]
+        attr_db.bulk_upsert_attributes("plc_bua0002", attrs, db_session)
+        db_session.commit()
+
+        d = attr_db.get_attributes_dict("plc_bua0002", db_session)
+        assert d["has_parking"] == "True"
+        assert d["capacity"] == "200"
+
+    def test_empty_attrs_is_noop(self, db_session):
+        _make_place(db_session, "plc_bua0003")
+        attr_db.bulk_upsert_attributes("plc_bua0003", [], db_session)
+        db_session.commit()
+        assert attr_db.get_attributes_dict("plc_bua0003", db_session) == {}
 
 
 # ── bulk_get_attributes_for_places ────────────────────────────────────────────

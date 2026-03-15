@@ -48,10 +48,14 @@ def bulk_upsert_attributes(place_code: str, attrs: list, session: Session) -> No
     """Upsert all attributes for a place in a single DB round-trip.
 
     Fetches existing attrs for the place once, then updates or inserts in-memory.
+    Skips any attribute codes not present in PlaceAttributeDefinition to avoid FK
+    violations from scraper-generated junk codes.
     Flushes at the end — the caller is responsible for committing.
     """
     if not attrs:
         return
+
+    valid_codes: set[str] = set(session.exec(select(PlaceAttributeDefinition.attribute_code)).all())
 
     existing: dict[str, PlaceAttribute] = {
         a.attribute_code: a
@@ -61,6 +65,8 @@ def bulk_upsert_attributes(place_code: str, attrs: list, session: Session) -> No
     }
 
     for attr_input in attrs:
+        if attr_input.attribute_code not in valid_codes:
+            continue
         code = attr_input.attribute_code
         value = attr_input.value
         if isinstance(value, dict | list):
