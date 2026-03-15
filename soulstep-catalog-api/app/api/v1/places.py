@@ -679,6 +679,7 @@ def _persist_place_translations(place_code: str, translations, session: Session)
 
     if not isinstance(translations, PlaceTranslationInput):
         return
+    any_written = False
     for field, lang_map in [
         ("name", translations.name),
         ("description", translations.description),
@@ -696,7 +697,11 @@ def _persist_place_translations(place_code: str, translations, session: Session)
                     text=text,
                     source="scraper",
                     session=session,
+                    commit=False,
                 )
+                any_written = True
+    if any_written:
+        session.commit()
 
 
 def _upsert_single_place(
