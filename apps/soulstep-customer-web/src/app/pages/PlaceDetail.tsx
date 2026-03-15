@@ -700,7 +700,7 @@ export default function PlaceDetail() {
             : '-translate-y-full opacity-0 pointer-events-none',
         )}
       >
-        <div className="flex items-center gap-4 max-w-5xl mx-auto">
+        <div className="flex items-center gap-4 max-w-6xl mx-auto">
           <button
             onClick={() => navigate(-1)}
             className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-50 dark:bg-dark-surface text-slate-400 hover:text-primary transition-all active:scale-95"
@@ -743,7 +743,7 @@ export default function PlaceDetail() {
       </div>
       {/* Hero (fixed behind content) */}
       <div
-        className="fixed top-0 left-0 right-0 h-[300px] md:h-[380px] w-full overflow-hidden bg-[#1a2e2e] z-0 select-none"
+        className="fixed top-0 left-0 right-0 h-[300px] md:h-[380px] w-full overflow-hidden bg-[#1a2e2e] z-0 select-none lg:hidden"
         onMouseDown={heroImages.length > 1 ? handleHeroMouseDown : undefined}
         onMouseMove={heroImages.length > 1 ? handleHeroMouseMove : undefined}
         onMouseUp={heroImages.length > 1 ? handleHeroMouseUp : undefined}
@@ -859,11 +859,11 @@ export default function PlaceDetail() {
         </div>
       </div>
 
-      {/* Spacer to push content below fixed hero */}
-      <div className="h-[300px] md:h-[380px]" aria-hidden="true" />
+      {/* Spacer to push content below fixed hero (mobile only) */}
+      <div className="h-[300px] md:h-[380px] lg:hidden" aria-hidden="true" />
 
       {/* Main content */}
-      <div className="relative max-w-5xl mx-auto">
+      <div className="relative max-w-6xl mx-auto">
         {/* Mobile layout */}
         <div className="lg:hidden">
           <div className="bg-background-light dark:bg-dark-bg rounded-t-[2rem] pt-6 pb-28 px-4 space-y-6">
@@ -1030,9 +1030,9 @@ export default function PlaceDetail() {
         </div>
 
         {/* Desktop 2-column layout */}
-        <div className="hidden lg:grid lg:grid-cols-[1fr_360px] lg:gap-8 lg:items-start bg-background-light dark:bg-dark-bg rounded-t-[2rem] pt-8 pb-16 px-8">
+        <div className="hidden lg:grid lg:grid-cols-5 lg:gap-8 lg:items-start bg-background-light dark:bg-dark-bg pt-8 pb-16 px-6">
           {/* Left column: main content */}
-          <div className="space-y-8">
+          <div className="lg:col-span-3 space-y-8">
             {/* Breadcrumb */}
             <Breadcrumb
               items={[
@@ -1046,6 +1046,127 @@ export default function PlaceDetail() {
                 { label: place.name },
               ]}
             />
+
+            {/* Desktop inline image gallery — replaces fixed hero on lg+ */}
+            {heroImages.length > 0 && (
+              <div
+                className="relative w-full rounded-3xl overflow-hidden bg-[#1a2e2e] select-none"
+                style={{
+                  aspectRatio: '16/7',
+                  cursor:
+                    heroImages.length > 1 ? (heroIsDragging ? 'grabbing' : 'grab') : undefined,
+                }}
+                onMouseDown={heroImages.length > 1 ? handleHeroMouseDown : undefined}
+                onMouseMove={heroImages.length > 1 ? handleHeroMouseMove : undefined}
+                onMouseUp={heroImages.length > 1 ? handleHeroMouseUp : undefined}
+              >
+                {/* Sliding strip */}
+                <div
+                  className="flex h-full transition-transform duration-500 ease-in-out absolute inset-0"
+                  style={{
+                    transform: `translateX(-${heroIdx * (100 / heroImages.length)}%)`,
+                    width: `${heroImages.length * 100}%`,
+                  }}
+                >
+                  {heroImages.map((src, i) => (
+                    <img
+                      key={i}
+                      src={src}
+                      alt={place.images?.[i]?.alt_text || place.name || ''}
+                      className="h-full object-cover flex-shrink-0"
+                      style={{ width: `${100 / heroImages.length}%` }}
+                      draggable={false}
+                      loading={i === 0 ? undefined : 'lazy'}
+                    />
+                  ))}
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/50 pointer-events-none" />
+                {/* Bottom: status + name + address */}
+                <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
+                  <div className="flex items-center gap-2 mb-2">
+                    {(() => {
+                      const status =
+                        place.open_status ??
+                        (place.is_open_now === true
+                          ? 'open'
+                          : place.is_open_now === false
+                            ? 'closed'
+                            : null);
+                      if (status === 'open')
+                        return (
+                          <span className="badge-open-glass">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            {t('places.open')}
+                          </span>
+                        );
+                      if (status === 'closed')
+                        return (
+                          <span className="badge-closed-glass">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                            {t('places.closed')}
+                          </span>
+                        );
+                      if (status === 'unknown')
+                        return <span className="badge-unknown-glass">{t('places.unknown')}</span>;
+                      return null;
+                    })()}
+                  </div>
+                  <h1 className="text-3xl font-bold text-white mb-1.5 leading-tight tracking-tight drop-shadow-lg">
+                    {place.name}
+                  </h1>
+                  {place.address && (
+                    <p className="text-white/85 text-sm font-light flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[16px]">location_on</span>
+                      {place.address}
+                    </p>
+                  )}
+                </div>
+                {/* Dot indicators */}
+                {heroImages.length > 1 && (
+                  <div className="absolute bottom-4 right-5 flex gap-1.5 z-20">
+                    {heroImages.map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        aria-label={`Image ${i + 1}`}
+                        onClick={() => setHeroIdx(i)}
+                        className={cn(
+                          'transition-all rounded-full',
+                          i === heroIdx
+                            ? 'w-5 h-1.5 bg-white'
+                            : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/80',
+                        )}
+                      />
+                    ))}
+                  </div>
+                )}
+                {/* Share + favorite — top right */}
+                <div className="absolute top-4 right-4 flex gap-2 z-20">
+                  <SharePlaceButton
+                    placeName={place.name}
+                    placeCode={place.place_code}
+                    variant="glass"
+                  />
+                  <button
+                    type="button"
+                    onClick={toggleFavorite}
+                    disabled={favoriteLoading}
+                    className="w-10 h-10 rounded-full bg-black/35 flex items-center justify-center hover:bg-black/50 transition-all border border-white/20 disabled:opacity-50"
+                    aria-label={place.is_favorite ? t('places.unfavorite') : t('places.favorite')}
+                  >
+                    <span
+                      className="material-symbols-outlined"
+                      style={{
+                        color: place.is_favorite ? '#f87171' : '#ffffff',
+                        fontVariationSettings: `'FILL' ${place.is_favorite ? 1 : 0}`,
+                      }}
+                    >
+                      favorite
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* The Story */}
             {place.description && (
@@ -1219,7 +1340,7 @@ export default function PlaceDetail() {
           </div>
 
           {/* Right column: sticky sidebar */}
-          <div className="sticky top-6 space-y-4">
+          <div className="lg:col-span-2 lg:sticky lg:top-24 lg:self-start space-y-4">
             <SidebarActions />
           </div>
         </div>

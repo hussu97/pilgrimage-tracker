@@ -3,9 +3,17 @@ import { SkeletonBox, SkeletonText } from '../Skeleton';
 export default function PlaceDetailSkeleton() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-dark-bg">
-      <SkeletonBox className="h-64 w-full rounded-none" />
+      {/* Mobile-only full-width hero */}
+      <SkeletonBox className="h-64 w-full rounded-none lg:hidden" />
       <div className="max-w-6xl mx-auto px-4 py-5 lg:grid lg:grid-cols-5 lg:gap-8">
         <div className="lg:col-span-3 space-y-4">
+          {/* Desktop gallery placeholder */}
+          <div
+            className="hidden lg:block w-full rounded-3xl overflow-hidden"
+            style={{ aspectRatio: '16/7' }}
+          >
+            <SkeletonBox className="w-full h-full rounded-3xl" />
+          </div>
           <div className="space-y-2">
             <SkeletonText width="70%" className="h-7" />
             <SkeletonText width="50%" />
