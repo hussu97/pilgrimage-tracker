@@ -11,7 +11,7 @@ router = APIRouter()
 def list_notifications(
     user: UserDep,
     session: SessionDep,
-    limit: int = Query(20),
+    limit: int = Query(20, le=100),
     offset: int = Query(0),
 ):
     rows = notifications_db.get_notifications_for_user(

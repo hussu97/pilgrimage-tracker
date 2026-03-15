@@ -93,7 +93,7 @@ jobs:
 
       - name: Dependency vulnerability scan (pip-audit)
         working-directory: soulstep-catalog-api
-        run: .venv/bin/pip-audit -r requirements.txt --skip-editable || true
+        run: .venv/bin/pip-audit -r requirements.txt --skip-editable
 
       - name: Run pytest
         working-directory: soulstep-catalog-api
@@ -135,7 +135,7 @@ jobs:
 
       - name: Dependency vulnerability scan (pip-audit)
         working-directory: soulstep-scraper-api
-        run: .venv/bin/pip-audit -r requirements.txt --skip-editable || true
+        run: .venv/bin/pip-audit -r requirements.txt --skip-editable
 
       - name: Run pytest
         working-directory: soulstep-scraper-api

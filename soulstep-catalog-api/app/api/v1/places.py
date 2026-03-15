@@ -308,7 +308,7 @@ def list_places(
     place_type: str | None = Query(None),
     search: str | None = Query(None),
     sort: str | None = Query(None, description="proximity or rating"),
-    limit: int = Query(50, le=500),
+    limit: int = Query(50, le=100),
     cursor: str | None = Query(
         None, description="place_code of the last seen item; omit for the first page"
     ),
@@ -429,7 +429,7 @@ def get_place(
 def get_place_reviews(
     place_code: str,
     session: SessionDep,
-    limit: int = Query(5),
+    limit: int = Query(5, le=100),
     offset: int = Query(0),
     lang: str | None = Query(None),
 ):

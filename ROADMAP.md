@@ -32,21 +32,6 @@ Security and stability items that **must** be resolved before any public product
   - Add `HTTPSRedirectMiddleware` behind an env flag (`ENFORCE_HTTPS=true`) so it only activates in production.
   - Files: `soulstep-catalog-api/app/main.py`
 
-- [ ] **Run Docker containers as non-root user**
-  - The `catalog-api` Dockerfile runs as root, which escalates container escape risk.
-  - Add `RUN adduser --disabled-password appuser && USER appuser` to the Dockerfile.
-  - Files: `soulstep-catalog-api/Dockerfile`
-
-- [ ] **Fix Trivy/pip-audit CI exit codes to actually block on vulnerabilities**
-  - The security scanning steps in CI use `|| true`, meaning they never fail the build regardless of findings.
-  - Remove `|| true`. Use `--exit-code 1` for Trivy and let `pip-audit` propagate its exit code.
-  - Files: `.github/workflows/tests.yml`, `.github/workflows/deploy.yml`
-
-- [ ] **Create .dockerignore files for all services**
-  - No `.dockerignore` files exist. Docker builds copy `.git/`, `.venv/`, `__pycache__/`, and test files into images, bloating them and risking secret leakage.
-  - Add `.dockerignore` to all Dockerfiles: exclude `.git`, `.venv`, `__pycache__`, `*.pyc`, `tests/`, `.env*`, `node_modules/`.
-  - Files: `soulstep-catalog-api/.dockerignore`, `soulstep-scraper-api/.dockerignore`, `apps/soulstep-customer-web/.dockerignore`
-
 ### Data Protection
 
 - [ ] **Implement user self-service account deletion (GDPR/CCPA)**
@@ -70,11 +55,6 @@ Security and stability items that **must** be resolved before any public product
   - No backup strategy exists. A database failure loses all data permanently.
   - For production PostgreSQL: configure daily automated backups with 30-day retention. Document restore procedure in `PRODUCTION.md`. Add monitoring for backup failures. Define RTO (< 1 hour) and RPO (< 24 hours).
   - Files: `PRODUCTION.md`, GCP Cloud SQL backup config or backup scripts
-
-- [ ] **Validate pagination bounds on all list endpoints**
-  - No upper-bound validation on `page_size` / `limit` parameters. A client can request `?page_size=999999` and exhaust server memory.
-  - Add `le=2000` validation on all paginated endpoints (admin allows up to 2000 per Rule 16; public endpoints cap at 100).
-  - Files: `soulstep-catalog-api/app/api/v1/admin/*.py`, `soulstep-catalog-api/app/api/v1/places.py`, `soulstep-catalog-api/app/api/v1/users.py`
 
 ---
 

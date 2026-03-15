@@ -435,7 +435,7 @@ def get_activity(
     group_code: str,
     user: UserDep,
     session: SessionDep,
-    limit: int = Query(20),
+    limit: int = Query(20, le=100),
 ):
     g = groups_db.get_group_by_code(group_code, session)
     if not g:

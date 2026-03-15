@@ -4,6 +4,19 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-16] — Security hardening: dockerignore, non-root containers, CI scanning, pagination bounds
+
+### Backend
+- **Pagination**: Added `le=100` upper-bound validation to all unbounded public `limit` params — places list, place reviews, group activity, and notifications endpoints
+- **Pagination**: Tightened places list endpoint from `le=500` → `le=100`
+
+### Docs / CI
+- **Dockerignore**: Added `.dockerignore` to `soulstep-catalog-api/`, `soulstep-scraper-api/`, and `apps/soulstep-customer-web/` — excludes `.git`, `.venv`, `__pycache__`, `tests/`, `.env*`, `*.pyc`
+- **Non-root Docker**: `soulstep-catalog-api` Dockerfile (main, `.sync`, `.translate`) now creates and switches to `appuser` before the entrypoint (scraper images already had this)
+- **CI scanning**: Removed `|| true` from `pip-audit` steps in `tests.yml` so vulnerabilities now fail the build; changed Trivy `exit-code` from `"0"` to `"1"` in `deploy.yml` for both catalog-api and scraper-api image scans
+
+---
+
 ## [2026-03-15] — CATALOG_API_KEY: internal service auth for catalog API
 
 ### Backend

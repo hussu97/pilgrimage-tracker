@@ -95,7 +95,7 @@ jobs:
         with:
           image-ref: "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:${{ env.HEAD_SHA }}"
           format: "table"
-          exit-code: "0"
+          exit-code: "1"
           severity: "CRITICAL,HIGH"
 
       - name: Deploy soulstep-catalog-api to Cloud Run
@@ -341,7 +341,7 @@ jobs:
         with:
           image-ref: "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:${{ env.HEAD_SHA }}"
           format: "table"
-          exit-code: "0"
+          exit-code: "1"
           severity: "CRITICAL,HIGH"
 
       - name: Deploy soulstep-scraper-api service to Cloud Run

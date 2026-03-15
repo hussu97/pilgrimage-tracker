@@ -9,4 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt playwright \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . .
+RUN adduser --disabled-password --no-create-home appuser \
+    && chown -R appuser /app
+USER appuser
 CMD ["python", "-m", "app.jobs.translate_content"]
