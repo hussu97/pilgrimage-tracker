@@ -32,6 +32,11 @@ class Settings:
     # ── Database ──────────────────────────────────────────────────────────────
     database_url: str = os.environ.get("DATABASE_URL", "")
     scraper_db_path: str = os.environ.get("SCRAPER_DB_PATH", "scraper.db")
+    # PostgreSQL connection pool tuning. pool_size + max_overflow = max concurrent
+    # connections. Raise if you see pool overflow errors during large runs.
+    scraper_pool_size: int = int(os.environ.get("SCRAPER_POOL_SIZE", "10"))
+    scraper_max_overflow: int = int(os.environ.get("SCRAPER_MAX_OVERFLOW", "10"))
+    scraper_pool_timeout: int = int(os.environ.get("SCRAPER_POOL_TIMEOUT", "30"))
 
     # ── Runtime ───────────────────────────────────────────────────────────────
     main_server_url: str = os.environ.get("MAIN_SERVER_URL", "http://127.0.0.1:3000")
@@ -49,10 +54,10 @@ class Settings:
     google_cloud_project: str = os.environ.get("GOOGLE_CLOUD_PROJECT", "")
 
     # ── GCS image storage ─────────────────────────────────────────────────────
+    # Required. GCS bucket for image storage.
     # Same env var and bucket as the catalog API (IMAGE_STORAGE=gcs + GCS_BUCKET_NAME).
-    # When set, scraped images are uploaded to images/places/ — matching the catalog's
+    # Scraped images are uploaded to images/places/ — matching the catalog's
     # PREFIX_PLACES — so all place images share one folder regardless of origin.
-    # Leave blank to store images as base64 blobs in the sync payload instead.
     gcs_bucket_name: str = os.environ.get("GCS_BUCKET_NAME", "")
 
     # ── Concurrency (configurable via env for tuning) ─────────────────────────

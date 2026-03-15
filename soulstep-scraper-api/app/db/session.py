@@ -11,15 +11,16 @@ _database_url = os.environ.get("DATABASE_URL")
 
 if _database_url:
     db_url = _database_url
-    # f1-micro has 25 max connections shared across all services.
-    # Scraper gets 5 total (pool_size + max_overflow) leaving 12 for catalog-api
-    # and 8 reserved for admin/migrations.
-    connect_args: dict = {"connect_timeout": 5}
+    # Pool sized for enrichment concurrency (default 10 workers) plus HTTP
+    # request handlers running simultaneously.  Configurable via env vars so
+    # operators can tune without a code deploy.
+    # Budget: pool_size + max_overflow = max concurrent connections this process uses.
+    connect_args: dict = {"connect_timeout": 10}
     _pool_config: dict = {
-        "pool_size": 3,  # persistent connections per process
-        "max_overflow": 2,  # burst headroom — 5 total per process
-        "pool_timeout": 5,  # fail fast
-        "pool_recycle": 120,  # recycle idle connections every 2 min
+        "pool_size": int(os.environ.get("SCRAPER_POOL_SIZE", "10")),
+        "max_overflow": int(os.environ.get("SCRAPER_MAX_OVERFLOW", "10")),
+        "pool_timeout": int(os.environ.get("SCRAPER_POOL_TIMEOUT", "30")),
+        "pool_recycle": 300,  # 5 min — sync phase batches can take >2 min
         "pool_pre_ping": True,
     }
     engine = create_engine(db_url, echo=False, connect_args=connect_args, **_pool_config)

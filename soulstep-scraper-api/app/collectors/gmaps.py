@@ -7,7 +7,6 @@ Extracted from scrapers/gmaps.py detail-fetching logic with enhanced field mask.
 from __future__ import annotations
 
 import asyncio
-import base64
 import os
 import time
 from typing import Any
@@ -77,10 +76,15 @@ _IMAGE_DB_BATCH = 50  # places committed per DB transaction during image write-b
 
 
 async def download_place_images(run_code: str, engine, max_workers: int | None = None) -> None:
-    """Phase 3: Download images for all places in a run and store blobs in raw_data.
+    """Phase 3: Download images and upload directly to GCS.
 
     Called after fetch_place_details() so detail fetching is not blocked.
-    Uses a shared httpx.AsyncClient + asyncio.gather for parallel downloads.
+    Uses a shared httpx.AsyncClient + asyncio.gather for parallel operations.
+
+    For each place: downloads the photo media URL, uploads bytes to GCS, and
+    stores the public GCS URL back in raw_data["image_urls"].
+
+    Skips places where all URLs already start with the GCS prefix (already uploaded).
 
     Photo media requests (places.googleapis.com/v1/.../media) ARE billed by
     Google at $0.007 per 1000 requests. Photo count per place is capped by
@@ -92,13 +96,16 @@ async def download_place_images(run_code: str, engine, max_workers: int | None =
     """
     from app.db.models import ScrapedPlace
     from app.pipeline.place_quality import GATE_IMAGE_DOWNLOAD, passes_gate
+    from app.services.gcs import upload_image_bytes
 
     concurrency = max_workers if max_workers is not None else settings.image_concurrency
+
+    _GCS_PREFIX = "https://storage.googleapis.com/"
 
     with Session(engine) as session:
         places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
 
-    # Collect (place_id, url_index, url) tuples to download
+    # Collect (place_id, url_index, url) tuples to process
     tasks: list[tuple[int, int, str]] = []
     place_map: dict[int, dict] = {}  # place.id → raw_data
 
@@ -107,11 +114,12 @@ async def download_place_images(run_code: str, engine, max_workers: int | None =
             continue  # filtered by quality gate
         raw = place.raw_data or {}
         urls = raw.get("image_urls") or []
-        if not urls or raw.get("image_blobs"):
-            continue  # already downloaded or no URLs
+        if not urls or all(u.startswith(_GCS_PREFIX) for u in urls):
+            continue  # no URLs or already uploaded to GCS
         place_map[place.id] = raw
         for idx, url in enumerate(urls):
-            tasks.append((place.id, idx, url))
+            if not url.startswith(_GCS_PREFIX):
+                tasks.append((place.id, idx, url))
 
     if not tasks:
         logger.info("Image download: no pending images for run %s", run_code)
@@ -124,30 +132,27 @@ async def download_place_images(run_code: str, engine, max_workers: int | None =
         concurrency,
     )
 
-    # Download all images in parallel — no API rate limit for photo media
+    # Download and upload to GCS in parallel
     sem = asyncio.Semaphore(concurrency)
-    results: dict[tuple[int, int], bytes] = {}
+    gcs_urls_by_place: dict[int, list[tuple[int, str]]] = {}
 
     async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as http_client:
 
-        async def _fetch(place_id: int, idx: int, url: str) -> None:
+        async def _fetch_and_upload(place_id: int, idx: int, url: str) -> None:
             async with sem:
                 content = await _download_image(url, http_client)
                 if content is not None:
-                    results[(place_id, idx)] = content
+                    gcs_url = upload_image_bytes(content)
+                    if gcs_url:
+                        gcs_urls_by_place.setdefault(place_id, []).append((idx, gcs_url))
 
-        await asyncio.gather(*[_fetch(pid, idx, url) for pid, idx, url in tasks])
+        await asyncio.gather(*[_fetch_and_upload(pid, idx, url) for pid, idx, url in tasks])
 
-    # Group downloaded bytes by place
-    blobs_by_place: dict[int, list[tuple[int, bytes]]] = {}
-    for (place_id, idx), content in results.items():
-        blobs_by_place.setdefault(place_id, []).append((idx, content))
+    uploaded = sum(len(v) for v in gcs_urls_by_place.values())
+    images_failed = len(tasks) - uploaded
 
-    downloaded = sum(len(v) for v in blobs_by_place.values())
-    images_failed = len(tasks) - downloaded
-
-    # Write blobs back in batches to keep transactions small
-    place_ids = list(blobs_by_place.keys())
+    # Write GCS URLs back in batches to keep transactions small
+    place_ids = list(gcs_urls_by_place.keys())
     for batch_start in range(0, len(place_ids), _IMAGE_DB_BATCH):
         batch = place_ids[batch_start : batch_start + _IMAGE_DB_BATCH]
         with Session(engine) as session:
@@ -156,15 +161,11 @@ async def download_place_images(run_code: str, engine, max_workers: int | None =
                 if not place:
                     continue
                 raw = dict(place.raw_data or {})
-                sorted_blobs = [
-                    {
-                        "data": base64.b64encode(content).decode("ascii"),
-                        "mime_type": "image/jpeg",
-                    }
-                    for _, content in sorted(blobs_by_place[place_id], key=lambda x: x[0])
+                sorted_urls = [
+                    gcs_url
+                    for _, gcs_url in sorted(gcs_urls_by_place[place_id], key=lambda x: x[0])
                 ]
-                raw["image_blobs"] = sorted_blobs
-                raw["image_urls"] = []  # clear URLs now that blobs exist
+                raw["image_urls"] = sorted_urls
                 place.raw_data = raw
                 session.add(place)
             session.commit()
@@ -180,257 +181,17 @@ async def download_place_images(run_code: str, engine, max_workers: int | None =
     with Session(engine) as session:
         run_record = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
         if run_record:
-            run_record.images_downloaded = downloaded
+            run_record.images_downloaded = uploaded
             run_record.images_failed = images_failed
             session.add(run_record)
         session.commit()
 
     logger.info(
-        "Image download complete: %d/%d images downloaded for run %s",
-        downloaded,
+        "Image download complete: %d/%d images uploaded to GCS for run %s",
+        uploaded,
         len(tasks),
         run_code,
     )
-
-
-async def upload_images_to_gcs(run_code: str, engine) -> None:
-    """Phase 3b (optional): Upload stored image blobs to GCS and replace with public URLs.
-
-    Called after download_place_images() when GCS_BUCKET_NAME is set.
-    For each ScrapedPlace that has image_blobs, uploads each blob to GCS,
-    stores the public URL in image_urls, and clears image_blobs.
-
-    Safe to skip when GCS is not configured — base64 blobs remain in raw_data.
-    """
-    from app.db.models import ScrapedPlace
-    from app.services.gcs import is_gcs_configured, upload_image_bytes
-
-    if not is_gcs_configured():
-        return
-
-    import base64
-
-    with Session(engine) as session:
-        places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
-
-    uploaded_count = 0
-    failed_count = 0
-
-    for place in places:
-        raw = place.raw_data or {}
-        blobs = raw.get("image_blobs") or []
-        if not blobs:
-            continue
-
-        gcs_urls = []
-        for idx, blob in enumerate(blobs):
-            try:
-                data = base64.b64decode(blob["data"])
-                mime_type = blob.get("mime_type", "image/jpeg")
-                url = upload_image_bytes(data, mime_type)
-                if url:
-                    gcs_urls.append(url)
-                    uploaded_count += 1
-                else:
-                    failed_count += 1
-            except Exception as exc:
-                logger.warning("GCS upload error for %s idx=%d: %s", place.place_code, idx, exc)
-                failed_count += 1
-
-        if gcs_urls:
-            with Session(engine) as session:
-                db_place = session.get(ScrapedPlace, place.id)
-                if db_place:
-                    r = dict(db_place.raw_data or {})
-                    r["image_urls"] = gcs_urls
-                    r["image_blobs"] = []
-                    db_place.raw_data = r
-                    session.add(db_place)
-                    session.commit()
-
-    logger.info(
-        "GCS upload complete: %d uploaded, %d failed (run=%s)",
-        uploaded_count,
-        failed_count,
-        run_code,
-    )
-
-
-async def cleanup_image_downloads(
-    engine,
-    api_key: str,
-    max_workers: int | None = None,
-) -> dict[str, int]:
-    """Retry image downloads for all ScrapedPlaces with pending image_urls.
-
-    Used as a recovery worker when download_place_images() failed during a run.
-    Works across all runs (not run-scoped like download_place_images).
-
-    Strategy:
-    1. Find all ScrapedPlace with image_urls (not yet converted to blobs).
-    2. Try the existing URLs first — they are typically valid for at least 1 week.
-    3. For places where ALL URLs fail (likely expired), re-fetch fresh photo
-       references from the Google Places API using google_place_id, then retry.
-    4. Write blobs back to raw_data and clear image_urls.
-
-    Returns {pending_places, downloaded, refreshed_from_google, failed}.
-    """
-    from app.db.models import ScrapedPlace
-    from app.pipeline.place_quality import GATE_IMAGE_DOWNLOAD, passes_gate
-
-    concurrency = max_workers if max_workers is not None else settings.image_concurrency
-
-    # ── Step 1: find all places with pending image_urls ───────────────────────
-    with Session(engine) as session:
-        all_places = session.exec(select(ScrapedPlace)).all()
-
-    pending: list[ScrapedPlace] = []
-    for place in all_places:
-        if not passes_gate(place.quality_score, GATE_IMAGE_DOWNLOAD):
-            continue
-        raw = place.raw_data or {}
-        if not (raw.get("image_urls") or []) or (raw.get("image_blobs") or []):
-            continue
-        pending.append(place)
-
-    if not pending:
-        logger.info("Image cleanup: no pending images found across all runs")
-        return {"pending_places": 0, "downloaded": 0, "refreshed_from_google": 0, "failed": 0}
-
-    logger.info("Image cleanup: found %d places with pending images", len(pending))
-
-    # ── Step 2: try existing URLs ─────────────────────────────────────────────
-    sem = asyncio.Semaphore(concurrency)
-    downloaded_blobs: dict[int, list[tuple[int, bytes]]] = {}  # place.id → [(idx, bytes)]
-
-    async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
-
-        async def _try_place_urls(place: ScrapedPlace) -> None:
-            raw = place.raw_data or {}
-            urls = raw.get("image_urls") or []
-            for idx, url in enumerate(urls):
-                async with sem:
-                    content = await _download_image(url, client)
-                if content is not None:
-                    downloaded_blobs.setdefault(place.id, []).append((idx, content))
-
-        await asyncio.gather(*[_try_place_urls(p) for p in pending])
-
-    # Places with 0 successful downloads → likely stale URLs, try Google re-fetch
-    stale_places = [p for p in pending if p.id not in downloaded_blobs]
-    logger.info(
-        "Image cleanup first pass: %d places downloaded, %d stale (will re-fetch from Google)",
-        len(downloaded_blobs),
-        len(stale_places),
-    )
-
-    # ── Step 3: re-fetch stale places from Google Places API ─────────────────
-    refreshed_count = 0
-    if stale_places and api_key:
-        refresh_sem = asyncio.Semaphore(min(concurrency, settings.detail_concurrency))
-
-        async with httpx.AsyncClient(timeout=35.0, follow_redirects=True) as client:
-
-            async def _refresh_place(place: ScrapedPlace) -> None:
-                nonlocal refreshed_count
-                raw = place.raw_data or {}
-                google_place_id = raw.get("google_place_id")
-                if not google_place_id:
-                    return
-
-                async with refresh_sem:
-                    try:
-                        resp = await client.get(
-                            f"https://places.googleapis.com/v1/places/{google_place_id}",
-                            params={"key": api_key},
-                            headers={"X-Goog-FieldMask": "photos"},
-                            timeout=15.0,
-                        )
-                    except Exception as exc:
-                        logger.warning(
-                            "Image cleanup: Google re-fetch failed for %s: %s",
-                            place.place_code,
-                            exc,
-                        )
-                        return
-
-                if resp.status_code != 200:
-                    logger.warning(
-                        "Image cleanup: Google re-fetch returned %d for %s",
-                        resp.status_code,
-                        place.place_code,
-                    )
-                    return
-
-                photos = (resp.json().get("photos") or [])[: settings.max_photos]
-                new_urls = [
-                    f"https://places.googleapis.com/v1/{p['name']}/media?maxWidthPx=800&key={api_key}"
-                    for p in photos
-                    if p.get("name")
-                ]
-                if not new_urls:
-                    return
-
-                # Persist refreshed URLs so future retries don't hit the API again
-                with Session(engine) as sess:
-                    p_record = sess.get(ScrapedPlace, place.id)
-                    if p_record:
-                        r = dict(p_record.raw_data or {})
-                        r["image_urls"] = new_urls
-                        p_record.raw_data = r
-                        sess.add(p_record)
-                        sess.commit()
-
-                # Download the fresh URLs
-                for idx, url in enumerate(new_urls):
-                    async with sem:
-                        content = await _download_image(url, client)
-                    if content is not None:
-                        downloaded_blobs.setdefault(place.id, []).append((idx, content))
-
-                if place.id in downloaded_blobs:
-                    refreshed_count += 1
-
-            await asyncio.gather(*[_refresh_place(p) for p in stale_places])
-
-    # ── Step 4: write blobs to DB in batches ─────────────────────────────────
-    place_ids_with_blobs = list(downloaded_blobs.keys())
-    for batch_start in range(0, len(place_ids_with_blobs), _IMAGE_DB_BATCH):
-        batch = place_ids_with_blobs[batch_start : batch_start + _IMAGE_DB_BATCH]
-        with Session(engine) as session:
-            for place_id in batch:
-                place = session.get(ScrapedPlace, place_id)
-                if not place:
-                    continue
-                raw = dict(place.raw_data or {})
-                raw["image_blobs"] = [
-                    {
-                        "data": base64.b64encode(content).decode("ascii"),
-                        "mime_type": "image/jpeg",
-                    }
-                    for _, content in sorted(downloaded_blobs[place_id], key=lambda x: x[0])
-                ]
-                raw["image_urls"] = []
-                place.raw_data = raw
-                session.add(place)
-            session.commit()
-
-    downloaded_total = len(place_ids_with_blobs)
-    failed_total = len(pending) - downloaded_total
-
-    logger.info(
-        "Image cleanup complete: %d/%d downloaded, %d via Google re-fetch, %d failed",
-        downloaded_total,
-        len(pending),
-        refreshed_count,
-        failed_total,
-    )
-    return {
-        "pending_places": len(pending),
-        "downloaded": downloaded_total,
-        "refreshed_from_google": refreshed_count,
-        "failed": failed_total,
-    }
 
 
 def _extract_address_components(
@@ -724,8 +485,8 @@ class GmapsCollector(BaseCollector):
         Build the full place_data dict from a gmaps response.
 
         This is used during the discovery phase to create the initial ScrapedPlace.raw_data.
-        Images are stored as URLs only — actual blob download is deferred to the
-        download_place_images() phase after detail fetch.
+        Images are stored as Google Places photo media URLs — download and GCS upload
+        is performed in the download_place_images() phase after detail fetch.
 
         When type_map and religion_type_map are supplied (pre-loaded before entering the
         async gather), this method performs no DB access and is fully coroutine-safe.
@@ -899,7 +660,6 @@ class GmapsCollector(BaseCollector):
             "lng": lng,
             "address": clean_address(formatted_address),
             "image_urls": photo_urls,
-            "image_blobs": [],
             "description": description,
             "website_url": website_url,
             "opening_hours": opening_hours,
