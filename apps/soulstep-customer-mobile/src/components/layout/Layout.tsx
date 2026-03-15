@@ -44,15 +44,21 @@ function makeStyles(isDark: boolean) {
     barContent: {
       flexDirection: 'row',
       alignItems: 'flex-end',
-      justifyContent: 'space-between',
-      paddingHorizontal: 40,
       paddingTop: 10,
+    },
+    tabCol: {
+      flex: 1,
+      alignItems: 'center',
     },
     tabItem: {
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 6,
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
+    },
+    fabCol: {
+      flex: 1,
+      alignItems: 'center',
     },
     fabWrapper: {
       alignItems: 'center',
@@ -143,73 +149,82 @@ export default function Layout() {
         ? tokens.colors.darkTextSecondary
         : tokens.colors.textMuted;
 
-  // Bar height: paddingTop(10) + FAB(60) + fabMarginBottom(10) + paddingBottom(insets)
-  const BAR_HEIGHT = 80 + (insets.bottom || 20);
-
   return (
     <View style={styles.container}>
-      {/* Screen content */}
-      <View style={{ flex: 1, paddingBottom: BAR_HEIGHT }}>
+      {/* Screen content — fills full height; each screen's ScrollView adds its own bottom padding */}
+      <View style={{ flex: 1 }}>
         <HomeScreen />
       </View>
 
-      {/* Minimal bottom bar */}
+      {/* Minimal bottom bar — absolutely positioned so content scrolls behind it */}
       <BlurView
         intensity={Platform.OS === 'ios' ? 80 : 100}
         tint={isDark ? 'dark' : 'light'}
         style={[styles.bottomBar]}
       >
         <View style={[styles.barContent, { paddingBottom: insets.bottom || 20 }]}>
-          {/* Dashboard tab */}
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={() => setActiveTab('Dashboard')}
-            onPressIn={() => pressIn(dashAnim)}
-            onPressOut={() => pressOut(dashAnim)}
-            activeOpacity={1}
-            accessibilityRole="button"
-            accessibilityLabel={t('nav.dashboard') || 'Dashboard'}
-            accessibilityState={{ selected: activeTab === 'Dashboard' }}
-          >
-            {activeTab === 'Dashboard' && <View style={styles.activePill} />}
-            <Animated.View style={{ transform: [{ scale: dashAnim }] }}>
-              <MaterialIcons name="home" size={30} color={textColor(activeTab === 'Dashboard')} />
-            </Animated.View>
-          </TouchableOpacity>
-
-          {/* Center FAB — New Journey */}
-          <View style={styles.fabWrapper}>
+          {/* Column 1: Dashboard — flex:1 ensures it takes exactly 1/3 of the bar width */}
+          <View style={styles.tabCol}>
             <TouchableOpacity
-              style={styles.fab}
-              onPress={handleNewJourney}
-              onPressIn={() => pressIn(fabAnim)}
-              onPressOut={() => pressOut(fabAnim)}
+              style={styles.tabItem}
+              onPress={() => setActiveTab('Dashboard')}
+              onPressIn={() => pressIn(dashAnim)}
+              onPressOut={() => pressOut(dashAnim)}
               activeOpacity={1}
               accessibilityRole="button"
-              accessibilityLabel={t('journey.newJourney') || 'New Journey'}
+              accessibilityLabel={t('nav.dashboard') || 'Dashboard'}
+              accessibilityState={{ selected: activeTab === 'Dashboard' }}
             >
-              <Animated.View style={{ transform: [{ scale: fabAnim }] }}>
-                <MaterialIcons name="add" size={32} color="white" />
+              {activeTab === 'Dashboard' && <View style={styles.activePill} />}
+              <Animated.View style={{ transform: [{ scale: dashAnim }] }}>
+                <MaterialIcons name="home" size={30} color={textColor(activeTab === 'Dashboard')} />
               </Animated.View>
             </TouchableOpacity>
           </View>
 
-          {/* Map tab */}
-          <TouchableOpacity
-            style={styles.tabItem}
-            onPress={handleMapTab}
-            onPressIn={() => pressIn(mapAnim)}
-            onPressOut={() => pressOut(mapAnim)}
-            activeOpacity={1}
-            accessibilityRole="button"
-            accessibilityLabel={t('nav.map') || 'Map'}
-            accessibilityState={{ selected: activeTab === 'Map' }}
-          >
-            {activeTab === 'Map' && <View style={styles.activePill} />}
-            <Animated.View style={{ transform: [{ scale: mapAnim }] }}>
-              <MaterialIcons name="explore" size={30} color={textColor(activeTab === 'Map')} />
-            </Animated.View>
-          </TouchableOpacity>
+          {/* Column 2: FAB — flex:1 guarantees the FAB is at the exact horizontal center */}
+          <View style={styles.fabCol}>
+            <View style={styles.fabWrapper}>
+              <TouchableOpacity
+                style={styles.fab}
+                onPress={handleNewJourney}
+                onPressIn={() => pressIn(fabAnim)}
+                onPressOut={() => pressOut(fabAnim)}
+                activeOpacity={1}
+                accessibilityRole="button"
+                accessibilityLabel={t('journey.newJourney') || 'New Journey'}
+              >
+                <Animated.View
+                  style={{
+                    transform: [{ scale: fabAnim }],
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <MaterialIcons name="add" size={32} color="white" />
+                </Animated.View>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Column 3: Map — flex:1 mirrors Column 1 width */}
+          <View style={styles.tabCol}>
+            <TouchableOpacity
+              style={styles.tabItem}
+              onPress={handleMapTab}
+              onPressIn={() => pressIn(mapAnim)}
+              onPressOut={() => pressOut(mapAnim)}
+              activeOpacity={1}
+              accessibilityRole="button"
+              accessibilityLabel={t('nav.map') || 'Map'}
+              accessibilityState={{ selected: activeTab === 'Map' }}
+            >
+              {activeTab === 'Map' && <View style={styles.activePill} />}
+              <Animated.View style={{ transform: [{ scale: mapAnim }] }}>
+                <MaterialIcons name="explore" size={30} color={textColor(activeTab === 'Map')} />
+              </Animated.View>
+            </TouchableOpacity>
+          </View>
         </View>
       </BlurView>
     </View>

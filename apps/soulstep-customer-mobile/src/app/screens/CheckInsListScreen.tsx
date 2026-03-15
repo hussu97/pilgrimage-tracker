@@ -191,6 +191,7 @@ function makeStyles(isDark: boolean) {
       backgroundColor: isDark ? '#1a2a4e' : '#eff6ff',
     },
     dayDotToday: { backgroundColor: tokens.colors.primary },
+    dayDotSelected: { backgroundColor: tokens.colors.primary, opacity: 0.85 },
     dayNum: { fontSize: 14, color: textMain },
     dayNumMuted: { color: textMuted },
     dayNumBold: {
@@ -198,6 +199,16 @@ function makeStyles(isDark: boolean) {
       color: isDark ? tokens.colors.primary : tokens.colors.primaryDark,
     },
     dayNumToday: { color: '#fff', fontWeight: '600' },
+    dayNumSelected: { color: '#fff', fontWeight: '600' },
+    emptyDateWrap: {
+      marginHorizontal: 24,
+      paddingVertical: 24,
+      alignItems: 'center',
+    },
+    emptyDateText: {
+      fontSize: 13,
+      color: textMuted,
+    },
     sectionWrap: { marginBottom: 8 },
     sectionTitle: {
       fontSize: 11,
@@ -274,6 +285,7 @@ export default function CheckInsListScreen() {
     const n = new Date();
     return { year: n.getFullYear(), month: n.getMonth() };
   });
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const fetchList = useCallback(() => {
     setLoading(true);
@@ -336,6 +348,24 @@ export default function CheckInsListScreen() {
         .slice(0, 10),
     [checkIns],
   );
+
+  const selectedDateCheckIns = useMemo(() => {
+    if (!selectedDate) return null;
+    return checkIns.filter(
+      (c) => c.checked_in_at && dateKey(new Date(c.checked_in_at)) === selectedDate,
+    );
+  }, [checkIns, selectedDate]);
+
+  const selectedDateLabel = useMemo(() => {
+    if (!selectedDate) return null;
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }, [selectedDate]);
 
   return (
     <ScrollView
@@ -498,25 +528,99 @@ export default function CheckInsListScreen() {
                 {monthDays.map(({ date, isCurrent }, i) => {
                   const has = hasCheckIn(date);
                   const today = isCurrent && isToday(date);
+                  const dk = dateKey(date);
+                  const isSelected = selectedDate === dk;
                   return (
-                    <View key={i} style={styles.dayCell}>
-                      {has && <View style={[styles.dayDot, today && styles.dayDotToday]} />}
+                    <TouchableOpacity
+                      key={i}
+                      style={styles.dayCell}
+                      onPress={() => setSelectedDate((prev) => (prev === dk ? null : dk))}
+                      activeOpacity={0.7}
+                    >
+                      {(has || isSelected) && (
+                        <View
+                          style={[
+                            styles.dayDot,
+                            today && styles.dayDotToday,
+                            isSelected && !today && styles.dayDotSelected,
+                          ]}
+                        />
+                      )}
                       <Text
                         style={[
                           styles.dayNum,
                           !isCurrent && styles.dayNumMuted,
                           has && styles.dayNumBold,
                           today && styles.dayNumToday,
+                          isSelected && !today && styles.dayNumSelected,
                         ]}
                       >
                         {date.getDate()}
                       </Text>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               </View>
             </View>
           </View>
+
+          {/* Selected date drill-down */}
+          {selectedDate && (
+            <View style={styles.sectionWrap}>
+              <Text style={styles.sectionTitle}>{selectedDateLabel}</Text>
+              {selectedDateCheckIns && selectedDateCheckIns.length > 0 ? (
+                selectedDateCheckIns.map((c) => (
+                  <TouchableOpacity
+                    key={c.check_in_code}
+                    style={styles.visitCard}
+                    onPress={() => navigation.navigate('PlaceDetail', { placeCode: c.place_code })}
+                    activeOpacity={0.8}
+                  >
+                    <View style={styles.visitThumb}>
+                      {c.place_image_url || c.place?.images?.[0]?.url ? (
+                        <Image
+                          source={{
+                            uri: getFullImageUrl(c.place_image_url || c.place?.images?.[0]?.url),
+                          }}
+                          style={styles.visitThumbImg}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={styles.visitThumbPlaceholder}>
+                          <Text style={styles.visitThumbIcon}>⊕</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.visitBody}>
+                      <Text style={styles.visitName} numberOfLines={1}>
+                        {c.place?.name ?? c.place_name ?? c.place_code}
+                      </Text>
+                      <Text style={styles.visitDate}>
+                        {c.checked_in_at
+                          ? new Date(c.checked_in_at).toLocaleTimeString(undefined, {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
+                          : ''}
+                      </Text>
+                      {(c.location || c.place?.address) && (
+                        <Text style={styles.visitLocation} numberOfLines={1}>
+                          {(c.location || c.place?.address || '').split(',')[0].trim()}
+                        </Text>
+                      )}
+                    </View>
+                    <Text style={styles.chevron}>›</Text>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={styles.emptyDateWrap}>
+                  <Text style={styles.emptyDateText}>
+                    {t('checkins.noVisitsOnDate') || 'No visits on this date'}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Ad: between calendar and This Month */}
           <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
