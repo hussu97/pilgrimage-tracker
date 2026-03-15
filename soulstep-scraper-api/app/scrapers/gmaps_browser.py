@@ -15,6 +15,7 @@ are silently dropped and the cell cache is keyed per-type.
 from __future__ import annotations
 
 import asyncio
+import math
 import random
 import re
 
@@ -40,7 +41,7 @@ logger = get_logger(__name__)
 MIN_RADIUS = MIN_DISCOVERY_RADIUS_M
 MAX_RADIUS = MAX_DISCOVERY_RADIUS_M
 
-# Zoom level corresponding to approximate search radius
+# Zoom level corresponding to approximate search radius (used by quadtree browser path).
 _RADIUS_TO_ZOOM: list[tuple[float, int]] = [
     (500, 15),
     (1000, 14),
@@ -56,6 +57,45 @@ def _radius_to_zoom(radius_m: float) -> int:
         if radius_m <= threshold:
             return zoom
     return 10
+
+
+# Maps sidebar takes ~400 px; effective map canvas is viewport minus sidebar.
+_VIEWPORT_PX = 1280
+_SIDEBAR_PX = 400
+_MAP_CANVAS_PX = _VIEWPORT_PX - _SIDEBAR_PX  # ~880 px
+_TILE_PX = 256
+
+
+def _cell_size_to_zoom(
+    lat_min: float,
+    lat_max: float,
+    lng_min: float,
+    lng_max: float,
+) -> int:
+    """Return the Google Maps zoom level that makes the map canvas match the cell size.
+
+    Uses the actual map canvas width (viewport minus the results sidebar) so the
+    cell's bounding box fills the visible map area rather than the full browser width.
+
+    Clamps between zoom 12 (very large areas) and zoom 22 (very small areas).
+    """
+    center_lat = (lat_min + lat_max) / 2.0
+    cos_lat = abs(math.cos(math.radians(center_lat)))
+
+    # Cell dimensions in km
+    cell_height_km = abs(lat_max - lat_min) * 111.0
+    cell_width_km = abs(lng_max - lng_min) * 111.0 * (cos_lat if cos_lat > 1e-6 else 1.0)
+    # Use the larger dimension so the entire cell fits within the canvas
+    cell_size_km = max(cell_height_km, cell_width_km)
+
+    if cell_size_km < 1e-6 or cos_lat < 1e-6:
+        return 15  # degenerate cell fallback
+
+    tiles_across = _MAP_CANVAS_PX / _TILE_PX
+    # Solve: cell_size_km = tiles_across × (360 / 2^Z) × 111 × cos(lat)
+    # → 2^Z = tiles_across × 360 × 111 × cos(lat) / cell_size_km
+    z = math.log2(tiles_across * 360.0 * 111.0 * cos_lat / cell_size_km)
+    return max(12, min(22, math.ceil(z)))
 
 
 def _extract_place_ids_from_links(hrefs: list[str]) -> list[str]:
@@ -608,7 +648,7 @@ async def _search_single_grid_cell(
                 )
             return list(new_ids)
 
-    zoom = _radius_to_zoom(radius)
+    zoom = _cell_size_to_zoom(lat_min, lat_max, lng_min, lng_max)
     pool = get_maps_pool()
     place_ids: list[str] = []
 
@@ -617,7 +657,7 @@ async def _search_single_grid_cell(
         f"/@{center_lat:.6f},{center_lng:.6f},{zoom}z"
         f"?hl=en"
     )
-    logger.info("[grid][%s] Navigating: %s", place_type, search_url)
+    logger.info("[grid][%s] Navigating (zoom=%d): %s", place_type, zoom, search_url)
 
     session_obj = await pool.acquire(lat=center_lat, lng=center_lng)
     recycle = False

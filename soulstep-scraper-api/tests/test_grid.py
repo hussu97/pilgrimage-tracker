@@ -1,14 +1,16 @@
-"""Tests for the fixed-size grid cell generator.
+"""Tests for the fixed-size grid cell generator and zoom calculation.
 
 Covers:
 - generate_grid_cells: correct cell count, full coverage, longitude correction
 - generate_multi_box_grid_cells: multi-box output, overlap deduplication
+- _cell_size_to_zoom: correct zoom levels for various cell sizes and latitudes
 """
 
 from __future__ import annotations
 
 import pytest
 
+from app.scrapers.gmaps_browser import _cell_size_to_zoom
 from app.scrapers.grid import generate_grid_cells, generate_multi_box_grid_cells
 
 # ── generate_grid_cells ────────────────────────────────────────────────────────
@@ -135,3 +137,69 @@ def test_multi_box_returns_unique_cells():
     boxes = [_Box(24.0, 25.0, 55.0, 56.0), _Box(24.5, 25.5, 55.5, 56.5)]
     multi = generate_multi_box_grid_cells(boxes, cell_size_km=3.0)
     assert len(multi) == len(set(multi))
+
+
+# ── _cell_size_to_zoom ─────────────────────────────────────────────────────────
+
+
+def _make_cell(center_lat: float, center_lng: float, size_km: float):
+    """Build a square-ish (lat_min, lat_max, lng_min, lng_max) of side ~size_km."""
+    import math
+
+    lat_half = (size_km / 111.0) / 2.0
+    cos_lat = abs(math.cos(math.radians(center_lat)))
+    lng_half = (size_km / (111.0 * cos_lat)) / 2.0
+    return (
+        center_lat - lat_half,
+        center_lat + lat_half,
+        center_lng - lng_half,
+        center_lng + lng_half,
+    )
+
+
+def test_zoom_3km_cell_hyderabad_higher_than_old_zoom12():
+    """3 km cell at Hyderabad must yield zoom > 12 (the old miscalibrated value)."""
+    cell = _make_cell(17.3, 78.5, 3.0)
+    zoom = _cell_size_to_zoom(*cell)
+    assert zoom > 12, f"Expected zoom > 12 for 3km cell, got {zoom}"
+
+
+def test_zoom_3km_cell_hyderabad_within_range():
+    """3 km cell at Hyderabad (~17°N) should land at zoom 15 or 16."""
+    cell = _make_cell(17.3, 78.5, 3.0)
+    zoom = _cell_size_to_zoom(*cell)
+    assert 15 <= zoom <= 16, f"Expected zoom 15–16 for 3km at 17°N, got {zoom}"
+
+
+def test_zoom_1km_cell_higher_than_3km_cell():
+    """Smaller cells must request a higher zoom level."""
+    cell_1km = _make_cell(17.3, 78.5, 1.0)
+    cell_3km = _make_cell(17.3, 78.5, 3.0)
+    assert _cell_size_to_zoom(*cell_1km) > _cell_size_to_zoom(*cell_3km)
+
+
+def test_zoom_5km_cell_lower_than_3km_cell():
+    """Larger cells must request a lower zoom level."""
+    cell_5km = _make_cell(17.3, 78.5, 5.0)
+    cell_3km = _make_cell(17.3, 78.5, 3.0)
+    assert _cell_size_to_zoom(*cell_5km) < _cell_size_to_zoom(*cell_3km)
+
+
+def test_zoom_polar_cell_clamped():
+    """High-latitude cell should not produce zoom above 22."""
+    cell = _make_cell(80.0, 0.0, 3.0)
+    zoom = _cell_size_to_zoom(*cell)
+    assert zoom <= 22
+
+
+def test_zoom_large_country_cell_clamped():
+    """Very large cell (e.g. 500 km country box) should not go below 12."""
+    cell = _make_cell(20.0, 80.0, 500.0)
+    zoom = _cell_size_to_zoom(*cell)
+    assert zoom >= 12
+
+
+def test_zoom_is_integer():
+    """Returned zoom must always be an int."""
+    cell = _make_cell(17.3, 78.5, 3.0)
+    assert isinstance(_cell_size_to_zoom(*cell), int)

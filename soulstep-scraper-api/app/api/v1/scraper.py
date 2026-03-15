@@ -687,3 +687,117 @@ def get_quality_metrics(
 ):
     """Aggregate quality scoring statistics across all runs (or a single run)."""
     return compute_quality_metrics(session, run_code)
+
+
+# ── Debug / Diagnostic ───────────────────────────────────────────────────────
+
+
+@router.get("/debug/cell-viewport")
+async def debug_cell_viewport(
+    lat_min: float = Query(..., description="South edge of cell"),
+    lat_max: float = Query(..., description="North edge of cell"),
+    lng_min: float = Query(..., description="West edge of cell"),
+    lng_max: float = Query(..., description="East edge of cell"),
+    place_type: str = Query("mosque", description="Google Maps place type to search"),
+):
+    """Navigate the browser to a cell and return a screenshot + zoom info.
+
+    Useful for verifying that the computed zoom level tightly constrains the
+    Maps viewport to the cell's bounding box before running a full scrape.
+
+    Returns JSON with:
+    - zoom: zoom level that will be used for this cell
+    - url: the exact Google Maps URL the scraper will navigate to
+    - place_ids_found: number of place IDs extracted after scrolling
+    - place_ids: list of resource names (places/ChIJ...)
+    - screenshot_b64: base64-encoded PNG of the Maps viewport
+    - cell_size_km: approximate cell dimensions
+    """
+    import base64
+
+    from app.scrapers.gmaps_browser import (
+        _cell_size_to_zoom,
+        _check_for_block,
+        _dismiss_consent,
+        _extract_place_ids_from_links,
+        _scroll_until_stable,
+    )
+    from app.services.browser_pool import get_maps_pool
+
+    center_lat = (lat_min + lat_max) / 2.0
+    center_lng = (lng_min + lng_max) / 2.0
+    zoom = _cell_size_to_zoom(lat_min, lat_max, lng_min, lng_max)
+
+    cos_lat = abs(math.cos(math.radians(center_lat)))
+    cell_height_km = abs(lat_max - lat_min) * 111.0
+    cell_width_km = abs(lng_max - lng_min) * 111.0 * cos_lat
+
+    search_url = (
+        f"https://www.google.com/maps/search/{place_type}"
+        f"/@{center_lat:.6f},{center_lng:.6f},{zoom}z"
+        f"?hl=en"
+    )
+
+    pool = get_maps_pool()
+    session_obj = await pool.acquire(lat=center_lat, lng=center_lng)
+    place_ids: list[str] = []
+    screenshot_b64 = ""
+    blocked = False
+
+    try:
+        page = session_obj.page
+        await page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
+
+        import asyncio as _asyncio
+
+        await _asyncio.sleep(2.5)
+        await _dismiss_consent(page)
+
+        if await _check_for_block(page):
+            blocked = True
+        else:
+            pool.record_success()
+            try:
+                await page.wait_for_selector(
+                    '[role="feed"], .m6QErb, [aria-label*="Results"]',
+                    timeout=15000,
+                )
+            except Exception:
+                pass
+
+            await _asyncio.sleep(1.5)
+            await _scroll_until_stable(page)
+
+            hrefs = await page.evaluate(
+                """
+                () => {
+                    const links = document.querySelectorAll('a[href*="/maps/place/"]');
+                    return Array.from(links).map(a => a.href).filter(h => h.includes('/maps/place/'));
+                }
+                """
+            )
+            place_ids = _extract_place_ids_from_links(hrefs)
+
+        screenshot_bytes = await page.screenshot(full_page=False)
+        screenshot_b64 = base64.b64encode(screenshot_bytes).decode()
+        session_obj.nav_count += 1
+
+    except Exception as exc:
+        await pool.release(session_obj, recycle=True)
+        raise HTTPException(status_code=500, detail=f"Browser error: {exc}") from exc
+
+    await pool.release(session_obj, recycle=blocked)
+
+    return {
+        "zoom": zoom,
+        "url": search_url,
+        "center": {"lat": center_lat, "lng": center_lng},
+        "cell_size_km": {
+            "width": round(cell_width_km, 3),
+            "height": round(cell_height_km, 3),
+        },
+        "place_ids_found": len(place_ids),
+        "place_ids": place_ids,
+        "blocked": blocked,
+        "screenshot_b64": screenshot_b64,
+    }
