@@ -130,6 +130,7 @@ export default function CheckInsList() {
     const n = new Date();
     return { year: n.getFullYear(), month: n.getMonth() };
   });
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const fetchList = useCallback(() => {
     setLoading(true);
@@ -195,6 +196,24 @@ export default function CheckInsList() {
         .slice(0, 10),
     [checkIns],
   );
+
+  const selectedDateCheckIns = useMemo(() => {
+    if (!selectedDate) return null;
+    return checkIns.filter(
+      (c) => c.checked_in_at && dateKey(new Date(c.checked_in_at)) === selectedDate,
+    );
+  }, [checkIns, selectedDate]);
+
+  const selectedDateLabel = useMemo(() => {
+    if (!selectedDate) return null;
+    const [y, m, d] = selectedDate.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }, [selectedDate]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-dark-bg">
@@ -357,19 +376,25 @@ export default function CheckInsList() {
                 {monthDays.map(({ date, isCurrent }, i) => {
                   const has = hasCheckIn(date);
                   const today = isCurrent && isToday(date);
+                  const dk = dateKey(date);
+                  const isSelected = selectedDate === dk;
                   return (
-                    <div
+                    <button
                       key={i}
+                      type="button"
+                      onClick={() => setSelectedDate((prev) => (prev === dk ? null : dk))}
                       className={cn(
-                        'py-2 relative flex items-center justify-center',
-                        !isCurrent ? 'text-slate-300' : 'text-slate-800 dark:text-white',
+                        'py-2 relative flex items-center justify-center rounded-lg transition-colors',
+                        !isCurrent
+                          ? 'text-slate-300 dark:text-slate-600'
+                          : 'text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-dark-border/50',
                       )}
                     >
-                      {has && (
+                      {(has || isSelected) && (
                         <span
                           className={cn(
                             'absolute w-8 h-8 rounded-full z-0',
-                            today
+                            today || isSelected
                               ? 'bg-primary shadow-md shadow-primary/20'
                               : 'bg-soft-blue dark:bg-primary/20',
                           )}
@@ -378,18 +403,51 @@ export default function CheckInsList() {
                       <span
                         className={cn(
                           'relative z-10',
-                          has && 'font-semibold text-primary',
-                          today && 'text-white',
+                          has && !today && !isSelected && 'font-semibold text-primary',
+                          (today || isSelected) && 'text-white font-semibold',
                         )}
                       >
                         {date.getDate()}
                       </span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
             </div>
           </section>
+
+          {/* Selected date drill-down */}
+          {selectedDate && (
+            <section className="px-6 mb-8">
+              <div className="flex items-center gap-3 mb-4">
+                <span
+                  className="material-symbols-outlined text-primary text-xl"
+                  style={{ fontVariationSettings: "'FILL' 1" }}
+                >
+                  event
+                </span>
+                <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+                  {selectedDateLabel}
+                </h2>
+              </div>
+              {selectedDateCheckIns && selectedDateCheckIns.length > 0 ? (
+                <div className="space-y-3">
+                  {selectedDateCheckIns.map((c) => (
+                    <CheckInCard key={c.check_in_code} c={c} />
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white dark:bg-dark-surface rounded-2xl border border-slate-100 dark:border-dark-border px-6 py-8 text-center">
+                  <span className="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600 block mb-2">
+                    event_busy
+                  </span>
+                  <p className="text-sm text-slate-400 dark:text-dark-text-secondary">
+                    {t('checkins.noVisitsOnDate') || 'No visits on this date'}
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Ad: between calendar and This Month */}
           <div className="px-6 mb-6">

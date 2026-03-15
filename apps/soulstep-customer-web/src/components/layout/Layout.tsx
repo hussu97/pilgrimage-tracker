@@ -126,34 +126,37 @@ export default function Layout({ children }: { children: ReactNode }) {
           <div className="absolute inset-0 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-lg border-t border-white/30 dark:border-white/5" />
           <div className="absolute top-0 left-0 right-0 h-px bg-slate-200/60 dark:bg-white/8" />
 
-          <div className="relative flex items-end justify-between max-w-md mx-auto px-8 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            {/* Dashboard */}
-            <Link
-              to="/home"
-              aria-current={isDashboard ? 'page' : undefined}
-              className={cn(
-                'flex items-center justify-center py-3 px-6 rounded-xl transition-all duration-200 active:scale-90',
-                isDashboard ? 'text-primary' : 'text-slate-400 dark:text-dark-text-secondary',
-              )}
-            >
-              {isDashboard && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />
-              )}
-              <span
-                className="material-symbols-outlined text-[30px] transition-all duration-200"
-                style={
-                  isDashboard
-                    ? { fontVariationSettings: "'FILL' 1, 'wght' 600" }
-                    : { fontVariationSettings: "'wght' 300" }
-                }
-                aria-hidden
+          {/* 3-column grid: each col is exactly 1/3 wide, guaranteeing the FAB lands at the true horizontal center */}
+          <div className="relative grid grid-cols-3 items-end max-w-md mx-auto pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            {/* Col 1: Dashboard */}
+            <div className="flex justify-center">
+              <Link
+                to="/home"
+                aria-current={isDashboard ? 'page' : undefined}
+                className={cn(
+                  'relative flex items-center justify-center py-3 px-6 rounded-xl transition-all duration-200 active:scale-90',
+                  isDashboard ? 'text-primary' : 'text-slate-400 dark:text-dark-text-secondary',
+                )}
               >
-                home
-              </span>
-            </Link>
+                {isDashboard && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />
+                )}
+                <span
+                  className="material-symbols-outlined text-[30px] transition-all duration-200"
+                  style={
+                    isDashboard
+                      ? { fontVariationSettings: "'FILL' 1, 'wght' 600" }
+                      : { fontVariationSettings: "'wght' 300" }
+                  }
+                  aria-hidden
+                >
+                  home
+                </span>
+              </Link>
+            </div>
 
-            {/* Center FAB — New Journey */}
-            <div className="flex items-center justify-center" style={{ marginBottom: '12px' }}>
+            {/* Col 2: FAB — sits in the exact center column */}
+            <div className="flex justify-center" style={{ marginBottom: '12px' }}>
               <button
                 onClick={() => navigate(user ? '/journeys/new' : '/login')}
                 aria-label={t('journey.newJourney') || 'New Journey'}
@@ -169,27 +172,32 @@ export default function Layout({ children }: { children: ReactNode }) {
               </button>
             </div>
 
-            {/* Explore Map */}
-            <Link
-              to="/map"
-              aria-current={isMap ? 'page' : undefined}
-              className={cn(
-                'flex items-center justify-center py-3 px-6 rounded-xl transition-all duration-200 active:scale-90',
-                isMap ? 'text-primary' : 'text-slate-400 dark:text-dark-text-secondary',
-              )}
-            >
-              <span
-                className="material-symbols-outlined text-[30px] transition-all duration-200"
-                style={
-                  isMap
-                    ? { fontVariationSettings: "'FILL' 1, 'wght' 600" }
-                    : { fontVariationSettings: "'wght' 300" }
-                }
-                aria-hidden
+            {/* Col 3: Explore Map */}
+            <div className="flex justify-center">
+              <Link
+                to="/map"
+                aria-current={isMap ? 'page' : undefined}
+                className={cn(
+                  'relative flex items-center justify-center py-3 px-6 rounded-xl transition-all duration-200 active:scale-90',
+                  isMap ? 'text-primary' : 'text-slate-400 dark:text-dark-text-secondary',
+                )}
               >
-                explore
-              </span>
-            </Link>
+                {isMap && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />
+                )}
+                <span
+                  className="material-symbols-outlined text-[30px] transition-all duration-200"
+                  style={
+                    isMap
+                      ? { fontVariationSettings: "'FILL' 1, 'wght' 600" }
+                      : { fontVariationSettings: "'wght' 300" }
+                  }
+                  aria-hidden
+                >
+                  explore
+                </span>
+              </Link>
+            </div>
           </div>
         </nav>
       )}
