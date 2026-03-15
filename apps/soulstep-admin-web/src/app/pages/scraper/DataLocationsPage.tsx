@@ -90,6 +90,18 @@ export function DataLocationsPage() {
       },
     },
     {
+      key: "max_results",
+      header: "Max Results",
+      render: (l) => {
+        const cfg = l.config as Record<string, unknown>;
+        return cfg.max_results != null ? (
+          <span className="font-mono text-sm">{String(cfg.max_results)}</span>
+        ) : (
+          <span className="text-text-secondary dark:text-dark-text-secondary">—</span>
+        );
+      },
+    },
+    {
       key: "created_at",
       header: "Created",
       render: (l) => (
