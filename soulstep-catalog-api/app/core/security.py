@@ -2,7 +2,8 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 import bcrypt
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import InvalidTokenError
 
 from app.core.config import ALGORITHM, JWT_EXPIRE, SECRET_KEY
 
@@ -30,5 +31,5 @@ def decode_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload.get("sub")
-    except JWTError:
+    except InvalidTokenError:
         return None
