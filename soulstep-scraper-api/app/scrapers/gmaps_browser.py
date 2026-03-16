@@ -665,12 +665,27 @@ async def _search_single_grid_cell(
         page = session_obj.page
 
         await page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
+
+        title = await page.title()
+        url = page.url
+        logger.info(
+            "[grid][%s] Page loaded: title=%r url=%s",
+            place_type,
+            title,
+            url,
+            extra={"center_lat": center_lat, "center_lng": center_lng},
+        )
+
         await asyncio.sleep(random.uniform(2, 4))
 
         await _dismiss_consent(page)
 
         if await _check_for_block(page):
-            logger.warning("[grid][%s] Maps blocked browser — recycling context", place_type)
+            logger.warning(
+                "[grid][%s] Maps blocked browser — recycling context",
+                place_type,
+                extra={"center_lat": center_lat, "center_lng": center_lng},
+            )
             pool.record_block()
             recycle = True
             return []
@@ -682,6 +697,12 @@ async def _search_single_grid_cell(
             await page.wait_for_selector(
                 '[role="feed"], .m6QErb, [aria-label*="Results"]',
                 timeout=15000,
+            )
+            logger.info(
+                "[grid][%s] Results panel found at (%.4f,%.4f)",
+                place_type,
+                center_lat,
+                center_lng,
             )
         except Exception:
             logger.warning(
@@ -708,6 +729,23 @@ async def _search_single_grid_cell(
             """
         )
 
+        logger.info(
+            "[grid][%s] Extracted %d hrefs at (%.4f,%.4f)",
+            place_type,
+            len(hrefs),
+            center_lat,
+            center_lng,
+        )
+
+        if not hrefs:
+            snippet = (await page.content())[:1000]
+            logger.debug(
+                "[grid][%s] No hrefs — page snippet: %s",
+                place_type,
+                snippet,
+                extra={"center_lat": center_lat, "center_lng": center_lng},
+            )
+
         place_ids = _extract_place_ids_from_links(hrefs)
         session_obj.nav_count += 1
 
@@ -721,7 +759,12 @@ async def _search_single_grid_cell(
 
     except Exception as e:
         logger.warning(
-            "[grid][%s] Cell error at (%.4f,%.4f): %s", place_type, center_lat, center_lng, e
+            "[grid][%s] Cell error at (%.4f,%.4f): %s",
+            place_type,
+            center_lat,
+            center_lng,
+            e,
+            exc_info=True,
         )
         recycle = True
         return []
