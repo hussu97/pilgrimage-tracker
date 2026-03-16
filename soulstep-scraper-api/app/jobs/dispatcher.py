@@ -118,15 +118,22 @@ def _dispatch_cloud_run(run_code: str, action: str = "run") -> None:
 
     try:
         client = run_v2.JobsClient()
+        # Forward all job-relevant env vars from the API service's settings so
+        # that config (grid size, concurrency, secrets, etc.) is consistent
+        # between the dispatcher and the Cloud Run Job container.
+        forwarded_env = [run_v2.EnvVar(name=k, value=v) for k, v in settings.job_env_vars().items()]
+        # Always append run-specific overrides last so they take precedence.
+        forwarded_env += [
+            run_v2.EnvVar(name="SCRAPER_RUN_CODE", value=run_code),
+            run_v2.EnvVar(name="SCRAPER_RUN_ACTION", value=action),
+        ]
+
         request = run_v2.RunJobRequest(
             name=job_name,
             overrides=run_v2.RunJobRequest.Overrides(
                 container_overrides=[
                     run_v2.RunJobRequest.Overrides.ContainerOverride(
-                        env=[
-                            run_v2.EnvVar(name="SCRAPER_RUN_CODE", value=run_code),
-                            run_v2.EnvVar(name="SCRAPER_RUN_ACTION", value=action),
-                        ]
+                        env=forwarded_env,
                     )
                 ],
                 task_count=1,

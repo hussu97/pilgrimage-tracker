@@ -133,5 +133,63 @@ class Settings:
     # Generate with: openssl rand -hex 32
     catalog_api_key: str = os.environ.get("CATALOG_API_KEY", "")
 
+    def job_env_vars(self) -> dict[str, str]:
+        """Return all env vars that must be forwarded to a Cloud Run Job execution.
+
+        Only vars that the scraper *task* (not the HTTP server) needs are included.
+        API-service-only vars (CORS origins, dispatcher config) are excluded.
+        Empty values are omitted so they don't clobber secrets already mounted on
+        the job's container definition.
+        """
+        raw: dict[str, str] = {
+            # ── API keys / secrets ────────────────────────────────────────────
+            "GOOGLE_MAPS_API_KEY": self.google_maps_api_key,
+            "FOURSQUARE_API_KEY": self.foursquare_api_key,
+            "OUTSCRAPER_API_KEY": self.outscraper_api_key,
+            "BESTTIME_API_KEY": self.besttime_api_key,
+            "GEMINI_API_KEY": self.gemini_api_key,
+            "CATALOG_API_KEY": self.catalog_api_key,
+            # ── Database ──────────────────────────────────────────────────────
+            "DATABASE_URL": self.database_url,
+            "SCRAPER_DB_PATH": self.scraper_db_path,
+            "SCRAPER_POOL_SIZE": str(self.scraper_pool_size),
+            "SCRAPER_MAX_OVERFLOW": str(self.scraper_max_overflow),
+            "SCRAPER_POOL_TIMEOUT": str(self.scraper_pool_timeout),
+            # ── Runtime ───────────────────────────────────────────────────────
+            "MAIN_SERVER_URL": self.main_server_url,
+            "SCRAPER_TIMEZONE": self.scraper_timezone,
+            # ── Logging ───────────────────────────────────────────────────────
+            "LOG_LEVEL": self.log_level,
+            "LOG_FORMAT": self.log_format,
+            # ── GCP / GCS ─────────────────────────────────────────────────────
+            "GOOGLE_CLOUD_PROJECT": self.google_cloud_project,
+            "GCS_BUCKET_NAME": self.gcs_bucket_name,
+            # ── Concurrency ───────────────────────────────────────────────────
+            "SCRAPER_DISCOVERY_CONCURRENCY": str(self.discovery_concurrency),
+            "SCRAPER_DETAIL_CONCURRENCY": str(self.detail_concurrency),
+            "SCRAPER_ENRICHMENT_CONCURRENCY": str(self.enrichment_concurrency),
+            "SCRAPER_OVERPASS_CONCURRENCY": str(self.overpass_concurrency),
+            "SCRAPER_OVERPASS_JITTER_MAX": str(self.overpass_jitter_max),
+            "SCRAPER_MAX_PHOTOS": str(self.max_photos),
+            "SCRAPER_IMAGE_CONCURRENCY": str(self.image_concurrency),
+            # ── Quality gates ─────────────────────────────────────────────────
+            "SCRAPER_GATE_IMAGE_DOWNLOAD": str(self.gate_image_download),
+            "SCRAPER_GATE_ENRICHMENT": str(self.gate_enrichment),
+            "SCRAPER_GATE_SYNC": str(self.gate_sync),
+            # ── Browser / grid ────────────────────────────────────────────────
+            "BROWSER_GRID_CELL_SIZE_KM": str(self.browser_grid_cell_size_km),
+            "SCRAPER_BACKEND": self.scraper_backend,
+            "MAPS_BROWSER_POOL_SIZE": str(self.maps_browser_pool_size),
+            "MAPS_BROWSER_MAX_PAGES": str(self.maps_browser_max_pages),
+            "MAPS_BROWSER_HEADLESS": str(self.maps_browser_headless).lower(),
+            "MAPS_BROWSER_CONCURRENCY": str(self.maps_browser_concurrency),
+            "MAPS_BROWSER_CELL_DELAY_MIN": str(self.maps_browser_cell_delay_min),
+            "MAPS_BROWSER_CELL_DELAY_MAX": str(self.maps_browser_cell_delay_max),
+            # ── Post-sync ─────────────────────────────────────────────────────
+            "SCRAPER_TRIGGER_SEO_AFTER_SYNC": str(self.trigger_seo_after_sync).lower(),
+        }
+        # Drop empty strings — avoids overriding secrets already mounted on the job.
+        return {k: v for k, v in raw.items() if v}
+
 
 settings = Settings()
