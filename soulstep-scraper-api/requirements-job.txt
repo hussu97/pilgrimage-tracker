@@ -3,10 +3,8 @@
 # (the API Service image). The API service never imports these at runtime.
 #
 # Usage: pip install -r requirements.txt -r requirements-job.txt
+# Note: google-cloud-run is in requirements.txt (needed by both API service and job)
 
 # Browser scraper backend
 playwright>=1.40.0
 timezonefinder>=6.0.0
-
-# Cloud Run Job dispatcher
-google-cloud-run>=0.10.0
