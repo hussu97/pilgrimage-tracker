@@ -356,6 +356,7 @@ jobs:
             --add-cloudsql-instances "${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db" \
             --timeout 3600 \
             --max-instances 1 \
+            --no-cpu-throttling \
             --quiet
 
       - name: Upsert Cloud Run Job (soulstep-scraper-api-job)
