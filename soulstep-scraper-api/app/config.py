@@ -92,16 +92,18 @@ class Settings:
     # SCRAPER_BACKEND=browser uses Playwright at $0 API cost (slower, stealth-based).
     # SCRAPER_BACKEND=api  uses Google Places API (fast, reliable, costs ~$8/10K places).
     scraper_backend: str = os.environ.get("SCRAPER_BACKEND", "api")
-    # Number of concurrent Playwright browser contexts for Maps scraping.
-    maps_browser_pool_size: int = int(os.environ.get("MAPS_BROWSER_POOL_SIZE", "3"))
+    # Number of Playwright browser contexts kept in the pool. Idle contexts are
+    # reused across grid cells; only `maps_browser_concurrency` are active at once.
+    # 15 contexts × ~80-200 MB each — size Cloud Run Job memory accordingly.
+    maps_browser_pool_size: int = int(os.environ.get("MAPS_BROWSER_POOL_SIZE", "15"))
     # Max navigations per browser context before recycling (prevents fingerprinting).
     maps_browser_max_pages: int = int(os.environ.get("MAPS_BROWSER_MAX_PAGES", "30"))
     # Run Chromium headless (set false for local debugging).
     maps_browser_headless: bool = os.environ.get("MAPS_BROWSER_HEADLESS", "true").lower() == "true"
     # Max concurrent grid cell navigations in browser mode.
-    # Keep at 1 (sequential) to avoid triggering Google's concurrent-request bot detection.
-    # Raise to 2 only if you have rotating proxies / multiple IPs.
-    maps_browser_concurrency: int = int(os.environ.get("MAPS_BROWSER_CONCURRENCY", "3"))
+    # Each concurrent navigation needs its own Chromium context (~200 MB).
+    # Match to pool_size; ensure Cloud Run Job has enough RAM (4 GB for 5).
+    maps_browser_concurrency: int = int(os.environ.get("MAPS_BROWSER_CONCURRENCY", "5"))
     # Random delay range (seconds) injected between consecutive cell navigations.
     # Mimics human think-time between page visits.
     maps_browser_cell_delay_min: float = float(os.environ.get("MAPS_BROWSER_CELL_DELAY_MIN", "5.0"))

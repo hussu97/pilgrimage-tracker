@@ -486,8 +486,8 @@ docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:l
 gcloud run jobs create soulstep-scraper-api-job \
   --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:latest \
   --region REGION \
-  --memory 2Gi \
-  --cpu 2 \
+  --memory 4Gi \
+  --cpu 4 \
   --task-timeout 3600 \
   --max-retries 1 \
   --set-env-vars "SCRAPER_BACKEND=browser,GOOGLE_CLOUD_PROJECT=PROJECT_ID"
@@ -853,6 +853,7 @@ EAS secrets), and descriptions for every variable in every service.
 | **Cloud Run** | API + scraper | 2M requests/month, 180k vCPU-sec/month | ~$0.40 per 1M requests |
 | **Cloud SQL** | PostgreSQL 15 | None | ~$7/month (`db-f1-micro`) |
 | **Cloud Run Jobs** | cleanup, backfill, sync-places, translate-content | — | ~$0.02/hour per CPU |
+| **Cloud Run Jobs (scraper)** | browser scraping (4 vCPU / 4 GiB) | — | ~$0.38/hour (see §13.1) |
 | **Artifact Registry** | Docker images | 0.5 GB free | $0.10/GB/month |
 | **Firebase Hosting** | Web + Admin SPAs | 10 GB storage, 360 MB/day transfer | $0.026/GB transfer |
 | **Secret Manager** | Credentials | 6 active versions free | $0.06 per 10k accesses |
@@ -860,3 +861,37 @@ EAS secrets), and descriptions for every variable in every service.
 | **Cloud Build** | CI builds | 120 min/day free | $0.003/build-min |
 
 Typical cost for low traffic: **~$15–20/month** (dominated by Cloud SQL).
+
+### 13.1 Scraper Job Cost Estimate (browser backend)
+
+The scraper Cloud Run Job runs with **4 vCPU / 4 GiB** (`SCRAPER_BACKEND=browser`).
+
+**Compute pricing (Cloud Run Jobs):**
+| Resource | Rate | Job config | Per-second |
+|---|---|---|---|
+| vCPU | $0.00002400/vCPU-s | 4 vCPU | $0.0000960 |
+| Memory | $0.00000250/GiB-s | 4 GiB | $0.0000100 |
+| **Total** | | | **$0.0001060/s = ~$0.38/hour** |
+
+**100k places estimate (browser discovery + Places API details):**
+
+| Phase | Per-item | Concurrency | Wall time | API cost | Compute cost |
+|---|---|---|---|---|---|
+| Discovery (browser grid) | ~15-30s/cell, ~15 places/cell | 5 | ~6–12 hours | $0 | $2.28–$4.56 |
+| Detail fetch (Places API) | ~0.5s/place | 20 | ~50 min | $1,700–$3,200¹ | $0.32 |
+| Image download (CDN) | ~0.1s/place | 40 | ~4 min | $0 | $0.03 |
+| Enrichment (Overpass etc.) | ~1s/place | 10 | ~2.8 hours | $0 | $1.06 |
+| Sync to catalog | ~0.05s/place | — | ~1.4 hours | $0 | $0.53 |
+| **Total** | | | **~11–17 hours** | **$1,700–$3,200** | **~$4–$7** |
+
+¹ Places API cost: $17/1k calls (Basic fields) to $32/1k calls (Advanced — reviews, photos). Most of the budget goes here, not compute.
+
+**Key settings for this estimate:**
+```
+MAPS_BROWSER_POOL_SIZE=15        # 15 contexts in pool (reused across cells)
+MAPS_BROWSER_MAX_PAGES=30        # recycle context every 30 navigations
+MAPS_BROWSER_CONCURRENCY=5       # 5 grid cells navigated in parallel
+SCRAPER_DETAIL_CONCURRENCY=20    # 20 parallel Places API detail calls
+```
+
+**To reduce Places API cost:** Use `SCRAPER_BACKEND=browser` for both discovery AND detail collection (set `SCRAPER_MAX_PHOTOS=3`). This drops API cost to $0 but increases wall time to ~40–70 hours for 100k places (detail pages take ~10-15s each via browser at concurrency 5).

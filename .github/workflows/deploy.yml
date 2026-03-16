@@ -375,6 +375,6 @@ jobs:
           _upsert soulstep-scraper-api-job \
             --image "$JOB_IMAGE" \
             --set-cloudsql-instances "$CLOUDSQL" \
-            --memory 2Gi --cpu 2 \
+            --memory 4Gi --cpu 4 \
             --task-timeout 3600 --max-retries 1 \
             --quiet

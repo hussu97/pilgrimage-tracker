@@ -1,7 +1,7 @@
 """MapsBrowserPool — manages a pool of Playwright browser contexts for Maps scraping.
 
 Features:
-- Configurable pool size (MAPS_BROWSER_POOL_SIZE, default 3)
+- Configurable pool size (MAPS_BROWSER_POOL_SIZE, default 15)
 - Session recycling after MAPS_BROWSER_MAX_PAGES navigations (default 30)
 - Geolocation spoofing per context
 - CAPTCHA/block detection with exponential backoff
@@ -118,37 +118,55 @@ class MapsBrowserPool:
                 "Only needed when SCRAPER_BACKEND=browser."
             ) from exc
 
-        logger.info("MapsBrowserPool: starting Playwright...")
-        self._playwright = await asyncio.wait_for(
-            async_playwright().start(),
-            timeout=30,
-        )
-        logger.info("MapsBrowserPool: launching Chromium (headless=%s)...", self._headless)
-        self._browser = await asyncio.wait_for(
-            self._playwright.chromium.launch(
-                headless=self._headless,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-first-run",
-                    "--no-default-browser-check",
-                    "--disable-infobars",
-                    "--disable-extensions",
-                    "--disable-gpu",
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    # Required in Docker/Cloud Run: /dev/shm is limited to 64 MB;
-                    # without this flag Chromium writes to shared memory and silently hangs.
-                    "--disable-dev-shm-usage",
-                ],
-            ),
-            timeout=30,
-        )
-        self._initialized = True
-        logger.info(
-            "MapsBrowserPool: launched Chromium (headless=%s, pool_size=%d)",
-            self._headless,
-            self._pool_size,
-        )
+        try:
+            logger.info("MapsBrowserPool: starting Playwright...")
+            self._playwright = await asyncio.wait_for(
+                async_playwright().start(),
+                timeout=30,
+            )
+            logger.info("MapsBrowserPool: launching Chromium (headless=%s)...", self._headless)
+            self._browser = await asyncio.wait_for(
+                self._playwright.chromium.launch(
+                    headless=self._headless,
+                    args=[
+                        "--disable-blink-features=AutomationControlled",
+                        "--no-first-run",
+                        "--no-default-browser-check",
+                        "--disable-infobars",
+                        "--disable-extensions",
+                        "--disable-gpu",
+                        "--no-sandbox",
+                        "--disable-setuid-sandbox",
+                        # Required in Docker/Cloud Run: /dev/shm is limited to 64 MB;
+                        # without this flag Chromium writes to shared memory and silently hangs.
+                        "--disable-dev-shm-usage",
+                        # Prevent forking child processes — avoids IPC deadlocks in
+                        # constrained container environments (64 MB /dev/shm, no IPC host).
+                        "--single-process",
+                        "--no-zygote",
+                        # Reduce GPU memory allocation in headless containers.
+                        "--disable-accelerated-2d-canvas",
+                    ],
+                ),
+                timeout=30,
+            )
+            self._initialized = True
+            logger.info(
+                "MapsBrowserPool: launched Chromium (headless=%s, pool_size=%d)",
+                self._headless,
+                self._pool_size,
+            )
+        except Exception:
+            # Clean up partial state so a retry starts fresh.
+            if self._playwright:
+                try:
+                    await self._playwright.stop()
+                except Exception:
+                    pass
+            self._playwright = None
+            self._browser = None
+            self._initialized = False
+            raise
 
     async def _create_session(
         self, lat: float | None = None, lng: float | None = None
@@ -219,33 +237,37 @@ class MapsBrowserPool:
             _retries,
         )
 
-        t_lock = time.monotonic()
-        async with self._lock:
-            logger.debug("MapsBrowserPool: lock acquired in %.1fs", time.monotonic() - t_lock)
-            await self._init()
-            for session in self._sessions:
-                if not session.in_use and session.nav_count < self._max_pages:
+        try:
+            t_lock = time.monotonic()
+            async with self._lock:
+                logger.debug("MapsBrowserPool: lock acquired in %.1fs", time.monotonic() - t_lock)
+                await self._init()
+                for session in self._sessions:
+                    if not session.in_use and session.nav_count < self._max_pages:
+                        session.in_use = True
+                        logger.debug(
+                            "MapsBrowserPool: reusing session (nav_count=%d/%d)",
+                            session.nav_count,
+                            self._max_pages,
+                        )
+                        return session
+                if len(self._sessions) < self._pool_size:
+                    logger.debug("MapsBrowserPool: creating new session...")
+                    session = await asyncio.wait_for(
+                        self._create_session(lat, lng),
+                        timeout=30,
+                    )
                     session.in_use = True
-                    logger.debug(
-                        "MapsBrowserPool: reusing session (nav_count=%d/%d)",
-                        session.nav_count,
-                        self._max_pages,
+                    self._sessions.append(session)
+                    logger.info(
+                        "MapsBrowserPool: created session (total=%d/%d)",
+                        len(self._sessions),
+                        self._pool_size,
                     )
                     return session
-            if len(self._sessions) < self._pool_size:
-                logger.debug("MapsBrowserPool: creating new session...")
-                session = await asyncio.wait_for(
-                    self._create_session(lat, lng),
-                    timeout=30,
-                )
-                session.in_use = True
-                self._sessions.append(session)
-                logger.info(
-                    "MapsBrowserPool: created session (total=%d/%d)",
-                    len(self._sessions),
-                    self._pool_size,
-                )
-                return session
+        except Exception:
+            self._sem.release()  # prevent semaphore leak → deadlock
+            raise
 
         # Pool full — release and retry
         self._sem.release()

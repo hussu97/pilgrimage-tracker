@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-17] — Fix: Cloud Run Job Hangs at "Acquiring browser session..."
+
+### Backend
+- **P0 fix**: Semaphore leak in `browser_pool.py` `acquire()` — if `_init()` or `_create_session()` threw an exception the semaphore was never released, causing all subsequent `acquire()` calls to deadlock
+- **Container flags**: Added `--single-process`, `--no-zygote`, and `--disable-accelerated-2d-canvas` Chromium launch flags to prevent child-process IPC deadlocks in constrained Cloud Run containers
+- **`_init()` resilience**: Partial Playwright/browser state is cleaned up on launch failure so retries start fresh instead of seeing stale objects
+- **Resource bump**: Cloud Run Job upgraded from 2 GB / 2 vCPU → 4 GB / 4 vCPU to support concurrency=5 without memory pressure
+- **Defaults**: `MAPS_BROWSER_POOL_SIZE` default raised from 3 → 15, `MAPS_BROWSER_CONCURRENCY` from 3 → 5
+- **Tests**: Added semaphore-leak tests (init failure + session failure), extended Chromium flag assertions
+
+### Docs
+- **PRODUCTION.md**: Added §13.1 "Scraper Job Cost Estimate" with per-phase breakdown for 100k places (compute + API costs, wall time, key settings)
+
+---
+
 ## [2026-03-17] — Fix: Sitemap XML + Custom Domain Docs
 
 ### Backend

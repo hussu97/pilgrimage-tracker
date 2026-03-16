@@ -894,6 +894,9 @@ class TestChromiumFlags:
         assert launch_call.called
         args = launch_call.call_args[1].get("args", [])
         assert "--disable-dev-shm-usage" in args
+        assert "--single-process" in args
+        assert "--no-zygote" in args
+        assert "--disable-accelerated-2d-canvas" in args
 
 
 # ── AcquireTimeoutError ─────────────────────────────────────────────────────
@@ -935,6 +938,59 @@ class TestAcquireTimeout:
 
         with pytest.raises(AcquireTimeoutError, match="retries"):
             await pool.acquire(_retries=5)
+
+
+# ── Semaphore leak on _init() failure ─────────────────────────────────────
+
+
+@pytest.mark.skipif(
+    not importlib.util.find_spec("playwright"),
+    reason="playwright not installed",
+)
+class TestSemaphoreLeak:
+    @pytest.mark.asyncio
+    async def test_semaphore_released_on_init_failure(self):
+        """If _init() raises inside acquire(), the semaphore must be released."""
+        from unittest.mock import AsyncMock, patch
+
+        from app.services.browser_pool import MapsBrowserPool
+
+        pool = MapsBrowserPool()
+        pool._pool_size = 2
+        pool._headless = True
+        pool._sem = asyncio.Semaphore(2)
+
+        mock_ap_ctx = AsyncMock()
+        mock_ap_ctx.start = AsyncMock(side_effect=TimeoutError("Chromium launch timeout"))
+
+        with patch("playwright.async_api.async_playwright", return_value=mock_ap_ctx):
+            with pytest.raises(TimeoutError):
+                await pool.acquire()
+
+        # Semaphore must have been released back — both slots available
+        assert pool._sem._value == 2
+
+    @pytest.mark.asyncio
+    async def test_semaphore_released_on_create_session_failure(self):
+        """If _create_session() raises inside acquire(), the semaphore must be released."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from app.services.browser_pool import MapsBrowserPool
+
+        pool = MapsBrowserPool()
+        pool._pool_size = 2
+        pool._headless = True
+        pool._sem = asyncio.Semaphore(2)
+        # Mark as already initialized so _init() is a no-op
+        pool._initialized = True
+        pool._browser = MagicMock()
+        pool._browser.new_context = AsyncMock(side_effect=Exception("context creation failed"))
+
+        with pytest.raises(Exception, match="context creation failed"):
+            await pool.acquire()
+
+        # Semaphore must have been released back
+        assert pool._sem._value == 2
 
 
 # ── Route handler safety ────────────────────────────────────────────────────
