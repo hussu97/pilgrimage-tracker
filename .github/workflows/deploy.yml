@@ -356,7 +356,6 @@ jobs:
             --add-cloudsql-instances "${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db" \
             --timeout 3600 \
             --max-instances 1 \
-            --set-secrets "DATABASE_URL=SCRAPER_DATABASE_URL:latest,GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,GEMINI_API_KEY=SCRAPER_GEMINI_API_KEY:latest" \
             --quiet
 
       - name: Upsert Cloud Run Job (soulstep-scraper-api-job)
@@ -374,7 +373,6 @@ jobs:
           _upsert soulstep-scraper-api-job \
             --image "$JOB_IMAGE" \
             --set-cloudsql-instances "$CLOUDSQL" \
-            --set-secrets "DATABASE_URL=SCRAPER_DATABASE_URL:latest,GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,GEMINI_API_KEY=SCRAPER_GEMINI_API_KEY:latest" \
             --memory 2Gi --cpu 2 \
             --task-timeout 86400 --max-retries 1 \
             --quiet
