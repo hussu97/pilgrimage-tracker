@@ -75,9 +75,5 @@ soulstep-scraper-api/*.db
 
 .claude/worktrees
 
-# Claude.ai browser session (contains auth cookies — never commit)
-soulstep-catalog-api/scripts/claude_auth.json
-soulstep-catalog-api/untranslated.json
-soulstep-catalog-api/translated.json
-soulstep-catalog-api/translation_batches/
-soulstep-catalog-api/translation_outputs/
+soulstep-catalog-api/scripts/untranslated.txt
+soulstep-catalog-api/scripts/output_translation
