@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   REGION: europe-west1
   PROJECT_ID: project-fa2d7f52-2bc4-4a46-8ae
   PROJECT_NUMBER: "834941457147"
