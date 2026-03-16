@@ -102,8 +102,8 @@ class Settings:
     maps_browser_headless: bool = os.environ.get("MAPS_BROWSER_HEADLESS", "true").lower() == "true"
     # Max concurrent grid cell navigations in browser mode.
     # Each concurrent navigation needs its own Chromium context (~200 MB).
-    # Match to pool_size; ensure Cloud Run Job has enough RAM (4 GB for 5).
-    maps_browser_concurrency: int = int(os.environ.get("MAPS_BROWSER_CONCURRENCY", "5"))
+    # 10 active contexts ≈ 2 GB; ensure Cloud Run Job has enough RAM (8 GiB for 10).
+    maps_browser_concurrency: int = int(os.environ.get("MAPS_BROWSER_CONCURRENCY", "10"))
     # Random delay range (seconds) injected between consecutive cell navigations.
     # Mimics human think-time between page visits.
     maps_browser_cell_delay_min: float = float(os.environ.get("MAPS_BROWSER_CELL_DELAY_MIN", "5.0"))
