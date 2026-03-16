@@ -34,6 +34,10 @@ class CircuitOpenError(Exception):
     """Raised when circuit breaker is open (too many consecutive blocks)."""
 
 
+class AcquireTimeoutError(Exception):
+    """Raised when acquiring a browser session times out or exceeds max retries."""
+
+
 @dataclass
 class _CircuitBreaker:
     max_failures: int = 3
@@ -126,6 +130,9 @@ class MapsBrowserPool:
                 "--disable-gpu",
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
+                # Required in Docker/Cloud Run: /dev/shm is limited to 64 MB;
+                # without this flag Chromium writes to shared memory and silently hangs.
+                "--disable-dev-shm-usage",
             ],
         )
         self._initialized = True
@@ -159,10 +166,15 @@ class MapsBrowserPool:
         # require await; a sync lambda would silently discard them and leave
         # every request unresolved, causing page.goto() to hang indefinitely.
         async def _route_handler(route) -> None:
-            if route.request.resource_type in ("font", "media"):
-                await route.abort()
-            else:
-                await route.continue_()
+            try:
+                if route.request.resource_type in ("font", "media"):
+                    await route.abort()
+                else:
+                    await route.continue_()
+            except Exception:
+                # Swallow errors so a failed abort/continue doesn't leave requests
+                # unresolved and hang page.goto() indefinitely.
+                pass
 
         await context.route("**/*", _route_handler)
 
@@ -170,12 +182,35 @@ class MapsBrowserPool:
         await apply_stealth(page)
         return _MapsSession(context=context, page=page)
 
-    async def acquire(self, lat: float | None = None, lng: float | None = None) -> _MapsSession:
+    async def acquire(
+        self,
+        lat: float | None = None,
+        lng: float | None = None,
+        _retries: int = 0,
+    ) -> _MapsSession:
+        from app.constants import BROWSER_ACQUIRE_MAX_RETRIES, BROWSER_ACQUIRE_TIMEOUT_S
+
         if self._breaker.is_open:
             remaining = self._breaker.pause_seconds - (time.monotonic() - self._breaker.open_since)
             raise CircuitOpenError(f"Maps browser circuit breaker open — retry in {remaining:.0f}s")
 
-        await self._sem.acquire()
+        if _retries >= BROWSER_ACQUIRE_MAX_RETRIES:
+            raise AcquireTimeoutError(f"Failed to acquire browser session after {_retries} retries")
+
+        t0 = time.monotonic()
+        try:
+            await asyncio.wait_for(self._sem.acquire(), timeout=BROWSER_ACQUIRE_TIMEOUT_S)
+        except TimeoutError:
+            raise AcquireTimeoutError(
+                f"Timed out waiting for browser session ({BROWSER_ACQUIRE_TIMEOUT_S}s)"
+            ) from None
+        elapsed = time.monotonic() - t0
+        logger.debug(
+            "MapsBrowserPool: semaphore acquired in %.1fs (retry=%d)",
+            elapsed,
+            _retries,
+        )
+
         async with self._lock:
             await self._init()
             for session in self._sessions:
@@ -201,7 +236,7 @@ class MapsBrowserPool:
         # Pool full — release and retry
         self._sem.release()
         await asyncio.sleep(0.5)
-        return await self.acquire(lat, lng)
+        return await self.acquire(lat, lng, _retries=_retries + 1)
 
     async def release(self, session: _MapsSession, recycle: bool = False) -> None:
         async with self._lock:

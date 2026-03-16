@@ -18,14 +18,18 @@ import asyncio
 import math
 import random
 import re
+import time
 
 from sqlmodel import Session, select
 
 from app.config import settings
 from app.constants import (
+    BROWSER_CELL_TIMEOUT_S,
+    BROWSER_EVALUATE_TIMEOUT_S,
     BROWSER_SCROLL_MAX_ATTEMPTS,
     BROWSER_SCROLL_PIXEL_STEP,
     BROWSER_SCROLL_STABLE_THRESHOLD,
+    BROWSER_SCROLL_TIMEOUT_S,
     MAX_DISCOVERY_RADIUS_M,
     MIN_DISCOVERY_RADIUS_M,
 )
@@ -34,7 +38,12 @@ from app.logger import get_logger
 from app.scrapers.base import ThreadSafeIdSet
 from app.scrapers.cell_store import DiscoveryCellStore, GlobalCellStore
 from app.scrapers.gmaps import calculate_search_radius
-from app.services.browser_pool import BlockedError, CircuitOpenError, get_maps_pool
+from app.services.browser_pool import (
+    AcquireTimeoutError,
+    BlockedError,
+    CircuitOpenError,
+    get_maps_pool,
+)
 
 logger = get_logger(__name__)
 
@@ -208,12 +217,39 @@ async def _scroll_until_stable(
         stable_threshold: Consecutive scrolls with no new links before stopping.
         pixel_step: Pixels scrolled per step inside the results feed.
     """
+
+    async def _eval_with_timeout(expr, *args):
+        """Run page.evaluate with a per-call timeout to prevent silent hangs."""
+        return await asyncio.wait_for(
+            page.evaluate(expr, *args),
+            timeout=BROWSER_EVALUATE_TIMEOUT_S,
+        )
+
+    try:
+        await asyncio.wait_for(
+            _scroll_loop(page, max_attempts, stable_threshold, pixel_step, _eval_with_timeout),
+            timeout=BROWSER_SCROLL_TIMEOUT_S,
+        )
+    except TimeoutError:
+        logger.warning(
+            "_scroll_until_stable: overall scroll timeout (%.0fs) — proceeding with current results",
+            BROWSER_SCROLL_TIMEOUT_S,
+        )
+
+
+async def _scroll_loop(
+    page,
+    max_attempts: int,
+    stable_threshold: int,
+    pixel_step: int,
+    _eval: object,
+) -> None:
+    """Inner scroll loop extracted for asyncio.wait_for wrapping."""
     prev_count = 0
     stable_count = 0
 
-    for _ in range(max_attempts):
-        # Count place links currently visible in the DOM
-        current_count: int = await page.evaluate(
+    for attempt in range(max_attempts):
+        current_count: int = await _eval(
             "document.querySelectorAll('a[href*=\"/maps/place/\"]').length"
         )
 
@@ -224,11 +260,20 @@ async def _scroll_until_stable(
         prev_count = current_count
 
         if stable_count >= stable_threshold:
-            logger.debug("_scroll_until_stable: stable after %d links", current_count)
+            logger.debug("_scroll_loop: stable after %d links", current_count)
             break
 
-        # Check for explicit end-of-list marker emitted by Maps
-        end_marker = await page.evaluate(
+        # Progress log every 5th iteration
+        if attempt > 0 and attempt % 5 == 0:
+            logger.debug(
+                "_scroll_loop: attempt=%d/%d links=%d stable=%d",
+                attempt,
+                max_attempts,
+                current_count,
+                stable_count,
+            )
+
+        end_marker = await _eval(
             """
             (() => {
                 const feed = document.querySelector('[role="feed"]');
@@ -241,16 +286,15 @@ async def _scroll_until_stable(
             """
         )
         if end_marker:
-            logger.debug("_scroll_until_stable: end-of-list marker found")
+            logger.debug("_scroll_loop: end-of-list marker found")
             break
 
-        # Scroll inside the results feed element; fall back to window scroll
         try:
             feed = await page.query_selector('[role="feed"]')
             if feed:
-                await page.evaluate(f"el => el.scrollTop += {pixel_step}", feed)
+                await _eval(f"el => el.scrollTop += {pixel_step}", feed)
             else:
-                await page.evaluate(f"window.scrollBy(0, {pixel_step})")
+                await _eval(f"window.scrollBy(0, {pixel_step})")
         except Exception:
             pass
 
@@ -401,16 +445,32 @@ async def search_area_browser(
 
     _sem_ctx = semaphore if semaphore is not None else _NullSemaphore()
     async with _sem_ctx:
+        t_acquire = time.monotonic()
+        logger.debug("%s[%s] Acquiring browser session...", indent, place_type)
         session = await pool.acquire(lat=center_lat, lng=center_lng)
+        logger.debug(
+            "%s[%s] Session acquired in %.1fs",
+            indent,
+            place_type,
+            time.monotonic() - t_acquire,
+        )
         recycle = False
         try:
             page = session.page
 
+            t_goto = time.monotonic()
             await page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
 
             title = await page.title()
             url = page.url
-            logger.info("%s[%s] Page loaded: title=%r url=%s", indent, place_type, title, url)
+            logger.info(
+                "%s[%s] Page loaded in %.1fs: title=%r url=%s",
+                indent,
+                place_type,
+                time.monotonic() - t_goto,
+                title,
+                url,
+            )
 
             await asyncio.sleep(random.uniform(2, 4))
 
@@ -487,7 +547,7 @@ async def search_area_browser(
                 len(place_ids),
             )
 
-        except (BlockedError, CircuitOpenError) as e:
+        except (BlockedError, CircuitOpenError, AcquireTimeoutError) as e:
             logger.warning("%s[%s] Browser pool error: %s", indent, place_type, e)
             recycle = True
             return []
@@ -590,87 +650,35 @@ async def _split_quadrants_browser(
     return all_ids
 
 
-async def _search_single_grid_cell(
-    lat_min: float,
-    lat_max: float,
-    lng_min: float,
-    lng_max: float,
+async def _do_grid_cell_navigation(
+    pool,
     place_type: str,
-    existing_ids: ThreadSafeIdSet,
-    cell_store: DiscoveryCellStore | None = None,
-    global_cache: GlobalCellStore | None = None,
+    search_url: str,
+    center_lat: float,
+    center_lng: float,
 ) -> list[str]:
-    """Navigate browser to a single fixed-size grid cell and extract place IDs.
-
-    Unlike search_area_browser this function never recurses — grid cells are
-    fixed-size by design and saturation does not trigger subdivision.
-    """
-    from app.scrapers.gmaps import calculate_search_radius
-
-    center_lat, center_lng, radius = calculate_search_radius(lat_min, lat_max, lng_min, lng_max)
-
-    # Per-run cell cache check
-    if cell_store is not None:
-        cached = cell_store.get(lat_min, lat_max, lng_min, lng_max)
-        if cached is not None:
-            logger.debug(
-                "[grid][%s] Skipping cached cell (%.4f,%.4f) results=%d",
-                place_type,
-                center_lat,
-                center_lng,
-                cached.result_count,
-            )
-            new_ids = existing_ids.add_new(cached.resource_names)
-            return list(new_ids)
-
-    # Cross-run global cache check
-    if global_cache is not None:
-        global_hit = global_cache.get(lat_min, lat_max, lng_min, lng_max, place_type, "grid")
-        if global_hit is not None:
-            logger.debug(
-                "[grid][%s] Global cache hit (%.4f,%.4f) results=%d",
-                place_type,
-                center_lat,
-                center_lng,
-                global_hit.result_count,
-            )
-            new_ids = existing_ids.add_new(global_hit.resource_names)
-            if cell_store is not None:
-                cell_store.save(
-                    lat_min,
-                    lat_max,
-                    lng_min,
-                    lng_max,
-                    0,
-                    radius,
-                    global_hit.resource_names,
-                    False,
-                )
-            return list(new_ids)
-
-    zoom = _cell_size_to_zoom(lat_min, lat_max, lng_min, lng_max)
-    pool = get_maps_pool()
-    place_ids: list[str] = []
-
-    search_url = (
-        f"https://www.google.com/maps/search/{place_type}"
-        f"/@{center_lat:.6f},{center_lng:.6f},{zoom}z"
-        f"?hl=en"
-    )
-    logger.info("[grid][%s] Navigating (zoom=%d): %s", place_type, zoom, search_url)
-
+    """Core navigation for a single grid cell. Separated for asyncio.wait_for wrapping."""
+    t_acquire = time.monotonic()
+    logger.debug("[grid][%s] Acquiring browser session...", place_type)
     session_obj = await pool.acquire(lat=center_lat, lng=center_lng)
+    logger.debug(
+        "[grid][%s] Session acquired in %.1fs",
+        place_type,
+        time.monotonic() - t_acquire,
+    )
     recycle = False
     try:
         page = session_obj.page
 
+        t_goto = time.monotonic()
         await page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
 
         title = await page.title()
         url = page.url
         logger.info(
-            "[grid][%s] Page loaded: title=%r url=%s",
+            "[grid][%s] Page loaded in %.1fs: title=%r url=%s",
             place_type,
+            time.monotonic() - t_goto,
             title,
             url,
             extra={"center_lat": center_lat, "center_lng": center_lng},
@@ -756,6 +764,7 @@ async def _search_single_grid_cell(
             center_lng,
             len(place_ids),
         )
+        return place_ids
 
     except Exception as e:
         logger.warning(
@@ -770,6 +779,94 @@ async def _search_single_grid_cell(
         return []
     finally:
         await pool.release(session_obj, recycle=recycle)
+
+
+async def _search_single_grid_cell(
+    lat_min: float,
+    lat_max: float,
+    lng_min: float,
+    lng_max: float,
+    place_type: str,
+    existing_ids: ThreadSafeIdSet,
+    cell_store: DiscoveryCellStore | None = None,
+    global_cache: GlobalCellStore | None = None,
+) -> list[str]:
+    """Navigate browser to a single fixed-size grid cell and extract place IDs.
+
+    Unlike search_area_browser this function never recurses — grid cells are
+    fixed-size by design and saturation does not trigger subdivision.
+    """
+    from app.scrapers.gmaps import calculate_search_radius
+
+    center_lat, center_lng, radius = calculate_search_radius(lat_min, lat_max, lng_min, lng_max)
+
+    # Per-run cell cache check
+    if cell_store is not None:
+        cached = cell_store.get(lat_min, lat_max, lng_min, lng_max)
+        if cached is not None:
+            logger.debug(
+                "[grid][%s] Skipping cached cell (%.4f,%.4f) results=%d",
+                place_type,
+                center_lat,
+                center_lng,
+                cached.result_count,
+            )
+            new_ids = existing_ids.add_new(cached.resource_names)
+            return list(new_ids)
+
+    # Cross-run global cache check
+    if global_cache is not None:
+        global_hit = global_cache.get(lat_min, lat_max, lng_min, lng_max, place_type, "grid")
+        if global_hit is not None:
+            logger.debug(
+                "[grid][%s] Global cache hit (%.4f,%.4f) results=%d",
+                place_type,
+                center_lat,
+                center_lng,
+                global_hit.result_count,
+            )
+            new_ids = existing_ids.add_new(global_hit.resource_names)
+            if cell_store is not None:
+                cell_store.save(
+                    lat_min,
+                    lat_max,
+                    lng_min,
+                    lng_max,
+                    0,
+                    radius,
+                    global_hit.resource_names,
+                    False,
+                )
+            return list(new_ids)
+
+    zoom = _cell_size_to_zoom(lat_min, lat_max, lng_min, lng_max)
+    pool = get_maps_pool()
+    place_ids: list[str] = []
+
+    search_url = (
+        f"https://www.google.com/maps/search/{place_type}"
+        f"/@{center_lat:.6f},{center_lng:.6f},{zoom}z"
+        f"?hl=en"
+    )
+    logger.info("[grid][%s] Navigating (zoom=%d): %s", place_type, zoom, search_url)
+
+    try:
+        place_ids = await asyncio.wait_for(
+            _do_grid_cell_navigation(pool, place_type, search_url, center_lat, center_lng),
+            timeout=BROWSER_CELL_TIMEOUT_S,
+        )
+    except TimeoutError:
+        logger.error(
+            "[grid][%s] Cell timeout (%.0fs) at (%.4f,%.4f) — skipping",
+            place_type,
+            BROWSER_CELL_TIMEOUT_S,
+            center_lat,
+            center_lng,
+        )
+        return []
+    except AcquireTimeoutError as e:
+        logger.warning("[grid][%s] %s at (%.4f,%.4f)", place_type, e, center_lat, center_lng)
+        return []
 
     new_ids = existing_ids.add_new(place_ids)
 

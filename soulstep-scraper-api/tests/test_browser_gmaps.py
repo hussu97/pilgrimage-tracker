@@ -6,6 +6,7 @@ Uses mocked Playwright page.evaluate() — does not launch a real browser.
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -851,3 +852,189 @@ class TestGlobalCellStoreDiscoveryMethodKey:
 
         assert store.get(25.0, 25.1, 55.0, 55.1, "mosque") is not None  # default = quadtree
         assert store.get(25.0, 25.1, 55.0, 55.1, "mosque", "grid") is None
+
+
+# ── Browser pool: --disable-dev-shm-usage flag ──────────────────────────────
+
+
+class TestChromiumFlags:
+    @pytest.mark.asyncio
+    async def test_disable_dev_shm_usage_in_launch_args(self):
+        """Chromium must be launched with --disable-dev-shm-usage for Docker/Cloud Run."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from app.services.browser_pool import MapsBrowserPool
+
+        pool = MapsBrowserPool()
+        pool._pool_size = 1
+        pool._max_pages = 10
+        pool._headless = True
+
+        mock_browser = MagicMock()
+        mock_context = AsyncMock()
+        mock_page = AsyncMock()
+        mock_context.new_page = AsyncMock(return_value=mock_page)
+        mock_browser.new_context = AsyncMock(return_value=mock_context)
+
+        mock_pw = MagicMock()
+        mock_pw.chromium.launch = AsyncMock(return_value=mock_browser)
+
+        mock_ap_ctx = MagicMock()
+        mock_ap_ctx.start = AsyncMock(return_value=mock_pw)
+
+        with patch("playwright.async_api.async_playwright", return_value=mock_ap_ctx):
+            await pool._init()
+
+        launch_call = mock_pw.chromium.launch
+        assert launch_call.called
+        args = launch_call.call_args[1].get("args", [])
+        assert "--disable-dev-shm-usage" in args
+
+
+# ── AcquireTimeoutError ─────────────────────────────────────────────────────
+
+
+class TestAcquireTimeout:
+    @pytest.mark.asyncio
+    async def test_acquire_timeout_on_semaphore_exhaustion(self):
+        """acquire() raises AcquireTimeoutError when semaphore times out."""
+        import app.constants as constants_mod
+        from app.services.browser_pool import AcquireTimeoutError, MapsBrowserPool
+
+        pool = MapsBrowserPool()
+        pool._pool_size = 1
+        pool._headless = True
+        pool._initialized = True
+        # Replace with a single-slot semaphore we can fully drain
+        pool._sem = asyncio.Semaphore(1)
+
+        original = constants_mod.BROWSER_ACQUIRE_TIMEOUT_S
+        try:
+            constants_mod.BROWSER_ACQUIRE_TIMEOUT_S = 0.01
+            # Drain the single semaphore slot so acquire() blocks on wait_for
+            await pool._sem.acquire()
+            with pytest.raises(AcquireTimeoutError, match="Timed out"):
+                await pool.acquire()
+            pool._sem.release()
+        finally:
+            constants_mod.BROWSER_ACQUIRE_TIMEOUT_S = original
+
+    @pytest.mark.asyncio
+    async def test_acquire_raises_after_max_retries(self):
+        """acquire() raises AcquireTimeoutError after BROWSER_ACQUIRE_MAX_RETRIES."""
+        from app.services.browser_pool import AcquireTimeoutError, MapsBrowserPool
+
+        pool = MapsBrowserPool()
+        pool._pool_size = 1
+        pool._headless = True
+
+        with pytest.raises(AcquireTimeoutError, match="retries"):
+            await pool.acquire(_retries=5)
+
+
+# ── Route handler safety ────────────────────────────────────────────────────
+
+
+class TestRouteHandlerSafety:
+    @pytest.mark.asyncio
+    async def test_route_handler_survives_abort_exception(self):
+        """Route handler must swallow errors so requests aren't left unresolved."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from app.services.browser_pool import MapsBrowserPool
+
+        pool = MapsBrowserPool()
+        pool._pool_size = 1
+        pool._max_pages = 10
+        pool._headless = True
+
+        # Track the route handler
+        captured_handler = None
+        mock_context = AsyncMock()
+        mock_page = AsyncMock()
+        mock_context.new_page = AsyncMock(return_value=mock_page)
+
+        async def capture_route(pattern, handler):
+            nonlocal captured_handler
+            captured_handler = handler
+
+        mock_context.route = capture_route
+
+        mock_browser = MagicMock()
+        mock_browser.new_context = AsyncMock(return_value=mock_context)
+
+        mock_pw = MagicMock()
+        mock_pw.chromium.launch = AsyncMock(return_value=mock_browser)
+
+        mock_ap_ctx = MagicMock()
+        mock_ap_ctx.start = AsyncMock(return_value=mock_pw)
+
+        with patch("playwright.async_api.async_playwright", return_value=mock_ap_ctx):
+            await pool._init()
+            await pool._create_session()
+
+        assert captured_handler is not None
+
+        # Simulate a route.abort() that throws
+        mock_route = AsyncMock()
+        mock_route.request.resource_type = "font"
+        mock_route.abort = AsyncMock(side_effect=Exception("Connection closed"))
+
+        # Should NOT raise
+        await captured_handler(mock_route)
+
+
+# ── Grid cell timeout ───────────────────────────────────────────────────────
+
+
+class TestGridCellTimeout:
+    @pytest.mark.asyncio
+    async def test_cell_returns_empty_on_overall_timeout(self):
+        """_search_single_grid_cell returns [] when overall cell timeout fires."""
+        from unittest.mock import patch
+
+        from app.scrapers.base import ThreadSafeIdSet
+        from app.scrapers.gmaps_browser import _search_single_grid_cell
+
+        async def hang_forever(*args, **kwargs):
+            await asyncio.sleep(999)
+            return []
+
+        ids = ThreadSafeIdSet()
+
+        with (
+            patch("app.scrapers.gmaps_browser._do_grid_cell_navigation", side_effect=hang_forever),
+            patch("app.constants.BROWSER_CELL_TIMEOUT_S", 0.05),
+        ):
+            result = await _search_single_grid_cell(25.0, 25.1, 55.0, 55.1, "mosque", ids)
+
+        assert result == []
+
+
+# ── Scroll timeout ──────────────────────────────────────────────────────────
+
+
+class TestScrollTimeout:
+    @pytest.mark.asyncio
+    async def test_scroll_stops_on_timeout(self):
+        """_scroll_until_stable returns gracefully when scroll timeout fires."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from app.scrapers.gmaps_browser import _scroll_until_stable
+
+        counter = [0]
+
+        async def slow_evaluate(*args, **kwargs):
+            counter[0] += 1
+            await asyncio.sleep(0.5)  # Each evaluate is slow
+            if "querySelectorAll" in str(args):
+                return counter[0]
+            return None
+
+        page = MagicMock()
+        page.evaluate = AsyncMock(side_effect=slow_evaluate)
+        page.query_selector = AsyncMock(return_value=None)
+
+        with patch("app.constants.BROWSER_SCROLL_TIMEOUT_S", 0.1):
+            # Should not hang — timeout fires and function returns
+            await _scroll_until_stable(page, max_attempts=100, stable_threshold=3)

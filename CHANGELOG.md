@@ -4,6 +4,20 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-17] — Fix: Scraper Job Hanging in GCP Cloud Run
+
+### Backend
+- **P0 fix**: Added missing `--disable-dev-shm-usage` Chromium flag to `browser_pool.py` — fixes silent browser hang in Docker/Cloud Run where `/dev/shm` is limited to 64 MB
+- **Acquire timeout**: `pool.acquire()` now uses `asyncio.wait_for(90s)` on the semaphore and caps recursive retries at 5, raising `AcquireTimeoutError` instead of blocking forever
+- **Route handler safety**: Wrapped `route.abort()`/`route.continue_()` in try/except so failed resource blocking doesn't leave requests unresolved
+- **Cell timeout**: Each grid cell navigation is wrapped in `asyncio.wait_for(120s)` — returns `[]` on timeout instead of hanging
+- **Scroll timeout**: The scroll-until-stable loop is wrapped in `asyncio.wait_for(60s)` with per-evaluate 10s timeouts
+- **Diagnostic logging**: Added timing logs around acquire, page.goto, and scroll steps for debugging future hangs
+- **New constants**: `BROWSER_ACQUIRE_TIMEOUT_S`, `BROWSER_CELL_TIMEOUT_S`, `BROWSER_SCROLL_TIMEOUT_S`, `BROWSER_EVALUATE_TIMEOUT_S`, `BROWSER_ACQUIRE_MAX_RETRIES` in `constants.py`
+- **Tests**: 6 new tests covering Chromium flags, acquire timeout, retry limit, route handler safety, cell timeout, and scroll timeout
+
+---
+
 ## [2026-03-17] — CI/CD: Make Tests Lightning Fast
 
 ### Backend

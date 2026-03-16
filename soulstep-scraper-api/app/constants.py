@@ -64,6 +64,23 @@ BROWSER_SCROLL_STABLE_THRESHOLD: int = 3
 # Pixels scrolled inside the results feed per scroll step.
 BROWSER_SCROLL_PIXEL_STEP: int = 800
 
+# ── Browser timeout / retry safety nets ──────────────────────────────────────
+
+# Max seconds to wait for a browser session from the pool semaphore.
+BROWSER_ACQUIRE_TIMEOUT_S: float = 90.0
+
+# Max seconds for a single grid cell navigation (acquire → extract → release).
+BROWSER_CELL_TIMEOUT_S: float = 120.0
+
+# Max seconds for the scroll-until-stable loop inside a single cell.
+BROWSER_SCROLL_TIMEOUT_S: float = 60.0
+
+# Max seconds for a single page.evaluate() call (scroll step / link count).
+BROWSER_EVALUATE_TIMEOUT_S: float = 10.0
+
+# Max recursive retries when pool.acquire() finds all sessions busy.
+BROWSER_ACQUIRE_MAX_RETRIES: int = 5
+
 # ── Quality gate thresholds ───────────────────────────────────────────────────
 # These are authoritative in app/pipeline/place_quality.py.
 # Do NOT override them here — import from place_quality directly.
