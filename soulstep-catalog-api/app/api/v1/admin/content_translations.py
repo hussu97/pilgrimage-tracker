@@ -69,7 +69,90 @@ class UpdateContentTranslationBody(BaseModel):
     source: str | None = None
 
 
+# ── Schemas: stats ────────────────────────────────────────────────────────────
+
+
+class _LangStat(BaseModel):
+    lang: str
+    translated: int
+    eligible: int
+    pct: float
+
+
+class ContentTranslationStats(BaseModel):
+    langs: list[_LangStat]
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
+
+@router.get("/content-translations/stats", response_model=ContentTranslationStats)
+def content_translation_stats(
+    admin: AdminDep,
+    session: SessionDep,
+):
+    """Return per-language translation coverage: translated / eligible counts.
+
+    "Eligible" = number of (entity, field) pairs that have non-empty English text,
+    multiplied by the number of target languages. Each language gets its own count.
+    """
+    target_langs = ["ar", "hi", "te", "ml"]
+
+    # Count eligible (entity_type, entity_code, field) triples with non-empty English text
+    eligible_triples: int = 0
+
+    # Places: name, description, address
+    place_rows = session.exec(
+        select(Place.place_code, Place.name, Place.description, Place.address)
+    ).all()
+    for _code, name, description, address in place_rows:
+        if name:
+            eligible_triples += 1
+        if description:
+            eligible_triples += 1
+        if address:
+            eligible_triples += 1
+
+    # Cities: name
+    city_count = session.exec(
+        select(func.count()).select_from(City).where(col(City.name).isnot(None), City.name != "")
+    ).one()
+    eligible_triples += city_count
+
+    # Attribute definitions: name
+    attr_count = session.exec(
+        select(func.count())
+        .select_from(PlaceAttributeDefinition)
+        .where(
+            col(PlaceAttributeDefinition.name).isnot(None),
+            PlaceAttributeDefinition.name != "",
+        )
+    ).one()
+    eligible_triples += attr_count
+
+    # Reviews: title, body
+    review_rows = session.exec(select(Review.review_code, Review.title, Review.body)).all()
+    for _code, title, body in review_rows:
+        if title:
+            eligible_triples += 1
+        if body:
+            eligible_triples += 1
+
+    # Count existing translations per language
+    lang_counts_rows = session.exec(
+        select(ContentTranslation.lang, func.count()).group_by(ContentTranslation.lang)
+    ).all()
+    lang_counts: dict[str, int] = {row[0]: row[1] for row in lang_counts_rows}
+
+    langs: list[_LangStat] = []
+    for lang in target_langs:
+        translated = lang_counts.get(lang, 0)
+        pct = round(translated / eligible_triples * 100, 1) if eligible_triples > 0 else 0.0
+        langs.append(
+            _LangStat(lang=lang, translated=translated, eligible=eligible_triples, pct=pct)
+        )
+
+    return ContentTranslationStats(langs=langs)
 
 
 @router.get("/content-translations", response_model=ContentTranslationListResponse)

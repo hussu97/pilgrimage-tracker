@@ -451,3 +451,40 @@ def test_bulk_upsert_empty_body(client, db_session):
     data = resp.json()
     assert data["created"] == 0
     assert data["updated"] == 0
+
+
+# ── Tests: stats ─────────────────────────────────────────────────────────────
+
+
+def test_stats_requires_admin(client):
+    resp = client.get("/api/v1/admin/content-translations/stats")
+    assert resp.status_code == 401
+
+
+def test_stats_empty_db(client, db_session):
+    """No entities → all eligible counts are 0."""
+    headers = _admin_headers(client, db_session)
+    resp = client.get("/api/v1/admin/content-translations/stats", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["langs"]) == 4
+    for lang_stat in data["langs"]:
+        assert lang_stat["eligible"] == 0
+        assert lang_stat["translated"] == 0
+        assert lang_stat["pct"] == 0.0
+
+
+def test_stats_counts_eligible_and_translated(client, db_session):
+    """Place with name+address = 2 eligible fields. One ar translation → ar=1/2, hi=0/2."""
+    place = _make_place(db_session, code="plc_stats01")
+    _make_ct(db_session, entity_code=place.place_code, field="name", lang="ar", text="اسم")
+    headers = _admin_headers(client, db_session)
+    resp = client.get("/api/v1/admin/content-translations/stats", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    lang_map = {s["lang"]: s for s in data["langs"]}
+    # Place has name + address = 2 eligible fields (description is None in _make_place)
+    assert lang_map["ar"]["eligible"] == 2
+    assert lang_map["ar"]["translated"] == 1
+    assert lang_map["hi"]["translated"] == 0
+    assert lang_map["hi"]["eligible"] == 2

@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 import {
   createContentTranslation,
   deleteContentTranslation,
+  getContentTranslationStats,
   listContentTranslations,
   listLanguages,
   updateContentTranslation,
 } from "@/lib/api/admin";
-import type { AdminContentTranslation } from "@/lib/api/types";
+import type { AdminContentTranslation, ContentTranslationLangStat } from "@/lib/api/types";
 import { DataTable, type Column } from "@/components/shared/DataTable";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Pagination } from "@/components/shared/Pagination";
@@ -43,6 +44,12 @@ export function ContentTranslationsPage() {
   const [entityTypeFilter, setEntityTypeFilter] = useState("");
   const [langFilter, setLangFilter] = useState("");
 
+  const loadStats = useCallback(() => {
+    getContentTranslationStats()
+      .then((s) => setLangStats(s.langs))
+      .catch(() => {/* ignore */});
+  }, []);
+
   useEffect(() => {
     listLanguages()
       .then((all) => {
@@ -50,12 +57,14 @@ export function ContentTranslationsPage() {
         if (nonEn.length > 0) setLangs(nonEn);
       })
       .catch(() => {/* keep defaults */});
-  }, []);
+    loadStats();
+  }, [loadStats]);
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<CreateForm>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
+  const [langStats, setLangStats] = useState<ContentTranslationLangStat[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<AdminContentTranslation | null>(null);
 
   const load = useCallback(async () => {
@@ -85,6 +94,7 @@ export function ContentTranslationsPage() {
       setCreateForm(EMPTY_FORM);
       setShowCreate(false);
       await load();
+      loadStats();
     } finally {
       setCreating(false);
     }
@@ -94,6 +104,7 @@ export function ContentTranslationsPage() {
     await updateContentTranslation(id, { translated_text: editText });
     setEditingId(null);
     await load();
+    loadStats();
   };
 
   const handleDelete = async () => {
@@ -101,6 +112,7 @@ export function ContentTranslationsPage() {
     await deleteContentTranslation(deleteTarget.id);
     setDeleteTarget(null);
     await load();
+    loadStats();
   };
 
   const columns: Column<AdminContentTranslation>[] = [
@@ -222,6 +234,38 @@ export function ContentTranslationsPage() {
           Add Translation
         </button>
       </div>
+
+      {/* Translation coverage */}
+      {langStats.length > 0 && (
+        <div className="rounded-xl border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface p-5">
+          <h2 className="text-sm font-semibold text-text-main dark:text-white mb-3">
+            Translation Coverage
+          </h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {langStats.map((s) => (
+              <div key={s.lang}>
+                <div className="flex items-baseline justify-between mb-1">
+                  <span className="font-mono text-xs uppercase font-semibold text-primary">
+                    {s.lang}
+                  </span>
+                  <span className="text-xs text-text-secondary dark:text-dark-text-secondary">
+                    {s.translated.toLocaleString()}/{s.eligible.toLocaleString()}
+                  </span>
+                </div>
+                <div className="h-2 bg-background-light dark:bg-dark-border rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary rounded-full transition-all duration-500"
+                    style={{ width: `${s.pct}%` }}
+                  />
+                </div>
+                <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-1 text-right">
+                  {s.pct}%
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Create form */}
       {showCreate && (

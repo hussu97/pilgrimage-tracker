@@ -459,6 +459,17 @@ export interface UpdateContentTranslationBody {
   source?: string;
 }
 
+export interface ContentTranslationLangStat {
+  lang: string;
+  translated: number;
+  eligible: number;
+  pct: number;
+}
+
+export interface ContentTranslationStats {
+  langs: ContentTranslationLangStat[];
+}
+
 // Place Attributes
 export interface PlaceAttributeDefinition {
   attribute_code: string;

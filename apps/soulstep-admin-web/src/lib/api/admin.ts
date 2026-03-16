@@ -24,6 +24,7 @@ import type {
   BulkUpsertItem,
   BulkUpsertResult,
   ContentTranslationListResponse,
+  ContentTranslationStats,
   CreateContentTranslationBody,
   CreatePlaceBody,
   CreateTranslationBody,
@@ -342,6 +343,13 @@ export async function updateContentTranslation(
 
 export async function deleteContentTranslation(id: number): Promise<void> {
   await apiClient.delete(`/admin/content-translations/${id}`);
+}
+
+export async function getContentTranslationStats(): Promise<ContentTranslationStats> {
+  const res = await apiClient.get<ContentTranslationStats>(
+    "/admin/content-translations/stats"
+  );
+  return res.data;
 }
 
 // ── Place Attributes ───────────────────────────────────────────────────────────
