@@ -42,36 +42,51 @@ export default function MapDiscovery() {
   const [mapBounds, setMapBounds] = useState<MapBounds | null>(null);
   // Track latest bounds in a ref so the debounced fetch always uses the current value
   const boundsRef = useRef<MapBounds | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   useHead({ title: t('map.fullScreen') || 'Explore Map' });
 
   const fetchPlaces = useCallback(
     async (searchVal: string, activeFilters: ActiveFilters, bounds: MapBounds | null) => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
       setLoading(true);
       try {
-        const resp = await getPlaces({
-          search: searchVal || undefined,
-          limit: 100,
-          open_now: activeFilters.open_now || undefined,
-          has_parking: activeFilters.has_parking || undefined,
-          womens_area: activeFilters.womens_area || undefined,
-          top_rated: activeFilters.top_rated || undefined,
-          has_events: activeFilters.has_events || undefined,
-          // Only apply bbox when we have actual viewport bounds
-          min_lat: bounds?.south,
-          max_lat: bounds?.north,
-          min_lng: bounds?.west,
-          max_lng: bounds?.east,
-        });
+        const resp = await getPlaces(
+          {
+            search: searchVal || undefined,
+            limit: 100,
+            open_now: activeFilters.open_now || undefined,
+            has_parking: activeFilters.has_parking || undefined,
+            womens_area: activeFilters.womens_area || undefined,
+            top_rated: activeFilters.top_rated || undefined,
+            has_events: activeFilters.has_events || undefined,
+            // Only apply bbox when we have actual viewport bounds
+            min_lat: bounds?.south,
+            max_lat: bounds?.north,
+            min_lng: bounds?.west,
+            max_lng: bounds?.east,
+          },
+          controller.signal,
+        );
         setPlaces(resp.places);
-      } catch {
-        // ignore
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        // ignore other errors
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     },
     [],
   );
+
+  // Abort in-flight request on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   // Refetch when search or filters change (uses latest bounds via ref)
   useEffect(() => {

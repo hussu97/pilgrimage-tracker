@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useI18n } from '@/app/providers';
 import { useHead } from '@/lib/hooks/useHead';
 import { getPlaces } from '@/lib/api/client';
@@ -45,16 +45,23 @@ export default function Places() {
   const [religion, setReligion] = useState('');
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
+  const abortRef = useRef<AbortController | null>(null);
 
   const fetchPlaces = useCallback(
     async (nextCursor: string | null = null, reset = false) => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
       setLoading(true);
       try {
-        const resp = await getPlaces({
-          religions: religion ? [religion as any] : undefined,
-          limit: 50,
-          cursor: nextCursor ?? undefined,
-        });
+        const resp = await getPlaces(
+          {
+            religions: religion ? [religion as any] : undefined,
+            limit: 50,
+            cursor: nextCursor ?? undefined,
+          },
+          controller.signal,
+        );
         if (reset) {
           setPlaces(resp.places);
         } else {
@@ -62,10 +69,11 @@ export default function Places() {
         }
         setCursor(resp.next_cursor ?? null);
         setHasMore(resp.next_cursor != null);
-      } catch {
-        // ignore
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        // ignore other errors
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     },
     [religion],
@@ -75,6 +83,13 @@ export default function Places() {
     setCursor(null);
     fetchPlaces(null, true);
   }, [religion, fetchPlaces]);
+
+  // Abort in-flight request on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">

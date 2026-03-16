@@ -4,6 +4,7 @@
  */
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { getCached, setCache, invalidateCache } from './cache';
 import type {
   Place,
   PlaceDetail,
@@ -156,17 +157,26 @@ async function authFetch(url: string, init?: RequestInit): Promise<Response> {
 
 // i18n
 export async function getLanguages(): Promise<LanguageOption[]> {
+  const cached = getCached<LanguageOption[]>('languages', 1_800_000);
+  if (cached) return cached;
   const res = await fetch(`${API_BASE}/api/v1/languages`, { headers: clientHeaders() });
   if (!res.ok) throw new Error('Failed to fetch languages');
-  return res.json();
+  const data = await res.json();
+  setCache('languages', data);
+  return data;
 }
 
 export async function getTranslations(lang: string): Promise<Record<string, string>> {
+  const key = `translations:${lang ?? 'en'}`;
+  const cached = getCached<Record<string, string>>(key, 1_800_000);
+  if (cached) return cached;
   const res = await fetch(`${API_BASE}/api/v1/translations?lang=${encodeURIComponent(lang)}`, {
     headers: clientHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch translations');
-  return res.json();
+  const data = await res.json();
+  setCache(key, data);
+  return data;
 }
 
 // App version check
@@ -272,9 +282,12 @@ export async function resetPassword(token: string, newPassword: string): Promise
 
 // Users
 export async function getMe(): Promise<User> {
+  const cached = getCached<User>('profile:me', 60_000);
+  if (cached) return cached;
   const res = await authFetch(`${API_BASE}/api/v1/users/me`, { headers: authHeaders() });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? 'Failed to fetch user');
+  setCache('profile:me', data);
   return data;
 }
 
@@ -286,6 +299,7 @@ export async function updateMe(updates: { display_name?: string }): Promise<User
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? 'Update failed');
+  invalidateCache('profile:');
   return data;
 }
 
@@ -455,6 +469,7 @@ export async function checkIn(
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail ?? 'Check-in failed');
+  invalidateCache('places:');
   return data;
 }
 
@@ -464,6 +479,7 @@ export async function addFavorite(placeCode: string): Promise<void> {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to add favorite');
+  invalidateCache('places:');
 }
 
 export async function removeFavorite(placeCode: string): Promise<void> {
@@ -472,6 +488,7 @@ export async function removeFavorite(placeCode: string): Promise<void> {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to remove favorite');
+  invalidateCache('places:');
 }
 
 export async function uploadReviewPhoto(uri: string): Promise<{

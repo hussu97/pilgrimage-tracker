@@ -17,6 +17,7 @@ import type {
   PlacesResponse,
 } from '@/lib/types';
 import type { ChecklistResponse, PlaceNote } from '@/lib/types/groups';
+import { getCached, setCache, invalidateCache } from './cache';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -51,17 +52,26 @@ export function clientHeaders(): Record<string, string> {
 }
 
 export async function getLanguages(): Promise<LanguageOption[]> {
+  const cached = getCached<LanguageOption[]>('languages', 1_800_000);
+  if (cached) return cached;
   const res = await fetch(`${API_BASE}/api/v1/languages`, { headers: clientHeaders() });
   if (!res.ok) throw new Error('Failed to fetch languages');
-  return res.json();
+  const data = await res.json();
+  setCache('languages', data);
+  return data;
 }
 
 export async function getTranslations(lang: string): Promise<Record<string, string>> {
+  const key = `translations:${lang ?? 'en'}`;
+  const cached = getCached<Record<string, string>>(key, 1_800_000);
+  if (cached) return cached;
   const res = await fetch(`${API_BASE}/api/v1/translations?lang=${encodeURIComponent(lang)}`, {
     headers: clientHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch translations');
-  return res.json();
+  const data = await res.json();
+  setCache(key, data);
+  return data;
 }
 
 function getToken(): string | null {
@@ -193,7 +203,10 @@ export async function getFeaturedGroups(): Promise<FeaturedGroup[]> {
   return res.json();
 }
 
-export async function getPlaces(params?: GetPlacesParams): Promise<PlacesResponse> {
+export async function getPlaces(
+  params?: GetPlacesParams,
+  signal?: AbortSignal,
+): Promise<PlacesResponse> {
   const sp = new URLSearchParams();
   if (params?.religions?.length) params.religions.forEach((r) => sp.append('religion', r));
   if (params?.lat != null) sp.set('lat', String(params.lat));
@@ -219,7 +232,7 @@ export async function getPlaces(params?: GetPlacesParams): Promise<PlacesRespons
 
   const qs = sp.toString();
   const url = `${API_BASE}/api/v1/places${qs ? `?${qs}` : ''}`;
-  const res = await authFetch(url, { headers: authHeaders() });
+  const res = await authFetch(url, { headers: authHeaders(), signal });
   if (!res.ok) throw new Error('Failed to fetch places');
   const data = await res.json();
   // Server returns { places: [...], filters: { options: [...] } }
@@ -280,9 +293,12 @@ export async function login(body: LoginBody): Promise<AuthResponse> {
 }
 
 export async function getMe(): Promise<User> {
+  const cached = getCached<User>('profile:me', 60_000);
+  if (cached) return cached;
   const res = await authFetch(`${API_BASE}/api/v1/users/me`, { headers: authHeaders() });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? 'Failed to fetch user');
+  setCache('profile:me', data);
   return data;
 }
 
@@ -294,6 +310,7 @@ export async function updateMe(updates: { display_name?: string }): Promise<User
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? 'Update failed');
+  invalidateCache('profile:');
   return data;
 }
 
@@ -357,6 +374,7 @@ export async function checkIn(
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail ?? 'Check-in failed');
+  invalidateCache('places:');
   return data;
 }
 
@@ -366,6 +384,7 @@ export async function addFavorite(placeCode: string): Promise<void> {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to add favorite');
+  invalidateCache('places:');
 }
 
 export async function removeFavorite(placeCode: string): Promise<void> {
@@ -374,6 +393,7 @@ export async function removeFavorite(placeCode: string): Promise<void> {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error('Failed to remove favorite');
+  invalidateCache('places:');
 }
 
 export async function getMyCheckIns(): Promise<CheckIn[]> {
