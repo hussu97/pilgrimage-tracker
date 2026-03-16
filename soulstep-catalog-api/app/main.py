@@ -215,6 +215,18 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+# Admin rate limiter (per authenticated user)
+from app.api.v1.admin import admin_limiter  # noqa: E402
+
+app.state.admin_limiter = admin_limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# HTTPS redirect (production only — enabled via ENFORCE_HTTPS=true)
+if config.ENFORCE_HTTPS:
+    from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
+
+    app.add_middleware(HTTPSRedirectMiddleware)
+
 # allow_origins=["*"] with allow_credentials=True is invalid per CORS spec. Use explicit origins.
 _DEFAULT_CORS_ORIGINS = [
     "http://localhost:5173",
@@ -457,7 +469,11 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         str(exc.detail),
         exc=exc if exc.status_code >= 500 else None,
     )
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers=dict(exc.headers) if exc.headers else None,
+    )
 
 
 @app.exception_handler(RequestValidationError)

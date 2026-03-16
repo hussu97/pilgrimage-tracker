@@ -30,6 +30,7 @@ class AdminReviewListItem(BaseModel):
     source: str
     review_time: int | None  # Unix timestamp from Google (null for user reviews)
     created_at: datetime
+    deleted_at: datetime | None = None
 
 
 class AdminReviewDetail(AdminReviewListItem):
@@ -65,8 +66,11 @@ def list_reviews(
     user_code: str | None = None,
     min_rating: Annotated[int | None, Query(ge=1, le=5)] = None,
     max_rating: Annotated[int | None, Query(ge=1, le=5)] = None,
+    include_deleted: bool = False,
 ):
     stmt = select(Review)
+    if not include_deleted:
+        stmt = stmt.where(Review.deleted_at == None)  # noqa: E711
     if is_flagged is not None:
         stmt = stmt.where(Review.is_flagged == is_flagged)
     if place_code:
@@ -84,12 +88,21 @@ def list_reviews(
     )
     reviews = session.exec(stmt).all()
 
+    place_codes = {r.place_code for r in reviews}
+    user_codes = {r.user_code for r in reviews if r.user_code}
+    place_map: dict = {}
+    user_map: dict = {}
+    if place_codes:
+        places = session.exec(select(Place).where(col(Place.place_code).in_(place_codes))).all()
+        place_map = {p.place_code: p for p in places}
+    if user_codes:
+        users = session.exec(select(User).where(col(User.user_code).in_(user_codes))).all()
+        user_map = {u.user_code: u for u in users}
+
     items = []
     for r in reviews:
-        place = session.exec(select(Place).where(Place.place_code == r.place_code)).first()
-        user = None
-        if r.user_code:
-            user = session.exec(select(User).where(User.user_code == r.user_code)).first()
+        place = place_map.get(r.place_code)
+        user = user_map.get(r.user_code) if r.user_code else None
         items.append(
             AdminReviewListItem(
                 review_code=r.review_code,
@@ -103,6 +116,7 @@ def list_reviews(
                 source=r.source,
                 review_time=r.review_time if r.review_time else None,
                 created_at=r.created_at,
+                deleted_at=r.deleted_at,
             )
         )
 

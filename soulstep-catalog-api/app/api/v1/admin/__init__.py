@@ -1,6 +1,26 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from slowapi import Limiter
 
-from app.api.v1.admin import (
+from app.core.security import decode_token
+
+
+def _admin_key_func(request: Request) -> str:
+    """Rate limit admin endpoints per authenticated user (extracted from JWT).
+
+    Falls back to client IP when no valid JWT is present.
+    """
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        user_code = decode_token(auth[7:])
+        if user_code:
+            return user_code
+    return request.client.host if request.client else "unknown"
+
+
+admin_limiter = Limiter(key_func=_admin_key_func)
+
+# Sub-module imports must come AFTER admin_limiter is defined because bulk.py imports it.  # noqa: E402
+from app.api.v1.admin import (  # noqa: E402
     ads,
     analytics,
     app_versions,

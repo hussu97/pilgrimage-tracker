@@ -217,9 +217,15 @@ def list_user_check_ins(
     )
     check_ins = session.exec(stmt).all()
 
+    place_codes = {ci.place_code for ci in check_ins}
+    place_map: dict = {}
+    if place_codes:
+        places = session.exec(select(Place).where(col(Place.place_code).in_(place_codes))).all()
+        place_map = {p.place_code: p for p in places}
+
     items = []
     for ci in check_ins:
-        place = session.exec(select(Place).where(Place.place_code == ci.place_code)).first()
+        place = place_map.get(ci.place_code)
         items.append(
             AdminCheckInItem(
                 check_in_code=ci.check_in_code,
@@ -271,9 +277,15 @@ def list_user_reviews(
     )
     reviews = session.exec(stmt).all()
 
+    place_codes = {r.place_code for r in reviews}
+    place_map: dict = {}
+    if place_codes:
+        places = session.exec(select(Place).where(col(Place.place_code).in_(place_codes))).all()
+        place_map = {p.place_code: p for p in places}
+
     items = []
     for r in reviews:
-        place = session.exec(select(Place).where(Place.place_code == r.place_code)).first()
+        place = place_map.get(r.place_code)
         items.append(
             AdminReviewItem(
                 review_code=r.review_code,

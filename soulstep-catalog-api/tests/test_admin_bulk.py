@@ -350,12 +350,15 @@ class TestBulkDeleteReviews:
         assert resp.status_code == 200
         assert resp.json()["affected"] == 2
 
-        remaining = db_session.exec(
+        # Bulk delete is now a soft-delete: rows remain but with deleted_at set
+        db_session.expire_all()
+        soft_deleted = db_session.exec(
             select(Review).where(
                 Review.review_code.in_(["rev_bdr001", "rev_bdr002"])  # type: ignore[attr-defined]
             )
         ).all()
-        assert len(remaining) == 0
+        assert len(soft_deleted) == 2
+        assert all(r.deleted_at is not None for r in soft_deleted)
 
     def test_empty_list_returns_zero(self, client, db_session):
         headers = _admin_headers(client, db_session, email="admin_bdr_empty@example.com")
@@ -412,12 +415,15 @@ class TestBulkDeleteCheckIns:
         assert resp.status_code == 200
         assert resp.json()["affected"] == 2
 
-        remaining = db_session.exec(
+        # Bulk delete is now a soft-delete: rows remain but with deleted_at set
+        db_session.expire_all()
+        soft_deleted = db_session.exec(
             select(CheckIn).where(
                 CheckIn.check_in_code.in_(["cin_bdci001", "cin_bdci002"])  # type: ignore[attr-defined]
             )
         ).all()
-        assert len(remaining) == 0
+        assert len(soft_deleted) == 2
+        assert all(ci.deleted_at is not None for ci in soft_deleted)
 
     def test_empty_list_returns_zero(self, client, db_session):
         headers = _admin_headers(client, db_session, email="admin_bdci_empty@example.com")

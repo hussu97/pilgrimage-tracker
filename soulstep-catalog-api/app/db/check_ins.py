@@ -35,21 +35,28 @@ def create_check_in(
 
 def get_check_ins_by_user(user_code: str, session: Session) -> list[CheckIn]:
     statement = (
-        select(CheckIn).where(CheckIn.user_code == user_code).order_by(CheckIn.checked_in_at.desc())
+        select(CheckIn)
+        .where(CheckIn.user_code == user_code, CheckIn.deleted_at == None)  # noqa: E711
+        .order_by(CheckIn.checked_in_at.desc())
     )
     return session.exec(statement).all()
 
 
 def has_checked_in(user_code: str, place_code: str, session: Session) -> bool:
     statement = select(CheckIn).where(
-        and_(CheckIn.user_code == user_code, CheckIn.place_code == place_code)
+        and_(
+            CheckIn.user_code == user_code,
+            CheckIn.place_code == place_code,
+            CheckIn.deleted_at == None,  # noqa: E711
+        )
     )
     return session.exec(statement).first() is not None
 
 
 def count_places_visited(user_code: str, session: Session) -> int:
     statement = select(func.count(func.distinct(CheckIn.place_code))).where(
-        CheckIn.user_code == user_code
+        CheckIn.user_code == user_code,
+        CheckIn.deleted_at == None,  # noqa: E711
     )
     return session.exec(statement).one()
 
@@ -60,7 +67,7 @@ def count_places_visited_bulk(user_codes: list[str], session: Session) -> dict[s
         return {}
     statement = (
         select(CheckIn.user_code, func.count(func.distinct(CheckIn.place_code)).label("cnt"))
-        .where(CheckIn.user_code.in_(user_codes))
+        .where(CheckIn.user_code.in_(user_codes), CheckIn.deleted_at == None)  # noqa: E711
         .group_by(CheckIn.user_code)
     )
     results = session.exec(statement).all()
@@ -70,14 +77,21 @@ def count_places_visited_bulk(user_codes: list[str], session: Session) -> dict[s
 def count_check_ins_this_year(user_code: str, session: Session) -> int:
     year = datetime.now(UTC).year
     statement = select(func.count(CheckIn.id)).where(
-        and_(CheckIn.user_code == user_code, extract("year", CheckIn.checked_in_at) == year)
+        and_(
+            CheckIn.user_code == user_code,
+            extract("year", CheckIn.checked_in_at) == year,
+            CheckIn.deleted_at == None,  # noqa: E711
+        )
     )
     return session.exec(statement).one()
 
 
 def count_check_ins_for_place(place_code: str, session: Session) -> int:
     """Count check-ins for a place. Requires session parameter."""
-    statement = select(func.count(CheckIn.id)).where(CheckIn.place_code == place_code)
+    statement = select(func.count(CheckIn.id)).where(
+        CheckIn.place_code == place_code,
+        CheckIn.deleted_at == None,  # noqa: E711
+    )
     return session.exec(statement).one()
 
 
@@ -87,7 +101,7 @@ def get_check_ins_for_users(user_codes: list[str], session: Session) -> list[Che
         return []
     statement = (
         select(CheckIn)
-        .where(CheckIn.user_code.in_(user_codes))
+        .where(CheckIn.user_code.in_(user_codes), CheckIn.deleted_at == None)  # noqa: E711
         .order_by(CheckIn.checked_in_at.desc())
     )
     return session.exec(statement).all()
@@ -100,7 +114,7 @@ def count_check_ins_bulk(place_codes: list[str], session: Session) -> dict[str, 
 
     statement = (
         select(CheckIn.place_code, func.count(CheckIn.id).label("count"))
-        .where(CheckIn.place_code.in_(place_codes))
+        .where(CheckIn.place_code.in_(place_codes), CheckIn.deleted_at == None)  # noqa: E711
         .group_by(CheckIn.place_code)
     )
 
@@ -115,6 +129,7 @@ def get_check_ins_this_month(user_code: str, session: Session) -> list[CheckIn]:
             CheckIn.user_code == user_code,
             extract("month", CheckIn.checked_in_at) == now.month,
             extract("year", CheckIn.checked_in_at) == now.year,
+            CheckIn.deleted_at == None,  # noqa: E711
         )
     )
     return session.exec(statement).all()
@@ -132,6 +147,7 @@ def get_check_ins_for_users_at_places(
             and_(
                 CheckIn.user_code.in_(user_codes),
                 CheckIn.place_code.in_(place_codes),
+                CheckIn.deleted_at == None,  # noqa: E711
             )
         )
         .order_by(CheckIn.checked_in_at.desc())
@@ -147,6 +163,7 @@ def get_check_ins_on_this_day(user_code: str, session: Session) -> list[CheckIn]
             extract("month", CheckIn.checked_in_at) == now.month,
             extract("day", CheckIn.checked_in_at) == now.day,
             extract("year", CheckIn.checked_in_at) != now.year,
+            CheckIn.deleted_at == None,  # noqa: E711
         )
     )
     return session.exec(statement).all()

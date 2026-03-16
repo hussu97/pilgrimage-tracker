@@ -45,7 +45,10 @@ def get_reviews_by_place(
     source: str | None = None,
 ) -> list[Review]:
     """Get reviews for a place. Optionally filter by source ('user' or 'external')."""
-    statement = select(Review).where(Review.place_code == place_code)
+    statement = select(Review).where(
+        Review.place_code == place_code,
+        Review.deleted_at == None,  # noqa: E711
+    )
     if source:
         statement = statement.where(Review.source == source)
     statement = statement.order_by(Review.created_at.desc()).offset(offset).limit(limit)
@@ -53,7 +56,9 @@ def get_reviews_by_place(
 
 
 def get_review_by_code(review_code: str, session: Session) -> Review | None:
-    return session.exec(select(Review).where(Review.review_code == review_code)).first()
+    return session.exec(
+        select(Review).where(Review.review_code == review_code, Review.deleted_at == None)  # noqa: E711
+    ).first()
 
 
 def get_aggregate_ratings_bulk(place_codes: list[str], session: Session) -> dict[str, dict]:
@@ -70,7 +75,7 @@ def get_aggregate_ratings_bulk(place_codes: list[str], session: Session) -> dict
             func.avg(Review.rating).label("avg_rating"),
             func.count(Review.id).label("total_ratings"),
         )
-        .where(Review.place_code.in_(place_codes))
+        .where(Review.place_code.in_(place_codes), Review.deleted_at == None)  # noqa: E711
         .group_by(Review.place_code)
     )
 
@@ -87,9 +92,9 @@ def get_aggregate_ratings_bulk(place_codes: list[str], session: Session) -> dict
 
 def get_aggregate_rating(place_code: str, session: Session) -> dict | None:
     """Fetch aggregate rating for a single place. Requires session parameter."""
-    # We can use func.avg and func.count for efficiency
     statement = select(func.avg(Review.rating), func.count(Review.id)).where(
-        Review.place_code == place_code
+        Review.place_code == place_code,
+        Review.deleted_at == None,  # noqa: E711
     )
     avg, count = session.exec(statement).first()
     if count == 0:
@@ -98,7 +103,10 @@ def get_aggregate_rating(place_code: str, session: Session) -> dict | None:
 
 
 def count_reviews_by_user(user_code: str, session: Session) -> int:
-    statement = select(func.count(Review.id)).where(Review.user_code == user_code)
+    statement = select(func.count(Review.id)).where(
+        Review.user_code == user_code,
+        Review.deleted_at == None,  # noqa: E711
+    )
     return session.exec(statement).one()
 
 

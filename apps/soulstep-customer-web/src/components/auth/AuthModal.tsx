@@ -145,7 +145,11 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
 
         {tab === 'login' ? (
           <form onSubmit={handleLogin} className="space-y-3">
+            <label htmlFor="login-email" className="sr-only">
+              {t('auth.email')}
+            </label>
             <input
+              id="login-email"
               type="email"
               placeholder={t('auth.email')}
               value={email}
@@ -153,7 +157,11 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
               className={inputClass}
               required
             />
+            <label htmlFor="login-password" className="sr-only">
+              {t('auth.password')}
+            </label>
             <input
+              id="login-password"
               type="password"
               placeholder={t('auth.password')}
               value={password}
@@ -181,14 +189,22 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
           </form>
         ) : (
           <form onSubmit={handleRegister} className="space-y-3">
+            <label htmlFor="register-name" className="sr-only">
+              {t('auth.fullName')}
+            </label>
             <input
+              id="register-name"
               type="text"
               placeholder={t('auth.fullName')}
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               className={inputClass}
             />
+            <label htmlFor="register-email" className="sr-only">
+              {t('auth.email')}
+            </label>
             <input
+              id="register-email"
               type="email"
               placeholder={t('auth.email')}
               value={email}
@@ -197,7 +213,11 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
               required
             />
             <div>
+              <label htmlFor="register-password" className="sr-only">
+                {t('auth.password')}
+              </label>
               <input
+                id="register-password"
                 type="password"
                 placeholder={t('auth.password')}
                 value={password}
@@ -240,7 +260,11 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
                 </ul>
               )}
             </div>
+            <label htmlFor="register-confirm" className="sr-only">
+              {t('auth.confirmPassword')}
+            </label>
             <input
+              id="register-confirm"
               type="password"
               placeholder={t('auth.confirmPassword')}
               value={confirm}

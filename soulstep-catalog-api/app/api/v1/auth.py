@@ -7,7 +7,8 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from app.core.config import RESEND_API_KEY, RESEND_FROM_EMAIL, RESET_URL_BASE
+from app.api.deps import UserDep
+from app.core.config import RESEND_API_KEY, RESEND_FROM_EMAIL, RESET_URL_BASE, VERIFY_URL_BASE
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -23,6 +24,7 @@ from app.models.schemas import (
     RegisterBody,
     ResetPasswordBody,
     UserResponse,
+    VerifyEmailBody,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,6 +47,7 @@ def _to_public_user(user, session) -> UserResponse:
         display_name=user.display_name,
         religions=religions,
         is_admin=user.is_admin,
+        email_verified=user.email_verified_at is not None,
         created_at=user.created_at.isoformat().replace("+00:00", "Z"),
         updated_at=user.updated_at.isoformat().replace("+00:00", "Z"),
     )
@@ -108,6 +111,32 @@ def _send_reset_email(to_email: str, reset_token: str) -> None:
         logger.error("Failed to send password reset email to %s: %s", to_email, exc)
 
 
+def _send_verification_email(to_email: str, verify_token: str) -> None:
+    """Send email verification link via Resend.com. Falls back to console in dev."""
+    verify_link = f"{VERIFY_URL_BASE}/verify-email?token={verify_token}"
+
+    if not RESEND_API_KEY:
+        logger.debug("[DEV] Email verification link for %s: %s", to_email, verify_link)
+        return
+
+    resend.api_key = RESEND_API_KEY
+    try:
+        resend.Emails.send(
+            {
+                "from": RESEND_FROM_EMAIL,
+                "to": [to_email],
+                "subject": "Verify your SoulStep email",
+                "html": (
+                    "<p>Thank you for registering with SoulStep!</p>"
+                    f"<p><a href='{verify_link}'>Click here to verify your email address</a></p>"
+                    "<p>This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.</p>"
+                ),
+            }
+        )
+    except Exception as exc:
+        logger.error("Failed to send verification email to %s: %s", to_email, exc)
+
+
 # ─── routes ───────────────────────────────────────────────────────────────────
 
 
@@ -149,6 +178,12 @@ def register(request: Request, body: RegisterBody, session: SessionDep):
             store.merge_visitor_into_user(body.visitor_code, user_code, session)
         except Exception as exc:
             logger.warning("Visitor merge failed during register: %s", exc, exc_info=True)
+    # Send email verification
+    verify_token = secrets.token_hex(32)
+    store.save_email_verification(
+        verify_token, user_code, datetime.now(UTC) + timedelta(hours=24), session
+    )
+    _send_verification_email(user.email, verify_token)
     access_token = create_access_token(user_code)
     refresh = create_refresh_token(user_code)
     store.save_refresh_token(refresh, user_code, session)
@@ -165,6 +200,7 @@ def register(request: Request, body: RegisterBody, session: SessionDep):
     summary="Log in with email and password",
     responses={
         401: {"description": "Invalid credentials"},
+        423: {"description": "Account locked due to too many failed login attempts"},
         429: {"description": "Rate limit exceeded (5 requests/minute per IP)"},
     },
 )
@@ -175,6 +211,8 @@ def login(request: Request, body: LoginBody, session: SessionDep):
 
     Returns a short-lived **access token** (Bearer) in the JSON body and a long-lived
     **refresh token** in an HTTP-only `SameSite=Strict` cookie.
+
+    After 10 consecutive failed attempts the account is locked for 15 minutes.
     """
     logger.info("LOGIN attempt: email=%r", body.email)
     user = store.get_user_by_email(body.email, session)
@@ -182,11 +220,21 @@ def login(request: Request, body: LoginBody, session: SessionDep):
         logger.warning("LOGIN failed: no user found for email=%r", body.email)
         raise HTTPException(status_code=401, detail="Invalid email or password")
     logger.info("LOGIN user found: user_code=%s is_admin=%s", user.user_code, user.is_admin)
+    now = datetime.now(UTC)
+    if store.is_account_locked(user, now):
+        retry_after = int((user.locked_until - now).total_seconds())
+        raise HTTPException(
+            status_code=423,
+            detail="Account temporarily locked due to too many failed login attempts",
+            headers={"Retry-After": str(retry_after)},
+        )
     if not verify_password(body.password, user.password_hash):
         logger.warning(
             "LOGIN failed: wrong password for email=%r user_code=%s", body.email, user.user_code
         )
+        store.increment_failed_logins(user.user_code, session)
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    store.reset_failed_logins(user.user_code, session)
     logger.info("LOGIN success: user_code=%s is_admin=%s", user.user_code, user.is_admin)
     if body.visitor_code:
         try:
@@ -203,7 +251,14 @@ def login(request: Request, body: LoginBody, session: SessionDep):
     return resp
 
 
-@router.post("/refresh")
+@router.post(
+    "/refresh",
+    responses={
+        401: {"description": "Missing, invalid, or expired refresh token"},
+        429: {"description": "Rate limit exceeded (10 requests/minute per IP)"},
+    },
+)
+@limiter.limit("10/minute")
 def refresh_token(request: Request, session: SessionDep):
     """Issue a new access token using the refresh token stored in an HTTP-only cookie."""
     token = request.cookies.get("refresh_token")
@@ -286,6 +341,49 @@ def reset_password(body: ResetPasswordBody, session: SessionDep):
     if not user:
         raise HTTPException(status_code=400, detail="User not found")
     store.update_user_password(user.user_code, hash_password(body.newPassword), session)
+    return {"ok": True}
+
+
+@router.post(
+    "/verify-email",
+    summary="Verify email address using token from verification email",
+    responses={
+        400: {"description": "Invalid, expired, or already-used verification token"},
+    },
+)
+def verify_email(body: VerifyEmailBody, session: SessionDep):
+    """
+    Consume a single-use email verification token.
+
+    On success the user's `email_verified` field becomes `true`.
+    """
+    user_code = store.consume_email_verification(body.token, session)
+    if not user_code:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+    return {"ok": True}
+
+
+@router.post(
+    "/resend-verification",
+    summary="Resend email verification link",
+    responses={
+        429: {"description": "Rate limit exceeded (2 requests/minute per IP)"},
+    },
+)
+@limiter.limit("2/minute")
+def resend_verification(request: Request, user: UserDep, session: SessionDep):
+    """
+    Issue a new email verification token and resend the verification email.
+
+    Requires a valid Bearer token. Rate-limited to 2 requests/minute.
+    """
+    if user.email_verified_at is not None:
+        return {"ok": True, "message": "Email already verified"}
+    verify_token = secrets.token_hex(32)
+    store.save_email_verification(
+        verify_token, user.user_code, datetime.now(UTC) + timedelta(hours=24), session
+    )
+    _send_verification_email(user.email, verify_token)
     return {"ok": True}
 
 

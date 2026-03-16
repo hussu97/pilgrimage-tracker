@@ -28,6 +28,9 @@ class UserResponse(BaseModel):
     email: str
     display_name: str
     is_admin: bool = Field(default=False, description="Whether the user has admin privileges")
+    email_verified: bool = Field(
+        default=False, description="Whether the email address has been verified"
+    )
     religions: list[Religion] = Field(default=[], description="User's religion filter preferences")
     created_at: str = Field(description="ISO 8601 UTC timestamp")
     updated_at: str = Field(description="ISO 8601 UTC timestamp")
@@ -135,6 +138,10 @@ class ResetPasswordBody(BaseModel):
     @classmethod
     def validate_new_password_strength(cls, v: str) -> str:
         return _validate_password(v)
+
+
+class VerifyEmailBody(BaseModel):
+    token: str
 
 
 class CheckInBody(BaseModel):

@@ -95,6 +95,9 @@ class User(SQLModel, table=True):
         default=False,
         sa_column=Column(Boolean, nullable=False, server_default="0"),
     )
+    failed_login_attempts: int = Field(default=0)
+    locked_until: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
+    email_verified_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
@@ -174,6 +177,7 @@ class Review(SQLModel, table=True):
     author_name: str | None = None  # For Google reviews
     review_time: int | None = None  # Unix timestamp from Google
     language: str | None = None  # Review language from Google
+    deleted_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
@@ -216,6 +220,7 @@ class CheckIn(SQLModel, table=True):
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
     )
+    deleted_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
 
 
 class Favorite(SQLModel, table=True):
@@ -286,6 +291,13 @@ class Notification(SQLModel, table=True):
 
 
 class PasswordReset(SQLModel, table=True):
+    token: str = Field(primary_key=True)
+    user_code: str = Field(foreign_key="user.user_code")
+    expires_at: datetime = Field(sa_column=_TSTZ(nullable=False))
+    used_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))
+
+
+class EmailVerification(SQLModel, table=True):
     token: str = Field(primary_key=True)
     user_code: str = Field(foreign_key="user.user_code")
     expires_at: datetime = Field(sa_column=_TSTZ(nullable=False))

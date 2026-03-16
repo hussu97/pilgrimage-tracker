@@ -1,10 +1,13 @@
 """Admin — Bulk operations endpoints."""
 
-from fastapi import APIRouter
+from datetime import UTC, datetime
+
+from fastapi import APIRouter, Request
 from pydantic import BaseModel
 from sqlmodel import col, select
 
 from app.api.deps import AdminDep
+from app.api.v1.admin import admin_limiter
 from app.db.models import CheckIn, Group, Place, Review, User
 from app.db.session import SessionDep
 
@@ -42,7 +45,10 @@ class BulkResult(BaseModel):
 
 
 @router.post("/bulk/users/deactivate", response_model=BulkResult)
-def bulk_deactivate_users(body: BulkUserCodesBody, admin: AdminDep, session: SessionDep):
+@admin_limiter.limit("10/minute")
+def bulk_deactivate_users(
+    request: Request, body: BulkUserCodesBody, admin: AdminDep, session: SessionDep
+):
     users = session.exec(select(User).where(col(User.user_code).in_(body.user_codes))).all()
     for user in users:
         user.is_active = False
@@ -51,7 +57,10 @@ def bulk_deactivate_users(body: BulkUserCodesBody, admin: AdminDep, session: Ses
 
 
 @router.post("/bulk/users/activate", response_model=BulkResult)
-def bulk_activate_users(body: BulkUserCodesBody, admin: AdminDep, session: SessionDep):
+@admin_limiter.limit("10/minute")
+def bulk_activate_users(
+    request: Request, body: BulkUserCodesBody, admin: AdminDep, session: SessionDep
+):
     users = session.exec(select(User).where(col(User.user_code).in_(body.user_codes))).all()
     for user in users:
         user.is_active = True
@@ -60,7 +69,10 @@ def bulk_activate_users(body: BulkUserCodesBody, admin: AdminDep, session: Sessi
 
 
 @router.post("/bulk/reviews/flag", response_model=BulkResult)
-def bulk_flag_reviews(body: BulkReviewCodesBody, admin: AdminDep, session: SessionDep):
+@admin_limiter.limit("10/minute")
+def bulk_flag_reviews(
+    request: Request, body: BulkReviewCodesBody, admin: AdminDep, session: SessionDep
+):
     reviews = session.exec(
         select(Review).where(col(Review.review_code).in_(body.review_codes))
     ).all()
@@ -71,7 +83,10 @@ def bulk_flag_reviews(body: BulkReviewCodesBody, admin: AdminDep, session: Sessi
 
 
 @router.post("/bulk/reviews/unflag", response_model=BulkResult)
-def bulk_unflag_reviews(body: BulkReviewCodesBody, admin: AdminDep, session: SessionDep):
+@admin_limiter.limit("10/minute")
+def bulk_unflag_reviews(
+    request: Request, body: BulkReviewCodesBody, admin: AdminDep, session: SessionDep
+):
     reviews = session.exec(
         select(Review).where(col(Review.review_code).in_(body.review_codes))
     ).all()
@@ -82,31 +97,42 @@ def bulk_unflag_reviews(body: BulkReviewCodesBody, admin: AdminDep, session: Ses
 
 
 @router.post("/bulk/reviews/delete", response_model=BulkResult)
-def bulk_delete_reviews(body: BulkReviewCodesBody, admin: AdminDep, session: SessionDep):
+@admin_limiter.limit("10/minute")
+def bulk_delete_reviews(
+    request: Request, body: BulkReviewCodesBody, admin: AdminDep, session: SessionDep
+):
+    now = datetime.now(UTC)
     reviews = session.exec(
         select(Review).where(col(Review.review_code).in_(body.review_codes))
     ).all()
     count = len(reviews)
     for review in reviews:
-        session.delete(review)
+        review.deleted_at = now
     session.commit()
     return BulkResult(affected=count)
 
 
 @router.post("/bulk/check-ins/delete", response_model=BulkResult)
-def bulk_delete_check_ins(body: BulkCheckInCodesBody, admin: AdminDep, session: SessionDep):
+@admin_limiter.limit("10/minute")
+def bulk_delete_check_ins(
+    request: Request, body: BulkCheckInCodesBody, admin: AdminDep, session: SessionDep
+):
+    now = datetime.now(UTC)
     check_ins = session.exec(
         select(CheckIn).where(col(CheckIn.check_in_code).in_(body.check_in_codes))
     ).all()
     count = len(check_ins)
     for ci in check_ins:
-        session.delete(ci)
+        ci.deleted_at = now
     session.commit()
     return BulkResult(affected=count)
 
 
 @router.post("/bulk/places/delete", response_model=BulkResult)
-def bulk_delete_places(body: BulkPlaceCodesBody, admin: AdminDep, session: SessionDep):
+@admin_limiter.limit("10/minute")
+def bulk_delete_places(
+    request: Request, body: BulkPlaceCodesBody, admin: AdminDep, session: SessionDep
+):
     places = session.exec(select(Place).where(col(Place.place_code).in_(body.place_codes))).all()
     count = len(places)
     for place in places:
@@ -116,7 +142,10 @@ def bulk_delete_places(body: BulkPlaceCodesBody, admin: AdminDep, session: Sessi
 
 
 @router.post("/bulk/groups/delete", response_model=BulkResult)
-def bulk_delete_groups(body: BulkGroupCodesBody, admin: AdminDep, session: SessionDep):
+@admin_limiter.limit("10/minute")
+def bulk_delete_groups(
+    request: Request, body: BulkGroupCodesBody, admin: AdminDep, session: SessionDep
+):
     groups = session.exec(select(Group).where(col(Group.group_code).in_(body.group_codes))).all()
     count = len(groups)
     for group in groups:

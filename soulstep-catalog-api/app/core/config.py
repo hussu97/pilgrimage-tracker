@@ -49,6 +49,10 @@ ALGORITHM = "HS256"
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
 RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "noreply@soul-step.org")
 RESET_URL_BASE = os.environ.get("RESET_URL_BASE", "http://localhost:5173")
+VERIFY_URL_BASE = os.environ.get("VERIFY_URL_BASE", RESET_URL_BASE)
+
+# HTTPS enforcement (production only — set ENFORCE_HTTPS=true in Cloud Run)
+ENFORCE_HTTPS: bool = os.environ.get("ENFORCE_HTTPS", "").lower() in ("true", "1", "yes")
 
 # Public URL of this API — used in RSS/Atom feeds, robots.txt sitemap, and llms.txt.
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:3000")

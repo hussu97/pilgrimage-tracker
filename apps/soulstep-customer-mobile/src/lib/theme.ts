@@ -53,7 +53,7 @@ export const tokens = {
     darkBg: '#1A1A1A',
     darkSurface: '#242424',
     darkBorder: '#333333',
-    darkTextSecondary: '#A39C94',
+    darkTextSecondary: '#C4BDB5',
     // Primary with opacity (for partial check-in indicators, chips)
     primaryAlpha: 'rgba(176,86,61,0.15)',
     primaryAlphaDark: 'rgba(176,86,61,0.2)',

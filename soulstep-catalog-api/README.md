@@ -61,14 +61,18 @@ Copy `.env.example` to `.env` and fill in values. Key variables:
 - `GET /api/v1/app-version` — min/latest app version config
 
 ### Auth (`/api/v1/auth`)
-- `POST /api/v1/auth/register` — register (email, password, display_name)
-- `POST /api/v1/auth/login` — login, returns JWT
+- `POST /api/v1/auth/register` — register (email, password, display_name); sends verification email
+- `POST /api/v1/auth/login` — login, returns JWT; locks account after 10 failed attempts (423 + Retry-After)
+- `POST /api/v1/auth/refresh` — refresh access token (rate-limited 10/min)
 - `POST /api/v1/auth/forgot-password` — request password-reset email
 - `POST /api/v1/auth/reset-password` — reset password with token
+- `POST /api/v1/auth/verify-email` — verify email with token from verification email
+- `POST /api/v1/auth/resend-verification` — resend verification email (requires auth, rate-limited 2/min)
 
 ### Users (`/api/v1/users`)
-- `GET /api/v1/users/me` — current user profile
+- `GET /api/v1/users/me` — current user profile (includes `email_verified`)
 - `PATCH /api/v1/users/me` — update profile (display_name)
+- `DELETE /api/v1/users/me` — GDPR/CCPA self-service account deletion (anonymises PII, soft-deletes activity)
 - `GET /api/v1/users/me/settings` — user settings
 - `PATCH /api/v1/users/me/settings` — update settings (theme, language, religions, etc.)
 - `GET /api/v1/users/me/check-ins` — all check-ins for current user

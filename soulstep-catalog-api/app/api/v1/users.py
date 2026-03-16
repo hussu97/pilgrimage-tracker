@@ -20,6 +20,7 @@ def _to_public_user(user, session) -> UserResponse:
         email=user.email,
         display_name=user.display_name,
         is_admin=user.is_admin,
+        email_verified=user.email_verified_at is not None,
         religions=religions,
         created_at=user.created_at.isoformat().replace("+00:00", "Z"),
         updated_at=user.updated_at.isoformat().replace("+00:00", "Z"),
@@ -198,3 +199,26 @@ def update_my_settings(body: SettingsBody, user: UserDep, session: SessionDep):
         kwargs["religions"] = body.religions
     updated = store.update_user_settings(user.user_code, session, **kwargs)
     return updated
+
+
+@router.delete(
+    "/me",
+    status_code=204,
+    summary="Delete own account (GDPR/CCPA self-service deletion)",
+    responses={
+        204: {"description": "Account deleted successfully"},
+    },
+)
+def delete_me(user: UserDep, session: SessionDep):
+    """
+    Permanently delete the authenticated user's account.
+
+    - Anonymises all PII (email, display name, password hash)
+    - Soft-deletes all check-ins and reviews
+    - Revokes all active refresh tokens
+    - Deactivates the account (`is_active = False`)
+
+    After this call the user's Bearer token remains technically valid until expiry,
+    but subsequent authenticated requests will fail (user not found / inactive).
+    """
+    store.soft_delete_user_account(user.user_code, session)

@@ -24,6 +24,7 @@ class AdminCheckInListItem(BaseModel):
     group_code: str | None
     note: str | None
     checked_in_at: datetime
+    deleted_at: datetime | None = None
 
 
 class AdminCheckInListResponse(BaseModel):
@@ -44,8 +45,11 @@ def list_check_ins(
     group_code: str | None = None,
     from_date: str | None = None,
     to_date: str | None = None,
+    include_deleted: bool = False,
 ):
     stmt = select(CheckIn)
+    if not include_deleted:
+        stmt = stmt.where(CheckIn.deleted_at == None)  # noqa: E711
     if place_code:
         stmt = stmt.where(CheckIn.place_code == place_code)
     if user_code:
@@ -65,10 +69,21 @@ def list_check_ins(
     )
     check_ins = session.exec(stmt).all()
 
+    place_codes = {ci.place_code for ci in check_ins}
+    user_codes = {ci.user_code for ci in check_ins}
+    place_map: dict = {}
+    user_map: dict = {}
+    if place_codes:
+        places = session.exec(select(Place).where(col(Place.place_code).in_(place_codes))).all()
+        place_map = {p.place_code: p for p in places}
+    if user_codes:
+        users = session.exec(select(User).where(col(User.user_code).in_(user_codes))).all()
+        user_map = {u.user_code: u for u in users}
+
     items = []
     for ci in check_ins:
-        place = session.exec(select(Place).where(Place.place_code == ci.place_code)).first()
-        user = session.exec(select(User).where(User.user_code == ci.user_code)).first()
+        place = place_map.get(ci.place_code)
+        user = user_map.get(ci.user_code)
         items.append(
             AdminCheckInListItem(
                 check_in_code=ci.check_in_code,
@@ -79,6 +94,7 @@ def list_check_ins(
                 group_code=ci.group_code,
                 note=ci.note,
                 checked_in_at=ci.checked_in_at,
+                deleted_at=ci.deleted_at,
             )
         )
 

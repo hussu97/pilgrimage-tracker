@@ -2,52 +2,13 @@
 
 This document is the **single unified roadmap** for the entire SoulStep monorepo. It contains only **uncompleted** items, organized by priority tier (P0 through P3). Items are removed when done — check git history for completed work.
 
-> **Last updated:** 2026-03-16
+> **Last updated:** 2026-03-17
 
 ---
 
 ## P0 — Critical / Pre-Production
 
-Security and stability items that **must** be resolved before any public production deployment.
-
-### Security
-
-- [ ] **Add rate limiting to token refresh endpoint**
-  - The `/auth/refresh` endpoint is currently unprotected. An attacker with a valid refresh token can generate unlimited access tokens.
-  - Apply `slowapi` rate limit of 10/min per IP. Add to the same rate-limiter setup already in `auth.py`.
-  - Files: `soulstep-catalog-api/app/api/v1/auth.py`
-
-- [ ] **Implement account lockout after failed login attempts**
-  - No lockout exists. Brute-force attacks against known usernames are unrestricted beyond the general login rate limit.
-  - Lock account for 15 minutes after 10 failed attempts. Track failed attempts in DB or Redis. Return `423 Locked` with `Retry-After` header.
-  - Files: `soulstep-catalog-api/app/api/v1/auth.py`, `soulstep-catalog-api/app/db/models.py`
-
-- [ ] **Add rate limiting on admin API endpoints**
-  - Admin endpoints have no rate limits. A compromised admin token can exfiltrate all data or trigger bulk operations without throttling.
-  - Apply 60/min per token to all `/api/v1/admin/*` routes. Add stricter limits (10/min) on bulk-write operations.
-  - Files: `soulstep-catalog-api/app/main.py`, `soulstep-catalog-api/app/api/v1/admin/*.py`
-
-- [ ] **Enforce HTTPS redirect in production**
-  - No middleware forces HTTPS. HTTP requests to the production API are not redirected.
-  - Add `HTTPSRedirectMiddleware` behind an env flag (`ENFORCE_HTTPS=true`) so it only activates in production.
-  - Files: `soulstep-catalog-api/app/main.py`
-
-### Data Protection
-
-- [ ] **Implement user self-service account deletion (GDPR/CCPA)**
-  - No endpoint allows users to delete their own accounts. Violates GDPR Article 17 (right to erasure).
-  - Add `DELETE /api/v1/users/me` endpoint. Soft-delete the user, anonymize PII fields (email → `deleted_<code>@deleted`, display_name → `Deleted User`), cascade soft-delete to check-ins and reviews.
-  - Files: `soulstep-catalog-api/app/api/v1/users.py`, `soulstep-catalog-api/app/db/models.py`
-
-- [ ] **Add email verification on registration**
-  - Users can register with any email address (including fake ones) without verification. No email ownership proof.
-  - Send verification email via Resend on registration. Add `email_verified_at` field to User. Block login until verified (or allow with limited access). Add `POST /api/v1/auth/verify-email` endpoint.
-  - Files: `soulstep-catalog-api/app/api/v1/auth.py`, `soulstep-catalog-api/app/db/models.py`, new migration
-
-- [ ] **Add soft-delete timestamps to CheckIn/Review models**
-  - `CheckIn` and `Review` models have no `deleted_at` column. Hard deletes make audit trails impossible and complicate GDPR compliance.
-  - Add `deleted_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))` to both models. Update query filters to exclude soft-deleted rows.
-  - Files: `soulstep-catalog-api/app/db/models.py`, new migration
+All P0 items have been completed. See CHANGELOG.md for details.
 
 ---
 
@@ -57,71 +18,71 @@ Significant quality, UX, compliance, and admin completeness items. Address in ea
 
 ### CI/CD Hardening
 
-- [ ] **Block deployments on test failure**
+- [x] **Block deployments on test failure**
   - `deploy.yml` does not gate on the test workflow result. Broken code can be deployed.
   - Add `needs: [test]` to the deploy job and require all test steps to pass before any deploy step runs.
   - Files: `.github/workflows/deploy.yml`
 
-- [ ] **Add frontend test coverage thresholds**
+- [x] **Add frontend test coverage thresholds**
   - Backend has `--cov-fail-under=80`. Web and mobile have no coverage floor — coverage can silently drop to 0%.
   - Add `coverageThreshold: { global: { lines: 80 } }` to `vitest.config.ts` and `jest.config.js`.
   - Files: `apps/soulstep-customer-web/vitest.config.ts`, `apps/soulstep-customer-mobile/jest.config.js`
 
-- [ ] **Add Docker health checks to background job images**
+- [x] **Add Docker health checks to background job images**
   - The `sync` and `translate` job containers have no health checks. Unhealthy containers go undetected.
   - Add `HEALTHCHECK` instructions to those Dockerfiles. Add health check entries in `docker-compose.yml`.
   - Files: `docker-compose.yml`, relevant Dockerfiles
 
-- [ ] **Add resource limits to docker-compose.yml**
+- [x] **Add resource limits to docker-compose.yml**
   - No memory or CPU limits on any service. A runaway process can starve other containers.
   - Add `deploy.resources.limits` for each service (e.g., `memory: 512m`, `cpus: '0.5'`).
   - Files: `docker-compose.yml`
 
 ### Accessibility & UX
 
-- [ ] **Fix dark mode color contrast to meet WCAG AA**
+- [x] **Fix dark mode color contrast to meet WCAG AA**
   - `dark-text-secondary` (#A39C94) on `dark-surface` (#242424) gives ~3.2:1 contrast. WCAG AA requires 4.5:1 for normal text.
   - Lighten `dark-text-secondary` to ~#C4BDB5 (4.8:1+). Audit all components that use this token.
   - Files: `apps/soulstep-customer-web/tailwind.config.js`, `apps/soulstep-customer-mobile/src/lib/tokens.ts`
 
-- [ ] **Add modal focus traps and form label accessibility**
+- [x] **Add modal focus traps and form label accessibility**
   - Modals lack focus trapping (Tab can escape). Form inputs use `placeholder` instead of `<label>`. Some icon-only buttons lack `aria-label`.
   - Implement focus trap in Modal component. Add hidden `<label htmlFor>` for form inputs. Audit all icon buttons for `aria-label`.
   - Files: `apps/soulstep-customer-web/src/components/common/Modal.tsx`, `apps/soulstep-customer-web/src/components/auth/AuthModal.tsx`
 
-- [ ] **Add carousel keyboard navigation and ARIA labels**
+- [x] **Add carousel keyboard navigation and ARIA labels**
   - Horizontal carousels have no keyboard navigation. Screen reader users cannot access carousel items.
   - Add `role="region"`, `aria-label`, and keyboard arrow-key navigation to all carousels. Add `aria-label` to scroll buttons.
   - Files: `apps/soulstep-customer-web/src/components/`
 
-- [ ] **Add loading skeleton UI for all pages**
+- [x] **Add loading skeleton UI for all pages**
   - Loading states show generic spinners instead of content-shaped skeletons. Poor perceived performance.
   - Create `SkeletonCard`, `SkeletonList`, `SkeletonDetail` components. Apply to Favorites, Profile, PlaceDetail, and all list pages.
   - Files: `apps/soulstep-customer-web/src/components/`, `apps/soulstep-customer-mobile/src/components/`
 
-- [ ] **Add 404 Not Found page (web)**
+- [x] **Add 404 Not Found page (web)**
   - Unknown routes silently redirect without showing a user-visible error page.
   - Add a `NotFoundPage` component and a catch-all route. Show a helpful message with links to Home and Places.
   - Files: `apps/soulstep-customer-web/src/app/routes.tsx`, new `apps/soulstep-customer-web/src/app/pages/NotFoundPage.tsx`
 
-- [ ] **Add error boundary with user-visible feedback on API failures**
+- [x] **Add error boundary with user-visible feedback on API failures**
   - Unhandled Promise rejections and render errors show a blank screen with no user feedback.
   - Add a React `ErrorBoundary` at the app root and per-route level. Show a friendly error message with a retry button.
   - Files: `apps/soulstep-customer-web/src/app/App.tsx`, `apps/soulstep-customer-mobile/src/app/App.tsx`
 
 ### Performance
 
-- [ ] **Eliminate N+1 queries in admin endpoints**
+- [x] **Eliminate N+1 queries in admin endpoints**
   - Admin list endpoints for users, check-ins, and reviews issue one query per row for related data (e.g., per-user check-in count). Degrades under load.
   - Rewrite with `selectinload` or subquery aggregation. Add test to assert query count stays constant as rows increase.
   - Files: `soulstep-catalog-api/app/api/v1/admin/users.py`, `soulstep-catalog-api/app/api/v1/admin/checkins.py`, `soulstep-catalog-api/app/api/v1/admin/reviews.py`
 
-- [ ] **Add request caching layer (React Query / SWR) for web and mobile**
+- [x] **Add request caching layer (React Query / SWR) for web and mobile**
   - Every navigation re-fetches all data. No deduplication of concurrent identical requests. High API load for common screens.
   - Integrate React Query (web) and a compatible cache (mobile). Cache place lists for 5 min, translations for session, user profile for 1 min.
   - Files: `apps/soulstep-customer-web/src/lib/api/`, `apps/soulstep-customer-mobile/src/lib/api/`
 
-- [ ] **Add abort controllers for stale map/search requests**
+- [x] **Add abort controllers for stale map/search requests**
   - Typing quickly in search or panning the map fires multiple concurrent requests. Responses arrive out of order, causing incorrect results.
   - Use `AbortController` to cancel in-flight requests when a new one is issued for the same resource.
   - Files: `apps/soulstep-customer-web/src/app/pages/MapPage.tsx`, `apps/soulstep-customer-web/src/app/pages/PlacesPage.tsx`

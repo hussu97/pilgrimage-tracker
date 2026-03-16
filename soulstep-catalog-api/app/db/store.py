@@ -4,7 +4,17 @@ from sqlmodel import Session, select
 
 from app.core.config import REFRESH_EXPIRE
 from app.db.enums import Language, Religion, Theme, Units
-from app.db.models import PasswordReset, RefreshToken, User, UserSettings, Visitor, VisitorSettings
+from app.db.models import (
+    CheckIn,
+    EmailVerification,
+    PasswordReset,
+    RefreshToken,
+    Review,
+    User,
+    UserSettings,
+    Visitor,
+    VisitorSettings,
+)
 
 VALID_RELIGIONS = tuple(Religion)
 
@@ -140,6 +150,156 @@ def update_user_password(user_code: str, password_hash: str, session: Session) -
         user.updated_at = datetime.now(UTC)
         session.add(user)
         session.commit()
+
+
+# ─── Account lockout helpers ───────────────────────────────────────────────────
+
+_LOCKOUT_THRESHOLD = 10  # failed attempts before lockout
+_LOCKOUT_DURATION = timedelta(minutes=15)
+
+
+def is_account_locked(user: User, now: datetime | None = None) -> bool:
+    """Return True if the user's account is currently locked."""
+    if user.locked_until is None:
+        return False
+    if now is None:
+        now = datetime.now(UTC)
+    return user.locked_until > now
+
+
+def increment_failed_logins(user_code: str, session: Session) -> None:
+    """Increment failed login counter; lock account for 15 min after 10 failures."""
+    user = session.exec(select(User).where(User.user_code == user_code)).first()
+    if not user:
+        return
+    user.failed_login_attempts += 1
+    if user.failed_login_attempts >= _LOCKOUT_THRESHOLD:
+        user.locked_until = datetime.now(UTC) + _LOCKOUT_DURATION
+    user.updated_at = datetime.now(UTC)
+    session.add(user)
+    session.commit()
+
+
+def reset_failed_logins(user_code: str, session: Session) -> None:
+    """Reset failed login counter and clear any active lockout."""
+    user = session.exec(select(User).where(User.user_code == user_code)).first()
+    if not user:
+        return
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.updated_at = datetime.now(UTC)
+    session.add(user)
+    session.commit()
+
+
+# ─── Email verification helpers ────────────────────────────────────────────────
+
+
+def save_email_verification(
+    token: str, user_code: str, expires_at: datetime, session: Session
+) -> None:
+    row = EmailVerification(token=token, user_code=user_code, expires_at=expires_at)
+    session.add(row)
+    session.commit()
+
+
+def consume_email_verification(token: str, session: Session) -> str | None:
+    """Validate and consume an email verification token. Returns user_code on success."""
+    row = session.exec(select(EmailVerification).where(EmailVerification.token == token)).first()
+    if not row or row.used_at is not None:
+        return None
+    now = datetime.now(UTC)
+    if row.expires_at < now:
+        return None
+    row.used_at = now
+    session.add(row)
+    # Mark user's email as verified
+    user = session.exec(select(User).where(User.user_code == row.user_code)).first()
+    if user:
+        user.email_verified_at = now
+        user.updated_at = now
+        session.add(user)
+    session.commit()
+    return row.user_code
+
+
+def set_email_verified(user_code: str, session: Session) -> None:
+    """Directly mark a user's email as verified (e.g. after admin action)."""
+    user = session.exec(select(User).where(User.user_code == user_code)).first()
+    if user and user.email_verified_at is None:
+        user.email_verified_at = datetime.now(UTC)
+        user.updated_at = datetime.now(UTC)
+        session.add(user)
+        session.commit()
+
+
+# ─── Account deletion helpers ──────────────────────────────────────────────────
+
+
+def revoke_all_user_refresh_tokens(user_code: str, session: Session) -> None:
+    """Revoke all active refresh tokens for a user (used on account deletion / logout-all)."""
+    now = datetime.now(UTC)
+    tokens = session.exec(
+        select(RefreshToken).where(
+            RefreshToken.user_code == user_code,
+            RefreshToken.revoked_at == None,  # noqa: E711
+        )
+    ).all()
+    for t in tokens:
+        t.revoked_at = now
+        session.add(t)
+    session.commit()
+
+
+def soft_delete_user_account(user_code: str, session: Session) -> None:
+    """GDPR/CCPA account deletion: anonymise PII, soft-delete activity, revoke tokens."""
+    now = datetime.now(UTC)
+
+    # 1. Soft-delete and anonymise the user row
+    user = session.exec(select(User).where(User.user_code == user_code)).first()
+    if not user:
+        return
+    user.is_active = False
+    user.email = f"deleted_{user_code}@deleted"
+    user.display_name = "Deleted User"
+    user.password_hash = ""
+    user.updated_at = now
+    session.add(user)
+
+    # 2. Soft-delete check-ins
+    check_ins = session.exec(
+        select(CheckIn).where(
+            CheckIn.user_code == user_code,
+            CheckIn.deleted_at == None,  # noqa: E711
+        )
+    ).all()
+    for ci in check_ins:
+        ci.deleted_at = now
+        session.add(ci)
+
+    # 3. Soft-delete reviews
+    reviews = session.exec(
+        select(Review).where(
+            Review.user_code == user_code,
+            Review.deleted_at == None,  # noqa: E711
+        )
+    ).all()
+    for r in reviews:
+        r.deleted_at = now
+        session.add(r)
+
+    # 4. Revoke all refresh tokens
+    tokens = session.exec(
+        select(RefreshToken).where(
+            RefreshToken.user_code == user_code,
+            RefreshToken.revoked_at == None,  # noqa: E711
+        )
+    ).all()
+    for t in tokens:
+        t.revoked_at = now
+        session.add(t)
+
+    session.commit()
 
 
 # ─── Refresh token helpers ─────────────────────────────────────────────────────

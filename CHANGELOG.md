@@ -4,6 +4,47 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-16] — P0: Security & Data Protection
+
+### Backend
+- **Rate limit `/auth/refresh`**: Added `@limiter.limit("10/minute")` to the token-refresh endpoint (Item 1)
+- **Account lockout**: Added `failed_login_attempts` + `locked_until` fields to `User`; login returns `423 Locked` with `Retry-After` header after 10 consecutive failures; resets on success (Item 2)
+- **Admin rate limiting**: Added `admin_limiter` with per-user JWT key function; bulk endpoints limited to 10/minute (Item 3)
+- **HTTPS redirect**: Added `HTTPSRedirectMiddleware` behind `ENFORCE_HTTPS` env flag; passes `exc.headers` in exception handler so `Retry-After` is forwarded correctly (Item 4)
+- **Account deletion** (`DELETE /api/v1/users/me`): Anonymises PII, soft-deletes check-ins/reviews, revokes all refresh tokens (Item 5)
+- **Email verification**: New `EmailVerification` model; `/auth/verify-email` and `/auth/resend-verification` endpoints; `email_verified` field in `UserResponse`; verification email sent on registration via Resend (Item 6)
+- **Soft-delete on CheckIn/Review**: Added `deleted_at` column to both models; all query functions exclude soft-deleted rows; admin listing accepts `include_deleted=true`; bulk-delete endpoints now soft-delete instead of hard-delete (Item 7)
+- **Migration `0024_security_and_data_protection`**: Single migration adding all new columns + `emailverification` table
+- **26 new tests** in `tests/test_p0_security.py` covering all P0 items; 2 existing bulk tests updated for soft-delete behaviour; all 1254 tests pass
+
+---
+
+## [2026-03-17] — P1: CI/CD hardening, accessibility & UX, performance
+
+### Backend
+- **N+1 queries**: Eliminated per-row Place/User DB queries in `admin/check_ins.py`, `admin/reviews.py`, and `admin/users.py` — replaced with batch `WHERE ... IN (...)` lookups, reducing up to 4000 queries/page to 2
+- **404 translations**: Added `errors.pageNotFound` and `errors.pageNotFoundDesc` keys for all 5 languages (en, ar, hi, te, ml) in `seed_data.json`
+
+### Frontend (web)
+- **Dark mode contrast**: Updated `dark-text-secondary` token from `#A39C94` to `#C4BDB5` in `tailwind.config.js` — meets WCAG AA 4.5:1 requirement (~4.8:1 on `#242424`)
+- **Modal focus trap**: `Modal.tsx` now traps Tab/Shift+Tab focus within the dialog; auto-focuses first focusable element on open
+- **Form labels**: `AuthModal.tsx` inputs now have visually hidden `<label>` elements (`sr-only`) for all login and register fields
+- **Carousel accessibility**: New `HorizontalCarousel` component adds `role="region"`, `aria-label`, and ArrowLeft/ArrowRight keyboard navigation; applied to Home, NearbyPlaces, PlaceTimingsCarousel
+- **404 page**: New `NotFoundPage.tsx` with icon, message, and links to Home and Places; catch-all route in `routes.tsx` now renders the page instead of silently redirecting
+- **Request caching**: New `src/lib/api/cache.ts` TTL cache; `getTranslations` (30min), `getLanguages` (30min), `getMe` (1min) cached in `client.ts`; mutations invalidate relevant cache prefixes
+- **AbortController**: `MapDiscovery.tsx` and `Places.tsx` now abort in-flight requests when new ones are issued; `getPlaces` accepts optional `AbortSignal`
+
+### Frontend (mobile)
+- **Dark mode contrast**: Updated `darkTextSecondary` token from `#A39C94` to `#C4BDB5` in `theme.ts`
+- **Request caching**: New `src/lib/api/cache.ts` with same TTL cache; `getTranslations`, `getLanguages`, `getMe` cached in mobile `client.ts`; same mutation invalidation
+
+### Docs / CI
+- **Scraper healthcheck**: Added `HEALTHCHECK` to `soulstep-scraper-api/Dockerfile` (HTTP GET `/health` on port 8080)
+- **docker-compose healthchecks**: Added explicit `healthcheck` entries for `api`, `web`, and `scraper` services in `docker-compose.yml`
+- **docker-compose resource limits**: Added `deploy.resources.limits` to all services — db (512M/0.5CPU), api (512M/0.5CPU), web (256M/0.25CPU), scraper (1G/1CPU)
+
+---
+
 ## [2026-03-16] — Security hardening: dockerignore, non-root containers, CI scanning, pagination bounds
 
 ### Backend

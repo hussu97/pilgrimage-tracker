@@ -24,7 +24,7 @@ export default {
         'dark-bg': '#1A1A1A',
         'dark-surface': '#242424',
         'dark-border': '#333333',
-        'dark-text-secondary': '#A39C94',
+        'dark-text-secondary': '#C4BDB5',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],
