@@ -457,7 +457,7 @@ gcloud run jobs add-iam-policy-binding soulstep-scraper-api-job \
 ```
 
 > If the service account field is empty, the service runs as the default Compute SA:
-> `PROJECT_NUMBER-compute@developer.gserviceaccount.com`
+> `serviceAccount:PROJECT_NUMBER-compute@developer.gserviceaccount.com`
 
 **Update after job image changes:**
 ```bash
