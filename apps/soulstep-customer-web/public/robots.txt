@@ -18,4 +18,4 @@ Allow: /
 User-agent: Applebot
 Allow: /
 
-Sitemap: https://soulstep-api-834941457147.europe-west1.run.app/sitemap.xml
+Sitemap: https://api.soul-step.org/sitemap.xml

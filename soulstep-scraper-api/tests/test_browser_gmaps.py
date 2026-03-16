@@ -7,6 +7,7 @@ Uses mocked Playwright page.evaluate() — does not launch a real browser.
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -857,6 +858,10 @@ class TestGlobalCellStoreDiscoveryMethodKey:
 # ── Browser pool: --disable-dev-shm-usage flag ──────────────────────────────
 
 
+@pytest.mark.skipif(
+    not importlib.util.find_spec("playwright"),
+    reason="playwright not installed",
+)
 class TestChromiumFlags:
     @pytest.mark.asyncio
     async def test_disable_dev_shm_usage_in_launch_args(self):
@@ -935,6 +940,10 @@ class TestAcquireTimeout:
 # ── Route handler safety ────────────────────────────────────────────────────
 
 
+@pytest.mark.skipif(
+    not importlib.util.find_spec("playwright"),
+    reason="playwright not installed",
+)
 class TestRouteHandlerSafety:
     @pytest.mark.asyncio
     async def test_route_handler_survives_abort_exception(self):

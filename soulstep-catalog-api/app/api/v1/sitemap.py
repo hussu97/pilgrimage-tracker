@@ -88,6 +88,7 @@ def _build_sitemap_xml(
     _register_ns()
 
     urlset = ET.Element(f"{{{_NS}}}urlset")
+    urlset.set("xmlns:image", _NS_IMAGE)
 
     # Homepage
     _add_url(urlset, FRONTEND_URL, priority="1.0", changefreq="daily")

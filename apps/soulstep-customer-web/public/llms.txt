@@ -17,11 +17,11 @@ Islam · Christianity · Hinduism · Buddhism · Sikhism · Judaism · Bahá'í 
 
 ## Key Endpoints (Public API)
 
-- `GET https://soulstep-api-834941457147.europe-west1.run.app/api/v1/places` — List and filter sacred sites
-- `GET https://soulstep-api-834941457147.europe-west1.run.app/api/v1/places/{place_code}` — Place detail (name, address, hours, rating)
-- `GET https://soulstep-api-834941457147.europe-west1.run.app/api/v1/search?q={query}` — Text search
-- `GET https://soulstep-api-834941457147.europe-west1.run.app/sitemap.xml` — Full place sitemap
-- `GET https://soulstep-api-834941457147.europe-west1.run.app/share/places/{place_code}` — Pre-rendered place page (HTML + JSON-LD)
+- `GET https://api.soul-step.org/api/v1/places` — List and filter sacred sites
+- `GET https://api.soul-step.org/api/v1/places/{place_code}` — Place detail (name, address, hours, rating)
+- `GET https://api.soul-step.org/api/v1/search?q={query}` — Text search
+- `GET https://api.soul-step.org/sitemap.xml` — Full place sitemap
+- `GET https://api.soul-step.org/share/places/{place_code}` — Pre-rendered place page (HTML + JSON-LD)
 
 ## Language Support
 
@@ -29,26 +29,26 @@ English (default) · Arabic · Hindi
 
 ## Machine-Readable API
 
-- OpenAPI 3.1 specification: https://soulstep-api-834941457147.europe-west1.run.app/openapi.json
-- Interactive docs: https://soulstep-api-834941457147.europe-west1.run.app/docs
-- Full AI discoverability doc: https://soulstep-api-834941457147.europe-west1.run.app/llms-full.txt
+- OpenAPI 3.1 specification: https://api.soul-step.org/openapi.json
+- Interactive docs: https://api.soul-step.org/docs
+- Full AI discoverability doc: https://api.soul-step.org/llms-full.txt
 
 ## Religion Pages
 
-- Islam (Mosques): https://soulstep-api-834941457147.europe-west1.run.app/share/religion/islam
-- Christianity (Churches): https://soulstep-api-834941457147.europe-west1.run.app/share/religion/christianity
-- Hinduism (Temples): https://soulstep-api-834941457147.europe-west1.run.app/share/religion/hinduism
-- Buddhism (Monasteries): https://soulstep-api-834941457147.europe-west1.run.app/share/religion/buddhism
-- Sikhism (Gurdwaras): https://soulstep-api-834941457147.europe-west1.run.app/share/religion/sikhism
-- Judaism (Synagogues): https://soulstep-api-834941457147.europe-west1.run.app/share/religion/judaism
-- Bahá'í (Houses of Worship): https://soulstep-api-834941457147.europe-west1.run.app/share/religion/bahai
-- Zoroastrianism (Fire Temples): https://soulstep-api-834941457147.europe-west1.run.app/share/religion/zoroastrianism
+- Islam (Mosques): https://api.soul-step.org/share/religion/islam
+- Christianity (Churches): https://api.soul-step.org/share/religion/christianity
+- Hinduism (Temples): https://api.soul-step.org/share/religion/hinduism
+- Buddhism (Monasteries): https://api.soul-step.org/share/religion/buddhism
+- Sikhism (Gurdwaras): https://api.soul-step.org/share/religion/sikhism
+- Judaism (Synagogues): https://api.soul-step.org/share/religion/judaism
+- Bahá'í (Houses of Worship): https://api.soul-step.org/share/religion/bahai
+- Zoroastrianism (Fire Temples): https://api.soul-step.org/share/religion/zoroastrianism
 
 ## Additional Resources
 
-- Coverage overview: https://soulstep-api-834941457147.europe-west1.run.app/share/coverage
-- RSS feed: https://soulstep-api-834941457147.europe-west1.run.app/feed.xml
-- Atom feed: https://soulstep-api-834941457147.europe-west1.run.app/feed.atom
+- Coverage overview: https://api.soul-step.org/share/coverage
+- RSS feed: https://api.soul-step.org/feed.xml
+- Atom feed: https://api.soul-step.org/feed.atom
 
 ## Data Sources
 
@@ -56,9 +56,9 @@ Place data is sourced from Google Maps, OpenStreetMap, Wikipedia, and Wikidata.
 
 ## Example Queries
 
-- "Find mosques near me" → `GET https://soulstep-api-834941457147.europe-west1.run.app/api/v1/places?religion=islam&lat=...&lng=...`
-- "Best rated temples in Mumbai" → `GET https://soulstep-api-834941457147.europe-west1.run.app/api/v1/places?religion=hinduism&search=mumbai&sort=rating&top_rated=true`
-- "Churches open now in London" → `GET https://soulstep-api-834941457147.europe-west1.run.app/api/v1/places?religion=christianity&search=london&open_now=true`
+- "Find mosques near me" → `GET https://api.soul-step.org/api/v1/places?religion=islam&lat=...&lng=...`
+- "Best rated temples in Mumbai" → `GET https://api.soul-step.org/api/v1/places?religion=hinduism&search=mumbai&sort=rating&top_rated=true`
+- "Churches open now in London" → `GET https://api.soul-step.org/api/v1/places?religion=christianity&search=london&open_now=true`
 
 ## For AI Assistants
 

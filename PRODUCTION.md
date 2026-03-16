@@ -14,6 +14,7 @@ Update this file whenever deployment-relevant changes are made: new env vars, ne
   - [2.2 Cloud SQL](#22-cloud-sql)
   - [2.3 Secret Manager + IAM](#23-secret-manager--iam)
 - [3. Deploy Catalog API](#3-deploy-catalog-api)
+- [3.1 Custom Domain (`api.soul-step.org`)](#31-custom-domain-apisoul-steporg)
 - [4. Deploy Web Frontend](#4-deploy-web-frontend)
 - [5. Deploy Admin Dashboard](#5-deploy-admin-dashboard)
 - [6. Deploy Scraper](#6-deploy-scraper)
@@ -203,7 +204,7 @@ gcloud run deploy soulstep-catalog-api \
   --timeout 30
 ```
 
-Copy the **Service URL** from the output (e.g. `https://soulstep-catalog-api-xxxx-uc.a.run.app`).
+Copy the **Service URL** from the output (e.g. `https://soulstep-catalog-api-xxxx-uc.a.run.app`). This is the raw Cloud Run URL — after setting up the custom domain (§3.1), use `https://api.soul-step.org` everywhere instead.
 
 ### GCS image storage
 
@@ -244,7 +245,7 @@ gcloud run services describe soulstep-catalog-api \
 ```bash
 gcloud run services update soulstep-catalog-api \
   --region REGION \
-  --update-env-vars "CORS_ORIGINS=https://soul-step.org https://PROJECT_ID.web.app https://PROJECT_ID.firebaseapp.com,FRONTEND_URL=https://soul-step.org,API_BASE_URL=https://soulstep-catalog-api-xxxx.a.run.app,RESET_URL_BASE=https://soul-step.org"
+  --update-env-vars "CORS_ORIGINS=https://soul-step.org https://PROJECT_ID.web.app https://PROJECT_ID.firebaseapp.com,FRONTEND_URL=https://soul-step.org,API_BASE_URL=https://api.soul-step.org,RESET_URL_BASE=https://soul-step.org"
 ```
 
 ### Cold start notes
@@ -252,6 +253,64 @@ gcloud run services update soulstep-catalog-api \
 `--min-instances 0` = scales to zero (free). Set `--min-instances 1` to eliminate cold starts (~$10/month).
 
 On cold start, the app runs Alembic migrations before serving traffic (~5s for the first Cloud SQL connection). To avoid this latency: run migrations as a pre-deploy Cloud Run Job and set `RUN_MIGRATIONS_ON_START=false`.
+
+### 3.1 Custom Domain (`api.soul-step.org`)
+
+Map the subdomain `api.soul-step.org` to the Cloud Run service so all API and SEO endpoints use a clean, stable URL instead of the raw Cloud Run URL.
+
+**Step 1 — Create the domain mapping:**
+
+```bash
+gcloud beta run domain-mappings create \
+  --service=soulstep-catalog-api \
+  --domain=api.soul-step.org \
+  --region=REGION
+```
+
+**Step 2 — Get the required DNS records:**
+
+```bash
+gcloud beta run domain-mappings describe \
+  --domain=api.soul-step.org \
+  --region=REGION
+```
+
+**Step 3 — Add DNS records** in your DNS provider (wherever `soul-step.org` is managed):
+
+| Type | Name | Value |
+|------|------|-------|
+| CNAME | `api` | `ghs.googlehosted.com.` |
+
+GCP provisions a managed TLS certificate automatically. Propagation takes a few minutes to a couple of hours.
+
+**Step 4 — Verify:**
+
+```bash
+# Wait for certificate provisioning, then test
+curl -s https://api.soul-step.org/health
+```
+
+**Step 5 — Update env vars to use the custom domain:**
+
+```bash
+gcloud run services update soulstep-catalog-api \
+  --region REGION \
+  --update-env-vars "API_BASE_URL=https://api.soul-step.org"
+```
+
+After the domain is live, all services and frontends should point to `https://api.soul-step.org` instead of the raw Cloud Run URL:
+
+| Service | Variable | Value |
+|---------|----------|-------|
+| Catalog API | `API_BASE_URL` | `https://api.soul-step.org` |
+| Customer Web | `VITE_API_URL` | `https://api.soul-step.org` |
+| Customer Web | `VITE_API_BASE_URL` | `https://api.soul-step.org` |
+| Admin Web | `VITE_API_URL` | `https://api.soul-step.org` |
+| Admin Web | `API_PROXY_TARGET` (hybrid mode) | `https://api.soul-step.org` |
+| Mobile | `EXPO_PUBLIC_API_URL` | `https://api.soul-step.org` |
+| Scraper | `MAIN_SERVER_URL` | `https://api.soul-step.org` |
+
+> **SEO note:** `robots.txt`, `sitemap.xml`, `llms.txt`, `/feed.xml`, `/feed.atom`, and `/.well-known/ai-plugin.json` are all served by the catalog API. With the custom domain, search engines and AI crawlers access them at `https://api.soul-step.org/sitemap.xml`, etc. The frontend static copies in `apps/soulstep-customer-web/public/` (`robots.txt`, `llms.txt`, `ai-plugin.json`) also reference `api.soul-step.org`.
 
 ---
 
@@ -278,7 +337,7 @@ When prompted:
 
 ```bash
 cd apps/soulstep-customer-web
-VITE_API_URL=https://soulstep-catalog-api-xxxx.a.run.app npm run build
+VITE_API_URL=https://api.soul-step.org npm run build
 cd ../..
 firebase deploy --only hosting:web
 ```
@@ -295,7 +354,7 @@ Firebase console → **Hosting** → **Add custom domain** → follow DNS verifi
 
 | Secret | Value |
 |---|---|
-| `VITE_API_URL` | Cloud Run API URL |
+| `VITE_API_URL` | `https://api.soul-step.org` |
 | `VITE_ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID |
 
 ---
@@ -369,7 +428,7 @@ gcloud run deploy soulstep-scraper-api \
   --region REGION \
   --no-allow-unauthenticated \
   --set-secrets "GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,GEMINI_API_KEY=SCRAPER_GEMINI_API_KEY:latest,BESTTIME_API_KEY=SCRAPER_BESTTIME_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,OUTSCRAPER_API_KEY=SCRAPER_OUTSCRAPER_API_KEY:latest" \
-  --set-env-vars "MAIN_SERVER_URL=https://soulstep-catalog-api-xxxx.a.run.app,SCRAPER_TIMEZONE=Asia/Dubai,SCRAPER_DB_PATH=/tmp/scraper.db,LOG_FORMAT=json" \
+  --set-env-vars "MAIN_SERVER_URL=https://api.soul-step.org,SCRAPER_TIMEZONE=Asia/Dubai,SCRAPER_DB_PATH=/tmp/scraper.db,LOG_FORMAT=json" \
   --memory 1Gi \
   --cpu 1 \
   --min-instances 0 \
@@ -654,7 +713,7 @@ rm gcp-key.json
 | Secret | Description |
 |---|---|
 | `GCP_SA_KEY` | Full JSON of the deploy service account key |
-| `VITE_API_URL` | Production catalog API URL (baked into web build) |
+| `VITE_API_URL` | `https://api.soul-step.org` (baked into web build) |
 | `VITE_ADSENSE_PUBLISHER_ID` | AdSense publisher ID |
 | `FIREBASE_TOKEN` | Run `firebase login:ci` and copy the token |
 
@@ -668,7 +727,7 @@ Mobile builds are identical regardless of backend deployment. The app is not con
 
 1. Set `bundleIdentifier` (iOS) and `package` (Android) in `app.json`
 2. Set `name` and `slug` to production values
-3. Set `EXPO_PUBLIC_API_URL` to the production API URL in EAS secrets or `.env`
+3. Set `EXPO_PUBLIC_API_URL=https://api.soul-step.org` in EAS secrets or `.env`
 4. Configure icons, splash screen, and scheme in `app.json`
 
 ### Build and submit
@@ -702,26 +761,28 @@ firebase appdistribution:distribute path/to/app.apk \
 
 ## 10. SEO & Search Engines
 
-The backend serves all SEO files automatically:
+The backend serves all SEO files automatically at `https://api.soul-step.org`:
 
-| Endpoint | Description |
+| URL | Description |
 |---|---|
-| `GET /sitemap.xml` | Dynamic sitemap — all places with hreflang + image entries |
-| `GET /robots.txt` | Crawl directives (allows ChatGPT-User, Claude-Web, PerplexityBot, etc.) |
-| `GET /llms.txt` | AI chatbot discoverability |
-| `GET /feed.xml` | RSS 2.0 (50 most recent places) |
-| `GET /feed.atom` | Atom 1.0 |
+| `https://api.soul-step.org/sitemap.xml` | Dynamic sitemap — all places with hreflang + image entries |
+| `https://api.soul-step.org/robots.txt` | Crawl directives (allows ChatGPT-User, Claude-Web, PerplexityBot, etc.) |
+| `https://api.soul-step.org/llms.txt` | AI chatbot discoverability |
+| `https://api.soul-step.org/llms-full.txt` | Richer AI discoverability document |
+| `https://api.soul-step.org/.well-known/ai-plugin.json` | AI agent/plugin discovery |
+| `https://api.soul-step.org/feed.xml` | RSS 2.0 (50 most recent places) |
+| `https://api.soul-step.org/feed.atom` | Atom 1.0 |
 
 ### Submit to Google Search Console
 
-1. Add property → **URL prefix** → enter the production frontend URL
+1. Add property → **URL prefix** → enter the production frontend URL (`https://soul-step.org`)
 2. Verify ownership (HTML file in `public/`, meta tag, or DNS TXT record)
-3. **Sitemaps** → enter `sitemap.xml` → Submit (use the backend API URL, not frontend)
+3. **Sitemaps** → enter `https://api.soul-step.org/sitemap.xml` → Submit
 4. Check **Coverage** and **Performance** after 24–48 hours
 
 ### Submit to Bing Webmaster Tools
 
-1. Add site → verify ownership → **Sitemaps** → submit backend sitemap URL
+1. Add site → verify ownership → **Sitemaps** → submit `https://api.soul-step.org/sitemap.xml`
 
 ### SEO generation (post-sync)
 

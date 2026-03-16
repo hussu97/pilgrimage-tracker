@@ -4,6 +4,20 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-17] — Fix: Sitemap XML + Custom Domain Docs
+
+### Backend
+- **Fix**: Removed duplicate `xmlns:xhtml` attribute in `sitemap.xml` that caused XML parse errors — `_register_ns()` already declares the namespace globally, so the manual `.set()` calls were redundant
+
+### Docs
+- **PRODUCTION.md**: Added §3.1 "Custom Domain (`api.soul-step.org`)" with step-by-step Cloud Run domain mapping, DNS CNAME setup, and env var update table
+- **PRODUCTION.md**: Updated all placeholder Cloud Run URLs (`soulstep-catalog-api-xxxx.a.run.app`) to `api.soul-step.org` in CORS, build commands, GitHub secrets, SEO section, mobile checklist, and scraper deploy
+- **PRODUCTION.md**: Expanded SEO section with full URLs and added `llms-full.txt` + `ai-plugin.json` to the endpoint table
+- **Frontend static SEO files**: Updated `robots.txt`, `llms.txt`, and `ai-plugin.json` in `apps/soulstep-customer-web/public/` to use `api.soul-step.org` instead of the raw Cloud Run URL
+- **docs/local-scraper-sync.md**: Updated production URL reference to `api.soul-step.org`
+
+---
+
 ## [2026-03-17] — Fix: Scraper Job Hanging in GCP Cloud Run
 
 ### Backend
