@@ -1013,7 +1013,7 @@ class TestGridCellTimeout:
 
         with (
             patch("app.scrapers.gmaps_browser._do_grid_cell_navigation", side_effect=hang_forever),
-            patch("app.constants.BROWSER_CELL_TIMEOUT_S", 0.05),
+            patch("app.scrapers.gmaps_browser.BROWSER_CELL_TIMEOUT_S", 0.05),
         ):
             result = await _search_single_grid_cell(25.0, 25.1, 55.0, 55.1, "mosque", ids)
 
@@ -1044,6 +1044,6 @@ class TestScrollTimeout:
         page.evaluate = AsyncMock(side_effect=slow_evaluate)
         page.query_selector = AsyncMock(return_value=None)
 
-        with patch("app.constants.BROWSER_SCROLL_TIMEOUT_S", 0.1):
+        with patch("app.scrapers.gmaps_browser.BROWSER_SCROLL_TIMEOUT_S", 0.1):
             # Should not hang — timeout fires and function returns
             await _scroll_until_stable(page, max_attempts=100, stable_threshold=3)
