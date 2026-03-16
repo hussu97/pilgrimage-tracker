@@ -49,13 +49,6 @@ Security and stability items that **must** be resolved before any public product
   - Add `deleted_at: datetime | None = Field(default=None, sa_column=_TSTZ(nullable=True))` to both models. Update query filters to exclude soft-deleted rows.
   - Files: `soulstep-catalog-api/app/db/models.py`, new migration
 
-### Data Safety
-
-- [ ] **Implement automated database backups with restore procedure**
-  - No backup strategy exists. A database failure loses all data permanently.
-  - For production PostgreSQL: configure daily automated backups with 30-day retention. Document restore procedure in `PRODUCTION.md`. Add monitoring for backup failures. Define RTO (< 1 hour) and RPO (< 24 hours).
-  - Files: `PRODUCTION.md`, GCP Cloud SQL backup config or backup scripts
-
 ---
 
 ## P1 — High Priority
@@ -139,11 +132,6 @@ Significant quality, UX, compliance, and admin completeness items. Address in ea
   - No graceful shutdown logic. In-flight requests are dropped when the container is terminated (e.g., on Cloud Run scale-down).
   - Use FastAPI's `lifespan` context to drain in-flight requests before shutdown. Add a configurable drain timeout.
   - Files: `soulstep-catalog-api/app/main.py`, `soulstep-scraper-api/app/main.py`
-
-- [ ] **Document deployment rollback procedure**
-  - No documented rollback steps. A bad deploy has no defined recovery path.
-  - Add a "Rollback" section to `PRODUCTION.md` covering Cloud Run traffic reversion, database migration rollback (`alembic downgrade -1`), and Firebase Hosting rollback.
-  - Files: `PRODUCTION.md`
 
 ### Backend
 
