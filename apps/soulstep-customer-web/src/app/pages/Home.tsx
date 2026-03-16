@@ -29,6 +29,7 @@ import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 import HomeSkeleton from '@/components/common/skeletons/HomeSkeleton';
 import type { Group, Place } from '@/lib/types';
 import PlaceCardUnified from '@/components/places/PlaceCardUnified';
+import HorizontalCarousel from '@/components/common/HorizontalCarousel';
 
 // ── Type aliases for local use ─────────────────────────────────────────────────
 
@@ -623,7 +624,10 @@ export default function Home() {
                       {t('dashboard.popularPlaces')}
                     </h2>
                   </div>
-                  <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:flex-none">
+                  <HorizontalCarousel
+                    ariaLabel={t('dashboard.popularPlaces') || 'Popular places'}
+                    className="-mx-1 px-1 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:flex-none"
+                  >
                     {popularPlaces.map((place) => (
                       <PlaceCardUnified
                         key={place.place_code}
@@ -632,7 +636,7 @@ export default function Home() {
                         className="w-[calc((100vw-2.5rem)/2.3)] lg:w-full flex-shrink-0"
                       />
                     ))}
-                  </div>
+                  </HorizontalCarousel>
                 </section>
               )}
 
@@ -647,11 +651,14 @@ export default function Home() {
                       {t('common.showMore')}
                     </Link>
                   </div>
-                  <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:flex-none">
+                  <HorizontalCarousel
+                    ariaLabel={t('home.exploreCities') || 'Explore cities'}
+                    className="-mx-1 px-1 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:flex-none"
+                  >
                     {popularCities.map((city) => (
                       <CityCollageCard key={city.city_slug} city={city} />
                     ))}
-                  </div>
+                  </HorizontalCarousel>
                 </section>
               )}
 
@@ -666,7 +673,10 @@ export default function Home() {
                       {t('common.showMore')}
                     </Link>
                   </div>
-                  <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:flex-none">
+                  <HorizontalCarousel
+                    ariaLabel={t('home.recommended') || 'Recommended places'}
+                    className="-mx-1 px-1 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:flex-none"
+                  >
                     {recommended.map((place) => {
                       const placeObj = {
                         place_code: place.place_code,
@@ -693,7 +703,7 @@ export default function Home() {
                         />
                       );
                     })}
-                  </div>
+                  </HorizontalCarousel>
                 </section>
               )}
             </div>
@@ -706,11 +716,14 @@ export default function Home() {
                   <h2 className="text-base lg:text-lg font-bold text-text-primary dark:text-white mb-3">
                     {t('journey.popularJourneys')}
                   </h2>
-                  <div className="flex flex-nowrap gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide md:flex-col md:overflow-visible md:flex-none">
+                  <HorizontalCarousel
+                    ariaLabel={t('journey.popularJourneys') || 'Popular journeys'}
+                    className="-mx-1 px-1 md:flex-col md:overflow-visible md:flex-none"
+                  >
                     {featured.map((j) => (
                       <FeaturedJourneyCard key={j.group_code} journey={j} />
                     ))}
-                  </div>
+                  </HorizontalCarousel>
                 </section>
               )}
 

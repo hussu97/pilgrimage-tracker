@@ -2,6 +2,7 @@ import { useI18n } from '@/app/providers';
 import type { NearbyPlace } from '@/lib/types/places';
 import type { Place } from '@/lib/types';
 import PlaceCardUnified from './PlaceCardUnified';
+import HorizontalCarousel from '@/components/common/HorizontalCarousel';
 
 interface NearbyPlacesProps {
   title: string;
@@ -16,7 +17,7 @@ export default function NearbyPlaces({ title, places }: NearbyPlacesProps) {
   return (
     <section className="mt-6">
       <h2 className="text-lg font-semibold text-text-main dark:text-white mb-3">{title}</h2>
-      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+      <HorizontalCarousel ariaLabel="Nearby sacred sites">
         {places.map((place) => {
           // Normalize NearbyPlace to the shape PlaceCardUnified expects
           const placeObj = {
@@ -33,7 +34,7 @@ export default function NearbyPlaces({ title, places }: NearbyPlacesProps) {
             </div>
           );
         })}
-      </div>
+      </HorizontalCarousel>
     </section>
   );
 }

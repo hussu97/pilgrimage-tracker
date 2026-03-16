@@ -1,6 +1,7 @@
 import React from 'react';
 import { TimingCircle, DeityCircle } from '@/components/places';
 import type { PlaceTiming } from '@/lib/types';
+import HorizontalCarousel from '@/components/common/HorizontalCarousel';
 
 interface Props {
   timings: PlaceTiming[];
@@ -18,7 +19,7 @@ function PlaceTimingsCarousel({ timings, title, compact = false }: Props) {
             {title}
           </h2>
         </div>
-        <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+        <HorizontalCarousel ariaLabel="Prayer and service timings" className="gap-4">
           {timings.map((item, i) =>
             item.type === 'deity' ? (
               <DeityCircle key={i} item={item} />
@@ -26,7 +27,7 @@ function PlaceTimingsCarousel({ timings, title, compact = false }: Props) {
               <TimingCircle key={i} item={item} />
             ),
           )}
-        </div>
+        </HorizontalCarousel>
       </section>
     );
   }
@@ -34,7 +35,7 @@ function PlaceTimingsCarousel({ timings, title, compact = false }: Props) {
   return (
     <section>
       <h2 className="text-xl font-bold text-text-main mb-4">{title}</h2>
-      <div className="flex gap-5 overflow-x-auto no-scrollbar pb-2">
+      <HorizontalCarousel ariaLabel="Prayer and service timings" className="gap-5">
         {timings.map((item, i) =>
           item.type === 'deity' ? (
             <DeityCircle key={i} item={item} />
@@ -42,7 +43,7 @@ function PlaceTimingsCarousel({ timings, title, compact = false }: Props) {
             <TimingCircle key={i} item={item} />
           ),
         )}
-      </div>
+      </HorizontalCarousel>
     </section>
   );
 }
