@@ -374,12 +374,14 @@ gcloud run deploy soulstep-scraper-api \
   --cpu 1 \
   --min-instances 0 \
   --max-instances 1 \
+  --no-cpu-throttling \
   --timeout 3600
 ```
 
 > `--no-allow-unauthenticated` — scraper is internal only. Access via `gcloud auth print-identity-token`.
 > `--timeout 3600` — scrape runs take up to 60 min.
 > `--max-instances 1` — prevents concurrent runs (SQLite write conflicts).
+> `--no-cpu-throttling` — keeps CPU allocated after the HTTP response so background tasks (Cloud Run Job dispatch) can complete. Without this, Cloud Run freezes the CPU once a response is returned, killing any in-flight background work. **Trade-off:** CPU is billed continuously rather than per-request; negligible cost given `--max-instances 1` and infrequent invocation.
 
 **Tell the catalog API where the scraper is:**
 ```bash
