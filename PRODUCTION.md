@@ -443,23 +443,23 @@ gcloud run services update soulstep-scraper-api \
 
 **Grant the scraper API service account permission to trigger the job:**
 
-The scraper API uses `google-cloud-run` (via `run_v2.JobsClient`) to dispatch the job. The service account it runs as must have `roles/run.invoker` on the job resource — without it you get a 403 `run.jobs.runWithOverrides` error.
+The scraper API uses `google-cloud-run` (via `run_v2.JobsClient`) to dispatch the job with env var overrides (`SCRAPER_RUN_CODE`, `SCRAPER_RUN_ACTION`). This requires the `run.jobs.runWithOverrides` permission — **`roles/run.invoker` does NOT include it** (see [issue #298810674](https://issuetracker.google.com/issues/298810674)).
+
+Use `roles/run.jobsExecutorWithOverrides` — the minimal predefined role that includes both `run.jobs.run` and `run.jobs.runWithOverrides`.
 
 ```bash
 # Find the service account the scraper API runs as
 SA=$(gcloud run services describe soulstep-scraper-api \
   --region REGION \
   --format="value(spec.template.spec.serviceAccountName)")
+# If empty, use the default Compute SA: PROJECT_NUMBER-compute@developer.gserviceaccount.com
 
-# Grant it permission to trigger the job
+# Grant it permission to trigger the job with overrides
 gcloud run jobs add-iam-policy-binding soulstep-scraper-api-job \
   --region REGION \
   --member="serviceAccount:${SA}" \
-  --role="roles/run.invoker"
+  --role="roles/run.jobsExecutorWithOverrides"
 ```
-
-> If the service account field is empty, the service runs as the default Compute SA:
-> `serviceAccount:PROJECT_NUMBER-compute@developer.gserviceaccount.com`
 
 **Update after job image changes:**
 ```bash
