@@ -48,33 +48,29 @@ def _make_run(
 # ── 1. Startup: _mark_interrupted_runs ────────────────────────────────────────
 
 
-def test_startup_marks_running_as_interrupted(db_session, test_engine):
+def test_startup_marks_running_as_interrupted(db_session, test_engine, real_mark_interrupted_runs):
     """Runs with status='running' at startup should be marked 'interrupted'."""
-    from app.main import _mark_interrupted_runs
-
     loc = _make_location(db_session)
     run = _make_run(db_session, loc.code, status="running", stage="detail_fetch")
 
     # _mark_interrupted_runs uses the global engine — patch it with the test engine
     with patch("app.main.engine", test_engine):
-        _mark_interrupted_runs()
+        real_mark_interrupted_runs()
 
     db_session.refresh(run)
     assert run.status == "interrupted"
     assert run.error_message == "Process terminated unexpectedly"
 
 
-def test_startup_ignores_completed_runs(db_session, test_engine):
+def test_startup_ignores_completed_runs(db_session, test_engine, real_mark_interrupted_runs):
     """Completed, failed, and cancelled runs must not be touched at startup."""
-    from app.main import _mark_interrupted_runs
-
     loc = _make_location(db_session)
     completed = _make_run(db_session, loc.code, status="completed")
     failed = _make_run(db_session, loc.code, status="failed")
     cancelled = _make_run(db_session, loc.code, status="cancelled")
 
     with patch("app.main.engine", test_engine):
-        _mark_interrupted_runs()
+        real_mark_interrupted_runs()
 
     db_session.refresh(completed)
     db_session.refresh(failed)

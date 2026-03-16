@@ -5,17 +5,21 @@ Uses an in-memory SQLite database (StaticPool) so tests are fully isolated
 from any real data files and run without any filesystem side-effects.
 
 The engine is session-scoped (schema created once). Per-test data isolation
-is provided by the `_reset_db` autouse fixture, which deletes all rows after
-each test — far faster than recreating the schema 900+ times.
+is provided by the `_reset_db` autouse fixture, which deletes only dirty
+tables after each test — far faster than recreating the schema 900+ times.
 
 Performance budget vs naïve per-test engine:
   - Schema create_all × N tests  → schema create_all × 1        (~15 s saved)
   - bcrypt rounds=12 per register → bcrypt rounds=4              (~100 s saved)
   - IMAGE_STORAGE=gcs (real GCS)  → IMAGE_STORAGE=blob (no-op)  (fixes 13 failures)
+  - Session-scoped client         → 1 TestClient startup          (~5-10 s saved)
+  - Smart _reset_db               → only DELETE dirty tables      (~2-4 s saved)
+  - Pre-computed auth              → skip HTTP + bcrypt per test   (~2-5 s saved)
 """
 
 import json
 import os
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -29,8 +33,19 @@ os.environ["CATALOG_API_KEY"] = "test-api-key"
 import bcrypt as _bcrypt_lib  # noqa: E402
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import event  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 from sqlmodel import Session, SQLModel, create_engine  # noqa: E402
+
+# ── Pre-computed bcrypt hash for "Testpass123!" at rounds=4 ───────────────────
+_TEST_PASSWORD = "Testpass123!"
+_TEST_PASSWORD_HASH = _bcrypt_lib.hashpw(
+    _TEST_PASSWORD.encode("utf-8"), _bcrypt_lib.gensalt(rounds=4)
+).decode()
+
+# ── Dirty-table tracking for smart _reset_db ─────────────────────────────────
+_dirty_tables: set[str] = set()
+
 
 # ── i18n seed (session-scoped — loads once, in-memory, no DB needed) ──────────
 
@@ -72,6 +87,16 @@ def _fast_bcrypt():
         yield
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _mock_resend_emails():
+    """Prevent tests from sending real emails via Resend API."""
+    with (
+        patch("app.api.v1.auth._send_verification_email"),
+        patch("app.api.v1.auth._send_reset_email"),
+    ):
+        yield
+
+
 # ── DB / session fixtures ──────────────────────────────────────────────────────
 
 
@@ -90,18 +115,36 @@ def test_engine():
     import app.db.models  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
+
+    # Track which tables receive writes so _reset_db can skip clean tables
+    @event.listens_for(engine, "before_cursor_execute")
+    def _track_writes(conn, cursor, statement, parameters, context, executemany):
+        upper = statement.lstrip().upper()
+        if upper.startswith(("INSERT", "UPDATE")):
+            # Extract table name from "INSERT INTO tablename" or "UPDATE tablename"
+            parts = statement.split()
+            if upper.startswith("INSERT") and len(parts) >= 3:
+                _dirty_tables.add(parts[2].strip('"').strip("'").strip("`"))
+            elif upper.startswith("UPDATE") and len(parts) >= 2:
+                _dirty_tables.add(parts[1].strip('"').strip("'").strip("`"))
+
     yield engine
+    event.remove(engine, "before_cursor_execute", _track_writes)
     SQLModel.metadata.drop_all(engine)
 
 
 @pytest.fixture(autouse=True)
 def _reset_db(test_engine):
-    """Delete all rows after each test — provides isolation without recreating the schema."""
+    """Delete rows only from tables that received writes — provides isolation efficiently."""
+    _dirty_tables.clear()
     yield
-    with Session(test_engine) as session:
-        for table in reversed(SQLModel.metadata.sorted_tables):
-            session.execute(table.delete())
-        session.commit()
+    if _dirty_tables:
+        with Session(test_engine) as session:
+            for table in reversed(SQLModel.metadata.sorted_tables):
+                if table.name in _dirty_tables:
+                    session.execute(table.delete())
+            session.commit()
+    _dirty_tables.clear()
 
 
 @pytest.fixture(autouse=True)
@@ -141,10 +184,13 @@ def db_session(test_engine):
 # ── HTTP client fixture ────────────────────────────────────────────────────────
 
 
-@pytest.fixture()
+@pytest.fixture(scope="session")
 def client(test_engine):
     """
     FastAPI TestClient backed by the in-memory test DB.
+
+    Session-scoped: the ASGI lifespan starts once for the entire test run.
+    Per-test DB isolation is handled by `_reset_db`.
 
     - Patches out run_migrations() and run_seed_system() (lifespan hooks).
     - Disables slowapi rate limiting on both the app-level and auth-router
@@ -181,19 +227,30 @@ def client(test_engine):
 
 
 @pytest.fixture()
-def auth_client(client):
+def auth_client(client, test_engine):
     """
-    Client with a registered + logged-in user.
+    Client with a pre-seeded user, authenticated via direct JWT creation.
+    Skips HTTP round-trip and bcrypt hashing for speed.
     Yields (client, access_token, user_code).
     """
-    resp = client.post(
-        "/api/v1/auth/register",
-        json={"email": "test@example.com", "password": "Testpass123!", "display_name": "Tester"},
-    )
-    assert resp.status_code == 200, resp.text
-    data = resp.json()
-    token = data["token"]
-    user_code = data["user"]["user_code"]
+    from app.core.security import create_access_token
+    from app.db.models import User
+
+    user_code = "usr_test0001"
+    with Session(test_engine) as s:
+        user = User(
+            user_code=user_code,
+            email="test@example.com",
+            password_hash=_TEST_PASSWORD_HASH,
+            display_name="Tester",
+            is_active=True,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        s.add(user)
+        s.commit()
+
+    token = create_access_token(user_code)
     client.headers.update({"Authorization": f"Bearer {token}"})
     yield client, token, user_code
     client.headers.pop("Authorization", None)

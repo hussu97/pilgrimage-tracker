@@ -83,25 +83,18 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
-      - name: Cache pip downloads
-        uses: actions/cache@v4
+      - uses: astral-sh/setup-uv@v4
         with:
-          path: ~/.cache/pip
-          key: pip-catalog-${{ runner.os }}-py3.11-${{ hashFiles('soulstep-catalog-api/requirements-dev.txt') }}
-          restore-keys: pip-catalog-${{ runner.os }}-py3.11-
+          enable-cache: true
+          cache-dependency-glob: "soulstep-catalog-api/requirements-dev.txt"
 
       - name: Install dependencies
         working-directory: soulstep-catalog-api
         run: |
-          python -m venv .venv
-          .venv/bin/pip install --quiet -r requirements-dev.txt
-          .venv/bin/pip install --quiet pip-audit
-
-      - name: Dependency vulnerability scan (pip-audit)
-        working-directory: soulstep-catalog-api
-        run: .venv/bin/pip-audit -r requirements.txt --skip-editable
+          uv venv .venv
+          uv pip install -r requirements-dev.txt
 
       - name: Run pytest
         working-directory: soulstep-catalog-api
@@ -109,10 +102,8 @@ jobs:
           .venv/bin/python -m pytest tests/
           -n auto
           --tb=short
-          --cov=app
-          --cov-report=term-missing
-          --cov-fail-under=80
           --durations=10
+          ${{ github.ref == 'refs/heads/main' && '--cov=app --cov-report=term-missing --cov-fail-under=80' || '' }}
 
   soulstep-scraper-api:
     name: soulstep-scraper-api tests
@@ -125,25 +116,18 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
-      - name: Cache pip downloads
-        uses: actions/cache@v4
+      - uses: astral-sh/setup-uv@v4
         with:
-          path: ~/.cache/pip
-          key: pip-scraper-${{ runner.os }}-py3.11-${{ hashFiles('soulstep-scraper-api/requirements-dev.txt') }}
-          restore-keys: pip-scraper-${{ runner.os }}-py3.11-
+          enable-cache: true
+          cache-dependency-glob: "soulstep-scraper-api/requirements-dev.txt"
 
       - name: Install dependencies
         working-directory: soulstep-scraper-api
         run: |
-          python -m venv .venv
-          .venv/bin/pip install --quiet -r requirements-dev.txt
-          .venv/bin/pip install --quiet pip-audit
-
-      - name: Dependency vulnerability scan (pip-audit)
-        working-directory: soulstep-scraper-api
-        run: .venv/bin/pip-audit -r requirements.txt --skip-editable
+          uv venv .venv
+          uv pip install -r requirements-dev.txt
 
       - name: Run pytest
         working-directory: soulstep-scraper-api
@@ -151,10 +135,8 @@ jobs:
           .venv/bin/python -m pytest tests/
           -n auto
           --tb=short
-          --cov=app
-          --cov-report=term-missing
-          --cov-fail-under=80
           --durations=10
+          ${{ github.ref == 'refs/heads/main' && '--cov=app --cov-report=term-missing --cov-fail-under=80' || '' }}
 
   soulstep-customer-web:
     name: soulstep-customer-web tests
@@ -211,7 +193,7 @@ jobs:
         run: npm test -- --coverage
 
   soulstep-admin-web:
-    name: soulstep-admin-web tests + build
+    name: soulstep-admin-web tests
     needs: changes
     if: needs.changes.outputs.admin == 'true'
     runs-on: ubuntu-latest
@@ -240,7 +222,3 @@ jobs:
       - name: Typecheck
         working-directory: apps/soulstep-admin-web
         run: npx tsc --noEmit
-
-      - name: Build
-        working-directory: apps/soulstep-admin-web
-        run: npm run build

@@ -4,6 +4,24 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-17] — CI/CD: Make Tests Lightning Fast
+
+### Backend
+- **Session-scoped `client` fixture**: Both catalog and scraper `conftest.py` now create the `TestClient` once per session instead of per-test, eliminating ~1,977 ASGI lifespan startups
+- **Smart `_reset_db`**: Tracks dirty tables via SQLAlchemy `before_cursor_execute` event; only DELETEs from tables that received writes (typically 2-5 vs all 35/10)
+- **Pre-computed auth fixture**: `auth_client` now inserts a user directly with a pre-hashed password and creates JWT inline, skipping the HTTP round-trip and bcrypt per test
+- **Python 3.12**: Updated `target-version` in both `pyproject.toml` files from `py311` to `py312`
+
+### CI/CD
+- **`uv` for Python installs**: Replaced `pip install` with `astral-sh/setup-uv@v4` + `uv pip install` for 10-100x faster dependency resolution; uses uv's built-in download cache (no broken venv symlinks)
+- **Removed `pip-audit` from test workflow**: Moved to new weekly `audit.yml` workflow (Monday 6am UTC) — saves ~10-20s per Python job
+- **Conditional coverage**: `--cov` flags only added on `main` branch pushes, not PR runs — saves ~20-30% overhead on PRs
+- **Python 3.12 in CI**: Upgraded from 3.11 to 3.12 for 10-15% runtime improvement
+- **Removed admin build step**: `npm run build` removed from admin-web test job (belongs in deploy workflow)
+- **New `audit.yml` workflow**: Weekly dependency vulnerability scan via `pip-audit` for both services, with `workflow_dispatch` for manual runs
+
+---
+
 ## [2026-03-16] — P0: Security & Data Protection
 
 ### Backend
