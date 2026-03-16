@@ -154,15 +154,17 @@ class MapsBrowserPool:
 
         context = await self._browser.new_context(**context_kwargs)
 
-        # Block resource types not needed for scraping (speed up page loads)
-        await context.route(
-            "**/*",
-            lambda route: (
-                route.abort()
-                if route.request.resource_type in ("font", "media")
-                else route.continue_()
-            ),
-        )
+        # Block resource types not needed for scraping (speed up page loads).
+        # Must be async — route.abort()/route.continue_() are coroutines that
+        # require await; a sync lambda would silently discard them and leave
+        # every request unresolved, causing page.goto() to hang indefinitely.
+        async def _route_handler(route) -> None:
+            if route.request.resource_type in ("font", "media"):
+                await route.abort()
+            else:
+                await route.continue_()
+
+        await context.route("**/*", _route_handler)
 
         page = await context.new_page()
         await apply_stealth(page)
