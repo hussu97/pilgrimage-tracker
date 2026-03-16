@@ -294,7 +294,7 @@ jobs:
             --set-cloudsql-instances "$CLOUDSQL" \
             --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
             --memory 4Gi --cpu 2 \
-            --task-timeout 86400 --max-retries 0
+            --task-timeout 900 --max-retries 0
 
   # ── Deploy: Scraper API → Cloud Run ─────────────────────────────────────────
 
@@ -375,5 +375,5 @@ jobs:
             --image "$JOB_IMAGE" \
             --set-cloudsql-instances "$CLOUDSQL" \
             --memory 2Gi --cpu 2 \
-            --task-timeout 86400 --max-retries 1 \
+            --task-timeout 3600 --max-retries 1 \
             --quiet

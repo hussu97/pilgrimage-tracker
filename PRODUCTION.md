@@ -429,7 +429,7 @@ gcloud run jobs create soulstep-scraper-api-job \
   --region REGION \
   --memory 2Gi \
   --cpu 2 \
-  --task-timeout 86400 \
+  --task-timeout 3600 \
   --max-retries 1 \
   --set-env-vars "SCRAPER_BACKEND=browser,GOOGLE_CLOUD_PROJECT=PROJECT_ID"
 ```
