@@ -93,12 +93,17 @@ def content_translation_stats(
 ):
     """Return per-language translation coverage: translated / eligible counts.
 
-    "Eligible" = number of (entity, field) pairs that have non-empty English text,
-    multiplied by the number of target languages. Each language gets its own count.
+    "Eligible" = number of distinct (entity_type, entity_code, field) triples
+    that have English source text across all entity types (place, city,
+    attribute_def, review, spec_value, etc.).
+
+    "Translated" = number of ContentTranslation rows for that language.
+
+    Per-language: each triple needs a translation in each target language.
     """
     target_langs = ["ar", "hi", "te", "ml"]
 
-    # Count eligible (entity_type, entity_code, field) triples with non-empty English text
+    # Build the set of all eligible (entity_type, entity_code, field) triples
     eligible_triples: int = 0
 
     # Places: name, description, address
@@ -138,6 +143,27 @@ def content_translation_stats(
         if body:
             eligible_triples += 1
 
+    # spec_value and any other entity types: count distinct triples from
+    # ContentTranslation rows that aren't covered above. We pick one lang
+    # to avoid counting the same triple N times.
+    known_types = ("place", "city", "attribute_def", "review")
+    extra_count = session.exec(
+        select(
+            func.count(
+                func.distinct(
+                    ContentTranslation.entity_type
+                    + ":"
+                    + ContentTranslation.entity_code
+                    + ":"
+                    + ContentTranslation.field
+                )
+            )
+        ).where(
+            col(ContentTranslation.entity_type).notin_(list(known_types)),
+        )
+    ).one()
+    eligible_triples += extra_count
+
     # Count existing translations per language
     lang_counts_rows = session.exec(
         select(ContentTranslation.lang, func.count()).group_by(ContentTranslation.lang)
@@ -147,7 +173,8 @@ def content_translation_stats(
     langs: list[_LangStat] = []
     for lang in target_langs:
         translated = lang_counts.get(lang, 0)
-        pct = round(translated / eligible_triples * 100, 1) if eligible_triples > 0 else 0.0
+        raw_pct = translated / eligible_triples * 100 if eligible_triples > 0 else 0.0
+        pct = round(min(raw_pct, 100.0), 1)
         langs.append(
             _LangStat(lang=lang, translated=translated, eligible=eligible_triples, pct=pct)
         )
