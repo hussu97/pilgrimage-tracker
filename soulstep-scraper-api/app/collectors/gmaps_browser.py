@@ -302,101 +302,123 @@ class BrowserGmapsCollector(BaseCollector):
         return await self._navigate_and_extract(place_id)
 
     async def _navigate_and_extract(self, place_id: str) -> dict:
-        """Navigate to the place page and extract all data via evaluate()."""
+        """Navigate to the place page and extract all data via evaluate().
+
+        Retries up to 3 attempts on navigation timeout, recycling the browser
+        context each time to avoid a stuck/rate-limited session.
+        """
+        # Build navigation URL based on ID format
+        if place_id.startswith("0x") or (":" in place_id and "0x" in place_id.lower()):
+            nav_url = f"https://www.google.com/maps/place/?q={place_id.replace(':', '%3A')}&hl=en"
+        else:
+            nav_url = f"https://www.google.com/maps/place/?q=place_id:{place_id}&hl=en"
+
         pool = get_maps_pool()
-        session = await pool.acquire()
-        recycle = False
+        _MAX_NAV_RETRIES = 3
+        last_exc: Exception | None = None
 
-        try:
-            page = session.page
+        for attempt in range(_MAX_NAV_RETRIES):
+            session = await pool.acquire()
+            recycle = False
+            try:
+                page = session.page
 
-            # Build navigation URL based on ID format
-            if place_id.startswith("0x") or (":" in place_id and "0x" in place_id.lower()):
-                # Hex CID pair — navigate directly to the encoded URL
-                nav_url = (
-                    f"https://www.google.com/maps/place/?q=" f"{place_id.replace(':', '%3A')}&hl=en"
+                # Use domcontentloaded — Google Maps never reaches networkidle due to
+                # continuous background requests (analytics, prefetch, etc.).
+                await page.goto(nav_url, wait_until="domcontentloaded", timeout=30000)
+                await asyncio.sleep(random.uniform(2, 4))
+
+                # Dismiss EU consent redirect if it occurred despite cookies
+                from app.scrapers.gmaps_browser import _dismiss_consent
+
+                if "consent.google.com" in page.url:
+                    await _dismiss_consent(page)
+
+                # Check for blocks
+                from app.scrapers.gmaps_browser import _check_for_block
+
+                if await _check_for_block(page):
+                    logger.warning("Maps blocked during detail extraction for %s", place_id)
+                    pool.record_block()
+                    recycle = True
+                    raise BlockedError(f"Maps blocked for place {place_id}")
+
+                pool.record_success()
+
+                # Wait for the place detail panel
+                try:
+                    await page.wait_for_selector(
+                        "h1, button[data-item-id='address']",
+                        timeout=15000,
+                    )
+                except Exception:
+                    logger.debug("Detail panel not fully loaded for %s", place_id)
+
+                # Main extraction
+                data = await page.evaluate(_EXTRACT_JS)
+                if not isinstance(data, dict):
+                    data = {}
+
+                # Extract opening hours
+                data["opening_hours_weekday"] = await self._extract_hours(page)
+
+                # Extract About tab (accessibility, amenities, etc.)
+                data["about_sections"] = await self._extract_about(page)
+
+                # Extract reviews (up to 5)
+                data["reviews"] = await self._extract_reviews(page)
+
+                session.nav_count += 1
+
+                # Capture canonical place ID from the updated URL
+                current_url = page.url
+                canonical_match = re.search(r"!1s(ChIJ[a-zA-Z0-9_-]+)", current_url)
+                if canonical_match:
+                    data["canonical_place_id"] = canonical_match.group(1)
+
+                logger.debug(
+                    "Browser extracted %s: name=%r lat=%.4f lng=%.4f",
+                    place_id,
+                    data.get("name"),
+                    data.get("lat") or 0,
+                    data.get("lng") or 0,
                 )
-            else:
-                # ChIJ format — use canonical place_id URL
-                nav_url = f"https://www.google.com/maps/place/?q=place_id:{place_id}&hl=en"
 
-            await page.goto(nav_url, wait_until="networkidle", timeout=30000)
-            await asyncio.sleep(random.uniform(2, 4))
+                # Capture images from the browser context (avoids separate download phase)
+                try:
+                    from app.config import settings as _cfg
 
-            # Dismiss EU consent redirect if it occurred despite cookies
-            from app.scrapers.gmaps_browser import _dismiss_consent
+                    data["_image_bytes"] = await self._capture_page_images(page, _cfg.max_photos)
+                except Exception:
+                    data["_image_bytes"] = []
 
-            if "consent.google.com" in page.url:
-                await _dismiss_consent(page)
+                return data
 
-            # Check for blocks
-            from app.scrapers.gmaps_browser import _check_for_block
-
-            if await _check_for_block(page):
-                logger.warning("Maps blocked during detail extraction for %s", place_id)
-                pool.record_block()
+            except (BlockedError, CircuitOpenError):
+                raise
+            except Exception as e:
+                last_exc = e
+                is_timeout = "Timeout" in type(e).__name__ or "timeout" in str(e).lower()
                 recycle = True
-                raise BlockedError(f"Maps blocked for place {place_id}")
+                if attempt < _MAX_NAV_RETRIES - 1 and is_timeout:
+                    logger.warning(
+                        "Browser navigation timeout for %s (attempt %d/%d) — retrying",
+                        place_id,
+                        attempt + 1,
+                        _MAX_NAV_RETRIES,
+                    )
+                else:
+                    logger.warning(
+                        "Browser extraction failed for %s: %s: %s",
+                        place_id,
+                        type(e).__name__,
+                        e,
+                    )
+                    raise
+            finally:
+                await pool.release(session, recycle=recycle)
 
-            pool.record_success()
-
-            # Wait for the place detail panel
-            try:
-                await page.wait_for_selector(
-                    "h1, button[data-item-id='address']",
-                    timeout=15000,
-                )
-            except Exception:
-                logger.debug("Detail panel not fully loaded for %s", place_id)
-
-            # Main extraction
-            data = await page.evaluate(_EXTRACT_JS)
-            if not isinstance(data, dict):
-                data = {}
-
-            # Extract opening hours
-            data["opening_hours_weekday"] = await self._extract_hours(page)
-
-            # Extract About tab (accessibility, amenities, etc.)
-            data["about_sections"] = await self._extract_about(page)
-
-            # Extract reviews (up to 5)
-            data["reviews"] = await self._extract_reviews(page)
-
-            session.nav_count += 1
-
-            # Capture canonical place ID from the updated URL
-            current_url = page.url
-            canonical_match = re.search(r"!1s(ChIJ[a-zA-Z0-9_-]+)", current_url)
-            if canonical_match:
-                data["canonical_place_id"] = canonical_match.group(1)
-
-            logger.debug(
-                "Browser extracted %s: name=%r lat=%.4f lng=%.4f",
-                place_id,
-                data.get("name"),
-                data.get("lat") or 0,
-                data.get("lng") or 0,
-            )
-
-            # Capture images from the browser context (avoids separate download phase)
-            try:
-                from app.config import settings as _cfg
-
-                data["_image_bytes"] = await self._capture_page_images(page, _cfg.max_photos)
-            except Exception:
-                data["_image_bytes"] = []
-
-            return data
-
-        except (BlockedError, CircuitOpenError):
-            raise
-        except Exception as e:
-            logger.warning("Browser extraction failed for %s: %s", place_id, e)
-            recycle = True
-            raise
-        finally:
-            await pool.release(session, recycle=recycle)
+        raise last_exc  # type: ignore[misc]
 
     async def _extract_hours(self, page) -> list[str]:
         """Click the hours section and return weekday description rows."""
