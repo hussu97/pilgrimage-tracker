@@ -1,7 +1,7 @@
 """MapsBrowserPool — manages a pool of Playwright browser contexts for Maps scraping.
 
 Features:
-- Configurable pool size (MAPS_BROWSER_POOL_SIZE, default 15)
+- Configurable pool size (MAPS_BROWSER_POOL_SIZE, default 5)
 - Session recycling after MAPS_BROWSER_MAX_PAGES navigations (default 30)
 - Geolocation spoofing per context
 - CAPTCHA/block detection with exponential backoff
@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import sys
 import time
 from dataclasses import dataclass, field
@@ -159,14 +160,27 @@ class MapsBrowserPool:
                 "--disable-dev-shm-usage",
                 # Reduce GPU memory allocation in headless containers.
                 "--disable-accelerated-2d-canvas",
+                # Memory-saving flags for container environments.
+                "--disable-background-networking",
+                "--disable-default-apps",
+                "--disable-sync",
+                "--disable-translate",
+                "--metrics-recording-only",
+                "--mute-audio",
+                "--disable-renderer-backgrounding",
+                "--disable-backgrounding-occluded-windows",
             ]
 
-            # --single-process and --no-zygote prevent IPC deadlocks inside
-            # constrained Docker containers (64 MB /dev/shm, no IPC host), but
-            # they crash Chromium on macOS after the first browser context because
-            # macOS Chromium requires the multi-process zygote architecture.
+            # --no-zygote reduces startup overhead in containers.
+            # NOTE: --single-process was removed — it causes Chromium to crash
+            # on the 2nd browser context creation in Cloud Run (TargetClosedError).
             if sys.platform == "linux":
-                chromium_args += ["--single-process", "--no-zygote"]
+                chromium_args += [
+                    "--no-zygote",
+                    # Reduces per-context memory by sharing renderer processes
+                    # across same-origin pages (safe for scraping).
+                    "--disable-features=site-per-process",
+                ]
 
             self._browser = await asyncio.wait_for(
                 self._playwright.chromium.launch(
@@ -181,6 +195,10 @@ class MapsBrowserPool:
                 self._headless,
                 self._pool_size,
             )
+
+            # Diagnostic logging for container environments.
+            if sys.platform == "linux":
+                self._log_system_diagnostics()
         except Exception:
             # Clean up partial state so a retry starts fresh.
             if self._playwright:
@@ -192,6 +210,22 @@ class MapsBrowserPool:
             self._browser = None
             self._initialized = False
             raise
+
+    @staticmethod
+    def _log_system_diagnostics() -> None:
+        """Log available memory and /dev/shm size on Linux for OOM debugging."""
+        try:
+            meminfo_path = "/proc/meminfo"
+            if os.path.exists(meminfo_path):
+                with open(meminfo_path) as f:
+                    for line in f:
+                        if line.startswith(("MemTotal:", "MemAvailable:", "MemFree:")):
+                            logger.info("MapsBrowserPool: %s", line.strip())
+            shm_stat = os.statvfs("/dev/shm")
+            shm_mb = (shm_stat.f_frsize * shm_stat.f_blocks) / (1024 * 1024)
+            logger.info("MapsBrowserPool: /dev/shm size = %.0f MB", shm_mb)
+        except Exception:
+            pass  # non-critical diagnostic
 
     async def _create_session(
         self, lat: float | None = None, lng: float | None = None
@@ -358,8 +392,10 @@ class MapsBrowserPool:
             raise
 
         # Retry outside the lock so the recursive acquire() can re-acquire it.
+        # Small delay gives Chromium time to stabilise after reinit.
         if _need_reinit_retry:
             self._sem.release()
+            await asyncio.sleep(1.0)
             return await self.acquire(lat, lng, _retries=_retries + 1)
 
         # Pool full — release and retry

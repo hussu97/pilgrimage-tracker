@@ -4,6 +4,20 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-17] — Fix Chromium TargetClosedError in Cloud Run Job
+
+### Backend
+- **Fix**: Removed `--single-process` Chromium flag that caused `TargetClosedError` when creating a 2nd browser context in Cloud Run containers
+- **Optimization**: Added memory-saving Chromium flags (`--disable-background-networking`, `--disable-sync`, `--mute-audio`, etc.) and `--disable-features=site-per-process` on Linux
+- **Default change**: `MAPS_BROWSER_POOL_SIZE` reduced from 15 → 5 to fit safely in 4-8 GB Cloud Run Jobs
+- **Resilience**: Added 1s stabilisation delay after browser reinit before retry
+- **Diagnostics**: Startup logging now reports available memory and `/dev/shm` size on Linux
+
+### Docs
+- **Dockerfile.job**: Set `TMPDIR=/tmp` and ensure `/tmp` is writable by appuser for Chromium profile dirs
+
+---
+
 ## [2026-03-17] — Standardize Pagination API
 
 ### Backend

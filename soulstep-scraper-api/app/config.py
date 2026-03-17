@@ -94,8 +94,8 @@ class Settings:
     scraper_backend: str = os.environ.get("SCRAPER_BACKEND", "api")
     # Number of Playwright browser contexts kept in the pool. Idle contexts are
     # reused across grid cells; only `maps_browser_concurrency` are active at once.
-    # 15 contexts × ~80-200 MB each — size Cloud Run Job memory accordingly.
-    maps_browser_pool_size: int = int(os.environ.get("MAPS_BROWSER_POOL_SIZE", "15"))
+    # 5 contexts × ~200 MB each ≈ 1 GB — safe for 4-8 GB Cloud Run Jobs.
+    maps_browser_pool_size: int = int(os.environ.get("MAPS_BROWSER_POOL_SIZE", "5"))
     # Max navigations per browser context before recycling (prevents fingerprinting).
     maps_browser_max_pages: int = int(os.environ.get("MAPS_BROWSER_MAX_PAGES", "30"))
     # Run Chromium headless (set false for local debugging).

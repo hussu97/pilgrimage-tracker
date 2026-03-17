@@ -887,7 +887,7 @@ All discovery and detail collection is done via Playwright — **$0 API cost**.
 
 **Key settings for this estimate:**
 ```
-MAPS_BROWSER_POOL_SIZE=15         # 15 contexts in pool (reused across cells)
+MAPS_BROWSER_POOL_SIZE=5          # 5 contexts in pool (reused across cells)
 MAPS_BROWSER_MAX_PAGES=30         # recycle context every 30 navigations
 MAPS_BROWSER_CONCURRENCY=10       # 10 grid cells / detail pages in parallel
 ```

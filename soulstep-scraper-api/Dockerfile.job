@@ -42,11 +42,14 @@ RUN playwright install chromium --with-deps
 
 COPY . .
 
-RUN mkdir -p /data
+RUN mkdir -p /data /tmp/chromium-profiles
 
 RUN adduser --disabled-password --no-create-home appuser \
-    && chown -R appuser /app /data
+    && chown -R appuser /app /data /tmp/chromium-profiles
 USER appuser
+
+# Chromium creates profile dirs in TMPDIR — ensure it is writable.
+ENV TMPDIR=/tmp
 
 # Entry point: reads SCRAPER_RUN_CODE + SCRAPER_RUN_ACTION from env vars.
 # Set by the dispatcher (app/jobs/dispatcher.py) when launching the job.
