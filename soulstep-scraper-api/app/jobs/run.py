@@ -51,14 +51,22 @@ def main() -> None:
     logger = logging.getLogger(__name__)
     logger.info("Cloud Run Job starting: run_code=%s action=%s", run_code, action)
 
+    async def _run_and_cleanup(coro) -> None:
+        try:
+            await coro
+        finally:
+            from app.services.browser_pool import shutdown_maps_pool
+
+            await shutdown_maps_pool()
+
     if action == "resume":
         from app.db.scraper import resume_scraper_task
 
-        asyncio.run(resume_scraper_task(run_code))
+        asyncio.run(_run_and_cleanup(resume_scraper_task(run_code)))
     else:
         from app.db.scraper import run_scraper_task
 
-        asyncio.run(run_scraper_task(run_code))
+        asyncio.run(_run_and_cleanup(run_scraper_task(run_code)))
 
     logger.info("Cloud Run Job finished: run_code=%s action=%s", run_code, action)
 

@@ -154,6 +154,14 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             "_mark_interrupted_runs() failed at startup — proceeding anyway: %s", exc, exc_info=True
         )
     yield
+    # Graceful shutdown: close all browser contexts and Chromium so we don't leak
+    # child processes on restart / container replacement.
+    try:
+        from app.services.browser_pool import shutdown_maps_pool
+
+        await shutdown_maps_pool()
+    except Exception as exc:
+        logger.warning("shutdown_maps_pool() failed: %s", exc)
 
 
 app = FastAPI(title="SoulStep Scraper API", lifespan=lifespan)

@@ -894,9 +894,17 @@ class TestChromiumFlags:
         assert launch_call.called
         args = launch_call.call_args[1].get("args", [])
         assert "--disable-dev-shm-usage" in args
-        assert "--single-process" in args
-        assert "--no-zygote" in args
         assert "--disable-accelerated-2d-canvas" in args
+        # --single-process and --no-zygote are only added on Linux (Docker/Cloud Run)
+        # to avoid IPC deadlocks.  On macOS they crash Chromium after the first context.
+        import sys
+
+        if sys.platform == "linux":
+            assert "--single-process" in args
+            assert "--no-zygote" in args
+        else:
+            assert "--single-process" not in args
+            assert "--no-zygote" not in args
 
 
 # ── AcquireTimeoutError ─────────────────────────────────────────────────────

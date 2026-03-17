@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 import time
 from dataclasses import dataclass, field
 
@@ -107,6 +108,24 @@ class MapsBrowserPool:
         self._breaker = _CircuitBreaker()
 
     async def _init(self) -> None:
+        # If the browser process died (OOM, crash), tear down and reinitialise
+        # so the next acquire gets a fresh Chromium instance instead of
+        # perpetually hitting TargetClosedError.
+        if self._initialized and self._browser:
+            if not self._browser.is_connected():
+                logger.warning(
+                    "MapsBrowserPool: Chromium process died — reinitialising " "(had %d sessions)",
+                    len(self._sessions),
+                )
+                self._sessions.clear()
+                try:
+                    await asyncio.wait_for(self._playwright.stop(), timeout=5)
+                except Exception:
+                    pass
+                self._playwright = None
+                self._browser = None
+                self._initialized = False
+
         if self._initialized:
             return
         try:
@@ -125,28 +144,34 @@ class MapsBrowserPool:
                 timeout=30,
             )
             logger.info("MapsBrowserPool: launching Chromium (headless=%s)...", self._headless)
+
+            chromium_args = [
+                "--disable-blink-features=AutomationControlled",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--disable-infobars",
+                "--disable-extensions",
+                "--disable-gpu",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                # Required in Docker/Cloud Run: /dev/shm is limited to 64 MB;
+                # without this flag Chromium writes to shared memory and silently hangs.
+                "--disable-dev-shm-usage",
+                # Reduce GPU memory allocation in headless containers.
+                "--disable-accelerated-2d-canvas",
+            ]
+
+            # --single-process and --no-zygote prevent IPC deadlocks inside
+            # constrained Docker containers (64 MB /dev/shm, no IPC host), but
+            # they crash Chromium on macOS after the first browser context because
+            # macOS Chromium requires the multi-process zygote architecture.
+            if sys.platform == "linux":
+                chromium_args += ["--single-process", "--no-zygote"]
+
             self._browser = await asyncio.wait_for(
                 self._playwright.chromium.launch(
                     headless=self._headless,
-                    args=[
-                        "--disable-blink-features=AutomationControlled",
-                        "--no-first-run",
-                        "--no-default-browser-check",
-                        "--disable-infobars",
-                        "--disable-extensions",
-                        "--disable-gpu",
-                        "--no-sandbox",
-                        "--disable-setuid-sandbox",
-                        # Required in Docker/Cloud Run: /dev/shm is limited to 64 MB;
-                        # without this flag Chromium writes to shared memory and silently hangs.
-                        "--disable-dev-shm-usage",
-                        # Prevent forking child processes — avoids IPC deadlocks in
-                        # constrained container environments (64 MB /dev/shm, no IPC host).
-                        "--single-process",
-                        "--no-zygote",
-                        # Reduce GPU memory allocation in headless containers.
-                        "--disable-accelerated-2d-canvas",
-                    ],
+                    args=chromium_args,
                 ),
                 timeout=30,
             )
@@ -187,13 +212,14 @@ class MapsBrowserPool:
 
         context = await self._browser.new_context(**context_kwargs)
 
-        # Block resource types not needed for scraping (speed up page loads).
-        # Must be async — route.abort()/route.continue_() are coroutines that
-        # require await; a sync lambda would silently discard them and leave
-        # every request unresolved, causing page.goto() to hang indefinitely.
+        # Block resource types not needed for scraping (speed up page loads and
+        # cut memory usage).  We only need the DOM for link extraction — map tiles,
+        # images, fonts, stylesheets, and media are all unnecessary.
+        _blocked_types = frozenset({"font", "media", "image", "stylesheet"})
+
         async def _route_handler(route) -> None:
             try:
-                if route.request.resource_type in ("font", "media"):
+                if route.request.resource_type in _blocked_types:
                     await route.abort()
                 else:
                     await route.continue_()
@@ -279,7 +305,13 @@ class MapsBrowserPool:
             if recycle or session.nav_count >= self._max_pages:
                 reason = "forced" if recycle else f"max-pages ({self._max_pages})"
                 try:
-                    await session.context.close()
+                    # Close page first to free renderer memory before context teardown.
+                    # Timeout prevents hanging on a stuck page.
+                    await asyncio.wait_for(session.page.close(), timeout=5)
+                except Exception:
+                    pass
+                try:
+                    await asyncio.wait_for(session.context.close(), timeout=10)
                 except Exception:
                     pass
                 if session in self._sessions:
@@ -317,19 +349,23 @@ class MapsBrowserPool:
         async with self._lock:
             for session in self._sessions:
                 try:
-                    await session.context.close()
+                    await asyncio.wait_for(session.page.close(), timeout=5)
+                except Exception:
+                    pass
+                try:
+                    await asyncio.wait_for(session.context.close(), timeout=5)
                 except Exception:
                     pass
             self._sessions.clear()
             if self._browser:
                 try:
-                    await self._browser.close()
+                    await asyncio.wait_for(self._browser.close(), timeout=10)
                 except Exception:
                     pass
             await asyncio.sleep(0.2)
             if self._playwright:
                 try:
-                    await self._playwright.stop()
+                    await asyncio.wait_for(self._playwright.stop(), timeout=10)
                 except Exception:
                     pass
             self._initialized = False
