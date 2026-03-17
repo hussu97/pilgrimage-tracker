@@ -173,12 +173,20 @@ Copy `.env.example` to `.env` and fill in values. Key variables:
 | Content translations | Manage place description translations |
 | Place attributes | CRUD for attribute definitions and values |
 | App versions | Manage version enforcement config |
-| SEO | Generate/status, AI citations (`GET /admin/seo/ai-citations`) |
+| SEO | Generate/status, AI citations, templates, labels, stale detection |
 | Scraper proxy | List runs, delete run (with optional catalog cleanup) |
 | Analytics | Overview, top-places, trends, event log |
 | Audit log | Paginated admin action log |
 
 **Key admin endpoints:**
+- `GET /api/v1/admin/seo/templates` — list all SEO content templates
+- `GET /api/v1/admin/seo/templates/{code}/{lang}` — get a specific template by code and language
+- `PATCH /api/v1/admin/seo/templates/{code}/{lang}` — update a template
+- `GET /api/v1/admin/seo/labels` — list all SEO labels
+- `PATCH /api/v1/admin/seo/labels/{type}/{key}/{lang}` — update a label
+- `GET /api/v1/admin/seo/stale` — list places with stale SEO (template_version mismatch)
+- `POST /api/v1/admin/seo/generate` — bulk generate SEO (accepts `langs` param to target specific languages)
+- `POST /api/v1/admin/seo/places/{code}/generate` — generate SEO for a single place (accepts `langs` param)
 - `DELETE /api/v1/admin/places/{place_code}` — delete place and all related records
 - `DELETE /api/v1/admin/places/batch` — batch delete (`{ "place_codes": [...] }`)
 - `DELETE /api/v1/admin/places/all` — delete all places

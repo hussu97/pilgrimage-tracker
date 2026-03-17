@@ -324,6 +324,20 @@ The catalog API serves all SEO content:
 
 SEO generation: `scripts/generate_seo.py --generate` (run post-sync or auto-triggered by scraper). Translations are handled separately via the Cloud Run job or bulktranslator script.
 
+### Multi-Language SEO Template System
+
+SEO content is generated from DB-driven templates rather than hardcoded strings, enabling multi-language SEO without code changes:
+
+| Model | Purpose |
+|---|---|
+| `SEOLabel` | Translatable label fragments (e.g. "Visit", "Opening Hours", religion names) keyed by type + key + lang |
+| `SEOContentTemplate` | Full meta title / description / FAQ templates per language, with `{place_name}`, `{city}`, `{religion}` placeholders |
+| `PlaceSEOTranslation` | Per-place, per-language generated SEO output (meta title, description, structured data, FAQ) |
+
+`PlaceSEO.template_version` tracks which template version was used for generation. When an admin updates a template, the version increments and `GET /admin/seo/stale` returns places whose SEO was generated with an older version — enabling targeted regeneration.
+
+`generate_all_langs()` renders templates for all supported languages in a single pass, interpolating place data and labels into each language's template. Admins can also target specific languages via the `langs` parameter on generate endpoints.
+
 ---
 
 ## 10. API Versioning Policy

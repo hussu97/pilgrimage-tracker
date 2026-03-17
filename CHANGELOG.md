@@ -4,6 +4,24 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-17] — Multi-Language SEO Template System
+
+### Backend
+- **New models**: `SEOLabel`, `SEOContentTemplate`, `PlaceSEOTranslation` — DB-driven SEO generation replacing hardcoded English strings
+- **PlaceSEO**: Added `template_version` field to track which template version was used for generation; enables stale detection when templates change
+- **SEO generation**: New `generate_all_langs()` generates SEO content (meta title, description, structured data, FAQ) for all supported languages using DB templates and labels
+- **Admin CRUD**: Full endpoints for managing SEO templates (`GET/PATCH /admin/seo/templates`), labels (`GET/PATCH /admin/seo/labels`), and detecting stale SEO entries (`GET /admin/seo/stale`)
+- **Generate endpoints**: `POST /admin/seo/generate` and `POST /admin/seo/places/{code}/generate` now accept a `langs` param to target specific languages
+- **Seed system**: Default SEO templates and labels seeded on startup for all supported languages
+
+### Frontend (admin)
+- **SEO Templates page**: New admin page for managing SEO content templates with per-language editing
+- **Coverage stats**: Per-language SEO coverage statistics showing generation completeness
+- **Multi-lang bulk generate**: Bulk SEO generation with language selection support
+- **Per-lang detail tabs**: Place SEO detail view with language tabs showing translated meta titles, descriptions, and FAQs
+
+---
+
 ## [2026-03-17] — Fix Chromium TargetClosedError in Cloud Run Job
 
 ### Backend
