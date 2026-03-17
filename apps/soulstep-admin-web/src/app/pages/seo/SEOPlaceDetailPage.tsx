@@ -4,7 +4,7 @@ import { getSEODetail, patchSEO, regenerateSEO, listLanguages } from "@/lib/api/
 import type { SEODetail, FAQItem, PatchSEOBody, Language } from "@/lib/api/types";
 import { SERPPreview } from "@/components/seo/SERPPreview";
 import { formatDate } from "@/lib/utils";
-import { ArrowLeft, RefreshCw, Save, Plus, Trash2, PenLine } from "lucide-react";
+import { ArrowLeft, RefreshCw, Save, Plus, Trash2, PenLine, Clock } from "lucide-react";
 
 const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL ?? "https://soul-step.org";
 
@@ -21,6 +21,9 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
+const ALL_LANGS = ["en", "ar", "hi", "te", "ml"];
+const LANG_NAMES: Record<string, string> = { en: "English", ar: "Arabic", hi: "Hindi", te: "Telugu", ml: "Malayalam" };
+
 export function SEOPlaceDetailPage() {
   const { placeCode } = useParams<{ placeCode: string }>();
   const navigate = useNavigate();
@@ -32,7 +35,7 @@ export function SEOPlaceDetailPage() {
   const [saving, setSaving] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [withTranslations, setWithTranslations] = useState(false);
+  const [selectedLangs, setSelectedLangs] = useState<string[]>(["en"]);
 
   // Edit state (English only)
   const [editSlug, setEditSlug] = useState("");
@@ -66,6 +69,16 @@ export function SEOPlaceDetailPage() {
     setEditOgImage(data.og_image_url ?? "");
   }
 
+  const toggleLang = (lang: string) => {
+    setSelectedLangs((prev) => {
+      if (prev.includes(lang)) {
+        const next = prev.filter((l) => l !== lang);
+        return next.length === 0 ? ["en"] : next;
+      }
+      return [...prev, lang];
+    });
+  };
+
   const handleSave = async () => {
     if (!placeCode) return;
     setSaving(true);
@@ -96,7 +109,7 @@ export function SEOPlaceDetailPage() {
     ) return;
     setRegenerating(true);
     try {
-      const updated = await regenerateSEO(placeCode, force || seo?.is_manually_edited === true, withTranslations);
+      const updated = await regenerateSEO(placeCode, force || seo?.is_manually_edited === true, selectedLangs);
       setSEO(updated);
       resetEditState(updated);
       setEditing(false);
@@ -130,9 +143,8 @@ export function SEOPlaceDetailPage() {
     );
   }
 
-  const tabLang = languages.find((l) => l.code === activeTab);
   const isEnglish = activeTab === "en";
-  const langTranslations = seo.translations?.[activeTab] ?? {};
+  const langTranslation = seo.translations?.[activeTab];
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -158,23 +170,13 @@ export function SEOPlaceDetailPage() {
               <PenLine size={11} /> Manually edited
             </span>
           )}
-          <label className="flex items-center gap-1.5 text-sm text-text-secondary dark:text-dark-text-secondary cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={withTranslations}
-              onChange={(e) => setWithTranslations(e.target.checked)}
-              className="rounded"
-              disabled={regenerating}
-            />
-            + translations
-          </label>
           <button
             onClick={() => handleRegenerate()}
             disabled={regenerating}
             className="flex items-center gap-1.5 text-sm px-3 py-1.5 border border-input-border dark:border-dark-border rounded-lg hover:bg-background-light dark:hover:bg-dark-bg text-text-main dark:text-white disabled:opacity-50 transition-colors"
           >
             <RefreshCw size={13} className={regenerating ? "animate-spin" : ""} />
-            {regenerating ? (withTranslations ? "Regenerating + translating…" : "Regenerating…") : "Regenerate"}
+            {regenerating ? "Regenerating…" : "Regenerate"}
           </button>
           {isEnglish && !editing && (
             <button
@@ -205,13 +207,32 @@ export function SEOPlaceDetailPage() {
         </div>
       </div>
 
+      {/* Language selector for regeneration */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-text-secondary dark:text-dark-text-secondary">Regenerate for:</span>
+        {ALL_LANGS.map((lang) => (
+          <button
+            key={lang}
+            onClick={() => toggleLang(lang)}
+            disabled={regenerating}
+            className={[
+              "px-2 py-0.5 text-xs rounded-full border transition-colors",
+              selectedLangs.includes(lang)
+                ? "bg-primary text-white border-primary"
+                : "border-input-border dark:border-dark-border text-text-secondary dark:text-dark-text-secondary hover:border-primary hover:text-primary",
+            ].join(" ")}
+          >
+            {LANG_NAMES[lang]}
+          </button>
+        ))}
+      </div>
+
       {/* Language tabs */}
       {languages.length > 0 && (
         <div className="border-b border-input-border dark:border-dark-border">
           <nav className="flex gap-1 overflow-x-auto">
             {languages.map((lang) => {
-              const hasTranslations =
-                lang.code === "en" || Object.keys(seo.translations?.[lang.code] ?? {}).length > 0;
+              const hasTranslation = lang.code === "en" || !!seo.translations?.[lang.code];
               return (
                 <button
                   key={lang.code}
@@ -224,7 +245,7 @@ export function SEOPlaceDetailPage() {
                   ].join(" ")}
                 >
                   {lang.name}
-                  {!hasTranslations && (
+                  {!hasTranslation && (
                     <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-amber-400 align-middle" title="No translations yet" />
                   )}
                 </button>
@@ -331,16 +352,16 @@ export function SEOPlaceDetailPage() {
           </div>
         </div>
       ) : (
-        /* ── Non-English tab: read-only translations ── */
+        /* ── Non-English tab: PlaceSEOTranslation data ── */
         <div className="space-y-4">
-          {Object.keys(langTranslations).length === 0 ? (
+          {!langTranslation ? (
             <div className="bg-white dark:bg-dark-surface rounded-lg border border-input-border dark:border-dark-border p-6 text-center space-y-3">
               <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
-                No translations yet for <strong>{tabLang?.name ?? activeTab}</strong>.
+                No translations yet for <strong>{LANG_NAMES[activeTab] ?? activeTab}</strong>.
               </p>
               <button
                 onClick={() => {
-                  setWithTranslations(true);
+                  setSelectedLangs([activeTab]);
                   void handleRegenerate(seo.is_manually_edited);
                 }}
                 disabled={regenerating || !seo.seo_title}
@@ -356,19 +377,51 @@ export function SEOPlaceDetailPage() {
               )}
             </div>
           ) : (
-            <div
-              className="bg-white dark:bg-dark-surface rounded-lg border border-input-border dark:border-dark-border divide-y divide-input-border dark:divide-dark-border"
-              dir={activeTab === "ar" ? "rtl" : "ltr"}
-            >
-              <Field label="SEO Title">
-                <p className="text-sm text-text-main dark:text-white">{langTranslations["seo_title"] ?? "—"}</p>
-              </Field>
-              <Field label="Meta Description">
-                <p className="text-sm text-text-main dark:text-white">{langTranslations["meta_description"] ?? "—"}</p>
-              </Field>
-              <Field label="Rich Description">
-                <p className="text-sm text-text-main dark:text-white whitespace-pre-wrap">{langTranslations["rich_description"] ?? "—"}</p>
-              </Field>
+            <div className="space-y-4">
+              {/* Meta info */}
+              <div className="flex items-center gap-3 text-xs text-text-secondary dark:text-dark-text-secondary">
+                <span className="flex items-center gap-1">
+                  <Clock size={12} /> Template v{langTranslation.template_version}
+                </span>
+                {langTranslation.is_manually_edited && (
+                  <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                    <PenLine size={11} /> Manually edited
+                  </span>
+                )}
+                {langTranslation.generated_at && (
+                  <span>Generated: {formatDate(langTranslation.generated_at)}</span>
+                )}
+              </div>
+
+              <div
+                className="bg-white dark:bg-dark-surface rounded-lg border border-input-border dark:border-dark-border divide-y divide-input-border dark:divide-dark-border"
+                dir={activeTab === "ar" ? "rtl" : "ltr"}
+              >
+                <Field label="SEO Title">
+                  <p className="text-sm text-text-main dark:text-white">{langTranslation.seo_title ?? "—"}</p>
+                </Field>
+                <Field label="Meta Description">
+                  <p className="text-sm text-text-main dark:text-white">{langTranslation.meta_description ?? "—"}</p>
+                </Field>
+                <Field label="Rich Description">
+                  <p className="text-sm text-text-main dark:text-white whitespace-pre-wrap">{langTranslation.rich_description ?? "—"}</p>
+                </Field>
+
+                {/* FAQs */}
+                {langTranslation.faq_json && langTranslation.faq_json.length > 0 && (
+                  <div className="p-4">
+                    <p className="text-sm font-medium text-text-main dark:text-white mb-3">FAQs</p>
+                    <div className="space-y-3">
+                      {langTranslation.faq_json.map((faq, i) => (
+                        <div key={i} className="border border-input-border dark:border-dark-border rounded-lg p-3">
+                          <p className="text-sm font-medium text-text-main dark:text-white">{faq.question}</p>
+                          <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-1">{faq.answer}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -376,6 +429,7 @@ export function SEOPlaceDetailPage() {
 
       {/* Metadata */}
       <div className="text-xs text-text-secondary dark:text-dark-text-secondary space-y-0.5">
+        {seo.template_version != null && <p>Template version: {seo.template_version}</p>}
         {seo.generated_at && <p>Generated: {formatDate(seo.generated_at)}</p>}
         {seo.updated_at && <p>Last updated: {formatDate(seo.updated_at)}</p>}
       </div>

@@ -614,8 +614,8 @@ export interface SEOStats {
   places_missing_seo: number;
   places_manually_edited: number;
   coverage_pct: number;
-  translation_chars: number;
-  translation_cost_usd: number;
+  lang_coverage: Record<string, number>;
+  stale_count: number;
 }
 
 export interface SEOListItem {
@@ -644,6 +644,16 @@ export interface FAQItem {
   answer: string;
 }
 
+export interface SEOLangDetail {
+  seo_title: string | null;
+  meta_description: string | null;
+  rich_description: string | null;
+  faq_json: FAQItem[] | null;
+  template_version: number;
+  is_manually_edited: boolean;
+  generated_at: string | null;
+}
+
 export interface SEODetail {
   place_code: string;
   name: string;
@@ -657,9 +667,10 @@ export interface SEODetail {
   faq_json: FAQItem[] | null;
   og_image_url: string | null;
   is_manually_edited: boolean;
+  template_version: number | null;
   generated_at: string | null;
   updated_at: string | null;
-  translations: Record<string, Record<string, string | null>>;  // lang -> {field -> text}
+  translations: Record<string, SEOLangDetail>;
 }
 
 export interface PatchSEOBody {
@@ -676,8 +687,42 @@ export interface GenerateResponse {
   generated: number;
   skipped: number;
   errors: number;
-  translated: number;
-  translation_errors: number;
+  lang_generated: Record<string, number>;
+  lang_errors: Record<string, number>;
+}
+
+// SEO Templates & Labels
+export interface SEOTemplate {
+  id: number;
+  template_code: string;
+  lang: string;
+  template_text: string;
+  fallback_text: string | null;
+  static_phrases: Record<string, string>;
+  version: number;
+  is_active: boolean;
+}
+
+export interface PatchTemplateBody {
+  template_text?: string;
+  fallback_text?: string;
+  static_phrases?: Record<string, string>;
+  is_active?: boolean;
+}
+
+export interface SEOLabelEntry {
+  id: number;
+  label_type: string;
+  label_key: string;
+  lang: string;
+  label_text: string;
+}
+
+export interface StaleItem {
+  place_code: string;
+  name: string;
+  current_version: number | null;
+  max_version: number;
 }
 
 // Analytics

@@ -31,6 +31,7 @@ import { AuditLogPage } from "./pages/audit-log/AuditLogPage";
 import { NotificationManagementPage } from "./pages/notifications/NotificationManagementPage";
 import { SEODashboardPage } from "./pages/seo/SEODashboardPage";
 import { SEOPlaceDetailPage } from "./pages/seo/SEOPlaceDetailPage";
+import { SEOTemplatesPage } from "./pages/seo/SEOTemplatesPage";
 import { AnalyticsDashboardPage } from "./pages/analytics/AnalyticsDashboardPage";
 
 function AdminSplash() {
@@ -168,6 +169,7 @@ export const routes = [
               { path: "/translations/bulk", element: <BulkTranslationsPage /> },
               // SEO & Discoverability
               { path: "/seo", element: <SEODashboardPage /> },
+              { path: "/seo/templates", element: <SEOTemplatesPage /> },
               { path: "/seo/:placeCode", element: <SEOPlaceDetailPage /> },
               // Analytics
               { path: "/analytics", element: <AnalyticsDashboardPage /> },

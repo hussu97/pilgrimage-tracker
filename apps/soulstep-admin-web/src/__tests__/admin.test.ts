@@ -579,17 +579,17 @@ describe("regenerateSEO", () => {
     expect(mockPost).toHaveBeenCalledWith(
       "/admin/seo/places/plc_1/generate",
       null,
-      { params: { force: false, translate: false } }
+      { params: { force: false, langs: "en" } }
     );
   });
 
-  it("POSTs with force=true and translate=true", async () => {
+  it("POSTs with force=true and langs", async () => {
     mockPost.mockResolvedValue({ data: { place_code: "plc_1" } });
-    await admin.regenerateSEO("plc_1", true, true);
+    await admin.regenerateSEO("plc_1", true, ["en", "ar"]);
     expect(mockPost).toHaveBeenCalledWith(
       "/admin/seo/places/plc_1/generate",
       null,
-      { params: { force: true, translate: true } }
+      { params: { force: true, langs: "en,ar" } }
     );
   });
 });

@@ -13,12 +13,13 @@ from app.db import notifications as notifications_db
 from app.db import place_attributes as attr_db
 from app.db import places as places_db
 from app.db import store
-from app.db.models import AppVersionConfig, City, Country, State
+from app.db.models import AppVersionConfig, City, Country, SEOContentTemplate, SEOLabel, State
 from app.db.session import Session, engine
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_SEED_PATH = Path(__file__).parent / "seed_data.json"
+_SEO_SEED_PATH = Path(__file__).parent / "seo_seed_data.json"
 
 
 def _load_seed_data(seed_path: str | Path | None) -> dict | None:
@@ -60,6 +61,8 @@ def run_seed_system(seed_path: str | Path | None = None) -> None:
         _seed_app_version_config(data["app_version_config"])
     if "locations" in data:
         _seed_locations(data["locations"])
+
+    _seed_seo_templates()
 
 
 def _seed_content_translations(rows: list[dict]) -> None:
@@ -142,6 +145,71 @@ def _seed_locations(locations: dict) -> None:
                         country_code=row["country_code"],
                         state_code=row.get("state_code"),
                         translations=row.get("translations", {}),
+                    )
+                )
+        session.commit()
+
+
+def _seed_seo_templates() -> None:
+    """Upsert SEOLabel and SEOContentTemplate rows from seo_seed_data.json.
+
+    Safe to call on every startup — idempotent upserts keyed by unique constraints.
+    """
+    if not _SEO_SEED_PATH.exists():
+        return
+    data = json.loads(_SEO_SEED_PATH.read_text(encoding="utf-8"))
+    now = datetime.now(UTC)
+
+    with Session(engine) as session:
+        # Labels
+        for row in data.get("labels", []):
+            existing = session.exec(
+                select(SEOLabel).where(
+                    SEOLabel.label_type == row["label_type"],
+                    SEOLabel.label_key == row["label_key"],
+                    SEOLabel.lang == row["lang"],
+                )
+            ).first()
+            if existing:
+                existing.label_text = row["label_text"]
+                session.add(existing)
+            else:
+                session.add(
+                    SEOLabel(
+                        label_type=row["label_type"],
+                        label_key=row["label_key"],
+                        lang=row["lang"],
+                        label_text=row["label_text"],
+                    )
+                )
+        session.commit()
+
+        # Templates
+        for row in data.get("templates", []):
+            existing = session.exec(
+                select(SEOContentTemplate).where(
+                    SEOContentTemplate.template_code == row["template_code"],
+                    SEOContentTemplate.lang == row["lang"],
+                )
+            ).first()
+            if existing:
+                existing.template_text = row["template_text"]
+                existing.fallback_text = row.get("fallback_text")
+                existing.static_phrases = row.get("static_phrases", {})
+                existing.updated_at = now
+                session.add(existing)
+            else:
+                session.add(
+                    SEOContentTemplate(
+                        template_code=row["template_code"],
+                        lang=row["lang"],
+                        template_text=row["template_text"],
+                        fallback_text=row.get("fallback_text"),
+                        static_phrases=row.get("static_phrases", {}),
+                        version=1,
+                        is_active=True,
+                        created_at=now,
+                        updated_at=now,
                     )
                 )
         session.commit()

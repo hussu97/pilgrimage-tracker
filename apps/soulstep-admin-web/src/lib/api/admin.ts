@@ -48,6 +48,10 @@ import type {
   SEODetail,
   PatchSEOBody,
   GenerateResponse,
+  SEOTemplate,
+  PatchTemplateBody,
+  SEOLabelEntry,
+  StaleItem,
 } from "./types";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -472,11 +476,12 @@ export async function patchSEO(placeCode: string, body: PatchSEOBody): Promise<S
   return res.data;
 }
 
-export async function regenerateSEO(placeCode: string, force = false, translate = false): Promise<SEODetail> {
+export async function regenerateSEO(placeCode: string, force = false, langs?: string[]): Promise<SEODetail> {
+  const langsParam = langs?.join(",") || "en";
   const res = await apiClient.post<SEODetail>(
     `/admin/seo/places/${placeCode}/generate`,
     null,
-    { params: { force, translate } }
+    { params: { force, langs: langsParam } }
   );
   return res.data;
 }
@@ -484,10 +489,41 @@ export async function regenerateSEO(placeCode: string, force = false, translate 
 export async function bulkGenerateSEO(body: {
   force?: boolean;
   limit?: number;
-  translate?: boolean;
-  translate_langs?: string[];
+  langs?: string[];
 }): Promise<GenerateResponse> {
   const res = await apiClient.post<GenerateResponse>("/admin/seo/generate", body);
+  return res.data;
+}
+
+// ── SEO Templates & Labels ─────────────────────────────────────────────────────
+
+export async function listSEOTemplates(): Promise<SEOTemplate[]> {
+  const res = await apiClient.get<SEOTemplate[]>("/admin/seo/templates");
+  return res.data;
+}
+
+export async function getSEOTemplate(templateCode: string, lang: string): Promise<SEOTemplate> {
+  const res = await apiClient.get<SEOTemplate>(`/admin/seo/templates/${templateCode}/${lang}`);
+  return res.data;
+}
+
+export async function patchSEOTemplate(templateCode: string, lang: string, body: PatchTemplateBody): Promise<SEOTemplate> {
+  const res = await apiClient.patch<SEOTemplate>(`/admin/seo/templates/${templateCode}/${lang}`, body);
+  return res.data;
+}
+
+export async function listSEOLabels(): Promise<SEOLabelEntry[]> {
+  const res = await apiClient.get<SEOLabelEntry[]>("/admin/seo/labels");
+  return res.data;
+}
+
+export async function patchSEOLabel(labelType: string, labelKey: string, lang: string, labelText: string): Promise<SEOLabelEntry> {
+  const res = await apiClient.patch<SEOLabelEntry>(`/admin/seo/labels/${labelType}/${labelKey}/${lang}`, { label_text: labelText });
+  return res.data;
+}
+
+export async function listStalePlaces(params?: { page?: number; page_size?: number }): Promise<StaleItem[]> {
+  const res = await apiClient.get<StaleItem[]>("/admin/seo/stale", { params });
   return res.data;
 }
 

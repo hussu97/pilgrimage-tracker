@@ -8,8 +8,11 @@ import { SearchInput } from "@/components/shared/SearchInput";
 import { StatCard } from "@/components/shared/StatCard";
 import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
-import { BarChart2, CheckCircle, AlertCircle, PenLine, RefreshCw, DollarSign } from "lucide-react";
+import { BarChart2, CheckCircle, AlertCircle, PenLine, RefreshCw, Globe, Clock } from "lucide-react";
 import type { Column } from "@/components/shared/DataTable";
+
+const ALL_LANGS = ["en", "ar", "hi", "te", "ml"];
+const LANG_NAMES: Record<string, string> = { en: "English", ar: "Arabic", hi: "Hindi", te: "Telugu", ml: "Malayalam" };
 
 export function SEODashboardPage() {
   const navigate = useNavigate();
@@ -18,7 +21,7 @@ export function SEODashboardPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [withTranslations, setWithTranslations] = useState(false);
+  const [selectedLangs, setSelectedLangs] = useState<string[]>(["en"]);
   const [search, setSearch] = useState("");
   const [religion, setReligion] = useState("");
   const [missingOnly, setMissingOnly] = useState(false);
@@ -47,18 +50,27 @@ export function SEODashboardPage() {
 
   useEffect(() => { void load(); }, [load]);
 
+  const toggleLang = (lang: string) => {
+    setSelectedLangs((prev) => {
+      if (prev.includes(lang)) {
+        const next = prev.filter((l) => l !== lang);
+        return next.length === 0 ? ["en"] : next;
+      }
+      return [...prev, lang];
+    });
+  };
+
   const handleBulkGenerate = async () => {
-    const msg = withTranslations
-      ? "Generate SEO content for all places missing it, then translate to AR, HI, TE, ML? This may take several minutes."
-      : "Generate SEO content for all places missing it? This may take a moment.";
-    if (!window.confirm(msg)) return;
+    const langNames = selectedLangs.map((l) => LANG_NAMES[l]).join(", ");
+    if (!window.confirm(`Generate SEO content for languages: ${langNames}? This may take several minutes.`)) return;
     setGenerating(true);
     try {
-      const result = await bulkGenerateSEO({ force: false, translate: withTranslations });
-      const translationNote = withTranslations
-        ? ` Translations: ${result.translated} written, ${result.translation_errors} errors.`
-        : "";
-      alert(`SEO generation complete: ${result.generated} generated, ${result.errors} errors.${translationNote}`);
+      const result = await bulkGenerateSEO({ force: false, langs: selectedLangs });
+      const langParts = Object.entries(result.lang_generated)
+        .map(([l, c]) => `${LANG_NAMES[l] ?? l}: ${c}`)
+        .join(", ");
+      const langNote = langParts ? ` Translations: ${langParts}.` : "";
+      alert(`SEO generation complete: ${result.generated} generated, ${result.errors} errors.${langNote}`);
       void load();
     } finally {
       setGenerating(false);
@@ -143,25 +155,41 @@ export function SEODashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1.5 text-sm text-text-secondary dark:text-dark-text-secondary cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={withTranslations}
-              onChange={(e) => setWithTranslations(e.target.checked)}
-              className="rounded"
-              disabled={generating}
-            />
-            + translations
-          </label>
+          <button
+            onClick={() => navigate("/seo/templates")}
+            className="flex items-center gap-1.5 text-sm px-3 py-2 border border-input-border dark:border-dark-border rounded-lg hover:bg-background-light dark:hover:bg-dark-bg text-text-main dark:text-white transition-colors"
+          >
+            <Globe size={14} /> Templates
+          </button>
           <button
             onClick={handleBulkGenerate}
             disabled={generating}
             className="flex items-center gap-2 px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
             <RefreshCw size={14} className={generating ? "animate-spin" : ""} />
-            {generating ? (withTranslations ? "Generating + translating…" : "Generating…") : "Bulk Generate"}
+            {generating ? "Generating…" : "Bulk Generate"}
           </button>
         </div>
+      </div>
+
+      {/* Language selector */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm text-text-secondary dark:text-dark-text-secondary">Generate for:</span>
+        {ALL_LANGS.map((lang) => (
+          <button
+            key={lang}
+            onClick={() => toggleLang(lang)}
+            disabled={generating}
+            className={[
+              "px-2.5 py-1 text-xs rounded-full border transition-colors",
+              selectedLangs.includes(lang)
+                ? "bg-primary text-white border-primary"
+                : "border-input-border dark:border-dark-border text-text-secondary dark:text-dark-text-secondary hover:border-primary hover:text-primary",
+            ].join(" ")}
+          >
+            {LANG_NAMES[lang]}
+          </button>
+        ))}
       </div>
 
       {/* Stats */}
@@ -176,28 +204,28 @@ export function SEODashboardPage() {
           <StatCard label="Manually Edited" value={stats.places_manually_edited} />
           <div className="bg-white dark:bg-dark-surface rounded-lg border border-input-border dark:border-dark-border p-4 flex flex-col gap-1">
             <div className="flex items-center gap-1.5 text-xs text-text-secondary dark:text-dark-text-secondary">
-              <DollarSign size={13} />
-              Translation Cost
+              <Clock size={13} />
+              Stale SEO
             </div>
             <div className="text-xl font-semibold text-text-main dark:text-white">
-              ${stats.translation_cost_usd.toFixed(4)}
+              {stats.stale_count}
             </div>
             <div className="text-xs text-text-secondary dark:text-dark-text-secondary">
-              {stats.translation_chars.toLocaleString()} chars translated
+              places need regeneration
             </div>
           </div>
         </div>
       )}
 
-      {/* Coverage bar */}
+      {/* Coverage bar + per-language breakdown */}
       {stats && (
-        <div className="bg-white dark:bg-dark-surface rounded-lg border border-input-border dark:border-dark-border p-4">
+        <div className="bg-white dark:bg-dark-surface rounded-lg border border-input-border dark:border-dark-border p-4 space-y-3">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-text-main dark:text-white flex items-center gap-2">
               <BarChart2 size={14} /> SEO Coverage
             </span>
             <span className="text-sm text-text-secondary dark:text-dark-text-secondary">
-              {stats.coverage_pct}%
+              {stats.coverage_pct}% (English)
             </span>
           </div>
           <div className="h-2 bg-background-light dark:bg-dark-bg rounded-full overflow-hidden">
@@ -205,6 +233,27 @@ export function SEODashboardPage() {
               className="h-full bg-primary rounded-full transition-all duration-500"
               style={{ width: `${stats.coverage_pct}%` }}
             />
+          </div>
+
+          {/* Per-language bars */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+            {Object.entries(stats.lang_coverage).map(([lang, count]) => {
+              const pct = stats.total_places > 0 ? Math.round((count / stats.total_places) * 100) : 0;
+              return (
+                <div key={lang} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-text-secondary dark:text-dark-text-secondary">{LANG_NAMES[lang] ?? lang}</span>
+                    <span className="text-text-main dark:text-white font-medium">{count} ({pct}%)</span>
+                  </div>
+                  <div className="h-1.5 bg-background-light dark:bg-dark-bg rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary/60 rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

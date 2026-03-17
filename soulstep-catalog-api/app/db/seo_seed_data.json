@@ -1,0 +1,645 @@
+{
+  "labels": [
+    {"label_type": "religion", "label_key": "islam", "lang": "en", "label_text": "Islamic"},
+    {"label_type": "religion", "label_key": "islam", "lang": "ar", "label_text": "إسلامي"},
+    {"label_type": "religion", "label_key": "islam", "lang": "hi", "label_text": "इस्लामी"},
+    {"label_type": "religion", "label_key": "islam", "lang": "te", "label_text": "ఇస్లామిక్"},
+    {"label_type": "religion", "label_key": "islam", "lang": "ml", "label_text": "ഇസ്ലാമിക"},
+
+    {"label_type": "religion", "label_key": "christianity", "lang": "en", "label_text": "Christian"},
+    {"label_type": "religion", "label_key": "christianity", "lang": "ar", "label_text": "مسيحي"},
+    {"label_type": "religion", "label_key": "christianity", "lang": "hi", "label_text": "ईसाई"},
+    {"label_type": "religion", "label_key": "christianity", "lang": "te", "label_text": "క్రైస్తవ"},
+    {"label_type": "religion", "label_key": "christianity", "lang": "ml", "label_text": "ക്രിസ്ത്യൻ"},
+
+    {"label_type": "religion", "label_key": "hinduism", "lang": "en", "label_text": "Hindu"},
+    {"label_type": "religion", "label_key": "hinduism", "lang": "ar", "label_text": "هندوسي"},
+    {"label_type": "religion", "label_key": "hinduism", "lang": "hi", "label_text": "हिन्दू"},
+    {"label_type": "religion", "label_key": "hinduism", "lang": "te", "label_text": "హిందూ"},
+    {"label_type": "religion", "label_key": "hinduism", "lang": "ml", "label_text": "ഹിന്ദു"},
+
+    {"label_type": "religion", "label_key": "buddhism", "lang": "en", "label_text": "Buddhist"},
+    {"label_type": "religion", "label_key": "buddhism", "lang": "ar", "label_text": "بوذي"},
+    {"label_type": "religion", "label_key": "buddhism", "lang": "hi", "label_text": "बौद्ध"},
+    {"label_type": "religion", "label_key": "buddhism", "lang": "te", "label_text": "బౌద్ధ"},
+    {"label_type": "religion", "label_key": "buddhism", "lang": "ml", "label_text": "ബുദ്ധ"},
+
+    {"label_type": "religion", "label_key": "sikhism", "lang": "en", "label_text": "Sikh"},
+    {"label_type": "religion", "label_key": "sikhism", "lang": "ar", "label_text": "سيخي"},
+    {"label_type": "religion", "label_key": "sikhism", "lang": "hi", "label_text": "सिख"},
+    {"label_type": "religion", "label_key": "sikhism", "lang": "te", "label_text": "సిక్కు"},
+    {"label_type": "religion", "label_key": "sikhism", "lang": "ml", "label_text": "സിഖ്"},
+
+    {"label_type": "religion", "label_key": "judaism", "lang": "en", "label_text": "Jewish"},
+    {"label_type": "religion", "label_key": "judaism", "lang": "ar", "label_text": "يهودي"},
+    {"label_type": "religion", "label_key": "judaism", "lang": "hi", "label_text": "यहूदी"},
+    {"label_type": "religion", "label_key": "judaism", "lang": "te", "label_text": "యూదు"},
+    {"label_type": "religion", "label_key": "judaism", "lang": "ml", "label_text": "ജൂത"},
+
+    {"label_type": "religion", "label_key": "bahai", "lang": "en", "label_text": "Bahá'í"},
+    {"label_type": "religion", "label_key": "bahai", "lang": "ar", "label_text": "بهائي"},
+    {"label_type": "religion", "label_key": "bahai", "lang": "hi", "label_text": "बहाई"},
+    {"label_type": "religion", "label_key": "bahai", "lang": "te", "label_text": "బహాయి"},
+    {"label_type": "religion", "label_key": "bahai", "lang": "ml", "label_text": "ബഹായി"},
+
+    {"label_type": "religion", "label_key": "zoroastrianism", "lang": "en", "label_text": "Zoroastrian"},
+    {"label_type": "religion", "label_key": "zoroastrianism", "lang": "ar", "label_text": "زرادشتي"},
+    {"label_type": "religion", "label_key": "zoroastrianism", "lang": "hi", "label_text": "पारसी"},
+    {"label_type": "religion", "label_key": "zoroastrianism", "lang": "te", "label_text": "జొరాస్ట్రియన్"},
+    {"label_type": "religion", "label_key": "zoroastrianism", "lang": "ml", "label_text": "സൊരാസ്ട്രിയൻ"},
+
+    {"label_type": "place_type", "label_key": "mosque", "lang": "en", "label_text": "Mosque"},
+    {"label_type": "place_type", "label_key": "mosque", "lang": "ar", "label_text": "مسجد"},
+    {"label_type": "place_type", "label_key": "mosque", "lang": "hi", "label_text": "मस्जिद"},
+    {"label_type": "place_type", "label_key": "mosque", "lang": "te", "label_text": "మసీదు"},
+    {"label_type": "place_type", "label_key": "mosque", "lang": "ml", "label_text": "മസ്ജിദ്"},
+
+    {"label_type": "place_type", "label_key": "church", "lang": "en", "label_text": "Church"},
+    {"label_type": "place_type", "label_key": "church", "lang": "ar", "label_text": "كنيسة"},
+    {"label_type": "place_type", "label_key": "church", "lang": "hi", "label_text": "गिरजाघर"},
+    {"label_type": "place_type", "label_key": "church", "lang": "te", "label_text": "చర్చి"},
+    {"label_type": "place_type", "label_key": "church", "lang": "ml", "label_text": "പള്ളി"},
+
+    {"label_type": "place_type", "label_key": "temple", "lang": "en", "label_text": "Temple"},
+    {"label_type": "place_type", "label_key": "temple", "lang": "ar", "label_text": "معبد"},
+    {"label_type": "place_type", "label_key": "temple", "lang": "hi", "label_text": "मंदिर"},
+    {"label_type": "place_type", "label_key": "temple", "lang": "te", "label_text": "దేవాలయం"},
+    {"label_type": "place_type", "label_key": "temple", "lang": "ml", "label_text": "ക്ഷേത്രം"},
+
+    {"label_type": "place_type", "label_key": "synagogue", "lang": "en", "label_text": "Synagogue"},
+    {"label_type": "place_type", "label_key": "synagogue", "lang": "ar", "label_text": "كنيس"},
+    {"label_type": "place_type", "label_key": "synagogue", "lang": "hi", "label_text": "आराधनालय"},
+    {"label_type": "place_type", "label_key": "synagogue", "lang": "te", "label_text": "సమాజమందిరం"},
+    {"label_type": "place_type", "label_key": "synagogue", "lang": "ml", "label_text": "സിനഗോഗ്"},
+
+    {"label_type": "place_type", "label_key": "gurdwara", "lang": "en", "label_text": "Gurdwara"},
+    {"label_type": "place_type", "label_key": "gurdwara", "lang": "ar", "label_text": "غوردوارا"},
+    {"label_type": "place_type", "label_key": "gurdwara", "lang": "hi", "label_text": "गुरुद्वारा"},
+    {"label_type": "place_type", "label_key": "gurdwara", "lang": "te", "label_text": "గురుద్వారా"},
+    {"label_type": "place_type", "label_key": "gurdwara", "lang": "ml", "label_text": "ഗുരുദ്വാര"},
+
+    {"label_type": "place_type", "label_key": "monastery", "lang": "en", "label_text": "Monastery"},
+    {"label_type": "place_type", "label_key": "monastery", "lang": "ar", "label_text": "دير"},
+    {"label_type": "place_type", "label_key": "monastery", "lang": "hi", "label_text": "मठ"},
+    {"label_type": "place_type", "label_key": "monastery", "lang": "te", "label_text": "మఠం"},
+    {"label_type": "place_type", "label_key": "monastery", "lang": "ml", "label_text": "മഠം"},
+
+    {"label_type": "place_type", "label_key": "shrine", "lang": "en", "label_text": "Shrine"},
+    {"label_type": "place_type", "label_key": "shrine", "lang": "ar", "label_text": "ضريح"},
+    {"label_type": "place_type", "label_key": "shrine", "lang": "hi", "label_text": "मज़ार"},
+    {"label_type": "place_type", "label_key": "shrine", "lang": "te", "label_text": "మందిరం"},
+    {"label_type": "place_type", "label_key": "shrine", "lang": "ml", "label_text": "ദർഗ"},
+
+    {"label_type": "place_type", "label_key": "cathedral", "lang": "en", "label_text": "Cathedral"},
+    {"label_type": "place_type", "label_key": "cathedral", "lang": "ar", "label_text": "كاتدرائية"},
+    {"label_type": "place_type", "label_key": "cathedral", "lang": "hi", "label_text": "कैथेड्रल"},
+    {"label_type": "place_type", "label_key": "cathedral", "lang": "te", "label_text": "కేథడ్రల్"},
+    {"label_type": "place_type", "label_key": "cathedral", "lang": "ml", "label_text": "കത്തീഡ്രൽ"},
+
+    {"label_type": "place_type", "label_key": "chapel", "lang": "en", "label_text": "Chapel"},
+    {"label_type": "place_type", "label_key": "chapel", "lang": "ar", "label_text": "كنيسة صغيرة"},
+    {"label_type": "place_type", "label_key": "chapel", "lang": "hi", "label_text": "चैपल"},
+    {"label_type": "place_type", "label_key": "chapel", "lang": "te", "label_text": "చాపెల్"},
+    {"label_type": "place_type", "label_key": "chapel", "lang": "ml", "label_text": "ചാപ്പൽ"},
+
+    {"label_type": "place_type", "label_key": "prayer_room", "lang": "en", "label_text": "Prayer Room"},
+    {"label_type": "place_type", "label_key": "prayer_room", "lang": "ar", "label_text": "مصلى"},
+    {"label_type": "place_type", "label_key": "prayer_room", "lang": "hi", "label_text": "प्रार्थना कक्ष"},
+    {"label_type": "place_type", "label_key": "prayer_room", "lang": "te", "label_text": "ప్రార్థన గది"},
+    {"label_type": "place_type", "label_key": "prayer_room", "lang": "ml", "label_text": "പ്രാർത്ഥനാ മുറി"},
+
+    {"label_type": "place_type", "label_key": "fire_temple", "lang": "en", "label_text": "Fire Temple"},
+    {"label_type": "place_type", "label_key": "fire_temple", "lang": "ar", "label_text": "معبد النار"},
+    {"label_type": "place_type", "label_key": "fire_temple", "lang": "hi", "label_text": "अग्नि मंदिर"},
+    {"label_type": "place_type", "label_key": "fire_temple", "lang": "te", "label_text": "అగ్ని దేవాలయం"},
+    {"label_type": "place_type", "label_key": "fire_temple", "lang": "ml", "label_text": "അഗ്നി ക്ഷേത്രം"},
+
+    {"label_type": "place_type", "label_key": "bahaishouse", "lang": "en", "label_text": "Bahá'í House of Worship"},
+    {"label_type": "place_type", "label_key": "bahaishouse", "lang": "ar", "label_text": "مشرق الأذكار"},
+    {"label_type": "place_type", "label_key": "bahaishouse", "lang": "hi", "label_text": "बहाई उपासना मंदिर"},
+    {"label_type": "place_type", "label_key": "bahaishouse", "lang": "te", "label_text": "బహాయి ఆరాధనా మందిరం"},
+    {"label_type": "place_type", "label_key": "bahaishouse", "lang": "ml", "label_text": "ബഹായി ആരാധനാലയം"}
+  ],
+  "templates": [
+    {
+      "template_code": "seo_title",
+      "lang": "en",
+      "template_text": "{name} – {type_label} in {location}",
+      "fallback_text": "{name} – {religion_label} {type_label}",
+      "static_phrases": {}
+    },
+    {
+      "template_code": "seo_title",
+      "lang": "ar",
+      "template_text": "{name} – {type_label} في {location}",
+      "fallback_text": "{name} – {type_label} {religion_label}",
+      "static_phrases": {}
+    },
+    {
+      "template_code": "seo_title",
+      "lang": "hi",
+      "template_text": "{name} – {location} में {type_label}",
+      "fallback_text": "{name} – {religion_label} {type_label}",
+      "static_phrases": {}
+    },
+    {
+      "template_code": "seo_title",
+      "lang": "te",
+      "template_text": "{name} – {location}లో {type_label}",
+      "fallback_text": "{name} – {religion_label} {type_label}",
+      "static_phrases": {}
+    },
+    {
+      "template_code": "seo_title",
+      "lang": "ml",
+      "template_text": "{name} – {location}ലെ {type_label}",
+      "fallback_text": "{name} – {religion_label} {type_label}",
+      "static_phrases": {}
+    },
+
+    {
+      "template_code": "meta_description",
+      "lang": "en",
+      "template_text": "{rating_sentence}{description_snippet}",
+      "fallback_text": "Explore {name}, a {religion_label} {type_label_lower} on SoulStep – discover sacred sites worldwide.",
+      "static_phrases": {
+        "rated_prefix": "Rated",
+        "by_visitors": "by",
+        "visitors": "visitors"
+      }
+    },
+    {
+      "template_code": "meta_description",
+      "lang": "ar",
+      "template_text": "{rating_sentence}{description_snippet}",
+      "fallback_text": "استكشف {name}، {type_label} {religion_label} على SoulStep – اكتشف المواقع المقدسة حول العالم.",
+      "static_phrases": {
+        "rated_prefix": "تقييم",
+        "by_visitors": "من قبل",
+        "visitors": "زائر"
+      }
+    },
+    {
+      "template_code": "meta_description",
+      "lang": "hi",
+      "template_text": "{rating_sentence}{description_snippet}",
+      "fallback_text": "{name} का अन्वेषण करें, SoulStep पर एक {religion_label} {type_label_lower} – दुनिया भर में पवित्र स्थलों की खोज करें।",
+      "static_phrases": {
+        "rated_prefix": "रेटिंग",
+        "by_visitors": "द्वारा",
+        "visitors": "आगंतुकों"
+      }
+    },
+    {
+      "template_code": "meta_description",
+      "lang": "te",
+      "template_text": "{rating_sentence}{description_snippet}",
+      "fallback_text": "{name}ను అన్వేషించండి, SoulStepలో ఒక {religion_label} {type_label_lower} – ప్రపంచవ్యాప్తంగా పవిత్ర ప్రదేశాలను కనుగొనండి.",
+      "static_phrases": {
+        "rated_prefix": "రేటింగ్",
+        "by_visitors": "ద్వారా",
+        "visitors": "సందర్శకుల"
+      }
+    },
+    {
+      "template_code": "meta_description",
+      "lang": "ml",
+      "template_text": "{rating_sentence}{description_snippet}",
+      "fallback_text": "SoulStep-ൽ ഒരു {religion_label} {type_label_lower} ആയ {name} പര്യവേക്ഷണം ചെയ്യൂ – ലോകമെമ്പാടുമുള്ള പുണ്യസ്ഥലങ്ങൾ കണ്ടെത്തൂ.",
+      "static_phrases": {
+        "rated_prefix": "റേറ്റിംഗ്",
+        "by_visitors": "ആൽ",
+        "visitors": "സന്ദർശകർ"
+      }
+    },
+
+    {
+      "template_code": "rich_description",
+      "lang": "en",
+      "template_text": "{name} is a {religion_label} {type_label_lower} {location_sentence}. {description} {rating_sentence} {website_sentence}",
+      "fallback_text": "{name} is a {religion_label} {type_label_lower}. {description}",
+      "static_phrases": {
+        "located_at": "located at",
+        "rating_prefix": "It has received an average rating of",
+        "out_of": "out of 5 based on",
+        "visitor_review": "visitor review",
+        "visitor_reviews": "visitor reviews",
+        "official_website": "Official website:"
+      }
+    },
+    {
+      "template_code": "rich_description",
+      "lang": "ar",
+      "template_text": "{name} هو {type_label} {religion_label} {location_sentence}. {description} {rating_sentence} {website_sentence}",
+      "fallback_text": "{name} هو {type_label} {religion_label}. {description}",
+      "static_phrases": {
+        "located_at": "يقع في",
+        "rating_prefix": "حصل على تقييم متوسط",
+        "out_of": "من 5 بناءً على",
+        "visitor_review": "مراجعة زائر",
+        "visitor_reviews": "مراجعات الزوار",
+        "official_website": "الموقع الرسمي:"
+      }
+    },
+    {
+      "template_code": "rich_description",
+      "lang": "hi",
+      "template_text": "{name} एक {religion_label} {type_label_lower} है {location_sentence}। {description} {rating_sentence} {website_sentence}",
+      "fallback_text": "{name} एक {religion_label} {type_label_lower} है। {description}",
+      "static_phrases": {
+        "located_at": "स्थित है",
+        "rating_prefix": "इसे औसत रेटिंग मिली है",
+        "out_of": "5 में से, आधार",
+        "visitor_review": "आगंतुक समीक्षा",
+        "visitor_reviews": "आगंतुक समीक्षाएँ",
+        "official_website": "आधिकारिक वेबसाइट:"
+      }
+    },
+    {
+      "template_code": "rich_description",
+      "lang": "te",
+      "template_text": "{name} ఒక {religion_label} {type_label_lower} {location_sentence}. {description} {rating_sentence} {website_sentence}",
+      "fallback_text": "{name} ఒక {religion_label} {type_label_lower}. {description}",
+      "static_phrases": {
+        "located_at": "ఇక్కడ ఉంది",
+        "rating_prefix": "సగటు రేటింగ్ పొందింది",
+        "out_of": "5లో, ఆధారంగా",
+        "visitor_review": "సందర్శకుల సమీక్ష",
+        "visitor_reviews": "సందర్శకుల సమీక్షలు",
+        "official_website": "అధికారిక వెబ్‌సైట్:"
+      }
+    },
+    {
+      "template_code": "rich_description",
+      "lang": "ml",
+      "template_text": "{name} ഒരു {religion_label} {type_label_lower} ആണ് {location_sentence}. {description} {rating_sentence} {website_sentence}",
+      "fallback_text": "{name} ഒരു {religion_label} {type_label_lower} ആണ്. {description}",
+      "static_phrases": {
+        "located_at": "സ്ഥിതി ചെയ്യുന്നു",
+        "rating_prefix": "ശരാശരി റേറ്റിംഗ് ലഭിച്ചു",
+        "out_of": "5-ൽ, അടിസ്ഥാനമാക്കി",
+        "visitor_review": "സന്ദർശക അവലോകനം",
+        "visitor_reviews": "സന്ദർശക അവലോകനങ്ങൾ",
+        "official_website": "ഔദ്യോഗിക വെബ്സൈറ്റ്:"
+      }
+    },
+
+    {
+      "template_code": "faq_what_is",
+      "lang": "en",
+      "template_text": "What is {name}?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "{name} is a {religion_label} {type_label_lower}{location_clause}.{description_clause}"
+      }
+    },
+    {
+      "template_code": "faq_what_is",
+      "lang": "ar",
+      "template_text": "ما هو {name}؟",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "{name} هو {type_label} {religion_label}{location_clause}.{description_clause}"
+      }
+    },
+    {
+      "template_code": "faq_what_is",
+      "lang": "hi",
+      "template_text": "{name} क्या है?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "{name} एक {religion_label} {type_label_lower} है{location_clause}।{description_clause}"
+      }
+    },
+    {
+      "template_code": "faq_what_is",
+      "lang": "te",
+      "template_text": "{name} ఏమిటి?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "{name} ఒక {religion_label} {type_label_lower}{location_clause}.{description_clause}"
+      }
+    },
+    {
+      "template_code": "faq_what_is",
+      "lang": "ml",
+      "template_text": "{name} എന്താണ്?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "{name} ഒരു {religion_label} {type_label_lower} ആണ്{location_clause}.{description_clause}"
+      }
+    },
+
+    {
+      "template_code": "faq_opening_hours",
+      "lang": "en",
+      "template_text": "What are the opening hours of {name}?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_prefix": "The opening hours are:"
+      }
+    },
+    {
+      "template_code": "faq_opening_hours",
+      "lang": "ar",
+      "template_text": "ما هي ساعات العمل في {name}؟",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_prefix": "ساعات العمل هي:"
+      }
+    },
+    {
+      "template_code": "faq_opening_hours",
+      "lang": "hi",
+      "template_text": "{name} के खुलने का समय क्या है?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_prefix": "खुलने का समय:"
+      }
+    },
+    {
+      "template_code": "faq_opening_hours",
+      "lang": "te",
+      "template_text": "{name} పని గంటలు ఏమిటి?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_prefix": "పని గంటలు:"
+      }
+    },
+    {
+      "template_code": "faq_opening_hours",
+      "lang": "ml",
+      "template_text": "{name}ന്റെ പ്രവർത്തന സമയം എന്താണ്?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_prefix": "പ്രവർത്തന സമയം:"
+      }
+    },
+
+    {
+      "template_code": "faq_parking",
+      "lang": "en",
+      "template_text": "Is there parking available at {name}?",
+      "fallback_text": null,
+      "static_phrases": {
+        "yes": "Yes, parking is available at {name}.",
+        "no": "No dedicated parking is listed for {name}."
+      }
+    },
+    {
+      "template_code": "faq_parking",
+      "lang": "ar",
+      "template_text": "هل يتوفر موقف سيارات في {name}؟",
+      "fallback_text": null,
+      "static_phrases": {
+        "yes": "نعم، يتوفر موقف سيارات في {name}.",
+        "no": "لا يوجد موقف سيارات مخصص مدرج لـ {name}."
+      }
+    },
+    {
+      "template_code": "faq_parking",
+      "lang": "hi",
+      "template_text": "क्या {name} में पार्किंग उपलब्ध है?",
+      "fallback_text": null,
+      "static_phrases": {
+        "yes": "हां, {name} में पार्किंग उपलब्ध है।",
+        "no": "{name} के लिए कोई समर्पित पार्किंग सूचीबद्ध नहीं है।"
+      }
+    },
+    {
+      "template_code": "faq_parking",
+      "lang": "te",
+      "template_text": "{name}లో పార్కింగ్ అందుబాటులో ఉందా?",
+      "fallback_text": null,
+      "static_phrases": {
+        "yes": "అవును, {name}లో పార్కింగ్ అందుబాటులో ఉంది.",
+        "no": "{name} కోసం ప్రత్యేక పార్కింగ్ జాబితా చేయబడలేదు."
+      }
+    },
+    {
+      "template_code": "faq_parking",
+      "lang": "ml",
+      "template_text": "{name}ൽ പാർക്കിംഗ് ലഭ്യമാണോ?",
+      "fallback_text": null,
+      "static_phrases": {
+        "yes": "അതെ, {name}ൽ പാർക്കിംഗ് ലഭ്യമാണ്.",
+        "no": "{name}ന് പ്രത്യേക പാർക്കിംഗ് ലിസ്റ്റ് ചെയ്തിട്ടില്ല."
+      }
+    },
+
+    {
+      "template_code": "faq_womens_area",
+      "lang": "en",
+      "template_text": "Is there a women's prayer area at {name}?",
+      "fallback_text": null,
+      "static_phrases": {
+        "yes": "Yes, {name} has a dedicated women's prayer area.",
+        "no": "No women's area information is currently listed for {name}."
+      }
+    },
+    {
+      "template_code": "faq_womens_area",
+      "lang": "ar",
+      "template_text": "هل يوجد مصلى للنساء في {name}؟",
+      "fallback_text": null,
+      "static_phrases": {
+        "yes": "نعم، يحتوي {name} على مصلى مخصص للنساء.",
+        "no": "لا تتوفر حالياً معلومات عن مصلى النساء في {name}."
+      }
+    },
+    {
+      "template_code": "faq_womens_area",
+      "lang": "hi",
+      "template_text": "क्या {name} में महिलाओं के लिए नमाज़ क्षेत्र है?",
+      "fallback_text": null,
+      "static_phrases": {
+        "yes": "हां, {name} में महिलाओं के लिए एक समर्पित नमाज़ क्षेत्र है।",
+        "no": "{name} के लिए वर्तमान में महिला क्षेत्र की जानकारी सूचीबद्ध नहीं है।"
+      }
+    },
+    {
+      "template_code": "faq_womens_area",
+      "lang": "te",
+      "template_text": "{name}లో మహిళల ప్రార్థనా ప్రాంతం ఉందా?",
+      "fallback_text": null,
+      "static_phrases": {
+        "yes": "అవును, {name}లో మహిళలకు ప్రత్యేక ప్రార్థనా ప్రాంతం ఉంది.",
+        "no": "{name} కోసం ప్రస్తుతం మహిళల ప్రాంత సమాచారం జాబితా చేయబడలేదు."
+      }
+    },
+    {
+      "template_code": "faq_womens_area",
+      "lang": "ml",
+      "template_text": "{name}ൽ സ്ത്രീകളുടെ പ്രാർത്ഥനാ സ്ഥലം ഉണ്ടോ?",
+      "fallback_text": null,
+      "static_phrases": {
+        "yes": "അതെ, {name}ൽ സ്ത്രീകൾക്ക് പ്രത്യേക പ്രാർത്ഥനാ സ്ഥലമുണ്ട്.",
+        "no": "{name}ന് സ്ത്രീകളുടെ പ്രദേശ വിവരങ്ങൾ നിലവിൽ ലിസ്റ്റ് ചെയ്തിട്ടില്ല."
+      }
+    },
+
+    {
+      "template_code": "faq_rating",
+      "lang": "en",
+      "template_text": "How is {name} rated?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "{name} has an average rating of {avg} out of 5 based on {count} visitor {review_word} on SoulStep."
+      }
+    },
+    {
+      "template_code": "faq_rating",
+      "lang": "ar",
+      "template_text": "كيف يتم تقييم {name}؟",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "حصل {name} على تقييم متوسط {avg} من 5 بناءً على {count} مراجعة على SoulStep."
+      }
+    },
+    {
+      "template_code": "faq_rating",
+      "lang": "hi",
+      "template_text": "{name} की रेटिंग कैसी है?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "{name} को SoulStep पर {count} आगंतुक समीक्षाओं के आधार पर 5 में से {avg} की औसत रेटिंग मिली है।"
+      }
+    },
+    {
+      "template_code": "faq_rating",
+      "lang": "te",
+      "template_text": "{name} రేటింగ్ ఎలా ఉంది?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "SoulStepలో {count} సందర్శకుల సమీక్షల ఆధారంగా {name}కు 5లో {avg} సగటు రేటింగ్ ఉంది."
+      }
+    },
+    {
+      "template_code": "faq_rating",
+      "lang": "ml",
+      "template_text": "{name}ന്റെ റേറ്റിംഗ് എങ്ങനെയാണ്?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "SoulStep-ൽ {count} സന്ദർശക അവലോകനങ്ങളെ അടിസ്ഥാനമാക്കി {name}ന് 5-ൽ {avg} ശരാശരി റേറ്റിംഗ് ഉണ്ട്."
+      }
+    },
+
+    {
+      "template_code": "faq_location",
+      "lang": "en",
+      "template_text": "Where is {name} located?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "{name} is located at {address}."
+      }
+    },
+    {
+      "template_code": "faq_location",
+      "lang": "ar",
+      "template_text": "أين يقع {name}؟",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "يقع {name} في {address}."
+      }
+    },
+    {
+      "template_code": "faq_location",
+      "lang": "hi",
+      "template_text": "{name} कहाँ स्थित है?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "{name} {address} में स्थित है।"
+      }
+    },
+    {
+      "template_code": "faq_location",
+      "lang": "te",
+      "template_text": "{name} ఎక్కడ ఉంది?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "{name} {address}లో ఉంది."
+      }
+    },
+    {
+      "template_code": "faq_location",
+      "lang": "ml",
+      "template_text": "{name} എവിടെയാണ് സ്ഥിതി ചെയ്യുന്നത്?",
+      "fallback_text": null,
+      "static_phrases": {
+        "answer_template": "{name} {address}ൽ സ്ഥിതി ചെയ്യുന്നു."
+      }
+    },
+
+    {
+      "template_code": "image_alt_primary",
+      "lang": "en",
+      "template_text": "{name} – {religion_label} {type_label} in {city}",
+      "fallback_text": "{name} – {religion_label} {type_label}",
+      "static_phrases": {}
+    },
+    {
+      "template_code": "image_alt_primary",
+      "lang": "ar",
+      "template_text": "{name} – {type_label} {religion_label} في {city}",
+      "fallback_text": "{name} – {type_label} {religion_label}",
+      "static_phrases": {}
+    },
+    {
+      "template_code": "image_alt_primary",
+      "lang": "hi",
+      "template_text": "{name} – {city} में {religion_label} {type_label}",
+      "fallback_text": "{name} – {religion_label} {type_label}",
+      "static_phrases": {}
+    },
+    {
+      "template_code": "image_alt_primary",
+      "lang": "te",
+      "template_text": "{name} – {city}లో {religion_label} {type_label}",
+      "fallback_text": "{name} – {religion_label} {type_label}",
+      "static_phrases": {}
+    },
+    {
+      "template_code": "image_alt_primary",
+      "lang": "ml",
+      "template_text": "{name} – {city}ലെ {religion_label} {type_label}",
+      "fallback_text": "{name} – {religion_label} {type_label}",
+      "static_phrases": {}
+    },
+
+    {
+      "template_code": "image_alt_secondary",
+      "lang": "en",
+      "template_text": "{name} – interior view {index}",
+      "fallback_text": null,
+      "static_phrases": {}
+    },
+    {
+      "template_code": "image_alt_secondary",
+      "lang": "ar",
+      "template_text": "{name} – منظر داخلي {index}",
+      "fallback_text": null,
+      "static_phrases": {}
+    },
+    {
+      "template_code": "image_alt_secondary",
+      "lang": "hi",
+      "template_text": "{name} – आंतरिक दृश्य {index}",
+      "fallback_text": null,
+      "static_phrases": {}
+    },
+    {
+      "template_code": "image_alt_secondary",
+      "lang": "te",
+      "template_text": "{name} – అంతర్గత దృశ్యం {index}",
+      "fallback_text": null,
+      "static_phrases": {}
+    },
+    {
+      "template_code": "image_alt_secondary",
+      "lang": "ml",
+      "template_text": "{name} – ആന്തരിക കാഴ്ച {index}",
+      "fallback_text": null,
+      "static_phrases": {}
+    }
+  ]
+}

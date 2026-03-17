@@ -532,11 +532,60 @@ class AICrawlerLog(SQLModel, table=True):
     )
 
 
+class SEOLabel(SQLModel, table=True):
+    """Translated labels for religions and place types, used by SEO generation.
+
+    Keyed by (label_type, label_key, lang); ~100 rows total.
+    """
+
+    __tablename__ = "seo_label"
+    __table_args__ = (UniqueConstraint("label_type", "label_key", "lang"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    label_type: str = Field(index=True)  # "religion" | "place_type"
+    label_key: str = Field(index=True)  # "islam", "mosque", etc.
+    lang: str = Field(index=True)  # "en", "ar", "hi", "te", "ml"
+    label_text: str  # "Islamic", "إسلامي", etc.
+
+
+class SEOContentTemplate(SQLModel, table=True):
+    """Template patterns for SEO content generation per (template_code, lang).
+
+    Template codes: seo_title, meta_description, rich_description,
+    faq_what_is, faq_opening_hours, faq_parking, faq_womens_area,
+    faq_rating, faq_location, image_alt_primary, image_alt_secondary.
+    """
+
+    __tablename__ = "seo_content_template"
+    __table_args__ = (UniqueConstraint("template_code", "lang"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    template_code: str = Field(index=True)
+    lang: str = Field(index=True)  # "en", "ar", "hi", "te", "ml"
+    template_text: str  # Python format string
+    fallback_text: str | None = None  # Used when optional vars are missing
+    static_phrases: dict[str, str] = Field(default={}, sa_column=Column(JSON))
+    version: int = Field(default=1)
+    is_active: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, nullable=False, server_default="1"),
+    )
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+
+
 class PlaceSEO(SQLModel, table=True):
     """SEO metadata for a sacred-site place page.
 
-    English is the canonical language. Translations for other languages are
-    stored via ContentTranslation with entity_type="place_seo".
+    English is the canonical language. Non-English SEO is stored in
+    PlaceSEOTranslation. template_version tracks which template version
+    was used to generate this content.
     is_manually_edited=True prevents auto-overwrite on re-generation.
     """
 
@@ -552,6 +601,39 @@ class PlaceSEO(SQLModel, table=True):
         default=None, sa_column=Column(JSON)
     )  # [{"question": "...", "answer": "..."}, ...]
     og_image_url: str | None = None  # 1200x630 OG image URL
+    template_version: int | None = Field(default=0)
+    is_manually_edited: bool = Field(
+        default=False,
+        sa_column=Column(Boolean, nullable=False, server_default="0"),
+    )
+    generated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        sa_column=_TSTZ(nullable=False),
+    )
+
+
+class PlaceSEOTranslation(SQLModel, table=True):
+    """Per-language SEO content for non-English languages.
+
+    Replaces the ContentTranslation(entity_type='place_seo') approach with
+    structured per-language SEO fields including FAQs and template tracking.
+    """
+
+    __tablename__ = "place_seo_translation"
+    __table_args__ = (UniqueConstraint("place_code", "lang"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    place_code: str = Field(index=True, foreign_key="place.place_code")
+    lang: str = Field(index=True)  # "ar", "hi", "te", "ml" (never "en")
+    seo_title: str
+    meta_description: str
+    rich_description: str | None = None
+    faq_json: list[dict[str, Any]] | None = Field(default=None, sa_column=Column(JSON))
+    template_version: int = Field(default=0)
     is_manually_edited: bool = Field(
         default=False,
         sa_column=Column(Boolean, nullable=False, server_default="0"),
