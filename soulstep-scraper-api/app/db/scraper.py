@@ -59,6 +59,16 @@ async def run_scraper_task(run_code: str):
 
             await run_enrichment_pipeline(run_code)
 
+            # Auto-sync: push to catalog immediately after enrichment if enabled
+            from app.config import settings as _settings
+
+            session.refresh(run)
+            if _settings.auto_sync_after_run and run.status != "cancelled":
+                logger.info(
+                    "Auto-sync enabled — syncing run %s to %s", run_code, _settings.main_server_url
+                )
+                await sync_run_to_server_async(run_code, _settings.main_server_url)
+
             # Final check to ensure we don't overwrite "cancelled" with "completed"
             session.refresh(run)
             if run.status != "cancelled":
@@ -218,6 +228,16 @@ async def resume_scraper_task(run_code: str):
                 from app.pipeline.enrichment import run_enrichment_pipeline
 
                 await run_enrichment_pipeline(run_code)
+
+            # Auto-sync: push to catalog immediately after enrichment if enabled
+            from app.config import settings as _settings
+
+            session.refresh(run)
+            if _settings.auto_sync_after_run and run.status != "cancelled":
+                logger.info(
+                    "Auto-sync enabled — syncing run %s to %s", run_code, _settings.main_server_url
+                )
+                await sync_run_to_server_async(run_code, _settings.main_server_url)
 
             session.refresh(run)
             if run.status != "cancelled":

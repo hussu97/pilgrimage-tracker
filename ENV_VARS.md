@@ -162,6 +162,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `MAPS_BROWSER_CONCURRENCY` | `3` | **Browser mode only.** Max concurrent grid-cell navigations across all browser contexts. Keep at 1 (sequential) to avoid bot detection; raise to 2–3 only with rotating proxies. |
 | `MAPS_BROWSER_CELL_DELAY_MIN` | `5.0` | **Browser mode only.** Minimum random delay (seconds) between consecutive cell navigations. Mimics human think-time. |
 | `MAPS_BROWSER_CELL_DELAY_MAX` | `12.0` | **Browser mode only.** Maximum random delay (seconds) between consecutive cell navigations. Delay is sampled uniformly from `[CELL_DELAY_MIN, CELL_DELAY_MAX]`. |
+| `SCRAPER_AUTO_SYNC_AFTER_RUN` | `false` | Automatically sync scraped places to the catalog API immediately after enrichment completes — no manual POST `/runs/{code}/sync` step needed. Requires `MAIN_SERVER_URL` and `CATALOG_API_KEY`. |
 | `SCRAPER_TRIGGER_SEO_AFTER_SYNC` | `false` | Automatically call the catalog API's SEO-generation endpoint after each sync completes. Requires `CATALOG_API_KEY`. |
 
 ---

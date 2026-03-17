@@ -125,6 +125,12 @@ class Settings:
     cloud_run_region: str = os.environ.get("CLOUD_RUN_REGION", "us-central1")
 
     # ── Post-sync automation ──────────────────────────────────────────────────
+    # If true, automatically sync to the catalog API immediately after enrichment
+    # completes (no manual POST /runs/{code}/sync step needed). Requires MAIN_SERVER_URL
+    # and CATALOG_API_KEY to be set.
+    auto_sync_after_run: bool = (
+        os.environ.get("SCRAPER_AUTO_SYNC_AFTER_RUN", "false").lower() == "true"
+    )
     # If true, automatically call the catalog API's SEO generation endpoint after
     # sync completes. Requires CATALOG_API_KEY to be set.
     trigger_seo_after_sync: bool = (
@@ -188,6 +194,7 @@ class Settings:
             "MAPS_BROWSER_CELL_DELAY_MIN": str(self.maps_browser_cell_delay_min),
             "MAPS_BROWSER_CELL_DELAY_MAX": str(self.maps_browser_cell_delay_max),
             # ── Post-sync ─────────────────────────────────────────────────────
+            "SCRAPER_AUTO_SYNC_AFTER_RUN": str(self.auto_sync_after_run).lower(),
             "SCRAPER_TRIGGER_SEO_AFTER_SYNC": str(self.trigger_seo_after_sync).lower(),
         }
         # Drop empty strings — avoids overriding secrets already mounted on the job.
