@@ -22,10 +22,11 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
-## [2026-03-17] — Fix Chromium TargetClosedError in Cloud Run Job
+## [2026-03-17] — Fix Chromium TargetClosedError & EU Consent Redirect in Cloud Run
 
 ### Backend
 - **Fix**: Removed `--single-process` Chromium flag that caused `TargetClosedError` when creating a 2nd browser context in Cloud Run containers
+- **Fix**: EU GDPR consent redirect (`consent.google.com`) now handled — browser contexts pre-set `SOCS`/`CONSENT` cookies to bypass, with click-through fallback
 - **Optimization**: Added memory-saving Chromium flags (`--disable-background-networking`, `--disable-sync`, `--mute-audio`, etc.) and `--disable-features=site-per-process` on Linux
 - **Default change**: `MAPS_BROWSER_POOL_SIZE` reduced from 15 → 5 to fit safely in 4-8 GB Cloud Run Jobs
 - **Resilience**: Added 1s stabilisation delay after browser reinit before retry

@@ -177,8 +177,53 @@ async def _check_for_block(page) -> bool:
 
 
 async def _dismiss_consent(page) -> None:
-    """Dismiss cookie consent banners if present (first visit only)."""
+    """Dismiss cookie consent — handles both full-page redirect and in-page banners.
+
+    Google serves a full-page redirect to consent.google.com for EU data-centres
+    (e.g. europe-west1). The browser_pool sets SOCS/CONSENT cookies to prevent
+    this, but if the redirect still happens this function clicks through it.
+    """
     try:
+        current_url = page.url
+        # Full-page redirect to consent.google.com (EU GDPR wall)
+        if "consent.google.com" in current_url:
+            logger.info("Consent redirect detected: %s — clicking through", current_url)
+            # The consent page has "Accept all" / "Reject all" buttons.
+            # Try multiple selectors — Google changes markup frequently.
+            for selector in [
+                "button[aria-label*='Accept all']",
+                "button[aria-label*='Reject all']",
+                # Mobile consent page uses form submissions
+                "form[action*='consent'] button",
+                "form:has(input[name='set_eom']) button",
+                # Generic: second form's submit button (Accept) on consent.google.com/m
+                "form:nth-of-type(2) button[type='submit']",
+                "form:nth-of-type(2) button",
+                # Last resort — any visible button on the page
+                "button",
+            ]:
+                btn = await page.query_selector(selector)
+                if btn and await btn.is_visible():
+                    await btn.click()
+                    # Wait for navigation back to Maps
+                    try:
+                        await page.wait_for_url("**/google.com/maps/**", timeout=10000)
+                    except Exception:
+                        pass
+                    logger.info("Consent dismissed — now on: %s", page.url)
+                    await asyncio.sleep(random.uniform(0.5, 1.5))
+                    return
+
+            # If no button found, try submitting the first form directly
+            logger.warning("No consent button found — attempting form submit")
+            try:
+                await page.evaluate("document.querySelector('form')?.submit()")
+                await page.wait_for_url("**/google.com/maps/**", timeout=10000)
+            except Exception:
+                pass
+            return
+
+        # In-page consent banner (overlay on Maps itself)
         for selector in [
             "button[aria-label*='Accept all']",
             "button[aria-label*='Reject all']",
@@ -476,7 +521,9 @@ async def search_area_browser(
 
                 await asyncio.sleep(random.uniform(2, 4))
 
-                if not _consent_dismissed:
+                # Always dismiss if redirected to consent.google.com (EU GDPR);
+                # otherwise only check on the first navigation per search pass.
+                if "consent.google.com" in page.url or not _consent_dismissed:
                     await _dismiss_consent(page)
                     _consent_dismissed = True
                     await asyncio.sleep(random.uniform(0.5, 1.5))

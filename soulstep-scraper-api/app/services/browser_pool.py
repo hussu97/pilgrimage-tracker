@@ -246,6 +246,26 @@ class MapsBrowserPool:
 
         context = await self._browser.new_context(**context_kwargs)
 
+        # Pre-set Google consent cookies so EU data-centres (europe-west1 etc.)
+        # don't get redirected to consent.google.com before Maps loads.
+        # SOCS is Google's current cookie-consent tracking mechanism.
+        await context.add_cookies(
+            [
+                {
+                    "name": "SOCS",
+                    "value": "CAISHAgBEhJnd3NfMjAyMzA4MTAtMF9SQzIaAmVuIAEaBgiA_LyaBg",
+                    "domain": ".google.com",
+                    "path": "/",
+                },
+                {
+                    "name": "CONSENT",
+                    "value": "PENDING+987",
+                    "domain": ".google.com",
+                    "path": "/",
+                },
+            ]
+        )
+
         # Block resource types not needed for scraping (speed up page loads and
         # cut memory usage).  We only need the DOM for link extraction — map tiles,
         # images, fonts, stylesheets, and media are all unnecessary.

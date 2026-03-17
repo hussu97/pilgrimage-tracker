@@ -323,6 +323,12 @@ class BrowserGmapsCollector(BaseCollector):
             await page.goto(nav_url, wait_until="networkidle", timeout=30000)
             await asyncio.sleep(random.uniform(2, 4))
 
+            # Dismiss EU consent redirect if it occurred despite cookies
+            from app.scrapers.gmaps_browser import _dismiss_consent
+
+            if "consent.google.com" in page.url:
+                await _dismiss_consent(page)
+
             # Check for blocks
             from app.scrapers.gmaps_browser import _check_for_block
 
