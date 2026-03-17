@@ -234,6 +234,33 @@ class MapsBrowserPool:
         await apply_stealth(page)
         return _MapsSession(context=context, page=page)
 
+    @staticmethod
+    def _is_target_closed_error(exc: Exception) -> bool:
+        """Check if an exception indicates a dead browser/context/page."""
+        msg = str(exc).lower()
+        return "target" in msg and "closed" in msg
+
+    async def _force_reinit(self) -> None:
+        """Tear down browser and mark uninitialised. Must hold self._lock."""
+        logger.warning(
+            "MapsBrowserPool: forcing reinitialisation (had %d sessions)",
+            len(self._sessions),
+        )
+        self._sessions.clear()
+        if self._browser:
+            try:
+                await asyncio.wait_for(self._browser.close(), timeout=5)
+            except Exception:
+                pass
+        if self._playwright:
+            try:
+                await asyncio.wait_for(self._playwright.stop(), timeout=5)
+            except Exception:
+                pass
+        self._playwright = None
+        self._browser = None
+        self._initialized = False
+
     async def acquire(
         self,
         lat: float | None = None,
@@ -263,13 +290,30 @@ class MapsBrowserPool:
             _retries,
         )
 
+        _need_reinit_retry = False
         try:
             t_lock = time.monotonic()
             async with self._lock:
                 logger.debug("MapsBrowserPool: lock acquired in %.1fs", time.monotonic() - t_lock)
                 await self._init()
-                for session in self._sessions:
+
+                # Try to reuse an existing session, evicting dead ones.
+                for session in list(self._sessions):
                     if not session.in_use and session.nav_count < self._max_pages:
+                        try:
+                            if session.page.is_closed():
+                                raise RuntimeError("page is closed")
+                        except Exception:
+                            logger.warning(
+                                "MapsBrowserPool: evicting dead session (nav_count=%d)",
+                                session.nav_count,
+                            )
+                            try:
+                                await asyncio.wait_for(session.context.close(), timeout=5)
+                            except Exception:
+                                pass
+                            self._sessions.remove(session)
+                            continue
                         session.in_use = True
                         logger.debug(
                             "MapsBrowserPool: reusing session (nav_count=%d/%d)",
@@ -277,23 +321,46 @@ class MapsBrowserPool:
                             self._max_pages,
                         )
                         return session
+
                 if len(self._sessions) < self._pool_size:
                     logger.debug("MapsBrowserPool: creating new session...")
-                    session = await asyncio.wait_for(
-                        self._create_session(lat, lng),
-                        timeout=30,
-                    )
-                    session.in_use = True
-                    self._sessions.append(session)
-                    logger.info(
-                        "MapsBrowserPool: created session (total=%d/%d)",
-                        len(self._sessions),
-                        self._pool_size,
-                    )
-                    return session
+                    try:
+                        session = await asyncio.wait_for(
+                            self._create_session(lat, lng),
+                            timeout=30,
+                        )
+                    except Exception as e:
+                        if self._is_target_closed_error(e):
+                            # Browser process died but is_connected() hadn't
+                            # caught up yet.  Force full reinit inside the lock,
+                            # then retry *after* the lock is released to avoid
+                            # deadlocking on the non-reentrant asyncio.Lock.
+                            logger.warning(
+                                "MapsBrowserPool: new_context TargetClosedError — "
+                                "forcing reinit (retry=%d)",
+                                _retries,
+                            )
+                            await self._force_reinit()
+                            _need_reinit_retry = True
+                        else:
+                            raise
+                    else:
+                        session.in_use = True
+                        self._sessions.append(session)
+                        logger.info(
+                            "MapsBrowserPool: created session (total=%d/%d)",
+                            len(self._sessions),
+                            self._pool_size,
+                        )
+                        return session
         except Exception:
             self._sem.release()  # prevent semaphore leak → deadlock
             raise
+
+        # Retry outside the lock so the recursive acquire() can re-acquire it.
+        if _need_reinit_retry:
+            self._sem.release()
+            return await self.acquire(lat, lng, _retries=_retries + 1)
 
         # Pool full — release and retry
         self._sem.release()

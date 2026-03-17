@@ -1111,3 +1111,91 @@ class TestScrollTimeout:
         with patch("app.scrapers.gmaps_browser.BROWSER_SCROLL_TIMEOUT_S", 0.1):
             # Should not hang — timeout fires and function returns
             await _scroll_until_stable(page, max_attempts=100, stable_threshold=3)
+
+
+# ── TargetClosedError recovery ─────────────────────────────────────────────
+
+
+class TestTargetClosedRecovery:
+    @pytest.mark.asyncio
+    async def test_acquire_reinits_on_target_closed_new_context(self):
+        """acquire() force-reinits browser when new_context raises TargetClosedError."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        from app.services.browser_pool import MapsBrowserPool, _MapsSession
+
+        pool = MapsBrowserPool()
+        pool._pool_size = 2
+        pool._headless = True
+        pool._sem = asyncio.Semaphore(2)
+        pool._initialized = True
+        pool._browser = MagicMock(close=AsyncMock(), is_connected=MagicMock(return_value=True))
+        pool._playwright = MagicMock(stop=AsyncMock())
+
+        # _create_session: first call raises TargetClosedError, second succeeds
+        mock_page = MagicMock()
+        mock_page.is_closed = MagicMock(return_value=False)
+        ok_session = _MapsSession(context=MagicMock(), page=mock_page)
+
+        mock_create = AsyncMock(
+            side_effect=[
+                Exception("Target page, context or browser has been closed"),
+                ok_session,
+            ]
+        )
+
+        # _init: no-op (we manage _initialized ourselves)
+        async def fake_init():
+            pool._initialized = True
+
+        with (
+            patch.object(pool, "_init", side_effect=fake_init),
+            patch.object(pool, "_create_session", mock_create),
+        ):
+            session = await pool.acquire()
+
+        assert session is not None
+        assert session.in_use is True
+        assert mock_create.call_count == 2
+        # force_reinit was triggered (browser/playwright cleared)
+        assert pool._sem._value == 1
+
+    @pytest.mark.asyncio
+    async def test_acquire_evicts_dead_session(self):
+        """acquire() evicts sessions whose page.is_closed() returns True."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from app.services.browser_pool import MapsBrowserPool, _MapsSession
+
+        pool = MapsBrowserPool()
+        pool._pool_size = 2
+        pool._headless = True
+        pool._sem = asyncio.Semaphore(2)
+        pool._initialized = True
+
+        # Create a dead session
+        dead_page = MagicMock()
+        dead_page.is_closed = MagicMock(return_value=True)
+        dead_context = AsyncMock()
+        dead_context.close = AsyncMock()
+        dead_session = _MapsSession(context=dead_context, page=dead_page, nav_count=1, in_use=False)
+        pool._sessions = [dead_session]
+
+        # Browser is alive, can create new sessions
+        mock_context = AsyncMock()
+        mock_page = AsyncMock()
+        mock_page.is_closed = MagicMock(return_value=False)
+        mock_context.new_page = AsyncMock(return_value=mock_page)
+        mock_context.route = AsyncMock()
+
+        mock_browser = MagicMock()
+        mock_browser.new_context = AsyncMock(return_value=mock_context)
+        mock_browser.is_connected = MagicMock(return_value=True)
+        pool._browser = mock_browser
+
+        with patch("app.services.browser_pool.apply_stealth", new=AsyncMock()):
+            session = await pool.acquire()
+
+        assert session is not None
+        assert dead_session not in pool._sessions
+        assert session.in_use is True
