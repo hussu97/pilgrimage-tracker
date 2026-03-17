@@ -328,7 +328,13 @@ async def async_request_with_backoff(
                     continue
                 return response
             except Exception as e:
-                logger.error("Async request error for %s: %s", url, e)
+                logger.error(
+                    "Async request error for %s: %s: %s",
+                    url,
+                    type(e).__name__,
+                    e,
+                    exc_info=True,
+                )
                 return None
         return None
 
