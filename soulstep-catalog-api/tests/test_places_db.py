@@ -228,23 +228,23 @@ class TestListPlacesFiltering:
         result = list_places(db_session, limit=2)
         assert len(result["rows"]) == 2
 
-    def test_cursor_pagination(self, db_session):
+    def test_offset_pagination(self, db_session):
         for i in range(4):
             _place(db_session, f"plc_lp_cur{i:03d}")
         # First page
-        r0 = list_places(db_session, limit=2)
+        r0 = list_places(db_session, limit=2, offset=0)
         assert len(r0["rows"]) == 2
-        assert r0["next_cursor"] is not None
-        # Second page using cursor
-        cursor = r0["next_cursor"]
-        r1 = list_places(db_session, limit=2, cursor=cursor)
+        assert r0["total"] == 4
+        # Second page using offset
+        r1 = list_places(db_session, limit=2, offset=2)
         assert len(r1["rows"]) == 2
         # No overlap between pages
         codes_p0 = {p.place_code for p, _ in r0["rows"]}
         codes_p1 = {p.place_code for p, _ in r1["rows"]}
         assert codes_p0.isdisjoint(codes_p1)
-        # Last page has no next_cursor
-        assert r1["next_cursor"] is None
+        # Beyond last page returns empty
+        r2 = list_places(db_session, limit=2, offset=4)
+        assert len(r2["rows"]) == 0
 
     def test_filters_meta_returned(self, db_session):
         result = list_places(db_session)

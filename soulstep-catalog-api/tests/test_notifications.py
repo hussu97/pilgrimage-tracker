@@ -88,8 +88,8 @@ class TestNotificationsApi:
         resp = client.get(NOTIF_URL, headers=_auth(token))
         assert resp.status_code == 200
         data = resp.json()
-        assert "notifications" in data
-        assert data["notifications"] == []
+        assert "items" in data
+        assert data["items"] == []
         assert "unread_count" in data
 
     def test_mark_notification_read(self, client, db_session):

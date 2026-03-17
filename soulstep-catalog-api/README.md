@@ -80,7 +80,7 @@ Copy `.env.example` to `.env` and fill in values. Key variables:
 - `GET /api/v1/users/me/favorites` — favorited places
 
 ### Places (`/api/v1/places`)
-- `GET /api/v1/places` — list places (filters: religion, lat/lng/radius, open_now, parking, top_rated, cursor pagination, lang)
+- `GET /api/v1/places` — list places (filters: religion, lat/lng/radius, open_now, parking, top_rated, page/page_size pagination, lang)
 - `GET /api/v1/places/{placeCode}` — place detail
 - `GET /api/v1/places/{placeCode}/reviews` — reviews for a place
 - `POST /api/v1/places/{placeCode}/check-in` — check in

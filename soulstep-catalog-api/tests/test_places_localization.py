@@ -75,14 +75,14 @@ class TestListPlacesLang:
     def test_list_no_lang_returns_english(self, client):
         _register_place(client)
         resp = client.get("/api/v1/places")
-        places = resp.json()["places"]
+        places = resp.json()["items"]
         assert any(p["name"] == "Test Mosque" for p in places)
 
     def test_list_lang_en_fast_path(self, client):
         _register_place(client)
         resp = client.get("/api/v1/places?lang=en")
         assert resp.status_code == 200
-        places = resp.json()["places"]
+        places = resp.json()["items"]
         assert any(p["name"] == "Test Mosque" for p in places)
 
     def test_list_lang_ar_returns_translation_when_stored(self, client, db_session):
@@ -92,7 +92,7 @@ class TestListPlacesLang:
         )
         resp = client.get("/api/v1/places?lang=ar")
         assert resp.status_code == 200
-        places = resp.json()["places"]
+        places = resp.json()["items"]
         match = next((p for p in places if p["place_code"] == "plc_test0001"), None)
         assert match is not None
         assert match["name"] == "مسجد"
@@ -256,7 +256,7 @@ class TestGetPlaceReviewsLang:
 
         resp = client.get(f"/api/v1/places/{_REVIEW_PLACE_CODE}/reviews")
         assert resp.status_code == 200
-        reviews = resp.json()["reviews"]
+        reviews = resp.json()["items"]
         assert len(reviews) == 1
         assert reviews[0]["title"] == "English Title"
         assert reviews[0]["body"] == "English Body"
@@ -268,7 +268,7 @@ class TestGetPlaceReviewsLang:
 
         resp = client.get(f"/api/v1/places/{_REVIEW_PLACE_CODE}/reviews?lang=en")
         assert resp.status_code == 200
-        reviews = resp.json()["reviews"]
+        reviews = resp.json()["items"]
         assert reviews[0]["title"] == "English Title"
         assert reviews[0]["body"] == "English Body"
 
@@ -287,7 +287,7 @@ class TestGetPlaceReviewsLang:
 
         resp = client.get(f"/api/v1/places/{_REVIEW_PLACE_CODE}/reviews?lang=ar")
         assert resp.status_code == 200
-        reviews = resp.json()["reviews"]
+        reviews = resp.json()["items"]
         match = next((r for r in reviews if r["review_code"] == review_code), None)
         assert match is not None
         assert match["title"] == "عنوان عربي"
@@ -300,7 +300,7 @@ class TestGetPlaceReviewsLang:
 
         resp = client.get(f"/api/v1/places/{_REVIEW_PLACE_CODE}/reviews?lang=ar")
         assert resp.status_code == 200
-        reviews = resp.json()["reviews"]
+        reviews = resp.json()["items"]
         assert reviews[0]["title"] == "English Title"
         assert reviews[0]["body"] == "English Body"
 
@@ -317,7 +317,7 @@ class TestGetPlaceReviewsLang:
 
         resp = client.get(f"/api/v1/places/{_REVIEW_PLACE_CODE}/reviews?lang=ar")
         assert resp.status_code == 200
-        reviews = resp.json()["reviews"]
+        reviews = resp.json()["items"]
         match = next((r for r in reviews if r["review_code"] == review_code), None)
         assert match is not None
         assert match["title"] == "English Title"  # falls back
@@ -341,7 +341,7 @@ class TestGetPlaceReviewsLang:
 
         resp = client.get(f"/api/v1/places/{_REVIEW_PLACE_CODE}/reviews?lang=ar")
         assert resp.status_code == 200
-        reviews = resp.json()["reviews"]
+        reviews = resp.json()["items"]
         match = next((r for r in reviews if r["review_code"] == review_code), None)
         assert match is not None
         assert match["title"] is None

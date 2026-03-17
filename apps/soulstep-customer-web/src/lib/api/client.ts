@@ -172,8 +172,8 @@ export interface GetPlacesParams {
   place_type?: string;
   search?: string;
   sort?: string;
-  limit?: number;
-  cursor?: string;
+  page?: number;
+  page_size?: number;
   open_now?: boolean;
   has_parking?: boolean;
   womens_area?: boolean;
@@ -215,8 +215,8 @@ export async function getPlaces(
   if (params?.place_type) sp.set('place_type', params.place_type);
   if (params?.search) sp.set('search', params.search);
   if (params?.sort) sp.set('sort', params.sort);
-  if (params?.limit != null) sp.set('limit', String(params.limit));
-  if (params?.cursor) sp.set('cursor', params.cursor);
+  if (params?.page != null) sp.set('page', String(params.page));
+  if (params?.page_size != null) sp.set('page_size', String(params.page_size));
   if (params?.open_now) sp.set('open_now', 'true');
   if (params?.has_parking) sp.set('has_parking', 'true');
   if (params?.womens_area) sp.set('womens_area', 'true');
@@ -235,8 +235,8 @@ export async function getPlaces(
   const res = await authFetch(url, { headers: authHeaders(), signal });
   if (!res.ok) throw new Error('Failed to fetch places');
   const data = await res.json();
-  // Server returns { places: [...], filters: { options: [...] } }
-  const rawPlaces = data.places || [];
+  // Server returns { items: [...], total, page, page_size, filters }
+  const rawPlaces = data.items || [];
   return {
     places: rawPlaces.map((r: Place | [Place, number]) => {
       // Handle both [place, distance] tuple and plain place object formats
@@ -248,7 +248,9 @@ export async function getPlaces(
       return p;
     }),
     filters: data.filters ?? null,
-    next_cursor: data.next_cursor ?? null,
+    total: data.total ?? 0,
+    page: data.page ?? 1,
+    page_size: data.page_size ?? 50,
   };
 }
 
@@ -353,8 +355,12 @@ export async function getPlace(
   return data;
 }
 
-export async function getPlaceReviews(placeCode: string, limit = 5): Promise<ReviewsResponse> {
-  const sp = new URLSearchParams({ limit: String(limit) });
+export async function getPlaceReviews(
+  placeCode: string,
+  page = 1,
+  page_size = 5,
+): Promise<ReviewsResponse> {
+  const sp = new URLSearchParams({ page: String(page), page_size: String(page_size) });
   if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
   const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/reviews?${sp}`, {
     headers: clientHeaders(),
@@ -719,12 +725,18 @@ export async function addPlaceToGroup(
 }
 
 export async function getNotifications(
-  limit?: number,
-  offset?: number,
-): Promise<{ notifications: Notification[]; unread_count: number }> {
+  page?: number,
+  page_size?: number,
+): Promise<{
+  items: Notification[];
+  total: number;
+  page: number;
+  page_size: number;
+  unread_count: number;
+}> {
   const sp = new URLSearchParams();
-  if (limit != null) sp.set('limit', String(limit));
-  if (offset != null) sp.set('offset', String(offset));
+  if (page != null) sp.set('page', String(page));
+  if (page_size != null) sp.set('page_size', String(page_size));
   const res = await authFetch(`${API_BASE}/api/v1/notifications?${sp}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch notifications');
   return res.json();
@@ -827,16 +839,18 @@ export async function updateVisitorSettings(
 }
 
 export async function getCities(params?: {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
   include_images?: boolean;
 }): Promise<{
-  cities: Array<{ city: string; city_slug: string; count: number; top_images: string[] }>;
+  items: Array<{ city: string; city_slug: string; count: number; top_images: string[] }>;
   total: number;
+  page: number;
+  page_size: number;
 }> {
   const q = new URLSearchParams();
-  if (params?.limit != null) q.set('limit', String(params.limit));
-  if (params?.offset != null) q.set('offset', String(params.offset));
+  if (params?.page != null) q.set('page', String(params.page));
+  if (params?.page_size != null) q.set('page_size', String(params.page_size));
   if (params?.include_images) q.set('include_images', 'true');
   const res = await fetch(`${API_BASE}/api/v1/cities?${q}`, { headers: clientHeaders() });
   if (!res.ok) throw new Error('Failed to fetch cities');

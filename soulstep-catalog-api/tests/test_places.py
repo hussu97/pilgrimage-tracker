@@ -34,21 +34,21 @@ class TestListPlaces:
         resp = client.get(PLACES_URL, params={"lat": 0, "lng": 0})
         assert resp.status_code == 200
         data = resp.json()
-        assert "places" in data
-        assert isinstance(data["places"], list)
+        assert "items" in data
+        assert isinstance(data["items"], list)
 
     def test_list_returns_created_place(self, client):
         _create_place(client, "plc_listret01")
         resp = client.get(PLACES_URL, params={"lat": 25.2048, "lng": 55.2708})
         assert resp.status_code == 200
-        codes = [p["place_code"] for p in resp.json()["places"]]
+        codes = [p["place_code"] for p in resp.json()["items"]]
         assert "plc_listret01" in codes
 
     def test_list_has_open_status_field(self, client):
         _create_place(client, "plc_osfld0001")
         resp = client.get(PLACES_URL, params={"lat": 25.2048, "lng": 55.2708})
         assert resp.status_code == 200
-        places = resp.json()["places"]
+        places = resp.json()["items"]
         if places:
             assert "open_status" in places[0]
             assert places[0]["open_status"] in ("open", "closed", "unknown")
@@ -64,7 +64,7 @@ class TestListPlaces:
         )
         resp = client.get(PLACES_URL, params={"religion": "islam"})
         assert resp.status_code == 200
-        for p in resp.json()["places"]:
+        for p in resp.json()["items"]:
             assert p["religion"] == "islam"
 
     def test_list_filter_by_religion_all_returns_all_places(self, client):
@@ -81,7 +81,7 @@ class TestListPlaces:
         )
         resp = client.get(PLACES_URL, params={"religion": "all"})
         assert resp.status_code == 200
-        codes = [p["place_code"] for p in resp.json()["places"]]
+        codes = [p["place_code"] for p in resp.json()["items"]]
         assert "plc_all_isl" in codes
         assert "plc_all_hin" in codes
         assert "plc_all_chr" in codes
@@ -97,7 +97,7 @@ class TestListPlaces:
         )
         resp = client.get(PLACES_URL, params={"lat": 25.2048, "lng": 55.2708, "radius": 10})
         assert resp.status_code == 200
-        codes = [p["place_code"] for p in resp.json()["places"]]
+        codes = [p["place_code"] for p in resp.json()["items"]]
         assert "plc_near0001" in codes
         assert "plc_far00001" not in codes
 
@@ -106,7 +106,7 @@ class TestListPlaces:
         _create_place(client, "plc_lnd00001", name="London Mosque", city="London")
         resp = client.get(PLACES_URL, params={"city": "Dubai"})
         assert resp.status_code == 200
-        codes = [p["place_code"] for p in resp.json()["places"]]
+        codes = [p["place_code"] for p in resp.json()["items"]]
         assert "plc_dxb00001" in codes
         assert "plc_lnd00001" not in codes
 
@@ -114,14 +114,14 @@ class TestListPlaces:
         _create_place(client, "plc_dxb00002", name="Dubai Temple", city="Dubai")
         resp = client.get(PLACES_URL, params={"city": "dubai"})
         assert resp.status_code == 200
-        codes = [p["place_code"] for p in resp.json()["places"]]
+        codes = [p["place_code"] for p in resp.json()["items"]]
         assert "plc_dxb00002" in codes
 
     def test_list_search(self, client):
         _create_place(client, "plc_srch0001", name="Grand Mosque Search Test")
         resp = client.get(PLACES_URL, params={"search": "Grand Mosque Search"})
         assert resp.status_code == 200
-        codes = [p["place_code"] for p in resp.json()["places"]]
+        codes = [p["place_code"] for p in resp.json()["items"]]
         assert "plc_srch0001" in codes
 
     def test_list_has_filters_meta(self, client):
@@ -134,15 +134,15 @@ class TestListPlaces:
     def test_list_pagination(self, client):
         for i in range(3):
             _create_place(client, f"plc_page{i:04d}", name=f"Pager Place {i}")
-        resp = client.get(PLACES_URL, params={"limit": 2})
+        resp = client.get(PLACES_URL, params={"page_size": 2})
         assert resp.status_code == 200
-        assert len(resp.json()["places"]) <= 2
+        assert len(resp.json()["items"]) <= 2
 
     def test_list_include_checkins_false_by_default(self, client):
         _create_place(client, "plc_chk00001")
         resp = client.get(PLACES_URL, params={"lat": 25.2048, "lng": 55.2708})
         assert resp.status_code == 200
-        places = resp.json()["places"]
+        places = resp.json()["items"]
         if places:
             assert "total_checkins_count" not in places[0]
 
@@ -152,7 +152,7 @@ class TestListPlaces:
             PLACES_URL, params={"lat": 25.2048, "lng": 55.2708, "include_checkins": "true"}
         )
         assert resp.status_code == 200
-        places = resp.json()["places"]
+        places = resp.json()["items"]
         if places:
             assert "total_checkins_count" in places[0]
             assert isinstance(places[0]["total_checkins_count"], int)
@@ -170,7 +170,7 @@ class TestListPlaces:
         # Now list with include_checkins
         resp = client.get(PLACES_URL, params={"include_checkins": "true"})
         assert resp.status_code == 200
-        place = next((p for p in resp.json()["places"] if p["place_code"] == "plc_chk00003"), None)
+        place = next((p for p in resp.json()["items"] if p["place_code"] == "plc_chk00003"), None)
         assert place is not None
         assert place["total_checkins_count"] >= 1
 
@@ -249,8 +249,8 @@ class TestPlaceReviews:
         resp = client.get(f"{PLACES_URL}/plc_rev00001/reviews")
         assert resp.status_code == 200
         data = resp.json()
-        assert "reviews" in data
-        assert data["reviews"] == []
+        assert "items" in data
+        assert data["items"] == []
 
     def test_create_review(self, client):
         _create_place(client, "plc_revpost1")

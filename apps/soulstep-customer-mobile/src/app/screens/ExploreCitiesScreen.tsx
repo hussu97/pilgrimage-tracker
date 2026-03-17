@@ -108,23 +108,23 @@ export default function ExploreCitiesScreen() {
   const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [offset, setOffset] = useState(0);
+  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [search, setSearch] = useState('');
 
-  const fetchCities = useCallback(async (currentOffset: number, append: boolean) => {
-    if (currentOffset === 0) setLoading(true);
+  const fetchCities = useCallback(async (currentPage: number, append: boolean) => {
+    if (currentPage === 1) setLoading(true);
     else setLoadingMore(true);
 
     try {
       const data = await getCities({
-        limit: PAGE_SIZE,
-        offset: currentOffset,
+        page_size: PAGE_SIZE,
+        page: currentPage,
         include_images: true,
       });
-      const fetched = data.cities ?? [];
+      const fetched = data.items ?? [];
       setCities((prev) => (append ? [...prev, ...fetched] : fetched));
-      setHasMore(currentOffset + fetched.length < (data.total ?? 0));
+      setHasMore(currentPage * PAGE_SIZE < (data.total ?? 0));
     } catch {
       // silently ignore
     } finally {
@@ -134,15 +134,15 @@ export default function ExploreCitiesScreen() {
   }, []);
 
   useEffect(() => {
-    fetchCities(0, false);
+    fetchCities(1, false);
   }, [fetchCities]);
 
   const handleEndReached = useCallback(() => {
     if (!hasMore || loadingMore || loading || search) return;
-    const nextOffset = offset + PAGE_SIZE;
-    setOffset(nextOffset);
-    fetchCities(nextOffset, true);
-  }, [hasMore, loadingMore, loading, search, offset, fetchCities]);
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchCities(nextPage, true);
+  }, [hasMore, loadingMore, loading, search, page, fetchCities]);
 
   const filtered = cities.filter((c) => c.city.toLowerCase().includes(search.toLowerCase()));
 

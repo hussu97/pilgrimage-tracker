@@ -43,12 +43,13 @@ export default function Places() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [religion, setReligion] = useState('');
-  const [cursor, setCursor] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
+  const PAGE_SIZE = 50;
 
   const fetchPlaces = useCallback(
-    async (nextCursor: string | null = null, reset = false) => {
+    async (page: number = 1, reset = false) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -57,8 +58,8 @@ export default function Places() {
         const resp = await getPlaces(
           {
             religions: religion ? [religion as any] : undefined,
-            limit: 50,
-            cursor: nextCursor ?? undefined,
+            page,
+            page_size: PAGE_SIZE,
           },
           controller.signal,
         );
@@ -67,8 +68,8 @@ export default function Places() {
         } else {
           setPlaces((prev) => [...prev, ...resp.places]);
         }
-        setCursor(resp.next_cursor ?? null);
-        setHasMore(resp.next_cursor != null);
+        setCurrentPage(page);
+        setHasMore(page * PAGE_SIZE < resp.total);
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') return;
         // ignore other errors
@@ -80,8 +81,8 @@ export default function Places() {
   );
 
   useEffect(() => {
-    setCursor(null);
-    fetchPlaces(null, true);
+    setCurrentPage(1);
+    fetchPlaces(1, true);
   }, [religion, fetchPlaces]);
 
   // Abort in-flight request on unmount
@@ -136,7 +137,7 @@ export default function Places() {
         <div className="flex justify-center mt-8">
           <button
             type="button"
-            onClick={() => fetchPlaces(cursor)}
+            onClick={() => fetchPlaces(currentPage + 1)}
             disabled={loading}
             className="px-6 py-2 rounded-xl bg-primary text-white font-medium text-sm hover:bg-primary-hover disabled:opacity-60 transition-colors"
           >

@@ -24,7 +24,7 @@ class TestBoundingBoxFilter:
             params={"min_lat": 24, "max_lat": 26, "min_lng": 54, "max_lng": 56},
         )
         assert resp.status_code == 200
-        codes = [p["place_code"] for p in resp.json()["places"]]
+        codes = [p["place_code"] for p in resp.json()["items"]]
         assert "plc_bbox_in01" in codes
         assert "plc_bbox_out1" not in codes
 
@@ -50,21 +50,21 @@ class TestBoundingBoxFilter:
             },
         )
         assert resp.status_code == 200
-        codes = [p["place_code"] for p in resp.json()["places"]]
+        codes = [p["place_code"] for p in resp.json()["items"]]
         assert "plc_bx_isl1" in codes
         assert "plc_bx_hin1" not in codes
 
-    def test_bbox_respects_limit(self, client):
+    def test_bbox_respects_page_size(self, client):
         for i in range(5):
             _create_place(client, f"plc_bxlim{i:02d}", lat=25.2 + i * 0.001, lng=55.3)
         resp = client.get(
             PLACES_URL,
-            params={"min_lat": 24, "max_lat": 26, "min_lng": 54, "max_lng": 56, "limit": 2},
+            params={"min_lat": 24, "max_lat": 26, "min_lng": 54, "max_lng": 56, "page_size": 2},
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert len(data["places"]) == 2
-        assert data["next_cursor"] is not None
+        assert len(data["items"]) == 2
+        assert data["total"] >= 5
 
     def test_bbox_without_lat_lng_has_no_distance(self, client):
         _create_place(client, "plc_bxnodst1", lat=25.2, lng=55.3)
@@ -73,7 +73,7 @@ class TestBoundingBoxFilter:
             params={"min_lat": 24, "max_lat": 26, "min_lng": 54, "max_lng": 56},
         )
         assert resp.status_code == 200
-        places = resp.json()["places"]
+        places = resp.json()["items"]
         assert len(places) >= 1
         assert places[0]["distance"] is None
 
@@ -91,7 +91,7 @@ class TestBoundingBoxFilter:
             },
         )
         assert resp.status_code == 200
-        places = resp.json()["places"]
+        places = resp.json()["items"]
         assert len(places) >= 1
         assert places[0]["distance"] is not None
         assert places[0]["distance"] > 0
@@ -113,9 +113,9 @@ class TestBoundingBoxFilter:
             },
         )
         assert resp.status_code == 200
-        codes = [p["place_code"] for p in resp.json()["places"]]
+        codes = [p["place_code"] for p in resp.json()["items"]]
         assert "plc_bxrad01" in codes
 
-    def test_limit_over_500_rejected(self, client):
-        resp = client.get(PLACES_URL, params={"limit": 501})
+    def test_page_size_over_100_rejected(self, client):
+        resp = client.get(PLACES_URL, params={"page_size": 101})
         assert resp.status_code == 422

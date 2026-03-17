@@ -105,9 +105,11 @@ export interface FilterOption {
 }
 
 export interface PlacesResponse {
-  places: Place[];
+  items: Place[];
+  total: number;
+  page: number;
+  page_size: number;
   filters?: {
     options: FilterOption[];
   };
-  next_cursor?: string | null;
 }

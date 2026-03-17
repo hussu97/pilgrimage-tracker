@@ -243,7 +243,7 @@ New user-facing features, UX improvements, admin completeness, and monetization.
   - Add `GET/POST/PUT/DELETE /api/v1/admin/geo-boundaries` endpoints. Wire to admin dashboard for expanding coverage to new regions.
   - Files: `soulstep-catalog-api/app/api/v1/admin/`, new model and migration
 
-- [ ] **Standardize pagination API across all endpoints**
+- [x] **Standardize pagination API across all endpoints**
   - Pagination varies across endpoints: some use `page`/`page_size`, others use `offset`/`limit`. Inconsistent for API consumers.
   - Adopt a single pattern (`page` + `page_size`) with a shared `PaginatedResponse[T]` generic. Migrate all endpoints to use it.
   - Files: `soulstep-catalog-api/app/api/v1/`

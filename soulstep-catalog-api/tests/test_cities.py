@@ -27,8 +27,8 @@ class TestCitiesList:
         resp = client.get(CITIES_URL)
         assert resp.status_code == 200
         data = resp.json()
-        assert "cities" in data
-        assert data["cities"] == []
+        assert "items" in data
+        assert data["items"] == []
 
     def test_cities_with_places(self, client):
         _create_place(client, "plc_city001", "Dubai")
@@ -36,7 +36,7 @@ class TestCitiesList:
         _create_place(client, "plc_city003", "London")
         resp = client.get(CITIES_URL)
         assert resp.status_code == 200
-        cities = resp.json()["cities"]
+        cities = resp.json()["items"]
         city_names = [c["city"] for c in cities]
         assert "Dubai" in city_names
         assert "London" in city_names
@@ -46,14 +46,14 @@ class TestCitiesList:
         _create_place(client, "plc_sort002", "Dubai")
         _create_place(client, "plc_sort003", "London")
         resp = client.get(CITIES_URL)
-        cities = resp.json()["cities"]
+        cities = resp.json()["items"]
         counts = [c["count"] for c in cities]
         assert counts == sorted(counts, reverse=True)
 
     def test_city_has_slug(self, client):
         _create_place(client, "plc_slug001", "New York")
         resp = client.get(CITIES_URL)
-        cities = resp.json()["cities"]
+        cities = resp.json()["items"]
         ny = next((c for c in cities if c["city"] == "New York"), None)
         assert ny is not None
         assert ny["city_slug"] == "new-york"
@@ -62,7 +62,7 @@ class TestCitiesList:
         _create_place(client, "plc_cnt001", "Dubai")
         _create_place(client, "plc_cnt002", "Dubai")
         resp = client.get(CITIES_URL)
-        cities = resp.json()["cities"]
+        cities = resp.json()["items"]
         dubai = next((c for c in cities if c["city"] == "Dubai"), None)
         assert dubai is not None
         assert dubai["count"] == 2
@@ -72,7 +72,7 @@ class TestCitiesList:
         data = {**SAMPLE_PLACE, "place_code": "plc_nocity", "city": None}
         client.post(PLACES_URL, json=data)
         resp = client.get(CITIES_URL)
-        cities = resp.json()["cities"]
+        cities = resp.json()["items"]
         # No city entry should be None
         assert all(c["city"] is not None for c in cities)
 
@@ -88,8 +88,8 @@ class TestCityPlaces:
         assert resp.status_code == 200
         data = resp.json()
         assert "city" in data
-        assert "places" in data
-        assert len(data["places"]) == 2
+        assert "items" in data
+        assert len(data["items"]) == 2
 
     def test_city_not_found_returns_404(self, client):
         resp = client.get(f"{CITIES_URL}/nonexistent-city-xyz")
@@ -98,7 +98,7 @@ class TestCityPlaces:
     def test_place_has_required_fields(self, client):
         _create_place(client, "plc_fields001", "Dubai")
         resp = client.get(f"{CITIES_URL}/dubai")
-        places = resp.json()["places"]
+        places = resp.json()["items"]
         assert len(places) == 1
         place = places[0]
         assert "place_code" in place
@@ -111,7 +111,7 @@ class TestCityPlaces:
         resp = client.get(f"{CITIES_URL}/DUBAI")
         assert resp.status_code == 200
         data = resp.json()
-        assert len(data["places"]) >= 1
+        assert len(data["items"]) >= 1
 
 
 class TestCityReligionPlaces:
@@ -124,14 +124,14 @@ class TestCityReligionPlaces:
         resp = client.get(f"{CITIES_URL}/dubai/islam")
         assert resp.status_code == 200
         data = resp.json()
-        assert len(data["places"]) == 1
-        assert data["places"][0]["religion"] == "islam"
+        assert len(data["items"]) == 1
+        assert data["items"][0]["religion"] == "islam"
 
     def test_filter_returns_empty_for_missing_religion(self, client):
         _create_place(client, "plc_missing001", "Dubai", "islam")
         resp = client.get(f"{CITIES_URL}/dubai/buddhism")
         assert resp.status_code == 200
-        assert resp.json()["places"] == []
+        assert resp.json()["items"] == []
 
     def test_city_and_religion_in_response(self, client):
         _create_place(client, "plc_resp001", "London", "christianity")
@@ -161,7 +161,7 @@ class TestCityMetrics:
         _create_place(client, "plc_met001", "Dubai")
         resp = client.get(CITIES_URL, params={"include_metrics": "true"})
         assert resp.status_code == 200
-        cities = resp.json()["cities"]
+        cities = resp.json()["items"]
         assert len(cities) >= 1
         city = next((c for c in cities if c["city"] == "Dubai"), None)
         assert city is not None
@@ -173,7 +173,7 @@ class TestCityMetrics:
         _create_place(client, "plc_met002", "London")
         resp = client.get(CITIES_URL)
         assert resp.status_code == 200
-        cities = resp.json()["cities"]
+        cities = resp.json()["items"]
         if cities:
             assert "checkins_30d" not in cities[0]
             assert "popularity_label" not in cities[0]
@@ -182,7 +182,7 @@ class TestCityMetrics:
         """checkins_30d is 0 for a city with no check-ins."""
         _create_place(client, "plc_met003", "Tokyo")
         resp = client.get(CITIES_URL, params={"include_metrics": "true"})
-        cities = resp.json()["cities"]
+        cities = resp.json()["items"]
         tokyo = next((c for c in cities if c["city"] == "Tokyo"), None)
         assert tokyo is not None
         assert tokyo["checkins_30d"] == 0
@@ -220,7 +220,7 @@ class TestCityMetrics:
         db_session.commit()
 
         resp = client.get(CITIES_URL, params={"include_metrics": "true"})
-        cities = resp.json()["cities"]
+        cities = resp.json()["items"]
         riyadh = next((c for c in cities if c["city"] == "Riyadh"), None)
         assert riyadh is not None
         assert riyadh["checkins_30d"] == 10
@@ -257,7 +257,7 @@ class TestCityMetrics:
         db_session.commit()
 
         resp = client.get(CITIES_URL, params={"include_metrics": "true"})
-        cities = resp.json()["cities"]
+        cities = resp.json()["items"]
         mecca = next((c for c in cities if c["city"] == "Mecca"), None)
         assert mecca is not None
         assert mecca["checkins_30d"] == 55
@@ -316,7 +316,7 @@ class TestCitiesDeduplication:
 
         resp = client.get(CITIES_URL)
         assert resp.status_code == 200
-        cities = resp.json()["cities"]
+        cities = resp.json()["items"]
         dubai_entries = [c for c in cities if c["city_code"] == "cty_dubai_dedup"]
         assert len(dubai_entries) == 1, "Two places with same city_code should merge into one"
         assert dubai_entries[0]["count"] == 2
@@ -341,7 +341,7 @@ class TestCitiesDeduplication:
 
         resp = client.get(CITIES_URL)
         assert resp.status_code == 200
-        cities = resp.json()["cities"]
+        cities = resp.json()["items"]
         cairo = next((c for c in cities if c["city"] == "Cairo"), None)
         assert cairo is not None
 
@@ -423,7 +423,7 @@ class TestCityLangTranslations:
         resp = client.get(f"{CITIES_URL}/dubai?lang=ar")
         assert resp.status_code == 200
         data = resp.json()
-        our_place = next((p for p in data["places"] if p["place_code"] == "plc_lang_city001"), None)
+        our_place = next((p for p in data["items"] if p["place_code"] == "plc_lang_city001"), None)
         assert our_place is not None
         assert our_place["name"] == "مكان مقدس"
 
@@ -448,7 +448,7 @@ class TestCityLangTranslations:
         assert resp.status_code == 200
         data = resp.json()
         our_place = next(
-            (p for p in data["places"] if p["place_code"] == "plc_lang_city_en001"), None
+            (p for p in data["items"] if p["place_code"] == "plc_lang_city_en001"), None
         )
         assert our_place is not None
         assert our_place["name"] == "English Mosque"
@@ -490,7 +490,7 @@ class TestCityLangTranslations:
         resp = client.get(f"{CITIES_URL}/delhi/hinduism?lang=ar")
         assert resp.status_code == 200
         data = resp.json()
-        our_place = next((p for p in data["places"] if p["place_code"] == "plc_lang_rel001"), None)
+        our_place = next((p for p in data["items"] if p["place_code"] == "plc_lang_rel001"), None)
         assert our_place is not None
         assert our_place["name"] == "معبد مقدس"
 
@@ -514,7 +514,7 @@ class TestCityLangTranslations:
         resp = client.get(f"{CITIES_URL}/abu-dhabi")
         assert resp.status_code == 200
         data = resp.json()
-        our_place = next((p for p in data["places"] if p["place_code"] == "plc_nolang001"), None)
+        our_place = next((p for p in data["items"] if p["place_code"] == "plc_nolang001"), None)
         assert our_place is not None
         assert our_place["name"] == "Original Name"
 
@@ -563,7 +563,7 @@ class TestCityImages:
 
         resp = client.get(CITIES_URL, params={"include_images": "true"})
         assert resp.status_code == 200
-        cities = resp.json()["cities"]
+        cities = resp.json()["items"]
         hyd = next((c for c in cities if c.get("city_code") == "cty_hyd_img"), None)
         assert hyd is not None, "Hyderabad city should appear"
         assert "top_images" in hyd
@@ -638,7 +638,7 @@ class TestCityImages:
 
         resp = client.get(CITIES_URL, params={"include_images": "true"})
         assert resp.status_code == 200
-        cities = resp.json()["cities"]
+        cities = resp.json()["items"]
         popville = next((c for c in cities if c.get("city_code") == "cty_pop_test"), None)
         assert popville is not None
         assert len(popville["top_images"]) >= 1

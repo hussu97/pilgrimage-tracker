@@ -55,7 +55,7 @@ class TestImageAltText:
         _create_place(client, image_urls=["https://example.com/img1.jpg"])
         resp = client.get(PLACES_URL, params={"lat": 25.2048, "lng": 55.2708})
         assert resp.status_code == 200
-        places = resp.json()["places"]
+        places = resp.json()["items"]
         if places and places[0].get("images"):
             assert "alt_text" in places[0]["images"][0]
 

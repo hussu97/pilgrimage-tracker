@@ -212,9 +212,9 @@ export default function MapDiscoveryScreen() {
       const resp = await getPlaces({
         search: searchVal || undefined,
         religions: religionVal ? [religionVal] : undefined,
-        limit: 200,
+        page_size: 200,
       });
-      setPlaces(resp.places);
+      setPlaces(resp.items);
     } catch {
       // ignore
     } finally {

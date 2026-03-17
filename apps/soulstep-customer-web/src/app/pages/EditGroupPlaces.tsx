@@ -40,7 +40,7 @@ export default function EditGroupPlaces() {
   useEffect(() => {
     fetchData();
     setPlacesLoading(true);
-    getPlaces({ limit: 200 })
+    getPlaces({ page_size: 100 })
       .then((res) => setPlaces(res.places ?? []))
       .catch(() => {})
       .finally(() => setPlacesLoading(false));

@@ -35,6 +35,11 @@ def get_notifications_for_user(
     return session.exec(statement).all()
 
 
+def count_notifications_for_user(user_code: str, session: Session) -> int:
+    statement = select(func.count(Notification.id)).where(Notification.user_code == user_code)
+    return session.exec(statement).one()
+
+
 def mark_read(notification_code: str, user_code: str, session: Session) -> bool:
     statement = select(Notification).where(
         and_(

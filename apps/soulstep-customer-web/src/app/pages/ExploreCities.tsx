@@ -104,24 +104,25 @@ export default function ExploreCities() {
   const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [offset, setOffset] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [search, setSearch] = useState('');
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const fetchCities = useCallback(async (currentOffset: number, append: boolean) => {
-    if (currentOffset === 0) setLoading(true);
+  const fetchCities = useCallback(async (page: number, append: boolean) => {
+    if (page === 1) setLoading(true);
     else setLoadingMore(true);
 
     try {
       const data = await api.getCities({
-        limit: PAGE_SIZE,
-        offset: currentOffset,
+        page,
+        page_size: PAGE_SIZE,
         include_images: true,
       });
-      const fetched = data.cities ?? [];
+      const fetched = data.items ?? [];
       setCities((prev) => (append ? [...prev, ...fetched] : fetched));
-      setHasMore(currentOffset + fetched.length < (data.total ?? 0));
+      setCurrentPage(page);
+      setHasMore(page * PAGE_SIZE < (data.total ?? 0));
     } catch {
       // silently ignore
     } finally {
@@ -131,7 +132,7 @@ export default function ExploreCities() {
   }, []);
 
   useEffect(() => {
-    fetchCities(0, false);
+    fetchCities(1, false);
   }, [fetchCities]);
 
   // Infinite scroll via IntersectionObserver
@@ -142,16 +143,14 @@ export default function ExploreCities() {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          const nextOffset = offset + PAGE_SIZE;
-          setOffset(nextOffset);
-          fetchCities(nextOffset, true);
+          fetchCities(currentPage + 1, true);
         }
       },
       { rootMargin: '200px' },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, loadingMore, loading, offset, fetchCities]);
+  }, [hasMore, loadingMore, loading, currentPage, fetchCities]);
 
   const filtered = cities.filter((c) => c.city.toLowerCase().includes(search.toLowerCase()));
 

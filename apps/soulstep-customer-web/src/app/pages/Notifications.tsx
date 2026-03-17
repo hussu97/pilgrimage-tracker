@@ -39,9 +39,9 @@ export default function NotificationsPage() {
   const fetchList = useCallback(() => {
     setLoading(true);
     setError('');
-    getNotifications(50, 0)
+    getNotifications(1, 50)
       .then((res) => {
-        setNotifications(res.notifications ?? []);
+        setNotifications(res.items ?? []);
       })
       .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));

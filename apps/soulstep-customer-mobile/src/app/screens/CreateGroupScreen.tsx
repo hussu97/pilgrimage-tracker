@@ -635,7 +635,7 @@ export default function CreateGroupScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [placesLoading, setPlacesLoading] = useState(false);
   const [placesLoadingMore, setPlacesLoadingMore] = useState(false);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [nextPage, setNextPage] = useState<number | null>(null);
 
   // Polish step
   const [name, setName] = useState('');
@@ -663,25 +663,25 @@ export default function CreateGroupScreen() {
   // ── Data fetching ───────────────────────────────────────────────────────────
 
   const fetchPlaces = useCallback(
-    async (cursor?: string, search?: string, opts?: { city?: string; religions?: string[] }) => {
-      const isInitial = !cursor;
+    async (pageNum?: number, search?: string, opts?: { city?: string; religions?: string[] }) => {
+      const isInitial = !pageNum || pageNum === 1;
       if (isInitial) setPlacesLoading(true);
       else setPlacesLoadingMore(true);
       try {
         const res = await getPlaces({
-          limit: PAGE_SIZE,
-          cursor: cursor ?? undefined,
+          page_size: PAGE_SIZE,
+          page: pageNum ?? 1,
           search: search || undefined,
           include_checkins: true,
           city: opts?.city,
           religions: (opts?.religions as any) ?? undefined,
         });
         if (isInitial) {
-          setAllPlaces(res.places ?? []);
+          setAllPlaces(res.items ?? []);
         } else {
-          setAllPlaces((prev) => [...prev, ...(res.places ?? [])]);
+          setAllPlaces((prev) => [...prev, ...(res.items ?? [])]);
         }
-        setNextCursor(res.next_cursor ?? null);
+        setNextPage(res.page * res.page_size < res.total ? res.page + 1 : null);
       } catch {
         // silently fail
       } finally {
@@ -742,17 +742,17 @@ export default function CreateGroupScreen() {
     (text: string) => {
       setSearchQuery(text);
       setAllPlaces([]);
-      setNextCursor(null);
+      setNextPage(null);
       fetchPlaces(undefined, text, activePlaceFilters);
     },
     [fetchPlaces, activePlaceFilters],
   );
 
   const handleLoadMore = useCallback(() => {
-    if (nextCursor && !placesLoadingMore) {
-      fetchPlaces(nextCursor, searchQuery, activePlaceFilters);
+    if (nextPage && !placesLoadingMore) {
+      fetchPlaces(nextPage, searchQuery, activePlaceFilters);
     }
-  }, [nextCursor, placesLoadingMore, fetchPlaces, searchQuery, activePlaceFilters]);
+  }, [nextPage, placesLoadingMore, fetchPlaces, searchQuery, activePlaceFilters]);
 
   const togglePlace = useCallback((place: Place) => {
     setSelectedPlaces((prev) => {
@@ -832,8 +832,8 @@ export default function CreateGroupScreen() {
   const fetchCities = useCallback(async () => {
     setCitiesLoading(true);
     try {
-      const data = await getCities({ limit: 50, include_images: true });
-      setCities(data.cities ?? []);
+      const data = await getCities({ page_size: 50, include_images: true });
+      setCities(data.items ?? []);
     } catch {
       setCities([]);
     } finally {
@@ -1348,13 +1348,13 @@ export default function CreateGroupScreen() {
                       const detail = await getGroup(route.group_code);
                       if (detail.path_place_codes?.length) {
                         // Fetch the places by getting a filtered list
-                        const res = await getPlaces({ limit: 100 });
-                        const placesMap = new Map((res.places ?? []).map((p) => [p.place_code, p]));
+                        const res = await getPlaces({ page_size: 100 });
+                        const placesMap = new Map((res.items ?? []).map((p) => [p.place_code, p]));
                         const ordered = detail.path_place_codes
                           .map((code) => placesMap.get(code))
                           .filter(Boolean) as Place[];
                         setSelectedPlaces(ordered);
-                        setAllPlaces(res.places ?? []);
+                        setAllPlaces(res.items ?? []);
                       }
                       setSelectedRoute(route);
                       setBuildSubStep(null);

@@ -393,7 +393,7 @@ def list_places(
     search: str | None = None,
     sort: str | None = None,
     limit: int = 50,
-    cursor: str | None = None,
+    offset: int = 0,
     jummah: bool | None = None,
     has_events: bool | None = None,
     open_now: bool | None = None,
@@ -541,23 +541,13 @@ def list_places(
     if sort == "rating":
         result.sort(key=lambda x: (_get_avg(x[0].place_code), -(x[1] or 0)), reverse=True)
 
-    # Cursor-based pagination: start after the place with the given place_code cursor.
-    # Without a cursor the first page is returned.
-    start_idx = 0
-    if cursor:
-        for i, (p, _) in enumerate(result):
-            if p.place_code == cursor:
-                start_idx = i + 1
-                break
-
-    page_plus_one = result[start_idx : start_idx + limit + 1]
-    has_more = len(page_plus_one) > limit
-    rows = page_plus_one[:limit]
-    next_cursor = rows[-1][0].place_code if has_more and rows else None
+    # Offset-based pagination
+    total = len(result)
+    rows = result[offset : offset + limit]
 
     return {
         "rows": rows,
-        "next_cursor": next_cursor,
+        "total": total,
         "filters": filters_meta,
         "all_attrs": all_attrs,
         "all_ratings": all_ratings,

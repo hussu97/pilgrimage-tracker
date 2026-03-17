@@ -216,7 +216,10 @@ class FiltersMetadata(BaseModel):
 
 
 class PlacesListResponse(BaseModel):
-    places: list  # list of place dicts (dynamic fields)
+    items: list  # list of place dicts (dynamic fields)
+    total: int
+    page: int
+    page_size: int
     filters: FiltersMetadata
 
 

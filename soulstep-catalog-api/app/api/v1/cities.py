@@ -50,8 +50,8 @@ def _derive_popularity_label(checkins_30d: int) -> str | None:
 @router.get("")
 def list_cities(
     session: SessionDep,
-    limit: int = Query(100, le=500),
-    offset: int = Query(0),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
     include_metrics: bool = Query(
         False, description="Include 30-day check-in metrics and popularity label per city"
     ),
@@ -111,7 +111,8 @@ def list_cities(
     # Sort by count descending, paginate
     combined.sort(key=lambda x: x[2], reverse=True)
     total = len(combined)
-    page_items = combined[offset : offset + limit]
+    offset = (max(1, page) - 1) * page_size
+    page_items = combined[offset : offset + page_size]
 
     # Collect all city names for metrics/images lookups
     page_city_names = [name for name, _, _, _ in page_items if name]
@@ -264,7 +265,7 @@ def list_cities(
             entry["top_images"] = city_top_images.get(city_name, [])
         cities.append(entry)
 
-    return {"cities": cities, "total": total}
+    return {"items": cities, "total": total, "page": page, "page_size": page_size}
 
 
 @router.get("/{city_slug}")
@@ -331,26 +332,27 @@ def list_places_in_city(
         city_translations = canonical_city.translations or {}
         translated_city_name = city_translations.get(lang, city_name)
 
+    place_items = [
+        {
+            "place_code": p.place_code,
+            "name": place_trans.get(p.place_code, {}).get("name", p.name),
+            "religion": p.religion,
+            "place_type": p.place_type,
+            "address": place_trans.get(p.place_code, {}).get("address", p.address),
+            "lat": p.lat,
+            "lng": p.lng,
+            "seo_slug": seo_map.get(p.place_code, None) and seo_map[p.place_code].slug,
+            "images": [{"url": img["url"]} for img in img_map.get(p.place_code, [])[:1]],
+        }
+        for p in places
+    ]
     return {
-        "city": translated_city_name,
-        "city_slug": city_slug,
+        "items": place_items,
         "total": total,
         "page": page,
         "page_size": page_size,
-        "places": [
-            {
-                "place_code": p.place_code,
-                "name": place_trans.get(p.place_code, {}).get("name", p.name),
-                "religion": p.religion,
-                "place_type": p.place_type,
-                "address": place_trans.get(p.place_code, {}).get("address", p.address),
-                "lat": p.lat,
-                "lng": p.lng,
-                "seo_slug": seo_map.get(p.place_code, None) and seo_map[p.place_code].slug,
-                "images": [{"url": img["url"]} for img in img_map.get(p.place_code, [])[:1]],
-            }
-            for p in places
-        ],
+        "city": translated_city_name,
+        "city_slug": city_slug,
     }
 
 
@@ -360,7 +362,7 @@ def list_places_in_city_by_religion(
     religion: str,
     session: SessionDep,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, le=200),
+    page_size: int = Query(50, ge=1, le=200),
     lang: str | None = Query(None),
 ):
     """List places in a city filtered by religion."""
@@ -428,25 +430,26 @@ def list_places_in_city_by_religion(
         city_translations = canonical_city.translations or {}
         translated_city_name = city_translations.get(lang, city_name)
 
+    place_items = [
+        {
+            "place_code": p.place_code,
+            "name": place_trans.get(p.place_code, {}).get("name", p.name),
+            "religion": p.religion,
+            "place_type": p.place_type,
+            "address": place_trans.get(p.place_code, {}).get("address", p.address),
+            "lat": p.lat,
+            "lng": p.lng,
+            "seo_slug": seo_map.get(p.place_code, None) and seo_map[p.place_code].slug,
+            "images": [{"url": img["url"]} for img in img_map.get(p.place_code, [])[:1]],
+        }
+        for p in places
+    ]
     return {
-        "city": translated_city_name,
-        "city_slug": city_slug,
-        "religion": religion,
+        "items": place_items,
         "total": total,
         "page": page,
         "page_size": page_size,
-        "places": [
-            {
-                "place_code": p.place_code,
-                "name": place_trans.get(p.place_code, {}).get("name", p.name),
-                "religion": p.religion,
-                "place_type": p.place_type,
-                "address": place_trans.get(p.place_code, {}).get("address", p.address),
-                "lat": p.lat,
-                "lng": p.lng,
-                "seo_slug": seo_map.get(p.place_code, None) and seo_map[p.place_code].slug,
-                "images": [{"url": img["url"]} for img in img_map.get(p.place_code, [])[:1]],
-            }
-            for p in places
-        ],
+        "city": translated_city_name,
+        "city_slug": city_slug,
+        "religion": religion,
     }

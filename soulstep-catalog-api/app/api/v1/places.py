@@ -308,10 +308,8 @@ def list_places(
     place_type: str | None = Query(None),
     search: str | None = Query(None),
     sort: str | None = Query(None, description="proximity or rating"),
-    limit: int = Query(50, le=100),
-    cursor: str | None = Query(
-        None, description="place_code of the last seen item; omit for the first page"
-    ),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
     jummah: bool | None = Query(
         None, description="If true, only places with Jummah / Friday prayer (Islam)"
     ),
@@ -336,6 +334,7 @@ def list_places(
     city: str | None = Query(None, description="Filter by city name (case-insensitive)"),
 ):
     religions = religion
+    offset = (max(1, page) - 1) * page_size
     result = places_db.list_places(
         session=session,
         religions=religions,
@@ -345,8 +344,8 @@ def list_places(
         place_type=place_type,
         search=search,
         sort=sort,
-        limit=limit,
-        cursor=cursor,
+        limit=page_size,
+        offset=offset,
         jummah=jummah,
         has_events=has_events,
         open_now=open_now,
@@ -391,9 +390,11 @@ def list_places(
         places_out.append(item)
 
     return {
-        "places": places_out,
+        "items": places_out,
+        "total": result["total"],
+        "page": page,
+        "page_size": page_size,
         "filters": result["filters"],
-        "next_cursor": result.get("next_cursor"),
     }
 
 
@@ -429,13 +430,14 @@ def get_place(
 def get_place_reviews(
     place_code: str,
     session: SessionDep,
-    limit: int = Query(5, le=100),
-    offset: int = Query(0),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(5, ge=1, le=100),
     lang: str | None = Query(None),
 ):
     if not places_db.get_place_by_code(place_code, session):
         raise HTTPException(status_code=404, detail="Place not found")
-    rows = reviews_db.get_reviews_by_place(place_code, session, limit=limit, offset=offset)
+    offset = (max(1, page) - 1) * page_size
+    rows = reviews_db.get_reviews_by_place(place_code, session, limit=page_size, offset=offset)
 
     agg = reviews_db.get_aggregate_rating(place_code, session)
 
@@ -510,10 +512,15 @@ def get_place_reviews(
                 }
             )
 
-    result = {"reviews": out}
+    total_reviews = agg["count"] if agg else 0
+    result: dict = {
+        "items": out,
+        "total": total_reviews,
+        "page": page,
+        "page_size": page_size,
+    }
     if agg:
         result["average_rating"] = agg["average"]
-        result["review_count"] = agg["count"]
     return result
 
 

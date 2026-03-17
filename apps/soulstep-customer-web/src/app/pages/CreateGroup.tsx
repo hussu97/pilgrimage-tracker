@@ -240,7 +240,7 @@ export default function CreateGroup() {
           lat: coords.lat,
           lng: coords.lng,
           sort: 'distance',
-          limit: 100,
+          page_size: 100,
           city: opts?.city,
           religions: (opts?.religions as any) ?? undefined,
         });
@@ -436,8 +436,8 @@ export default function CreateGroup() {
                       if (card.id === 'city') {
                         setBuildSubStep('city_pick');
                         setCitiesLoading(true);
-                        getCities({ limit: 50, include_images: true })
-                          .then((d) => setCities(d.cities ?? []))
+                        getCities({ page_size: 50, include_images: true })
+                          .then((d) => setCities(d.items ?? []))
                           .catch(() => setCities([]))
                           .finally(() => setCitiesLoading(false));
                       } else if (card.id === 'faith') {
@@ -664,7 +664,7 @@ export default function CreateGroup() {
                             try {
                               const detail = await getGroup(route.group_code);
                               if (detail.path_place_codes?.length) {
-                                const res = await getPlaces({ limit: 100 });
+                                const res = await getPlaces({ page_size: 100 });
                                 const placesMap = new Map(
                                   (res.places ?? []).map((p) => [p.place_code, p]),
                                 );

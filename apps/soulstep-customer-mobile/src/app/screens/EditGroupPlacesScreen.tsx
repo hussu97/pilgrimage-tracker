@@ -93,8 +93,8 @@ export default function EditGroupPlacesScreen() {
 
   useEffect(() => {
     fetchData();
-    getPlaces({ limit: 200 })
-      .then((res) => setPlaces(res.places ?? []))
+    getPlaces({ page_size: 200 })
+      .then((res) => setPlaces(res.items ?? []))
       .catch(() => {})
       .finally(() => setPlacesLoading(false));
   }, [fetchData]);

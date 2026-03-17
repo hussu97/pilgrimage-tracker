@@ -150,7 +150,7 @@ class TestDeleteReview:
         client.delete(f"{REVIEWS_URL}/{code}", headers=_auth(token))
 
         resp = client.get(f"{PLACES_URL}/plc_dr0002/reviews")
-        review_codes = [r["review_code"] for r in resp.json()["reviews"]]
+        review_codes = [r["review_code"] for r in resp.json()["items"]]
         assert code not in review_codes
 
     def test_cannot_delete_other_users_review(self, client):
@@ -185,7 +185,7 @@ class TestReviewsListAndRating:
         resp = client.get(f"{PLACES_URL}/plc_rl0001/reviews")
         assert resp.status_code == 200
         data = resp.json()
-        assert len(data["reviews"]) == 1
+        assert len(data["items"]) == 1
         assert "average_rating" in data
         assert data["average_rating"] == 4.0
 
@@ -199,7 +199,7 @@ class TestReviewsListAndRating:
         resp = client.get(f"{PLACES_URL}/plc_rl0002/reviews")
         data = resp.json()
         assert data["average_rating"] == 3.0
-        assert data["review_count"] == 2
+        assert data["total"] == 2
 
     def test_anonymous_review_hides_user_code(self, client):
         token = _register(client)
@@ -212,7 +212,7 @@ class TestReviewsListAndRating:
         assert resp.status_code == 200
 
         list_resp = client.get(f"{PLACES_URL}/plc_rl0003/reviews")
-        review = list_resp.json()["reviews"][0]
+        review = list_resp.json()["items"][0]
         assert review["is_anonymous"] is True
         assert review["user_code"] is None
         assert review["display_name"] == "Anonymous"

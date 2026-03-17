@@ -152,8 +152,8 @@ export default function NotificationsScreen() {
   const fetchList = useCallback(() => {
     setLoading(true);
     setError('');
-    getNotifications(50, 0)
-      .then((res) => setNotifications(res.notifications ?? []))
+    getNotifications(50, 1)
+      .then((res) => setNotifications(res.items ?? []))
       .catch((e) => setError(e instanceof Error ? e.message : t('common.error')))
       .finally(() => setLoading(false));
   }, [t]);

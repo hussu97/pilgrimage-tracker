@@ -56,7 +56,7 @@ export default function MapDiscovery() {
         const resp = await getPlaces(
           {
             search: searchVal || undefined,
-            limit: 100,
+            page_size: 100,
             open_now: activeFilters.open_now || undefined,
             has_parking: activeFilters.has_parking || undefined,
             womens_area: activeFilters.womens_area || undefined,

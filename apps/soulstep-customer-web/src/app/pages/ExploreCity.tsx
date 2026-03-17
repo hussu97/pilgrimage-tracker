@@ -25,7 +25,7 @@ const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 async function getCityMetrics(citySlug: string): Promise<CityMetrics | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/v1/cities?include_metrics=true&limit=200`, {
+    const res = await fetch(`${API_BASE}/api/v1/cities?include_metrics=true&page_size=200`, {
       credentials: 'include',
     });
     if (!res.ok) return null;
@@ -35,7 +35,7 @@ async function getCityMetrics(citySlug: string): Promise<CityMetrics | null> {
       count: number;
       checkins_30d?: number;
       popularity_label?: string | null;
-    }> = data.cities ?? [];
+    }> = data.items ?? [];
     const match = cities.find((c) => c.city_slug === citySlug);
     if (!match) return null;
     return {
@@ -102,7 +102,7 @@ export default function ExploreCity() {
     api
       .getCityPlaces(city)
       .then((data) => {
-        setPlaces(data.places ?? []);
+        setPlaces(data.items ?? []);
         setCityName(data.city ?? '');
         setLoading(false);
       })

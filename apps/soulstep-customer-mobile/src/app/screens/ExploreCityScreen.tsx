@@ -58,10 +58,10 @@ export default function ExploreCityScreen() {
   useEffect(() => {
     async function loadMetrics() {
       try {
-        const res = await fetch(`${API_BASE}/api/v1/cities?limit=100&include_metrics=true`);
+        const res = await fetch(`${API_BASE}/api/v1/cities?page_size=100&include_metrics=true`);
         if (!res.ok) return;
         const data = await res.json();
-        const cityRow = (data.cities ?? []).find(
+        const cityRow = (data.items ?? []).find(
           (c: {
             city_slug: string;
             checkins_30d?: number | null;
@@ -85,7 +85,7 @@ export default function ExploreCityScreen() {
     setLoading(true);
     getCityPlaces(citySlug)
       .then((data) => {
-        setPlaces(data.places ?? []);
+        setPlaces(data.items ?? []);
         setCityName(data.city ?? '');
         setLoading(false);
       })

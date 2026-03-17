@@ -4,6 +4,26 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-17] — Standardize Pagination API
+
+### Backend
+- **Breaking**: All paginated endpoints now use `page` (1-indexed) + `page_size` query params and return `{ items, total, page, page_size }` response shape
+- **Removed**: `cursor`/`next_cursor` from places list, `offset`/`limit` from notifications, reviews, cities
+- **New**: `app/api/pagination.py` — shared `paginate_query()` helper and `offset_for()` utility
+- **DB**: `list_places()` now accepts `offset` instead of `cursor` and returns `total` count
+- **DB**: Added `count_notifications_for_user()` to notifications module
+
+### Frontend (web)
+- Updated all API client functions (`getPlaces`, `getPlaceReviews`, `getNotifications`, `getCities`) to use `page`/`page_size` params
+- Updated all response consumers to read `items` instead of `places`/`reviews`/`notifications`/`cities`
+- Converted Places page from cursor-based to page-based infinite scroll
+- Converted ExploreCities page from offset-based to page-based infinite scroll
+
+### Frontend (mobile)
+- Mirror of all web API client and screen changes for feature parity
+
+---
+
 ## [2026-03-17] — Fix: Cloud Run Job Hangs at "Acquiring browser session..."
 
 ### Backend

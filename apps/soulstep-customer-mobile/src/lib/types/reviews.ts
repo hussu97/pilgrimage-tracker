@@ -13,7 +13,7 @@ export interface Review {
 }
 
 export interface ReviewsResponse {
-  reviews: Review[];
+  items: Review[];
+  total: number;
   average_rating?: number;
-  review_count?: number;
 }

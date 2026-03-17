@@ -42,25 +42,25 @@ export default function PlacesScreen() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [religion, setReligion] = useState('');
-  const [cursor, setCursor] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
   const fetchPlaces = useCallback(
-    async (nextCursor: string | null = null, reset = false) => {
+    async (nextPage: number = 1, reset = false) => {
       setLoading(true);
       try {
         const resp = await getPlaces({
           religions: religion ? [religion as any] : undefined,
-          limit: 50,
-          cursor: nextCursor ?? undefined,
+          page_size: 50,
+          page: nextPage,
         });
         if (reset) {
-          setPlaces(resp.places);
+          setPlaces(resp.items);
         } else {
-          setPlaces((prev) => [...prev, ...resp.places]);
+          setPlaces((prev) => [...prev, ...resp.items]);
         }
-        setCursor(resp.next_cursor ?? null);
-        setHasMore(resp.next_cursor != null);
+        setPage(nextPage);
+        setHasMore(nextPage * resp.page_size < resp.total);
       } catch {
         // ignore
       } finally {
@@ -71,8 +71,8 @@ export default function PlacesScreen() {
   );
 
   useEffect(() => {
-    setCursor(null);
-    fetchPlaces(null, true);
+    setPage(1);
+    fetchPlaces(1, true);
   }, [religion, fetchPlaces]);
 
   const renderPlace = ({ item }: { item: Place }) => {
@@ -122,7 +122,7 @@ export default function PlacesScreen() {
           columnWrapperStyle={s.row}
           contentContainerStyle={[s.listContent, { paddingBottom: insets.bottom + 80 }]}
           renderItem={renderPlace}
-          onEndReached={() => hasMore && !loading && fetchPlaces(cursor)}
+          onEndReached={() => hasMore && !loading && fetchPlaces(page + 1)}
           onEndReachedThreshold={0.5}
           ListFooterComponent={
             loading ? (

@@ -140,9 +140,9 @@ export default function PlaceDetailScreen() {
       ]);
       setPlace(placeData);
       setCheckInDone(placeData.user_has_checked_in === true);
-      setReviews(reviewsData.reviews ?? []);
+      setReviews(reviewsData.items ?? []);
       setAverageRating(reviewsData.average_rating);
-      setReviewCount(reviewsData.review_count);
+      setReviewCount(reviewsData.total);
       trackEvent('place_view', { place_code: placeData.place_code, religion: placeData.religion });
       trackUmamiEvent('place_view', { religion: placeData.religion });
     } catch (err) {

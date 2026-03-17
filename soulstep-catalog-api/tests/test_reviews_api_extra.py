@@ -227,7 +227,7 @@ class TestExternalReviews:
         resp = client.get(f"{PLACES_URL}/plc_ex0010/reviews?source=user")
         assert resp.status_code == 200
         data = resp.json()
-        assert isinstance(data["reviews"], list)
+        assert isinstance(data["items"], list)
 
 
 # ── TestReviewsDbExtra ─────────────────────────────────────────────────────────
@@ -243,7 +243,7 @@ class TestReviewsDbExtra:
 
         resp = client.get(f"{PLACES_URL}/plc_sf0001/reviews?source=user")
         assert resp.status_code == 200
-        reviews = resp.json()["reviews"]
+        reviews = resp.json()["items"]
         assert all(r.get("source", "user") == "user" for r in reviews)
 
     def test_delete_review_removes_it(self, client):
@@ -256,5 +256,5 @@ class TestReviewsDbExtra:
         assert del_resp.status_code == 200
 
         list_resp = client.get(f"{PLACES_URL}/plc_del001/reviews")
-        codes = [r["review_code"] for r in list_resp.json()["reviews"]]
+        codes = [r["review_code"] for r in list_resp.json()["items"]]
         assert code not in codes

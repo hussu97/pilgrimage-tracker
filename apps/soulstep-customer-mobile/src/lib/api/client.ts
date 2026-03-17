@@ -371,8 +371,8 @@ export interface GetPlacesParams {
   place_type?: string;
   search?: string;
   sort?: string;
-  limit?: number;
-  cursor?: string;
+  page?: number;
+  page_size?: number;
   open_now?: boolean;
   has_parking?: boolean;
   womens_area?: boolean;
@@ -395,8 +395,8 @@ export async function getPlaces(params?: GetPlacesParams): Promise<PlacesRespons
   if (params?.place_type) sp.set('place_type', params.place_type);
   if (params?.search) sp.set('search', params.search);
   if (params?.sort) sp.set('sort', params.sort);
-  if (params?.limit != null) sp.set('limit', String(params.limit));
-  if (params?.cursor) sp.set('cursor', params.cursor);
+  if (params?.page != null) sp.set('page', String(params.page));
+  if (params?.page_size != null) sp.set('page_size', String(params.page_size));
   if (params?.open_now) sp.set('open_now', 'true');
   if (params?.has_parking) sp.set('has_parking', 'true');
   if (params?.womens_area) sp.set('womens_area', 'true');
@@ -414,7 +414,7 @@ export async function getPlaces(params?: GetPlacesParams): Promise<PlacesRespons
   const res = await authFetch(url, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch places');
   const data = await res.json();
-  return { ...data, next_cursor: data.next_cursor ?? null };
+  return data;
 }
 
 export interface FeaturedGroup {
@@ -450,8 +450,8 @@ export async function getPlace(
   return data;
 }
 
-export async function getPlaceReviews(placeCode: string, limit = 5): Promise<ReviewsResponse> {
-  const sp = new URLSearchParams({ limit: String(limit) });
+export async function getPlaceReviews(placeCode: string, pageSize = 5): Promise<ReviewsResponse> {
+  const sp = new URLSearchParams({ page_size: String(pageSize) });
   if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
   const res = await fetch(`${API_BASE}/api/v1/places/${placeCode}/reviews?${sp}`);
   if (!res.ok) throw new Error('Failed to fetch reviews');
@@ -814,12 +814,12 @@ export async function addPlaceToGroup(
 
 // Notifications
 export async function getNotifications(
-  limit?: number,
-  offset?: number,
-): Promise<{ notifications: Notification[]; unread_count: number }> {
+  pageSize?: number,
+  page?: number,
+): Promise<{ items: Notification[]; unread_count: number }> {
   const sp = new URLSearchParams();
-  if (limit != null) sp.set('limit', String(limit));
-  if (offset != null) sp.set('offset', String(offset));
+  if (pageSize != null) sp.set('page_size', String(pageSize));
+  if (page != null) sp.set('page', String(page));
   const res = await authFetch(`${API_BASE}/api/v1/notifications?${sp}`, {
     headers: authHeaders(),
   });
@@ -910,16 +910,16 @@ export async function updateVisitorSettings(
 // ─── Cities ───────────────────────────────────────────────────────────────────
 
 export async function getCities(params?: {
-  limit?: number;
-  offset?: number;
+  page?: number;
+  page_size?: number;
   include_images?: boolean;
 }): Promise<{
-  cities: Array<{ city: string; city_slug: string; count: number; top_images: string[] }>;
+  items: Array<{ city: string; city_slug: string; count: number; top_images: string[] }>;
   total: number;
 }> {
   const qs = new URLSearchParams();
-  if (params?.limit != null) qs.set('limit', String(params.limit));
-  if (params?.offset != null) qs.set('offset', String(params.offset));
+  if (params?.page != null) qs.set('page', String(params.page));
+  if (params?.page_size != null) qs.set('page_size', String(params.page_size));
   if (params?.include_images) qs.set('include_images', 'true');
   const query = qs.toString();
   const res = await fetch(`${API_BASE}/api/v1/cities${query ? `?${query}` : ''}`, {
@@ -934,7 +934,7 @@ export async function getCityPlaces(
   page = 1,
 ): Promise<{
   city: string;
-  places: Array<{
+  items: Array<{
     place_code: string;
     name: string;
     religion: string;
