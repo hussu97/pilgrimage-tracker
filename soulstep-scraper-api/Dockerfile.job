@@ -36,7 +36,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt requirements-job.txt ./
 RUN pip install --no-cache-dir -r requirements.txt -r requirements-job.txt
 
-# Install the Chromium browser binary (~300 MB)
+# Install the Chromium browser binary to a shared path accessible by appuser
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
 RUN playwright install chromium --with-deps
 
 COPY . .
