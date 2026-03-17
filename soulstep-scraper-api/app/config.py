@@ -94,16 +94,21 @@ class Settings:
     scraper_backend: str = os.environ.get("SCRAPER_BACKEND", "api")
     # Number of Playwright browser contexts kept in the pool. Idle contexts are
     # reused across grid cells; only `maps_browser_concurrency` are active at once.
-    # 5 contexts × ~200 MB each ≈ 1 GB — safe for 4-8 GB Cloud Run Jobs.
-    maps_browser_pool_size: int = int(os.environ.get("MAPS_BROWSER_POOL_SIZE", "5"))
+    # 8 contexts × ~200 MB each ≈ 1.6 GB — safe for 4-8 GB Cloud Run Jobs.
+    maps_browser_pool_size: int = int(os.environ.get("MAPS_BROWSER_POOL_SIZE", "8"))
     # Max navigations per browser context before recycling (prevents fingerprinting).
     maps_browser_max_pages: int = int(os.environ.get("MAPS_BROWSER_MAX_PAGES", "30"))
     # Run Chromium headless (set false for local debugging).
     maps_browser_headless: bool = os.environ.get("MAPS_BROWSER_HEADLESS", "true").lower() == "true"
     # Max concurrent grid cell navigations in browser mode.
     # Each concurrent navigation needs its own Chromium context (~200 MB).
-    # 10 active contexts ≈ 2 GB; ensure Cloud Run Job has enough RAM (8 GiB for 10).
-    maps_browser_concurrency: int = int(os.environ.get("MAPS_BROWSER_CONCURRENCY", "10"))
+    # 8 active contexts ≈ 1.6 GB; ensure Cloud Run Job has enough RAM (8 GiB recommended).
+    maps_browser_concurrency: int = int(os.environ.get("MAPS_BROWSER_CONCURRENCY", "8"))
+    # Comma-separated proxy URLs for browser contexts (e.g. "http://proxy1:8080,http://proxy2:8080").
+    # Empty = no proxy. Each new context picks the next proxy in rotation.
+    browser_proxy_list: str = os.environ.get("BROWSER_PROXY_LIST", "")
+    # Proxy rotation strategy: "round_robin" or "random".
+    browser_proxy_rotation: str = os.environ.get("BROWSER_PROXY_ROTATION", "round_robin")
     # Random delay range (seconds) injected between consecutive cell navigations.
     # Mimics human think-time between page visits.
     maps_browser_cell_delay_min: float = float(os.environ.get("MAPS_BROWSER_CELL_DELAY_MIN", "5.0"))
@@ -193,6 +198,8 @@ class Settings:
             "MAPS_BROWSER_CONCURRENCY": str(self.maps_browser_concurrency),
             "MAPS_BROWSER_CELL_DELAY_MIN": str(self.maps_browser_cell_delay_min),
             "MAPS_BROWSER_CELL_DELAY_MAX": str(self.maps_browser_cell_delay_max),
+            "BROWSER_PROXY_LIST": self.browser_proxy_list,
+            "BROWSER_PROXY_ROTATION": self.browser_proxy_rotation,
             # ── Post-sync ─────────────────────────────────────────────────────
             "SCRAPER_AUTO_SYNC_AFTER_RUN": str(self.auto_sync_after_run).lower(),
             "SCRAPER_TRIGGER_SEO_AFTER_SYNC": str(self.trigger_seo_after_sync).lower(),

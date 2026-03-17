@@ -16,9 +16,11 @@ from __future__ import annotations
 
 import asyncio
 import math
+import os
 import random
 import re
 import time
+from dataclasses import dataclass, field
 
 from sqlmodel import Session, select
 
@@ -47,6 +49,43 @@ from app.services.browser_pool import (
 )
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class RunMetrics:
+    """Aggregated counters for browser discovery operational health."""
+
+    cells_total: int = 0
+    cells_cached: int = 0
+    cells_searched: int = 0
+    cells_empty: int = 0
+    places_discovered: int = 0
+    blocks_detected: int = 0
+    retries: int = 0
+    _cell_times: list[float] = field(default_factory=list)
+
+    def record_cell_time(self, elapsed: float) -> None:
+        self._cell_times.append(elapsed)
+
+    @property
+    def avg_cell_time(self) -> float:
+        return sum(self._cell_times) / len(self._cell_times) if self._cell_times else 0.0
+
+    def log_summary(self, place_type: str) -> None:
+        logger.info(
+            "RunMetrics[%s]: cells=%d (cached=%d, searched=%d, empty=%d) "
+            "places=%d blocks=%d retries=%d avg_cell=%.1fs",
+            place_type,
+            self.cells_total,
+            self.cells_cached,
+            self.cells_searched,
+            self.cells_empty,
+            self.places_discovered,
+            self.blocks_detected,
+            self.retries,
+            self.avg_cell_time,
+        )
+
 
 MIN_RADIUS = MIN_DISCOVERY_RADIUS_M
 MAX_RADIUS = MAX_DISCOVERY_RADIUS_M
@@ -151,12 +190,18 @@ def _extract_place_ids_from_links(hrefs: list[str]) -> list[str]:
 
 
 async def _check_for_block(page) -> bool:
-    """Return True if Maps has detected bot activity or access is denied."""
+    """Return True if Maps has detected bot activity or access is denied.
+
+    Uses lightweight JS snippet instead of page.content() to avoid transferring
+    the full 1-5MB DOM over CDP on every navigation.
+    """
     try:
-        content = await page.content()
-        lower = content.lower()
+        # Extract only the first 2000 chars of visible text — ~99% less data than full DOM
+        snippet: str = await page.evaluate(
+            "document.body ? document.body.innerText.slice(0, 2000).toLowerCase() : ''"
+        )
         if any(
-            indicator in lower
+            indicator in snippet
             for indicator in [
                 "unusual traffic",
                 "access denied",
@@ -164,7 +209,6 @@ async def _check_for_block(page) -> bool:
             ]
         ):
             return True
-        # "enable javascript" is a <noscript> fallback present on every Maps page — do NOT use it.
         # Only check for a real reCAPTCHA challenge iframe (not just any recaptcha script reference).
         captcha = await page.query_selector(
             "iframe[src*='google.com/recaptcha'], iframe[title*='reCAPTCHA'], #captcha, .captcha"
@@ -537,10 +581,11 @@ async def search_area_browser(
                     return []
 
                 logger.debug(
-                    "%s[%s] Page content_len=%d",
+                    "%s[%s] Page title=%r url=%s",
                     indent,
                     place_type,
-                    len(await page.content()),
+                    await page.title(),
+                    page.url,
                 )
 
                 pool.record_success()
@@ -579,7 +624,9 @@ async def search_area_browser(
                 logger.info("%s[%s] Extracted %d hrefs from page", indent, place_type, len(hrefs))
 
                 if not hrefs:
-                    snippet = (await page.content())[:2000]
+                    snippet = await page.evaluate(
+                        "document.title + ' | ' + (document.body?.innerText?.slice(0, 500) || '')"
+                    )
                     logger.debug(
                         "%s[%s] No hrefs found. Page snippet: %s", indent, place_type, snippet
                     )
@@ -811,7 +858,9 @@ async def _do_grid_cell_navigation(
         )
 
         if not hrefs:
-            snippet = (await page.content())[:1000]
+            snippet = await page.evaluate(
+                "document.title + ' | ' + (document.body?.innerText?.slice(0, 500) || '')"
+            )
             logger.debug(
                 "[grid][%s] No hrefs — page snippet: %s",
                 place_type,
@@ -968,6 +1017,9 @@ async def search_grid_browser(
     cell_store: DiscoveryCellStore | None = None,
     global_cache: GlobalCellStore | None = None,
     semaphore: asyncio.Semaphore | None = None,
+    _progress_callback: object | None = None,
+    cancel_event: asyncio.Event | None = None,
+    metrics: RunMetrics | None = None,
 ) -> list[str]:
     """Search a pre-computed grid of fixed-size cells for a single place type.
 
@@ -983,6 +1035,9 @@ async def search_grid_browser(
         cell_store: Per-run cache for resumability.
         global_cache: Cross-run cache to skip re-searching recent cells.
         semaphore: Limits concurrent browser navigations.
+        _progress_callback: Optional callable(place_type, cells_done, cells_total, total_ids)
+            for updating discovery progress in the DB.
+        cancel_event: If set, stops processing remaining cells gracefully.
 
     Returns:
         List of new place resource names found during this grid pass.
@@ -991,6 +1046,8 @@ async def search_grid_browser(
     _sem = semaphore if semaphore is not None else _NullSemaphore()
 
     async def _bounded_cell(cell: tuple) -> list[str]:
+        if cancel_event and cancel_event.is_set():
+            return []
         if max_results and len(existing_ids) >= max_results:
             return []
         async with _sem:
@@ -1003,7 +1060,8 @@ async def search_grid_browser(
             )
             await asyncio.sleep(delay)
             lat_min, lat_max, lng_min, lng_max = cell
-            return await _search_single_grid_cell(
+            t0 = time.monotonic()
+            result = await _search_single_grid_cell(
                 lat_min,
                 lat_max,
                 lng_min,
@@ -1013,13 +1071,50 @@ async def search_grid_browser(
                 cell_store=cell_store,
                 global_cache=global_cache,
             )
+            if metrics:
+                metrics.record_cell_time(time.monotonic() - t0)
+                metrics.cells_searched += 1
+                if not result:
+                    metrics.cells_empty += 1
+                else:
+                    metrics.places_discovered += len(result)
+            return result
 
-    results = await asyncio.gather(*[_bounded_cell(c) for c in grid_cells], return_exceptions=True)
-    for result in results:
-        if isinstance(result, Exception):
-            logger.warning("[grid][%s] Cell task error: %s", place_type, result)
-        else:
-            all_new.extend(result)
+    # Process in batches to avoid creating 50K+ coroutines simultaneously
+    BATCH_SIZE = 100
+    for batch_start in range(0, len(grid_cells), BATCH_SIZE):
+        if cancel_event and cancel_event.is_set():
+            logger.info("[grid][%s] Cancellation requested — stopping", place_type)
+            break
+        if max_results and len(existing_ids) >= max_results:
+            break
+        batch = grid_cells[batch_start : batch_start + BATCH_SIZE]
+        results = await asyncio.gather(*[_bounded_cell(c) for c in batch], return_exceptions=True)
+        for result in results:
+            if isinstance(result, Exception):
+                logger.warning("[grid][%s] Cell task error: %s", place_type, result)
+            else:
+                all_new.extend(result)
+
+        cells_done = min(batch_start + BATCH_SIZE, len(grid_cells))
+        logger.info(
+            "[grid][%s] Batch %d-%d/%d done — %d new IDs so far (total=%d)",
+            place_type,
+            batch_start + 1,
+            cells_done,
+            len(grid_cells),
+            len(all_new),
+            len(existing_ids),
+        )
+
+        # Update discovery progress in DB every batch for admin UI visibility
+        if _progress_callback is not None:
+            _progress_callback(place_type, cells_done, len(grid_cells), len(existing_ids))
+
+    # Log structured metrics summary for this type pass
+    if metrics:
+        metrics.cells_total = len(grid_cells)
+        metrics.log_summary(place_type)
 
     return all_new
 
@@ -1102,50 +1197,129 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
     existing_ids = ThreadSafeIdSet()
     global_cache = GlobalCellStore(_engine)
 
-    pool = get_maps_pool()
+    # Memory monitoring — logs RSS every 30s, triggers gc.collect() above threshold
+    async def _memory_monitor() -> None:
+        try:
+            import gc
 
-    for i, place_type in enumerate(all_gmaps_types):
-        # Reset circuit breaker between types so one type's failures don't cascade
-        if i > 0:
-            pool.reset_breaker()
+            import psutil
 
-        logger.info(
-            "=== Browser grid pass %d/%d: type=%s cells=%d ===",
-            i + 1,
-            len(all_gmaps_types),
-            place_type,
-            len(grid_cells),
-        )
+            process = psutil.Process()
+            # Default threshold: 80% of Cloud Run memory limit or 6 GiB
+            mem_limit_mb = int(os.environ.get("MEMORY_LIMIT_MB", "6144"))
+            threshold_mb = mem_limit_mb * 0.8
+            while True:
+                await asyncio.sleep(30)
+                rss_mb = process.memory_info().rss / (1024 * 1024)
+                logger.info("Memory: RSS=%.0f MB (threshold=%.0f MB)", rss_mb, threshold_mb)
+                if rss_mb > threshold_mb:
+                    logger.warning(
+                        "Memory pressure: RSS=%.0f MB > threshold=%.0f MB — forcing gc.collect()",
+                        rss_mb,
+                        threshold_mb,
+                    )
+                    gc.collect()
+        except ImportError:
+            logger.debug("psutil not installed — memory monitoring disabled")
+        except asyncio.CancelledError:
+            pass
+        except Exception as exc:
+            logger.debug("Memory monitor error: %s", exc)
 
-        # Each type gets its own cell store keyed by (place_type, "grid") for resumability
-        type_cell_store = DiscoveryCellStore(
-            run_code, _engine, place_type=place_type, discovery_method="grid"
-        )
-        type_cell_store.pre_seed_id_set(existing_ids)
+    mem_monitor_task = asyncio.create_task(_memory_monitor())
 
-        prev_count = len(existing_ids)
-        await search_grid_browser(
-            grid_cells,
-            place_type=place_type,
-            existing_ids=existing_ids,
-            max_results=max_results,
-            cell_store=type_cell_store,
-            global_cache=global_cache,
-            semaphore=browser_sem,
-        )
-        type_count = len(existing_ids) - prev_count
-        logger.info(
-            "Type %s done: found=%d, cumulative=%d", place_type, type_count, len(existing_ids)
-        )
+    # Cancellation support — background coroutine checks DB every 10s
+    cancel_event = asyncio.Event()
 
-        if max_results and len(existing_ids) >= max_results:
+    async def _cancellation_watcher() -> None:
+        while not cancel_event.is_set():
+            await asyncio.sleep(10)
+            try:
+                _run = session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if _run and _run.status == "cancelled":
+                    logger.info("Run %s cancelled — signalling stop", run_code)
+                    cancel_event.set()
+            except Exception:
+                pass
+
+    watcher_task = asyncio.create_task(_cancellation_watcher())
+
+    # Progress callback — updates ScraperRun.progress_detail for admin UI visibility
+    def _update_progress(
+        place_type: str, cells_done: int, cells_total: int, total_ids: int
+    ) -> None:
+        try:
+            _run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+            if _run:
+                _run.progress_detail = (
+                    f"type={place_type} cells={cells_done}/{cells_total} " f"places={total_ids}"
+                )
+                session.add(_run)
+                session.commit()
+        except Exception:
+            pass  # non-critical — don't interrupt discovery
+
+    # Run 2-3 place types concurrently — the shared browser_sem still limits total
+    # navigations, but overlapping cache lookups and delays cuts total time.
+    TYPE_CONCURRENCY = 3
+    type_sem = asyncio.Semaphore(TYPE_CONCURRENCY)
+
+    async def _run_type_pass(i: int, place_type: str) -> None:
+        async with type_sem:
+            if cancel_event.is_set():
+                return
+            if max_results and len(existing_ids) >= max_results:
+                return
+
             logger.info(
-                "max_results=%d reached after type %s — skipping remaining %d type(s)",
-                max_results,
+                "=== Browser grid pass %d/%d: type=%s cells=%d ===",
+                i + 1,
+                len(all_gmaps_types),
                 place_type,
-                len(all_gmaps_types) - i - 1,
+                len(grid_cells),
             )
-            break
+
+            type_cell_store = DiscoveryCellStore(
+                run_code, _engine, place_type=place_type, discovery_method="grid"
+            )
+            type_cell_store.pre_seed_id_set(existing_ids)
+
+            type_metrics = RunMetrics()
+            prev_count = len(existing_ids)
+            await search_grid_browser(
+                grid_cells,
+                place_type=place_type,
+                existing_ids=existing_ids,
+                max_results=max_results,
+                cell_store=type_cell_store,
+                global_cache=global_cache,
+                semaphore=browser_sem,
+                _progress_callback=_update_progress,
+                cancel_event=cancel_event,
+                metrics=type_metrics,
+            )
+            type_count = len(existing_ids) - prev_count
+            logger.info(
+                "Type %s done: found=%d, cumulative=%d",
+                place_type,
+                type_count,
+                len(existing_ids),
+            )
+
+    results = await asyncio.gather(
+        *[_run_type_pass(i, pt) for i, pt in enumerate(all_gmaps_types)],
+        return_exceptions=True,
+    )
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            logger.warning("Type pass %s failed: %s", all_gmaps_types[i], result)
+
+    # Stop background watchers
+    cancel_event.set()
+    watcher_task.cancel()
+    mem_monitor_task.cancel()
 
     all_resource_names = existing_ids.to_list()
     logger.info("Browser discovery complete: %d places found", len(all_resource_names))

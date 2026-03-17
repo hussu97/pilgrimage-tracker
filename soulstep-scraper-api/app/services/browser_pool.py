@@ -12,11 +12,14 @@ Features:
 from __future__ import annotations
 
 import asyncio
+import itertools
 import logging
 import os
+import random as _random
 import sys
 import time
 from dataclasses import dataclass, field
+from datetime import UTC
 
 from app.services.browser_stealth import (
     apply_stealth,
@@ -26,6 +29,26 @@ from app.services.browser_stealth import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class ProxyRotator:
+    """Rotates through a list of proxy URLs (round_robin or random)."""
+
+    def __init__(self, proxy_list: str, strategy: str = "round_robin") -> None:
+        self._proxies = [p.strip() for p in proxy_list.split(",") if p.strip()]
+        self._strategy = strategy
+        self._cycle = itertools.cycle(self._proxies) if self._proxies else None
+
+    @property
+    def has_proxies(self) -> bool:
+        return bool(self._proxies)
+
+    def next(self) -> str | None:
+        if not self._proxies:
+            return None
+        if self._strategy == "random":
+            return _random.choice(self._proxies)
+        return next(self._cycle)  # type: ignore[arg-type]
 
 
 class BlockedError(Exception):
@@ -42,20 +65,36 @@ class AcquireTimeoutError(Exception):
 
 @dataclass
 class _CircuitBreaker:
+    """Three-state circuit breaker: closed → open → half_open → closed/open.
+
+    After the pause expires, enters half_open — allows one probe request.
+    If probe succeeds → closed. If probe fails → open for another full pause.
+    """
+
     max_failures: int = 3
     pause_seconds: float = 600.0  # 10 minutes
     _failures: int = field(default=0, init=False)
-    _open: bool = field(default=False, init=False)
+    _state: str = field(default="closed", init=False)  # closed | open | half_open
     _open_since: float = field(default=0.0, init=False)
 
     def record_success(self) -> None:
+        if self._state == "half_open":
+            logger.info("MapsBrowserPool: circuit breaker probe succeeded — closing")
         self._failures = 0
-        self._open = False
+        self._state = "closed"
 
     def record_failure(self) -> None:
         self._failures += 1
-        if self._failures >= self.max_failures:
-            self._open = True
+        if self._state == "half_open":
+            # Probe failed — reopen for another full pause
+            self._state = "open"
+            self._open_since = time.monotonic()
+            logger.warning(
+                "MapsBrowserPool: circuit breaker probe failed — reopening for %.0fs",
+                self.pause_seconds,
+            )
+        elif self._failures >= self.max_failures:
+            self._state = "open"
             self._open_since = time.monotonic()
             logger.warning(
                 "MapsBrowserPool: circuit breaker opened after %d consecutive failures — "
@@ -66,17 +105,20 @@ class _CircuitBreaker:
 
     @property
     def is_open(self) -> bool:
-        if self._open:
+        if self._state == "open":
             elapsed = time.monotonic() - self._open_since
             if elapsed >= self.pause_seconds:
                 logger.info(
-                    "MapsBrowserPool: circuit breaker auto-reset after %.0fs pause", elapsed
+                    "MapsBrowserPool: circuit breaker → half_open after %.0fs pause", elapsed
                 )
-                self._open = False
-                self._failures = 0
-                return False
+                self._state = "half_open"
+                return False  # allow one probe request
             return True
         return False
+
+    @property
+    def is_half_open(self) -> bool:
+        return self._state == "half_open"
 
     @property
     def open_since(self) -> float:
@@ -105,8 +147,13 @@ class MapsBrowserPool:
         self._browser = None
         self._lock = asyncio.Lock()
         self._initialized = False
-        self._sem = asyncio.Semaphore(self._pool_size)
+        # Semaphore must match concurrency, not pool_size, to avoid starving tasks.
+        # Pool size caps how many contexts exist; concurrency caps active navigations.
+        self._sem = asyncio.Semaphore(settings.maps_browser_concurrency)
         self._breaker = _CircuitBreaker()
+        self._proxy_rotator = ProxyRotator(
+            settings.browser_proxy_list, settings.browser_proxy_rotation
+        )
 
     async def _init(self) -> None:
         # If the browser process died (OOM, crash), tear down and reinitialise
@@ -228,7 +275,10 @@ class MapsBrowserPool:
             pass  # non-critical diagnostic
 
     async def _create_session(
-        self, lat: float | None = None, lng: float | None = None
+        self,
+        lat: float | None = None,
+        lng: float | None = None,
+        block_images: bool = True,
     ) -> _MapsSession:
         ua = random_user_agent()
         viewport = random_viewport()
@@ -244,16 +294,35 @@ class MapsBrowserPool:
             context_kwargs["geolocation"] = {"latitude": lat, "longitude": lng}
             context_kwargs["permissions"] = ["geolocation"]
 
+        # Proxy rotation — each context gets the next proxy in the list
+        proxy_url = self._proxy_rotator.next()
+        if proxy_url:
+            context_kwargs["proxy"] = {"server": proxy_url}
+            logger.debug("MapsBrowserPool: using proxy %s", proxy_url)
+
         context = await self._browser.new_context(**context_kwargs)
 
         # Pre-set Google consent cookies so EU data-centres (europe-west1 etc.)
         # don't get redirected to consent.google.com before Maps loads.
         # SOCS is Google's current cookie-consent tracking mechanism.
+        # Configurable via env var; falls back to a date-based default.
+        socs_value = os.environ.get("BROWSER_SOCS_COOKIE", "")
+        if not socs_value:
+            # Generate a fresh-ish SOCS value based on current date
+            import base64
+            from datetime import datetime, timezone
+
+            now = datetime.now(UTC)
+            date_str = now.strftime("%Y%m%d")
+            socs_value = base64.b64encode(
+                f"CAISHAgBEhJnd3Nfe2RhdGV9XzBfUkMyGgJlbiABGgYIgPy8mgY={date_str}".encode()
+            ).decode()
+
         await context.add_cookies(
             [
                 {
                     "name": "SOCS",
-                    "value": "CAISHAgBEhJnd3NfMjAyMzA4MTAtMF9SQzIaAmVuIAEaBgiA_LyaBg",
+                    "value": socs_value,
                     "domain": ".google.com",
                     "path": "/",
                 },
@@ -267,9 +336,11 @@ class MapsBrowserPool:
         )
 
         # Block resource types not needed for scraping (speed up page loads and
-        # cut memory usage).  We only need the DOM for link extraction — map tiles,
-        # images, fonts, stylesheets, and media are all unnecessary.
-        _blocked_types = frozenset({"font", "media", "image", "stylesheet"})
+        # cut memory usage). Discovery only needs DOM for link extraction;
+        # detail fetch needs images for _capture_page_images.
+        _blocked_types = frozenset({"font", "media", "stylesheet"})
+        if block_images:
+            _blocked_types = frozenset({"font", "media", "image", "stylesheet"})
 
         async def _route_handler(route) -> None:
             try:
@@ -319,109 +390,127 @@ class MapsBrowserPool:
         self,
         lat: float | None = None,
         lng: float | None = None,
-        _retries: int = 0,
+        block_images: bool = True,
     ) -> _MapsSession:
+        """Acquire a browser session from the pool.
+
+        Args:
+            lat/lng: Geolocation spoofing coordinates.
+            block_images: If True (default), block image loading for faster discovery.
+                Set False for detail fetch where image capture is needed.
+
+        Uses an explicit retry loop with exponential backoff instead of
+        recursion. This avoids burning through retries in ~2.5s when all
+        sessions are busy.
+        """
         from app.constants import BROWSER_ACQUIRE_MAX_RETRIES, BROWSER_ACQUIRE_TIMEOUT_S
 
-        if self._breaker.is_open:
-            remaining = self._breaker.pause_seconds - (time.monotonic() - self._breaker.open_since)
-            raise CircuitOpenError(f"Maps browser circuit breaker open — retry in {remaining:.0f}s")
+        for attempt in range(BROWSER_ACQUIRE_MAX_RETRIES):
+            if self._breaker.is_open:
+                remaining = self._breaker.pause_seconds - (
+                    time.monotonic() - self._breaker.open_since
+                )
+                raise CircuitOpenError(
+                    f"Maps browser circuit breaker open — retry in {remaining:.0f}s"
+                )
 
-        if _retries >= BROWSER_ACQUIRE_MAX_RETRIES:
-            raise AcquireTimeoutError(f"Failed to acquire browser session after {_retries} retries")
+            t0 = time.monotonic()
+            try:
+                await asyncio.wait_for(self._sem.acquire(), timeout=BROWSER_ACQUIRE_TIMEOUT_S)
+            except TimeoutError:
+                raise AcquireTimeoutError(
+                    f"Timed out waiting for browser session ({BROWSER_ACQUIRE_TIMEOUT_S}s)"
+                ) from None
+            elapsed = time.monotonic() - t0
+            logger.debug(
+                "MapsBrowserPool: semaphore acquired in %.1fs (attempt=%d)",
+                elapsed,
+                attempt,
+            )
 
-        t0 = time.monotonic()
-        try:
-            await asyncio.wait_for(self._sem.acquire(), timeout=BROWSER_ACQUIRE_TIMEOUT_S)
-        except TimeoutError:
-            raise AcquireTimeoutError(
-                f"Timed out waiting for browser session ({BROWSER_ACQUIRE_TIMEOUT_S}s)"
-            ) from None
-        elapsed = time.monotonic() - t0
-        logger.debug(
-            "MapsBrowserPool: semaphore acquired in %.1fs (retry=%d)",
-            elapsed,
-            _retries,
-        )
+            _need_retry = False
+            try:
+                t_lock = time.monotonic()
+                async with self._lock:
+                    logger.debug(
+                        "MapsBrowserPool: lock acquired in %.1fs", time.monotonic() - t_lock
+                    )
+                    await self._init()
 
-        _need_reinit_retry = False
-        try:
-            t_lock = time.monotonic()
-            async with self._lock:
-                logger.debug("MapsBrowserPool: lock acquired in %.1fs", time.monotonic() - t_lock)
-                await self._init()
-
-                # Try to reuse an existing session, evicting dead ones.
-                for session in list(self._sessions):
-                    if not session.in_use and session.nav_count < self._max_pages:
-                        try:
-                            if session.page.is_closed():
-                                raise RuntimeError("page is closed")
-                        except Exception:
-                            logger.warning(
-                                "MapsBrowserPool: evicting dead session (nav_count=%d)",
-                                session.nav_count,
-                            )
+                    # Try to reuse an existing session, evicting dead ones.
+                    for session in list(self._sessions):
+                        if not session.in_use and session.nav_count < self._max_pages:
                             try:
-                                await asyncio.wait_for(session.context.close(), timeout=5)
+                                if session.page.is_closed():
+                                    raise RuntimeError("page is closed")
                             except Exception:
-                                pass
-                            self._sessions.remove(session)
-                            continue
-                        session.in_use = True
-                        logger.debug(
-                            "MapsBrowserPool: reusing session (nav_count=%d/%d)",
-                            session.nav_count,
-                            self._max_pages,
-                        )
-                        return session
-
-                if len(self._sessions) < self._pool_size:
-                    logger.debug("MapsBrowserPool: creating new session...")
-                    try:
-                        session = await asyncio.wait_for(
-                            self._create_session(lat, lng),
-                            timeout=30,
-                        )
-                    except Exception as e:
-                        if self._is_target_closed_error(e):
-                            # Browser process died but is_connected() hadn't
-                            # caught up yet.  Force full reinit inside the lock,
-                            # then retry *after* the lock is released to avoid
-                            # deadlocking on the non-reentrant asyncio.Lock.
-                            logger.warning(
-                                "MapsBrowserPool: new_context TargetClosedError — "
-                                "forcing reinit (retry=%d)",
-                                _retries,
+                                logger.warning(
+                                    "MapsBrowserPool: evicting dead session (nav_count=%d)",
+                                    session.nav_count,
+                                )
+                                try:
+                                    await asyncio.wait_for(session.context.close(), timeout=5)
+                                except Exception:
+                                    pass
+                                self._sessions.remove(session)
+                                continue
+                            session.in_use = True
+                            logger.debug(
+                                "MapsBrowserPool: reusing session (nav_count=%d/%d)",
+                                session.nav_count,
+                                self._max_pages,
                             )
-                            await self._force_reinit()
-                            _need_reinit_retry = True
+                            return session
+
+                    if len(self._sessions) < self._pool_size:
+                        logger.debug("MapsBrowserPool: creating new session...")
+                        try:
+                            session = await asyncio.wait_for(
+                                self._create_session(lat, lng, block_images=block_images),
+                                timeout=30,
+                            )
+                        except Exception as e:
+                            if self._is_target_closed_error(e):
+                                logger.warning(
+                                    "MapsBrowserPool: new_context TargetClosedError — "
+                                    "forcing reinit (attempt=%d)",
+                                    attempt,
+                                )
+                                await self._force_reinit()
+                                _need_retry = True
+                            else:
+                                raise
                         else:
-                            raise
+                            session.in_use = True
+                            self._sessions.append(session)
+                            logger.info(
+                                "MapsBrowserPool: created session (total=%d/%d)",
+                                len(self._sessions),
+                                self._pool_size,
+                            )
+                            return session
                     else:
-                        session.in_use = True
-                        self._sessions.append(session)
-                        logger.info(
-                            "MapsBrowserPool: created session (total=%d/%d)",
-                            len(self._sessions),
-                            self._pool_size,
-                        )
-                        return session
-        except Exception:
-            self._sem.release()  # prevent semaphore leak → deadlock
-            raise
+                        # Pool full — need to wait for a release
+                        _need_retry = True
+            except Exception:
+                self._sem.release()
+                raise
 
-        # Retry outside the lock so the recursive acquire() can re-acquire it.
-        # Small delay gives Chromium time to stabilise after reinit.
-        if _need_reinit_retry:
+            # Release semaphore and backoff before retry
             self._sem.release()
-            await asyncio.sleep(1.0)
-            return await self.acquire(lat, lng, _retries=_retries + 1)
+            if _need_retry:
+                backoff = min(1.0 * (2**attempt), 16.0)
+                logger.debug(
+                    "MapsBrowserPool: retry in %.1fs (attempt=%d/%d)",
+                    backoff,
+                    attempt + 1,
+                    BROWSER_ACQUIRE_MAX_RETRIES,
+                )
+                await asyncio.sleep(backoff)
 
-        # Pool full — release and retry
-        self._sem.release()
-        await asyncio.sleep(0.5)
-        return await self.acquire(lat, lng, _retries=_retries + 1)
+        raise AcquireTimeoutError(
+            f"Failed to acquire browser session after {BROWSER_ACQUIRE_MAX_RETRIES} attempts"
+        )
 
     async def release(self, session: _MapsSession, recycle: bool = False) -> None:
         async with self._lock:
@@ -463,9 +552,9 @@ class MapsBrowserPool:
     def reset_breaker(self) -> None:
         """Reset circuit breaker between place-type passes so one type's failures
         don't cascade to the next type."""
-        if self._breaker._open:
+        if self._breaker._state != "closed":
             logger.info("MapsBrowserPool: circuit breaker reset between type passes")
-        self._breaker._open = False
+        self._breaker._state = "closed"
         self._breaker._failures = 0
 
     async def shutdown(self) -> None:

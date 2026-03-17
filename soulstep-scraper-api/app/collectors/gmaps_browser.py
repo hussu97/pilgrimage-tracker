@@ -114,8 +114,12 @@ _EXTRACT_ABOUT_JS = r"""
 () => {
     // Extract all section headings and their checkmark items from the About tab.
     // Maps renders sections like "Accessibility", "Service options", "Amenities".
+    // Uses aria/data attributes first, fragile class names as fallback.
     const sections = {};
-    const headers = document.querySelectorAll('.iP2t7d, .fontTitleSmall');
+    // Prefer role/aria selectors; fall back to class-based selectors
+    const headers = document.querySelectorAll(
+        '[role="heading"], h2, h3, .iP2t7d, .fontTitleSmall'
+    );
     headers.forEach(header => {
         const sectionName = header.textContent.trim()
             .toLowerCase()
@@ -123,10 +127,11 @@ _EXTRACT_ABOUT_JS = r"""
             .replace(/[^a-z_]/g, '');
         if (!sectionName) return;
 
-        const container = header.closest('[class*="section"]') || header.parentElement;
+        const container = header.closest('[role="region"], [data-section-id], [class*="section"]')
+            || header.parentElement;
         if (!container) return;
 
-        const items = container.querySelectorAll('[aria-label]');
+        const items = container.querySelectorAll('[aria-label], [data-is-checked]');
         const sectionItems = {};
         items.forEach(item => {
             const label = (item.getAttribute('aria-label') || item.textContent || '').trim();
@@ -210,15 +215,26 @@ def _parse_hours_rows(rows: list[str]) -> dict[str, str]:
     return schedule
 
 
+_tf_instance: object | None = None
+
+
+def _get_timezone_finder():
+    """Lazy singleton for TimezoneFinder (~40MB geo data — load once)."""
+    global _tf_instance
+    if _tf_instance is None:
+        from timezonefinder import TimezoneFinder
+
+        _tf_instance = TimezoneFinder()
+    return _tf_instance
+
+
 def _get_utc_offset(lat: float, lng: float) -> int | None:
     """Calculate UTC offset in minutes from coordinates using timezonefinder."""
     try:
         from datetime import datetime
         from zoneinfo import ZoneInfo
 
-        from timezonefinder import TimezoneFinder
-
-        tf = TimezoneFinder()
+        tf = _get_timezone_finder()
         tz_name = tf.timezone_at(lat=lat, lng=lng)
         if tz_name:
             offset = datetime.now(ZoneInfo(tz_name)).utcoffset()
@@ -307,6 +323,10 @@ class BrowserGmapsCollector(BaseCollector):
         Retries up to 3 attempts on navigation timeout, recycling the browser
         context each time to avoid a stuck/rate-limited session.
         """
+        import time as _time
+
+        t_start = _time.monotonic()
+
         # Build navigation URL based on ID format
         if place_id.startswith("0x") or (":" in place_id and "0x" in place_id.lower()):
             nav_url = f"https://www.google.com/maps/place/?q={place_id.replace(':', '%3A')}&hl=en"
@@ -318,7 +338,7 @@ class BrowserGmapsCollector(BaseCollector):
         last_exc: Exception | None = None
 
         for attempt in range(_MAX_NAV_RETRIES):
-            session = await pool.acquire()
+            session = await pool.acquire(block_images=False)
             recycle = False
             try:
                 page = session.page
@@ -392,6 +412,14 @@ class BrowserGmapsCollector(BaseCollector):
                 except Exception:
                     data["_image_bytes"] = []
 
+                elapsed = _time.monotonic() - t_start
+                logger.info(
+                    "Browser detail fetch for %s completed in %.1fs (name=%r)",
+                    place_id,
+                    elapsed,
+                    data.get("name"),
+                )
+
                 return data
 
             except (BlockedError, CircuitOpenError):
@@ -434,8 +462,10 @@ class BrowserGmapsCollector(BaseCollector):
             rows = await page.evaluate(
                 r"""
                 () => {
+                    // Prefer data-section-id (stable), then aria-label, then class fallbacks
                     const cells = document.querySelectorAll(
-                        '[data-section-id="oh"] td, tr.WgFkxc td, .y0skZc td'
+                        '[data-section-id="oh"] td, [aria-label*="Hours"] td, '
+                        + 'table[role="presentation"] td, tr.WgFkxc td, .y0skZc td'
                     );
                     return Array.from(cells).map(c => c.textContent.trim()).filter(Boolean);
                 }
@@ -505,9 +535,12 @@ class BrowserGmapsCollector(BaseCollector):
     async def _capture_page_images(self, page, max_photos: int) -> list[bytes]:
         """Capture image bytes loaded on the current page from Google photo CDN.
 
-        Uses page.evaluate() to re-fetch the top N photo CDN URLs that the browser
-        has already loaded, then returns raw bytes. Called after page has settled.
+        Extracts image URLs via page.evaluate(), then downloads them with httpx
+        outside the browser — avoids transferring large base64 blobs over CDP.
+        Uses cookies from the browser context for authentication.
         """
+        import httpx
+
         from app.config import settings as _settings
 
         n = max_photos or _settings.max_photos
@@ -544,34 +577,27 @@ class BrowserGmapsCollector(BaseCollector):
         if not raw_urls:
             return []
 
-        # Re-fetch each URL from within the browser context (already authenticated/cookied)
-        blobs: list[bytes] = []
-        for url in raw_urls[:n]:
-            try:
-                b64: str | None = await page.evaluate(
-                    r"""async (url) => {
-                        try {
-                            const resp = await fetch(url, {cache: 'force-cache'});
-                            if (!resp.ok) return null;
-                            const buf = await resp.arrayBuffer();
-                            let binary = '';
-                            const bytes = new Uint8Array(buf);
-                            for (let i = 0; i < bytes.byteLength; i++) {
-                                binary += String.fromCharCode(bytes[i]);
-                            }
-                            return btoa(binary);
-                        } catch(e) { return null; }
-                    }""",
-                    url,
-                )
-                if b64:
-                    import base64
+        # Extract cookies from browser context for authenticated downloads
+        try:
+            browser_cookies = await page.context.cookies()
+            cookie_header = "; ".join(f"{c['name']}={c['value']}" for c in browser_cookies)
+        except Exception:
+            cookie_header = ""
 
-                    raw = base64.b64decode(b64)
-                    if len(raw) > 2048:  # > 2 KB → real photo, not icon
-                        blobs.append(raw)
-            except Exception:
-                pass
+        # Download images with httpx (much faster than base64-over-CDP)
+        blobs: list[bytes] = []
+        async with httpx.AsyncClient(
+            timeout=15.0,
+            follow_redirects=True,
+            headers={"Cookie": cookie_header} if cookie_header else {},
+        ) as client:
+            for url in raw_urls[:n]:
+                try:
+                    resp = await client.get(url)
+                    if resp.status_code == 200 and len(resp.content) > 2048:
+                        blobs.append(resp.content)
+                except Exception:
+                    pass
 
         return blobs
 

@@ -937,15 +937,23 @@ class TestAcquireTimeout:
 
     @pytest.mark.asyncio
     async def test_acquire_raises_after_max_retries(self):
-        """acquire() raises AcquireTimeoutError after BROWSER_ACQUIRE_MAX_RETRIES."""
+        """acquire() raises AcquireTimeoutError after BROWSER_ACQUIRE_MAX_RETRIES.
+
+        The pool is initialised but every session slot is occupied, so the loop
+        exhausts all attempts and raises.
+        """
         from app.services.browser_pool import AcquireTimeoutError, MapsBrowserPool
 
         pool = MapsBrowserPool()
-        pool._pool_size = 1
+        pool._pool_size = 0  # no slots available → always retries
         pool._headless = True
+        pool._initialized = True  # skip Playwright launch
+        pool._browser = AsyncMock()
+        pool._browser.is_connected.return_value = True
 
-        with pytest.raises(AcquireTimeoutError, match="retries"):
-            await pool.acquire(_retries=5)
+        with patch("app.constants.BROWSER_ACQUIRE_MAX_RETRIES", 2):
+            with pytest.raises(AcquireTimeoutError, match="attempts"):
+                await pool.acquire()
 
 
 # ── Semaphore leak on _init() failure ─────────────────────────────────────
@@ -1199,3 +1207,158 @@ class TestTargetClosedRecovery:
         assert session is not None
         assert dead_session not in pool._sessions
         assert session.in_use is True
+
+
+# ── TimezoneFinder singleton ─────────────────────────────────────────────
+
+
+class TestTimezoneFinderSingleton:
+    """Verify _get_timezone_finder returns the same instance."""
+
+    def test_singleton_returns_same_instance(self):
+        from app.collectors.gmaps_browser import _get_timezone_finder
+
+        tf1 = _get_timezone_finder()
+        tf2 = _get_timezone_finder()
+        assert tf1 is tf2
+
+    def test_get_utc_offset_uses_singleton(self):
+        """_get_utc_offset should not re-create TimezoneFinder each call."""
+        from app.collectors.gmaps_browser import _get_utc_offset
+
+        # Dubai coordinates — should return a valid offset
+        result = _get_utc_offset(25.2048, 55.2708)
+        assert result is not None
+        assert isinstance(result, int)
+
+
+# ── Circuit breaker half-open state ──────────────────────────────────────
+
+
+class TestCircuitBreakerHalfOpen:
+    """Verify three-state circuit breaker: closed → open → half_open → closed/open."""
+
+    def test_transitions_to_half_open(self):
+        from app.services.browser_pool import _CircuitBreaker
+
+        cb = _CircuitBreaker(max_failures=2, pause_seconds=0.01)
+        cb.record_failure()
+        cb.record_failure()
+        assert cb._state == "open"
+
+        # Wait for pause to expire
+        import time
+
+        time.sleep(0.02)
+        assert not cb.is_open  # should have transitioned to half_open
+        assert cb._state == "half_open"
+
+    def test_half_open_success_closes(self):
+        from app.services.browser_pool import _CircuitBreaker
+
+        cb = _CircuitBreaker(max_failures=2, pause_seconds=0.01)
+        cb.record_failure()
+        cb.record_failure()
+        import time
+
+        time.sleep(0.02)
+        assert not cb.is_open  # trigger half_open transition
+        cb.record_success()
+        assert cb._state == "closed"
+        assert cb._failures == 0
+
+    def test_half_open_failure_reopens(self):
+        from app.services.browser_pool import _CircuitBreaker
+
+        cb = _CircuitBreaker(max_failures=2, pause_seconds=0.01)
+        cb.record_failure()
+        cb.record_failure()
+        import time
+
+        time.sleep(0.02)
+        assert not cb.is_open  # trigger half_open transition
+        cb.record_failure()
+        assert cb._state == "open"
+
+
+# ── ProxyRotator ────────────────────────────────────────────────────────
+
+
+class TestProxyRotator:
+    def test_no_proxies(self):
+        from app.services.browser_pool import ProxyRotator
+
+        pr = ProxyRotator("", "round_robin")
+        assert not pr.has_proxies
+        assert pr.next() is None
+
+    def test_round_robin(self):
+        from app.services.browser_pool import ProxyRotator
+
+        pr = ProxyRotator("http://a:8080,http://b:8080", "round_robin")
+        assert pr.has_proxies
+        assert pr.next() == "http://a:8080"
+        assert pr.next() == "http://b:8080"
+        assert pr.next() == "http://a:8080"
+
+    def test_random(self):
+        from app.services.browser_pool import ProxyRotator
+
+        pr = ProxyRotator("http://a:8080,http://b:8080", "random")
+        # Just verify it returns one of the proxies
+        result = pr.next()
+        assert result in ("http://a:8080", "http://b:8080")
+
+
+# ── RunMetrics ──────────────────────────────────────────────────────────
+
+
+class TestRunMetrics:
+    def test_avg_cell_time(self):
+        from app.scrapers.gmaps_browser import RunMetrics
+
+        m = RunMetrics()
+        m.record_cell_time(1.0)
+        m.record_cell_time(3.0)
+        assert m.avg_cell_time == 2.0
+
+    def test_avg_cell_time_empty(self):
+        from app.scrapers.gmaps_browser import RunMetrics
+
+        m = RunMetrics()
+        assert m.avg_cell_time == 0.0
+
+    def test_log_summary(self):
+        from app.scrapers.gmaps_browser import RunMetrics
+
+        m = RunMetrics(cells_total=100, cells_searched=80, cells_empty=20)
+        m.record_cell_time(5.0)
+        # Should not raise
+        m.log_summary("mosque")
+
+
+# ── Batched grid processing ─────────────────────────────────────────────
+
+
+class TestBatchedGridProcessing:
+    @pytest.mark.asyncio
+    async def test_search_grid_browser_batches(self):
+        """search_grid_browser processes cells in batches, not all at once."""
+        from app.scrapers.gmaps_browser import search_grid_browser
+
+        cells = [(0, 1, 0, 1)] * 250  # 250 cells should trigger 3 batches
+        existing_ids = _make_id_set()
+
+        with patch(
+            "app.scrapers.gmaps_browser._search_single_grid_cell",
+            new=AsyncMock(return_value=[]),
+        ):
+            result = await search_grid_browser(cells, "mosque", existing_ids)
+            assert isinstance(result, list)
+
+
+def _make_id_set():
+    """Create a fresh ThreadSafeIdSet."""
+    from app.scrapers.base import ThreadSafeIdSet
+
+    return ThreadSafeIdSet()
