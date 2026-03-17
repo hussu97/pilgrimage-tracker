@@ -24,6 +24,7 @@ from sqlmodel import Session, select
 
 from app.config import settings
 from app.constants import (
+    BROWSER_CELL_MAX_RETRIES,
     BROWSER_CELL_TIMEOUT_S,
     BROWSER_EVALUATE_TIMEOUT_S,
     BROWSER_SCROLL_MAX_ATTEMPTS,
@@ -444,119 +445,136 @@ async def search_area_browser(
     logger.info("%s[%s] Navigating: %s", indent, place_type, search_url)
 
     _sem_ctx = semaphore if semaphore is not None else _NullSemaphore()
-    async with _sem_ctx:
-        t_acquire = time.monotonic()
-        logger.debug("%s[%s] Acquiring browser session...", indent, place_type)
-        session = await pool.acquire(lat=center_lat, lng=center_lng)
-        logger.debug(
-            "%s[%s] Session acquired in %.1fs",
-            indent,
-            place_type,
-            time.monotonic() - t_acquire,
-        )
-        recycle = False
-        try:
-            page = session.page
-
-            t_goto = time.monotonic()
-            await page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
-
-            title = await page.title()
-            url = page.url
-            logger.info(
-                "%s[%s] Page loaded in %.1fs: title=%r url=%s",
-                indent,
-                place_type,
-                time.monotonic() - t_goto,
-                title,
-                url,
-            )
-
-            await asyncio.sleep(random.uniform(2, 4))
-
-            if not _consent_dismissed:
-                await _dismiss_consent(page)
-                _consent_dismissed = True
-                await asyncio.sleep(random.uniform(0.5, 1.5))
-
-            if await _check_for_block(page):
-                logger.warning(
-                    "%s[%s] Maps blocked browser — recycling context", indent, place_type
-                )
-                pool.record_block()
-                recycle = True
-                return []
-
+    for attempt in range(1, BROWSER_CELL_MAX_RETRIES + 1):
+        async with _sem_ctx:
+            t_acquire = time.monotonic()
+            logger.debug("%s[%s] Acquiring browser session...", indent, place_type)
+            session = await pool.acquire(lat=center_lat, lng=center_lng)
             logger.debug(
-                "%s[%s] Page content_len=%d",
+                "%s[%s] Session acquired in %.1fs",
                 indent,
                 place_type,
-                len(await page.content()),
+                time.monotonic() - t_acquire,
             )
-
-            pool.record_success()
-
-            # Wait for results panel
+            recycle = False
             try:
-                await page.wait_for_selector(
-                    '[role="feed"], .m6QErb, [aria-label*="Results"]',
-                    timeout=15000,
-                )
-                logger.info("%s[%s] Results panel found", indent, place_type)
-            except Exception:
-                logger.warning(
-                    "%s[%s] Results panel not found (timeout) — page may be empty or layout changed",
+                page = session.page
+
+                t_goto = time.monotonic()
+                await page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
+
+                title = await page.title()
+                url = page.url
+                logger.info(
+                    "%s[%s] Page loaded in %.1fs: title=%r url=%s",
                     indent,
                     place_type,
+                    time.monotonic() - t_goto,
+                    title,
+                    url,
                 )
 
-            await asyncio.sleep(random.uniform(1, 3))
+                await asyncio.sleep(random.uniform(2, 4))
 
-            # Scroll until the results feed stabilises (no new links for N scrolls)
-            await _scroll_until_stable(page)
+                if not _consent_dismissed:
+                    await _dismiss_consent(page)
+                    _consent_dismissed = True
+                    await asyncio.sleep(random.uniform(0.5, 1.5))
 
-            # Extract all place links
-            hrefs = await page.evaluate(
-                """
-                () => {
-                    const links = document.querySelectorAll('a[href*="/maps/place/"]');
-                    return Array.from(links)
-                        .map(a => a.href)
-                        .filter(h => h.includes('/maps/place/'));
-                }
-                """
-            )
+                if await _check_for_block(page):
+                    logger.warning(
+                        "%s[%s] Maps blocked browser — recycling context", indent, place_type
+                    )
+                    pool.record_block()
+                    recycle = True
+                    return []
 
-            logger.info("%s[%s] Extracted %d hrefs from page", indent, place_type, len(hrefs))
+                logger.debug(
+                    "%s[%s] Page content_len=%d",
+                    indent,
+                    place_type,
+                    len(await page.content()),
+                )
 
-            if not hrefs:
-                snippet = (await page.content())[:2000]
-                logger.debug("%s[%s] No hrefs found. Page snippet: %s", indent, place_type, snippet)
+                pool.record_success()
 
-            place_ids = _extract_place_ids_from_links(hrefs)
-            session.nav_count += 1
+                # Wait for results panel
+                try:
+                    await page.wait_for_selector(
+                        '[role="feed"], .m6QErb, [aria-label*="Results"]',
+                        timeout=15000,
+                    )
+                    logger.info("%s[%s] Results panel found", indent, place_type)
+                except Exception:
+                    logger.warning(
+                        "%s[%s] Results panel not found (timeout) — page may be empty or layout changed",
+                        indent,
+                        place_type,
+                    )
 
-            logger.info(
-                "%s[%s] Browser cell depth=%d center=(%.4f,%.4f) radius=%.0fm found=%d",
-                indent,
-                place_type,
-                depth,
-                center_lat,
-                center_lng,
-                radius,
-                len(place_ids),
-            )
+                await asyncio.sleep(random.uniform(1, 3))
 
-        except (BlockedError, CircuitOpenError, AcquireTimeoutError) as e:
-            logger.warning("%s[%s] Browser pool error: %s", indent, place_type, e)
-            recycle = True
-            return []
-        except Exception as e:
-            logger.warning("%s[%s] Browser search error: %s", indent, place_type, e)
-            recycle = True
-            return []
-        finally:
-            await pool.release(session, recycle=recycle)
+                # Scroll until the results feed stabilises (no new links for N scrolls)
+                await _scroll_until_stable(page)
+
+                # Extract all place links
+                hrefs = await page.evaluate(
+                    """
+                    () => {
+                        const links = document.querySelectorAll('a[href*="/maps/place/"]');
+                        return Array.from(links)
+                            .map(a => a.href)
+                            .filter(h => h.includes('/maps/place/'));
+                    }
+                    """
+                )
+
+                logger.info("%s[%s] Extracted %d hrefs from page", indent, place_type, len(hrefs))
+
+                if not hrefs:
+                    snippet = (await page.content())[:2000]
+                    logger.debug(
+                        "%s[%s] No hrefs found. Page snippet: %s", indent, place_type, snippet
+                    )
+
+                place_ids = _extract_place_ids_from_links(hrefs)
+                session.nav_count += 1
+
+                logger.info(
+                    "%s[%s] Browser cell depth=%d center=(%.4f,%.4f) radius=%.0fm found=%d",
+                    indent,
+                    place_type,
+                    depth,
+                    center_lat,
+                    center_lng,
+                    radius,
+                    len(place_ids),
+                )
+                break  # success
+
+            except (BlockedError, CircuitOpenError, AcquireTimeoutError) as e:
+                logger.warning("%s[%s] Browser pool error: %s", indent, place_type, e)
+                recycle = True
+                return []  # pool-level issue, no point retrying
+            except Exception as e:
+                logger.warning(
+                    "%s[%s] Browser search error — attempt %d/%d: %s",
+                    indent,
+                    place_type,
+                    attempt,
+                    BROWSER_CELL_MAX_RETRIES,
+                    e,
+                )
+                recycle = True
+                if attempt >= BROWSER_CELL_MAX_RETRIES:
+                    return []
+            finally:
+                await pool.release(session, recycle=recycle)
+
+        # Backoff before retry (outside semaphore so we don't hold the slot)
+        backoff = 2**attempt + random.uniform(0, 1)
+        logger.info("%s[%s] Retrying in %.1fs...", indent, place_type, backoff)
+        await asyncio.sleep(backoff)
 
     is_saturated = len(place_ids) >= 20
     new_ids = existing_ids.add_new(place_ids)
@@ -766,6 +784,16 @@ async def _do_grid_cell_navigation(
         )
         return place_ids
 
+    except (BlockedError, CircuitOpenError, AcquireTimeoutError) as e:
+        logger.warning(
+            "[grid][%s] Pool error at (%.4f,%.4f): %s",
+            place_type,
+            center_lat,
+            center_lng,
+            e,
+        )
+        recycle = True
+        return []
     except Exception as e:
         logger.warning(
             "[grid][%s] Cell error at (%.4f,%.4f): %s",
@@ -773,10 +801,9 @@ async def _do_grid_cell_navigation(
             center_lat,
             center_lng,
             e,
-            exc_info=True,
         )
         recycle = True
-        return []
+        raise  # let caller retry
     finally:
         await pool.release(session_obj, recycle=recycle)
 
@@ -850,23 +877,31 @@ async def _search_single_grid_cell(
     )
     logger.info("[grid][%s] Navigating (zoom=%d): %s", place_type, zoom, search_url)
 
-    try:
-        place_ids = await asyncio.wait_for(
-            _do_grid_cell_navigation(pool, place_type, search_url, center_lat, center_lng),
-            timeout=BROWSER_CELL_TIMEOUT_S,
-        )
-    except TimeoutError:
-        logger.error(
-            "[grid][%s] Cell timeout (%.0fs) at (%.4f,%.4f) — skipping",
-            place_type,
-            BROWSER_CELL_TIMEOUT_S,
-            center_lat,
-            center_lng,
-        )
-        return []
-    except AcquireTimeoutError as e:
-        logger.warning("[grid][%s] %s at (%.4f,%.4f)", place_type, e, center_lat, center_lng)
-        return []
+    for attempt in range(1, BROWSER_CELL_MAX_RETRIES + 1):
+        try:
+            place_ids = await asyncio.wait_for(
+                _do_grid_cell_navigation(pool, place_type, search_url, center_lat, center_lng),
+                timeout=BROWSER_CELL_TIMEOUT_S,
+            )
+            break  # success
+        except (AcquireTimeoutError, BlockedError, CircuitOpenError) as e:
+            logger.warning("[grid][%s] %s at (%.4f,%.4f)", place_type, e, center_lat, center_lng)
+            return []  # no point retrying — pool-level issue
+        except Exception as e:
+            logger.warning(
+                "[grid][%s] Cell error at (%.4f,%.4f) — attempt %d/%d: %s",
+                place_type,
+                center_lat,
+                center_lng,
+                attempt,
+                BROWSER_CELL_MAX_RETRIES,
+                e,
+            )
+            if attempt >= BROWSER_CELL_MAX_RETRIES:
+                return []
+            backoff = 2**attempt + random.uniform(0, 1)
+            logger.info("[grid][%s] Retrying in %.1fs...", place_type, backoff)
+            await asyncio.sleep(backoff)
 
     new_ids = existing_ids.add_new(place_ids)
 

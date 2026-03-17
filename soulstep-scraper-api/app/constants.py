@@ -81,6 +81,10 @@ BROWSER_EVALUATE_TIMEOUT_S: float = 10.0
 # Max recursive retries when pool.acquire() finds all sessions busy.
 BROWSER_ACQUIRE_MAX_RETRIES: int = 5
 
+# Max retries for a grid/quadtree cell when the browser page crashes
+# (TargetClosedError, connection reset, etc.) before giving up.
+BROWSER_CELL_MAX_RETRIES: int = 2
+
 # ── Quality gate thresholds ───────────────────────────────────────────────────
 # These are authoritative in app/pipeline/place_quality.py.
 # Do NOT override them here — import from place_quality directly.
