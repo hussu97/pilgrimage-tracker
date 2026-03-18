@@ -53,15 +53,16 @@ gcloud artifacts repositories create soulstep \
 Copy the image server-side using `gcloud` (no local Docker needed):
 
 ```bash
-# Find latest image tag (commit SHA from CI)
-gcloud artifacts docker images list \
+# Get latest image tag (commit SHA from CI)
+TAG=$(gcloud artifacts docker images list \
   europe-west1-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job \
-  --sort-by=~UPDATE_TIME --limit=1
+  --sort-by=~UPDATE_TIME --limit=1 --format='value(tags)')
+echo "Using tag: $TAG"
 
 # Copy server-side between registries
 gcloud artifacts docker tags add \
-  europe-west1-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:TAG \
-  NEW_REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:TAG
+  europe-west1-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG \
+  NEW_REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG
 ```
 
 > `TAG` is the git commit SHA used by CI (e.g. `83e6170...`). After initial setup,
