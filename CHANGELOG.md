@@ -4,6 +4,24 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-18] — Review Image Support (Browser Mode) + Card Selector Fix
+
+### Backend (scraper)
+- **Browser card selector fix** — `_extract_reviews` JS now uses `.jftiEf` (one element per review card) instead of `[data-review-id]` which matched 32 nested sub-elements per card; author selector simplified to `.d4r55` only (eliminates author-stats text being concatenated into the name)
+- **Review photo lazy-load trigger** — before extracting reviews, browser panel is scrolled and each review photo button has `scrollIntoView()` called to trigger Google Maps' IntersectionObserver and populate `img.src`; three fallbacks tried: `img.src`, `img.dataset.src`, CSS `background-image`
+- **Review image download pipeline** — `_capture_review_images` method downloads review-attached photo bytes; `_review_image_bytes` returned as `list[tuple[review_idx, photo_idx, bytes]]` alongside normal scrape result
+- **GCS upload write-back** — `_flush_detail_buffer` uploads review image bytes to GCS and writes back GCS URLs into `external_reviews[i].photo_urls` in `ScrapedPlace.raw_data`
+- **`SCRAPER_MAX_REVIEW_IMAGES` config** — new optional env var (default `2`); limits photos downloaded per review in browser mode; forwarded to Cloud Run Job containers; documented in `ENV_VARS.md` and `.env.example`
+- **Tests** — `TestReviewPhotoUrlsInBuildPlaceData` (2 tests): photo_urls preserved through `build_place_data`; `TestFlushDetailBufferReviewImages` (3 tests): GCS write-back, no-op when key absent, GCS failure leaves reviews unchanged; `TestCaptureReviewImages` (1 test): `max_review_images` config respected
+
+### Backend (catalog API)
+- **`ExternalReviewInput.photo_urls`** — new `list[str] = []` field on the Pydantic schema; validated during sync and passed through to DB
+- **`upsert_external_reviews`** — stores `photo_urls` on `Review` records (dict and object input paths both handled)
+- **`sync_places.py`** — `_sanitize_reviews` passes `photo_urls` when constructing `ExternalReviewInput`
+- **Tests** — `test_upsert_external_reviews_stores_photo_urls` and `test_upsert_external_reviews_replaces_photo_urls_on_re_upsert` added to `test_reviews_db_extra.py`
+
+---
+
 ## [2026-03-18] — Opening Hours Parsing Fix + Max Reviews Env Var
 
 ### Backend (scraper)

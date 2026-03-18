@@ -385,8 +385,17 @@ class BrowserGmapsCollector(BaseCollector):
                 # Extract About tab (accessibility, amenities, etc.)
                 data["about_sections"] = await self._extract_about(page)
 
-                # Extract reviews (up to 5)
+                # Extract reviews (up to 5) with photo URLs
                 data["reviews"] = await self._extract_reviews(page)
+
+                # Download review photo bytes inline (stored separately from reviews
+                # so _flush_detail_buffer can upload them to GCS and write back URLs).
+                try:
+                    data["_review_image_bytes"] = await self._capture_review_images(
+                        page, data["reviews"]
+                    )
+                except Exception:
+                    data["_review_image_bytes"] = []
 
                 session.nav_count += 1
 
@@ -491,7 +500,16 @@ class BrowserGmapsCollector(BaseCollector):
             return {}
 
     async def _extract_reviews(self, page) -> list[dict]:
-        """Navigate to Reviews tab and extract reviews (up to SCRAPER_MAX_REVIEWS)."""
+        """Navigate to Reviews tab and extract reviews (up to SCRAPER_MAX_REVIEWS).
+
+        Uses .jftiEf as the sole card selector — [data-review-id] matches 30+
+        sub-elements inside each card causing duplicates, while .jftiEf matches
+        exactly one element per review card.
+
+        After clicking the tab, scrolls the panel and calls scrollIntoView on
+        review photo buttons to trigger Google Maps' IntersectionObserver lazy
+        loading before extracting photo URLs.
+        """
         from app.config import settings as _settings
 
         max_reviews = _settings.max_reviews
@@ -504,21 +522,59 @@ class BrowserGmapsCollector(BaseCollector):
                 await reviews_tab.click()
                 await asyncio.sleep(2.0)
 
+            # Scroll the panel and trigger scrollIntoView on review photo buttons
+            # to force Google Maps' IntersectionObserver to load thumbnail images.
+            try:
+                await page.evaluate(
+                    r"""() => {
+                        const panel = document.querySelector('[role="main"]');
+                        if (panel) panel.scrollTop += 600;
+                        document.querySelectorAll('button[aria-label]').forEach(btn => {
+                            if (/Photo \d+ on .+'s review/.test(
+                                    btn.getAttribute('aria-label') || ''))
+                                btn.scrollIntoView({ block: 'center' });
+                        });
+                    }"""
+                )
+                await asyncio.sleep(1.0)
+            except Exception:
+                pass
+
             reviews = await page.evaluate(
                 r"""
                 (maxReviews) => {
-                    const cards = document.querySelectorAll(
-                        '[data-review-id], .jftiEf, .MyEned, [data-hveid] .GHT2ce'
-                    );
+                    const cards = document.querySelectorAll('.jftiEf');
                     return Array.from(cards).slice(0, maxReviews).map(card => {
-                        const author = card.querySelector('.d4r55, .DU9Pgb, .WNxzHc');
+                        const author = card.querySelector('.d4r55');
                         const ratingEl = card.querySelector('[aria-label*="stars"]');
-                        const textEl = card.querySelector('.wiI7pd, .MyEned span');
+                        const textEl = card.querySelector('.wiI7pd');
                         const timeEl = card.querySelector('.rsqaWe, .dehysf');
 
                         const ratingMatch = ratingEl
                             ? (ratingEl.getAttribute('aria-label') || '').match(/([\d.]+)/)
                             : null;
+
+                        // Collect photo URLs from review-attached photo buttons only
+                        // (not author avatar buttons whose aria-label is "Photo of <name>").
+                        const photoBtns = Array.from(
+                            card.querySelectorAll('button[aria-label]')
+                        ).filter(b =>
+                            /Photo \d+ on .+'s review/.test(
+                                b.getAttribute('aria-label') || ''
+                            )
+                        );
+                        const photoUrls = photoBtns.map(btn => {
+                            const img = btn.querySelector('img');
+                            if (img && img.src && !img.src.startsWith('data:'))
+                                return img.src;
+                            if (img && img.dataset && img.dataset.src)
+                                return img.dataset.src;
+                            // Fallback: CSS background-image (some Maps versions use this)
+                            const bg = btn.style.backgroundImage
+                                || getComputedStyle(btn).backgroundImage;
+                            const m = bg.match(/url\(['"]?(https?[^'"]+)['"]?\)/);
+                            return m ? m[1] : null;
+                        }).filter(u => u && u.startsWith('http'));
 
                         return {
                             author_name: author ? author.textContent.trim() : 'Anonymous',
@@ -527,6 +583,7 @@ class BrowserGmapsCollector(BaseCollector):
                             time: Math.floor(Date.now() / 1000),
                             relative_time_description: timeEl ? timeEl.textContent.trim() : '',
                             language: 'en',
+                            photo_urls: photoUrls,
                         };
                     }).filter(r => r.text);
                 }
@@ -536,6 +593,53 @@ class BrowserGmapsCollector(BaseCollector):
             return reviews if isinstance(reviews, list) else []
         except Exception:
             return []
+
+    async def _capture_review_images(
+        self, page, reviews: list[dict]
+    ) -> list[tuple[int, int, bytes]]:
+        """Download bytes for review-attached photos (up to max_review_images per review).
+
+        Returns a list of (review_idx, photo_idx, bytes) tuples for each
+        successfully downloaded photo.  Normalises CDN URLs to 800×600 before
+        downloading so we get full-size images instead of thumbnails.
+        """
+        import httpx
+
+        from app.config import settings as _settings
+
+        max_per_review = _settings.max_review_images
+
+        to_download: list[tuple[int, int, str]] = []
+        for rev_idx, review in enumerate(reviews):
+            for ph_idx, url in enumerate((review.get("photo_urls") or [])[:max_per_review]):
+                normalised = _clean_image_url(url)
+                if normalised:
+                    to_download.append((rev_idx, ph_idx, normalised))
+
+        if not to_download:
+            return []
+
+        try:
+            browser_cookies = await page.context.cookies()
+            cookie_header = "; ".join(f"{c['name']}={c['value']}" for c in browser_cookies)
+        except Exception:
+            cookie_header = ""
+
+        results: list[tuple[int, int, bytes]] = []
+        async with httpx.AsyncClient(
+            timeout=15.0,
+            follow_redirects=True,
+            headers={"Cookie": cookie_header} if cookie_header else {},
+        ) as client:
+            for rev_idx, ph_idx, url in to_download:
+                try:
+                    resp = await client.get(url)
+                    if resp.status_code == 200 and len(resp.content) > 2048:
+                        results.append((rev_idx, ph_idx, resp.content))
+                except Exception:
+                    pass
+
+        return results
 
     async def _capture_page_images(self, page, max_photos: int) -> list[bytes]:
         """Capture image bytes loaded on the current page from Google photo CDN.

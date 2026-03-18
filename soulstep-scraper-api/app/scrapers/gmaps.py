@@ -577,6 +577,32 @@ def _flush_detail_buffer(
                 raw["image_urls"] = gcs_urls
                 scraped_place.raw_data = raw
 
+        # Handle browser-captured review photo bytes: upload to GCS and write
+        # GCS URLs back into external_reviews[i]["photo_urls"].
+        # Format: list of (review_idx, photo_idx, bytes) tuples.
+        review_image_bytes: list[tuple[int, int, bytes]] = (
+            response.pop("_review_image_bytes", None) or []
+        )
+        if review_image_bytes:
+            from app.services.gcs import upload_image_bytes as gcs_upload
+
+            raw = dict(scraped_place.raw_data or {})
+            reviews = [dict(r) for r in (raw.get("external_reviews") or [])]
+
+            # Collect GCS URLs keyed by (review_idx, photo_idx)
+            gcs_by_review: dict[int, dict[int, str]] = {}
+            for rev_idx, ph_idx, img_data in review_image_bytes:
+                gcs_url = gcs_upload(img_data)
+                if gcs_url:
+                    gcs_by_review.setdefault(rev_idx, {})[ph_idx] = gcs_url
+
+            if gcs_by_review:
+                for rev_idx, ph_map in gcs_by_review.items():
+                    if rev_idx < len(reviews):
+                        reviews[rev_idx]["photo_urls"] = [ph_map[i] for i in sorted(ph_map)]
+                raw["external_reviews"] = reviews
+                scraped_place.raw_data = raw
+
         session.add(scraped_place)
 
         raw_record = RawCollectorData(

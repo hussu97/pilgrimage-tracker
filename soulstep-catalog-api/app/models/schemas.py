@@ -252,6 +252,7 @@ class ExternalReviewInput(BaseModel):
     text: str
     time: int  # Unix timestamp
     language: str = "en"
+    photo_urls: list[str] = []
 
     @field_validator("rating")
     @classmethod

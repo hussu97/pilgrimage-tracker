@@ -1385,3 +1385,305 @@ def _make_id_set():
     from app.scrapers.base import ThreadSafeIdSet
 
     return ThreadSafeIdSet()
+
+
+# ── Review photo_urls in build_place_data ────────────────────────────────────
+
+
+class TestReviewPhotoUrlsInBuildPlaceData:
+    """Verify photo_urls field on reviews is preserved end-to-end through build_place_data."""
+
+    def setup_method(self):
+        self.collector = BrowserGmapsCollector()
+        self.sample_response = {
+            "name": "Test Mosque",
+            "address": "Dubai, United Arab Emirates",
+            "lat": 25.2,
+            "lng": 55.3,
+            "rating": 4.5,
+            "review_count": 100,
+            "phone": "",
+            "website": "",
+            "google_maps_uri": "",
+            "business_status": "OPERATIONAL",
+            "categories": ["Mosque"],
+            "photo_urls": [],
+            "reviews": [
+                {
+                    "author_name": "Alice",
+                    "rating": 5,
+                    "text": "Great place",
+                    "time": 1700000000,
+                    "relative_time_description": "1 month ago",
+                    "language": "en",
+                    "photo_urls": [
+                        "https://lh3.googleusercontent.com/review-photo1=w800-h600",
+                        "https://lh3.googleusercontent.com/review-photo2=w800-h600",
+                    ],
+                },
+                {
+                    "author_name": "Bob",
+                    "rating": 4,
+                    "text": "Nice",
+                    "time": 1700001000,
+                    "relative_time_description": "1 month ago",
+                    "language": "en",
+                    "photo_urls": [],
+                },
+            ],
+            "opening_hours_weekday": [],
+            "about_sections": {},
+            "canonical_place_id": None,
+        }
+
+    def test_review_photo_urls_preserved(self):
+        """photo_urls on each review dict must survive build_place_data unchanged."""
+        result = self.collector.build_place_data(
+            self.sample_response,
+            "gbr_test",
+            "",
+            None,
+            type_map={},
+            religion_type_map={},
+        )
+        reviews = result["external_reviews"]
+        assert len(reviews) == 2
+        assert reviews[0]["photo_urls"] == [
+            "https://lh3.googleusercontent.com/review-photo1=w800-h600",
+            "https://lh3.googleusercontent.com/review-photo2=w800-h600",
+        ]
+        assert reviews[1]["photo_urls"] == []
+
+    def test_review_without_photo_urls_key_defaults_to_empty(self):
+        """Reviews that omit photo_urls entirely should default to [] in the output."""
+        response = dict(self.sample_response)
+        response["reviews"] = [
+            {
+                "author_name": "Charlie",
+                "rating": 3,
+                "text": "OK",
+                "time": 1700002000,
+                "relative_time_description": "2 months ago",
+                "language": "en",
+                # no photo_urls key at all
+            }
+        ]
+        result = self.collector.build_place_data(
+            response, "gbr_test", "", None, type_map={}, religion_type_map={}
+        )
+        reviews = result["external_reviews"]
+        assert len(reviews) == 1
+        photo_urls = reviews[0].get("photo_urls", [])
+        assert photo_urls == [] or photo_urls is None
+
+
+# ── _flush_detail_buffer: review image GCS write-back ───────────────────────
+
+
+class TestFlushDetailBufferReviewImages:
+    """Unit tests for _flush_detail_buffer's review image GCS upload path."""
+
+    def _make_engine_and_run(self):
+        from sqlalchemy import StaticPool, create_engine
+        from sqlmodel import Session, SQLModel
+
+        from app.db.models import ScraperRun
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        SQLModel.metadata.create_all(engine)
+
+        with Session(engine) as sess:
+            run = ScraperRun(
+                run_code="run_rev_img_test",
+                location_code="loc_test",
+                status="running",
+            )
+            sess.add(run)
+            sess.commit()
+
+        return engine
+
+    def _minimal_details(self, place_code: str = "gbr_revimg01") -> dict:
+        return {
+            "place_code": place_code,
+            "name": "Test Place",
+            "religion": "islam",
+            "place_type": "mosque",
+            "lat": 25.0,
+            "lng": 55.0,
+            "address": "Dubai, UAE",
+            "image_urls": [],
+            "description": None,
+            "website_url": "",
+            "opening_hours": None,
+            "utc_offset_minutes": None,
+            "attributes": [],
+            "external_reviews": [
+                {
+                    "author_name": "Alice",
+                    "rating": 5,
+                    "text": "Great",
+                    "time": 1700000000,
+                    "language": "en",
+                    "photo_urls": [],
+                }
+            ],
+            "city": "Dubai",
+            "state": None,
+            "country": "UAE",
+            "source": "gmaps_browser",
+            "vicinity": "",
+            "business_status": "OPERATIONAL",
+            "google_place_id": "ChIJtest",
+            "rating": 4.5,
+            "user_rating_count": 100,
+            "has_editorial": False,
+            "gmaps_types": ["mosque"],
+        }
+
+    def _flush(self, engine, details, response, gcs_side_effect=None):
+        """Helper: run _flush_detail_buffer with optional GCS mock, return ScrapedPlace."""
+        import contextlib
+
+        from sqlmodel import Session, select
+
+        from app.db.models import ScrapedPlace, ScraperRun
+        from app.scrapers.gmaps import AtomicCounter, _flush_detail_buffer
+
+        counter = AtomicCounter()
+        patches = [
+            patch("app.pipeline.place_quality.score_place_quality", return_value=0.85),
+            patch("app.pipeline.place_quality.get_quality_gate", return_value="sync"),
+        ]
+        if gcs_side_effect is not None:
+            patches.append(
+                patch("app.services.gcs.upload_image_bytes", side_effect=gcs_side_effect)
+            )
+
+        with Session(engine) as sess:
+            run_obj = sess.exec(
+                select(ScraperRun).where(ScraperRun.run_code == "run_rev_img_test")
+            ).first()
+            with contextlib.ExitStack() as stack:
+                for p in patches:
+                    stack.enter_context(p)
+                _flush_detail_buffer(
+                    [("Test Place", details, response)],
+                    "run_rev_img_test",
+                    sess,
+                    run_obj,
+                    counter,
+                    1,
+                )
+                sess.commit()
+
+        with Session(engine) as sess:
+            return sess.exec(
+                select(ScrapedPlace).where(ScrapedPlace.place_code == details["place_code"])
+            ).first()
+
+    def test_review_image_bytes_written_back_to_raw_data(self):
+        """GCS URLs must be injected into external_reviews[i]['photo_urls']."""
+        engine = self._make_engine_and_run()
+        details = self._minimal_details("gbr_revimg01")
+        response = {"_review_image_bytes": [(0, 0, b"fake_image_bytes")]}
+
+        uploaded = []
+
+        def fake_upload(data):
+            url = f"https://storage.googleapis.com/bucket/{len(uploaded)}.jpg"
+            uploaded.append(url)
+            return url
+
+        sp = self._flush(engine, details, response, gcs_side_effect=fake_upload)
+
+        assert sp is not None
+        reviews = (sp.raw_data or {}).get("external_reviews", [])
+        assert len(reviews) == 1
+        assert reviews[0]["photo_urls"] == [uploaded[0]]
+
+    def test_no_review_image_bytes_leaves_reviews_unchanged(self):
+        """When _review_image_bytes is absent, external_reviews stay as-is."""
+        engine = self._make_engine_and_run()
+        details = self._minimal_details("gbr_revimg02")
+        response = {}
+
+        sp = self._flush(engine, details, response)
+
+        assert sp is not None
+        reviews = (sp.raw_data or {}).get("external_reviews", [])
+        assert len(reviews) == 1
+        assert reviews[0].get("photo_urls", []) == []
+
+    def test_gcs_failure_does_not_write_photo_urls(self):
+        """If GCS returns None, photo_urls must not be modified."""
+        engine = self._make_engine_and_run()
+        details = self._minimal_details("gbr_revimg03")
+        response = {"_review_image_bytes": [(0, 0, b"bytes_that_fail")]}
+
+        sp = self._flush(engine, details, response, gcs_side_effect=lambda _: None)
+
+        assert sp is not None
+        reviews = (sp.raw_data or {}).get("external_reviews", [])
+        assert len(reviews) == 1
+        assert reviews[0].get("photo_urls", []) == []
+
+
+# ── _capture_review_images: URL collection and limit ────────────────────────
+
+
+class TestCaptureReviewImages:
+    @pytest.mark.asyncio
+    async def test_respects_max_review_images_config(self):
+        """_capture_review_images must not download more than max_review_images per review."""
+
+        collector = BrowserGmapsCollector()
+
+        reviews = [
+            {
+                "author_name": "Alice",
+                "rating": 5,
+                "text": "Test",
+                "time": 1700000000,
+                "language": "en",
+                "photo_urls": [
+                    "https://lh3.googleusercontent.com/photo1=w1920-h1080",
+                    "https://lh3.googleusercontent.com/photo2=w1920-h1080",
+                    "https://lh3.googleusercontent.com/photo3=w1920-h1080",
+                ],
+            }
+        ]
+
+        downloaded = []
+
+        async def fake_get(url, **kwargs):
+            downloaded.append(url)
+            resp = MagicMock()
+            resp.status_code = 200
+            resp.content = b"fake_bytes"
+            return resp
+
+        mock_client = AsyncMock()
+        mock_client.get = fake_get
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        mock_page = MagicMock()
+        mock_page.context = MagicMock()
+        mock_page.context.cookies = AsyncMock(return_value=[])
+
+        with (
+            patch("app.config.settings") as mock_settings,
+            patch("httpx.AsyncClient", return_value=mock_client),
+        ):
+            mock_settings.max_review_images = 2  # limit to 2, despite 3 URLs
+            result = await collector._capture_review_images(mock_page, reviews)
+
+        # At most 2 downloads for the single review
+        assert len(result) <= 2
+        assert all(isinstance(r, tuple) and len(r) == 3 for r in result)
+        assert all(r[0] == 0 for r in result)  # all belong to review_idx=0

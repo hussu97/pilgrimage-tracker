@@ -150,3 +150,79 @@ class TestExternalReviewsDB:
         assert "plc_bulk01" in result
         assert result["plc_bulk01"]["average"] == 4.0
         assert result["plc_bulk02"]["average"] == 2.0
+
+    def test_upsert_external_reviews_stores_photo_urls(self, db_session):
+        """photo_urls on external reviews must be persisted and retrieved."""
+        _create_place(db_session, "plc_photos01")
+        reviews_list = [
+            {
+                "author_name": "Alice",
+                "rating": 5,
+                "text": "Beautiful",
+                "time": 1700000000,
+                "language": "en",
+                "photo_urls": [
+                    "https://storage.googleapis.com/bucket/rev1_ph1.jpg",
+                    "https://storage.googleapis.com/bucket/rev1_ph2.jpg",
+                ],
+            },
+            {
+                "author_name": "Bob",
+                "rating": 4,
+                "text": "Nice",
+                "time": 1700001000,
+                "language": "en",
+                "photo_urls": [],
+            },
+        ]
+        reviews_db.upsert_external_reviews("plc_photos01", reviews_list, db_session)
+
+        result = reviews_db.get_reviews_by_place(
+            "plc_photos01", db_session, limit=10, source="external"
+        )
+        assert len(result) == 2
+
+        # Find Alice's review (ordered by created_at desc, so most recently inserted first)
+        alice = next((r for r in result if r.author_name == "Alice"), None)
+        bob = next((r for r in result if r.author_name == "Bob"), None)
+
+        assert alice is not None
+        assert alice.photo_urls == [
+            "https://storage.googleapis.com/bucket/rev1_ph1.jpg",
+            "https://storage.googleapis.com/bucket/rev1_ph2.jpg",
+        ]
+        assert bob is not None
+        assert bob.photo_urls == []
+
+    def test_upsert_external_reviews_replaces_photo_urls_on_re_upsert(self, db_session):
+        """Re-upserting reviews should replace old photo_urls with new ones."""
+        _create_place(db_session, "plc_photos02")
+        first_upsert = [
+            {
+                "author_name": "Alice",
+                "rating": 5,
+                "text": "First",
+                "time": 100,
+                "language": "en",
+                "photo_urls": ["https://storage.googleapis.com/bucket/old_photo.jpg"],
+            }
+        ]
+        reviews_db.upsert_external_reviews("plc_photos02", first_upsert, db_session)
+
+        second_upsert = [
+            {
+                "author_name": "Alice",
+                "rating": 5,
+                "text": "Updated",
+                "time": 200,
+                "language": "en",
+                "photo_urls": ["https://storage.googleapis.com/bucket/new_photo.jpg"],
+            }
+        ]
+        reviews_db.upsert_external_reviews("plc_photos02", second_upsert, db_session)
+
+        result = reviews_db.get_reviews_by_place(
+            "plc_photos02", db_session, limit=10, source="external"
+        )
+        assert len(result) == 1
+        assert result[0].photo_urls == ["https://storage.googleapis.com/bucket/new_photo.jpg"]

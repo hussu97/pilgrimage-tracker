@@ -147,12 +147,14 @@ def upsert_external_reviews(place_code: str, reviews_list: list[dict], session: 
             author_name = r.get("author_name", "")
             review_time = r.get("time", 0)
             language = r.get("language", "en")
+            photo_urls = r.get("photo_urls") or []
         else:
             rating = r.rating
             body = r.text
             author_name = r.author_name
             review_time = r.time
             language = r.language
+            photo_urls = getattr(r, "photo_urls", None) or []
         review = Review(
             review_code=review_code,
             user_code=None,
@@ -163,6 +165,7 @@ def upsert_external_reviews(place_code: str, reviews_list: list[dict], session: 
             author_name=author_name,
             review_time=review_time,
             language=language,
+            photo_urls=photo_urls,
         )
         session.add(review)
 

@@ -76,6 +76,10 @@ class Settings:
     max_photos: int = int(os.environ.get("SCRAPER_MAX_PHOTOS", "3"))
     # Max reviews scraped per place (from Google Places API and browser extraction).
     max_reviews: int = int(os.environ.get("SCRAPER_MAX_REVIEWS", "5"))
+    # Max review-attached photos downloaded per review (browser mode only).
+    # Each review photo is uploaded to GCS and stored on the Review record.
+    # Default: 2
+    max_review_images: int = int(os.environ.get("SCRAPER_MAX_REVIEW_IMAGES", "2"))
     # Max concurrent image downloads (plain CDN, no API rate limit).
     image_concurrency: int = int(os.environ.get("SCRAPER_IMAGE_CONCURRENCY", "40"))
 
@@ -187,6 +191,7 @@ class Settings:
             "SCRAPER_OVERPASS_JITTER_MAX": str(self.overpass_jitter_max),
             "SCRAPER_MAX_PHOTOS": str(self.max_photos),
             "SCRAPER_MAX_REVIEWS": str(self.max_reviews),
+            "SCRAPER_MAX_REVIEW_IMAGES": str(self.max_review_images),
             "SCRAPER_IMAGE_CONCURRENCY": str(self.image_concurrency),
             # ── Quality gates ─────────────────────────────────────────────────
             "SCRAPER_GATE_IMAGE_DOWNLOAD": str(self.gate_image_download),

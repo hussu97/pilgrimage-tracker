@@ -76,6 +76,7 @@ def _sanitize_reviews(reviews: list[dict]) -> list[ExternalReviewInput]:
                     text=r.get("text", ""),
                     time=r.get("time", 0),
                     language=r.get("language", "en"),
+                    photo_urls=r.get("photo_urls") or [],
                 )
             )
         except Exception:

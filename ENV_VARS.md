@@ -151,6 +151,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `SCRAPER_OVERPASS_JITTER_MAX` | `1.5` | Max random jitter (seconds) injected before each Overpass request to spread burst load. |
 | `SCRAPER_MAX_PHOTOS` | `3` | Max photos stored per place. Google charges $0.007 per 1000 Photo Media requests — 3 covers list cards and the detail-page hero. |
 | `SCRAPER_MAX_REVIEWS` | `5` | Max reviews scraped per place (Google Places API and browser extraction). |
+| `SCRAPER_MAX_REVIEW_IMAGES` | `2` | **Browser mode only.** Max photos downloaded per review. Each review photo is uploaded to GCS and attached to the synced Review record. |
 | `SCRAPER_IMAGE_CONCURRENCY` | `40` | Max concurrent image downloads (plain CDN, no API rate limit). |
 | `SCRAPER_GATE_IMAGE_DOWNLOAD` | `0.75` | Quality gate (0.0–1.0) — places below this score are dropped before the image-download phase. Lower = more permissive. |
 | `SCRAPER_GATE_ENRICHMENT` | `0.75` | Quality gate (0.0–1.0) — places below this score are dropped before the enrichment phase. |
