@@ -51,7 +51,7 @@ function PlaceCardUnified({
         )}
 
         {/* Status pill – top left */}
-        <div className="absolute top-4 left-4 z-10">
+        <div className="absolute top-4 left-4 z-10 max-w-[45%]">
           {openStatus === 'open' && (
             <span className="badge-open-glass">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
@@ -70,7 +70,7 @@ function PlaceCardUnified({
         </div>
 
         {/* Top-right: distance pill stacked above visited badge */}
-        <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-1.5">
+        <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-1.5 max-w-[45%]">
           {place.distance != null && (
             <span
               className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold text-white uppercase tracking-[0.08em] border"

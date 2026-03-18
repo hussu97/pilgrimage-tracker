@@ -421,11 +421,13 @@ const styles = StyleSheet.create({
   topBadgesLeft: {
     flexDirection: 'row',
     gap: 6,
+    maxWidth: '45%',
   },
   topBadgesRight: {
     flexDirection: 'column',
     alignItems: 'flex-end',
     gap: 6,
+    maxWidth: '45%',
   },
   // Distance pill — top-right glass style
   distancePill: {
