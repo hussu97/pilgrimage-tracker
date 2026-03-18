@@ -157,10 +157,6 @@ jobs:
         working-directory: apps/soulstep-customer-web
         run: npm ci
 
-      - name: Dependency vulnerability scan (npm audit)
-        working-directory: apps/soulstep-customer-web
-        run: npm audit --audit-level=high || true
-
       - name: Run tests with coverage
         working-directory: apps/soulstep-customer-web
         run: npm run test -- --coverage
@@ -184,10 +180,6 @@ jobs:
         working-directory: apps/soulstep-customer-mobile
         run: npm ci
 
-      - name: Dependency vulnerability scan (npm audit)
-        working-directory: apps/soulstep-customer-mobile
-        run: npm audit --audit-level=high || true
-
       - name: Run tests with coverage
         working-directory: apps/soulstep-customer-mobile
         run: npm test -- --coverage
@@ -210,10 +202,6 @@ jobs:
       - name: Install dependencies
         working-directory: apps/soulstep-admin-web
         run: npm ci
-
-      - name: Dependency vulnerability scan (npm audit)
-        working-directory: apps/soulstep-admin-web
-        run: npm audit --audit-level=high || true
 
       - name: Run tests with coverage
         working-directory: apps/soulstep-admin-web

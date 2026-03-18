@@ -158,6 +158,14 @@ jobs:
           cache: npm
           cache-dependency-path: apps/soulstep-customer-web/package-lock.json
 
+      - name: Cache Vite build artifacts
+        uses: actions/cache@v4
+        with:
+          path: apps/soulstep-customer-web/node_modules/.vite
+          key: vite-web-${{ hashFiles('apps/soulstep-customer-web/package-lock.json') }}-${{ env.HEAD_SHA }}
+          restore-keys: |
+            vite-web-${{ hashFiles('apps/soulstep-customer-web/package-lock.json') }}-
+
       - name: Install dependencies
         working-directory: apps/soulstep-customer-web
         run: npm ci
@@ -208,6 +216,14 @@ jobs:
           node-version: "20"
           cache: npm
           cache-dependency-path: apps/soulstep-admin-web/package-lock.json
+
+      - name: Cache Vite build artifacts
+        uses: actions/cache@v4
+        with:
+          path: apps/soulstep-admin-web/node_modules/.vite
+          key: vite-admin-${{ hashFiles('apps/soulstep-admin-web/package-lock.json') }}-${{ env.HEAD_SHA }}
+          restore-keys: |
+            vite-admin-${{ hashFiles('apps/soulstep-admin-web/package-lock.json') }}-
 
       - name: Install dependencies
         working-directory: apps/soulstep-admin-web
@@ -368,8 +384,15 @@ jobs:
       - name: Set up gcloud CLI
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Configure Docker auth for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+      - name: Configure Docker auth for all registries
+        run: |
+          REGIONS="${{ env.REGION }}"
+          if [ -n "${{ env.EXTRA_JOB_REGIONS }}" ]; then
+            REGIONS="${REGIONS},$(echo "${{ env.EXTRA_JOB_REGIONS }}" | tr ',' ',')"
+          fi
+          for R in $(echo "$REGIONS" | tr ',' ' '); do
+            gcloud auth configure-docker "${R}-docker.pkg.dev" --quiet
+          done
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -378,8 +401,14 @@ jobs:
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:${{ env.HEAD_SHA }}"
           IMAGE_CACHE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:cache"
-          JOB_IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
           JOB_CACHE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:cache"
+
+          # Build job image tag list: primary region + all extra regions
+          JOB_TAGS="-t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
+          for R in $(echo "${{ env.EXTRA_JOB_REGIONS }}" | tr ',' ' '); do
+            [ -z "$R" ] && continue
+            JOB_TAGS="$JOB_TAGS -t ${R}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
+          done
 
           # Lean API image (no Playwright)
           docker buildx build --platform linux/amd64 \
@@ -389,12 +418,12 @@ jobs:
             -f soulstep-scraper-api/Dockerfile -t "$IMAGE" --push ./soulstep-scraper-api &
           PID1=$!
 
-          # Job image (Playwright + Chromium)
+          # Job image (Playwright + Chromium) — pushed to all regions
           docker buildx build --platform linux/amd64 \
             --cache-from "type=registry,ref=$JOB_CACHE" \
             --cache-to   "type=registry,ref=$JOB_CACHE,mode=max" \
             --provenance=false \
-            -f soulstep-scraper-api/Dockerfile.job -t "$JOB_IMAGE" --push ./soulstep-scraper-api &
+            -f soulstep-scraper-api/Dockerfile.job $JOB_TAGS --push ./soulstep-scraper-api &
           PID2=$!
 
           wait $PID1 $PID2
@@ -450,10 +479,9 @@ jobs:
             --task-timeout 86400 --max-retries 1 \
             --quiet
 
-      - name: Deploy scraper job to extra regions
+      - name: Upsert scraper job in extra regions
         if: env.EXTRA_JOB_REGIONS != ''
         run: |
-          PRIMARY_IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
           CLOUDSQL="${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db"
 
           _upsert() {
@@ -465,25 +493,14 @@ jobs:
 
           for R in $(echo "${{ env.EXTRA_JOB_REGIONS }}" | tr ',' ' '); do
             [ -z "$R" ] && continue
-            REG="${R}-docker.pkg.dev"
-            JOB_IMAGE="${REG}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
+            JOB_IMAGE="${R}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
 
-            echo "=== Deploying scraper job to ${R} ==="
-
-            # Configure Docker auth for this region
-            gcloud auth configure-docker "${REG}" --quiet
-
-            # Tag and push to this region's Artifact Registry
-            docker tag "$PRIMARY_IMAGE" "$JOB_IMAGE"
-            docker push "$JOB_IMAGE"
-
-            # Upsert the Cloud Run Job
+            echo "=== Upsert scraper job in ${R} ==="
             _upsert soulstep-scraper-api-job "$R" \
               --image "$JOB_IMAGE" \
               --set-cloudsql-instances "$CLOUDSQL" \
               --memory 6Gi --cpu 4 \
               --task-timeout 86400 --max-retries 1 \
               --quiet
-
             echo "=== Done: ${R} ==="
           done

@@ -50,48 +50,32 @@ gcloud artifacts repositories create soulstep \
 
 ### 2. Push the job image to the new region
 
+> **Note:** Once `EXTRA_JOB_REGIONS` is set (step 7), CI builds the job image with
+> tags for all regions in a single `docker buildx build --push` — no manual image
+> copying is needed after initial setup.
+
+For the initial one-time push before CI takes over:
+
 ```bash
 PROJECT_ID=your-gcp-project-id
 NEW_REGION=europe-west4  # region to add
-SA_EMAIL=github-deploy@$PROJECT_ID.iam.gserviceaccount.com
 
 # Authenticate Docker for both registries
 gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
 gcloud auth configure-docker $NEW_REGION-docker.pkg.dev --quiet
 
-# Get latest image tag (commit SHA from CI)
+# Build and push to both regions in one step
 TAG=$(gcloud artifacts docker tags list \
   europe-west1-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job \
   --sort-by=~UPDATE_TIME --limit=1 --format='value(tag)' | awk -F: '{print $NF}')
 echo "Using tag: $TAG"
 
-# Pull from primary region, tag for new region, push
-docker pull europe-west1-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG
-docker tag \
-  europe-west1-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG \
-  $NEW_REGION-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG
-docker push $NEW_REGION-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG
-```
-
-#### If the image doesn't exist yet (first-time build)
-
-If CI hasn't deployed the scraper job image yet, build it locally first:
-
-```bash
-docker build --platform linux/amd64 \
+docker buildx build --platform linux/amd64 \
   -f soulstep-scraper-api/Dockerfile.job \
-  -t europe-west1-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:latest \
-  ./soulstep-scraper-api
-docker push europe-west1-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:latest
-
-# Then tag and push to the new region
-docker tag \
-  europe-west1-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:latest \
-  $NEW_REGION-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:latest
-docker push $NEW_REGION-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:latest
+  -t europe-west1-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG \
+  -t $NEW_REGION-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG \
+  --push ./soulstep-scraper-api
 ```
-
-Set `TAG=latest` for step 3 below.
 
 > `TAG` is the git commit SHA used by CI (e.g. `83e6170...`). After initial setup,
 > CI handles this automatically via `EXTRA_JOB_REGIONS` (step 7).

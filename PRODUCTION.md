@@ -694,7 +694,7 @@ These are set in `.github/workflows/deploy.yml` under `env:` — they are **not*
 
 | Variable | Default | Description |
 |---|---|---|
-| `EXTRA_JOB_REGIONS` | `""` (empty) | Comma-separated list of extra GCP regions to deploy the scraper Cloud Run Job to (e.g. `europe-west4,europe-west2`). When non-empty, CI tags/pushes the job image to each region's Artifact Registry and upserts the Cloud Run Job there. See [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md). |
+| `EXTRA_JOB_REGIONS` | `""` (empty) | Comma-separated list of extra GCP regions to deploy the scraper Cloud Run Job to (e.g. `europe-west4,europe-west2`). When non-empty, CI builds the job image with tags for all regions in a single `docker buildx build --push` and upserts the Cloud Run Job in each region. See [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md). |
 
 ### Create the deploy service account
 
