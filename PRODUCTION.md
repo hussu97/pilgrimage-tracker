@@ -686,7 +686,15 @@ The workflow at `.github/workflows/deploy.yml` runs on every push to `main`.
 | `deploy-jobs` | `soulstep-catalog-api/` changed (after `deploy-api`) | Builds `sync-places` + `translate-content` images → creates/updates all 5 Cloud Run Jobs |
 | `deploy-web` | `apps/soulstep-customer-web/` changed | Builds web app → deploys to Firebase Hosting (`web` target) |
 | `deploy-admin-web` | `apps/soulstep-admin-web/` changed | Builds admin app → deploys to Firebase Hosting (`admin` target) |
-| `deploy-scraper` | `soulstep-scraper-api/` changed | Builds `scraper` image → deploys Cloud Run service |
+| `deploy-scraper` | `soulstep-scraper-api/` changed | Builds `scraper` image → deploys Cloud Run service + upserts scraper job (primary + extra regions) |
+
+### Workflow-level variables
+
+These are set in `.github/workflows/deploy.yml` under `env:` — they are **not** runtime service env vars and do **not** belong in `ENV_VARS.md`.
+
+| Variable | Default | Description |
+|---|---|---|
+| `EXTRA_JOB_REGIONS` | `""` (empty) | Comma-separated list of extra GCP regions to deploy the scraper Cloud Run Job to (e.g. `europe-west4,europe-west2`). When non-empty, CI tags/pushes the job image to each region's Artifact Registry and upserts the Cloud Run Job there. See [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md). |
 
 ### Create the deploy service account
 
