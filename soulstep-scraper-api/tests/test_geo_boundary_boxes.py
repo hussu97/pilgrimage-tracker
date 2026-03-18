@@ -173,7 +173,7 @@ def test_seed_geo_boundary_boxes_skips_missing_boundary(mem_engine):
 
 
 def test_seed_geo_boundary_boxes_correct_box_count(mem_engine):
-    """UAE must get exactly 4 boxes as defined in COUNTRY_BOXES."""
+    """UAE must get exactly as many boxes as defined in COUNTRY_BOXES."""
     from app.seeds.geo import COUNTRY_BOXES
 
     with Session(mem_engine) as session:

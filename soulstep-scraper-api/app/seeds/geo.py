@@ -1759,9 +1759,15 @@ def seed_geo_boundaries(session: Session):
 # Keys match GeoBoundary.name values.
 #
 COUNTRY_BOXES: dict[str, list[dict]] = {
-    # ── India (18 boxes) ─────────────────────────────────────────────────────
+    # ── India (25 boxes) ─────────────────────────────────────────────────────
     # A single India rectangle covers Pakistan, Bangladesh, Nepal, Sri Lanka.
-    # 18 tighter boxes trace the actual inhabited landmass.
+    # 25 tighter boxes trace the actual inhabited landmass.
+    # Changes vs previous 18-box set:
+    #   - northwest_rajasthan: lng_min 69.5→70.7 (India-Pak border ~70.5°E in Rajasthan)
+    #   - north_bihar_east_jharkhand: lng_max 88.0→87.5 (Bangladesh border starts ~87.5°E)
+    #   - northeast_west_bengal: lng_max 89.5→88.5 (Bangladesh western border ~88.0°E)
+    #   - northeast_assam_meghalaya: single huge box (89.5-96.0) split into 5 boxes
+    #   - jammu_kashmir: new box (lat 33.0-36.5 was entirely uncovered)
     "India": [
         {
             "label": "northwest_punjab_haryana",
@@ -1770,11 +1776,13 @@ COUNTRY_BOXES: dict[str, list[dict]] = {
             "lng_min": 73.8,
             "lng_max": 77.5,
         },
+        # Trimmed lng_min 69.5 → 70.7 — India-Pakistan border in Rajasthan runs
+        # ~70.5°E; 69.5 was bleeding into Pakistan's Sindh/Rajasthan border zone.
         {
             "label": "northwest_rajasthan",
             "lat_min": 24.0,
             "lat_max": 30.0,
-            "lng_min": 69.5,
+            "lng_min": 70.7,
             "lng_max": 76.5,
         },
         {
@@ -1791,26 +1799,74 @@ COUNTRY_BOXES: dict[str, list[dict]] = {
             "lng_min": 78.5,
             "lng_max": 84.5,
         },
+        # Trimmed lng_max 88.0 → 87.5 — Bangladesh border starts ~87.5°E at these latitudes.
         {
             "label": "north_bihar_east_jharkhand",
             "lat_min": 22.5,
             "lat_max": 27.5,
             "lng_min": 83.5,
-            "lng_max": 88.0,
+            "lng_max": 87.5,
         },
+        # Trimmed lng_max 89.5 → 88.5 — Bangladesh western border is ~88.0°E;
+        # 89.5 was bleeding well into Bangladesh.
         {
             "label": "northeast_west_bengal",
             "lat_min": 21.5,
             "lat_max": 27.5,
             "lng_min": 86.0,
-            "lng_max": 89.5,
+            "lng_max": 88.5,
         },
+        # ── Previous single "northeast_assam_meghalaya" box (89.5-96.0) ──────
+        # That one box covered all NE India in one sweep and bled into Myanmar
+        # (border ~95.5-96.5°E) and Bangladesh (lng 89.5 at low latitudes).
+        # Split into 5 tighter boxes:
+        # Assam valley and Meghalaya plateau
         {
-            "label": "northeast_assam_meghalaya",
-            "lat_min": 23.5,
+            "label": "northeast_assam",
+            "lat_min": 25.0,
             "lat_max": 27.5,
             "lng_min": 89.5,
-            "lng_max": 96.0,
+            "lng_max": 93.5,
+        },
+        {
+            "label": "northeast_meghalaya",
+            "lat_min": 24.5,
+            "lat_max": 26.5,
+            "lng_min": 89.5,
+            "lng_max": 92.5,
+        },
+        # Tripura and Mizoram (narrow strip between Bangladesh and Myanmar)
+        {
+            "label": "northeast_tripura_mizoram",
+            "lat_min": 22.5,
+            "lat_max": 24.5,
+            "lng_min": 91.5,
+            "lng_max": 93.5,
+        },
+        # Manipur and Nagaland — capped at 95.5°E (Myanmar border starts ~95.5-96°E)
+        {
+            "label": "northeast_manipur_nagaland",
+            "lat_min": 23.5,
+            "lat_max": 26.5,
+            "lng_min": 93.5,
+            "lng_max": 95.5,
+        },
+        # Arunachal Pradesh — India's easternmost state; trimmed to 97.0°E
+        {
+            "label": "northeast_arunachal",
+            "lat_min": 26.5,
+            "lat_max": 29.5,
+            "lng_min": 91.5,
+            "lng_max": 97.0,
+        },
+        # ── New: Jammu & Kashmir ─────────────────────────────────────────────
+        # Entirely missing from previous 18-box set (lat 33-36.5°N uncovered).
+        {
+            "label": "jammu_kashmir",
+            "lat_min": 33.0,
+            "lat_max": 36.5,
+            "lng_min": 73.8,
+            "lng_max": 78.5,
         },
         {
             "label": "central_mp_west",
@@ -2014,35 +2070,76 @@ COUNTRY_BOXES: dict[str, list[dict]] = {
         },
         {"label": "florida", "lat_min": 24.5, "lat_max": 31.0, "lng_min": -87.5, "lng_max": -80.0},
     ],
-    # ── UAE (4 boxes) ────────────────────────────────────────────────────────
+    # ── UAE (8 boxes) ────────────────────────────────────────────────────────
+    # Previous 4 boxes bled into Oman (abu_dhabi_east/northern_emirates
+    # extended to lng 56.5 — UAE-Oman border is ~55.8-56.1°E near Al Ain,
+    # ~56.2°E at the Fujairah coast) and clipped Saudi Arabia in the south
+    # (UAE southern border ~22.7°N, not 22.5°N).
+    # 8 tighter boxes trace the actual UAE emirate footprints.
     "UAE": [
+        # Western Abu Dhabi: Liwa oasis, empty quarter fringe
         {
-            "label": "abu_dhabi_west",
-            "lat_min": 22.5,
-            "lat_max": 24.5,
+            "label": "abu_dhabi_liwa",
+            "lat_min": 22.7,
+            "lat_max": 23.8,
             "lng_min": 51.5,
-            "lng_max": 54.5,
+            "lng_max": 53.5,
         },
+        # Central Abu Dhabi desert interior
         {
-            "label": "abu_dhabi_east",
-            "lat_min": 22.5,
+            "label": "abu_dhabi_desert",
+            "lat_min": 23.2,
             "lat_max": 24.5,
-            "lng_min": 54.5,
-            "lng_max": 56.5,
+            "lng_min": 53.5,
+            "lng_max": 55.2,
         },
+        # Abu Dhabi city, Yas Island, coast corridor
         {
-            "label": "dubai_sharjah",
-            "lat_min": 24.5,
-            "lat_max": 25.5,
-            "lng_min": 54.5,
+            "label": "abu_dhabi_city",
+            "lat_min": 24.0,
+            "lat_max": 25.0,
+            "lng_min": 53.8,
+            "lng_max": 55.2,
+        },
+        # Al Ain — tight box; Oman's Buraimi is immediately east at ~55.8°E
+        {
+            "label": "al_ain",
+            "lat_min": 23.8,
+            "lat_max": 24.5,
+            "lng_min": 55.4,
             "lng_max": 56.0,
         },
+        # Dubai emirate
         {
-            "label": "northern_emirates",
-            "lat_min": 25.0,
-            "lat_max": 26.0,
-            "lng_min": 55.5,
-            "lng_max": 56.5,
+            "label": "dubai",
+            "lat_min": 24.9,
+            "lat_max": 25.4,
+            "lng_min": 54.9,
+            "lng_max": 55.7,
+        },
+        # Sharjah, Ajman, Umm Al Quwain
+        {
+            "label": "sharjah_ajman_uaq",
+            "lat_min": 25.2,
+            "lat_max": 25.8,
+            "lng_min": 55.3,
+            "lng_max": 56.0,
+        },
+        # Ras Al Khaimah — capped at 56.2°E (Oman border runs ~56.1-56.2°E here)
+        {
+            "label": "ras_al_khaimah",
+            "lat_min": 25.6,
+            "lat_max": 26.1,
+            "lng_min": 55.7,
+            "lng_max": 56.2,
+        },
+        # Fujairah east coast (Gulf of Oman side)
+        {
+            "label": "fujairah",
+            "lat_min": 24.9,
+            "lat_max": 25.6,
+            "lng_min": 56.1,
+            "lng_max": 56.4,
         },
     ],
 }
