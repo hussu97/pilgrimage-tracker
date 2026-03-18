@@ -6,6 +6,9 @@ jest.mock('../lib/theme', () => ({
       textMuted: '#94a3b8',
       textMain: '#0f172a',
       primary: '#007AFF',
+      crowdLow: '#059669',
+      crowdMedium: '#d97706',
+      error: '#dc2626',
     },
   },
   getStoredTheme: jest.fn().mockResolvedValue('system'),
@@ -26,17 +29,17 @@ describe('crowdColor()', () => {
     expect(result.length).toBeGreaterThan(0);
   });
 
-  it('returns green hex for low crowd', () => {
+  it('returns green for low crowd', () => {
     expect(crowdColor('low')).toBe('#059669');
     expect(crowdColor('Low')).toBe('#059669');
     expect(crowdColor('LOW')).toBe('#059669');
   });
 
-  it('returns amber hex for medium crowd', () => {
+  it('returns amber for medium crowd', () => {
     expect(crowdColor('medium')).toBe('#d97706');
   });
 
-  it('returns red hex for high crowd', () => {
+  it('returns red for high crowd', () => {
     expect(crowdColor('high')).toBe('#dc2626');
   });
 

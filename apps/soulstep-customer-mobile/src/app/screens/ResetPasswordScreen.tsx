@@ -21,9 +21,9 @@ function makeStyles(isDark: boolean) {
   const bg = isDark ? tokens.colors.darkBg : tokens.colors.surface;
   const surface = isDark ? tokens.colors.darkSurface : tokens.colors.backgroundLight;
   const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
-  const textMain = isDark ? '#ffffff' : tokens.colors.textMain;
+  const textMain = isDark ? tokens.colors.textLight : tokens.colors.textMain;
   const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
-  const inputText = isDark ? '#ffffff' : tokens.colors.textMain;
+  const inputText = isDark ? tokens.colors.textLight : tokens.colors.textMain;
 
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: bg },
@@ -49,7 +49,7 @@ function makeStyles(isDark: boolean) {
       marginTop: 8,
     },
     buttonDisabled: { opacity: 0.6 },
-    buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+    buttonText: { color: tokens.colors.textLight, fontSize: 16, fontWeight: '600' },
     secondaryLink: { marginTop: 24, alignItems: 'center' },
     secondaryLinkText: { fontSize: 14, color: textMuted },
     linkButton: { marginTop: 16 },

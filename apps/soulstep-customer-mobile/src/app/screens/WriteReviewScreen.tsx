@@ -43,10 +43,10 @@ function makeStyles(isDark: boolean) {
   const bg = isDark ? tokens.colors.darkBg : tokens.colors.surface;
   const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
   const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
-  const textMain = isDark ? '#ffffff' : tokens.colors.textMain;
+  const textMain = isDark ? tokens.colors.textLight : tokens.colors.textMain;
   const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
   const textSecondary = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary;
-  const textDark = isDark ? '#ffffff' : tokens.colors.textDark;
+  const textDark = isDark ? tokens.colors.textLight : tokens.colors.textDark;
 
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: bg },
@@ -90,10 +90,10 @@ function makeStyles(isDark: boolean) {
       letterSpacing: 0.5,
     },
     placeThumb: { width: 48, height: 48, borderRadius: 8 },
-    errorText: { color: '#b91c1c', fontSize: 14, marginBottom: 12 },
+    errorText: { color: tokens.colors.errorDark, fontSize: 14, marginBottom: 12 },
     starRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 24 },
     starBtn: { padding: 4 },
-    starIcon: { fontSize: 28, color: '#facc15' },
+    starIcon: { fontSize: 28, color: tokens.colors.goldRank },
     starIconOff: { color: textMuted },
     textArea: {
       fontSize: 18,
@@ -134,12 +134,12 @@ function makeStyles(isDark: boolean) {
       width: 24,
       height: 24,
       borderRadius: 12,
-      backgroundColor: '#ef4444',
+      backgroundColor: tokens.colors.error,
       alignItems: 'center',
       justifyContent: 'center',
     },
     photoRemoveIcon: {
-      color: '#fff',
+      color: tokens.colors.textLight,
       fontSize: 18,
       fontWeight: '600',
       lineHeight: 20,
@@ -164,7 +164,7 @@ function makeStyles(isDark: boolean) {
       width: 20,
       height: 20,
       borderRadius: 10,
-      backgroundColor: '#fff',
+      backgroundColor: tokens.colors.surface,
       alignSelf: 'flex-start',
     },
     toggleKnobOn: { alignSelf: 'flex-end' },
@@ -179,8 +179,8 @@ function makeStyles(isDark: boolean) {
       borderRadius: 9999,
       ...tokens.shadow.elevated,
     },
-    submitText: { color: '#fff', fontWeight: '600', fontSize: 16 },
-    submitArrow: { color: '#fff', fontSize: 20, fontWeight: '300' },
+    submitText: { color: tokens.colors.textLight, fontWeight: '600', fontSize: 16 },
+    submitArrow: { color: tokens.colors.textLight, fontSize: 20, fontWeight: '300' },
     submitDisabled: { opacity: 0.7 },
     editSubmitWrap: { paddingHorizontal: 24, paddingTop: 16 },
     editSubmitBtn: {

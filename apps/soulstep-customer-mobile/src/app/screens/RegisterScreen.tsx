@@ -55,11 +55,11 @@ function ruleKey(rule: PasswordRule): string {
 function makeStyles(isDark: boolean) {
   const bg = isDark ? tokens.colors.darkBg : tokens.colors.backgroundLight;
   const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
-  const textMain = isDark ? '#ffffff' : tokens.colors.textDark;
+  const textMain = isDark ? tokens.colors.textLight : tokens.colors.textDark;
   const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
   const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
-  const inputText = isDark ? '#ffffff' : tokens.colors.textMain;
-  const backBtnBg = isDark ? 'rgba(255,255,255,0.1)' : tokens.colors.silverLight;
+  const inputText = isDark ? tokens.colors.textLight : tokens.colors.textMain;
+  const backBtnBg = isDark ? tokens.colors.backBtnDark : tokens.colors.silverLight;
 
   return StyleSheet.create({
     container: { flex: 1, backgroundColor: bg },
@@ -109,7 +109,7 @@ function makeStyles(isDark: boolean) {
       marginTop: 4,
     },
     buttonDisabled: { opacity: 0.6 },
-    primaryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+    primaryButtonText: { color: tokens.colors.textLight, fontSize: 16, fontWeight: '600' },
     secondaryLink: { marginTop: 24, alignItems: 'center' },
     secondaryLinkText: { fontSize: 14, color: textMuted },
   });
@@ -200,7 +200,7 @@ export default function RegisterScreen() {
           <MaterialIcons
             name="arrow-back"
             size={20}
-            color={isDark ? '#ffffff' : tokens.colors.navIconLight}
+            color={isDark ? tokens.colors.textLight : tokens.colors.navIconLight}
           />
         </TouchableOpacity>
 

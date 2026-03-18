@@ -323,7 +323,7 @@ function AuthSheetContent({
             activeOpacity={0.85}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={tokens.colors.textLight} />
             ) : (
               <Text style={styles.primaryButtonText}>{t('auth.login')}</Text>
             )}
@@ -371,7 +371,7 @@ function AuthSheetContent({
             activeOpacity={0.85}
           >
             {submitting ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={tokens.colors.textLight} />
             ) : (
               <Text style={styles.primaryButtonText}>{t('auth.register')}</Text>
             )}
@@ -384,19 +384,19 @@ function AuthSheetContent({
 
 function makeStyles(isDark: boolean) {
   const bg = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
-  const textPrimary = isDark ? '#ffffff' : tokens.colors.textDark;
+  const textPrimary = isDark ? tokens.colors.textLight : tokens.colors.textDark;
   const textMuted = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
   const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
 
   return StyleSheet.create({
     container: { paddingBottom: 8 },
     prompt: {
-      backgroundColor: isDark ? '#1e2a3a' : '#eff6ff',
+      backgroundColor: isDark ? tokens.colors.infoPanelBgDark : tokens.colors.infoPanelBgLight,
       borderRadius: 12,
       padding: 12,
       marginBottom: 16,
       borderWidth: 1,
-      borderColor: isDark ? '#2a3f5c' : '#bfdbfe',
+      borderColor: isDark ? tokens.colors.infoPanelBorderDark : tokens.colors.infoPanelBorderLight,
     },
     promptTitle: {
       fontSize: 14,
@@ -407,7 +407,7 @@ function makeStyles(isDark: boolean) {
     promptDesc: { fontSize: 12, color: textMuted },
     tabBar: {
       flexDirection: 'row',
-      backgroundColor: isDark ? tokens.colors.darkBorder : '#f1f5f9',
+      backgroundColor: isDark ? tokens.colors.darkBorder : tokens.colors.silverLight,
       borderRadius: 12,
       padding: 4,
       marginBottom: 20,
@@ -430,10 +430,10 @@ function makeStyles(isDark: boolean) {
       borderRadius: tokens.borderRadius['2xl'],
       padding: 14,
       fontSize: 15,
-      backgroundColor: isDark ? tokens.colors.darkBg : '#fff',
+      backgroundColor: isDark ? tokens.colors.darkBg : tokens.colors.surface,
       color: textPrimary,
     },
-    error: { color: '#dc2626', fontSize: 13, fontWeight: '500' },
+    error: { color: tokens.colors.error, fontSize: 13, fontWeight: '500' },
     primaryButton: {
       backgroundColor: tokens.colors.primary,
       paddingVertical: 15,
@@ -442,6 +442,6 @@ function makeStyles(isDark: boolean) {
       marginTop: 4,
     },
     buttonDisabled: { opacity: 0.6 },
-    primaryButtonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+    primaryButtonText: { color: tokens.colors.textLight, fontSize: 15, fontWeight: '600' },
   });
 }

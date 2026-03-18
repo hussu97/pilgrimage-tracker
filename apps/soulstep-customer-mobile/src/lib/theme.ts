@@ -75,6 +75,29 @@ export const tokens = {
     // Activity indicator
     activityGreen: '#22c55e',
     activityGreenGlow: 'rgba(34, 197, 94, 0.6)',
+    // Crowd level colors
+    crowdLow: '#059669',
+    crowdMedium: '#d97706',
+    // (crowdHigh reuses tokens.colors.error = '#dc2626')
+    // Success icon / state backgrounds
+    successIconBgDark: 'rgba(16,185,129,0.2)',
+    successIconBgLight: '#D1FAE5',
+    // Error backgrounds
+    errorBgDark: 'rgba(239,68,68,0.15)',
+    errorBgLight: '#fee2e2',
+    // Dark-mode back button / ghost button background
+    backBtnDark: 'rgba(255,255,255,0.1)',
+    // Modal / overlay backgrounds
+    overlayModal: 'rgba(0,0,0,0.4)',
+    overlay: 'rgba(0,0,0,0.45)',
+    // Switch (React Native Switch) off-state colors
+    switchTrackOff: '#767577',
+    switchThumbOff: '#f4f3f4',
+    // Info / prompt panel (e.g. auth gate banner, notification nudge)
+    infoPanelBgDark: '#1e2a3a',
+    infoPanelBgLight: '#eff6ff',
+    infoPanelBorderDark: '#2a3f5c',
+    infoPanelBorderLight: '#bfdbfe',
   },
   borderRadius: {
     sm: 4,

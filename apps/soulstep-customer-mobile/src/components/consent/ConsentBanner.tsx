@@ -17,7 +17,7 @@ import { tokens } from '@/lib/theme';
 function makeStyles(isDark: boolean) {
   const surface = isDark ? tokens.colors.darkSurface : tokens.colors.surface;
   const border = isDark ? tokens.colors.darkBorder : tokens.colors.inputBorder;
-  const textPrimary = isDark ? '#ffffff' : tokens.colors.textDark;
+  const textPrimary = isDark ? tokens.colors.textLight : tokens.colors.textDark;
   const textSecondary = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textSecondary;
 
   return StyleSheet.create({
@@ -74,13 +74,13 @@ function makeStyles(isDark: boolean) {
       alignItems: 'center',
     },
     primaryBtnText: {
-      color: '#ffffff',
+      color: tokens.colors.textLight,
       fontSize: 14,
       fontWeight: '600',
     },
     secondaryBtn: {
       flex: 1,
-      backgroundColor: isDark ? tokens.colors.darkBorder : '#f1f5f9',
+      backgroundColor: isDark ? tokens.colors.darkBorder : tokens.colors.silverLight,
       borderRadius: tokens.borderRadius.xl,
       paddingVertical: 12,
       alignItems: 'center',
@@ -129,8 +129,8 @@ export default function ConsentBanner() {
                 <Switch
                   value={adsChecked}
                   onValueChange={setAdsChecked}
-                  trackColor={{ false: '#767577', true: tokens.colors.accent }}
-                  thumbColor={adsChecked ? tokens.colors.primary : '#f4f3f4'}
+                  trackColor={{ false: tokens.colors.switchTrackOff, true: tokens.colors.accent }}
+                  thumbColor={adsChecked ? tokens.colors.primary : tokens.colors.switchThumbOff}
                 />
               </View>
               <View style={styles.prefRow}>
@@ -138,8 +138,10 @@ export default function ConsentBanner() {
                 <Switch
                   value={analyticsChecked}
                   onValueChange={setAnalyticsChecked}
-                  trackColor={{ false: '#767577', true: tokens.colors.accent }}
-                  thumbColor={analyticsChecked ? tokens.colors.primary : '#f4f3f4'}
+                  trackColor={{ false: tokens.colors.switchTrackOff, true: tokens.colors.accent }}
+                  thumbColor={
+                    analyticsChecked ? tokens.colors.primary : tokens.colors.switchThumbOff
+                  }
                 />
               </View>
             </View>

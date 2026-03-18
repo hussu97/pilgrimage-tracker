@@ -51,9 +51,9 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       const isDark = Appearance.getColorScheme() === 'dark';
       const bg = isDark ? tokens.colors.darkBg : tokens.colors.surface;
-      const titleColor = isDark ? '#ffffff' : tokens.colors.textDark;
+      const titleColor = isDark ? tokens.colors.textLight : tokens.colors.textDark;
       const messageColor = isDark ? tokens.colors.darkTextSecondary : tokens.colors.textMuted;
-      const iconWrapBg = isDark ? 'rgba(239,68,68,0.15)' : '#fee2e2';
+      const iconWrapBg = isDark ? tokens.colors.errorBgDark : tokens.colors.errorBgLight;
 
       return (
         <I18nContext.Consumer>
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   },
   icon: {
     fontSize: 32,
-    color: '#ef4444',
+    color: tokens.colors.error,
   },
   title: {
     fontSize: 22,
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     ...tokens.shadow.elevated,
   },
   buttonText: {
-    color: '#ffffff',
+    color: tokens.colors.textLight,
     fontSize: 16,
     fontWeight: '600',
   },
