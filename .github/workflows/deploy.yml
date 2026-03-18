@@ -423,5 +423,5 @@ jobs:
             --image "$JOB_IMAGE" \
             --set-cloudsql-instances "$CLOUDSQL" \
             --memory 8Gi --cpu 4 \
-            --task-timeout 3600 --max-retries 1 \
+            --task-timeout 86400 --max-retries 1 \
             --quiet
