@@ -491,22 +491,26 @@ class BrowserGmapsCollector(BaseCollector):
             return {}
 
     async def _extract_reviews(self, page) -> list[dict]:
-        """Navigate to Reviews tab and extract up to 5 reviews."""
+        """Navigate to Reviews tab and extract reviews (up to SCRAPER_MAX_REVIEWS)."""
+        from app.config import settings as _settings
+
+        max_reviews = _settings.max_reviews
         try:
             reviews_tab = await page.query_selector(
-                "button[aria-label*='Reviews'], [data-tab-id='Reviews']"
+                "button[aria-label*='Reviews'], [data-tab-id='Reviews'], "
+                "button[jsaction*='reviews'], div[role='tab'][aria-label*='Reviews']"
             )
             if reviews_tab:
                 await reviews_tab.click()
-                await asyncio.sleep(1.5)
+                await asyncio.sleep(2.0)
 
             reviews = await page.evaluate(
                 r"""
-                () => {
+                (maxReviews) => {
                     const cards = document.querySelectorAll(
-                        '[data-review-id], .jftiEf, .MyEned'
+                        '[data-review-id], .jftiEf, .MyEned, [data-hveid] .GHT2ce'
                     );
-                    return Array.from(cards).slice(0, 5).map(card => {
+                    return Array.from(cards).slice(0, maxReviews).map(card => {
                         const author = card.querySelector('.d4r55, .DU9Pgb, .WNxzHc');
                         const ratingEl = card.querySelector('[aria-label*="stars"]');
                         const textEl = card.querySelector('.wiI7pd, .MyEned span');
@@ -526,7 +530,8 @@ class BrowserGmapsCollector(BaseCollector):
                         };
                     }).filter(r => r.text);
                 }
-                """
+                """,
+                max_reviews,
             )
             return reviews if isinstance(reviews, list) else []
         except Exception:

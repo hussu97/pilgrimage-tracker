@@ -59,6 +59,31 @@ class TestNormalizeTo24h:
         result = normalize_to_24h("9:00\u202fAM - 5:00\u202fPM")
         assert result == "09:00-17:00"
 
+    # ── en-dash without surrounding spaces (Google Places API v1 format) ─────────
+
+    def test_en_dash_no_spaces(self):
+        # Google Places API v1 returns "9\u202fAM\u20136\u202fPM" (en-dash, no spaces)
+        result = normalize_to_24h("9\u202fAM\u20136\u202fPM")
+        assert result == "09:00-18:00"
+
+    def test_en_dash_no_spaces_with_minutes(self):
+        result = normalize_to_24h("9\u202fam\u201312\u202fpm")
+        assert result == "09:00-12:00"
+
+    def test_en_dash_no_spaces_multi_slot(self):
+        result = normalize_to_24h("9\u202fAM\u201311:30\u202fAM, 6\u202fPM\u20138:30\u202fPM")
+        assert result == "09:00-11:30, 18:00-20:30"
+
+    # ── times without minutes ("9 AM" not "9:00 AM") ──────────────────────────
+
+    def test_time_without_minutes(self):
+        result = normalize_to_24h("9 AM - 5 PM")
+        assert result == "09:00-17:00"
+
+    def test_time_without_minutes_en_dash(self):
+        result = normalize_to_24h("9\u202fAM\u20135\u202fPM")
+        assert result == "09:00-17:00"
+
     # ── unparseable input ─────────────────────────────────────────────────────
 
     def test_unparseable_returns_original(self):

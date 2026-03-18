@@ -121,6 +121,11 @@ def _is_open_now_from_hours(
 
         now_min = now.hour * 60 + now.minute
 
+        # Pre-process concatenated multi-slot strings that lack a comma separator.
+        # Google sometimes omits the comma between consecutive slots, e.g.:
+        #   "9–11:30 am6–8:30 pm"  →  "9–11:30 am, 6–8:30 pm"
+        today_hours = re.sub(r"(?<=[ap]m)(?=\d)", ", ", today_hours, flags=re.IGNORECASE)
+
         # Multi-slot support: split on commas, check if current time falls in ANY slot
         slots = [s.strip() for s in today_hours.split(",")]
         any_parseable = False

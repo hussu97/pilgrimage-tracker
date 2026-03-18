@@ -148,3 +148,16 @@ class TestIsOpenNow:
         hours = dict.fromkeys(days, "05:00-22:00")
         result = _is_open_now_from_hours(hours, utc_offset_minutes=240)
         assert result in (True, False)
+
+    def test_concatenated_multi_slot_no_comma(self):
+        # Google Maps sometimes omits the comma between two slots, e.g.:
+        # "9–11:30 am6–8:30 pm"  (two slots concatenated without comma separator)
+        hours = self._hours("9\u201311:30\u202fam6\u20138:30\u202fpm")
+        result = _is_open_now_from_hours(hours)
+        assert result in (True, False)  # parseable after pre-processing, not None
+
+    def test_concatenated_multi_slot_uppercase(self):
+        # Same pattern with uppercase AM/PM
+        hours = self._hours("9\u201311:30\u202fAM6\u20138:30\u202fPM")
+        result = _is_open_now_from_hours(hours)
+        assert result in (True, False)

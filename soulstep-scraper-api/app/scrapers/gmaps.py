@@ -115,6 +115,8 @@ def normalize_to_24h(time_str):
     """
     Converts local time string from 12h format to 24h format, keeping it in local time.
     Supports comma-separated multi-slot ranges (e.g., "9:00 AM - 12:00 PM, 2:00 PM - 6:00 PM").
+    Handles en/em dashes with or without surrounding spaces and times without minutes
+    (e.g. "9 AM–12 PM" and "9\u202fAM\u20136\u202fPM" from Google Places API v1).
     """
     if "open 24 hours" in time_str.lower():
         return "00:00-23:59"
@@ -125,16 +127,25 @@ def normalize_to_24h(time_str):
     normalized_segments = []
 
     for segment in segments:
-        times = re.split(r" – | - | to ", segment.replace("\u202f", " ").strip())
+        seg_clean = segment.replace("\u202f", " ").strip()
+        # Split on en/em dash (with or without surrounding spaces) or spaced hyphen
+        times = re.split(r"\s*[–—]\s*|\s+-\s+", seg_clean)
         if len(times) != 2:
             return time_str
 
         local_times = []
         for t in times:
-            try:
-                dt = datetime.strptime(t.strip(), "%I:%M %p")
-                local_times.append(dt.strftime("%H:%M"))
-            except ValueError:
+            t = t.strip()
+            parsed = False
+            for fmt in ("%I:%M %p", "%I %p"):
+                try:
+                    dt = datetime.strptime(t, fmt)
+                    local_times.append(dt.strftime("%H:%M"))
+                    parsed = True
+                    break
+                except ValueError:
+                    continue
+            if not parsed:
                 return time_str
 
         normalized_segments.append(f"{local_times[0]}-{local_times[1]}")

@@ -4,6 +4,20 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-18] — Opening Hours Parsing Fix + Max Reviews Env Var
+
+### Backend (scraper)
+- **`normalize_to_24h` fix** — regex now handles en/em dashes without surrounding spaces (`"9 AM–12 PM"`) and times without minutes (`"9 AM"` vs `"9:00 AM"`); both formats returned by Google Places API v1 `weekdayDescriptions` are now correctly converted to 24h format
+- **`SCRAPER_MAX_REVIEWS` env var** — replaces hardcoded `5` in `ReviewExtractor.from_gmaps()` and the browser `_extract_reviews` JS; default remains 5; forwarded to Cloud Run Job containers
+- **`_extract_reviews` improvements** — extended Reviews tab selector to include `jsaction`/`role="tab"` variants; wait time after tab click increased from 1.5 s → 2.0 s; review card JS selector extended with `.GHT2ce` fallback
+- **Tests** — 6 new `test_normalize.py` cases covering en-dash without spaces and times without minutes
+
+### Backend (catalog API)
+- **Concatenated multi-slot hours fix** — `_is_open_now_from_hours` now pre-processes Google's omitted-comma format (`"9–11:30 am6–8:30 pm"`) by inserting a comma at the AM/PM → digit boundary before slot splitting; places with two-slot days no longer return `open_status: "unknown"`
+- **Tests** — 2 new `test_hours_parsing.py` cases covering concatenated multi-slot (lowercase and uppercase AM/PM)
+
+---
+
 ## [2026-03-18] — Geo Box Tightening + Seed Reset + Parallel Per-Box Cloud Run Dispatch
 
 ### Backend

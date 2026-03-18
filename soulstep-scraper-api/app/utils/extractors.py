@@ -39,8 +39,10 @@ class ReviewExtractor:
     @staticmethod
     def from_gmaps(reviews: list[dict[str, Any]]) -> list[ReviewDict]:
         """Extract reviews from Google Places API v1 response (handles nested text dict)."""
+        from app.config import settings
+
         result: list[ReviewDict] = []
-        for review in reviews[:5]:
+        for review in reviews[: settings.max_reviews]:
             review_text = review.get("text", {})
             if isinstance(review_text, dict):
                 review_text = review_text.get("text", "")

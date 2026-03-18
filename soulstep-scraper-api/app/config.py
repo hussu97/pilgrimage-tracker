@@ -74,6 +74,8 @@ class Settings:
     # Max photos stored per place. Billed at $0.007/1000 per photo media request.
     # 3 is enough for list cards + detail hero; raise to 5-10 only if needed.
     max_photos: int = int(os.environ.get("SCRAPER_MAX_PHOTOS", "3"))
+    # Max reviews scraped per place (from Google Places API and browser extraction).
+    max_reviews: int = int(os.environ.get("SCRAPER_MAX_REVIEWS", "5"))
     # Max concurrent image downloads (plain CDN, no API rate limit).
     image_concurrency: int = int(os.environ.get("SCRAPER_IMAGE_CONCURRENCY", "40"))
 
@@ -184,6 +186,7 @@ class Settings:
             "SCRAPER_OVERPASS_CONCURRENCY": str(self.overpass_concurrency),
             "SCRAPER_OVERPASS_JITTER_MAX": str(self.overpass_jitter_max),
             "SCRAPER_MAX_PHOTOS": str(self.max_photos),
+            "SCRAPER_MAX_REVIEWS": str(self.max_reviews),
             "SCRAPER_IMAGE_CONCURRENCY": str(self.image_concurrency),
             # ── Quality gates ─────────────────────────────────────────────────
             "SCRAPER_GATE_IMAGE_DOWNLOAD": str(self.gate_image_download),
