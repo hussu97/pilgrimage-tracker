@@ -53,6 +53,7 @@ gcloud artifacts repositories create soulstep \
 ```bash
 PROJECT_ID=your-gcp-project-id
 NEW_REGION=europe-west4  # region to add
+SA_EMAIL=github-deploy@$PROJECT_ID.iam.gserviceaccount.com
 
 # Authenticate Docker for both registries
 gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
@@ -112,7 +113,7 @@ The job's service account needs `roles/run.jobsExecutorWithOverrides` in the new
 
 ```bash
 gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:SA_EMAIL" \
+  --member="serviceAccount:$SA_EMAIL" \
   --role="roles/run.jobsExecutorWithOverrides"
 ```
 
