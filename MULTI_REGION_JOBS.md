@@ -99,10 +99,12 @@ Set `TAG=latest` for step 3 below.
 ### 3. Create the Cloud Run Job
 
 ```bash
+CLOUDSQL="${PROJECT_ID}:europe-west1:soulstep-db"
+
 gcloud run jobs create soulstep-scraper-api-job \
-  --region $NEW_REGION \
-  --image "$NEW_REGION-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG" \
-  --set-cloudsql-instances "$PROJECT_ID:europe-west1:soulstep-db" \
+  --region "$NEW_REGION" \
+  --image "${NEW_REGION}-docker.pkg.dev/${PROJECT_ID}/soulstep/soulstep-scraper-api-job:${TAG}" \
+  --set-cloudsql-instances "$CLOUDSQL" \
   --memory 6Gi --cpu 4 \
   --task-timeout 86400 --max-retries 1
 ```
