@@ -44,8 +44,8 @@ This guide covers how to spread scraper Cloud Run Jobs across multiple GCP regio
 ```bash
 gcloud artifacts repositories create soulstep \
   --repository-format=docker \
-  --location=NEW_REGION \
-  --description="SoulStep container images (NEW_REGION)"
+  --location=$NEW_REGION \
+  --description="SoulStep container images ($NEW_REGION)"
 ```
 
 ### 2. Copy the job image to the new region
@@ -53,16 +53,19 @@ gcloud artifacts repositories create soulstep \
 Copy the image server-side using `gcloud` (no local Docker needed):
 
 ```bash
+PROJECT_ID=your-gcp-project-id
+NEW_REGION=europe-west4  # region to add
+
 # Get latest image tag (commit SHA from CI)
 TAG=$(gcloud artifacts docker tags list \
-  europe-west1-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job \
+  europe-west1-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job \
   --sort-by=~UPDATE_TIME --limit=1 --format='value(tag)' | awk -F: '{print $NF}')
 echo "Using tag: $TAG"
 
 # Copy server-side between registries
 gcloud artifacts docker tags add \
-  europe-west1-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG \
-  NEW_REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG
+  europe-west1-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG \
+  $NEW_REGION-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG
 ```
 
 > `TAG` is the git commit SHA used by CI (e.g. `83e6170...`). After initial setup,
@@ -72,9 +75,9 @@ gcloud artifacts docker tags add \
 
 ```bash
 gcloud run jobs create soulstep-scraper-api-job \
-  --region NEW_REGION \
-  --image "NEW_REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:TAG" \
-  --set-cloudsql-instances "PROJECT_ID:europe-west1:soulstep-db" \
+  --region $NEW_REGION \
+  --image "$NEW_REGION-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG" \
+  --set-cloudsql-instances "$PROJECT_ID:europe-west1:soulstep-db" \
   --memory 6Gi --cpu 4 \
   --task-timeout 86400 --max-retries 1
 ```
@@ -84,7 +87,7 @@ gcloud run jobs create soulstep-scraper-api-job \
 The job's service account needs `roles/run.jobsExecutorWithOverrides` in the new region:
 
 ```bash
-gcloud projects add-iam-policy-binding PROJECT_ID \
+gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:SA_EMAIL" \
   --role="roles/run.jobsExecutorWithOverrides"
 ```
@@ -99,7 +102,7 @@ Set `CLOUD_RUN_REGIONS` on the scraper API service:
 
 ```bash
 # Format: region1:max_jobs,region2:max_jobs,...
-CLOUD_RUN_REGIONS=europe-west1:3,NEW_REGION:5
+CLOUD_RUN_REGIONS=europe-west1:3,$NEW_REGION:5
 ```
 
 ### 7. Update GitHub Actions for auto-deploy
