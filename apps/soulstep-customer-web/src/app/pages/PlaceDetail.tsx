@@ -30,6 +30,7 @@ import PlaceTimingsCarousel from '@/components/places/PlaceTimingsCarousel';
 import PlaceSpecificationsGrid from '@/components/places/PlaceSpecificationsGrid';
 import { crowdColorClass, formatDistance } from '@/lib/utils/place-utils';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
+import { COLORS } from '@/lib/colors';
 import AdBanner from '@/components/ads/AdBanner';
 import PlaceFAQ from '@/components/places/PlaceFAQ';
 import Breadcrumb from '@/components/common/Breadcrumb';
@@ -743,7 +744,7 @@ export default function PlaceDetail() {
       </div>
       {/* Hero (fixed behind content) */}
       <div
-        className="fixed top-0 left-0 right-0 h-[300px] md:h-[380px] w-full overflow-hidden bg-[#1a2e2e] z-0 select-none lg:hidden"
+        className="fixed top-0 left-0 right-0 h-[300px] md:h-[380px] w-full overflow-hidden bg-hero-fallback z-0 select-none lg:hidden"
         onMouseDown={heroImages.length > 1 ? handleHeroMouseDown : undefined}
         onMouseMove={heroImages.length > 1 ? handleHeroMouseMove : undefined}
         onMouseUp={heroImages.length > 1 ? handleHeroMouseUp : undefined}
@@ -801,7 +802,7 @@ export default function PlaceDetail() {
               <span
                 className="material-symbols-outlined"
                 style={{
-                  color: place.is_favorite ? '#f87171' : '#ffffff',
+                  color: place.is_favorite ? COLORS.favoriteActive : COLORS.surface,
                   fontVariationSettings: `'FILL' ${place.is_favorite ? 1 : 0}`,
                 }}
               >
@@ -1050,7 +1051,7 @@ export default function PlaceDetail() {
             {/* Desktop inline image gallery — replaces fixed hero on lg+ */}
             {heroImages.length > 0 && (
               <div
-                className="relative w-full rounded-3xl overflow-hidden bg-[#1a2e2e] select-none"
+                className="relative w-full rounded-3xl overflow-hidden bg-hero-fallback select-none"
                 style={{
                   aspectRatio: '16/7',
                   cursor:
@@ -1157,7 +1158,7 @@ export default function PlaceDetail() {
                     <span
                       className="material-symbols-outlined"
                       style={{
-                        color: place.is_favorite ? '#f87171' : '#ffffff',
+                        color: place.is_favorite ? COLORS.favoriteActive : COLORS.surface,
                         fontVariationSettings: `'FILL' ${place.is_favorite ? 1 : 0}`,
                       }}
                     >

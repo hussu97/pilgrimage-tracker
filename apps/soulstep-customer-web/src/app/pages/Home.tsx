@@ -30,6 +30,7 @@ import HomeSkeleton from '@/components/common/skeletons/HomeSkeleton';
 import type { Group, Place } from '@/lib/types';
 import PlaceCardUnified from '@/components/places/PlaceCardUnified';
 import HorizontalCarousel from '@/components/common/HorizontalCarousel';
+import { COLORS } from '@/lib/colors';
 
 // ── Type aliases for local use ─────────────────────────────────────────────────
 
@@ -42,28 +43,28 @@ const ACTION_CONFIG = [
   {
     key: 'map',
     icon: 'map',
-    color: '#10B981',
+    color: COLORS.actionMap,
     bgClass: 'bg-emerald-500/10',
     textClass: 'text-emerald-500',
   },
   {
     key: 'create',
     icon: 'add_circle',
-    color: '#3B82F6',
+    color: COLORS.actionCreate,
     bgClass: 'bg-blue-500/10',
     textClass: 'text-blue-500',
   },
   {
     key: 'join',
     icon: 'group_add',
-    color: '#8B5CF6',
+    color: COLORS.actionJoin,
     bgClass: 'bg-violet-500/10',
     textClass: 'text-violet-500',
   },
   {
     key: 'favorites',
     icon: 'favorite',
-    color: '#F43F5E',
+    color: COLORS.actionFavorites,
     bgClass: 'bg-rose-500/10',
     textClass: 'text-rose-500',
   },

@@ -26,6 +26,7 @@ import type { FeaturedGroup } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { Place } from '@/lib/types';
+import { COLORS } from '@/lib/colors';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -565,21 +566,21 @@ export default function CreateGroup() {
                         id: 'islam',
                         label: 'Islam',
                         icon: 'mosque',
-                        color: '#0891b2',
+                        color: COLORS.faithIslam,
                         desc: 'Mosques & Islamic sites',
                       },
                       {
                         id: 'hinduism',
                         label: 'Hinduism',
                         icon: 'temple_hindu',
-                        color: '#d97706',
+                        color: COLORS.faithHinduism,
                         desc: 'Temples & Hindu sites',
                       },
                       {
                         id: 'christianity',
                         label: 'Christianity',
                         icon: 'church',
-                        color: '#7c3aed',
+                        color: COLORS.faithChristianity,
                         desc: 'Churches & Christian sites',
                       },
                     ].map((f) => (

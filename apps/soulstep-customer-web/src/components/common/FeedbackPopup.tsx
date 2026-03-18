@@ -1,5 +1,6 @@
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { COLORS } from '@/lib/colors';
 
 interface FeedbackPopupProps {
   visible: boolean;
@@ -12,8 +13,8 @@ const CROSS_PATH = 'M6 6l12 12M18 6L6 18';
 
 export default function FeedbackPopup({ visible, type, message }: FeedbackPopupProps) {
   const isSuccess = type === 'success';
-  const iconColor = isSuccess ? '#16a34a' : '#EF4444';
-  const iconBg = isSuccess ? 'rgba(22,163,74,0.12)' : 'rgba(239,68,68,0.12)';
+  const iconColor = isSuccess ? COLORS.openNow : COLORS.closedNow;
+  const iconBg = isSuccess ? COLORS.openNowAlpha12 : COLORS.closedNowAlpha12;
   const path = isSuccess ? CHECK_PATH : CROSS_PATH;
 
   return createPortal(

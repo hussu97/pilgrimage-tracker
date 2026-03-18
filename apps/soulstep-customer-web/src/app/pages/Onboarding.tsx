@@ -66,7 +66,7 @@ export default function Onboarding() {
   const isLast = index === CARDS.length - 1;
 
   return (
-    <div className="min-h-screen bg-[#FAF6F1] dark:bg-dark-bg flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-onboarding-bg dark:bg-dark-bg flex flex-col overflow-hidden">
       {/* Skip button */}
       <div className="flex justify-end p-4 lg:p-6">
         <button

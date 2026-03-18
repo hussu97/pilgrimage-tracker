@@ -5,6 +5,7 @@ import {
   ThemeProvider,
   useI18n,
 } from '@/app/providers';
+import { COLORS } from '@/lib/colors';
 import { LocationProvider } from '@/app/contexts/LocationContext';
 import { AppRoutes } from '@/app/routes';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
@@ -50,10 +51,10 @@ function I18nReadyGate({ children }: { children: React.ReactNode }) {
             50% { opacity: 0.7; transform: scale(1.08); }
           }
         `}</style>
-        <div className="min-h-screen flex flex-col items-center justify-center bg-[#F5F0E9] dark:bg-[#1A1A1A] overflow-hidden relative select-none">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background-light dark:bg-dark-bg overflow-hidden relative select-none">
           {/* Ambient glow rings */}
           <div
-            className="absolute rounded-full bg-[#B0563D]/[0.07] dark:bg-[#B0563D]/[0.1]"
+            className="absolute rounded-full bg-primary/[0.07] dark:bg-primary/[0.1]"
             style={{
               width: 560,
               height: 560,
@@ -64,7 +65,7 @@ function I18nReadyGate({ children }: { children: React.ReactNode }) {
             }}
           />
           <div
-            className="absolute rounded-full bg-[#B0563D]/[0.1] dark:bg-[#B0563D]/[0.14]"
+            className="absolute rounded-full bg-primary/[0.1] dark:bg-primary/[0.14]"
             style={{
               width: 340,
               height: 340,
@@ -93,8 +94,8 @@ function I18nReadyGate({ children }: { children: React.ReactNode }) {
                 left: -12,
                 borderRadius: '50%',
                 border: '2px solid transparent',
-                borderTopColor: '#B0563D',
-                borderRightColor: 'rgba(176,86,61,0.3)',
+                borderTopColor: COLORS.primary,
+                borderRightColor: COLORS.primaryAlpha30,
                 animation: 'ssRingSpin 5s linear infinite',
               }}
             />
@@ -106,14 +107,16 @@ function I18nReadyGate({ children }: { children: React.ReactNode }) {
                 top: -22,
                 left: -22,
                 borderRadius: '50%',
-                border: '1px solid rgba(176,86,61,0.15)',
+                border: `1px solid ${COLORS.primaryAlpha15}`,
                 animation: 'ssRingSpin 10s linear infinite reverse',
               }}
             />
 
             <div
-              className="w-24 h-24 rounded-full bg-white dark:bg-[#242424] flex items-center justify-center relative z-10"
-              style={{ boxShadow: '0 20px 60px rgba(176,86,61,0.22), 0 4px 16px rgba(0,0,0,0.08)' }}
+              className="w-24 h-24 rounded-full bg-white dark:bg-dark-surface flex items-center justify-center relative z-10"
+              style={{
+                boxShadow: `0 20px 60px ${COLORS.primaryAlpha22}, 0 4px 16px rgba(0,0,0,0.08)`,
+              }}
             >
               {/* Compass SVG mark */}
               <svg
@@ -127,25 +130,37 @@ function I18nReadyGate({ children }: { children: React.ReactNode }) {
                   cx="23"
                   cy="23"
                   r="20"
-                  stroke="#B0563D"
+                  stroke={COLORS.primary}
                   strokeWidth="1"
                   strokeOpacity="0.2"
                   fill="none"
                 />
-                <circle cx="23" cy="23" r="3.5" fill="#B0563D" />
+                <circle cx="23" cy="23" r="3.5" fill={COLORS.primary} />
                 {/* North needle */}
-                <path d="M23 5 L25.2 20.8 L23 23 L20.8 20.8 Z" fill="#B0563D" />
+                <path d="M23 5 L25.2 20.8 L23 23 L20.8 20.8 Z" fill={COLORS.primary} />
                 {/* East needle */}
-                <path d="M41 23 L25.2 25.2 L23 23 L25.2 20.8 Z" fill="#9CA3AF" fillOpacity="0.7" />
+                <path
+                  d="M41 23 L25.2 25.2 L23 23 L25.2 20.8 Z"
+                  fill={COLORS.compassNeutral}
+                  fillOpacity="0.7"
+                />
                 {/* South needle */}
-                <path d="M23 41 L20.8 25.2 L23 23 L25.2 25.2 Z" fill="#9CA3AF" fillOpacity="0.6" />
+                <path
+                  d="M23 41 L20.8 25.2 L23 23 L25.2 25.2 Z"
+                  fill={COLORS.compassNeutral}
+                  fillOpacity="0.6"
+                />
                 {/* West needle */}
-                <path d="M5 23 L20.8 20.8 L23 23 L20.8 25.2 Z" fill="#9CA3AF" fillOpacity="0.4" />
+                <path
+                  d="M5 23 L20.8 20.8 L23 23 L20.8 25.2 Z"
+                  fill={COLORS.compassNeutral}
+                  fillOpacity="0.4"
+                />
                 <circle
                   cx="23"
                   cy="23"
                   r="16"
-                  stroke="#B0563D"
+                  stroke={COLORS.primary}
                   strokeWidth="0.5"
                   strokeOpacity="0.12"
                   fill="none"
@@ -161,7 +176,7 @@ function I18nReadyGate({ children }: { children: React.ReactNode }) {
             className="mt-9"
           >
             <h1
-              className="text-[2.6rem] font-bold text-[#2D3E3B] dark:text-white"
+              className="text-[2.6rem] font-bold text-text-main dark:text-white"
               style={{
                 fontFamily: 'Lexend, Inter, sans-serif',
                 letterSpacing: '-0.03em',
@@ -177,7 +192,7 @@ function I18nReadyGate({ children }: { children: React.ReactNode }) {
             style={{ animation: 'ssTextIn 0.7s ease-out 0.55s forwards', opacity: 0 }}
             className="mt-2.5"
           >
-            <p className="text-[10px] font-semibold text-[#B0563D] tracking-[0.25em] uppercase">
+            <p className="text-[10px] font-semibold text-primary tracking-[0.25em] uppercase">
               Sacred Sites &nbsp;·&nbsp; Every Step
             </p>
           </div>
@@ -190,7 +205,7 @@ function I18nReadyGate({ children }: { children: React.ReactNode }) {
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className="w-1.5 h-1.5 rounded-full bg-[#B0563D]"
+                className="w-1.5 h-1.5 rounded-full bg-primary"
                 style={{ animation: `ssDotPop 1.5s ease-in-out ${i * 0.22}s infinite` }}
               />
             ))}

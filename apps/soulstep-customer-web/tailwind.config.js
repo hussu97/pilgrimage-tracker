@@ -25,6 +25,9 @@ export default {
         'dark-surface': '#242424',
         'dark-border': '#333333',
         'dark-text-secondary': '#C4BDB5',
+        'onboarding-bg': '#FAF6F1',
+        'hero-fallback': '#1a2e2e',
+        'favorite-active': '#f87171',
       },
       fontFamily: {
         sans: ['Inter', 'sans-serif'],

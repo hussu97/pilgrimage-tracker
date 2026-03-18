@@ -16,6 +16,7 @@ import { useLayoutEffect, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { SearchLocation } from '@/lib/utils/searchHistory';
 import L from 'leaflet';
+import { COLORS } from '@/lib/colors';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
@@ -28,9 +29,9 @@ const DEFAULT_ZOOM = 5;
 const USER_ZOOM = 14;
 
 const openStatusColors: Record<string, string> = {
-  open: 'rgba(22, 163, 74, 0.85)',
-  closed: 'rgba(220, 38, 38, 0.85)',
-  unknown: 'rgba(148, 163, 184, 0.85)',
+  open: COLORS.openNowAlpha85,
+  closed: COLORS.closedNowAlpha85,
+  unknown: COLORS.unknownStatus,
 };
 
 function createMarkerIcon(openStatus: string | undefined, isSelected = false): L.DivIcon {
@@ -42,7 +43,7 @@ function createMarkerIcon(openStatus: string | undefined, isSelected = false): L
       <div style="position:relative;display:flex;align-items:center;justify-content:center;">
         <div style="
           width:${size}px;height:${size}px;border-radius:50%;
-          background:white;border:3px solid ${color};
+          background:${COLORS.surface};border:3px solid ${color};
           box-shadow:0 8px 24px rgba(0,0,0,0.15);
           display:flex;align-items:center;justify-content:center;
         ">
@@ -60,9 +61,9 @@ function createSearchMarkerIcon(): L.DivIcon {
     className: '',
     html: `
       <div style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
-        <div style="position:absolute;width:36px;height:36px;border-radius:50%;background:rgba(234,88,12,0.18);"></div>
-        <div style="width:22px;height:22px;border-radius:50%;background:#ea580c;border:3px solid white;box-shadow:0 2px 12px rgba(234,88,12,0.5);position:relative;z-index:1;display:flex;align-items:center;justify-content:center;">
-          <div style="width:8px;height:8px;border-radius:50%;background:white;"></div>
+        <div style="position:absolute;width:36px;height:36px;border-radius:50%;background:${COLORS.mapSearchPinAlpha18};"></div>
+        <div style="width:22px;height:22px;border-radius:50%;background:${COLORS.mapSearchPin};border:3px solid ${COLORS.surface};box-shadow:0 2px 12px ${COLORS.mapSearchPinAlpha50};position:relative;z-index:1;display:flex;align-items:center;justify-content:center;">
+          <div style="width:8px;height:8px;border-radius:50%;background:${COLORS.surface};"></div>
         </div>
       </div>
     `,
@@ -76,8 +77,8 @@ function createUserMarkerIcon(): L.DivIcon {
     className: '',
     html: `
       <div style="position:relative;width:22px;height:22px;display:flex;align-items:center;justify-content:center;">
-        <div style="position:absolute;width:22px;height:22px;border-radius:50%;background:rgba(37,99,235,0.22);"></div>
-        <div style="width:14px;height:14px;border-radius:50%;background:#2563eb;border:3px solid white;box-shadow:0 2px 10px rgba(37,99,235,0.55);position:relative;z-index:1;"></div>
+        <div style="position:absolute;width:22px;height:22px;border-radius:50%;background:${COLORS.mapUserPinAlpha22};"></div>
+        <div style="width:14px;height:14px;border-radius:50%;background:${COLORS.mapUserPin};border:3px solid ${COLORS.surface};box-shadow:0 2px 10px ${COLORS.mapUserPinAlpha55};position:relative;z-index:1;"></div>
       </div>
     `,
     iconSize: [22, 22],
@@ -90,7 +91,7 @@ function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
   const size = count < 10 ? 36 : count < 100 ? 44 : 52;
   return L.divIcon({
     className: '',
-    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:rgba(22,163,74,0.9);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${count < 100 ? 13 : 11}px;border:3px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,0.2);">${count}</div>`,
+    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${COLORS.openNowAlpha90};color:${COLORS.surface};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:${count < 100 ? 13 : 11}px;border:3px solid ${COLORS.surface};box-shadow:0 4px 12px rgba(0,0,0,0.2);">${count}</div>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
@@ -184,11 +185,9 @@ export default function PlacesMap({
       options: { position: 'bottomright' as const },
       onAdd() {
         const btn = L.DomUtil.create('button', '');
-        btn.innerHTML =
-          '<span class="material-symbols-outlined" style="font-size:20px;color:#374151;">my_location</span>';
+        btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:20px;color:${COLORS.mapIconGrey};">my_location</span>`;
         btn.title = 'My location';
-        btn.style.cssText =
-          'width:36px;height:36px;background:#fff;border:none;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;cursor:pointer;';
+        btn.style.cssText = `width:36px;height:36px;background:${COLORS.surface};border:none;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;cursor:pointer;`;
         L.DomEvent.disableClickPropagation(btn);
         btn.addEventListener('click', () => onRecenterRef.current?.());
         return btn;
@@ -313,14 +312,14 @@ export default function PlacesMap({
       } else {
         const distHtml =
           place.distance != null
-            ? `<p style="font-size:13px;color:#6b7280;margin:2px 0 8px">${formatDistance(place.distance)} away</p>`
+            ? `<p style="font-size:13px;color:${COLORS.mapPopupMuted};margin:2px 0 8px">${formatDistance(place.distance)} away</p>`
             : '';
         marker.bindPopup(`
           <div style="min-width:160px">
-            <p style="font-weight:600;color:#111;margin:0 0 2px">${place.name}</p>
+            <p style="font-weight:600;color:${COLORS.mapPopupTitle};margin:0 0 2px">${place.name}</p>
             ${distHtml}
             <a data-place="${place.place_code}" href="/places/${place.place_code}"
-               style="font-size:13px;font-weight:500;color:#2563eb;display:inline-flex;align-items:center;gap:4px">
+               style="font-size:13px;font-weight:500;color:${COLORS.mapPopupLink};display:inline-flex;align-items:center;gap:4px">
               View details <span style="font-size:14px">→</span>
             </a>
           </div>

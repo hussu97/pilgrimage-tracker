@@ -7,6 +7,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { COLORS } from '@/lib/colors';
 
 export interface JourneyPlace {
   place_code: string;
@@ -23,7 +24,7 @@ interface JourneyMapViewProps {
 }
 
 function createJourneyMarkerIcon(checkedIn: boolean): L.DivIcon {
-  const color = checkedIn ? 'rgba(34,197,94,0.9)' : 'rgba(59,130,246,0.9)';
+  const color = checkedIn ? COLORS.mapJourneyCheckedIn : COLORS.mapJourneyPending;
   return L.divIcon({
     className: 'journey-marker',
     html: `
@@ -80,7 +81,7 @@ export default function JourneyMapView({
       const marker = L.marker([place.latitude, place.longitude], { icon });
 
       const popupContent = `
-        <div style="font-family:system-ui;font-size:13px;font-weight:600;color:#1e293b;padding:4px 2px;">
+        <div style="font-family:system-ui;font-size:13px;font-weight:600;color:${COLORS.mapPopupTitle};padding:4px 2px;">
           ${place.name}
         </div>
       `;
@@ -136,7 +137,7 @@ export default function JourneyMapView({
       const marker = L.marker([place.latitude, place.longitude], { icon });
 
       const popupContent = `
-        <div style="font-family:system-ui;font-size:13px;font-weight:600;color:#1e293b;padding:4px 2px;">
+        <div style="font-family:system-ui;font-size:13px;font-weight:600;color:${COLORS.mapPopupTitle};padding:4px 2px;">
           ${place.name}
         </div>
       `;
