@@ -136,13 +136,13 @@ export default function SplashScreen() {
         Animated.timing(glowPulse, {
           toValue: 1.08,
           duration: 2200,
-          easing: Easing.inOut(Easing.sine),
+          easing: Easing.inOut(Easing.sin),
           useNativeDriver: true,
         }),
         Animated.timing(glowPulse, {
           toValue: 0.85,
           duration: 2200,
-          easing: Easing.inOut(Easing.sine),
+          easing: Easing.inOut(Easing.sin),
           useNativeDriver: true,
         }),
       ]),

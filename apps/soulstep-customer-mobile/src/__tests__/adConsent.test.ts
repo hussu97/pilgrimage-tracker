@@ -116,7 +116,10 @@ describe('syncConsentToBackend()', () => {
   it('sends POST to /api/v1/consent with consent data', () => {
     syncConsentToBackend('ads', true, 'vis_abc', 'tok_123');
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    const [url, opts] = mockFetch.mock.calls[0];
+    const [url, opts] = mockFetch.mock.calls[0] as unknown as [
+      string,
+      { method: string; body: string; headers: Record<string, string> },
+    ];
     expect(url).toContain('/api/v1/consent');
     expect(opts.method).toBe('POST');
     expect(JSON.parse(opts.body)).toEqual({
@@ -129,7 +132,10 @@ describe('syncConsentToBackend()', () => {
 
   it('omits Authorization header when token is null', () => {
     syncConsentToBackend('analytics', false, 'vis_abc', null);
-    const [, opts] = mockFetch.mock.calls[0];
+    const [, opts] = mockFetch.mock.calls[0] as unknown as [
+      string,
+      { headers: Record<string, string> },
+    ];
     expect(opts.headers['Authorization']).toBeUndefined();
   });
 

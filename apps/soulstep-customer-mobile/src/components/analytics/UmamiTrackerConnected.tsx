@@ -6,18 +6,18 @@
 
 import { useEffect, useRef } from 'react';
 import { useNavigationState } from '@react-navigation/native';
+import type { NavigationState, PartialState } from '@react-navigation/routers';
 import { useAds } from '@/components/ads/AdProvider';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 
-function getActiveRouteName(
-  state: ReturnType<typeof useNavigationState<typeof identity>> | undefined,
-): string | null {
+type NavState = NavigationState | PartialState<NavigationState>;
+
+function getActiveRouteName(state: NavState | undefined): string | null {
   if (!state) return null;
   const route = state.routes[state.index ?? 0];
   if (!route) return null;
   // Recurse into nested navigators
-  if (route.state)
-    return getActiveRouteName(route.state as Parameters<typeof getActiveRouteName>[0]);
+  if (route.state) return getActiveRouteName(route.state as NavState);
   return route.name;
 }
 

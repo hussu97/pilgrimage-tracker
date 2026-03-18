@@ -27,6 +27,7 @@ import ExploreCityScreen from './screens/ExploreCityScreen';
 import PlacesScreen from './screens/PlacesScreen';
 import MapDiscoveryScreen from './screens/MapDiscoveryScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
+import EditProfileScreen from './screens/EditProfileScreen';
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -38,7 +39,7 @@ export type RootStackParamList = {
   Search: undefined;
   PlaceDetail: { placeCode: string; slug?: string };
   ExploreCities: undefined;
-  ExploreCity: { citySlug: string };
+  ExploreCity: { citySlug: string; cityName?: string };
   Places: undefined;
   WriteReview: {
     placeCode: string;
@@ -58,6 +59,7 @@ export type RootStackParamList = {
   Favorites: undefined;
   MapDiscovery: undefined;
   Onboarding: undefined;
+  EditProfile: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -104,6 +106,7 @@ function RootStack() {
       <Stack.Screen name="Places" component={withScreenBoundary(PlacesScreen)} />
       <Stack.Screen name="MapDiscovery" component={withScreenBoundary(MapDiscoveryScreen)} />
       <Stack.Screen name="Onboarding" component={withScreenBoundary(OnboardingScreen)} />
+      <Stack.Screen name="EditProfile" component={withScreenBoundary(EditProfileScreen)} />
     </Stack.Navigator>
   );
 }
