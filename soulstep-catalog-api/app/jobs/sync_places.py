@@ -125,9 +125,7 @@ def _build_place_create(place_code: str, name: str, raw_data: dict) -> PlaceCrea
     """Build a PlaceCreate from a ScrapedPlace row. Returns None if data is invalid."""
     data = raw_data
 
-    # Prefer image_blobs over image_urls (server rejects both populated)
-    image_blobs = data.get("image_blobs") or []
-    image_urls = [] if image_blobs else (data.get("image_urls") or [])
+    image_urls = data.get("image_urls") or []
 
     translations_raw = data.get("translations")
     translations = None
@@ -150,7 +148,6 @@ def _build_place_create(place_code: str, name: str, raw_data: dict) -> PlaceCrea
             opening_hours=data.get("opening_hours"),
             utc_offset_minutes=data.get("utc_offset_minutes"),
             image_urls=image_urls,
-            image_blobs=image_blobs or None,
             description=data.get("description"),
             website_url=data.get("website_url"),
             source=data.get("source"),

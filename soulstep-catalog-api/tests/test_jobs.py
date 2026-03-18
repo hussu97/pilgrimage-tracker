@@ -158,16 +158,6 @@ class TestBuildPlaceCreate:
         assert pc.place_code == "plc_abc"
         assert pc.religion == "islam"
 
-    def test_prefers_image_blobs_over_urls(self):
-        raw = self._raw(
-            image_blobs=[{"data": "abc", "mime_type": "image/jpeg"}],
-            image_urls=["http://example.com/img.jpg"],
-        )
-        pc = self._fn("plc_abc", "Test Mosque", raw)
-        assert pc is not None
-        assert pc.image_blobs is not None
-        assert pc.image_urls == []
-
     def test_uses_image_urls_when_no_blobs(self):
         raw = self._raw(image_urls=["http://example.com/img.jpg"])
         pc = self._fn("plc_abc", "Test Mosque", raw)
