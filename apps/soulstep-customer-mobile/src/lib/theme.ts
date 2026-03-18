@@ -19,7 +19,7 @@ export async function setStoredTheme(theme: Theme): Promise<void> {
 }
 
 /**
- * Design tokens from V3 design files.
+ * Design tokens from SoulStep design system.
  * Border radius values aligned with design reference:
  *   xl  = 12px  – inputs, inner elements
  *   2xl = 16px  – cards

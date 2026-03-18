@@ -61,7 +61,7 @@ function PlaceCard({
   const [imgIdx, setImgIdx] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  const imageHeight = variant === 'tile' ? 160 : 280;
+  const imageHeight = variant === 'tile' ? 180 : 320;
 
   useEffect(() => {
     if (compact || variant === 'tile' || images.length <= 1 || !isActive || containerWidth === 0)
@@ -257,41 +257,47 @@ function PlaceCard({
             {place.address || place.place_type || ''}
           </Text>
         </View>
-        <View style={styles.glassDivider} />
-        <View style={styles.metaRow}>
-          <View style={styles.metaLeft}>
-            {rating != null && (
-              <View style={styles.ratingPill}>
-                <MaterialIcons name="star" size={10} color="#facc15" />
-                <Text style={styles.ratingText}>
-                  {rating.toFixed(1)}
-                  {reviewCount > 0 ? ` (${formatCount(reviewCount)})` : ''}
-                </Text>
+        {variant !== 'tile' && (
+          <>
+            <View style={styles.glassDivider} />
+            <View style={styles.metaRow}>
+              <View style={styles.metaLeft}>
+                {rating != null && (
+                  <View style={styles.ratingPill}>
+                    <MaterialIcons name="star" size={11} color="#facc15" />
+                    <Text style={styles.ratingText}>
+                      {rating.toFixed(1)}
+                      {reviewCount > 0 ? ` (${formatCount(reviewCount)})` : ''}
+                    </Text>
+                  </View>
+                )}
               </View>
-            )}
-          </View>
-          {variant !== 'recommended' && !place.user_has_checked_in && (
-            <TouchableOpacity
-              style={styles.checkInBtn}
-              onPress={() => navigation.navigate('PlaceDetail', { placeCode: place.place_code })}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel={`${t('places.checkIn')} ${place.name}`}
-            >
-              <Text style={styles.checkInText}>{t('places.checkIn')}</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+              {variant !== 'recommended' && !place.user_has_checked_in && (
+                <TouchableOpacity
+                  style={styles.checkInBtn}
+                  onPress={() =>
+                    navigation.navigate('PlaceDetail', { placeCode: place.place_code })
+                  }
+                  activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t('places.checkIn')} ${place.name}`}
+                >
+                  <Text style={styles.checkInText}>{t('places.checkIn')}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
-        {/* Add to Journey button — recommended variant only */}
-        {variant === 'recommended' && onAddToJourney && (
-          <TouchableOpacity
-            style={styles.addToJourneyBtn}
-            onPress={onAddToJourney}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.addToJourneyText}>+ {t('map.addToJourney')}</Text>
-          </TouchableOpacity>
+            {/* Add to Journey button — recommended variant only */}
+            {variant === 'recommended' && onAddToJourney && (
+              <TouchableOpacity
+                style={styles.addToJourneyBtn}
+                onPress={onAddToJourney}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.addToJourneyText}>+ {t('map.addToJourney')}</Text>
+              </TouchableOpacity>
+            )}
+          </>
         )}
       </View>
     </TouchableOpacity>
@@ -506,20 +512,23 @@ const styles = StyleSheet.create({
   // Glass panel – semi-transparent with subtle border
   glassPanel: {
     position: 'absolute',
-    bottom: 14,
-    left: 14,
-    right: 14,
+    bottom: 10,
+    left: 10,
+    right: 10,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.25)',
     borderRadius: tokens.borderRadius['2xl'], // 16px
-    padding: 14,
+    padding: 12,
   },
   glassPanelTile: {
-    padding: 10,
+    bottom: 8,
+    left: 8,
+    right: 8,
+    padding: 8,
   },
   cardName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
     color: '#fff',
     marginBottom: 3,
@@ -533,7 +542,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   locationText: {
-    fontSize: 12,
+    fontSize: 13,
     color: 'rgba(255,255,255,0.85)',
     fontWeight: '500',
     flex: 1,
@@ -547,6 +556,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    rowGap: 6,
   },
   metaLeft: {
     flexDirection: 'row',
@@ -567,7 +578,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.borderRadius.full,
   },
   ratingText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     color: '#fff',
   },
@@ -580,7 +591,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   checkInText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     color: '#0f172a',
     textTransform: 'uppercase',
@@ -594,7 +605,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   addToJourneyText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
     color: '#0f172a',
     textTransform: 'uppercase',

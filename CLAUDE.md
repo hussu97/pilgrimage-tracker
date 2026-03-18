@@ -23,9 +23,6 @@ git commit --author="Hussain Abbasi <h_abbasi97@hotmail.com>" -m "..."
 ```
 The `Co-Authored-By` trailer for Claude should still be included in the commit body.
 
-## 5. Design File Inspiration
-For any frontend UI/UX changes in `apps/soulstep-customer-web` or `apps/soulstep-customer-mobile`, use **FRONTEND_V3_LIGHT.html** (light mode) and **FRONTEND_V3_DARK.html** (dark mode) as the primary visual and layout reference. Align structure, spacing, typography (Lexend), colors, and icons (Material Icons/Symbols) with the design.
-
 ## 6. README Maintenance
 Keep the following READMEs accurate and up to date. After any change that affects setup, structure, endpoints, env vars, or screens, update the relevant README(s) **before committing**.
 
@@ -346,7 +343,7 @@ All place rendering across `apps/soulstep-customer-web` and `apps/soulstep-custo
 
 Both accept a `variant` prop:
 - **`default`** — full card with image hero, glass panel, check-in button. Used in grids (Places page, Favorites, ExploreCity).
-- **`tile`** — 160px-height image, compact glass panel. Used in NearbyPlaces carousels and any horizontal carousel where a smaller footprint is needed.
+- **`tile`** — 180px-height image, compact glass panel (name + address only, no rating/check-in). Used in NearbyPlaces carousels and any horizontal carousel where a smaller footprint is needed.
 - **`recommended`** — same as `default` but shows a "+ Add to Journey" pill button inside the glass panel and hides the check-in button. Used in the Home screen recommended carousel.
 
 Additional props: `onAddToJourney` (called when the "+ Add to Journey" button is tapped, `recommended` variant only), `className` (web only).

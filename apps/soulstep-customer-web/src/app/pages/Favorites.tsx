@@ -85,7 +85,7 @@ export default function Favorites() {
         />
       )}
       {!loading && !error && places.length > 0 && (
-        <div className="space-y-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
+        <div className="space-y-6 md:grid md:grid-cols-2 md:gap-5 md:space-y-0">
           {places.map((place, idx) => (
             <Fragment key={place.place_code}>
               <div className="relative group/card">

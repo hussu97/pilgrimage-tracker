@@ -2,8 +2,6 @@
 
 Expo / React Native app for iOS and Android. Feature parity with `apps/soulstep-customer-web` — same API, same screens, same translation keys.
 
-Design reference: `FRONTEND_V3_LIGHT.html` (light mode) / `FRONTEND_V3_DARK.html` (dark mode) at repo root.
-
 ## Prerequisites
 
 - **Node.js 18+**

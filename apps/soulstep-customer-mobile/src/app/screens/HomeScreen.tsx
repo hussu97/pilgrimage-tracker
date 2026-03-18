@@ -569,7 +569,7 @@ export default function HomeScreen() {
   const screenWidth = Dimensions.get('window').width;
   const actionCardWidth = (screenWidth - 40 - 12) / 2;
   // 2.3-item carousel card width
-  const cardWidth = Math.min((screenWidth - 40) / 2.3, 200);
+  const cardWidth = Math.min((screenWidth - 40) / 2.3, 240);
 
   // ── Data fetching ──
 

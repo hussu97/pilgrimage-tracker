@@ -68,7 +68,7 @@ function makeStyles(isDark: boolean) {
       gap: 12,
     },
     cardWrap: {
-      width: 160,
+      width: 180,
     },
   });
 }

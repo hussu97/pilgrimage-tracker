@@ -29,8 +29,8 @@ function PlaceCardUnified({
     (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : 'unknown');
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
-  const imageHeight = variant === 'tile' ? 'h-[160px]' : 'h-[280px]';
-  const nameSizeClass = variant === 'tile' ? 'text-[13px]' : 'text-[15px]';
+  const imageHeight = variant === 'tile' ? 'h-[180px]' : 'h-[320px]';
+  const nameSizeClass = variant === 'tile' ? 'text-[13px]' : 'text-base';
 
   return (
     <Link
@@ -94,7 +94,7 @@ function PlaceCardUnified({
 
         {/* Glass info panel – bottom */}
         <div
-          className="absolute bottom-4 left-4 right-4 z-10 rounded-2xl p-3.5 border"
+          className="absolute bottom-3 left-3 right-3 z-10 rounded-2xl p-3 border"
           style={{
             background: 'rgba(255,255,255,0.15)',
             borderColor: 'rgba(255,255,255,0.25)',
@@ -107,52 +107,56 @@ function PlaceCardUnified({
           </h3>
           <div className="flex items-center gap-1 mb-2.5">
             <span className="material-symbols-outlined text-[12px] text-white/75">location_on</span>
-            <p className="text-[11px] text-white/80 truncate font-medium">{place.address || ''}</p>
+            <p className="text-xs text-white/80 truncate font-medium">{place.address || ''}</p>
           </div>
-          <div className="h-px bg-white/20 mb-2.5" />
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              {rating != null && (
-                <div
-                  className="flex items-center gap-1 px-2 py-1 rounded-full border shrink-0"
-                  style={{
-                    background: 'rgba(0,0,0,0.30)',
-                    borderColor: 'rgba(255,255,255,0.10)',
-                  }}
-                >
-                  <span
-                    className="material-symbols-outlined text-amber-400 text-[10px]"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    star
-                  </span>
-                  <span className="text-[10px] font-bold text-white">
-                    {rating.toFixed(1)}
-                    {reviewCount > 0 ? ` (${formatCount(reviewCount)})` : ''}
-                  </span>
+          {variant !== 'tile' && (
+            <>
+              <div className="h-px bg-white/20 mb-2.5" />
+              <div className="flex items-center justify-between flex-wrap gap-y-1.5">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  {rating != null && (
+                    <div
+                      className="flex items-center gap-1 px-2 py-1 rounded-full border shrink-0"
+                      style={{
+                        background: 'rgba(0,0,0,0.30)',
+                        borderColor: 'rgba(255,255,255,0.10)',
+                      }}
+                    >
+                      <span
+                        className="material-symbols-outlined text-amber-400 text-[11px]"
+                        style={{ fontVariationSettings: "'FILL' 1" }}
+                      >
+                        star
+                      </span>
+                      <span className="text-[11px] font-bold text-white">
+                        {rating.toFixed(1)}
+                        {reviewCount > 0 ? ` (${formatCount(reviewCount)})` : ''}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            {variant !== 'recommended' && !place.user_has_checked_in && (
-              <div className="ml-2 px-3.5 py-1.5 rounded-full bg-white shrink-0">
-                <span className="text-[10px] font-bold text-slate-900 uppercase tracking-[0.08em]">
-                  {t('places.checkIn')}
-                </span>
+                {variant !== 'recommended' && !place.user_has_checked_in && (
+                  <div className="ml-2 px-3.5 py-1.5 rounded-full bg-white shrink-0">
+                    <span className="text-[11px] font-bold text-slate-900 uppercase tracking-[0.08em]">
+                      {t('places.checkIn')}
+                    </span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Add to Journey button — recommended variant only */}
-          {variant === 'recommended' && onAddToJourney && (
-            <button
-              type="button"
-              onClick={onAddToJourney}
-              className="mt-2.5 w-full px-3.5 py-1.5 rounded-full bg-white/90 hover:bg-white transition-colors text-center"
-            >
-              <span className="text-[10px] font-bold text-slate-900 uppercase tracking-[0.08em]">
-                + {t('map.addToJourney')}
-              </span>
-            </button>
+              {/* Add to Journey button — recommended variant only */}
+              {variant === 'recommended' && onAddToJourney && (
+                <button
+                  type="button"
+                  onClick={onAddToJourney}
+                  className="mt-2.5 w-full px-3.5 py-1.5 rounded-full bg-white/90 hover:bg-white transition-colors text-center"
+                >
+                  <span className="text-[11px] font-bold text-slate-900 uppercase tracking-[0.08em]">
+                    + {t('map.addToJourney')}
+                  </span>
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

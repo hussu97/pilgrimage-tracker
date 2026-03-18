@@ -2,8 +2,6 @@
 
 Vite + React + TypeScript + Tailwind frontend. Runs in desktop and mobile browsers. Feature parity with `apps/soulstep-customer-mobile`.
 
-Design reference: `FRONTEND_V3_LIGHT.html` (light mode) / `FRONTEND_V3_DARK.html` (dark mode) at repo root.
-
 ## Quick Start
 
 1. Start the backend:

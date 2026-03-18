@@ -29,7 +29,7 @@ export default function NearbyPlaces({ title, places }: NearbyPlacesProps) {
           } as unknown as Place;
 
           return (
-            <div key={place.place_code} className="shrink-0 w-40">
+            <div key={place.place_code} className="shrink-0 w-48">
               <PlaceCardUnified place={placeObj} t={t} variant="tile" />
             </div>
           );

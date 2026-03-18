@@ -1,5 +1,5 @@
 /** @type {import('tailwindcss').Config} */
-/** Design tokens from V3 design files: primary/accent, background, text, radius, shadows, Lexend. */
+/** Design tokens from SoulStep design system: primary/accent, background, text, radius, shadows, Lexend. */
 export default {
   darkMode: 'class',
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
