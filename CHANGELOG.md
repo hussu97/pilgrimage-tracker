@@ -4,6 +4,24 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-18] — Geo Box Tightening + Seed Reset + Parallel Per-Box Cloud Run Dispatch
+
+### Backend
+- **UAE geo boxes: 8 → 11** — trim `al_ain` lng_max 56.0→55.7 (avoids Oman's Buraimi); split `ras_al_khaimah` into `rak_main` + `rak_east_coast` (avoids Musandam exclave); split `fujairah` into `fujairah_south` + `fujairah_dibba` (avoids Oman's Dibba Al Baya at ~56.27°E lat 25.6°N)
+- **India geo boxes: 25 → 28** — trim `northwest_punjab_haryana` lng_min 73.8→74.0; split `jammu_kashmir` into `jammu` + `kashmir_valley` (avoids Pakistan-occupied Kashmir and Aksai Chin); trim `west_gujarat` lat_max 24.5→22.8; add `gujarat_northwest` for Kutch/Bhuj (avoids Pakistan's Sindh at ~68.5°E)
+- **Seed functions: delete-then-reinsert** — `seed_geo_boundaries` and `seed_geo_boundary_boxes` now clear existing rows before re-inserting; can be re-run without manual DB cleanup
+- **`ScraperRun.geo_box_label`** — new nullable field; when set, run only processes the named geo boundary box
+- **Migration 0018** — adds `geo_box_label` column to `scraperrun` table
+- **`POST /runs` fan-out** — when `SCRAPER_DISPATCH=cloud_run` and location is a country, creates N parallel runs (one per geo box), each with `geo_box_label` set; local dispatch and city/state locations still create 1 run
+- **`discover_places` + `run_gmaps_browser_scraper`** — filter geo boxes by `run.geo_box_label` when set; raises `RuntimeError` if the label doesn't match any seeded box
+
+### Frontend (admin)
+- **`ScraperRun` type** — add `geo_box_label?: string | null` field
+- **`startRun`** — return type updated to `{ runs: ScraperRun[] }` to match new multi-run response
+- **ScraperRunsPage** — new "Geo Box" column shows box label for country fan-out runs, "all" for city/state/local runs
+
+---
+
 ## [2026-03-17] — Multi-Language SEO Template System
 
 ### Backend
