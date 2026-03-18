@@ -54,9 +54,9 @@ Copy the image server-side using `gcloud` (no local Docker needed):
 
 ```bash
 # Get latest image tag (commit SHA from CI)
-TAG=$(gcloud artifacts docker images list \
+TAG=$(gcloud artifacts docker tags list \
   europe-west1-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job \
-  --sort-by=~UPDATE_TIME --limit=1 --format='value(tags)')
+  --sort-by=~UPDATE_TIME --limit=1 --format='value(tag)' | awk -F: '{print $NF}')
 echo "Using tag: $TAG"
 
 # Copy server-side between registries
