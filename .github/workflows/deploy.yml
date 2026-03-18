@@ -24,7 +24,7 @@ env:
   HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
   # Extra regions for scraper job deployment (comma-separated).
   # Set to e.g. "europe-west4,europe-west2" when ready to spread jobs across regions.
-  EXTRA_JOB_REGIONS: ""
+  EXTRA_JOB_REGIONS: "europe-west4,europe-west2"
 
 jobs:
   # ── Detect changed paths ───────────────────────────────────────────────────
