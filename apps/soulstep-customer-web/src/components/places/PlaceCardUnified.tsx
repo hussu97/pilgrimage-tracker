@@ -29,7 +29,7 @@ function PlaceCardUnified({
     (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : 'unknown');
   const rating = place.average_rating;
   const reviewCount = place.review_count ?? 0;
-  const imageHeight = variant === 'tile' ? 'h-[180px]' : 'h-[320px]';
+  const imageHeight = variant === 'tile' ? 'h-[180px]' : 'h-[380px]';
   const nameSizeClass = variant === 'tile' ? 'text-[13px]' : 'text-base';
 
   return (
@@ -112,9 +112,9 @@ function PlaceCardUnified({
           {variant !== 'tile' && (
             <>
               <div className="h-px bg-white/20 mb-2.5" />
-              <div className="flex items-center justify-between flex-wrap gap-y-1.5">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  {rating != null && (
+              <div className="flex flex-col gap-2">
+                {rating != null && (
+                  <div className="flex items-center gap-2">
                     <div
                       className="flex items-center gap-1 px-2 py-1 rounded-full border shrink-0"
                       style={{
@@ -133,11 +133,20 @@ function PlaceCardUnified({
                         {reviewCount > 0 ? ` (${formatCount(reviewCount)})` : ''}
                       </span>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
                 {variant !== 'recommended' && !place.user_has_checked_in && (
-                  <div className="ml-2 px-3.5 py-1.5 rounded-full bg-white shrink-0">
-                    <span className="text-[11px] font-bold text-slate-900 uppercase tracking-[0.08em]">
+                  <div
+                    className="w-full px-3.5 py-2 rounded-full text-center border"
+                    style={{
+                      background: 'rgba(176,86,61,0.35)',
+                      borderColor: 'rgba(251,191,36,0.55)',
+                      backdropFilter: 'blur(8px)',
+                      WebkitBackdropFilter: 'blur(8px)',
+                      boxShadow: '0 3px 12px rgba(176,86,61,0.40)',
+                    }}
+                  >
+                    <span className="text-[11px] font-bold text-white uppercase tracking-[0.08em]">
                       {t('places.checkIn')}
                     </span>
                   </div>
@@ -149,9 +158,16 @@ function PlaceCardUnified({
                 <button
                   type="button"
                   onClick={onAddToJourney}
-                  className="mt-2.5 w-full px-3.5 py-1.5 rounded-full bg-white/90 hover:bg-white transition-colors text-center"
+                  className="mt-2 w-full px-3.5 py-2 rounded-full text-center border transition-all hover:scale-[1.02]"
+                  style={{
+                    background: 'rgba(176,86,61,0.35)',
+                    borderColor: 'rgba(251,191,36,0.55)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    boxShadow: '0 3px 12px rgba(176,86,61,0.40)',
+                  }}
                 >
-                  <span className="text-[11px] font-bold text-slate-900 uppercase tracking-[0.08em]">
+                  <span className="text-[11px] font-bold text-white uppercase tracking-[0.08em]">
                     + {t('map.addToJourney')}
                   </span>
                 </button>

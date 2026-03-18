@@ -347,7 +347,7 @@ function FeaturedJourneyCard({ journey }: { journey: FeaturedJourney }) {
   return (
     <motion.div
       whileTap={{ scale: 0.97 }}
-      className="w-[calc((100vw-2.5rem)/2.3)] lg:w-52 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:scale-[1.02] transition-transform duration-200"
+      className="w-[calc((100vw-2.5rem)/1.7)] lg:w-52 flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:scale-[1.02] transition-transform duration-200"
     >
       <div className="h-28 bg-gradient-to-br from-primary/20 to-primary/5 relative overflow-hidden">
         {journey.cover_image_url && (
@@ -394,7 +394,7 @@ function CityCollageCard({ city }: { city: HomepagePopularCity }) {
     <Link to={`/explore/${city.city_slug}`}>
       <motion.div
         whileTap={{ scale: 0.97 }}
-        className="w-[calc((100vw-2.5rem)/2.3)] lg:w-full flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border hover:scale-[1.02] hover:shadow-md transition-all duration-200 cursor-pointer"
+        className="w-[calc((100vw-2.5rem)/1.7)] lg:w-full flex-shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-dark-border hover:scale-[1.02] hover:shadow-md transition-all duration-200 cursor-pointer"
       >
         <div className="h-36 relative overflow-hidden bg-slate-100 dark:bg-dark-border">
           {images.length === 0 ? (
@@ -633,7 +633,7 @@ export default function Home() {
                         key={place.place_code}
                         place={place as unknown as Place}
                         t={t}
-                        className="w-[calc((100vw-2.5rem)/2.3)] lg:w-full flex-shrink-0"
+                        className="w-[calc((100vw-2.5rem)/1.7)] lg:w-full flex-shrink-0"
                       />
                     ))}
                   </HorizontalCarousel>
@@ -699,7 +699,7 @@ export default function Home() {
                               navigate('/login');
                             }
                           }}
-                          className="w-[calc((100vw-2.5rem)/2.3)] lg:w-full flex-shrink-0"
+                          className="w-[calc((100vw-2.5rem)/1.7)] lg:w-full flex-shrink-0"
                         />
                       );
                     })}

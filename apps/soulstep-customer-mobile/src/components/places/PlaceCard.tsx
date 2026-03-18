@@ -61,7 +61,7 @@ function PlaceCard({
   const [imgIdx, setImgIdx] = useState(0);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  const imageHeight = variant === 'tile' ? 180 : 320;
+  const imageHeight = variant === 'tile' ? 180 : 380;
 
   useEffect(() => {
     if (compact || variant === 'tile' || images.length <= 1 || !isActive || containerWidth === 0)
@@ -553,18 +553,14 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    rowGap: 6,
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 8,
   },
   metaLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flex: 1,
-    minWidth: 0,
   },
   ratingPill: {
     flexDirection: 'row',
@@ -583,31 +579,42 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   checkInBtn: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingVertical: 9,
     borderRadius: tokens.borderRadius.full,
-    marginLeft: 8,
-    flexShrink: 0,
+    alignItems: 'center',
+    backgroundColor: 'rgba(176,86,61,0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.55)',
+    shadowColor: '#B0563D',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 5,
   },
   checkInText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#fff',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   addToJourneyBtn: {
-    marginTop: 10,
-    backgroundColor: 'rgba(255,255,255,0.90)',
+    paddingVertical: 9,
     borderRadius: tokens.borderRadius.full,
-    paddingVertical: 7,
     alignItems: 'center',
+    backgroundColor: 'rgba(176,86,61,0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.55)',
+    shadowColor: '#B0563D',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 5,
   },
   addToJourneyText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#0f172a',
+    color: '#fff',
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
