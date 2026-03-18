@@ -29,6 +29,8 @@ class ScraperRunCreate(BaseModel):
 
 
 class ScraperRunResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     run_code: str
     location_code: str
     status: str
@@ -36,7 +38,14 @@ class ScraperRunResponse(BaseModel):
     total_items: int | None = None
     processed_items: int = 0
     error_message: str | None = None
+    geo_box_label: str | None = None
     created_at: datetime
+
+
+class ScraperRunsCreateResponse(BaseModel):
+    """Response for POST /runs — always returns a list (1 or N runs for cloud_run fan-out)."""
+
+    runs: list[ScraperRunResponse]
 
 
 class SyncRequest(BaseModel):

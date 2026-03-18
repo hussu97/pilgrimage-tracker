@@ -1183,6 +1183,20 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
 
     # Build grid from multi-box boundary (falls back to single box when no sub-boxes seeded)
     boxes = get_boundary_boxes(boundary, session)
+
+    # If this run is constrained to a specific geo box, filter to that box only
+    if run.geo_box_label:
+        boxes = [b for b in boxes if b.label == run.geo_box_label]
+        if not boxes:
+            raise RuntimeError(
+                f"geo_box_label={run.geo_box_label!r} not found in boundary {boundary.name!r}"
+            )
+        logger.info(
+            "run_gmaps_browser_scraper: constrained to box %r for run %s",
+            run.geo_box_label,
+            run_code,
+        )
+
     cell_size_km = settings.browser_grid_cell_size_km
     grid_cells = generate_multi_box_grid_cells(boxes, cell_size_km)
     logger.info(

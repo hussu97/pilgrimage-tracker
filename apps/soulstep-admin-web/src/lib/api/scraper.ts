@@ -56,8 +56,8 @@ export async function listRuns(params?: {
   return res.data;
 }
 
-export async function startRun(locationCode: string): Promise<ScraperRun> {
-  const res = await scraperClient.post<ScraperRun>("/runs", {
+export async function startRun(locationCode: string): Promise<{ runs: ScraperRun[] }> {
+  const res = await scraperClient.post<{ runs: ScraperRun[] }>("/runs", {
     location_code: locationCode,
   });
   return res.data;

@@ -213,6 +213,7 @@ export interface ScraperRun {
   error_message: string | null;
   places_synced: number;
   places_sync_failed: number;
+  geo_box_label: string | null;
   created_at: string;
 }
 

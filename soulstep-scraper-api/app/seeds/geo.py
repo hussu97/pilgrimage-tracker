@@ -1736,20 +1736,18 @@ GEO_BOUNDARIES = [
 
 
 def seed_geo_boundaries(session: Session):
-    """Seed geographic boundaries if not already present."""
-    # Check if already seeded
-    existing = session.exec(select(GeoBoundary)).first()
-    if existing:
-        logger.debug("Geographic boundaries already seeded.")
-        return
+    """Seed geographic boundaries — deletes existing data and re-inserts fresh."""
+    from sqlalchemy import delete as _delete
 
-    logger.info("Seeding %d geographic boundaries...", len(GEO_BOUNDARIES))
-    for boundary_data in GEO_BOUNDARIES:
-        boundary = GeoBoundary(**boundary_data)
-        session.add(boundary)
-
+    # Delete child rows first (FK constraint: geoboundarybox → geoboundary)
+    session.exec(_delete(GeoBoundaryBox))
+    session.exec(_delete(GeoBoundary))
     session.commit()
-    logger.info("Geographic boundaries seeded successfully.")
+
+    for boundary_data in GEO_BOUNDARIES:
+        session.add(GeoBoundary(**boundary_data))
+    session.commit()
+    logger.info("Seeded %d geographic boundaries (fresh)", len(GEO_BOUNDARIES))
 
 
 # ── Multi-box country borders ─────────────────────────────────────────────────
@@ -1759,21 +1757,26 @@ def seed_geo_boundaries(session: Session):
 # Keys match GeoBoundary.name values.
 #
 COUNTRY_BOXES: dict[str, list[dict]] = {
-    # ── India (25 boxes) ─────────────────────────────────────────────────────
+    # ── India (28 boxes) ─────────────────────────────────────────────────────
     # A single India rectangle covers Pakistan, Bangladesh, Nepal, Sri Lanka.
-    # 25 tighter boxes trace the actual inhabited landmass.
+    # 28 tighter boxes trace the actual inhabited landmass.
+    # Changes vs previous 25-box set:
+    #   - northwest_punjab_haryana: lng_min 73.8→74.0 (avoids Pakistan Punjab border zone)
+    #   - jammu_kashmir: split into jammu + kashmir_valley (avoids PoK and Aksai Chin)
+    #   - west_gujarat: lat_max 24.5→22.8 (reduces redundancy with new gujarat_northwest box)
+    #   - gujarat_northwest: new box (lat 22.5-24.0, lng 68.5-71.5) for Kutch/Bhuj
     # Changes vs previous 18-box set:
     #   - northwest_rajasthan: lng_min 69.5→70.7 (India-Pak border ~70.5°E in Rajasthan)
     #   - north_bihar_east_jharkhand: lng_max 88.0→87.5 (Bangladesh border starts ~87.5°E)
     #   - northeast_west_bengal: lng_max 89.5→88.5 (Bangladesh western border ~88.0°E)
     #   - northeast_assam_meghalaya: single huge box (89.5-96.0) split into 5 boxes
-    #   - jammu_kashmir: new box (lat 33.0-36.5 was entirely uncovered)
     "India": [
+        # Trimmed lng_min 73.8→74.0 — avoids marginal Pakistan Punjab border zone (~74°E)
         {
             "label": "northwest_punjab_haryana",
             "lat_min": 28.5,
             "lat_max": 32.5,
-            "lng_min": 73.8,
+            "lng_min": 74.0,
             "lng_max": 77.5,
         },
         # Trimmed lng_min 69.5 → 70.7 — India-Pakistan border in Rajasthan runs
@@ -1859,14 +1862,24 @@ COUNTRY_BOXES: dict[str, list[dict]] = {
             "lng_min": 91.5,
             "lng_max": 97.0,
         },
-        # ── New: Jammu & Kashmir ─────────────────────────────────────────────
-        # Entirely missing from previous 18-box set (lat 33-36.5°N uncovered).
+        # ── Jammu & Kashmir — split into 2 tighter boxes ──────────────────────
+        # Previous single box (lat 33.0-36.5, lng 73.8-78.5) covered Pakistan-occupied
+        # Kashmir and Chinese Aksai Chin territory (east of ~79°E above lat 34°N).
+        # Jammu division — below Line of Control
         {
-            "label": "jammu_kashmir",
-            "lat_min": 33.0,
-            "lat_max": 36.5,
+            "label": "jammu",
+            "lat_min": 32.5,
+            "lat_max": 34.5,
+            "lng_min": 74.0,
+            "lng_max": 76.5,
+        },
+        # Kashmir valley — stays west of Aksai Chin
+        {
+            "label": "kashmir_valley",
+            "lat_min": 33.5,
+            "lat_max": 35.0,
             "lng_min": 73.8,
-            "lng_max": 78.5,
+            "lng_max": 75.5,
         },
         {
             "label": "central_mp_west",
@@ -1889,12 +1902,22 @@ COUNTRY_BOXES: dict[str, list[dict]] = {
             "lng_min": 82.5,
             "lng_max": 87.5,
         },
+        # Trimmed lat_max 24.5→22.8 — upper Gujarat now covered by new gujarat_northwest box
         {
             "label": "west_gujarat",
             "lat_min": 20.0,
-            "lat_max": 24.5,
+            "lat_max": 22.8,
             "lng_min": 68.0,
             "lng_max": 74.5,
+        },
+        # Gujarat northwest (Kutch/Bhuj) — trimmed lng_min to 68.5°E to avoid
+        # Pakistan's Sindh (~lat 24.5°N, lng 68.0-68.5°E)
+        {
+            "label": "gujarat_northwest",
+            "lat_min": 22.5,
+            "lat_max": 24.0,
+            "lng_min": 68.5,
+            "lng_max": 71.5,
         },
         {
             "label": "west_maharashtra_north",
@@ -2070,12 +2093,16 @@ COUNTRY_BOXES: dict[str, list[dict]] = {
         },
         {"label": "florida", "lat_min": 24.5, "lat_max": 31.0, "lng_min": -87.5, "lng_max": -80.0},
     ],
-    # ── UAE (8 boxes) ────────────────────────────────────────────────────────
+    # ── UAE (11 boxes) ───────────────────────────────────────────────────────
     # Previous 4 boxes bled into Oman (abu_dhabi_east/northern_emirates
     # extended to lng 56.5 — UAE-Oman border is ~55.8-56.1°E near Al Ain,
     # ~56.2°E at the Fujairah coast) and clipped Saudi Arabia in the south
     # (UAE southern border ~22.7°N, not 22.5°N).
-    # 8 tighter boxes trace the actual UAE emirate footprints.
+    # Changes vs previous 8-box set:
+    #   - al_ain: lng_max 56.0→55.7 (Oman's Buraimi at ~55.8°E)
+    #   - ras_al_khaimah: split into rak_main + rak_east_coast (Musandam overlap)
+    #   - fujairah: split into fujairah_south + fujairah_dibba (Oman's Dibba Al Baya overlap)
+    # 11 tighter boxes trace the actual UAE emirate footprints.
     "UAE": [
         # Western Abu Dhabi: Liwa oasis, empty quarter fringe
         {
@@ -2101,13 +2128,13 @@ COUNTRY_BOXES: dict[str, list[dict]] = {
             "lng_min": 53.8,
             "lng_max": 55.2,
         },
-        # Al Ain — tight box; Oman's Buraimi is immediately east at ~55.8°E
+        # Al Ain — trimmed lng_max 56.0→55.7; Oman's Buraimi is immediately east at ~55.8°E
         {
             "label": "al_ain",
             "lat_min": 23.8,
             "lat_max": 24.5,
             "lng_min": 55.4,
-            "lng_max": 56.0,
+            "lng_max": 55.7,
         },
         # Dubai emirate
         {
@@ -2125,50 +2152,54 @@ COUNTRY_BOXES: dict[str, list[dict]] = {
             "lng_min": 55.3,
             "lng_max": 56.0,
         },
-        # Ras Al Khaimah — capped at 56.2°E (Oman border runs ~56.1-56.2°E here)
+        # Ras Al Khaimah main area — capped at lat 25.9°N below Musandam (Oman exclave lat 25.9-26.4°N)
         {
-            "label": "ras_al_khaimah",
-            "lat_min": 25.6,
-            "lat_max": 26.1,
-            "lng_min": 55.7,
-            "lng_max": 56.2,
+            "label": "rak_main",
+            "lat_min": 25.5,
+            "lat_max": 25.9,
+            "lng_min": 55.5,
+            "lng_max": 56.0,
         },
-        # Fujairah east coast (Gulf of Oman side)
+        # RAK east coast (Khor Fakkan area) — trimmed lng_max to 56.15°E
         {
-            "label": "fujairah",
+            "label": "rak_east_coast",
+            "lat_min": 25.3,
+            "lat_max": 25.7,
+            "lng_min": 55.9,
+            "lng_max": 56.15,
+        },
+        # Fujairah south coast (Gulf of Oman side)
+        {
+            "label": "fujairah_south",
             "lat_min": 24.9,
-            "lat_max": 25.6,
-            "lng_min": 56.1,
+            "lat_max": 25.3,
+            "lng_min": 56.0,
             "lng_max": 56.4,
+        },
+        # Fujairah Dibba area — trimmed lat_max 25.55°N and lng_max 56.28°E to avoid
+        # Oman's Dibba Al Baya (~lat 25.6°N, lng 56.27°E)
+        {
+            "label": "fujairah_dibba",
+            "lat_min": 25.2,
+            "lat_max": 25.55,
+            "lng_min": 56.0,
+            "lng_max": 56.28,
         },
     ],
 }
 
 
 def seed_geo_boundary_boxes(session: Session) -> None:
-    """Seed GeoBoundaryBox rows from COUNTRY_BOXES — idempotent.
+    """Seed GeoBoundaryBox rows from COUNTRY_BOXES — deletes existing data and re-inserts."""
+    from sqlalchemy import delete as _delete
 
-    Skips any country whose boxes are already present so repeated runs are safe.
-    """
+    session.exec(_delete(GeoBoundaryBox))
+    session.commit()
+
     for country_name, box_defs in COUNTRY_BOXES.items():
         boundary = session.exec(select(GeoBoundary).where(GeoBoundary.name == country_name)).first()
         if not boundary:
-            logger.warning(
-                "seed_geo_boundary_boxes: GeoBoundary %r not found — skipping", country_name
-            )
-            continue
-
-        existing_count = len(
-            session.exec(
-                select(GeoBoundaryBox).where(GeoBoundaryBox.boundary_id == boundary.id)
-            ).all()
-        )
-        if existing_count:
-            logger.debug(
-                "seed_geo_boundary_boxes: %r already has %d boxes — skipping",
-                country_name,
-                existing_count,
-            )
+            logger.warning("seed_geo_boundary_boxes: %r not found — skipping", country_name)
             continue
 
         for box_def in box_defs:
@@ -2182,13 +2213,8 @@ def seed_geo_boundary_boxes(session: Session) -> None:
                     label=box_def.get("label"),
                 )
             )
-
         session.commit()
-        logger.info(
-            "seed_geo_boundary_boxes: seeded %d boxes for %r",
-            len(box_defs),
-            country_name,
-        )
+        logger.info("Seeded %d boxes for %r", len(box_defs), country_name)
 
 
 if __name__ == "__main__":

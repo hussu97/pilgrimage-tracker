@@ -194,8 +194,11 @@ class TestScraperRuns:
             )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "pending"
-        assert "run_code" in data
+        # Response is now always { "runs": [...] }
+        assert "runs" in data
+        assert len(data["runs"]) == 1
+        assert data["runs"][0]["status"] == "pending"
+        assert "run_code" in data["runs"][0]
 
     def test_get_run_success(self, client, db_session):
         """Get an existing run by code."""

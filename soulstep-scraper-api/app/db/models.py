@@ -37,6 +37,9 @@ class ScraperRun(SQLModel, table=True):
     sync_failure_details: list[str] = Field(default=[], sa_column=Column(JSON))
     places_filtered: int = Field(default=0)
     detail_fetch_cached: int = Field(default=0)
+    geo_box_label: str | None = Field(default=None)
+    # If set, this run only processes the geo boundary box with this label.
+    # Null means process all boxes (local dispatch / city / state locations).
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

@@ -626,6 +626,18 @@ async def discover_places(
     boxes = get_boundary_boxes(boundary, session)
     logger.info("discover_places: %d box(es) for %r", len(boxes), boundary.name)
 
+    # If this run is constrained to a specific geo box, filter to that box only
+    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+    if run and run.geo_box_label:
+        boxes = [b for b in boxes if b.label == run.geo_box_label]
+        if not boxes:
+            raise RuntimeError(
+                f"geo_box_label={run.geo_box_label!r} not found in boundary {boundary.name!r}"
+            )
+        logger.info(
+            "discover_places: constrained to box %r for run %s", run.geo_box_label, run_code
+        )
+
     async with httpx.AsyncClient(timeout=35.0) as discovery_client:
         for box in boxes:
             await search_area(

@@ -31,6 +31,7 @@ from app.models.schemas import (
     RawCollectorDataResponse,
     ScraperRunCreate,
     ScraperRunResponse,
+    ScraperRunsCreateResponse,
     ScraperStatsResponse,
 )
 from app.services.quality_metrics import compute_quality_metrics
@@ -157,23 +158,49 @@ def list_runs(
     }
 
 
-@router.post("/runs", response_model=ScraperRunResponse)
+@router.post("/runs", response_model=ScraperRunsCreateResponse)
 def create_run(body: ScraperRunCreate, background_tasks: BackgroundTasks, session: SessionDep):
-    # Verify location exists
+    from app.config import settings
+    from app.scrapers.geo_utils import get_boundary_boxes
+
     loc = session.exec(select(DataLocation).where(DataLocation.code == body.location_code)).first()
     if not loc:
         raise HTTPException(status_code=404, detail="Location not found")
 
-    run = ScraperRun(
-        run_code=generate_code("run"), location_code=body.location_code, status="pending"
+    is_country = "country" in loc.config
+    should_fan_out = is_country and settings.scraper_dispatch == "cloud_run"
+    created_runs: list[ScraperRun] = []
+
+    if should_fan_out:
+        country_name = loc.config["country"]
+        boundary = session.exec(select(GeoBoundary).where(GeoBoundary.name == country_name)).first()
+        boxes = get_boundary_boxes(boundary, session) if boundary else []
+        for box in boxes:
+            run = ScraperRun(
+                run_code=generate_code("run"),
+                location_code=body.location_code,
+                status="pending",
+                geo_box_label=box.label,
+            )
+            session.add(run)
+            created_runs.append(run)
+        session.commit()
+        for run in created_runs:
+            session.refresh(run)
+            dispatch_run(run.run_code, background_tasks)
+    else:
+        run = ScraperRun(
+            run_code=generate_code("run"), location_code=body.location_code, status="pending"
+        )
+        session.add(run)
+        session.commit()
+        session.refresh(run)
+        dispatch_run(run.run_code, background_tasks)
+        created_runs = [run]
+
+    return ScraperRunsCreateResponse(
+        runs=[ScraperRunResponse.model_validate(r, from_attributes=True) for r in created_runs]
     )
-    session.add(run)
-    session.commit()
-    session.refresh(run)
-
-    dispatch_run(run.run_code, background_tasks)
-
-    return run
 
 
 @router.get("/runs/{run_code}", response_model=ScraperRunResponse)

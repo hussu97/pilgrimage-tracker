@@ -113,6 +113,18 @@ export function ScraperRunsPage() {
       },
     },
     {
+      key: "geo_box",
+      header: "Geo Box",
+      render: (r) =>
+        r.geo_box_label ? (
+          <span className="font-mono text-xs px-1.5 py-0.5 rounded bg-background-light dark:bg-dark-bg text-text-secondary dark:text-dark-text-secondary">
+            {r.geo_box_label}
+          </span>
+        ) : (
+          <span className="text-xs text-text-secondary dark:text-dark-text-secondary">all</span>
+        ),
+    },
+    {
       key: "status",
       header: "Status",
       render: (r) => <StatusBadge label={r.status} variant={statusVariant(r.status)} />,

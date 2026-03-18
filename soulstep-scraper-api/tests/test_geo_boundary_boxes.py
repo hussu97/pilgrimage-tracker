@@ -4,18 +4,23 @@ Covers:
 - get_boundary_boxes returns seeded boxes when present
 - get_boundary_boxes falls back to single box from boundary when no boxes seeded
 - get_boundary_boxes fallback box matches boundary coordinates
-- seed_geo_boundary_boxes is idempotent
+- seed_geo_boundary_boxes deletes existing rows and re-inserts (delete-then-reinsert)
+- seed_geo_boundaries deletes and re-inserts all boundaries fresh
+- POST /runs fan-out: cloud_run dispatch with country location creates N runs (one per geo box)
+- POST /runs no-fan-out: local dispatch or non-country location creates 1 run
 """
 
 from __future__ import annotations
+
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from app.db.models import GeoBoundary, GeoBoundaryBox
+from app.db.models import DataLocation, GeoBoundary, GeoBoundaryBox
 from app.scrapers.geo_utils import get_boundary_boxes
-from app.seeds.geo import seed_geo_boundary_boxes
+from app.seeds.geo import seed_geo_boundaries, seed_geo_boundary_boxes
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -135,10 +140,8 @@ def test_get_boundary_boxes_fallback_for_no_id(mem_engine):
 # ── seed_geo_boundary_boxes ───────────────────────────────────────────────────
 
 
-def test_seed_geo_boundary_boxes_idempotent(mem_engine):
-    """Calling seed_geo_boundary_boxes twice must not duplicate rows."""
-    # We need at least one matching GeoBoundary name in the DB.
-    # Use "UAE" since it is the smallest entry in COUNTRY_BOXES.
+def test_seed_geo_boundary_boxes_delete_then_reinsert(mem_engine):
+    """seed_geo_boundary_boxes clears existing rows and re-inserts — second call gives same count."""
     with Session(mem_engine) as session:
         session.add(
             GeoBoundary(
@@ -155,11 +158,28 @@ def test_seed_geo_boundary_boxes_idempotent(mem_engine):
         seed_geo_boundary_boxes(session)
         first_count = len(session.exec(select(GeoBoundaryBox)).all())
 
+        # Insert a stale row manually — it should be cleared on the second seed call
+        boundary = session.exec(select(GeoBoundary).where(GeoBoundary.name == "UAE")).first()
+        session.add(
+            GeoBoundaryBox(
+                boundary_id=boundary.id,
+                lat_min=0.0,
+                lat_max=1.0,
+                lng_min=0.0,
+                lng_max=1.0,
+                label="stale_box",
+            )
+        )
+        session.commit()
+        stale_count = len(session.exec(select(GeoBoundaryBox)).all())
+        assert stale_count == first_count + 1  # stale row added
+
         seed_geo_boundary_boxes(session)
         second_count = len(session.exec(select(GeoBoundaryBox)).all())
 
+    # After re-seed, stale row must be gone — count equals the first seed
     assert first_count > 0
-    assert first_count == second_count
+    assert second_count == first_count
 
 
 def test_seed_geo_boundary_boxes_skips_missing_boundary(mem_engine):
@@ -192,3 +212,170 @@ def test_seed_geo_boundary_boxes_correct_box_count(mem_engine):
         count = len(session.exec(select(GeoBoundaryBox)).all())
 
     assert count == len(COUNTRY_BOXES["UAE"])
+
+
+def test_seed_geo_boundaries_delete_then_reinsert(mem_engine):
+    """seed_geo_boundaries clears existing boundaries (and boxes) then re-inserts fresh."""
+    from app.seeds.geo import GEO_BOUNDARIES
+
+    with Session(mem_engine) as session:
+        # First seed
+        seed_geo_boundaries(session)
+        first_count = len(session.exec(select(GeoBoundary)).all())
+
+        # Add a stale boundary row manually
+        session.add(
+            GeoBoundary(
+                name="__stale__",
+                boundary_type="country",
+                lat_min=0.0,
+                lat_max=1.0,
+                lng_min=0.0,
+                lng_max=1.0,
+            )
+        )
+        session.commit()
+        assert len(session.exec(select(GeoBoundary)).all()) == first_count + 1
+
+        # Second seed — should clear stale row
+        seed_geo_boundaries(session)
+        second_count = len(session.exec(select(GeoBoundary)).all())
+
+    assert first_count == len(GEO_BOUNDARIES)
+    assert second_count == len(GEO_BOUNDARIES)
+
+
+# ── POST /runs fan-out ────────────────────────────────────────────────────────
+
+
+def test_create_run_fanout_cloud_run(mem_engine):
+    """POST /runs with cloud_run dispatch + country location creates N runs (one per geo box)."""
+    from fastapi.testclient import TestClient
+
+    from app.db.session import get_db_session
+    from app.main import app
+
+    def override_db():
+        with Session(mem_engine) as session:
+            yield session
+
+    saved_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides[get_db_session] = override_db
+
+    try:
+        with (
+            patch("app.main.run_migrations"),
+            patch("app.main.seed_geo_boundaries"),
+            patch("app.main.seed_place_type_mappings"),
+            patch("app.main._mark_interrupted_runs"),
+            patch("app.api.v1.scraper.dispatch_run"),
+            patch("app.config.settings") as mock_settings,
+        ):
+            mock_settings.scraper_dispatch = "cloud_run"
+            with Session(mem_engine) as session:
+                # Create a UAE boundary and 3 test boxes
+                boundary = GeoBoundary(
+                    name="UAE",
+                    boundary_type="country",
+                    lat_min=22.5,
+                    lat_max=26.0,
+                    lng_min=51.5,
+                    lng_max=56.5,
+                )
+                session.add(boundary)
+                session.commit()
+                session.refresh(boundary)
+                for i, label in enumerate(["box_a", "box_b", "box_c"]):
+                    session.add(
+                        GeoBoundaryBox(
+                            boundary_id=boundary.id,
+                            lat_min=22.5 + i,
+                            lat_max=23.5 + i,
+                            lng_min=51.5,
+                            lng_max=53.0,
+                            label=label,
+                        )
+                    )
+                loc = DataLocation(
+                    code="loc_uae_test",
+                    name="UAE Test",
+                    source_type="gmaps",
+                    config={"country": "UAE", "max_results": 5},
+                )
+                session.add(loc)
+                session.commit()
+
+            with TestClient(app, raise_server_exceptions=True) as c:
+                resp = c.post(
+                    "/api/v1/scraper/runs",
+                    json={"location_code": "loc_uae_test"},
+                )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "runs" in data
+        assert len(data["runs"]) == 3
+        labels = {r["geo_box_label"] for r in data["runs"]}
+        assert labels == {"box_a", "box_b", "box_c"}
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(saved_overrides)
+
+
+def test_create_run_no_fanout_local_dispatch(mem_engine):
+    """POST /runs with local dispatch + country location creates exactly 1 run."""
+    from fastapi.testclient import TestClient
+
+    from app.db.session import get_db_session
+    from app.main import app
+
+    def override_db():
+        with Session(mem_engine) as session:
+            yield session
+
+    saved_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides[get_db_session] = override_db
+
+    try:
+        with (
+            patch("app.main.run_migrations"),
+            patch("app.main.seed_geo_boundaries"),
+            patch("app.main.seed_place_type_mappings"),
+            patch("app.main._mark_interrupted_runs"),
+            patch("app.api.v1.scraper.dispatch_run"),
+            patch("app.config.settings") as mock_settings,
+        ):
+            mock_settings.scraper_dispatch = "local"
+            with Session(mem_engine) as session:
+                boundary = GeoBoundary(
+                    name="India",
+                    boundary_type="country",
+                    lat_min=8.0,
+                    lat_max=35.5,
+                    lng_min=68.0,
+                    lng_max=97.5,
+                )
+                session.add(boundary)
+                loc = DataLocation(
+                    code="loc_india_test",
+                    name="India Test",
+                    source_type="gmaps",
+                    config={"country": "India", "max_results": 5},
+                )
+                session.add(loc)
+                session.commit()
+
+            with TestClient(app, raise_server_exceptions=True) as c:
+                resp = c.post(
+                    "/api/v1/scraper/runs",
+                    json={"location_code": "loc_india_test"},
+                )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "runs" in data
+        assert len(data["runs"]) == 1
+        assert data["runs"][0]["geo_box_label"] is None
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(saved_overrides)
