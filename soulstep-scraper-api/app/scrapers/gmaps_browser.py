@@ -1360,9 +1360,21 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
     )
 
     # Image download phase (unchanged — downloads from URLs extracted by browser)
-    logger.info("Downloading images for run %s...", run_code)
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if run:
+        total_rev = run.review_images_downloaded + run.review_images_failed
+        if total_rev:
+            logger.info(
+                "Review image upload complete: %d/%d uploaded to GCS for run %s (%d failed)",
+                run.review_images_downloaded,
+                total_rev,
+                run_code,
+                run.review_images_failed,
+            )
+        else:
+            logger.info("Review image upload: no review images captured for run %s", run_code)
+
+        logger.info("Downloading images for run %s...", run_code)
         run.stage = "image_download"
         session.add(run)
         session.commit()

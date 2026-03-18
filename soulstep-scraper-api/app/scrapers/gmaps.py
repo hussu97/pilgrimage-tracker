@@ -586,6 +586,12 @@ def _flush_detail_buffer(
         if review_image_bytes:
             from app.services.gcs import upload_review_image_bytes as gcs_upload_review
 
+            logger.debug(
+                "Review images: uploading %d image(s) for place %s",
+                len(review_image_bytes),
+                details["place_code"],
+            )
+
             raw = dict(scraped_place.raw_data or {})
             reviews = [dict(r) for r in (raw.get("external_reviews") or [])]
 
@@ -600,6 +606,14 @@ def _flush_detail_buffer(
             rev_failed = len(review_image_bytes) - rev_uploaded
             run.review_images_downloaded += rev_uploaded
             run.review_images_failed += rev_failed
+
+            logger.debug(
+                "Review images: %d/%d uploaded to GCS for place %s (%d failed)",
+                rev_uploaded,
+                len(review_image_bytes),
+                details["place_code"],
+                rev_failed,
+            )
 
             if gcs_by_review:
                 for rev_idx, ph_map in gcs_by_review.items():
@@ -1004,12 +1018,24 @@ async def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> No
 
     # Phase 3: Download images in a dedicated parallel phase (no rate limiting needed —
     # CDN media URLs are not billed API calls)
-    logger.info("Downloading images for places in run %s...", run_code)
     from app.collectors.gmaps import download_place_images
     from app.db.session import engine as _img_engine
 
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if run:
+        total_rev = run.review_images_downloaded + run.review_images_failed
+        if total_rev:
+            logger.info(
+                "Review image upload complete: %d/%d uploaded to GCS for run %s (%d failed)",
+                run.review_images_downloaded,
+                total_rev,
+                run_code,
+                run.review_images_failed,
+            )
+        else:
+            logger.info("Review image upload: no review images captured for run %s", run_code)
+
+        logger.info("Downloading images for places in run %s...", run_code)
         run.stage = "image_download"
         session.add(run)
         session.commit()
