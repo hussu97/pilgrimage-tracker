@@ -291,6 +291,8 @@ export interface RunActivity {
   places_filtered: number;
   images_downloaded: number;
   images_failed: number;
+  review_images_downloaded: number;
+  review_images_failed: number;
   places_synced: number;
   places_sync_failed: number;
   places_sync_quality_filtered?: number;

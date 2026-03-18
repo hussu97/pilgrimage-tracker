@@ -30,6 +30,8 @@ class ScraperRun(SQLModel, table=True):
     error_message: str | None = Field(default=None)
     images_downloaded: int = Field(default=0)
     images_failed: int = Field(default=0)
+    review_images_downloaded: int = Field(default=0)
+    review_images_failed: int = Field(default=0)
     places_synced: int = Field(default=0)
     places_sync_failed: int = Field(default=0)
     places_sync_quality_filtered: int = Field(default=0)

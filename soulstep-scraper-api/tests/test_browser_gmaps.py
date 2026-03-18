@@ -1561,7 +1561,7 @@ class TestFlushDetailBufferReviewImages:
         ]
         if gcs_side_effect is not None:
             patches.append(
-                patch("app.services.gcs.upload_image_bytes", side_effect=gcs_side_effect)
+                patch("app.services.gcs.upload_review_image_bytes", side_effect=gcs_side_effect)
             )
 
         with Session(engine) as sess:
@@ -1582,9 +1582,16 @@ class TestFlushDetailBufferReviewImages:
                 sess.commit()
 
         with Session(engine) as sess:
-            return sess.exec(
+            sp = sess.exec(
                 select(ScrapedPlace).where(ScrapedPlace.place_code == details["place_code"])
             ).first()
+            run = sess.exec(
+                select(ScraperRun).where(ScraperRun.run_code == "run_rev_img_test")
+            ).first()
+            # Detach values before session closes
+            rev_dl = run.review_images_downloaded if run else 0
+            rev_fail = run.review_images_failed if run else 0
+        return sp, rev_dl, rev_fail
 
     def test_review_image_bytes_written_back_to_raw_data(self):
         """GCS URLs must be injected into external_reviews[i]['photo_urls']."""
@@ -1599,38 +1606,46 @@ class TestFlushDetailBufferReviewImages:
             uploaded.append(url)
             return url
 
-        sp = self._flush(engine, details, response, gcs_side_effect=fake_upload)
+        sp, rev_dl, rev_fail = self._flush(engine, details, response, gcs_side_effect=fake_upload)
 
         assert sp is not None
         reviews = (sp.raw_data or {}).get("external_reviews", [])
         assert len(reviews) == 1
         assert reviews[0]["photo_urls"] == [uploaded[0]]
+        assert rev_dl == 1
+        assert rev_fail == 0
 
     def test_no_review_image_bytes_leaves_reviews_unchanged(self):
-        """When _review_image_bytes is absent, external_reviews stay as-is."""
+        """When _review_image_bytes is absent, external_reviews stay as-is and counters are 0."""
         engine = self._make_engine_and_run()
         details = self._minimal_details("gbr_revimg02")
         response = {}
 
-        sp = self._flush(engine, details, response)
+        sp, rev_dl, rev_fail = self._flush(engine, details, response)
 
         assert sp is not None
         reviews = (sp.raw_data or {}).get("external_reviews", [])
         assert len(reviews) == 1
         assert reviews[0].get("photo_urls", []) == []
+        assert rev_dl == 0
+        assert rev_fail == 0
 
     def test_gcs_failure_does_not_write_photo_urls(self):
-        """If GCS returns None, photo_urls must not be modified."""
+        """If GCS returns None, photo_urls must not be modified and failure counter increments."""
         engine = self._make_engine_and_run()
         details = self._minimal_details("gbr_revimg03")
         response = {"_review_image_bytes": [(0, 0, b"bytes_that_fail")]}
 
-        sp = self._flush(engine, details, response, gcs_side_effect=lambda _: None)
+        sp, rev_dl, rev_fail = self._flush(
+            engine, details, response, gcs_side_effect=lambda _: None
+        )
 
         assert sp is not None
         reviews = (sp.raw_data or {}).get("external_reviews", [])
         assert len(reviews) == 1
         assert reviews[0].get("photo_urls", []) == []
+        assert rev_dl == 0
+        assert rev_fail == 1
 
 
 # ── _capture_review_images: URL collection and limit ────────────────────────

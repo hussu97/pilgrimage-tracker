@@ -577,14 +577,14 @@ def _flush_detail_buffer(
                 raw["image_urls"] = gcs_urls
                 scraped_place.raw_data = raw
 
-        # Handle browser-captured review photo bytes: upload to GCS and write
-        # GCS URLs back into external_reviews[i]["photo_urls"].
+        # Handle browser-captured review photo bytes: upload to GCS (images/reviews/)
+        # and write GCS URLs back into external_reviews[i]["photo_urls"].
         # Format: list of (review_idx, photo_idx, bytes) tuples.
         review_image_bytes: list[tuple[int, int, bytes]] = (
             response.pop("_review_image_bytes", None) or []
         )
         if review_image_bytes:
-            from app.services.gcs import upload_image_bytes as gcs_upload
+            from app.services.gcs import upload_review_image_bytes as gcs_upload_review
 
             raw = dict(scraped_place.raw_data or {})
             reviews = [dict(r) for r in (raw.get("external_reviews") or [])]
@@ -592,9 +592,14 @@ def _flush_detail_buffer(
             # Collect GCS URLs keyed by (review_idx, photo_idx)
             gcs_by_review: dict[int, dict[int, str]] = {}
             for rev_idx, ph_idx, img_data in review_image_bytes:
-                gcs_url = gcs_upload(img_data)
+                gcs_url = gcs_upload_review(img_data)
                 if gcs_url:
                     gcs_by_review.setdefault(rev_idx, {})[ph_idx] = gcs_url
+
+            rev_uploaded = sum(len(v) for v in gcs_by_review.values())
+            rev_failed = len(review_image_bytes) - rev_uploaded
+            run.review_images_downloaded += rev_uploaded
+            run.review_images_failed += rev_failed
 
             if gcs_by_review:
                 for rev_idx, ph_map in gcs_by_review.items():

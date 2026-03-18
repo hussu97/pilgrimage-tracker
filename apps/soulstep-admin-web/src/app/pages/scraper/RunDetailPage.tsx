@@ -176,6 +176,8 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
   const showImages =
     activity.images_downloaded > 0 ||
     activity.images_failed > 0 ||
+    activity.review_images_downloaded > 0 ||
+    activity.review_images_failed > 0 ||
     stage === "image_download";
   const showSync =
     activity.places_synced > 0 ||
@@ -330,23 +332,46 @@ function LiveActivityPanel({ run, activity }: { run: ScraperRun; activity: RunAc
           <p className="text-xs font-semibold text-text-secondary dark:text-dark-text-secondary uppercase tracking-wide">
             Image Download
           </p>
-          {stage === "image_download" && activity.images_downloaded === 0 ? (
+          {stage === "image_download" && activity.images_downloaded === 0 && activity.review_images_downloaded === 0 ? (
             <div className="flex items-center gap-1.5 text-xs text-text-secondary dark:text-dark-text-secondary">
               <RefreshCw size={11} className="animate-spin text-primary flex-shrink-0" />
               Downloading images…
             </div>
           ) : (
-            <div className="flex items-center gap-3 flex-wrap text-xs">
-              <span className="text-green-600 dark:text-green-400 font-semibold">
-                {activity.images_downloaded.toLocaleString()} downloaded
-              </span>
-              {activity.images_failed > 0 && (
-                <>
-                  <span className="text-text-secondary">·</span>
-                  <span className="text-red-500 font-semibold">
-                    {activity.images_failed.toLocaleString()} failed
+            <div className="space-y-1">
+              {/* Place images */}
+              {(activity.images_downloaded > 0 || activity.images_failed > 0) && (
+                <div className="flex items-center gap-2 flex-wrap text-xs">
+                  <span className="text-text-secondary dark:text-dark-text-secondary w-16 flex-shrink-0">Places</span>
+                  <span className="text-green-600 dark:text-green-400 font-semibold">
+                    {activity.images_downloaded.toLocaleString()} downloaded
                   </span>
-                </>
+                  {activity.images_failed > 0 && (
+                    <>
+                      <span className="text-text-secondary">·</span>
+                      <span className="text-red-500 font-semibold">
+                        {activity.images_failed.toLocaleString()} failed
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+              {/* Review images */}
+              {(activity.review_images_downloaded > 0 || activity.review_images_failed > 0) && (
+                <div className="flex items-center gap-2 flex-wrap text-xs">
+                  <span className="text-text-secondary dark:text-dark-text-secondary w-16 flex-shrink-0">Reviews</span>
+                  <span className="text-green-600 dark:text-green-400 font-semibold">
+                    {activity.review_images_downloaded.toLocaleString()} downloaded
+                  </span>
+                  {activity.review_images_failed > 0 && (
+                    <>
+                      <span className="text-text-secondary">·</span>
+                      <span className="text-red-500 font-semibold">
+                        {activity.review_images_failed.toLocaleString()} failed
+                      </span>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           )}

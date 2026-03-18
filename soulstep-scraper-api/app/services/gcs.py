@@ -1,12 +1,13 @@
 """
 GCS image upload utility — mirrors the catalog API's image_storage.py exactly.
 
-Path format:  images/places/{secrets.token_hex(16)}.jpg
+Path formats:
+  Place images:  images/places/{secrets.token_hex(16)}.jpg
+  Review images: images/reviews/{secrets.token_hex(16)}.jpg
 Bucket:       GCS_BUCKET_NAME (same env var as catalog API)
-URL format:   https://storage.googleapis.com/{bucket}/images/places/{hex}.jpg
 
-Using the same bucket + prefix as the catalog means scraped images land in the
-same folder as user-uploaded images — no separate folder, no duplication.
+Using the same bucket + prefixes as the catalog means scraped images land in the
+same folders as catalog-managed images — no separate folders, no duplication.
 Uniform bucket-level access is assumed (no per-object ACLs / make_public()).
 
 GCS is always required for the scraper — set GCS_BUCKET_NAME in your environment.
@@ -20,8 +21,9 @@ from app.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Matches PREFIX_PLACES in catalog's app/services/image_storage.py
+# Match PREFIX_PLACES and PREFIX_REVIEWS in catalog's app/services/image_storage.py
 _PREFIX_PLACES = "images/places/"
+_PREFIX_REVIEWS = "images/reviews/"
 
 _EXT_MAP = {
     "image/jpeg": "jpg",
@@ -31,13 +33,8 @@ _EXT_MAP = {
 }
 
 
-def upload_image_bytes(data: bytes, mime_type: str = "image/jpeg") -> str | None:
-    """Upload image bytes to GCS and return the public HTTPS URL.
-
-    Object path:  images/places/{hex16}.{ext}
-    Raises RuntimeError if GCS_BUCKET_NAME is not configured.
-    Returns None if the upload fails (transient error).
-    """
+def _upload(data: bytes, prefix: str, mime_type: str) -> str | None:
+    """Internal helper: upload bytes to GCS under the given prefix."""
     from app.config import settings
 
     bucket_name = settings.gcs_bucket_name
@@ -48,7 +45,7 @@ def upload_image_bytes(data: bytes, mime_type: str = "image/jpeg") -> str | None
         )
 
     ext = _EXT_MAP.get(mime_type, "jpg")
-    object_name = f"{_PREFIX_PLACES}{secrets.token_hex(16)}.{ext}"
+    object_name = f"{prefix}{secrets.token_hex(16)}.{ext}"
 
     try:
         from google.cloud import storage  # type: ignore[import-untyped]
@@ -65,3 +62,21 @@ def upload_image_bytes(data: bytes, mime_type: str = "image/jpeg") -> str | None
     except Exception as exc:
         logger.warning("GCS upload failed: %s", exc)
         return None
+
+
+def upload_image_bytes(data: bytes, mime_type: str = "image/jpeg") -> str | None:
+    """Upload place image bytes to GCS under images/places/ and return the public URL.
+
+    Returns None if the upload fails (transient error).
+    """
+    return _upload(data, _PREFIX_PLACES, mime_type)
+
+
+def upload_review_image_bytes(data: bytes, mime_type: str = "image/jpeg") -> str | None:
+    """Upload review image bytes to GCS under images/reviews/ and return the public URL.
+
+    Mirrors catalog's PREFIX_REVIEWS so scraped review photos land in the same
+    folder as user-uploaded review images.
+    Returns None if the upload fails (transient error).
+    """
+    return _upload(data, _PREFIX_REVIEWS, mime_type)

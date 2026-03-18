@@ -26,6 +26,7 @@ def get_activity_snapshot(run_code: str, session: Session) -> dict:
         places_total, places_pending, places_enriching,
         places_complete, places_failed, places_filtered,
         images_downloaded, images_failed,
+        review_images_downloaded, review_images_failed,
         places_synced, places_sync_failed.
     """
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
@@ -86,6 +87,8 @@ def get_activity_snapshot(run_code: str, session: Session) -> dict:
         "places_filtered": places_filtered,
         "images_downloaded": run.images_downloaded,
         "images_failed": run.images_failed,
+        "review_images_downloaded": run.review_images_downloaded,
+        "review_images_failed": run.review_images_failed,
         "places_synced": run.places_synced,
         "places_sync_failed": run.places_sync_failed,
         "places_sync_quality_filtered": run.places_sync_quality_filtered,
