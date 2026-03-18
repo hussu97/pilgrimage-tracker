@@ -192,6 +192,41 @@ def _dispatch_cloud_run(run_code: str, action: str = "run") -> None:
         )
 
 
+def is_cloud_run_execution_active(execution_name: str) -> bool:
+    """Return True if the Cloud Run execution is still running (not yet finished).
+
+    Uses the Executions API to fetch the execution and checks whether it has a
+    completion_time.  Returns False on any error (SDK missing, permission denied,
+    execution not found) so the caller can safely treat it as "not running" and
+    dispatch a new one.
+    """
+    try:
+        from google.cloud import run_v2
+    except ImportError:
+        return False
+
+    try:
+        client = run_v2.ExecutionsClient()
+        execution = client.get_execution(name=execution_name)
+        # completion_time is set when the execution has finished (succeeded,
+        # failed, or cancelled).  A zero/unset Timestamp means still running.
+        ct = execution.completion_time
+        if ct is None:
+            return True
+        # Protobuf Timestamp — zero means unset
+        return ct.seconds == 0 and ct.nanos == 0
+    except Exception as exc:
+        logger.warning(
+            "dispatcher: could not check Cloud Run execution status — treating as not running",
+            extra={
+                "execution_name": execution_name,
+                "error.type": type(exc).__name__,
+                "error.message": str(exc),
+            },
+        )
+        return False
+
+
 def cancel_cloud_run_execution(execution_name: str) -> None:
     """Terminate an active Cloud Run Job execution via the Executions API.
 

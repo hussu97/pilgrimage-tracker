@@ -213,7 +213,79 @@ def test_cancel_accepts_interrupted(client, db_session):
     assert run.status == "cancelled"
 
 
-# ── 6. image_download resume stage ───────────────────────────────────────────
+# ── 6. Cloud Run active-execution guard ──────────────────────────────────────
+
+
+def test_resume_returns_409_when_cloud_run_execution_still_active(client, db_session):
+    """Resume should return 409 if the existing Cloud Run execution is still running."""
+    loc = _make_location(db_session)
+    run = ScraperRun(
+        run_code=f"run_{secrets.token_hex(4)}",
+        location_code=loc.code,
+        status="interrupted",
+        stage="enrichment",
+        cloud_run_execution="projects/p/locations/r/jobs/j/executions/active-exec",
+    )
+    db_session.add(run)
+    db_session.commit()
+
+    with (
+        patch("app.config.settings") as mock_settings,
+        patch(
+            "app.jobs.dispatcher.is_cloud_run_execution_active", return_value=True
+        ) as mock_active,
+    ):
+        mock_settings.scraper_dispatch = "cloud_run"
+        resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
+
+    assert resp.status_code == 409
+    mock_active.assert_called_once_with("projects/p/locations/r/jobs/j/executions/active-exec")
+
+
+def test_resume_dispatches_when_cloud_run_execution_finished(client, db_session):
+    """Resume should dispatch a new execution when the previous one has finished."""
+    loc = _make_location(db_session)
+    run = ScraperRun(
+        run_code=f"run_{secrets.token_hex(4)}",
+        location_code=loc.code,
+        status="failed",
+        stage="enrichment",
+        cloud_run_execution="projects/p/locations/r/jobs/j/executions/old-exec",
+    )
+    db_session.add(run)
+    db_session.commit()
+
+    with (
+        patch("app.config.settings") as mock_settings,
+        patch("app.jobs.dispatcher.is_cloud_run_execution_active", return_value=False),
+        patch("app.api.v1.scraper.dispatch_resume") as mock_dispatch,
+    ):
+        mock_settings.scraper_dispatch = "cloud_run"
+        resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
+
+    assert resp.status_code == 200
+    mock_dispatch.assert_called_once()
+
+
+def test_resume_skips_active_check_when_no_execution_stored(client, db_session):
+    """If no cloud_run_execution is stored, skip the check and dispatch directly."""
+    loc = _make_location(db_session)
+    run = _make_run(db_session, loc.code, status="failed", stage="enrichment")
+    # cloud_run_execution is None (not set)
+
+    with (
+        patch("app.config.settings") as mock_settings,
+        patch("app.jobs.dispatcher.is_cloud_run_execution_active") as mock_active,
+        patch("app.api.v1.scraper.dispatch_resume"),
+    ):
+        mock_settings.scraper_dispatch = "cloud_run"
+        resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
+
+    assert resp.status_code == 200
+    mock_active.assert_not_called()
+
+
+# ── 7. image_download resume stage ───────────────────────────────────────────
 
 
 def test_resume_endpoint_accepts_image_download_stage(client, db_session):

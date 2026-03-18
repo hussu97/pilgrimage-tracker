@@ -340,7 +340,16 @@ def re_enrich_run(run_code: str, background_tasks: BackgroundTasks, session: Ses
 
 @router.post("/runs/{run_code}/resume")
 def resume_run(run_code: str, background_tasks: BackgroundTasks, session: SessionDep):
-    """Resume an interrupted, failed, or cancelled run from where it left off."""
+    """Resume an interrupted, failed, or cancelled run from where it left off.
+
+    Cloud Run mode: checks whether the existing Cloud Run execution is still
+    active before dispatching.  If it is, returns 409 so the caller knows not
+    to double-dispatch.  If it has finished (or no execution was ever recorded),
+    a new execution is created and its name stored on the run.
+    """
+    from app.config import settings
+    from app.jobs.dispatcher import is_cloud_run_execution_active
+
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -350,6 +359,13 @@ def resume_run(run_code: str, background_tasks: BackgroundTasks, session: Sessio
             status_code=400,
             detail=f"Cannot resume run with status: {run.status}. Only interrupted, failed, or cancelled runs can be resumed.",
         )
+
+    if settings.scraper_dispatch == "cloud_run" and run.cloud_run_execution:
+        if is_cloud_run_execution_active(run.cloud_run_execution):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cloud Run execution {run.cloud_run_execution} is still active. Wait for it to finish or cancel it before resuming.",
+            )
 
     dispatch_resume(run.run_code, background_tasks)
 
