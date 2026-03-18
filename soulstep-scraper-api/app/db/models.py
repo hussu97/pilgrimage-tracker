@@ -40,6 +40,11 @@ class ScraperRun(SQLModel, table=True):
     geo_box_label: str | None = Field(default=None)
     # If set, this run only processes the geo boundary box with this label.
     # Null means process all boxes (local dispatch / city / state locations).
+    cloud_run_execution: str | None = Field(default=None)
+    # Full Cloud Run execution resource name, e.g.
+    # projects/{project}/locations/{region}/jobs/{job}/executions/{id}
+    # Set by the dispatcher when SCRAPER_DISPATCH=cloud_run so the cancel
+    # endpoint can terminate the execution via the Executions API.
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

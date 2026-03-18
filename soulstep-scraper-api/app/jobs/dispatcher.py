@@ -141,6 +141,33 @@ def _dispatch_cloud_run(run_code: str, action: str = "run") -> None:
         )
 
         operation = client.run_job(request=request)
+
+        # Extract the execution resource name from the LRO metadata so the
+        # cancel endpoint can terminate this specific execution later.
+        execution_name: str | None = None
+        try:
+            meta = operation.metadata
+            if meta and getattr(meta, "name", None):
+                execution_name = meta.name
+        except Exception:
+            pass
+
+        if execution_name:
+            from sqlmodel import Session
+            from sqlmodel import select as _select
+
+            from app.db.models import ScraperRun
+            from app.db.session import engine
+
+            with Session(engine) as db_session:
+                run = db_session.exec(
+                    _select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if run:
+                    run.cloud_run_execution = execution_name
+                    db_session.add(run)
+                    db_session.commit()
+
         logger.info(
             "dispatcher: Cloud Run Job execution triggered",
             extra={
@@ -148,6 +175,7 @@ def _dispatch_cloud_run(run_code: str, action: str = "run") -> None:
                 "action": action,
                 "job_name": job_name,
                 "operation_name": operation.operation.name,
+                "execution_name": execution_name,
             },
         )
     except Exception as exc:
@@ -157,6 +185,42 @@ def _dispatch_cloud_run(run_code: str, action: str = "run") -> None:
                 "run_code": run_code,
                 "action": action,
                 "job_name": job_name,
+                "error.type": type(exc).__name__,
+                "error.message": str(exc),
+            },
+            exc_info=True,
+        )
+
+
+def cancel_cloud_run_execution(execution_name: str) -> None:
+    """Terminate an active Cloud Run Job execution via the Executions API.
+
+    Called by the cancel endpoint when SCRAPER_DISPATCH=cloud_run and the run
+    has a stored execution name.  Best-effort: errors are logged but not raised
+    so the DB status change (cancelled) is always committed first.
+    """
+    try:
+        from google.cloud import run_v2
+    except ImportError:
+        logger.warning(
+            "dispatcher: google-cloud-run SDK not installed — "
+            "Cloud Run execution will not be terminated",
+            extra={"execution_name": execution_name},
+        )
+        return
+
+    try:
+        client = run_v2.ExecutionsClient()
+        client.cancel_execution(name=execution_name)
+        logger.info(
+            "dispatcher: Cloud Run execution cancelled",
+            extra={"execution_name": execution_name},
+        )
+    except Exception as exc:
+        logger.error(
+            "dispatcher: failed to cancel Cloud Run execution",
+            extra={
+                "execution_name": execution_name,
                 "error.type": type(exc).__name__,
                 "error.message": str(exc),
             },

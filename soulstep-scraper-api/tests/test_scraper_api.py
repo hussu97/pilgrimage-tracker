@@ -365,6 +365,78 @@ class TestScraperRuns:
         resp = client.post("/api/v1/scraper/runs/run_nonexistent/cancel")
         assert resp.status_code == 404
 
+    def test_cancel_cloud_run_execution_called_when_execution_stored(self, client, db_session):
+        """When SCRAPER_DISPATCH=cloud_run and cloud_run_execution is set,
+        cancel_cloud_run_execution should be called with the stored execution name."""
+        loc = _create_location_in_db(db_session, "CloudCancelExec")
+        run = ScraperRun(
+            run_code="run_cloud_cancel_exec",
+            location_code=loc.code,
+            status="running",
+            cloud_run_execution="projects/proj/locations/us-central1/jobs/scraper/executions/abc123",
+        )
+        db_session.add(run)
+        db_session.commit()
+
+        with (
+            patch("app.config.settings") as mock_settings,
+            patch("app.api.v1.scraper.cancel_cloud_run_execution") as mock_cancel,
+        ):
+            mock_settings.scraper_dispatch = "cloud_run"
+            resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/cancel")
+
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "cancelled"
+        mock_cancel.assert_called_once_with(
+            "projects/proj/locations/us-central1/jobs/scraper/executions/abc123"
+        )
+
+    def test_cancel_local_dispatch_does_not_call_cloud_run(self, client, db_session):
+        """With local dispatch, cancel_cloud_run_execution must NOT be called
+        even if cloud_run_execution is somehow set."""
+        loc = _create_location_in_db(db_session, "LocalCancelExec")
+        run = ScraperRun(
+            run_code="run_local_cancel_exec",
+            location_code=loc.code,
+            status="running",
+            cloud_run_execution="projects/proj/locations/us-central1/jobs/scraper/executions/xyz",
+        )
+        db_session.add(run)
+        db_session.commit()
+
+        with (
+            patch("app.config.settings") as mock_settings,
+            patch("app.api.v1.scraper.cancel_cloud_run_execution") as mock_cancel,
+        ):
+            mock_settings.scraper_dispatch = "local"
+            resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/cancel")
+
+        assert resp.status_code == 200
+        mock_cancel.assert_not_called()
+
+    def test_cancel_cloud_run_no_execution_stored(self, client, db_session):
+        """Cloud Run dispatch with no execution name stored — cancel still succeeds
+        and cancel_cloud_run_execution is not called."""
+        loc = _create_location_in_db(db_session, "CloudCancelNoExec")
+        run = ScraperRun(
+            run_code="run_cloud_cancel_no_exec",
+            location_code=loc.code,
+            status="running",
+            cloud_run_execution=None,
+        )
+        db_session.add(run)
+        db_session.commit()
+
+        with (
+            patch("app.config.settings") as mock_settings,
+            patch("app.api.v1.scraper.cancel_cloud_run_execution") as mock_cancel,
+        ):
+            mock_settings.scraper_dispatch = "cloud_run"
+            resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/cancel")
+
+        assert resp.status_code == 200
+        mock_cancel.assert_not_called()
+
     def test_sync_running_run_returns_400(self, client, db_session):
         loc = _create_location_in_db(db_session, "SRun1")
         run = ScraperRun(run_code="run_sync_active_1", location_code=loc.code, status="running")

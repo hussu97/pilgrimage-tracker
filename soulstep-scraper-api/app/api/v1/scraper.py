@@ -16,7 +16,7 @@ from app.db.models import (
 )
 from app.db.scraper import generate_code, sync_run_to_server
 from app.db.session import SessionDep
-from app.jobs.dispatcher import dispatch_resume, dispatch_run
+from app.jobs.dispatcher import cancel_cloud_run_execution, dispatch_resume, dispatch_run
 from app.logger import get_logger
 from app.models.schemas import (
     CollectorStatusResponse,
@@ -364,6 +364,8 @@ def resume_run(run_code: str, background_tasks: BackgroundTasks, session: Sessio
 
 @router.post("/runs/{run_code}/cancel")
 def cancel_run(run_code: str, session: SessionDep):
+    from app.config import settings
+
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
@@ -375,6 +377,11 @@ def cancel_run(run_code: str, session: SessionDep):
     session.add(run)
     session.commit()
     session.refresh(run)
+
+    # Terminate the Cloud Run execution so the container stops immediately
+    # rather than waiting for the scraper's next DB-poll cycle (up to ~10 s).
+    if settings.scraper_dispatch == "cloud_run" and run.cloud_run_execution:
+        cancel_cloud_run_execution(run.cloud_run_execution)
 
     return {"status": "cancelled", "run_code": run_code}
 
