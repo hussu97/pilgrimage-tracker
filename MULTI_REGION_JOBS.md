@@ -50,19 +50,16 @@ gcloud artifacts repositories create soulstep \
 
 ### 2. Copy the job image to the new region
 
-Use `gcrane` (no local Docker needed) to copy the image directly between registries:
+Copy the image server-side using `gcloud` (no local Docker needed):
 
 ```bash
-# Install gcrane (one-time): go install github.com/google/go-containerregistry/cmd/gcrane@latest
-# Or use: https://github.com/google/go-containerregistry/releases
-
 # Find latest image tag (commit SHA from CI)
 gcloud artifacts docker images list \
   europe-west1-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job \
   --sort-by=~UPDATE_TIME --limit=1
 
-# Copy server-side (no local pull/push)
-gcrane copy \
+# Copy server-side between registries
+gcloud artifacts docker tags add \
   europe-west1-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:TAG \
   NEW_REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:TAG
 ```
