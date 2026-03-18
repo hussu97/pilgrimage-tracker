@@ -21,7 +21,7 @@ from app.api.v1 import api_router  # noqa: E402
 from app.db.models import ScraperRun  # noqa: E402
 from app.db.session import engine, run_migrations  # noqa: E402
 from app.logger import get_logger, mask_secret, set_trace_context, setup_logging  # noqa: E402
-from app.seeds.geo import seed_geo_boundaries  # noqa: E402
+from app.seeds.geo import seed_geo_boundaries, seed_geo_boundary_boxes  # noqa: E402
 from app.seeds.place_types import seed_place_type_mappings  # noqa: E402
 
 setup_logging()
@@ -144,6 +144,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     try:
         with Session(engine) as session:
             seed_geo_boundaries(session)
+            seed_geo_boundary_boxes(session)
             seed_place_type_mappings(session)
     except Exception as exc:
         logger.error("Seed functions failed at startup — proceeding anyway: %s", exc, exc_info=True)
