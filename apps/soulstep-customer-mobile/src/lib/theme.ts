@@ -38,6 +38,7 @@ export const tokens = {
     surfaceTint: '#EADEC8',
     textMain: '#2D3E3B',
     textDark: '#2D3E3B',
+    textLight: '#ffffff',
     textSecondary: '#6B7280',
     textMuted: '#A39C94',
     inputBorder: '#D1C7BD',

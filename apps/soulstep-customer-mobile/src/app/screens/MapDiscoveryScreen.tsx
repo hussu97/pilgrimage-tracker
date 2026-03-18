@@ -78,7 +78,7 @@ function makeStyles(isDark: boolean) {
     searchInput: {
       flex: 1,
       fontSize: 14,
-      color: isDark ? '#ffffff' : tokens.colors.textDark,
+      color: isDark ? tokens.colors.textLight : tokens.colors.textDark,
       padding: 0,
     },
     filterChipRow: {
@@ -150,7 +150,7 @@ function makeStyles(isDark: boolean) {
     cardName: {
       fontSize: 14,
       fontWeight: '700',
-      color: isDark ? '#ffffff' : tokens.colors.textDark,
+      color: isDark ? tokens.colors.textLight : tokens.colors.textDark,
     },
     cardReligion: {
       fontSize: 11,
