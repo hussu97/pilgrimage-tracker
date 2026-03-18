@@ -33,9 +33,12 @@ class Settings:
     database_url: str = os.environ.get("DATABASE_URL", "")
     scraper_db_path: str = os.environ.get("SCRAPER_DB_PATH", "scraper.db")
     # PostgreSQL connection pool tuning. pool_size + max_overflow = max concurrent
-    # connections. Raise if you see pool overflow errors during large runs.
-    scraper_pool_size: int = int(os.environ.get("SCRAPER_POOL_SIZE", "10"))
-    scraper_max_overflow: int = int(os.environ.get("SCRAPER_MAX_OVERFLOW", "10"))
+    # connections this process can hold. Cloud SQL small instances (db-f1-micro,
+    # db-g1-small) have max_connections=25-50, shared with the catalog API.
+    # Keep pool_size + max_overflow ≤ 7 to leave headroom for the catalog API.
+    # Raise SCRAPER_POOL_SIZE / SCRAPER_MAX_OVERFLOW on larger Cloud SQL tiers.
+    scraper_pool_size: int = int(os.environ.get("SCRAPER_POOL_SIZE", "5"))
+    scraper_max_overflow: int = int(os.environ.get("SCRAPER_MAX_OVERFLOW", "2"))
     scraper_pool_timeout: int = int(os.environ.get("SCRAPER_POOL_TIMEOUT", "30"))
 
     # ── Runtime ───────────────────────────────────────────────────────────────
@@ -65,8 +68,9 @@ class Settings:
     discovery_concurrency: int = int(os.environ.get("SCRAPER_DISCOVERY_CONCURRENCY", "10"))
     # Max concurrent Google Places getDetails calls during detail fetch.
     detail_concurrency: int = int(os.environ.get("SCRAPER_DETAIL_CONCURRENCY", "20"))
-    # Max concurrent places enriched in parallel.
-    enrichment_concurrency: int = int(os.environ.get("SCRAPER_ENRICHMENT_CONCURRENCY", "10"))
+    # Max concurrent places enriched in parallel. Keep ≤ pool_size so each
+    # concurrent worker can always get a DB connection without overflow.
+    enrichment_concurrency: int = int(os.environ.get("SCRAPER_ENRICHMENT_CONCURRENCY", "5"))
     # Max concurrent Overpass API calls (across all enrichment workers).
     overpass_concurrency: int = int(os.environ.get("SCRAPER_OVERPASS_CONCURRENCY", "2"))
     # Max jitter sleep (seconds) added before each Overpass call to spread burst.

@@ -162,47 +162,43 @@ async def run_enrichment_pipeline(run_code: str):
         async with sem:
             if cancelled:
                 return
-            with Session(engine) as worker_session:
-                place = worker_session.exec(
-                    select(ScrapedPlace)
-                    .where(ScrapedPlace.place_code == place_code)
-                    .where(ScrapedPlace.run_code == run_code)
-                ).first()
-                if not place:
-                    return
-                place_name = place.name
-                remaining = len(place_codes) - completed_count
-                logger.info(
-                    "Enriching %r (%s) — %d remaining",
-                    place_name,
-                    place_code,
-                    remaining,
-                )
-                try:
+            place_name = place_code  # fallback for logging before DB fetch succeeds
+            try:
+                with Session(engine) as worker_session:
+                    place = worker_session.exec(
+                        select(ScrapedPlace)
+                        .where(ScrapedPlace.place_code == place_code)
+                        .where(ScrapedPlace.run_code == run_code)
+                    ).first()
+                    if not place:
+                        return
+                    place_name = place.name
+                    remaining = len(place_codes) - completed_count
+                    logger.info(
+                        "Enriching %r (%s) — %d remaining",
+                        place_name,
+                        place_code,
+                        remaining,
+                    )
                     await _enrich_place(place, run_code, collectors, worker_session)
-                except Exception as exc:
-                    logger.error("%s: enrichment failed: %s", place_code, exc)
-                    try:
-                        # Roll back any failed transaction before attempting further writes.
-                        worker_session.rollback()
-                        # Re-query after rollback — the in-memory object may be stale.
-                        place = worker_session.exec(
+            except Exception as exc:
+                logger.error("%s: enrichment failed: %s", place_code, exc)
+                # Attempt to persist the failure status with a fresh session so
+                # that a connection error on the original session doesn't prevent
+                # the place from being marked as failed.
+                try:
+                    with Session(engine) as fail_session:
+                        failed_place = fail_session.exec(
                             select(ScrapedPlace)
                             .where(ScrapedPlace.place_code == place_code)
                             .where(ScrapedPlace.run_code == run_code)
                         ).first()
-                        if place:
-                            place.enrichment_status = "failed"
-                            worker_session.add(place)
-                            worker_session.commit()
-                    except Exception as save_err:
-                        logger.error(
-                            "%s: could not persist failed status: %s", place_code, save_err
-                        )
-                        try:
-                            worker_session.rollback()
-                        except Exception:
-                            pass
+                        if failed_place:
+                            failed_place.enrichment_status = "failed"
+                            fail_session.add(failed_place)
+                            fail_session.commit()
+                except Exception as save_err:
+                    logger.error("%s: could not persist failed status: %s", place_code, save_err)
 
             completed_count += 1
             logger.debug(
@@ -223,15 +219,20 @@ async def run_enrichment_pipeline(run_code: str):
                 )
 
             # Cancellation check after each place completes
-            with Session(engine) as check_session:
-                run_check = check_session.exec(
-                    select(ScraperRun).where(ScraperRun.run_code == run_code)
-                ).first()
-                if run_check and run_check.status == "cancelled":
-                    logger.warning(
-                        "Enrichment cancelled after %d/%d places", completed_count, len(place_codes)
-                    )
-                    cancelled = True
+            try:
+                with Session(engine) as check_session:
+                    run_check = check_session.exec(
+                        select(ScraperRun).where(ScraperRun.run_code == run_code)
+                    ).first()
+                    if run_check and run_check.status == "cancelled":
+                        logger.warning(
+                            "Enrichment cancelled after %d/%d places",
+                            completed_count,
+                            len(place_codes),
+                        )
+                        cancelled = True
+            except Exception as check_err:
+                logger.warning("Could not check cancellation status: %s", check_err)
 
     await asyncio.gather(*[_worker(code) for code in place_codes])
 
