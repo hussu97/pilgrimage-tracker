@@ -88,7 +88,7 @@ def test_resume_endpoint_accepts_interrupted(client, db_session):
     loc = _make_location(db_session)
     run = _make_run(db_session, loc.code, status="interrupted", stage="enrichment")
 
-    with patch("app.api.v1.scraper.dispatch_resume"):
+    with patch("app.api.v1.scraper.trigger_queue_check"):
         resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
 
     assert resp.status_code == 200
@@ -102,7 +102,7 @@ def test_resume_endpoint_accepts_failed(client, db_session):
     loc = _make_location(db_session)
     run = _make_run(db_session, loc.code, status="failed", stage="discovery")
 
-    with patch("app.api.v1.scraper.dispatch_resume"):
+    with patch("app.api.v1.scraper.trigger_queue_check"):
         resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
 
     assert resp.status_code == 200
@@ -136,7 +136,7 @@ def test_resume_endpoint_accepts_cancelled(client, db_session):
     loc = _make_location(db_session)
     run = _make_run(db_session, loc.code, status="cancelled")
 
-    with patch("app.api.v1.scraper.dispatch_resume"):
+    with patch("app.api.v1.scraper.trigger_queue_check"):
         resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
 
     assert resp.status_code == 200
@@ -258,13 +258,13 @@ def test_resume_dispatches_when_cloud_run_execution_finished(client, db_session)
     with (
         patch("app.config.settings") as mock_settings,
         patch("app.jobs.dispatcher.is_cloud_run_execution_active", return_value=False),
-        patch("app.api.v1.scraper.dispatch_resume") as mock_dispatch,
+        patch("app.api.v1.scraper.trigger_queue_check") as mock_trigger,
     ):
         mock_settings.scraper_dispatch = "cloud_run"
         resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
 
     assert resp.status_code == 200
-    mock_dispatch.assert_called_once()
+    mock_trigger.assert_called_once()
 
 
 def test_resume_skips_active_check_when_no_execution_stored(client, db_session):
@@ -276,7 +276,7 @@ def test_resume_skips_active_check_when_no_execution_stored(client, db_session):
     with (
         patch("app.config.settings") as mock_settings,
         patch("app.jobs.dispatcher.is_cloud_run_execution_active") as mock_active,
-        patch("app.api.v1.scraper.dispatch_resume"),
+        patch("app.api.v1.scraper.trigger_queue_check"),
     ):
         mock_settings.scraper_dispatch = "cloud_run"
         resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
@@ -293,7 +293,7 @@ def test_resume_endpoint_accepts_image_download_stage(client, db_session):
     loc = _make_location(db_session)
     run = _make_run(db_session, loc.code, status="interrupted", stage="image_download")
 
-    with patch("app.api.v1.scraper.dispatch_resume"):
+    with patch("app.api.v1.scraper.trigger_queue_check"):
         resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
 
     assert resp.status_code == 200

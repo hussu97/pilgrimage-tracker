@@ -55,6 +55,7 @@ python -m pytest tests/ -v
 | `SCRAPER_DISPATCH` | No | `local` | `local` (in-process) or `cloud_run` (Cloud Run Job) |
 | `CLOUD_RUN_JOB_NAME` | No | `soulstep-scraper-job` | Cloud Run Job name (cloud_run dispatch only) |
 | `CLOUD_RUN_REGION` | No | `us-central1` | Cloud Run region (cloud_run dispatch only) |
+| `CLOUD_RUN_REGIONS` | No | — | Multi-region capacity config. Format: `region1:max_jobs,region2:max_jobs,...` (e.g. `europe-west1:3,europe-west4:5`). When set, the queue processor distributes jobs across regions based on available capacity. See [MULTI_REGION_JOBS.md](../MULTI_REGION_JOBS.md). |
 | `MAPS_BROWSER_POOL_SIZE` | No | `2` | Concurrent Chromium contexts (browser mode only) |
 | `MAPS_BROWSER_MAX_PAGES` | No | `30` | Navigations per session before recycling (browser mode only) |
 | `MAPS_BROWSER_HEADLESS` | No | `true` | Chromium headless; set `false` for local debugging |
@@ -89,6 +90,10 @@ python -m pytest tests/ -v
 Each scraper run goes through these stages:
 
 ```
+Queued            — run created, waiting for capacity (queue processor polls every 15s)
+    ↓
+Pending           — capacity available, dispatched to Cloud Run Job or local thread
+    ↓
 Discovery         — quadtree searchNearby via Google Maps (api) or Playwright grid (browser)
     ↓
 Detail Fetch      — getPlace for each place; progress updated per batch (real-time in admin UI)

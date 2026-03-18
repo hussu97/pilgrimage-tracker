@@ -9,6 +9,11 @@ SCRAPER_DISPATCH=cloud_run   (production) — dispatches a Cloud Run Job executi
                                via the google-cloud-run SDK; requires
                                CLOUD_RUN_JOB_NAME, CLOUD_RUN_REGION, and
                                GOOGLE_CLOUD_PROJECT to be set.
+
+Dispatch is now handled by the queue processor (queue_processor.py) which
+calls dispatch_cloud_run() and _run_local()/_resume_local() directly.
+The old dispatch_run/dispatch_resume functions are kept for backwards
+compatibility but are no longer called from the HTTP endpoints.
 """
 
 from __future__ import annotations
@@ -46,7 +51,11 @@ def _resume_local(run_code: str) -> None:
 
 
 def dispatch_run(run_code: str, background_tasks: BackgroundTasks) -> None:
-    """Dispatch a new scraper run via the configured backend."""
+    """Dispatch a new scraper run via the configured backend.
+
+    Legacy function — kept for backwards compatibility. New code should use
+    the queue processor which calls dispatch_cloud_run() directly.
+    """
     from app.config import settings
 
     logger.info(
@@ -54,13 +63,17 @@ def dispatch_run(run_code: str, background_tasks: BackgroundTasks) -> None:
         extra={"run_code": run_code, "dispatch_mode": settings.scraper_dispatch},
     )
     if settings.scraper_dispatch == "cloud_run":
-        background_tasks.add_task(_dispatch_cloud_run, run_code, "run")
+        background_tasks.add_task(dispatch_cloud_run, run_code, "run")
     else:
         background_tasks.add_task(_run_local, run_code)
 
 
 def dispatch_resume(run_code: str, background_tasks: BackgroundTasks) -> None:
-    """Dispatch a resume for an interrupted/failed/cancelled run."""
+    """Dispatch a resume for an interrupted/failed/cancelled run.
+
+    Legacy function — kept for backwards compatibility. New code should use
+    the queue processor which calls dispatch_cloud_run() directly.
+    """
     from app.config import settings
 
     logger.info(
@@ -68,22 +81,27 @@ def dispatch_resume(run_code: str, background_tasks: BackgroundTasks) -> None:
         extra={"run_code": run_code, "dispatch_mode": settings.scraper_dispatch},
     )
     if settings.scraper_dispatch == "cloud_run":
-        background_tasks.add_task(_dispatch_cloud_run, run_code, "resume")
+        background_tasks.add_task(dispatch_cloud_run, run_code, "resume")
     else:
         background_tasks.add_task(_resume_local, run_code)
 
 
-def _dispatch_cloud_run(run_code: str, action: str = "run") -> None:
+def dispatch_cloud_run(run_code: str, action: str = "run", region: str | None = None) -> None:
     """Call the Cloud Run Jobs API to execute the scraper job container.
 
     The job container must be configured to run ``python -m app.jobs.run``
     as its command. The run_code and action are passed via env var overrides.
+
+    If ``region`` is provided, the job is dispatched to that region.
+    Otherwise, falls back to the first configured region.
 
     Requires:
         pip install google-cloud-run
         CLOUD_RUN_JOB_NAME, CLOUD_RUN_REGION, GOOGLE_CLOUD_PROJECT env vars
     """
     from app.config import settings
+
+    target_region = region or settings.available_regions[0]
 
     try:
         from google.cloud import run_v2
@@ -100,7 +118,7 @@ def _dispatch_cloud_run(run_code: str, action: str = "run") -> None:
 
     job_name = (
         f"projects/{settings.google_cloud_project}"
-        f"/locations/{settings.cloud_run_region}"
+        f"/locations/{target_region}"
         f"/jobs/{settings.cloud_run_job_name}"
     )
 
@@ -111,7 +129,7 @@ def _dispatch_cloud_run(run_code: str, action: str = "run") -> None:
             "action": action,
             "job_name": job_name,
             "cloud_run_job": settings.cloud_run_job_name,
-            "cloud_run_region": settings.cloud_run_region,
+            "cloud_run_region": target_region,
             "google_cloud_project": settings.google_cloud_project,
         },
     )
@@ -190,6 +208,7 @@ def _dispatch_cloud_run(run_code: str, action: str = "run") -> None:
             },
             exc_info=True,
         )
+        raise
 
 
 def is_cloud_run_execution_active(execution_name: str) -> bool:

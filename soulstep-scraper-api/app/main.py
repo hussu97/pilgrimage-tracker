@@ -20,6 +20,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException  # noqa
 from app.api.v1 import api_router  # noqa: E402
 from app.db.models import ScraperRun  # noqa: E402
 from app.db.session import engine, run_migrations  # noqa: E402
+from app.jobs.queue_processor import start_queue_processor, stop_queue_processor  # noqa: E402
 from app.logger import get_logger, mask_secret, set_trace_context, setup_logging  # noqa: E402
 from app.seeds.geo import seed_geo_boundaries, seed_geo_boundary_boxes  # noqa: E402
 from app.seeds.place_types import seed_place_type_mappings  # noqa: E402
@@ -129,6 +130,8 @@ def _mark_interrupted_runs() -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    import asyncio as _asyncio
+
     _validate_startup_config()
     # Wrap every startup DB operation so a failed migration or seed never
     # prevents the container from binding to its port.  Cloud Run's startup
@@ -154,8 +157,23 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         logger.error(
             "_mark_interrupted_runs() failed at startup — proceeding anyway: %s", exc, exc_info=True
         )
+
+    # Start the capacity-aware queue processor as a background task.
+    # It polls every 15s for queued runs and dispatches them to regions
+    # with available capacity.
+    queue_task = _asyncio.create_task(start_queue_processor())
+
     yield
-    # Graceful shutdown: close all browser contexts and Chromium so we don't leak
+
+    # Graceful shutdown
+    stop_queue_processor()
+    queue_task.cancel()
+    try:
+        await queue_task
+    except _asyncio.CancelledError:
+        pass
+
+    # Close all browser contexts and Chromium so we don't leak
     # child processes on restart / container replacement.
     try:
         from app.services.browser_pool import shutdown_maps_pool

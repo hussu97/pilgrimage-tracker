@@ -284,6 +284,26 @@ Controls how scraper runs execute:
 | `local` (default) | In-process FastAPI BackgroundTasks; no GCP needed |
 | `cloud_run` | Dispatches a Cloud Run Job via GCP Jobs API; API service stays at 512 MB |
 
+### Queue Processor
+
+A background asyncio task inside the scraper API service that provides capacity-aware job dispatch:
+
+1. **Status flow:** `queued` → `pending` (dispatched) → `running` → `completed`/`failed`
+2. **Polling:** Checks every 15 seconds for queued runs; also triggered immediately when runs are created or resumed
+3. **Capacity tracking:** Counts active (`pending`/`running`) jobs per region and only dispatches when slots are available
+4. **Resume detection:** Runs with `stage` set or `processed_items > 0` are dispatched as resume (not fresh run)
+5. **Failure recovery:** If dispatch fails, the run reverts to `queued` and retries on next poll
+
+### Multi-Region Job Dispatch
+
+Scraper jobs can be spread across multiple GCP regions to avoid exhausting a single region's Cloud Run quota (20,000 mCPU / 42.95 GiB per region).
+
+- Configure via `CLOUD_RUN_REGIONS=europe-west1:3,europe-west4:5,europe-west2:5`
+- Each region has independent quota — the queue processor distributes jobs based on available capacity
+- Only jobs run in extra regions; all services (catalog API, scraper API) stay in the primary region
+- Jobs connect to the primary Cloud SQL via cross-region auth proxy
+- See [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md) for setup instructions
+
 ---
 
 ## 7. Mobile App Update Enforcement

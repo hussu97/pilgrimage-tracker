@@ -12,7 +12,7 @@ Covers:
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy.pool import StaticPool
@@ -268,7 +268,9 @@ def test_create_run_fanout_cloud_run(mem_engine):
             patch("app.main.seed_geo_boundaries"),
             patch("app.main.seed_place_type_mappings"),
             patch("app.main._mark_interrupted_runs"),
-            patch("app.api.v1.scraper.dispatch_run"),
+            patch("app.main.start_queue_processor", new_callable=AsyncMock),
+            patch("app.main.stop_queue_processor"),
+            patch("app.api.v1.scraper.trigger_queue_check"),
             patch("app.config.settings") as mock_settings,
         ):
             mock_settings.scraper_dispatch = "cloud_run"
@@ -342,7 +344,9 @@ def test_create_run_no_fanout_local_dispatch(mem_engine):
             patch("app.main.seed_geo_boundaries"),
             patch("app.main.seed_place_type_mappings"),
             patch("app.main._mark_interrupted_runs"),
-            patch("app.api.v1.scraper.dispatch_run"),
+            patch("app.main.start_queue_processor", new_callable=AsyncMock),
+            patch("app.main.stop_queue_processor"),
+            patch("app.api.v1.scraper.trigger_queue_check"),
             patch("app.config.settings") as mock_settings,
         ):
             mock_settings.scraper_dispatch = "local"

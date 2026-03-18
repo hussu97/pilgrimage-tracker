@@ -22,6 +22,9 @@ env:
   SA_EMAIL: github-deploy@project-fa2d7f52-2bc4-4a46-8ae.iam.gserviceaccount.com
   WIF_PROVIDER: projects/834941457147/locations/global/workloadIdentityPools/github-pool/providers/github-provider
   HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+  # Extra regions for scraper job deployment (comma-separated).
+  # Set to e.g. "europe-west4,europe-west2" when ready to spread jobs across regions.
+  EXTRA_JOB_REGIONS: ""
 
 jobs:
   # ── Detect changed paths ───────────────────────────────────────────────────
@@ -126,6 +129,8 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --add-cloudsql-instances "${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db" \
+            --cpu 1 --memory 512Mi \
+            --min-instances 0 --max-instances 3 \
             --quiet
 
   # ── Deploy: Web → Firebase Hosting ─────────────────────────────────────────
@@ -421,7 +426,8 @@ jobs:
             --no-allow-unauthenticated \
             --add-cloudsql-instances "${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db" \
             --timeout 3600 \
-            --max-instances 1 \
+            --cpu 1 --memory 512Mi \
+            --min-instances 0 --max-instances 2 \
             --no-cpu-throttling \
             --quiet
 
@@ -440,6 +446,44 @@ jobs:
           _upsert soulstep-scraper-api-job \
             --image "$JOB_IMAGE" \
             --set-cloudsql-instances "$CLOUDSQL" \
-            --memory 8Gi --cpu 4 \
+            --memory 6Gi --cpu 4 \
             --task-timeout 86400 --max-retries 1 \
             --quiet
+
+      - name: Deploy scraper job to extra regions
+        if: env.EXTRA_JOB_REGIONS != ''
+        run: |
+          PRIMARY_IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
+          CLOUDSQL="${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db"
+
+          _upsert() {
+            local name=$1; shift
+            local region=$1; shift
+            gcloud run jobs update "$name" --region "$region" "$@" 2>/dev/null \
+              || gcloud run jobs create "$name" --region "$region" "$@"
+          }
+
+          for R in $(echo "${{ env.EXTRA_JOB_REGIONS }}" | tr ',' ' '); do
+            [ -z "$R" ] && continue
+            REG="${R}-docker.pkg.dev"
+            JOB_IMAGE="${REG}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
+
+            echo "=== Deploying scraper job to ${R} ==="
+
+            # Configure Docker auth for this region
+            gcloud auth configure-docker "${REG}" --quiet
+
+            # Tag and push to this region's Artifact Registry
+            docker tag "$PRIMARY_IMAGE" "$JOB_IMAGE"
+            docker push "$JOB_IMAGE"
+
+            # Upsert the Cloud Run Job
+            _upsert soulstep-scraper-api-job "$R" \
+              --image "$JOB_IMAGE" \
+              --set-cloudsql-instances "$CLOUDSQL" \
+              --memory 6Gi --cpu 4 \
+              --task-timeout 86400 --max-retries 1 \
+              --quiet
+
+            echo "=== Done: ${R} ==="
+          done

@@ -19,8 +19,8 @@ class ScraperRun(SQLModel, table=True):
     run_code: str = Field(index=True, unique=True)
     location_code: str = Field(foreign_key="datalocation.code")
     status: str = Field(
-        default="pending"
-    )  # pending, running, completed, failed, cancelled, interrupted
+        default="queued"
+    )  # queued, pending, running, completed, failed, cancelled, interrupted
     stage: str | None = Field(
         default=None
     )  # discovery, detail_fetch, image_download, enrichment, syncing (null when done)

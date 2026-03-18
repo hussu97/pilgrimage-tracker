@@ -187,7 +187,7 @@ class TestScraperRuns:
     def test_create_run_success(self, client, db_session):
         """Create a run for an existing location (patches the background task)."""
         loc = _create_location_in_db(db_session, "Run Test")
-        with patch("app.api.v1.scraper.dispatch_run"):
+        with patch("app.api.v1.scraper.trigger_queue_check"):
             resp = client.post(
                 "/api/v1/scraper/runs",
                 json={"location_code": loc.code},
@@ -197,7 +197,7 @@ class TestScraperRuns:
         # Response is now always { "runs": [...] }
         assert "runs" in data
         assert len(data["runs"]) == 1
-        assert data["runs"][0]["status"] == "pending"
+        assert data["runs"][0]["status"] == "queued"
         assert "run_code" in data["runs"][0]
 
     def test_get_run_success(self, client, db_session):

@@ -142,6 +142,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `SCRAPER_DISPATCH` | `local` | How scrape runs are executed after `POST /runs`. `local` — in-process via FastAPI BackgroundTasks. `cloud_run` — dispatches a Cloud Run Job via the GCP Jobs API. |
 | `CLOUD_RUN_JOB_NAME` | `soulstep-scraper-job` | **Conditional** — Cloud Run Job name. Required when `SCRAPER_DISPATCH=cloud_run`. |
 | `CLOUD_RUN_REGION` | `us-central1` | **Conditional** — GCP region for Cloud Run Job dispatch. Required when `SCRAPER_DISPATCH=cloud_run`. |
+| `CLOUD_RUN_REGIONS` | — | Multi-region capacity config. Format: `region1:max_jobs,region2:max_jobs,...` (e.g. `europe-west1:3,europe-west4:5`). When set, the queue processor distributes jobs across regions based on available capacity. Falls back to `CLOUD_RUN_REGION` with max 5 jobs when unset. See [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md). |
 | `GOOGLE_CLOUD_PROJECT` | — | GCP project ID. Required for Cloud Run Job dispatch and Cloud SQL connections outside GCP. On Cloud Run, automatically inferred from workload identity — safe to omit. |
 | `GCS_BUCKET_NAME` | — | **Conditional** — GCS bucket for scraped image storage. Required when the catalog API is configured with `IMAGE_STORAGE=gcs`. Must match `GCS_BUCKET_NAME` in the catalog API. Example: `soulstep-images` |
 | `SCRAPER_DISCOVERY_CONCURRENCY` | `10` | Max concurrent Google Places `searchNearby` calls during discovery. |

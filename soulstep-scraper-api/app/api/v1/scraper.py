@@ -16,7 +16,8 @@ from app.db.models import (
 )
 from app.db.scraper import generate_code, sync_run_to_server
 from app.db.session import SessionDep
-from app.jobs.dispatcher import cancel_cloud_run_execution, dispatch_resume, dispatch_run
+from app.jobs.dispatcher import cancel_cloud_run_execution
+from app.jobs.queue_processor import trigger_queue_check
 from app.logger import get_logger
 from app.models.schemas import (
     CollectorStatusResponse,
@@ -159,7 +160,7 @@ def list_runs(
 
 
 @router.post("/runs", response_model=ScraperRunsCreateResponse)
-def create_run(body: ScraperRunCreate, background_tasks: BackgroundTasks, session: SessionDep):
+def create_run(body: ScraperRunCreate, session: SessionDep):
     from app.config import settings
     from app.scrapers.geo_utils import get_boundary_boxes
 
@@ -179,7 +180,7 @@ def create_run(body: ScraperRunCreate, background_tasks: BackgroundTasks, sessio
             run = ScraperRun(
                 run_code=generate_code("run"),
                 location_code=body.location_code,
-                status="pending",
+                status="queued",
                 geo_box_label=box.label,
             )
             session.add(run)
@@ -187,16 +188,17 @@ def create_run(body: ScraperRunCreate, background_tasks: BackgroundTasks, sessio
         session.commit()
         for run in created_runs:
             session.refresh(run)
-            dispatch_run(run.run_code, background_tasks)
     else:
         run = ScraperRun(
-            run_code=generate_code("run"), location_code=body.location_code, status="pending"
+            run_code=generate_code("run"), location_code=body.location_code, status="queued"
         )
         session.add(run)
         session.commit()
         session.refresh(run)
-        dispatch_run(run.run_code, background_tasks)
         created_runs = [run]
+
+    # Signal the queue processor to dispatch immediately
+    trigger_queue_check()
 
     return ScraperRunsCreateResponse(
         runs=[ScraperRunResponse.model_validate(r, from_attributes=True) for r in created_runs]
@@ -339,13 +341,13 @@ def re_enrich_run(run_code: str, background_tasks: BackgroundTasks, session: Ses
 
 
 @router.post("/runs/{run_code}/resume")
-def resume_run(run_code: str, background_tasks: BackgroundTasks, session: SessionDep):
+def resume_run(run_code: str, session: SessionDep):
     """Resume an interrupted, failed, or cancelled run from where it left off.
 
     Cloud Run mode: checks whether the existing Cloud Run execution is still
-    active before dispatching.  If it is, returns 409 so the caller knows not
+    active before re-queuing.  If it is, returns 409 so the caller knows not
     to double-dispatch.  If it has finished (or no execution was ever recorded),
-    a new execution is created and its name stored on the run.
+    the run is set back to queued and the queue processor handles dispatch.
     """
     from app.config import settings
     from app.jobs.dispatcher import is_cloud_run_execution_active
@@ -367,10 +369,17 @@ def resume_run(run_code: str, background_tasks: BackgroundTasks, session: Sessio
                 detail=f"Cloud Run execution {run.cloud_run_execution} is still active. Wait for it to finish or cancel it before resuming.",
             )
 
-    dispatch_resume(run.run_code, background_tasks)
+    previous_status = run.status
+    run.status = "queued"
+    run.error_message = None
+    session.add(run)
+    session.commit()
+
+    # Signal the queue processor to dispatch immediately
+    trigger_queue_check()
 
     return {
-        "status": run.status,
+        "status": previous_status,
         "run_code": run_code,
         "resume_from_stage": run.stage,
         "processed_items": run.processed_items,
@@ -386,7 +395,7 @@ def cancel_run(run_code: str, session: SessionDep):
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
-    if run.status not in ["pending", "running", "interrupted"]:
+    if run.status not in ["queued", "pending", "running", "interrupted"]:
         raise HTTPException(status_code=400, detail=f"Cannot cancel run with status: {run.status}")
 
     run.status = "cancelled"

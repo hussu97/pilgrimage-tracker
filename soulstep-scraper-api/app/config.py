@@ -138,6 +138,38 @@ class Settings:
     cloud_run_job_name: str = os.environ.get("CLOUD_RUN_JOB_NAME", "soulstep-scraper-job")
     # Cloud Run region for job dispatch.
     cloud_run_region: str = os.environ.get("CLOUD_RUN_REGION", "us-central1")
+    # Multi-region capacity config.  Format: "region1:max_jobs,region2:max_jobs,..."
+    # Each region has its own independent Cloud Run quota — spreading jobs across
+    # regions avoids exhausting a single region's per-project CPU/memory limits.
+    # Falls back to cloud_run_region with max_jobs=5 when unset.
+    cloud_run_regions: str = os.environ.get("CLOUD_RUN_REGIONS", "")
+
+    @property
+    def region_capacity(self) -> list[dict]:
+        """Return [{region: str, max_jobs: int}, ...] parsed from CLOUD_RUN_REGIONS."""
+        if self.cloud_run_regions:
+            result = []
+            for entry in self.cloud_run_regions.split(","):
+                entry = entry.strip()
+                if not entry:
+                    continue
+                if ":" in entry:
+                    region, cap = entry.split(":", 1)
+                    result.append({"region": region.strip(), "max_jobs": int(cap.strip())})
+                else:
+                    result.append({"region": entry, "max_jobs": 5})
+            return result
+        return [{"region": self.cloud_run_region, "max_jobs": 5}]
+
+    @property
+    def available_regions(self) -> list[str]:
+        """Return list of region names from region_capacity."""
+        return [r["region"] for r in self.region_capacity]
+
+    @property
+    def total_max_jobs(self) -> int:
+        """Sum of max_jobs across all configured regions."""
+        return sum(r["max_jobs"] for r in self.region_capacity)
 
     # ── Post-sync automation ──────────────────────────────────────────────────
     # If true, automatically sync to the catalog API immediately after enrichment

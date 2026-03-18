@@ -429,18 +429,18 @@ gcloud run deploy soulstep-scraper-api \
   --no-allow-unauthenticated \
   --set-secrets "GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,GEMINI_API_KEY=SCRAPER_GEMINI_API_KEY:latest,BESTTIME_API_KEY=SCRAPER_BESTTIME_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,OUTSCRAPER_API_KEY=SCRAPER_OUTSCRAPER_API_KEY:latest" \
   --set-env-vars "MAIN_SERVER_URL=https://api.soul-step.org,SCRAPER_TIMEZONE=Asia/Dubai,SCRAPER_DB_PATH=/tmp/scraper.db,LOG_FORMAT=json" \
-  --memory 1Gi \
+  --memory 512Mi \
   --cpu 1 \
   --min-instances 0 \
-  --max-instances 1 \
+  --max-instances 2 \
   --no-cpu-throttling \
   --timeout 3600
 ```
 
 > `--no-allow-unauthenticated` — scraper is internal only. Access via `gcloud auth print-identity-token`.
 > `--timeout 3600` — scrape runs take up to 60 min.
-> `--max-instances 1` — prevents concurrent runs (SQLite write conflicts).
-> `--no-cpu-throttling` — keeps CPU allocated after the HTTP response so background tasks (Cloud Run Job dispatch) can complete. Without this, Cloud Run freezes the CPU once a response is returned, killing any in-flight background work. **Trade-off:** CPU is billed continuously rather than per-request; negligible cost given `--max-instances 1` and infrequent invocation.
+> `--max-instances 2` — lightweight service that dispatches jobs; 2 instances handle admin polling and queue processing.
+> `--no-cpu-throttling` — keeps CPU allocated after the HTTP response so background tasks (queue processor, Cloud Run Job dispatch) can complete. Without this, Cloud Run freezes the CPU once a response is returned, killing any in-flight background work.
 
 **Tell the catalog API where the scraper is:**
 ```bash
@@ -486,9 +486,9 @@ docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:l
 gcloud run jobs create soulstep-scraper-api-job \
   --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:latest \
   --region REGION \
-  --memory 8Gi \
+  --memory 6Gi \
   --cpu 4 \
-  --task-timeout 3600 \
+  --task-timeout 86400 \
   --max-retries 1 \
   --set-env-vars "SCRAPER_BACKEND=browser,GOOGLE_CLOUD_PROJECT=PROJECT_ID"
 ```
@@ -853,7 +853,7 @@ EAS secrets), and descriptions for every variable in every service.
 | **Cloud Run** | API + scraper | 2M requests/month, 180k vCPU-sec/month | ~$0.40 per 1M requests |
 | **Cloud SQL** | PostgreSQL 15 | None | ~$7/month (`db-f1-micro`) |
 | **Cloud Run Jobs** | cleanup, backfill, sync-places, translate-content | — | ~$0.02/hour per CPU |
-| **Cloud Run Jobs (scraper)** | browser scraping (4 vCPU / 8 GiB) | — | ~$0.42/hour (see §13.1) |
+| **Cloud Run Jobs (scraper)** | browser scraping (4 vCPU / 6 GiB) | — | ~$0.40/hour (see §13.1) |
 | **Artifact Registry** | Docker images | 0.5 GB free | $0.10/GB/month |
 | **Firebase Hosting** | Web + Admin SPAs | 10 GB storage, 360 MB/day transfer | $0.026/GB transfer |
 | **Secret Manager** | Credentials | 6 active versions free | $0.06 per 10k accesses |
@@ -864,14 +864,14 @@ Typical cost for low traffic: **~$15–20/month** (dominated by Cloud SQL).
 
 ### 13.1 Scraper Job Cost Estimate (browser backend)
 
-The scraper Cloud Run Job runs with **4 vCPU / 8 GiB** (`SCRAPER_BACKEND=browser`).
+The scraper Cloud Run Job runs with **4 vCPU / 6 GiB** (`SCRAPER_BACKEND=browser`). For multi-region deployment, see [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md).
 All discovery and detail collection is done via Playwright — **$0 API cost**.
 
 **Compute pricing (Cloud Run Jobs):**
 | Resource | Rate | Job config | Per-second |
 |---|---|---|---|
 | vCPU | $0.00002400/vCPU-s | 4 vCPU | $0.0000960 |
-| Memory | $0.00000250/GiB-s | 8 GiB | $0.0000200 |
+| Memory | $0.00000250/GiB-s | 6 GiB | $0.0000150 |
 | **Total** | | | **$0.0001160/s = ~$0.42/hour** |
 
 **100k places estimate (fully browser-based, $0 API cost):**

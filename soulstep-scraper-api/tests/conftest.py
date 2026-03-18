@@ -11,7 +11,7 @@ tables after each test — far faster than recreating the schema 686+ times.
 
 import os
 import sys
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 # ── Force in-memory SQLite BEFORE any app module is imported ──────────────────
 # session.py reads DATABASE_URL from os.environ at module level and creates the
@@ -146,6 +146,8 @@ def client(test_engine):
         patch("app.main.seed_geo_boundaries"),
         patch("app.main.seed_place_type_mappings"),
         patch("app.main._mark_interrupted_runs"),
+        patch("app.main.start_queue_processor", new_callable=AsyncMock),
+        patch("app.main.stop_queue_processor"),
     ):
         with TestClient(app, raise_server_exceptions=True) as c:
             yield c
@@ -180,6 +182,8 @@ def error_client(test_engine):
         patch("app.main.seed_geo_boundaries"),
         patch("app.main.seed_place_type_mappings"),
         patch("app.main._mark_interrupted_runs"),
+        patch("app.main.start_queue_processor", new_callable=AsyncMock),
+        patch("app.main.stop_queue_processor"),
     ):
         with TestClient(app, raise_server_exceptions=False) as c:
             yield c

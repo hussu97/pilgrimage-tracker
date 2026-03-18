@@ -4,6 +4,29 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-18] — Cloud Run Resource Optimization & Multi-Region Job Dispatch
+
+### Backend (scraper)
+- **Capacity-aware queue processor** — new `app/jobs/queue_processor.py` runs as a background asyncio task polling every 15s; counts active jobs per region and dispatches queued runs to regions with available capacity; supports both `cloud_run` and `local` dispatch modes
+- **New `queued` status** — runs are now created with `status="queued"` instead of `pending`; the queue processor transitions them to `pending` when dispatching; status flow: `queued` → `pending` → `running` → `completed`/`failed`
+- **Multi-region config** — new `CLOUD_RUN_REGIONS` env var (format: `region1:max_jobs,region2:max_jobs,...`) with `region_capacity`, `available_regions`, and `total_max_jobs` properties on Settings
+- **Resume via queue** — resume endpoint now sets status back to `queued` and lets the queue processor handle dispatch (resume detection: `stage` set or `processed_items > 0`)
+- **Dispatcher accepts region param** — `dispatch_cloud_run()` now takes an optional `region` parameter; re-raises exceptions so the queue processor can revert failed dispatches to `queued`
+- **Cancel accepts queued status** — cancel endpoint now allows cancelling `queued` runs
+- **Tests** — 28 new tests: 16 in `test_multi_region_dispatch.py` (config parsing, region extraction, active counting), 12 in `test_queue_processor.py` (capacity enforcement, FIFO ordering, failure recovery, resume detection, local mode, multi-region distribution)
+
+### Infra
+- **Catalog API resource limits** — `--cpu 1 --memory 512Mi --min-instances 0 --max-instances 3` (was: Cloud Run defaults)
+- **Scraper API resource limits** — `--cpu 1 --memory 512Mi --min-instances 0 --max-instances 2` (was: `--max-instances 1`, no explicit cpu/memory)
+- **Scraper Job memory reduction** — `--memory 6Gi` (was: `8Gi`); 2.3 GiB headroom over realistic peak of ~3.7 GB
+- **Multi-region auto-deploy** — new `EXTRA_JOB_REGIONS` env var in `deploy.yml`; when set, CI tags/pushes the job image to extra region registries and upserts the Cloud Run Job in each region
+
+### Docs
+- **MULTI_REGION_JOBS.md** — new standalone guide: architecture, setup steps, quota budget, cost breakdown
+- Updated: ENV_VARS.md, .env.example, scraper README (CLOUD_RUN_REGIONS, queue pipeline diagram), PRODUCTION.md (6 GiB job, service limits), ARCHITECTURE.md (queue processor + multi-region sections)
+
+---
+
 ## [2026-03-18] — Review Image Support (Browser Mode) + Card Selector Fix
 
 ### Backend (scraper)
