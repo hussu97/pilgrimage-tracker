@@ -48,18 +48,27 @@ gcloud artifacts repositories create soulstep \
   --description="SoulStep container images (NEW_REGION)"
 ```
 
-### 2. Push the job image
+### 2. Copy the job image to the new region
+
+Use `gcrane` (no local Docker needed) to copy the image directly between registries:
 
 ```bash
-# Authenticate Docker for the new registry
-gcloud auth configure-docker NEW_REGION-docker.pkg.dev --quiet
+# Install gcrane (one-time): go install github.com/google/go-containerregistry/cmd/gcrane@latest
+# Or use: https://github.com/google/go-containerregistry/releases
 
-# Tag and push
-PRIMARY="europe-west1-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:TAG"
-TARGET="NEW_REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:TAG"
-docker tag "$PRIMARY" "$TARGET"
-docker push "$TARGET"
+# Find latest image tag (commit SHA from CI)
+gcloud artifacts docker images list \
+  europe-west1-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job \
+  --sort-by=~UPDATE_TIME --limit=1
+
+# Copy server-side (no local pull/push)
+gcrane copy \
+  europe-west1-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:TAG \
+  NEW_REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:TAG
 ```
+
+> `TAG` is the git commit SHA used by CI (e.g. `83e6170...`). After initial setup,
+> CI handles this automatically via `EXTRA_JOB_REGIONS` (step 7).
 
 ### 3. Create the Cloud Run Job
 
