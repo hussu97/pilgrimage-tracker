@@ -48,13 +48,15 @@ gcloud artifacts repositories create soulstep \
   --description="SoulStep container images ($NEW_REGION)"
 ```
 
-### 2. Copy the job image to the new region
-
-Copy the image server-side using `gcloud` (no local Docker needed):
+### 2. Push the job image to the new region
 
 ```bash
 PROJECT_ID=your-gcp-project-id
 NEW_REGION=europe-west4  # region to add
+
+# Authenticate Docker for both registries
+gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+gcloud auth configure-docker $NEW_REGION-docker.pkg.dev --quiet
 
 # Get latest image tag (commit SHA from CI)
 TAG=$(gcloud artifacts docker tags list \
@@ -62,11 +64,33 @@ TAG=$(gcloud artifacts docker tags list \
   --sort-by=~UPDATE_TIME --limit=1 --format='value(tag)' | awk -F: '{print $NF}')
 echo "Using tag: $TAG"
 
-# Copy server-side between registries
-gcloud artifacts docker tags add \
+# Pull from primary region, tag for new region, push
+docker pull europe-west1-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG
+docker tag \
   europe-west1-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG \
   $NEW_REGION-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG
+docker push $NEW_REGION-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:$TAG
 ```
+
+#### If the image doesn't exist yet (first-time build)
+
+If CI hasn't deployed the scraper job image yet, build it locally first:
+
+```bash
+docker build --platform linux/amd64 \
+  -f soulstep-scraper-api/Dockerfile.job \
+  -t europe-west1-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:latest \
+  ./soulstep-scraper-api
+docker push europe-west1-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:latest
+
+# Then tag and push to the new region
+docker tag \
+  europe-west1-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:latest \
+  $NEW_REGION-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:latest
+docker push $NEW_REGION-docker.pkg.dev/$PROJECT_ID/soulstep/soulstep-scraper-api-job:latest
+```
+
+Set `TAG=latest` for step 3 below.
 
 > `TAG` is the git commit SHA used by CI (e.g. `83e6170...`). After initial setup,
 > CI handles this automatically via `EXTRA_JOB_REGIONS` (step 7).
