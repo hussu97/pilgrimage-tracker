@@ -100,14 +100,23 @@ jobs:
             --provenance=false \
             -t "$IMAGE" --push ./soulstep-catalog-api
 
+      - name: Install Trivy
+        run: |
+          sudo apt-get install -y wget apt-transport-https gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | \
+            gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | \
+            sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update && sudo apt-get install -y trivy
+
       - name: Scan soulstep-catalog-api image for vulnerabilities (Trivy)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:${{ env.HEAD_SHA }}"
-          format: "table"
-          exit-code: "1"
-          ignore-unfixed: true
-          severity: "CRITICAL,HIGH"
+        run: |
+          trivy image \
+            --format table \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --severity CRITICAL,HIGH \
+            "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:${{ env.HEAD_SHA }}"
 
       - name: Deploy soulstep-catalog-api to Cloud Run
         run: |
@@ -385,14 +394,23 @@ jobs:
 
           wait $PID1 $PID2
 
+      - name: Install Trivy
+        run: |
+          sudo apt-get install -y wget apt-transport-https gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | \
+            gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | \
+            sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update && sudo apt-get install -y trivy
+
       - name: Scan soulstep-scraper-api image for vulnerabilities (Trivy)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:${{ env.HEAD_SHA }}"
-          format: "table"
-          exit-code: "1"
-          ignore-unfixed: true
-          severity: "CRITICAL,HIGH"
+        run: |
+          trivy image \
+            --format table \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --severity CRITICAL,HIGH \
+            "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:${{ env.HEAD_SHA }}"
 
       - name: Deploy soulstep-scraper-api service to Cloud Run
         run: |
