@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
-from unittest.mock import AsyncMock, patch
+import unittest.mock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -1215,21 +1216,43 @@ class TestTargetClosedRecovery:
 class TestTimezoneFinderSingleton:
     """Verify _get_timezone_finder returns the same instance."""
 
-    def test_singleton_returns_same_instance(self):
-        from app.collectors.gmaps_browser import _get_timezone_finder
+    def setup_method(self):
+        # Reset the singleton so each test starts fresh
+        import app.collectors.gmaps_browser as mod
 
-        tf1 = _get_timezone_finder()
-        tf2 = _get_timezone_finder()
-        assert tf1 is tf2
+        mod._tf_instance = None
+
+    def test_singleton_returns_same_instance(self):
+        import app.collectors.gmaps_browser as mod
+
+        fake_tf = MagicMock()
+        fake_module = MagicMock()
+        fake_module.TimezoneFinder.return_value = fake_tf
+
+        with unittest.mock.patch.dict("sys.modules", {"timezonefinder": fake_module}):
+            mod._tf_instance = None
+            tf1 = mod._get_timezone_finder()
+            tf2 = mod._get_timezone_finder()
+            assert tf1 is tf2
+            # TimezoneFinder() should only be called once (singleton)
+            fake_module.TimezoneFinder.assert_called_once()
 
     def test_get_utc_offset_uses_singleton(self):
         """_get_utc_offset should not re-create TimezoneFinder each call."""
-        from app.collectors.gmaps_browser import _get_utc_offset
+        import app.collectors.gmaps_browser as mod
 
-        # Dubai coordinates — should return a valid offset
-        result = _get_utc_offset(25.2048, 55.2708)
-        assert result is not None
-        assert isinstance(result, int)
+        fake_tf = MagicMock()
+        fake_tf.timezone_at.return_value = "Asia/Dubai"
+        fake_module = MagicMock()
+        fake_module.TimezoneFinder.return_value = fake_tf
+
+        with unittest.mock.patch.dict("sys.modules", {"timezonefinder": fake_module}):
+            mod._tf_instance = None
+            result = mod._get_utc_offset(25.2048, 55.2708)
+            assert result is not None
+            assert isinstance(result, int)
+            # Dubai is UTC+4 = 240 minutes
+            assert result == 240
 
 
 # ── Circuit breaker half-open state ──────────────────────────────────────
