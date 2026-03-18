@@ -37,8 +37,8 @@ class Settings:
     # db-g1-small) have max_connections=25-50, shared with the catalog API.
     # Keep pool_size + max_overflow ≤ 7 to leave headroom for the catalog API.
     # Raise SCRAPER_POOL_SIZE / SCRAPER_MAX_OVERFLOW on larger Cloud SQL tiers.
-    scraper_pool_size: int = int(os.environ.get("SCRAPER_POOL_SIZE", "5"))
-    scraper_max_overflow: int = int(os.environ.get("SCRAPER_MAX_OVERFLOW", "2"))
+    scraper_pool_size: int = int(os.environ.get("SCRAPER_POOL_SIZE", "10"))
+    scraper_max_overflow: int = int(os.environ.get("SCRAPER_MAX_OVERFLOW", "5"))
     scraper_pool_timeout: int = int(os.environ.get("SCRAPER_POOL_TIMEOUT", "30"))
 
     # ── Runtime ───────────────────────────────────────────────────────────────
