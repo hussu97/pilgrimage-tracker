@@ -72,6 +72,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.HEAD_SHA }}
+          sparse-checkout: soulstep-catalog-api
+          sparse-checkout-cone-mode: true
 
       - name: Authenticate with GCP (keyless)
         uses: google-github-actions/auth@v2
@@ -85,14 +87,21 @@ jobs:
       - name: Configure Docker auth for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and push soulstep-catalog-api image
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:${{ env.HEAD_SHA }}"
-          docker build --platform linux/amd64 -t "$IMAGE" ./soulstep-catalog-api
-          docker push "$IMAGE"
+          CACHE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:cache"
+          docker buildx build --platform linux/amd64 \
+            --cache-from "type=registry,ref=$CACHE" \
+            --cache-to   "type=registry,ref=$CACHE,mode=max" \
+            --provenance=false \
+            -t "$IMAGE" --push ./soulstep-catalog-api
 
       - name: Scan soulstep-catalog-api image for vulnerabilities (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:${{ env.HEAD_SHA }}"
           format: "table"
@@ -126,6 +135,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.HEAD_SHA }}
+          sparse-checkout: apps/soulstep-customer-web
+          sparse-checkout-cone-mode: true
 
       - uses: actions/setup-node@v4
         with:
@@ -175,6 +186,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.HEAD_SHA }}
+          sparse-checkout: apps/soulstep-admin-web
+          sparse-checkout-cone-mode: true
 
       - uses: actions/setup-node@v4
         with:
@@ -225,6 +238,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.HEAD_SHA }}
+          sparse-checkout: soulstep-catalog-api
+          sparse-checkout-cone-mode: true
 
       - name: Authenticate with GCP (keyless)
         uses: google-github-actions/auth@v2
@@ -238,17 +253,31 @@ jobs:
       - name: Configure Docker auth for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
 
-      - name: Build and push sync-places image
-        run: |
-          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/sync-places:${{ env.HEAD_SHA }}"
-          docker build --platform linux/amd64 -f soulstep-catalog-api/Dockerfile.sync -t "$IMAGE" ./soulstep-catalog-api
-          docker push "$IMAGE"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build and push translate-content image
+      - name: Build and push sync-places and translate-content images (parallel)
         run: |
-          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/translate-content:${{ env.HEAD_SHA }}"
-          docker build --platform linux/amd64 -f soulstep-catalog-api/Dockerfile.translate -t "$IMAGE" ./soulstep-catalog-api
-          docker push "$IMAGE"
+          SYNC="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/sync-places:${{ env.HEAD_SHA }}"
+          SYNC_CACHE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/sync-places:cache"
+          TRANSLATE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/translate-content:${{ env.HEAD_SHA }}"
+          TRANSLATE_CACHE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/translate-content:cache"
+
+          docker buildx build --platform linux/amd64 \
+            --cache-from "type=registry,ref=$SYNC_CACHE" \
+            --cache-to   "type=registry,ref=$SYNC_CACHE,mode=max" \
+            --provenance=false \
+            -f soulstep-catalog-api/Dockerfile.sync -t "$SYNC" --push ./soulstep-catalog-api &
+          PID1=$!
+
+          docker buildx build --platform linux/amd64 \
+            --cache-from "type=registry,ref=$TRANSLATE_CACHE" \
+            --cache-to   "type=registry,ref=$TRANSLATE_CACHE,mode=max" \
+            --provenance=false \
+            -f soulstep-catalog-api/Dockerfile.translate -t "$TRANSLATE" --push ./soulstep-catalog-api &
+          PID2=$!
+
+          wait $PID1 $PID2
 
       - name: Update or create Cloud Run Jobs
         run: |
@@ -313,6 +342,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.HEAD_SHA }}
+          sparse-checkout: soulstep-scraper-api
+          sparse-checkout-cone-mode: true
 
       - name: Authenticate with GCP (keyless)
         uses: google-github-actions/auth@v2
@@ -326,20 +357,36 @@ jobs:
       - name: Configure Docker auth for Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
 
-      - name: Build and push soulstep-scraper-api image (lean — no Playwright)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push lean and Playwright images (parallel)
         run: |
           IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:${{ env.HEAD_SHA }}"
-          docker build --platform linux/amd64 -f soulstep-scraper-api/Dockerfile -t "$IMAGE" ./soulstep-scraper-api
-          docker push "$IMAGE"
-
-      - name: Build and push soulstep-scraper-api-job image (Playwright + Chromium)
-        run: |
+          IMAGE_CACHE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:cache"
           JOB_IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
-          docker build --platform linux/amd64 -f soulstep-scraper-api/Dockerfile.job -t "$JOB_IMAGE" ./soulstep-scraper-api
-          docker push "$JOB_IMAGE"
+          JOB_CACHE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:cache"
+
+          # Lean API image (no Playwright)
+          docker buildx build --platform linux/amd64 \
+            --cache-from "type=registry,ref=$IMAGE_CACHE" \
+            --cache-to   "type=registry,ref=$IMAGE_CACHE,mode=max" \
+            --provenance=false \
+            -f soulstep-scraper-api/Dockerfile -t "$IMAGE" --push ./soulstep-scraper-api &
+          PID1=$!
+
+          # Job image (Playwright + Chromium)
+          docker buildx build --platform linux/amd64 \
+            --cache-from "type=registry,ref=$JOB_CACHE" \
+            --cache-to   "type=registry,ref=$JOB_CACHE,mode=max" \
+            --provenance=false \
+            -f soulstep-scraper-api/Dockerfile.job -t "$JOB_IMAGE" --push ./soulstep-scraper-api &
+          PID2=$!
+
+          wait $PID1 $PID2
 
       - name: Scan soulstep-scraper-api image for vulnerabilities (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:${{ env.HEAD_SHA }}"
           format: "table"
