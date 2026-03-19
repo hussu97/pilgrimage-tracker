@@ -40,6 +40,13 @@ class ScraperRunResponse(BaseModel):
     error_message: str | None = None
     geo_box_label: str | None = None
     created_at: datetime
+    # Per-stage timing metrics (seconds)
+    discovery_duration_s: float | None = None
+    detail_fetch_duration_s: float | None = None
+    image_download_duration_s: float | None = None
+    enrichment_duration_s: float | None = None
+    sync_duration_s: float | None = None
+    avg_time_per_place_s: float | None = None
 
 
 class ScraperRunsCreateResponse(BaseModel):

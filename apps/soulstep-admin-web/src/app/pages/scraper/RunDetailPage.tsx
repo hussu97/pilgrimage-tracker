@@ -1046,6 +1046,91 @@ export function RunDetailPage() {
           </div>
         )}
 
+        {/* Stage timing metrics */}
+        {(() => {
+          const timings = [
+            { label: "Discovery", value: run.discovery_duration_s },
+            { label: "Detail Fetch", value: run.detail_fetch_duration_s },
+            { label: "Images", value: run.image_download_duration_s },
+            { label: "Enrichment", value: run.enrichment_duration_s },
+            { label: "Sync", value: run.sync_duration_s },
+          ];
+          const hasAny = timings.some((t) => t.value != null);
+          if (!hasAny) return null;
+          const totalS = timings.reduce((s, t) => s + (t.value ?? 0), 0);
+          const fmt = (v: number) =>
+            v >= 3600
+              ? `${(v / 3600).toFixed(1)}h`
+              : v >= 60
+                ? `${(v / 60).toFixed(1)}m`
+                : `${v.toFixed(1)}s`;
+          return (
+            <div className="rounded-lg border border-input-border dark:border-dark-border bg-background-light dark:bg-dark-bg px-4 py-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary">
+                  Stage Timings
+                </p>
+                <div className="flex items-center gap-3 text-xs text-text-secondary dark:text-dark-text-secondary">
+                  {run.avg_time_per_place_s != null && (
+                    <span>avg {run.avg_time_per_place_s.toFixed(2)}s/place</span>
+                  )}
+                  <span className="font-medium text-text-main dark:text-white">
+                    Total: {fmt(totalS)}
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-1 h-2 rounded-full overflow-hidden bg-white dark:bg-dark-surface">
+                {timings.map((t) =>
+                  t.value != null && t.value > 0 ? (
+                    <div
+                      key={t.label}
+                      className={[
+                        "h-full transition-all duration-500",
+                        t.label === "Discovery"
+                          ? "bg-blue-400"
+                          : t.label === "Detail Fetch"
+                            ? "bg-emerald-400"
+                            : t.label === "Images"
+                              ? "bg-amber-400"
+                              : t.label === "Enrichment"
+                                ? "bg-purple-400"
+                                : "bg-sky-400",
+                      ].join(" ")}
+                      style={{
+                        width: totalS > 0 ? `${(t.value / totalS) * 100}%` : "0%",
+                      }}
+                      title={`${t.label}: ${fmt(t.value)}`}
+                    />
+                  ) : null,
+                )}
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                {timings.map((t) =>
+                  t.value != null ? (
+                    <span key={t.label} className="text-xs text-text-secondary dark:text-dark-text-secondary flex items-center gap-1">
+                      <span
+                        className={[
+                          "inline-block w-2 h-2 rounded-full",
+                          t.label === "Discovery"
+                            ? "bg-blue-400"
+                            : t.label === "Detail Fetch"
+                              ? "bg-emerald-400"
+                              : t.label === "Images"
+                                ? "bg-amber-400"
+                                : t.label === "Enrichment"
+                                  ? "bg-purple-400"
+                                  : "bg-sky-400",
+                        ].join(" ")}
+                      />
+                      {t.label}: <span className="font-mono font-medium text-text-main dark:text-white">{fmt(t.value)}</span>
+                    </span>
+                  ) : null,
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Live activity panel — while running, syncing, or whenever there is data to show */}
         {(isActive || isSyncing || (activity && (activity.places_synced > 0 || activity.images_downloaded > 0))) && activity && (
           <LiveActivityPanel run={run} activity={activity} />

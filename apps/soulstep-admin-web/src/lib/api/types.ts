@@ -215,6 +215,13 @@ export interface ScraperRun {
   places_sync_failed: number;
   geo_box_label: string | null;
   created_at: string;
+  // Per-stage timing metrics (seconds)
+  discovery_duration_s: number | null;
+  detail_fetch_duration_s: number | null;
+  image_download_duration_s: number | null;
+  enrichment_duration_s: number | null;
+  sync_duration_s: number | null;
+  avg_time_per_place_s: number | null;
 }
 
 export interface ScraperStats {
