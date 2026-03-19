@@ -315,6 +315,8 @@ async def async_request_with_backoff(
     retries = 0
     max_retries = 5
 
+    _retryable = (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.ConnectError)
+
     async def _do_request(c: httpx.AsyncClient) -> httpx.Response | None:
         nonlocal wait_time, retries
         while retries < max_retries:
@@ -327,13 +329,33 @@ async def async_request_with_backoff(
                     retries += 1
                     continue
                 return response
+            except _retryable as e:
+                retries += 1
+                if retries >= max_retries:
+                    logger.warning(
+                        "Async request failed after %d retries for %s: %s: %s",
+                        max_retries,
+                        url,
+                        type(e).__name__,
+                        e,
+                    )
+                    return None
+                logger.warning(
+                    "Async request %s for %s (retry %d/%d in %ss)",
+                    type(e).__name__,
+                    url,
+                    retries,
+                    max_retries,
+                    wait_time,
+                )
+                await asyncio.sleep(wait_time)
+                wait_time *= 2
             except Exception as e:
-                logger.error(
+                logger.warning(
                     "Async request error for %s: %s: %s",
                     url,
                     type(e).__name__,
                     e,
-                    exc_info=True,
                 )
                 return None
         return None
