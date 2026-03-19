@@ -13,6 +13,7 @@ Parallelism:
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 from sqlmodel import Session, select
 
@@ -31,6 +32,25 @@ from app.pipeline.place_quality import (
 )
 
 logger = get_logger(__name__)
+
+
+def _safe_float(val: Any) -> float | None:
+    if val is None:
+        return None
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_int(val: Any) -> int | None:
+    if val is None:
+        return None
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return None
+
 
 # Collectors that belong to each dependency phase (identified by name)
 _PHASE0_NAMES = frozenset({"osm"})
@@ -282,7 +302,7 @@ async def _enrich_place(
 
     accumulated: dict = {
         "tags": {},
-        "google_place_id": place.google_place_id or raw_data.get("google_place_id"),
+        "google_place_id": place.google_place_id,
     }
 
     results: dict[str, CollectorResult] = {}
@@ -354,6 +374,17 @@ async def _enrich_place(
     place.description_source = merged.get("_description_source")
     place.description_score = merged.get("_description_score")
     place.enrichment_status = "complete"
+
+    # Sync promoted columns from the merged data so they reflect enrichment
+    place.lat = _safe_float(merged.get("lat")) or place.lat
+    place.lng = _safe_float(merged.get("lng")) or place.lng
+    place.rating = _safe_float(merged.get("rating"))
+    place.user_rating_count = _safe_int(merged.get("user_rating_count"))
+    place.google_place_id = merged.get("google_place_id") or place.google_place_id
+    place.address = merged.get("address") or place.address
+    place.religion = merged.get("religion") or place.religion
+    place.place_type = merged.get("place_type") or place.place_type
+    place.business_status = merged.get("business_status") or place.business_status
 
     session.add(place)
     session.commit()

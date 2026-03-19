@@ -7,7 +7,9 @@ Usage:
     python scripts/backfill_place_columns.py          # dry-run (count only)
     python scripts/backfill_place_columns.py --apply   # actually write
 
-Safe to re-run — skips rows where lat is already populated.
+Safe to re-run — skips rows where address is already populated (the
+"processed" marker).  Rows with lat/lng = 0.0 in raw_data keep that value
+so they are not mistaken for un-processed rows on subsequent runs.
 """
 
 from __future__ import annotations
@@ -28,12 +30,12 @@ BATCH_SIZE = 500
 
 
 def _extract_float(raw: dict, key: str) -> float | None:
+    """Extract a float from raw_data.  Preserves 0.0 as a valid value."""
     val = raw.get(key)
     if val is None:
         return None
     try:
-        f = float(val)
-        return f if f != 0.0 else None
+        return float(val)
     except (TypeError, ValueError):
         return None
 
@@ -50,8 +52,11 @@ def _extract_int(raw: dict, key: str) -> int | None:
 
 def backfill(*, apply: bool) -> None:
     with Session(engine) as session:
-        # Only backfill rows where lat is still NULL (not yet populated)
-        q = select(ScrapedPlace).where(ScrapedPlace.lat.is_(None))  # type: ignore[union-attr]
+        # Use address as the "already processed" marker — every raw_data dict
+        # has an address string, so once backfilled it will be non-NULL.
+        # Previous versions used lat IS NULL which caused an infinite loop
+        # for rows with lat=0.0 in raw_data.
+        q = select(ScrapedPlace).where(ScrapedPlace.address.is_(None))  # type: ignore[union-attr]
         places = session.exec(q).all()
 
         total = len(places)
@@ -60,11 +65,9 @@ def backfill(*, apply: bool) -> None:
 
         for place in places:
             raw = place.raw_data or {}
-            lat = _extract_float(raw, "lat")
-            lng = _extract_float(raw, "lng")
 
-            place.lat = lat
-            place.lng = lng
+            place.lat = _extract_float(raw, "lat")
+            place.lng = _extract_float(raw, "lng")
             place.rating = _extract_float(raw, "rating")
             place.user_rating_count = _extract_int(raw, "user_rating_count")
             place.google_place_id = raw.get("google_place_id")

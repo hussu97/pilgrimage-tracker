@@ -409,28 +409,33 @@ def _sanitize_reviews(reviews: list[dict]) -> list[dict]:
 
 
 def build_sync_payloads(places: list[ScrapedPlace]) -> list[dict]:
-    """Sanitize and build a payload dict for each place."""
+    """Sanitize and build a payload dict for each place.
+
+    Uses promoted columns (lat, lng, religion, place_type, address) directly
+    instead of parsing the raw_data JSON blob.  Falls back to raw_data only
+    for fields that have NOT been promoted (opening_hours, image_urls, etc.).
+    """
     payloads = []
     for p in places:
-        data = p.raw_data
+        data = p.raw_data or {}
         payloads.append(
             {
                 "place_code": p.place_code,
-                "name": data.get("name"),
-                "religion": _sanitize_religion(data.get("religion")),
-                "place_type": data.get("place_type"),
-                "lat": data.get("lat"),
-                "lng": data.get("lng"),
-                "address": data.get("address"),
+                "name": p.name,
+                "religion": _sanitize_religion(p.religion),
+                "place_type": p.place_type,
+                "lat": p.lat,
+                "lng": p.lng,
+                "address": p.address,
                 "opening_hours": data.get("opening_hours"),
                 "utc_offset_minutes": data.get("utc_offset_minutes"),
                 "image_urls": data.get("image_urls") or [],
                 "description": data.get("description"),
                 "website_url": data.get("website_url"),
                 "source": data.get("source"),
-                "city": data.get("city"),
-                "state": data.get("state"),
-                "country": data.get("country"),
+                "city": p.city,
+                "state": p.state,
+                "country": p.country,
                 "attributes": _sanitize_attributes(data.get("attributes") or []),
                 "external_reviews": _sanitize_reviews(data.get("external_reviews") or []),
                 "translations": data.get("translations") or None,
