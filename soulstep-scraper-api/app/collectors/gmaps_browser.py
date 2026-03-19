@@ -436,10 +436,12 @@ class BrowserGmapsCollector(BaseCollector):
             except Exception as e:
                 last_exc = e
                 is_timeout = "Timeout" in type(e).__name__ or "timeout" in str(e).lower()
+                is_dead_browser = "connection closed" in str(e).lower()
                 recycle = True
-                if attempt < _MAX_NAV_RETRIES - 1 and is_timeout:
+                if attempt < _MAX_NAV_RETRIES - 1 and (is_timeout or is_dead_browser):
                     logger.warning(
-                        "Browser navigation timeout for %s (attempt %d/%d) — retrying",
+                        "Browser %s for %s (attempt %d/%d) — retrying",
+                        "died" if is_dead_browser else "timeout",
                         place_id,
                         attempt + 1,
                         _MAX_NAV_RETRIES,
