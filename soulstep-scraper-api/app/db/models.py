@@ -76,6 +76,16 @@ class ScrapedPlace(SQLModel, table=True):
     city: str | None = Field(default=None, index=True)
     state: str | None = Field(default=None, index=True)
     country: str | None = Field(default=None, index=True)
+    # ── Promoted from raw_data for query-level access ────────────────────────
+    lat: float | None = Field(default=None)
+    lng: float | None = Field(default=None)
+    rating: float | None = Field(default=None)
+    user_rating_count: int | None = Field(default=None)
+    google_place_id: str | None = Field(default=None, index=True)
+    address: str | None = Field(default=None)
+    religion: str | None = Field(default=None, index=True)
+    place_type: str | None = Field(default=None, index=True)
+    business_status: str | None = Field(default=None)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

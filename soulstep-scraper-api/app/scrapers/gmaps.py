@@ -37,6 +37,25 @@ from app.services.query_log import log_query
 
 logger = get_logger(__name__)
 
+
+def _safe_float(val: Any) -> float | None:
+    if val is None:
+        return None
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
+def _safe_int(val: Any) -> int | None:
+    if val is None:
+        return None
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return None
+
+
 # Configuration (kept as module-level aliases for code that reads them directly)
 MIN_RADIUS = MIN_DISCOVERY_RADIUS_M
 MAX_RADIUS = MAX_DISCOVERY_RADIUS_M
@@ -578,6 +597,15 @@ def _flush_detail_buffer(
             city=details.get("city"),
             state=details.get("state"),
             country=details.get("country"),
+            lat=_safe_float(details.get("lat")),
+            lng=_safe_float(details.get("lng")),
+            rating=_safe_float(details.get("rating")),
+            user_rating_count=_safe_int(details.get("user_rating_count")),
+            google_place_id=details.get("google_place_id"),
+            address=details.get("address"),
+            religion=details.get("religion"),
+            place_type=details.get("place_type"),
+            business_status=details.get("business_status"),
         )
 
         # Handle browser-captured image bytes: upload directly to GCS
@@ -823,11 +851,21 @@ async def fetch_place_details(
         place_code = name_to_code[place_name]
         if place_code in cached_places and not force_refresh:
             cached_place = cached_places[place_code]
+            raw = cached_place.raw_data or {}
             scraped_place = ScrapedPlace(
                 run_code=run_code,
                 place_code=cached_place.place_code,
                 name=cached_place.name,
-                raw_data=cached_place.raw_data,
+                raw_data=raw,
+                lat=_safe_float(raw.get("lat")),
+                lng=_safe_float(raw.get("lng")),
+                rating=_safe_float(raw.get("rating")),
+                user_rating_count=_safe_int(raw.get("user_rating_count")),
+                google_place_id=raw.get("google_place_id"),
+                address=raw.get("address"),
+                religion=raw.get("religion"),
+                place_type=raw.get("place_type"),
+                business_status=raw.get("business_status"),
             )
             session.add(scraped_place)
             cached_count += 1

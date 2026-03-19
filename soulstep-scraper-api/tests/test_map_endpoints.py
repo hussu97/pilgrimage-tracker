@@ -64,6 +64,8 @@ def _make_place(
         place_code=f"plc_{run_code}_{lat}_{lng}",
         name="Test Mosque",
         raw_data={"lat": str(lat), "lng": str(lng)},
+        lat=lat if lat != 0.0 or lng != 0.0 else None,
+        lng=lng if lat != 0.0 or lng != 0.0 else None,
         enrichment_status="complete",
         quality_score=0.8,
         quality_gate=None,
@@ -141,12 +143,14 @@ def test_map_places_excludes_zero_coords(client, db_session):
     _make_run(db_session)
     # Place with valid coords
     _make_place(db_session, lat=24.0, lng=46.0)
-    # Place with zero lat/lng — should be excluded
+    # Place with no lat/lng — should be excluded
     zero_place = ScrapedPlace(
         run_code="run_aaa",
         place_code="plc_zero",
         name="Zero Coords",
         raw_data={"lat": 0, "lng": 0},
+        lat=None,
+        lng=None,
         enrichment_status="pending",
     )
     db_session.add(zero_place)

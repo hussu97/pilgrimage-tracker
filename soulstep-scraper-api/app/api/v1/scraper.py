@@ -527,32 +527,39 @@ def get_run_cells(
 # ===== Map Endpoints =====
 
 
-def _extract_lat_lng(raw_data: dict) -> tuple[float, float] | None:
-    try:
-        lat = float(raw_data.get("lat") or 0)
-        lng = float(raw_data.get("lng") or 0)
-        return (lat, lng) if lat != 0.0 or lng != 0.0 else None
-    except (TypeError, ValueError):
-        return None
-
-
 @router.get("/map/cells", response_model=list[MapCellItem])
-def get_map_cells(session: SessionDep, run_code: str | None = Query(None)):
-    """Return all leaf (non-saturated) discovery cells, optionally filtered by run."""
-    q = select(DiscoveryCell).where(DiscoveryCell.saturated == False)  # noqa: E712
+def get_map_cells(
+    session: SessionDep,
+    run_code: str | None = Query(None),
+    limit: int = Query(20000, ge=1, le=50000),
+):
+    """Return leaf (non-saturated) discovery cells, optionally filtered by run."""
+    q = (
+        select(
+            DiscoveryCell.lat_min,
+            DiscoveryCell.lat_max,
+            DiscoveryCell.lng_min,
+            DiscoveryCell.lng_max,
+            DiscoveryCell.depth,
+            DiscoveryCell.result_count,
+            DiscoveryCell.run_code,
+        ).where(DiscoveryCell.saturated == False)  # noqa: E712
+    )
     if run_code:
         q = q.where(DiscoveryCell.run_code == run_code)
+    q = q.limit(limit)
+    rows = session.exec(q).all()
     return [
         MapCellItem(
-            lat_min=c.lat_min,
-            lat_max=c.lat_max,
-            lng_min=c.lng_min,
-            lng_max=c.lng_max,
-            depth=c.depth,
-            result_count=c.result_count,
-            run_code=c.run_code,
+            lat_min=r.lat_min,
+            lat_max=r.lat_max,
+            lng_min=r.lng_min,
+            lng_max=r.lng_max,
+            depth=r.depth,
+            result_count=r.result_count,
+            run_code=r.run_code,
         )
-        for c in session.exec(q).all()
+        for r in rows
     ]
 
 
@@ -562,29 +569,39 @@ def get_map_places(
     run_code: str | None = Query(None),
     limit: int = Query(5000, ge=1, le=10000),
 ):
-    """Return scraped places with valid lat/lng, optionally filtered by run."""
-    q = select(ScrapedPlace)
+    """Return scraped places with valid lat/lng, optionally filtered by run.
+
+    Uses promoted lat/lng columns — avoids loading the heavy raw_data JSON blob.
+    """
+    q = select(
+        ScrapedPlace.place_code,
+        ScrapedPlace.name,
+        ScrapedPlace.lat,
+        ScrapedPlace.lng,
+        ScrapedPlace.enrichment_status,
+        ScrapedPlace.quality_gate,
+        ScrapedPlace.quality_score,
+        ScrapedPlace.run_code,
+    ).where(
+        ScrapedPlace.lat.is_not(None),  # type: ignore[union-attr]
+        ScrapedPlace.lng.is_not(None),  # type: ignore[union-attr]
+    )
     if run_code:
         q = q.where(ScrapedPlace.run_code == run_code)
     q = q.limit(limit)
-    out = []
-    for p in session.exec(q).all():
-        coords = _extract_lat_lng(p.raw_data or {})
-        if coords:
-            lat, lng = coords
-            out.append(
-                MapPlaceItem(
-                    place_code=p.place_code,
-                    name=p.name,
-                    lat=lat,
-                    lng=lng,
-                    enrichment_status=p.enrichment_status,
-                    quality_gate=p.quality_gate,
-                    quality_score=p.quality_score,
-                    run_code=p.run_code,
-                )
-            )
-    return out
+    return [
+        MapPlaceItem(
+            place_code=r.place_code,
+            name=r.name,
+            lat=r.lat,
+            lng=r.lng,
+            enrichment_status=r.enrichment_status,
+            quality_gate=r.quality_gate,
+            quality_score=r.quality_score,
+            run_code=r.run_code,
+        )
+        for r in session.exec(q).all()
+    ]
 
 
 # ===== Collectors =====

@@ -277,12 +277,12 @@ async def _enrich_place(
     session.add(place)
     session.commit()
 
-    lat = raw_data.get("lat", 0)
-    lng = raw_data.get("lng", 0)
+    lat = place.lat or raw_data.get("lat", 0)
+    lng = place.lng or raw_data.get("lng", 0)
 
     accumulated: dict = {
         "tags": {},
-        "google_place_id": raw_data.get("google_place_id"),
+        "google_place_id": place.google_place_id or raw_data.get("google_place_id"),
     }
 
     results: dict[str, CollectorResult] = {}
