@@ -1351,60 +1351,78 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
         session.add(run)
         session.commit()
 
-    # Detail fetch phase — uses BrowserGmapsCollector instead of GmapsCollector
+    # Close the discovery session — it may have a stale DB connection after hours
+    # of discovery. Each subsequent stage opens a fresh session.
+    session.close()
+    logger.info("Closed discovery session — opening fresh sessions for subsequent stages")
+
+    # Reset browser pool between discovery and detail fetch to free memory
+    # (Chromium contexts accumulate ~50MB each over hours of navigation).
+    # The pool auto-reinitializes on the first acquire() in detail fetch.
+    from app.services.browser_pool import shutdown_maps_pool
+
+    await shutdown_maps_pool()
+    logger.info("Browser pool reset between discovery and detail fetch")
+
+    # Detail fetch phase — fresh session + BrowserGmapsCollector
     t_detail = time.monotonic()
     logger.info("Fetching details for %d places (browser mode)...", len(all_resource_names))
-    await fetch_place_details(
-        all_resource_names,
-        run_code,
-        session,
-        BrowserGmapsCollector(),
-        "",  # No API key needed
-        type_map,
-        religion_type_map,
-        force_refresh,
-        stale_threshold_days,
-    )
-    detail_elapsed = time.monotonic() - t_detail
-    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
-    if run:
-        run.detail_fetch_duration_s = round(detail_elapsed, 2)
-        session.add(run)
-        session.commit()
+    with Session(_engine) as detail_session:
+        await fetch_place_details(
+            all_resource_names,
+            run_code,
+            detail_session,
+            BrowserGmapsCollector(),
+            "",  # No API key needed
+            type_map,
+            religion_type_map,
+            force_refresh,
+            stale_threshold_days,
+        )
+        detail_elapsed = time.monotonic() - t_detail
+        run = detail_session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+        if run:
+            run.detail_fetch_duration_s = round(detail_elapsed, 2)
+            detail_session.add(run)
+            detail_session.commit()
     logger.info(
         "Detail fetch completed in %.1fs",
         detail_elapsed,
         extra={"run_code": run_code, "detail_fetch_duration_s": round(detail_elapsed, 2)},
     )
 
-    # Image download phase (unchanged — downloads from URLs extracted by browser)
-    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
-    if run:
-        total_rev = run.review_images_downloaded + run.review_images_failed
-        if total_rev:
-            logger.info(
-                "Review image upload complete: %d/%d uploaded to GCS for run %s (%d failed)",
-                run.review_images_downloaded,
-                total_rev,
-                run_code,
-                run.review_images_failed,
-            )
-        else:
-            logger.info("Review image upload: no review images captured for run %s", run_code)
+    # Image download phase — fresh session (unchanged — downloads from URLs extracted by browser)
+    with Session(_engine) as img_session:
+        run = img_session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+        if run:
+            total_rev = run.review_images_downloaded + run.review_images_failed
+            if total_rev:
+                logger.info(
+                    "Review image upload complete: %d/%d uploaded to GCS for run %s (%d failed)",
+                    run.review_images_downloaded,
+                    total_rev,
+                    run_code,
+                    run.review_images_failed,
+                )
+            else:
+                logger.info("Review image upload: no review images captured for run %s", run_code)
 
-        logger.info("Downloading images for run %s...", run_code)
-        run.stage = "image_download"
-        session.add(run)
-        session.commit()
+            logger.info("Downloading images for run %s...", run_code)
+            run.stage = "image_download"
+            img_session.add(run)
+            img_session.commit()
 
     t_img = time.monotonic()
     await download_place_images(run_code, _engine)
     img_elapsed = time.monotonic() - t_img
-    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
-    if run:
-        run.image_download_duration_s = round(img_elapsed, 2)
-        session.add(run)
-        session.commit()
+    with Session(_engine) as img_done_session:
+        run = img_done_session.exec(
+            select(ScraperRun).where(ScraperRun.run_code == run_code)
+        ).first()
+        if run:
+            run.image_download_duration_s = round(img_elapsed, 2)
+            img_done_session.add(run)
+            img_done_session.commit()
     logger.info(
         "Image download completed in %.1fs",
         img_elapsed,

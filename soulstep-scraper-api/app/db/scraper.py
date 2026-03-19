@@ -104,58 +104,112 @@ async def run_scraper_task(run_code: str):
                 extra={"run_code": run_code, "gmaps_duration_s": round(gmaps_elapsed, 2)},
             )
 
-            # Phase 4: Enrichment pipeline
+        except Exception as e:
+            logger.error("Run %s failed during gmaps pipeline: %s", run_code, e, exc_info=True)
+            try:
+                session.rollback()
+            except Exception:
+                pass
+            # Persist failure with a fresh session (original may be broken)
+            with Session(engine) as err_session:
+                try:
+                    err_run = err_session.exec(
+                        select(ScraperRun).where(ScraperRun.run_code == run_code)
+                    ).first()
+                    if err_run:
+                        err_run.status = "failed"
+                        err_run.error_message = str(e)[:500]
+                        err_session.add(err_run)
+                        err_session.commit()
+                except Exception as save_err:
+                    logger.error(
+                        "Could not persist failed status for run %s: %s", run_code, save_err
+                    )
+            return
+
+        # Close the gmaps session — it may be stale after hours of scraping.
+        # All subsequent stages use fresh sessions.
+        session.close()
+        logger.info("Closed gmaps session — using fresh sessions for enrichment/sync")
+
+        try:
+            # Phase 4: Enrichment pipeline (fresh session)
             from app.pipeline.enrichment import run_enrichment_pipeline
 
-            session.refresh(run)
-            run.stage = "enrichment"
-            session.add(run)
-            session.commit()
+            with Session(engine) as enrich_session:
+                run = enrich_session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if run:
+                    run.stage = "enrichment"
+                    enrich_session.add(run)
+                    enrich_session.commit()
 
             t_enrich = time.monotonic()
             await run_enrichment_pipeline(run_code)
-            session.refresh(run)
-            _persist_stage_duration(
-                session, run, "enrichment_duration_s", time.monotonic() - t_enrich
-            )
+
+            with Session(engine) as enrich_done_session:
+                run = enrich_done_session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if run:
+                    _persist_stage_duration(
+                        enrich_done_session,
+                        run,
+                        "enrichment_duration_s",
+                        time.monotonic() - t_enrich,
+                    )
 
             # Auto-sync: push to catalog immediately after enrichment if enabled
             from app.config import settings as _settings
 
-            session.refresh(run)
-            if _settings.auto_sync_after_run and run.status != "cancelled":
-                logger.info(
-                    "Auto-sync enabled — syncing run %s to %s",
-                    run_code,
-                    _settings.main_server_url,
-                    extra={"run_code": run_code},
-                )
-                t_sync = time.monotonic()
-                await sync_run_to_server_async(run_code, _settings.main_server_url)
-                session.refresh(run)
-                _persist_stage_duration(session, run, "sync_duration_s", time.monotonic() - t_sync)
+            with Session(engine) as sync_session:
+                run = sync_session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if run and _settings.auto_sync_after_run and run.status != "cancelled":
+                    logger.info(
+                        "Auto-sync enabled — syncing run %s to %s",
+                        run_code,
+                        _settings.main_server_url,
+                        extra={"run_code": run_code},
+                    )
+                    t_sync = time.monotonic()
+                    await sync_run_to_server_async(run_code, _settings.main_server_url)
+                    sync_session.refresh(run)
+                    _persist_stage_duration(
+                        sync_session, run, "sync_duration_s", time.monotonic() - t_sync
+                    )
 
             # Final check to ensure we don't overwrite "cancelled" with "completed"
-            session.refresh(run)
-            if run.status != "cancelled":
-                _persist_avg_time(session, run)
-                run.status = "completed"
-                run.stage = None
-                session.add(run)
-                session.commit()
-                logger.info("Run %s completed", run_code, extra={"run_code": run_code})
+            with Session(engine) as final_session:
+                run = final_session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if run and run.status != "cancelled":
+                    _persist_avg_time(final_session, run)
+                    run.status = "completed"
+                    run.stage = None
+                    final_session.add(run)
+                    final_session.commit()
+                    logger.info("Run %s completed", run_code, extra={"run_code": run_code})
 
         except Exception as e:
             logger.error("Run %s failed: %s", run_code, e, exc_info=True)
-            try:
-                session.rollback()
-                session.refresh(run)
-                run.status = "failed"
-                run.error_message = str(e)[:500]
-                session.add(run)
-                session.commit()
-            except Exception as save_err:
-                logger.error("Could not persist failed status for run %s: %s", run_code, save_err)
+            with Session(engine) as err_session:
+                try:
+                    err_run = err_session.exec(
+                        select(ScraperRun).where(ScraperRun.run_code == run_code)
+                    ).first()
+                    if err_run:
+                        err_run.status = "failed"
+                        err_run.error_message = str(e)[:500]
+                        err_session.add(err_run)
+                        err_session.commit()
+                except Exception as save_err:
+                    logger.error(
+                        "Could not persist failed status for run %s: %s", run_code, save_err
+                    )
 
 
 async def resume_scraper_task(run_code: str):
@@ -166,6 +220,8 @@ async def resume_scraper_task(run_code: str):
       - None or "discovery" → re-run full pipeline (discovery was incomplete)
       - "detail_fetch" → use persisted discovered_resource_names, skip to detail fetch
       - "enrichment" → skip straight to enrichment (which skips already-enriched places)
+
+    Each stage uses a fresh DB session to avoid stale-connection issues in long runs.
     """
     with Session(engine) as session:
         run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
@@ -174,13 +230,14 @@ async def resume_scraper_task(run_code: str):
             return
 
         resume_from = run.stage
+        location_code = run.location_code
         run.status = "running"
         run.error_message = None
         session.add(run)
         session.commit()
 
         location = session.exec(
-            select(DataLocation).where(DataLocation.code == run.location_code)
+            select(DataLocation).where(DataLocation.code == location_code)
         ).first()
         if not location:
             run.status = "failed"
@@ -189,75 +246,92 @@ async def resume_scraper_task(run_code: str):
             session.commit()
             return
 
-        logger.info("Resuming run %s from stage: %s", run_code, resume_from or "beginning")
+        location_config = dict(location.config)  # snapshot for use after session closes
 
-        try:
-            if resume_from in (None, "discovery"):
-                # Discovery was incomplete — re-run full pipeline
+    logger.info("Resuming run %s from stage: %s", run_code, resume_from or "beginning")
+
+    try:
+        if resume_from in (None, "discovery"):
+            # Discovery was incomplete — re-run full pipeline
+            with Session(engine) as gmaps_session:
                 t_gmaps = time.monotonic()
-                await run_gmaps_scraper(run_code, location.config, session)
+                await run_gmaps_scraper(run_code, location_config, gmaps_session)
                 logger.info(
                     "GMaps pipeline completed in %.1fs",
                     time.monotonic() - t_gmaps,
                     extra={"run_code": run_code},
                 )
 
-                from app.pipeline.enrichment import run_enrichment_pipeline
+            from app.pipeline.enrichment import run_enrichment_pipeline
 
-                session.refresh(run)
-                run.stage = "enrichment"
-                session.add(run)
-                session.commit()
+            with Session(engine) as enrich_session:
+                run = enrich_session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if run:
+                    run.stage = "enrichment"
+                    enrich_session.add(run)
+                    enrich_session.commit()
 
-                t_enrich = time.monotonic()
-                await run_enrichment_pipeline(run_code)
-                session.refresh(run)
-                _persist_stage_duration(
-                    session, run, "enrichment_duration_s", time.monotonic() - t_enrich
-                )
+            t_enrich = time.monotonic()
+            await run_enrichment_pipeline(run_code)
+            with Session(engine) as ed_session:
+                run = ed_session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if run:
+                    _persist_stage_duration(
+                        ed_session, run, "enrichment_duration_s", time.monotonic() - t_enrich
+                    )
 
-            elif resume_from == "detail_fetch":
-                # Discovery completed — derive resource names from DiscoveryCell records
-                # (the JSON column is no longer written at 100K-place scale)
-                from app.collectors.gmaps import GmapsCollector, download_place_images
-                from app.db.models import DiscoveryCell
-                from app.scrapers.gmaps import (
-                    fetch_place_details,
-                    load_place_type_maps,
-                )
+        elif resume_from == "detail_fetch":
+            # Discovery completed — derive resource names from DiscoveryCell records
+            from app.collectors.gmaps import GmapsCollector, download_place_images
+            from app.db.models import DiscoveryCell
+            from app.scrapers.gmaps import (
+                fetch_place_details,
+                load_place_type_maps,
+            )
 
-                cells = session.exec(
+            with Session(engine) as detail_session:
+                cells = detail_session.exec(
                     select(DiscoveryCell).where(DiscoveryCell.run_code == run_code)
                 ).all()
                 place_ids = list({name for cell in cells for name in cell.resource_names})
 
                 # Fallback: if no cells (very old run format), use JSON column
                 if not place_ids:
-                    place_ids = run.discovered_resource_names or []
+                    run = detail_session.exec(
+                        select(ScraperRun).where(ScraperRun.run_code == run_code)
+                    ).first()
+                    place_ids = (run.discovered_resource_names if run else None) or []
 
-                if not place_ids:
-                    logger.warning(
-                        "Resume: No discovered places found for run %s, re-running discovery",
-                        run_code,
-                    )
-                    await run_gmaps_scraper(run_code, location.config, session)
-                else:
-                    api_key = __import__("os").environ.get("GOOGLE_MAPS_API_KEY", "")
-                    if not api_key:
-                        raise ValueError("GOOGLE_MAPS_API_KEY environment variable not set")
+            if not place_ids:
+                logger.warning(
+                    "Resume: No discovered places found for run %s, re-running discovery",
+                    run_code,
+                )
+                with Session(engine) as gmaps_session:
+                    await run_gmaps_scraper(run_code, location_config, gmaps_session)
+            else:
+                api_key = __import__("os").environ.get("GOOGLE_MAPS_API_KEY", "")
+                if not api_key:
+                    raise ValueError("GOOGLE_MAPS_API_KEY environment variable not set")
 
-                    pt_maps = load_place_type_maps(session)
+                with Session(engine) as df_session:
+                    pt_maps = load_place_type_maps(df_session)
                     type_map = pt_maps.gmaps_type_to_our_type
                     religion_type_map = pt_maps.gmaps_type_to_religion
 
-                    force_refresh = location.config.get("force_refresh", False)
-                    stale_threshold_days = location.config.get("stale_threshold_days", 90)
+                force_refresh = location_config.get("force_refresh", False)
+                stale_threshold_days = location_config.get("stale_threshold_days", 90)
 
-                    t_detail = time.monotonic()
+                t_detail = time.monotonic()
+                with Session(engine) as df_session:
                     await fetch_place_details(
                         place_ids,
                         run_code,
-                        session,
+                        df_session,
                         GmapsCollector(),
                         api_key,
                         type_map,
@@ -265,77 +339,122 @@ async def resume_scraper_task(run_code: str):
                         force_refresh,
                         stale_threshold_days,
                     )
-                    session.refresh(run)
-                    _persist_stage_duration(
-                        session, run, "detail_fetch_duration_s", time.monotonic() - t_detail
-                    )
+                    run = df_session.exec(
+                        select(ScraperRun).where(ScraperRun.run_code == run_code)
+                    ).first()
+                    if run:
+                        _persist_stage_duration(
+                            df_session, run, "detail_fetch_duration_s", time.monotonic() - t_detail
+                        )
 
-                    run.stage = "image_download"
-                    session.add(run)
-                    session.commit()
-
-                    t_img = time.monotonic()
-                    await download_place_images(run_code, engine)
-                    session.refresh(run)
-                    _persist_stage_duration(
-                        session, run, "image_download_duration_s", time.monotonic() - t_img
-                    )
-
-                from app.pipeline.enrichment import run_enrichment_pipeline
-
-                session.refresh(run)
-                run.stage = "enrichment"
-                session.add(run)
-                session.commit()
-
-                t_enrich = time.monotonic()
-                await run_enrichment_pipeline(run_code)
-                session.refresh(run)
-                _persist_stage_duration(
-                    session, run, "enrichment_duration_s", time.monotonic() - t_enrich
-                )
-
-            elif resume_from == "image_download":
-                # Detail fetch completed but image download failed — re-run images then enrich
-                from app.collectors.gmaps import download_place_images
+                with Session(engine) as img_session:
+                    run = img_session.exec(
+                        select(ScraperRun).where(ScraperRun.run_code == run_code)
+                    ).first()
+                    if run:
+                        run.stage = "image_download"
+                        img_session.add(run)
+                        img_session.commit()
 
                 t_img = time.monotonic()
                 await download_place_images(run_code, engine)
-                session.refresh(run)
-                _persist_stage_duration(
-                    session, run, "image_download_duration_s", time.monotonic() - t_img
-                )
+                with Session(engine) as img_done_session:
+                    run = img_done_session.exec(
+                        select(ScraperRun).where(ScraperRun.run_code == run_code)
+                    ).first()
+                    if run:
+                        _persist_stage_duration(
+                            img_done_session,
+                            run,
+                            "image_download_duration_s",
+                            time.monotonic() - t_img,
+                        )
 
-                session.refresh(run)
-                run.stage = "enrichment"
-                session.add(run)
-                session.commit()
+            from app.pipeline.enrichment import run_enrichment_pipeline
 
-                from app.pipeline.enrichment import run_enrichment_pipeline
+            with Session(engine) as enrich_session:
+                run = enrich_session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if run:
+                    run.stage = "enrichment"
+                    enrich_session.add(run)
+                    enrich_session.commit()
 
-                t_enrich = time.monotonic()
-                await run_enrichment_pipeline(run_code)
-                session.refresh(run)
-                _persist_stage_duration(
-                    session, run, "enrichment_duration_s", time.monotonic() - t_enrich
-                )
+            t_enrich = time.monotonic()
+            await run_enrichment_pipeline(run_code)
+            with Session(engine) as ed_session:
+                run = ed_session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if run:
+                    _persist_stage_duration(
+                        ed_session, run, "enrichment_duration_s", time.monotonic() - t_enrich
+                    )
 
-            elif resume_from == "enrichment":
-                # Skip straight to enrichment (already-enriched places are skipped internally)
-                from app.pipeline.enrichment import run_enrichment_pipeline
+        elif resume_from == "image_download":
+            # Detail fetch completed but image download failed — re-run images then enrich
+            from app.collectors.gmaps import download_place_images
 
-                t_enrich = time.monotonic()
-                await run_enrichment_pipeline(run_code)
-                session.refresh(run)
-                _persist_stage_duration(
-                    session, run, "enrichment_duration_s", time.monotonic() - t_enrich
-                )
+            t_img = time.monotonic()
+            await download_place_images(run_code, engine)
+            with Session(engine) as img_done_session:
+                run = img_done_session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if run:
+                    _persist_stage_duration(
+                        img_done_session,
+                        run,
+                        "image_download_duration_s",
+                        time.monotonic() - t_img,
+                    )
 
-            # Auto-sync: push to catalog immediately after enrichment if enabled
-            from app.config import settings as _settings
+            with Session(engine) as enrich_session:
+                run = enrich_session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if run:
+                    run.stage = "enrichment"
+                    enrich_session.add(run)
+                    enrich_session.commit()
 
-            session.refresh(run)
-            if _settings.auto_sync_after_run and run.status != "cancelled":
+            from app.pipeline.enrichment import run_enrichment_pipeline
+
+            t_enrich = time.monotonic()
+            await run_enrichment_pipeline(run_code)
+            with Session(engine) as ed_session:
+                run = ed_session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if run:
+                    _persist_stage_duration(
+                        ed_session, run, "enrichment_duration_s", time.monotonic() - t_enrich
+                    )
+
+        elif resume_from == "enrichment":
+            # Skip straight to enrichment (already-enriched places are skipped internally)
+            from app.pipeline.enrichment import run_enrichment_pipeline
+
+            t_enrich = time.monotonic()
+            await run_enrichment_pipeline(run_code)
+            with Session(engine) as ed_session:
+                run = ed_session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if run:
+                    _persist_stage_duration(
+                        ed_session, run, "enrichment_duration_s", time.monotonic() - t_enrich
+                    )
+
+        # Auto-sync: push to catalog immediately after enrichment if enabled
+        from app.config import settings as _settings
+
+        with Session(engine) as sync_session:
+            run = sync_session.exec(
+                select(ScraperRun).where(ScraperRun.run_code == run_code)
+            ).first()
+            if run and _settings.auto_sync_after_run and run.status != "cancelled":
                 logger.info(
                     "Auto-sync enabled — syncing run %s to %s",
                     run_code,
@@ -344,27 +463,35 @@ async def resume_scraper_task(run_code: str):
                 )
                 t_sync = time.monotonic()
                 await sync_run_to_server_async(run_code, _settings.main_server_url)
-                session.refresh(run)
-                _persist_stage_duration(session, run, "sync_duration_s", time.monotonic() - t_sync)
+                sync_session.refresh(run)
+                _persist_stage_duration(
+                    sync_session, run, "sync_duration_s", time.monotonic() - t_sync
+                )
 
-            session.refresh(run)
-            if run.status != "cancelled":
-                _persist_avg_time(session, run)
+        with Session(engine) as final_session:
+            run = final_session.exec(
+                select(ScraperRun).where(ScraperRun.run_code == run_code)
+            ).first()
+            if run and run.status != "cancelled":
+                _persist_avg_time(final_session, run)
                 run.status = "completed"
                 run.stage = None
-                session.add(run)
-                session.commit()
+                final_session.add(run)
+                final_session.commit()
                 logger.info("Run %s resumed and completed", run_code, extra={"run_code": run_code})
 
-        except Exception as e:
-            logger.error("Resume of run %s failed: %s", run_code, e, exc_info=True)
+    except Exception as e:
+        logger.error("Resume of run %s failed: %s", run_code, e, exc_info=True)
+        with Session(engine) as err_session:
             try:
-                session.rollback()
-                session.refresh(run)
-                run.status = "failed"
-                run.error_message = str(e)[:500]
-                session.add(run)
-                session.commit()
+                err_run = err_session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if err_run:
+                    err_run.status = "failed"
+                    err_run.error_message = str(e)[:500]
+                    err_session.add(err_run)
+                    err_session.commit()
             except Exception as save_err:
                 logger.error("Could not persist failed status for run %s: %s", run_code, save_err)
 

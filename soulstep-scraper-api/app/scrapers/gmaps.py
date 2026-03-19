@@ -568,20 +568,19 @@ async def _split_quadrants(
     return all_ids
 
 
-def _flush_detail_buffer(
+def _build_flush_objects(
     buffer: list[tuple],
     run_code: str,
-    session: Session,
     run: ScraperRun,
-    counter: AtomicCounter,
-    total: int,
-) -> None:
-    """Batch-write a buffer of fetched place details to the database.
+) -> list[tuple]:
+    """Build ScrapedPlace + RawCollectorData objects from the buffer.
 
-    Computes quality score and gate label for each place immediately after
-    detail fetch so downstream phases can gate on these values.
+    Returns a list of (scraped_place, raw_record) tuples ready to be added
+    to a session.  Handles GCS uploads for browser-captured images/reviews.
     """
     from app.pipeline.place_quality import get_quality_gate, score_place_quality
+
+    objects: list[tuple] = []
 
     for _place_name, details, response in buffer:
         quality_score = score_place_quality(details)
@@ -668,8 +667,6 @@ def _flush_detail_buffer(
                 raw["external_reviews"] = reviews
                 scraped_place.raw_data = raw
 
-        session.add(scraped_place)
-
         raw_record = RawCollectorData(
             place_code=details["place_code"],
             collector_name="gmaps",
@@ -677,12 +674,72 @@ def _flush_detail_buffer(
             raw_response=response,
             status="success",
         )
+        objects.append((scraped_place, raw_record))
+
+    return objects
+
+
+def _flush_detail_buffer(
+    buffer: list[tuple],
+    run_code: str,
+    session: Session,
+    run: ScraperRun,
+    counter: AtomicCounter,
+    total: int,
+) -> None:
+    """Batch-write a buffer of fetched place details to the database.
+
+    Computes quality score and gate label for each place immediately after
+    detail fetch so downstream phases can gate on these values.
+
+    If the primary session's commit fails (stale connection, FK violation from
+    a dead connection, etc.), retries once with a fresh session.
+    """
+    from app.db.session import engine
+
+    objects = _build_flush_objects(buffer, run_code, run)
+
+    for scraped_place, raw_record in objects:
+        session.add(scraped_place)
         session.add(raw_record)
 
     new_count = counter.increment(len(buffer))
     run.processed_items = new_count
     session.add(run)
-    session.commit()
+
+    try:
+        session.commit()
+    except Exception as exc:
+        logger.warning("Flush commit failed (%s) — retrying with fresh session", exc)
+        try:
+            session.rollback()
+        except Exception:
+            pass
+
+        # Retry with a brand-new session to bypass the stale connection
+        with Session(engine) as fresh:
+            fresh_run = fresh.exec(
+                select(ScraperRun).where(ScraperRun.run_code == run_code)
+            ).first()
+            if not fresh_run:
+                raise RuntimeError(f"Run {run_code} not found during flush retry") from exc
+            for scraped_place, raw_record in objects:
+                # Expunge from old session so they can be added to fresh
+                try:
+                    session.expunge(scraped_place)
+                except Exception:
+                    pass
+                try:
+                    session.expunge(raw_record)
+                except Exception:
+                    pass
+                fresh.add(scraped_place)
+                fresh.add(raw_record)
+            fresh_run.processed_items = new_count
+            fresh.add(fresh_run)
+            fresh.commit()
+            logger.info("Flush retry succeeded with fresh session (%d places)", len(buffer))
+
     logger.debug("Flushed %d places (%d/%d total)", len(buffer), new_count, total)
 
 
@@ -896,8 +953,17 @@ async def fetch_place_details(
     rate_limiter = get_async_rate_limiter()
     counter = AtomicCounter(initial=cached_count)
     flush_batch_size = DETAIL_FLUSH_BATCH_SIZE
-    # Configurable via SCRAPER_DETAIL_CONCURRENCY env var (default 20).
-    fetch_sem = asyncio.Semaphore(settings.detail_concurrency)
+    # Cap concurrency to browser pool size when using browser backend to avoid
+    # acquire timeouts (20 workers competing for 8 browser contexts).
+    concurrency = settings.detail_concurrency
+    if hasattr(collector, "requires_api_key") and not collector.requires_api_key:
+        concurrency = min(concurrency, settings.maps_browser_pool_size)
+        logger.info(
+            "Browser mode: capping detail concurrency to %d (pool_size=%d)",
+            concurrency,
+            settings.maps_browser_pool_size,
+        )
+    fetch_sem = asyncio.Semaphore(concurrency)
 
     # Buffer and lock for thread-safe batch writes (asyncio is single-threaded,
     # but we still need the buffer list to be consistent across await points)
