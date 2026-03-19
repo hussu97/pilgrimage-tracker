@@ -1757,9 +1757,9 @@ def seed_geo_boundaries(session: Session):
 # Keys match GeoBoundary.name values.
 #
 COUNTRY_BOXES: dict[str, list[dict]] = {
-    # ── India (25 boxes) ─────────────────────────────────────────────────────
+    # ── India (26 boxes) ─────────────────────────────────────────────────────
     # A single India rectangle covers Pakistan, Bangladesh, Nepal, Sri Lanka.
-    # 25 tighter boxes trace the actual inhabited landmass.
+    # 26 tighter boxes trace the actual inhabited landmass.
     # Changes vs previous 25-box set:
     #   - northwest_punjab_haryana: lng_min 73.8→74.0 (avoids Pakistan Punjab border zone)
     #   - jammu_kashmir: split into jammu + kashmir_valley (avoids PoK and Aksai Chin)
@@ -1779,19 +1779,30 @@ COUNTRY_BOXES: dict[str, list[dict]] = {
             "lng_min": 74.0,
             "lng_max": 77.5,
         },
-        # Trimmed lng_min 69.5 → 70.7 — India-Pakistan border in Rajasthan runs
-        # ~70.5°E; 69.5 was bleeding into Pakistan's Sindh/Rajasthan border zone.
+        # Rajasthan split: east of the Aravalli Range is populated (Jaipur, Ajmer,
+        # Udaipur, Jodhpur, Bikaner, Sri Ganganagar, Churu, Nagaur).
         {
-            "label": "northwest_rajasthan",
+            "label": "rajasthan_east",
             "lat_min": 24.0,
             "lat_max": 30.0,
-            "lng_min": 70.7,
+            "lng_min": 73.0,
             "lng_max": 76.5,
         },
+        # Western Thar Desert: sparse but has Jaisalmer (26.91°N, 70.92°E),
+        # Barmer (25.75°N, 71.38°E). Excludes extreme SW desert (lat < 25.5).
+        {
+            "label": "rajasthan_west_desert",
+            "lat_min": 25.5,
+            "lat_max": 28.5,
+            "lng_min": 70.7,
+            "lng_max": 73.0,
+        },
+        # Trimmed lat_max 31.5→30.8 — above 30.8°N is uninhabited high Himalaya.
+        # Keeps Joshimath (30.55°N), Chamoli, all hill towns.
         {
             "label": "north_uttarakhand_up_west",
             "lat_min": 27.5,
-            "lat_max": 31.5,
+            "lat_max": 30.8,
             "lng_min": 77.5,
             "lng_max": 81.5,
         },
@@ -1854,13 +1865,15 @@ COUNTRY_BOXES: dict[str, list[dict]] = {
             "lng_min": 93.5,
             "lng_max": 95.5,
         },
-        # Arunachal Pradesh — India's easternmost state; trimmed to 97.0°E
+        # Arunachal Pradesh — trimmed lat_max 29.5→28.5 (above is uninhabited
+        # high-altitude terrain) and lng_max 97.0→96.5 (extreme east is dense
+        # forest). Keeps Itanagar (27.09°N), Pasighat (28.07°N), Tezu (27.92°N).
         {
             "label": "northeast_arunachal",
             "lat_min": 26.5,
-            "lat_max": 29.5,
+            "lat_max": 28.5,
             "lng_min": 91.5,
-            "lng_max": 97.0,
+            "lng_max": 96.5,
         },
         # ── Jammu & Kashmir — split into 2 tighter boxes ──────────────────────
         # Previous single box (lat 33.0-36.5, lng 73.8-78.5) covered Pakistan-occupied
@@ -1910,12 +1923,13 @@ COUNTRY_BOXES: dict[str, list[dict]] = {
             "lng_min": 68.0,
             "lng_max": 74.5,
         },
-        # Gujarat northwest (Kutch/Bhuj) — trimmed lng_min to 68.5°E to avoid
-        # Pakistan's Sindh (~lat 24.5°N, lng 68.0-68.5°E)
+        # Gujarat northwest (Kutch/Bhuj) — trimmed lat_max 24.0→23.5 to exclude
+        # the Great Rann of Kutch salt marsh (uninhabited above ~23.3°N).
+        # Bhuj at 23.25°N, 69.67°E is the main settlement.
         {
             "label": "gujarat_northwest",
             "lat_min": 22.5,
-            "lat_max": 24.0,
+            "lat_max": 23.5,
             "lng_min": 68.5,
             "lng_max": 71.5,
         },
@@ -2093,97 +2107,85 @@ COUNTRY_BOXES: dict[str, list[dict]] = {
         },
         {"label": "florida", "lat_min": 24.5, "lat_max": 31.0, "lng_min": -87.5, "lng_max": -80.0},
     ],
-    # ── UAE (10 boxes) ───────────────────────────────────────────────────────
-    # Previous 4 boxes bled into Oman (abu_dhabi_east/northern_emirates
-    # extended to lng 56.5 — UAE-Oman border is ~55.8-56.1°E near Al Ain,
-    # ~56.2°E at the Fujairah coast) and clipped Saudi Arabia in the south
-    # (UAE southern border ~22.7°N, not 22.5°N).
-    # Changes vs previous 8-box set:
-    #   - al_ain: lng_max 56.0→55.7 (Oman's Buraimi at ~55.8°E)
-    #   - ras_al_khaimah: split into rak_main + rak_east_coast (Musandam overlap)
-    #   - fujairah: split into fujairah_south + fujairah_dibba (Oman's Dibba Al Baya overlap)
-    # 10 tighter boxes trace the actual UAE emirate footprints.
+    # ── UAE (9 boxes) ────────────────────────────────────────────────────────
+    # Optimized to exclude the Empty Quarter desert and Abu Dhabi interior
+    # desert (abu_dhabi_desert box deleted — 100% uninhabited, was 6,200 cells).
+    # abu_dhabi_liwa replaced by 3 targeted boxes around actual settlements.
+    # Total cells: ~8,400 per type (down from ~20,800 — 59% reduction).
     "UAE": [
-        # Western Abu Dhabi: Liwa oasis, empty quarter fringe
+        # Western Abu Dhabi coast: Sila, Ruwais (24.12°N), Mirfa (24.09°N)
         {
-            "label": "abu_dhabi_liwa",
-            "lat_min": 22.7,
-            "lat_max": 23.8,
+            "label": "western_coast",
+            "lat_min": 23.9,
+            "lat_max": 24.3,
             "lng_min": 51.5,
-            "lng_max": 53.5,
+            "lng_max": 53.7,
         },
-        # Central Abu Dhabi desert interior
+        # Ghayathi (23.84°N) and Madinat Zayed (23.66°N) cluster
         {
-            "label": "abu_dhabi_desert",
-            "lat_min": 23.2,
-            "lat_max": 24.5,
-            "lng_min": 53.5,
-            "lng_max": 55.2,
+            "label": "ghayathi_madinat_zayed",
+            "lat_min": 23.5,
+            "lat_max": 24.0,
+            "lng_min": 52.5,
+            "lng_max": 54.0,
         },
-        # Abu Dhabi city, Yas Island, coast corridor
+        # Liwa oasis arc — tight strip around the ~50 villages (pop ~20,000)
         {
-            "label": "abu_dhabi_city",
-            "lat_min": 24.0,
-            "lat_max": 25.0,
-            "lng_min": 53.8,
-            "lng_max": 55.2,
+            "label": "liwa_oasis",
+            "lat_min": 23.0,
+            "lat_max": 23.3,
+            "lng_min": 53.2,
+            "lng_max": 54.3,
         },
-        # Al Ain — trimmed lng_max 56.0→55.7; Oman's Buraimi is immediately east at ~55.8°E
+        # Abu Dhabi metro: city, Saadiyat, Yas, Khalifa City, MBZ City, Shahama
+        {
+            "label": "abu_dhabi_metro",
+            "lat_min": 24.25,
+            "lat_max": 24.70,
+            "lng_min": 54.20,
+            "lng_max": 55.00,
+        },
+        # Al Ain city proper — Oman's Buraimi immediately east at ~55.8°E
         {
             "label": "al_ain",
-            "lat_min": 23.8,
-            "lat_max": 24.5,
-            "lng_min": 55.4,
-            "lng_max": 55.7,
+            "lat_min": 24.05,
+            "lat_max": 24.35,
+            "lng_min": 55.50,
+            "lng_max": 55.80,
         },
-        # Dubai emirate
+        # Dubai emirate: Jebel Ali to Deira
         {
             "label": "dubai",
-            "lat_min": 24.9,
+            "lat_min": 24.85,
             "lat_max": 25.4,
             "lng_min": 54.9,
-            "lng_max": 55.7,
+            "lng_max": 55.55,
         },
-        # Sharjah, Ajman, Umm Al Quwain
+        # Sharjah, Ajman, Umm Al Quwain coastal strip
         {
             "label": "sharjah_ajman_uaq",
             "lat_min": 25.2,
-            "lat_max": 25.8,
-            "lng_min": 55.3,
-            "lng_max": 56.0,
+            "lat_max": 25.65,
+            "lng_min": 55.28,
+            "lng_max": 55.65,
         },
-        # Ras Al Khaimah main area — capped at lat 25.9°N below Musandam (Oman exclave lat 25.9-26.4°N)
+        # Ras Al Khaimah — capped at lat 25.9°N below Musandam (Oman exclave)
         {
             "label": "rak_main",
-            "lat_min": 25.5,
+            "lat_min": 25.55,
             "lat_max": 25.9,
-            "lng_min": 55.5,
-            "lng_max": 56.0,
+            "lng_min": 55.85,
+            "lng_max": 56.05,
         },
-        # RAK east coast (Khor Fakkan area) — trimmed lng_max to 56.15°E
+        # Fujairah coast: Kalba (25.00°N) to Dibba (25.59°N), narrow Gulf of Oman strip.
+        # Merged fujairah_south + rak_east_coast + fujairah_dibba into one strip —
+        # capped at lat 25.55°N and lng 56.35°E to avoid Oman.
         {
-            "label": "rak_east_coast",
-            "lat_min": 25.3,
-            "lat_max": 25.7,
-            "lng_min": 55.9,
-            "lng_max": 56.15,
-        },
-        # Fujairah south coast (Gulf of Oman side)
-        {
-            "label": "fujairah_south",
-            "lat_min": 24.9,
-            "lat_max": 25.3,
-            "lng_min": 56.0,
-            "lng_max": 56.4,
-        },
-        # Fujairah Dibba area — trimmed lat_max 25.55°N and lng_max 56.28°E to avoid
-        # Oman's Dibba Al Baya (~lat 25.6°N, lng 56.27°E)
-        {
-            "label": "fujairah_dibba",
-            "lat_min": 25.2,
+            "label": "fujairah_coast",
+            "lat_min": 24.95,
             "lat_max": 25.55,
             "lng_min": 56.0,
-            "lng_max": 56.28,
+            "lng_max": 56.35,
         },
     ],
 }
