@@ -44,24 +44,25 @@ export function MapView({ cells, places, height = "500px", className = "" }: Map
 
   // Compute auto-bounds from data, fall back to world view
   const bounds = useMemo<LatLngBoundsExpression>(() => {
-    const lats: number[] = [];
-    const lngs: number[] = [];
-    for (const c of truncatedCells) {
-      lats.push(c.lat_min, c.lat_max);
-      lngs.push(c.lng_min, c.lng_max);
-    }
-    for (const p of truncatedPlaces) {
-      lats.push(p.lat);
-      lngs.push(p.lng);
-    }
-    if (lats.length === 0) {
+    if (truncatedCells.length === 0 && truncatedPlaces.length === 0) {
       return [[-60, -160], [75, 160]];
     }
-    const minLat = Math.min(...lats);
-    const maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs);
-    const maxLng = Math.max(...lngs);
-    // Add small padding
+    let minLat = Infinity;
+    let maxLat = -Infinity;
+    let minLng = Infinity;
+    let maxLng = -Infinity;
+    for (const c of truncatedCells) {
+      if (c.lat_min < minLat) minLat = c.lat_min;
+      if (c.lat_max > maxLat) maxLat = c.lat_max;
+      if (c.lng_min < minLng) minLng = c.lng_min;
+      if (c.lng_max > maxLng) maxLng = c.lng_max;
+    }
+    for (const p of truncatedPlaces) {
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+      if (p.lng < minLng) minLng = p.lng;
+      if (p.lng > maxLng) maxLng = p.lng;
+    }
     const latPad = Math.max((maxLat - minLat) * 0.05, 0.01);
     const lngPad = Math.max((maxLng - minLng) * 0.05, 0.01);
     return [
