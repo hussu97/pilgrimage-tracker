@@ -14,7 +14,11 @@ from unittest.mock import patch
 from sqlmodel import Session
 
 from app.db.models import DataLocation, ScraperRun
-from app.jobs.queue_processor import _count_active_per_region, _extract_region
+from app.jobs.queue_processor import (
+    _build_round_robin_slots,
+    _count_active_per_region,
+    _extract_region,
+)
 
 
 def _make_location(session: Session) -> DataLocation:
@@ -235,3 +239,90 @@ def test_count_active_assigns_no_execution_to_first_region(db_session, test_engi
 
     assert counts["europe-west1"] == 1
     assert counts["europe-west4"] == 0
+
+
+# ── 6. _build_round_robin_slots ──────────────────────────────────────────────
+
+
+def test_round_robin_even_distribution():
+    """Jobs are spread evenly across regions, not all dumped in the first."""
+    capacity = [
+        {"region": "A", "max_jobs": 5},
+        {"region": "B", "max_jobs": 5},
+        {"region": "C", "max_jobs": 5},
+    ]
+    slots = _build_round_robin_slots(capacity, active={})
+    # First 3 slots should hit all 3 regions (one each)
+    assert slots[:3] == ["A", "B", "C"]
+    # Next 3 slots should again be A, B, C
+    assert slots[3:6] == ["A", "B", "C"]
+    # Total slots = 15
+    assert len(slots) == 15
+
+
+def test_round_robin_primary_region_first_each_round():
+    """The primary region (first in config) is always first in each round."""
+    capacity = [
+        {"region": "primary", "max_jobs": 3},
+        {"region": "secondary", "max_jobs": 3},
+    ]
+    slots = _build_round_robin_slots(capacity, active={})
+    assert slots == ["primary", "secondary", "primary", "secondary", "primary", "secondary"]
+
+
+def test_round_robin_unequal_capacity():
+    """Region with more capacity gets extra slots in later rounds."""
+    capacity = [
+        {"region": "A", "max_jobs": 2},
+        {"region": "B", "max_jobs": 4},
+    ]
+    slots = _build_round_robin_slots(capacity, active={})
+    # Round 1: A, B; Round 2: A, B; Round 3: B; Round 4: B
+    assert slots == ["A", "B", "A", "B", "B", "B"]
+
+
+def test_round_robin_respects_active_runs():
+    """Active runs reduce available slots per region."""
+    capacity = [
+        {"region": "A", "max_jobs": 3},
+        {"region": "B", "max_jobs": 3},
+        {"region": "C", "max_jobs": 3},
+    ]
+    # A already has 2 active, B has 1, C has 0
+    active = {"A": 2, "B": 1, "C": 0}
+    slots = _build_round_robin_slots(capacity, active)
+    # A has 1 slot, B has 2, C has 3 → round-robin: A,B,C then B,C then C
+    assert slots == ["A", "B", "C", "B", "C", "C"]
+
+
+def test_round_robin_all_regions_full():
+    """Returns empty list when all regions are at capacity."""
+    capacity = [
+        {"region": "A", "max_jobs": 2},
+        {"region": "B", "max_jobs": 3},
+    ]
+    active = {"A": 2, "B": 3}
+    slots = _build_round_robin_slots(capacity, active)
+    assert slots == []
+
+
+def test_round_robin_single_region():
+    """Single region still works — all slots go to it."""
+    capacity = [{"region": "only", "max_jobs": 3}]
+    slots = _build_round_robin_slots(capacity, active={})
+    assert slots == ["only", "only", "only"]
+
+
+def test_round_robin_three_jobs_across_three_regions():
+    """Dispatching 3 jobs with 3 regions gives one per region (not all to first)."""
+    capacity = [
+        {"region": "A", "max_jobs": 5},
+        {"region": "B", "max_jobs": 5},
+        {"region": "C", "max_jobs": 5},
+    ]
+    slots = _build_round_robin_slots(capacity, active={})
+    # If we dispatch 3 jobs, they take slots[:3] = A, B, C
+    assigned = slots[:3]
+    assert assigned.count("A") == 1
+    assert assigned.count("B") == 1
+    assert assigned.count("C") == 1

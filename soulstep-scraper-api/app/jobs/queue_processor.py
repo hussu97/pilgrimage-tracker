@@ -26,6 +26,33 @@ POLL_INTERVAL = 15  # seconds
 MAX_LOCAL_JOBS = 2  # max parallel jobs when SCRAPER_DISPATCH=local
 
 
+def _build_round_robin_slots(region_capacity: list[dict], active: dict[str, int]) -> list[str]:
+    """Build a round-robin interleaved list of region slots.
+
+    Each round iterates through regions in config order (primary first),
+    adding one slot per region that still has remaining capacity.
+    This distributes jobs as evenly as possible across regions while
+    giving the primary region (first in config) priority within each round.
+    """
+    remaining: dict[str, int] = {}
+    for rc in region_capacity:
+        avail = rc["max_jobs"] - active.get(rc["region"], 0)
+        if avail > 0:
+            remaining[rc["region"]] = avail
+
+    region_order = [rc["region"] for rc in region_capacity if rc["region"] in remaining]
+    slots: list[str] = []
+    while remaining:
+        for region in region_order:
+            if region in remaining:
+                slots.append(region)
+                remaining[region] -= 1
+                if remaining[region] <= 0:
+                    del remaining[region]
+        region_order = [r for r in region_order if r in remaining]
+    return slots
+
+
 def _extract_region(execution_name: str | None) -> str | None:
     """Extract the region from a Cloud Run execution resource name.
 
@@ -125,12 +152,9 @@ def process_queue() -> int:
         # Cloud Run mode — capacity-aware multi-region dispatch
         active = _count_active_per_region(session)
 
-        # Build list of available region slots, ordered by most available first
-        slots: list[str] = []
-        for rc in settings.region_capacity:
-            available = rc["max_jobs"] - active.get(rc["region"], 0)
-            if available > 0:
-                slots.extend([rc["region"]] * available)
+        # Round-robin interleave: distributes jobs evenly across regions,
+        # primary region (first in config) gets priority within each round.
+        slots = _build_round_robin_slots(settings.region_capacity, active)
 
         if not slots:
             return 0
