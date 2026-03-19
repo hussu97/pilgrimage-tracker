@@ -253,9 +253,17 @@ def test_share_place_lang_invalid(client):
 # ── 6. Sitemap image entries ──────────────────────────────────────────────────────
 
 
-def test_sitemap_image_namespace_present(client):
-    """Sitemap includes Google image namespace declaration."""
+def test_sitemap_image_namespace_present(client, db_session):
+    """Sitemap includes Google image namespace declaration when images exist."""
+    from app.db.models import PlaceImage
+
     _create_place(client, "plc_sitemap_img")
+    # Add an image so the image namespace appears in the output
+    img = PlaceImage(
+        place_code="plc_sitemap_img", image_type="url", url="https://example.com/photo.jpg"
+    )
+    db_session.add(img)
+    db_session.commit()
     resp = client.get("/sitemap.xml")
     assert resp.status_code == 200
     assert "google.com/schemas/sitemap-image" in resp.text
