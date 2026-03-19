@@ -36,7 +36,7 @@ from app.constants import (
     MAX_DISCOVERY_RADIUS_M,
     MIN_DISCOVERY_RADIUS_M,
 )
-from app.db.models import GeoBoundary, PlaceTypeMapping, ScraperRun
+from app.db.models import GeoBoundary, ScraperRun
 from app.logger import get_logger
 from app.scrapers.base import ThreadSafeIdSet
 from app.scrapers.cell_store import DiscoveryCellStore, GlobalCellStore
@@ -1135,7 +1135,7 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
     from app.scrapers.gmaps import (
         STALE_THRESHOLD_DAYS,
         fetch_place_details,
-        get_gmaps_type_to_our_type,
+        load_place_type_maps,
     )
     from app.scrapers.grid import generate_multi_box_grid_cells
 
@@ -1156,20 +1156,14 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
     if not boundary:
         raise ValueError(f"Geographic boundary not found for: {boundary_name}")
 
-    place_type_mappings = session.exec(
-        select(PlaceTypeMapping)
-        .where(PlaceTypeMapping.is_active)
-        .where(PlaceTypeMapping.source_type == "gmaps")
-        .order_by(PlaceTypeMapping.religion)
-        .order_by(PlaceTypeMapping.display_order)
-    ).all()
+    pt_maps = load_place_type_maps(session)
 
-    if not place_type_mappings:
+    if not pt_maps.all_gmaps_types:
         raise ValueError("No active place type mappings found in database.")
 
-    all_gmaps_types = list({m.gmaps_type for m in place_type_mappings})
-    type_map = get_gmaps_type_to_our_type(session)
-    religion_type_map = {m.gmaps_type: m.religion for m in place_type_mappings}
+    all_gmaps_types = pt_maps.all_gmaps_types
+    type_map = pt_maps.gmaps_type_to_our_type
+    religion_type_map = pt_maps.gmaps_type_to_religion
 
     logger.info("=== Browser Grid: Searching for religious places in %s ===", boundary_name)
     logger.info("Place types (%d): %s", len(all_gmaps_types), all_gmaps_types)
@@ -1178,6 +1172,7 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
     session.add(run)
     session.commit()
 
+    t_discovery = time.monotonic()
     max_results = config.get("max_results")
     browser_sem = asyncio.Semaphore(settings.maps_browser_concurrency)
 
@@ -1336,16 +1331,28 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
     mem_monitor_task.cancel()
 
     all_resource_names = existing_ids.to_list()
-    logger.info("Browser discovery complete: %d places found", len(all_resource_names))
+    discovery_elapsed = time.monotonic() - t_discovery
+    logger.info(
+        "Browser discovery complete: %d places found in %.1fs",
+        len(all_resource_names),
+        discovery_elapsed,
+        extra={
+            "run_code": run_code,
+            "discovery_duration_s": round(discovery_elapsed, 2),
+            "places_found": len(all_resource_names),
+        },
+    )
 
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if run:
         run.total_items = len(all_resource_names)
+        run.discovery_duration_s = round(discovery_elapsed, 2)
         run.stage = "detail_fetch"
         session.add(run)
         session.commit()
 
     # Detail fetch phase — uses BrowserGmapsCollector instead of GmapsCollector
+    t_detail = time.monotonic()
     logger.info("Fetching details for %d places (browser mode)...", len(all_resource_names))
     await fetch_place_details(
         all_resource_names,
@@ -1357,6 +1364,17 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
         religion_type_map,
         force_refresh,
         stale_threshold_days,
+    )
+    detail_elapsed = time.monotonic() - t_detail
+    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+    if run:
+        run.detail_fetch_duration_s = round(detail_elapsed, 2)
+        session.add(run)
+        session.commit()
+    logger.info(
+        "Detail fetch completed in %.1fs",
+        detail_elapsed,
+        extra={"run_code": run_code, "detail_fetch_duration_s": round(detail_elapsed, 2)},
     )
 
     # Image download phase (unchanged — downloads from URLs extracted by browser)
@@ -1379,4 +1397,16 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
         session.add(run)
         session.commit()
 
+    t_img = time.monotonic()
     await download_place_images(run_code, _engine)
+    img_elapsed = time.monotonic() - t_img
+    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+    if run:
+        run.image_download_duration_s = round(img_elapsed, 2)
+        session.add(run)
+        session.commit()
+    logger.info(
+        "Image download completed in %.1fs",
+        img_elapsed,
+        extra={"run_code": run_code, "image_download_duration_s": round(img_elapsed, 2)},
+    )

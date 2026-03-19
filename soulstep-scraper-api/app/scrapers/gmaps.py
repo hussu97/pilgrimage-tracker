@@ -43,11 +43,50 @@ MAX_RADIUS = MAX_DISCOVERY_RADIUS_M
 STALE_THRESHOLD_DAYS = DEFAULT_STALE_THRESHOLD_DAYS
 
 
-def get_place_type_mappings(session: Session) -> dict[str, list[str]]:
+class PlaceTypeMaps:
+    """Pre-loaded place type mapping data — avoids repeated DB queries.
+
+    Call ``load_place_type_maps(session)`` once, then pass this object around.
     """
-    Query database for active place type mappings.
-    Returns a dict mapping religion to list of Google Maps types.
-    """
+
+    __slots__ = (
+        "religion_to_gmaps_types",
+        "gmaps_type_to_our_type",
+        "gmaps_type_to_religion",
+        "all_gmaps_types",
+        "_mappings",
+    )
+
+    def __init__(self, mappings: list[PlaceTypeMapping]) -> None:
+        self._mappings = mappings
+        self.religion_to_gmaps_types: dict[str, list[str]] = {}
+        self.gmaps_type_to_our_type: dict[str, str] = {}
+        self.gmaps_type_to_religion: dict[str, str] = {}
+
+        for m in mappings:
+            self.religion_to_gmaps_types.setdefault(m.religion, []).append(m.gmaps_type)
+            self.gmaps_type_to_our_type[m.gmaps_type] = m.our_place_type
+            self.gmaps_type_to_religion[m.gmaps_type] = m.religion
+
+        self.all_gmaps_types = list(self.gmaps_type_to_our_type.keys())
+
+    def detect_religion(self, gmaps_types: list[str]) -> str | None:
+        """Return the religion for the first matching gmaps type, or None."""
+        for gtype in gmaps_types:
+            if gtype in self.gmaps_type_to_religion:
+                return self.gmaps_type_to_religion[gtype]
+        return None
+
+    def get_default_place_type(self, religion: str) -> str:
+        """Return the first our_place_type for a religion, or 'place of worship'."""
+        for m in self._mappings:
+            if m.religion == religion:
+                return m.our_place_type
+        return "place of worship"
+
+
+def load_place_type_maps(session: Session) -> PlaceTypeMaps:
+    """Query PlaceTypeMapping once and return all derived lookup dicts."""
     mappings = session.exec(
         select(PlaceTypeMapping)
         .where(PlaceTypeMapping.is_active)
@@ -55,55 +94,34 @@ def get_place_type_mappings(session: Session) -> dict[str, list[str]]:
         .order_by(PlaceTypeMapping.religion)
         .order_by(PlaceTypeMapping.display_order)
     ).all()
+    return PlaceTypeMaps(list(mappings))
 
-    result = {}
-    for mapping in mappings:
-        if mapping.religion not in result:
-            result[mapping.religion] = []
-        result[mapping.religion].append(mapping.gmaps_type)
 
-    return result
+# ── Legacy wrappers (kept for backward compatibility with tests) ───────────
+
+
+def get_place_type_mappings(session: Session) -> dict[str, list[str]]:
+    """Query database for active place type mappings.
+    Returns a dict mapping religion to list of Google Maps types.
+    """
+    return load_place_type_maps(session).religion_to_gmaps_types
 
 
 def get_gmaps_type_to_our_type(session: Session) -> dict[str, str]:
-    """
-    Query database for active place type mappings.
+    """Query database for active place type mappings.
     Returns a dict mapping Google Maps type to our internal type name.
     """
-    mappings = session.exec(
-        select(PlaceTypeMapping)
-        .where(PlaceTypeMapping.is_active)
-        .where(PlaceTypeMapping.source_type == "gmaps")
-    ).all()
-
-    return {m.gmaps_type: m.our_place_type for m in mappings}
+    return load_place_type_maps(session).gmaps_type_to_our_type
 
 
 def get_default_place_type(session: Session, religion: str) -> str:
     """Get the default place type name for a religion (first active mapping)."""
-    mapping = session.exec(
-        select(PlaceTypeMapping)
-        .where(PlaceTypeMapping.religion == religion)
-        .where(PlaceTypeMapping.is_active)
-        .where(PlaceTypeMapping.source_type == "gmaps")
-        .order_by(PlaceTypeMapping.display_order)
-    ).first()
-
-    return mapping.our_place_type if mapping else "place of worship"
+    return load_place_type_maps(session).get_default_place_type(religion)
 
 
 def detect_religion_from_types(session: Session, gmaps_types: list[str]) -> str | None:
     """Detect religion from Google Maps types by querying active mappings."""
-    for gmaps_type in gmaps_types:
-        mapping = session.exec(
-            select(PlaceTypeMapping)
-            .where(PlaceTypeMapping.gmaps_type == gmaps_type)
-            .where(PlaceTypeMapping.is_active)
-            .where(PlaceTypeMapping.source_type == "gmaps")
-        ).first()
-        if mapping:
-            return mapping.religion
-    return None
+    return load_place_type_maps(session).detect_religion(gmaps_types)
 
 
 def clean_address(address):
@@ -965,44 +983,49 @@ async def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> No
     if not boundary:
         raise ValueError(f"Geographic boundary not found for: {boundary_name}")
 
-    place_type_mappings = session.exec(
-        select(PlaceTypeMapping)
-        .where(PlaceTypeMapping.is_active)
-        .where(PlaceTypeMapping.source_type == "gmaps")
-        .order_by(PlaceTypeMapping.religion)
-        .order_by(PlaceTypeMapping.display_order)
-    ).all()
+    pt_maps = load_place_type_maps(session)
 
-    if not place_type_mappings:
+    if not pt_maps.all_gmaps_types:
         raise ValueError(
             "No active place type mappings found in database. Please seed PlaceTypeMapping table."
         )
 
-    all_gmaps_types = [m.gmaps_type for m in place_type_mappings]
-
-    religion_types_map: dict[str, list[str]] = {}
-    for mapping in place_type_mappings:
-        if mapping.religion not in religion_types_map:
-            religion_types_map[mapping.religion] = []
-        religion_types_map[mapping.religion].append(mapping.gmaps_type)
+    all_gmaps_types = pt_maps.all_gmaps_types
 
     logger.info("=== Searching for religious places in %s ===", boundary_name)
     logger.info("Place types: %s", all_gmaps_types)
-    for religion, types in religion_types_map.items():
+    for religion, types in pt_maps.religion_to_gmaps_types.items():
         logger.info("  %s: %s", religion, types)
 
-    # Pre-load type maps once so coroutines don't need a DB session
-    type_map = get_gmaps_type_to_our_type(session)
-    religion_type_map = {m.gmaps_type: m.religion for m in place_type_mappings}
+    # Pre-loaded type maps — no further DB queries needed
+    type_map = pt_maps.gmaps_type_to_our_type
+    religion_type_map = pt_maps.gmaps_type_to_religion
 
     run.stage = "discovery"
     session.add(run)
     session.commit()
 
+    t_discovery = time.monotonic()
     place_ids = await discover_places(
         config, run_code, session, type_map, religion_type_map, api_key, all_gmaps_types, boundary
     )
+    discovery_elapsed = time.monotonic() - t_discovery
+    session.refresh(run)
+    run.discovery_duration_s = round(discovery_elapsed, 2)
+    session.add(run)
+    session.commit()
+    logger.info(
+        "Discovery completed in %.1fs, found %d places",
+        discovery_elapsed,
+        len(place_ids),
+        extra={
+            "run_code": run_code,
+            "discovery_duration_s": run.discovery_duration_s,
+            "places_found": len(place_ids),
+        },
+    )
 
+    t_detail = time.monotonic()
     logger.info("Fetching details for %d places...", len(place_ids))
     await fetch_place_details(
         place_ids,
@@ -1014,6 +1037,16 @@ async def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> No
         religion_type_map,
         force_refresh,
         stale_threshold_days,
+    )
+    detail_elapsed = time.monotonic() - t_detail
+    session.refresh(run)
+    run.detail_fetch_duration_s = round(detail_elapsed, 2)
+    session.add(run)
+    session.commit()
+    logger.info(
+        "Detail fetch completed in %.1fs",
+        detail_elapsed,
+        extra={"run_code": run_code, "detail_fetch_duration_s": run.detail_fetch_duration_s},
     )
 
     # Phase 3: Download images in a dedicated parallel phase (no rate limiting needed —
@@ -1040,4 +1073,19 @@ async def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> No
         session.add(run)
         session.commit()
 
+    t_img = time.monotonic()
     await download_place_images(run_code, _img_engine)
+    img_elapsed = time.monotonic() - t_img
+    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+    if run:
+        run.image_download_duration_s = round(img_elapsed, 2)
+        session.add(run)
+        session.commit()
+        logger.info(
+            "Image download completed in %.1fs",
+            img_elapsed,
+            extra={
+                "run_code": run_code,
+                "image_download_duration_s": run.image_download_duration_s,
+            },
+        )

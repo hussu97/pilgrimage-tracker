@@ -71,42 +71,44 @@ class TestDetectReligionFromTypes:
         m = MagicMock()
         m.gmaps_type = gmaps_type
         m.religion = religion
+        m.our_place_type = gmaps_type
         m.is_active = True
         return m
 
-    def _make_session(self, mapping=None):
+    def _make_session(self, mappings: list | None = None):
         session = MagicMock()
         exec_result = MagicMock()
-        exec_result.first.return_value = mapping
+        exec_result.all.return_value = mappings or []
         session.exec.return_value = exec_result
         return session
 
     def test_detects_islam_from_mosque(self):
         mapping = self._make_mapping("mosque", "islam")
-        session = self._make_session(mapping)
+        session = self._make_session([mapping])
         result = detect_religion_from_types(session, ["mosque"])
         assert result == "islam"
 
     def test_detects_hinduism_from_hindu_temple(self):
         mapping = self._make_mapping("hindu_temple", "hinduism")
-        session = self._make_session(mapping)
+        session = self._make_session([mapping])
         result = detect_religion_from_types(session, ["hindu_temple"])
         assert result == "hinduism"
 
     def test_returns_none_for_unknown_type(self):
-        session = self._make_session(None)  # No mapping found
+        session = self._make_session([])  # No mapping found
         result = detect_religion_from_types(session, ["unknown_type"])
         assert result is None
 
     def test_returns_none_for_empty_list(self):
-        session = self._make_session(None)
+        session = self._make_session([])
         result = detect_religion_from_types(session, [])
         assert result is None
 
     def test_uses_first_matching_type(self):
         # First type should match
         islam_mapping = self._make_mapping("mosque", "islam")
-        session = self._make_session(islam_mapping)
+        hindu_mapping = self._make_mapping("hindu_temple", "hinduism")
+        session = self._make_session([islam_mapping, hindu_mapping])
         result = detect_religion_from_types(session, ["mosque", "hindu_temple"])
         assert result == "islam"
 
@@ -115,20 +117,22 @@ class TestDetectReligionFromTypes:
 
 
 class TestGetDefaultPlaceType:
-    def _make_session(self, our_type: str = None):
+    def _make_session(self, our_type: str = None, religion: str = "islam"):
         session = MagicMock()
         exec_result = MagicMock()
         if our_type:
             mapping = MagicMock()
             mapping.our_place_type = our_type
-            exec_result.first.return_value = mapping
+            mapping.gmaps_type = our_type
+            mapping.religion = religion
+            exec_result.all.return_value = [mapping]
         else:
-            exec_result.first.return_value = None
+            exec_result.all.return_value = []
         session.exec.return_value = exec_result
         return session
 
     def test_returns_type_from_mapping(self):
-        session = self._make_session("mosque")
+        session = self._make_session("mosque", religion="islam")
         result = get_default_place_type(session, "islam")
         assert result == "mosque"
 

@@ -49,6 +49,14 @@ class ScraperRun(SQLModel, table=True):
     # endpoint can terminate the execution via the Executions API.
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
+    # ── Per-stage timing metrics (seconds) ─────────────────────────────────
+    discovery_duration_s: float | None = Field(default=None)
+    detail_fetch_duration_s: float | None = Field(default=None)
+    image_download_duration_s: float | None = Field(default=None)
+    enrichment_duration_s: float | None = Field(default=None)
+    sync_duration_s: float | None = Field(default=None)
+    avg_time_per_place_s: float | None = Field(default=None)
+
 
 class ScrapedPlace(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("run_code", "place_code", name="uq_scrapedplace_run_place"),)

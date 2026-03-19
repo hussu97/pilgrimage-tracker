@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-03-19] — Scraper Observability & Performance Improvements
+
+### Backend (scraper)
+- **Per-stage timing metrics** — `ScraperRun` now tracks `discovery_duration_s`, `detail_fetch_duration_s`, `image_download_duration_s`, `enrichment_duration_s`, `sync_duration_s`, and `avg_time_per_place_s` for SLA monitoring and bottleneck identification
+- **Consolidated place type mapping queries** — new `PlaceTypeMaps` class and `load_place_type_maps(session)` function query `PlaceTypeMapping` once and derive all lookup dicts (`gmaps_type_to_our_type`, `gmaps_type_to_religion`, `religion_to_gmaps_types`); eliminates 100+ redundant DB queries per run
+- **Structured logging enrichment** — key log calls in `scraper.py`, `gmaps.py`, and `gmaps_browser.py` now include `extra={}` fields (`run_code`, `duration_s`, `places_found`, etc.) for Cloud Logging queryability
+- **Migration 0021** — adds 6 nullable Float columns to `scraperrun` for timing metrics
+
+---
+
 ## [2026-03-18] — Cloud Run Resource Optimization & Multi-Region Job Dispatch
 
 ### Backend (scraper)

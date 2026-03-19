@@ -1,5 +1,6 @@
 import asyncio
 import secrets
+import time
 
 import httpx
 from sqlmodel import Session, select
@@ -13,6 +14,50 @@ from app.scrapers.base import AtomicCounter
 from app.scrapers.gmaps import run_gmaps_scraper
 
 logger = get_logger(__name__)
+
+
+def _persist_stage_duration(session: Session, run: ScraperRun, field: str, duration: float) -> None:
+    """Write a single stage duration to the run record and commit."""
+    setattr(run, field, round(duration, 2))
+    session.add(run)
+    session.commit()
+    logger.info(
+        "Stage %s completed in %.1fs",
+        field.replace("_duration_s", ""),
+        duration,
+        extra={"run_code": run.run_code, "stage": field, "duration_s": round(duration, 2)},
+    )
+
+
+def _persist_avg_time(session: Session, run: ScraperRun) -> None:
+    """Compute and persist avg_time_per_place_s from total stage durations."""
+    total = sum(
+        getattr(run, f, None) or 0.0
+        for f in (
+            "discovery_duration_s",
+            "detail_fetch_duration_s",
+            "image_download_duration_s",
+            "enrichment_duration_s",
+            "sync_duration_s",
+        )
+    )
+    if run.processed_items and run.processed_items > 0:
+        run.avg_time_per_place_s = round(total / run.processed_items, 3)
+    session.add(run)
+    session.commit()
+    logger.info(
+        "Run %s total pipeline: %.1fs, %d places, avg %.3fs/place",
+        run.run_code,
+        total,
+        run.processed_items or 0,
+        run.avg_time_per_place_s or 0.0,
+        extra={
+            "run_code": run.run_code,
+            "total_duration_s": round(total, 2),
+            "processed_items": run.processed_items or 0,
+            "avg_time_per_place_s": run.avg_time_per_place_s,
+        },
+    )
 
 
 def generate_code(prefix: str) -> str:
@@ -46,8 +91,18 @@ async def run_scraper_task(run_code: str):
             return
 
         try:
-            # Phase 1-3: Discovery + Detail fetching via gmaps
+            # Phase 1-3: Discovery + Detail fetching + Image download via gmaps
+            t_gmaps = time.monotonic()
             await run_gmaps_scraper(run_code, location.config, session)
+            # run_gmaps_scraper covers discovery, detail_fetch, and image_download;
+            # per-stage durations are recorded inside that function via stage transitions.
+            # Record the total gmaps duration across all three sub-stages.
+            gmaps_elapsed = time.monotonic() - t_gmaps
+            logger.info(
+                "GMaps pipeline (discovery+detail+images) completed in %.1fs",
+                gmaps_elapsed,
+                extra={"run_code": run_code, "gmaps_duration_s": round(gmaps_elapsed, 2)},
+            )
 
             # Phase 4: Enrichment pipeline
             from app.pipeline.enrichment import run_enrichment_pipeline
@@ -57,7 +112,12 @@ async def run_scraper_task(run_code: str):
             session.add(run)
             session.commit()
 
+            t_enrich = time.monotonic()
             await run_enrichment_pipeline(run_code)
+            session.refresh(run)
+            _persist_stage_duration(
+                session, run, "enrichment_duration_s", time.monotonic() - t_enrich
+            )
 
             # Auto-sync: push to catalog immediately after enrichment if enabled
             from app.config import settings as _settings
@@ -65,18 +125,25 @@ async def run_scraper_task(run_code: str):
             session.refresh(run)
             if _settings.auto_sync_after_run and run.status != "cancelled":
                 logger.info(
-                    "Auto-sync enabled — syncing run %s to %s", run_code, _settings.main_server_url
+                    "Auto-sync enabled — syncing run %s to %s",
+                    run_code,
+                    _settings.main_server_url,
+                    extra={"run_code": run_code},
                 )
+                t_sync = time.monotonic()
                 await sync_run_to_server_async(run_code, _settings.main_server_url)
+                session.refresh(run)
+                _persist_stage_duration(session, run, "sync_duration_s", time.monotonic() - t_sync)
 
             # Final check to ensure we don't overwrite "cancelled" with "completed"
             session.refresh(run)
             if run.status != "cancelled":
+                _persist_avg_time(session, run)
                 run.status = "completed"
                 run.stage = None
                 session.add(run)
                 session.commit()
-                logger.info("Run %s completed", run_code)
+                logger.info("Run %s completed", run_code, extra={"run_code": run_code})
 
         except Exception as e:
             logger.error("Run %s failed: %s", run_code, e, exc_info=True)
@@ -127,7 +194,13 @@ async def resume_scraper_task(run_code: str):
         try:
             if resume_from in (None, "discovery"):
                 # Discovery was incomplete — re-run full pipeline
+                t_gmaps = time.monotonic()
                 await run_gmaps_scraper(run_code, location.config, session)
+                logger.info(
+                    "GMaps pipeline completed in %.1fs",
+                    time.monotonic() - t_gmaps,
+                    extra={"run_code": run_code},
+                )
 
                 from app.pipeline.enrichment import run_enrichment_pipeline
 
@@ -136,15 +209,21 @@ async def resume_scraper_task(run_code: str):
                 session.add(run)
                 session.commit()
 
+                t_enrich = time.monotonic()
                 await run_enrichment_pipeline(run_code)
+                session.refresh(run)
+                _persist_stage_duration(
+                    session, run, "enrichment_duration_s", time.monotonic() - t_enrich
+                )
 
             elif resume_from == "detail_fetch":
                 # Discovery completed — derive resource names from DiscoveryCell records
                 # (the JSON column is no longer written at 100K-place scale)
                 from app.collectors.gmaps import GmapsCollector, download_place_images
-                from app.db.models import DiscoveryCell, PlaceTypeMapping
+                from app.db.models import DiscoveryCell
                 from app.scrapers.gmaps import (
                     fetch_place_details,
+                    load_place_type_maps,
                 )
 
                 cells = session.exec(
@@ -167,19 +246,14 @@ async def resume_scraper_task(run_code: str):
                     if not api_key:
                         raise ValueError("GOOGLE_MAPS_API_KEY environment variable not set")
 
-                    from sqlmodel import select as _select
-
-                    place_type_mappings = session.exec(
-                        _select(PlaceTypeMapping)
-                        .where(PlaceTypeMapping.is_active)
-                        .where(PlaceTypeMapping.source_type == "gmaps")
-                    ).all()
-                    type_map = {m.gmaps_type: m.our_place_type for m in place_type_mappings}
-                    religion_type_map = {m.gmaps_type: m.religion for m in place_type_mappings}
+                    pt_maps = load_place_type_maps(session)
+                    type_map = pt_maps.gmaps_type_to_our_type
+                    religion_type_map = pt_maps.gmaps_type_to_religion
 
                     force_refresh = location.config.get("force_refresh", False)
                     stale_threshold_days = location.config.get("stale_threshold_days", 90)
 
+                    t_detail = time.monotonic()
                     await fetch_place_details(
                         place_ids,
                         run_code,
@@ -191,13 +265,21 @@ async def resume_scraper_task(run_code: str):
                         force_refresh,
                         stale_threshold_days,
                     )
-
                     session.refresh(run)
+                    _persist_stage_duration(
+                        session, run, "detail_fetch_duration_s", time.monotonic() - t_detail
+                    )
+
                     run.stage = "image_download"
                     session.add(run)
                     session.commit()
 
+                    t_img = time.monotonic()
                     await download_place_images(run_code, engine)
+                    session.refresh(run)
+                    _persist_stage_duration(
+                        session, run, "image_download_duration_s", time.monotonic() - t_img
+                    )
 
                 from app.pipeline.enrichment import run_enrichment_pipeline
 
@@ -206,13 +288,23 @@ async def resume_scraper_task(run_code: str):
                 session.add(run)
                 session.commit()
 
+                t_enrich = time.monotonic()
                 await run_enrichment_pipeline(run_code)
+                session.refresh(run)
+                _persist_stage_duration(
+                    session, run, "enrichment_duration_s", time.monotonic() - t_enrich
+                )
 
             elif resume_from == "image_download":
                 # Detail fetch completed but image download failed — re-run images then enrich
                 from app.collectors.gmaps import download_place_images
 
+                t_img = time.monotonic()
                 await download_place_images(run_code, engine)
+                session.refresh(run)
+                _persist_stage_duration(
+                    session, run, "image_download_duration_s", time.monotonic() - t_img
+                )
 
                 session.refresh(run)
                 run.stage = "enrichment"
@@ -221,13 +313,23 @@ async def resume_scraper_task(run_code: str):
 
                 from app.pipeline.enrichment import run_enrichment_pipeline
 
+                t_enrich = time.monotonic()
                 await run_enrichment_pipeline(run_code)
+                session.refresh(run)
+                _persist_stage_duration(
+                    session, run, "enrichment_duration_s", time.monotonic() - t_enrich
+                )
 
             elif resume_from == "enrichment":
                 # Skip straight to enrichment (already-enriched places are skipped internally)
                 from app.pipeline.enrichment import run_enrichment_pipeline
 
+                t_enrich = time.monotonic()
                 await run_enrichment_pipeline(run_code)
+                session.refresh(run)
+                _persist_stage_duration(
+                    session, run, "enrichment_duration_s", time.monotonic() - t_enrich
+                )
 
             # Auto-sync: push to catalog immediately after enrichment if enabled
             from app.config import settings as _settings
@@ -235,17 +337,24 @@ async def resume_scraper_task(run_code: str):
             session.refresh(run)
             if _settings.auto_sync_after_run and run.status != "cancelled":
                 logger.info(
-                    "Auto-sync enabled — syncing run %s to %s", run_code, _settings.main_server_url
+                    "Auto-sync enabled — syncing run %s to %s",
+                    run_code,
+                    _settings.main_server_url,
+                    extra={"run_code": run_code},
                 )
+                t_sync = time.monotonic()
                 await sync_run_to_server_async(run_code, _settings.main_server_url)
+                session.refresh(run)
+                _persist_stage_duration(session, run, "sync_duration_s", time.monotonic() - t_sync)
 
             session.refresh(run)
             if run.status != "cancelled":
+                _persist_avg_time(session, run)
                 run.status = "completed"
                 run.stage = None
                 session.add(run)
                 session.commit()
-                logger.info("Run %s resumed and completed", run_code)
+                logger.info("Run %s resumed and completed", run_code, extra={"run_code": run_code})
 
         except Exception as e:
             logger.error("Resume of run %s failed: %s", run_code, e, exc_info=True)
@@ -591,6 +700,12 @@ async def sync_run_to_server_async(
             len(quality_filtered),
             GATE_SYNC,
             len(name_filtered),
+            extra={
+                "run_code": run_code,
+                "quality_filtered": len(quality_filtered),
+                "name_filtered": len(name_filtered),
+                "passing": len(places),
+            },
         )
 
     total = len(places)
@@ -675,6 +790,12 @@ async def sync_run_to_server_async(
         synced_counter.value,
         total,
         failed_count,
+        extra={
+            "run_code": run_code,
+            "synced": synced_counter.value,
+            "total": total,
+            "failed": failed_count,
+        },
     )
     if all_failure_details:
         logger.warning("Failed places:\n%s", "\n".join(f"  - {d}" for d in all_failure_details))
