@@ -1,6 +1,7 @@
 """Composite homepage endpoint — returns all homepage data in a single request."""
 
 from fastapi import APIRouter, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy import or_ as _or
 from sqlmodel import func, select
 
@@ -12,7 +13,7 @@ from app.db import groups as groups_db
 from app.db import place_images
 from app.db import places as places_db
 from app.db import reviews as reviews_db
-from app.db.models import City, Group, Place
+from app.db.models import CheckIn, City, Group, Place, Review
 from app.db.places import _haversine_km
 from app.db.session import SessionDep
 
@@ -42,12 +43,19 @@ def get_homepage(
             group_codes = [g.group_code for g in group_list]
             all_members = groups_db.get_members_bulk(group_codes, session)
             all_user_codes = {uc for members in all_members.values() for uc, _, _ in members}
-            all_check_ins = check_ins_db.get_check_ins_for_users(list(all_user_codes), session)
+
+            # Only fetch check-ins for places in the journey paths (bounded query)
+            all_path_codes = {pc for g in group_list for pc in (g.path_place_codes or [])}
+            if all_path_codes and all_user_codes:
+                all_check_ins = check_ins_db.get_check_ins_for_users_at_places(
+                    list(all_user_codes), list(all_path_codes), session
+                )
+            else:
+                all_check_ins = []
             check_ins_by_user: dict[str, list] = {}
             for chk in all_check_ins:
                 check_ins_by_user.setdefault(chk.user_code, []).append(chk)
 
-            all_path_codes = {pc for g in group_list for pc in (g.path_place_codes or [])}
             path_places: dict[str, object] = {}
             if all_path_codes:
                 path_place_list = places_db.get_places_by_codes(list(all_path_codes), session)
@@ -135,27 +143,37 @@ def get_homepage(
                 }
             )
 
-    # ── Popular places (top-rated) ─────────────────────────────────────────────
-    popular_raw = session.exec(select(Place).limit(200)).all()
-    popular_codes = [p.place_code for p in popular_raw]
+    # ── Popular places (top-rated via SQL subquery) ────────────────────────────
+    # Use a SQL subquery to compute average rating and sort in the database,
+    # fetching only the top 20 instead of scanning 200 rows in Python.
+    rating_sub = (
+        select(
+            Review.place_code,
+            func.avg(Review.rating).label("avg_rating"),
+        )
+        .where(Review.deleted_at == None)  # noqa: E711
+        .group_by(Review.place_code)
+        .subquery()
+    )
+    popular_stmt = (
+        select(Place, rating_sub.c.avg_rating)
+        .outerjoin(rating_sub, Place.place_code == rating_sub.c.place_code)
+        .order_by(func.coalesce(rating_sub.c.avg_rating, 0).desc())
+        .limit(20)
+    )
+    popular_rows = session.exec(popular_stmt).all()
+    popular_places = [row[0] if isinstance(row, tuple) else row.Place for row in popular_rows]
+    popular_codes = [p.place_code for p in popular_places]
     popular_ratings = reviews_db.get_aggregate_ratings_bulk(popular_codes, session)
     popular_images = place_images.get_images_bulk(popular_codes, session)
-
-    def _avg(code: str) -> float:
-        r = popular_ratings.get(code)
-        return r["average"] if r else 0.0
-
-    popular_sorted = sorted(popular_raw, key=lambda p: _avg(p.place_code), reverse=True)[:20]
 
     # Fetch translations for popular places
     popular_trans: dict[str, dict[str, str]] = {}
     if lang and lang != "en":
-        popular_trans = ct_db.bulk_get_translations(
-            "place", [p.place_code for p in popular_sorted], lang, session
-        )
+        popular_trans = ct_db.bulk_get_translations("place", popular_codes, lang, session)
 
     popular_out = []
-    for p in popular_sorted:
+    for p in popular_places:
         imgs = popular_images.get(p.place_code, [])
         dist = (
             _haversine_km(lat, lng, p.lat, p.lng) if lat is not None and lng is not None else None
@@ -175,18 +193,27 @@ def get_homepage(
     valid_religions = [r for r in (religions or []) if r and r != "all"]
     if valid_religions:
         rec_stmt = rec_stmt.where(_or(*[Place.religion == r for r in valid_religions]))
-    rec_raw = session.exec(rec_stmt.limit(200)).all()
 
-    excluded: set[str] = set()
+    # Only exclude checked-in places using a SQL-level subquery (bounded)
     if user:
-        user_checkins = check_ins_db.get_check_ins_for_users([user.user_code], session)
-        excluded = {c.place_code for c in user_checkins}
+        checked_sub = (
+            select(CheckIn.place_code)
+            .where(
+                CheckIn.user_code == user.user_code,
+                CheckIn.deleted_at == None,  # noqa: E711
+            )
+            .distinct()
+            .subquery()
+        )
+        rec_stmt = rec_stmt.where(Place.place_code.notin_(select(checked_sub)))
 
-    rec_candidates = [p for p in rec_raw if p.place_code not in excluded]
+    # Limit to 50 candidates (enough for top 10 after distance sort)
+    rec_raw = session.exec(rec_stmt.limit(50)).all()
+
     if lat is not None and lng is not None:
-        rec_candidates.sort(key=lambda p: _haversine_km(lat, lng, p.lat, p.lng))
+        rec_raw.sort(key=lambda p: _haversine_km(lat, lng, p.lat, p.lng))
 
-    rec_results = rec_candidates[:10]
+    rec_results = rec_raw[:10]
     rec_codes = [p.place_code for p in rec_results]
     rec_images = place_images.get_images_bulk(rec_codes, session)
 
@@ -225,20 +252,24 @@ def get_homepage(
         city_names_list.append(city_name)
         cities_out.append({"city": city_name, "city_slug": slug, "count": cnt, "top_images": []})
 
-    # Fetch top 3 place images per city for the collage display
+    # Fetch top 3 place images per city — limit to 3 place codes per city
     if city_names_list:
-        city_places_stmt = (
-            select(Place.city, Place.place_code).where(Place.city.in_(city_names_list)).limit(300)
+        city_place_codes: dict[str, list[str]] = {}
+        city_places_stmt = select(Place.city, Place.place_code).where(
+            Place.city.in_(city_names_list)
         )
         city_place_rows = session.exec(city_places_stmt).all()
-        city_place_codes: dict[str, list[str]] = {}
         for r in city_place_rows:
             c = r[0] if isinstance(r, tuple) else r.city
             pc = r[1] if isinstance(r, tuple) else r.place_code
-            city_place_codes.setdefault(c, []).append(pc)
+            codes = city_place_codes.setdefault(c, [])
+            if len(codes) < 3:  # Only need 3 per city
+                codes.append(pc)
 
         all_city_codes = [pc for codes in city_place_codes.values() for pc in codes]
-        city_place_images = place_images.get_images_bulk(all_city_codes, session)
+        city_place_images = (
+            place_images.get_images_bulk(all_city_codes, session) if all_city_codes else {}
+        )
 
         for city_item in cities_out:
             pcs = city_place_codes.get(city_item["city"], [])
@@ -263,7 +294,7 @@ def get_homepage(
     # ── Place count ────────────────────────────────────────────────────────────
     total_count = session.exec(select(func.count(Place.id))).one()
 
-    return {
+    result = {
         "groups": groups_out,
         "recommended_places": rec_out,
         "featured_journeys": featured_out,
@@ -271,3 +302,8 @@ def get_homepage(
         "popular_cities": cities_out,
         "place_count": total_count,
     }
+
+    return JSONResponse(
+        content=result,
+        headers={"Cache-Control": "public, max-age=60, stale-while-revalidate=120"},
+    )

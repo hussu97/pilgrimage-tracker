@@ -573,12 +573,16 @@ export default function HomeScreen() {
 
   // ── Data fetching ──
 
+  const hasFetched = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const loadHomepage = useCallback(async () => {
-    setLoading(true);
+    if (!hasFetched.current) setLoading(true);
     try {
-      const religions = (user?.religions ?? []).filter((r) => r !== 'all');
+      const religions = (user?.religions ?? []).filter((r: string) => r !== 'all');
       const data = await getHomepage({ religions });
       setHomeData(data);
+      hasFetched.current = true;
     } catch {
       // silently skip
     } finally {
@@ -586,8 +590,18 @@ export default function HomeScreen() {
     }
   }, [user?.religions]);
 
+  // Debounce to collapse rapid dependency changes into one call
   useEffect(() => {
-    loadHomepage();
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(
+      () => {
+        loadHomepage();
+      },
+      hasFetched.current ? 150 : 0,
+    );
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [loadHomepage]);
 
   // Derive data from homeData

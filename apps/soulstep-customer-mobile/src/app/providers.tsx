@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '@/lib/types';
 import * as api from '@/lib/api/client';
 import { setApiLocale, setClientToken } from '@/lib/api/client';
+import { hydrateCache } from '@/lib/api/cache';
 import { USER_KEY, LOCALE_STORAGE_KEY, VISITOR_KEY } from '@/lib/constants';
 import { getStoredTheme, setStoredTheme, type Theme } from '@/lib/theme';
 
@@ -337,6 +338,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Hydrate persistent cache before API calls — if translations
+      // were persisted from a previous session, they return instantly.
+      await hydrateCache();
       try {
         const list = await loadLanguages();
         if (cancelled) return;

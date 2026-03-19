@@ -1044,8 +1044,13 @@ export async function getHomepage(params?: GetHomepageParams): Promise<HomepageD
   (params?.religions ?? []).forEach((r) => sp.append('religions', r));
   if (_currentLocale && _currentLocale !== 'en') sp.set('lang', _currentLocale);
   const qs = sp.toString();
+  const cacheKey = `homepage:${qs}`;
+  const cached = getCached<HomepageData>(cacheKey, 60_000); // 60s TTL
+  if (cached) return cached;
   const url = `${API_BASE}/api/v1/homepage${qs ? `?${qs}` : ''}`;
   const res = await authFetch(url, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to fetch homepage data');
-  return res.json();
+  const data = await res.json();
+  setCache(cacheKey, data);
+  return data;
 }

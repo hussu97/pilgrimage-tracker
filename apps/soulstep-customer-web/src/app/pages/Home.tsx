@@ -523,22 +523,44 @@ export default function Home() {
     }
   }, [user, navigate]);
 
+  // Track the latest params in a ref so we can debounce/deduplicate calls.
+  // user?.religions and coords change independently (auth resolve, then geolocation),
+  // but we only need one API call once both have settled.
+  const paramsRef = useRef({ religions: user?.religions, coords });
+  paramsRef.current = { religions: user?.religions, coords };
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasFetched = useRef(false);
+
   const loadHomepage = useCallback(async () => {
-    setLoading(true);
+    const { religions, coords: c } = paramsRef.current;
+    const filteredReligions = religions?.filter((r: string) => r !== 'all') ?? [];
+    // Don't show loading skeleton if we already have data (background refresh)
+    if (!hasFetched.current) setLoading(true);
     try {
-      const religions = user?.religions?.filter((r) => r !== 'all') ?? [];
-      const data = await getHomepage({ lat: coords.lat, lng: coords.lng, religions });
+      const data = await getHomepage({ lat: c.lat, lng: c.lng, religions: filteredReligions });
       setHomeData(data);
+      hasFetched.current = true;
     } catch {
       // silently skip
     } finally {
       setLoading(false);
     }
-  }, [user?.religions, coords]);
+  }, []);
 
+  // Debounce: wait 150ms after the last dependency change before fetching.
+  // This collapses the auth-resolve + geolocation-resolve into a single call.
   useEffect(() => {
-    loadHomepage();
-  }, [loadHomepage]);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(
+      () => {
+        loadHomepage();
+      },
+      hasFetched.current ? 150 : 0,
+    ); // First load is immediate
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [user?.religions, coords, loadHomepage]);
 
   const journeys = homeData?.groups ?? [];
   const journeysLoading = loading && !homeData;

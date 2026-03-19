@@ -1,33 +1,45 @@
-import React from 'react';
+import React, { Suspense } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { UmamiTrackerConnected } from '@/components/analytics/UmamiTrackerConnected';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import Layout from '@/components/layout/Layout';
 import SplashScreen from './screens/SplashScreen';
-import LoginScreen from './screens/LoginScreen';
-import RegisterScreen from './screens/RegisterScreen';
-import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
-import ResetPasswordScreen from './screens/ResetPasswordScreen';
+// Eagerly import HomeScreen since it's needed immediately after splash
 import HomeScreen from './screens/HomeScreen';
-import PlaceDetailScreen from './screens/PlaceDetailScreen';
-import WriteReviewScreen from './screens/WriteReviewScreen';
-import ProfileScreen from './screens/ProfileScreen';
-import CheckInsListScreen from './screens/CheckInsListScreen';
-import FavoritesScreen from './screens/FavoritesScreen';
-import CreateGroupScreen from './screens/CreateGroupScreen';
-import GroupDetailScreen from './screens/GroupDetailScreen';
-import JoinGroupScreen from './screens/JoinGroupScreen';
-import EditGroupScreen from './screens/EditGroupScreen';
-import EditGroupPlacesScreen from './screens/EditGroupPlacesScreen';
-import NotificationsScreen from './screens/NotificationsScreen';
-import SearchScreen from './screens/SearchScreen';
-import ExploreCitiesScreen from './screens/ExploreCitiesScreen';
-import ExploreCityScreen from './screens/ExploreCityScreen';
-import PlacesScreen from './screens/PlacesScreen';
-import MapDiscoveryScreen from './screens/MapDiscoveryScreen';
-import OnboardingScreen from './screens/OnboardingScreen';
-import EditProfileScreen from './screens/EditProfileScreen';
+
+// Lazy-load all secondary screens to reduce initial JS parse time
+const LoginScreen = React.lazy(() => import('./screens/LoginScreen'));
+const RegisterScreen = React.lazy(() => import('./screens/RegisterScreen'));
+const ForgotPasswordScreen = React.lazy(() => import('./screens/ForgotPasswordScreen'));
+const ResetPasswordScreen = React.lazy(() => import('./screens/ResetPasswordScreen'));
+const PlaceDetailScreen = React.lazy(() => import('./screens/PlaceDetailScreen'));
+const WriteReviewScreen = React.lazy(() => import('./screens/WriteReviewScreen'));
+const ProfileScreen = React.lazy(() => import('./screens/ProfileScreen'));
+const CheckInsListScreen = React.lazy(() => import('./screens/CheckInsListScreen'));
+const FavoritesScreen = React.lazy(() => import('./screens/FavoritesScreen'));
+const CreateGroupScreen = React.lazy(() => import('./screens/CreateGroupScreen'));
+const GroupDetailScreen = React.lazy(() => import('./screens/GroupDetailScreen'));
+const JoinGroupScreen = React.lazy(() => import('./screens/JoinGroupScreen'));
+const EditGroupScreen = React.lazy(() => import('./screens/EditGroupScreen'));
+const EditGroupPlacesScreen = React.lazy(() => import('./screens/EditGroupPlacesScreen'));
+const NotificationsScreen = React.lazy(() => import('./screens/NotificationsScreen'));
+const SearchScreen = React.lazy(() => import('./screens/SearchScreen'));
+const ExploreCitiesScreen = React.lazy(() => import('./screens/ExploreCitiesScreen'));
+const ExploreCityScreen = React.lazy(() => import('./screens/ExploreCityScreen'));
+const PlacesScreen = React.lazy(() => import('./screens/PlacesScreen'));
+const MapDiscoveryScreen = React.lazy(() => import('./screens/MapDiscoveryScreen'));
+const OnboardingScreen = React.lazy(() => import('./screens/OnboardingScreen'));
+const EditProfileScreen = React.lazy(() => import('./screens/EditProfileScreen'));
+
+function LazyFallback() {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="small" />
+    </View>
+  );
+}
 
 export type RootStackParamList = {
   Splash: undefined;
@@ -74,7 +86,9 @@ function withScreenBoundary<T extends object>(
   return function BoundedScreen(props: T) {
     return (
       <ErrorBoundary>
-        <Screen {...props} />
+        <Suspense fallback={<LazyFallback />}>
+          <Screen {...props} />
+        </Suspense>
       </ErrorBoundary>
     );
   };

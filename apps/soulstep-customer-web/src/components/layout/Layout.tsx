@@ -12,12 +12,13 @@ export default function Layout({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Fetch notification count on login only — not on every route change
   useEffect(() => {
     if (!user) return;
     getNotifications(1, 0)
       .then((res) => setUnreadCount(res.unread_count ?? 0))
       .catch(() => {});
-  }, [user, location.pathname]);
+  }, [user?.user_code]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show bottom nav on main screens, hide on onboarding / creation flows
   const hideBottomNav =
