@@ -5,17 +5,43 @@ from sqlalchemy import or_ as _or
 from sqlmodel import func, select
 
 from app.api.deps import OptionalUserDep
+from app.api.v1.places import _is_24h, _normalize_hours
 from app.db import check_ins as check_ins_db
 from app.db import content_translations as ct_db
 from app.db import groups as groups_db
 from app.db import place_images
 from app.db import places as places_db
 from app.db import reviews as reviews_db
+from app.db.enums import OpenStatus
 from app.db.models import City, Group, Place
-from app.db.places import _haversine_km
+from app.db.places import _haversine_km, _is_open_now_from_hours
 from app.db.session import SessionDep
+from app.services.timezone_utils import get_today_name
 
 router = APIRouter()
+
+
+def _open_fields(place: Place) -> dict:
+    """Compute is_open_now, open_status, and opening_hours_today for a place."""
+    utc_offset = getattr(place, "utc_offset_minutes", None)
+    is_open = _is_open_now_from_hours(place.opening_hours, utc_offset)
+    out: dict = {
+        "is_open_now": is_open,
+        "open_status": (
+            OpenStatus.OPEN
+            if is_open is True
+            else OpenStatus.CLOSED
+            if is_open is False
+            else OpenStatus.UNKNOWN
+        ),
+    }
+    if place.opening_hours and isinstance(place.opening_hours, dict):
+        today_name = get_today_name(utc_offset)
+        today_hours = place.opening_hours.get(today_name)
+        if today_hours:
+            out["opening_hours_today"] = "OPEN_24_HOURS" if _is_24h(today_hours) else today_hours
+        out["opening_hours"] = _normalize_hours(place.opening_hours)
+    return out
 
 
 @router.get("/homepage")
@@ -161,21 +187,21 @@ def get_homepage(
         if lat is not None and lng is not None:
             dist = round(_haversine_km(lat, lng, p.lat, p.lng) * 10) / 10
         trans = popular_trans.get(p.place_code, {})
-        popular_out.append(
-            {
-                "place_code": p.place_code,
-                "name": trans.get("name", p.name),
-                "religion": p.religion,
-                "address": trans.get("address", p.address),
-                "city": p.city,
-                "lat": p.lat,
-                "lng": p.lng,
-                "images": [{"url": img["url"]} for img in imgs],
-                "average_rating": agg["average"] if agg else None,
-                "review_count": agg["count"] if agg else None,
-                "distance": dist,
-            }
-        )
+        item = {
+            "place_code": p.place_code,
+            "name": trans.get("name", p.name),
+            "religion": p.religion,
+            "address": trans.get("address", p.address),
+            "city": p.city,
+            "lat": p.lat,
+            "lng": p.lng,
+            "images": [{"url": img["url"]} for img in imgs],
+            "average_rating": agg["average"] if agg else None,
+            "review_count": agg["count"] if agg else None,
+            "distance": dist,
+            **_open_fields(p),
+        }
+        popular_out.append(item)
 
     # ── Recommended places ────────────────────────────────────────────────────
     rec_stmt = select(Place)
@@ -221,6 +247,7 @@ def get_homepage(
                 "lng": p.lng,
                 "image_url": img_url,
                 "distance_km": dist,
+                **_open_fields(p),
             }
         )
 
