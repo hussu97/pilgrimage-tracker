@@ -107,6 +107,17 @@ class TestIsOpenNow:
         result = _is_open_now_from_hours(self._hours("00:00-23:59"))
         assert result is True
 
+    def test_open_24_hours_string(self):
+        # "Open 24 hours" raw string (from Google Maps via scraper)
+        assert _is_open_now_from_hours(self._hours("Open 24 hours")) is True
+
+    def test_open_24_hours_case_insensitive(self):
+        assert _is_open_now_from_hours(self._hours("open 24 hours")) is True
+        assert _is_open_now_from_hours(self._hours("OPEN 24 HOURS")) is True
+
+    def test_24_hours_without_open_prefix(self):
+        assert _is_open_now_from_hours(self._hours("24 hours")) is True
+
     def test_closed_keyword(self):
         result = _is_open_now_from_hours(self._hours("Closed"))
         assert result is False

@@ -119,6 +119,10 @@ def _is_open_now_from_hours(
         if today_hours.lower() == "hours not available":
             return None
 
+        # "Open 24 hours" / "24 hours" means always open
+        if "24 hours" in today_hours.lower():
+            return True
+
         now_min = now.hour * 60 + now.minute
 
         # Pre-process concatenated multi-slot strings that lack a comma separator.

@@ -36,9 +36,14 @@ RECOMMENDED_CANDIDATE_LIMIT = 200
 router = APIRouter()
 
 
+def _is_24h(v: str) -> bool:
+    """Check if a hours value represents 'open 24 hours'."""
+    return v == "00:00-23:59" or (isinstance(v, str) and "24 hours" in v.lower())
+
+
 def _normalize_hours(hours_dict: dict) -> dict:
-    """Replace the sentinel '00:00-23:59' with 'OPEN_24_HOURS' in a hours dict."""
-    return {k: ("OPEN_24_HOURS" if v == "00:00-23:59" else v) for k, v in hours_dict.items()}
+    """Replace 24-hour sentinels with 'OPEN_24_HOURS' marker."""
+    return {k: ("OPEN_24_HOURS" if _is_24h(v) else v) for k, v in hours_dict.items()}
 
 
 def _place_to_item(
@@ -106,7 +111,7 @@ def _place_to_item(
         today_name = get_today_name(utc_offset_minutes)
         today_hours = place.opening_hours.get(today_name)
         if today_hours:
-            normalized_today = today_hours if today_hours != "00:00-23:59" else "OPEN_24_HOURS"
+            normalized_today = "OPEN_24_HOURS" if _is_24h(today_hours) else today_hours
             out["opening_hours_today"] = normalized_today
 
     # Normalize full opening_hours dict: replace "00:00-23:59" with "OPEN_24_HOURS" marker
