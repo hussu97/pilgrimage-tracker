@@ -155,6 +155,29 @@ class MapsBrowserPool:
             settings.browser_proxy_list, settings.browser_proxy_rotation
         )
 
+    @staticmethod
+    def _install_target_closed_handler() -> None:
+        """Suppress 'Future exception was never retrieved' for TargetClosedError.
+
+        During shutdown or context recycling, Playwright's internal route-handler
+        futures may complete with TargetClosedError after the page/context is
+        already closed. These are harmless but asyncio logs them as scary errors.
+        """
+        loop = asyncio.get_running_loop()
+        _original_handler = loop.get_exception_handler()
+
+        def _handler(loop, context):
+            exc = context.get("exception")
+            if exc and "Target" in type(exc).__name__ and "closed" in str(exc).lower():
+                logger.debug("MapsBrowserPool: suppressed orphan TargetClosedError")
+                return
+            if _original_handler:
+                _original_handler(loop, context)
+            else:
+                loop.default_exception_handler(context)
+
+        loop.set_exception_handler(_handler)
+
     async def _init(self) -> None:
         # If the browser process died (OOM, crash), tear down and reinitialise
         # so the next acquire gets a fresh Chromium instance instead of
@@ -237,6 +260,7 @@ class MapsBrowserPool:
                 timeout=30,
             )
             self._initialized = True
+            self._install_target_closed_handler()
             logger.info(
                 "MapsBrowserPool: launched Chromium (headless=%s, pool_size=%d)",
                 self._headless,
