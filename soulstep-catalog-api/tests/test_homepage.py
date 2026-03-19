@@ -41,7 +41,7 @@ def test_homepage_authenticated(client):
 
 
 def test_homepage_with_location(client):
-    """Homepage with lat/lng returns recommended_places with distance_km field."""
+    """Homepage with lat/lng returns recommended_places with distance field."""
     res = client.get(HOMEPAGE_URL, params={"lat": 51.5074, "lng": -0.1278})
     assert res.status_code == 200
     data = res.json()

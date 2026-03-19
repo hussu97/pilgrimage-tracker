@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.api.deps import UserDep
+from app.api.v1.place_serializers import serialize_place_item, serialize_place_minimal
 from app.db import check_ins as check_ins_db
 from app.db import favorites as favorites_db
 from app.db import place_images, store
@@ -78,13 +79,8 @@ def _format_check_ins(rows, session) -> list:
         place_image_url = images[0]["url"] if images else None
         place_payload = None
         if place:
-            place_payload = {
-                "place_code": place.place_code,
-                "name": place.name,
-                "address": place.address,
-                "images": images,
-                "location": place.address,
-            }
+            place_payload = serialize_place_minimal(place, images=images)
+            place_payload["location"] = place.address  # legacy alias
         out.append(
             {
                 "check_in_code": r.check_in_code,
@@ -164,17 +160,7 @@ def get_my_favorites(
     for place in favorite_places:
         images = all_images.get(place.place_code, [])
         places_list.append(
-            {
-                "place_code": place.place_code,
-                "name": place.name,
-                "religion": place.religion,
-                "place_type": place.place_type,
-                "lat": place.lat,
-                "lng": place.lng,
-                "address": place.address,
-                "images": images,
-                "description": place.description,
-            }
+            serialize_place_item(place, session, images=images, include_rating=False)
         )
     return places_list
 

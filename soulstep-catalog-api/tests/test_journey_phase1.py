@@ -245,11 +245,11 @@ class TestRecommendedPlaces:
         assert "hinduism" not in religions_in_response
 
     def test_recommended_distance_in_response(self, client, db_session):
-        """distance_km field is populated when lat/lng provided."""
+        """distance field is populated when lat/lng provided."""
         _make_place(db_session, "plc_dist1", "Distance Test", lat=25.0, lng=55.0)
         resp = client.get("/api/v1/places/recommended?lat=25.0&lng=55.0")
         assert resp.status_code == 200
         data = resp.json()
         if data:
-            assert data[0]["distance_km"] is not None
-            assert isinstance(data[0]["distance_km"], float)
+            assert data[0]["distance"] is not None
+            assert isinstance(data[0]["distance"], float)

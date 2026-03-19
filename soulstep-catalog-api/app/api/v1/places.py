@@ -7,6 +7,11 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, func, select
 
 from app.api.deps import ApiKeyDep, OptionalUserDep, UserDep
+from app.api.v1.place_serializers import (
+    serialize_place_detail,
+    serialize_place_item,
+    serialize_place_minimal,
+)
 from app.db import check_ins as check_ins_db
 from app.db import content_translations as ct_db
 from app.db import favorites as favorites_db
@@ -15,217 +20,18 @@ from app.db import place_images, review_images
 from app.db import places as places_db
 from app.db import reviews as reviews_db
 from app.db import store as user_store
-from app.db.enums import ImageType, NotificationType, OpenStatus, Religion, ReviewSource
+from app.db.enums import ImageType, NotificationType, Religion, ReviewSource
 from app.db.locations import resolve_location_codes
-from app.db.models import Place, PlaceSEO
+from app.db.models import Place
 from app.db.places import _haversine_km
 from app.db.session import SessionDep, engine
 from app.models.schemas import CheckInBody, PlaceBatch, PlaceCreate, ReviewCreateBody
-from app.services.place_specifications import build_specifications
-from app.services.place_timings import build_timings
-from app.services.timezone_utils import get_today_name
 
 logger = logging.getLogger(__name__)
 
-# ── Named constants ────────────────────────────────────────────────────────────
-NEARBY_RADIUS_KM = 10.0
-NEARBY_LIMIT = 5
-SIMILAR_LIMIT = 5
 RECOMMENDED_CANDIDATE_LIMIT = 200
 
 router = APIRouter()
-
-
-def _is_24h(v: str) -> bool:
-    """Check if a hours value represents 'open 24 hours'."""
-    return v == "00:00-23:59" or (isinstance(v, str) and "24 hours" in v.lower())
-
-
-def _normalize_hours(hours_dict: dict) -> dict:
-    """Replace 24-hour sentinels with 'OPEN_24_HOURS' marker."""
-    return {k: ("OPEN_24_HOURS" if _is_24h(v) else v) for k, v in hours_dict.items()}
-
-
-def _place_to_item(
-    place,
-    session: Session,
-    distance: float | None = None,
-    include_rating: bool = False,
-    attrs: dict | None = None,
-    images: list[dict] | None = None,
-    rating: dict | None = None,
-    translations: dict | None = None,
-) -> dict:
-    d = distance
-    if d is not None:
-        d = round(d * 10) / 10
-
-    # Fetch attributes if not provided
-    if attrs is None:
-        attrs = attr_db.get_attributes_dict(place.place_code, session)
-
-    # Apply translation overlay for localizable text fields
-    trans = translations or {}
-    out = {
-        "place_code": place.place_code,
-        "name": trans.get("name", place.name),
-        "religion": place.religion,
-        "place_type": place.place_type,
-        "lat": place.lat,
-        "lng": place.lng,
-        "address": trans.get("address", place.address),
-        "opening_hours": place.opening_hours,
-        "images": images
-        if images is not None
-        else place_images.get_images(place.place_code, session=session),
-        "description": trans.get("description", place.description),
-        "created_at": place.created_at,
-        "distance": d,
-        "city": place.city,
-        "state": place.state,
-        "country": place.country,
-        "city_code": getattr(place, "city_code", None),
-        "state_code": getattr(place, "state_code", None),
-        "country_code": getattr(place, "country_code", None),
-    }
-
-    # Add UTC offset
-    utc_offset_minutes = getattr(place, "utc_offset_minutes", None)
-    if utc_offset_minutes is not None:
-        out["utc_offset_minutes"] = utc_offset_minutes
-
-    # Compute is_open_now using place's local time
-    is_open = places_db._is_open_now_from_hours(place.opening_hours, utc_offset_minutes)
-    out["is_open_now"] = is_open
-
-    # Derive open_status string: "open" | "closed" | "unknown"
-    if is_open is True:
-        out["open_status"] = OpenStatus.OPEN
-    elif is_open is False:
-        out["open_status"] = OpenStatus.CLOSED
-    else:
-        out["open_status"] = OpenStatus.UNKNOWN
-
-    # Add opening_hours_today - today's hours in local time (normalize 24h marker)
-    if place.opening_hours and isinstance(place.opening_hours, dict):
-        today_name = get_today_name(utc_offset_minutes)
-        today_hours = place.opening_hours.get(today_name)
-        if today_hours:
-            normalized_today = "OPEN_24_HOURS" if _is_24h(today_hours) else today_hours
-            out["opening_hours_today"] = normalized_today
-
-    # Normalize full opening_hours dict: replace "00:00-23:59" with "OPEN_24_HOURS" marker
-    if place.opening_hours and isinstance(place.opening_hours, dict):
-        out["opening_hours"] = _normalize_hours(place.opening_hours)
-
-    if getattr(place, "website_url", None):
-        out["website_url"] = place.website_url
-    out["has_events"] = places_db._place_has_events(place, attrs)
-    if include_rating:
-        # Use passed rating if provided, otherwise fetch from DB
-        if rating:
-            agg = rating
-        else:
-            agg = reviews_db.get_aggregate_rating(place.place_code, session)
-        if agg:
-            out["average_rating"] = agg["average"]
-            out["review_count"] = agg["count"]
-    return out
-
-
-def _place_detail(
-    place,
-    session: Session,
-    lat: float | None = None,
-    lng: float | None = None,
-    lang: str | None = None,
-    include_related: bool = True,
-) -> dict:
-    # Fetch attributes once and reuse
-    attrs = attr_db.get_attributes_dict(place.place_code, session)
-    rating = reviews_db.get_aggregate_rating(place.place_code, session)
-
-    # Resolve translations for non-English locales
-    translations = None
-    if lang and lang != "en":
-        translations = ct_db.get_translations_for_entity("place", place.place_code, lang, session)
-
-    out = _place_to_item(
-        place, session, include_rating=True, attrs=attrs, rating=rating, translations=translations
-    )
-    # Include distance only when caller supplies user coordinates
-    if lat is not None and lng is not None:
-        raw_dist = _haversine_km(lat, lng, place.lat, place.lng)
-        out["distance"] = round(raw_dist * 10) / 10
-    else:
-        out.pop("distance", None)
-    out["total_checkins_count"] = check_ins_db.count_check_ins_for_place(place.place_code, session)
-    out["timings"] = build_timings(place, attrs=attrs, session=session)
-    out["specifications"] = build_specifications(place, attrs=attrs, session=session, lang=lang)
-    out["attributes"] = attrs
-    # Append SEO slug if available
-    seo = session.exec(select(PlaceSEO).where(PlaceSEO.place_code == place.place_code)).first()
-    out["seo_slug"] = seo.slug if seo else None
-    out["seo_title"] = seo.seo_title if seo else None
-    out["seo_meta_description"] = seo.meta_description if seo else None
-    out["seo_rich_description"] = seo.rich_description if seo else None
-    out["seo_faq_json"] = seo.faq_json if seo else None
-    out["seo_og_image_url"] = seo.og_image_url if seo else None
-    out["updated_at"] = place.created_at.isoformat() if place.created_at else None
-
-    if include_related:
-        # Nearby places (within 10 km) — bounding-box pre-filter to avoid full scan
-        nearby_with_dist = places_db.get_nearby_places(
-            place.lat, place.lng, NEARBY_RADIUS_KM, place.place_code, session, limit=NEARBY_LIMIT
-        )
-        nearby_places = [p for _, p in nearby_with_dist]
-
-        # Similar places (same religion)
-        similar_places = session.exec(
-            select(Place)
-            .where(Place.religion == place.religion, Place.place_code != place.place_code)
-            .limit(SIMILAR_LIMIT)
-        ).all()
-
-        # Build SEO slug map for related places
-        related_codes = [p.place_code for p in nearby_places + similar_places]
-        seo_rows = (
-            session.exec(select(PlaceSEO).where(PlaceSEO.place_code.in_(related_codes))).all()
-            if related_codes
-            else []
-        )
-        seo_map = {s.place_code: s for s in seo_rows}
-
-        # Bulk fetch images and ratings for related places (avoids N+1)
-        related_images_bulk = (
-            place_images.get_images_bulk(related_codes, session) if related_codes else {}
-        )
-        related_ratings_bulk = (
-            reviews_db.get_aggregate_ratings_bulk(related_codes, session) if related_codes else {}
-        )
-
-        def _related_item(p) -> dict:
-            rel_seo = seo_map.get(p.place_code)
-            rel_imgs = related_images_bulk.get(p.place_code, [])
-            agg = related_ratings_bulk.get(p.place_code)
-            return {
-                "place_code": p.place_code,
-                "name": p.name,
-                "address": p.address,
-                "religion": p.religion,
-                "seo_slug": rel_seo.slug if rel_seo else None,
-                "image_url": rel_imgs[0]["url"] if rel_imgs else None,
-                "average_rating": agg["average"] if agg else None,
-                "lat": p.lat,
-                "lng": p.lng,
-            }
-
-        out["nearby_places"] = [_related_item(p) for p in nearby_places]
-        out["similar_places"] = [_related_item(p) for p in similar_places]
-    else:
-        out["nearby_places"] = []
-        out["similar_places"] = []
-    return out
 
 
 @router.get("/count")
@@ -283,21 +89,7 @@ def get_recommended_places(
     out = []
     for p, raw_dist in results_with_dist:
         imgs = result_images.get(p.place_code, [])
-        img_url = imgs[0]["url"] if imgs else None
-        dist = round(raw_dist * 10) / 10 if raw_dist is not None else None
-        out.append(
-            {
-                "place_code": p.place_code,
-                "name": p.name,
-                "religion": p.religion,
-                "address": p.address,
-                "city": p.city,
-                "lat": p.lat,
-                "lng": p.lng,
-                "image_url": img_url,
-                "distance_km": dist,
-            }
-        )
+        out.append(serialize_place_minimal(p, images=imgs, distance=raw_dist))
     return out
 
 
@@ -380,10 +172,10 @@ def list_places(
 
     places_out = []
     for p, dist in result["rows"]:
-        item = _place_to_item(
+        item = serialize_place_item(
             p,
             session,
-            dist,
+            distance=dist,
             include_rating=include_rating,
             attrs=all_attrs.get(p.place_code, {}),
             images=all_images.get(p.place_code, []),
@@ -420,7 +212,7 @@ def get_place(
     place = places_db.get_place_by_code(place_code, session)
     if not place:
         raise HTTPException(status_code=404, detail="Place not found")
-    out = _place_detail(
+    out = serialize_place_detail(
         place, session, lat=lat, lng=lng, lang=lang, include_related=include_related
     )
     if user:
@@ -981,7 +773,7 @@ def create_place(
     Create a new place or update an existing one if place_code matches.
     """
     row, _ = _upsert_single_place(body, session)
-    return _place_detail(row, session)
+    return serialize_place_detail(row, session)
 
 
 @router.get("/{place_code}/images/{image_id}")

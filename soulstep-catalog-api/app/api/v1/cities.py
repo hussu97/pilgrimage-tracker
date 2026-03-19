@@ -14,9 +14,10 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import func, select
 
+from app.api.v1.place_serializers import serialize_place_minimal
 from app.db import content_translations as ct_db
 from app.db import place_images
-from app.db.models import CheckIn, City, Place
+from app.db.models import CheckIn, City, Place, PlaceSEO
 from app.db.session import SessionDep
 
 router = APIRouter()
@@ -310,8 +311,6 @@ def list_places_in_city(
         ).all()
         city_name = matching_city
 
-    from app.db.models import PlaceSEO
-
     place_codes = [p.place_code for p in places]
     seo_rows = (
         session.exec(select(PlaceSEO).where(PlaceSEO.place_code.in_(place_codes))).all()
@@ -321,29 +320,22 @@ def list_places_in_city(
     seo_map = {s.place_code: s for s in seo_rows}
     img_map = place_images.get_images_bulk(place_codes, session) if place_codes else {}
 
-    # Overlay place translations
     place_trans: dict[str, dict[str, str]] = {}
     if lang and lang != "en" and place_codes:
         place_trans = ct_db.bulk_get_translations("place", place_codes, lang, session)
 
-    # Overlay city name translation
     translated_city_name = city_name
     if lang and lang != "en" and canonical_city:
         city_translations = canonical_city.translations or {}
         translated_city_name = city_translations.get(lang, city_name)
 
     place_items = [
-        {
-            "place_code": p.place_code,
-            "name": place_trans.get(p.place_code, {}).get("name", p.name),
-            "religion": p.religion,
-            "place_type": p.place_type,
-            "address": place_trans.get(p.place_code, {}).get("address", p.address),
-            "lat": p.lat,
-            "lng": p.lng,
-            "seo_slug": seo_map.get(p.place_code, None) and seo_map[p.place_code].slug,
-            "images": [{"url": img["url"]} for img in img_map.get(p.place_code, [])[:1]],
-        }
+        serialize_place_minimal(
+            p,
+            images=img_map.get(p.place_code, []),
+            translations=place_trans.get(p.place_code),
+            seo_slug=seo_map[p.place_code].slug if seo_map.get(p.place_code) else None,
+        )
         for p in places
     ]
     return {
@@ -368,7 +360,6 @@ def list_places_in_city_by_religion(
     """List places in a city filtered by religion."""
     city_slug = city_slug.lower()
 
-    # Try to find a canonical City row matching the slug
     all_city_objs = session.exec(select(City)).all()
     canonical_city = next((c for c in all_city_objs if _city_to_slug(c.name) == city_slug), None)
 
@@ -387,7 +378,6 @@ def list_places_in_city_by_religion(
         ).all()
         city_name = canonical_city.name
     else:
-        # Fallback: match by raw city string
         all_cities = session.exec(
             select(Place.city).where(Place.city != None, Place.city != "").distinct()  # noqa: E711
         ).all()
@@ -408,8 +398,6 @@ def list_places_in_city_by_religion(
         ).all()
         city_name = matching_city
 
-    from app.db.models import PlaceSEO
-
     place_codes = [p.place_code for p in places]
     seo_rows = (
         session.exec(select(PlaceSEO).where(PlaceSEO.place_code.in_(place_codes))).all()
@@ -419,29 +407,22 @@ def list_places_in_city_by_religion(
     seo_map = {s.place_code: s for s in seo_rows}
     img_map = place_images.get_images_bulk(place_codes, session) if place_codes else {}
 
-    # Overlay place translations
     place_trans: dict[str, dict[str, str]] = {}
     if lang and lang != "en" and place_codes:
         place_trans = ct_db.bulk_get_translations("place", place_codes, lang, session)
 
-    # Overlay city name translation
     translated_city_name = city_name
     if lang and lang != "en" and canonical_city:
         city_translations = canonical_city.translations or {}
         translated_city_name = city_translations.get(lang, city_name)
 
     place_items = [
-        {
-            "place_code": p.place_code,
-            "name": place_trans.get(p.place_code, {}).get("name", p.name),
-            "religion": p.religion,
-            "place_type": p.place_type,
-            "address": place_trans.get(p.place_code, {}).get("address", p.address),
-            "lat": p.lat,
-            "lng": p.lng,
-            "seo_slug": seo_map.get(p.place_code, None) and seo_map[p.place_code].slug,
-            "images": [{"url": img["url"]} for img in img_map.get(p.place_code, [])[:1]],
-        }
+        serialize_place_minimal(
+            p,
+            images=img_map.get(p.place_code, []),
+            translations=place_trans.get(p.place_code),
+            seo_slug=seo_map[p.place_code].slug if seo_map.get(p.place_code) else None,
+        )
         for p in places
     ]
     return {
