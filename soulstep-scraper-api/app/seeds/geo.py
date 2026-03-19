@@ -1757,9 +1757,9 @@ def seed_geo_boundaries(session: Session):
 # Keys match GeoBoundary.name values.
 #
 COUNTRY_BOXES: dict[str, list[dict]] = {
-    # ── India (28 boxes) ─────────────────────────────────────────────────────
+    # ── India (25 boxes) ─────────────────────────────────────────────────────
     # A single India rectangle covers Pakistan, Bangladesh, Nepal, Sri Lanka.
-    # 28 tighter boxes trace the actual inhabited landmass.
+    # 25 tighter boxes trace the actual inhabited landmass.
     # Changes vs previous 25-box set:
     #   - northwest_punjab_haryana: lng_min 73.8→74.0 (avoids Pakistan Punjab border zone)
     #   - jammu_kashmir: split into jammu + kashmir_valley (avoids PoK and Aksai Chin)
@@ -2093,7 +2093,7 @@ COUNTRY_BOXES: dict[str, list[dict]] = {
         },
         {"label": "florida", "lat_min": 24.5, "lat_max": 31.0, "lng_min": -87.5, "lng_max": -80.0},
     ],
-    # ── UAE (11 boxes) ───────────────────────────────────────────────────────
+    # ── UAE (10 boxes) ───────────────────────────────────────────────────────
     # Previous 4 boxes bled into Oman (abu_dhabi_east/northern_emirates
     # extended to lng 56.5 — UAE-Oman border is ~55.8-56.1°E near Al Ain,
     # ~56.2°E at the Fujairah coast) and clipped Saudi Arabia in the south
@@ -2102,7 +2102,7 @@ COUNTRY_BOXES: dict[str, list[dict]] = {
     #   - al_ain: lng_max 56.0→55.7 (Oman's Buraimi at ~55.8°E)
     #   - ras_al_khaimah: split into rak_main + rak_east_coast (Musandam overlap)
     #   - fujairah: split into fujairah_south + fujairah_dibba (Oman's Dibba Al Baya overlap)
-    # 11 tighter boxes trace the actual UAE emirate footprints.
+    # 10 tighter boxes trace the actual UAE emirate footprints.
     "UAE": [
         # Western Abu Dhabi: Liwa oasis, empty quarter fringe
         {
