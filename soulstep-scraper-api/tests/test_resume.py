@@ -80,6 +80,94 @@ def test_startup_ignores_completed_runs(db_session, test_engine, real_mark_inter
     assert cancelled.status == "cancelled"
 
 
+def test_startup_leaves_active_cloud_run_execution_alone(
+    db_session, test_engine, real_mark_interrupted_runs
+):
+    """Runs dispatched to Cloud Run that are still active should NOT be interrupted."""
+    loc = _make_location(db_session)
+    run = ScraperRun(
+        run_code=f"run_{secrets.token_hex(4)}",
+        location_code=loc.code,
+        status="running",
+        stage="detail_fetch",
+        cloud_run_execution="projects/p/locations/eu-west1/jobs/j/executions/active-exec",
+    )
+    db_session.add(run)
+    db_session.commit()
+    db_session.refresh(run)
+
+    with (
+        patch("app.main.engine", test_engine),
+        patch(
+            "app.jobs.dispatcher.is_cloud_run_execution_active", return_value=True
+        ) as mock_active,
+    ):
+        real_mark_interrupted_runs()
+
+    db_session.refresh(run)
+    assert run.status == "running"
+    assert run.error_message is None
+    mock_active.assert_called_once_with(
+        "projects/p/locations/eu-west1/jobs/j/executions/active-exec"
+    )
+
+
+def test_startup_interrupts_finished_cloud_run_execution(
+    db_session, test_engine, real_mark_interrupted_runs
+):
+    """Cloud Run runs whose execution is no longer active should be interrupted."""
+    loc = _make_location(db_session)
+    run = ScraperRun(
+        run_code=f"run_{secrets.token_hex(4)}",
+        location_code=loc.code,
+        status="running",
+        stage="enrichment",
+        cloud_run_execution="projects/p/locations/eu-west1/jobs/j/executions/done-exec",
+    )
+    db_session.add(run)
+    db_session.commit()
+    db_session.refresh(run)
+
+    with (
+        patch("app.main.engine", test_engine),
+        patch("app.jobs.dispatcher.is_cloud_run_execution_active", return_value=False),
+    ):
+        real_mark_interrupted_runs()
+
+    db_session.refresh(run)
+    assert run.status == "interrupted"
+    assert run.error_message == "Cloud Run execution finished or unreachable"
+
+
+def test_startup_mixed_local_and_cloud_runs(db_session, test_engine, real_mark_interrupted_runs):
+    """Local runs should be interrupted while active cloud runs are left alone."""
+    loc = _make_location(db_session)
+    local_run = _make_run(db_session, loc.code, status="running", stage="discovery")
+    cloud_run_active = ScraperRun(
+        run_code=f"run_{secrets.token_hex(4)}",
+        location_code=loc.code,
+        status="running",
+        stage="detail_fetch",
+        cloud_run_execution="projects/p/locations/r/jobs/j/executions/still-going",
+    )
+    db_session.add(cloud_run_active)
+    db_session.commit()
+    db_session.refresh(cloud_run_active)
+
+    with (
+        patch("app.main.engine", test_engine),
+        patch("app.jobs.dispatcher.is_cloud_run_execution_active", return_value=True),
+    ):
+        real_mark_interrupted_runs()
+
+    db_session.refresh(local_run)
+    db_session.refresh(cloud_run_active)
+    assert local_run.status == "interrupted"
+    assert local_run.error_message == "Process terminated unexpectedly"
+    assert cloud_run_active.status == "running"
+    assert cloud_run_active.error_message is None
+
+
 # ── 2. Resume endpoint ─────────────────────────────────────────────────────────
 
 

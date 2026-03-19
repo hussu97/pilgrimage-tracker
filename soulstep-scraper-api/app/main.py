@@ -106,25 +106,61 @@ def _validate_startup_config() -> None:
 
 def _mark_interrupted_runs() -> None:
     """
-    Mark any runs stuck in 'running' status as 'interrupted' at startup.
+    Mark runs stuck in 'running' status as 'interrupted' at startup.
 
-    If the process was killed mid-run (OOM, Cloud Run restart, crash), runs
-    remain in status='running' forever. This function detects them and sets
-    status='interrupted' so they can be resumed via the resume endpoint.
+    If the process was killed mid-run (OOM, Cloud Run restart, crash), local
+    runs remain in status='running' forever.  This function detects them and
+    sets status='interrupted' so they can be resumed via the resume endpoint.
+
+    Cloud Run–dispatched jobs (identified by a non-null cloud_run_execution)
+    are checked against the Executions API first — if the job container is
+    still running, the run is left alone to avoid false interruptions.
     """
     from sqlmodel import select as _select
+
+    from app.jobs.dispatcher import is_cloud_run_execution_active
 
     with Session(engine) as session:
         stuck_runs = session.exec(_select(ScraperRun).where(ScraperRun.status == "running")).all()
         if not stuck_runs:
             return
-        logger.warning(
-            "Found %d run(s) stuck in 'running' state — marking as interrupted", len(stuck_runs)
-        )
-        for run in stuck_runs:
+
+        local_runs = [r for r in stuck_runs if not r.cloud_run_execution]
+        cloud_runs = [r for r in stuck_runs if r.cloud_run_execution]
+
+        # Local runs: always interrupt — the in-process thread died with the API
+        for run in local_runs:
             run.status = "interrupted"
             run.error_message = "Process terminated unexpectedly"
             session.add(run)
+
+        if local_runs:
+            logger.warning("Marked %d local run(s) as interrupted (process died)", len(local_runs))
+
+        # Cloud Run runs: only interrupt if the execution is no longer active
+        skipped = 0
+        interrupted = 0
+        for run in cloud_runs:
+            if is_cloud_run_execution_active(run.cloud_run_execution):
+                skipped += 1
+                logger.info(
+                    "Cloud Run execution still active — leaving run %s as running",
+                    run.run_code,
+                )
+            else:
+                run.status = "interrupted"
+                run.error_message = "Cloud Run execution finished or unreachable"
+                session.add(run)
+                interrupted += 1
+
+        if interrupted:
+            logger.warning(
+                "Marked %d Cloud Run run(s) as interrupted (execution no longer active)",
+                interrupted,
+            )
+        if skipped:
+            logger.info("Left %d Cloud Run run(s) as running (execution still active)", skipped)
+
         session.commit()
 
 
