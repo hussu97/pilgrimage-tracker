@@ -236,14 +236,14 @@ def is_cloud_run_execution_active(execution_name: str) -> bool:
         return ct.seconds == 0 and ct.nanos == 0
     except Exception as exc:
         logger.warning(
-            "dispatcher: could not check Cloud Run execution status — treating as not running",
+            "dispatcher: could not check Cloud Run execution status — assuming still active",
             extra={
                 "execution_name": execution_name,
                 "error.type": type(exc).__name__,
                 "error.message": str(exc),
             },
         )
-        return False
+        return True
 
 
 def cancel_cloud_run_execution(execution_name: str) -> None:
