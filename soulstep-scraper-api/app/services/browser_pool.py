@@ -387,7 +387,13 @@ class MapsBrowserPool:
     def _is_target_closed_error(exc: Exception) -> bool:
         """Check if an exception indicates a dead browser/context/page."""
         msg = str(exc).lower()
-        return "target" in msg and "closed" in msg
+        if "target" in msg and "closed" in msg:
+            return True
+        # Chromium process died (OOM, crash) — new_context/goto/evaluate fail with
+        # "Connection closed while reading from the driver"
+        if "connection closed" in msg:
+            return True
+        return False
 
     async def _force_reinit(self) -> None:
         """Tear down browser and mark uninitialised. Must hold self._lock."""
