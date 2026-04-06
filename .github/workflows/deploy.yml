@@ -172,14 +172,8 @@ jobs:
 
       - name: Build
         working-directory: apps/soulstep-customer-web
-        run: |
-          if [ -z "$VITE_API_URL" ]; then
-            echo "ERROR: VITE_API_URL secret is not set. Add it to GitHub → Settings → Secrets → Actions."
-            exit 1
-          fi
-          npm run build
+        run: npm run build
         env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
           VITE_ADSENSE_PUBLISHER_ID: ${{ secrets.VITE_ADSENSE_PUBLISHER_ID }}
           VITE_UMAMI_WEBSITE_ID: ${{ secrets.VITE_UMAMI_WEBSITE_ID }}
 
@@ -231,14 +225,7 @@ jobs:
 
       - name: Build
         working-directory: apps/soulstep-admin-web
-        run: |
-          if [ -z "$VITE_API_URL" ]; then
-            echo "ERROR: VITE_API_URL secret is not set. Add it to GitHub → Settings → Secrets → Actions."
-            exit 1
-          fi
-          npm run build
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        run: npm run build
 
       - name: Authenticate with GCP (keyless)
         uses: google-github-actions/auth@v2
