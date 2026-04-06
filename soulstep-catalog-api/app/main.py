@@ -401,6 +401,15 @@ async def _gcp_trace_middleware(request: Request, call_next):
     return await call_next(request)
 
 
+@app.get("/", include_in_schema=False)
+async def root_redirect():
+    from fastapi.responses import RedirectResponse
+
+    from app.core.config import FRONTEND_URL
+
+    return RedirectResponse(url=FRONTEND_URL, status_code=301)
+
+
 app.include_router(api_router)
 app.include_router(share_router_module.router, prefix="/share")
 app.include_router(sitemap_module.router)
