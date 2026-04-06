@@ -8,10 +8,6 @@ RUN npm ci
 
 COPY . .
 
-# VITE_API_URL must be set at build time (baked into the JS bundle)
-ARG VITE_API_URL
-ENV VITE_API_URL=${VITE_API_URL}
-
 RUN npm run build
 
 # --- Serve stage ---

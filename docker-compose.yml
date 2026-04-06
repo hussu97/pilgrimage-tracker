@@ -55,8 +55,7 @@ services:
     build:
       context: ./apps/soulstep-customer-web
       dockerfile: Dockerfile
-      args:
-        VITE_API_URL: ${VITE_API_URL:?VITE_API_URL is required (e.g. https://api.soul-step.org)}
+
     ports:
       - "${WEB_PORT:-80}:80"
     depends_on:

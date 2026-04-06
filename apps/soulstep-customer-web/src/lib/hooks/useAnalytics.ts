@@ -11,7 +11,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, type ReactNo
 import { useLocation } from 'react-router-dom';
 import { createElement } from 'react';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
+const API_BASE = '';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

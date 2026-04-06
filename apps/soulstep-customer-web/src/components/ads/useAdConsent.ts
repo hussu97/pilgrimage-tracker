@@ -8,7 +8,7 @@
 import { useState, useCallback } from 'react';
 import { AD_CONSENT_KEY, ANALYTICS_CONSENT_KEY } from './ad-constants';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
+const API_BASE = '';
 
 export interface ConsentState {
   ads: boolean | null;

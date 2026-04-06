@@ -12,7 +12,7 @@ import { useAuth } from '@/app/providers';
 import { useAdConsent, type ConsentState } from './useAdConsent';
 import type { AdSlotName } from './ad-constants';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
+const API_BASE = '';
 const ADSENSE_PUB_ID = import.meta.env.VITE_ADSENSE_PUBLISHER_ID ?? '';
 
 // ── Types ──────────────────────────────────────────────────────────────────────

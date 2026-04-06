@@ -2,7 +2,7 @@
  * Image utility functions for handling place and review images.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
+const API_BASE = '';
 
 /**
  * Convert a potentially relative image URL to a full URL.

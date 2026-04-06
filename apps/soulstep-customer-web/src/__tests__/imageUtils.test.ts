@@ -18,19 +18,9 @@ describe('getFullImageUrl()', () => {
     expect(getFullImageUrl(url)).toBe(url);
   });
 
-  it('returns relative paths as-is when no VITE_API_URL set', async () => {
-    vi.stubEnv('VITE_API_URL', '');
+  it('returns relative paths as-is', async () => {
     const { getFullImageUrl } = await import('@/lib/utils/imageUtils');
     const result = getFullImageUrl('/api/v1/places/pl_abc/images/1');
-    vi.unstubAllEnvs();
     expect(result).toBe('/api/v1/places/pl_abc/images/1');
-  });
-
-  it('prepends non-empty VITE_API_URL for relative paths', async () => {
-    vi.stubEnv('VITE_API_URL', 'http://api.example.com');
-    const { getFullImageUrl } = await import('@/lib/utils/imageUtils');
-    const result = getFullImageUrl('/api/v1/places/pl_abc/images/1');
-    vi.unstubAllEnvs();
-    expect(result).toBe('http://api.example.com/api/v1/places/pl_abc/images/1');
   });
 });

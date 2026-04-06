@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { shareUrl } from '@/lib/share';
 import { useI18n } from '@/app/providers';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
+const API_BASE = '';
 
 interface SharePlaceButtonProps {
   placeName: string;

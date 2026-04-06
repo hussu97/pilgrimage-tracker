@@ -19,7 +19,7 @@ import type {
 import type { ChecklistResponse, PlaceNote } from '@/lib/types/groups';
 import { getCached, setCache, invalidateCache } from './cache';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '';
+const API_BASE = '';
 
 // In-memory token — never persisted to localStorage (prevents XSS token theft).
 // The backend also sets the access token as an httpOnly cookie for session persistence
