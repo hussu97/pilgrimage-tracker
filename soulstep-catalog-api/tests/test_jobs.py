@@ -212,7 +212,8 @@ class TestSyncPlacesMain:
         mock_conn = MagicMock()
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
-        mock_conn.execute.return_value.fetchall.return_value = [fake_row]
+        # streaming: conn.execution_options(...).execute(...) returns an iterable
+        mock_conn.execution_options.return_value.execute.return_value = iter([fake_row])
 
         mock_engine = MagicMock()
         mock_engine.connect.return_value = mock_conn
@@ -241,7 +242,7 @@ class TestSyncPlacesMain:
         mock_conn = MagicMock()
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
-        mock_conn.execute.return_value.fetchall.return_value = [fake_row]
+        mock_conn.execution_options.return_value.execute.return_value = iter([fake_row])
 
         mock_engine = MagicMock()
         mock_engine.connect.return_value = mock_conn
@@ -274,7 +275,7 @@ class TestSyncPlacesMain:
         mock_conn = MagicMock()
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
-        mock_conn.execute.return_value.fetchall.return_value = [fake_row]
+        mock_conn.execution_options.return_value.execute.return_value = iter([fake_row])
 
         mock_engine = MagicMock()
         mock_engine.connect.return_value = mock_conn

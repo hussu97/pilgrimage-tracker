@@ -178,74 +178,88 @@ def main() -> None:
     run_migrations()
     logger.info("sync_places: migrations complete")
 
-    # ── Step 2: Read all scraped places from scraper DB ──────────────────────
+    # ── Step 2: Stream scraped places from scraper DB in server-side cursor ──
     logger.info("sync_places: connecting to scraper DB")
     scraper_engine = create_engine(scraper_db_url, echo=False)
 
-    with scraper_engine.connect() as conn:
-        rows = conn.execute(
-            text("SELECT place_code, name, raw_data, quality_score " "FROM scrapedplace")
-        ).fetchall()
-
-    logger.info("sync_places: read %d rows from scraper DB", len(rows))
-
-    # ── Step 3: Filter + build PlaceCreate objects ───────────────────────────
-    places: list[PlaceCreate] = []
     skipped_quality = 0
     skipped_name = 0
     skipped_build = 0
+    created = 0
+    updated = 0
+    failed = 0
+    batch_num = 0
+    chunk: list[PlaceCreate] = []
 
-    for row in rows:
-        place_code, name, raw_data, quality_score = row
+    # ── Step 3 + 4: Stream, filter, build, and process in one pass ──────────
+    with scraper_engine.connect() as conn:
+        result = conn.execution_options(stream_results=True, yield_per=_BATCH_SIZE).execute(
+            text("SELECT place_code, name, raw_data, quality_score FROM scrapedplace")
+        )
 
-        # Quality gate (NULL passes through — legacy rows without a score)
-        if quality_score is not None and quality_score < _QUALITY_GATE:
-            skipped_quality += 1
-            continue
+        for row in result:
+            place_code, name, raw_data, quality_score = row
 
-        # Name specificity gate
-        if not _is_name_specific_enough(name or ""):
-            skipped_name += 1
-            continue
+            # Quality gate (NULL passes through — legacy rows without a score)
+            if quality_score is not None and quality_score < _QUALITY_GATE:
+                skipped_quality += 1
+                continue
 
-        place = _build_place_create(place_code, name, raw_data or {})
-        if place is None:
-            skipped_build += 1
-            continue
+            # Name specificity gate
+            if not _is_name_specific_enough(name or ""):
+                skipped_name += 1
+                continue
 
-        places.append(place)
+            place = _build_place_create(place_code, name, raw_data or {})
+            if place is None:
+                skipped_build += 1
+                continue
+
+            chunk.append(place)
+
+            if len(chunk) >= _BATCH_SIZE:
+                batch_num += 1
+                logger.info("sync_places: processing batch %d (%d places)", batch_num, len(chunk))
+                results = _process_chunk(chunk)
+                chunk = []
+                for r in results:
+                    if r["ok"]:
+                        if r.get("action") == "created":
+                            created += 1
+                        else:
+                            updated += 1
+                    else:
+                        failed += 1
+                        logger.warning(
+                            "sync_places: failed place %s: %s", r["place_code"], r.get("error")
+                        )
+
+        # Flush remaining
+        if chunk:
+            batch_num += 1
+            logger.info(
+                "sync_places: processing batch %d (%d places) [final]", batch_num, len(chunk)
+            )
+            results = _process_chunk(chunk)
+            for r in results:
+                if r["ok"]:
+                    if r.get("action") == "created":
+                        created += 1
+                    else:
+                        updated += 1
+                else:
+                    failed += 1
+                    logger.warning(
+                        "sync_places: failed place %s: %s", r["place_code"], r.get("error")
+                    )
 
     logger.info(
-        "sync_places: %d places to sync (%d skipped quality, %d skipped name, %d build errors)",
-        len(places),
+        "sync_places: streamed %d batches (%d skipped quality, %d skipped name, %d build errors)",
+        batch_num,
         skipped_quality,
         skipped_name,
         skipped_build,
     )
-
-    # ── Step 4: Process in batches of 50 ────────────────────────────────────
-    created = 0
-    updated = 0
-    failed = 0
-
-    for i in range(0, len(places), _BATCH_SIZE):
-        chunk = places[i : i + _BATCH_SIZE]
-        logger.info(
-            "sync_places: processing batch %d/%d (%d places)",
-            i // _BATCH_SIZE + 1,
-            (len(places) + _BATCH_SIZE - 1) // _BATCH_SIZE,
-            len(chunk),
-        )
-        results = _process_chunk(chunk)
-        for r in results:
-            if r["ok"]:
-                if r.get("action") == "created":
-                    created += 1
-                else:
-                    updated += 1
-            else:
-                failed += 1
-                logger.warning("sync_places: failed place %s: %s", r["place_code"], r.get("error"))
 
     elapsed = time.time() - start_time
     logger.info(
