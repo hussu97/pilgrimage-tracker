@@ -133,7 +133,7 @@ jobs:
             --min-instances 0 --max-instances 3 \
             --quiet
 
-  # ── Deploy: Web → Firebase Hosting ─────────────────────────────────────────
+  # ── Deploy: Web → Cloud Run ──────────────────────────────────────────────────
 
   deploy-web:
     name: Deploy soulstep-customer-web → Cloud Run

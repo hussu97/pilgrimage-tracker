@@ -315,20 +315,16 @@ After the domain is live, all services and frontends should point to `https://ap
 
 ## 4. Deploy Web Frontend
 
-The customer web app uses **Next.js 15** with server-side rendering (SSR). Pages that depend on dynamic URL params (e.g. `/places/[placeCode]`) require a Node.js server — deploy to Cloud Run.
+The customer web app uses **Next.js 15** with server-side rendering (SSR). Deployed to **Cloud Run** via GitHub Actions — on every push to `main` that touches `apps/soulstep-customer-web/`, CI builds a Docker image and deploys it automatically.
 
-### Build
-
-```bash
-cd apps/soulstep-customer-web
-NEXT_PUBLIC_ADSENSE_PUBLISHER_ID=ca-pub-xxx npm run build
-```
-
-### Deploy to Cloud Run
+### Manual deploy
 
 ```bash
 # Build the Docker image
-docker build -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/customer-web:latest \
+docker build \
+  --build-arg NEXT_PUBLIC_ADSENSE_PUBLISHER_ID=ca-pub-xxx \
+  --build-arg NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-id \
+  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/customer-web:latest \
   apps/soulstep-customer-web/
 
 # Push
@@ -339,14 +335,14 @@ gcloud run deploy soulstep-customer-web \
   --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/customer-web:latest \
   --region REGION \
   --allow-unauthenticated \
-  --set-env-vars "NEXT_PUBLIC_ADSENSE_PUBLISHER_ID=ca-pub-xxx" \
+  --set-env-vars "NEXT_PUBLIC_ADSENSE_PUBLISHER_ID=ca-pub-xxx,NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-id" \
   --min-instances 0 \
   --max-instances 5 \
   --memory 512Mi \
   --port 3001
 ```
 
-Your app is live at the Cloud Run URL. Add this URL to `CORS_ORIGINS` on the API (see §3).
+Add the Cloud Run service URL to `CORS_ORIGINS` on the API (see §3).
 
 ### Custom domain
 
@@ -354,11 +350,12 @@ Cloud Run → **Domain mappings** → Add custom domain `soul-step.org`. TLS cer
 
 ### Frontend NEXT_PUBLIC_* variables
 
-`NEXT_PUBLIC_*` variables are baked into the build at CI time. Store them as GitHub Actions secrets:
+`NEXT_PUBLIC_*` variables are baked into the Docker build at CI time. Store them as GitHub Actions secrets:
 
-| Secret | Value |
+| Secret | Description |
 |---|---|
 | `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami analytics website ID |
 
 ---
 
