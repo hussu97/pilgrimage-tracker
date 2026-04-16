@@ -1,27 +1,34 @@
 import type { NextConfig } from 'next';
 
-const backendOrigin = process.env.NEXT_PUBLIC_PROXY_TARGET || 'http://127.0.0.1:3000';
+// In dev, proxy to local backend. In production, proxy to the public API.
+const backendOrigin =
+  process.env.NODE_ENV === 'development'
+    ? process.env.NEXT_PUBLIC_PROXY_TARGET || 'http://127.0.0.1:3000'
+    : process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.soul-step.org';
 
 const nextConfig: NextConfig = {
   // Rewrite rules:
-  //   /sitemap.xml, /feed.xml, /feed.atom → proxy route handlers (all envs)
-  //   /api/*, /umami/* → backend / Umami (dev only)
+  //   /sitemap.xml, /feed.xml, /feed.atom → internal Next.js route handlers (all envs)
+  //   /api/v1/*                           → backend proxy (all envs)
+  //   /umami/*                            → Umami cloud (dev only)
   async rewrites() {
     const always = [
       // Proxy sitemap and feeds from main domain so GSC and feed readers work
       { source: '/sitemap.xml', destination: '/api/sitemap' },
       { source: '/feed.xml', destination: '/api/feed-xml' },
       { source: '/feed.atom', destination: '/api/feed-atom' },
+      // Proxy all backend API calls in every environment.
+      // Scoped to /api/v1/ so internal Next.js handlers (/api/sitemap etc.) are unaffected.
+      {
+        source: '/api/v1/:path*',
+        destination: `${backendOrigin}/api/v1/:path*`,
+      },
     ];
 
     if (process.env.NODE_ENV !== 'development') return always;
 
     return [
       ...always,
-      {
-        source: '/api/:path*',
-        destination: `${backendOrigin}/api/:path*`,
-      },
       {
         source: '/umami/:path*',
         destination: `https://cloud.umami.is/:path*`,
