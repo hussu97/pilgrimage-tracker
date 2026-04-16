@@ -687,7 +687,7 @@ The workflow at `.github/workflows/deploy.yml` runs on every push to `main`.
 |---|---|---|
 | `deploy-api` | `soulstep-catalog-api/` changed | Builds `api` image → deploys Cloud Run service |
 | `deploy-jobs` | `soulstep-catalog-api/` changed (after `deploy-api`) | Builds `sync-places` + `translate-content` images → creates/updates all 5 Cloud Run Jobs |
-| `deploy-web` | `apps/soulstep-customer-web/` changed | Builds web app → deploys to Firebase Hosting (`web` target) |
+| `deploy-web` | `apps/soulstep-customer-web/` changed | Builds Docker image → deploys to Cloud Run (`soulstep-customer-web` service) |
 | `deploy-admin-web` | `apps/soulstep-admin-web/` changed | Builds admin app → deploys to Firebase Hosting (`admin` target) |
 | `deploy-scraper` | `soulstep-scraper-api/` changed | Builds `scraper` image → deploys Cloud Run service + upserts scraper job (primary + extra regions) |
 
@@ -724,9 +724,9 @@ rm gcp-key.json
 | Secret | Description |
 |---|---|
 | `GCP_SA_KEY` | Full JSON of the deploy service account key |
-| `VITE_API_URL` | `https://api.soul-step.org` (baked into web build) |
-| `VITE_ADSENSE_PUBLISHER_ID` | AdSense publisher ID |
-| `FIREBASE_TOKEN` | Run `firebase login:ci` and copy the token |
+| `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | AdSense publisher ID (baked into Next.js build) |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami analytics website ID (baked into Next.js build) |
+| `FIREBASE_TOKEN` | Run `firebase login:ci` and copy the token (admin-web only) |
 
 ---
 

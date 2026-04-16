@@ -4,6 +4,18 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-16] — Fix Customer Web Deployment for Next.js SSR
+
+### Docs / CI
+- **`firebase.json`** — removed stale `customer` hosting target (Next.js SSR cannot be served as static files on Firebase Hosting)
+- **`.firebaserc`** — removed `customer` from hosting targets
+- **`Dockerfile`** — rewrote for Next.js standalone output: multi-stage build using `node:20-slim` runner instead of nginx; copies `.next/standalone`, `.next/static`, and `public/`; added `ARG`/`ENV` for `NEXT_PUBLIC_*` build args
+- **`next.config.ts`** — added `output: 'standalone'` for Docker/Cloud Run standalone server generation
+- **`.github/workflows/deploy.yml`** — updated `deploy-web` job: builds Docker image → pushes to Artifact Registry → deploys to Cloud Run (`soulstep-customer-web`); replaced stale Vite cache and `VITE_*` env vars with `NEXT_PUBLIC_*`
+- **`PRODUCTION.md`** §8 — updated CI/CD table and GitHub secrets to reflect Cloud Run deployment
+
+---
+
 ## [2026-04-16] — Migrate Customer Web to Next.js 15 (SSR)
 
 ### Frontend (web)

@@ -136,7 +136,7 @@ jobs:
   # ── Deploy: Web → Firebase Hosting ─────────────────────────────────────────
 
   deploy-web:
-    name: Deploy soulstep-customer-web → Firebase Hosting
+    name: Deploy soulstep-customer-web → Cloud Run
     needs: [changes]
     if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
@@ -152,39 +152,39 @@ jobs:
           sparse-checkout: apps/soulstep-customer-web
           sparse-checkout-cone-mode: true
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: apps/soulstep-customer-web/package-lock.json
-
-      - name: Cache Vite build artifacts
-        uses: actions/cache@v4
-        with:
-          path: apps/soulstep-customer-web/node_modules/.vite
-          key: vite-web-${{ hashFiles('apps/soulstep-customer-web/package-lock.json') }}-${{ env.HEAD_SHA }}
-          restore-keys: |
-            vite-web-${{ hashFiles('apps/soulstep-customer-web/package-lock.json') }}-
-
-      - name: Install dependencies
-        working-directory: apps/soulstep-customer-web
-        run: npm ci
-
-      - name: Build
-        working-directory: apps/soulstep-customer-web
-        run: npm run build
-        env:
-          VITE_ADSENSE_PUBLISHER_ID: ${{ secrets.VITE_ADSENSE_PUBLISHER_ID }}
-          VITE_UMAMI_WEBSITE_ID: ${{ secrets.VITE_UMAMI_WEBSITE_ID }}
-
       - name: Authenticate with GCP (keyless)
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: ${{ env.SA_EMAIL }}
 
-      - name: Deploy to Firebase Hosting (customer)
-        run: npx firebase-tools deploy --only hosting:customer --project ${{ env.PROJECT_ID }}
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push Docker image
+        working-directory: apps/soulstep-customer-web
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_ADSENSE_PUBLISHER_ID=${{ secrets.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID }} \
+            --build-arg NEXT_PUBLIC_UMAMI_WEBSITE_ID=${{ secrets.NEXT_PUBLIC_UMAMI_WEBSITE_ID }} \
+            -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/soulstep/customer-web:${{ env.HEAD_SHA }} \
+            -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/soulstep/customer-web:latest \
+            .
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/soulstep/customer-web:${{ env.HEAD_SHA }}
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/soulstep/customer-web:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy soulstep-customer-web \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/soulstep/customer-web:${{ env.HEAD_SHA }} \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars "NEXT_PUBLIC_ADSENSE_PUBLISHER_ID=${{ secrets.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID }},NEXT_PUBLIC_UMAMI_WEBSITE_ID=${{ secrets.NEXT_PUBLIC_UMAMI_WEBSITE_ID }}" \
+            --min-instances 0 \
+            --max-instances 5 \
+            --memory 512Mi \
+            --port 3001
 
   # ── Deploy: Admin Web → Firebase Hosting ────────────────────────────────────
 

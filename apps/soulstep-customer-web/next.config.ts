@@ -4,6 +4,10 @@ import path from 'path';
 const backendOrigin = process.env.NEXT_PUBLIC_PROXY_TARGET || 'http://127.0.0.1:3000';
 
 const nextConfig: NextConfig = {
+  // Standalone output for Docker/Cloud Run — creates .next/standalone with a
+  // self-contained Node.js server. Required for SSR on Cloud Run.
+  output: 'standalone',
+
   // Pin output file tracing to this package so Next.js doesn't walk up to the
   // monorepo root and get confused by multiple lockfiles.
   outputFileTracingRoot: path.join(__dirname, '../..'),

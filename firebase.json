@@ -1,66 +1,6 @@
 {
   "hosting": [
     {
-      "target": "customer",
-      "public": "apps/soulstep-customer-web/dist",
-      "ignore": [
-        "firebase.json",
-        "**/.*",
-        "**/node_modules/**"
-      ],
-      "headers": [
-        {
-          "source": "/index.html",
-          "headers": [
-            { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-          ]
-        },
-        {
-          "source": "/assets/**",
-          "headers": [
-            { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-          ]
-        }
-      ],
-      "redirects": [
-        {
-          "source": "/sitemap.xml",
-          "destination": "https://soulstep-api-834941457147.europe-west1.run.app/sitemap.xml",
-          "type": 301
-        },
-        {
-          "source": "/feed.xml",
-          "destination": "https://soulstep-api-834941457147.europe-west1.run.app/feed.xml",
-          "type": 301
-        },
-        {
-          "source": "/feed.atom",
-          "destination": "https://soulstep-api-834941457147.europe-west1.run.app/feed.atom",
-          "type": 301
-        }
-      ],
-      "rewrites": [
-        {
-          "source": "/api/**",
-          "run": {
-            "serviceId": "soulstep-catalog-api",
-            "region": "europe-west1"
-          }
-        },
-        {
-          "source": "/umami/**",
-          "run": {
-            "serviceId": "soulstep-catalog-api",
-            "region": "europe-west1"
-          }
-        },
-        {
-          "source": "**",
-          "destination": "/index.html"
-        }
-      ]
-    },
-    {
       "target": "admin",
       "public": "apps/soulstep-admin-web/dist",
       "ignore": [
