@@ -211,7 +211,7 @@ def get_homepage(
     rec_raw = session.exec(rec_stmt.limit(50)).all()
 
     if lat is not None and lng is not None:
-        rec_raw.sort(key=lambda p: _haversine_km(lat, lng, p.lat, p.lng))
+        rec_raw.sort(key=lambda p: _haversine_km(lat, lng, p.lat, p.lng) or float("inf"))
 
     rec_results = rec_raw[:10]
     rec_codes = [p.place_code for p in rec_results]

@@ -606,7 +606,8 @@ def optimize_route(group_code: str, user: UserDep, session: SessionDep):
         last = place_map[ordered[-1]]
         nearest = min(
             remaining,
-            key=lambda c: _haversine_km(last.lat, last.lng, place_map[c].lat, place_map[c].lng),
+            key=lambda c: _haversine_km(last.lat, last.lng, place_map[c].lat, place_map[c].lng)
+            or float("inf"),
         )
         ordered.append(nearest)
         remaining.remove(nearest)

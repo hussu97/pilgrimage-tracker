@@ -77,7 +77,7 @@ def get_recommended_places(
     # Sort by distance if location provided; compute distance once (avoid double calculation)
     if lat is not None and lng is not None:
         candidates_with_dist = [(p, _haversine_km(lat, lng, p.lat, p.lng)) for p in candidates]
-        candidates_with_dist.sort(key=lambda pd: pd[1])
+        candidates_with_dist.sort(key=lambda pd: pd[1] if pd[1] is not None else float("inf"))
         results_with_dist = candidates_with_dist[:limit]
     else:
         results_with_dist = [(p, None) for p in candidates[:limit]]

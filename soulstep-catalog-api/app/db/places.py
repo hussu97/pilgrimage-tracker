@@ -185,7 +185,11 @@ def _is_open_now_from_hours(
         return now_min >= open_min or now_min <= close_min
 
 
-def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+def _haversine_km(
+    lat1: float | None, lng1: float | None, lat2: float | None, lng2: float | None
+) -> float | None:
+    if lat1 is None or lng1 is None or lat2 is None or lng2 is None:
+        return None
     R = 6371
     dlat = math.radians(lat2 - lat1)
     dlng = math.radians(lng2 - lng1)
@@ -226,9 +230,10 @@ def get_nearby_places(
     candidates = session.exec(stmt).all()
 
     with_dist = [
-        (_haversine_km(lat, lng, p.lat, p.lng), p)
+        (d, p)
         for p in candidates
-        if _haversine_km(lat, lng, p.lat, p.lng) <= radius_km
+        for d in (_haversine_km(lat, lng, p.lat, p.lng),)
+        if d is not None and d <= radius_km
     ]
     with_dist.sort(key=lambda x: x[0])
     return with_dist[:limit]
