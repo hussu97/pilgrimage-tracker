@@ -107,6 +107,10 @@ src/
 | `/profile` | Profile | User stats and settings |
 | `/login` | Login | Email + password sign-in |
 | `/register` | Register | Account creation |
+| `/privacy` | PrivacyPolicy | Privacy policy — cookies, advertising, analytics, user rights |
+| `/terms` | TermsOfService | Terms of service — accounts, content, liability |
+| `/about` | About | Mission, features, religions covered, data sources |
+| `/contact` | Contact | Contact methods, response times |
 | `/developers` | Developers | API documentation page |
 
 ## API Surface

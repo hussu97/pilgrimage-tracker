@@ -120,6 +120,32 @@ export default function Layout({ children }: { children: ReactNode }) {
         {children}
       </main>
 
+      {/* Footer — legal/trust links (hidden on mobile where bottom nav is shown) */}
+      <footer className="hidden md:block border-t border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface">
+        <div className="max-w-6xl xl:max-w-7xl mx-auto px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-text-secondary dark:text-dark-text-secondary">
+          <span>&copy; {new Date().getFullYear()} SoulStep. All rights reserved.</span>
+          <nav className="flex flex-wrap items-center gap-4" aria-label="Footer">
+            <Link to="/about" className="hover:text-primary transition-colors">About</Link>
+            <Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
+            <Link to="/contact" className="hover:text-primary transition-colors">Contact</Link>
+            <Link to="/developers" className="hover:text-primary transition-colors">API</Link>
+          </nav>
+        </div>
+      </footer>
+
+      {/* Mobile footer — shown above the bottom nav */}
+      {showBottomNav && (
+        <div className="md:hidden px-4 pb-28 pt-4 border-t border-slate-100 dark:border-dark-border">
+          <nav className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-text-secondary dark:text-dark-text-secondary" aria-label="Footer">
+            <Link to="/about" className="hover:text-primary transition-colors">About</Link>
+            <Link to="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
+            <Link to="/terms" className="hover:text-primary transition-colors">Terms</Link>
+            <Link to="/contact" className="hover:text-primary transition-colors">Contact</Link>
+          </nav>
+        </div>
+      )}
+
       {/* Mobile minimal bottom bar: Dashboard | [FAB] | Map */}
       {showBottomNav && (
         <nav

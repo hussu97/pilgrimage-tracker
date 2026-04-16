@@ -92,6 +92,13 @@ def _build_sitemap_xml(
     # Homepage
     _add_url(urlset, FRONTEND_URL, priority="1.0", changefreq="daily")
 
+    # Legal/trust pages
+    _add_url(urlset, f"{FRONTEND_URL}/about", priority="0.6", changefreq="monthly")
+    _add_url(urlset, f"{FRONTEND_URL}/privacy", priority="0.5", changefreq="monthly")
+    _add_url(urlset, f"{FRONTEND_URL}/terms", priority="0.5", changefreq="monthly")
+    _add_url(urlset, f"{FRONTEND_URL}/contact", priority="0.5", changefreq="monthly")
+    _add_url(urlset, f"{FRONTEND_URL}/developers", priority="0.6", changefreq="monthly")
+
     # Explore index
     _add_url(urlset, f"{FRONTEND_URL}/explore", priority="0.8", changefreq="weekly")
 
