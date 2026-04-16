@@ -44,7 +44,11 @@ const cardVariants = {
   exit: (dir: number) => ({ x: dir < 0 ? '100%' : '-100%', opacity: 0 }),
 };
 
-export default function Onboarding() {
+interface OnboardingProps {
+  onDone?: () => void;
+}
+
+export default function Onboarding({ onDone }: OnboardingProps = {}) {
   const navigate = useNavigate();
   const { t } = useI18n();
   const [index, setIndex] = useState(0);
@@ -52,7 +56,11 @@ export default function Onboarding() {
 
   function finish() {
     localStorage.setItem('onboarding_done', '1');
-    navigate('/home', { replace: true });
+    if (onDone) {
+      onDone();
+    } else {
+      navigate('/home', { replace: true });
+    }
   }
 
   function next() {

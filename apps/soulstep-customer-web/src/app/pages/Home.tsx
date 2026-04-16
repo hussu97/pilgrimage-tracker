@@ -28,6 +28,7 @@ import type {
 import type { BlogPostSummary } from '@/lib/types/blog';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import JoinJourneyModal from '@/components/groups/JoinJourneyModal';
+import Onboarding from '@/app/pages/Onboarding';
 import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 import HomeSkeleton from '@/components/common/skeletons/HomeSkeleton';
 import type { Group, Place } from '@/lib/types';
@@ -519,13 +520,15 @@ export default function Home() {
   const [homeData, setHomeData] = useState<HomepageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [blogPosts, setBlogPosts] = useState<BlogPostSummary[]>([]);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
-  // Redirect to onboarding on first visit (no user + no flag)
+  // Show onboarding overlay on first visit (no user + no flag).
+  // Overlay instead of redirect so crawlers always see the home page content.
   useEffect(() => {
     if (!user && !localStorage.getItem('onboarding_done')) {
-      navigate('/onboarding', { replace: true });
+      setShowOnboarding(true);
     }
-  }, [user, navigate]);
+  }, [user]);
 
   // Track the latest params in a ref so we can debounce/deduplicate calls.
   // user?.religions and coords change independently (auth resolve, then geolocation),
@@ -902,6 +905,14 @@ export default function Home() {
           onClose={() => setAddToJourneyPlace(null)}
           t={t}
         />
+      )}
+
+      {/* Onboarding overlay — shown to first-time visitors only.
+          Rendered on top of the page so crawlers always see home content. */}
+      {showOnboarding && (
+        <div className="fixed inset-0 z-50">
+          <Onboarding onDone={() => setShowOnboarding(false)} />
+        </div>
       )}
     </>
   );
