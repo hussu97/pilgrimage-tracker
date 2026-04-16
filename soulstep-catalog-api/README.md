@@ -29,7 +29,6 @@ Copy `.env.example` to `.env` and fill in values. Key variables:
 | `PORT` | No | `3000` | Server listen port |
 | `CORS_ORIGINS` | No | localhost dev origins | Space-separated allowed origins |
 | `FRONTEND_URL` | **Yes (prod)** | `http://localhost:5173` | Public web frontend URL — sitemap, JSON-LD, email links |
-| `API_BASE_URL` | No | `http://localhost:3000` | Public API URL — RSS/Atom feed self links |
 | `RESEND_API_KEY` | No | — | Resend.com key for password-reset emails |
 | `RESEND_FROM_EMAIL` | No | `noreply@soul-step.org` | Sender address for emails |
 | `RESET_URL_BASE` | No | `http://localhost:5173` | Frontend base URL for reset links |
