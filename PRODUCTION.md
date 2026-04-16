@@ -72,15 +72,8 @@ Throughout this guide, replace:
      artifactregistry.googleapis.com \
      cloudscheduler.googleapis.com \
      cloudbuild.googleapis.com \
-     firebase.googleapis.com \
-     firebasehosting.googleapis.com \
      --project PROJECT_ID
    ```
-
-6. **Add Firebase to your GCP project** (one-time, required for Hosting):
-   - Go to [console.firebase.google.com](https://console.firebase.google.com)
-   - Click **Add project** → **Add Firebase to a Google Cloud Platform project** → select `PROJECT_ID`
-   - Skip Google Analytics → click **Add Firebase**
 
 ---
 
@@ -197,7 +190,7 @@ gcloud run deploy soulstep-catalog-api \
   --allow-unauthenticated \
   --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
   --set-secrets "JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,RESEND_API_KEY=RESEND_API_KEY:latest,CATALOG_API_KEY=catalog-api-key:latest" \
-  --set-env-vars "CORS_ORIGINS=https://PROJECT_ID.web.app https://PROJECT_ID.firebaseapp.com,JWT_EXPIRE=30m,REFRESH_EXPIRE=30d,RESEND_FROM_EMAIL=noreply@soul-step.org,RESET_URL_BASE=https://soul-step.org,IMAGE_STORAGE=gcs,GCS_BUCKET_NAME=soulstep-images,LOG_FORMAT=json" \
+  --set-env-vars "CORS_ORIGINS=https://soul-step.org,JWT_EXPIRE=30m,REFRESH_EXPIRE=30d,RESEND_FROM_EMAIL=noreply@soul-step.org,RESET_URL_BASE=https://soul-step.org,IMAGE_STORAGE=gcs,GCS_BUCKET_NAME=soulstep-images,LOG_FORMAT=json" \
   --min-instances 0 \
   --max-instances 10 \
   --memory 512Mi \
@@ -241,11 +234,11 @@ gcloud run services describe soulstep-catalog-api \
   --format="yaml(spec.template.spec.containers[0].env)"
 ```
 
-**Update CORS after deploying frontends** (both Firebase domains must be included):
+**Update CORS after deploying frontends:**
 ```bash
 gcloud run services update soulstep-catalog-api \
   --region REGION \
-  --update-env-vars "CORS_ORIGINS=https://soul-step.org https://PROJECT_ID.web.app https://PROJECT_ID.firebaseapp.com,FRONTEND_URL=https://soul-step.org,API_BASE_URL=https://api.soul-step.org,RESET_URL_BASE=https://soul-step.org"
+  --update-env-vars "CORS_ORIGINS=https://soul-step.org,FRONTEND_URL=https://soul-step.org,API_BASE_URL=https://api.soul-step.org,RESET_URL_BASE=https://soul-step.org"
 ```
 
 ### Cold start notes
@@ -319,32 +312,31 @@ The customer web app uses **Next.js 15** with server-side rendering (SSR). Deplo
 
 Vercel serves static assets from its global CDN and runs SSR pages on serverless functions in `cdg1` (Paris). No Docker image or Cloud Run service to manage manually.
 
-### One-time Vercel project setup
+### One-time Vercel project setup (dashboard)
 
-```bash
-cd apps/soulstep-customer-web
-npx vercel link          # creates .vercel/project.json — do not commit this
-npx vercel env add NEXT_PUBLIC_ADSENSE_PUBLISHER_ID production
-npx vercel env add NEXT_PUBLIC_UMAMI_WEBSITE_ID production
-```
+1. Go to [vercel.com](https://vercel.com) → **Add New Project**
+2. **Import Git Repository** → connect GitHub → select this repo
+3. Set **Root Directory** to `apps/soulstep-customer-web`
+4. Framework preset is auto-detected as **Next.js** — leave as-is
+5. Under **Environment Variables**, add:
+   - `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` → your AdSense publisher ID
+   - `NEXT_PUBLIC_UMAMI_WEBSITE_ID` → your Umami website ID
+   - Select scope **Production** for both
+6. Click **Deploy**
 
-Copy `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` from `.vercel/project.json` into GitHub secrets as `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID_WEB`.
+**After the first deploy — copy IDs for GitHub Actions:**
 
-### Manual deploy
-
-```bash
-cd apps/soulstep-customer-web
-npx vercel build --prod
-npx vercel deploy --prebuilt --prod
-```
+7. **Settings → General** → copy **Project ID** → add to GitHub secrets as `VERCEL_PROJECT_ID_WEB`
+8. Go to your Vercel **account/team settings** (top-right avatar → Settings) → copy **Team ID** → add as `VERCEL_ORG_ID`
+9. Account settings → **Tokens** → create a token → add as `VERCEL_TOKEN`
 
 ### Custom domain
 
-Vercel dashboard → project → **Domains** → Add `soul-step.org`. TLS cert is provisioned automatically.
+Project → **Settings → Domains** → Add `soul-step.org` → follow the DNS instructions Vercel provides. TLS is provisioned automatically.
 
 ### Environment variables
 
-`NEXT_PUBLIC_*` variables are baked into the Next.js build. Store them in the **Vercel project settings** (not GitHub Secrets) using `vercel env add` (see one-time setup above). SSR calls fall back to `https://api.soul-step.org` automatically.
+`NEXT_PUBLIC_*` vars are baked into the Next.js build at deploy time. Manage them in **Project → Settings → Environment Variables** in the Vercel dashboard. SSR calls fall back to `https://api.soul-step.org` automatically — no additional runtime vars needed.
 
 ---
 
@@ -352,26 +344,23 @@ Vercel dashboard → project → **Domains** → Add `soul-step.org`. TLS cert i
 
 The admin dashboard (Vite SPA) is deployed to a separate **Vercel** project. API calls from the browser go to `/api/*` which Vercel rewrites server-side to `https://api.soul-step.org/api/*` — defined in `apps/soulstep-admin-web/vercel.json`.
 
-### One-time Vercel project setup
+### One-time Vercel project setup (dashboard)
 
-```bash
-cd apps/soulstep-admin-web
-npx vercel link          # creates .vercel/project.json — do not commit this
-```
+1. Go to [vercel.com](https://vercel.com) → **Add New Project**
+2. **Import Git Repository** → select the same repo
+3. Set **Root Directory** to `apps/soulstep-admin-web`
+4. Framework preset is auto-detected as **Vite** — leave as-is
+5. No environment variables needed at the project level
+6. Click **Deploy**
 
-Copy `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` from `.vercel/project.json` into GitHub secrets as `VERCEL_ORG_ID` (same org) and `VERCEL_PROJECT_ID_ADMIN`.
+**After the first deploy — copy the project ID:**
 
-### Manual deploy
-
-```bash
-cd apps/soulstep-admin-web
-npx vercel build --prod
-npx vercel deploy --prebuilt --prod
-```
+7. **Settings → General** → copy **Project ID** → add to GitHub secrets as `VERCEL_PROJECT_ID_ADMIN`
+8. `VERCEL_ORG_ID` and `VERCEL_TOKEN` are the same as for the customer web project (step 8–9 above)
 
 ### Custom domain
 
-Vercel dashboard → project → **Domains** → Add your admin subdomain. TLS cert is provisioned automatically.
+Project → **Settings → Domains** → Add your admin subdomain (e.g. `admin.soul-step.org`). TLS is provisioned automatically.
 
 ---
 
@@ -842,7 +831,7 @@ Enabled automatically by `prometheus-fastapi-instrumentator`. Restrict access to
      --update-env-vars "GLITCHTIP_DSN=https://key@glitchtip.example.com/1"
    ```
 
-Client-side error tracking: set `VITE_GLITCHTIP_DSN` in the web build (via GitHub Actions secret).
+Client-side error tracking: set `NEXT_PUBLIC_GLITCHTIP_DSN` in the Vercel project environment variables.
 
 ---
 
@@ -863,7 +852,7 @@ EAS secrets), and descriptions for every variable in every service.
 | **Cloud Run Jobs** | cleanup, backfill, sync-places, translate-content | — | ~$0.02/hour per CPU |
 | **Cloud Run Jobs (scraper)** | browser scraping (4 vCPU / 6 GiB) | — | ~$0.40/hour (see §13.1) |
 | **Artifact Registry** | Docker images | 0.5 GB free | $0.10/GB/month |
-| **Firebase Hosting** | Web + Admin SPAs | 10 GB storage, 360 MB/day transfer | $0.026/GB transfer |
+| **Vercel** | Web (Next.js SSR) + Admin (Vite SPA) | Hobby: free (personal only); Pro: $20/month | Pro plan for commercial use |
 | **Secret Manager** | Credentials | 6 active versions free | $0.06 per 10k accesses |
 | **Cloud Scheduler** | Cron jobs | 3 jobs free | $0.10/job/month |
 | **Cloud Build** | CI builds | 120 min/day free | $0.003/build-min |
