@@ -59,3 +59,14 @@ repos:
         entry: bash -c 'cd apps/soulstep-customer-mobile && npx prettier --write "src/**/*.{ts,tsx}"'
         files: ^apps/soulstep-customer-mobile/src/.*\.(ts|tsx)$
         pass_filenames: false
+
+  # ─── Pre-push: production build checks ───────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: nextjs-build
+        name: Next.js build (web)
+        language: system
+        entry: bash -c 'cd apps/soulstep-customer-web && npm run build'
+        files: ^apps/soulstep-customer-web/
+        pass_filenames: false
+        stages: [pre-push]
