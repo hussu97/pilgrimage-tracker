@@ -17,13 +17,13 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlmodel import func, select
 
-from app.core.config import API_BASE_URL, FRONTEND_URL
+from app.core.config import FRONTEND_URL
 from app.db.models import Place
 from app.db.session import SessionDep
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-_API_BASE = API_BASE_URL
+_API_BASE = FRONTEND_URL
 
 
 # ── robots.txt ────────────────────────────────────────────────────────────────
