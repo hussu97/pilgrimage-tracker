@@ -15,15 +15,7 @@ import App from '@/app/App';
 // some pages via the navigation shim) requires Suspense in Next.js 15.
 function SuspenseWrapper({ children }: { children: ReactNode }) {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-[40vh] flex items-center justify-center">
-          <span className="material-symbols-outlined text-3xl text-slate-300 animate-spin">
-            progress_activity
-          </span>
-        </div>
-      }
-    >
+    <Suspense fallback={null}>
       {children}
     </Suspense>
   );
