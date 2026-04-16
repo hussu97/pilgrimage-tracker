@@ -1,5 +1,5 @@
 ---
-allowed-tools: Bash(gh issue view:*), Bash(gh search:*), Bash(gh issue list:*), Bash(gh pr comment:*), Bash(gh pr diff:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(git log:*), Bash(git blame:*), Bash(git diff:*), mcp__github_inline_comment__create_inline_comment
+allowed-tools: Bash(gh issue view:*), Bash(gh search:*), Bash(gh issue list:*), Bash(gh pr comment:*), Bash(gh pr diff:*), Bash(gh pr view:*), Bash(gh pr list:*), Bash(git log:*), Bash(git blame:*), Bash(git diff:*)
 description: SoulStep code review — Claude-only agent graph
 ---
 
@@ -174,14 +174,44 @@ If `--comment` IS provided and issues were found, proceed to Node 7.
 
 ---
 
-### Node 7 — Inline comments (only with `--comment`)
+### Node 7 — PR comment (only with `--comment`)
 
-Post inline comments using `mcp__github_inline_comment__create_inline_comment`. For each issue:
-- One comment per unique issue. No duplicates.
-- Brief description + cite the exact CLAUDE.md rule (with link) or the specific bug.
-- For small self-contained fixes (≤5 lines, single location), include a committable suggestion block.
-- For larger fixes, describe the issue and fix without a suggestion block.
-- Link format: `https://github.com/hussu97/soulstep/blob/<full-sha>/path/file.ext#L<start>-L<end>` (full SHA required).
+Post a single consolidated review comment using `gh pr comment`. Format:
+
+```
+## SoulStep Code Review
+
+### Backend
+<issues with file:line links, or "No issues">
+
+### Tests
+<issues or "No issues">
+
+### Dark mode
+<issues or "No issues">
+
+### i18n
+<issues or "No issues">
+
+### Web/Mobile parity
+<issues or "No issues">
+
+### Components
+<issues or "No issues">
+
+### Bugs
+<issues or "No issues">
+
+### Security
+<issues or "No issues">
+```
+
+For each issue include:
+- One-line description citing the exact CLAUDE.md rule or bug.
+- A code link: `https://github.com/hussu97/soulstep/blob/<full-sha>/path/file.ext#L<start>-L<end>` (full SHA required).
+- For small self-contained fixes (≤5 lines), include a fenced suggestion block.
+
+One comment total — no duplicate issues, no separate per-line comments.
 
 ---
 
