@@ -35,6 +35,28 @@ _RELIGIONS = [
     "zoroastrianism",
 ]
 
+# Static blog article slugs — keep in sync with
+# apps/soulstep-customer-web/src/lib/blog/articles.ts
+_BLOG_SLUGS = [
+    ("best-mosques-dubai", "2026-03-20"),
+    ("sacred-hindu-temples-south-india", "2026-03-26"),
+    ("how-to-plan-spiritual-journey", "2026-04-02"),
+    ("churches-holy-land", "2026-04-08"),
+    ("sikh-gurdwaras-world", "2026-04-14"),
+    ("sacred-buddhist-sites-southeast-asia", "2026-01-08"),
+    ("jewish-holy-sites-jerusalem", "2026-01-15"),
+    ("how-to-plan-first-pilgrimage", "2026-01-22"),
+    ("temples-shrines-japan-visitor-guide", "2026-02-03"),
+    ("camino-de-santiago-pilgrimage-guide", "2026-02-12"),
+    ("holy-sites-turkey-istanbul-konya", "2026-02-20"),
+    ("hindu-temples-bali-indonesia", "2026-03-05"),
+    ("sacred-mountains-kailash-fuji-sinai", "2026-03-13"),
+    ("ancient-churches-basilicas-rome", "2026-03-22"),
+    ("pilgrimage-etiquette-sacred-sites-worldwide", "2026-04-01"),
+    ("golden-temple-amritsar-complete-guide", "2026-04-06"),
+    ("packing-for-pilgrimage-essential-checklist", "2026-04-12"),
+]
+
 
 def _city_to_slug(city: str) -> str:
     import re
@@ -98,6 +120,17 @@ def _build_sitemap_xml(
     _add_url(urlset, f"{FRONTEND_URL}/terms", priority="0.5", changefreq="monthly")
     _add_url(urlset, f"{FRONTEND_URL}/contact", priority="0.5", changefreq="monthly")
     _add_url(urlset, f"{FRONTEND_URL}/developers", priority="0.6", changefreq="monthly")
+
+    # Blog index + individual articles
+    _add_url(urlset, f"{FRONTEND_URL}/blog", priority="0.7", changefreq="weekly")
+    for slug, lastmod in _BLOG_SLUGS:
+        _add_url(
+            urlset,
+            f"{FRONTEND_URL}/blog/{slug}",
+            lastmod=lastmod,
+            priority="0.7",
+            changefreq="monthly",
+        )
 
     # Explore index
     _add_url(urlset, f"{FRONTEND_URL}/explore", priority="0.8", changefreq="weekly")
