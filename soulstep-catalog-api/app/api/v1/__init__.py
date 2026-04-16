@@ -5,6 +5,7 @@ from app.api.v1 import (
     analytics,
     app_version,
     auth,
+    blog,
     cities,
     groups,
     homepage,
@@ -33,4 +34,5 @@ api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(ads.router, tags=["ads"])
 api_router.include_router(analytics.router, tags=["analytics"])
 api_router.include_router(homepage.router, tags=["homepage"])
+api_router.include_router(blog.router, tags=["blog"])
 api_router.include_router(admin_router)

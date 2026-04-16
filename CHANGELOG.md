@@ -4,6 +4,28 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-16] — Migrate Blog to Backend API
+
+### Backend
+- **`app/db/models.py`** — added `BlogPost` SQLModel table with `post_code` PK, `slug` unique index, `title`, `description`, `published_at`, `updated_at`, `reading_time`, `category`, `cover_gradient`, `content` (JSON), `is_published`
+- **`migrations/versions/0026_blog_posts.py`** — Alembic migration creating `blog_post` table
+- **`app/api/v1/blog.py`** — new router: `GET /api/v1/blog/posts` (list, no content), `GET /api/v1/blog/posts/{slug}` (full detail)
+- **`app/db/blog_seed_data.json`** — all 17 articles with publication dates spread Aug 2025 – Apr 2026 (~14 days apart) for organic crawl cadence
+- **`app/db/seed.py`** — `_seed_blog_posts()` upserts articles on startup; called from `run_seed_system`
+- **`app/api/v1/sitemap.py`** — removed hardcoded `_BLOG_SLUGS` tuple; sitemap now queries `blog_post` table dynamically
+- **`tests/test_blog.py`** — 11 backend tests (list, detail, 404, ordering, field validation)
+
+### Frontend (web)
+- **`src/lib/types/blog.ts`** — new type file: `ArticleSection`, `BlogPostSummary`, `BlogPostDetail`
+- **`src/lib/api/client.ts`** — added `getBlogPosts()` and `getBlogPost(slug)` with 5-min cache
+- **`src/app/pages/BlogListPage.tsx`** — fetches from API with loading skeleton
+- **`src/app/pages/BlogPostPage.tsx`** — fetches from API with loading skeleton; related posts via API
+- **`src/app/pages/Home.tsx`** — blog section fetches from API; removed static import
+- **`src/lib/blog/articles.ts`** — deleted (content now lives in the database)
+- **`src/__tests__/blog.test.ts`** — rewritten to test API client functions with mocked fetch
+
+---
+
 ## [2026-04-16] — Fix Customer Web Deployment for Next.js SSR
 
 ### Docs / CI

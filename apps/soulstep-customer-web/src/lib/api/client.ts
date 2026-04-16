@@ -961,3 +961,29 @@ export async function getHomepage(params?: GetHomepageParams): Promise<HomepageD
   setCache(cacheKey, data);
   return data;
 }
+
+// ─── Blog ──────────────────────────────────────────────────────────────────
+
+import type { BlogPostSummary, BlogPostDetail } from '@/lib/types/blog';
+
+export async function getBlogPosts(): Promise<BlogPostSummary[]> {
+  const cacheKey = 'blog:posts';
+  const cached = getCached<BlogPostSummary[]>(cacheKey, 5 * 60_000); // 5 min TTL
+  if (cached) return cached;
+  const res = await fetch(`${API_BASE}/api/v1/blog/posts`, { headers: clientHeaders() });
+  if (!res.ok) throw new Error('Failed to fetch blog posts');
+  const data = await res.json();
+  setCache(cacheKey, data);
+  return data;
+}
+
+export async function getBlogPost(slug: string): Promise<BlogPostDetail> {
+  const cacheKey = `blog:post:${slug}`;
+  const cached = getCached<BlogPostDetail>(cacheKey, 5 * 60_000);
+  if (cached) return cached;
+  const res = await fetch(`${API_BASE}/api/v1/blog/posts/${slug}`, { headers: clientHeaders() });
+  if (!res.ok) throw new Error('Blog post not found');
+  const data = await res.json();
+  setCache(cacheKey, data);
+  return data;
+}

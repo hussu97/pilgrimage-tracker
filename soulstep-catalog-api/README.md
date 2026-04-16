@@ -94,6 +94,10 @@ Copy `.env.example` to `.env` and fill in values. Key variables:
 ### Homepage (`/api/v1/homepage`)
 - `GET /api/v1/homepage` — composite page data: groups, recommended_places, featured_journeys, popular_places, popular_cities, place_count (query: lat, lng, religions, lang)
 
+### Blog (`/api/v1/blog`)
+- `GET /api/v1/blog/posts` — list all published posts ordered newest-first (no `content` field)
+- `GET /api/v1/blog/posts/{slug}` — full post detail including `content` (list of sections with heading + paragraphs)
+
 ### Cities (`/api/v1/cities`)
 - `GET /api/v1/cities` — all cities with place counts (query: limit, offset, include_metrics, include_images)
 - `GET /api/v1/cities/{city_slug}` — places in a city (query: page, page_size≤200, lang)

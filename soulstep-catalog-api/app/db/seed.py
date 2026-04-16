@@ -16,6 +16,7 @@ from app.db import store
 from app.db.models import (
     AdConfig,
     AppVersionConfig,
+    BlogPost,
     City,
     Country,
     SEOContentTemplate,
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_SEED_PATH = Path(__file__).parent / "seed_data.json"
 _SEO_SEED_PATH = Path(__file__).parent / "seo_seed_data.json"
+_BLOG_SEED_PATH = Path(__file__).parent / "blog_seed_data.json"
 
 
 def _load_seed_data(seed_path: str | Path | None) -> dict | None:
@@ -72,6 +74,7 @@ def run_seed_system(seed_path: str | Path | None = None) -> None:
 
     _seed_seo_templates()
     _seed_ad_config()
+    _seed_blog_posts()
 
 
 def _seed_ad_config() -> None:
@@ -122,6 +125,40 @@ def _seed_ad_config() -> None:
                     row.ad_slots = entry["ad_slots"]
                 row.updated_at = datetime.now(UTC)
         session.commit()
+
+
+def _seed_blog_posts() -> None:
+    """Upsert blog posts from blog_seed_data.json.
+
+    Safe to call repeatedly — skips posts that already exist by slug.
+    """
+    if not _BLOG_SEED_PATH.exists():
+        return
+    posts = json.loads(_BLOG_SEED_PATH.read_text(encoding="utf-8"))
+    with Session(engine) as session:
+        for p in posts:
+            existing = session.exec(select(BlogPost).where(BlogPost.slug == p["slug"])).first()
+            if existing:
+                continue
+            published_at = datetime.fromisoformat(p["published_at"])
+            updated_at = datetime.fromisoformat(p["updated_at"])
+            session.add(
+                BlogPost(
+                    post_code=p["post_code"],
+                    slug=p["slug"],
+                    title=p["title"],
+                    description=p["description"],
+                    published_at=published_at,
+                    updated_at=updated_at,
+                    reading_time=p["reading_time"],
+                    category=p["category"],
+                    cover_gradient=p["cover_gradient"],
+                    content=p["content"],
+                    is_published=p.get("is_published", True),
+                )
+            )
+        session.commit()
+    logger.info("Blog posts seeded from %s", _BLOG_SEED_PATH)
 
 
 def _seed_content_translations(rows: list[dict]) -> None:

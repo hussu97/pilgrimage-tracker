@@ -720,3 +720,31 @@ class AnalyticsEvent(SQLModel, table=True):
         default_factory=lambda: datetime.now(UTC),
         sa_column=_TSTZ(nullable=False),
     )
+
+
+class BlogPost(SQLModel, table=True):
+    """Editorial blog articles stored in the database.
+
+    Content is managed via the admin API and seeded on first run.
+    The frontend fetches posts via GET /api/v1/blog/posts.
+    """
+
+    __tablename__ = "blog_post"
+
+    post_code: str = Field(primary_key=True)  # "blg_" + token_hex(6)
+    slug: str = Field(unique=True, index=True)
+    title: str
+    description: str
+    published_at: datetime = Field(sa_column=_TSTZ(nullable=False))
+    updated_at: datetime = Field(sa_column=_TSTZ(nullable=False))
+    reading_time: int  # estimated minutes
+    category: str  # e.g. "Islam", "Hinduism", "Travel Guide"
+    cover_gradient: str  # Tailwind gradient class string
+    content: list[Any] = Field(
+        default=[],
+        sa_column=Column(JSON),
+    )  # list of {heading?: str, paragraphs: str[]}
+    is_published: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, nullable=False, server_default="1"),
+    )

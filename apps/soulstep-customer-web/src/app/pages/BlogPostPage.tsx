@@ -1,8 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useParams, Link } from '@/lib/navigation';
 import { useHead } from '@/lib/hooks/useHead';
-import { getArticleBySlug, getRelatedArticles } from '@/lib/blog/articles';
+import { getBlogPost, getBlogPosts } from '@/lib/api/client';
+import type { BlogPostDetail, BlogPostSummary } from '@/lib/types/blog';
 import AdBanner from '@/components/ads/AdBanner';
 
 function formatDate(iso: string): string {
@@ -15,29 +17,51 @@ function formatDate(iso: string): string {
 
 export default function BlogPostPage() {
   const { slug } = useParams<{ slug: string }>();
+  const [post, setPost] = useState<BlogPostDetail | null>(null);
+  const [related, setRelated] = useState<BlogPostSummary[]>([]);
+  const [notFound, setNotFound] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const article = slug ? getArticleBySlug(slug) : undefined;
+  useEffect(() => {
+    if (!slug) return;
+    setLoading(true);
+    setNotFound(false);
+
+    getBlogPost(slug)
+      .then((p) => {
+        setPost(p);
+        // Fetch related: same category, exclude current
+        getBlogPosts().then((all) => {
+          const sameCat = all.filter((a) => a.slug !== slug && a.category === p.category);
+          const others = all.filter((a) => a.slug !== slug && a.category !== p.category);
+          setRelated([...sameCat, ...others].slice(0, 2));
+        });
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false));
+  }, [slug]);
 
   useHead(
-    article
+    post
       ? {
-          title: article.title,
-          description: article.description,
-          canonicalUrl: `https://soul-step.org/blog/${article.slug}`,
+          title: post.title,
+          description: post.description,
+          canonicalUrl: `https://soul-step.org/blog/${post.slug}`,
           ogType: 'article',
-          ogTitle: article.title,
-          ogDescription: article.description,
-          ogUrl: `https://soul-step.org/blog/${article.slug}`,
+          ogTitle: post.title,
+          ogDescription: post.description,
+          ogUrl: `https://soul-step.org/blog/${post.slug}`,
           twitterCard: 'summary_large_image',
-          twitterTitle: article.title,
-          twitterDescription: article.description,
+          twitterTitle: post.title,
+          twitterDescription: post.description,
           jsonLd: [
             {
               '@context': 'https://schema.org',
               '@type': 'Article',
-              headline: article.title,
-              description: article.description,
-              datePublished: article.publishedAt,
+              headline: post.title,
+              description: post.description,
+              datePublished: post.published_at,
+              dateModified: post.updated_at,
               publisher: {
                 '@type': 'Organization',
                 name: 'SoulStep',
@@ -45,15 +69,31 @@ export default function BlogPostPage() {
               },
               mainEntityOfPage: {
                 '@type': 'WebPage',
-                '@id': `https://soul-step.org/blog/${article.slug}`,
+                '@id': `https://soul-step.org/blog/${post.slug}`,
               },
             },
           ],
         }
-      : { title: 'Article Not Found' },
+      : { title: notFound ? 'Article Not Found' : 'Loading…' },
   );
 
-  if (!article) {
+  if (loading) {
+    return (
+      <main className="max-w-3xl mx-auto px-4 py-10 lg:py-16">
+        <div className="animate-pulse space-y-6">
+          <div className="h-4 bg-slate-200 dark:bg-dark-border rounded w-24" />
+          <div className="h-56 bg-slate-200 dark:bg-dark-border rounded-2xl" />
+          <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-3 bg-slate-200 dark:bg-dark-border rounded" />
+            ))}
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (notFound || !post) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 text-center">
         <h1 className="text-2xl font-bold text-text-main dark:text-white mb-4">
@@ -73,10 +113,9 @@ export default function BlogPostPage() {
     );
   }
 
-  const related = getRelatedArticles(article);
   // Split content: first 2 sections before ad, rest after
-  const beforeAd = article.content.slice(0, 2);
-  const afterAd = article.content.slice(2);
+  const beforeAd = post.content.slice(0, 2);
+  const afterAd = post.content.slice(2);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10 lg:py-16">
@@ -90,17 +129,15 @@ export default function BlogPostPage() {
       </Link>
 
       {/* Hero */}
-      <div className={`rounded-2xl bg-gradient-to-br ${article.coverGradient} p-8 lg:p-12 mb-8`}>
-        <span
-          className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-full bg-white/20 text-white backdrop-blur-sm mb-4`}
-        >
-          {article.category}
+      <div className={`rounded-2xl bg-gradient-to-br ${post.cover_gradient} p-8 lg:p-12 mb-8`}>
+        <span className="inline-block text-xs font-semibold px-2.5 py-1 rounded-full bg-white/20 text-white backdrop-blur-sm mb-4">
+          {post.category}
         </span>
-        <h1 className="text-2xl lg:text-3xl font-bold text-white leading-snug">{article.title}</h1>
+        <h1 className="text-2xl lg:text-3xl font-bold text-white leading-snug">{post.title}</h1>
         <div className="flex items-center gap-3 mt-4 text-sm text-white/80">
-          <span>{formatDate(article.publishedAt)}</span>
+          <span>{formatDate(post.published_at)}</span>
           <span>·</span>
-          <span>{article.readingTime} min read</span>
+          <span>{post.reading_time} min read</span>
         </div>
       </div>
 
@@ -165,7 +202,7 @@ export default function BlogPostPage() {
                 to={`/blog/${rel.slug}`}
                 className="group flex flex-col rounded-2xl overflow-hidden border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface hover:shadow-md transition-shadow duration-200"
               >
-                <div className={`h-28 bg-gradient-to-br ${rel.coverGradient} flex items-end p-3`}>
+                <div className={`h-28 bg-gradient-to-br ${rel.cover_gradient} flex items-end p-3`}>
                   <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-sm">
                     {rel.category}
                   </span>
@@ -175,7 +212,7 @@ export default function BlogPostPage() {
                     {rel.title}
                   </h3>
                   <p className="text-xs text-text-muted dark:text-dark-text-secondary mt-1">
-                    {rel.readingTime} min read
+                    {rel.reading_time} min read
                   </p>
                 </div>
               </Link>

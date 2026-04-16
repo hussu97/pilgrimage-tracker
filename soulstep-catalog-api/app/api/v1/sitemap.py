@@ -21,7 +21,7 @@ from fastapi.responses import Response
 from sqlmodel import select
 
 from app.core.config import FRONTEND_URL
-from app.db.models import Place, PlaceImage, PlaceSEO
+from app.db.models import BlogPost, Place, PlaceImage, PlaceSEO
 from app.db.session import SessionDep
 
 _RELIGIONS = [
@@ -33,28 +33,6 @@ _RELIGIONS = [
     "judaism",
     "bahai",
     "zoroastrianism",
-]
-
-# Static blog article slugs — keep in sync with
-# apps/soulstep-customer-web/src/lib/blog/articles.ts
-_BLOG_SLUGS = [
-    ("best-mosques-dubai", "2026-03-20"),
-    ("sacred-hindu-temples-south-india", "2026-03-26"),
-    ("how-to-plan-spiritual-journey", "2026-04-02"),
-    ("churches-holy-land", "2026-04-08"),
-    ("sikh-gurdwaras-world", "2026-04-14"),
-    ("sacred-buddhist-sites-southeast-asia", "2026-01-08"),
-    ("jewish-holy-sites-jerusalem", "2026-01-15"),
-    ("how-to-plan-first-pilgrimage", "2026-01-22"),
-    ("temples-shrines-japan-visitor-guide", "2026-02-03"),
-    ("camino-de-santiago-pilgrimage-guide", "2026-02-12"),
-    ("holy-sites-turkey-istanbul-konya", "2026-02-20"),
-    ("hindu-temples-bali-indonesia", "2026-03-05"),
-    ("sacred-mountains-kailash-fuji-sinai", "2026-03-13"),
-    ("ancient-churches-basilicas-rome", "2026-03-22"),
-    ("pilgrimage-etiquette-sacred-sites-worldwide", "2026-04-01"),
-    ("golden-temple-amritsar-complete-guide", "2026-04-06"),
-    ("packing-for-pilgrimage-essential-checklist", "2026-04-12"),
 ]
 
 
@@ -105,6 +83,7 @@ def _build_sitemap_xml(
     seo_map: dict[str, PlaceSEO],
     images_map: dict[str, list[PlaceImage]],
     cities: list[tuple[str, set[str]]],
+    blog_posts: list[BlogPost],
 ) -> bytes:
     """Build a standard sitemap XML document."""
     _register_ns()
@@ -121,13 +100,13 @@ def _build_sitemap_xml(
     _add_url(urlset, f"{FRONTEND_URL}/contact", priority="0.5", changefreq="monthly")
     _add_url(urlset, f"{FRONTEND_URL}/developers", priority="0.6", changefreq="monthly")
 
-    # Blog index + individual articles
+    # Blog index + individual articles (from database)
     _add_url(urlset, f"{FRONTEND_URL}/blog", priority="0.7", changefreq="weekly")
-    for slug, lastmod in _BLOG_SLUGS:
+    for post in blog_posts:
         _add_url(
             urlset,
-            f"{FRONTEND_URL}/blog/{slug}",
-            lastmod=lastmod,
+            f"{FRONTEND_URL}/blog/{post.slug}",
+            lastmod=_fmt_date(post.updated_at),
             priority="0.7",
             changefreq="monthly",
         )
@@ -246,9 +225,20 @@ def sitemap_xml(session: SessionDep) -> Response:
                 city_religions[slug].add(p.religion)
     cities = list(city_religions.items())
 
-    xml_bytes = _build_sitemap_xml(places, seo_map, images_map, cities)
+    # Fetch published blog posts ordered by publication date (oldest first for sitemap)
+    blog_posts = session.exec(
+        select(BlogPost)
+        .where(BlogPost.is_published == True)  # noqa: E712
+        .order_by(BlogPost.published_at.asc())
+    ).all()
 
-    logger.info("Served sitemap.xml with %d place URLs", len(places))
+    xml_bytes = _build_sitemap_xml(places, seo_map, images_map, cities, blog_posts)
+
+    logger.info(
+        "Served sitemap.xml with %d place URLs and %d blog posts",
+        len(places),
+        len(blog_posts),
+    )
     return Response(
         content=xml_bytes,
         media_type="application/xml; charset=utf-8",

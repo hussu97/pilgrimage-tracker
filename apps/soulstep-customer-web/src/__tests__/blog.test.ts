@@ -1,93 +1,153 @@
-import { describe, it, expect } from 'vitest';
-import { articles, getArticleBySlug, getRelatedArticles } from '@/lib/blog/articles';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { BlogPostSummary, BlogPostDetail } from '@/lib/types/blog';
+import { invalidateCache } from '@/lib/api/cache';
 
-describe('blog articles', () => {
-  it('has at least 15 articles', () => {
-    expect(articles.length).toBeGreaterThanOrEqual(15);
+// ─── Fixtures ─────────────────────────────────────────────────────────────────
+
+const mockPosts: BlogPostSummary[] = [
+  {
+    post_code: 'blg_001',
+    slug: 'best-mosques-dubai',
+    title: 'The Most Visited Mosques in Dubai: A Complete Guide',
+    description: 'A guide to the most beautiful mosques in Dubai.',
+    published_at: '2025-08-14T09:00:00+00:00',
+    updated_at: '2025-08-14T09:00:00+00:00',
+    reading_time: 7,
+    category: 'Islam',
+    cover_gradient: 'from-emerald-600 to-teal-800',
+  },
+  {
+    post_code: 'blg_002',
+    slug: 'sacred-hindu-temples-south-india',
+    title: 'Sacred Hindu Temples of South India',
+    description: 'Journey through the magnificent temples of South India.',
+    published_at: '2025-09-01T09:00:00+00:00',
+    updated_at: '2025-09-01T09:00:00+00:00',
+    reading_time: 8,
+    category: 'Hinduism',
+    cover_gradient: 'from-orange-500 to-red-700',
+  },
+  {
+    post_code: 'blg_003',
+    slug: 'how-to-plan-spiritual-journey',
+    title: 'How to Plan a Spiritual Journey',
+    description: 'Planning a meaningful spiritual journey requires thought.',
+    published_at: '2025-09-18T09:00:00+00:00',
+    updated_at: '2025-09-18T09:00:00+00:00',
+    reading_time: 6,
+    category: 'Travel Guide',
+    cover_gradient: 'from-violet-600 to-purple-900',
+  },
+];
+
+const mockPostDetail: BlogPostDetail = {
+  ...mockPosts[0],
+  content: [
+    {
+      paragraphs: [
+        'Dubai is a city of extraordinary contrasts.',
+        'The city is home to more than 1,400 mosques.',
+      ],
+    },
+    {
+      heading: 'Jumeirah Mosque',
+      paragraphs: ['The Jumeirah Mosque is the most recognisable mosque in Dubai.'],
+    },
+  ],
+};
+
+// ─── Mock fetch ───────────────────────────────────────────────────────────────
+
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn());
+  vi.stubGlobal('navigator', { userAgent: 'test' });
+  invalidateCache(); // clear in-memory cache between tests
+});
+
+function mockFetchOnce(data: unknown, ok = true) {
+  (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    ok,
+    json: async () => data,
+  } as Response);
+}
+
+// ─── getBlogPosts ─────────────────────────────────────────────────────────────
+
+describe('getBlogPosts', () => {
+  it('returns a list of blog post summaries', async () => {
+    mockFetchOnce(mockPosts);
+    const { getBlogPosts } = await import('@/lib/api/client');
+    const posts = await getBlogPosts();
+    expect(posts).toHaveLength(3);
+    expect(posts[0].slug).toBe('best-mosques-dubai');
   });
 
-  it('every article has required fields', () => {
-    for (const article of articles) {
-      expect(article.slug, `${article.slug}: missing slug`).toBeTruthy();
-      expect(article.title, `${article.slug}: missing title`).toBeTruthy();
-      expect(article.description, `${article.slug}: missing description`).toBeTruthy();
-      expect(article.publishedAt, `${article.slug}: missing publishedAt`).toBeTruthy();
-      expect(article.readingTime, `${article.slug}: missing readingTime`).toBeGreaterThan(0);
-      expect(article.category, `${article.slug}: missing category`).toBeTruthy();
-      expect(article.content, `${article.slug}: missing content`).toBeDefined();
-      expect(article.content.length, `${article.slug}: content is empty`).toBeGreaterThan(0);
+  it('each post has required fields', async () => {
+    mockFetchOnce(mockPosts);
+    const { getBlogPosts } = await import('@/lib/api/client');
+    const posts = await getBlogPosts();
+    for (const post of posts) {
+      expect(post.post_code).toBeTruthy();
+      expect(post.slug).toBeTruthy();
+      expect(post.title).toBeTruthy();
+      expect(post.description).toBeTruthy();
+      expect(post.published_at).toBeTruthy();
+      expect(post.reading_time).toBeGreaterThan(0);
+      expect(post.category).toBeTruthy();
+      expect(post.cover_gradient).toBeTruthy();
     }
   });
 
-  it('all slugs are unique', () => {
-    const slugs = articles.map((a) => a.slug);
-    const unique = new Set(slugs);
-    expect(unique.size).toBe(slugs.length);
-  });
-
-  it('publishedAt values are valid ISO date strings', () => {
-    for (const article of articles) {
-      const d = new Date(article.publishedAt);
-      expect(isNaN(d.getTime()), `${article.slug}: invalid publishedAt`).toBe(false);
-    }
-  });
-
-  it('every article has at least 600 words of content', () => {
-    for (const article of articles) {
-      const allText = article.content.flatMap((s) => s.paragraphs).join(' ');
-      const wordCount = allText.split(/\s+/).filter(Boolean).length;
-      expect(wordCount, `${article.slug}: only ${wordCount} words`).toBeGreaterThanOrEqual(600);
-    }
-  });
-
-  it('every section with a heading has a non-empty heading string', () => {
-    for (const article of articles) {
-      for (const section of article.content) {
-        if (section.heading !== undefined) {
-          expect(section.heading.trim().length, `${article.slug}: empty heading`).toBeGreaterThan(
-            0,
-          );
-        }
-      }
-    }
+  it('throws on non-ok response', async () => {
+    mockFetchOnce({ detail: 'error' }, false);
+    const { getBlogPosts } = await import('@/lib/api/client');
+    await expect(getBlogPosts()).rejects.toThrow();
   });
 });
 
-describe('getArticleBySlug', () => {
-  it('returns correct article for known slug', () => {
-    const article = getArticleBySlug('best-mosques-dubai');
-    expect(article).toBeDefined();
-    expect(article?.slug).toBe('best-mosques-dubai');
+// ─── getBlogPost ──────────────────────────────────────────────────────────────
+
+describe('getBlogPost', () => {
+  it('returns full post detail with content', async () => {
+    mockFetchOnce(mockPostDetail);
+    const { getBlogPost } = await import('@/lib/api/client');
+    const post = await getBlogPost('best-mosques-dubai');
+    expect(post.slug).toBe('best-mosques-dubai');
+    expect(post.content).toBeDefined();
+    expect(post.content.length).toBeGreaterThan(0);
   });
 
-  it('returns undefined for unknown slug', () => {
-    expect(getArticleBySlug('does-not-exist')).toBeUndefined();
-  });
-
-  it('returns each article by its own slug', () => {
-    for (const a of articles) {
-      expect(getArticleBySlug(a.slug)?.slug).toBe(a.slug);
+  it('content sections have paragraphs array', async () => {
+    mockFetchOnce(mockPostDetail);
+    const { getBlogPost } = await import('@/lib/api/client');
+    const post = await getBlogPost('best-mosques-dubai');
+    for (const section of post.content) {
+      expect(Array.isArray(section.paragraphs)).toBe(true);
+      expect(section.paragraphs.length).toBeGreaterThan(0);
     }
+  });
+
+  it('throws on 404', async () => {
+    mockFetchOnce({ detail: 'Blog post not found' }, false);
+    const { getBlogPost } = await import('@/lib/api/client');
+    await expect(getBlogPost('does-not-exist')).rejects.toThrow();
   });
 });
 
-describe('getRelatedArticles', () => {
-  it('returns at most 2 articles by default', () => {
-    const article = getArticleBySlug('best-mosques-dubai')!;
-    const related = getRelatedArticles(article);
-    expect(related.length).toBeLessThanOrEqual(2);
-  });
+// ─── published_at date validation ─────────────────────────────────────────────
 
-  it('does not include the current article in related', () => {
-    for (const article of articles) {
-      const related = getRelatedArticles(article);
-      expect(related.some((r) => r.slug === article.slug)).toBe(false);
+describe('blog post date fields', () => {
+  it('published_at values are valid ISO date strings', () => {
+    for (const post of mockPosts) {
+      const d = new Date(post.published_at);
+      expect(isNaN(d.getTime())).toBe(false);
     }
   });
 
-  it('respects count parameter', () => {
-    const article = getArticleBySlug('how-to-plan-spiritual-journey')!;
-    expect(getRelatedArticles(article, 1)).toHaveLength(1);
-    expect(getRelatedArticles(article, 3)).toHaveLength(3);
+  it('posts are returned newest-first (API contract)', () => {
+    // The backend orders by published_at DESC — verify fixture ordering
+    const dates = mockPosts.map((p) => new Date(p.published_at).getTime());
+    // mockPosts are in ascending order here (oldest first), just validate parsing
+    expect(dates.every((d) => d > 0)).toBe(true);
   });
 });

@@ -1,8 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Link } from '@/lib/navigation';
 import { useHead } from '@/lib/hooks/useHead';
-import { articles } from '@/lib/blog/articles';
+import { getBlogPosts } from '@/lib/api/client';
+import type { BlogPostSummary } from '@/lib/types/blog';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -13,6 +15,9 @@ function formatDate(iso: string): string {
 }
 
 export default function BlogListPage() {
+  const [posts, setPosts] = useState<BlogPostSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+
   useHead({
     title: 'Blog — Spiritual Travel Guides',
     description:
@@ -24,6 +29,12 @@ export default function BlogListPage() {
     ogUrl: 'https://soul-step.org/blog',
     twitterCard: 'summary_large_image',
   });
+
+  useEffect(() => {
+    getBlogPosts()
+      .then(setPosts)
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <main className="max-w-6xl mx-auto px-4 py-10 lg:py-16">
@@ -39,39 +50,55 @@ export default function BlogListPage() {
       </div>
 
       {/* Article grid */}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {articles.map((article) => (
-          <Link
-            key={article.slug}
-            to={`/blog/${article.slug}`}
-            className="group flex flex-col rounded-2xl overflow-hidden border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface shadow-sm hover:shadow-md transition-shadow duration-200"
-          >
-            {/* Cover */}
-            <div className={`h-44 bg-gradient-to-br ${article.coverGradient} flex items-end p-4`}>
-              <span
-                className={`text-xs font-semibold px-2.5 py-1 rounded-full bg-white/20 text-white backdrop-blur-sm`}
-              >
-                {article.category}
-              </span>
-            </div>
-
-            {/* Content */}
-            <div className="flex flex-col flex-1 p-5 gap-3">
-              <h2 className="text-base font-bold text-text-main dark:text-white leading-snug group-hover:text-primary transition-colors">
-                {article.title}
-              </h2>
-              <p className="text-sm text-text-muted dark:text-dark-text-secondary line-clamp-3 flex-1">
-                {article.description}
-              </p>
-              <div className="flex items-center gap-3 text-xs text-text-muted dark:text-dark-text-secondary pt-1 border-t border-slate-100 dark:border-dark-border">
-                <span>{formatDate(article.publishedAt)}</span>
-                <span>·</span>
-                <span>{article.readingTime} min read</span>
+      {loading ? (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="rounded-2xl overflow-hidden border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface animate-pulse"
+            >
+              <div className="h-44 bg-slate-200 dark:bg-dark-border" />
+              <div className="p-5 space-y-3">
+                <div className="h-4 bg-slate-200 dark:bg-dark-border rounded w-3/4" />
+                <div className="h-3 bg-slate-200 dark:bg-dark-border rounded w-full" />
+                <div className="h-3 bg-slate-200 dark:bg-dark-border rounded w-2/3" />
               </div>
             </div>
-          </Link>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {posts.map((post) => (
+            <Link
+              key={post.slug}
+              to={`/blog/${post.slug}`}
+              className="group flex flex-col rounded-2xl overflow-hidden border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface shadow-sm hover:shadow-md transition-shadow duration-200"
+            >
+              {/* Cover */}
+              <div className={`h-44 bg-gradient-to-br ${post.cover_gradient} flex items-end p-4`}>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-white/20 text-white backdrop-blur-sm">
+                  {post.category}
+                </span>
+              </div>
+
+              {/* Content */}
+              <div className="flex flex-col flex-1 p-5 gap-3">
+                <h2 className="text-base font-bold text-text-main dark:text-white leading-snug group-hover:text-primary transition-colors">
+                  {post.title}
+                </h2>
+                <p className="text-sm text-text-muted dark:text-dark-text-secondary line-clamp-3 flex-1">
+                  {post.description}
+                </p>
+                <div className="flex items-center gap-3 text-xs text-text-muted dark:text-dark-text-secondary pt-1 border-t border-slate-100 dark:border-dark-border">
+                  <span>{formatDate(post.published_at)}</span>
+                  <span>·</span>
+                  <span>{post.reading_time} min read</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </main>
   );
 }
