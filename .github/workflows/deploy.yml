@@ -181,7 +181,9 @@ jobs:
         env:
           NEXT_PUBLIC_ADSENSE_PUBLISHER_ID: ${{ secrets.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID }}
           NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${{ secrets.NEXT_PUBLIC_UMAMI_WEBSITE_ID }}
-        run: npx firebase-tools deploy --only hosting:web --project ${{ env.PROJECT_ID }}
+        run: |
+          npx firebase-tools experiments:enable webframeworks
+          npx firebase-tools deploy --only hosting:web --project ${{ env.PROJECT_ID }}
 
   # ── Deploy: Admin Web → Firebase Hosting ────────────────────────────────────
 
