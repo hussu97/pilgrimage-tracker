@@ -602,6 +602,26 @@ describe("bulkGenerateSEO", () => {
   });
 });
 
+describe("regenSlugs", () => {
+  it("POSTs to /admin/seo/regen-slugs and returns result", async () => {
+    const result = { updated: 42, unchanged: 10, errors: 0 };
+    mockPost.mockResolvedValue({ data: result });
+    const res = await admin.regenSlugs();
+    expect(mockPost).toHaveBeenCalledWith("/admin/seo/regen-slugs");
+    expect(res).toEqual(result);
+  });
+});
+
+describe("regenAltTexts", () => {
+  it("POSTs to /admin/seo/regen-alt-texts and returns result", async () => {
+    const result = { images_updated: 150, places_processed: 80, errors: 0 };
+    mockPost.mockResolvedValue({ data: result });
+    const res = await admin.regenAltTexts();
+    expect(mockPost).toHaveBeenCalledWith("/admin/seo/regen-alt-texts");
+    expect(res).toEqual(result);
+  });
+});
+
 // ── Bulk Translation Jobs ─────────────────────────────────────────────────────
 
 describe("listTranslationJobs", () => {
