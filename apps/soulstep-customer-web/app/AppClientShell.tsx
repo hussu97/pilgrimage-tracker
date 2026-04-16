@@ -10,12 +10,13 @@
 
 import { type ReactNode, Suspense } from 'react';
 import App from '@/app/App';
+import SplashScreen from '@/components/common/SplashScreen';
 
 // Wrap children in a Suspense boundary because useSearchParams() (used by
 // some pages via the navigation shim) requires Suspense in Next.js 15.
 function SuspenseWrapper({ children }: { children: ReactNode }) {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<SplashScreen />}>
       {children}
     </Suspense>
   );
