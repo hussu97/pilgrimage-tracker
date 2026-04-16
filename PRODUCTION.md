@@ -1,6 +1,6 @@
 # Production Deployment
 
-SoulStep runs on **Google Cloud Platform** (Cloud Run + Cloud SQL) with **Firebase Hosting** for both web frontends.
+SoulStep runs on **Google Cloud Platform** (Cloud Run + Cloud SQL) with **Vercel** for both web frontends.
 
 Update this file whenever deployment-relevant changes are made: new env vars, new services, DB migrations, or build commands.
 
@@ -315,54 +315,63 @@ After the domain is live, all services and frontends should point to `https://ap
 
 ## 4. Deploy Web Frontend
 
-The customer web app uses **Next.js 15** with server-side rendering (SSR). Deployed to **Firebase Hosting** (Web Frameworks) via GitHub Actions — on every push to `main` that touches `apps/soulstep-customer-web/`, CI installs dependencies and runs `firebase deploy --only hosting:web` automatically.
+The customer web app uses **Next.js 15** with server-side rendering (SSR). Deployed to **Vercel** via GitHub Actions — on every push to `main` that touches `apps/soulstep-customer-web/`, CI runs `vercel build --prod` then `vercel deploy --prebuilt --prod` automatically.
 
-Firebase Hosting serves static assets from its global CDN and routes SSR requests to a managed Cloud Run function in `europe-west1`. No Docker image or Cloud Run service to manage manually.
+Vercel serves static assets from its global CDN and runs SSR pages on serverless functions in `cdg1` (Paris). No Docker image or Cloud Run service to manage manually.
 
-**Firebase Hosting sites:**
-- Customer web: `project-fa2d7f52-2bc4-4a46-8ae.web.app` (default project site, mapped to `soul-step.org`)
-- Admin: `soulstep-admin.web.app` (mapped to admin subdomain)
+### One-time Vercel project setup
+
+```bash
+cd apps/soulstep-customer-web
+npx vercel link          # creates .vercel/project.json — do not commit this
+npx vercel env add NEXT_PUBLIC_ADSENSE_PUBLISHER_ID production
+npx vercel env add NEXT_PUBLIC_UMAMI_WEBSITE_ID production
+```
+
+Copy `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` from `.vercel/project.json` into GitHub secrets as `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID_WEB`.
 
 ### Manual deploy
 
 ```bash
 cd apps/soulstep-customer-web
-npm ci
-cd ../..
-firebase deploy --only hosting:web
+npx vercel build --prod
+npx vercel deploy --prebuilt --prod
 ```
 
 ### Custom domain
 
-Firebase Hosting → **Custom domains** → Add `soul-step.org`. TLS cert is provisioned automatically.
+Vercel dashboard → project → **Domains** → Add `soul-step.org`. TLS cert is provisioned automatically.
 
 ### Environment variables
 
-`NEXT_PUBLIC_*` variables are baked into the Next.js build at CI time. Store them as GitHub Actions secrets:
-
-| Secret | Description |
-|---|---|
-| `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID |
-| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami analytics website ID |
-
-Server-side SSR calls fall back to `https://api.soul-step.org` automatically — no extra runtime secrets needed.
+`NEXT_PUBLIC_*` variables are baked into the Next.js build. Store them in the **Vercel project settings** (not GitHub Secrets) using `vercel env add` (see one-time setup above). SSR calls fall back to `https://api.soul-step.org` automatically.
 
 ---
 
 ## 5. Deploy Admin Dashboard
 
-The admin dashboard is a separate Firebase Hosting site on the same project.
+The admin dashboard (Vite SPA) is deployed to a separate **Vercel** project. API calls from the browser go to `/api/*` which Vercel rewrites server-side to `https://api.soul-step.org/api/*` — defined in `apps/soulstep-admin-web/vercel.json`.
 
-### Build and deploy
+### One-time Vercel project setup
 
 ```bash
 cd apps/soulstep-admin-web
-npm run build
-cd ../..
-firebase deploy --only hosting:admin
+npx vercel link          # creates .vercel/project.json — do not commit this
 ```
 
-The `firebase.json` already defines both `web` and `admin` hosting targets — see `.firebaserc` for site mappings.
+Copy `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` from `.vercel/project.json` into GitHub secrets as `VERCEL_ORG_ID` (same org) and `VERCEL_PROJECT_ID_ADMIN`.
+
+### Manual deploy
+
+```bash
+cd apps/soulstep-admin-web
+npx vercel build --prod
+npx vercel deploy --prebuilt --prod
+```
+
+### Custom domain
+
+Vercel dashboard → project → **Domains** → Add your admin subdomain. TLS cert is provisioned automatically.
 
 ---
 
@@ -674,8 +683,8 @@ The workflow at `.github/workflows/deploy.yml` runs on every push to `main`.
 |---|---|---|
 | `deploy-api` | `soulstep-catalog-api/` changed | Builds `api` image → deploys Cloud Run service |
 | `deploy-jobs` | `soulstep-catalog-api/` changed (after `deploy-api`) | Builds `sync-places` + `translate-content` images → creates/updates all 5 Cloud Run Jobs |
-| `deploy-web` | `apps/soulstep-customer-web/` changed | Installs deps → `firebase deploy` → Firebase Hosting (`web` target, default project site) |
-| `deploy-admin-web` | `apps/soulstep-admin-web/` changed | Builds admin app → deploys to Firebase Hosting (`admin` target) |
+| `deploy-web` | `apps/soulstep-customer-web/` changed | `vercel pull` → `vercel build --prod` → `vercel deploy --prebuilt --prod` (customer web project) |
+| `deploy-admin-web` | `apps/soulstep-admin-web/` changed | `vercel pull` → `vercel build --prod` → `vercel deploy --prebuilt --prod` (admin project) |
 | `deploy-scraper` | `soulstep-scraper-api/` changed | Builds `scraper` image → deploys Cloud Run service + upserts scraper job (primary + extra regions) |
 
 ### Workflow-level variables
@@ -711,9 +720,10 @@ rm gcp-key.json
 | Secret | Description |
 |---|---|
 | `GCP_SA_KEY` | Full JSON of the deploy service account key |
-| `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | AdSense publisher ID (baked into Next.js build) |
-| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami analytics website ID (baked into Next.js build) |
-| `FIREBASE_TOKEN` | Run `firebase login:ci` and copy the token (admin-web only) |
+| `VERCEL_TOKEN` | Vercel personal access token (Settings → Tokens) |
+| `VERCEL_ORG_ID` | Vercel team/org ID (from `.vercel/project.json` after `vercel link`) |
+| `VERCEL_PROJECT_ID_WEB` | Vercel project ID for `soulstep-customer-web` |
+| `VERCEL_PROJECT_ID_ADMIN` | Vercel project ID for `soulstep-admin-web` |
 
 ---
 

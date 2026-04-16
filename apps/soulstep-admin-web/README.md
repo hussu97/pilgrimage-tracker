@@ -35,7 +35,7 @@ The dev server proxies `/api` requests to `http://127.0.0.1:3000` by default —
 npm run build
 ```
 
-Output in `dist/`. In production, the build is deployed to Firebase Hosting (see PRODUCTION.md).
+Output in `dist/`. In production, the build is deployed to Vercel (see PRODUCTION.md).
 
 ## Environment Variables
 

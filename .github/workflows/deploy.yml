@@ -133,23 +133,21 @@ jobs:
             --min-instances 0 --max-instances 3 \
             --quiet
 
-  # ── Deploy: Web → Firebase Hosting ───────────────────────────────────────────
-
+  # ── Deploy: Customer Web → Vercel ────────────────────────────────────────────
   deploy-web:
-    name: Deploy soulstep-customer-web → Firebase Hosting
+    name: Deploy soulstep-customer-web → Vercel
     needs: [changes]
     if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     environment: production
     permissions:
-      id-token: write   # required for Workload Identity Federation
       contents: read
 
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.HEAD_SHA }}
-          # cone mode always includes root files (firebase.json, .firebaserc)
+          # cone mode always includes root files (vercel.json)
           sparse-checkout: apps/soulstep-customer-web
           sparse-checkout-cone-mode: true
 
@@ -171,30 +169,36 @@ jobs:
         working-directory: apps/soulstep-customer-web
         run: npm ci
 
-      - name: Authenticate with GCP (keyless)
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.SA_EMAIL }}
-
-      - name: Deploy to Firebase Hosting (web)
+      - name: Pull Vercel environment info
+        working-directory: apps/soulstep-customer-web
         env:
-          NEXT_PUBLIC_ADSENSE_PUBLISHER_ID: ${{ secrets.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID }}
-          NEXT_PUBLIC_UMAMI_WEBSITE_ID: ${{ secrets.NEXT_PUBLIC_UMAMI_WEBSITE_ID }}
-        run: |
-          npx firebase-tools experiments:enable webframeworks
-          npx firebase-tools deploy --only hosting:web --project ${{ env.PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+        run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
-  # ── Deploy: Admin Web → Firebase Hosting ────────────────────────────────────
+      - name: Build
+        working-directory: apps/soulstep-customer-web
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+        run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy to Vercel
+        working-directory: apps/soulstep-customer-web
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+        run: npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+  # ── Deploy: Admin Web → Vercel ───────────────────────────────────────────────
 
   deploy-admin-web:
-    name: Deploy soulstep-admin-web → Firebase Hosting
+    name: Deploy soulstep-admin-web → Vercel
     needs: [changes]
     if: needs.changes.outputs.admin == 'true'
     runs-on: ubuntu-latest
     environment: production
     permissions:
-      id-token: write   # required for Workload Identity Federation
       contents: read
 
     steps:
@@ -222,21 +226,26 @@ jobs:
         working-directory: apps/soulstep-admin-web
         run: npm ci
 
+      - name: Pull Vercel environment info
+        working-directory: apps/soulstep-admin-web
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_ADMIN }}
+        run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
       - name: Build
         working-directory: apps/soulstep-admin-web
-        run: npm run build
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_ADMIN }}
+        run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
-      - name: Authenticate with GCP (keyless)
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.SA_EMAIL }}
-
-      - name: Deploy to Firebase Hosting (admin)
-        # Prerequisites (one-time, in Firebase console):
-        #   1. Create a second Hosting site: Project settings → Hosting → Add site
-        #   2. Note the site ID (e.g. soulstep-admin) and update .firebaserc targets.admin
-        run: npx firebase-tools deploy --only hosting:admin --project ${{ env.PROJECT_ID }}
+      - name: Deploy to Vercel
+        working-directory: apps/soulstep-admin-web
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_ADMIN }}
+        run: npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
 
   # ── Deploy: Cloud Run Jobs → update image on every catalog change ───────────
 

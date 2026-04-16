@@ -4,6 +4,23 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-16] — Migrate Web Frontends from Firebase Hosting to Vercel
+
+### Frontend (web)
+- **`apps/soulstep-customer-web/vercel.json`** — new Vercel config; deploys Next.js SSR to `cdg1` (Paris)
+- **`apps/soulstep-admin-web/vercel.json`** — new Vercel config; SPA fallback + `/api/*` → `https://api.soul-step.org/api/*` server-side rewrite
+
+### Docs
+- **`PRODUCTION.md`** — sections 4, 5, CI table, and GitHub secrets table updated for Vercel
+- **`apps/soulstep-admin-web/README.md`** — deployment note updated
+- **`apps/soulstep-customer-web/.env.example`** and **`apps/soulstep-admin-web/.env.example`** — updated production env var instructions
+
+### CI/CD
+- **`.github/workflows/deploy.yml`** — `deploy-web` and `deploy-admin-web` jobs rewritten: GCP auth removed, now use `vercel pull → vercel build --prod → vercel deploy --prebuilt --prod` with `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID_WEB`/`VERCEL_PROJECT_ID_ADMIN` secrets
+- **`firebase.json`** and **`.firebaserc`** — removed (no Firebase Hosting targets remain)
+
+---
+
 ## [2026-04-16] — URL Cleanup: Clean SEO Slugs and City Pages
 
 ### Backend
