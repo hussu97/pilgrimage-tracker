@@ -5,7 +5,8 @@
   "targets": {
     "project-fa2d7f52-2bc4-4a46-8ae": {
       "hosting": {
-        "admin": ["soulstep-admin"]
+        "admin": ["soulstep-admin"],
+        "web": ["project-fa2d7f52-2bc4-4a46-8ae"]
       }
     }
   }

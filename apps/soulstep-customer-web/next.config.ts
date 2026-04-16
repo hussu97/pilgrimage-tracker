@@ -1,21 +1,8 @@
 import type { NextConfig } from 'next';
-import fs from 'fs';
-import path from 'path';
 
 const backendOrigin = process.env.NEXT_PUBLIC_PROXY_TARGET || 'http://127.0.0.1:3000';
 
 const nextConfig: NextConfig = {
-  // Standalone output for Docker/Cloud Run — creates .next/standalone with a
-  // self-contained Node.js server. Required for SSR on Cloud Run.
-  output: 'standalone',
-
-  // Pin output file tracing to the monorepo root so Next.js doesn't get confused
-  // by multiple lockfiles. Only set when the monorepo structure is present (local
-  // dev / CI); omitted in Docker where only the app directory is copied.
-  ...(fs.existsSync(path.join(__dirname, '../../apps')) && {
-    outputFileTracingRoot: path.join(__dirname, '../..'),
-  }),
-
   // Rewrite rules:
   //   /sitemap.xml, /feed.xml, /feed.atom → proxy route handlers (all envs)
   //   /api/*, /umami/* → backend / Umami (dev only)

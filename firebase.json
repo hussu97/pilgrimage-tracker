@@ -1,6 +1,21 @@
 {
   "hosting": [
     {
+      "target": "web",
+      "source": "apps/soulstep-customer-web",
+      "frameworksBackend": {
+        "region": "europe-west1"
+      },
+      "headers": [
+        {
+          "source": "/_next/static/**",
+          "headers": [
+            { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+          ]
+        }
+      ]
+    },
+    {
       "target": "admin",
       "public": "apps/soulstep-admin-web/dist",
       "ignore": [

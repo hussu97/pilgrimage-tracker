@@ -315,47 +315,37 @@ After the domain is live, all services and frontends should point to `https://ap
 
 ## 4. Deploy Web Frontend
 
-The customer web app uses **Next.js 15** with server-side rendering (SSR). Deployed to **Cloud Run** via GitHub Actions — on every push to `main` that touches `apps/soulstep-customer-web/`, CI builds a Docker image and deploys it automatically.
+The customer web app uses **Next.js 15** with server-side rendering (SSR). Deployed to **Firebase Hosting** (Web Frameworks) via GitHub Actions — on every push to `main` that touches `apps/soulstep-customer-web/`, CI installs dependencies and runs `firebase deploy --only hosting:web` automatically.
+
+Firebase Hosting serves static assets from its global CDN and routes SSR requests to a managed Cloud Run function in `europe-west1`. No Docker image or Cloud Run service to manage manually.
+
+**Firebase Hosting sites:**
+- Customer web: `project-fa2d7f52-2bc4-4a46-8ae.web.app` (default project site, mapped to `soul-step.org`)
+- Admin: `soulstep-admin.web.app` (mapped to admin subdomain)
 
 ### Manual deploy
 
 ```bash
-# Build the Docker image
-docker build \
-  --build-arg NEXT_PUBLIC_ADSENSE_PUBLISHER_ID=ca-pub-xxx \
-  --build-arg NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-id \
-  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/customer-web:latest \
-  apps/soulstep-customer-web/
-
-# Push
-docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/customer-web:latest
-
-# Deploy
-gcloud run deploy soulstep-customer-web \
-  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/customer-web:latest \
-  --region REGION \
-  --allow-unauthenticated \
-  --set-env-vars "NEXT_PUBLIC_ADSENSE_PUBLISHER_ID=ca-pub-xxx,NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-id" \
-  --min-instances 0 \
-  --max-instances 5 \
-  --memory 512Mi \
-  --port 3001
+cd apps/soulstep-customer-web
+npm ci
+cd ../..
+firebase deploy --only hosting:web
 ```
-
-Add the Cloud Run service URL to `CORS_ORIGINS` on the API (see §3).
 
 ### Custom domain
 
-Cloud Run → **Domain mappings** → Add custom domain `soul-step.org`. TLS cert is provisioned automatically.
+Firebase Hosting → **Custom domains** → Add `soul-step.org`. TLS cert is provisioned automatically.
 
-### Frontend NEXT_PUBLIC_* variables
+### Environment variables
 
-`NEXT_PUBLIC_*` variables are baked into the Docker build at CI time. Store them as GitHub Actions secrets:
+`NEXT_PUBLIC_*` variables are baked into the Next.js build at CI time. Store them as GitHub Actions secrets:
 
 | Secret | Description |
 |---|---|
 | `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami analytics website ID |
+
+Server-side SSR calls fall back to `https://api.soul-step.org` automatically — no extra runtime secrets needed.
 
 ---
 
@@ -684,7 +674,7 @@ The workflow at `.github/workflows/deploy.yml` runs on every push to `main`.
 |---|---|---|
 | `deploy-api` | `soulstep-catalog-api/` changed | Builds `api` image → deploys Cloud Run service |
 | `deploy-jobs` | `soulstep-catalog-api/` changed (after `deploy-api`) | Builds `sync-places` + `translate-content` images → creates/updates all 5 Cloud Run Jobs |
-| `deploy-web` | `apps/soulstep-customer-web/` changed | Builds Docker image → deploys to Cloud Run (`soulstep-customer-web` service) |
+| `deploy-web` | `apps/soulstep-customer-web/` changed | Installs deps → `firebase deploy` → Firebase Hosting (`web` target, default project site) |
 | `deploy-admin-web` | `apps/soulstep-admin-web/` changed | Builds admin app → deploys to Firebase Hosting (`admin` target) |
 | `deploy-scraper` | `soulstep-scraper-api/` changed | Builds `scraper` image → deploys Cloud Run service + upserts scraper job (primary + extra regions) |
 
