@@ -266,6 +266,528 @@ export const articles: Article[] = [
       },
     ],
   },
+
+  // ── Article 6 ────────────────────────────────────────────────────────────
+  {
+    slug: `sacred-buddhist-sites-southeast-asia`,
+    title: `Sacred Buddhist Sites in Southeast Asia: A Complete Pilgrim's Guide`,
+    description: `From the ancient stupas of Myanmar to the jungle temples of Cambodia, Southeast Asia holds some of the most spiritually powerful Buddhist sites on earth. A complete guide for travellers seeking enlightenment on the road.`,
+    publishedAt: `2026-01-08`,
+    readingTime: 8,
+    category: `Buddhism`,
+    coverGradient: `from-amber-600 to-orange-800`,
+    content: [
+      {
+        paragraphs: [
+          `Southeast Asia is the heartland of Theravada Buddhism, the oldest surviving school of Buddhist teaching. Across Myanmar, Thailand, Cambodia, Laos, and Sri Lanka, the landscape is defined by gilded stupas, ancient stone temples, and monasteries where the daily rhythm of monastic life has changed little for centuries. For pilgrims and cultural travellers alike, this region offers an unparalleled opportunity to encounter living Buddhism in all its depth and variety.`,
+          `Unlike many religious traditions where historic sites are primarily museums of the past, Buddhist pilgrimage sites in Southeast Asia are active places of worship. Monks chant sutras at dawn, laypeople offer flowers and incense at every hour, and the scent of sandalwood drifts through carved stone corridors. Coming as a respectful visitor means entering a world where the sacred is not separated from the everyday.`,
+        ],
+      },
+      {
+        heading: `Shwedagon Pagoda, Yangon: The Golden Heart of Myanmar`,
+        paragraphs: [
+          `Rising 98 metres above the city of Yangon and covered in more than 27 tonnes of gold leaf, the Shwedagon Pagoda is among the most breathtaking religious structures on earth. Believed to enshrine relics of four Buddhas, including eight hairs of Gautama Buddha himself, it has been a centre of Burmese spiritual life for over 2,600 years. The pagoda complex is vast — surrounding the central stupa are dozens of smaller shrines, pavilions, and Buddha images donated by generations of devoted Burmese Buddhists.`,
+          `Visitors enter via one of four covered stairways, each lined with vendors selling offerings and religious items. The best time to visit is dawn or dusk, when the pagoda glows against the sky and the air is filled with the sound of bells and quiet prayer. Modest dress is required; shoes must be removed before entering the sacred precinct.`,
+        ],
+      },
+      {
+        heading: `Angkor Wat, Cambodia: Temple Mountain of the Gods`,
+        paragraphs: [
+          `Built in the twelfth century by the Khmer king Suryavarman II, Angkor Wat began as a Hindu temple dedicated to Vishnu before gradually transitioning into a Buddhist site. Today it is the largest religious monument ever constructed, covering 162 hectares of jungle in northwestern Cambodia. The five towers represent the peaks of Mount Meru, the mythical home of the gods, and the galleries are covered in some of the most extraordinary bas-relief carvings in the world.`,
+          `Angkor Wat remains an active Buddhist site. Monks in saffron robes walk the corridors and bless visitors, and incense burns before gilded Buddha images that share space with ancient Vishnu carvings. The Angkor Archaeological Park surrounding it contains hundreds of other temples, including Ta Prohm, where the roots of vast trees have grown through stone walls, and the Bayon, with its hundreds of giant smiling faces carved in stone.`,
+          `SoulStep maps all major temples within the Angkor complex, with check-in capabilities at each one. Many pilgrims use the app to track their progress across the full site over several days, building a personal record of one of humanity's greatest spiritual achievements.`,
+        ],
+      },
+      {
+        heading: `Doi Suthep, Chiang Mai: The Sacred Mountain Temple`,
+        paragraphs: [
+          `Perched 1,073 metres above sea level on the forested slopes of Doi Suthep mountain, Wat Phra That Doi Suthep is the most revered Buddhist temple in northern Thailand. According to legend, the site was chosen when a white elephant carrying a Buddha relic walked to the summit and trumpeted three times before dying — a sign from the gods that this was a sacred place. The temple's golden chedi can be seen from the city of Chiang Mai on clear days and is a constant presence in the skyline.`,
+          `Access to the temple is via a long staircase of 309 steps flanked by nagas (serpent deities), or by a funicular railway. At the top, the golden chedi is surrounded by smaller shrines, bells, and devotional items. Monks offer blessings and the panoramic view of the valley below is extraordinary. The temple is most atmospheric at sunrise or during Buddhist holidays, when local worshippers crowd the precinct with offerings of lotus flowers and incense.`,
+        ],
+      },
+      {
+        heading: `Planning Your Buddhist Pilgrimage with SoulStep`,
+        paragraphs: [
+          `Southeast Asia's Buddhist sites span vast distances and vary enormously in accessibility. Some, like the Shwedagon, are in the centre of major cities. Others, like Bagan's 2,000 ancient temples spread across a 40-square-kilometre plain, require days to explore properly. SoulStep's pilgrimage planning tools allow you to organise a route, estimate travel times between sites, and track your check-ins across the entire region.`,
+          `When visiting Buddhist sites, dress modestly (shoulders and knees covered), remove shoes before entering temple buildings, and avoid pointing your feet towards Buddha images or monks. Photography is generally permitted but check for restrictions inside shrine rooms. The act of pilgrimage itself — travelling with intention and reverence — is considered meritorious in Theravada tradition. Go slowly, observe carefully, and let each place speak in its own time.`,
+        ],
+      },
+    ],
+  },
+
+  // ── Article 7 ────────────────────────────────────────────────────────────
+  {
+    slug: `jewish-holy-sites-jerusalem`,
+    title: `The Western Wall and Jewish Holy Sites in Jerusalem: A Visitor's Guide`,
+    description: `Jerusalem is the holiest city in Judaism, home to the Western Wall, the City of David, and the ancient synagogues of the Jewish Quarter. A detailed guide for visitors seeking to understand Jewish sacred heritage in the Holy City.`,
+    publishedAt: `2026-01-15`,
+    readingTime: 7,
+    category: `Judaism`,
+    coverGradient: `from-blue-700 to-indigo-900`,
+    content: [
+      {
+        paragraphs: [
+          `Jerusalem has been central to Jewish identity and prayer for over three thousand years. The city where King David established his capital, where Solomon built the First Temple, and where generations of Jewish pilgrims have journeyed to pray at the surviving Western Wall — Jerusalem is not merely a destination but a living expression of Jewish faith, history, and hope. For Jewish visitors, a pilgrimage here carries profound weight. For non-Jewish visitors, the city offers an extraordinary window into one of the world's oldest living religious traditions.`,
+          `The Jewish Quarter of the Old City, rebuilt and restored after 1967, is home to ancient synagogues, the Cardo (a Roman-era colonnade), and the Burnt House museum, which documents life during the Roman destruction of 70 CE. Walking these streets is an experience unlike anything else — layers of history compressed into a few square kilometres of limestone alleys and stone archways.`,
+        ],
+      },
+      {
+        heading: `The Western Wall: Judaism's Holiest Accessible Site`,
+        paragraphs: [
+          `The Western Wall (HaKotel HaMa'aravi) is the last surviving remnant of the retaining wall surrounding the Temple Mount on which the Second Temple stood before its destruction by Rome in 70 CE. For nearly two millennia, Jewish pilgrims have come here to pray, mourn the Temple's destruction, and insert written prayers into the cracks between the ancient stones. The Wall is considered the holiest place accessible to Jewish worshippers, as the Temple Mount itself is subject to religious restrictions regarding entry.`,
+          `The plaza in front of the Wall is divided into separate men's and women's prayer sections. Visitors of all faiths are welcome; men must cover their heads (kippot are available at the entrance) and both sexes must dress modestly. The Wall is particularly atmospheric on Friday evenings at the start of Shabbat, when families and groups gather to pray and sing. Jewish holidays, especially during the High Holy Days and Passover, draw enormous crowds.`,
+          `Tunnels beneath and alongside the Wall, accessible via guided tours booked in advance, reveal the full extent of the structure — stretching 488 metres in total, with some of the enormous Herodian-era stones weighing hundreds of tonnes. The tunnel tours provide extraordinary context for the scale of the ancient Temple complex.`,
+        ],
+      },
+      {
+        heading: `The City of David: Where Jerusalem Began`,
+        paragraphs: [
+          `Just south of the Old City walls lies the City of David, the original settlement from which Jerusalem grew. Archaeological excavations here have uncovered 3,000 years of continuous occupation, including the Bronze Age citadel believed to be the site David captured from the Jebusites, the stepped-stone structure that may have been the base of his palace, and the famous Hezekiah's Tunnel — a 533-metre water channel cut through bedrock around 700 BCE to secure Jerusalem's water supply during an Assyrian siege.`,
+          `Wading through Hezekiah's Tunnel is one of the most memorable experiences in Jerusalem. The tunnel is narrow, dark, and knee-to-waist deep in water, but ends at the Pool of Siloam — the same pool where, according to the Gospel of John, Jesus healed a blind man. The confluence of Jewish history and Christian Scripture at this site makes it significant for pilgrims of both traditions.`,
+        ],
+      },
+      {
+        heading: `Ancient Synagogues and the Jewish Quarter`,
+        paragraphs: [
+          `The Jewish Quarter contains several synagogues of great historical significance. The Hurva Synagogue, first built in the eighteenth century, destroyed twice, and rebuilt in its current form in 2010, is the most prominent — its distinctive white dome is a landmark of the Old City skyline. The four Sephardi synagogues nearby date to the sixteenth and seventeenth centuries, when Jerusalem's Jewish community was largely composed of Jews expelled from Spain in 1492.`,
+          `The quarter also contains the Broad Wall, a section of the eighth-century BCE wall built by King Hezekiah to protect an expanded Jerusalem, and the Cardo Maximus, the main colonnaded street of Roman and Byzantine Jerusalem. These layers of history — biblical, Roman, Byzantine, Ottoman, modern — make the Jewish Quarter a compressed microcosm of Jerusalem's extraordinary past.`,
+          `SoulStep maps all major Jewish heritage sites in Jerusalem and across Israel, allowing pilgrims to plan itineraries that connect the Western Wall, the City of David, Masada, Safed, and the Sea of Galilee. Whether your journey is a personal spiritual quest or a cultural exploration, the app helps you track every significant site on your path.`,
+        ],
+      },
+    ],
+  },
+
+  // ── Article 8 ────────────────────────────────────────────────────────────
+  {
+    slug: `how-to-plan-first-pilgrimage`,
+    title: `Planning Your First Pilgrimage: A Complete Beginner's Guide`,
+    description: `Thinking about making your first pilgrimage but don't know where to start? This practical guide covers everything from choosing your destination to packing light, understanding local customs, and making the most of your spiritual journey.`,
+    publishedAt: `2026-01-22`,
+    readingTime: 9,
+    category: `Travel Guide`,
+    coverGradient: `from-violet-600 to-purple-900`,
+    content: [
+      {
+        paragraphs: [
+          `A pilgrimage is one of the most ancient and universal forms of travel. Long before tourism existed, people were journeying to sacred sites — walking hundreds of miles, crossing deserts and mountains, enduring hardship and uncertainty in search of something that could not be found at home. Today, millions of people from every faith and background continue this tradition, drawn by the desire for spiritual renewal, a deeper connection with their heritage, or simply the transformative power of purposeful travel.`,
+          `If you have never made a pilgrimage before, the prospect can feel daunting. Where do you go? How do you prepare? What do you do when you arrive? This guide will walk you through every stage of the process, from choosing a destination to returning home changed by the experience.`,
+        ],
+      },
+      {
+        heading: `Choosing Your Destination`,
+        paragraphs: [
+          `The first decision is where to go, and this is more personal than it might appear. The best pilgrimage destination is not necessarily the most famous one — it is the one that speaks most directly to your own faith, questions, or sense of meaning. For a Muslim, the Hajj to Mecca is a once-in-a-lifetime obligation, but visits to Al-Masjid an-Nabawi in Medina or the Al-Aqsa Mosque in Jerusalem carry profound spiritual weight. For a Hindu, Varanasi on the Ganges, the Char Dham circuit, or a temple in your family's home region may call most strongly.`,
+          `Christians might be drawn to Rome, Jerusalem, Canterbury, Lourdes, or the Camino de Santiago. Buddhists to Bodh Gaya (where the Buddha attained enlightenment), Lumbini (his birthplace), or the many monasteries of Tibet and Southeast Asia. Sikhs journey to Amritsar, to the five takhts, or to sites associated with the ten Gurus. There is no wrong answer — the site that resonates most deeply for you is the right one to visit first.`,
+          `Consider also practical factors: visa requirements, budget, physical fitness, and the time of year. Many pilgrimage sites have specific seasons — Hajj occurs during fixed dates in the Islamic calendar; the Camino is most comfortable in spring and early autumn; the Char Dham temples in the Himalayas are only open between May and November. Research the rhythms of your chosen destination before committing.`,
+        ],
+      },
+      {
+        heading: `Preparing Spiritually and Practically`,
+        paragraphs: [
+          `A pilgrimage is not merely a holiday to a religious place — it is an intentional journey undertaken with a specific inner orientation. Before you go, spend time reading about the history and significance of your destination. Understand what happened there, why it became sacred, and how people have worshipped there across the centuries. This context will transform what you see from interesting architecture into living meaning.`,
+          `Practically, research the customs and expectations at your destination. Most sacred sites require modest dress — shoulders and knees covered, often with head coverings. Some require shoes to be removed. Photography may be restricted in certain areas. Understanding these requirements in advance prevents awkwardness and shows respect for local worshippers. SoulStep's place detail pages include practical visitor information for thousands of sacred sites worldwide, making this research efficient and reliable.`,
+        ],
+      },
+      {
+        heading: `On the Ground: Getting the Most from Your Visit`,
+        paragraphs: [
+          `Arrive at major pilgrimage sites early in the morning. The first hours of the day are typically quieter, cooler, and more spiritually charged than the midday rush. Many traditions hold the dawn hours as particularly sacred for prayer, and the quality of light at sunrise is extraordinary at almost every holy site. At places like Angkor Wat, the Western Wall at Shabbat, or the Ganges at dawn, the early morning visit is the definitive experience.`,
+          `Plan to spend more time than you think necessary. The temptation of pilgrimage tourism is to rush from site to site, ticking off locations. Resist this. Sit in the courtyard of a mosque after prayer. Walk the perimeter of a temple. Watch the activity around you — the local worshippers, the monks, the families, the elderly praying quietly in a corner. The meaning of a pilgrimage site is not in the architecture alone but in the living community that gathers there.`,
+          `Keep a journal. The physical journey of pilgrimage tends to generate unexpected thoughts, memories, and realisations. Writing them down — in the evening, in the quiet after a long day of walking and observing — is a way of holding onto insights that might otherwise be lost in the blur of travel. Many pilgrims find that the journal becomes one of the most treasured souvenirs of their journey.`,
+        ],
+      },
+      {
+        heading: `Tracking Your Journey with SoulStep`,
+        paragraphs: [
+          `SoulStep was built specifically for spiritual travellers who want to document and share their pilgrimage experiences. You can create a custom journey, add the sacred sites you plan to visit, check in when you arrive, and build a permanent record of your pilgrimage over time. The app's community features allow you to connect with others who have visited the same sites, read their reflections, and discover related places you might not have known about.`,
+          `Whether you are planning a single visit to a local temple or a multi-country pilgrimage across continents, SoulStep's journey planning tools make the logistics manageable and the spiritual experience richer. Start by exploring the sacred sites near you — you may be surprised how much spiritual heritage exists within reach of where you live.`,
+        ],
+      },
+    ],
+  },
+
+  // ── Article 9 ────────────────────────────────────────────────────────────
+  {
+    slug: `temples-shrines-japan-visitor-guide`,
+    title: `Temples and Shrines of Japan: A Respectful Visitor's Guide`,
+    description: `Japan is home to tens of thousands of Buddhist temples and Shinto shrines, many of extraordinary beauty and spiritual significance. This guide explains the difference between them, how to visit respectfully, and the most important sites to explore.`,
+    publishedAt: `2026-02-03`,
+    readingTime: 8,
+    category: `Buddhism`,
+    coverGradient: `from-red-600 to-rose-900`,
+    content: [
+      {
+        paragraphs: [
+          `Japan's sacred landscape is unlike any other in the world. Across the country's four main islands, more than 77,000 Buddhist temples and 80,000 Shinto shrines have been built over fifteen centuries, ranging from intimate neighbourhood oratories to vast mountain complexes that attract millions of pilgrims annually. The two traditions — Buddhism, introduced from China and Korea in the sixth century, and Shinto, Japan's indigenous animist religion — coexisted for over a millennium and share many sacred spaces. Understanding the difference between a temple and a shrine transforms a sightseeing visit into a genuine spiritual encounter.`,
+          `Buddhist temples (tera or ji) are places of worship centred on the Buddha and bodhisattvas; they typically feature incense burners, pagodas, and large Buddha statues. Shinto shrines (jinja) honour the kami — spirits or gods believed to inhabit natural phenomena and important ancestors. They are marked by distinctive torii gates, often painted vermilion, and contain a honden (inner sanctuary) which houses the kami's spirit. Both are places of active worship that visitors are welcome to enter respectfully.`,
+        ],
+      },
+      {
+        heading: `Fushimi Inari-taisha, Kyoto: The Thousand Torii Gates`,
+        paragraphs: [
+          `The most photographed Shinto shrine in Japan, Fushimi Inari-taisha in Kyoto is dedicated to Inari, the kami of rice, agriculture, industry, and worldly success. The main shrine buildings at the base are impressive, but the defining experience is the trail that leads up the forested mountain behind them — a 4-kilometre path that winds through thousands of vermilion torii gates donated by businesses and individuals seeking blessings. The path passes smaller sub-shrines, fox statues (the fox is Inari's messenger), and atmospheric forested clearings.`,
+          `The lower sections of the trail are crowded during the day; the upper mountain is quieter and genuinely atmospheric. Hiking to the summit and back takes two to three hours. Early morning visits before 8am offer the most serene experience, with mist rising through the gates and the city below just beginning to stir.`,
+        ],
+      },
+      {
+        heading: `Kinkaku-ji and the Zen Temples of Kyoto`,
+        paragraphs: [
+          `Kyoto was Japan's imperial capital for over a millennium and contains seventeen UNESCO World Heritage sites. Its Zen Buddhist temples are among the most refined expressions of Japanese aestheticism: the Golden Pavilion (Kinkaku-ji), its upper floors covered entirely in gold leaf and reflected in the surrounding pond, is perhaps the most famous; Ryoan-ji's spare gravel garden, where fifteen stones are arranged so that only fourteen are ever visible from any single vantage point, is a masterpiece of Zen philosophy expressed in landscape design.`,
+          `The Zen temples of Kyoto reward slow exploration. Many contain sub-temples, garden circuits, and moss-covered paths that receive few visitors compared to the main halls. Temple stays (shukubo) are available at some Kyoto monasteries, allowing visitors to participate in morning meditation, sutra chanting, and the austere simplicity of monastic life for one or two nights. SoulStep lists Kyoto's major Buddhist and Shinto sites, allowing travellers to plan a multi-day itinerary that goes beyond the tourist highlights.`,
+        ],
+      },
+      {
+        heading: `Sensō-ji, Tokyo and the Pilgrimage Circuits of Japan`,
+        paragraphs: [
+          `Tokyo's oldest and most visited temple, Sensō-ji in the Asakusa district, is dedicated to Kannon, the bodhisattva of compassion. Founded, according to legend, in 628 CE when two fishermen pulled a golden statue of Kannon from the Sumida River, the temple receives 30 million visitors annually. The Nakamise shopping street leading to the main gate is lined with traditional craft and food stalls. The main hall glows with incense smoke and candlelight; pilgrims draw fortune slips (omikuji) and tie them to metal frames if the fortune is unlucky, releasing them to the gods.`,
+          `Japan has several formal Buddhist pilgrimage circuits that draw dedicated walkers. The Shikoku 88-temple pilgrimage, following in the footsteps of the monk Kūkai (Kōbō Daishi), covers 1,200 kilometres across the island of Shikoku and typically takes 30-60 days on foot. Pilgrims wear white jackets (hakui), carry a staff, and accumulate red stamps (shuin) in a dedicated album at each temple. SoulStep supports check-in tracking for all 88 Shikoku temples, making it possible to document this extraordinary journey in detail.`,
+        ],
+      },
+      {
+        heading: `Etiquette at Japanese Sacred Sites`,
+        paragraphs: [
+          `At Shinto shrines, visitors purify their hands at the temizuya (water basin) before approaching the main hall. At the offering box, bow twice, clap twice, make your prayer, then bow once more. At Buddhist temples, burn incense by waving the smoke over yourself before entering, and bow to the Buddha image. Photography is generally acceptable in outdoor areas but restricted inside main halls — look for signs or follow the behaviour of local worshippers.`,
+          `Dress modestly at major pilgrimage temples, though strict dress codes are less common in Japan than in the Middle East or South Asia. The key principle is respectful behaviour: speak quietly, do not point or gesture at sacred objects, and treat the space as a place of worship rather than a sightseeing attraction. This attitude of respect will be immediately apparent to local worshippers and will invariably result in a warmer and more meaningful experience.`,
+        ],
+      },
+    ],
+  },
+
+  // ── Article 10 ───────────────────────────────────────────────────────────
+  {
+    slug: `camino-de-santiago-pilgrimage-guide`,
+    title: `The Camino de Santiago: Europe's Most Celebrated Pilgrimage`,
+    description: `The Camino de Santiago has been walked by millions of pilgrims for over a thousand years. This comprehensive guide covers the main routes, what to expect on the road, the spiritual meaning of the journey, and practical advice for first-time walkers.`,
+    publishedAt: `2026-02-12`,
+    readingTime: 9,
+    category: `Christianity`,
+    coverGradient: `from-yellow-600 to-amber-800`,
+    content: [
+      {
+        paragraphs: [
+          `The Camino de Santiago — the Way of Saint James — is one of the great spiritual journeys of the human story. For over a thousand years, pilgrims have walked to the city of Santiago de Compostela in Galicia, northwestern Spain, to pray at the tomb of Saint James the Apostle in the cathedral there. In the medieval period, when Rome and Jerusalem were the only other comparable pilgrimage destinations, Santiago drew hundreds of thousands of pilgrims annually from across Europe. Today the tradition continues stronger than ever, with over 400,000 people receiving the official Compostela certificate each year.`,
+          `The Camino is not a single route but a network of paths converging on Santiago from all directions. Pilgrims walk from France, Portugal, the north and south of Spain, from Italy and Switzerland. Some begin in their home villages in Germany or the Netherlands and walk the entire way. The common thread is the yellow arrow and scallop shell waymarks that guide pilgrims along every route, and the shared culture of the road — the albergues (pilgrim hostels), the daily rhythm of walking, the conversations with strangers, and the gradual physical and spiritual transformation that the Camino reliably produces.`,
+        ],
+      },
+      {
+        heading: `The Main Routes: Which Camino to Choose`,
+        paragraphs: [
+          `The Camino Francés (French Way) is the most popular route, beginning at Saint-Jean-Pied-de-Port on the French side of the Pyrenees and covering 780 kilometres to Santiago. It passes through the cities of Pamplona (of the Running of the Bulls), Burgos, and León, and crosses the meseta — a vast high plateau that is psychologically challenging but spiritually powerful. The infrastructure is excellent; pilgrim hostels appear every 10-20 kilometres, and the social life of the Camino community is at its most vibrant.`,
+          `The Camino Portugués begins in Lisbon (620 km) or Porto (240 km) and follows the Portuguese coast and inland valleys north to Santiago. It is less crowded than the French Way and the coastal variant passes through stunning Atlantic beach scenery. The Camino del Norte follows the northern Spanish coast, with dramatic sea views and more strenuous terrain. The Via de la Plata runs from Seville in the south — 1,000 kilometres of quieter, emptier Castilian landscape. For first-time pilgrims, the Camino Portugués from Porto or the last 100 kilometres of the Camino Francés from Sarria are the most manageable introductions.`,
+        ],
+      },
+      {
+        heading: `The Physical Reality of Walking the Camino`,
+        paragraphs: [
+          `Most pilgrims walk 20-25 kilometres per day on the Camino Francés, completing the journey in 30-35 days. Blisters are nearly universal — invest in properly fitted walking boots or trail runners, bring Compeed blister plasters, and break in your footwear before you begin. A good pilgrim backpack weighs no more than 10% of your body weight (7-9 kilograms is ideal). The temptation is to pack too much; the Camino will quickly teach you that less is more.`,
+          `The pilgrim passport (Credencial del Peregrino), collected from pilgrim offices in most European countries or at the start point itself, is stamped at each albergue, church, or café along the route. At the Pilgrim Office in Santiago, walkers who have completed at least 100 kilometres on foot (or 200 by bicycle) receive the Compostela certificate. The bureaucracy is simple; the sense of accomplishment when you reach the Plaza del Obradoiro and look up at the cathedral façade is profound.`,
+        ],
+      },
+      {
+        heading: `The Cathedral of Santiago de Compostela`,
+        paragraphs: [
+          `The goal of every Camino pilgrim is the Apostle's tomb beneath the high altar of the Cathedral of Santiago de Compostela. The cathedral, begun in the eleventh century and expanded over six hundred years, is a masterpiece of Romanesque, Gothic, and Baroque architecture. The Pórtico de la Gloria — a twelfth-century sculpted archway inside the main entrance, considered one of the finest works of medieval European art — traditionally greets arriving pilgrims, who place their hand on the central column in a gesture of devotion worn smooth over centuries.`,
+          `The Pilgrim Mass, celebrated at noon daily, fills the cathedral with the sounds of hundreds of Camino walkers from every country on earth. On certain feast days, the Botafumeiro — an enormous silver incense burner suspended from the roof by a pulley system — swings in great arcs across the transept, filling the cathedral with smoke and spectacle. For those who have walked weeks to reach this moment, the experience is overwhelmingly emotional.`,
+          `SoulStep tracks all major Camino waypoints, albergues, and churches along every route. Many pilgrims use the app to document their journey stage by stage, building a complete record of one of the most transformative experiences available to any traveller.`,
+        ],
+      },
+    ],
+  },
+
+  // ── Article 11 ───────────────────────────────────────────────────────────
+  {
+    slug: `holy-sites-turkey-istanbul-konya`,
+    title: `Holy Sites of Turkey: From Istanbul's Mosques to the Sufi Lodges of Konya`,
+    description: `Turkey is home to an extraordinary concentration of Islamic sacred sites, from the Blue Mosque and Hagia Sophia in Istanbul to the tomb of Rumi and the whirling dervishes of Konya. A guide for spiritual travellers exploring Ottoman and Sufi heritage.`,
+    publishedAt: `2026-02-20`,
+    readingTime: 7,
+    category: `Islam`,
+    coverGradient: `from-cyan-600 to-blue-900`,
+    content: [
+      {
+        paragraphs: [
+          `Turkey sits at the crossroads of civilisations, and nowhere is this more evident than in its sacred architecture. Istanbul alone contains thousands of mosques, Byzantine churches converted to Islamic use, and Ottoman imperial foundations of extraordinary grandeur. Beyond the capital, the Anatolian heartland holds sites that are central to the history of both Islam and Christianity: the Seven Churches of Revelation, the Cave of the Seven Sleepers, the tomb of Mevlana Rumi in Konya, and the cave churches of Cappadocia. For the spiritual traveller, Turkey is one of the richest destinations on earth.`,
+        ],
+      },
+      {
+        heading: `The Blue Mosque and Hagia Sophia: Two Icons of Istanbul`,
+        paragraphs: [
+          `The Sultan Ahmed Mosque, universally known as the Blue Mosque for its interior covering of 20,000 hand-painted Iznik tiles in shades of blue, white, and gold, was completed in 1616 and remains an active place of worship. It is the only mosque in Istanbul with six minarets — a distinction that caused controversy when it was built, as this number was previously reserved for the mosque at Mecca. The prayer hall is vast and luminous; natural light filters through 260 windows to illuminate the cascade of domes and semi-domes. Visitors may enter when not in prayer times, dressed modestly and with shoes removed.`,
+          `Directly across the Hippodrome stands Hagia Sophia, built by the Byzantine Emperor Justinian in 537 CE as the greatest Christian cathedral in the world and converted to a mosque following the Ottoman conquest of Constantinople in 1453. In 2020 it was reconverted from a museum to an active mosque. The 55-metre central dome, which appears to float on a ring of windows, remains one of the supreme architectural achievements of any civilisation. Mosaics of Christ and the Virgin, partially revealed and partially screened during prayer times, survive from the Byzantine period. SoulStep lists Hagia Sophia's full historical context alongside current visiting information.`,
+        ],
+      },
+      {
+        heading: `The Tomb of Rumi: Konya's Sufi Heart`,
+        paragraphs: [
+          `Konya, a conservative city in central Anatolia, is home to the Mevlana Museum, which contains the tomb of Jalal ad-Din Rumi (1207–1273), the Persian poet and Sufi mystic whose verses on love, longing, and the divine have been read across the Islamic world for eight centuries. Rumi founded the Mevlevi Order, whose distinctive practice of sama — whirling meditation — became one of the most recognisable expressions of Sufi spirituality. The museum complex, formerly the dervish lodge, contains the turquoise-tiled tomb, displays of illuminated Qurans, musical instruments, and Sufi garments.`,
+          `The Sema ceremony — the formal whirling ritual — is performed regularly in Konya and at the annual Mevlana commemoration in December, when the city fills with pilgrims and visitors from around the world. Watching the white-robed semazen turn in continuous, meditative rotation, arms outstretched to receive divine grace and pass it to earth, is an experience of unusual power. Rumi's tomb itself, draped in cloth and surrounded by prayer and incense, draws Muslims who come to seek the saint's intercession and to read his poetry in the presence of his remains.`,
+        ],
+      },
+      {
+        heading: `Cappadocia: The Underground Churches of Early Christianity`,
+        paragraphs: [
+          `The volcanic landscape of Cappadocia in central Turkey is riddled with cave churches carved by early Christian communities between the fourth and twelfth centuries. The Göreme Open Air Museum, a UNESCO World Heritage Site, contains dozens of rock-cut churches decorated with Byzantine frescoes of extraordinary quality — painted programmes depicting the life of Christ, the Virgin, and the saints that survive in remarkable condition thanks to the dry cave environment.`,
+          `These churches were carved during a period of religious creativity and, at times, persecution, when Christian communities sought safety in the volcanic rock. The Dark Church (Karanlık Kilise), which requires a separate admission fee, contains some of the finest frescoes: vivid scenes of the Nativity, the Baptism, the Crucifixion, and the Last Supper, painted around 1100 CE and only rediscovered in the twentieth century. SoulStep maps all Göreme churches individually, allowing visitors to plan a methodical exploration of this remarkable landscape.`,
+        ],
+      },
+    ],
+  },
+
+  // ── Article 12 ───────────────────────────────────────────────────────────
+  {
+    slug: `hindu-temples-bali-indonesia`,
+    title: `Hindu Temples of Bali: Spirituality in the Island of the Gods`,
+    description: `Bali's unique form of Hinduism, developed over a thousand years in isolation from the Indian subcontinent, has produced a sacred landscape of extraordinary beauty. A guide to the island's most significant temples and spiritual traditions.`,
+    publishedAt: `2026-03-05`,
+    readingTime: 7,
+    category: `Hinduism`,
+    coverGradient: `from-lime-600 to-green-800`,
+    content: [
+      {
+        paragraphs: [
+          `Bali is the only Hindu-majority island in the Indonesian archipelago, and its form of Hinduism — Agama Hindu Dharma, often called Bali Hinduism — has evolved over a thousand years in relative isolation from India, absorbing elements of Buddhism, animism, and local ancestor worship to produce something uniquely its own. The result is a spiritual culture of exceptional richness: every village has at least three temples, every rice field has a small shrine, every household compound contains a family temple, and virtually every day brings a ceremony, offering, or festival of some kind.`,
+          `There are estimated to be over 20,000 temples on Bali. They vary enormously in scale, from modest village shrines to vast royal and directional temples that organise the spiritual geography of the entire island. For visitors, the challenge is not finding temples but choosing which to visit and understanding what you are seeing. This guide focuses on the most significant sites, with practical advice for respectful visits.`,
+        ],
+      },
+      {
+        heading: `Pura Besakih: The Mother Temple of Bali`,
+        paragraphs: [
+          `High on the slopes of Mount Agung, Bali's sacred volcano and the home of the supreme deity Ida Sanghyang Widi Wasa, Pura Besakih is the most important Hindu temple complex in Bali. Known as the Mother Temple (Pura Agung), it is a vast complex of 23 related temples built on terraces rising up the mountainside, the central temple consisting of three courtyards representing the Hindu trinity of Brahma, Vishnu, and Shiva. Besakih has been an active place of worship for at least nine centuries.`,
+          `The complex is at its most spectacular during the Eka Dasa Rudra ceremony, held every hundred years, or the Panca Wali Krama, held every decade. On ordinary days it receives many tourists, and visitors must wear a sarong and sash (available for rent at the entrance) and follow a guide within the outer precincts — non-Hindus do not generally enter the inner courtyards during ceremonies. The views of the volcano above and the terraced landscape below are extraordinary.`,
+        ],
+      },
+      {
+        heading: `Pura Tanah Lot and the Sea Temples`,
+        paragraphs: [
+          `One of Bali's most photographed sights, Pura Tanah Lot stands on a sea rock just offshore from the southwest coast, accessible by a causeway at low tide and surrounded by ocean at high tide. The temple is dedicated to the sea serpents (naga) that guard Bali from evil spirits, and it is one of the island's six directional temples (sad kahyangan jagat), which together form a spiritual protective system for the whole island. The sunset silhouette of the temple against the ocean is one of travel photography's iconic images.`,
+          `The other sea temple of note, Pura Uluwatu, sits on a dramatic clifftop at the southern tip of the island, 70 metres above the Indian Ocean. The Kecak fire dance, performed at sunset in an open-air theatre carved into the clifftop, uses the sacred Hindu Ramayana narrative as its subject. Watching the chanting, torch-lit performance with the ocean visible in the background is an unforgettable experience. SoulStep lists all six of Bali's directional temples with full detail, visitor information, and ceremony calendars where available.`,
+        ],
+      },
+      {
+        heading: `Ubud's Sacred Landscape and Tirta Empul`,
+        paragraphs: [
+          `The Ubud region in central Bali is the spiritual and artistic heart of the island. Pura Tirta Empul, a tenth-century water temple fed by a sacred spring believed to have been created by the god Indra, is one of the most significant active pilgrimage sites in Bali. Balinese Hindus come here for ritual purification: they enter the bathing pools and pass through a series of fountains in sequence, immersing themselves and praying at each one. Non-Hindus are welcome to observe or participate; sarongs are provided.`,
+          `The Goa Gajah (Elephant Cave), carved in the eleventh century, contains a T-shaped cave with a carved demon face at its entrance, bathing pools, and a garden of ancient statues. Though modest in scale, it is one of Bali's most historically significant sites. The surrounding rice terraces and forest are stunning. Bali's temple culture rewards slow, repeated engagement — the more time you spend attending ceremonies, observing offerings, and talking with local priests and craftspeople, the deeper the spiritual logic of the island becomes apparent.`,
+        ],
+      },
+    ],
+  },
+
+  // ── Article 13 ───────────────────────────────────────────────────────────
+  {
+    slug: `sacred-mountains-kailash-fuji-sinai`,
+    title: `Sacred Mountains: The World's Most Revered Peaks and How to Visit Them`,
+    description: `Mountains have been regarded as the home of gods and the axis of the world across nearly every culture on earth. This guide explores the spiritual significance and practical realities of visiting Mount Kailash, Mount Fuji, Mount Sinai, and other sacred summits.`,
+    publishedAt: `2026-03-13`,
+    readingTime: 8,
+    category: `Travel Guide`,
+    coverGradient: `from-slate-600 to-gray-900`,
+    content: [
+      {
+        paragraphs: [
+          `In virtually every culture and religious tradition, mountains have been understood as points of contact between the human and the divine. Their height places them closest to heaven; their permanence suggests eternity; their difficulty makes them natural sites for testing and transformation. The gods of ancient Greece lived on Olympus. The Torah was given on Sinai. The Buddha sought enlightenment in the foothills of the Himalayas. Shiva dwells on Kailash. This universality of mountain spirituality is one of the most striking features of the world's religious imagination.`,
+          `Today, pilgrims and travellers continue to journey to these peaks — sometimes following ancient paths worn smooth by millions of footsteps, sometimes creating new forms of devotion appropriate to modern life. What follows is a guide to four of the world's most spiritually significant mountains, with practical information for those who wish to visit.`,
+        ],
+      },
+      {
+        heading: `Mount Kailash, Tibet: The Axis of the World`,
+        paragraphs: [
+          `For Hindus, Buddhists, Jains, and followers of the Bön tradition alike, Mount Kailash (6,638 metres) in western Tibet is the most sacred mountain on earth. Hindus identify it as the home of Shiva and Parvati. Buddhists believe the Buddha Demchok dwells at its summit. Jains regard it as the place where their first saint attained liberation. Bön practitioners, following Tibet's pre-Buddhist religion, circle it in the opposite direction from the other three traditions. No religious tradition permits climbing it; it has never been summited and, by treaty, likely never will be.`,
+          `The pilgrimage is the 52-kilometre kora (circumambulation) of the mountain, typically completed in three days. It crosses the Drolma La pass at 5,636 metres, making it one of the most physically demanding religious journeys in the world. Altitude sickness is a serious concern; most pilgrims spend days in Lhasa acclimatising before making the 1,200-kilometre journey west to the mountain. Tibetan Buddhist pilgrims sometimes complete the entire kora by prostrating their full body length repeatedly around the circuit — a journey of extraordinary devotion that takes weeks.`,
+          `Access to Kailash requires a Tibet Travel Permit and a separate Kailash Restricted Area Permit, available through licensed tour agencies. Travel has been periodically restricted; check current regulations before planning.`,
+        ],
+      },
+      {
+        heading: `Mount Fuji, Japan: The Sacred Peak of Japan`,
+        paragraphs: [
+          `At 3,776 metres, Mount Fuji is Japan's highest peak and has been worshipped as a sacred mountain since at least the seventh century. The summit has long been associated with Sengen-Daikōjin, the mountain goddess, and the Fujisan Hongū Sengen Taisha shrine at the foot of the mountain is one of the most important Shinto shrines in Japan, with the summit shrine marking the spiritual apex of the tradition. For centuries, women were forbidden from climbing the mountain; today it receives over 200,000 climbers annually during the official climbing season (July to early September).`,
+          `The most popular of the four climbing routes, the Yoshida Trail, begins from the Fuji Subaru Line 5th Station at 2,300 metres. Most climbers begin at midnight to reach the summit by dawn, watching the goraiko (sunrise) from the crater rim — an experience considered sacred and deeply moving regardless of one's religious orientation. The descent takes three to four hours. Many pilgrims visit the Sengen Taisha shrines at the base and summit, collect the gosha-in stamp, and make offerings at the summit crater.`,
+        ],
+      },
+      {
+        heading: `Mount Sinai, Egypt: The Mountain of Revelation`,
+        paragraphs: [
+          `The mountain in Egypt's Sinai Peninsula traditionally identified as the site where Moses received the Ten Commandments from God is one of the most significant sites in all of Abrahamic religion — sacred to Jews, Christians, and Muslims alike. The traditional summit, Jebel Musa (2,285 metres), is reached by two routes: the 3,750-step Stairway of Repentance, carved by monks, or the longer camel track. Both converge near the summit for the final ascent to the chapel of the Holy Trinity and a small mosque, built side by side.`,
+          `Most pilgrims ascend at night to reach the summit by dawn. The experience — climbing by torchlight with a multinational crowd of pilgrims, watching the sun rise over range after range of stark desert mountains — is genuinely extraordinary. At the base, the ancient monastery of Saint Catherine, founded in the sixth century and continuously inhabited ever since, contains what is said to be the Burning Bush and a library of invaluable early Christian manuscripts. SoulStep lists both Jebel Musa and Saint Catherine's Monastery with full visitor information and check-in support.`,
+        ],
+      },
+    ],
+  },
+
+  // ── Article 14 ───────────────────────────────────────────────────────────
+  {
+    slug: `ancient-churches-basilicas-rome`,
+    title: `Ancient Churches and Basilicas of Rome: A Christian Pilgrimage`,
+    description: `Rome is the centre of the Catholic world and home to some of the oldest continuously active Christian churches on earth. This guide covers the Seven Pilgrimage Churches of Rome, Saint Peter's Basilica, and what to expect as a modern pilgrim in the Eternal City.`,
+    publishedAt: `2026-03-22`,
+    readingTime: 8,
+    category: `Christianity`,
+    coverGradient: `from-orange-600 to-red-800`,
+    content: [
+      {
+        paragraphs: [
+          `Rome has been a pilgrimage destination since the earliest centuries of Christianity. The city where Saints Peter and Paul were martyred, where the catacombs preserve the memory of the early persecuted Church, and where the Pope — the Bishop of Rome and successor of Peter — still holds his seat, Rome draws millions of Christian pilgrims every year. The tradition of Roman pilgrimage is formalised in the Seven Pilgrimage Churches (Sette Chiese), a circuit established by Saint Philip Neri in the sixteenth century and still walked by pilgrims on foot each year during the overnight pilgrimage of the Seven Churches.`,
+          `The richness of Christian heritage in Rome is almost overwhelming. There are over 900 churches in the city, many containing relics, significant artworks, or architectural features of importance to Christian history. This guide focuses on the sites most central to pilgrimage tradition.`,
+        ],
+      },
+      {
+        heading: `Saint Peter's Basilica and the Vatican`,
+        paragraphs: [
+          `The largest church in the world and the centre of the Catholic faith, Saint Peter's Basilica stands over the tomb of the Apostle Peter, the first Bishop of Rome. The current building, begun in 1506 and consecrated in 1626, replaced the original fourth-century basilica built by Emperor Constantine. Its dome, designed by Michelangelo and rising 136 metres, dominates the Roman skyline and is one of the great architectural achievements of the Renaissance.`,
+          `Entering the basilica, visitors are met by Michelangelo's Pietà — Mary holding the body of the crucified Christ — behind bulletproof glass near the entrance. The tomb of Peter is in the confessio beneath the high altar, accessible to pilgrims who descend to the grottoes level. Climbing the dome (by stairs or lift) provides a panoramic view of Rome that no other viewpoint matches. The Vatican Museums, accessible from the basilica complex, contain the Sistine Chapel, with Michelangelo's ceiling fresco of the Creation — one of the most visited artworks in the world.`,
+        ],
+      },
+      {
+        heading: `San Giovanni in Laterano and the Holy Steps`,
+        paragraphs: [
+          `The Cathedral of Rome — the Pope's own church, senior in dignity to Saint Peter's — San Giovanni in Laterano (Saint John Lateran) was the first Christian church built in Rome, founded by Constantine in the fourth century. Its current form reflects centuries of rebuilding, with the striking eighteenth-century façade and a medieval cloister of exceptional beauty. The cathedral contains the papal throne (cathedra) and relics of the heads of Saints Peter and Paul.`,
+          `Opposite the cathedral stands the Scala Sancta — the Holy Steps — twenty-eight marble steps said to be those Christ climbed at his trial before Pilate, brought to Rome by Constantine's mother Helena. Pilgrims ascend the steps only on their knees, pausing to pray at each one. This act of devotion is taken with great seriousness by Catholic pilgrims: on Good Friday the steps are crowded from morning until late at night with people making the slow, painful ascent.`,
+          `The Seven Churches pilgrimage circuit, completed on foot overnight on the Thursday before Ash Wednesday, links San Giovanni, Santa Croce in Gerusalemme, San Lorenzo fuori le Mura, Santi Apostoli, Santa Maria Maggiore, San Sebastiano, and Saint Peter's. Walking the roughly 25 kilometres in the company of hundreds of other pilgrims through the night streets of Rome is a deeply communal and moving experience. SoulStep tracks all seven churches and the surrounding sites of early Christian Rome.`,
+        ],
+      },
+      {
+        heading: `The Catacombs: The Underground Church`,
+        paragraphs: [
+          `Beneath the roads leading south from Rome lie the catacombs — an underground network of tunnels and chambers where early Christians buried their dead and gathered for worship during periods of Roman persecution. The Catacombs of San Callisto on the Appian Way contain the tombs of multiple early popes and the famous Crypt of the Popes, where nine third-century pontiffs are buried. The Catacombs of San Sebastiano hold the remains of Saints Peter and Paul, according to tradition temporarily moved here during a period of persecution.`,
+          `Guided tours of the catacombs, conducted by members of religious orders who maintain the sites, provide access to kilometres of underground galleries lined with niches (loculi) carved in the tufa stone. The experience of standing in candlelit underground passages where early Christians prayed in secret is unlike anything available at street level. For pilgrims visiting Rome, the catacombs offer an encounter with Christianity's earliest and most tested period — the Church of the martyrs before it became the Church of empire.`,
+        ],
+      },
+    ],
+  },
+
+  // ── Article 15 ───────────────────────────────────────────────────────────
+  {
+    slug: `pilgrimage-etiquette-sacred-sites-worldwide`,
+    title: `Pilgrimage Etiquette: How to Behave Respectfully at Sacred Sites Around the World`,
+    description: `Visiting a sacred site as an outsider requires knowledge, sensitivity, and genuine respect. This guide covers the key etiquette rules for mosques, temples, churches, shrines, and synagogues — and explains the reasoning behind them.`,
+    publishedAt: `2026-04-01`,
+    readingTime: 7,
+    category: `Travel Guide`,
+    coverGradient: `from-teal-600 to-cyan-800`,
+    content: [
+      {
+        paragraphs: [
+          `Sacred sites are not tourist attractions. They are places where people come to pray, grieve, celebrate, seek healing, and encounter the divine — often for reasons that are deeply personal and emotionally significant. When travellers visit these places without understanding or respecting their religious function, the results range from minor awkwardness to genuine offence that can affect relations between faith communities and visitors for years.`,
+          `The good news is that most sacred sites around the world actively welcome respectful visitors of all faiths and none. The keys are modest dress, quiet behaviour, awareness of restricted areas, and — above all — genuine curiosity and respect for the people you encounter. Follow these principles, and you will almost always be welcomed.`,
+        ],
+      },
+      {
+        heading: `Mosques: Rules and Expectations`,
+        paragraphs: [
+          `Muslims pray five times daily, and at prayer times mosques are places of active worship where non-Muslims should either wait outside or observe from designated visitor areas. Outside prayer times, most mosques welcome visitors, particularly those that have an established visitor programme. Men and women must dress modestly — this means no shorts, no sleeveless tops, and no tight clothing. Women must cover their hair; head scarves are typically provided at the entrance if you don't have one.`,
+          `Shoes must be removed before entering any mosque; leave them in the rack provided or carry them in a bag. The inside of the mosque is a clean, sacred space. Do not walk in front of someone who is praying, and keep your voice low. Photography is sometimes permitted in empty mosques; during prayers it is almost always not. Ask before taking photographs, and respect the answer.`,
+        ],
+      },
+      {
+        heading: `Hindu Temples: Entering Sacred Space`,
+        paragraphs: [
+          `Hindu temples represent the physical body of the deity they enshrine. The innermost sanctuary (garbhagriha) is understood as the deity's dwelling place. In many traditional Hindu temples, non-Hindus are not permitted to enter the garbhagriha or sometimes even the main hall. This is not inhospitality — it reflects a theological position about the nature of sacred space and the prerequisites for entering the deity's presence. Respect these restrictions without arguing or attempting to circumvent them.`,
+          `In temples where visitors are welcome, shoes are always removed before entry. Modest dress is essential — in South India especially, temples have strict dress requirements; wearing a dhoti or lungi (available for rent) may be required for men in some major temples. Photography inside the main hall is usually prohibited. Move clockwise (pradakshina) around the central shrine, following the direction of ritual circumambulation. Accept prasad (blessed food offerings) with your right hand if offered. These small observances signal respect and genuine engagement.`,
+        ],
+      },
+      {
+        heading: `Buddhist Temples and Shinto Shrines`,
+        paragraphs: [
+          `In Buddhist temples across Asia, removing shoes before entering the main hall is universal. Dress modestly. Many temples appreciate a small donation; some have collection boxes near the entrance or candle/incense stations where you can make an offering. Do not touch Buddha images or sacred objects. In Theravada countries (Thailand, Myanmar, Cambodia, Sri Lanka), monks are highly revered — laypeople typically bow in greeting, and women should not touch or hand objects directly to monks.`,
+          `At Shinto shrines in Japan, the approach to the main hall involves a ritual purification at the temizuya (hand-washing basin): scoop water with the ladle, pour over your left hand, then your right hand, then cup your left hand to receive water for rinsing your mouth, then pour over your hands once more. At the offering hall, toss a coin into the offertory box, bow twice, clap twice, make your prayer silently, then bow once more. This simple ritual takes thirty seconds and shows genuine engagement with the tradition.`,
+        ],
+      },
+      {
+        heading: `General Principles for Any Sacred Site`,
+        paragraphs: [
+          `Silence and quiet movement signal respect at virtually every sacred site in the world. Lower your voice to a whisper or speak only when necessary. Turn off or silence your mobile phone. If you are travelling with children, keep them calm and close. Observe what local worshippers do and follow their lead. When in doubt about whether something is permitted — photography, entry to a specific area, attending a ceremony — ask a local staff member or worshipper rather than assuming.`,
+          `The most important principle is intentionality. A sacred site visited with genuine curiosity and respect for its religious significance will be a profoundly different experience from the same site visited as a backdrop for social media content. Come with questions. Read about the tradition before you arrive. Engage with the people you encounter. The encounter with another tradition's understanding of the sacred — undertaken with openness — is one of travel's greatest gifts. SoulStep's detailed place pages are designed to give you this context before you arrive, so you can give each site the quality of attention it deserves.`,
+        ],
+      },
+    ],
+  },
+
+  // ── Article 16 ───────────────────────────────────────────────────────────
+  {
+    slug: `golden-temple-amritsar-complete-guide`,
+    title: `The Golden Temple, Amritsar: Everything You Need to Know Before You Visit`,
+    description: `Harmandir Sahib — the Golden Temple — is the holiest shrine in Sikhism and one of the most welcoming sacred sites in the world. This complete visitor's guide covers the spiritual significance, the daily rhythms of the temple, and practical advice for a respectful visit.`,
+    publishedAt: `2026-04-06`,
+    readingTime: 8,
+    category: `Sikhism`,
+    coverGradient: `from-yellow-500 to-yellow-800`,
+    content: [
+      {
+        paragraphs: [
+          `The Harmandir Sahib — the Golden Temple — in Amritsar, Punjab, is not merely the holiest shrine in Sikhism. It is one of the most welcoming and spiritually powerful sacred sites anywhere in the world. Unlike many religious sites where non-adherents face restrictions, the Golden Temple operates on an explicitly universal principle: all are welcome, regardless of religion, caste, nationality, or background. The institution of langar — the free community kitchen that serves over 100,000 meals per day — is the practical expression of the Sikh theological conviction that all human beings are equal before the divine.`,
+          `The complex (Harmandir Darbar Sahib) consists of the central shrine building, the sacred pool (Amrit Sarovar, meaning "pool of nectar," from which Amritsar takes its name), the causeway leading to the shrine, the Akal Takht (the highest seat of Sikh temporal authority), and the langar buildings. To arrive here after reading about it, or after a long journey from another part of India or the world, and to see the golden shrine reflected in the still water of the pool, is an experience of genuine beauty.`,
+        ],
+      },
+      {
+        heading: `The Shrine Itself: Architecture and Sacred Significance`,
+        paragraphs: [
+          `The original Harmandir Sahib was built in the late sixteenth century on a platform in the middle of the Amrit Sarovar, at the instruction of the fourth Guru, Ram Das. The fifth Guru, Arjan Dev, completed the building and installed the Guru Granth Sahib — the eternal scripture of Sikhism — within it in 1604. The building was destroyed by Afghan invaders in 1762 and rebuilt; the current gilded marble structure dates from the early nineteenth century, when Maharaja Ranjit Singh covered the upper floors with 400 kilograms of gold leaf.`,
+          `The shrine is designed to be accessible from all four directions — symbolising Sikhism's welcome to all people, from all directions. The Guru Granth Sahib is carried ceremonially to the shrine at dawn and carried back to the Akal Takht each evening in a procession known as the Palki Sahib ceremony, accompanied by music, prayer, and a vast crowd of devotees. This daily ritual, unchanged for centuries, is one of the most moving ceremonies anywhere in the world.`,
+        ],
+      },
+      {
+        heading: `The Langar: The World's Largest Free Kitchen`,
+        paragraphs: [
+          `The langar at the Golden Temple is the most visible expression of the Sikh principle of seva (selfless service) and the theological insistence on equality. Every day, 100,000 or more people eat free meals here — pilgrims, tourists, locals, people with nowhere else to go. The food is entirely vegetarian and entirely donated; every ingredient, every pot, every chapatti is provided by members of the Sikh community. Thousands of volunteers work in shifts to prepare, serve, and wash up.`,
+          `Visitors are warmly encouraged to eat in the langar — it is not charity for the poor but a communal expression of equality. Everyone sits on the floor together in long rows. Dal, chapattis, rice, and vegetable dishes are served by a continuous relay of volunteers. The experience of eating a simple meal in this context — knowing it was prepared with devotion by volunteers for the benefit of everyone who arrives — is unexpectedly moving. No tipping or payment of any kind is accepted.`,
+        ],
+      },
+      {
+        heading: `Practical Visitor Information`,
+        paragraphs: [
+          `The Golden Temple is open 24 hours a day, every day of the year. The best times to visit are early morning (before 7am) and evening (after 7pm), when the complex is at its most atmospheric and the ambient temperature in Punjab is more manageable. The morning and evening Palki Sahib ceremonies are particularly worth witnessing.`,
+          `Before entering, cover your head (cotton squares are provided free at the entrance), remove your shoes (shoe storage is free), and wash your feet in the shallow pool at the entrance. Shorts, sleeveless tops, and any clothing that exposes the knees or shoulders are not permitted. Alcohol and tobacco are strictly prohibited on the complex grounds. Photography is generally permitted in public areas but should be done discreetly and with awareness of worshippers at prayer. SoulStep provides detailed visitor information and check-in support for the Golden Temple and all five Sikh takhts, allowing pilgrims to document their complete Sikh pilgrimage journey.`,
+        ],
+      },
+    ],
+  },
+
+  // ── Article 17 ───────────────────────────────────────────────────────────
+  {
+    slug: `packing-for-pilgrimage-essential-checklist`,
+    title: `What to Pack for a Pilgrimage: The Spiritual Traveller's Essential Checklist`,
+    description: `Packing for a pilgrimage is different from packing for a holiday. You need to be prepared for long walking days, strict dress codes at sacred sites, variable weather, and the inner demands of a purposeful journey. This checklist covers everything you need — and what to leave behind.`,
+    publishedAt: `2026-04-12`,
+    readingTime: 6,
+    category: `Travel Guide`,
+    coverGradient: `from-stone-600 to-stone-900`,
+    content: [
+      {
+        paragraphs: [
+          `Every experienced pilgrim eventually learns the same lesson: pack less. Whatever you carry, you carry on your own body, through heat and rain, up stairs and over uneven stone. Every unnecessary item is a burden — not just physically but spiritually. There is a long tradition in pilgrimage theology of voluntary simplicity: travelling light is itself a spiritual practice, a relinquishing of the comfortable familiar in preparation for encounter with the transcendent.`,
+          `That said, being underprepared is equally problematic. A blister that goes untreated can end a Camino. The wrong clothing at a temple can prevent entry. Dehydration in the heat of Amritsar or the altitude of Mount Kailash can be dangerous. This guide aims to find the balance: the essentials without excess.`,
+        ],
+      },
+      {
+        heading: `Clothing: Modest, Layered, and Practical`,
+        paragraphs: [
+          `Modest dress is the baseline requirement at virtually every sacred site in the world. This means at minimum: no shorts (knees covered), no sleeveless tops (shoulders covered), and no tight or see-through clothing. For women visiting mosques in the Middle East and South Asia, a large scarf that covers the hair is essential. For men visiting some Hindu temples in South India, a dhoti may be required. Pack a lightweight sarong or large cotton scarf — it weighs almost nothing, packs small, and serves as a wrap, a head covering, a makeshift prayer mat, or a cover for your legs in cold temples.`,
+          `For multi-day walking pilgrimages (Camino, Shikoku 88, Kailash kora), layering is essential. Base layer (moisture-wicking), mid-layer (light fleece), and an outer waterproof shell covers most conditions. Merino wool is ideal: it regulates temperature, resists odour, and can be worn for multiple days. Take two sets of walking clothing and one set for rest days or sightseeing; washing as you go keeps the pack light.`,
+        ],
+      },
+      {
+        heading: `Footwear: The Single Most Important Item`,
+        paragraphs: [
+          `Your footwear will make or break your pilgrimage. For multi-day walks, invest in proper trail runners or walking boots that are thoroughly broken in before you depart. At least two pairs of high-quality walking socks (Darn Tough or Smartwool merino are the standard recommendations) and a supply of Compeed blister plasters are essential. The moment you feel a hot spot developing, stop and treat it immediately. Blisters left untreated become open wounds; open wounds become infections.`,
+          `For shorter visits to temple complexes, comfortable flat shoes that slip on and off easily are practical — you will be removing and replacing your footwear dozens of times per day at Hindu temples, Buddhist sites, and mosques. Sandals are acceptable in many warm-climate sacred sites, though some temples require closed shoes. Check site-specific requirements in SoulStep's place detail pages before packing.`,
+        ],
+      },
+      {
+        heading: `Health, Documents, and Tech`,
+        paragraphs: [
+          `A basic first aid kit (blister plasters, antiseptic wipes, rehydration salts, antihistamines, pain relief, stomach remedies) covers the vast majority of pilgrimage health issues. Altitude sickness medication (acetazolamide) is essential for high-altitude journeys like Kailash; consult your doctor well in advance. Travel insurance with medical evacuation coverage is non-negotiable — check that your policy covers the specific activities involved in your pilgrimage, including trekking at altitude or extended walking routes.`,
+          `Keep physical photocopies of all important documents (passport, visa, travel insurance, emergency contacts) separate from the originals. For digital convenience, a small portable charger (10,000 mAh is adequate for most phones) ensures you are never stranded without navigation or communication. SoulStep works offline for basic check-ins and place browsing once the app is loaded, making it useful even in areas with limited data connectivity — saving your mobile data for when you genuinely need it. Pack one notebook and a pen: some of the most important things you encounter on a pilgrimage are best written by hand.`,
+        ],
+      },
+      {
+        heading: `What to Leave Behind`,
+        paragraphs: [
+          `The pilgrimage tradition has always involved a deliberate simplification of life. You do not need multiple pairs of jeans, a different outfit for every day, or an array of electronic devices. You do not need expensive gear to impress other pilgrims — the Camino is full of people walking in worn-out trainers who have a better time than those in the latest technical clothing. Leave behind anything you are carrying "just in case." If you haven't used it in the first three days of any walking pilgrimage, send it home.`,
+          `More importantly, leave behind certain mental habits: the need to control every variable, the impulse to document everything for social media rather than experiencing it directly, the tendency to measure spiritual progress by the number of sites visited rather than the depth of attention given to each. A pilgrimage is measured not in kilometres covered or check-ins logged but in the quality of presence you bring to each place. SoulStep helps you track and remember the external journey; the internal one requires nothing but your full attention.`,
+        ],
+      },
+    ],
+  },
 ];
 
 export function getArticleBySlug(slug: string): Article | undefined {

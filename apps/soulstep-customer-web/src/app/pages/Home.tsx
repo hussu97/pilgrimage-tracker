@@ -33,6 +33,7 @@ import type { Group, Place } from '@/lib/types';
 import PlaceCardUnified from '@/components/places/PlaceCardUnified';
 import HorizontalCarousel from '@/components/common/HorizontalCarousel';
 import { COLORS } from '@/lib/colors';
+import { articles } from '@/lib/blog/articles';
 
 // ── Type aliases for local use ─────────────────────────────────────────────────
 
@@ -731,6 +732,43 @@ export default function Home() {
                   </HorizontalCarousel>
                 </section>
               )}
+
+              {/* From Our Blog */}
+              <section>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base lg:text-lg font-bold text-text-primary dark:text-white">
+                    From Our Blog
+                  </h2>
+                  <Link to="/blog" className="text-xs font-semibold text-primary">
+                    View all
+                  </Link>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {articles.slice(0, 3).map((article) => (
+                    <Link
+                      key={article.slug}
+                      to={`/blog/${article.slug}`}
+                      className="group flex flex-col rounded-xl overflow-hidden border border-slate-100 dark:border-dark-border hover:shadow-md transition-shadow"
+                    >
+                      <div
+                        className={`h-24 bg-gradient-to-br ${article.coverGradient} relative flex-shrink-0`}
+                      >
+                        <span className="absolute top-2 left-2 bg-white/20 backdrop-blur-sm text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                          {article.category}
+                        </span>
+                      </div>
+                      <div className="p-3 flex flex-col flex-1 bg-white dark:bg-dark-surface">
+                        <p className="text-xs font-semibold text-text-primary dark:text-white leading-snug line-clamp-2 group-hover:text-primary transition-colors">
+                          {article.title}
+                        </p>
+                        <p className="mt-1 text-[11px] text-text-muted dark:text-dark-text-secondary">
+                          {article.readingTime} min read
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </section>
             </div>
 
             {/* ── Right column (desktop sidebar) ────────────────── */}

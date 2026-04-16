@@ -13,7 +13,15 @@ from app.db import notifications as notifications_db
 from app.db import place_attributes as attr_db
 from app.db import places as places_db
 from app.db import store
-from app.db.models import AppVersionConfig, City, Country, SEOContentTemplate, SEOLabel, State
+from app.db.models import (
+    AdConfig,
+    AppVersionConfig,
+    City,
+    Country,
+    SEOContentTemplate,
+    SEOLabel,
+    State,
+)
 from app.db.session import Session, engine
 
 logger = logging.getLogger(__name__)
@@ -63,6 +71,57 @@ def run_seed_system(seed_path: str | Path | None = None) -> None:
         _seed_locations(data["locations"])
 
     _seed_seo_templates()
+    _seed_ad_config()
+
+
+def _seed_ad_config() -> None:
+    """Upsert AdConfig rows for web, ios, and android with ads enabled.
+
+    Safe to call repeatedly — updates existing rows rather than inserting duplicates.
+    Publisher ID matches the hardcoded value in the frontend ad-constants.ts.
+    """
+    _PUBLISHER_ID = "ca-pub-7902951158656200"
+    _WEB_SLOTS = {
+        "home-feed": f"{_PUBLISHER_ID}/home-feed",
+        "place-detail-top": f"{_PUBLISHER_ID}/place-detail-top",
+        "place-detail-mid": f"{_PUBLISHER_ID}/place-detail-mid",
+        "place-detail-bottom": f"{_PUBLISHER_ID}/place-detail-bottom",
+        "checkins-top": f"{_PUBLISHER_ID}/checkins-top",
+        "checkins-mid": f"{_PUBLISHER_ID}/checkins-mid",
+        "favorites-feed": f"{_PUBLISHER_ID}/favorites-feed",
+        "group-detail-bottom": f"{_PUBLISHER_ID}/group-detail-bottom",
+        "profile-bottom": f"{_PUBLISHER_ID}/profile-bottom",
+        "notifications-bottom": f"{_PUBLISHER_ID}/notifications-bottom",
+    }
+
+    platforms = [
+        {"platform": "web", "ad_slots": _WEB_SLOTS},
+        {"platform": "ios", "ad_slots": {}},
+        {"platform": "android", "ad_slots": {}},
+    ]
+
+    with Session(engine) as session:
+        for entry in platforms:
+            row = session.exec(
+                select(AdConfig).where(AdConfig.platform == entry["platform"])
+            ).first()
+            if row is None:
+                session.add(
+                    AdConfig(
+                        platform=entry["platform"],
+                        ads_enabled=True,
+                        adsense_publisher_id=_PUBLISHER_ID,
+                        ad_slots=entry["ad_slots"],
+                        updated_at=datetime.now(UTC),
+                    )
+                )
+            else:
+                row.ads_enabled = True
+                row.adsense_publisher_id = _PUBLISHER_ID
+                if not row.ad_slots:
+                    row.ad_slots = entry["ad_slots"]
+                row.updated_at = datetime.now(UTC)
+        session.commit()
 
 
 def _seed_content_translations(rows: list[dict]) -> None:

@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { articles, getArticleBySlug, getRelatedArticles } from '@/lib/blog/articles';
 
 describe('blog articles', () => {
-  it('has exactly 5 articles', () => {
-    expect(articles).toHaveLength(5);
+  it('has at least 15 articles', () => {
+    expect(articles.length).toBeGreaterThanOrEqual(15);
   });
 
   it('every article has required fields', () => {
