@@ -192,6 +192,7 @@ to anyone who inspects the built assets. Never put secrets in `NEXT_PUBLIC_*` va
 |---|---|---|
 | `NEXT_PUBLIC_PROXY_TARGET` | `http://127.0.0.1:3000` | Dev-server proxy target for `/api` requests. Only used by the Next.js dev server — has no effect in production builds. |
 | `NEXT_PUBLIC_API_BASE_URL` | `https://api.soul-step.org` | Public API base URL — used on the Developers page to render example curl commands and API endpoint URLs. |
+| `INTERNAL_API_URL` | — | **Server-only** — internal API URL for SSR metadata fetching. Set to the Cloud Run internal URL of the catalog API for low-latency server-side fetches that don't route through the public internet. Falls back to `NEXT_PUBLIC_API_BASE_URL`, then `https://api.soul-step.org`. Never use `NEXT_PUBLIC_` prefix — this must remain server-side only. Example: `https://soulstep-catalog-api-xxxx.europe-west1.run.app` |
 
 ---
 

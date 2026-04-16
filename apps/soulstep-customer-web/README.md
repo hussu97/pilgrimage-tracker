@@ -53,6 +53,7 @@ Copy `.env.example` to `.env.local` and set values as needed.
 |---|---|---|---|
 | `NEXT_PUBLIC_PROXY_TARGET` | No | `http://127.0.0.1:3000` | Dev-server proxy target for `/api`. No effect in production. |
 | `NEXT_PUBLIC_API_BASE_URL` | No | `https://api.soul-step.org` | Public API URL shown on the Developers page |
+| `INTERNAL_API_URL` | No | — | **Server-only** — Cloud Run internal URL for SSR metadata fetching. Falls back to `NEXT_PUBLIC_API_BASE_URL`. Never use `NEXT_PUBLIC_` prefix. |
 | `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | No | — | Google AdSense publisher ID. When unset, ads use backend config only. |
 | `NEXT_PUBLIC_GLITCHTIP_DSN` | No | — | GlitchTip (Sentry-compatible) DSN for client-side error tracking. |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | No | — | Umami Cloud website ID for privacy-friendly analytics. |
@@ -99,12 +100,18 @@ src/
     common/                # Modal, ErrorBoundary, FeedbackPopup, …
   lib/
     navigation.tsx         # React Router compat shim (Next.js wrappers)
-    api/client.ts          # API client (all endpoints)
+    api/client.ts          # API client (all endpoints, client-side)
+    server/
+      api.ts               # Server-only fetch functions for SSR metadata (absolute URLs, ISR)
+      metadata.ts          # generateMetadata() builders (blog, place, city, static pages)
     types/index.ts         # TypeScript types (uses *_code identifiers)
     hooks/                 # useAnalytics, useAuthRequired, useDocumentTitle, useHead
     theme.ts               # Design tokens
     constants.ts
     share.ts
+  components/
+    server/
+      JsonLd.tsx           # Server Component — renders <script type="application/ld+json">
   index.css
 ```
 

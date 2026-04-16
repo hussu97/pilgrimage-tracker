@@ -18,7 +18,7 @@ from fastapi import APIRouter
 from fastapi.responses import Response
 from sqlmodel import select
 
-from app.core.config import API_BASE_URL, FRONTEND_URL
+from app.core.config import FRONTEND_URL
 from app.db.models import Place, PlaceSEO
 from app.db.session import SessionDep
 
@@ -109,7 +109,7 @@ def rss_feed(session: SessionDep) -> Response:
 
     # Atom self link (required for feed readers)
     atom_link = ET.SubElement(channel, "atom:link")
-    atom_link.set("href", f"{API_BASE_URL}/feed.xml")
+    atom_link.set("href", f"{FRONTEND_URL}/feed.xml")
     atom_link.set("rel", "self")
     atom_link.set("type", "application/rss+xml")
 
@@ -154,7 +154,7 @@ def atom_feed(session: SessionDep) -> Response:
     ATOM_NS = "http://www.w3.org/2005/Atom"
 
     feed = ET.Element(f"{{{ATOM_NS}}}feed")
-    ET.SubElement(feed, f"{{{ATOM_NS}}}id").text = f"{API_BASE_URL}/feed.atom"
+    ET.SubElement(feed, f"{{{ATOM_NS}}}id").text = f"{FRONTEND_URL}/feed.atom"
     ET.SubElement(feed, f"{{{ATOM_NS}}}title").text = _FEED_TITLE
     ET.SubElement(feed, f"{{{ATOM_NS}}}subtitle").text = _FEED_DESCRIPTION
     ET.SubElement(feed, f"{{{ATOM_NS}}}updated").text = _rfc3339(now)
@@ -165,7 +165,7 @@ def atom_feed(session: SessionDep) -> Response:
 
     link_self = ET.SubElement(feed, f"{{{ATOM_NS}}}link")
     link_self.set("rel", "self")
-    link_self.set("href", f"{API_BASE_URL}/feed.atom")
+    link_self.set("href", f"{FRONTEND_URL}/feed.atom")
     link_self.set("type", "application/atom+xml")
 
     link_alt = ET.SubElement(feed, f"{{{ATOM_NS}}}link")

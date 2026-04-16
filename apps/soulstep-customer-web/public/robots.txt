@@ -18,4 +18,5 @@ Allow: /
 User-agent: Applebot
 Allow: /
 
+Sitemap: https://soul-step.org/sitemap.xml
 Sitemap: https://api.soul-step.org/sitemap.xml

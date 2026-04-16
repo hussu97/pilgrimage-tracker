@@ -218,8 +218,10 @@ def sitemap_xml(session: SessionDep) -> Response:
     # Build city → set-of-religions map for city pages
     city_religions: dict[str, set[str]] = {}
     for p in places:
-        if p.city:
+        if p.city and p.city.strip():
             slug = _city_to_slug(p.city)
+            if not slug:
+                continue
             city_religions.setdefault(slug, set())
             if p.religion:
                 city_religions[slug].add(p.religion)

@@ -748,3 +748,7 @@ class BlogPost(SQLModel, table=True):
         default=True,
         sa_column=Column(Boolean, nullable=False, server_default="1"),
     )
+    author_name: str | None = Field(default=None)
+    tags: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    faq_json: list[Any] | None = Field(default=None, sa_column=Column(JSON))
+    cover_image_url: str | None = Field(default=None)

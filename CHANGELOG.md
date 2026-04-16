@@ -4,6 +4,32 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-16] — SSR Migration: SEO / GEO / AdSense Architecture
+
+### Frontend (web)
+- **`src/lib/server/api.ts`** — new server-only fetch module (`fetchBlogPost`, `fetchBlogPosts`, `fetchPlace`, `fetchCityMeta`) using `INTERNAL_API_URL` → `NEXT_PUBLIC_API_BASE_URL` → fallback, with 1h ISR revalidation
+- **`src/components/server/JsonLd.tsx`** — new Server Component that renders `<script type="application/ld+json">` tags server-side (visible to all crawlers)
+- **`src/lib/server/metadata.ts`** — metadata builders: `buildBlogMetadata`, `buildBlogListMetadata`, `buildBlogJsonLd`, `buildPlaceMetadata`, `buildPlaceJsonLd`, `buildCityMetadata`, `buildCityReligionMetadata`, `buildStaticMetadata`
+- **`src/lib/types/blog.ts`** — added `author_name`, `tags`, `word_count`, `cover_image_url`, `faq_json` fields
+- **`app/(main)/layout.tsx`** — removed `'use client'`; nav HTML now server-rendered (crawlers can see site navigation)
+- **`src/components/layout/MainLayoutClient.tsx`** — new `'use client'` wrapper preserving existing Layout interactivity
+- **Static pages** (`about`, `privacy`, `terms`, `contact`, `developers`) — added `export const metadata` via `buildStaticMetadata()`; unblocks AdSense review
+- **`app/(main)/blog/[slug]/page.tsx`** — `generateMetadata()` + `<JsonLd>` with Article + FAQPage schema; blog posts now crawler-visible
+- **`app/(main)/blog/page.tsx`** — static metadata for blog listing
+- **`app/(main)/blog/[slug]/opengraph-image.tsx`** — dynamic 1200×630 OG image via `ImageResponse`; distinct per-post social cards
+- **`app/(main)/places/[placeCode]/page.tsx`** and **`/[placeCode]/[slug]/page.tsx`** — `generateMetadata()` + `<JsonLd>` with PlaceOfWorship + BreadcrumbList + FAQPage schema
+- **`app/(main)/explore/[city]/page.tsx`** and **`/[city]/[religion]/page.tsx`** — dynamic city/religion metadata
+- **`app/(main)/home/page.tsx`** — static metadata + `<JsonLd>` with WebSite + SearchAction + Organization schema
+- **`app/api/sitemap/route.ts`**, **`feed-xml/route.ts`**, **`feed-atom/route.ts`** — proxy routes for sitemap + RSS/Atom feeds (1h cache)
+- **`next.config.ts`** — added rewrites for `/sitemap.xml`, `/feed.xml`, `/feed.atom` → proxy route handlers (all envs)
+- **`public/robots.txt`** — added `soul-step.org/sitemap.xml` as primary sitemap
+- **`.env.example`** — documented `INTERNAL_API_URL` (server-only, no `NEXT_PUBLIC_` prefix)
+
+### Docs
+- **`ENV_VARS.md`** — added `INTERNAL_API_URL` to Customer Web section
+
+---
+
 ## [2026-04-16] — Migrate Blog to Backend API
 
 ### Backend

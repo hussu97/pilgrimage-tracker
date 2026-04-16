@@ -38,6 +38,12 @@ def list_blog_posts(session: SessionDep) -> list[dict]:
             "reading_time": p.reading_time,
             "category": p.category,
             "cover_gradient": p.cover_gradient,
+            "author_name": p.author_name,
+            "tags": p.tags or [],
+            "cover_image_url": p.cover_image_url,
+            "word_count": sum(
+                len(para.split()) for s in (p.content or []) for para in s.get("paragraphs", [])
+            ),
         }
         for p in posts
     ]
@@ -61,5 +67,12 @@ def get_blog_post(slug: str, session: SessionDep) -> dict:
         "reading_time": post.reading_time,
         "category": post.category,
         "cover_gradient": post.cover_gradient,
+        "author_name": post.author_name,
+        "tags": post.tags or [],
+        "cover_image_url": post.cover_image_url,
+        "word_count": sum(
+            len(para.split()) for s in (post.content or []) for para in s.get("paragraphs", [])
+        ),
+        "faq_json": post.faq_json,
         "content": post.content,
     }

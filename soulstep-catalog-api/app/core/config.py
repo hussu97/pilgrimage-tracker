@@ -56,6 +56,12 @@ ENFORCE_HTTPS: bool = os.environ.get("ENFORCE_HTTPS", "").lower() in ("true", "1
 
 # Public URL of this API — used in RSS/Atom feeds, robots.txt sitemap, and llms.txt.
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:3000")
+if "run.app" in API_BASE_URL:
+    logger.warning(
+        "API_BASE_URL (%s) appears to be a Cloud Run internal URL. "
+        "Set API_BASE_URL=https://api.soul-step.org in production env vars.",
+        API_BASE_URL,
+    )
 
 # Database connection string. Defaults to local SQLite for development.
 _sqlite_url = "sqlite:///soulstep.db"

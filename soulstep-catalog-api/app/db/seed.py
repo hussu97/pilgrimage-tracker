@@ -138,25 +138,35 @@ def _seed_blog_posts() -> None:
     with Session(engine) as session:
         for p in posts:
             existing = session.exec(select(BlogPost).where(BlogPost.slug == p["slug"])).first()
-            if existing:
-                continue
             published_at = datetime.fromisoformat(p["published_at"])
             updated_at = datetime.fromisoformat(p["updated_at"])
-            session.add(
-                BlogPost(
-                    post_code=p["post_code"],
-                    slug=p["slug"],
-                    title=p["title"],
-                    description=p["description"],
-                    published_at=published_at,
-                    updated_at=updated_at,
-                    reading_time=p["reading_time"],
-                    category=p["category"],
-                    cover_gradient=p["cover_gradient"],
-                    content=p["content"],
-                    is_published=p.get("is_published", True),
+            if existing:
+                # Upsert SEO fields added in 0027
+                existing.author_name = p.get("author_name", existing.author_name)
+                existing.tags = p.get("tags", existing.tags)
+                existing.faq_json = p.get("faq_json", existing.faq_json)
+                existing.cover_image_url = p.get("cover_image_url", existing.cover_image_url)
+                session.add(existing)
+            else:
+                session.add(
+                    BlogPost(
+                        post_code=p["post_code"],
+                        slug=p["slug"],
+                        title=p["title"],
+                        description=p["description"],
+                        published_at=published_at,
+                        updated_at=updated_at,
+                        reading_time=p["reading_time"],
+                        category=p["category"],
+                        cover_gradient=p["cover_gradient"],
+                        content=p["content"],
+                        is_published=p.get("is_published", True),
+                        author_name=p.get("author_name"),
+                        tags=p.get("tags", []),
+                        faq_json=p.get("faq_json"),
+                        cover_image_url=p.get("cover_image_url"),
+                    )
                 )
-            )
         session.commit()
     logger.info("Blog posts seeded from %s", _BLOG_SEED_PATH)
 

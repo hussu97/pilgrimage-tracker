@@ -16,11 +16,21 @@ const nextConfig: NextConfig = {
     outputFileTracingRoot: path.join(__dirname, '../..'),
   }),
 
-  // Serve static files from public/ as-is
-  // API calls are proxied to the backend in dev via rewrites
+  // Rewrite rules:
+  //   /sitemap.xml, /feed.xml, /feed.atom → proxy route handlers (all envs)
+  //   /api/*, /umami/* → backend / Umami (dev only)
   async rewrites() {
-    if (process.env.NODE_ENV !== 'development') return [];
+    const always = [
+      // Proxy sitemap and feeds from main domain so GSC and feed readers work
+      { source: '/sitemap.xml', destination: '/api/sitemap' },
+      { source: '/feed.xml', destination: '/api/feed-xml' },
+      { source: '/feed.atom', destination: '/api/feed-atom' },
+    ];
+
+    if (process.env.NODE_ENV !== 'development') return always;
+
     return [
+      ...always,
       {
         source: '/api/:path*',
         destination: `${backendOrigin}/api/:path*`,

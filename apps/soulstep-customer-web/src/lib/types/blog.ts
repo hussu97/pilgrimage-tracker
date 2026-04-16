@@ -13,8 +13,14 @@ export interface BlogPostSummary {
   reading_time: number;
   category: string;
   cover_gradient: string;
+  // SEO / GEO fields (backend B3)
+  author_name?: string | null;
+  tags?: string[];
+  word_count?: number;
+  cover_image_url?: string | null;
 }
 
 export interface BlogPostDetail extends BlogPostSummary {
   content: ArticleSection[];
+  faq_json?: Array<{ question: string; answer: string }> | null;
 }
