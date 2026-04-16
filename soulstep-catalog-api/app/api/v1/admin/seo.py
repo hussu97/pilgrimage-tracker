@@ -10,6 +10,7 @@ Routes:
     GET  /admin/seo/places/{place_code}       — SEO detail for one place (includes translations)
     PATCH /admin/seo/places/{place_code}      — Update SEO content (manual edit)
     POST /admin/seo/generate                  — Bulk trigger SEO generation
+    POST /admin/seo/regen-slugs               — Backfill clean URL slugs for all places
     POST /admin/seo/places/{place_code}/generate — Regenerate single place SEO
     GET  /admin/seo/templates                 — List all templates
     GET  /admin/seo/templates/{template_code}/{lang} — Get one template
@@ -491,6 +492,55 @@ def bulk_generate_seo(
         lang_generated=lang_generated,
         lang_errors=lang_errors,
     )
+
+
+class RegenSlugsResponse(BaseModel):
+    updated: int
+    unchanged: int
+    errors: int
+
+
+@router.post("/seo/regen-slugs", response_model=RegenSlugsResponse, tags=["admin-seo"])
+def regen_all_slugs(
+    admin: AdminDep,
+    session: SessionDep,
+) -> RegenSlugsResponse:
+    """Regenerate clean URL slugs for every place that has a PlaceSEO row.
+
+    Only the ``slug`` field is touched — all other SEO content is left intact.
+    Use this once after a slugify fix to backfill clean URLs for existing records.
+    """
+    seo_rows = session.exec(select(PlaceSEO)).all()
+    place_codes = [s.place_code for s in seo_rows]
+    places = {p.place_code: p for p in places_db.get_places_by_codes(place_codes, session)}
+
+    updated = unchanged = errors = 0
+    for seo in seo_rows:
+        place = places.get(seo.place_code)
+        if place is None:
+            errors += 1
+            continue
+        try:
+            new_slug = seo_generator.generate_slug(place, session)
+            if new_slug != seo.slug:
+                seo.slug = new_slug
+                session.add(seo)
+                updated += 1
+            else:
+                unchanged += 1
+        except Exception as exc:
+            logger.error("Slug regen failed for %s: %s", seo.place_code, exc)
+            errors += 1
+
+    session.commit()
+    logger.info(
+        "Admin %s regen-slugs: updated=%d unchanged=%d errors=%d",
+        admin.user_code,
+        updated,
+        unchanged,
+        errors,
+    )
+    return RegenSlugsResponse(updated=updated, unchanged=unchanged, errors=errors)
 
 
 # ── Template CRUD ─────────────────────────────────────────────────────────────
