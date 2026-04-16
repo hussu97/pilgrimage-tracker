@@ -57,6 +57,10 @@ const ExploreCity = lazyWithReload(() => import('@/app/pages/ExploreCity'));
 const Developers = lazyWithReload(() => import('@/app/pages/Developers'));
 const MapDiscovery = lazyWithReload(() => import('@/app/pages/MapDiscovery'));
 const Onboarding = lazyWithReload(() => import('@/app/pages/Onboarding'));
+const PrivacyPolicy = lazyWithReload(() => import('@/app/pages/PrivacyPolicy'));
+const TermsOfService = lazyWithReload(() => import('@/app/pages/TermsOfService'));
+const About = lazyWithReload(() => import('@/app/pages/About'));
+const Contact = lazyWithReload(() => import('@/app/pages/Contact'));
 const NotFound = lazyWithReload(() => import('@/app/pages/NotFoundPage'));
 
 /**
@@ -330,6 +334,38 @@ export function AppRoutes() {
             element={
               <Layout>
                 <MapDiscovery />
+              </Layout>
+            }
+          />
+          <Route
+            path="/privacy"
+            element={
+              <Layout>
+                <PrivacyPolicy />
+              </Layout>
+            }
+          />
+          <Route
+            path="/terms"
+            element={
+              <Layout>
+                <TermsOfService />
+              </Layout>
+            }
+          />
+          <Route
+            path="/about"
+            element={
+              <Layout>
+                <About />
+              </Layout>
+            }
+          />
+          <Route
+            path="/contact"
+            element={
+              <Layout>
+                <Contact />
               </Layout>
             }
           />

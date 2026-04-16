@@ -4,6 +4,24 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-16] — AdSense Compliance: Legal Pages, SEO, and Trust Signals
+
+### Frontend (web)
+- **Privacy Policy page** (`/privacy`) — comprehensive privacy policy covering data collection, Google AdSense cookies, Google Consent Mode v2, Umami analytics, user rights (GDPR/CCPA), and data deletion; satisfies all Google AdSense Required Content requirements
+- **Terms of Service page** (`/terms`) — covers accounts, user-generated content, acceptable use, intellectual property, advertising, disclaimers, and liability
+- **About page** (`/about`) — mission statement, features grid, 8-religion coverage grid with Material icons, data sources, open API callout, and Organization JSON-LD structured data
+- **Contact page** (`/contact`) — 3-method contact grid (general inquiries, bug reports, API support) with response time commitment
+- **Layout footer** — added desktop and mobile footers with links to About, Privacy, Terms, Contact, and API across all pages
+- **index.html SEO** — added static meta description, Open Graph tags (type, site_name, title, description, url, image), Twitter Card tags, and a `<noscript>` fallback block with full descriptive content for non-JS crawlers
+
+### Backend
+- **Sitemap** — added /about, /privacy, /terms, /contact, /developers to the XML sitemap with monthly changefreq
+
+### Docs
+- Updated: web README (routes table), CHANGELOG
+
+---
+
 ## [2026-03-19] — Scraper Observability & Performance Improvements
 
 ### Backend (scraper)

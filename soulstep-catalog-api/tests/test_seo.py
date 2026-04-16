@@ -125,6 +125,13 @@ class TestSitemapXml:
         resp = client.get("/sitemap.xml")
         assert "hreflang" in resp.text
 
+    def test_sitemap_includes_static_pages(self, client):
+        resp = client.get("/sitemap.xml")
+        assert resp.status_code == 200
+        body = resp.text
+        for path in ("/about", "/privacy", "/terms", "/contact", "/developers"):
+            assert path in body, f"Missing static page {path} in sitemap"
+
 
 # ── Share (enhanced pre-rendering) ────────────────────────────────────────────
 
