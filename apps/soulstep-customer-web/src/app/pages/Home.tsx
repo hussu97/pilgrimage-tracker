@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Journey Dashboard — the home screen of SoulStep.
  *
@@ -11,7 +13,7 @@
  *   • Recent Activity feed (from user's groups)
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth, useI18n } from '@/app/providers';
 import { useHead } from '@/lib/hooks/useHead';

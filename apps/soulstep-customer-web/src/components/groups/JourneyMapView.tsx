@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * JourneyMapView — lightweight Leaflet map showing only the journey's places.
  *

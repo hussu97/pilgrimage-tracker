@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from '@/lib/navigation';
 import { useAuth, useI18n } from '@/app/providers';
 import Modal from '@/components/common/Modal';
 import { cn } from '@/lib/utils/cn';

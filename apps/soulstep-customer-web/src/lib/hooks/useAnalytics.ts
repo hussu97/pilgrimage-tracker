@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Analytics hook — batched event ingestion with consent gating.
  *
@@ -8,7 +10,7 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useRef, type ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from '@/lib/navigation';
 import { createElement } from 'react';
 
 const API_BASE = '';
@@ -48,6 +50,7 @@ interface AnalyticsContextValue {
 // ── Session ID ────────────────────────────────────────────────────────────────
 
 function getOrCreateSessionId(): string {
+  if (typeof window === 'undefined') return '';
   const key = '__ss_session_id';
   let id = sessionStorage.getItem(key);
   if (!id) {
@@ -58,6 +61,7 @@ function getOrCreateSessionId(): string {
 }
 
 function getDeviceType(): 'mobile' | 'desktop' {
+  if (typeof window === 'undefined') return 'desktop';
   return window.innerWidth < 768 ? 'mobile' : 'desktop';
 }
 
@@ -89,7 +93,11 @@ export function AnalyticsProvider({
   visitorCode,
 }: AnalyticsProviderProps) {
   const buffer = useRef<BufferedEvent[]>([]);
-  const sessionId = useRef(getOrCreateSessionId());
+  // Lazily initialize session ID on the client side to avoid SSR issues
+  const sessionId = useRef<string>('');
+  useEffect(() => {
+    sessionId.current = getOrCreateSessionId();
+  }, []);
 
   const flush = useCallback(
     (useBeacon = false) => {

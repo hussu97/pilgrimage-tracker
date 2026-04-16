@@ -1,4 +1,6 @@
-import { Navigate, useLocation } from 'react-router-dom';
+'use client';
+
+import { Navigate, useLocation } from '@/lib/navigation';
 import { useAuth, useI18n } from '@/app/providers';
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -15,7 +17,10 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    // Pass the original destination as a query param so Login can redirect back.
+    // Next.js App Router does not support history state, so we use ?from=<path>.
+    const from = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?from=${from}`} replace />;
   }
 
   return <>{children}</>;

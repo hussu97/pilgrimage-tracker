@@ -19,6 +19,7 @@ const LS_PREFIX = 'cache:';
 
 /** Try to restore a persisted entry from localStorage. */
 function restoreFromStorage<T>(key: string, ttlMs: number): T | null {
+  if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(LS_PREFIX + key);
     if (!raw) return null;

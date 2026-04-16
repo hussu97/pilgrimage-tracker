@@ -1,3 +1,5 @@
+'use client';
+
 import { useHead } from '@/lib/hooks/useHead';
 
 export default function PrivacyPolicy() {

@@ -1,12 +1,14 @@
+'use client';
+
 import { useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from '@/lib/navigation';
 import { useAuth, useI18n } from '@/app/providers';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 
 export default function Login() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { user, loading, login } = useAuth();
   const { t } = useI18n();
   const { trackEvent } = useAnalytics();
@@ -16,9 +18,11 @@ export default function Login() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Read the post-login destination from ?from=<encoded-path>
+  const from = searchParams.get('from') ?? '/home';
+
   if (!loading && user) {
-    const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
-    return <Navigate to={from ?? '/home'} replace />;
+    return <Navigate to={from} replace />;
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -29,8 +33,7 @@ export default function Login() {
       await login(email, password);
       trackEvent('login');
       trackUmamiEvent('login');
-      const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
-      navigate(from ?? '/home');
+      navigate(from, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.loginFailed'));
     } finally {

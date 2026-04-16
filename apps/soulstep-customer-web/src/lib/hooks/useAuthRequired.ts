@@ -1,3 +1,5 @@
+'use client';
+
 import { useAuth } from '@/app/providers';
 import { useAuthGate } from '@/components/auth/AuthGateProvider';
 

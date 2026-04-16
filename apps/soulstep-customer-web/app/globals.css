@@ -1,0 +1,3 @@
+/* Re-export all Tailwind + custom CSS from the shared stylesheet.
+   Next.js requires the CSS import to be in a layout; globals.css is that file. */
+@import '../src/index.css';

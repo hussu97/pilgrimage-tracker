@@ -1,3 +1,5 @@
+'use client';
+
 import { SkeletonBox, SkeletonText } from '../Skeleton';
 
 export default function GroupListSkeleton({ count = 4 }: { count?: number }) {

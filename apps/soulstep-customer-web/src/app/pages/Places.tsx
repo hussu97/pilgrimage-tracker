@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useI18n } from '@/app/providers';
 import { useHead } from '@/lib/hooks/useHead';

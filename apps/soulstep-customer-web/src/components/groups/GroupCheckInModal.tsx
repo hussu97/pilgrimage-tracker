@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { useFeedback, useI18n } from '@/app/providers';
 import { checkIn } from '@/lib/api/client';

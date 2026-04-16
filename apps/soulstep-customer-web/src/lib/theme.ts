@@ -23,6 +23,7 @@ export function applyTheme(theme: Theme): void {
 }
 
 export function getStoredTheme(): Theme {
+  if (typeof window === 'undefined') return 'system';
   try {
     const s = localStorage.getItem(THEME_STORAGE_KEY);
     if (s === 'light' || s === 'dark' || s === 'system') return s;

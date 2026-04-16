@@ -1,3 +1,5 @@
+'use client';
+
 import { SkeletonBox, SkeletonText } from '../Skeleton';
 
 export default function CarouselSkeleton({ count = 3 }: { count?: number }) {

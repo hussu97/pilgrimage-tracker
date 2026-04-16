@@ -17,6 +17,7 @@ export interface ConsentState {
 
 /** Read consent from localStorage. Returns null if not yet decided. */
 export function readConsent(): ConsentState {
+  if (typeof window === 'undefined') return { ads: null, analytics: null };
   const ads = localStorage.getItem(AD_CONSENT_KEY);
   const analytics = localStorage.getItem(ANALYTICS_CONSENT_KEY);
   return {

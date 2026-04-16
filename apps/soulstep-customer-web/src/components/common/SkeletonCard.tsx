@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Skeleton loading placeholder for place cards.
  * Uses a left-to-right shimmer animation (1.5s) instead of flat pulse.

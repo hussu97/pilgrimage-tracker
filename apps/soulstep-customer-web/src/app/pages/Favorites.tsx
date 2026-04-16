@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from '@/lib/navigation';
 import { useI18n, useFeedback } from '@/app/providers';
 import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
 import { getMyFavorites, removeFavorite } from '@/lib/api/client';

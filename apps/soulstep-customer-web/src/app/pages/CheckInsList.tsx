@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from '@/lib/navigation';
 import { useI18n } from '@/app/providers';
 import { cn } from '@/lib/utils/cn';
 import { getMyCheckIns, getOnThisDayCheckIns, getThisMonthCheckIns } from '@/lib/api/client';

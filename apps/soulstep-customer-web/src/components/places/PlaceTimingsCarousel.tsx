@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { TimingCircle, DeityCircle } from '@/components/places';
 import type { PlaceTiming } from '@/lib/types';

@@ -1,6 +1,6 @@
 # SoulStep – Web App
 
-Vite + React + TypeScript + Tailwind frontend. Runs in desktop and mobile browsers. Feature parity with `apps/soulstep-customer-mobile`.
+Next.js 15 + React + TypeScript + Tailwind frontend. Server-side renders all pages for AdSense and search-engine crawlability. Feature parity with `apps/soulstep-customer-mobile`.
 
 ## Quick Start
 
@@ -33,23 +33,29 @@ The dev server proxies `/api` requests to `http://127.0.0.1:3000` automatically.
 ## Build
 
 ```bash
-npm run build
+npm run build   # Next.js production build → .next/
+npm run start   # Start production server
 ```
 
-Output in `dist/`. Set `VITE_API_URL` to the production API URL at build time.
+Output in `.next/`. Set `NEXT_PUBLIC_*` env vars at build time.
+
+## Type Check
+
+```bash
+npx tsc --noEmit
+```
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` and set values as needed.
+Copy `.env.example` to `.env.local` and set values as needed.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `VITE_API_URL` | Yes (prod) | — (relative `/api`) | Production API base URL — baked in at build time. Unset in dev to use the Vite proxy. |
-| `VITE_API_BASE_URL` | No | `https://api.soul-step.org` | Public API URL shown on the Developers page |
-| `VITE_PROXY_TARGET` | No | `http://127.0.0.1:3000` | Dev server proxy target for `/api`. No effect in production builds. |
-| `VITE_ADSENSE_PUBLISHER_ID` | No | — | Google AdSense publisher ID. When unset, ads use backend config only. |
-| `VITE_GLITCHTIP_DSN` | No | — | GlitchTip (Sentry-compatible) DSN for client-side error tracking. |
-| `VITE_UMAMI_WEBSITE_ID` | No | — | Umami Cloud website ID for privacy-friendly analytics. Script proxied via `/umami/script.js`. |
+| `NEXT_PUBLIC_PROXY_TARGET` | No | `http://127.0.0.1:3000` | Dev-server proxy target for `/api`. No effect in production. |
+| `NEXT_PUBLIC_API_BASE_URL` | No | `https://api.soul-step.org` | Public API URL shown on the Developers page |
+| `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | No | — | Google AdSense publisher ID. When unset, ads use backend config only. |
+| `NEXT_PUBLIC_GLITCHTIP_DSN` | No | — | GlitchTip (Sentry-compatible) DSN for client-side error tracking. |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | No | — | Umami Cloud website ID for privacy-friendly analytics. |
 
 ## Tests
 
@@ -63,28 +69,42 @@ Tests live in `src/__tests__/`. Covers pure logic (utilities, hooks, transformer
 ## Directory Structure
 
 ```
+app/                       # Next.js App Router (file-based routing)
+  layout.tsx               # Root HTML layout, fonts, AdSense, providers
+  page.tsx                 # Redirects / → /home
+  not-found.tsx            # 404 page
+  AppClientShell.tsx       # Client-side provider wrapper
+  globals.css              # Entry CSS (imports src/index.css)
+  (main)/                  # Route group — all layout-wrapped pages
+    layout.tsx             # Applies <Layout> (nav shell)
+    home/page.tsx
+    places/[placeCode]/page.tsx
+    …                      # One page.tsx per route
+  login/page.tsx
+  register/page.tsx
+  …                        # Public (non-layout) pages
+
 src/
   app/
-    App.tsx                # Root component
-    providers.tsx          # Auth + i18n providers
-    routes.tsx             # Route definitions
-    pages/                 # All page components
+    App.tsx                # Root component (providers + I18nReadyGate)
+    providers.tsx          # Auth + Theme + I18n + Feedback providers
+    pages/                 # All page components (imported by app/ wrappers)
+    contexts/              # LocationContext
   components/
-    Layout.tsx             # Responsive nav shell
-    PlaceCard.tsx          # Place list card
-    PlacesMap.tsx          # Leaflet map with place markers
-    ProtectedRoute.tsx     # Auth guard
+    layout/                # Layout, ProtectedRoute
+    places/                # PlaceCardUnified, PlaceListRow
     ads/                   # AdProvider, AdBanner, useAdConsent
     consent/               # ConsentBanner
     analytics/             # AnalyticsProviderConnected
+    common/                # Modal, ErrorBoundary, FeedbackPopup, …
   lib/
+    navigation.tsx         # React Router compat shim (Next.js wrappers)
     api/client.ts          # API client (all endpoints)
     types/index.ts         # TypeScript types (uses *_code identifiers)
     hooks/                 # useAnalytics, useAuthRequired, useDocumentTitle, useHead
     theme.ts               # Design tokens
     constants.ts
     share.ts
-  main.tsx
   index.css
 ```
 
@@ -98,6 +118,7 @@ src/
 | `/map` | MapDiscovery | Full-screen Leaflet map + search/filter overlay |
 | `/places` | Places | All sacred sites list |
 | `/places/:placeCode` | PlaceDetail | Place detail with JSON-LD, FAQ, nearby places |
+| `/places/:placeCode/review` | WriteReview | Submit or edit a review |
 | `/journeys/new` | CreateGroup | 4-step journey creation flow |
 | `/journeys/:groupCode` | GroupDetail | Hero, timeline, tabs, glass bar |
 | `/journeys/:groupCode/edit` | EditGroup | Edit journey settings |
@@ -105,12 +126,16 @@ src/
 | `/explore` | ExploreCities | City browse page |
 | `/explore/:city` | ExploreCity | Places in a city |
 | `/profile` | Profile | User stats and settings |
+| `/profile/check-ins` | CheckInsList | Full check-in history |
+| `/favorites` | Favorites | Saved places |
+| `/notifications` | Notifications | In-app notifications |
+| `/join` | JoinGroup | Join journey by invite code |
 | `/login` | Login | Email + password sign-in |
 | `/register` | Register | Account creation |
-| `/privacy` | PrivacyPolicy | Privacy policy — cookies, advertising, analytics, user rights |
-| `/terms` | TermsOfService | Terms of service — accounts, content, liability |
-| `/about` | About | Mission, features, religions covered, data sources |
-| `/contact` | Contact | Contact methods, response times |
+| `/privacy` | PrivacyPolicy | Privacy policy |
+| `/terms` | TermsOfService | Terms of service |
+| `/about` | About | Mission, features, religions covered |
+| `/contact` | Contact | Contact methods |
 | `/developers` | Developers | API documentation page |
 
 ## API Surface

@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth, useFeedback, useI18n } from '@/app/providers';
 import { cn } from '@/lib/utils/cn';

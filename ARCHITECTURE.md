@@ -9,7 +9,7 @@ Multi-platform application for discovering, visiting, and tracking sacred sites.
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  Clients                                                 │
-│  apps/soulstep-customer-web  (Vite + React)              │
+│  apps/soulstep-customer-web  (Next.js 15 + React, SSR)    │
 │  apps/soulstep-customer-mobile  (Expo / React Native)    │
 │  apps/soulstep-admin-web  (Vite + React, admin only)     │
 └──────────────────────────┬──────────────────────────────┘

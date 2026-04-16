@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * ConsentBanner — GDPR/CCPA consent bottom sheet.
  *

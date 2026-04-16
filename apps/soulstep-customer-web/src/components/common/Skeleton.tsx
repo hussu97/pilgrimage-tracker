@@ -1,3 +1,5 @@
+'use client';
+
 /** Skeleton loading primitives for SoulStep. */
 
 interface SkeletonBoxProps {

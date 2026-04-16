@@ -1,10 +1,12 @@
+'use client';
+
 /**
  * Onboarding — full-screen 3-card swipeable flow shown on first visit.
  * After completion (or skip), sets localStorage 'onboarding_done' = '1'
  * and redirects to /home.
  */
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useI18n } from '@/app/providers';
 

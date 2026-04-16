@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from '@/lib/navigation';
 import type { ReactNode } from 'react';
 import { useAuth, useI18n } from '@/app/providers';
 import { getNotifications } from '@/lib/api/client';

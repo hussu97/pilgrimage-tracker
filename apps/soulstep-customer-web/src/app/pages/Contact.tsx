@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom';
+'use client';
+
+import { Link } from '@/lib/navigation';
 import { useHead } from '@/lib/hooks/useHead';
 
 const contactMethods = [

@@ -1,6 +1,8 @@
+'use client';
+
 import { useHead } from '@/lib/hooks/useHead';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.soul-step.org';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.soul-step.org';
 
 export default function Developers() {
   useHead({

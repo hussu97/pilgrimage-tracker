@@ -1,3 +1,5 @@
+'use client';
+
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { PlaceTiming } from '@/lib/types';
 

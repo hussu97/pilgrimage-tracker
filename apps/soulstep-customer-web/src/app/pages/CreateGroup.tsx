@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Journey Creation Flow — Phase 3 redesign.
  *
@@ -8,7 +10,7 @@
  * Step 4 — Success: confetti + invite share
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth, useI18n, useFeedback } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';

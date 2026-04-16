@@ -158,7 +158,7 @@ describe('consent gating logic', () => {
 
 describe('website ID guard', () => {
   const isValidWebsiteId = (id: string | undefined): boolean =>
-    typeof id === 'string' && id.length > 0 && id !== '%VITE_UMAMI_WEBSITE_ID%';
+    typeof id === 'string' && id.length > 0 && id !== '%NEXT_PUBLIC_UMAMI_WEBSITE_ID%';
 
   it('rejects undefined', () => {
     expect(isValidWebsiteId(undefined)).toBe(false);
@@ -169,7 +169,7 @@ describe('website ID guard', () => {
   });
 
   it('rejects un-replaced Vite placeholder', () => {
-    expect(isValidWebsiteId('%VITE_UMAMI_WEBSITE_ID%')).toBe(false);
+    expect(isValidWebsiteId('%NEXT_PUBLIC_UMAMI_WEBSITE_ID%')).toBe(false);
   });
 
   it('accepts a real UUID', () => {

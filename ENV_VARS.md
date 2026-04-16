@@ -172,27 +172,26 @@ them identical in content whenever a variable is added, renamed, removed, or has
 
 ## 3. Customer Web (`apps/soulstep-customer-web`)
 
-All variables are optional in the strictest sense, but `VITE_API_URL` is strongly recommended in
-production (without it, the app uses relative URLs and requires a reverse-proxy setup).
+All variables are optional — the app uses relative URLs (`/api/v1/...`) and requires a reverse-proxy
+or same-origin deployment when no absolute API URL is set.
 
-All `VITE_*` variables are **baked into the JavaScript bundle at build time** and are visible to
-anyone who inspects the built assets. Never put secrets in `VITE_*` vars.
+All `NEXT_PUBLIC_*` variables are **baked into the JavaScript bundle at build time** and are visible
+to anyone who inspects the built assets. Never put secrets in `NEXT_PUBLIC_*` vars.
 
 ### GitHub Actions Secrets (baked into build)
 
 | Variable | Default | Description |
 |---|---|---|
-| `VITE_API_URL` | _(relative)_ | Backend API base URL used by the API client. When unset, the app uses relative URLs (`/api/v1/...`) and requires a server-side proxy. Set to an absolute URL when pointing at a non-local backend. Example: `https://api.soul-step.org` |
-| `VITE_ADSENSE_PUBLISHER_ID` | — | **Conditional** — Google AdSense publisher ID. Required when the backend returns `ADS_ENABLED=true` for this client. When unset, the AdSense script is not loaded. Example: `ca-pub-xxxxxxxxxxxxxxxxxxxxxxxx` |
-| `VITE_UMAMI_WEBSITE_ID` | — | Umami Cloud website ID for privacy-friendly, cookie-free analytics. When unset, Umami analytics are disabled. Example: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| `VITE_GLITCHTIP_DSN` | — | Sentry-compatible DSN for client-side error and exception tracking via GlitchTip. When unset, client-side error tracking is disabled. |
+| `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | — | **Conditional** — Google AdSense publisher ID. Required when the backend returns `ADS_ENABLED=true` for this client. When unset, the AdSense script is not loaded. Example: `ca-pub-xxxxxxxxxxxxxxxxxxxxxxxx` |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | — | Umami Cloud website ID for privacy-friendly, cookie-free analytics. When unset, Umami analytics are disabled. Example: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `NEXT_PUBLIC_GLITCHTIP_DSN` | — | Sentry-compatible DSN for client-side error and exception tracking via GlitchTip. When unset, client-side error tracking is disabled. |
 
-### Local Dev Only (`.env`)
+### Local Dev Only (`.env.local`)
 
 | Variable | Default | Description |
 |---|---|---|
-| `VITE_PROXY_TARGET` | `http://127.0.0.1:3000` | Dev-server proxy target for `/api` requests. Only used by the Vite dev server — has no effect in production builds. |
-| `VITE_API_BASE_URL` | `https://api.soul-step.org` | Public API base URL — used on the Developers page to render example curl commands and API endpoint URLs. |
+| `NEXT_PUBLIC_PROXY_TARGET` | `http://127.0.0.1:3000` | Dev-server proxy target for `/api` requests. Only used by the Next.js dev server — has no effect in production builds. |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://api.soul-step.org` | Public API base URL — used on the Developers page to render example curl commands and API endpoint URLs. |
 
 ---
 

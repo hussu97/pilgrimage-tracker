@@ -1,5 +1,7 @@
+'use client';
+
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/navigation';
 import { useAuth, useI18n, useFeedback } from '@/app/providers';
 import { updateMe, updateSettings } from '@/lib/api/client';
 import type { Religion } from '@/lib/types';

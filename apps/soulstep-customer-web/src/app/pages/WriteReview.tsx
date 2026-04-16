@@ -1,10 +1,12 @@
+'use client';
+
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from '@/lib/navigation';
 import { useI18n, useFeedback } from '@/app/providers';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { cn } from '@/lib/utils/cn';
-import { getPlace, createReview, updateReview, uploadReviewPhoto } from '@/lib/api/client';
+import { getPlace, createReview, updateReview, uploadReviewPhoto, getPlaceReviews } from '@/lib/api/client';
 import { compressImage, validateImageFile } from '@/lib/utils/imageUpload';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { PlaceDetail } from '@/lib/types';
@@ -18,21 +20,21 @@ interface UploadedImage {
   thumbnailUrl: string;
 }
 
-type LocationState = { edit?: Review } | null;
-
 export default function WriteReview() {
   const { placeCode } = useParams<{ placeCode: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { t } = useI18n();
   const { showSuccess, showError } = useFeedback();
   const { trackEvent } = useAnalytics();
   const { trackUmamiEvent } = useUmamiTracking();
-  const editReview = (location.state as LocationState)?.edit;
+  // editReview code is passed via ?editReview=<review_code> query param
+  const editReviewCode = searchParams.get('editReview');
+  const [editReview, setEditReview] = useState<Review | undefined>(undefined);
 
   const [place, setPlace] = useState<PlaceDetail | null>(null);
-  const [rating, setRating] = useState(editReview?.rating ?? 0);
-  const [body, setBody] = useState(editReview?.body ?? '');
+  const [rating, setRating] = useState(0);
+  const [body, setBody] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -48,6 +50,21 @@ export default function WriteReview() {
       .then(setPlace)
       .catch(() => setPlace(null));
   }, [placeCode]);
+
+  // If editing an existing review, fetch it by code from the reviews list
+  useEffect(() => {
+    if (!placeCode || !editReviewCode) return;
+    getPlaceReviews(placeCode, 1, 100)
+      .then((res) => {
+        const found = res.items?.find((r) => r.review_code === editReviewCode);
+        if (found) {
+          setEditReview(found);
+          setRating(found.rating);
+          setBody(found.body ?? '');
+        }
+      })
+      .catch(() => {});
+  }, [placeCode, editReviewCode]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);

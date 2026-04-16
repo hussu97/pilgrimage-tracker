@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from '@/lib/navigation';
 import { useI18n } from '@/app/providers';
 import { cn } from '@/lib/utils/cn';
 import { getNotifications, markNotificationRead } from '@/lib/api/client';
