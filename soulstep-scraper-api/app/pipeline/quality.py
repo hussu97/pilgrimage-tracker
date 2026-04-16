@@ -177,14 +177,11 @@ async def _llm_tiebreak(
     try:
         import json
 
-        import google.generativeai as genai
+        from google import genai
+        from google.genai import types
 
         api_key = os.environ.get("GEMINI_API_KEY")
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(
-            model_name="gemini-2.5-flash",
-            generation_config={"response_mime_type": "application/json"},
-        )
+        client = genai.Client(api_key=api_key)
 
         prompt = f"""You are evaluating two descriptions for "{place_name}", a pilgrimage/religious site.
 
@@ -199,7 +196,11 @@ Pick the most informative, accurate, and contextually rich description. If both 
 Respond in this exact JSON format:
 {{"choice": "A" or "B" or "synthesized", "text": "the chosen or synthesized description"}}"""
 
-        response = await model.generate_content_async(prompt)
+        response = await client.aio.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(response_mime_type="application/json"),
+        )
         content = response.text.strip()
 
         parsed = json.loads(content)

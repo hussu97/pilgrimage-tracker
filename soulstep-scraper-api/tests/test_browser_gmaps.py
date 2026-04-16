@@ -949,7 +949,7 @@ class TestAcquireTimeout:
         pool._pool_size = 0  # no slots available → always retries
         pool._headless = True
         pool._initialized = True  # skip Playwright launch
-        pool._browser = AsyncMock()
+        pool._browser = MagicMock()
         pool._browser.is_connected.return_value = True
 
         with patch("app.constants.BROWSER_ACQUIRE_MAX_RETRIES", 2):

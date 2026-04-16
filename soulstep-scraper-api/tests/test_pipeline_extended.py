@@ -144,14 +144,11 @@ class TestQualityScoringExtended:
         candidate_a = {"text": "Description A", "source": "wikipedia", "score": 0.7}
         candidate_b = {"text": "Description B", "source": "knowledge_graph", "score": 0.62}
 
-        mock_model = MagicMock()
+        mock_client = MagicMock()
         mock_response = MagicMock(text='{"choice": "A", "text": "Description A"}')
-        mock_model.generate_content_async = AsyncMock(return_value=mock_response)
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
 
-        with (
-            patch("google.generativeai.configure"),
-            patch("google.generativeai.GenerativeModel", return_value=mock_model),
-        ):
+        with patch("google.genai.Client", return_value=mock_client):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test Mosque")
 
         assert result is not None
@@ -165,14 +162,11 @@ class TestQualityScoringExtended:
         candidate_a = {"text": "Description A", "source": "wikipedia", "score": 0.65}
         candidate_b = {"text": "Description B", "source": "knowledge_graph", "score": 0.60}
 
-        mock_model = MagicMock()
+        mock_client = MagicMock()
         mock_response = MagicMock(text='{"choice": "B", "text": "Description B"}')
-        mock_model.generate_content_async = AsyncMock(return_value=mock_response)
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
 
-        with (
-            patch("google.generativeai.configure"),
-            patch("google.generativeai.GenerativeModel", return_value=mock_model),
-        ):
+        with patch("google.genai.Client", return_value=mock_client):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result["source"] == "knowledge_graph"
@@ -184,16 +178,13 @@ class TestQualityScoringExtended:
         candidate_a = {"text": "Description A", "source": "wikipedia", "score": 0.68}
         candidate_b = {"text": "Description B", "source": "knowledge_graph", "score": 0.62}
 
-        mock_model = MagicMock()
+        mock_client = MagicMock()
         mock_response = MagicMock(
             text='{"choice": "synthesized", "text": "Combined best description."}'
         )
-        mock_model.generate_content_async = AsyncMock(return_value=mock_response)
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
 
-        with (
-            patch("google.generativeai.configure"),
-            patch("google.generativeai.GenerativeModel", return_value=mock_model),
-        ):
+        with patch("google.genai.Client", return_value=mock_client):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result["source"] == "llm_synthesized"
@@ -207,14 +198,11 @@ class TestQualityScoringExtended:
         candidate_a = {"text": "Desc A", "source": "wikipedia", "score": 0.7}
         candidate_b = {"text": "Desc B", "source": "knowledge_graph", "score": 0.65}
 
-        mock_model = MagicMock()
+        mock_client = MagicMock()
         mock_response = MagicMock(text='{"choice": "C", "text": ""}')
-        mock_model.generate_content_async = AsyncMock(return_value=mock_response)
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
 
-        with (
-            patch("google.generativeai.configure"),
-            patch("google.generativeai.GenerativeModel", return_value=mock_model),
-        ):
+        with patch("google.genai.Client", return_value=mock_client):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result is None
@@ -226,14 +214,11 @@ class TestQualityScoringExtended:
         candidate_a = {"text": "Desc A", "source": "wikipedia", "score": 0.7}
         candidate_b = {"text": "Desc B", "source": "knowledge_graph", "score": 0.63}
 
-        mock_model = MagicMock()
+        mock_client = MagicMock()
         mock_response = MagicMock(text='{"choice": "A", "text": "Desc A"}')
-        mock_model.generate_content_async = AsyncMock(return_value=mock_response)
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
 
-        with (
-            patch("google.generativeai.configure"),
-            patch("google.generativeai.GenerativeModel", return_value=mock_model),
-        ):
+        with patch("google.genai.Client", return_value=mock_client):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result is not None
@@ -246,10 +231,12 @@ class TestQualityScoringExtended:
         candidate_a = {"text": "Desc A", "source": "wikipedia", "score": 0.7}
         candidate_b = {"text": "Desc B", "source": "knowledge_graph", "score": 0.65}
 
-        with (
-            patch("google.generativeai.configure"),
-            patch("google.generativeai.GenerativeModel", side_effect=Exception("API unavailable")),
-        ):
+        mock_client = MagicMock()
+        mock_client.aio.models.generate_content = AsyncMock(
+            side_effect=Exception("API unavailable")
+        )
+
+        with patch("google.genai.Client", return_value=mock_client):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result is None
@@ -261,14 +248,11 @@ class TestQualityScoringExtended:
         candidate_a = {"text": "Fallback A", "source": "wikipedia", "score": 0.7}
         candidate_b = {"text": "Desc B", "source": "knowledge_graph", "score": 0.63}
 
-        mock_model = MagicMock()
+        mock_client = MagicMock()
         mock_response = MagicMock(text='{"choice": "A", "text": ""}')
-        mock_model.generate_content_async = AsyncMock(return_value=mock_response)
+        mock_client.aio.models.generate_content = AsyncMock(return_value=mock_response)
 
-        with (
-            patch("google.generativeai.configure"),
-            patch("google.generativeai.GenerativeModel", return_value=mock_model),
-        ):
+        with patch("google.genai.Client", return_value=mock_client):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
         assert result["text"] == "Fallback A"  # Falls back to candidate_a text
