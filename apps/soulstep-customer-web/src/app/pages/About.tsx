@@ -10,7 +10,7 @@ const religions = [
   { name: 'Buddhism', placeType: 'Monasteries', icon: 'temple_buddhist' },
   { name: 'Sikhism', placeType: 'Gurdwaras', icon: 'place' },
   { name: 'Judaism', placeType: 'Synagogues', icon: 'synagogue' },
-  { name: 'Baha\'i', placeType: 'Houses of Worship', icon: 'place' },
+  { name: "Baha'i", placeType: 'Houses of Worship', icon: 'place' },
   { name: 'Zoroastrianism', placeType: 'Fire Temples', icon: 'place' },
 ];
 
@@ -218,15 +218,11 @@ export default function About() {
               <span className="text-sm text-text-main dark:text-white font-medium">Web App</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-xl">
-                phone_iphone
-              </span>
+              <span className="material-symbols-outlined text-primary text-xl">phone_iphone</span>
               <span className="text-sm text-text-main dark:text-white font-medium">iOS</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-xl">
-                phone_android
-              </span>
+              <span className="material-symbols-outlined text-primary text-xl">phone_android</span>
               <span className="text-sm text-text-main dark:text-white font-medium">Android</span>
             </div>
           </div>

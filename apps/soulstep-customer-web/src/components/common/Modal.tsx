@@ -17,7 +17,9 @@ export default function Modal({ isOpen, onClose, title, children, footer }: Moda
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {

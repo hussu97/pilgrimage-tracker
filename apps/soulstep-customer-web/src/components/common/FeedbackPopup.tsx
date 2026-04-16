@@ -16,7 +16,9 @@ const CROSS_PATH = 'M6 6l12 12M18 6L6 18';
 
 export default function FeedbackPopup({ visible, type, message }: FeedbackPopupProps) {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isSuccess = type === 'success';
   const iconColor = isSuccess ? COLORS.openNow : COLORS.closedNow;

@@ -34,8 +34,7 @@ const contactMethods = [
   {
     icon: 'code',
     title: 'API & Developer Support',
-    description:
-      'Need help integrating with the SoulStep API or have questions about our data?',
+    description: 'Need help integrating with the SoulStep API or have questions about our data?',
     action: (
       <Link to="/developers" className="text-sm text-primary hover:underline font-medium">
         Visit the Developer Hub
@@ -52,8 +51,7 @@ export default function Contact() {
     canonicalUrl: 'https://soul-step.org/contact',
     ogType: 'website',
     ogTitle: 'Contact SoulStep',
-    ogDescription:
-      'Reach out to the SoulStep team for support, feedback, or partnerships.',
+    ogDescription: 'Reach out to the SoulStep team for support, feedback, or partnerships.',
     ogUrl: 'https://soul-step.org/contact',
     twitterCard: 'summary',
   });
@@ -67,9 +65,7 @@ export default function Contact() {
 
       {/* Contact Methods */}
       <section className="mb-8">
-        <h2 className="text-xl font-bold text-text-main dark:text-white mb-3">
-          How to Reach Us
-        </h2>
+        <h2 className="text-xl font-bold text-text-main dark:text-white mb-3">How to Reach Us</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {contactMethods.map((method) => (
             <div
@@ -96,16 +92,14 @@ export default function Contact() {
         <h2 className="text-xl font-bold text-text-main dark:text-white mb-3">Response Times</h2>
         <div className="rounded-2xl border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface p-5">
           <div className="flex items-start gap-3">
-            <span className="material-symbols-outlined text-primary text-2xl mt-0.5">
-              schedule
-            </span>
+            <span className="material-symbols-outlined text-primary text-2xl mt-0.5">schedule</span>
             <div>
               <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
                 We aim to respond to all inquiries within{' '}
-                <span className="font-semibold text-text-main dark:text-white">48 hours</span>.
-                For urgent bug reports that affect site functionality, we prioritize faster
-                turnaround. Please include as much detail as possible in your message to help us
-                assist you quickly.
+                <span className="font-semibold text-text-main dark:text-white">48 hours</span>. For
+                urgent bug reports that affect site functionality, we prioritize faster turnaround.
+                Please include as much detail as possible in your message to help us assist you
+                quickly.
               </p>
             </div>
           </div>

@@ -37,15 +37,12 @@ export default function PrivacyPolicy() {
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4">
             This Privacy Policy explains how we collect, use, disclose, and safeguard your
             information when you visit our website at{' '}
-            <a
-              href="https://soul-step.org"
-              className="text-primary hover:underline"
-            >
+            <a href="https://soul-step.org" className="text-primary hover:underline">
               soul-step.org
             </a>{' '}
-            and use our mobile applications (collectively, the &quot;Service&quot;). Please read this
-            policy carefully. By accessing or using the Service, you acknowledge that you have read,
-            understood, and agree to be bound by this Privacy Policy.
+            and use our mobile applications (collectively, the &quot;Service&quot;). Please read
+            this policy carefully. By accessing or using the Service, you acknowledge that you have
+            read, understood, and agree to be bound by this Privacy Policy.
           </p>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
             If you do not agree with the terms of this Privacy Policy, please do not access or use
@@ -106,8 +103,8 @@ export default function PrivacyPolicy() {
             <strong className="text-text-main dark:text-white">Service Operation.</strong> We use
             your information to create and manage your account, authenticate your identity, process
             check-ins, store your reviews and favorites, track journey progress, and deliver
-            notifications. Your account data is essential for providing the core functionality of the
-            Service.
+            notifications. Your account data is essential for providing the core functionality of
+            the Service.
           </p>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4">
             <strong className="text-text-main dark:text-white">Personalization.</strong> We use your
@@ -152,8 +149,8 @@ export default function PrivacyPolicy() {
             <strong className="text-text-main dark:text-white">
               Personalized Advertising and Opt-Out.
             </strong>{' '}
-            Google may use the data collected through these cookies to personalize the advertisements
-            shown to you. You may opt out of personalized advertising by visiting{' '}
+            Google may use the data collected through these cookies to personalize the
+            advertisements shown to you. You may opt out of personalized advertising by visiting{' '}
             <a
               href="https://adssettings.google.com"
               target="_blank"
@@ -176,21 +173,21 @@ export default function PrivacyPolicy() {
           </p>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4">
             <strong className="text-text-main dark:text-white">Google Consent Mode v2.</strong> We
-            implement Google Consent Mode v2 to respect your privacy choices. By default, advertising
-            storage and analytics storage are set to &quot;denied&quot; until you provide explicit
-            consent through our cookie consent banner. When consent is denied, Google tags adjust
-            their behavior accordingly — no advertising cookies are stored, and ad personalization is
-            disabled. If you grant consent, advertising and analytics cookies will function as
-            described above. You may withdraw your consent at any time by clearing your browser
-            cookies or using the consent controls provided on the Service.
+            implement Google Consent Mode v2 to respect your privacy choices. By default,
+            advertising storage and analytics storage are set to &quot;denied&quot; until you
+            provide explicit consent through our cookie consent banner. When consent is denied,
+            Google tags adjust their behavior accordingly — no advertising cookies are stored, and
+            ad personalization is disabled. If you grant consent, advertising and analytics cookies
+            will function as described above. You may withdraw your consent at any time by clearing
+            your browser cookies or using the consent controls provided on the Service.
           </p>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
             <strong className="text-text-main dark:text-white">Essential Cookies.</strong> In
-            addition to advertising cookies, we use essential cookies that are strictly necessary for
-            the operation of the Service. These include session cookies for authentication (to keep
-            you logged in), language preference cookies, and theme preference cookies (light/dark
-            mode). Essential cookies cannot be disabled as they are required for the Service to
-            function properly.
+            addition to advertising cookies, we use essential cookies that are strictly necessary
+            for the operation of the Service. These include session cookies for authentication (to
+            keep you logged in), language preference cookies, and theme preference cookies
+            (light/dark mode). Essential cookies cannot be disabled as they are required for the
+            Service to function properly.
           </p>
         </div>
       </section>
@@ -211,8 +208,8 @@ export default function PrivacyPolicy() {
             </a>{' '}
             as our web analytics provider. Umami is a privacy-focused analytics platform that does
             not use cookies, does not collect personal data, and does not track users across
-            websites. All data collected by Umami is aggregated and anonymized — it cannot be used to
-            identify individual users.
+            websites. All data collected by Umami is aggregated and anonymized — it cannot be used
+            to identify individual users.
           </p>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4">
             Umami collects the following anonymized data points: page views, referrer URLs, browser
@@ -224,8 +221,8 @@ export default function PrivacyPolicy() {
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
             Because Umami does not use cookies or collect personally identifiable information, it is
             compliant with GDPR, CCPA, and other privacy regulations without requiring cookie
-            consent. Umami analytics data is entirely separate from the advertising cookies described
-            in Section 4.
+            consent. Umami analytics data is entirely separate from the advertising cookies
+            described in Section 4.
           </p>
         </div>
       </section>
@@ -289,8 +286,8 @@ export default function PrivacyPolicy() {
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
             Please note that certain data may be retained even after account deletion where required
             by law, to resolve disputes, enforce our agreements, or for legitimate business purposes
-            such as fraud prevention. Anonymized and aggregated data that can no longer be associated
-            with you may be retained indefinitely for analytical purposes.
+            such as fraud prevention. Anonymized and aggregated data that can no longer be
+            associated with you may be retained indefinitely for analytical purposes.
           </p>
         </div>
       </section>
@@ -300,14 +297,14 @@ export default function PrivacyPolicy() {
         <h2 className="text-xl font-bold text-text-main dark:text-white mb-3">8. Your Rights</h2>
         <div className="rounded-2xl border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface p-5">
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4">
-            Depending on your jurisdiction, you may have the following rights regarding your personal
-            data:
+            Depending on your jurisdiction, you may have the following rights regarding your
+            personal data:
           </p>
           <ul className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4 list-disc list-inside space-y-2">
             <li>
               <strong className="text-text-main dark:text-white">Right of Access:</strong> You may
-              request a copy of the personal data we hold about you. You can access most of your data
-              directly through the Service by visiting your profile and check-in history pages.
+              request a copy of the personal data we hold about you. You can access most of your
+              data directly through the Service by visiting your profile and check-in history pages.
             </li>
             <li>
               <strong className="text-text-main dark:text-white">Right of Correction:</strong> You
@@ -338,11 +335,12 @@ export default function PrivacyPolicy() {
           </p>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
             If you are a resident of the European Economic Area (EEA), you have the right to lodge a
-            complaint with your local data protection authority if you believe your personal data has
-            been processed in violation of applicable law. If you are a California resident, you have
-            additional rights under the California Consumer Privacy Act (CCPA), including the right
-            to know what personal information is collected, the right to delete it, and the right to
-            opt out of the sale of personal information (which SoulStep does not engage in).
+            complaint with your local data protection authority if you believe your personal data
+            has been processed in violation of applicable law. If you are a California resident, you
+            have additional rights under the California Consumer Privacy Act (CCPA), including the
+            right to know what personal information is collected, the right to delete it, and the
+            right to opt out of the sale of personal information (which SoulStep does not engage
+            in).
           </p>
         </div>
       </section>
@@ -383,15 +381,15 @@ export default function PrivacyPolicy() {
             We may update this Privacy Policy from time to time to reflect changes in our practices,
             technologies, legal requirements, or other factors. When we make material changes, we
             will update the &quot;Last updated&quot; date at the top of this page and, where
-            appropriate, provide additional notice such as an in-app notification or an email to your
-            registered email address.
+            appropriate, provide additional notice such as an in-app notification or an email to
+            your registered email address.
           </p>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
-            We encourage you to review this Privacy Policy periodically to stay informed about how we
-            are protecting your information. Your continued use of the Service after any changes to
-            this Privacy Policy constitutes your acceptance of those changes. If you disagree with
-            any updated terms, you should discontinue use of the Service and request deletion of your
-            account.
+            We encourage you to review this Privacy Policy periodically to stay informed about how
+            we are protecting your information. Your continued use of the Service after any changes
+            to this Privacy Policy constitutes your acceptance of those changes. If you disagree
+            with any updated terms, you should discontinue use of the Service and request deletion
+            of your account.
           </p>
         </div>
       </section>
@@ -413,10 +411,7 @@ export default function PrivacyPolicy() {
             </a>
             <br />
             Website:{' '}
-            <a
-              href="https://soul-step.org"
-              className="text-primary hover:underline"
-            >
+            <a href="https://soul-step.org" className="text-primary hover:underline">
               soul-step.org
             </a>
           </p>
