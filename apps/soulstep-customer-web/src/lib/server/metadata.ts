@@ -6,7 +6,7 @@ import type { Metadata } from 'next';
 import type { BlogPostDetail, BlogPostSummary } from '@/lib/types/blog';
 import type { PlaceForMeta } from './api';
 
-const SITE_URL = 'https://soul-step.org';
+const SITE_URL = 'https://www.soul-step.org';
 const SITE_NAME = 'SoulStep';
 const DEFAULT_OG_IMAGE = `${SITE_URL}/logo.png`;
 

@@ -19,8 +19,8 @@ export const metadata: Metadata = {
     title: 'SoulStep — Sacred Sites Discovery Platform',
     description:
       'Discover mosques, temples, churches, and sacred sites worldwide. Track your spiritual journey with SoulStep.',
-    url: 'https://soul-step.org',
-    images: [{ url: 'https://soul-step.org/logo.png' }],
+    url: 'https://www.soul-step.org',
+    images: [{ url: 'https://www.soul-step.org/logo.png' }],
   },
   twitter: {
     card: 'summary',
