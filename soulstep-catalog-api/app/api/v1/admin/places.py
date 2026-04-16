@@ -279,6 +279,50 @@ def create_place(body: CreatePlaceBody, admin: AdminDep, session: SessionDep):
     )
 
 
+class DataQualityItem(BaseModel):
+    place_code: str
+    name: str
+    place_type: str
+    religion: str
+    lat: float | None
+    lng: float | None
+    issue: str
+
+
+@router.get("/places/data-quality", response_model=list[DataQualityItem])
+def get_data_quality(admin: AdminDep, session: SessionDep) -> list[DataQualityItem]:
+    """List places with known data-quality issues.
+
+    Issues reported:
+    - ``null_coordinates`` — lat or lng is NULL (no location data)
+    - ``zero_coordinates``  — lat=0.0 and lng=0.0 (sentinel from old scraper)
+    - ``unknown_religion``  — religion field is 'unknown'
+    """
+    places = session.exec(select(Place)).all()
+    issues: list[DataQualityItem] = []
+    for p in places:
+        if p.lat is None or p.lng is None:
+            issue = "null_coordinates"
+        elif p.lat == 0.0 and p.lng == 0.0:
+            issue = "zero_coordinates"
+        elif p.religion == "unknown":
+            issue = "unknown_religion"
+        else:
+            continue
+        issues.append(
+            DataQualityItem(
+                place_code=p.place_code,
+                name=p.name,
+                place_type=p.place_type,
+                religion=p.religion,
+                lat=p.lat,
+                lng=p.lng,
+                issue=issue,
+            )
+        )
+    return issues
+
+
 @router.get("/places/{place_code}", response_model=AdminPlaceDetail)
 def get_place(place_code: str, admin: AdminDep, session: SessionDep):
     place = session.exec(select(Place).where(Place.place_code == place_code)).first()

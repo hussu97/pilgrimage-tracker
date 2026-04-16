@@ -382,3 +382,62 @@ def passes_gate(quality_score: float | None, threshold: float) -> bool:
         # check that the detail-fetch phase ran score_place_quality() correctly.
         return True
     return quality_score >= threshold
+
+
+# ── Sacred-site type filter ──────────────────────────────────────────────────
+
+# Google Maps place types that indicate a genuine sacred/religious site.
+# Any place whose ``primaryType`` (or any element of ``types``) is NOT in this
+# set is considered non-sacred and should be rejected at the sync gate.
+VALID_SACRED_GMAPS_TYPES: frozenset[str] = frozenset(
+    {
+        # Core religious types (Google Places API v1)
+        "mosque",
+        "church",
+        "hindu_temple",
+        "synagogue",
+        "buddhist_temple",
+        "place_of_worship",
+        # Extended / legacy types
+        "religious_destination",
+        "jain_temple",
+        "gurudwara",
+        "shinto_shrine",
+        "taoist_temple",
+        "cathedral",
+        "basilica",
+        "chapel",
+        "abbey",
+        "monastery",
+        "convent",
+        "shrine",
+        "temple",
+        "pagoda",
+        "stupa",
+        "dargah",
+        "mazaar",
+        "imambara",
+        "khanqah",
+    }
+)
+
+
+def is_sacred_site(raw_data: dict) -> bool:
+    """Return True if the raw Google Maps data describes a genuine sacred site.
+
+    Checks ``primaryType`` first; falls back to scanning the ``types`` list.
+    Returns True (passes filter) when:
+    - ``primaryType`` is in ``VALID_SACRED_GMAPS_TYPES``, OR
+    - any element of ``types`` is in ``VALID_SACRED_GMAPS_TYPES``, OR
+    - ``raw_data`` is empty/None (backwards-compat: existing records without
+      raw_data pass through so legacy places aren't silently deleted).
+    """
+    if not raw_data:
+        return True
+
+    primary_type: str = raw_data.get("primaryType", "").lower()
+    if primary_type in VALID_SACRED_GMAPS_TYPES:
+        return True
+
+    types: list[str] = [t.lower() for t in raw_data.get("types", [])]
+    return bool(set(types) & VALID_SACRED_GMAPS_TYPES)

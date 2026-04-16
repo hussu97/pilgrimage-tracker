@@ -652,8 +652,8 @@ class GmapsCollector(BaseCollector):
         city, state, country = _extract_address_components(address_components)
 
         location = response.get("location", {})
-        lat = location.get("latitude", 0)
-        lng = location.get("longitude", 0)
+        lat = location.get("latitude") or None
+        lng = location.get("longitude") or None
 
         display_name = response.get("displayName", {})
         if isinstance(display_name, dict):

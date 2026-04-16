@@ -240,9 +240,17 @@ def serialize_place_detail(
     out["updated_at"] = place.created_at.isoformat() if place.created_at else None
 
     if include_related:
-        nearby_with_dist = places_db.get_nearby_places(
-            place.lat, place.lng, NEARBY_RADIUS_KM, place.place_code, session, limit=NEARBY_LIMIT
-        )
+        if place.lat is not None and place.lng is not None:
+            nearby_with_dist = places_db.get_nearby_places(
+                place.lat,
+                place.lng,
+                NEARBY_RADIUS_KM,
+                place.place_code,
+                session,
+                limit=NEARBY_LIMIT,
+            )
+        else:
+            nearby_with_dist = []
         nearby_places = [p for _, p in nearby_with_dist]
 
         similar_places = session.exec(

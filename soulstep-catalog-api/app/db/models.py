@@ -123,8 +123,8 @@ class Place(SQLModel, table=True):
     name: str = Field(index=True)
     religion: str = Field(index=True)  # islam, hinduism, christianity
     place_type: str = Field(index=True)
-    lat: float
-    lng: float
+    lat: float | None = None
+    lng: float | None = None
     address: str
     opening_hours: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
     utc_offset_minutes: int | None = None  # e.g., 240 for UTC+4 (UAE), 330 for UTC+5:30 (India)

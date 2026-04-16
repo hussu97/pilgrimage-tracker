@@ -4,6 +4,24 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-16] — Backend Data Quality Fixes (B4 + B5)
+
+### Backend
+- **`app/db/models.py`** — `Place.lat` and `Place.lng` are now nullable (`float | None`); removes the (0.0, 0.0) sentinel anti-pattern (B5)
+- **`app/models/schemas.py`** — `PlaceCreate.lat` / `PlaceCreate.lng` accept `None` (B5)
+- **`app/api/v1/place_serializers.py`** — guard `get_nearby_places` call when coordinates are `None`; returns empty nearby list (B5)
+- **`app/services/structured_data.py`** — `build_place_jsonld` only emits `geo` block when both `lat` and `lng` are set (B5)
+- **`app/api/v1/admin/places.py`** — `GET /api/v1/admin/places/data-quality` endpoint lists places with `null_coordinates`, `zero_coordinates`, or `unknown_religion` issues; positioned before `{place_code}` route to avoid route shadowing (B4)
+- **`migrations/versions/0028_nullable_coordinates.py`** — makes `lat`/`lng` nullable; backfills `(0.0, 0.0)` rows to `NULL` (B5)
+- **`tests/test_b4_b5_data_quality.py`** — 10 new tests covering nullable coordinates, geo JSON-LD guard, and data-quality endpoint
+
+### Scraper API
+- **`app/pipeline/place_quality.py`** — added `VALID_SACRED_GMAPS_TYPES` frozenset and `is_sacred_site(raw_data)` function to filter non-sacred places at the sync gate (B4)
+- **`app/collectors/gmaps.py`** — changed `lat`/`lng` defaults from `0` to `None` so missing coordinates are not stored as `(0.0, 0.0)` (B5)
+- **`tests/test_sacred_site_filter.py`** — 19 new tests for `is_sacred_site()` including case-insensitivity, fallback to `types` list, and backwards-compat for empty raw_data
+
+---
+
 ## [2026-04-16] — SSR Migration: SEO / GEO / AdSense Architecture
 
 ### Frontend (web)

@@ -275,8 +275,8 @@ class PlaceCreate(BaseModel):
     name: str
     religion: Religion
     place_type: str
-    lat: float
-    lng: float
+    lat: float | None = None
+    lng: float | None = None
     address: str
     opening_hours: dict | None = None
     utc_offset_minutes: int | None = None

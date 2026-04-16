@@ -58,12 +58,14 @@ def build_place_jsonld(
         "additionalType": "https://schema.org/TouristAttraction",
         "name": translated_name or place.name,
         "url": place_url,
-        "geo": {
+    }
+
+    if place.lat and place.lng:
+        schema["geo"] = {
             "@type": "GeoCoordinates",
             "latitude": place.lat,
             "longitude": place.lng,
-        },
-    }
+        }
 
     if place.address:
         # Best-effort address decomposition (split at last comma for addressLocality)
