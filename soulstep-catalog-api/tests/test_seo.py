@@ -583,16 +583,38 @@ class TestGenerateSlug:
         # The Google Places ID characters (ChIJ, uppercase hex) must not appear
         assert "chij" not in slug.lower() or slug.startswith("masjid")
 
-    def test_no_readable_name_returns_short_clean_id(self, db_session):
-        """Place with no useful name → short clean id, no uppercase."""
+    def test_non_ascii_name_uses_type_city_slug(self, db_session):
+        """Arabic or non-ASCII name → type+city slug with keyword value, no place_code hash."""
         from app.services.seo_generator import generate_slug
 
-        place = self._make_place("gplc_ChIJABCDEF0001", "")
+        # Arabic name that slugifies to empty; city="Dubai" is ASCII and clean
+        place = self._make_place("gplc_ChIJABCDEF0001", "مسجد الرحمن", city="Dubai")
         slug = generate_slug(place, db_session)
 
         assert slug  # not empty
         assert slug == slug.lower()
         assert " " not in slug
+        # Should use place_type + city, not a raw place_code hash
+        assert "mosque" in slug
+        assert "dubai" in slug
+        # Must NOT leak any part of the Google Place ID
+        assert "gplc" not in slug
+        assert "chiij" not in slug.lower()
+
+    def test_empty_name_without_city_uses_type(self, db_session):
+        """Empty name, city has digits → falls back to place_type alone + short hash."""
+        from app.services.seo_generator import generate_slug
+
+        place = self._make_place("gplc_ChIJABCDEF0002", "", city="268 Test Rd")
+        slug = generate_slug(place, db_session)
+
+        assert slug  # not empty
+        assert slug == slug.lower()
+        assert " " not in slug
+        # Should start with place_type slug
+        assert slug.startswith("mosque")
+        # Must NOT contain the street number
+        assert "268" not in slug
 
     def test_city_with_digits_not_used_for_disambiguation(self, db_session):
         """If city looks like a street address (contains digits), skip city disambiguation."""
@@ -616,6 +638,80 @@ class TestGenerateSlug:
         # Should NOT use the street address as a meaningful city component
         assert "268" not in slug
         assert "tottenham" not in slug or slug.startswith("mosque")
+
+
+# ── backfill_image_alt_texts ──────────────────────────────────────────────────
+
+
+class TestBackfillImageAltTexts:
+    """backfill_image_alt_texts should populate null alt_text and skip existing ones."""
+
+    def _make_place(self, place_code: str, name: str):
+        from app.db.models import Place
+
+        return Place(
+            place_code=place_code,
+            name=name,
+            religion="islam",
+            place_type="mosque",
+            lat=25.2,
+            lng=55.3,
+            address="Test St, Dubai",
+            city="Dubai",
+        )
+
+    def test_populates_null_alt_texts(self, db_session):
+        """Images with null alt_text get a generated alt text."""
+        from app.db.models import PlaceImage
+        from app.services.seo_generator import backfill_image_alt_texts
+
+        place = self._make_place("gplc_alt001", "Grand Mosque")
+        db_session.add(place)
+        img = PlaceImage(
+            place_code="gplc_alt001", url="https://example.com/img.jpg", display_order=0
+        )
+        db_session.add(img)
+        db_session.commit()
+
+        updated = backfill_image_alt_texts(place, db_session)
+
+        assert updated == 1
+        db_session.refresh(img)
+        assert img.alt_text is not None
+        assert "Grand Mosque" in img.alt_text
+
+    def test_skips_already_set_alt_texts(self, db_session):
+        """Images that already have alt_text are not overwritten."""
+        from app.db.models import PlaceImage
+        from app.services.seo_generator import backfill_image_alt_texts
+
+        place = self._make_place("gplc_alt002", "Al Noor Mosque")
+        db_session.add(place)
+        img = PlaceImage(
+            place_code="gplc_alt002",
+            url="https://example.com/img2.jpg",
+            display_order=0,
+            alt_text="Already set",
+        )
+        db_session.add(img)
+        db_session.commit()
+
+        updated = backfill_image_alt_texts(place, db_session)
+
+        assert updated == 0
+        db_session.refresh(img)
+        assert img.alt_text == "Already set"
+
+    def test_returns_zero_when_no_images(self, db_session):
+        """No images → returns 0."""
+        from app.services.seo_generator import backfill_image_alt_texts
+
+        place = self._make_place("gplc_alt003", "Empty Place")
+        db_session.add(place)
+        db_session.commit()
+
+        updated = backfill_image_alt_texts(place, db_session)
+        assert updated == 0
 
 
 # ── sitemap city quality filter ───────────────────────────────────────────────

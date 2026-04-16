@@ -707,6 +707,12 @@ export interface RegenSlugsResponse {
   errors: number;
 }
 
+export interface RegenAltTextsResponse {
+  images_updated: number;
+  places_processed: number;
+  errors: number;
+}
+
 // SEO Templates & Labels
 export interface SEOTemplate {
   id: number;

@@ -89,7 +89,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _SITEMAP_LIMIT = 50_000  # Standard sitemap URL cap
-_SUPPORTED_LANGS = ("en", "ar", "hi")
+_SUPPORTED_LANGS = ("en", "ar", "hi", "te", "ml")
 
 # Sitemap XML namespaces
 _NS = "http://www.sitemaps.org/schemas/sitemap/0.9"

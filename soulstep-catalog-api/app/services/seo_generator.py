@@ -10,6 +10,7 @@ place data changes (if not manually edited).
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 import unicodedata
@@ -22,6 +23,7 @@ from sqlmodel import Session, func, select
 from app.db import content_translations as ct_db
 from app.db.models import (
     Place,
+    PlaceImage,
     PlaceSEO,
     PlaceSEOTranslation,
     SEOContentTemplate,
@@ -188,12 +190,17 @@ def generate_slug(place: Place, session: Session) -> str:
     """
     base = _slugify(place.name)
     if not base:
-        # No readable name — use a short clean identifier, no keyword value but valid URL
-        return _slugify(place.place_code)[-12:] or "place"
+        # Name is non-ASCII (e.g., Arabic) — build a keyword slug from place_type + city
+        # so the URL carries SEO value rather than a meaningless code hash.
+        type_slug = _slugify(place.place_type or "") or "place"
+        city_slug_fb = _slugify(place.city or "")
+        if city_slug_fb and not re.search(r"\d", city_slug_fb) and len(city_slug_fb) <= 40:
+            base = f"{type_slug}-{city_slug_fb}"
+        else:
+            base = type_slug
 
-    # Short 8-char clean identifier derived from the place code (no "plc_"/"gplc_" prefix)
-    raw_id = place.place_code.replace("gplc_", "").replace("plc_", "")
-    short_id = _slugify(raw_id)[:8]
+    # Stable 6-char hex derived from place_code — no Google Place ID structure exposed.
+    short_id = hashlib.md5(place.place_code.encode()).hexdigest()[:6]
 
     def _taken(slug: str) -> bool:
         return bool(
@@ -662,6 +669,32 @@ def generate_image_alt_text(
     return f"{name} – {religion_label} {type_label}"
 
 
+def backfill_image_alt_texts(place: Place, session: Session) -> int:
+    """Generate and persist English alt text for all images of a place that have none.
+
+    Skips images that already have alt_text set.  Returns the count updated.
+    """
+    images = session.exec(
+        select(PlaceImage).where(
+            PlaceImage.place_code == place.place_code,
+            PlaceImage.alt_text.is_(None),  # type: ignore[arg-type]
+        )
+    ).all()
+
+    updated = 0
+    for img in images:
+        alt = generate_image_alt_text(place, display_order=img.display_order or 0, session=session)
+        img.alt_text = alt
+        session.add(img)
+        updated += 1
+
+    if updated:
+        session.commit()
+        logger.debug("Backfilled alt text for %d image(s) on %s", updated, place.place_code)
+
+    return updated
+
+
 def _truthy(value: Any) -> bool | None:
     """Return True/False from attribute value, or None if missing."""
     if value is None:
@@ -829,5 +862,8 @@ def generate_all_langs(
             )
         else:
             logger.debug("Skipping %s SEO for %s — no translated name", lang, place.place_code)
+
+    # Backfill image alt text for any images that still have none.
+    backfill_image_alt_texts(place, session)
 
     return results

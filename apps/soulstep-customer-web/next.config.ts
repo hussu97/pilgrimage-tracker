@@ -7,6 +7,18 @@ const backendOrigin =
     : process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.soul-step.org';
 
 const nextConfig: NextConfig = {
+  // Canonical domain: soul-step.org (no www). Redirect www permanently.
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.soul-step.org' }],
+        destination: 'https://soul-step.org/:path*',
+        permanent: true,
+      },
+    ];
+  },
+
   // Rewrite rules:
   //   /sitemap.xml, /feed.xml, /feed.atom → internal Next.js route handlers (all envs)
   //   /llms.txt, /openapi.json, /.well-known/*, /share/* → backend proxy (all envs)

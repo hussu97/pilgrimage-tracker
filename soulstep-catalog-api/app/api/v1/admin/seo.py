@@ -37,6 +37,7 @@ from app.db import reviews as reviews_db
 from app.db.models import (
     AICrawlerLog,
     Place,
+    PlaceImage,
     PlaceSEO,
     PlaceSEOTranslation,
     SEOContentTemplate,
@@ -500,6 +501,12 @@ class RegenSlugsResponse(BaseModel):
     errors: int
 
 
+class RegenAltTextsResponse(BaseModel):
+    images_updated: int
+    places_processed: int
+    errors: int
+
+
 @router.post("/seo/regen-slugs", response_model=RegenSlugsResponse, tags=["admin-seo"])
 def regen_all_slugs(
     admin: AdminDep,
@@ -541,6 +548,56 @@ def regen_all_slugs(
         errors,
     )
     return RegenSlugsResponse(updated=updated, unchanged=unchanged, errors=errors)
+
+
+@router.post("/seo/regen-alt-texts", response_model=RegenAltTextsResponse, tags=["admin-seo"])
+def regen_all_alt_texts(
+    admin: AdminDep,
+    session: SessionDep,
+) -> RegenAltTextsResponse:
+    """Backfill English alt text for every place image that has none.
+
+    Only images with ``alt_text IS NULL`` are touched.  Use this once after the
+    image-alt-text generation was added to backfill existing records.
+    """
+    # Fetch every place that has at least one image with null alt_text.
+    place_codes_with_null = session.exec(
+        select(PlaceImage.place_code).where(PlaceImage.alt_text.is_(None)).distinct()  # type: ignore[arg-type]
+    ).all()
+
+    places = {
+        p.place_code: p
+        for p in session.exec(
+            select(Place).where(Place.place_code.in_(place_codes_with_null))
+        ).all()  # type: ignore[attr-defined]
+    }
+
+    images_updated = places_processed = errors = 0
+    for place_code in place_codes_with_null:
+        place = places.get(place_code)
+        if place is None:
+            errors += 1
+            continue
+        try:
+            count = seo_generator.backfill_image_alt_texts(place, session)
+            images_updated += count
+            places_processed += 1
+        except Exception as exc:
+            logger.error("Alt-text regen failed for %s: %s", place_code, exc)
+            errors += 1
+
+    logger.info(
+        "Admin %s regen-alt-texts: images_updated=%d places=%d errors=%d",
+        admin.user_code,
+        images_updated,
+        places_processed,
+        errors,
+    )
+    return RegenAltTextsResponse(
+        images_updated=images_updated,
+        places_processed=places_processed,
+        errors=errors,
+    )
 
 
 # ── Template CRUD ─────────────────────────────────────────────────────────────

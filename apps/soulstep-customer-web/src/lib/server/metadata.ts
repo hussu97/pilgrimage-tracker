@@ -341,6 +341,32 @@ const STATIC_META = {
       siteName: SITE_NAME,
     },
   },
+  places: {
+    title: 'Sacred Sites — Browse All Places',
+    description:
+      'Browse 1,900+ verified mosques, temples, churches, gurdwaras, synagogues, and sacred sites worldwide. Filter by religion, city, and rating on SoulStep.',
+    alternates: { canonical: `${SITE_URL}/places` },
+    openGraph: {
+      type: 'website' as const,
+      title: 'Sacred Sites — Browse All Places | SoulStep',
+      description: 'Browse 1,900+ verified sacred sites worldwide.',
+      url: `${SITE_URL}/places`,
+      siteName: SITE_NAME,
+    },
+  },
+  explore: {
+    title: 'Explore Sacred Sites by City',
+    description:
+      'Explore mosques, temples, churches, and sacred sites by city. Discover spiritual destinations across the Middle East, South Asia, and beyond on SoulStep.',
+    alternates: { canonical: `${SITE_URL}/explore` },
+    openGraph: {
+      type: 'website' as const,
+      title: 'Explore Sacred Sites by City | SoulStep',
+      description: 'Find places of worship by city and country on SoulStep.',
+      url: `${SITE_URL}/explore`,
+      siteName: SITE_NAME,
+    },
+  },
 } satisfies Record<string, Metadata>;
 
 export function buildStaticMetadata(key: keyof typeof STATIC_META): Metadata {

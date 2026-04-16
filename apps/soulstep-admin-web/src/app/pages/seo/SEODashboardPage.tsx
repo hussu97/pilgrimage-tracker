@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { getSEOStats, listSEOPlaces, bulkGenerateSEO, regenSlugs } from "@/lib/api/admin";
-import type { SEOStats, SEOListItem, RegenSlugsResponse } from "@/lib/api/types";
+import { getSEOStats, listSEOPlaces, bulkGenerateSEO, regenSlugs, regenAltTexts } from "@/lib/api/admin";
+import type { SEOStats, SEOListItem, RegenSlugsResponse, RegenAltTextsResponse } from "@/lib/api/types";
 import { DataTable } from "@/components/shared/DataTable";
 import { Pagination } from "@/components/shared/Pagination";
 import { SearchInput } from "@/components/shared/SearchInput";
@@ -23,6 +23,8 @@ export function SEODashboardPage() {
   const [generating, setGenerating] = useState(false);
   const [regenningSlug, setRegenningSlug] = useState(false);
   const [regenSlugResult, setRegenSlugResult] = useState<RegenSlugsResponse | null>(null);
+  const [regenningAlt, setRegenningAlt] = useState(false);
+  const [regenAltResult, setRegenAltResult] = useState<RegenAltTextsResponse | null>(null);
   const [selectedLangs, setSelectedLangs] = useState<string[]>(["en"]);
   const [search, setSearch] = useState("");
   const [religion, setReligion] = useState("");
@@ -72,6 +74,18 @@ export function SEODashboardPage() {
       void load();
     } finally {
       setRegenningSlug(false);
+    }
+  };
+
+  const handleRegenAltTexts = async () => {
+    if (!window.confirm("Backfill image alt text for all places with missing alt text? Only null values will be updated.")) return;
+    setRegenningAlt(true);
+    setRegenAltResult(null);
+    try {
+      const result = await regenAltTexts();
+      setRegenAltResult(result);
+    } finally {
+      setRegenningAlt(false);
     }
   };
 
@@ -178,11 +192,19 @@ export function SEODashboardPage() {
           </button>
           <button
             onClick={handleRegenSlugs}
-            disabled={regenningSlug || generating}
+            disabled={regenningSlug || regenningAlt || generating}
             className="flex items-center gap-2 px-3 py-2 border border-input-border dark:border-dark-border text-text-main dark:text-white rounded-lg text-sm font-medium hover:bg-background-light dark:hover:bg-dark-bg disabled:opacity-50 transition-colors"
           >
             <Link size={14} className={regenningSlug ? "animate-spin" : ""} />
             {regenningSlug ? "Regenerating…" : "Regen Slugs"}
+          </button>
+          <button
+            onClick={handleRegenAltTexts}
+            disabled={regenningAlt || regenningSlug || generating}
+            className="flex items-center gap-2 px-3 py-2 border border-input-border dark:border-dark-border text-text-main dark:text-white rounded-lg text-sm font-medium hover:bg-background-light dark:hover:bg-dark-bg disabled:opacity-50 transition-colors"
+          >
+            <PenLine size={14} className={regenningAlt ? "animate-spin" : ""} />
+            {regenningAlt ? "Updating…" : "Regen Alt Texts"}
           </button>
           <button
             onClick={handleBulkGenerate}
@@ -213,6 +235,32 @@ export function SEODashboardPage() {
           </div>
           <div className="h-2 bg-background-light dark:bg-dark-bg rounded-full overflow-hidden">
             {regenningSlug ? (
+              <div className="h-full bg-primary rounded-full w-1/3 animate-pulse" />
+            ) : (
+              <div className="h-full bg-green-500 rounded-full transition-all duration-500" style={{ width: "100%" }} />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Alt text regen progress / result */}
+      {(regenningAlt || regenAltResult) && (
+        <div className="bg-white dark:bg-dark-surface rounded-lg border border-input-border dark:border-dark-border p-4 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-text-main dark:text-white flex items-center gap-2">
+              <PenLine size={13} /> Image Alt Text Regeneration
+            </span>
+            {regenAltResult && (
+              <span className="text-text-secondary dark:text-dark-text-secondary text-xs">
+                {regenAltResult.images_updated} images updated · {regenAltResult.places_processed} places
+                {regenAltResult.errors > 0 && (
+                  <span className="text-red-500 ml-1">· {regenAltResult.errors} errors</span>
+                )}
+              </span>
+            )}
+          </div>
+          <div className="h-2 bg-background-light dark:bg-dark-bg rounded-full overflow-hidden">
+            {regenningAlt ? (
               <div className="h-full bg-primary rounded-full w-1/3 animate-pulse" />
             ) : (
               <div className="h-full bg-green-500 rounded-full transition-all duration-500" style={{ width: "100%" }} />
