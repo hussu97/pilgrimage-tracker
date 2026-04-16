@@ -1,14 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { getSEOStats, listSEOPlaces, bulkGenerateSEO } from "@/lib/api/admin";
-import type { SEOStats, SEOListItem } from "@/lib/api/types";
+import { getSEOStats, listSEOPlaces, bulkGenerateSEO, regenSlugs } from "@/lib/api/admin";
+import type { SEOStats, SEOListItem, RegenSlugsResponse } from "@/lib/api/types";
 import { DataTable } from "@/components/shared/DataTable";
 import { Pagination } from "@/components/shared/Pagination";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { StatCard } from "@/components/shared/StatCard";
 import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
-import { BarChart2, CheckCircle, AlertCircle, PenLine, RefreshCw, Globe, Clock } from "lucide-react";
+import { BarChart2, CheckCircle, AlertCircle, PenLine, RefreshCw, Globe, Clock, Link } from "lucide-react";
 import type { Column } from "@/components/shared/DataTable";
 
 const ALL_LANGS = ["en", "ar", "hi", "te", "ml"];
@@ -21,6 +21,8 @@ export function SEODashboardPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [regenningSlug, setRegenningSlug] = useState(false);
+  const [regenSlugResult, setRegenSlugResult] = useState<RegenSlugsResponse | null>(null);
   const [selectedLangs, setSelectedLangs] = useState<string[]>(["en"]);
   const [search, setSearch] = useState("");
   const [religion, setReligion] = useState("");
@@ -58,6 +60,19 @@ export function SEODashboardPage() {
       }
       return [...prev, lang];
     });
+  };
+
+  const handleRegenSlugs = async () => {
+    if (!window.confirm("Regenerate clean URL slugs for all places? Only the slug field will be changed — SEO content is untouched.")) return;
+    setRegenningSlug(true);
+    setRegenSlugResult(null);
+    try {
+      const result = await regenSlugs();
+      setRegenSlugResult(result);
+      void load();
+    } finally {
+      setRegenningSlug(false);
+    }
   };
 
   const handleBulkGenerate = async () => {
@@ -162,8 +177,16 @@ export function SEODashboardPage() {
             <Globe size={14} /> Templates
           </button>
           <button
+            onClick={handleRegenSlugs}
+            disabled={regenningSlug || generating}
+            className="flex items-center gap-2 px-3 py-2 border border-input-border dark:border-dark-border text-text-main dark:text-white rounded-lg text-sm font-medium hover:bg-background-light dark:hover:bg-dark-bg disabled:opacity-50 transition-colors"
+          >
+            <Link size={14} className={regenningSlug ? "animate-spin" : ""} />
+            {regenningSlug ? "Regenerating…" : "Regen Slugs"}
+          </button>
+          <button
             onClick={handleBulkGenerate}
-            disabled={generating}
+            disabled={generating || regenningSlug}
             className="flex items-center gap-2 px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
             <RefreshCw size={14} className={generating ? "animate-spin" : ""} />
@@ -171,6 +194,32 @@ export function SEODashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* Regen slugs progress / result */}
+      {(regenningSlug || regenSlugResult) && (
+        <div className="bg-white dark:bg-dark-surface rounded-lg border border-input-border dark:border-dark-border p-4 space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-text-main dark:text-white flex items-center gap-2">
+              <Link size={13} /> Slug Regeneration
+            </span>
+            {regenSlugResult && (
+              <span className="text-text-secondary dark:text-dark-text-secondary text-xs">
+                {regenSlugResult.updated} updated · {regenSlugResult.unchanged} unchanged
+                {regenSlugResult.errors > 0 && (
+                  <span className="text-red-500 ml-1">· {regenSlugResult.errors} errors</span>
+                )}
+              </span>
+            )}
+          </div>
+          <div className="h-2 bg-background-light dark:bg-dark-bg rounded-full overflow-hidden">
+            {regenningSlug ? (
+              <div className="h-full bg-primary rounded-full w-1/3 animate-pulse" />
+            ) : (
+              <div className="h-full bg-green-500 rounded-full transition-all duration-500" style={{ width: "100%" }} />
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Language selector */}
       <div className="flex items-center gap-2 flex-wrap">

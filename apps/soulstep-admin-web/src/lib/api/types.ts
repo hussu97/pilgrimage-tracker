@@ -701,6 +701,12 @@ export interface GenerateResponse {
   lang_errors: Record<string, number>;
 }
 
+export interface RegenSlugsResponse {
+  updated: number;
+  unchanged: number;
+  errors: number;
+}
+
 // SEO Templates & Labels
 export interface SEOTemplate {
   id: number;

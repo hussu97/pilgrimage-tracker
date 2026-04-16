@@ -48,6 +48,7 @@ import type {
   SEODetail,
   PatchSEOBody,
   GenerateResponse,
+  RegenSlugsResponse,
   SEOTemplate,
   PatchTemplateBody,
   SEOLabelEntry,
@@ -492,6 +493,11 @@ export async function bulkGenerateSEO(body: {
   langs?: string[];
 }): Promise<GenerateResponse> {
   const res = await apiClient.post<GenerateResponse>("/admin/seo/generate", body);
+  return res.data;
+}
+
+export async function regenSlugs(): Promise<RegenSlugsResponse> {
+  const res = await apiClient.post<RegenSlugsResponse>("/admin/seo/regen-slugs");
   return res.data;
 }
 
