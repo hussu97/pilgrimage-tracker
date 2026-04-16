@@ -1,3 +1,6 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import {
   AuthProvider,
   FeedbackProvider,
@@ -7,17 +10,32 @@ import {
 } from '@/app/providers';
 import { COLORS } from '@/lib/colors';
 import { LocationProvider } from '@/app/contexts/LocationContext';
-import { AppRoutes } from '@/app/routes';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { AuthGateProvider } from '@/components/auth/AuthGateProvider';
 import { AdProvider } from '@/components/ads/AdProvider';
 import ConsentBanner from '@/components/consent/ConsentBanner';
 import { AnalyticsProviderConnected } from '@/components/analytics/AnalyticsProviderConnected';
 
-/** Renders children only after initial i18n (locale + translations) has loaded; shows premium splash until then. */
+/**
+ * Renders children only after initial i18n (locale + translations) has loaded.
+ *
+ * SSR behaviour: during the server render (and first hydration frame) children
+ * are rendered directly so the HTML contains real page content — this is what
+ * Google AdSense and search crawlers need.  The animated splash is shown only
+ * on the client, after the component mounts, while translations are still
+ * loading.  This avoids blank-page SSR output and prevents hydration mismatches.
+ */
 function I18nReadyGate({ children }: { children: React.ReactNode }) {
   const { ready } = useI18n();
-  if (!ready) {
+  // Start as false — becomes true after first client-side mount.
+  // During SSR and the initial hydration frame this stays false, so both server
+  // and first-client renders produce identical output (children).
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (isClient && !ready) {
     return (
       <>
         <style>{`
@@ -217,7 +235,8 @@ function I18nReadyGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-export default function App() {
+/** Root app component that wraps all providers around Next.js page children. */
+export default function App({ children }: { children: React.ReactNode }) {
   return (
     <ErrorBoundary>
       <ThemeProvider>
@@ -229,7 +248,7 @@ export default function App() {
                   <FeedbackProvider>
                     <LocationProvider>
                       <AuthGateProvider>
-                        <AppRoutes />
+                        {children}
                         <ConsentBanner />
                       </AuthGateProvider>
                     </LocationProvider>

@@ -1,5 +1,7 @@
+'use client';
+
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from '@/lib/navigation';
 import { useI18n } from '@/app/providers';
 import { forgotPassword } from '@/lib/api/client';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';

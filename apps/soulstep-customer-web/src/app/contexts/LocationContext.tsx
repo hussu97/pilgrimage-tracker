@@ -1,3 +1,5 @@
+'use client';
+
 import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from 'react';
 import { DEFAULT_LAT, DEFAULT_LNG } from '@/lib/constants';
 

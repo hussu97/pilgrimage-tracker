@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from '@/lib/navigation';
 import { useI18n } from '@/app/providers';
 import { getGroup, updateGroup, getGroupMembers, getPlaces } from '@/lib/api/client';
 import { useAuth } from '@/app/providers';

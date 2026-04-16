@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * AdProvider — context for ad rendering decisions.
  *
@@ -13,7 +15,7 @@ import { useAdConsent, type ConsentState } from './useAdConsent';
 import type { AdSlotName } from './ad-constants';
 
 const API_BASE = '';
-const ADSENSE_PUB_ID = import.meta.env.VITE_ADSENSE_PUBLISHER_ID ?? '';
+const ADSENSE_PUB_ID = process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID ?? '';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 

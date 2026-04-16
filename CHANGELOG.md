@@ -4,6 +4,26 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-16] — Migrate Customer Web to Next.js 15 (SSR)
+
+### Frontend (web)
+- **Next.js 15 migration** — replaced Vite + React SPA with Next.js 15 App Router; all pages now server-side render so Google AdSense and crawlers receive real HTML content instead of a blank `<div id="root">`
+- **App Router file structure** — created `app/` directory with `layout.tsx`, `page.tsx`, `not-found.tsx`, `AppClientShell.tsx`, `globals.css`, and a `(main)/` route group with one `page.tsx` per route (35 pages total)
+- **React Router compat shim** — added `src/lib/navigation.tsx` re-exporting `useNavigate`, `useParams`, `useLocation`, `useSearchParams`, `Navigate`, `Link` as Next.js wrappers; all 37 page/component files updated to import from `@/lib/navigation`
+- **SSR safety fixes** — added `typeof window === 'undefined'` guards to all `localStorage`/`sessionStorage`/`document`/`window` accesses in `useState` initializers and render-time code: `providers.tsx`, `useAdConsent.ts`, `useAnalytics.ts`, `cache.ts`, `theme.ts`, `searchHistory.ts`, `FeedbackPopup.tsx`, `Modal.tsx`
+- **I18nReadyGate** — changed to render children on the server and show the animated splash only after client mount (`isClient` state), preventing blank SSR output
+- **Env var rename** — `VITE_*` replaced with `NEXT_PUBLIC_*` across all source files and docs
+- **PostCSS config** — converted `postcss.config.js` to CJS `module.exports` format (required by Next.js)
+- **Service worker** — replaced `virtual:pwa-register` (Vite-only) with native Service Worker API in `sw-update.ts`
+- **Sentry** — changed `@sentry/react` import to `@sentry/nextjs` in `ErrorBoundary.tsx`
+- **Auth redirect** — replaced React Router `state={{ from }}` pattern with `?from=encodedPath` query param in `ProtectedRoute.tsx` and `Login.tsx`
+- **Edit review** — replaced navigation state with `?editReview=code` query param in `PlaceDetail.tsx` and `WriteReview.tsx`
+
+### Docs
+- Updated: web README (Next.js commands, env vars, directory structure), ENV_VARS.md (VITE_* → NEXT_PUBLIC_*), .env.example, ARCHITECTURE.md, PRODUCTION.md (Next.js build + Cloud Run deployment), CHANGELOG
+
+---
+
 ## [2026-04-16] — AdSense Compliance: Legal Pages, SEO, and Trust Signals
 
 ### Frontend (web)

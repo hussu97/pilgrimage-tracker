@@ -1,4 +1,6 @@
-import { Link } from 'react-router-dom';
+'use client';
+
+import { Link } from '@/lib/navigation';
 import { useI18n } from '@/app/providers';
 import { useHead } from '@/lib/hooks/useHead';
 

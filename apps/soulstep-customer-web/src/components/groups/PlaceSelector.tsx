@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useCallback } from 'react';
 import { useI18n } from '@/app/providers';
 import type { Place } from '@/lib/types';

@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import PlaceCardUnified from '@/components/places/PlaceCardUnified';
 import PlaceMapView from '@/components/places/PlaceMapView';

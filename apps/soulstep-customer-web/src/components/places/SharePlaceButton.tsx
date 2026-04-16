@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { shareUrl } from '@/lib/share';
 import { useI18n } from '@/app/providers';

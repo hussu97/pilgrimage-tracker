@@ -1,3 +1,5 @@
+'use client';
+
 import {
   createContext,
   useContext,
@@ -44,6 +46,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<User | null>(() => {
+    if (typeof window === 'undefined') return null;
     try {
       const s = localStorage.getItem(USER_KEY);
       return s ? JSON.parse(s) : null;
@@ -56,9 +59,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // across page reloads; we restore the in-memory token via the refresh endpoint on mount.
   const [token, setTokenState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [visitorCode, setVisitorCode] = useState<string | null>(() =>
-    localStorage.getItem(VISITOR_KEY),
-  );
+  const [visitorCode, setVisitorCode] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem(VISITOR_KEY);
+    } catch {
+      return null;
+    }
+  });
 
   const setUser = useCallback((u: User | null) => {
     setUserState(u);
@@ -207,6 +215,7 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function applyTheme(theme: Theme): boolean {
+  if (typeof window === 'undefined') return false;
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const dark = theme === 'dark' || (theme === 'system' && prefersDark);
   document.documentElement.classList.toggle('dark', dark);
@@ -215,14 +224,16 @@ function applyTheme(theme: Theme): boolean {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'system';
     try {
       const stored = localStorage.getItem(THEME_STORAGE_KEY);
       if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
     } catch {}
     return 'system';
   });
-  const [isDark, setIsDark] = useState(() =>
-    applyTheme(
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return applyTheme(
       (() => {
         try {
           const s = localStorage.getItem(THEME_STORAGE_KEY);
@@ -230,9 +241,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         } catch {}
         return 'system';
       })(),
-    ),
-  );
+    );
+  });
   const [units, setUnitsState] = useState<DistanceUnits>(() => {
+    if (typeof window === 'undefined') return 'km';
     try {
       const stored = localStorage.getItem(UNITS_STORAGE_KEY);
       if (stored === 'km' || stored === 'miles') return stored;

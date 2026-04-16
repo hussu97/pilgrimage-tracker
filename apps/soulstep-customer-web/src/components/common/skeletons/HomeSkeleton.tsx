@@ -1,3 +1,5 @@
+'use client';
+
 import { SkeletonBox, SkeletonText, SkeletonCircle } from '../Skeleton';
 import CarouselSkeleton from './CarouselSkeleton';
 

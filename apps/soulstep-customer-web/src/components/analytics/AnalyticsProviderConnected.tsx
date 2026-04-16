@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Connects AnalyticsProvider to the existing auth and ads contexts.
  * Must be placed inside both AuthProvider and AdProvider.

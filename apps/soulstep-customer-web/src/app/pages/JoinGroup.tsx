@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from '@/lib/navigation';
 import { useI18n, useFeedback } from '@/app/providers';
 import { getGroupByInviteCode, joinGroupByCode } from '@/lib/api/client';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';

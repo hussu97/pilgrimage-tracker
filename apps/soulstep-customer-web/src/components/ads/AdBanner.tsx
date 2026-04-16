@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * AdBanner — renders a Google AdSense ad unit.
  *
@@ -61,7 +63,7 @@ export default function AdBanner({ slot, format = 'auto', className = '' }: AdBa
         data-ad-slot={slotId}
         data-ad-format={format}
         data-full-width-responsive="true"
-        data-adtest={import.meta.env.DEV ? 'on' : undefined}
+        data-adtest={process.env.NODE_ENV !== 'production' ? 'on' : undefined}
       />
     </div>
   );

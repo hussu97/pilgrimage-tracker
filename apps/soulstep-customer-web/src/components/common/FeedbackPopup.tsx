@@ -1,3 +1,6 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { COLORS } from '@/lib/colors';
@@ -12,10 +15,15 @@ const CHECK_PATH = 'M6 13l4 4L18 7';
 const CROSS_PATH = 'M6 6l12 12M18 6L6 18';
 
 export default function FeedbackPopup({ visible, type, message }: FeedbackPopupProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   const isSuccess = type === 'success';
   const iconColor = isSuccess ? COLORS.openNow : COLORS.closedNow;
   const iconBg = isSuccess ? COLORS.openNowAlpha12 : COLORS.closedNowAlpha12;
   const path = isSuccess ? CHECK_PATH : CROSS_PATH;
+
+  if (!mounted) return null;
 
   return createPortal(
     <AnimatePresence>

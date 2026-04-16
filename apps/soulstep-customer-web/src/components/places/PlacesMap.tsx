@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * PlacesMap — vanilla Leaflet + leaflet.markercluster.
  *
@@ -13,7 +15,7 @@
  *   • reappearLayoutEffects finds a clean div and succeeds
  */
 import { useLayoutEffect, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '@/lib/navigation';
 import type { SearchLocation } from '@/lib/utils/searchHistory';
 import L from 'leaflet';
 import { COLORS } from '@/lib/colors';

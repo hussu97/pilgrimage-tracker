@@ -9,6 +9,7 @@ const STORAGE_KEY = 'search_history';
 const MAX_ITEMS = 10;
 
 export function getSearchHistory(): SearchLocation[] {
+  if (typeof window === 'undefined') return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];

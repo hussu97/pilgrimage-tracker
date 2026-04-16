@@ -1,3 +1,5 @@
+'use client';
+
 import { useI18n } from '@/app/providers';
 import type { NearbyPlace } from '@/lib/types/places';
 import type { Place } from '@/lib/types';

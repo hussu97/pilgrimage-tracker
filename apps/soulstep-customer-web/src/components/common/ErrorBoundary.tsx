@@ -1,6 +1,8 @@
+'use client';
+
 import type { ErrorInfo, ReactNode } from 'react';
 import { Component } from 'react';
-import * as Sentry from '@sentry/react';
+import * as Sentry from '@sentry/nextjs';
 import { I18nContext } from '@/app/providers';
 
 interface Props {

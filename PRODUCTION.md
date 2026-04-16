@@ -303,8 +303,7 @@ After the domain is live, all services and frontends should point to `https://ap
 | Service | Variable | Value |
 |---------|----------|-------|
 | Catalog API | `API_BASE_URL` | `https://api.soul-step.org` |
-| Customer Web | `VITE_API_URL` | `https://api.soul-step.org` |
-| Customer Web | `VITE_API_BASE_URL` | `https://api.soul-step.org` |
+| Customer Web | `NEXT_PUBLIC_API_BASE_URL` | `https://api.soul-step.org` |
 | Admin Web | `VITE_API_URL` | `https://api.soul-step.org` |
 | Admin Web | `API_PROXY_TARGET` (hybrid mode) | `https://api.soul-step.org` |
 | Mobile | `EXPO_PUBLIC_API_URL` | `https://api.soul-step.org` |
@@ -316,46 +315,50 @@ After the domain is live, all services and frontends should point to `https://ap
 
 ## 4. Deploy Web Frontend
 
-### Initialize Firebase Hosting
+The customer web app uses **Next.js 15** with server-side rendering (SSR). Pages that depend on dynamic URL params (e.g. `/places/[placeCode]`) require a Node.js server — deploy to Cloud Run.
 
-```bash
-npm install -g firebase-tools
-firebase login
-firebase init hosting
-```
-
-When prompted:
-- **Use an existing project** → select `PROJECT_ID`
-- **Public directory**: `apps/soulstep-customer-web/dist`
-- **Single-page app**: `Yes`
-- **Set up automatic builds with GitHub**: `No` (CI/CD handles this)
-- **Overwrite `dist/index.html`**: `No`
-
-`firebase.json` and `.firebaserc` are already checked in — skip `firebase init` if they exist.
-
-### Build and deploy
+### Build
 
 ```bash
 cd apps/soulstep-customer-web
-VITE_API_URL=https://api.soul-step.org npm run build
-cd ../..
-firebase deploy --only hosting:web
+NEXT_PUBLIC_ADSENSE_PUBLISHER_ID=ca-pub-xxx npm run build
 ```
 
-Your app is live at `https://PROJECT_ID.web.app`. Add this URL to `CORS_ORIGINS` on the API (see §3).
+### Deploy to Cloud Run
+
+```bash
+# Build the Docker image
+docker build -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/customer-web:latest \
+  apps/soulstep-customer-web/
+
+# Push
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/customer-web:latest
+
+# Deploy
+gcloud run deploy soulstep-customer-web \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/customer-web:latest \
+  --region REGION \
+  --allow-unauthenticated \
+  --set-env-vars "NEXT_PUBLIC_ADSENSE_PUBLISHER_ID=ca-pub-xxx" \
+  --min-instances 0 \
+  --max-instances 5 \
+  --memory 512Mi \
+  --port 3001
+```
+
+Your app is live at the Cloud Run URL. Add this URL to `CORS_ORIGINS` on the API (see §3).
 
 ### Custom domain
 
-Firebase console → **Hosting** → **Add custom domain** → follow DNS verification. TLS cert is provisioned automatically.
+Cloud Run → **Domain mappings** → Add custom domain `soul-step.org`. TLS cert is provisioned automatically.
 
-### Frontend VITE_* variables
+### Frontend NEXT_PUBLIC_* variables
 
-`VITE_*` variables are baked into the build at CI time. Store them as GitHub Actions secrets:
+`NEXT_PUBLIC_*` variables are baked into the build at CI time. Store them as GitHub Actions secrets:
 
 | Secret | Value |
 |---|---|
-| `VITE_API_URL` | `https://api.soul-step.org` |
-| `VITE_ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID |
+| `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID |
 
 ---
 

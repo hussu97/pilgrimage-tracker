@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from '@/lib/navigation';
 import { useAuth, useI18n } from '@/app/providers';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';

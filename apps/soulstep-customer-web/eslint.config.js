@@ -2,7 +2,6 @@ import js from '@eslint/js';
 import tsEslint from 'typescript-eslint';
 import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
-import reactRefreshPlugin from 'eslint-plugin-react-refresh';
 import prettierConfig from 'eslint-config-prettier';
 
 export default tsEslint.config(
@@ -17,7 +16,6 @@ export default tsEslint.config(
     plugins: {
       react: reactPlugin,
       'react-hooks': reactHooksPlugin,
-      'react-refresh': reactRefreshPlugin,
     },
     settings: {
       react: { version: 'detect' },
@@ -28,7 +26,6 @@ export default tsEslint.config(
       'react/prop-types': 'off',         // TypeScript handles this
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
 
       // TypeScript
       '@typescript-eslint/no-explicit-any': 'warn',
@@ -47,6 +44,6 @@ export default tsEslint.config(
 
   // Ignore built output and config files
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'postcss.config.js', 'tailwind.config.js'],
+    ignores: ['dist/**', '.next/**', 'node_modules/**', 'coverage/**', 'postcss.config.js', 'tailwind.config.js'],
   },
 );

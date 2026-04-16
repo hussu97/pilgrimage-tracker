@@ -1,5 +1,7 @@
+'use client';
+
 import { useState } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from '@/lib/navigation';
 import { useI18n } from '@/app/providers';
 import { resetPassword } from '@/lib/api/client';
 

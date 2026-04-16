@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from '@/lib/navigation';
 import { useI18n, useFeedback } from '@/app/providers';
 import { cn } from '@/lib/utils/cn';
 import {
@@ -166,11 +168,11 @@ function ReviewsSection({
                     <div className="flex items-center gap-1">
                       <Link
                         to={
-                          seoSlug
+                          (seoSlug
                             ? `/places/${placeCode}/${seoSlug}/review`
-                            : `/places/${placeCode}/review`
+                            : `/places/${placeCode}/review`) +
+                          `?editReview=${encodeURIComponent(r.review_code)}`
                         }
-                        state={{ edit: r }}
                         className="p-1.5 rounded-lg text-slate-300 hover:text-primary transition-colors"
                       >
                         <span className="material-symbols-outlined text-sm">edit</span>

@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * Umami Cloud analytics hook (web).
  *
@@ -19,7 +21,7 @@ declare global {
   }
 }
 
-const WEBSITE_ID = import.meta.env.VITE_UMAMI_WEBSITE_ID ?? '';
+const WEBSITE_ID = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ?? '';
 
 // ── Payload builder (exported for unit testing) ────────────────────────────
 
@@ -66,7 +68,7 @@ export function buildUmamiPayload(
 }
 
 export function isWebsiteIdConfigured(id = WEBSITE_ID): boolean {
-  return typeof id === 'string' && id.length > 0 && id !== '%VITE_UMAMI_WEBSITE_ID%';
+  return typeof id === 'string' && id.length > 0 && id !== '%NEXT_PUBLIC_UMAMI_WEBSITE_ID%';
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────

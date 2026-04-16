@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import type { Place } from '@/lib/types';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';

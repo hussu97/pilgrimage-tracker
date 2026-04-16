@@ -1,41 +1,39 @@
 /**
- * Service Worker update checker.
+ * Service Worker update checker for Next.js / next-pwa.
  *
- * Checks for new SW versions:
- *  - Every 60 seconds while the page is active
- *  - Immediately when the page regains visibility (tab switch / phone wake)
- *
- * When an update is found the new SW activates via skipWaiting (autoUpdate mode)
- * and the page reloads so the user always sees the latest build.
+ * With next-pwa the service worker is registered automatically via
+ * next.config.ts.  This module provides a lightweight helper that
+ * listens for new SW versions and reloads the page so users always
+ * see the latest build — matching the behaviour of the former
+ * vite-plugin-pwa autoUpdate mode.
  */
-import { registerSW } from 'virtual:pwa-register';
 
 const UPDATE_INTERVAL_MS = 60_000; // 1 minute
 
-export function initSWUpdater() {
-  const updateSW = registerSW({
-    immediate: true,
-    onRegisteredSW(_swUrl: string, registration: ServiceWorkerRegistration | undefined) {
-      if (!registration) return;
+export function initSWUpdater(): void {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
-      // Periodic check every 60 seconds
+  navigator.serviceWorker.ready
+    .then((registration) => {
+      // Periodic update check
       setInterval(() => {
-        registration.update();
+        registration.update().catch(() => {});
       }, UPDATE_INTERVAL_MS);
 
-      // Check when page regains visibility (tab switch, phone unlock)
+      // Re-check when the tab regains focus
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
-          registration.update();
+          registration.update().catch(() => {});
         }
       });
-    },
-    onNeedRefresh() {
-      // autoUpdate mode handles skipWaiting automatically;
-      // reload so the new assets take effect immediately.
-      window.location.reload();
-    },
-  });
+    })
+    .catch(() => {
+      // SW not available in this environment — ignore
+    });
 
-  return updateSW;
+  // When the controlling SW changes (i.e. a new version has activated),
+  // reload so the fresh assets take effect.
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload();
+  });
 }

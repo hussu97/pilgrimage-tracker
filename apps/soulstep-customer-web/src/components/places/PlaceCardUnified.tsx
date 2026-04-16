@@ -1,5 +1,7 @@
+'use client';
+
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from '@/lib/navigation';
 import type { Place } from '@/lib/types';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import { formatDistance } from '@/lib/utils/place-utils';

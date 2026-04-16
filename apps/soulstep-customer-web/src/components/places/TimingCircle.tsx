@@ -1,3 +1,5 @@
+'use client';
+
 import type { PlaceTiming } from '@/lib/types';
 import { cn } from '@/lib/utils/cn';
 

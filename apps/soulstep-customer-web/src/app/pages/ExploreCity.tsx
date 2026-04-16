@@ -1,5 +1,7 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from '@/lib/navigation';
 import { useHead } from '@/lib/hooks/useHead';
 import { useI18n } from '@/app/providers';
 import * as api from '@/lib/api/client';

@@ -1,5 +1,7 @@
+'use client';
+
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from '@/lib/navigation';
 import { getGroups, addPlaceToGroup } from '@/lib/api/client';
 import { useFeedback } from '@/app/providers';
 import type { Group } from '@/lib/types';

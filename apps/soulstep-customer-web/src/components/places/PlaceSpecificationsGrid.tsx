@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import type { PlaceSpecification } from '@/lib/types';
 import { cn } from '@/lib/utils/cn';

@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import type { Place } from '@/lib/types';
 import type { SearchLocation } from '@/lib/utils/searchHistory';
