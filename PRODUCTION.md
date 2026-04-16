@@ -686,29 +686,47 @@ These are set in `.github/workflows/deploy.yml` under `env:` — they are **not*
 
 ### Create the deploy service account
 
+CI uses **Workload Identity Federation** (keyless auth) — no JSON key is stored in GitHub. The `WIF_PROVIDER` and `SA_EMAIL` values are hardcoded in `deploy.yml`.
+
 ```bash
+# Create the service account
 gcloud iam service-accounts create github-deploy \
   --display-name "GitHub Actions deploy" \
   --project PROJECT_ID
 
 SA_EMAIL="github-deploy@PROJECT_ID.iam.gserviceaccount.com"
 
+# Grant required roles
 for ROLE in roles/run.admin roles/artifactregistry.writer roles/iam.serviceAccountUser roles/cloudbuild.builds.editor; do
   gcloud projects add-iam-policy-binding PROJECT_ID \
     --member="serviceAccount:${SA_EMAIL}" --role="${ROLE}"
 done
 
-# Export key and store as GitHub secret GCP_SA_KEY
-gcloud iam service-accounts keys create gcp-key.json --iam-account="${SA_EMAIL}"
-cat gcp-key.json   # copy → GitHub Actions secret
-rm gcp-key.json
+# Create a Workload Identity Pool and Provider for GitHub Actions
+gcloud iam workload-identity-pools create github-pool \
+  --project PROJECT_ID --location global \
+  --display-name "GitHub Actions pool"
+
+gcloud iam workload-identity-pools providers create-oidc github-provider \
+  --project PROJECT_ID --location global \
+  --workload-identity-pool github-pool \
+  --display-name "GitHub provider" \
+  --attribute-mapping "google.subject=assertion.sub,attribute.repository=assertion.repository" \
+  --issuer-uri "https://token.actions.githubusercontent.com"
+
+# Allow the GitHub repo to impersonate the service account
+gcloud iam service-accounts add-iam-policy-binding "${SA_EMAIL}" \
+  --project PROJECT_ID \
+  --role roles/iam.workloadIdentityUser \
+  --member "principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/attribute.repository/YOUR_GITHUB_ORG/YOUR_REPO"
 ```
+
+Copy the full provider resource name into `WIF_PROVIDER` in `deploy.yml` and update `SA_EMAIL` to match.
 
 ### Required GitHub secrets
 
 | Secret | Description |
 |---|---|
-| `GCP_SA_KEY` | Full JSON of the deploy service account key |
 | `VERCEL_TOKEN` | Vercel personal access token (Settings → Tokens) |
 | `VERCEL_ORG_ID` | Vercel team/org ID (from `.vercel/project.json` after `vercel link`) |
 | `VERCEL_PROJECT_ID_WEB` | Vercel project ID for `soulstep-customer-web` |
