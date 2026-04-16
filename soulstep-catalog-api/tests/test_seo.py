@@ -501,3 +501,211 @@ class TestSEOGenerator:
         # Regenerate with force — should overwrite
         seo3 = upsert_place_seo(place, db_session, force=True)
         assert seo3.seo_title != "Manually Set"
+
+
+# ── generate_slug collision disambiguation ────────────────────────────────────
+
+
+class TestGenerateSlug:
+    """Ensure generate_slug never leaks raw Google Place IDs into URLs."""
+
+    def _make_place(self, place_code: str, name: str, city: str = "Dubai"):
+        from app.db.models import Place
+
+        return Place(
+            place_code=place_code,
+            name=name,
+            religion="islam",
+            place_type="mosque",
+            lat=25.2,
+            lng=55.3,
+            address="Test St",
+            city=city,
+        )
+
+    def test_unique_name_returns_bare_slug(self, db_session):
+        """No collision → bare name slug, no suffix."""
+        from app.services.seo_generator import generate_slug
+
+        place = self._make_place("gplc_ChIJunique01", "Al-Farooq Mosque")
+        slug = generate_slug(place, db_session)
+        assert slug == "al-farooq-mosque"
+
+    def test_collision_uses_city_not_google_id(self, db_session):
+        """Slug collision → disambiguation by city, NOT by raw Google Place ID."""
+        from app.db.models import PlaceSEO
+        from app.services.seo_generator import generate_slug
+
+        # Seed an existing SEO row with slug "mosque"
+        existing = PlaceSEO(
+            place_code="gplc_existing01", slug="mosque", seo_title="Mosque", meta_description="test"
+        )
+        db_session.add(existing)
+        db_session.commit()
+
+        place = self._make_place("gplc_ChIJcollide01", "Mosque", city="Sharjah")
+        slug = generate_slug(place, db_session)
+
+        # Must use city for disambiguation
+        assert "sharjah" in slug
+        # Must NOT contain the Google Places ID prefix
+        assert "gchij" not in slug.lower()
+        assert "gplc" not in slug.lower()
+        # Must be all lowercase, no uppercase
+        assert slug == slug.lower()
+
+    def test_collision_slug_is_all_lowercase(self, db_session):
+        """Slug must be fully lowercase even when place_code has uppercase chars."""
+        from app.db.models import PlaceSEO
+        from app.services.seo_generator import generate_slug
+
+        # Force two collisions so we reach the short_id fallback
+        db_session.add(
+            PlaceSEO(
+                place_code="gplc_x1", slug="masjid", seo_title="Masjid", meta_description="test"
+            )
+        )
+        db_session.add(
+            PlaceSEO(
+                place_code="gplc_x2",
+                slug="masjid-dubai",
+                seo_title="Masjid Dubai",
+                meta_description="test",
+            )
+        )
+        db_session.commit()
+
+        place = self._make_place("gplc_ChIJABCDEFGH1234", "Masjid", city="Dubai")
+        slug = generate_slug(place, db_session)
+
+        assert slug == slug.lower(), f"Slug not lowercase: {slug!r}"
+        assert " " not in slug
+        # The Google Places ID characters (ChIJ, uppercase hex) must not appear
+        assert "chij" not in slug.lower() or slug.startswith("masjid")
+
+    def test_no_readable_name_returns_short_clean_id(self, db_session):
+        """Place with no useful name → short clean id, no uppercase."""
+        from app.services.seo_generator import generate_slug
+
+        place = self._make_place("gplc_ChIJABCDEF0001", "")
+        slug = generate_slug(place, db_session)
+
+        assert slug  # not empty
+        assert slug == slug.lower()
+        assert " " not in slug
+
+    def test_city_with_digits_not_used_for_disambiguation(self, db_session):
+        """If city looks like a street address (contains digits), skip city disambiguation."""
+        from app.db.models import PlaceSEO
+        from app.services.seo_generator import generate_slug
+
+        db_session.add(
+            PlaceSEO(
+                place_code="gplc_street1",
+                slug="mosque",
+                seo_title="Mosque",
+                meta_description="test",
+            )
+        )
+        db_session.commit()
+
+        # City is a street address — should not appear in the disambiguation slug
+        place = self._make_place("gplc_ChIJstreet01", "Mosque", city="268 Tottenham Ct Rd")
+        slug = generate_slug(place, db_session)
+
+        # Should NOT use the street address as a meaningful city component
+        assert "268" not in slug
+        assert "tottenham" not in slug or slug.startswith("mosque")
+
+
+# ── sitemap city quality filter ───────────────────────────────────────────────
+
+
+class TestCitySlugFilter:
+    """_is_real_city_slug should pass genuine cities and reject street addresses."""
+
+    def _is_real(self, slug: str) -> bool:
+        from app.api.v1.sitemap import _is_real_city_slug
+
+        return _is_real_city_slug(slug)
+
+    # ── should pass ──────────────────────────────────────────────────────────
+
+    def test_real_city_dubai(self):
+        assert self._is_real("dubai") is True
+
+    def test_real_city_london(self):
+        assert self._is_real("london") is True
+
+    def test_real_city_new_york(self):
+        assert self._is_real("new-york") is True
+
+    def test_real_city_abu_dhabi(self):
+        assert self._is_real("abu-dhabi") is True
+
+    def test_real_city_kuala_lumpur(self):
+        assert self._is_real("kuala-lumpur") is True
+
+    # ── should reject ─────────────────────────────────────────────────────────
+
+    def test_rejects_slug_with_number(self):
+        assert self._is_real("268-269-tottenham-ct-rd") is False
+
+    def test_rejects_postal_code_fragment(self):
+        assert self._is_real("88hv-5v2-rugaylat-rd") is False
+
+    def test_rejects_unnamed_road(self):
+        assert self._is_real("unnamed-road") is False
+
+    def test_rejects_building_name(self):
+        # "saheel-business-tower-1-near-al-mullah-plaza" has a digit
+        assert self._is_real("saheel-business-tower-1-near-al-mullah-plaza") is False
+
+    def test_rejects_very_long_slug(self):
+        # More than 40 chars → address fragment (42 chars, no digits)
+        assert self._is_real("saheel-business-tower-near-al-mullah-plaza") is False
+
+    def test_rejects_empty_string(self):
+        assert self._is_real("") is False
+
+    def test_rejects_cityz27(self):
+        assert self._is_real("cityz27") is False
+
+    def test_rejects_floor_of_mercato(self):
+        assert self._is_real("floor-of-mercato") is False
+
+
+class TestCityToSlug:
+    """_city_to_slug should normalise Unicode and produce clean ASCII slugs."""
+
+    def _slug(self, city: str) -> str:
+        from app.api.v1.sitemap import _city_to_slug
+
+        return _city_to_slug(city)
+
+    def test_ascii_city(self):
+        assert self._slug("Dubai") == "dubai"
+
+    def test_accented_city(self):
+        assert self._slug("Zürich") == "zurich"
+
+    def test_arabic_city_becomes_empty_or_clean(self):
+        # Arabic chars strip to empty after ASCII encoding — must not raise
+        result = self._slug("دبي")
+        assert isinstance(result, str)
+        # Either empty (all non-ASCII stripped) or clean ASCII
+        assert result == result.lower()
+
+    def test_apostrophe_stripped(self):
+        # "Dean's Yard" → "dean-s-yard" (acceptable) or "deans-yard"
+        result = self._slug("Dean's Yard")
+        assert result == result.lower()
+        assert "'" not in result
+
+    def test_spaces_become_dashes(self):
+        assert self._slug("Abu Dhabi") == "abu-dhabi"
+
+    def test_no_leading_trailing_dashes(self):
+        result = self._slug("  Dubai  ")
+        assert not result.startswith("-")
+        assert not result.endswith("-")

@@ -13,6 +13,7 @@ Routes registered in main.py:
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime
 from xml.etree import ElementTree as ET
 
@@ -37,9 +38,51 @@ _RELIGIONS = [
 
 
 def _city_to_slug(city: str) -> str:
-    import re
+    import unicodedata
 
+    # Normalise Unicode (handles accented letters, Arabic, etc.) → ASCII fallback
+    city = unicodedata.normalize("NFKD", city).encode("ascii", "ignore").decode("ascii")
     return re.sub(r"[^a-z0-9]+", "-", city.lower()).strip("-")
+
+
+# ── City-slug quality filter ──────────────────────────────────────────────────
+
+# Minimum number of places a city must have to earn an /explore/{city} page.
+# Prevents crawl-budget waste on single-place "cities" like "Unnamed Road".
+_CITY_MIN_PLACES: int = 2
+
+# Slugs that contain a digit are almost always street addresses or postal codes
+# (e.g. "268-269-tottenham-ct-rd", "88hv-5v2-rugaylat-rd", "cityz27").
+_CITY_SLUG_HAS_DIGIT = re.compile(r"\d")
+
+# Known garbage values produced by Google Maps when locality is NULL / N/A
+_CITY_SLUG_BLOCKLIST: frozenset[str] = frozenset(
+    {
+        "unnamed-road",
+        "na",
+        "n-a",
+        "unknown",
+        "floor-of-mercato",
+        "rtc-cross-road",
+        "cityz27",
+    }
+)
+
+
+def _is_real_city_slug(slug: str) -> bool:
+    """Return True only when *slug* represents a genuine city or town name.
+
+    Rejects:
+    - Slugs containing digits  (street numbers, postal codes, building IDs)
+    - Slugs longer than 40 chars  (address fragments such as
+      "saheel-business-tower-near-al-mullah-plaza")
+    - Known blocklisted garbage values
+    """
+    if not slug or len(slug) > 40:
+        return False
+    if _CITY_SLUG_HAS_DIGIT.search(slug):
+        return False
+    return slug not in _CITY_SLUG_BLOCKLIST
 
 
 logger = logging.getLogger(__name__)
@@ -215,17 +258,27 @@ def sitemap_xml(session: SessionDep) -> Response:
         for img in all_imgs:
             images_map.setdefault(img.place_code, []).append(img)
 
-    # Build city → set-of-religions map for city pages
+    # Build city → set-of-religions map for city pages.
+    # Only include cities that pass the real-city filter AND have enough places
+    # to make the explore page worthwhile.
     city_religions: dict[str, set[str]] = {}
+    city_place_counts: dict[str, int] = {}
     for p in places:
-        if p.city and p.city.strip():
-            slug = _city_to_slug(p.city)
-            if not slug:
-                continue
-            city_religions.setdefault(slug, set())
-            if p.religion:
-                city_religions[slug].add(p.religion)
-    cities = list(city_religions.items())
+        if not p.city or not p.city.strip():
+            continue
+        slug = _city_to_slug(p.city)
+        if not slug or not _is_real_city_slug(slug):
+            continue
+        city_religions.setdefault(slug, set())
+        city_place_counts[slug] = city_place_counts.get(slug, 0) + 1
+        if p.religion:
+            city_religions[slug].add(p.religion)
+
+    cities = [
+        (slug, religions)
+        for slug, religions in city_religions.items()
+        if city_place_counts.get(slug, 0) >= _CITY_MIN_PLACES
+    ]
 
     # Fetch published blog posts ordered by publication date (oldest first for sitemap)
     blog_posts = session.exec(

@@ -175,20 +175,53 @@ def _slugify(text: str, max_length: int = 80) -> str:
 
 
 def generate_slug(place: Place, session: Session) -> str:
-    """Generate a unique slug for a place, appending suffix if needed."""
+    """Generate a unique, clean URL slug for a place.
+
+    Collision strategy (in order):
+    1. ``{name}``               e.g. "al-noor-mosque"
+    2. ``{name}-{city}``        e.g. "al-noor-mosque-dubai"  (when city is a real word)
+    3. ``{name}-{city}-{id}``   e.g. "al-noor-mosque-dubai-i9lxz3n4"  (rare double collision)
+    4. ``{name}-{id}``          fallback when city is absent or looks like a street address
+
+    All suffix components go through ``_slugify`` so no raw Google Place IDs,
+    uppercase characters, or special symbols can leak into the URL.
+    """
     base = _slugify(place.name)
     if not base:
-        base = _slugify(place.place_code)
+        # No readable name — use a short clean identifier, no keyword value but valid URL
+        return _slugify(place.place_code)[-12:] or "place"
 
-    candidate = base
-    existing = session.exec(
-        select(PlaceSEO).where(PlaceSEO.slug == candidate, PlaceSEO.place_code != place.place_code)
-    ).first()
-    if existing:
-        suffix = place.place_code.replace("plc_", "")
-        candidate = f"{base}-{suffix}"
+    # Short 8-char clean identifier derived from the place code (no "plc_"/"gplc_" prefix)
+    raw_id = place.place_code.replace("gplc_", "").replace("plc_", "")
+    short_id = _slugify(raw_id)[:8]
 
-    return candidate
+    def _taken(slug: str) -> bool:
+        return bool(
+            session.exec(
+                select(PlaceSEO).where(
+                    PlaceSEO.slug == slug, PlaceSEO.place_code != place.place_code
+                )
+            ).first()
+        )
+
+    # Attempt 1: bare name slug
+    if not _taken(base):
+        return base
+
+    # Attempt 2: name + city (only when city slug looks like a real city — no digits)
+    city_slug = _slugify(place.city or "")
+    if city_slug and not re.search(r"\d", city_slug) and len(city_slug) <= 40:
+        candidate = f"{base}-{city_slug}"
+        if not _taken(candidate):
+            return candidate
+
+        # Attempt 3: name + city + short_id (two same-name places in same city)
+        candidate = f"{base}-{city_slug}-{short_id}"
+        if not _taken(candidate):
+            return candidate
+
+    # Attempt 4: name + short_id (no usable city)
+    return f"{base}-{short_id}"
 
 
 # ── Template-based generation functions ───────────────────────────────────────

@@ -4,6 +4,15 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-16] — URL Cleanup: Clean SEO Slugs and City Pages
+
+### Backend
+- **`app/services/seo_generator.py`** — `generate_slug` rewrote disambiguation logic: uses city name for collision resolution instead of raw Google Place ID; city with digits (street address) is skipped; falls back to short 8-char hash only as last resort
+- **`app/api/v1/sitemap.py`** — `_city_to_slug` now normalises Unicode (NFKD → ASCII); added `_is_real_city_slug` filter that rejects slugs with digits, length > 40 chars, or known garbage values; city pages now require ≥ 2 places (`_CITY_MIN_PLACES`)
+- **`tests/test_seo.py`** — 19 new tests in `TestGenerateSlug`, `TestCitySlugFilter`, and `TestCityToSlug` covering clean slug generation and city filter edge cases
+
+---
+
 ## [2026-04-16] — Backend Data Quality Fixes (B4 + B5)
 
 ### Backend
