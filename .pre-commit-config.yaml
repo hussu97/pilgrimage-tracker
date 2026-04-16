@@ -70,3 +70,11 @@ repos:
         files: ^apps/soulstep-customer-web/
         pass_filenames: false
         stages: [pre-push]
+
+      - id: vite-build-admin
+        name: Vite build (admin)
+        language: system
+        entry: bash -c 'cd apps/soulstep-admin-web && npm run build'
+        files: ^apps/soulstep-admin-web/
+        pass_filenames: false
+        stages: [pre-push]
