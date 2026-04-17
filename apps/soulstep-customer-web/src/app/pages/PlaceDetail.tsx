@@ -335,19 +335,9 @@ export default function PlaceDetail() {
       }
     : undefined;
 
-  const faqJsonLd = place?.seo_faq_json?.length
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'FAQPage',
-        mainEntity: place.seo_faq_json.map((faq) => ({
-          '@type': 'Question',
-          name: faq.question,
-          acceptedAnswer: { '@type': 'Answer', text: faq.answer },
-        })),
-      }
-    : undefined;
-
-  const jsonLdSchemas = [placeJsonLd, breadcrumbJsonLd, faqJsonLd].filter(Boolean) as Record<
+  // FAQPage JSON-LD is emitted server-side via <JsonLd> in page.tsx (buildPlaceJsonLd).
+  // Do not add it here — two FAQPage blocks on the same page cause a Search Console error.
+  const jsonLdSchemas = [placeJsonLd, breadcrumbJsonLd].filter(Boolean) as Record<
     string,
     unknown
   >[];
