@@ -476,7 +476,7 @@ def share_about(request: Request):
             "worship worldwide."
         ),
         "url": canonical_url,
-        "mainEntity": org_schema,
+        "mainEntity": {k: v for k, v in org_schema.items() if k != "@context"},
     }
     jsonld_html = render_jsonld_script_tags([about_schema])
 
