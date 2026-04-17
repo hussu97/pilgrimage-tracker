@@ -7,6 +7,7 @@ Used by the pre-rendering endpoint to embed JSON-LD in HTML.
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from app.core.config import FRONTEND_URL as _FRONTEND_URL
@@ -115,7 +116,8 @@ def build_place_jsonld(
                 "@type": "Review",
                 "author": {
                     "@type": "Person",
-                    "name": r.get("author_name") or "Anonymous",
+                    "name": re.sub(r"(?:Local Guide|·).*$", "", r.get("author_name") or "").strip()
+                    or "Anonymous",
                 },
                 "reviewRating": {
                     "@type": "Rating",
