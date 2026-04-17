@@ -78,3 +78,19 @@ repos:
         files: ^apps/soulstep-admin-web/
         pass_filenames: false
         stages: [pre-push]
+
+      - id: pytest-catalog-api
+        name: pytest (catalog-api)
+        language: system
+        entry: bash -c 'cd soulstep-catalog-api && source .venv/bin/activate && python -m pytest tests/ -x -q --tb=short'
+        files: ^soulstep-catalog-api/
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: pytest-scraper-api
+        name: pytest (scraper-api)
+        language: system
+        entry: bash -c 'cd soulstep-scraper-api && source .venv/bin/activate && python -m pytest tests/ -x -q --tb=short'
+        files: ^soulstep-scraper-api/
+        pass_filenames: false
+        stages: [pre-push]
