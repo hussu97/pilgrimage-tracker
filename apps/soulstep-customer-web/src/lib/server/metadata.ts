@@ -185,10 +185,15 @@ export function buildPlaceJsonLd(place: PlaceForMeta): Record<string, unknown>[]
     };
   }
 
+  const imageUrl = place.seo_og_image_url ?? place.images?.[0]?.url;
+  if (imageUrl) {
+    placeSchema['image'] = imageUrl;
+  }
+
   if (place.average_rating && place.review_count) {
     placeSchema['aggregateRating'] = {
       '@type': 'AggregateRating',
-      ratingValue: place.average_rating,
+      ratingValue: Math.round(place.average_rating * 10) / 10,
       reviewCount: place.review_count,
       bestRating: 5,
       worstRating: 1,

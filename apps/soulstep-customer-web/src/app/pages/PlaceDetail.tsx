@@ -274,73 +274,15 @@ export default function PlaceDetail() {
     .map((img) => getFullImageUrl(img.url))
     .filter(Boolean) as string[];
 
-  // SEO: Build JSON-LD and meta tags
-  const RELIGION_SCHEMA: Record<string, string> = {
-    islam: 'Mosque',
-    christianity: 'Church',
-    hinduism: 'HinduTemple',
-    buddhism: 'BuddhistTemple',
-    sikhism: 'Gurdwara',
-    judaism: 'Synagogue',
-    bahai: 'PlaceOfWorship',
-    zoroastrianism: 'PlaceOfWorship',
-  };
-
   const seoTitle = place?.seo_title || place?.name || '';
   const seoDescription = place?.seo_meta_description || place?.description?.slice(0, 160) || '';
   const canonicalUrl = place
-    ? `https://soul-step.org/places/${placeCode}/${place.seo_slug || ''}`
+    ? `https://www.soul-step.org/places/${placeCode}/${place.seo_slug || ''}`
     : '';
   const ogImage = place?.seo_og_image_url || (heroImages[0] ?? '');
 
-  const placeJsonLd = place
-    ? {
-        '@context': 'https://schema.org',
-        '@type': RELIGION_SCHEMA[place.religion] || 'PlaceOfWorship',
-        additionalType: 'https://schema.org/TouristAttraction',
-        name: place.name,
-        url: canonicalUrl,
-        description: place.seo_rich_description || place.description || '',
-        geo: { '@type': 'GeoCoordinates', latitude: place.lat, longitude: place.lng },
-        address: { '@type': 'PostalAddress', streetAddress: place.address },
-        ...(heroImages[0] ? { image: heroImages[0] } : {}),
-        ...(averageRating
-          ? {
-              aggregateRating: {
-                '@type': 'AggregateRating',
-                ratingValue: averageRating,
-                reviewCount: reviewCount || 0,
-                bestRating: 5,
-              },
-            }
-          : {}),
-        ...(place.updated_at ? { dateModified: place.updated_at } : {}),
-      }
-    : undefined;
-
-  const breadcrumbJsonLd = place
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'BreadcrumbList',
-        itemListElement: [
-          { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://soul-step.org' },
-          {
-            '@type': 'ListItem',
-            position: 2,
-            name: (place.religion || '').charAt(0).toUpperCase() + (place.religion || '').slice(1),
-            item: `https://soul-step.org/home?religion=${place.religion}`,
-          },
-          { '@type': 'ListItem', position: 3, name: place.name, item: canonicalUrl },
-        ],
-      }
-    : undefined;
-
-  // FAQPage JSON-LD is emitted server-side via <JsonLd> in page.tsx (buildPlaceJsonLd).
-  // Do not add it here — two FAQPage blocks on the same page cause a Search Console error.
-  const jsonLdSchemas = [placeJsonLd, breadcrumbJsonLd].filter(Boolean) as Record<
-    string,
-    unknown
-  >[];
+  // All JSON-LD (TouristAttraction, BreadcrumbList, FAQPage) is emitted server-side via
+  // <JsonLd> in page.tsx (buildPlaceJsonLd). Do not add it here to avoid duplicates.
 
   useHead({
     title: seoTitle,
@@ -355,7 +297,7 @@ export default function PlaceDetail() {
     twitterTitle: seoTitle,
     twitterDescription: seoDescription,
     twitterImage: ogImage,
-    jsonLd: jsonLdSchemas,
+
     hreflangAlternates: placeCode
       ? [
           { lang: 'en', href: `https://soul-step.org/share/en/places/${placeCode}` },
