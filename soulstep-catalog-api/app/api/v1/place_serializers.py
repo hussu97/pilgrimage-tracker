@@ -16,7 +16,7 @@ from app.db import place_images
 from app.db import places as places_db
 from app.db import reviews as reviews_db
 from app.db.enums import OpenStatus
-from app.db.models import Place, PlaceSEO
+from app.db.models import Country, Place, PlaceSEO
 from app.db.places import _haversine_km, _is_open_now_from_hours
 from app.services.place_specifications import build_specifications
 from app.services.place_timings import build_timings
@@ -238,6 +238,14 @@ def serialize_place_detail(
     out["seo_faq_json"] = seo.faq_json if seo else None
     out["seo_og_image_url"] = seo.og_image_url if seo else None
     out["updated_at"] = place.created_at.isoformat() if place.created_at else None
+
+    if place.country_code:
+        country_row = session.exec(
+            select(Country).where(Country.country_code == place.country_code)
+        ).first()
+        out["country_iso_code"] = country_row.iso_code if country_row else None
+    else:
+        out["country_iso_code"] = None
 
     if include_related:
         if place.lat is not None and place.lng is not None:

@@ -48,6 +48,7 @@ export interface PlaceForMeta {
   address?: string | null;
   city?: string | null;
   country?: string | null;
+  country_iso_code?: string | null;
   lat?: number | null;
   lng?: number | null;
   images?: Array<{ url: string; alt_text?: string | null }>;

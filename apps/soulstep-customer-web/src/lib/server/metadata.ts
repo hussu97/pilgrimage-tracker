@@ -173,7 +173,11 @@ export function buildPlaceJsonLd(place: PlaceForMeta): Record<string, unknown>[]
       '@type': 'PostalAddress',
       streetAddress: place.address,
       ...(place.city ? { addressLocality: place.city } : {}),
-      ...(place.country ? { addressCountry: place.country } : {}),
+      ...(place.country_iso_code
+        ? { addressCountry: place.country_iso_code }
+        : place.country
+          ? { addressCountry: place.country }
+          : {}),
     };
   }
 
