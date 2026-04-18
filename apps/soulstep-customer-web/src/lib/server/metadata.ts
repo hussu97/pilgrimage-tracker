@@ -116,7 +116,7 @@ const RELIGION_SCHEMA_TYPE: Record<string, string> = {
   hinduism: 'HinduTemple',
   buddhism: 'BuddhistTemple',
   judaism: 'Synagogue',
-  sikhism: 'LandmarksOrHistoricalBuildings',
+  sikhism: 'Gurdwara',
   bahai: 'PlaceOfWorship',
   zoroastrianism: 'PlaceOfWorship',
 };
@@ -158,7 +158,7 @@ export function buildPlaceJsonLd(place: PlaceForMeta): Record<string, unknown>[]
 
   const placeSchema: Record<string, unknown> = {
     '@context': 'https://schema.org',
-    '@type': schemaType,
+    '@type': ['LocalBusiness', schemaType],
     additionalType: 'https://schema.org/TouristAttraction',
     name: place.name,
     url,
