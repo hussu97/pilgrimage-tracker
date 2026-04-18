@@ -55,7 +55,7 @@ def build_place_jsonld(
 
     schema: dict[str, Any] = {
         "@context": "https://schema.org",
-        "@type": [_place_schema_type(place.religion), "LocalBusiness"],
+        "@type": ["LocalBusiness", _place_schema_type(place.religion)],
         "additionalType": "https://schema.org/TouristAttraction",
         "name": translated_name or place.name,
         "url": place_url,

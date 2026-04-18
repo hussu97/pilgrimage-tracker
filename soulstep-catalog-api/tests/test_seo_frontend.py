@@ -78,7 +78,7 @@ class TestTouristAttractionSchema:
 
         schema = build_place_jsonld(MockPlace())
         assert schema["additionalType"] == "https://schema.org/TouristAttraction"
-        assert schema["@type"] == ["Mosque", "LocalBusiness"]
+        assert schema["@type"] == ["LocalBusiness", "Mosque"]
 
 
 class TestLlmsTxt:
