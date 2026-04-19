@@ -343,7 +343,7 @@ soulstep-catalog-api/
       seed.py            # Seed runner
       seed_data.json     # Seed data (translations, sample places, etc.)
     services/            # Business logic (seo_generator, meta_tags, structured_data, …)
-    jobs/                # Scheduled job entrypoints
+    jobs/                # VM cron job entrypoints (sync_places, cleanup_orphaned_images, backfill_timezones)
   migrations/versions/   # Alembic migration files
   scripts/               # One-off scripts (reset_place_data, generate_seo, …)
   tests/                 # pytest integration + unit tests

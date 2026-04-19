@@ -16,8 +16,8 @@ them identical in content whenever a variable is added, renamed, removed, or has
 
 | Platform | When to use it | Services |
 |---|---|---|
-| **GCP Secret Manager** | Sensitive values — API keys, passwords, connection strings | Catalog API, Scraper API |
-| **Cloud Run env vars** | Non-sensitive runtime configuration | Catalog API, Scraper API |
+| **GitHub Actions Secrets** (runtime) | All sensitive runtime values — API keys, passwords, DB credentials; written to VM `.env` at every deploy | Catalog API, Scraper API |
+| **docker-compose.prod.yml env** | Non-sensitive runtime configuration passed to containers | Catalog API, Scraper API |
 | **GitHub Actions secrets** (build-time) | Baked into the web JS bundle at CI build time | Customer Web, Admin Web |
 | **EAS secrets** (build-time) | Baked into the mobile app bundle via Expo EAS | Mobile |
 | `.env` / `.env.local` | Local development only — never committed | All services |
@@ -28,16 +28,16 @@ them identical in content whenever a variable is added, renamed, removed, or has
 
 ### Mandatory
 
-#### GCP Secret Manager
+#### GitHub Actions Secrets → VM `.env`
 
 | Variable | Description |
 |---|---|
 | `JWT_SECRET` | HMAC-HS256 signing secret for access and refresh tokens. Generate: `python -c "import secrets; print(secrets.token_hex(32))"`. The default `dev-secret-change-in-production` **must** be replaced in production. |
 | `CATALOG_API_KEY` | Shared secret for internal service-to-service calls (scraper → catalog API). Sent as the `X-API-Key` header by the scraper; must match `CATALOG_API_KEY` on the scraper. Generate: `openssl rand -hex 32`. |
-| `DATABASE_URL` | PostgreSQL connection string. When unset, falls back to SQLite locally. Required for production. Cloud SQL (Unix-socket): `postgresql+psycopg2://user:pass@/soulstep?host=/cloudsql/PROJECT:REGION:INSTANCE` |
+| `DATABASE_URL` | PostgreSQL connection string. When unset, falls back to SQLite locally. Required for production. VM Postgres (TCP): `postgresql://user:pass@postgres:5432/soulstep` (docker service name `postgres` resolves within the compose network) |
 | `RESEND_API_KEY` | Resend.com API key for transactional email (password-reset flows). When unset, the reset link is printed to the console (dev fallback only). |
 
-#### Cloud Run Environment Variables
+#### docker-compose.prod.yml (non-sensitive)
 
 | Variable | Description |
 |---|---|
@@ -48,14 +48,14 @@ them identical in content whenever a variable is added, renamed, removed, or has
 
 ### Optional
 
-#### GCP Secret Manager
+#### GitHub Actions Secrets → VM `.env` (optional)
 
 | Variable | Default | Description |
 |---|---|---|
 | `GOOGLE_MAPS_API_KEY` | — | Google Places API key — required for place-search autocomplete. Enable "Places API (New)" at console.cloud.google.com. Without this key, all search-autocomplete requests return empty results. |
 | `SCRAPER_DATABASE_URL` | — | **Conditional** — PostgreSQL connection string for the scraper's database. Required only when running the sync-places Cloud Run Job. Contains credentials — store in Secret Manager, not as a plain env var. |
 
-#### Cloud Run Environment Variables
+#### docker-compose.prod.yml (non-sensitive)
 
 | Variable | Default | Description |
 |---|---|---|
@@ -95,24 +95,24 @@ them identical in content whenever a variable is added, renamed, removed, or has
 
 ### Mandatory
 
-#### GCP Secret Manager
+#### GitHub Actions Secrets → VM `.env`
 
 | Variable | Description |
 |---|---|
 | `GOOGLE_MAPS_API_KEY` | Google Maps / Places API key — used by the GMaps collector for place discovery and detail fetching. Enable "Places API (New)" at console.cloud.google.com. **Not required** when `SCRAPER_BACKEND=browser` (browser mode makes no API calls). |
 | `CATALOG_API_KEY` | Shared secret for catalog API internal endpoints (sent as `X-API-Key` header). Must match `CATALOG_API_KEY` on the catalog API. Required when `SCRAPER_TRIGGER_SEO_AFTER_SYNC=true` or when syncing places. Generate: `openssl rand -hex 32` |
 
-#### Cloud Run Environment Variables
+#### docker-compose.prod.yml (non-sensitive)
 
 | Variable | Description |
 |---|---|
-| `MAIN_SERVER_URL` | URL of the soulstep-catalog-api — scraped places are synced here. Default: `http://127.0.0.1:3000`. Example: `https://api.soul-step.org` |
+| `MAIN_SERVER_URL` | URL of the soulstep-catalog-api. Within the VM compose network, use `http://catalog-api:3000` (the docker service name). For the Cloud Run scraper Job, use `https://api.soul-step.org`. |
 
 ---
 
 ### Optional
 
-#### GCP Secret Manager
+#### GitHub Actions Secrets → VM `.env` (optional)
 
 | Variable | Default | Description |
 |---|---|---|
@@ -121,9 +121,9 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `BESTTIME_API_KEY` | — | BestTime.app API key — adds busyness forecasts and peak-hours data. Sign up at besttime.app. When unset, the BestTime collector is skipped gracefully. |
 | `KNOWLEDGE_GRAPH_API_KEY` | — | Google Knowledge Graph API key — fetches entity descriptions for places. Free at 100k requests/day via console.cloud.google.com. When unset, the Knowledge Graph collector is skipped gracefully. |
 | `GEMINI_API_KEY` | — | Google Gemini API key — used for LLM tie-breaking when two candidate descriptions score within 0.15 of each other (~10–20% of places). Free key at aistudio.google.com. When unset, heuristic-only quality scoring is used. |
-| `DATABASE_URL` | — | PostgreSQL connection string. When set, takes priority over `SCRAPER_DB_PATH`. Use in production (Cloud Run + Cloud SQL). Cloud SQL (Unix-socket): `postgresql+psycopg2://user:pass@/soulstep_scraper?host=/cloudsql/PROJECT:REGION:INSTANCE` |
+| `DATABASE_URL` | — | PostgreSQL connection string. When set, takes priority over `SCRAPER_DB_PATH`. Use in production. VM Postgres (TCP): `postgresql://user:pass@postgres:5432/soulstep` (same compose network) |
 
-#### Cloud Run Environment Variables
+#### docker-compose.prod.yml (non-sensitive)
 
 | Variable | Default | Description |
 |---|---|---|

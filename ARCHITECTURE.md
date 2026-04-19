@@ -32,7 +32,7 @@ Multi-platform application for discovering, visiting, and tracking sacred sites.
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Production hosting:** Cloud Run (API + Scraper) · Cloud SQL (PostgreSQL) · Firebase Hosting (Web + Admin) · GCS (Images)
+**Production hosting:** GCP e2-small VM (catalog-api + scraper-api + PostgreSQL 15, Docker Compose) · GHCR (images) · Vercel (Web + Admin) · GCS (Images) · Cloud Run Job (Playwright scraper, ephemeral)
 
 ---
 
@@ -54,8 +54,7 @@ soulstep/
 │   ├── migrations/versions/     # Alembic migration files
 │   ├── scripts/                 # One-off scripts (generate_seo, reset_place_data)
 │   ├── tests/                   # pytest integration + unit tests
-│   ├── Dockerfile               # API service image
-│   └── Dockerfile.sync          # sync-places job image
+│   ├── Dockerfile               # catalog-api container image
 ├── soulstep-scraper-api/        # Python + FastAPI scraper
 │   ├── app/
 │   │   ├── scrapers/            # Discovery + detail fetching (API + browser)
@@ -70,6 +69,18 @@ soulstep/
 │   ├── soulstep-customer-web/   # Vite + React + Tailwind
 │   ├── soulstep-customer-mobile/ # Expo / React Native
 │   └── soulstep-admin-web/      # Vite + React + Tailwind (admin)
+├── docker-compose.prod.yml      # VM production orchestration
+├── nginx/                       # Reverse proxy config + TLS
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   ├── entrypoint.sh
+│   └── conf.d/                  # http.conf + ssl.conf templates
+├── scripts/
+│   ├── vm-bootstrap.sh          # One-shot VM provisioning
+│   ├── backup-db.sh             # Daily pg_dump → GCS
+│   ├── restore-db.sh
+│   └── cron/soulstep-cron       # VM crontab entries
+├── .env.example                 # VM env template (filled by CI)
 ├── ARCHITECTURE.md
 ├── SYSTEMS.md
 ├── PRODUCTION.md
@@ -368,15 +379,17 @@ SEO content is generated from DB-driven templates rather than hardcoded strings,
 
 ---
 
-## 11. Scheduled Jobs (Cloud Run Jobs)
+## 11. Scheduled Jobs
 
-All jobs use the catalog API package (`soulstep-catalog-api/app/`) with separate Docker images:
+All jobs run as cron tasks on the VM, executing inside the `catalog-api` container via `docker compose exec`:
 
-| Job | Image | Schedule | Purpose |
-|---|---|---|---|
-| `cleanup-job` | `Dockerfile` | Daily 02:00 UTC | Remove orphaned review images |
-| `backfill-timezones` | `Dockerfile` | One-off | Populate timezone data for places |
-| `sync-places` | `Dockerfile.sync` | Daily 02:00 UTC | Upsert enriched scraper places into catalog |
+| Cron schedule | Job | Purpose |
+|---|---|---|
+| `0 2 * * *` (daily 02:00 UTC) | `backup-db.sh` | pg_dump → gzip → local + GCS, 7-day retention |
+| `0 3 * * *` (daily 03:00 UTC) | `app.jobs.sync_places` | Upsert enriched scraper places into catalog |
+| `0 5 * * 1` (Monday 05:00 UTC) | `app.jobs.cleanup_orphaned_images` | Remove orphaned review images |
+| `0 4 * * 0` (Sunday 04:00 UTC) | `app.jobs.backfill_timezones` | Populate timezone data for places |
 
+Installed by `scripts/vm-bootstrap.sh` into the host crontab. Logs at `/var/log/soulstep-*.log`.
 
-All jobs are created/updated automatically by `.github/workflows/deploy.yml` on pushes to `main` that touch `soulstep-catalog-api/`.
+The **Playwright scraper** (`soulstep-scraper-api-job`) continues to run as a **Cloud Run Job** — it is heavy (6 GB / 4 vCPU), ephemeral, and triggered on demand from the admin UI. It is not a VM cron job.
