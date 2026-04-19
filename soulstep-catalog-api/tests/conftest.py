@@ -158,6 +158,21 @@ def _clear_autocomplete_cache():
 
 
 @pytest.fixture(autouse=True)
+def _clear_places_list_cache():
+    """Clear the in-process /api/v1/places TTL cache before each test.
+
+    _list_cache in app.api.v1.places caches the paginated response for 60s,
+    which leaks across tests — a list response from test A would be returned
+    to test B even though _reset_db rebuilt the underlying rows.
+    """
+    import app.api.v1.places as _places_mod
+
+    _places_mod._list_cache.clear()
+    yield
+    _places_mod._list_cache.clear()
+
+
+@pytest.fixture(autouse=True)
 def _clear_i18n_overrides_cache():
     """Clear the in-process DB-overrides TTL cache before each test.
 

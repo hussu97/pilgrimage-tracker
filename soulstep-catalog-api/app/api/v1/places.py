@@ -1,7 +1,9 @@
 import logging
 import time
+from collections import OrderedDict
+from threading import Lock
 
-from fastapi import APIRouter, HTTPException, Query, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, func, select
@@ -30,6 +32,44 @@ from app.models.schemas import CheckInBody, PlaceBatch, PlaceCreate, ReviewCreat
 logger = logging.getLogger(__name__)
 
 RECOMMENDED_CANDIDATE_LIMIT = 200
+
+# ── In-memory TTL cache for GET /api/v1/places ────────────────────────────────
+# Cache serialized response by query-param tuple for 60s. Browse traffic
+# converges on a small number of param combinations (no-filter, by-religion,
+# by-city, by-bbox), so hit rate is high. Writes (check-ins, new reviews,
+# admin edits) are allowed up to 60s of staleness — acceptable for a list
+# screen and simpler than explicit invalidation.
+#
+# Bypassed when lat/lng/radius are provided: proximity sort is per-user and
+# would blow out the cache with unique keys. Also bypassed when ?_trace=1 is
+# on so the tracer still sees real spans.
+_LIST_CACHE_TTL = 60.0
+_LIST_CACHE_MAX_ENTRIES = 1024
+_list_cache: "OrderedDict[tuple, tuple[dict, float]]" = OrderedDict()
+_list_cache_lock = Lock()
+
+
+def _list_cache_get(key: tuple) -> dict | None:
+    now = time.monotonic()
+    with _list_cache_lock:
+        entry = _list_cache.get(key)
+        if entry is None:
+            return None
+        value, expires_at = entry
+        if now >= expires_at:
+            _list_cache.pop(key, None)
+            return None
+        _list_cache.move_to_end(key)
+        return value
+
+
+def _list_cache_set(key: tuple, value: dict) -> None:
+    with _list_cache_lock:
+        _list_cache[key] = (value, time.monotonic() + _LIST_CACHE_TTL)
+        _list_cache.move_to_end(key)
+        while len(_list_cache) > _LIST_CACHE_MAX_ENTRIES:
+            _list_cache.popitem(last=False)
+
 
 router = APIRouter()
 
@@ -95,6 +135,7 @@ def get_recommended_places(
 
 @router.get("")
 def list_places(
+    request: Request,
     session: SessionDep,
     religion: list[Religion] | None = Query(
         None, description="Filter by religion(s); repeat for multiple; omit for all"
@@ -132,6 +173,40 @@ def list_places(
 ):
     religions = religion
     offset = (max(1, page) - 1) * page_size
+
+    # TTL cache lookup. Bypass when proximity sort is active (per-user, low
+    # hit rate) or when ?_trace=1 is on (so the tracer still sees real spans).
+    cache_eligible = (
+        lat is None and lng is None and radius is None and request.query_params.get("_trace") != "1"
+    )
+    cache_key: tuple | None = None
+    if cache_eligible:
+        cache_key = (
+            tuple(sorted(r.value for r in religions)) if religions else None,
+            place_type,
+            city.lower() if city else None,
+            search.lower() if search else None,
+            sort,
+            page,
+            page_size,
+            jummah,
+            has_events,
+            open_now,
+            has_parking,
+            womens_area,
+            top_rated,
+            include_rating,
+            include_checkins,
+            lang,
+            min_lat,
+            max_lat,
+            min_lng,
+            max_lng,
+        )
+        cached = _list_cache_get(cache_key)
+        if cached is not None:
+            return cached
+
     result = places_db.list_places(
         session=session,
         religions=religions,
@@ -186,13 +261,16 @@ def list_places(
             item["total_checkins_count"] = all_checkins.get(p.place_code, 0)
         places_out.append(item)
 
-    return {
+    response_body = {
         "items": places_out,
         "total": result["total"],
         "page": page,
         "page_size": page_size,
         "filters": result["filters"],
     }
+    if cache_key is not None:
+        _list_cache_set(cache_key, response_body)
+    return response_body
 
 
 @router.get("/{place_code}")
