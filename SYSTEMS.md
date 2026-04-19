@@ -8,7 +8,7 @@ Complete reference for all systems, services, features, and components.
 
 ```
 +------------------------+
-|   Scraper API          |
+|   scraper-api          |
 |  soulstep-scraper-api/ |
 |  FastAPI + SQLite/PG   |
 +----------+-------------+
@@ -18,7 +18,7 @@ Complete reference for all systems, services, features, and components.
            |
            v
 +------------------+     +--------------------+     +------------------+
-|   Web App        |     |   Catalog API      |     |   Mobile App     |
+|   Web App        |     |   catalog-api      |     |   Mobile App     |
 | apps/soulstep-   +---->| soulstep-catalog-  |<----+ apps/soulstep-   |
 | customer-web/    |     | api/               |     | customer-mobile/ |
 | React + Vite     |     | FastAPI + SQLModel  |     | Expo + React Nav |
@@ -398,4 +398,4 @@ Users select preferred religions in `UserSettings.religions`. Empty list = show 
 - **CORS** configured for web origins (space-separated `CORS_ORIGINS` env var)
 - **Secrets** in GCP Secret Manager — never in plain env vars for production
 - **Admin role** required for all `/api/v1/admin/*` endpoints
-- **Internal-only** scraper service (`--no-allow-unauthenticated` on Cloud Run)
+- **Internal-only** scraper-api (`--no-allow-unauthenticated` on Cloud Run)

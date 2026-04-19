@@ -1,6 +1,6 @@
 # Local Scraper → Remote Catalog Sync
 
-Run the scraper locally and push enriched places to any catalog API instance (local, staging, or production).
+Run the scraper locally and push enriched places to any catalog-api instance (local, staging, or production).
 
 ---
 
@@ -22,7 +22,7 @@ You can run the scraper on your laptop and point `MAIN_SERVER_URL` at any catalo
 |---|---|
 | Python 3.11+ | `python --version` |
 | Google Maps API key | Required for `SCRAPER_BACKEND=api` (default). Not needed for browser mode. |
-| Running catalog API | Local (`http://127.0.0.1:3000`) or remote URL |
+| Running catalog-api | Local (`http://127.0.0.1:3000`) or remote URL |
 
 ---
 
@@ -42,7 +42,7 @@ Create a `.env` file:
 # Required
 GOOGLE_MAPS_API_KEY=AIza...
 
-# Target catalog API — change to staging/prod URL when syncing remotely
+# Target catalog-api — change to staging/prod URL when syncing remotely
 MAIN_SERVER_URL=http://127.0.0.1:3000
 
 # Optional enrichment
@@ -53,7 +53,7 @@ LOG_FORMAT=text   # human-readable locally
 LOG_LEVEL=INFO
 ```
 
-Start the scraper:
+Start scraper-api:
 
 ```bash
 uvicorn app.main:app --port 8001 --reload
@@ -69,16 +69,16 @@ curl -s http://127.0.0.1:8001/health
 
 ## Optional: Use Production PostgreSQL for Scraper Data
 
-By default the scraper stores runs and scraped places in a local SQLite file. If you want scrape runs visible in the **production admin dashboard** without syncing, point the scraper at the production PostgreSQL database instead.
+By default scraper-api stores runs and scraped places in a local SQLite file. If you want scrape runs visible in the **production admin dashboard** without syncing, point the scraper at the production PostgreSQL database instead.
 
 ```dotenv
 # Replace with your actual connection string
 DATABASE_URL=postgresql://user:password@host:5432/soulstep-scraper
 ```
 
-On startup, the scraper runs its own Alembic migrations using a separate `scraper_alembic_version` table — no interference with the catalog API.
+On startup, scraper-api runs its own Alembic migrations using a separate `scraper_alembic_version` table — no interference with catalog-api.
 
-> **Note:** `MAIN_SERVER_URL` is still needed when you want to *sync passing places into the catalog* (copy enriched places into the `Place` table). That's a separate step from where the scraper stores its working data.
+> **Note:** `MAIN_SERVER_URL` is still needed when you want to *sync passing places into the catalog* (copy enriched places into the `Place` table). That's a separate step from where scraper-api stores its working data.
 
 ---
 
@@ -152,9 +152,9 @@ If the admin web app is running:
 3. Check the **Quality Metrics** tab — score distribution and gate breakdown
 4. Click any place row to see the inline quality-score breakdown
 
-### 6. Sync to the catalog
+### 6. Sync to catalog-api
 
-Once satisfied with quality, sync passing places to the catalog API:
+Once satisfied with quality, sync passing places to catalog-api:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8001/api/v1/scraper/runs/run_abc12345/sync
@@ -162,7 +162,7 @@ curl -s -X POST http://127.0.0.1:8001/api/v1/scraper/runs/run_abc12345/sync
 
 Sync runs in the background. Monitor via the activity endpoint — watch `places_synced` increment.
 
-Verify on the catalog:
+Verify on catalog-api:
 
 ```bash
 curl -s "http://127.0.0.1:3000/api/v1/places?limit=20" | python -m json.tool
@@ -185,7 +185,7 @@ Change `MAIN_SERVER_URL` in `.env` to point at any catalog instance.
 
 ### Resume an interrupted run
 
-If the scraper was interrupted (power loss, process kill):
+If scraper-api was interrupted (power loss, process kill):
 
 ```bash
 curl -s -X POST http://127.0.0.1:8001/api/v1/scraper/runs/run_abc12345/resume

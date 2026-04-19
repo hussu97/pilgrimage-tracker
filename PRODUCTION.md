@@ -143,8 +143,8 @@ Go to **GitHub → hussu97/soulstep → Settings → Environments → production
 | `USE_SSL` | `false` initially; `true` after certs are issued |
 | `POSTGRES_USER` | e.g. `soulstep` |
 | `POSTGRES_PASSWORD` | Strong random password |
-| `POSTGRES_DB` | Catalog API database name, e.g. `soulstep` |
-| `SCRAPER_POSTGRES_DB` | Scraper API database name, e.g. `soulstep_scraper` (auto-created by `docker/postgres-init.sql`) |
+| `POSTGRES_DB` | catalog-api database name, e.g. `soulstep` |
+| `SCRAPER_POSTGRES_DB` | scraper-api database name, e.g. `soulstep_scraper` (auto-created by `docker/postgres-init.sql`) |
 | `JWT_SECRET` | `openssl rand -hex 32` |
 | `CATALOG_API_KEY` | `openssl rand -hex 32` — shared between catalog + scraper |
 | `GOOGLE_MAPS_API_KEY` | Google Places API key |
@@ -176,7 +176,7 @@ Go to **GitHub → hussu97/soulstep → Settings → Environments → production
 | `VERCEL_PROJECT_ID_WEB` | Customer web Vercel project |
 | `VERCEL_PROJECT_ID_ADMIN` | Admin web Vercel project |
 
-GCP auth for the scraper Cloud Run Job continues to use **Workload Identity Federation** (keyless) — no JSON key secret needed.
+GCP auth for scraper-api Cloud Run Job continues to use **Workload Identity Federation** (keyless) — no JSON key secret needed.
 
 ---
 

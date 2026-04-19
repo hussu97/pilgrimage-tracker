@@ -78,14 +78,14 @@ Each service has its own `.env.example`. Key variables:
 
 | Service | Variable | Description |
 |---|---|---|
-| Catalog API | `JWT_SECRET` | JWT signing secret — always set in production |
-| Catalog API | `DATABASE_URL` | PostgreSQL URL (dev uses SQLite by default) |
-| Catalog API | `FRONTEND_URL` | Public web frontend URL (sitemap, JSON-LD, emails) |
+| catalog-api | `JWT_SECRET` | JWT signing secret — always set in production |
+| catalog-api | `DATABASE_URL` | PostgreSQL URL (dev uses SQLite by default) |
+| catalog-api | `FRONTEND_URL` | Public web frontend URL (sitemap, JSON-LD, emails) |
 | Web app | `NEXT_PUBLIC_API_BASE_URL` | API base URL — baked into the JS bundle at build time |
 | Web app | `INTERNAL_API_URL` | Server-side API URL (SSR only, not exposed to client) |
 | Mobile | `EXPO_PUBLIC_API_BASE_URL` | API base URL for device / Expo Go |
-| Scraper | `GOOGLE_MAPS_API_KEY` | Google Maps API key |
-| Scraper | `MAIN_SERVER_URL` | Catalog API URL for syncing scraped places |
+| scraper-api | `GOOGLE_MAPS_API_KEY` | Google Maps API key |
+| scraper-api | `MAIN_SERVER_URL` | catalog-api URL for syncing scraped places |
 
 See each service's `.env.example` for the full variable list.
 

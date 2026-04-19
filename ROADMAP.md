@@ -391,7 +391,7 @@ Infrastructure, optimization, monitoring, code quality, and documentation for pr
 
 - [ ] **Distributed tracing (OpenTelemetry)**
   - No trace collection across services. Cross-service debugging requires manual log correlation.
-  - Instrument FastAPI with `opentelemetry-instrumentation-fastapi`. Add trace context propagation between catalog API and scraper. Export to Jaeger or a managed backend.
+  - Instrument FastAPI with `opentelemetry-instrumentation-fastapi`. Add trace context propagation between catalog-api and scraper-api. Export to Jaeger or a managed backend.
 
 - [ ] **Uptime monitoring**
   - No synthetic probes to detect outages. SLO violations go undetected.

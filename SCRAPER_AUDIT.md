@@ -37,7 +37,7 @@
 2. Load DataLocation config
 3. run_gmaps_scraper(run_code, config, session)     ← Discovery + Detail Fetch
 4. run_enrichment_pipeline(run_code)                 ← External data enrichment
-5. (optional) sync_run_to_server_async()             ← Push to catalog API
+5. (optional) sync_run_to_server_async()             ← Push to catalog-api
 6. Mark status "completed" (or "cancelled")
 ```
 
@@ -159,7 +159,7 @@ If `AUTO_SYNC_AFTER_RUN = true`: batch places into chunks of 25, POST to `MAIN_S
 | Already-searched grid cells (any run, <30d) | Global `GlobalCellStore` | Same as above, cross-run |
 | Already-fetched place details (<90d) | `GlobalGmapsCacheStore` | Browser navigation to place page |
 | Already-enriched places | `enrichment_status != "pending"` check | All collector API calls |
-| Already-synced places | `sync_status` field on `ScrapedPlace` | Catalog API POST |
+| Already-synced places | `sync_status` field on `ScrapedPlace` | catalog-api POST |
 
 ---
 
@@ -316,7 +316,7 @@ If `AUTO_SYNC_AFTER_RUN = true`: batch places into chunks of 25, POST to `MAIN_S
 |------|-----------|---------------|
 | Image download | 0.75 | Downloading place images |
 | Enrichment | 0.75 | Running external collectors |
-| Sync | 0.75 | Pushing to catalog API |
+| Sync | 0.75 | Pushing to catalog-api |
 | Name specificity | Heuristic | Enrichment (generic names skipped) |
 
 ### 6.6 Resource Cleanup (Shutdown)

@@ -7,7 +7,7 @@ This guide covers how to spread scraper Cloud Run Jobs across multiple GCP regio
 ## Architecture
 
 ```
-                    Scraper API (europe-west1)
+                    scraper-api (europe-west1)
                     ┌──────────────────────┐
                     │  Queue Processor     │
                     │  (polls every 15s)   │
@@ -107,9 +107,9 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 
 Secret Manager is global. Reference the same secret names when creating the job — no extra setup.
 
-### 6. Update scraper API config
+### 6. Update scraper-api config
 
-Set `CLOUD_RUN_REGIONS` on the scraper API service:
+Set `CLOUD_RUN_REGIONS` on scraper-api:
 
 ```bash
 # Format: region1:max_jobs,region2:max_jobs,...
@@ -133,8 +133,8 @@ Or set it as a GitHub Actions secret/variable.
 
 | Component | mCPU | Memory (GiB) |
 |---|---|---|
-| Catalog API (max 3) | 3,000 | 1.5 |
-| Scraper API (max 2) | 2,000 | 1.0 |
+| catalog-api (max 3) | 3,000 | 1.5 |
+| scraper-api (max 2) | 2,000 | 1.0 |
 | Reserved overhead | **5,000** | **2.5** |
 | Available for jobs | **15,000** | **40.45** |
 | **Max parallel jobs** | **3** (CPU-limited) | 6 (memory-limited) |

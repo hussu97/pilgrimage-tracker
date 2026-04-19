@@ -16,8 +16,8 @@ them identical in content whenever a variable is added, renamed, removed, or has
 
 | Platform | When to use it | Services |
 |---|---|---|
-| **GitHub Actions Secrets** (runtime) | All sensitive runtime values — API keys, passwords, DB credentials; written to VM `.env` at every deploy | Catalog API, Scraper API |
-| **docker-compose.prod.yml env** | Non-sensitive runtime configuration passed to containers | Catalog API, Scraper API |
+| **GitHub Actions Secrets** (runtime) | All sensitive runtime values — API keys, passwords, DB credentials; written to VM `.env` at every deploy | catalog-api, scraper-api |
+| **docker-compose.prod.yml env** | Non-sensitive runtime configuration passed to containers | catalog-api, scraper-api |
 | **GitHub Actions secrets** (build-time) | Baked into the web JS bundle at CI build time | Customer Web, Admin Web |
 | **EAS secrets** (build-time) | Baked into the mobile app bundle via Expo EAS | Mobile |
 | `.env` / `.env.local` | Local development only — never committed | All services |
@@ -34,10 +34,10 @@ them identical in content whenever a variable is added, renamed, removed, or has
 |---|---|
 | `JWT_SECRET` | HMAC-HS256 signing secret for access and refresh tokens. Generate: `python -c "import secrets; print(secrets.token_hex(32))"`. The default `dev-secret-change-in-production` **must** be replaced in production. |
 | `CATALOG_API_KEY` | Shared secret for internal service-to-service calls (scraper → catalog API). Sent as the `X-API-Key` header by the scraper; must match `CATALOG_API_KEY` on the scraper. Generate: `openssl rand -hex 32`. |
-| `POSTGRES_USER` | PostgreSQL username. Example: `soulstep`. Used by both the catalog API and scraper API. |
+| `POSTGRES_USER` | PostgreSQL username. Example: `soulstep`. Used by both catalog-api and scraper-api. |
 | `POSTGRES_PASSWORD` | PostgreSQL password. Generate: `openssl rand -hex 32`. Used by both services. |
-| `POSTGRES_DB` | Catalog API database name. Example: `soulstep`. `docker-compose.prod.yml` assembles `DATABASE_URL` for the catalog-api as `postgresql://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/POSTGRES_DB`. |
-| `SCRAPER_POSTGRES_DB` | Scraper API database name. Example: `soulstep_scraper`. `docker-compose.prod.yml` assembles `DATABASE_URL` for the scraper-api as `postgresql://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/SCRAPER_POSTGRES_DB`. Created automatically on first Postgres start via `docker/postgres-init.sql`. |
+| `POSTGRES_DB` | catalog-api database name. Example: `soulstep`. `docker-compose.prod.yml` assembles `DATABASE_URL` for the catalog-api as `postgresql://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/POSTGRES_DB`. |
+| `SCRAPER_POSTGRES_DB` | scraper-api database name. Example: `soulstep_scraper`. `docker-compose.prod.yml` assembles `DATABASE_URL` for the scraper-api as `postgresql://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/SCRAPER_POSTGRES_DB`. Created automatically on first Postgres start via `docker/postgres-init.sql`. |
 | `RESEND_API_KEY` | Resend.com API key for transactional email (password-reset flows). When unset, the reset link is printed to the console (dev fallback only). |
 
 #### docker-compose.prod.yml (non-sensitive)
@@ -126,9 +126,9 @@ them identical in content whenever a variable is added, renamed, removed, or has
 
 | Variable | Default | Description |
 |---|---|---|
-| `SCRAPER_ALLOWED_ORIGINS` | `http://localhost:5174,http://127.0.0.1:5174` | Comma-separated list of origins allowed to call this scraper API. Typically the admin web app running locally or in production. |
+| `SCRAPER_ALLOWED_ORIGINS` | `http://localhost:5174,http://127.0.0.1:5174` | Comma-separated list of origins allowed to call scraper-api. Typically the admin web app running locally or in production. |
 | `SCRAPER_TIMEZONE` | `UTC` | Fallback IANA timezone for places where Google Maps does not return a UTC offset. Example: `Asia/Dubai` |
-| `DATABASE_URL` | — | PostgreSQL connection string. **Never set this directly in production** — `docker-compose.prod.yml` assembles it from `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `SCRAPER_POSTGRES_DB`. Set this locally only if you want to point the scraper at a local or remote PostgreSQL instance instead of SQLite. Example: `postgresql://user:pass@localhost:5432/soulstep_scraper` |
+| `DATABASE_URL` | — | PostgreSQL connection string. **Never set this directly in production** — `docker-compose.prod.yml` assembles it from `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `SCRAPER_POSTGRES_DB`. Set this locally only if you want to point scraper-api at a local or remote PostgreSQL instance instead of SQLite. Example: `postgresql://user:pass@localhost:5432/soulstep_scraper` |
 | `SCRAPER_DB_PATH` | `scraper.db` | Path to the SQLite database file. Only used when `DATABASE_URL` is unset — local development only. **Do not rely on this in production:** Cloud Run containers have an ephemeral filesystem and all SQLite data is lost when the container exits. Set `DATABASE_URL` (PostgreSQL) instead. |
 | `SCRAPER_POOL_SIZE` | `10` | **Conditional** — persistent PostgreSQL connections kept open per process. Only applied when `DATABASE_URL` is a PostgreSQL URL. |
 | `SCRAPER_MAX_OVERFLOW` | `10` | **Conditional** — extra PostgreSQL connections allowed during traffic bursts. Budget: `SCRAPER_POOL_SIZE + SCRAPER_MAX_OVERFLOW` = max concurrent connections. |
@@ -141,7 +141,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `CLOUD_RUN_REGION` | `us-central1` | **Conditional** — GCP region for Cloud Run Job dispatch. Required when `SCRAPER_DISPATCH=cloud_run`. |
 | `CLOUD_RUN_REGIONS` | — | Multi-region capacity config. Format: `region1:max_jobs,region2:max_jobs,...` (e.g. `europe-west1:3,europe-west4:5`). When set, the queue processor distributes jobs across regions based on available capacity. Falls back to `CLOUD_RUN_REGION` with max 5 jobs when unset. See [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md). |
 | `GOOGLE_CLOUD_PROJECT` | — | GCP project ID. Required for Cloud Run Job dispatch and Cloud SQL connections outside GCP. On Cloud Run, automatically inferred from workload identity — safe to omit. |
-| `GCS_BUCKET_NAME` | — | **Conditional** — GCS bucket for scraped image storage. Required when the catalog API is configured with `IMAGE_STORAGE=gcs`. Must match `GCS_BUCKET_NAME` in the catalog API. Example: `soulstep-images` |
+| `GCS_BUCKET_NAME` | — | **Conditional** — GCS bucket for scraped image storage. Required when catalog-api is configured with `IMAGE_STORAGE=gcs`. Must match `GCS_BUCKET_NAME` in catalog-api. Example: `soulstep-images` |
 | `SCRAPER_DISCOVERY_CONCURRENCY` | `15` | Max concurrent Google Places `searchNearby` calls during discovery. |
 | `SCRAPER_DETAIL_CONCURRENCY` | `30` | Max concurrent Google Places `getPlace` detail calls. |
 | `SCRAPER_ENRICHMENT_CONCURRENCY` | `10` | Max places enriched (all collectors) in parallel. |
@@ -153,7 +153,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `SCRAPER_IMAGE_CONCURRENCY` | `40` | Max concurrent image downloads (plain CDN, no API rate limit). |
 | `SCRAPER_GATE_IMAGE_DOWNLOAD` | `0.75` | Quality gate (0.0–1.0) — places below this score are dropped before the image-download phase. Lower = more permissive. |
 | `SCRAPER_GATE_ENRICHMENT` | `0.75` | Quality gate (0.0–1.0) — places below this score are dropped before the enrichment phase. |
-| `SCRAPER_GATE_SYNC` | `0.75` | Quality gate (0.0–1.0) — places below this score are dropped before sync to the catalog. |
+| `SCRAPER_GATE_SYNC` | `0.75` | Quality gate (0.0–1.0) — places below this score are dropped before sync to catalog-api. |
 | `WIKIPEDIA_MAX_DISTANCE_KM` | `100` | Max distance (km) between a place's coordinates and a Wikipedia article's coordinates before the article is rejected as irrelevant. |
 | `BROWSER_GRID_CELL_SIZE_KM` | `3.0` | **Browser mode only.** Side-length (km) of each fixed grid cell used to tile a search area. Smaller = more overlap, more coverage. |
 | `MAPS_BROWSER_POOL_SIZE` | `3` | **Browser mode only.** Number of concurrent Playwright browser contexts. Each context is an isolated session with its own cookies and fingerprint. |

@@ -94,7 +94,7 @@ No shared `packages/` folder — web and mobile each have their own API client a
 
 ## 3. Tech Stack
 
-### Catalog API
+### catalog-api
 
 | Concern | Choice |
 |---|---|
@@ -239,7 +239,7 @@ Opening hours are stored in **local time** (24-hour, as received from Google Map
 
 ### Image Storage
 
-**Catalog API** — two backends controlled by `IMAGE_STORAGE` env var:
+**catalog-api** — two backends controlled by `IMAGE_STORAGE` env var:
 
 | Backend | Behavior |
 |---|---|
@@ -248,7 +248,7 @@ Opening hours are stored in **local time** (24-hour, as received from Google Map
 
 Service abstraction in `app/services/image_storage.py`. On Cloud Run, workload identity (ADC) handles GCS auth automatically.
 
-**Scraper API** — GCS is the only storage path. `GCS_BUCKET_NAME` is required. During Phase 3 (`download_place_images`), the scraper downloads each photo media URL and uploads directly to GCS; the public HTTPS URL is stored in `raw_data["image_urls"]`. No base64 blobs are produced. The sync payload always contains `image_urls` (GCS URLs). Both services use the same bucket and `images/places/` prefix.
+**scraper-api** — GCS is the only storage path. `GCS_BUCKET_NAME` is required. During Phase 3 (`download_place_images`), the scraper downloads each photo media URL and uploads directly to GCS; the public HTTPS URL is stored in `raw_data["image_urls"]`. No base64 blobs are produced. The sync payload always contains `image_urls` (GCS URLs). Both services use the same bucket and `images/places/` prefix.
 
 ### Translation
 
@@ -309,7 +309,7 @@ Scraper jobs can be spread across multiple GCP regions to avoid exhausting a sin
 
 - Configure via `CLOUD_RUN_REGIONS=europe-west1:3,europe-west4:5,europe-west2:5`
 - Each region has independent quota — the queue processor distributes jobs based on available capacity
-- Only jobs run in extra regions; all services (catalog API, scraper API) stay in the primary region
+- Only jobs run in extra regions; all services (catalog-api, scraper-api) stay in the primary region
 - Jobs connect to the primary Cloud SQL via cross-region auth proxy
 - See [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md) for setup instructions
 
@@ -343,7 +343,7 @@ Privacy-first analytics pipeline:
 
 ## 9. SEO / GEO Architecture
 
-The catalog API serves all SEO content:
+catalog-api serves all SEO content:
 
 - **Static SEO**: `PlaceSEO` model with `seo_slug`, `meta_title`, `meta_description`, `structured_data` (JSON-LD TouristAttraction), `alt_text`, FAQ
 - **Sitemaps**: `/sitemap.xml` (places + hreflang + images), `/sitemap-images.xml`
