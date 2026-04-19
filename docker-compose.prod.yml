@@ -6,16 +6,16 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    # Tuned for e2-micro (1 GB RAM). Leaves ~616 MB for the two APIs + nginx + OS.
+    # Tuned for e2-small (2 GB RAM). Leaves ~1.2 GB for the two APIs + nginx + OS.
     command: >
       postgres
-      -c shared_buffers=96MB
-      -c work_mem=4MB
-      -c maintenance_work_mem=32MB
-      -c effective_cache_size=256MB
-      -c max_connections=40
+      -c shared_buffers=128MB
+      -c work_mem=8MB
+      -c maintenance_work_mem=64MB
+      -c effective_cache_size=400MB
+      -c max_connections=100
       -c checkpoint_completion_target=0.9
-      -c wal_buffers=4MB
+      -c wal_buffers=16MB
       -c synchronous_commit=off
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -23,7 +23,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384m
+          memory: 512m
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -103,7 +103,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 192m
+          memory: 256m
     depends_on:
       postgres:
         condition: service_healthy
