@@ -31,6 +31,12 @@ class Settings:
 
     # ── Database ──────────────────────────────────────────────────────────────
     database_url: str = os.environ.get("DATABASE_URL", "")
+    # When SCRAPER_DISPATCH=cloud_run, the Cloud Run Job must reach postgres via
+    # the VM's internal GCP IP (through Serverless VPC connector), not the
+    # docker-internal hostname "postgres" that the API container uses.
+    # Set this to postgresql://user:pass@10.132.0.2:5432/soulstep_scraper on the VM.
+    # Falls back to database_url when unset (local dev, where dispatch is local anyway).
+    scraper_cloud_run_database_url: str = os.environ.get("SCRAPER_CLOUD_RUN_DATABASE_URL", "")
     scraper_db_path: str = os.environ.get("SCRAPER_DB_PATH", "scraper.db")
     # PostgreSQL connection pool tuning. pool_size + max_overflow = max concurrent
     # connections this process can hold. Cloud SQL small instances (db-f1-micro,
@@ -208,7 +214,7 @@ class Settings:
             "GEMINI_API_KEY": self.gemini_api_key,
             "CATALOG_API_KEY": self.catalog_api_key,
             # ── Database ──────────────────────────────────────────────────────
-            "DATABASE_URL": self.database_url,
+            "DATABASE_URL": self.scraper_cloud_run_database_url or self.database_url,
             "SCRAPER_DB_PATH": self.scraper_db_path,
             "SCRAPER_POOL_SIZE": str(self.scraper_pool_size),
             "SCRAPER_MAX_OVERFLOW": str(self.scraper_max_overflow),

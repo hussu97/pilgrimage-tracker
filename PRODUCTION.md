@@ -375,6 +375,7 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 | `CLOUD_RUN_JOB_NAME` | — | `soulstep-scraper-job` | Job name. Required when `SCRAPER_DISPATCH=cloud_run`. |
 | `CLOUD_RUN_REGION` | — | `us-central1` | Fallback region. Required when `SCRAPER_DISPATCH=cloud_run`. |
 | `CLOUD_RUN_REGIONS` | — | `europe-west1:3,europe-west4:5` | Multi-region config. Hardcoded in `deploy-vm.yml`. |
+| `SCRAPER_CLOUD_RUN_DATABASE_URL` | — | — | Postgres DSN for the Cloud Run Job, using the VM's internal GCP IP (`10.132.0.2`). Passed as `DATABASE_URL` override when dispatching. Falls back to `DATABASE_URL` (docker-internal) when unset — only safe when `SCRAPER_DISPATCH=local`. |
 | `GOOGLE_CLOUD_PROJECT` | — | — | GCP project ID. Required for Cloud Run Job dispatch. |
 | `GCS_BUCKET_NAME` | — | — | GCS bucket for scraped images. Must match catalog-api's value. |
 | `SCRAPER_DISCOVERY_CONCURRENCY` | — | `15` | Max concurrent `searchNearby` calls. |

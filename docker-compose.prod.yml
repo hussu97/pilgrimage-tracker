@@ -17,8 +17,6 @@ services:
       -c checkpoint_completion_target=0.9
       -c wal_buffers=4MB
       -c synchronous_commit=off
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -81,6 +79,7 @@ services:
     restart: always
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${SCRAPER_POSTGRES_DB}
+      SCRAPER_CLOUD_RUN_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@10.132.0.2:5432/${SCRAPER_POSTGRES_DB}
       PORT: "8080"
       MAIN_SERVER_URL: http://catalog-api:3000
       CATALOG_API_KEY: ${CATALOG_API_KEY}

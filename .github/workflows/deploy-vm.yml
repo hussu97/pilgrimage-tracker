@@ -346,38 +346,44 @@ jobs:
 
       - name: Upsert soulstep-scraper-api-job (primary region)
         run: |
-          DB_URL="postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@${{ secrets.SERVER_HOST }}:5432/${{ secrets.SCRAPER_POSTGRES_DB }}"
+          # Direct VPC Egress — routes job traffic through the project VPC so the
+          # job can reach the VM's internal IP (10.132.0.2) without a connector.
+          # DATABASE_URL is forwarded at dispatch time via SCRAPER_CLOUD_RUN_DATABASE_URL.
+          REGION="${{ env.REGION }}"
           COMMON_FLAGS=(
             --image "$AR_JOB_IMAGE"
             --memory 6Gi --cpu 4
             --task-timeout 86400 --max-retries 1
             --clear-secrets
             --remove-cloudsql-instances "project-fa2d7f52-2bc4-4a46-8ae:europe-west1:soulstep-db"
-            --update-env-vars "DATABASE_URL=$DB_URL"
+            --network default
+            --subnet default
+            --vpc-egress all-traffic
             --quiet
           )
-          if gcloud run jobs describe soulstep-scraper-api-job --region "${{ env.REGION }}" --quiet 2>/dev/null; then
-            gcloud run jobs update soulstep-scraper-api-job --region "${{ env.REGION }}" "${COMMON_FLAGS[@]}"
+          if gcloud run jobs describe soulstep-scraper-api-job --region "$REGION" --quiet 2>/dev/null; then
+            gcloud run jobs update soulstep-scraper-api-job --region "$REGION" "${COMMON_FLAGS[@]}"
           else
-            gcloud run jobs create soulstep-scraper-api-job --region "${{ env.REGION }}" "${COMMON_FLAGS[@]}"
+            gcloud run jobs create soulstep-scraper-api-job --region "$REGION" "${COMMON_FLAGS[@]}"
           fi
 
       - name: Upsert scraper job in extra regions
         if: env.EXTRA_JOB_REGIONS != ''
         run: |
-          DB_URL="postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@${{ secrets.SERVER_HOST }}:5432/${{ secrets.SCRAPER_POSTGRES_DB }}"
-          COMMON_FLAGS=(
-            --image "$AR_JOB_IMAGE"
-            --memory 6Gi --cpu 4
-            --task-timeout 86400 --max-retries 1
-            --clear-secrets
-            --remove-cloudsql-instances "project-fa2d7f52-2bc4-4a46-8ae:europe-west1:soulstep-db"
-            --update-env-vars "DATABASE_URL=$DB_URL"
-            --quiet
-          )
           for R in $(echo "${{ env.EXTRA_JOB_REGIONS }}" | tr ',' ' '); do
             [ -z "$R" ] && continue
             echo "=== Upsert scraper job in $R ==="
+            COMMON_FLAGS=(
+              --image "$AR_JOB_IMAGE"
+              --memory 6Gi --cpu 4
+              --task-timeout 86400 --max-retries 1
+              --clear-secrets
+              --remove-cloudsql-instances "project-fa2d7f52-2bc4-4a46-8ae:europe-west1:soulstep-db"
+              --network default
+              --subnet default
+              --vpc-egress all-traffic
+              --quiet
+            )
             if gcloud run jobs describe soulstep-scraper-api-job --region "$R" --quiet 2>/dev/null; then
               gcloud run jobs update soulstep-scraper-api-job --region "$R" "${COMMON_FLAGS[@]}"
             else
