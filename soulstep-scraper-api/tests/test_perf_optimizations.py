@@ -285,11 +285,11 @@ class TestTokenBucketRateLimiter:
         from app.scrapers.base import RateLimiter
 
         rl = RateLimiter(burst=1)
-        rl.acquire("gmaps_details")  # exhaust single burst token (15 rps → ~0.067s)
+        rl.acquire("gmaps_details")  # exhaust single burst token (25 rps → ~0.04s)
         start = time.monotonic()
         rl.acquire("gmaps_details")
         elapsed = time.monotonic() - start
-        assert elapsed >= 0.05  # must wait for at least one token
+        assert elapsed >= 0.03  # must wait for at least one token at 25 rps
 
     def test_tokens_refill_over_time(self):
         """After waiting, new tokens should be available without blocking."""
@@ -297,7 +297,7 @@ class TestTokenBucketRateLimiter:
 
         rl = RateLimiter(burst=1)
         rl.acquire("gmaps_search")  # exhaust burst
-        time.sleep(0.2)  # wait for 2 tokens to refill at 10 rps
+        time.sleep(0.2)  # wait for tokens to refill at 20 rps (0.2s × 20 = 4 tokens)
 
         start = time.monotonic()
         rl.acquire("gmaps_search")  # should be immediate

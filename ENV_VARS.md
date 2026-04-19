@@ -142,8 +142,8 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `CLOUD_RUN_REGIONS` | — | Multi-region capacity config. Format: `region1:max_jobs,region2:max_jobs,...` (e.g. `europe-west1:3,europe-west4:5`). When set, the queue processor distributes jobs across regions based on available capacity. Falls back to `CLOUD_RUN_REGION` with max 5 jobs when unset. See [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md). |
 | `GOOGLE_CLOUD_PROJECT` | — | GCP project ID. Required for Cloud Run Job dispatch and Cloud SQL connections outside GCP. On Cloud Run, automatically inferred from workload identity — safe to omit. |
 | `GCS_BUCKET_NAME` | — | **Conditional** — GCS bucket for scraped image storage. Required when the catalog API is configured with `IMAGE_STORAGE=gcs`. Must match `GCS_BUCKET_NAME` in the catalog API. Example: `soulstep-images` |
-| `SCRAPER_DISCOVERY_CONCURRENCY` | `10` | Max concurrent Google Places `searchNearby` calls during discovery. |
-| `SCRAPER_DETAIL_CONCURRENCY` | `20` | Max concurrent Google Places `getPlace` detail calls. |
+| `SCRAPER_DISCOVERY_CONCURRENCY` | `15` | Max concurrent Google Places `searchNearby` calls during discovery. |
+| `SCRAPER_DETAIL_CONCURRENCY` | `30` | Max concurrent Google Places `getPlace` detail calls. |
 | `SCRAPER_ENRICHMENT_CONCURRENCY` | `10` | Max places enriched (all collectors) in parallel. |
 | `SCRAPER_OVERPASS_CONCURRENCY` | `2` | Max concurrent Overpass API requests across all enrichment workers. Keep low — Overpass is a public server with strict rate limits. |
 | `SCRAPER_OVERPASS_JITTER_MAX` | `1.5` | Max random jitter (seconds) injected before each Overpass request to spread burst load. |

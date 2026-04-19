@@ -31,12 +31,12 @@ class TestRateLimiter:
 
         # burst=1 so any second call must wait
         rl = RateLimiter(burst=1)
-        rl.acquire("gmaps_search")  # exhausts the single burst token (10 rps → 0.1 s interval)
+        rl.acquire("gmaps_search")  # exhausts the single burst token (20 rps → 0.05 s interval)
         start = time.monotonic()
         rl.acquire("gmaps_search")
         elapsed = time.monotonic() - start
-        # Must have waited at least ~0.08 s (allow tolerance)
-        assert elapsed >= 0.08
+        # Must have waited at least ~0.04 s (allow tolerance for 20 rps)
+        assert elapsed >= 0.04
 
     def test_different_endpoints_are_independent(self):
         """Acquiring one endpoint does not delay another."""

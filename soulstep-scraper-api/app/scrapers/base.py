@@ -51,10 +51,10 @@ class RateLimiter:
     """
 
     DEFAULT_RATES: dict[str, float] = {
-        "gmaps_search": 10.0,  # was 2.0 — Google allows ~100 QPS, keep conservative
-        "gmaps_details": 15.0,  # was 5.0
-        "gmaps_photo": 15.0,  # was 5.0 — CDN, not billed; still throttle slightly
-        "overpass": 5.0,  # public Overpass API tolerates 5-10 RPS; was 1.0
+        "gmaps_search": 20.0,  # increased from 10 — cuts discovery time ~50% on large runs
+        "gmaps_details": 25.0,  # increased from 15 — cuts detail-fetch time ~40%
+        "gmaps_photo": 15.0,  # CDN, not billed; throttle slightly
+        "overpass": 5.0,  # public Overpass API tolerates 5-10 RPS
         "osm": 1.0,
         "wikipedia": 5.0,
         "wikidata": 5.0,
@@ -178,33 +178,57 @@ class AsyncRateLimiter:
     """
     Async per-endpoint token-bucket rate limiter with burst support.
 
-    Drop-in async counterpart to RateLimiter.  Uses asyncio.Lock to serialise
-    token accounting and asyncio.sleep to yield control while waiting, so the
-    event loop is never hard-blocked.
+    Drop-in async counterpart to RateLimiter.  Uses per-endpoint asyncio.Lock so
+    that independent endpoints (e.g. gmaps_details and overpass) never block each
+    other.  asyncio.sleep yields control while waiting so the event loop is never
+    hard-blocked.
 
     One instance is shared across all coroutines (safe because asyncio is
     single-threaded — only one coroutine runs between await points).
     """
 
-    DEFAULT_RATES: dict[str, float] = RateLimiter.DEFAULT_RATES
+    DEFAULT_RATES: dict[str, float] = {
+        "gmaps_search": 20.0,  # increased from 10 — cuts discovery time ~50% on large runs
+        "gmaps_details": 25.0,  # increased from 15 — cuts detail-fetch time ~40%
+        "gmaps_photo": 15.0,
+        "overpass": 5.0,
+        "osm": 1.0,
+        "wikipedia": 5.0,
+        "wikidata": 5.0,
+        "knowledge_graph": 2.0,
+        "besttime": 1.0,
+        "foursquare": 2.0,
+        "outscraper": 1.0,
+    }
     DEFAULT_BURST: int = RateLimiter.DEFAULT_BURST
 
     def __init__(self, burst: int = DEFAULT_BURST) -> None:
         self._burst = burst
-        self._lock = asyncio.Lock()
-        # Per-endpoint: [tokens_float, last_refill_monotonic, rps]
+        self._meta_lock = asyncio.Lock()
+        # Per-endpoint: [tokens_float, last_refill_monotonic, rps, per_endpoint_lock]
+        # Separate locks per endpoint eliminate contention between gmaps_details workers
+        # and any concurrent overpass/osm calls — they were all serialising on one lock.
         self._buckets: dict[str, list] = {}
+
+    async def _get_bucket(self, endpoint: str) -> list:
+        async with self._meta_lock:
+            if endpoint not in self._buckets:
+                rps = self.DEFAULT_RATES.get(endpoint, 1.0)
+                self._buckets[endpoint] = [
+                    float(self._burst),
+                    time.monotonic(),
+                    rps,
+                    asyncio.Lock(),
+                ]
+            return self._buckets[endpoint]
 
     async def acquire(self, endpoint: str) -> None:
         """Async-block until a token is available for the given endpoint."""
-        async with self._lock:
-            if endpoint not in self._buckets:
-                rps = self.DEFAULT_RATES.get(endpoint, 1.0)
-                self._buckets[endpoint] = [float(self._burst), time.monotonic(), rps]
-            bucket = self._buckets[endpoint]
+        bucket = await self._get_bucket(endpoint)
+        lock = bucket[3]
 
         while True:
-            async with self._lock:
+            async with lock:
                 now = time.monotonic()
                 rps = bucket[2]
                 elapsed = now - bucket[1]

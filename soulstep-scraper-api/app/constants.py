@@ -38,10 +38,10 @@ DEFAULT_STALE_THRESHOLD_DAYS: int = 90
 # ── Concurrency limits ────────────────────────────────────────────────────────
 
 # Default max concurrent Google Maps discovery API calls.
-DEFAULT_DISCOVERY_CONCURRENCY: int = 10
+DEFAULT_DISCOVERY_CONCURRENCY: int = 15
 
 # Default max concurrent Google Maps detail-fetch API calls.
-DEFAULT_DETAIL_CONCURRENCY: int = 20
+DEFAULT_DETAIL_CONCURRENCY: int = 30
 
 # Default max concurrent places enriched in parallel.
 DEFAULT_ENRICHMENT_CONCURRENCY: int = 10

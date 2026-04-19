@@ -65,9 +65,9 @@ class Settings:
 
     # ── Concurrency (configurable via env for tuning) ─────────────────────────
     # Max concurrent Google Places searchNearby calls during discovery.
-    discovery_concurrency: int = int(os.environ.get("SCRAPER_DISCOVERY_CONCURRENCY", "10"))
+    discovery_concurrency: int = int(os.environ.get("SCRAPER_DISCOVERY_CONCURRENCY", "15"))
     # Max concurrent Google Places getDetails calls during detail fetch.
-    detail_concurrency: int = int(os.environ.get("SCRAPER_DETAIL_CONCURRENCY", "20"))
+    detail_concurrency: int = int(os.environ.get("SCRAPER_DETAIL_CONCURRENCY", "30"))
     # Max concurrent places enriched in parallel. Keep ≤ pool_size so each
     # concurrent worker can always get a DB connection without overflow.
     enrichment_concurrency: int = int(os.environ.get("SCRAPER_ENRICHMENT_CONCURRENCY", "5"))

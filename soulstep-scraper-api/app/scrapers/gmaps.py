@@ -865,11 +865,11 @@ async def fetch_place_details(
         extracted_id = place_name[7:] if place_name.startswith("places/") else place_name
         name_to_code[place_name] = f"gplc_{extracted_id}"
 
-    # Idempotency guard: skip places already stored for this run (resume support)
-    existing_in_run = session.exec(
-        select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
-    ).all()
-    already_fetched_codes = {p.place_code for p in existing_in_run}
+    # Idempotency guard: select only place_code — never load raw_data (20-50 KB each)
+    # Loading full rows here caused OOM on resumed country-level runs (40K × 30KB ≈ 1.2 GB).
+    already_fetched_codes = set(
+        session.exec(select(ScrapedPlace.place_code).where(ScrapedPlace.run_code == run_code)).all()
+    )
     if already_fetched_codes:
         original_count = len(place_ids)
         place_ids = [pn for pn in place_ids if name_to_code[pn] not in already_fetched_codes]
@@ -887,15 +887,19 @@ async def fetch_place_details(
     if not force_refresh:
         logger.info("Checking for cached places (fresher than %d days)...", stale_threshold_days)
         all_place_codes = list(name_to_code.values())
-        existing = session.exec(
-            select(ScrapedPlace)
-            .where(ScrapedPlace.place_code.in_(all_place_codes))
-            .where(ScrapedPlace.created_at >= stale_cutoff)
-            .order_by(desc(ScrapedPlace.created_at))
-        ).all()
-        for ep in existing:
-            if ep.place_code not in cached_places:
-                cached_places[ep.place_code] = ep
+        # Chunk into batches of 500 — a single IN(50K) clause causes the DB query planner
+        # to abandon the index and do a full table scan, stalling country-level runs.
+        _CACHE_CHUNK = 500
+        for _ci in range(0, len(all_place_codes), _CACHE_CHUNK):
+            _chunk = all_place_codes[_ci : _ci + _CACHE_CHUNK]
+            for ep in session.exec(
+                select(ScrapedPlace)
+                .where(ScrapedPlace.place_code.in_(_chunk))
+                .where(ScrapedPlace.created_at >= stale_cutoff)
+                .order_by(desc(ScrapedPlace.created_at))
+            ).all():
+                if ep.place_code not in cached_places:
+                    cached_places[ep.place_code] = ep
         logger.info(
             "Found %d cached places, will fetch %d fresh",
             len(cached_places),
@@ -994,51 +998,61 @@ async def fetch_place_details(
             async with fetch_sem:
                 return await _fetch_worker(place_name)
 
-        # Launch all fetch tasks (concurrency still governed by fetch_sem)
-        tasks = [asyncio.ensure_future(_bounded_fetch(pn)) for pn in to_fetch]
-
-        # Process results incrementally as they arrive — this makes processed_items
-        # tick up in real time so the admin UI progress bar updates every batch.
+        # Process to_fetch in bounded task batches — creating 50K+ futures at once causes
+        # significant memory pressure (each coroutine holds a stack frame) and bloats the
+        # event-loop task queue. Batching to _TASK_BATCH keeps at most that many tasks
+        # in-flight; the semaphore still bounds actual API concurrency within each batch.
+        _TASK_BATCH = 500
         processed_since_cancel_check = 0
         CANCEL_CHECK_INTERVAL = flush_batch_size * 3
+        _cancelled = False
 
-        for coro in asyncio.as_completed(tasks):
-            try:
-                result = await coro
-            except Exception as exc:
-                logger.warning("Detail fetch task error: %s", exc)
-                counter.increment()
-                continue
+        for _batch_start in range(0, len(to_fetch), _TASK_BATCH):
+            if _cancelled:
+                break
+            _batch = to_fetch[_batch_start : _batch_start + _TASK_BATCH]
+            tasks = [asyncio.ensure_future(_bounded_fetch(pn)) for pn in _batch]
 
-            if isinstance(result, Exception):
-                logger.warning("Detail fetch task error: %s", result)
-                counter.increment()
-                continue
+            # Process results incrementally as they arrive — this makes processed_items
+            # tick up in real time so the admin UI progress bar updates every batch.
+            for coro in asyncio.as_completed(tasks):
+                try:
+                    result = await coro
+                except Exception as exc:
+                    logger.warning("Detail fetch task error: %s", exc)
+                    counter.increment()
+                    continue
 
-            place_name, details, response, error = result
+                if isinstance(result, Exception):
+                    logger.warning("Detail fetch task error: %s", result)
+                    counter.increment()
+                    continue
 
-            if error is not None:
-                logger.warning("Error fetching %s: %s", place_name, error)
-                counter.increment()
-                continue
+                place_name, details, response, error = result
 
-            buffer.append((place_name, details, response))
+                if error is not None:
+                    logger.warning("Error fetching %s: %s", place_name, error)
+                    counter.increment()
+                    continue
 
-            if len(buffer) >= flush_batch_size:
-                _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
-                buffer.clear()
+                buffer.append((place_name, details, response))
 
-            # Periodic cancellation check so we don't hold locks until all fetches finish
-            processed_since_cancel_check += 1
-            if processed_since_cancel_check >= CANCEL_CHECK_INTERVAL:
-                processed_since_cancel_check = 0
-                session.expire(run)
-                session.refresh(run)
-                if run.status == "cancelled":
-                    logger.warning("Run %s was cancelled during detail fetching", run_code)
-                    for t in tasks:
-                        t.cancel()
-                    return
+                if len(buffer) >= flush_batch_size:
+                    _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
+                    buffer.clear()
+
+                # Periodic cancellation check so we don't hold locks until all fetches finish
+                processed_since_cancel_check += 1
+                if processed_since_cancel_check >= CANCEL_CHECK_INTERVAL:
+                    processed_since_cancel_check = 0
+                    session.expire(run)
+                    session.refresh(run)
+                    if run.status == "cancelled":
+                        logger.warning("Run %s was cancelled during detail fetching", run_code)
+                        for t in tasks:
+                            t.cancel()
+                        _cancelled = True
+                        break
 
         if buffer:
             _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
