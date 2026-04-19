@@ -277,8 +277,8 @@ jobs:
             sleep 5
           done
 
-          # Reload nginx to pick up any config changes
-          docker compose -f docker-compose.prod.yml up -d --no-deps nginx
+          # Recreate nginx on every deploy so .env changes (e.g. USE_SSL) are always picked up
+          docker compose -f docker-compose.prod.yml up -d --no-deps --force-recreate nginx
 
           # Prune old images to save disk space
           docker image prune -f
