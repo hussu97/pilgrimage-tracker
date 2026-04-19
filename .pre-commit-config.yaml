@@ -94,3 +94,35 @@ repos:
         files: ^soulstep-scraper-api/
         pass_filenames: false
         stages: [pre-push]
+
+      - id: vitest-web
+        name: Vitest (web)
+        language: system
+        entry: bash -c 'cd apps/soulstep-customer-web && npm test'
+        files: ^apps/soulstep-customer-web/
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: vitest-admin
+        name: Vitest (admin)
+        language: system
+        entry: bash -c 'cd apps/soulstep-admin-web && npm test'
+        files: ^apps/soulstep-admin-web/
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: jest-mobile
+        name: Jest (mobile)
+        language: system
+        entry: bash -c 'cd apps/soulstep-customer-mobile && npm test'
+        files: ^apps/soulstep-customer-mobile/
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: tsc-mobile
+        name: TypeScript typecheck (mobile)
+        language: system
+        entry: bash -c 'cd apps/soulstep-customer-mobile && npx tsc --noEmit'
+        files: ^apps/soulstep-customer-mobile/
+        pass_filenames: false
+        stages: [pre-push]
