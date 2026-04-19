@@ -279,6 +279,10 @@ jobs:
           docker compose -f docker-compose.prod.yml ps
           SCRIPT
 
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
+
   # ── Deploy: scraper Cloud Run Job (Playwright — stays on Cloud Run) ────────
 
   deploy-scraper-job:
