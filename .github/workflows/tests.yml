@@ -33,11 +33,13 @@ jobs:
               - 'soulstep-catalog-api/**'
               - '.github/workflows/tests.yml'
               - '.github/workflows/deploy.yml'
+              - '.github/workflows/deploy-vm.yml'
               - 'README.md'
             scraper:
               - 'soulstep-scraper-api/**'
               - '.github/workflows/tests.yml'
               - '.github/workflows/deploy.yml'
+              - '.github/workflows/deploy-vm.yml'
               - 'README.md'
             web:
               - 'apps/soulstep-customer-web/**'
