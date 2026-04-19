@@ -240,11 +240,25 @@ async def get_places_in_circle(
     }
 
     t0 = time.perf_counter()
-    if client is not None:
-        resp = await client.post(url, json=body, headers=headers)
-    else:
-        async with httpx.AsyncClient(timeout=35.0) as c:
-            resp = await c.post(url, json=body, headers=headers)
+    for _attempt in range(3):
+        try:
+            if client is not None:
+                resp = await client.post(url, json=body, headers=headers)
+            else:
+                async with httpx.AsyncClient(timeout=35.0) as c:
+                    resp = await c.post(url, json=body, headers=headers)
+            break
+        except (httpx.ConnectTimeout, httpx.ConnectError) as _exc:
+            if _attempt == 2:
+                raise
+            _wait = 2.0 * (2**_attempt)
+            logger.warning(
+                "get_places_in_circle: connect error (attempt %d/3) — retrying in %.0fs: %s",
+                _attempt + 1,
+                _wait,
+                _exc,
+            )
+            await asyncio.sleep(_wait)
     duration_ms = (time.perf_counter() - t0) * 1000
 
     if resp.status_code != 200:
