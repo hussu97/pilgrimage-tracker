@@ -11,6 +11,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - **Tracer instrumentation** — added `tracer.span(...)` blocks around `facet_fetch`, `bulk_attrs`, `bulk_ratings`, `filterable_defs`, `base_filter`, `filter_options`, and `page_hydrate` so `?_trace=1` now shows where time goes inside `list_places`. Previously the X-Trace output for this endpoint showed `"spans": []`.
 - **Behavior preserved**: identical `{rows, total, filters, all_attrs, all_ratings}` shape; `all_attrs`/`all_ratings` are now trimmed to the page's codes (the caller only reads them via `.get(place_code)` during page serialization).
 - **Tests**: all 1,338 backend tests pass; local A/B micro-benchmark (2,000 places, in-memory SQLite) shows ~20–30% wall-clock improvement. Expected prod improvement is larger due to Cloud Run CPU throttling and the real Place row width.
+- **Follow-up** — `soulstep-catalog-api/app/db/place_attributes.py::bulk_get_attributes_for_places` switched to a column projection (`place_code, attribute_code, value_text, value_json`) instead of `select(PlaceAttribute)`. Post-deploy trace revealed this function was the real hog at 347–554ms per request; projection skips `PlaceAttribute` ORM instantiation over ~15k attribute rows. Response shape unchanged.
 
 ---
 
