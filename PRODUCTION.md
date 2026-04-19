@@ -155,7 +155,7 @@ Go to **GitHub → hussu97/soulstep → Settings → Environments → production
 | `RESET_URL_BASE` | `https://soul-step.org` |
 | `GCS_BUCKET_NAME` | `soulstep-images` |
 | `GOOGLE_CLOUD_PROJECT` | `project-fa2d7f52-2bc4-4a46-8ae` |
-| `GLITCHTIP_DSN` | GlitchTip error tracking DSN |
+| `SENTRY_DSN` | Sentry DSN for error tracking (catalog-api + scraper-api) |
 | `ADS_ENABLED` | `false` |
 | `ADSENSE_PUBLISHER_ID` | AdSense publisher ID (when ads enabled) |
 | `SCRAPER_GOOGLE_MAPS_API_KEY` | Google Maps key for scraper |
@@ -371,7 +371,7 @@ docker stats --no-stream   # memory usage
 
 ### Error tracking
 
-GlitchTip receives all unhandled exceptions via `GLITCHTIP_DSN`. Check the dashboard after deploys.
+Sentry receives all unhandled exceptions via `SENTRY_DSN` (backend) and `NEXT_PUBLIC_SENTRY_DSN` / `VITE_SENTRY_DSN` / `EXPO_PUBLIC_SENTRY_DSN` (frontends). Check the Sentry dashboard after deploys.
 
 ---
 

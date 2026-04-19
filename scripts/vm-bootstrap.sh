@@ -1,19 +1,25 @@
 #!/usr/bin/env bash
 # Run once on a fresh Debian 12 e2-micro VM to set up the SoulStep backend.
-# Usage: bash vm-bootstrap.sh
 set -euo pipefail
 
 DEPLOY_DIR=/opt/soulstep
 REPO_URL=https://github.com/hussu97/soulstep.git
 DEPLOY_USER=deploy
 
-echo "=== [1/8] Install Docker ==="
+echo "=== [1/9] Install Docker ==="
 curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker "$DEPLOY_USER" || true
 sudo systemctl enable docker
 sudo systemctl start docker
 
-echo "=== [2/8] Install gcloud CLI (for GCS backup uploads) ==="
+echo "=== [2/9] Install Google Cloud Ops Agent (ships Docker logs → Cloud Logging) ==="
+if ! systemctl is-active --quiet google-cloud-ops-agent 2>/dev/null; then
+  curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+  sudo bash add-google-cloud-ops-agent-repo.sh --also-install
+  rm -f add-google-cloud-ops-agent-repo.sh
+fi
+
+echo "=== [3/9] Install gcloud CLI (for GCS backup uploads) ==="
 if ! command -v gcloud &>/dev/null; then
   curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
     | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
@@ -22,7 +28,7 @@ if ! command -v gcloud &>/dev/null; then
   sudo apt-get update && sudo apt-get install -y google-cloud-cli
 fi
 
-echo "=== [3/8] Clone repo ==="
+echo "=== [4/9] Clone repo ==="
 sudo mkdir -p "$DEPLOY_DIR"
 sudo chown "$DEPLOY_USER:$DEPLOY_USER" "$DEPLOY_DIR"
 if [ ! -d "$DEPLOY_DIR/.git" ]; then
@@ -31,13 +37,13 @@ else
   echo "Repo already cloned — skipping."
 fi
 
-echo "=== [4/8] Create certbot directories ==="
+echo "=== [5/9] Create certbot directories ==="
 mkdir -p "$DEPLOY_DIR/certbot/www" "$DEPLOY_DIR/certbot/conf"
 
-echo "=== [5/8] Create backup directory ==="
+echo "=== [6/9] Create backup directory ==="
 mkdir -p "$DEPLOY_DIR/backups"
 
-echo "=== [6/8] Start Postgres (HTTP-only, before certs) ==="
+echo "=== [7/9] Start Postgres (HTTP-only, before certs) ==="
 cd "$DEPLOY_DIR"
 docker compose -f docker-compose.prod.yml up -d postgres
 echo "Waiting for Postgres to be healthy..."
@@ -48,13 +54,13 @@ for i in $(seq 1 30); do
 done
 echo "Postgres is ready."
 
-echo "=== [7/8] Install crontab ==="
+echo "=== [8/9] Install crontab ==="
 crontab -l 2>/dev/null | grep -v soulstep > /tmp/crontab_clean || true
 cat "$DEPLOY_DIR/scripts/cron/soulstep-cron" >> /tmp/crontab_clean
 crontab /tmp/crontab_clean
 echo "Crontab installed."
 
-echo "=== [8/8] Done! ==="
+echo "=== [9/9] Done! ==="
 cat <<'NEXT'
 
 Next steps:

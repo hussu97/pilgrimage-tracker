@@ -18,6 +18,17 @@ from app.core.logging_config import set_trace_context, setup_logging  # noqa: E4
 setup_logging()
 logger = logging.getLogger(__name__)
 
+from app.core import config as _config  # noqa: E402
+
+if _config.SENTRY_DSN:
+    import sentry_sdk  # noqa: E402
+
+    sentry_sdk.init(
+        dsn=_config.SENTRY_DSN,
+        traces_sample_rate=0.05,
+        send_default_pii=False,
+    )
+
 from fastapi import FastAPI, Request, status  # noqa: E402
 from fastapi.exceptions import RequestValidationError  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402

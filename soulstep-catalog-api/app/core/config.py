@@ -72,6 +72,7 @@ APP_STORE_URL_ANDROID = os.environ.get("APP_STORE_URL_ANDROID", "")
 # Logging
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 LOG_FORMAT = os.environ.get("LOG_FORMAT", "json")  # "json" | "text"
+SENTRY_DSN: str = os.environ.get("SENTRY_DSN", "")
 
 # Google Places API key (used for search proxy endpoints)
 GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY", "")

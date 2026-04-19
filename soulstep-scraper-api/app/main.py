@@ -27,6 +27,11 @@ from app.seeds.place_types import seed_place_type_mappings  # noqa: E402
 
 setup_logging()
 
+if _sentry_dsn := os.environ.get("SENTRY_DSN"):
+    import sentry_sdk
+
+    sentry_sdk.init(dsn=_sentry_dsn, traces_sample_rate=0.05, send_default_pii=False)
+
 logger = get_logger(__name__)
 
 

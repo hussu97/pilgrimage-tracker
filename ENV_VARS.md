@@ -82,7 +82,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `LATEST_APP_VERSION` | — | Current latest release version — returned by `GET /api/v1/app-version`. Example: `1.0.0` |
 | `APP_STORE_URL_IOS` | — | App-store deep-link URL for iOS shown inside update prompts. Example: `https://apps.apple.com/app/idXXXXXXXXX` |
 | `APP_STORE_URL_ANDROID` | — | App-store deep-link URL for Android shown inside update prompts. Example: `https://play.google.com/store/apps/details?id=com.soulstep` |
-| `GLITCHTIP_DSN` | — | Sentry-compatible DSN for server-side error and exception tracking via GlitchTip. When unset, error tracking is disabled. Example: `https://<key>@app.glitchtip.com/<project-id>` |
+| `SENTRY_DSN` | — | Sentry DSN for server-side error tracking. Passed to both catalog-api and scraper-api via `docker-compose.prod.yml`. When unset, error tracking is disabled. Example: `https://xxx@sentry.io/yyy` |
 
 #### Local Dev Only (`.env`)
 
@@ -182,7 +182,7 @@ to anyone who inspects the built assets. Never put secrets in `NEXT_PUBLIC_*` va
 |---|---|---|
 | `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | — | **Conditional** — Google AdSense publisher ID. Required when the backend returns `ADS_ENABLED=true` for this client. When unset, the AdSense script is not loaded. Example: `ca-pub-xxxxxxxxxxxxxxxxxxxxxxxx` |
 | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | — | Umami Cloud website ID for privacy-friendly, cookie-free analytics. When unset, Umami analytics are disabled. Example: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
-| `NEXT_PUBLIC_GLITCHTIP_DSN` | — | Sentry-compatible DSN for client-side error and exception tracking via GlitchTip. When unset, client-side error tracking is disabled. |
+| `NEXT_PUBLIC_SENTRY_DSN` | — | Sentry DSN for client-side error tracking in the customer web app (`sentry.client.config.ts`). When unset, client-side error tracking is disabled. |
 
 ### Local Dev Only (`.env.local`)
 
@@ -208,6 +208,7 @@ and is never exposed to the browser bundle.
 | Variable | Default | Description |
 |---|---|---|
 | `VITE_API_URL` | _(relative)_ | Catalog API base URL used by the admin web API client. When unset, the app uses relative URLs. Set in production if the admin app is deployed separately from the catalog API. Example: `https://catalog-api.soul-step.org` |
+| `VITE_SENTRY_DSN` | — | Sentry DSN for client-side error tracking in the admin web app (`src/lib/sentry.ts`). When unset, error tracking is disabled. Example: `https://xxx@sentry.io/yyy` |
 
 ### Local Dev Only (`.env.local`)
 
@@ -236,3 +237,4 @@ anyone who decompiles the app bundle. Never put secrets in `EXPO_PUBLIC_*` vars.
 | `EXPO_PUBLIC_ADMOB_APP_ID_IOS` | — | **Conditional** — AdMob App ID for iOS. Required when the AdMob SDK is initialised in `app.json` / `app.config.ts`. When unset, AdMob initialisation is skipped and no ads are shown. |
 | `EXPO_PUBLIC_ADMOB_APP_ID_ANDROID` | — | **Conditional** — AdMob App ID for Android. Required when the AdMob SDK is initialised in `app.json` / `app.config.ts`. |
 | `EXPO_PUBLIC_UMAMI_WEBSITE_ID` | — | Umami Cloud website ID for privacy-friendly, cookie-free analytics. When unset, Umami analytics are disabled. Example: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx` |
+| `EXPO_PUBLIC_SENTRY_DSN` | — | Sentry DSN for error tracking in the mobile app (`index.js`). When unset (or in dev), error tracking is disabled. Example: `https://xxx@sentry.io/yyy` |

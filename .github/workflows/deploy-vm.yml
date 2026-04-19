@@ -219,7 +219,7 @@ jobs:
           RESET_URL_BASE=${{ secrets.RESET_URL_BASE }}
           GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }}
           GOOGLE_CLOUD_PROJECT=${{ secrets.GOOGLE_CLOUD_PROJECT }}
-          GLITCHTIP_DSN=${{ secrets.GLITCHTIP_DSN }}
+          SENTRY_DSN=${{ secrets.SENTRY_DSN }}
           ADS_ENABLED=${{ secrets.ADS_ENABLED }}
           ADSENSE_PUBLISHER_ID=${{ secrets.ADSENSE_PUBLISHER_ID }}
           SCRAPER_GOOGLE_MAPS_API_KEY=${{ secrets.SCRAPER_GOOGLE_MAPS_API_KEY }}

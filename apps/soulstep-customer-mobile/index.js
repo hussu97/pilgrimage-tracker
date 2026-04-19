@@ -1,7 +1,10 @@
+import * as Sentry from '@sentry/react-native';
 import { registerRootComponent } from 'expo';
 import App from './src/app/App';
 
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// It also ensures that whether you load the app in Expo Go or in a native build,
-// the environment is set up appropriately
-registerRootComponent(App);
+const DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
+if (DSN) {
+  Sentry.init({ dsn: DSN, tracesSampleRate: 0.05, enabled: !__DEV__ });
+}
+
+registerRootComponent(DSN ? Sentry.wrap(App) : App);

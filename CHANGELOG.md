@@ -4,6 +4,26 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-19] — Sentry Error Tracking + Google Cloud Logging
+
+### Backend
+- **`soulstep-catalog-api`** — added `sentry-sdk[fastapi]>=2.0.0`; initialised in `app/main.py` (conditional on `SENTRY_DSN`, `traces_sample_rate=0.05`, `send_default_pii=False`)
+- **`soulstep-scraper-api`** — same Sentry init pattern
+- **`scripts/vm-bootstrap.sh`** — installs Google Cloud Ops Agent at bootstrap so Docker container stdout/stderr is forwarded to Cloud Logging automatically; both backends already emit GCP-compatible JSON with `severity` field
+
+### Frontend (web)
+- **`apps/soulstep-customer-web`** — added `sentry.client.config.ts`, `sentry.server.config.ts`, `sentry.edge.config.ts`; wrapped `next.config.ts` with `withSentryConfig`; enabled on `NEXT_PUBLIC_SENTRY_DSN`
+- **`apps/soulstep-admin-web`** — added `src/lib/sentry.ts` (`@sentry/react`); `initSentry()` called in `main.tsx`; enabled on `VITE_SENTRY_DSN`
+
+### Frontend (mobile)
+- **`apps/soulstep-customer-mobile`** — added `@sentry/react-native`; initialised in `index.js` (`Sentry.wrap(App)`) on `EXPO_PUBLIC_SENTRY_DSN`; disabled in `__DEV__`
+
+### Docs
+- **`ENV_VARS.md`** — replaced `GLITCHTIP_DSN` / `NEXT_PUBLIC_GLITCHTIP_DSN` with `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `VITE_SENTRY_DSN`, `EXPO_PUBLIC_SENTRY_DSN`
+- **`PRODUCTION.md`** — updated error tracking section and secrets table to reference Sentry
+
+---
+
 ## [2026-04-19] — VM Migration: Docker Compose + GHCR + SSH Deploy
 
 ### Backend
