@@ -158,12 +158,12 @@ Go to **GitHub → hussu97/pilgrimage-tracker → Settings → Environments → 
 | `SENTRY_DSN` | Sentry DSN for error tracking (catalog-api + scraper-api) |
 | `ADS_ENABLED` | `false` |
 | `ADSENSE_PUBLISHER_ID` | AdSense publisher ID (when ads enabled) |
-| `SCRAPER_GOOGLE_MAPS_API_KEY` | Google Maps key for scraper |
+| `SCRAPER_GOOGLE_MAPS_API_KEY` | **Not a separate secret** — CI writes `GOOGLE_MAPS_API_KEY` secret value here |
 | `SCRAPER_GEMINI_API_KEY` | Gemini API key |
 | `SCRAPER_FOURSQUARE_API_KEY` | Foursquare API key |
 | `SCRAPER_ALLOWED_ORIGINS` | `https://admin.soul-step.org` |
 | `SCRAPER_TIMEZONE` | `Asia/Dubai` |
-| `CLOUD_RUN_REGIONS` | `europe-west1:3,europe-west4:5` |
+| `CLOUD_RUN_REGIONS` | **Not a secret** — hardcoded as `europe-west1:3,europe-west4:5` in `deploy-vm.yml` |
 | `BACKUP_GCS_BUCKET` | `soulstep-db-backups` |
 | `LOG_LEVEL` | `INFO` |
 

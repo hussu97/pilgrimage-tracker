@@ -100,7 +100,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 
 | Variable | Description |
 |---|---|
-| `SCRAPER_GOOGLE_MAPS_API_KEY` | Google Maps / Places API key for the scraper. `docker-compose.prod.yml` maps this to `GOOGLE_MAPS_API_KEY` inside the container. Enable "Places API (New)" at console.cloud.google.com. **Not required** when `SCRAPER_BACKEND=browser`. |
+| `SCRAPER_GOOGLE_MAPS_API_KEY` | Google Maps / Places API key for the scraper. `docker-compose.prod.yml` maps this to `GOOGLE_MAPS_API_KEY` inside the container. In CI (`deploy-vm.yml`) this is populated from the `GOOGLE_MAPS_API_KEY` GitHub secret — no separate secret needed. Enable "Places API (New)" at console.cloud.google.com. **Not required** when `SCRAPER_BACKEND=browser`. |
 | `CATALOG_API_KEY` | Shared secret for catalog API internal endpoints (sent as `X-API-Key` header). Must match `CATALOG_API_KEY` on the catalog API. Required when `SCRAPER_TRIGGER_SEO_AFTER_SYNC=true` or when syncing places. Generate: `openssl rand -hex 32` |
 
 #### docker-compose.prod.yml (non-sensitive)
@@ -139,7 +139,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `SCRAPER_DISPATCH` | `local` | How scrape runs are executed after `POST /runs`. `local` — in-process via FastAPI BackgroundTasks. `cloud_run` — dispatches a Cloud Run Job via the GCP Jobs API. |
 | `CLOUD_RUN_JOB_NAME` | `soulstep-scraper-job` | **Conditional** — Cloud Run Job name. Required when `SCRAPER_DISPATCH=cloud_run`. |
 | `CLOUD_RUN_REGION` | `us-central1` | **Conditional** — GCP region for Cloud Run Job dispatch. Required when `SCRAPER_DISPATCH=cloud_run`. |
-| `CLOUD_RUN_REGIONS` | — | Multi-region capacity config. Format: `region1:max_jobs,region2:max_jobs,...` (e.g. `europe-west1:3,europe-west4:5`). When set, the queue processor distributes jobs across regions based on available capacity. Falls back to `CLOUD_RUN_REGION` with max 5 jobs when unset. See [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md). |
+| `CLOUD_RUN_REGIONS` | `europe-west1:3,europe-west4:5` | Multi-region capacity config. Format: `region1:max_jobs,region2:max_jobs,...`. Hardcoded in `deploy-vm.yml` — not a GitHub secret. When set, the queue processor distributes jobs across regions based on available capacity. Falls back to `CLOUD_RUN_REGION` with max 5 jobs when unset. See [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md). |
 | `GOOGLE_CLOUD_PROJECT` | — | GCP project ID. Required for Cloud Run Job dispatch and Cloud SQL connections outside GCP. On Cloud Run, automatically inferred from workload identity — safe to omit. |
 | `GCS_BUCKET_NAME` | — | **Conditional** — GCS bucket for scraped image storage. Required when catalog-api is configured with `IMAGE_STORAGE=gcs`. Must match `GCS_BUCKET_NAME` in catalog-api. Example: `soulstep-images` |
 | `SCRAPER_DISCOVERY_CONCURRENCY` | `15` | Max concurrent Google Places `searchNearby` calls during discovery. |
