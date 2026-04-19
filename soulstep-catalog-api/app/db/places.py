@@ -1,5 +1,6 @@
 import math
 import re
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
@@ -420,120 +421,144 @@ def list_places(
     max_lng: float | None = None,
     city: str | None = None,
 ) -> dict:
-    statement = select(Place)
+    from app.lib.tracer import get_tracer
 
+    tracer = get_tracer()
+
+    def _span(name):
+        return tracer.span(name) if tracer else _noop_span()
+
+    # ── SQL-level predicates: applied identically to both the facet pass
+    # (lightweight projection over every matching row) and the page pass
+    # (full Place objects, limit/offset applied in SQL).
+    base_where = []
     if religions and Religion.ALL not in religions:
-        statement = statement.where(Place.religion.in_(religions))
+        base_where.append(Place.religion.in_(religions))
     if place_type:
-        statement = statement.where(Place.place_type == place_type)
+        base_where.append(Place.place_type == place_type)
     if city:
-        statement = statement.where(Place.city.ilike(city))
+        base_where.append(Place.city.ilike(city))
     if search:
         q = f"%{search.lower()}%"
-        statement = statement.where(
+        base_where.append(
             or_(Place.name.ilike(q), Place.address.ilike(q), Place.description.ilike(q))
         )
 
-    # Bounding-box filter — applied at the SQL level for efficiency
     has_bbox = (
         min_lat is not None and max_lat is not None and min_lng is not None and max_lng is not None
     )
     if has_bbox:
-        statement = statement.where(Place.lat >= min_lat, Place.lat <= max_lat)
+        base_where.append(Place.lat >= min_lat)
+        base_where.append(Place.lat <= max_lat)
         if min_lng <= max_lng:
-            statement = statement.where(Place.lng >= min_lng, Place.lng <= max_lng)
+            base_where.append(Place.lng >= min_lng)
+            base_where.append(Place.lng <= max_lng)
         else:
             # Crosses antimeridian (e.g. min_lng=170, max_lng=-170)
-            statement = statement.where(or_(Place.lng >= min_lng, Place.lng <= max_lng))
+            base_where.append(or_(Place.lng >= min_lng, Place.lng <= max_lng))
 
-    all_places = session.exec(statement).all()
+    # ── Pass 1: lightweight projection over every matching place.
+    # Fetch only the columns needed for Python-side filter/facet work —
+    # this skips SQLModel ORM instantiation of every Place (the dominant
+    # cost when the table has ~thousands of rows).
+    with _span("facet_fetch"):
+        facet_stmt = select(
+            Place.place_code,
+            Place.religion,
+            Place.opening_hours,
+            Place.utc_offset_minutes,
+            Place.lat,
+            Place.lng,
+        )
+        for w in base_where:
+            facet_stmt = facet_stmt.where(w)
+        facet_rows = session.exec(facet_stmt).all()
 
-    # BULK FETCH: Get all attributes for all places in ONE query
-    place_codes = [p.place_code for p in all_places]
-    all_attrs = attr_db.bulk_get_attributes_for_places(place_codes, session)
+    facet_codes = [r.place_code for r in facet_rows]
 
-    # BULK FETCH: Get filterable attribute definitions ONCE
-    filterable_defs = attr_db.get_attribute_definitions(filterable_only=True, session=session)
+    with _span("bulk_attrs"):
+        all_attrs = attr_db.bulk_get_attributes_for_places(facet_codes, session)
+    with _span("bulk_ratings"):
+        all_ratings = reviews_db.get_aggregate_ratings_bulk(facet_codes, session)
+    with _span("filterable_defs"):
+        filterable_defs = attr_db.get_attribute_definitions(filterable_only=True, session=session)
 
-    # BULK FETCH: Get all ratings for all places in ONE query
-    all_ratings = reviews_db.get_aggregate_ratings_bulk(place_codes, session)
+    # Apply base Python-level filters (jummah / has_events / radius). These
+    # must run before facet counts so the facets reflect the same base set
+    # that the paginated result set is derived from.
+    with _span("base_filter"):
+        filtered: list[tuple] = []
+        for r in facet_rows:
+            attrs = all_attrs.get(r.place_code, {})
+            if jummah is True and not _place_has_jummah(r, attrs):
+                continue
+            if has_events is True and not _place_has_events(r, attrs):
+                continue
 
-    result: list[tuple] = []
-    for p in all_places:
-        attrs = all_attrs.get(p.place_code, {})
+            dist = None
+            if lat is not None and lng is not None:
+                dist = _haversine_km(lat, lng, r.lat, r.lng)
 
-        if jummah is True and not _place_has_jummah(p, attrs):
-            continue
-        if has_events is True and not _place_has_events(p, attrs):
-            continue
+            # Skip radius filtering when bbox is provided (bbox already constrains area)
+            if not has_bbox and radius_km is not None and dist is not None and dist > radius_km:
+                continue
 
-        dist = None
-        if lat is not None and lng is not None:
-            dist = _haversine_km(lat, lng, p.lat, p.lng)
+            filtered.append((r, dist))
 
-        # Skip radius filtering when bounding box is provided (bbox already constrains area)
-        if not has_bbox and radius_km is not None and dist is not None and dist > radius_km:
-            continue
+    if sort != "rating" and lat is not None and lng is not None:
+        filtered.sort(key=lambda x: x[1] or 0)
 
-        result.append((p, dist))
-
-    if sort == "rating":
-        # Rating sort handled later using bulk-fetched ratings
-        pass
-    elif lat is not None and lng is not None:
-        result.sort(key=lambda x: x[1] or 0)
-
-    base_results = result[:]
+    base_results = filtered  # facet counts use the same set as the page
 
     def _get_avg(place_code: str) -> float:
-        """Get rating from bulk-fetched ratings dict."""
         rating = all_ratings.get(place_code)
         return rating["average"] if rating else 0.0
 
     def count_filter(fn) -> int:
         return sum(1 for p, _ in base_results if fn(p))
 
-    # Build filter options: start with static special-cases, then dynamic attribute defs
-    filter_options = [
-        {
-            "key": "open_now",
-            "label": "Open Now",
-            "icon": "schedule",
-            "count": count_filter(
-                lambda p: bool(_is_open_now_from_hours(p.opening_hours, p.utc_offset_minutes))
-            ),
-        },
-        {
-            "key": "top_rated",
-            "label": "Top Rated",
-            "icon": "star",
-            "count": count_filter(lambda p: _get_avg(p.place_code) >= 4.0),
-        },
-    ]
-
-    # Add dynamic attribute-based filters (using pre-fetched data)
-    for defn in filterable_defs:
-        attr_code = defn.attribute_code
-
-        def _make_attr_counter(code):
-            def _check(p):
-                attrs = all_attrs.get(p.place_code, {})
-                return _check_attr_bool(attrs, code)
-
-            return _check
-
-        filter_options.append(
+    with _span("filter_options"):
+        filter_options = [
             {
-                "key": attr_code,
-                "label": defn.name,
-                "icon": defn.icon or "info",
-                "count": count_filter(_make_attr_counter(attr_code)),
-            }
-        )
+                "key": "open_now",
+                "label": "Open Now",
+                "icon": "schedule",
+                "count": count_filter(
+                    lambda p: bool(_is_open_now_from_hours(p.opening_hours, p.utc_offset_minutes))
+                ),
+            },
+            {
+                "key": "top_rated",
+                "label": "Top Rated",
+                "icon": "star",
+                "count": count_filter(lambda p: _get_avg(p.place_code) >= 4.0),
+            },
+        ]
+
+        for defn in filterable_defs:
+            attr_code = defn.attribute_code
+
+            def _make_attr_counter(code):
+                def _check(p):
+                    attrs = all_attrs.get(p.place_code, {})
+                    return _check_attr_bool(attrs, code)
+
+                return _check
+
+            filter_options.append(
+                {
+                    "key": attr_code,
+                    "label": defn.name,
+                    "icon": defn.icon or "info",
+                    "count": count_filter(_make_attr_counter(attr_code)),
+                }
+            )
 
     filters_meta = {"options": filter_options}
 
-    # Apply active filters (using pre-fetched data)
+    # Active filters (open_now / has_parking / womens_area / top_rated).
+    # These narrow base_results before pagination.
+    result = filtered
     if open_now is True:
         result = [
             (p, d)
@@ -551,18 +576,44 @@ def list_places(
     if top_rated is True:
         result = [(p, d) for p, d in result if _get_avg(p.place_code) >= 4.0]
 
-    # Apply rating sort if requested (sort by rating descending, then by distance)
     if sort == "rating":
         result.sort(key=lambda x: (_get_avg(x[0].place_code), -(x[1] or 0)), reverse=True)
 
-    # Offset-based pagination
     total = len(result)
-    rows = result[offset : offset + limit]
+    page_slice = result[offset : offset + limit]
+
+    # ── Pass 2: hydrate full Place objects only for the paginated page.
+    # This is the big Python-side win: ORM instantiation happens for ~page_size
+    # rows instead of every matching row.
+    with _span("page_hydrate"):
+        page_codes = [r.place_code for r, _ in page_slice]
+        if page_codes:
+            full_places = get_places_by_codes(page_codes, session)
+            by_code = {p.place_code: p for p in full_places}
+            rows = [
+                (by_code[code], dist)
+                for (r, dist) in page_slice
+                if (code := r.place_code) in by_code
+            ]
+        else:
+            rows = []
+
+    # Trim bulk dicts to the page codes. The caller only reads them via
+    # .get(place_code) during serialization of the page, so any other entries
+    # were only useful for facet counts and can be freed.
+    page_set = set(page_codes)
+    page_attrs = {c: a for c, a in all_attrs.items() if c in page_set}
+    page_ratings = {c: r for c, r in all_ratings.items() if c in page_set}
 
     return {
         "rows": rows,
         "total": total,
         "filters": filters_meta,
-        "all_attrs": all_attrs,
-        "all_ratings": all_ratings,
+        "all_attrs": page_attrs,
+        "all_ratings": page_ratings,
     }
+
+
+@contextmanager
+def _noop_span():
+    yield

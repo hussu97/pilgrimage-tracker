@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-20] — `/api/v1/places` list perf: projection-only facet pass + paginated hydrate
+
+### Backend
+- **`soulstep-catalog-api/app/db/places.py::list_places`** — rewrote the function to avoid instantiating full `Place` ORM objects for every matching row. A lightweight column projection (`place_code, religion, opening_hours, utc_offset_minutes, lat, lng`) now drives all facet/filter computation; full `Place` hydration runs only for the paginated page codes (one `IN` query sized to `page_size`, not the whole table). Prod trace audit showed the old path spending 280–650ms of Python per request on a 1,933-place dataset; the new path drops the ORM-instantiation cost to the page size.
+- **Tracer instrumentation** — added `tracer.span(...)` blocks around `facet_fetch`, `bulk_attrs`, `bulk_ratings`, `filterable_defs`, `base_filter`, `filter_options`, and `page_hydrate` so `?_trace=1` now shows where time goes inside `list_places`. Previously the X-Trace output for this endpoint showed `"spans": []`.
+- **Behavior preserved**: identical `{rows, total, filters, all_attrs, all_ratings}` shape; `all_attrs`/`all_ratings` are now trimmed to the page's codes (the caller only reads them via `.get(place_code)` during page serialization).
+- **Tests**: all 1,338 backend tests pass; local A/B micro-benchmark (2,000 places, in-memory SQLite) shows ~20–30% wall-clock improvement. Expected prod improvement is larger due to Cloud Run CPU throttling and the real Place row width.
+
+---
+
 ## [2026-04-19] — Sentry in Cloud Run Jobs + Favicon Fix
 
 ### Backend
