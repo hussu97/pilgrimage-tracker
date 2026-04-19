@@ -143,6 +143,10 @@ if __name__ == "__main__":
         sys.exit(1)
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    if _sentry_dsn := os.environ.get("SENTRY_DSN"):
+        import sentry_sdk
+
+        sentry_sdk.init(dsn=_sentry_dsn, traces_sample_rate=0.05, send_default_pii=False)
     logger.info("Starting timezone backfill migration...")
     backfill_timezones(database_url)
     logger.info("Migration complete!")

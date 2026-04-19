@@ -26,6 +26,11 @@ from dotenv import load_dotenv
 # Must load .env before any app module is imported (same reason as main.py)
 load_dotenv()
 
+if _sentry_dsn := os.environ.get("SENTRY_DSN"):
+    import sentry_sdk
+
+    sentry_sdk.init(dsn=_sentry_dsn, traces_sample_rate=0.05, send_default_pii=False)
+
 
 def main() -> None:
     run_code = os.environ.get("SCRAPER_RUN_CODE", "").strip()

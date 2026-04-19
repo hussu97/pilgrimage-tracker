@@ -166,6 +166,11 @@ def _build_place_create(place_code: str, name: str, raw_data: dict) -> PlaceCrea
 def main() -> None:
     import os
 
+    if _sentry_dsn := os.environ.get("SENTRY_DSN"):
+        import sentry_sdk
+
+        sentry_sdk.init(dsn=_sentry_dsn, traces_sample_rate=0.05, send_default_pii=False)
+
     scraper_db_url = os.environ.get("SCRAPER_DATABASE_URL")
     if not scraper_db_url:
         raise RuntimeError("SCRAPER_DATABASE_URL environment variable is required")

@@ -1,4 +1,4 @@
-name: Deploy - to GCP
+name: Deploy - Vercel
 
 on:
   workflow_run:
@@ -12,40 +12,22 @@ concurrency:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  REGION: europe-west1
-  PROJECT_ID: project-fa2d7f52-2bc4-4a46-8ae
-  PROJECT_NUMBER: "834941457147"
-  REGISTRY: europe-west1-docker.pkg.dev
-  REPO: soulstep
-  API_SERVICE: soulstep-catalog-api
-  SCRAPER_SERVICE: soulstep-scraper-api
-  SA_EMAIL: github-deploy@project-fa2d7f52-2bc4-4a46-8ae.iam.gserviceaccount.com
-  WIF_PROVIDER: projects/834941457147/locations/global/workloadIdentityPools/github-pool/providers/github-provider
   HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-  # Extra regions for scraper job deployment (comma-separated).
-  # Set to e.g. "europe-west4,europe-west2" when ready to spread jobs across regions.
-  EXTRA_JOB_REGIONS: "europe-west4,europe-west2"
 
 jobs:
-  # ── Detect changed paths ───────────────────────────────────────────────────
+  # ── Detect changed paths ────────────────────────────────────────────────────
 
   changes:
     name: Read path filter outputs from tests
     runs-on: ubuntu-latest
-    # Only deploy when tests passed — if tests were skipped (no relevant files
-    # changed) the conclusion is still 'success', so this correctly gates on failure.
     if: github.event.workflow_run.conclusion == 'success'
     permissions:
-      actions: read   # required to download artifacts from the triggering run
+      actions: read
       contents: read
     outputs:
-      catalog: ${{ steps.filter.outputs.catalog }}
-      scraper: ${{ steps.filter.outputs.scraper }}
       web: ${{ steps.filter.outputs.web }}
       admin: ${{ steps.filter.outputs.admin }}
     steps:
-      # Download the path filter results computed by tests.yml — same detection,
-      # no risk of HEAD~1 drift on multi-commit pushes.
       - uses: actions/download-artifact@v4
         with:
           name: path-filter-outputs
@@ -54,86 +36,11 @@ jobs:
       - name: Load filter outputs
         id: filter
         run: |
-          echo "catalog=$(jq -r .catalog path-outputs.json)" >> "$GITHUB_OUTPUT"
-          echo "scraper=$(jq -r .scraper path-outputs.json)" >> "$GITHUB_OUTPUT"
           echo "web=$(jq -r .web path-outputs.json)"     >> "$GITHUB_OUTPUT"
           echo "admin=$(jq -r .admin path-outputs.json)" >> "$GITHUB_OUTPUT"
 
-  # ── Deploy: API → Cloud Run ─────────────────────────────────────────────────
-
-  deploy-api:
-    name: Deploy soulstep-catalog-api → Cloud Run
-    needs: [changes]
-    if: needs.changes.outputs.catalog == 'true'
-    runs-on: ubuntu-latest
-    environment: production
-    permissions:
-      id-token: write   # required for Workload Identity Federation
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.HEAD_SHA }}
-          sparse-checkout: soulstep-catalog-api
-          sparse-checkout-cone-mode: true
-
-      - name: Authenticate with GCP (keyless)
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.SA_EMAIL }}
-
-      - name: Set up gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Configure Docker auth for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push soulstep-catalog-api image
-        run: |
-          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:${{ env.HEAD_SHA }}"
-          CACHE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:cache"
-          docker buildx build --platform linux/amd64 \
-            --cache-from "type=registry,ref=$CACHE" \
-            --cache-to   "type=registry,ref=$CACHE,mode=max" \
-            --provenance=false \
-            -t "$IMAGE" --push ./soulstep-catalog-api
-
-      - name: Install Trivy
-        run: |
-          sudo apt-get install -y wget apt-transport-https gnupg
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | \
-            gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
-          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | \
-            sudo tee /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update && sudo apt-get install -y trivy
-
-      - name: Scan soulstep-catalog-api image for vulnerabilities (Trivy)
-        run: |
-          trivy image \
-            --format table \
-            --exit-code 1 \
-            --ignore-unfixed \
-            --severity CRITICAL,HIGH \
-            "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:${{ env.HEAD_SHA }}"
-
-      - name: Deploy soulstep-catalog-api to Cloud Run
-        run: |
-          gcloud run deploy ${{ env.API_SERVICE }} \
-            --image "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:${{ env.HEAD_SHA }}" \
-            --region ${{ env.REGION }} \
-            --platform managed \
-            --allow-unauthenticated \
-            --add-cloudsql-instances "${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db" \
-            --cpu 1 --memory 512Mi \
-            --min-instances 0 --max-instances 3 \
-            --quiet
-
   # ── Deploy: Customer Web → Vercel ────────────────────────────────────────────
+
   deploy-web:
     name: Deploy soulstep-customer-web → Vercel
     needs: [changes]
@@ -147,7 +54,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.HEAD_SHA }}
-          # cone mode always includes root files (vercel.json)
           sparse-checkout: apps/soulstep-customer-web
           sparse-checkout-cone-mode: true
 
@@ -240,236 +146,3 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_ADMIN }}
         run: npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
-
-  # ── Deploy: Cloud Run Jobs → update image on every catalog change ───────────
-
-  deploy-jobs:
-    name: Update Cloud Run Jobs
-    needs: [changes, deploy-api]
-    if: needs.changes.outputs.catalog == 'true'
-    runs-on: ubuntu-latest
-    environment: production
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.HEAD_SHA }}
-          sparse-checkout: soulstep-catalog-api
-          sparse-checkout-cone-mode: true
-
-      - name: Authenticate with GCP (keyless)
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.SA_EMAIL }}
-
-      - name: Set up gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Configure Docker auth for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push sync-places image
-        run: |
-          SYNC="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/sync-places:${{ env.HEAD_SHA }}"
-          SYNC_CACHE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/sync-places:cache"
-
-          docker buildx build --platform linux/amd64 \
-            --cache-from "type=registry,ref=$SYNC_CACHE" \
-            --cache-to   "type=registry,ref=$SYNC_CACHE,mode=max" \
-            --provenance=false \
-            -f soulstep-catalog-api/Dockerfile.sync -t "$SYNC" --push ./soulstep-catalog-api
-
-      - name: Update or create Cloud Run Jobs
-        run: |
-          CLOUDSQL="${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db"
-          API="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:${{ env.HEAD_SHA }}"
-          SYNC="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/sync-places:${{ env.HEAD_SHA }}"
-
-          # update if exists, create if not — idempotent on every push
-          _upsert() {
-            local name=$1; shift
-            gcloud run jobs update "$name" --region ${{ env.REGION }} "$@" 2>/dev/null \
-              || gcloud run jobs create "$name" --region ${{ env.REGION }} "$@"
-          }
-
-          # a. cleanup-job (uses api image)
-          _upsert cleanup-job \
-            --image "$API" \
-            --set-cloudsql-instances "$CLOUDSQL" \
-            --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
-            --command "python" --args="-m,app.jobs.cleanup_orphaned_images" \
-            --max-retries 1 --task-timeout 300 --memory 512Mi --cpu 1
-
-          # b. backfill-timezones (uses api image)
-          _upsert backfill-timezones \
-            --image "$API" \
-            --set-cloudsql-instances "$CLOUDSQL" \
-            --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
-            --command "python" --args="-m,app.jobs.backfill_timezones" \
-            --max-retries 1 --task-timeout 300 --memory 512Mi --cpu 1
-
-          # d. sync-places (uses sync-places image)
-          # SCRAPER_DATABASE_URL already exists in Secret Manager (shared with scraper service)
-          _upsert sync-places \
-            --image "$SYNC" \
-            --set-cloudsql-instances "$CLOUDSQL" \
-            --set-secrets "DATABASE_URL=DATABASE_URL:latest,SCRAPER_DATABASE_URL=SCRAPER_DATABASE_URL:latest" \
-            --memory 1Gi --cpu 1 \
-            --task-timeout 1800 --max-retries 1
-
-
-  # ── Deploy: Scraper API → Cloud Run ─────────────────────────────────────────
-
-  deploy-scraper:
-    name: Deploy soulstep-scraper-api → Cloud Run
-    needs: [changes]
-    if: needs.changes.outputs.scraper == 'true'
-    runs-on: ubuntu-latest
-    environment: production
-    permissions:
-      id-token: write   # required for Workload Identity Federation
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ env.HEAD_SHA }}
-          sparse-checkout: soulstep-scraper-api
-          sparse-checkout-cone-mode: true
-
-      - name: Authenticate with GCP (keyless)
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.SA_EMAIL }}
-
-      - name: Set up gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Configure Docker auth for all registries
-        run: |
-          REGIONS="${{ env.REGION }}"
-          if [ -n "${{ env.EXTRA_JOB_REGIONS }}" ]; then
-            REGIONS="${REGIONS},$(echo "${{ env.EXTRA_JOB_REGIONS }}" | tr ',' ',')"
-          fi
-          for R in $(echo "$REGIONS" | tr ',' ' '); do
-            gcloud auth configure-docker "${R}-docker.pkg.dev" --quiet
-          done
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push lean and Playwright images (parallel)
-        run: |
-          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:${{ env.HEAD_SHA }}"
-          IMAGE_CACHE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:cache"
-          JOB_CACHE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:cache"
-
-          # Build job image tag list: primary region + all extra regions
-          JOB_TAGS="-t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
-          for R in $(echo "${{ env.EXTRA_JOB_REGIONS }}" | tr ',' ' '); do
-            [ -z "$R" ] && continue
-            JOB_TAGS="$JOB_TAGS -t ${R}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
-          done
-
-          # Lean API image (no Playwright)
-          docker buildx build --platform linux/amd64 \
-            --cache-from "type=registry,ref=$IMAGE_CACHE" \
-            --cache-to   "type=registry,ref=$IMAGE_CACHE,mode=max" \
-            --provenance=false \
-            -f soulstep-scraper-api/Dockerfile -t "$IMAGE" --push ./soulstep-scraper-api &
-          PID1=$!
-
-          # Job image (Playwright + Chromium) — pushed to all regions
-          docker buildx build --platform linux/amd64 \
-            --cache-from "type=registry,ref=$JOB_CACHE" \
-            --cache-to   "type=registry,ref=$JOB_CACHE,mode=max" \
-            --provenance=false \
-            -f soulstep-scraper-api/Dockerfile.job $JOB_TAGS --push ./soulstep-scraper-api &
-          PID2=$!
-
-          wait $PID1 $PID2
-
-      - name: Install Trivy
-        run: |
-          sudo apt-get install -y wget apt-transport-https gnupg
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | \
-            gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
-          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | \
-            sudo tee /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update && sudo apt-get install -y trivy
-
-      - name: Scan soulstep-scraper-api image for vulnerabilities (Trivy)
-        run: |
-          trivy image \
-            --format table \
-            --exit-code 1 \
-            --ignore-unfixed \
-            --severity CRITICAL,HIGH \
-            "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:${{ env.HEAD_SHA }}"
-
-      - name: Deploy soulstep-scraper-api service to Cloud Run
-        run: |
-          gcloud run deploy ${{ env.SCRAPER_SERVICE }} \
-            --image "${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api:${{ env.HEAD_SHA }}" \
-            --region ${{ env.REGION }} \
-            --platform managed \
-            --no-allow-unauthenticated \
-            --add-cloudsql-instances "${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db" \
-            --timeout 3600 \
-            --cpu 1 --memory 512Mi \
-            --min-instances 0 --max-instances 2 \
-            --no-cpu-throttling \
-            --quiet
-
-      - name: Upsert Cloud Run Job (soulstep-scraper-api-job)
-        run: |
-          JOB_IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
-          CLOUDSQL="${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db"
-
-          # update if exists, create if not — same pattern as deploy-jobs
-          _upsert() {
-            local name=$1; shift
-            gcloud run jobs update "$name" --region ${{ env.REGION }} "$@" 2>/dev/null \
-              || gcloud run jobs create "$name" --region ${{ env.REGION }} "$@"
-          }
-
-          _upsert soulstep-scraper-api-job \
-            --image "$JOB_IMAGE" \
-            --set-cloudsql-instances "$CLOUDSQL" \
-            --memory 6Gi --cpu 4 \
-            --task-timeout 86400 --max-retries 1 \
-            --quiet
-
-      - name: Upsert scraper job in extra regions
-        if: env.EXTRA_JOB_REGIONS != ''
-        run: |
-          CLOUDSQL="${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db"
-
-          _upsert() {
-            local name=$1; shift
-            local region=$1; shift
-            gcloud run jobs update "$name" --region "$region" "$@" 2>/dev/null \
-              || gcloud run jobs create "$name" --region "$region" "$@"
-          }
-
-          for R in $(echo "${{ env.EXTRA_JOB_REGIONS }}" | tr ',' ' '); do
-            [ -z "$R" ] && continue
-            JOB_IMAGE="${R}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
-
-            echo "=== Upsert scraper job in ${R} ==="
-            _upsert soulstep-scraper-api-job "$R" \
-              --image "$JOB_IMAGE" \
-              --set-cloudsql-instances "$CLOUDSQL" \
-              --memory 6Gi --cpu 4 \
-              --task-timeout 86400 --max-retries 1 \
-              --quiet
-            echo "=== Done: ${R} ==="
-          done

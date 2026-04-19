@@ -9,6 +9,7 @@ Run this job daily via cron or scheduler.
 """
 
 import logging
+import os
 
 from sqlmodel import Session
 
@@ -43,5 +44,9 @@ def run_cleanup(max_age_hours: int = 24) -> dict:
 if __name__ == "__main__":
     # Can be run directly: python -m app.jobs.cleanup_orphaned_images
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    if _sentry_dsn := os.environ.get("SENTRY_DSN"):
+        import sentry_sdk
+
+        sentry_sdk.init(dsn=_sentry_dsn, traces_sample_rate=0.05, send_default_pii=False)
     result = run_cleanup()
     logger.info("Cleanup completed. Deleted %d orphaned images.", result["deleted_count"])
