@@ -3,7 +3,7 @@
 const API_BASE =
   process.env.INTERNAL_API_URL ||
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  'https://api.soul-step.org';
+  'https://catalog-api.soul-step.org';
 
 export async function GET() {
   try {
