@@ -120,9 +120,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `SCRAPER_FOURSQUARE_API_KEY` | — | Foursquare API key for the scraper. Mapped to `FOURSQUARE_API_KEY` inside the container by `docker-compose.prod.yml`. Free tier at foursquare.com/developer. When unset, the Foursquare collector is skipped gracefully. |
 | `SCRAPER_OUTSCRAPER_API_KEY` | — | Outscraper API key for the scraper. Mapped to `OUTSCRAPER_API_KEY` inside the container. Retrieves extended Google reviews beyond the 5-review limit. Sign up at outscraper.com. When unset, the Outscraper collector is skipped gracefully. |
 | `SCRAPER_BESTTIME_API_KEY` | — | BestTime.app API key for the scraper. Mapped to `BESTTIME_API_KEY` inside the container. Adds busyness forecasts and peak-hours data. Sign up at besttime.app. When unset, the BestTime collector is skipped gracefully. |
-| `KNOWLEDGE_GRAPH_API_KEY` | — | Google Knowledge Graph API key — reserved for a future collector. **Not currently read by config.py** — setting this has no effect yet. |
 | `SCRAPER_GEMINI_API_KEY` | — | Google Gemini API key for the scraper. Mapped to `GEMINI_API_KEY` inside the container by `docker-compose.prod.yml`. Used for LLM tie-breaking (~10–20% of places). Free key at aistudio.google.com. When unset, heuristic-only quality scoring is used. |
-| `DATABASE_URL` | — | PostgreSQL connection string for the scraper's own database. In production, assembled by `docker-compose.prod.yml` as `postgresql://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/SCRAPER_POSTGRES_DB` (e.g. `soulstep_scraper`). When unset, falls back to `SCRAPER_DB_PATH` (SQLite — local dev only). |
 
 #### docker-compose.prod.yml (non-sensitive)
 
@@ -130,6 +128,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 |---|---|---|
 | `SCRAPER_ALLOWED_ORIGINS` | `http://localhost:5174,http://127.0.0.1:5174` | Comma-separated list of origins allowed to call this scraper API. Typically the admin web app running locally or in production. |
 | `SCRAPER_TIMEZONE` | `UTC` | Fallback IANA timezone for places where Google Maps does not return a UTC offset. Example: `Asia/Dubai` |
+| `DATABASE_URL` | — | PostgreSQL connection string. **Never set this directly in production** — `docker-compose.prod.yml` assembles it from `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `SCRAPER_POSTGRES_DB`. Set this locally only if you want to point the scraper at a local or remote PostgreSQL instance instead of SQLite. Example: `postgresql://user:pass@localhost:5432/soulstep_scraper` |
 | `SCRAPER_DB_PATH` | `scraper.db` | Path to the SQLite database file. Only used when `DATABASE_URL` is unset — local development only. **Do not rely on this in production:** Cloud Run containers have an ephemeral filesystem and all SQLite data is lost when the container exits. Set `DATABASE_URL` (PostgreSQL) instead. |
 | `SCRAPER_POOL_SIZE` | `10` | **Conditional** — persistent PostgreSQL connections kept open per process. Only applied when `DATABASE_URL` is a PostgreSQL URL. |
 | `SCRAPER_MAX_OVERFLOW` | `10` | **Conditional** — extra PostgreSQL connections allowed during traffic bursts. Budget: `SCRAPER_POOL_SIZE + SCRAPER_MAX_OVERFLOW` = max concurrent connections. |
