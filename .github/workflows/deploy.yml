@@ -275,35 +275,22 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and push sync-places and translate-content images (parallel)
+      - name: Build and push sync-places image
         run: |
           SYNC="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/sync-places:${{ env.HEAD_SHA }}"
           SYNC_CACHE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/sync-places:cache"
-          TRANSLATE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/translate-content:${{ env.HEAD_SHA }}"
-          TRANSLATE_CACHE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/translate-content:cache"
 
           docker buildx build --platform linux/amd64 \
             --cache-from "type=registry,ref=$SYNC_CACHE" \
             --cache-to   "type=registry,ref=$SYNC_CACHE,mode=max" \
             --provenance=false \
-            -f soulstep-catalog-api/Dockerfile.sync -t "$SYNC" --push ./soulstep-catalog-api &
-          PID1=$!
-
-          docker buildx build --platform linux/amd64 \
-            --cache-from "type=registry,ref=$TRANSLATE_CACHE" \
-            --cache-to   "type=registry,ref=$TRANSLATE_CACHE,mode=max" \
-            --provenance=false \
-            -f soulstep-catalog-api/Dockerfile.translate -t "$TRANSLATE" --push ./soulstep-catalog-api &
-          PID2=$!
-
-          wait $PID1 $PID2
+            -f soulstep-catalog-api/Dockerfile.sync -t "$SYNC" --push ./soulstep-catalog-api
 
       - name: Update or create Cloud Run Jobs
         run: |
           CLOUDSQL="${{ env.PROJECT_ID }}:${{ env.REGION }}:soulstep-db"
           API="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/soulstep-catalog-api:${{ env.HEAD_SHA }}"
           SYNC="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/sync-places:${{ env.HEAD_SHA }}"
-          TRANSLATE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/translate-content:${{ env.HEAD_SHA }}"
 
           # update if exists, create if not — idempotent on every push
           _upsert() {
@@ -337,13 +324,6 @@ jobs:
             --memory 1Gi --cpu 1 \
             --task-timeout 1800 --max-retries 1
 
-          # e. translate-content (uses translate-content image)
-          _upsert translate-content \
-            --image "$TRANSLATE" \
-            --set-cloudsql-instances "$CLOUDSQL" \
-            --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
-            --memory 4Gi --cpu 2 \
-            --task-timeout 900 --max-retries 0
 
   # ── Deploy: Scraper API → Cloud Run ─────────────────────────────────────────
 

@@ -50,13 +50,12 @@ soulstep/
 │   │   │   ├── seed.py          # Seed runner (dev only)
 │   │   │   └── seed_data.json   # Translations + sample data
 │   │   ├── services/            # Business logic (seo, image_storage, translation, …)
-│   │   └── jobs/                # Cloud Run Job entrypoints (sync_places, translate_content, cleanup)
+│   │   └── jobs/                # Cloud Run Job entrypoints (sync_places, cleanup)
 │   ├── migrations/versions/     # Alembic migration files
 │   ├── scripts/                 # One-off scripts (generate_seo, reset_place_data)
 │   ├── tests/                   # pytest integration + unit tests
 │   ├── Dockerfile               # API service image
-│   ├── Dockerfile.sync          # sync-places job image (no Playwright)
-│   └── Dockerfile.translate     # translate-content job image (with Playwright)
+│   └── Dockerfile.sync          # sync-places job image
 ├── soulstep-scraper-api/        # Python + FastAPI scraper
 │   ├── app/
 │   │   ├── scrapers/            # Discovery + detail fetching (API + browser)
@@ -246,8 +245,7 @@ Content is translated through two paths — neither uses the Google Cloud Transl
 
 | Path | How it works |
 |---|---|
-| **Cloud Run job** (`app/jobs/translate_content.py`) | Nightly incremental sync (daily 04:00 UTC); Playwright drives `translate.google.com` headlessly via `BrowserSessionPool` (reusable contexts, stealth patches, circuit breaker) |
-| **Local script** (`scripts/translate_bulktranslator.py`) | For major batch changes; Playwright drives [bulktranslator.com](https://bulktranslator.com) locally, then imports results via `POST /admin/content-translations/import-txt` |
+| **Local script** (`scripts/translate_bulktranslator.py`) | Playwright drives [bulktranslator.com](https://bulktranslator.com) locally, then imports results via `POST /admin/content-translations/import-txt` |
 
 The `google-cloud-translate` SDK is not used and is not a dependency.
 
@@ -379,6 +377,6 @@ All jobs use the catalog API package (`soulstep-catalog-api/app/`) with separate
 | `cleanup-job` | `Dockerfile` | Daily 02:00 UTC | Remove orphaned review images |
 | `backfill-timezones` | `Dockerfile` | One-off | Populate timezone data for places |
 | `sync-places` | `Dockerfile.sync` | Daily 02:00 UTC | Upsert enriched scraper places into catalog |
-| `translate-content` | `Dockerfile.translate` | Daily 04:00 UTC | Translate place/review/city content (ar, hi, te, ml) |
+
 
 All jobs are created/updated automatically by `.github/workflows/deploy.yml` on pushes to `main` that touch `soulstep-catalog-api/`.

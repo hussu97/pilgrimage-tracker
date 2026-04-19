@@ -632,30 +632,6 @@ gcloud scheduler jobs create http daily-sync-places \
 > triggering the job. The v2 Cloud Run Admin API (`run.googleapis.com/v2/...`) requires **OAuth2** auth
 > (`--oauth-service-account-email` + `--oauth-token-scope`), not OIDC — OIDC is only for invoking Cloud Run services.
 
-### Daily content translation (translate-content, daily 4 AM UTC)
-
-Translates missing content for ar, hi, te, ml using headless Chromium.
-
-```bash
-docker build --platform linux/amd64 -f Dockerfile.translate \
-  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/translate-content:latest .
-docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/translate-content:latest
-
-gcloud run jobs create translate-content \
-  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/translate-content:latest \
-  --region REGION \
-  --set-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
-  --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
-  --memory 4Gi --cpu 2 --task-timeout 900 --max-retries 0
-
-gcloud scheduler jobs create http daily-translate-content \
-  --location REGION --schedule "0 4 * * *" --time-zone "UTC" \
-  --uri "https://run.googleapis.com/v2/projects/PROJECT_ID/locations/REGION/jobs/translate-content:run" \
-  --http-method POST \
-  --oauth-service-account-email "${SERVICE_ACCOUNT}" \
-  --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform"
-```
-
 ### Run any job manually
 
 ```bash
@@ -671,7 +647,7 @@ The workflow at `.github/workflows/deploy.yml` runs on every push to `main`.
 | Job | Trigger | What it does |
 |---|---|---|
 | `deploy-api` | `soulstep-catalog-api/` changed | Builds `api` image → deploys Cloud Run service |
-| `deploy-jobs` | `soulstep-catalog-api/` changed (after `deploy-api`) | Builds `sync-places` + `translate-content` images → creates/updates all 5 Cloud Run Jobs |
+| `deploy-jobs` | `soulstep-catalog-api/` changed (after `deploy-api`) | Builds `sync-places` image → creates/updates Cloud Run Jobs |
 | `deploy-web` | `apps/soulstep-customer-web/` changed | `vercel pull` → `vercel build --prod` → `vercel deploy --prebuilt --prod` (customer web project) |
 | `deploy-admin-web` | `apps/soulstep-admin-web/` changed | `vercel pull` → `vercel build --prod` → `vercel deploy --prebuilt --prod` (admin project) |
 | `deploy-scraper` | `soulstep-scraper-api/` changed | Builds `scraper` image → deploys Cloud Run service + upserts scraper job (primary + extra regions) |
@@ -867,7 +843,7 @@ EAS secrets), and descriptions for every variable in every service.
 |---|---|---|---|
 | **Cloud Run** | API + scraper | 2M requests/month, 180k vCPU-sec/month | ~$0.40 per 1M requests |
 | **Cloud SQL** | PostgreSQL 15 | None | ~$7/month (`db-f1-micro`) |
-| **Cloud Run Jobs** | cleanup, backfill, sync-places, translate-content | — | ~$0.02/hour per CPU |
+| **Cloud Run Jobs** | cleanup, backfill, sync-places | — | ~$0.02/hour per CPU |
 | **Cloud Run Jobs (scraper)** | browser scraping (4 vCPU / 6 GiB) | — | ~$0.40/hour (see §13.1) |
 | **Artifact Registry** | Docker images | 0.5 GB free | $0.10/GB/month |
 | **Vercel** | Web (Next.js SSR) + Admin (Vite SPA) | Hobby: free (personal only); Pro: $20/month | Pro plan for commercial use |

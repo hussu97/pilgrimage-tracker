@@ -71,9 +71,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `IMAGE_STORAGE` | `blob` | Backend for place images. `blob` — base64-encoded in the database (fine for SQLite and small deployments). `gcs` — Google Cloud Storage (recommended for production). |
 | `GCS_BUCKET_NAME` | — | GCS bucket name. **Conditional** — required when `IMAGE_STORAGE=gcs`. Must match `GCS_BUCKET_NAME` in the scraper so both services share a single bucket. Example: `soulstep-images` |
 | `DATA_SCRAPER_URL` | `http://localhost:8001` | URL of the soulstep-scraper-api instance. Used by admin scraper-proxy endpoints (`/api/v1/admin/scraper/*`). |
-| `BROWSER_POOL_SIZE` | `20` | Number of concurrent browser contexts for the `translate_content` Cloud Run Job. No effect on normal API operation. |
-| `BROWSER_MAX_TRANSLATIONS` | `50` | Translations to process per browser context before recycling it (prevents memory bloat). No effect on normal API operation. |
-| `BROWSER_HEADLESS` | `true` | Run the browser in headless mode. Set to `false` for local visual debugging. |
+
 | `ADS_ENABLED` | `false` | Master switch for the ads subsystem. When `false`, the ads-config endpoint returns empty values for all clients. |
 | `ADSENSE_PUBLISHER_ID` | — | **Conditional** — Google AdSense publisher ID. Required when `ADS_ENABLED=true` (web). Find in AdSense console: Ads → Overview → Publisher ID. Example: `ca-pub-xxxxxxxxxxxxxxxxxxxxxxxx` |
 | `ADMOB_APP_ID_IOS` | — | **Conditional** — Google AdMob App ID for iOS. Required when `ADS_ENABLED=true` (mobile). Get from AdMob console: Apps → App settings → App ID. |

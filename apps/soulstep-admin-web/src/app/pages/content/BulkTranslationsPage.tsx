@@ -250,7 +250,7 @@ export function BulkTranslationsPage() {
             Bulk Translations
           </h1>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary mt-0.5">
-            View translation jobs run by the Cloud Run translate_content job.
+            View bulk translation jobs created via the import/export mechanism.
           </p>
         </div>
       </div>
@@ -269,7 +269,7 @@ export function BulkTranslationsPage() {
         data={jobs}
         loading={loading}
         rowKey={(r) => r.job_code}
-        emptyMessage="No bulk translation jobs yet. Jobs are created by the Cloud Run translate_content job."
+        emptyMessage="No bulk translation jobs yet. Jobs are created via the translation import mechanism."
       />
 
       <Pagination
