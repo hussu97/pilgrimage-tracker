@@ -1,6 +1,6 @@
 # Production Deployment
 
-SoulStep backends run on a **single GCP e2-small VM** (europe-west1-d) with Docker Compose, served via nginx + Let's Encrypt. Web frontends deploy to **Vercel**. The Playwright scraper stays on **Cloud Run Jobs**.
+SoulStep runs on **Google Cloud Platform** (Cloud Run + Cloud SQL) with **Vercel** for both web frontends.
 
 Update this file whenever deployment-relevant changes are made: new env vars, new services, DB migrations, or build commands.
 
@@ -9,422 +9,878 @@ Update this file whenever deployment-relevant changes are made: new env vars, ne
 ## Table of Contents
 
 - [1. Prerequisites](#1-prerequisites)
-- [2. Provision the VM](#2-provision-the-vm)
-- [3. Bootstrap the VM](#3-bootstrap-the-vm)
-- [4. GitHub Secrets Setup](#4-github-secrets-setup)
-- [5. GHCR Package Visibility](#5-ghcr-package-visibility)
-- [6. DNS](#6-dns)
-- [7. TLS — Let's Encrypt](#7-tls--lets-encrypt)
-- [8. Database Migration (Cloud SQL → VM)](#8-database-migration-cloud-sql--vm)
-- [9. CI/CD](#9-cicd)
-- [10. Deploy Web Frontends (Vercel)](#10-deploy-web-frontends-vercel)
-- [11. Scraper Cloud Run Job](#11-scraper-cloud-run-job)
-- [12. Mobile](#12-mobile)
-- [13. SEO & Search Engines](#13-seo--search-engines)
-- [14. Observability](#14-observability)
-- [15. Backups](#15-backups)
-- [16. Rollback](#16-rollback)
-- [17. Cost Estimate](#17-cost-estimate)
+- [2. Infrastructure Setup](#2-infrastructure-setup)
+  - [2.1 Artifact Registry](#21-artifact-registry)
+  - [2.2 Cloud SQL](#22-cloud-sql)
+  - [2.3 Secret Manager + IAM](#23-secret-manager--iam)
+- [3. Deploy Catalog API](#3-deploy-catalog-api)
+- [3.1 Custom Domain (`api.soul-step.org`)](#31-custom-domain-apisoul-steporg)
+- [4. Deploy Web Frontend](#4-deploy-web-frontend)
+- [5. Deploy Admin Dashboard](#5-deploy-admin-dashboard)
+- [6. Deploy Scraper](#6-deploy-scraper)
+  - [6.1 API Service](#61-api-service)
+  - [6.2 Cloud Run Job (browser mode)](#62-cloud-run-job-browser-mode)
+  - [6.3 Persistent scraper database (optional)](#63-persistent-scraper-database-optional)
+- [7. Scheduled Jobs](#7-scheduled-jobs)
+- [8. CI/CD](#8-cicd)
+- [9. Mobile](#9-mobile)
+- [10. SEO & Search Engines](#10-seo--search-engines)
+- [11. Observability](#11-observability)
+- [12. Environment Variables Reference](#12-environment-variables-reference)
+- [13. Cost Estimate](#13-cost-estimate)
+
+---
+
+Throughout this guide, replace:
+- `PROJECT_ID` → your GCP project ID (e.g. `my-project-123`)
+- `REGION` → your chosen region (e.g. `europe-west1`)
 
 ---
 
 ## 1. Prerequisites
 
-- **gcloud CLI** — `brew install google-cloud-sdk`
-- **Docker** — local Docker for testing compose files
-- **SSH key pair** — ed25519 key for VM deploy access
+1. **Install gcloud CLI:**
 
-Log in:
+   ```bash
+   brew install google-cloud-sdk   # macOS
+   # or: https://cloud.google.com/sdk/docs/install
+   ```
+
+2. **Log in and configure Docker auth:**
+
+   ```bash
+   gcloud auth login
+   gcloud auth configure-docker REGION-docker.pkg.dev
+   ```
+
+3. **Create or select a GCP project:**
+
+   ```bash
+   gcloud projects create PROJECT_ID --name="SoulStep"
+   gcloud config set project PROJECT_ID
+   ```
+
+4. **Enable billing** at console.cloud.google.com/billing.
+
+5. **Enable all required APIs:**
+
+   ```bash
+   gcloud services enable \
+     run.googleapis.com \
+     sqladmin.googleapis.com \
+     secretmanager.googleapis.com \
+     artifactregistry.googleapis.com \
+     cloudscheduler.googleapis.com \
+     cloudbuild.googleapis.com \
+     --project PROJECT_ID
+   ```
+
+---
+
+## 2. Infrastructure Setup
+
+### 2.1 Artifact Registry
+
 ```bash
-gcloud auth login
-gcloud config set project project-fa2d7f52-2bc4-4a46-8ae
+gcloud artifacts repositories create soulstep \
+  --repository-format=docker \
+  --location=REGION \
+  --description="SoulStep Docker images"
+```
+
+Image prefix: `REGION-docker.pkg.dev/PROJECT_ID/soulstep/`
+
+### 2.2 Cloud SQL
+
+```bash
+# Create the PostgreSQL instance
+gcloud sql instances create soulstep-db \
+  --database-version=POSTGRES_15 \
+  --tier=db-f1-micro \
+  --region=REGION \
+  --storage-type=SSD \
+  --storage-size=10GB \
+  --backup-start-time=03:00
+
+# Create the catalog database and user
+gcloud sql databases create soulstep --instance=soulstep-db
+gcloud sql users create soulstep --instance=soulstep-db --password=STRONG_DB_PASSWORD
+
+# Get the connection name (needed in deploy commands)
+gcloud sql instances describe soulstep-db --format="value(connectionName)"
+# Output: PROJECT_ID:REGION:soulstep-db
+```
+
+The `DATABASE_URL` for Cloud Run uses a Unix socket:
+```
+postgresql://soulstep:STRONG_DB_PASSWORD@/soulstep?host=/cloudsql/PROJECT_ID:REGION:soulstep-db
+```
+
+### 2.3 Secret Manager + IAM
+
+Store sensitive values in Secret Manager — never pass them as plain `--set-env-vars`.
+
+```bash
+# JWT signing secret
+echo -n "$(openssl rand -hex 32)" | \
+  gcloud secrets create JWT_SECRET --data-file=- --replication-policy=automatic
+
+# Internal service auth key (shared between catalog API and scraper)
+echo -n "$(openssl rand -hex 32)" | \
+  gcloud secrets create catalog-api-key --data-file=- --replication-policy=automatic
+
+# Database URL (from §2.2)
+echo -n "postgresql://soulstep:STRONG_DB_PASSWORD@/soulstep?host=/cloudsql/PROJECT_ID:REGION:soulstep-db" | \
+  gcloud secrets create DATABASE_URL --data-file=- --replication-policy=automatic
+
+# Resend API key (optional — for password-reset emails)
+echo -n "re_your_resend_key" | \
+  gcloud secrets create RESEND_API_KEY --data-file=- --replication-policy=automatic
+```
+
+Grant the default compute service account the required IAM roles:
+
+```bash
+PROJECT_NUMBER=$(gcloud projects describe PROJECT_ID --format="value(projectNumber)")
+SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/secretmanager.secretAccessor"
+
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/cloudsql.client"
+```
+
+> **Why both roles?** `secretAccessor` lets Cloud Run read secrets at startup. `cloudsql.client` lets the Cloud SQL Auth Proxy authenticate the Unix socket connection. Missing either role causes a crash on startup.
+
+To update a secret value later:
+```bash
+echo -n "new-value" | gcloud secrets versions add SECRET_NAME --data-file=-
 ```
 
 ---
 
-## 2. Provision the VM
+## 3. Deploy Catalog API
 
+### Build and push the image
+
+**Option A — local Docker:**
 ```bash
-gcloud compute instances create soulstep-vm \
-  --project=project-fa2d7f52-2bc4-4a46-8ae \
-  --zone=europe-west1-d \
-  --machine-type=e2-small \
-  --image-family=debian-12 \
-  --image-project=debian-cloud \
-  --boot-disk-size=20GB \
-  --boot-disk-type=pd-ssd \
-  --tags=http-server,https-server \
-  --scopes=cloud-platform
+docker build --platform linux/amd64 \
+  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-catalog-api:latest \
+  ./soulstep-catalog-api
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-catalog-api:latest
 ```
 
-Firewall rules (allow HTTP + HTTPS):
+**Option B — Cloud Build (no local Docker):**
 ```bash
-gcloud compute firewall-rules create allow-http-https \
-  --project=project-fa2d7f52-2bc4-4a46-8ae \
-  --allow=tcp:80,tcp:443 \
-  --target-tags=http-server,https-server
+gcloud builds submit ./soulstep-catalog-api \
+  --tag REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-catalog-api:latest
 ```
 
-Get the VM's external IP (used in DNS and GitHub Secrets):
+### Deploy
+
 ```bash
-gcloud compute instances describe soulstep-vm \
-  --zone=europe-west1-d \
-  --format="value(networkInterfaces[0].accessConfigs[0].natIP)"
+gcloud run deploy soulstep-catalog-api \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-catalog-api:latest \
+  --platform managed \
+  --region REGION \
+  --allow-unauthenticated \
+  --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
+  --set-secrets "JWT_SECRET=JWT_SECRET:latest,DATABASE_URL=DATABASE_URL:latest,RESEND_API_KEY=RESEND_API_KEY:latest,CATALOG_API_KEY=catalog-api-key:latest" \
+  --set-env-vars "CORS_ORIGINS=https://soul-step.org,JWT_EXPIRE=30m,REFRESH_EXPIRE=30d,RESEND_FROM_EMAIL=noreply@soul-step.org,RESET_URL_BASE=https://soul-step.org,IMAGE_STORAGE=gcs,GCS_BUCKET_NAME=soulstep-images,LOG_FORMAT=json" \
+  --min-instances 0 \
+  --max-instances 10 \
+  --memory 512Mi \
+  --timeout 30
 ```
 
-Grant the VM's default service account access to GCS (for image storage and DB backups):
-```bash
-PROJECT_NUMBER=$(gcloud projects describe project-fa2d7f52-2bc4-4a46-8ae --format="value(projectNumber)")
-SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+Copy the **Service URL** from the output (e.g. `https://soulstep-catalog-api-xxxx-uc.a.run.app`). This is the raw Cloud Run URL — after setting up the custom domain (§3.1), use `https://api.soul-step.org` everywhere instead.
 
-# Image bucket (catalog-api reads/writes place images)
+### GCS image storage
+
+On Cloud Run, workload identity (ADC) handles auth automatically — no `GOOGLE_APPLICATION_CREDENTIALS` needed.
+
+```bash
+# Create the bucket
+gcloud storage buckets create gs://soulstep-images --location=REGION
+
+# Allow public reads
 gcloud storage buckets add-iam-policy-binding gs://soulstep-images \
-  --member="serviceAccount:${SA}" \
-  --role=roles/storage.objectAdmin
+  --member=allUsers --role=roles/storage.objectViewer
 
-# Backup bucket (created once)
-gcloud storage buckets create gs://soulstep-db-backups --location=europe-west1
-gcloud storage buckets add-iam-policy-binding gs://soulstep-db-backups \
+# Grant the service account write access
+gcloud storage buckets add-iam-policy-binding gs://soulstep-images \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" --role=roles/storage.objectAdmin
+```
+
+### Managing backend env vars
+
+Backend env vars live on the Cloud Run service and persist across deploys.
+
+**Update specific variables:**
+```bash
+gcloud run services update soulstep-catalog-api \
+  --region REGION \
+  --update-env-vars "VAR_NAME=value,ANOTHER_VAR=value"
+```
+
+**View current env vars:**
+```bash
+gcloud run services describe soulstep-catalog-api \
+  --region REGION \
+  --format="yaml(spec.template.spec.containers[0].env)"
+```
+
+**Update CORS after deploying frontends:**
+```bash
+gcloud run services update soulstep-catalog-api \
+  --region REGION \
+  --update-env-vars "CORS_ORIGINS=https://soul-step.org,FRONTEND_URL=https://soul-step.org,API_BASE_URL=https://api.soul-step.org,RESET_URL_BASE=https://soul-step.org"
+```
+
+### Cold start notes
+
+`--min-instances 0` = scales to zero (free). Set `--min-instances 1` to eliminate cold starts (~$10/month).
+
+On cold start, the app runs Alembic migrations before serving traffic (~5s for the first Cloud SQL connection). To avoid this latency: run migrations as a pre-deploy Cloud Run Job and set `RUN_MIGRATIONS_ON_START=false`.
+
+### 3.1 Custom Domain (`api.soul-step.org`)
+
+Map the subdomain `api.soul-step.org` to the Cloud Run service so all API and SEO endpoints use a clean, stable URL instead of the raw Cloud Run URL.
+
+**Step 1 — Create the domain mapping:**
+
+```bash
+gcloud beta run domain-mappings create \
+  --service=soulstep-catalog-api \
+  --domain=api.soul-step.org \
+  --region=REGION
+```
+
+**Step 2 — Get the required DNS records:**
+
+```bash
+gcloud beta run domain-mappings describe \
+  --domain=api.soul-step.org \
+  --region=REGION
+```
+
+**Step 3 — Add DNS records** in your DNS provider (wherever `soul-step.org` is managed):
+
+| Type | Name | Value |
+|------|------|-------|
+| CNAME | `api` | `ghs.googlehosted.com.` |
+
+GCP provisions a managed TLS certificate automatically. Propagation takes a few minutes to a couple of hours.
+
+**Step 4 — Verify:**
+
+```bash
+# Wait for certificate provisioning, then test
+curl -s https://api.soul-step.org/health
+```
+
+**Step 5 — Update env vars to use the custom domain:**
+
+```bash
+gcloud run services update soulstep-catalog-api \
+  --region REGION \
+  --update-env-vars "API_BASE_URL=https://api.soul-step.org"
+```
+
+After the domain is live, all services and frontends should point to `https://api.soul-step.org` instead of the raw Cloud Run URL:
+
+| Service | Variable | Value |
+|---------|----------|-------|
+| Catalog API | `API_BASE_URL` | `https://api.soul-step.org` |
+| Customer Web | `NEXT_PUBLIC_API_BASE_URL` | `https://api.soul-step.org` |
+| Admin Web | `VITE_API_URL` | `https://api.soul-step.org` |
+| Admin Web | `API_PROXY_TARGET` (hybrid mode) | `https://api.soul-step.org` |
+| Mobile | `EXPO_PUBLIC_API_URL` | `https://api.soul-step.org` |
+| Scraper | `MAIN_SERVER_URL` | `https://api.soul-step.org` |
+
+> **SEO note:** `robots.txt`, `sitemap.xml`, `llms.txt`, `/feed.xml`, `/feed.atom`, and `/.well-known/ai-plugin.json` are all served by the catalog API. With the custom domain, search engines and AI crawlers access them at `https://api.soul-step.org/sitemap.xml`, etc. The frontend static copies in `apps/soulstep-customer-web/public/` (`robots.txt`, `llms.txt`, `ai-plugin.json`) also reference `api.soul-step.org`.
+
+---
+
+## 4. Deploy Web Frontend
+
+The customer web app uses **Next.js 15** with server-side rendering (SSR). Deployed to **Vercel** via GitHub Actions — on every push to `main` that touches `apps/soulstep-customer-web/`, CI runs `vercel build --prod` then `vercel deploy --prebuilt --prod` automatically.
+
+Vercel serves static assets from its global CDN and runs SSR pages on serverless functions in `cdg1` (Paris). No Docker image or Cloud Run service to manage manually.
+
+### One-time Vercel project setup (dashboard)
+
+1. Go to [vercel.com](https://vercel.com) → **Add New Project**
+2. **Import Git Repository** → connect GitHub → select this repo
+3. Set **Root Directory** to `apps/soulstep-customer-web`
+4. Framework preset is auto-detected as **Next.js** — leave as-is
+5. Under **Environment Variables**, add:
+   - `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` → your AdSense publisher ID
+   - `NEXT_PUBLIC_UMAMI_WEBSITE_ID` → your Umami website ID
+   - Select scope **Production** for both
+6. Click **Deploy**
+
+**After the first deploy — copy IDs for GitHub Actions:**
+
+7. **Settings → General** → copy **Project ID** → add to GitHub secrets as `VERCEL_PROJECT_ID_WEB`
+8. Go to your Vercel **account/team settings** (top-right avatar → Settings) → copy **Team ID** → add as `VERCEL_ORG_ID`
+9. Account settings → **Tokens** → create a token → add as `VERCEL_TOKEN`
+
+### Custom domain
+
+Project → **Settings → Domains** → Add `soul-step.org` → follow the DNS instructions Vercel provides. TLS is provisioned automatically.
+
+### Environment variables
+
+`NEXT_PUBLIC_*` vars are baked into the Next.js build at deploy time. Manage them in **Project → Settings → Environment Variables** in the Vercel dashboard. SSR calls fall back to `https://api.soul-step.org` automatically — no additional runtime vars needed.
+
+---
+
+## 5. Deploy Admin Dashboard
+
+The admin dashboard (Vite SPA) is deployed to a separate **Vercel** project. API calls from the browser go to `/api/*` which Vercel rewrites server-side to `https://api.soul-step.org/api/*` — defined in `apps/soulstep-admin-web/vercel.json`.
+
+### One-time Vercel project setup (dashboard)
+
+1. Go to [vercel.com](https://vercel.com) → **Add New Project**
+2. **Import Git Repository** → select the same repo
+3. Set **Root Directory** to `apps/soulstep-admin-web`
+4. Framework preset is auto-detected as **Vite** — leave as-is
+5. No environment variables needed at the project level
+6. Click **Deploy**
+
+**After the first deploy — copy the project ID:**
+
+7. **Settings → General** → copy **Project ID** → add to GitHub secrets as `VERCEL_PROJECT_ID_ADMIN`
+8. `VERCEL_ORG_ID` and `VERCEL_TOKEN` are the same as for the customer web project (step 8–9 above)
+
+### Custom domain
+
+Project → **Settings → Domains** → Add your admin subdomain (e.g. `admin.soul-step.org`). TLS is provisioned automatically.
+
+---
+
+## 6. Deploy Scraper
+
+The scraper is optional — only needed for automated place discovery in production.
+
+### 6.1 API Service
+
+The scraper API service handles HTTP requests. Scrape runs execute in the background (local dispatch) or via a Cloud Run Job (cloud_run dispatch).
+
+**Store scraper secrets:**
+
+```bash
+echo -n "your-google-maps-api-key" | \
+  gcloud secrets create SCRAPER_GOOGLE_MAPS_API_KEY --data-file=- --replication-policy=automatic
+
+# Optional collectors
+echo -n "your-gemini-key" | \
+  gcloud secrets create SCRAPER_GEMINI_API_KEY --data-file=- --replication-policy=automatic
+echo -n "your-besttime-key" | \
+  gcloud secrets create SCRAPER_BESTTIME_API_KEY --data-file=- --replication-policy=automatic
+echo -n "your-foursquare-key" | \
+  gcloud secrets create SCRAPER_FOURSQUARE_API_KEY --data-file=- --replication-policy=automatic
+echo -n "your-outscraper-key" | \
+  gcloud secrets create SCRAPER_OUTSCRAPER_API_KEY --data-file=- --replication-policy=automatic
+
+# Grant access
+for SECRET in SCRAPER_GOOGLE_MAPS_API_KEY SCRAPER_GEMINI_API_KEY SCRAPER_BESTTIME_API_KEY SCRAPER_FOURSQUARE_API_KEY SCRAPER_OUTSCRAPER_API_KEY; do
+  gcloud secrets add-iam-policy-binding $SECRET \
+    --member="serviceAccount:${SERVICE_ACCOUNT}" \
+    --role="roles/secretmanager.secretAccessor" 2>/dev/null || true
+done
+```
+
+**Build and push:**
+
+```bash
+cd soulstep-scraper-api
+
+# API Service image (base deps only, no Playwright ~200 MB)
+docker build --platform linux/amd64 -f Dockerfile \
+  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api:latest .
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api:latest
+```
+
+**Deploy:**
+
+```bash
+gcloud run deploy soulstep-scraper-api \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api:latest \
+  --platform managed \
+  --region REGION \
+  --no-allow-unauthenticated \
+  --set-secrets "GOOGLE_MAPS_API_KEY=SCRAPER_GOOGLE_MAPS_API_KEY:latest,GEMINI_API_KEY=SCRAPER_GEMINI_API_KEY:latest,BESTTIME_API_KEY=SCRAPER_BESTTIME_API_KEY:latest,FOURSQUARE_API_KEY=SCRAPER_FOURSQUARE_API_KEY:latest,OUTSCRAPER_API_KEY=SCRAPER_OUTSCRAPER_API_KEY:latest" \
+  --set-env-vars "MAIN_SERVER_URL=https://api.soul-step.org,SCRAPER_TIMEZONE=Asia/Dubai,SCRAPER_DB_PATH=/tmp/scraper.db,LOG_FORMAT=json" \
+  --memory 512Mi \
+  --cpu 1 \
+  --min-instances 0 \
+  --max-instances 2 \
+  --no-cpu-throttling \
+  --timeout 3600
+```
+
+> `--no-allow-unauthenticated` — scraper is internal only. Access via `gcloud auth print-identity-token`.
+> `--timeout 3600` — scrape runs take up to 60 min.
+> `--max-instances 2` — lightweight service that dispatches jobs; 2 instances handle admin polling and queue processing.
+> `--no-cpu-throttling` — keeps CPU allocated after the HTTP response so background tasks (queue processor, Cloud Run Job dispatch) can complete. Without this, Cloud Run freezes the CPU once a response is returned, killing any in-flight background work.
+
+**Tell the catalog API where the scraper is:**
+```bash
+gcloud run services update soulstep-catalog-api \
+  --region REGION \
+  --update-env-vars "DATA_SCRAPER_URL=https://soulstep-scraper-api-xxxx.a.run.app"
+```
+
+**Trigger and monitor runs** (requires identity token):
+```bash
+TOKEN=$(gcloud auth print-identity-token)
+SCRAPER_URL=https://soulstep-scraper-api-xxxx.a.run.app
+
+# Check health
+curl -H "Authorization: Bearer $TOKEN" $SCRAPER_URL/health
+
+# Start a run
+curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"location_code": "loc_XXXXX"}' $SCRAPER_URL/api/v1/scraper/runs
+
+# Poll status
+curl -H "Authorization: Bearer $TOKEN" $SCRAPER_URL/api/v1/scraper/runs/run_XXXXX
+
+# Sync to catalog
+curl -X POST -H "Authorization: Bearer $TOKEN" $SCRAPER_URL/api/v1/scraper/runs/run_XXXXX/sync
+```
+
+Alternatively, use the admin dashboard → Scraper section (wraps all calls through the catalog API proxy).
+
+### 6.2 Cloud Run Job (browser mode)
+
+When `SCRAPER_BACKEND=browser` and `SCRAPER_DISPATCH=cloud_run`, the API dispatches a separate Cloud Run Job for Chromium — keeping the API at 512 MB while the job handles the 2 GB Chromium workload.
+
+**Build the job image** (includes Playwright + Chromium, ~900 MB):
+```bash
+docker build --platform linux/amd64 -f Dockerfile.job \
+  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:latest .
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:latest
+```
+
+**Deploy the Cloud Run Job:**
+```bash
+gcloud run jobs create soulstep-scraper-api-job \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:latest \
+  --region REGION \
+  --memory 6Gi \
+  --cpu 4 \
+  --task-timeout 86400 \
+  --max-retries 1 \
+  --set-env-vars "SCRAPER_BACKEND=browser,GOOGLE_CLOUD_PROJECT=PROJECT_ID"
+```
+
+**Configure the API service to use the job:**
+```bash
+gcloud run services update soulstep-scraper-api \
+  --region REGION \
+  --update-env-vars "SCRAPER_DISPATCH=cloud_run,CLOUD_RUN_JOB_NAME=soulstep-scraper-api-job,CLOUD_RUN_REGION=REGION"
+```
+
+**Grant the scraper API service account permission to trigger the job:**
+
+The scraper API uses `google-cloud-run` (via `run_v2.JobsClient`) to dispatch the job with env var overrides (`SCRAPER_RUN_CODE`, `SCRAPER_RUN_ACTION`). This requires the `run.jobs.runWithOverrides` permission — **`roles/run.invoker` does NOT include it** (see [issue #298810674](https://issuetracker.google.com/issues/298810674)).
+
+Use `roles/run.jobsExecutorWithOverrides` — the minimal predefined role that includes both `run.jobs.run` and `run.jobs.runWithOverrides`.
+
+```bash
+# Find the service account the scraper API runs as
+SA=$(gcloud run services describe soulstep-scraper-api \
+  --region REGION \
+  --format="value(spec.template.spec.serviceAccountName)")
+# If empty, use the default Compute SA: PROJECT_NUMBER-compute@developer.gserviceaccount.com
+
+# Grant it permission to trigger the job with overrides
+gcloud run jobs add-iam-policy-binding soulstep-scraper-api-job \
+  --region REGION \
   --member="serviceAccount:${SA}" \
-  --role=roles/storage.objectCreator
+  --role="roles/run.jobsExecutorWithOverrides"
+```
+
+**Update after job image changes:**
+```bash
+docker build --platform linux/amd64 -f Dockerfile.job \
+  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:latest .
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:latest
+
+gcloud run jobs update soulstep-scraper-api-job \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-scraper-api-job:latest \
+  --region REGION
+```
+
+### 6.3 Persistent scraper database (optional)
+
+By default, the scraper uses ephemeral SQLite (`/tmp/scraper.db`) on Cloud Run. Geo/place-type seeds re-run on startup (idempotent), so this is fine for on-demand scraping.
+
+For persistent run history across cold starts, point the scraper at PostgreSQL on the existing Cloud SQL instance:
+
+```bash
+# Create a dedicated database and user
+gcloud sql databases create soulstep-scraper --instance=soulstep-db
+gcloud sql users create soulstep-scraper --instance=soulstep-db --password=STRONG_SCRAPER_PASSWORD
+
+# Store the connection string
+echo -n "postgresql://soulstep-scraper:STRONG_SCRAPER_PASSWORD@/soulstep-scraper?host=/cloudsql/PROJECT_ID:REGION:soulstep-db" | \
+  gcloud secrets create SCRAPER_DATABASE_URL --data-file=- --replication-policy=automatic
+
+gcloud secrets add-iam-policy-binding SCRAPER_DATABASE_URL \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/secretmanager.secretAccessor"
+
+# Redeploy scraper with DATABASE_URL
+gcloud run services update soulstep-scraper-api \
+  --region REGION \
+  --add-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
+  --set-secrets "DATABASE_URL=SCRAPER_DATABASE_URL:latest,..."
 ```
 
 ---
 
-## 3. Bootstrap the VM
+## 7. Scheduled Jobs
 
-SSH into the VM and run the one-shot setup script:
+All five catalog jobs are created/updated automatically by the `deploy-jobs` workflow in `.github/workflows/deploy.yml`. The commands below are for reference or manual (non-CI) use.
 
 ```bash
-gcloud compute ssh soulstep-vm --zone=europe-west1-d
-
-# On the VM:
-curl -fsSL https://raw.githubusercontent.com/hussu97/soulstep/main/scripts/vm-bootstrap.sh | bash
+PROJECT_NUMBER=$(gcloud projects describe PROJECT_ID --format="value(projectNumber)")
+SERVICE_ACCOUNT="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 ```
 
-This script:
-1. Installs Docker + Docker Compose
-2. Installs gcloud CLI (for GCS backup uploads)
-3. Clones the repo to `/opt/soulstep`
-4. Creates `certbot/` and `backups/` directories
-5. Starts Postgres
-6. Installs the crontab (backup, sync, cleanup, backfill)
+### Cleanup orphaned images (weekly Mondays 5 AM UTC)
 
-After bootstrap, copy `.env.example` to `/opt/soulstep/.env` and fill in all values:
 ```bash
-cp /opt/soulstep/.env.example /opt/soulstep/.env
-nano /opt/soulstep/.env   # fill in secrets
+gcloud run jobs create cleanup-job \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-catalog-api:latest \
+  --region REGION \
+  --set-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
+  --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
+  --command "python" --args="-m,app.jobs.cleanup_orphaned_images" \
+  --max-retries 1 --task-timeout 300
+
+gcloud scheduler jobs create http weekly-cleanup-job \
+  --location REGION --schedule "0 5 * * 1" --time-zone "UTC" \
+  --uri "https://run.googleapis.com/v2/projects/PROJECT_ID/locations/REGION/jobs/cleanup-job:run" \
+  --http-method POST \
+  --oauth-service-account-email "${SERVICE_ACCOUNT}" \
+  --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform"
 ```
 
-Add the deploy SSH public key to the deploy user's authorized_keys:
+### Timezone backfill (weekly, Sundays 3 AM UTC)
+
 ```bash
-# Run on the VM — paste the public half of SERVER_SSH_KEY
-echo "ssh-ed25519 AAAA... github-deploy" >> ~/.ssh/authorized_keys
+gcloud run jobs create backfill-timezones \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/soulstep-catalog-api:latest \
+  --region REGION \
+  --set-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
+  --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
+  --command "python" --args="-m,app.jobs.backfill_timezones" \
+  --max-retries 1
+
+# Run once manually if needed
+gcloud run jobs execute backfill-timezones --region REGION --wait
+
+# Scheduled weekly run
+gcloud scheduler jobs create http weekly-backfill-timezones \
+  --location REGION --schedule "0 3 * * 0" --time-zone "UTC" \
+  --uri "https://run.googleapis.com/v2/projects/PROJECT_ID/locations/REGION/jobs/backfill-timezones:run" \
+  --http-method POST \
+  --oauth-service-account-email "${SERVICE_ACCOUNT}" \
+  --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform"
+```
+
+### Daily place sync (sync-places, daily 2 AM UTC)
+
+Reads enriched places from the scraper PostgreSQL DB and upserts them into the catalog.
+
+```bash
+docker build --platform linux/amd64 -f Dockerfile.sync \
+  -t REGION-docker.pkg.dev/PROJECT_ID/soulstep/sync-places:latest .
+docker push REGION-docker.pkg.dev/PROJECT_ID/soulstep/sync-places:latest
+
+gcloud run jobs create sync-places \
+  --image REGION-docker.pkg.dev/PROJECT_ID/soulstep/sync-places:latest \
+  --region REGION \
+  --set-cloudsql-instances PROJECT_ID:REGION:soulstep-db \
+  --set-secrets "DATABASE_URL=DATABASE_URL:latest,SCRAPER_DATABASE_URL=SCRAPER_DATABASE_URL:latest" \
+  --memory 1Gi --cpu 1 --task-timeout 1800 --max-retries 1
+
+# Grant the scheduler SA permission to invoke Cloud Run jobs (run once per project)
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="serviceAccount:${SERVICE_ACCOUNT}" \
+  --role="roles/run.invoker"
+
+# Cloud Run Jobs v2 API requires OAuth2 tokens — use --oauth-service-account-email
+gcloud scheduler jobs create http daily-sync-places \
+  --location REGION --schedule "0 2 * * *" --time-zone "UTC" \
+  --uri "https://run.googleapis.com/v2/projects/PROJECT_ID/locations/REGION/jobs/sync-places:run" \
+  --http-method POST \
+  --oauth-service-account-email "${SERVICE_ACCOUNT}" \
+  --oauth-token-scope "https://www.googleapis.com/auth/cloud-platform"
+```
+
+> **IAM note:** The `roles/run.invoker` grant above is required. Without it Cloud Scheduler gets a 403 when
+> triggering the job. The v2 Cloud Run Admin API (`run.googleapis.com/v2/...`) requires **OAuth2** auth
+> (`--oauth-service-account-email` + `--oauth-token-scope`), not OIDC — OIDC is only for invoking Cloud Run services.
+
+### Run any job manually
+
+```bash
+gcloud run jobs execute JOB_NAME --region REGION [--wait]
 ```
 
 ---
 
-## 4. GitHub Secrets Setup
+## 8. CI/CD
 
-Go to **GitHub → hussu97/soulstep → Settings → Environments → production** and add:
+The workflow at `.github/workflows/deploy.yml` runs on every push to `main`.
 
-### VM Connection
+| Job | Trigger | What it does |
+|---|---|---|
+| `deploy-api` | `soulstep-catalog-api/` changed | Builds `api` image → deploys Cloud Run service |
+| `deploy-jobs` | `soulstep-catalog-api/` changed (after `deploy-api`) | Builds `sync-places` image → creates/updates Cloud Run Jobs |
+| `deploy-web` | `apps/soulstep-customer-web/` changed | `vercel pull` → `vercel build --prod` → `vercel deploy --prebuilt --prod` (customer web project) |
+| `deploy-admin-web` | `apps/soulstep-admin-web/` changed | `vercel pull` → `vercel build --prod` → `vercel deploy --prebuilt --prod` (admin project) |
+| `deploy-scraper` | `soulstep-scraper-api/` changed | Builds `scraper` image → deploys Cloud Run service + upserts scraper job (primary + extra regions) |
 
-| Secret | Value |
-|---|---|
-| `SERVER_HOST` | VM external IP (from §2) |
-| `SERVER_USER` | VM deploy user (e.g. `hussainabbasi`) |
-| `SERVER_SSH_KEY` | Ed25519 private key — public half added to VM's `~/.ssh/authorized_keys` |
+### Workflow-level variables
 
-### Runtime Secrets (written to `/opt/soulstep/.env` on every deploy)
+These are set in `.github/workflows/deploy.yml` under `env:` — they are **not** runtime service env vars and do **not** belong in `ENV_VARS.md`.
+
+| Variable | Default | Description |
+|---|---|---|
+| `EXTRA_JOB_REGIONS` | `""` (empty) | Comma-separated list of extra GCP regions to deploy the scraper Cloud Run Job to (e.g. `europe-west4,europe-west2`). When non-empty, CI builds the job image with tags for all regions in a single `docker buildx build --push` and upserts the Cloud Run Job in each region. See [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md). |
+
+### Create the deploy service account
+
+CI uses **Workload Identity Federation** (keyless auth) — no JSON key is stored in GitHub. The `WIF_PROVIDER` and `SA_EMAIL` values are hardcoded in `deploy.yml`.
+
+```bash
+# Create the service account
+gcloud iam service-accounts create github-deploy \
+  --display-name "GitHub Actions deploy" \
+  --project PROJECT_ID
+
+SA_EMAIL="github-deploy@PROJECT_ID.iam.gserviceaccount.com"
+
+# Grant required roles
+for ROLE in roles/run.admin roles/artifactregistry.writer roles/iam.serviceAccountUser roles/cloudbuild.builds.editor; do
+  gcloud projects add-iam-policy-binding PROJECT_ID \
+    --member="serviceAccount:${SA_EMAIL}" --role="${ROLE}"
+done
+
+# Create a Workload Identity Pool and Provider for GitHub Actions
+gcloud iam workload-identity-pools create github-pool \
+  --project PROJECT_ID --location global \
+  --display-name "GitHub Actions pool"
+
+gcloud iam workload-identity-pools providers create-oidc github-provider \
+  --project PROJECT_ID --location global \
+  --workload-identity-pool github-pool \
+  --display-name "GitHub provider" \
+  --attribute-mapping "google.subject=assertion.sub,attribute.repository=assertion.repository" \
+  --issuer-uri "https://token.actions.githubusercontent.com"
+
+# Allow the GitHub repo to impersonate the service account
+gcloud iam service-accounts add-iam-policy-binding "${SA_EMAIL}" \
+  --project PROJECT_ID \
+  --role roles/iam.workloadIdentityUser \
+  --member "principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/attribute.repository/YOUR_GITHUB_ORG/YOUR_REPO"
+```
+
+Copy the full provider resource name into `WIF_PROVIDER` in `deploy.yml` and update `SA_EMAIL` to match.
+
+### Required GitHub secrets
 
 | Secret | Description |
 |---|---|
-| `USE_SSL` | `false` initially; `true` after certs are issued |
-| `POSTGRES_USER` | e.g. `soulstep` |
-| `POSTGRES_PASSWORD` | Strong random password |
-| `POSTGRES_DB` | e.g. `soulstep` |
-| `JWT_SECRET` | `openssl rand -hex 32` |
-| `CATALOG_API_KEY` | `openssl rand -hex 32` — shared between catalog + scraper |
-| `GOOGLE_MAPS_API_KEY` | Google Places API key |
-| `RESEND_API_KEY` | Resend.com key for emails |
-| `RESEND_FROM_EMAIL` | `noreply@soul-step.org` |
-| `CORS_ORIGINS` | `https://soul-step.org https://www.soul-step.org https://admin.soul-step.org` |
-| `FRONTEND_URL` | `https://soul-step.org` |
-| `RESET_URL_BASE` | `https://soul-step.org` |
-| `GCS_BUCKET_NAME` | `soulstep-images` |
-| `GOOGLE_CLOUD_PROJECT` | `project-fa2d7f52-2bc4-4a46-8ae` |
-| `GLITCHTIP_DSN` | GlitchTip error tracking DSN |
-| `ADS_ENABLED` | `false` |
-| `ADSENSE_PUBLISHER_ID` | AdSense publisher ID (when ads enabled) |
-| `SCRAPER_GOOGLE_MAPS_API_KEY` | Google Maps key for scraper |
-| `SCRAPER_GEMINI_API_KEY` | Gemini API key |
-| `SCRAPER_FOURSQUARE_API_KEY` | Foursquare API key |
-| `SCRAPER_ALLOWED_ORIGINS` | `https://admin.soul-step.org` |
-| `SCRAPER_TIMEZONE` | `Asia/Dubai` |
-| `CLOUD_RUN_REGIONS` | `europe-west1:3,europe-west4:5` |
-| `BACKUP_GCS_BUCKET` | `soulstep-db-backups` |
-| `LOG_LEVEL` | `INFO` |
+| `VERCEL_TOKEN` | Vercel personal access token (Settings → Tokens) |
+| `VERCEL_ORG_ID` | Vercel team/org ID (from `.vercel/project.json` after `vercel link`) |
+| `VERCEL_PROJECT_ID_WEB` | Vercel project ID for `soulstep-customer-web` |
+| `VERCEL_PROJECT_ID_ADMIN` | Vercel project ID for `soulstep-admin-web` |
 
-### Existing Secrets (keep — used for Vercel + Cloud Run Job)
+---
 
-| Secret | Used by |
+## 9. Mobile
+
+Mobile builds are identical regardless of backend deployment. The app is not containerised — build locally or via EAS.
+
+### Production checklist
+
+1. Set `bundleIdentifier` (iOS) and `package` (Android) in `app.json`
+2. Set `name` and `slug` to production values
+3. Set `EXPO_PUBLIC_API_URL=https://api.soul-step.org` in EAS secrets or `.env`
+4. Configure icons, splash screen, and scheme in `app.json`
+
+### Build and submit
+
+```bash
+cd apps/soulstep-customer-mobile
+npm install -g eas-cli
+
+eas build --platform ios --profile production
+eas build --platform android --profile production
+
+eas submit --platform ios
+eas submit --platform android
+```
+
+### Beta testing (Firebase App Distribution)
+
+```bash
+# Preview build (ad-hoc signed for testers)
+eas build --platform android --profile preview
+eas build --platform ios --profile preview   # requires Apple Developer account
+
+# Upload to Firebase App Distribution
+firebase appdistribution:distribute path/to/app.apk \
+  --app YOUR_ANDROID_FIREBASE_APP_ID \
+  --groups "internal" \
+  --release-notes "Description of what changed"
+```
+
+---
+
+## 10. SEO & Search Engines
+
+The backend serves all SEO files automatically at `https://api.soul-step.org`:
+
+| URL | Description |
 |---|---|
-| `VERCEL_TOKEN` | Vercel deployments |
-| `VERCEL_ORG_ID` | Vercel |
-| `VERCEL_PROJECT_ID_WEB` | Customer web Vercel project |
-| `VERCEL_PROJECT_ID_ADMIN` | Admin web Vercel project |
+| `https://api.soul-step.org/sitemap.xml` | Dynamic sitemap — all places with hreflang + image entries |
+| `https://api.soul-step.org/robots.txt` | Crawl directives (allows ChatGPT-User, Claude-Web, PerplexityBot, etc.) |
+| `https://api.soul-step.org/llms.txt` | AI chatbot discoverability |
+| `https://api.soul-step.org/llms-full.txt` | Richer AI discoverability document |
+| `https://api.soul-step.org/.well-known/ai-plugin.json` | AI agent/plugin discovery |
+| `https://api.soul-step.org/feed.xml` | RSS 2.0 (50 most recent places) |
+| `https://api.soul-step.org/feed.atom` | Atom 1.0 |
 
-GCP auth for the scraper Cloud Run Job continues to use **Workload Identity Federation** (keyless) — no JSON key secret needed.
+### Submit to Google Search Console
 
----
+1. Add property → **URL prefix** → enter the production frontend URL (`https://soul-step.org`)
+2. Verify ownership (HTML file in `public/`, meta tag, or DNS TXT record)
+3. **Sitemaps** → enter `https://api.soul-step.org/sitemap.xml` → Submit
+4. Check **Coverage** and **Performance** after 24–48 hours
 
-## 5. GHCR Package Visibility
+### Submit to Bing Webmaster Tools
 
-Docker images are pushed to GitHub Container Registry (GHCR). Cloud Run Jobs pull public GHCR images without authentication.
+1. Add site → verify ownership → **Sitemaps** → submit `https://api.soul-step.org/sitemap.xml`
 
-After the first CI run creates the packages, make them public:
+### SEO generation (post-sync)
 
-1. Go to **GitHub → hussu97 → Packages**
-2. Open `soulstep-catalog-api` → **Package settings** → **Change visibility** → **Public**
-3. Repeat for `soulstep-scraper-api` and `soulstep-scraper-api-job`
-
----
-
-## 6. DNS
-
-Add these records at your DNS provider for `soul-step.org`:
-
-| Type | Name | Value |
-|---|---|---|
-| A | `api` | VM external IP |
-| A | `scraper` | VM external IP |
-
-The apex / `www` / `admin` records point to Vercel (unchanged).
-
-Wait for DNS propagation (`dig api.soul-step.org` shows VM IP) before issuing TLS certs.
-
----
-
-## 7. TLS — Let's Encrypt
-
-With nginx running in HTTP-only mode (`USE_SSL=false`) and DNS pointing at the VM:
+After syncing 10K+ places:
 
 ```bash
-# SSH into the VM
-cd /opt/soulstep
+cd soulstep-catalog-api && source .venv/bin/activate
 
-# Issue cert for both subdomains (one SAN cert)
-docker compose -f docker-compose.prod.yml run --rm --entrypoint "" certbot \
-  certbot certonly --webroot -w /var/www/certbot \
-  -d api.soul-step.org -d scraper.soul-step.org \
-  --email admin@soul-step.org --agree-tos --no-eff-email
+# Generate English SEO slugs + meta
+python scripts/generate_seo.py --generate
 ```
 
-Then enable HTTPS:
+Or auto-trigger after sync by setting on the scraper service:
 ```bash
-# Update .env on VM
-sed -i 's/USE_SSL=false/USE_SSL=true/' /opt/soulstep/.env
-
-# Also update GitHub Secret USE_SSL → true
-# Then reload nginx
-docker compose -f docker-compose.prod.yml up -d --force-recreate nginx
+gcloud run services update soulstep-scraper-api --region REGION \
+  --update-env-vars "SCRAPER_TRIGGER_SEO_AFTER_SYNC=true" \
+  --update-secrets "CATALOG_API_KEY=catalog-api-key:latest"
 ```
 
-Certs auto-renew every 12 h via the certbot container.
-
----
-
-## 8. Database Migration (Cloud SQL → VM)
-
-Only needed once during the initial cutover. The database is small (~810 MB).
-
-```bash
-# 1. Export from Cloud SQL
-gcloud sql export sql soulstep-db gs://soulstep-db-backups/migration_$(date +%Y%m%d).sql.gz \
-  --database=soulstep \
-  --project=project-fa2d7f52-2bc4-4a46-8ae
-
-# 2. On the VM — download and restore
-gsutil cp gs://soulstep-db-backups/migration_YYYYMMDD.sql.gz /tmp/
-gunzip -c /tmp/migration_YYYYMMDD.sql.gz | \
-  docker compose -f /opt/soulstep/docker-compose.prod.yml \
-  exec -T postgres psql -U soulstep soulstep
-
-# 3. Smoke test (before DNS cutover)
-curl --resolve api.soul-step.org:443:<VM_IP> https://api.soul-step.org/health
-curl --resolve api.soul-step.org:443:<VM_IP> https://api.soul-step.org/api/v1/places?page_size=1
-
-# 4. Update DNS A records (api + scraper → VM IP)
-# 5. Keep Cloud SQL running for 48 h as fallback, then delete
-```
-
----
-
-## 9. CI/CD
-
-### VM deploy workflow (`.github/workflows/deploy-vm.yml`)
-
-Triggered on `Tests` workflow success on `main`. Runs four jobs:
-
-| Job | Triggers when | Action |
-|---|---|---|
-| `build-catalog-api` | `soulstep-catalog-api/` changed | Build + push to `ghcr.io/hussu97/soulstep-catalog-api`, Trivy scan |
-| `build-scraper-api` | `soulstep-scraper-api/` changed | Build lean image + job image (Playwright), push both to GHCR, Trivy scan |
-| `deploy-vm` | Either service changed | SSH → write `.env` → `git pull` → `docker compose pull` → `docker compose up --force-recreate` → health check → nginx reload |
-| `deploy-scraper-job` | Scraper changed | Update `soulstep-scraper-api-job` Cloud Run Job in 3 regions (WIF auth) |
-
-### Deploy sequence on the VM
+### AI citation monitoring
 
 ```
-git pull origin main
-docker compose -f docker-compose.prod.yml pull catalog-api scraper-api
-docker compose -f docker-compose.prod.yml up -d --force-recreate catalog-api scraper-api
-# catalog-api startup runs alembic migrations automatically (lifespan hook)
-# health check loop (30 × 5s)
-docker compose -f docker-compose.prod.yml up -d --no-deps nginx
-docker image prune -f
+GET /api/v1/admin/seo/ai-citations?days=30
 ```
 
-### Vercel web deploy (`.github/workflows/deploy.yml`)
-
-Unchanged — still deploys `apps/soulstep-customer-web` and `apps/soulstep-admin-web` to Vercel on changes.
-
-### GCP Workload Identity Federation (for scraper Cloud Run Job)
-
-The deploy-vm.yml continues to authenticate to GCP keylessly via WIF for the Cloud Run Job deploy step:
-- Pool: `github-pool`
-- Provider: `github-provider`
-- Service account: `github-deploy@project-fa2d7f52-2bc4-4a46-8ae.iam.gserviceaccount.com`
+Returns AI crawler visit counts, bot breakdown, and top cited places. No setup needed — middleware runs automatically.
 
 ---
 
-## 10. Deploy Web Frontends (Vercel)
+## 11. Observability
 
-Both web apps deploy to Vercel automatically via `.github/workflows/deploy.yml`. No changes from previous setup.
+### Prometheus metrics
 
-**Environment variables to set in Vercel dashboard:**
-
-| App | Variable | Value |
-|---|---|---|
-| Customer web | `NEXT_PUBLIC_API_BASE_URL` | `https://api.soul-step.org` |
-| Customer web | `INTERNAL_API_URL` | `https://api.soul-step.org` |
-| Admin web | `VITE_API_BASE_URL` | `https://api.soul-step.org` |
-
----
-
-## 11. Scraper Cloud Run Job
-
-The Playwright-based browser scraper (`soulstep-scraper-api-job`) continues to run on Cloud Run. It is:
-- Triggered from the admin web UI
-- Built automatically by `deploy-vm.yml` when `soulstep-scraper-api/` changes
-- Image: `ghcr.io/hussu97/soulstep-scraper-api-job:latest` (public GHCR)
-- Deployed to 3 regions: `europe-west1`, `europe-west4`, `europe-west2`
-- Resources: 6 GB RAM, 4 vCPU, 24 h task timeout
-
-The scraper job calls `https://api.soul-step.org` (the VM) to sync scraped places into the catalog via `CATALOG_API_KEY`.
-
-See [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md) for multi-region capacity configuration.
-
----
-
-## 12. Mobile
-
-No change. Expo / React Native app distributed via EAS Build and app stores.
-
-**EAS secrets:** Update `EXPO_PUBLIC_API_BASE_URL` → `https://api.soul-step.org` if not already set.
-
----
-
-## 13. SEO & Search Engines
-
-After cutover, resubmit sitemaps:
-
-1. **Google Search Console** → Sitemaps → `https://api.soul-step.org/sitemap.xml`
-2. **Bing Webmaster Tools** → Sitemap → same URL
-3. **Verify** `https://api.soul-step.org/robots.txt` and `https://api.soul-step.org/llms.txt` are accessible
-
----
-
-## 14. Observability
-
-### Logs
-
-```bash
-# SSH into VM
-docker compose -f /opt/soulstep/docker-compose.prod.yml logs -f catalog-api
-docker compose -f /opt/soulstep/docker-compose.prod.yml logs -f scraper-api
-docker compose -f /opt/soulstep/docker-compose.prod.yml logs -f nginx
-
-# Cron job logs
-tail -f /var/log/soulstep-backup.log
-tail -f /var/log/soulstep-sync.log
+```
+GET /metrics
 ```
 
-### Container health
+Enabled automatically by `prometheus-fastapi-instrumentator`. Restrict access to this endpoint via firewall rules in production — allow only from your monitoring network. Scrape with Prometheus; visualise with Grafana.
 
-```bash
-docker compose -f /opt/soulstep/docker-compose.prod.yml ps
-docker stats --no-stream   # memory usage
-```
+### GlitchTip error tracking
 
-### Error tracking
+[GlitchTip](https://glitchtip.com) is an open-source Sentry-compatible error tracker.
 
-GlitchTip receives all unhandled exceptions via `GLITCHTIP_DSN`. Check the dashboard after deploys.
+1. Deploy a GlitchTip instance (Docker image: `glitchtip/glitchtip`)
+2. Create a project and obtain a DSN
+3. Set `GLITCHTIP_DSN` on the Cloud Run service:
+   ```bash
+   gcloud run services update soulstep-catalog-api --region REGION \
+     --update-env-vars "GLITCHTIP_DSN=https://key@glitchtip.example.com/1"
+   ```
 
----
-
-## 15. Backups
-
-Automated daily backup (02:00 UTC) via `scripts/backup-db.sh`:
-- Dumps Postgres → `soulstep_YYYYMMDD_HHMMSS.sql.gz`
-- Uploads to `gs://soulstep-db-backups/`
-- Keeps 7 days of local copies in `/opt/soulstep/backups/`
-
-Manual backup:
-```bash
-DEPLOY_DIR=/opt/soulstep /opt/soulstep/scripts/backup-db.sh
-```
-
-Restore from backup:
-```bash
-# Local file
-/opt/soulstep/scripts/restore-db.sh /opt/soulstep/backups/soulstep_20260419_020000.sql.gz
-
-# From GCS
-/opt/soulstep/scripts/restore-db.sh soulstep_20260419_020000.sql.gz --from-gcs
-```
+Client-side error tracking: set `NEXT_PUBLIC_GLITCHTIP_DSN` in the Vercel project environment variables.
 
 ---
 
-## 16. Rollback
+## 12. Environment Variables Reference
 
-To roll back to a previous image:
-
-```bash
-# SSH into VM
-cd /opt/soulstep
-
-# Pull a specific SHA tag
-docker pull ghcr.io/hussu97/soulstep-catalog-api:<git-sha>
-docker tag ghcr.io/hussu97/soulstep-catalog-api:<git-sha> \
-           ghcr.io/hussu97/soulstep-catalog-api:latest
-
-docker compose -f docker-compose.prod.yml up -d --force-recreate catalog-api
-```
-
-For database rollback: restore from the backup taken before the problematic deploy (see §15).
+See **[ENV_VARS.md](./ENV_VARS.md)** for the complete reference — mandatory vs optional, where to
+configure each variable in production (Secret Manager, Cloud Run env vars, GitHub Actions secrets,
+EAS secrets), and descriptions for every variable in every service.
 
 ---
 
-## 17. Cost Estimate
+## 13. Cost Estimate
 
-| Resource | Monthly |
-|---|---|
-| VM e2-small (europe-west1) | ~$13.80 |
-| 20 GB pd-ssd | ~$3.74 |
-| GCS `soulstep-images` | ~$0.50 |
-| GCS `soulstep-db-backups` (~1 GB rolling) | ~$0.02 |
-| GHCR (public packages) | $0 |
-| Cloud Run scraper Job (pay per run) | ~$0–1 |
-| **Total** | **~$18.10–19.10/mo (~$0.61/day)** |
+| Service | What it runs | Free tier | ~Cost beyond free |
+|---|---|---|---|
+| **Cloud Run** | API + scraper | 2M requests/month, 180k vCPU-sec/month | ~$0.40 per 1M requests |
+| **Cloud SQL** | PostgreSQL 15 | None | ~$7/month (`db-f1-micro`) |
+| **Cloud Run Jobs** | cleanup, backfill, sync-places | — | ~$0.02/hour per CPU |
+| **Cloud Run Jobs (scraper)** | browser scraping (4 vCPU / 6 GiB) | — | ~$0.40/hour (see §13.1) |
+| **Artifact Registry** | Docker images | 0.5 GB free | $0.10/GB/month |
+| **Vercel** | Web (Next.js SSR) + Admin (Vite SPA) | Hobby: free (personal only); Pro: $20/month | Pro plan for commercial use |
+| **Secret Manager** | Credentials | 6 active versions free | $0.06 per 10k accesses |
+| **Cloud Scheduler** | Cron jobs | 3 jobs free | $0.10/job/month |
+| **Cloud Build** | CI builds | 120 min/day free | $0.003/build-min |
+
+Typical cost for low traffic: **~$15–20/month** (dominated by Cloud SQL).
+
+### 13.1 Scraper Job Cost Estimate (browser backend)
+
+The scraper Cloud Run Job runs with **4 vCPU / 6 GiB** (`SCRAPER_BACKEND=browser`). For multi-region deployment, see [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md).
+All discovery and detail collection is done via Playwright — **$0 API cost**.
+
+**Compute pricing (Cloud Run Jobs):**
+| Resource | Rate | Job config | Per-second |
+|---|---|---|---|
+| vCPU | $0.00002400/vCPU-s | 4 vCPU | $0.0000960 |
+| Memory | $0.00000250/GiB-s | 6 GiB | $0.0000150 |
+| **Total** | | | **$0.0001160/s = ~$0.42/hour** |
+
+**100k places estimate (fully browser-based, $0 API cost):**
+
+| Phase | Per-item | Concurrency | Wall time | Compute cost |
+|---|---|---|---|---|
+| Discovery (browser grid) | ~15-30s/cell, ~15 places/cell | 10 | ~3–6 hours | $1.26–$2.52 |
+| Detail fetch (browser) | ~10-15s/place | 10 | ~28–42 hours | $11.76–$17.64 |
+| Image download (CDN) | ~0.1s/place | 40 | ~4 min | $0.03 |
+| Enrichment (Overpass etc.) | ~1s/place | 10 | ~2.8 hours | $1.18 |
+| Sync to catalog | ~0.05s/place | — | ~1.4 hours | $0.59 |
+| **Total** | | | **~36–53 hours** | **~$15–$22** |
+
+**Key settings for this estimate:**
+```
+MAPS_BROWSER_POOL_SIZE=5          # 5 contexts in pool (reused across cells)
+MAPS_BROWSER_MAX_PAGES=30         # recycle context every 30 navigations
+MAPS_BROWSER_CONCURRENCY=10       # 10 grid cells / detail pages in parallel
+```
+
+> **Note:** The dominant cost is Cloud Run compute during detail fetching (~80% of wall time). To speed up, increase `MAPS_BROWSER_CONCURRENCY` and `MAPS_BROWSER_POOL_SIZE` — but also increase Job memory accordingly (~200 MB per active context).
