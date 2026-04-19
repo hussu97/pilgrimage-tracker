@@ -33,6 +33,11 @@ fi
 echo "=== [4/8] Clone repo ==="
 sudo mkdir -p "$DEPLOY_DIR"
 sudo chown "$DEPLOY_USER:$DEPLOY_USER" "$DEPLOY_DIR"
+
+# Grant passwordless sudo for the specific commands CI needs
+echo "$DEPLOY_USER ALL=(ALL) NOPASSWD: /bin/mkdir, /bin/chown, /usr/bin/tee" \
+  | sudo tee /etc/sudoers.d/soulstep-deploy > /dev/null
+sudo chmod 440 /etc/sudoers.d/soulstep-deploy
 if [ ! -d "$DEPLOY_DIR/.git" ]; then
   # Clone as DEPLOY_USER so the working tree is owned correctly
   sudo -u "$DEPLOY_USER" git clone "$REPO_URL" "$DEPLOY_DIR"
