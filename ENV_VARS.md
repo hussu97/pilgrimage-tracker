@@ -66,7 +66,6 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `RESEND_FROM_EMAIL` | `noreply@soul-step.org` | "From" address for outgoing emails. Must be a verified sender domain in your Resend account. |
 | `RESET_URL_BASE` | `http://localhost:5173` | Frontend base URL prepended to the reset token when building password-reset email links. Example: `https://soul-step.org` |
 | `VERIFY_URL_BASE` | _(same as `RESET_URL_BASE`)_ | Frontend base URL for email-verification links. Defaults to `RESET_URL_BASE`. Example: `https://soul-step.org` |
-| `ENFORCE_HTTPS` | `false` | Set to `true` (or `1`) to add an HTTP→HTTPS redirect middleware. Enable in Cloud Run / production; leave off locally. |
 | `LOG_LEVEL` | `INFO` | Log verbosity. Values: `DEBUG` \| `INFO` \| `WARNING` \| `ERROR` |
 | `LOG_FORMAT` | `json` | Log format. `json` — structured JSON for Cloud Logging / Cloud Run. `text` — human-readable for local dev. |
 | `GOOGLE_CLOUD_PROJECT` | — | GCP project ID. Required when using GCS image storage or Cloud Translation outside GCP. On Cloud Run, automatically inferred from workload identity — safe to omit. |
