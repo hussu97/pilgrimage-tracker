@@ -4,6 +4,20 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-19] — Sentry in Cloud Run Jobs + Favicon Fix
+
+### Backend
+- **`soulstep-scraper-api/app/jobs/run.py`** — added Sentry init (reads `SENTRY_DSN` env var) after `load_dotenv()`; covers all scraper Cloud Run Job executions.
+- **`soulstep-catalog-api/app/jobs/sync_places.py`** — added Sentry init at top of `main()`.
+- **`soulstep-catalog-api/app/jobs/cleanup_orphaned_images.py`** — added Sentry init in `__main__` block.
+- **`soulstep-catalog-api/app/jobs/backfill_timezones.py`** — added Sentry init in `__main__` block.
+- **`.github/workflows/deploy-vm.yml`** — `SENTRY_DSN` secret now passed via `--update-env-vars` / `--set-env-vars` to Cloud Run Job deploy commands (primary + extra regions).
+
+### Frontend (web)
+- **`apps/soulstep-customer-web/index.html`** — added `<link rel="icon" type="image/svg+xml" href="/favicon.svg" />` as primary favicon; PNG kept as fallback.
+
+---
+
 ## [2026-04-19] — Retire Cloud Run HTTP Services + Consolidate Docs
 
 ### Backend
