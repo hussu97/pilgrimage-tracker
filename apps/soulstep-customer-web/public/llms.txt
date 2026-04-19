@@ -17,11 +17,11 @@ Islam · Christianity · Hinduism · Buddhism · Sikhism · Judaism · Bahá'í 
 
 ## Key Endpoints (Public API)
 
-- `GET https://api.soul-step.org/api/v1/places` — List and filter sacred sites
-- `GET https://api.soul-step.org/api/v1/places/{place_code}` — Place detail (name, address, hours, rating)
-- `GET https://api.soul-step.org/api/v1/search?q={query}` — Text search
-- `GET https://api.soul-step.org/sitemap.xml` — Full place sitemap
-- `GET https://api.soul-step.org/share/places/{place_code}` — Pre-rendered place page (HTML + JSON-LD)
+- `GET https://catalog-api.soul-step.org/api/v1/places` — List and filter sacred sites
+- `GET https://catalog-api.soul-step.org/api/v1/places/{place_code}` — Place detail (name, address, hours, rating)
+- `GET https://catalog-api.soul-step.org/api/v1/search?q={query}` — Text search
+- `GET https://catalog-api.soul-step.org/sitemap.xml` — Full place sitemap
+- `GET https://catalog-api.soul-step.org/share/places/{place_code}` — Pre-rendered place page (HTML + JSON-LD)
 
 ## Language Support
 
@@ -29,26 +29,26 @@ English (default) · Arabic · Hindi
 
 ## Machine-Readable API
 
-- OpenAPI 3.1 specification: https://api.soul-step.org/openapi.json
-- Interactive docs: https://api.soul-step.org/docs
-- Full AI discoverability doc: https://api.soul-step.org/llms-full.txt
+- OpenAPI 3.1 specification: https://catalog-api.soul-step.org/openapi.json
+- Interactive docs: https://catalog-api.soul-step.org/docs
+- Full AI discoverability doc: https://catalog-api.soul-step.org/llms-full.txt
 
 ## Religion Pages
 
-- Islam (Mosques): https://api.soul-step.org/share/religion/islam
-- Christianity (Churches): https://api.soul-step.org/share/religion/christianity
-- Hinduism (Temples): https://api.soul-step.org/share/religion/hinduism
-- Buddhism (Monasteries): https://api.soul-step.org/share/religion/buddhism
-- Sikhism (Gurdwaras): https://api.soul-step.org/share/religion/sikhism
-- Judaism (Synagogues): https://api.soul-step.org/share/religion/judaism
-- Bahá'í (Houses of Worship): https://api.soul-step.org/share/religion/bahai
-- Zoroastrianism (Fire Temples): https://api.soul-step.org/share/religion/zoroastrianism
+- Islam (Mosques): https://catalog-api.soul-step.org/share/religion/islam
+- Christianity (Churches): https://catalog-api.soul-step.org/share/religion/christianity
+- Hinduism (Temples): https://catalog-api.soul-step.org/share/religion/hinduism
+- Buddhism (Monasteries): https://catalog-api.soul-step.org/share/religion/buddhism
+- Sikhism (Gurdwaras): https://catalog-api.soul-step.org/share/religion/sikhism
+- Judaism (Synagogues): https://catalog-api.soul-step.org/share/religion/judaism
+- Bahá'í (Houses of Worship): https://catalog-api.soul-step.org/share/religion/bahai
+- Zoroastrianism (Fire Temples): https://catalog-api.soul-step.org/share/religion/zoroastrianism
 
 ## Additional Resources
 
-- Coverage overview: https://api.soul-step.org/share/coverage
-- RSS feed: https://api.soul-step.org/feed.xml
-- Atom feed: https://api.soul-step.org/feed.atom
+- Coverage overview: https://catalog-api.soul-step.org/share/coverage
+- RSS feed: https://catalog-api.soul-step.org/feed.xml
+- Atom feed: https://catalog-api.soul-step.org/feed.atom
 
 ## Data Sources
 
@@ -56,9 +56,9 @@ Place data is sourced from Google Maps, OpenStreetMap, Wikipedia, and Wikidata.
 
 ## Example Queries
 
-- "Find mosques near me" → `GET https://api.soul-step.org/api/v1/places?religion=islam&lat=...&lng=...`
-- "Best rated temples in Mumbai" → `GET https://api.soul-step.org/api/v1/places?religion=hinduism&search=mumbai&sort=rating&top_rated=true`
-- "Churches open now in London" → `GET https://api.soul-step.org/api/v1/places?religion=christianity&search=london&open_now=true`
+- "Find mosques near me" → `GET https://catalog-api.soul-step.org/api/v1/places?religion=islam&lat=...&lng=...`
+- "Best rated temples in Mumbai" → `GET https://catalog-api.soul-step.org/api/v1/places?religion=hinduism&search=mumbai&sort=rating&top_rated=true`
+- "Churches open now in London" → `GET https://catalog-api.soul-step.org/api/v1/places?religion=christianity&search=london&open_now=true`
 
 ## For AI Assistants
 

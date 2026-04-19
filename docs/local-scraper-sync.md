@@ -175,7 +175,7 @@ curl -s "http://127.0.0.1:3000/api/v1/places?limit=20" | python -m json.tool
 | Environment | Value |
 |---|---|
 | Local development | `http://127.0.0.1:3000` |
-| Production | `https://api.soul-step.org` |
+| Production | `https://catalog-api.soul-step.org` |
 
 Change `MAIN_SERVER_URL` in `.env` to point at any catalog instance.
 

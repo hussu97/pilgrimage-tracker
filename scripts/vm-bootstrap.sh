@@ -59,13 +59,13 @@ cat <<'NEXT'
 
 Next steps:
   1. Copy .env.example to /opt/soulstep/.env and fill in all values (USE_SSL=false for now).
-  2. Point DNS: add A records for api.soul-step.org and scraper.soul-step.org → this VM's IP.
+  2. Point DNS: add A records for catalog-api.soul-step.org and scraper-api.soul-step.org → this VM's IP.
   3. Bring up all services (HTTP only):
        cd /opt/soulstep && docker compose -f docker-compose.prod.yml up -d
   4. Issue Let's Encrypt certificate:
        docker compose -f docker-compose.prod.yml run --rm --entrypoint "" certbot \
          certbot certonly --webroot -w /var/www/certbot \
-         -d api.soul-step.org -d scraper.soul-step.org \
+         -d catalog-api.soul-step.org -d scraper-api.soul-step.org \
          --email admin@soul-step.org --agree-tos --no-eff-email
   5. Set USE_SSL=true in .env, then:
        docker compose -f docker-compose.prod.yml up -d --force-recreate nginx

@@ -5,14 +5,14 @@
 // URL resolution priority:
 //   INTERNAL_API_URL (private, server-only, e.g. Cloud Run internal URL)
 //   → NEXT_PUBLIC_API_BASE_URL (public domain, set at build time)
-//   → 'https://api.soul-step.org' (hard fallback)
+//   → 'https://catalog-api.soul-step.org' (hard fallback)
 
 import type { BlogPostDetail, BlogPostSummary } from '@/lib/types/blog';
 
 const INTERNAL_BASE =
   process.env.INTERNAL_API_URL ||
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  'https://api.soul-step.org';
+  'https://catalog-api.soul-step.org';
 
 async function serverFetch<T>(path: string, revalidate = 3600): Promise<T> {
   const url = `${INTERNAL_BASE}${path}`;

@@ -8,7 +8,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ### Backend
 - **`docker-compose.prod.yml`** — new production orchestration: postgres:15 (tuned for e2-micro, 384 MB memory limit), catalog-api, scraper-api, nginx, certbot; all services on `soulstep_net` bridge network
-- **`nginx/`** — alpine nginx reverse proxy with `USE_SSL` toggle; `http.conf` (pre-TLS) and `ssl.conf` (TLS + HSTS) templates; `entrypoint.sh` selects config at container startup; `api.soul-step.org` → catalog-api:3000, `scraper.soul-step.org` → scraper-api:8080
+- **`nginx/`** — alpine nginx reverse proxy with `USE_SSL` toggle; `http.conf` (pre-TLS) and `ssl.conf` (TLS + HSTS) templates; `entrypoint.sh` selects config at container startup; `catalog-api.soul-step.org` → catalog-api:3000, `scraper-api.soul-step.org` → scraper-api:8080
 - **`scripts/vm-bootstrap.sh`** — one-shot Debian 12 VM provisioning: Docker, gcloud CLI, repo clone, Postgres start, crontab install
 - **`scripts/backup-db.sh`** — daily pg_dump → gzip → local + GCS, 7-day local retention
 - **`scripts/restore-db.sh`** — restore from `.sql.gz` (local or `--from-gcs`)
@@ -32,7 +32,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ### Frontend (web)
 - **`apps/soulstep-customer-web/vercel.json`** — new Vercel config; deploys Next.js SSR to `cdg1` (Paris)
-- **`apps/soulstep-admin-web/vercel.json`** — new Vercel config; SPA fallback + `/api/*` → `https://api.soul-step.org/api/*` server-side rewrite
+- **`apps/soulstep-admin-web/vercel.json`** — new Vercel config; SPA fallback + `/api/*` → `https://catalog-api.soul-step.org/api/*` server-side rewrite
 
 ### Docs
 - **`PRODUCTION.md`** — sections 4, 5, CI table, and GitHub secrets table updated for Vercel
@@ -327,11 +327,11 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - **Fix**: Removed duplicate `xmlns:xhtml` attribute in `sitemap.xml` that caused XML parse errors — `_register_ns()` already declares the namespace globally, so the manual `.set()` calls were redundant
 
 ### Docs
-- **PRODUCTION.md**: Added §3.1 "Custom Domain (`api.soul-step.org`)" with step-by-step Cloud Run domain mapping, DNS CNAME setup, and env var update table
-- **PRODUCTION.md**: Updated all placeholder Cloud Run URLs (`soulstep-catalog-api-xxxx.a.run.app`) to `api.soul-step.org` in CORS, build commands, GitHub secrets, SEO section, mobile checklist, and scraper deploy
+- **PRODUCTION.md**: Added §3.1 "Custom Domain (`catalog-api.soul-step.org`)" with step-by-step Cloud Run domain mapping, DNS CNAME setup, and env var update table
+- **PRODUCTION.md**: Updated all placeholder Cloud Run URLs (`soulstep-catalog-api-xxxx.a.run.app`) to `catalog-api.soul-step.org` in CORS, build commands, GitHub secrets, SEO section, mobile checklist, and scraper deploy
 - **PRODUCTION.md**: Expanded SEO section with full URLs and added `llms-full.txt` + `ai-plugin.json` to the endpoint table
-- **Frontend static SEO files**: Updated `robots.txt`, `llms.txt`, and `ai-plugin.json` in `apps/soulstep-customer-web/public/` to use `api.soul-step.org` instead of the raw Cloud Run URL
-- **docs/local-scraper-sync.md**: Updated production URL reference to `api.soul-step.org`
+- **Frontend static SEO files**: Updated `robots.txt`, `llms.txt`, and `ai-plugin.json` in `apps/soulstep-customer-web/public/` to use `catalog-api.soul-step.org` instead of the raw Cloud Run URL
+- **docs/local-scraper-sync.md**: Updated production URL reference to `catalog-api.soul-step.org`
 
 ---
 

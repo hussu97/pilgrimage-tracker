@@ -4,7 +4,7 @@ import type { NextConfig } from 'next';
 const backendOrigin =
   process.env.NODE_ENV === 'development'
     ? process.env.NEXT_PUBLIC_PROXY_TARGET || 'http://127.0.0.1:3000'
-    : process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.soul-step.org';
+    : process.env.NEXT_PUBLIC_API_BASE_URL || 'https://catalog-api.soul-step.org';
 
 const nextConfig: NextConfig = {
   // Rewrite rules:

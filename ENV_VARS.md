@@ -108,7 +108,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 
 | Variable | Description |
 |---|---|
-| `MAIN_SERVER_URL` | URL of the soulstep-catalog-api. Within the VM compose network, use `http://catalog-api:3000` (the docker service name). For the Cloud Run scraper Job, use `https://api.soul-step.org`. |
+| `MAIN_SERVER_URL` | URL of the soulstep-catalog-api. Within the VM compose network, use `http://catalog-api:3000` (the docker service name). For the Cloud Run scraper Job, use `https://catalog-api.soul-step.org`. |
 
 ---
 
@@ -190,8 +190,8 @@ to anyone who inspects the built assets. Never put secrets in `NEXT_PUBLIC_*` va
 | Variable | Default | Description |
 |---|---|---|
 | `NEXT_PUBLIC_PROXY_TARGET` | `http://127.0.0.1:3000` | Dev-server proxy target for `/api` requests. Only used by the Next.js dev server — has no effect in production builds. |
-| `NEXT_PUBLIC_API_BASE_URL` | `https://api.soul-step.org` | Public API base URL — used on the Developers page to render example curl commands and API endpoint URLs. |
-| `INTERNAL_API_URL` | — | **Server-only** — internal API URL for SSR metadata fetching. Set to the Cloud Run internal URL of the catalog API for low-latency server-side fetches that don't route through the public internet. Falls back to `NEXT_PUBLIC_API_BASE_URL`, then `https://api.soul-step.org`. Never use `NEXT_PUBLIC_` prefix — this must remain server-side only. Example: `https://soulstep-catalog-api-xxxx.europe-west1.run.app` |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://catalog-api.soul-step.org` | Public API base URL — used on the Developers page to render example curl commands and API endpoint URLs. |
+| `INTERNAL_API_URL` | — | **Server-only** — internal API URL for SSR metadata fetching. Set to the Cloud Run internal URL of the catalog API for low-latency server-side fetches that don't route through the public internet. Falls back to `NEXT_PUBLIC_API_BASE_URL`, then `https://catalog-api.soul-step.org`. Never use `NEXT_PUBLIC_` prefix — this must remain server-side only. Example: `https://soulstep-catalog-api-xxxx.europe-west1.run.app` |
 
 ---
 
@@ -208,13 +208,13 @@ and is never exposed to the browser bundle.
 
 | Variable | Default | Description |
 |---|---|---|
-| `VITE_API_URL` | _(relative)_ | Catalog API base URL used by the admin web API client. When unset, the app uses relative URLs. Set in production if the admin app is deployed separately from the catalog API. Example: `https://api.soul-step.org` |
+| `VITE_API_URL` | _(relative)_ | Catalog API base URL used by the admin web API client. When unset, the app uses relative URLs. Set in production if the admin app is deployed separately from the catalog API. Example: `https://catalog-api.soul-step.org` |
 
 ### Local Dev Only (`.env.local`)
 
 | Variable | Default | Description |
 |---|---|---|
-| `API_PROXY_TARGET` | `http://127.0.0.1:3000` | Catalog API URL used by the Vite dev server to proxy `/api` requests. **Not** `VITE_`-prefixed — consumed by `vite.config.ts` at startup, never exposed to the browser. Hybrid mode: set to `https://api.soul-step.org` to run the local admin UI against the production catalog API. |
+| `API_PROXY_TARGET` | `http://127.0.0.1:3000` | Catalog API URL used by the Vite dev server to proxy `/api` requests. **Not** `VITE_`-prefixed — consumed by `vite.config.ts` at startup, never exposed to the browser. Hybrid mode: set to `https://catalog-api.soul-step.org` to run the local admin UI against the production catalog API. |
 | `VITE_SCRAPER_API_URL` | — | Direct URL for the soulstep-scraper-api. When set, the admin web calls the scraper at this URL directly, bypassing the catalog proxy. Used for local hybrid mode (local scraper + production catalog API). Example: `http://127.0.0.1:8001` |
 | `VITE_FRONTEND_URL` | `https://soul-step.org` | Public URL of the customer-facing web frontend. Used in the SEO detail page to generate place-preview links for review. |
 
@@ -232,7 +232,7 @@ anyone who decompiles the app bundle. Never put secrets in `EXPO_PUBLIC_*` vars.
 
 | Variable | Default | Description |
 |---|---|---|
-| `EXPO_PUBLIC_API_URL` | `http://127.0.0.1:3000` | Backend API base URL used by the API client. Simulator (iOS/Android): `127.0.0.1` resolves to your machine — default works. Physical device / Expo Go: use your machine's LAN IP (e.g. `192.168.1.x:3000`) because the device cannot reach localhost on your laptop. Production: set to the public Cloud Run URL. Example: `https://api.soul-step.org` |
+| `EXPO_PUBLIC_API_URL` | `http://127.0.0.1:3000` | Backend API base URL used by the API client. Simulator (iOS/Android): `127.0.0.1` resolves to your machine — default works. Physical device / Expo Go: use your machine's LAN IP (e.g. `192.168.1.x:3000`) because the device cannot reach localhost on your laptop. Production: set to the public Cloud Run URL. Example: `https://catalog-api.soul-step.org` |
 | `EXPO_PUBLIC_INVITE_LINK_BASE_URL` | — | Base URL prepended to the invite code when sharing a group invite link. When unset, the invite link sharing feature is disabled. Example: `https://soul-step.org/invite` |
 | `EXPO_PUBLIC_ADMOB_APP_ID_IOS` | — | **Conditional** — AdMob App ID for iOS. Required when the AdMob SDK is initialised in `app.json` / `app.config.ts`. When unset, AdMob initialisation is skipped and no ads are shown. |
 | `EXPO_PUBLIC_ADMOB_APP_ID_ANDROID` | — | **Conditional** — AdMob App ID for Android. Required when the AdMob SDK is initialised in `app.json` / `app.config.ts`. |

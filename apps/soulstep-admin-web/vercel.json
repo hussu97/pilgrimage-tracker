@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://api.soul-step.org/api/:path*"
+      "destination": "https://catalog-api.soul-step.org/api/:path*"
     },
     {
       "source": "/(.*)",

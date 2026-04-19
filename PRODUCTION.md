@@ -203,7 +203,7 @@ Add these records at your DNS provider for `soul-step.org`:
 
 The apex / `www` / `admin` records point to Vercel (unchanged).
 
-Wait for DNS propagation (`dig api.soul-step.org` shows VM IP) before issuing TLS certs.
+Wait for DNS propagation (`dig catalog-api.soul-step.org` shows VM IP) before issuing TLS certs.
 
 ---
 
@@ -218,7 +218,7 @@ cd /opt/soulstep
 # Issue cert for both subdomains (one SAN cert)
 docker compose -f docker-compose.prod.yml run --rm --entrypoint "" certbot \
   certbot certonly --webroot -w /var/www/certbot \
-  -d api.soul-step.org -d scraper.soul-step.org \
+  -d catalog-api.soul-step.org -d scraper-api.soul-step.org \
   --email admin@soul-step.org --agree-tos --no-eff-email
 ```
 
@@ -253,8 +253,8 @@ gunzip -c /tmp/migration_YYYYMMDD.sql.gz | \
   exec -T postgres psql -U soulstep soulstep
 
 # 3. Smoke test (before DNS cutover)
-curl --resolve api.soul-step.org:443:<VM_IP> https://api.soul-step.org/health
-curl --resolve api.soul-step.org:443:<VM_IP> https://api.soul-step.org/api/v1/places?page_size=1
+curl --resolve catalog-api.soul-step.org:443:<VM_IP> https://catalog-api.soul-step.org/health
+curl --resolve catalog-api.soul-step.org:443:<VM_IP> https://catalog-api.soul-step.org/api/v1/places?page_size=1
 
 # 4. Update DNS A records (api + scraper → VM IP)
 # 5. Keep Cloud SQL running for 48 h as fallback, then delete
@@ -308,9 +308,9 @@ Both web apps deploy to Vercel automatically via `.github/workflows/deploy.yml`.
 
 | App | Variable | Value |
 |---|---|---|
-| Customer web | `NEXT_PUBLIC_API_BASE_URL` | `https://api.soul-step.org` |
-| Customer web | `INTERNAL_API_URL` | `https://api.soul-step.org` |
-| Admin web | `VITE_API_BASE_URL` | `https://api.soul-step.org` |
+| Customer web | `NEXT_PUBLIC_API_BASE_URL` | `https://catalog-api.soul-step.org` |
+| Customer web | `INTERNAL_API_URL` | `https://catalog-api.soul-step.org` |
+| Admin web | `VITE_API_BASE_URL` | `https://catalog-api.soul-step.org` |
 
 ---
 
@@ -323,7 +323,7 @@ The Playwright-based browser scraper (`soulstep-scraper-api-job`) continues to r
 - Deployed to 3 regions: `europe-west1`, `europe-west4`, `europe-west2`
 - Resources: 6 GB RAM, 4 vCPU, 24 h task timeout
 
-The scraper job calls `https://api.soul-step.org` (the VM) to sync scraped places into the catalog via `CATALOG_API_KEY`.
+The scraper job calls `https://catalog-api.soul-step.org` (the VM) to sync scraped places into the catalog via `CATALOG_API_KEY`.
 
 See [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md) for multi-region capacity configuration.
 
@@ -333,7 +333,7 @@ See [MULTI_REGION_JOBS.md](MULTI_REGION_JOBS.md) for multi-region capacity confi
 
 No change. Expo / React Native app distributed via EAS Build and app stores.
 
-**EAS secrets:** Update `EXPO_PUBLIC_API_BASE_URL` → `https://api.soul-step.org` if not already set.
+**EAS secrets:** Update `EXPO_PUBLIC_API_BASE_URL` → `https://catalog-api.soul-step.org` if not already set.
 
 ---
 
@@ -341,9 +341,9 @@ No change. Expo / React Native app distributed via EAS Build and app stores.
 
 After cutover, resubmit sitemaps:
 
-1. **Google Search Console** → Sitemaps → `https://api.soul-step.org/sitemap.xml`
+1. **Google Search Console** → Sitemaps → `https://catalog-api.soul-step.org/sitemap.xml`
 2. **Bing Webmaster Tools** → Sitemap → same URL
-3. **Verify** `https://api.soul-step.org/robots.txt` and `https://api.soul-step.org/llms.txt` are accessible
+3. **Verify** `https://catalog-api.soul-step.org/robots.txt` and `https://catalog-api.soul-step.org/llms.txt` are accessible
 
 ---
 

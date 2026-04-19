@@ -6,7 +6,7 @@
   "description_for_model": "Search and retrieve information about sacred sites and places of worship globally. Supports filtering by religion, location, ratings, and opening hours.",
   "api": {
     "type": "openapi",
-    "url": "https://api.soul-step.org/openapi.json"
+    "url": "https://catalog-api.soul-step.org/openapi.json"
   },
   "logo_url": "https://soul-step.org/logo.png",
   "contact_email": "contact@soul-step.org",
