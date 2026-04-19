@@ -205,7 +205,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -o ConnectTimeout=30 \
             "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" \
-            "mkdir -p /opt/soulstep && cat > /opt/soulstep/.env" <<'ENVEOF'
+            "sudo mkdir -p /opt/soulstep && sudo chown \$USER:\$USER /opt/soulstep && tee /opt/soulstep/.env > /dev/null" <<'ENVEOF'
           USE_SSL=${{ secrets.USE_SSL }}
           POSTGRES_USER=${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
