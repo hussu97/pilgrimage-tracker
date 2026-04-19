@@ -1,4 +1,4 @@
-name: Deploy VM  - catalog-api + scraper-api
+name: Deploy VM - catalog-api + scraper-api
 
 on:
   workflow_run:
