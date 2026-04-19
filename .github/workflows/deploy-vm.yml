@@ -249,6 +249,8 @@ jobs:
 
           # Authenticate to GHCR (using a short-lived token passed via env is not possible here;
           # GHCR packages must be set to public — see vm-bootstrap.sh for instructions)
+          # Ensure postgres is up (no-op if already running; initialises on first deploy)
+          docker compose -f docker-compose.prod.yml up -d postgres
           docker compose -f docker-compose.prod.yml pull catalog-api scraper-api
 
           # catalog-api startup runs alembic migrations automatically (lifespan hook)

@@ -3,23 +3,25 @@
 set -euo pipefail
 
 DEPLOY_DIR=/opt/soulstep
-REPO_URL=https://github.com/hussu97/soulstep.git
-DEPLOY_USER=deploy
+REPO_URL=https://github.com/hussu97/pilgrimage-tracker.git
+# Default to the current user so chown/usermod/crontab target whoever runs this script.
+# Override: DEPLOY_USER=myuser bash vm-bootstrap.sh
+DEPLOY_USER=${DEPLOY_USER:-$(whoami)}
 
-echo "=== [1/9] Install Docker ==="
+echo "=== [1/8] Install Docker ==="
 curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker "$DEPLOY_USER" || true
+sudo usermod -aG docker "$DEPLOY_USER"
 sudo systemctl enable docker
 sudo systemctl start docker
 
-echo "=== [2/9] Install Google Cloud Ops Agent (ships Docker logs → Cloud Logging) ==="
+echo "=== [2/8] Install Google Cloud Ops Agent (ships Docker logs → Cloud Logging) ==="
 if ! systemctl is-active --quiet google-cloud-ops-agent 2>/dev/null; then
   curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
   sudo bash add-google-cloud-ops-agent-repo.sh --also-install
   rm -f add-google-cloud-ops-agent-repo.sh
 fi
 
-echo "=== [3/9] Install gcloud CLI (for GCS backup uploads) ==="
+echo "=== [3/8] Install gcloud CLI (for GCS backup uploads) ==="
 if ! command -v gcloud &>/dev/null; then
   curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
     | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
@@ -28,55 +30,48 @@ if ! command -v gcloud &>/dev/null; then
   sudo apt-get update && sudo apt-get install -y google-cloud-cli
 fi
 
-echo "=== [4/9] Clone repo ==="
+echo "=== [4/8] Clone repo ==="
 sudo mkdir -p "$DEPLOY_DIR"
 sudo chown "$DEPLOY_USER:$DEPLOY_USER" "$DEPLOY_DIR"
 if [ ! -d "$DEPLOY_DIR/.git" ]; then
-  git clone "$REPO_URL" "$DEPLOY_DIR"
+  # Clone as DEPLOY_USER so the working tree is owned correctly
+  sudo -u "$DEPLOY_USER" git clone "$REPO_URL" "$DEPLOY_DIR"
 else
   echo "Repo already cloned — skipping."
 fi
 
-echo "=== [5/9] Create certbot directories ==="
+echo "=== [5/8] Create certbot directories ==="
 mkdir -p "$DEPLOY_DIR/certbot/www" "$DEPLOY_DIR/certbot/conf"
 
-echo "=== [6/9] Create backup directory ==="
+echo "=== [6/8] Create backup directory ==="
 mkdir -p "$DEPLOY_DIR/backups"
 
-echo "=== [7/9] Start Postgres (HTTP-only, before certs) ==="
-cd "$DEPLOY_DIR"
-docker compose -f docker-compose.prod.yml up -d postgres
-echo "Waiting for Postgres to be healthy..."
-for i in $(seq 1 30); do
-  docker compose -f docker-compose.prod.yml exec -T postgres \
-    pg_isready -U soulstep -d soulstep > /dev/null 2>&1 && break
-  sleep 3
-done
-echo "Postgres is ready."
-
-echo "=== [8/9] Install crontab ==="
-crontab -l 2>/dev/null | grep -v soulstep > /tmp/crontab_clean || true
+echo "=== [7/8] Install crontab for $DEPLOY_USER ==="
+# Strip any existing soulstep entries then append the current cron file
+(crontab -u "$DEPLOY_USER" -l 2>/dev/null | grep -v soulstep || true) > /tmp/crontab_clean
 cat "$DEPLOY_DIR/scripts/cron/soulstep-cron" >> /tmp/crontab_clean
-crontab /tmp/crontab_clean
+crontab -u "$DEPLOY_USER" /tmp/crontab_clean
 echo "Crontab installed."
 
-echo "=== [9/9] Done! ==="
-cat <<'NEXT'
+echo "=== [8/8] Done! ==="
+cat <<NEXT
 
 Next steps:
-  1. Copy .env.example to /opt/soulstep/.env and fill in all values (USE_SSL=false for now).
-  2. Point DNS: add A records for catalog-api.soul-step.org and scraper-api.soul-step.org → this VM's IP.
-  3. Bring up all services (HTTP only):
-       cd /opt/soulstep && docker compose -f docker-compose.prod.yml up -d
-  4. Issue Let's Encrypt certificate:
-       docker compose -f docker-compose.prod.yml run --rm --entrypoint "" certbot \
-         certbot certonly --webroot -w /var/www/certbot \
-         -d catalog-api.soul-step.org -d scraper-api.soul-step.org \
+  1. Add the deploy SSH public key to ~/.ssh/authorized_keys so CI can connect.
+  2. Add GitHub Actions secrets: SERVER_HOST, SERVER_USER=$DEPLOY_USER, SERVER_SSH_KEY (see PRODUCTION.md).
+  3. Make GHCR packages public: GitHub → Packages → each package → Package settings → Change visibility → Public.
+  4. Point DNS: add A records for catalog-api.soul-step.org and scraper-api.soul-step.org → this VM's IP.
+  5. Trigger a CI deploy (push any commit). It will write .env and bring up all services.
+     — On first deploy, Postgres initialises from the env vars written by CI.
+  6. Once services are up, issue a Let's Encrypt certificate (USE_SSL must be false first):
+       cd $DEPLOY_DIR
+       docker compose -f docker-compose.prod.yml run --rm --entrypoint "" certbot \\
+         certbot certonly --webroot -w /var/www/certbot \\
+         -d catalog-api.soul-step.org -d scraper-api.soul-step.org \\
          --email admin@soul-step.org --agree-tos --no-eff-email
-  5. Set USE_SSL=true in .env, then:
-       docker compose -f docker-compose.prod.yml up -d --force-recreate nginx
-  6. Add SSH public key to ~/.ssh/authorized_keys for the deploy user.
-  7. Add GitHub Actions secrets: SERVER_HOST, SERVER_USER, SERVER_SSH_KEY (see PRODUCTION.md).
-  8. Make GHCR packages public: GitHub → soulstep repo → Packages → each package → Package settings → Change visibility → Public.
+  7. Set USE_SSL=true via the GitHub Secret, then re-trigger CI to redeploy nginx with TLS.
+
+NOTE: Docker group membership takes effect on the next login.
+      If you need docker commands immediately, run: newgrp docker
 
 NEXT
