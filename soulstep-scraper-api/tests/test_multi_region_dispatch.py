@@ -123,8 +123,8 @@ def test_available_regions_returns_region_names():
     from app.config import Settings
 
     s = Settings()
-    s.cloud_run_regions = "europe-west1:3,europe-west4:5"
-    assert s.available_regions == ["europe-west1", "europe-west4"]
+    s.cloud_run_regions = "europe-west1:3,europe-west4:5,europe-west2:5"
+    assert s.available_regions == ["europe-west1", "europe-west4", "europe-west2"]
 
 
 def test_available_regions_single_fallback():

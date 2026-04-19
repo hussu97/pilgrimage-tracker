@@ -100,7 +100,7 @@ services:
       SCRAPER_DISPATCH: cloud_run
       CLOUD_RUN_JOB_NAME: soulstep-scraper-api-job
       CLOUD_RUN_REGION: europe-west1
-      CLOUD_RUN_REGIONS: ${CLOUD_RUN_REGIONS:-europe-west1:3,europe-west4:5}
+      CLOUD_RUN_REGIONS: ${CLOUD_RUN_REGIONS:-europe-west1:3,europe-west4:5,europe-west2:5}
       GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_FORMAT: json
