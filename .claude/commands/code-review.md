@@ -208,7 +208,7 @@ Post a single consolidated review comment using `gh pr comment`. Format:
 
 For each issue include:
 - One-line description citing the exact CLAUDE.md rule or bug.
-- A code link: `https://github.com/hussu97/soulstep/blob/<full-sha>/path/file.ext#L<start>-L<end>` (full SHA required).
+- A code link: `https://github.com/hussu97/pilgrimage-tracker/blob/<full-sha>/path/file.ext#L<start>-L<end>` (full SHA required).
 - For small self-contained fixes (≤5 lines), include a fenced suggestion block.
 
 One comment total — no duplicate issues, no separate per-line comments.

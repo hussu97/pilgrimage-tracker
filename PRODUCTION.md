@@ -99,7 +99,7 @@ SSH into the VM and run the one-shot setup script:
 gcloud compute ssh soulstep-vm --zone=europe-west1-d
 
 # On the VM:
-curl -fsSL https://raw.githubusercontent.com/hussu97/soulstep/main/scripts/vm-bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hussu97/pilgrimage-tracker/main/scripts/vm-bootstrap.sh | bash
 ```
 
 This script:
@@ -126,7 +126,7 @@ echo "ssh-ed25519 AAAA... github-deploy" >> ~/.ssh/authorized_keys
 
 ## 4. GitHub Secrets Setup
 
-Go to **GitHub → hussu97/soulstep → Settings → Environments → production** and add:
+Go to **GitHub → hussu97/pilgrimage-tracker → Settings → Environments → production** and add:
 
 ### VM Connection
 
