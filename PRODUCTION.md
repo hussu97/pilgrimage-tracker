@@ -198,8 +198,8 @@ Add these records at your DNS provider for `soul-step.org`:
 
 | Type | Name | Value |
 |---|---|---|
-| A | `api` | VM external IP |
-| A | `scraper` | VM external IP |
+| A | `catalog-api` | VM external IP |
+| A | `scraper-api` | VM external IP |
 
 The apex / `www` / `admin` records point to Vercel (unchanged).
 
