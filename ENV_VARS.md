@@ -71,7 +71,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `GOOGLE_CLOUD_PROJECT` | — | GCP project ID. Required when using GCS image storage or Cloud Translation outside GCP. On Cloud Run, automatically inferred from workload identity — safe to omit. |
 | `IMAGE_STORAGE` | `blob` | Backend for place images. `blob` — base64-encoded in the database (fine for SQLite and small deployments). `gcs` — Google Cloud Storage (recommended for production). |
 | `GCS_BUCKET_NAME` | — | GCS bucket name. **Conditional** — required when `IMAGE_STORAGE=gcs`. Must match `GCS_BUCKET_NAME` in the scraper so both services share a single bucket. Example: `soulstep-images` |
-| `DATA_SCRAPER_URL` | `http://localhost:8001` | URL of the soulstep-scraper-api instance. Used by admin scraper-proxy endpoints (`/api/v1/admin/scraper/*`). |
+| `DATA_SCRAPER_URL` | `http://localhost:8001` | URL of the soulstep-scraper-api instance. Used by admin scraper-proxy endpoints (`/api/v1/admin/scraper/*`). Local dev default works. Docker Compose (VM): use `http://scraper-api:8080` (the service name — `localhost` resolves to the catalog-api container itself). |
 
 | `ADS_ENABLED` | `false` | Master switch for the ads subsystem. When `false`, the ads-config endpoint returns empty values for all clients. |
 | `ADSENSE_PUBLISHER_ID` | — | **Conditional** — Google AdSense publisher ID. Required when `ADS_ENABLED=true` (web). Find in AdSense console: Ads → Overview → Publisher ID. Example: `ca-pub-xxxxxxxxxxxxxxxxxxxxxxxx` |
@@ -120,7 +120,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `FOURSQUARE_API_KEY` | — | Foursquare API key — enriches places with categories and popularity. Free tier at foursquare.com/developer. When unset, the Foursquare collector is skipped gracefully. |
 | `OUTSCRAPER_API_KEY` | — | Outscraper API key — retrieves extended Google reviews beyond the 5-review limit. Sign up at outscraper.com. When unset, the Outscraper collector is skipped gracefully. |
 | `BESTTIME_API_KEY` | — | BestTime.app API key — adds busyness forecasts and peak-hours data. Sign up at besttime.app. When unset, the BestTime collector is skipped gracefully. |
-| `KNOWLEDGE_GRAPH_API_KEY` | — | Google Knowledge Graph API key — fetches entity descriptions for places. Free at 100k requests/day via console.cloud.google.com. When unset, the Knowledge Graph collector is skipped gracefully. |
+| `KNOWLEDGE_GRAPH_API_KEY` | — | Google Knowledge Graph API key — reserved for a future collector. **Not currently read by config.py** — setting this has no effect yet. |
 | `GEMINI_API_KEY` | — | Google Gemini API key — used for LLM tie-breaking when two candidate descriptions score within 0.15 of each other (~10–20% of places). Free key at aistudio.google.com. When unset, heuristic-only quality scoring is used. |
 | `DATABASE_URL` | — | PostgreSQL connection string for the scraper's own database. In production, assembled by `docker-compose.prod.yml` as `postgresql://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/SCRAPER_POSTGRES_DB` (e.g. `soulstep_scraper`). When unset, falls back to `SCRAPER_DB_PATH` (SQLite — local dev only). |
 
