@@ -47,10 +47,12 @@ jobs:
               - '.firebaserc'
               - '.github/workflows/tests.yml'
               - '.github/workflows/deploy.yml'
+              - '.github/workflows/deploy-vm.yml'
               - 'README.md'
             mobile:
               - 'apps/soulstep-customer-mobile/**'
               - '.github/workflows/tests.yml'
+              - '.github/workflows/deploy-vm.yml'
               - 'README.md'
             admin:
               - 'apps/soulstep-admin-web/**'
@@ -58,6 +60,7 @@ jobs:
               - '.firebaserc'
               - '.github/workflows/tests.yml'
               - '.github/workflows/deploy.yml'
+              - '.github/workflows/deploy-vm.yml'
               - 'README.md'
       # Export results so deploy.yml can consume the exact same detection
       - name: Save path filter outputs
