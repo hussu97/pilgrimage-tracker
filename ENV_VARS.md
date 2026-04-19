@@ -34,7 +34,10 @@ them identical in content whenever a variable is added, renamed, removed, or has
 |---|---|
 | `JWT_SECRET` | HMAC-HS256 signing secret for access and refresh tokens. Generate: `python -c "import secrets; print(secrets.token_hex(32))"`. The default `dev-secret-change-in-production` **must** be replaced in production. |
 | `CATALOG_API_KEY` | Shared secret for internal service-to-service calls (scraper → catalog API). Sent as the `X-API-Key` header by the scraper; must match `CATALOG_API_KEY` on the scraper. Generate: `openssl rand -hex 32`. |
-| `DATABASE_URL` | PostgreSQL connection string. When unset, falls back to SQLite locally. Required for production. VM Postgres (TCP): `postgresql://user:pass@postgres:5432/soulstep` (docker service name `postgres` resolves within the compose network) |
+| `POSTGRES_USER` | PostgreSQL username. Example: `soulstep`. Used by both the catalog API and scraper API. |
+| `POSTGRES_PASSWORD` | PostgreSQL password. Generate: `openssl rand -hex 32`. Used by both services. |
+| `POSTGRES_DB` | Catalog API database name. Example: `soulstep`. `docker-compose.prod.yml` assembles `DATABASE_URL` for the catalog-api as `postgresql://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/POSTGRES_DB`. |
+| `SCRAPER_POSTGRES_DB` | Scraper API database name. Example: `soulstep_scraper`. `docker-compose.prod.yml` assembles `DATABASE_URL` for the scraper-api as `postgresql://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/SCRAPER_POSTGRES_DB`. Created automatically on first Postgres start via `docker/postgres-init.sql`. |
 | `RESEND_API_KEY` | Resend.com API key for transactional email (password-reset flows). When unset, the reset link is printed to the console (dev fallback only). |
 
 #### docker-compose.prod.yml (non-sensitive)
@@ -53,7 +56,6 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | Variable | Default | Description |
 |---|---|---|
 | `GOOGLE_MAPS_API_KEY` | — | Google Places API key — required for place-search autocomplete. Enable "Places API (New)" at console.cloud.google.com. Without this key, all search-autocomplete requests return empty results. |
-| `SCRAPER_DATABASE_URL` | — | **Conditional** — PostgreSQL connection string for the scraper's database. Required only when running the sync-places Cloud Run Job. Contains credentials — store in Secret Manager, not as a plain env var. |
 
 #### docker-compose.prod.yml (non-sensitive)
 
@@ -121,7 +123,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 | `BESTTIME_API_KEY` | — | BestTime.app API key — adds busyness forecasts and peak-hours data. Sign up at besttime.app. When unset, the BestTime collector is skipped gracefully. |
 | `KNOWLEDGE_GRAPH_API_KEY` | — | Google Knowledge Graph API key — fetches entity descriptions for places. Free at 100k requests/day via console.cloud.google.com. When unset, the Knowledge Graph collector is skipped gracefully. |
 | `GEMINI_API_KEY` | — | Google Gemini API key — used for LLM tie-breaking when two candidate descriptions score within 0.15 of each other (~10–20% of places). Free key at aistudio.google.com. When unset, heuristic-only quality scoring is used. |
-| `DATABASE_URL` | — | PostgreSQL connection string. When set, takes priority over `SCRAPER_DB_PATH`. Use in production. VM Postgres (TCP): `postgresql://user:pass@postgres:5432/soulstep` (same compose network) |
+| `DATABASE_URL` | — | PostgreSQL connection string for the scraper's own database. In production, assembled by `docker-compose.prod.yml` as `postgresql://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/SCRAPER_POSTGRES_DB` (e.g. `soulstep_scraper`). When unset, falls back to `SCRAPER_DB_PATH` (SQLite — local dev only). |
 
 #### docker-compose.prod.yml (non-sensitive)
 

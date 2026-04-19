@@ -19,6 +19,7 @@ services:
       -c synchronous_commit=off
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     deploy:
       resources:
         limits:
@@ -77,7 +78,7 @@ services:
     pull_policy: always
     restart: always
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${SCRAPER_POSTGRES_DB}
       PORT: "8080"
       MAIN_SERVER_URL: http://catalog-api:3000
       CATALOG_API_KEY: ${CATALOG_API_KEY}

@@ -143,7 +143,8 @@ Go to **GitHub → hussu97/soulstep → Settings → Environments → production
 | `USE_SSL` | `false` initially; `true` after certs are issued |
 | `POSTGRES_USER` | e.g. `soulstep` |
 | `POSTGRES_PASSWORD` | Strong random password |
-| `POSTGRES_DB` | e.g. `soulstep` |
+| `POSTGRES_DB` | Catalog API database name, e.g. `soulstep` |
+| `SCRAPER_POSTGRES_DB` | Scraper API database name, e.g. `soulstep_scraper` (auto-created by `docker/postgres-init.sql`) |
 | `JWT_SECRET` | `openssl rand -hex 32` |
 | `CATALOG_API_KEY` | `openssl rand -hex 32` — shared between catalog + scraper |
 | `GOOGLE_MAPS_API_KEY` | Google Places API key |

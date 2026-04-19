@@ -27,6 +27,7 @@ jobs:
           POSTGRES_USER=${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+          SCRAPER_POSTGRES_DB=${{ secrets.SCRAPER_POSTGRES_DB }}
           JWT_SECRET=${{ secrets.JWT_SECRET }}
           CATALOG_API_KEY=${{ secrets.CATALOG_API_KEY }}
           GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
