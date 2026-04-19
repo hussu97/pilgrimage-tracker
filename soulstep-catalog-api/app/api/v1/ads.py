@@ -1,8 +1,10 @@
 """Public endpoints for ad configuration and consent management."""
 
+import time
 from datetime import UTC, datetime
+from threading import Lock
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel
 from sqlmodel import select
 
@@ -11,6 +13,10 @@ from app.db.models import AdConfig, ConsentRecord
 from app.db.session import SessionDep
 
 router = APIRouter()
+
+_ad_config_cache: dict[str, tuple["AdConfigResponse", float]] = {}
+_ad_config_lock = Lock()
+_AD_CONFIG_TTL = 300.0  # 5 minutes
 
 
 # ── Schemas ──────────────────────────────────────────────────────────────────
@@ -39,24 +45,30 @@ class ConsentStatusResponse(BaseModel):
 
 @router.get("/ads/config", response_model=AdConfigResponse, tags=["ads"])
 def get_ad_config(
+    response: Response,
     session: SessionDep,
     platform: str = Query(default="web", pattern="^(web|ios|android)$"),
 ):
     """Return ad configuration for the given platform (no auth required)."""
+    now = time.monotonic()
+    with _ad_config_lock:
+        cached = _ad_config_cache.get(platform)
+        if cached is not None and now < cached[1]:
+            response.headers["Cache-Control"] = "public, max-age=300"
+            return cached[0]
+
     row = session.exec(select(AdConfig).where(AdConfig.platform == platform)).first()
-    if not row:
-        return AdConfigResponse(
-            platform=platform,
-            ads_enabled=False,
-            adsense_publisher_id="",
-            ad_slots={},
-        )
-    return AdConfigResponse(
-        platform=row.platform,
-        ads_enabled=row.ads_enabled,
-        adsense_publisher_id=row.adsense_publisher_id,
-        ad_slots=row.ad_slots or {},
+    result = AdConfigResponse(
+        platform=platform,
+        ads_enabled=row.ads_enabled if row else False,
+        adsense_publisher_id=row.adsense_publisher_id if row else "",
+        ad_slots=row.ad_slots or {} if row else {},
     )
+    with _ad_config_lock:
+        _ad_config_cache[platform] = (result, now + _AD_CONFIG_TTL)
+
+    response.headers["Cache-Control"] = "public, max-age=300"
+    return result
 
 
 # ── Consent ──────────────────────────────────────────────────────────────────

@@ -11,6 +11,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from '@/app/providers';
+import { getCached, setCache, dedupeInflight } from '@/lib/api/cache';
 import { useAdConsent, type ConsentState } from './useAdConsent';
 import type { AdSlotName } from './ad-constants';
 
@@ -83,15 +84,34 @@ export function AdProvider({ children }: { children: ReactNode }) {
 
   // Fetch ad config from backend
   useEffect(() => {
-    fetch(`${API_BASE}/api/v1/ads/config?platform=web`)
-      .then((r) => (r.ok ? r.json() : null))
+    const CACHE_KEY = 'ads:config:web';
+    const TTL = 5 * 60_000;
+    type RawAdConfig = {
+      ads_enabled: boolean;
+      adsense_publisher_id: string;
+      ad_slots: Record<string, string>;
+    };
+
+    const apply = (data: RawAdConfig) =>
+      setConfig({
+        adsEnabled: data.ads_enabled,
+        publisherId: data.adsense_publisher_id || ADSENSE_PUB_ID,
+        adSlots: data.ad_slots || {},
+      });
+
+    const cached = getCached<RawAdConfig>(CACHE_KEY, TTL);
+    if (cached) {
+      apply(cached);
+      return;
+    }
+
+    dedupeInflight(CACHE_KEY, () =>
+      fetch(`${API_BASE}/api/v1/ads/config?platform=web`).then((r) => (r.ok ? r.json() : null)),
+    )
       .then((data) => {
         if (data) {
-          setConfig({
-            adsEnabled: data.ads_enabled,
-            publisherId: data.adsense_publisher_id || ADSENSE_PUB_ID,
-            adSlots: data.ad_slots || {},
-          });
+          setCache(CACHE_KEY, data);
+          apply(data);
         }
       })
       .catch(() => {

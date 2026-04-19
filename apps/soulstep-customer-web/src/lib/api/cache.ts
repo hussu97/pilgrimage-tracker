@@ -66,6 +66,21 @@ export function setCache<T>(key: string, data: T): void {
   }
 }
 
+const inflight = new Map<string, Promise<unknown>>();
+
+/**
+ * Deduplicates concurrent fetches for the same key: if a fetch for `key` is
+ * already in-flight, all callers await the same promise instead of firing
+ * separate network requests.
+ */
+export function dedupeInflight<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const pending = inflight.get(key);
+  if (pending) return pending as Promise<T>;
+  const p = fn().finally(() => inflight.delete(key));
+  inflight.set(key, p);
+  return p;
+}
+
 export function invalidateCache(prefix?: string): void {
   if (!prefix) {
     cache.clear();

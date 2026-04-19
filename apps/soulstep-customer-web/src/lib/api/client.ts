@@ -17,7 +17,7 @@ import type {
   PlacesResponse,
 } from '@/lib/types';
 import type { ChecklistResponse, PlaceNote } from '@/lib/types/groups';
-import { getCached, setCache, invalidateCache } from './cache';
+import { getCached, setCache, invalidateCache, dedupeInflight } from './cache';
 
 const API_BASE = '';
 
@@ -159,9 +159,15 @@ export interface FieldRulesResponse {
 }
 
 export async function getFieldRules(): Promise<FieldRulesResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/auth/field-rules`, { headers: clientHeaders() });
-  if (!res.ok) throw new Error('Failed to fetch field rules');
-  return res.json();
+  const cached = getCached<FieldRulesResponse>('field-rules', 30 * 60_000);
+  if (cached) return cached;
+  return dedupeInflight('field-rules', async () => {
+    const res = await fetch(`${API_BASE}/api/v1/auth/field-rules`, { headers: clientHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch field rules');
+    const data: FieldRulesResponse = await res.json();
+    setCache('field-rules', data);
+    return data;
+  });
 }
 
 export interface GetPlacesParams {

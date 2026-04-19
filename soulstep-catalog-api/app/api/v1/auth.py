@@ -388,8 +388,9 @@ def resend_verification(request: Request, user: UserDep, session: SessionDep):
 
 
 @router.get("/field-rules")
-def field_rules():
+def field_rules(response: Response):
     """Return registration field validation rules for client-side display and hint generation."""
+    response.headers["Cache-Control"] = "public, max-age=86400"
     return {
         "fields": [
             {
