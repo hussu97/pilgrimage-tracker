@@ -19,7 +19,7 @@ This guide covers how to spread scraper Cloud Run Jobs across multiple GCP regio
      max 3 jobs      max 5 jobs     max 5 jobs
 ```
 
-- **Only the scraper API service** runs in the primary region
+- **Only scraper-api** runs in the primary region
 - **Jobs can run in any configured region** — they connect to the primary Cloud SQL via cross-region auth proxy
 - The **queue processor** tracks active jobs per region and dispatches new jobs to whichever region has capacity
 
@@ -32,8 +32,8 @@ This guide covers how to spread scraper Cloud Run Jobs across multiple GCP regio
 | Cloud SQL database | Accessible globally via Cloud SQL Auth Proxy |
 | GCS bucket | Accessible globally; cross-region egress applies ($0.01/GB same-continent) |
 | Secret Manager secrets | Global — no changes needed |
-| Catalog API service | Primary region only |
-| Scraper API service | Primary region only |
+| catalog-api | Primary region only |
+| scraper-api | Primary region only |
 
 ---
 

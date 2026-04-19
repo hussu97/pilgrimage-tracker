@@ -28,7 +28,7 @@ Keep the following READMEs accurate and up to date. After any change that affect
 
 - **README.md** – Monorepo overview, structure (all services), prerequisites, local setup, env vars, docs links
 - **soulstep-catalog-api/README.md** – FastAPI backend: setup, run, env vars, all API routes (grouped by router), Alembic migrations, seed, tests
-- **soulstep-scraper-api/README.md** – Scraper service: setup, env vars, all API routes, architecture, collector table, tests
+- **soulstep-scraper-api/README.md** – scraper-api: setup, env vars, all API routes, architecture, collector table, tests
 - **apps/soulstep-customer-web/README.md** – Vite + React: install, run, env, backend connection, directory structure, tests, parity reference (screens + API surface)
 - **apps/soulstep-customer-mobile/README.md** – Expo / React Native: install, run, env, iOS/Android build, directory structure, tests, parity reference
 - **apps/soulstep-admin-web/README.md** – Admin dashboard (Vite + React): install, run, env, directory structure, pages, API surface, tests

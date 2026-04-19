@@ -63,7 +63,7 @@ soulstep/
 │   │   ├── services/            # Browser pool, stealth, query logging
 │   │   └── jobs/                # Cloud Run Job dispatcher + entrypoint
 │   ├── tests/
-│   ├── Dockerfile               # API service image (~200 MB, no Playwright)
+│   ├── Dockerfile               # scraper-api image (~200 MB, no Playwright)
 │   └── Dockerfile.job           # Job image (~900 MB, with Playwright + Chromium)
 ├── apps/
 │   ├── soulstep-customer-web/   # Vite + React + Tailwind
@@ -291,11 +291,11 @@ Controls how scraper runs execute:
 | `SCRAPER_DISPATCH` | Behavior |
 |---|---|
 | `local` (default) | In-process FastAPI BackgroundTasks; no GCP needed |
-| `cloud_run` | Dispatches a Cloud Run Job via GCP Jobs API; API service stays at 512 MB |
+| `cloud_run` | Dispatches a Cloud Run Job via GCP Jobs API; catalog-api stays at 512 MB |
 
 ### Queue Processor
 
-A background asyncio task inside the scraper API service that provides capacity-aware job dispatch:
+A background asyncio task inside scraper-api that provides capacity-aware job dispatch:
 
 1. **Status flow:** `queued` → `pending` (dispatched) → `running` → `completed`/`failed`
 2. **Polling:** Checks every 15 seconds for queued runs; also triggered immediately when runs are created or resumed
