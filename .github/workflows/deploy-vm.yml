@@ -346,8 +346,11 @@ jobs:
 
       - name: Upsert soulstep-scraper-api-job (primary region)
         run: |
-          # Direct VPC Egress — routes job traffic through the project VPC so the
-          # job can reach the VM's internal IP (10.132.0.2) without a connector.
+          # Direct VPC Egress (private-ranges-only) — private IPs (10.x.x.x) are
+          # routed through the VPC so the job can reach the VM's internal postgres
+          # at 10.132.0.2 without a connector. Public IPs (e.g. places.googleapis.com)
+          # egress directly to the internet — all-traffic + no Cloud NAT caused
+          # ConnectTimeout on external API calls.
           # DATABASE_URL is forwarded at dispatch time via SCRAPER_CLOUD_RUN_DATABASE_URL.
           REGION="${{ env.REGION }}"
           COMMON_FLAGS=(
@@ -358,7 +361,7 @@ jobs:
             --remove-cloudsql-instances "project-fa2d7f52-2bc4-4a46-8ae:europe-west1:soulstep-db"
             --network default
             --subnet default
-            --vpc-egress all-traffic
+            --vpc-egress private-ranges-only
             --quiet
           )
           if gcloud run jobs describe soulstep-scraper-api-job --region "$REGION" --quiet 2>/dev/null; then
@@ -381,7 +384,7 @@ jobs:
               --remove-cloudsql-instances "project-fa2d7f52-2bc4-4a46-8ae:europe-west1:soulstep-db"
               --network default
               --subnet default
-              --vpc-egress all-traffic
+              --vpc-egress private-ranges-only
               --quiet
             )
             if gcloud run jobs describe soulstep-scraper-api-job --region "$R" --quiet 2>/dev/null; then
