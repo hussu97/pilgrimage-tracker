@@ -351,14 +351,12 @@ jobs:
               --image "$AR_JOB_IMAGE" \
               --memory 6Gi --cpu 4 \
               --task-timeout 86400 --max-retries 1 \
-              --update-env-vars "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
               --quiet
           else
             gcloud run jobs create soulstep-scraper-api-job --region "${{ env.REGION }}" \
               --image "$AR_JOB_IMAGE" \
               --memory 6Gi --cpu 4 \
               --task-timeout 86400 --max-retries 1 \
-              --set-env-vars "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
               --quiet
           fi
 
@@ -373,14 +371,12 @@ jobs:
                 --image "$AR_JOB_IMAGE" \
                 --memory 6Gi --cpu 4 \
                 --task-timeout 86400 --max-retries 1 \
-                --update-env-vars "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
                 --quiet
             else
               gcloud run jobs create soulstep-scraper-api-job --region "$R" \
                 --image "$AR_JOB_IMAGE" \
                 --memory 6Gi --cpu 4 \
                 --task-timeout 86400 --max-retries 1 \
-                --set-env-vars "SENTRY_DSN=${{ secrets.SENTRY_DSN }}" \
                 --quiet
             fi
           done

@@ -188,6 +188,9 @@ class Settings:
     # Generate with: openssl rand -hex 32
     catalog_api_key: str = os.environ.get("CATALOG_API_KEY", "")
 
+    # ── Observability ─────────────────────────────────────────────────────────
+    sentry_dsn: str = os.environ.get("SENTRY_DSN", "")
+
     def job_env_vars(self) -> dict[str, str]:
         """Return all env vars that must be forwarded to a Cloud Run Job execution.
 
@@ -247,6 +250,8 @@ class Settings:
             # ── Post-sync ─────────────────────────────────────────────────────
             "SCRAPER_AUTO_SYNC_AFTER_RUN": str(self.auto_sync_after_run).lower(),
             "SCRAPER_TRIGGER_SEO_AFTER_SYNC": str(self.trigger_seo_after_sync).lower(),
+            # ── Observability ──────────────────────────────────────────────────
+            "SENTRY_DSN": self.sentry_dsn,
         }
         # Drop empty strings — avoids overriding secrets already mounted on the job.
         return {k: v for k, v in raw.items() if v}
