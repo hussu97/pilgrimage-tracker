@@ -370,7 +370,7 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 | `SCRAPER_MAX_OVERFLOW` | — | `10` | Extra connections during bursts. |
 | `LOG_LEVEL` | — | `INFO` | `DEBUG` \| `INFO` \| `WARNING` \| `ERROR` |
 | `LOG_FORMAT` | — | `text` | `text` for local dev; `json` for Cloud Logging. |
-| `SCRAPER_BACKEND` | — | `api` | `api` — Google Places HTTP. `browser` — Playwright (no API cost). |
+| `SCRAPER_BACKEND` | — | `api` | `api` — Google Places HTTP. `browser` — Playwright (no API cost). **Must be set as a GitHub Actions secret** — the dispatcher forwards its own value to the Cloud Run Job at dispatch time, overriding anything set directly on the job. |
 | `SCRAPER_DISPATCH` | — | `local` | `local` — in-process. `cloud_run` — Cloud Run Job. **Set `cloud_run` in production.** |
 | `CLOUD_RUN_JOB_NAME` | — | `soulstep-scraper-job` | Job name. Required when `SCRAPER_DISPATCH=cloud_run`. |
 | `CLOUD_RUN_REGION` | — | `us-central1` | Fallback region. Required when `SCRAPER_DISPATCH=cloud_run`. |

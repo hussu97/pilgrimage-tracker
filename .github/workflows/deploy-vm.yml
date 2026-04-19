@@ -231,6 +231,9 @@ jobs:
           SCRAPER_BESTTIME_API_KEY=${{ secrets.SCRAPER_BESTTIME_API_KEY }}
           SCRAPER_ALLOWED_ORIGINS=${{ secrets.SCRAPER_ALLOWED_ORIGINS }}
           SCRAPER_TIMEZONE=${{ secrets.SCRAPER_TIMEZONE }}
+          SCRAPER_BACKEND=${{ secrets.SCRAPER_BACKEND }}
+          SCRAPER_AUTO_SYNC_AFTER_RUN=${{ secrets.SCRAPER_AUTO_SYNC_AFTER_RUN }}
+          SCRAPER_TRIGGER_SEO_AFTER_SYNC=${{ secrets.SCRAPER_TRIGGER_SEO_AFTER_SYNC }}
           CLOUD_RUN_REGIONS=europe-west1:3,europe-west4:5
           BACKUP_GCS_BUCKET=${{ secrets.BACKUP_GCS_BUCKET }}
           LOG_LEVEL=${{ secrets.LOG_LEVEL }}
