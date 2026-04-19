@@ -94,7 +94,7 @@ class OsmCollector(BaseCollector):
 
         async with _get_overpass_sem():
             response = await async_request_with_backoff(
-                "POST", endpoint, data=overpass_query, headers=headers
+                "POST", endpoint, data=overpass_query, headers=headers, max_retries=2
             )
         if not response:
             return {}

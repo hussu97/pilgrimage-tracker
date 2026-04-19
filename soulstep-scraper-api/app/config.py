@@ -182,12 +182,12 @@ class Settings:
     # completes (no manual POST /runs/{code}/sync step needed). Requires MAIN_SERVER_URL
     # and CATALOG_API_KEY to be set.
     auto_sync_after_run: bool = (
-        os.environ.get("SCRAPER_AUTO_SYNC_AFTER_RUN", "false").lower() == "true"
+        os.environ.get("SCRAPER_AUTO_SYNC_AFTER_RUN", "true").lower() == "true"
     )
     # If true, automatically call the catalog API's SEO generation endpoint after
     # sync completes. Requires CATALOG_API_KEY to be set.
     trigger_seo_after_sync: bool = (
-        os.environ.get("SCRAPER_TRIGGER_SEO_AFTER_SYNC", "false").lower() == "true"
+        os.environ.get("SCRAPER_TRIGGER_SEO_AFTER_SYNC", "true").lower() == "true"
     )
     # Shared secret for the catalog API's internal endpoints.
     # Must match CATALOG_API_KEY set on the catalog API service.

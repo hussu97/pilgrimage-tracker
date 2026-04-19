@@ -327,6 +327,7 @@ async def async_request_with_backoff(
     method: str,
     url: str,
     client: httpx.AsyncClient | None = None,
+    max_retries: int = 5,
     **kwargs,
 ) -> httpx.Response | None:
     """Async HTTP request with exponential backoff on rate limits (429).
@@ -337,7 +338,6 @@ async def async_request_with_backoff(
     kwargs.setdefault("timeout", 35.0)
     wait_time = 5
     retries = 0
-    max_retries = 5
 
     _retryable = (httpx.ReadTimeout, httpx.ConnectTimeout, httpx.ConnectError)
 
