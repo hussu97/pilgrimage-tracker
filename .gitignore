@@ -79,3 +79,5 @@ soulstep-catalog-api/scripts/untranslated.txt
 soulstep-catalog-api/scripts/output_translation
 # Added by code-review-graph
 .code-review-graph/
+
+soulstep_deploy*
