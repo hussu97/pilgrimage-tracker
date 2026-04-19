@@ -1,105 +1,99 @@
 # SoulStep
 
-Discover, visit, and track sacred sites. Multi-platform: web (desktop + mobile browser), iOS, and Android.
+Multi-platform app for discovering, visiting, and tracking sacred sites worldwide.
 
-## Structure
+---
 
-| Directory | Service | Description |
+## Services
+
+| Service | Path | Description |
 |---|---|---|
-| `soulstep-catalog-api/` | **Catalog API** | Python + FastAPI backend. Versioned REST API at `/api/v1`. SQLite (dev) / PostgreSQL (prod). |
-| `soulstep-scraper-api/` | **Scraper API** | Python + FastAPI scraper. Discovers and enriches sacred places from Google Maps and other sources, then syncs to the catalog. |
-| `apps/soulstep-customer-web/` | **Web App** | Vite + React + Tailwind. Desktop and mobile browsers. |
-| `apps/soulstep-customer-mobile/` | **Mobile App** | Expo / React Native. iOS and Android. Same API and feature set as web. |
-| `apps/soulstep-admin-web/` | **Admin Dashboard** | Vite + React + Tailwind. Manages users, places, groups, scraper runs, translations, analytics, and more. |
+| **catalog-api** | `soulstep-catalog-api/` | FastAPI REST API — users, places, groups, check-ins, SEO |
+| **scraper-api** | `soulstep-scraper-api/` | FastAPI scraper — discovers and enriches sacred sites |
+| **customer-web** | `apps/soulstep-customer-web/` | Next.js 15 + React — customer-facing web app (Vercel) |
+| **admin-web** | `apps/soulstep-admin-web/` | Vite + React — admin dashboard (Vercel) |
+| **mobile** | `apps/soulstep-customer-mobile/` | Expo / React Native — iOS + Android |
 
-No shared `packages/` folder — each app maintains its own types and API client, kept in parity by convention.
+---
 
-## Quick Start
+## Local Development
 
-### Prerequisites
+**Prerequisites:** Docker, Docker Compose, Node.js 20, Python 3.11+
 
-- **Python 3.11+** — use `brew install python` (macOS) or pyenv
-- **Node.js 18+**
+### Backend (catalog-api + scraper-api + Postgres)
 
-### 1. Backend
+```bash
+cp .env.example .env          # fill in API keys
+docker compose up             # starts postgres, catalog-api, scraper-api
+```
+
+- catalog-api: http://127.0.0.1:3000 · docs: http://127.0.0.1:3000/docs
+- scraper-api: http://127.0.0.1:8080 · docs: http://127.0.0.1:8080/docs
+
+Without Docker (individual services):
 
 ```bash
 cd soulstep-catalog-api
-python3 -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 3000
 ```
 
-Runs at **http://127.0.0.1:3000**. Health check: `GET /health`.
-
-### 2. Web App
+### Frontend
 
 ```bash
-npm install          # from repo root
-npm run dev:web
+cd apps/soulstep-customer-web && npm install && npm run dev   # http://localhost:3000
+cd apps/soulstep-admin-web   && npm install && npm run dev   # http://localhost:5174
+cd apps/soulstep-customer-mobile && npm install && npx expo start
 ```
 
-Open **http://127.0.0.1:5173** (use `127.0.0.1`, not `localhost`, on macOS). The dev server proxies `/api` to `http://127.0.0.1:3000`.
-
-### 3. Mobile App
-
-```bash
-npm run dev:mobile   # from repo root
-```
-
-Press `i` for iOS simulator, `a` for Android emulator, or scan the QR code with Expo Go.
-
-### 4. Scraper (optional)
-
-```bash
-cd soulstep-scraper-api
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8001
-```
-
-Runs at **http://127.0.0.1:8001**. Requires `GOOGLE_MAPS_API_KEY` set in `.env`.
-
-### 5. Admin Dashboard
-
-```bash
-cd apps/soulstep-admin-web
-npm install
-npm run dev
-```
-
-Open **http://127.0.0.1:5174**. Requires a user with `role = admin` in the database.
+---
 
 ## Environment Variables
 
-Each service has its own `.env.example`. Key variables:
+Copy `.env.example` to `.env` in the repo root — this single file is used by Docker Compose for both backend services locally and in production (written by CI at deploy time).
 
-| Service | Variable | Description |
-|---|---|---|
-| catalog-api | `JWT_SECRET` | JWT signing secret — always set in production |
-| catalog-api | `DATABASE_URL` | PostgreSQL URL (dev uses SQLite by default) |
-| catalog-api | `FRONTEND_URL` | Public web frontend URL (sitemap, JSON-LD, emails) |
-| Web app | `NEXT_PUBLIC_API_BASE_URL` | API base URL — baked into the JS bundle at build time |
-| Web app | `INTERNAL_API_URL` | Server-side API URL (SSR only, not exposed to client) |
-| Mobile | `EXPO_PUBLIC_API_BASE_URL` | API base URL for device / Expo Go |
-| scraper-api | `GOOGLE_MAPS_API_KEY` | Google Maps API key |
-| scraper-api | `MAIN_SERVER_URL` | catalog-api URL for syncing scraped places |
+Frontend apps each have their own `.env.local` file inside their directory.
 
-See each service's `.env.example` for the full variable list.
+See **[PRODUCTION.md §11](PRODUCTION.md)** for the full env var reference.
+
+---
+
+## Production
+
+| Component | Platform |
+|---|---|
+| catalog-api + scraper-api | GCP e2-micro VM (Docker Compose + Postgres 15) |
+| customer-web + admin-web | Vercel |
+| Playwright scraper | Cloud Run Job (europe-west1, west4, west2) |
+| Images + backups | GCS |
+
+See [PRODUCTION.md](PRODUCTION.md) for the full deployment guide.
+
+---
 
 ## Docs
 
-| File | Contents |
+| Doc | Purpose |
 |---|---|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, data model, API outline |
-| [PRODUCTION.md](PRODUCTION.md) | VM + Vercel deployment guide |
-| [SYSTEMS.md](SYSTEMS.md) | Complete system reference |
-| [CHANGELOG.md](CHANGELOG.md) | Implemented changes |
-| [ROADMAP.md](ROADMAP.md) | Planned features and milestones |
-| [soulstep-catalog-api/README.md](soulstep-catalog-api/README.md) | Catalog API: setup, endpoints, migrations, env vars |
-| [soulstep-scraper-api/README.md](soulstep-scraper-api/README.md) | Scraper API: setup, usage, architecture, collectors |
-| [apps/soulstep-customer-web/README.md](apps/soulstep-customer-web/README.md) | Web app: setup, routes, env vars, tests |
-| [apps/soulstep-customer-mobile/README.md](apps/soulstep-customer-mobile/README.md) | Mobile app: setup, builds, env vars, tests |
-| [apps/soulstep-admin-web/README.md](apps/soulstep-admin-web/README.md) | Admin dashboard: setup,  pages, API surface, env vars |
+| [PRODUCTION.md](PRODUCTION.md) | Deployment guide, env vars, CI/CD |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture and tech decisions |
+| [ROADMAP.md](ROADMAP.md) | Planned features |
+| [CHANGELOG.md](CHANGELOG.md) | Release history |
+
+---
+
+## Tests
+
+```bash
+# Backend
+cd soulstep-catalog-api && source .venv/bin/activate && python -m pytest tests/ -v
+cd soulstep-scraper-api && source .venv/bin/activate && python -m pytest tests/ -v
+
+# Web
+cd apps/soulstep-customer-web && npm test && npx tsc --noEmit
+cd apps/soulstep-admin-web    && npm test
+
+# Mobile
+cd apps/soulstep-customer-mobile && npm test
+```

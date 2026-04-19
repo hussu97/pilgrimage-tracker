@@ -315,19 +315,20 @@ Every component that renders a place item (list row, card, carousel tile) must a
 
 ## 25. Environment Variable Documentation
 
-**PRODUCTION.md §11** is the single source of truth for all environment variables across every SoulStep service. The `.env.example` file in each service directory is the local-dev mirror of that section — they must stay identical in content at all times.
+**`PRODUCTION.md §11`** is the single source of truth for all environment variables across every SoulStep service. The root **`.env.example`** is the single backend env template (no per-service `.env.example` files — they were consolidated). Frontend apps each have their own `.env.local` / `.env.example` inside their directory.
 
 **When adding, renaming, removing, or changing the default/description of any env var:**
-1. Update `PRODUCTION.md` §11 — add or modify the variable row in the correct service table.
-2. Update the corresponding `.env.example` in the service directory to match.
-3. No discrepancy is allowed between `PRODUCTION.md` §11 and the `.env.example` files.
+1. Update `PRODUCTION.md §11` — add or modify the variable row in the correct service section.
+2. Update the root `.env.example` to match (backend vars only; frontend app vars go in their own `.env.example`).
+3. No discrepancy is allowed between `PRODUCTION.md §11` and `.env.example`.
 
 **Triggers — update both when you:**
-- Add a new env var to any service
+- Add a new env var to any backend service
 - Rename or remove an existing env var
 - Change a variable's default value or description
+- Move a variable between Mandatory / Optional categories
 
-**Do not** add env var documentation anywhere else (e.g. a separate ENV_VARS.md or README table). Direct readers to `PRODUCTION.md` instead.
+**Do not** add env var documentation anywhere else — no extra README tables, no separate docs files. Direct readers to `PRODUCTION.md §11`.
 
 ## 26. Canonical Place Components
 

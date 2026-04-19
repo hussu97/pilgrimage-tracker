@@ -4,6 +4,25 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-19] — Retire Cloud Run HTTP Services + Consolidate Docs
+
+### Backend
+- **`.github/workflows/deploy.yml`** — stripped to Vercel-only. Removed `deploy-api` (Cloud Run catalog-api HTTP), `deploy-jobs` (catalog Cloud Run Jobs: sync-places, cleanup, backfill), `deploy-scraper` (Cloud Run scraper HTTP). Scraper Cloud Run Job deployment remains in `deploy-vm.yml`.
+- **`soulstep-catalog-api/Dockerfile.sync`** — deleted; `sync-places` now runs as a VM cron job.
+- **`.env.example`** — consolidated as the single backend env template. Deleted `soulstep-catalog-api/.env.example` and `soulstep-scraper-api/.env.example`. Added missing `SCRAPER_OUTSCRAPER_API_KEY`, `SCRAPER_BESTTIME_API_KEY`, `GOOGLE_APPLICATION_CREDENTIALS`, `CLOUD_RUN_JOB_NAME`, `CLOUD_RUN_REGION`.
+- Scraper Cloud Run Job and all its infrastructure (Dockerfile.job, requirements-job.txt, multi-region dispatcher, CLOUD_RUN_* env vars, deploy-scraper-job step) kept intact.
+
+### Docs
+- **`PRODUCTION.md`** — rewritten from scratch; merges PRODUCTION.md + ENV_VARS.md + MULTI_REGION_JOBS.md. Removed Cloud SQL/Secret Manager/Cloud Run HTTP references. Added §10 (multi-region scraper dispatch) and §11 (unified env var tables for all 5 services).
+- **`ARCHITECTURE.md`** — rewritten from scratch; incorporates SYSTEMS.md content (scraper pipeline, queue processor, scheduled jobs, API versioning, SEO).
+- **`README.md`** — rewritten concise.
+- **`ROADMAP.md`** — stripped all completed `[x]` items.
+- All 5 service/app READMEs — rewritten concise (≤120 lines each).
+- **Deleted**: `ENV_VARS.md`, `MULTI_REGION_JOBS.md`, `SYSTEMS.md`.
+- **`CLAUDE.md`** rule #25 — env var source of truth updated to `PRODUCTION.md §11`.
+
+---
+
 ## [2026-04-19] — Sentry Error Tracking + Google Cloud Logging
 
 ### Backend
