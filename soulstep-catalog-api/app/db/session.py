@@ -1,7 +1,9 @@
 import os
+import time as _time
 from typing import Annotated
 
 from fastapi import Depends
+from sqlalchemy import event
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.core.config import DATABASE_URL as database_url
@@ -30,6 +32,26 @@ if not database_url.startswith("sqlite"):
         "pool_pre_ping": True,  # drop stale connections before use
     }
 engine = create_engine(database_url, echo=False, connect_args=connect_args, **pool_config)
+
+
+# ── Per-request query timing hooks (used by ?_trace=1) ───────────────────────
+
+
+@event.listens_for(engine, "before_cursor_execute")
+def _trace_before(conn, cursor, statement, parameters, context, executemany):
+    conn.info["_qs"] = _time.perf_counter()
+
+
+@event.listens_for(engine, "after_cursor_execute")
+def _trace_after(conn, cursor, statement, parameters, context, executemany):
+    start = conn.info.pop("_qs", None)
+    if start is None:
+        return
+    from app.lib.tracer import get_tracer  # lazy import avoids circular dependency
+
+    t = get_tracer()
+    if t:
+        t.record_query(statement, (_time.perf_counter() - start) * 1000)
 
 
 def create_db_and_tables():

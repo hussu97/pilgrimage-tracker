@@ -25,7 +25,7 @@ if _config.SENTRY_DSN:
 
     sentry_sdk.init(
         dsn=_config.SENTRY_DSN,
-        traces_sample_rate=0.05,
+        traces_sample_rate=0.15,
         send_default_pii=False,
     )
 
@@ -255,6 +255,33 @@ app.add_middleware(
 )
 # Compress responses ≥ 1 KB with gzip (60-80% reduction on JSON payloads).
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Per-request tracer: attach ?_trace=1 to any request to get X-Trace header
+# with per-section timing and per-query breakdown.
+import json as _json  # noqa: E402
+
+from starlette.middleware.base import BaseHTTPMiddleware  # noqa: E402
+from starlette.requests import Request as _Request  # noqa: E402
+
+
+class _TracerMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: _Request, call_next):
+        if request.query_params.get("_trace") != "1":
+            return await call_next(request)
+        from app.lib.tracer import RequestTracer, set_tracer
+
+        tracer = RequestTracer()
+        set_tracer(tracer)
+        try:
+            response = await call_next(request)
+            response.headers["X-Trace"] = _json.dumps(tracer.summary())
+            response.headers["Access-Control-Expose-Headers"] = "X-Trace"
+            return response
+        finally:
+            set_tracer(None)
+
+
+app.add_middleware(_TracerMiddleware)
 
 
 # ===== Middleware =====

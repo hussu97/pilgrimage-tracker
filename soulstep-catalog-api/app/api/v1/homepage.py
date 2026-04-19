@@ -1,5 +1,7 @@
 """Composite homepage endpoint — returns all homepage data in a single request."""
 
+import time as _time
+
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import or_ as _or
@@ -12,10 +14,10 @@ from app.db import content_translations as ct_db
 from app.db import groups as groups_db
 from app.db import place_images
 from app.db import places as places_db
-from app.db import reviews as reviews_db
 from app.db.models import CheckIn, City, Group, Place, Review
 from app.db.places import _haversine_km
 from app.db.session import SessionDep
+from app.lib.tracer import get_tracer
 
 router = APIRouter()
 
@@ -35,7 +37,14 @@ def get_homepage(
     popular_places, popular_cities, and place_count.
     """
 
+    _t = get_tracer()
+
+    def _mark(name: str, t0: float) -> None:
+        if _t:
+            _t._spans.append((name, round((_time.perf_counter() - t0) * 1000, 1)))
+
     # ── User's journeys ─────────────────────────────────────────────────────────
+    _s = _time.perf_counter()
     groups_out = []
     if user:
         group_list = groups_db.get_groups_for_user(user.user_code, session)
@@ -119,6 +128,9 @@ def get_homepage(
                     }
                 )
 
+    _mark("user_journeys", _s)
+    _s = _time.perf_counter()
+
     # ── Featured journeys ─────────────────────────────────────────────────────
     featured_groups = session.exec(
         select(Group).where(Group.is_featured == True).limit(20)  # noqa: E712
@@ -143,28 +155,40 @@ def get_homepage(
                 }
             )
 
+    _mark("featured_journeys", _s)
+    _s = _time.perf_counter()
+
     # ── Popular places (top-rated via SQL subquery) ────────────────────────────
-    # Use a SQL subquery to compute average rating and sort in the database,
-    # fetching only the top 20 instead of scanning 200 rows in Python.
+    # Subquery computes avg + count in one pass — no second ratings query needed.
     rating_sub = (
         select(
             Review.place_code,
             func.avg(Review.rating).label("avg_rating"),
+            func.count(Review.id).label("review_count"),
         )
         .where(Review.deleted_at == None)  # noqa: E711
         .group_by(Review.place_code)
         .subquery()
     )
     popular_stmt = (
-        select(Place, rating_sub.c.avg_rating)
+        select(Place, rating_sub.c.avg_rating, rating_sub.c.review_count)
         .outerjoin(rating_sub, Place.place_code == rating_sub.c.place_code)
         .order_by(func.coalesce(rating_sub.c.avg_rating, 0).desc())
         .limit(20)
     )
     popular_rows = session.exec(popular_stmt).all()
-    popular_places = [row[0] if isinstance(row, tuple) else row.Place for row in popular_rows]
+    popular_places = []
+    popular_ratings: dict[str, dict] = {}
+    for row in popular_rows:
+        place = row[0] if isinstance(row, tuple) else row.Place
+        avg = row[1] if isinstance(row, tuple) else None
+        cnt = row[2] if isinstance(row, tuple) else 0
+        popular_places.append(place)
+        popular_ratings[place.place_code] = {
+            "average": round(float(avg) * 10) / 10 if avg else 0.0,
+            "count": cnt or 0,
+        }
     popular_codes = [p.place_code for p in popular_places]
-    popular_ratings = reviews_db.get_aggregate_ratings_bulk(popular_codes, session)
     popular_images = place_images.get_images_bulk(popular_codes, session)
 
     # Fetch translations for popular places
@@ -187,6 +211,9 @@ def get_homepage(
                 translations=popular_trans.get(p.place_code),
             )
         )
+
+    _mark("popular_places", _s)
+    _s = _time.perf_counter()
 
     # ── Recommended places ────────────────────────────────────────────────────
     rec_stmt = select(Place)
@@ -234,6 +261,9 @@ def get_homepage(
             )
         )
 
+    _mark("recommended_places", _s)
+    _s = _time.perf_counter()
+
     # ── Popular cities ─────────────────────────────────────────────────────────
     city_stmt = (
         select(Place.city, func.count(Place.id).label("cnt"))
@@ -252,19 +282,15 @@ def get_homepage(
         city_names_list.append(city_name)
         cities_out.append({"city": city_name, "city_slug": slug, "count": cnt, "top_images": []})
 
-    # Fetch top 3 place images per city — limit to 3 place codes per city
+    # Fetch top 3 place codes per city — one small indexed query per city (10 total)
+    # instead of one unbounded query that returns all places for 10 cities.
     if city_names_list:
         city_place_codes: dict[str, list[str]] = {}
-        city_places_stmt = select(Place.city, Place.place_code).where(
-            Place.city.in_(city_names_list)
-        )
-        city_place_rows = session.exec(city_places_stmt).all()
-        for r in city_place_rows:
-            c = r[0] if isinstance(r, tuple) else r.city
-            pc = r[1] if isinstance(r, tuple) else r.place_code
-            codes = city_place_codes.setdefault(c, [])
-            if len(codes) < 3:  # Only need 3 per city
-                codes.append(pc)
+        for city_name in city_names_list:
+            rows = session.exec(
+                select(Place.place_code).where(Place.city == city_name).limit(3)
+            ).all()
+            city_place_codes[city_name] = [r if isinstance(r, str) else r[0] for r in rows]
 
         all_city_codes = [pc for codes in city_place_codes.values() for pc in codes]
         city_place_images = (
@@ -291,8 +317,12 @@ def get_homepage(
             if trans:
                 city_item["city"] = trans
 
+    _mark("popular_cities", _s)
+    _s = _time.perf_counter()
+
     # ── Place count ────────────────────────────────────────────────────────────
     total_count = session.exec(select(func.count(Place.id))).one()
+    _mark("place_count", _s)
 
     result = {
         "groups": groups_out,
