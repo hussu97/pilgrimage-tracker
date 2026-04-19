@@ -1,0 +1,156 @@
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # Tuned for e2-micro (1 GB RAM). Leaves ~616 MB for the two APIs + nginx + OS.
+    command: >
+      postgres
+      -c shared_buffers=96MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=32MB
+      -c effective_cache_size=256MB
+      -c max_connections=40
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=4MB
+      -c synchronous_commit=off
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - soulstep_net
+
+  catalog-api:
+    image: ghcr.io/hussu97/soulstep-catalog-api:latest
+    pull_policy: always
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PORT: "3000"
+      JWT_SECRET: ${JWT_SECRET}
+      CATALOG_API_KEY: ${CATALOG_API_KEY}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-noreply@soul-step.org}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      FRONTEND_URL: ${FRONTEND_URL:-https://soul-step.org}
+      RESET_URL_BASE: ${RESET_URL_BASE:-https://soul-step.org}
+      IMAGE_STORAGE: gcs
+      GCS_BUCKET_NAME: ${GCS_BUCKET_NAME}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+      DATA_SCRAPER_URL: http://scraper-api:8080
+      GLITCHTIP_DSN: ${GLITCHTIP_DSN:-}
+      ADSENSE_PUBLISHER_ID: ${ADSENSE_PUBLISHER_ID:-}
+      ADS_ENABLED: ${ADS_ENABLED:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: json
+      ENFORCE_HTTPS: "false"
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - soulstep_net
+
+  scraper-api:
+    image: ghcr.io/hussu97/soulstep-scraper-api:latest
+    pull_policy: always
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PORT: "8080"
+      MAIN_SERVER_URL: http://catalog-api:3000
+      CATALOG_API_KEY: ${CATALOG_API_KEY}
+      GOOGLE_MAPS_API_KEY: ${SCRAPER_GOOGLE_MAPS_API_KEY}
+      FOURSQUARE_API_KEY: ${SCRAPER_FOURSQUARE_API_KEY:-}
+      GEMINI_API_KEY: ${SCRAPER_GEMINI_API_KEY:-}
+      GCS_BUCKET_NAME: ${GCS_BUCKET_NAME}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT}
+      SCRAPER_ALLOWED_ORIGINS: ${SCRAPER_ALLOWED_ORIGINS:-https://admin.soul-step.org}
+      SCRAPER_TIMEZONE: ${SCRAPER_TIMEZONE:-Asia/Dubai}
+      SCRAPER_DISPATCH: cloud_run
+      CLOUD_RUN_JOB_NAME: soulstep-scraper-api-job
+      CLOUD_RUN_REGION: europe-west1
+      CLOUD_RUN_REGIONS: ${CLOUD_RUN_REGIONS:-europe-west1:3,europe-west4:5}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: json
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      catalog-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - soulstep_net
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      USE_SSL: ${USE_SSL:-false}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./certbot/www:/var/www/certbot:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+    depends_on:
+      catalog-api:
+        condition: service_healthy
+      scraper-api:
+        condition: service_healthy
+    networks:
+      - soulstep_net
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+      while :; do
+        certbot renew --webroot -w /var/www/certbot --quiet;
+        sleep 12h & wait $${!};
+      done"
+    networks:
+      - soulstep_net
+
+networks:
+  soulstep_net:
+    driver: bridge
+
+volumes:
+  postgres_data: {}
