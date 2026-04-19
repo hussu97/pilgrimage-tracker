@@ -81,9 +81,9 @@ Each service has its own `.env.example`. Key variables:
 | Catalog API | `JWT_SECRET` | JWT signing secret — always set in production |
 | Catalog API | `DATABASE_URL` | PostgreSQL URL (dev uses SQLite by default) |
 | Catalog API | `FRONTEND_URL` | Public web frontend URL (sitemap, JSON-LD, emails) |
-| Web app | `VITE_API_URL` | API base URL — baked in at build time |
-| Web app | `VITE_PROXY_TARGET` | Dev proxy target (default `http://127.0.0.1:3000`) |
-| Mobile | `EXPO_PUBLIC_API_URL` | API base URL for device / Expo Go |
+| Web app | `NEXT_PUBLIC_API_BASE_URL` | API base URL — baked into the JS bundle at build time |
+| Web app | `INTERNAL_API_URL` | Server-side API URL (SSR only, not exposed to client) |
+| Mobile | `EXPO_PUBLIC_API_BASE_URL` | API base URL for device / Expo Go |
 | Scraper | `GOOGLE_MAPS_API_KEY` | Google Maps API key |
 | Scraper | `MAIN_SERVER_URL` | Catalog API URL for syncing scraped places |
 
@@ -94,7 +94,7 @@ See each service's `.env.example` for the full variable list.
 | File | Contents |
 |---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, data model, API outline |
-| [PRODUCTION.md](PRODUCTION.md) | GCP + Firebase deployment guide |
+| [PRODUCTION.md](PRODUCTION.md) | VM + Vercel deployment guide |
 | [SYSTEMS.md](SYSTEMS.md) | Complete system reference |
 | [CHANGELOG.md](CHANGELOG.md) | Implemented changes |
 | [ROADMAP.md](ROADMAP.md) | Planned features and milestones |

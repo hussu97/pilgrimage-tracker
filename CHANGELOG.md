@@ -4,6 +4,30 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-19] — VM Migration: Docker Compose + GHCR + SSH Deploy
+
+### Backend
+- **`docker-compose.prod.yml`** — new production orchestration: postgres:15 (tuned for e2-micro, 384 MB memory limit), catalog-api, scraper-api, nginx, certbot; all services on `soulstep_net` bridge network
+- **`nginx/`** — alpine nginx reverse proxy with `USE_SSL` toggle; `http.conf` (pre-TLS) and `ssl.conf` (TLS + HSTS) templates; `entrypoint.sh` selects config at container startup; `api.soul-step.org` → catalog-api:3000, `scraper.soul-step.org` → scraper-api:8080
+- **`scripts/vm-bootstrap.sh`** — one-shot Debian 12 VM provisioning: Docker, gcloud CLI, repo clone, Postgres start, crontab install
+- **`scripts/backup-db.sh`** — daily pg_dump → gzip → local + GCS, 7-day local retention
+- **`scripts/restore-db.sh`** — restore from `.sql.gz` (local or `--from-gcs`)
+- **`scripts/cron/soulstep-cron`** — 4 VM crontab entries replacing Cloud Run Jobs: DB backup 02:00, place sync 03:00, image cleanup Mon 05:00, timezone backfill Sun 04:00 (all UTC)
+- **`.env.example`** (root) — VM env template written to `/opt/soulstep/.env` by GitHub Actions on every deploy
+- Migrations continue to run automatically on `catalog-api` startup via the existing `lifespan → run_migrations()` hook
+
+### CI/CD
+- **`.github/workflows/deploy-vm.yml`** — new SSH-based deployment workflow: builds `soulstep-catalog-api` + `soulstep-scraper-api` (lean) + `soulstep-scraper-api-job` (Playwright) images to GHCR; SSHes to VM, writes `.env` from GitHub Secrets, pulls images, `docker compose up --force-recreate`; updates Cloud Run Job in 3 regions (europe-west1/west4/west2) via WIF
+- Runtime secrets moved from **GCP Secret Manager** to **GitHub Actions Secrets** (environment: `production`); written to VM `.env` at deploy time
+- Docker images moved from **GAR** (`europe-west1-docker.pkg.dev`) to **GHCR** (`ghcr.io/hussu97/`) — simpler auth via `GITHUB_TOKEN`
+
+### Docs
+- **`PRODUCTION.md`** — full rewrite for VM deployment; removed Cloud Run / Cloud SQL / Artifact Registry / Secret Manager instructions
+- **`ARCHITECTURE.md`** — updated production hosting description, monorepo layout (added `nginx/`, `scripts/`, `docker-compose.prod.yml`), and scheduled jobs section (Cloud Run Jobs → VM cron)
+- **`ENV_VARS.md`** — updated platform summary and removed GCP Secret Manager / Cloud Run env var delivery descriptions; now references GitHub Actions Secrets and `docker-compose.prod.yml`
+
+---
+
 ## [2026-04-16] — Migrate Web Frontends from Firebase Hosting to Vercel
 
 ### Frontend (web)
