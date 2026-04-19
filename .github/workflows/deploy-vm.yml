@@ -17,6 +17,8 @@ env:
   GHCR_OWNER: hussu97
   # GCP — still needed for the scraper Cloud Run Job
   REGION: europe-west1
+  AR_REGISTRY: europe-west1-docker.pkg.dev
+  AR_REPO: soulstep
   PROJECT_ID: project-fa2d7f52-2bc4-4a46-8ae
   SA_EMAIL: github-deploy@project-fa2d7f52-2bc4-4a46-8ae.iam.gserviceaccount.com
   WIF_PROVIDER: projects/834941457147/locations/global/workloadIdentityPools/github-pool/providers/github-provider
@@ -314,17 +316,41 @@ jobs:
       - name: Set up gcloud CLI
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.GHCR_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.AR_REGISTRY }} --quiet
+
+      - name: Create AR repository if missing
+        run: |
+          gcloud artifacts repositories create ${{ env.AR_REPO }} \
+            --repository-format=docker \
+            --location=${{ env.REGION }} \
+            --quiet 2>/dev/null || true
+
+      - name: Retag job image to Artifact Registry
+        run: |
+          GHCR_IMG="${{ env.GHCR_REGISTRY }}/${{ env.GHCR_OWNER }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
+          AR_IMG="${{ env.AR_REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
+          docker pull "$GHCR_IMG"
+          docker tag "$GHCR_IMG" "$AR_IMG"
+          docker push "$AR_IMG"
+          echo "AR_JOB_IMAGE=$AR_IMG" >> "$GITHUB_ENV"
+
       - name: Upsert soulstep-scraper-api-job (primary region)
         run: |
-          JOB_IMAGE="${{ env.GHCR_REGISTRY }}/${{ env.GHCR_OWNER }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
-
           _upsert() {
             gcloud run jobs update soulstep-scraper-api-job --region "${{ env.REGION }}" "$@" 2>/dev/null \
               || gcloud run jobs create soulstep-scraper-api-job --region "${{ env.REGION }}" "$@"
           }
 
           _upsert \
-            --image "$JOB_IMAGE" \
+            --image "$AR_JOB_IMAGE" \
             --memory 6Gi --cpu 4 \
             --task-timeout 86400 --max-retries 1 \
             --quiet
@@ -332,18 +358,16 @@ jobs:
       - name: Upsert scraper job in extra regions
         if: env.EXTRA_JOB_REGIONS != ''
         run: |
-          JOB_IMAGE="${{ env.GHCR_REGISTRY }}/${{ env.GHCR_OWNER }}/soulstep-scraper-api-job:${{ env.HEAD_SHA }}"
-
           for R in $(echo "${{ env.EXTRA_JOB_REGIONS }}" | tr ',' ' '); do
             [ -z "$R" ] && continue
             echo "=== Upsert scraper job in $R ==="
             gcloud run jobs update soulstep-scraper-api-job --region "$R" \
-              --image "$JOB_IMAGE" \
+              --image "$AR_JOB_IMAGE" \
               --memory 6Gi --cpu 4 \
               --task-timeout 86400 --max-retries 1 \
               --quiet 2>/dev/null \
             || gcloud run jobs create soulstep-scraper-api-job --region "$R" \
-              --image "$JOB_IMAGE" \
+              --image "$AR_JOB_IMAGE" \
               --memory 6Gi --cpu 4 \
               --task-timeout 86400 --max-retries 1 \
               --quiet
