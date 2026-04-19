@@ -100,7 +100,7 @@ them identical in content whenever a variable is added, renamed, removed, or has
 
 | Variable | Description |
 |---|---|
-| `GOOGLE_MAPS_API_KEY` | Google Maps / Places API key — used by the GMaps collector for place discovery and detail fetching. Enable "Places API (New)" at console.cloud.google.com. **Not required** when `SCRAPER_BACKEND=browser` (browser mode makes no API calls). |
+| `SCRAPER_GOOGLE_MAPS_API_KEY` | Google Maps / Places API key for the scraper. `docker-compose.prod.yml` maps this to `GOOGLE_MAPS_API_KEY` inside the container. Enable "Places API (New)" at console.cloud.google.com. **Not required** when `SCRAPER_BACKEND=browser`. |
 | `CATALOG_API_KEY` | Shared secret for catalog API internal endpoints (sent as `X-API-Key` header). Must match `CATALOG_API_KEY` on the catalog API. Required when `SCRAPER_TRIGGER_SEO_AFTER_SYNC=true` or when syncing places. Generate: `openssl rand -hex 32` |
 
 #### docker-compose.prod.yml (non-sensitive)
@@ -117,11 +117,11 @@ them identical in content whenever a variable is added, renamed, removed, or has
 
 | Variable | Default | Description |
 |---|---|---|
-| `FOURSQUARE_API_KEY` | — | Foursquare API key — enriches places with categories and popularity. Free tier at foursquare.com/developer. When unset, the Foursquare collector is skipped gracefully. |
-| `OUTSCRAPER_API_KEY` | — | Outscraper API key — retrieves extended Google reviews beyond the 5-review limit. Sign up at outscraper.com. When unset, the Outscraper collector is skipped gracefully. |
-| `BESTTIME_API_KEY` | — | BestTime.app API key — adds busyness forecasts and peak-hours data. Sign up at besttime.app. When unset, the BestTime collector is skipped gracefully. |
+| `SCRAPER_FOURSQUARE_API_KEY` | — | Foursquare API key for the scraper. Mapped to `FOURSQUARE_API_KEY` inside the container by `docker-compose.prod.yml`. Free tier at foursquare.com/developer. When unset, the Foursquare collector is skipped gracefully. |
+| `SCRAPER_OUTSCRAPER_API_KEY` | — | Outscraper API key for the scraper. Mapped to `OUTSCRAPER_API_KEY` inside the container. Retrieves extended Google reviews beyond the 5-review limit. Sign up at outscraper.com. When unset, the Outscraper collector is skipped gracefully. |
+| `SCRAPER_BESTTIME_API_KEY` | — | BestTime.app API key for the scraper. Mapped to `BESTTIME_API_KEY` inside the container. Adds busyness forecasts and peak-hours data. Sign up at besttime.app. When unset, the BestTime collector is skipped gracefully. |
 | `KNOWLEDGE_GRAPH_API_KEY` | — | Google Knowledge Graph API key — reserved for a future collector. **Not currently read by config.py** — setting this has no effect yet. |
-| `GEMINI_API_KEY` | — | Google Gemini API key — used for LLM tie-breaking when two candidate descriptions score within 0.15 of each other (~10–20% of places). Free key at aistudio.google.com. When unset, heuristic-only quality scoring is used. |
+| `SCRAPER_GEMINI_API_KEY` | — | Google Gemini API key for the scraper. Mapped to `GEMINI_API_KEY` inside the container by `docker-compose.prod.yml`. Used for LLM tie-breaking (~10–20% of places). Free key at aistudio.google.com. When unset, heuristic-only quality scoring is used. |
 | `DATABASE_URL` | — | PostgreSQL connection string for the scraper's own database. In production, assembled by `docker-compose.prod.yml` as `postgresql://POSTGRES_USER:POSTGRES_PASSWORD@postgres:5432/SCRAPER_POSTGRES_DB` (e.g. `soulstep_scraper`). When unset, falls back to `SCRAPER_DB_PATH` (SQLite — local dev only). |
 
 #### docker-compose.prod.yml (non-sensitive)
