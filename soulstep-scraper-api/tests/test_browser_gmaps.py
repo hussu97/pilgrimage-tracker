@@ -460,6 +460,7 @@ class TestCircuitBreaker:
         from app.services.browser_pool import _CircuitBreaker
 
         breaker = _CircuitBreaker(max_failures=3, pause_seconds=600.0)
+        breaker.record_success()  # prior success → normal (non-cold-start) path
         assert not breaker.is_open
 
         breaker.record_failure()
@@ -473,6 +474,7 @@ class TestCircuitBreaker:
         from app.services.browser_pool import _CircuitBreaker
 
         breaker = _CircuitBreaker(max_failures=3, pause_seconds=600.0)
+        breaker.record_success()
         breaker.record_failure()
         breaker.record_failure()
         breaker.record_failure()
@@ -487,11 +489,47 @@ class TestCircuitBreaker:
         from app.services.browser_pool import _CircuitBreaker
 
         breaker = _CircuitBreaker(max_failures=1, pause_seconds=0.01)
+        breaker.record_success()
         breaker.record_failure()
         assert breaker.is_open
 
         time.sleep(0.05)
         assert not breaker.is_open  # should auto-reset after pause_seconds
+
+    def test_cold_start_block_is_permanent(self):
+        """Breaker opening before any success has been recorded means the pool
+        has no working egress path (e.g. Google Maps bot-wall on every request).
+        Should be permanently open — caller aborts instead of looping."""
+        from app.services.browser_pool import _CircuitBreaker
+
+        breaker = _CircuitBreaker(max_failures=3, pause_seconds=600.0)
+        breaker.record_failure()
+        breaker.record_failure()
+        breaker.record_failure()
+        assert breaker.is_open
+        assert breaker.is_permanently_open
+
+    def test_reopen_limit_marks_permanent(self):
+        """After max_reopens probe failures, give up permanently instead of
+        looping through another 10-minute pause indefinitely."""
+        import time
+
+        from app.services.browser_pool import _CircuitBreaker
+
+        breaker = _CircuitBreaker(max_failures=2, pause_seconds=0.01, max_reopens=2)
+        breaker.record_success()
+        breaker.record_failure()
+        breaker.record_failure()
+        assert breaker._state == "open"
+        time.sleep(0.02)
+        assert not breaker.is_open  # half_open
+        breaker.record_failure()  # probe 1 fails → reopens
+        assert breaker._state == "open"
+        assert not breaker.is_permanently_open
+        time.sleep(0.02)
+        assert not breaker.is_open  # half_open again
+        breaker.record_failure()  # probe 2 fails → permanent
+        assert breaker.is_permanently_open
 
 
 # ── Per-type search architecture ─────────────────────────────────────────────
@@ -733,10 +771,14 @@ class TestSearchGridBrowser:
         ids = ThreadSafeIdSet()
 
         with patch("app.scrapers.gmaps_browser.get_maps_pool") as mock_pool:
+            # The grid now checks is_permanently_blocked between batches — stub it
+            # to False so the batch loop proceeds into cell processing.
+            mock_pool.return_value.is_permanently_blocked = False
             await search_grid_browser(cells, "mosque", ids, cell_store=mock_store)
 
-        # Browser pool should not have been acquired
-        mock_pool.assert_not_called()
+        # Browser pool may be referenced (for is_permanently_blocked check) but
+        # no actual session should be acquired because every cell is cached.
+        mock_pool.return_value.acquire.assert_not_called()
         # Cached names should be in dedup set
         assert "places/A" in ids
 
@@ -1265,6 +1307,7 @@ class TestCircuitBreakerHalfOpen:
         from app.services.browser_pool import _CircuitBreaker
 
         cb = _CircuitBreaker(max_failures=2, pause_seconds=0.01)
+        cb.record_success()  # avoid cold-start permanent path
         cb.record_failure()
         cb.record_failure()
         assert cb._state == "open"
@@ -1280,6 +1323,7 @@ class TestCircuitBreakerHalfOpen:
         from app.services.browser_pool import _CircuitBreaker
 
         cb = _CircuitBreaker(max_failures=2, pause_seconds=0.01)
+        cb.record_success()
         cb.record_failure()
         cb.record_failure()
         import time
@@ -1293,7 +1337,8 @@ class TestCircuitBreakerHalfOpen:
     def test_half_open_failure_reopens(self):
         from app.services.browser_pool import _CircuitBreaker
 
-        cb = _CircuitBreaker(max_failures=2, pause_seconds=0.01)
+        cb = _CircuitBreaker(max_failures=2, pause_seconds=0.01, max_reopens=3)
+        cb.record_success()
         cb.record_failure()
         cb.record_failure()
         import time
@@ -1378,6 +1423,30 @@ class TestBatchedGridProcessing:
         ):
             result = await search_grid_browser(cells, "mosque", existing_ids)
             assert isinstance(result, list)
+
+    @pytest.mark.asyncio
+    async def test_search_grid_browser_aborts_on_permanent_block(self):
+        """When the browser pool is permanently blocked (IP bot-walled), the
+        grid must abort between batches instead of burning through every
+        remaining cell with CircuitOpenError. Regression for the bug where
+        630 cells each paid a 5-12s delay + semaphore acquire before failing."""
+        from app.scrapers.gmaps_browser import search_grid_browser
+
+        cells = [(0, 1, 0, 1)] * 250  # would normally be 3 batches
+        existing_ids = _make_id_set()
+
+        cell_mock = AsyncMock(return_value=[])
+        with (
+            patch("app.scrapers.gmaps_browser._search_single_grid_cell", new=cell_mock),
+            patch("app.scrapers.gmaps_browser.get_maps_pool") as mock_pool,
+        ):
+            # Pool reports permanently blocked before the first batch runs.
+            mock_pool.return_value.is_permanently_blocked = True
+            await search_grid_browser(cells, "mosque", existing_ids)
+
+        # Zero cells attempted — aborted at the pre-batch guard, not after
+        # blasting through 250 failed navigations.
+        assert cell_mock.call_count == 0
 
 
 def _make_id_set():

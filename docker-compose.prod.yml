@@ -161,7 +161,10 @@ services:
       MAPS_BROWSER_CONCURRENCY: ${MAPS_BROWSER_CONCURRENCY:-8}
       MAPS_BROWSER_CELL_DELAY_MIN: ${MAPS_BROWSER_CELL_DELAY_MIN:-5.0}
       MAPS_BROWSER_CELL_DELAY_MAX: ${MAPS_BROWSER_CELL_DELAY_MAX:-12.0}
-      BROWSER_PROXY_LIST: ${BROWSER_PROXY_LIST:-}
+      # Default: route Cloud Run Job browser traffic through the VM's tinyproxy
+      # so Maps requests egress via the VM's clean IP (Cloud Run's shared egress
+      # pool is on Google's Maps bot-wall). Override via GitHub secret if needed.
+      BROWSER_PROXY_LIST: ${BROWSER_PROXY_LIST:-http://10.132.0.2:3128}
       BROWSER_PROXY_ROTATION: ${BROWSER_PROXY_ROTATION:-round_robin}
       BROWSER_SOCS_COOKIE: ${BROWSER_SOCS_COOKIE:-}
       MEMORY_LIMIT_MB: ${MEMORY_LIMIT_MB:-6144}

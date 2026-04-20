@@ -819,9 +819,13 @@ async def _do_grid_cell_navigation(
         await _dismiss_consent(page)
 
         if await _check_for_block(page):
+            _cur_url = page.url
+            _is_sorry = "/sorry/" in _cur_url or "sorry.google.com" in _cur_url
             logger.warning(
-                "[grid][%s] Maps blocked browser — recycling context",
+                "[grid][%s] Maps blocked browser — recycling context (sorry_wall=%s, url=%s)",
                 place_type,
+                _is_sorry,
+                _cur_url[:200],
                 extra={"center_lat": center_lat, "center_lng": center_lng},
             )
             pool.record_block()
@@ -1113,11 +1117,23 @@ async def search_grid_browser(
 
     # Process in batches to avoid creating 50K+ coroutines simultaneously
     BATCH_SIZE = 100
+    pool = get_maps_pool()
     for batch_start in range(0, len(grid_cells), BATCH_SIZE):
         if cancel_event and cancel_event.is_set():
             logger.info("[grid][%s] Cancellation requested — stopping", place_type)
             break
         if max_results and len(existing_ids) >= max_results:
+            break
+        # Abort early if the circuit breaker has permanently given up — every
+        # remaining cell would fail instantly with CircuitOpenError, wasting
+        # inter-cell delays and log volume.
+        if pool.is_permanently_blocked:
+            logger.error(
+                "[grid][%s] Browser pool permanently blocked — aborting remaining "
+                "%d cells (IP appears bot-walled). Configure BROWSER_PROXY_LIST.",
+                place_type,
+                len(grid_cells) - batch_start,
+            )
             break
         batch = grid_cells[batch_start : batch_start + BATCH_SIZE]
         results = await asyncio.gather(*[_bounded_cell(c) for c in batch], return_exceptions=True)
@@ -1374,10 +1390,39 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
         },
     )
 
+    # If discovery yielded nothing AND the browser pool permanently gave up,
+    # surface the failure clearly instead of silently marking the run
+    # "completed" with total_items=0. This is the signature of a Google Maps
+    # bot-wall on the Cloud Run egress IP.
+    pool_blocked = False
+    try:
+        pool_blocked = get_maps_pool().is_permanently_blocked
+    except Exception:
+        pass
+
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if run:
         run.total_items = len(all_resource_names)
         run.discovery_duration_s = round(discovery_elapsed, 2)
+        if pool_blocked and not all_resource_names:
+            run.status = "failed"
+            run.stage = "discovery"
+            run.error_message = (
+                "Discovery blocked: egress IP hit Google Maps bot-wall "
+                "(redirected to google.com/sorry/index on first navigation). "
+                "Configure BROWSER_PROXY_LIST to route browser traffic through "
+                "a clean IP, or check the VM tinyproxy at 10.132.0.2:3128."
+            )
+            logger.error(
+                "Run %s marked FAILED — browser pool permanently blocked, 0 places discovered",
+                run_code,
+            )
+            session.add(run)
+            session.commit()
+            # Skip detail/image/sync stages — nothing to process, and the pool
+            # is still blocked so they'd all hit the same wall.
+            session.close()
+            return
         run.stage = "detail_fetch"
         session.add(run)
         session.commit()

@@ -65,35 +65,76 @@ class AcquireTimeoutError(Exception):
 
 @dataclass
 class _CircuitBreaker:
-    """Three-state circuit breaker: closed → open → half_open → closed/open.
+    """Three-state circuit breaker with cold-start guard and reopen limit.
 
-    After the pause expires, enters half_open — allows one probe request.
-    If probe succeeds → closed. If probe fails → open for another full pause.
+    States: closed → open → half_open → closed/open/permanent.
+
+    After ``pause_seconds``, the breaker enters half_open and allows one probe.
+    Probe succeeds → closed. Probe fails → open again (counts toward reopens).
+
+    **Cold-start guard:** if the breaker opens before any success has ever been
+    recorded, the pool is treated as permanently blocked (IP-level bot wall
+    with no working path). ``is_permanently_open`` becomes True immediately so
+    the caller can abort instead of waiting 10 minutes for a probe.
+
+    **Reopen limit:** each probe failure increments ``_reopen_count``; once it
+    reaches ``max_reopens`` the breaker is permanently open. This prevents
+    indefinite 10-minute-loop wasting of Cloud Run Job minutes when the IP is
+    persistently bot-walled.
     """
 
     max_failures: int = 3
     pause_seconds: float = 600.0  # 10 minutes
+    max_reopens: int = 2
     _failures: int = field(default=0, init=False)
     _state: str = field(default="closed", init=False)  # closed | open | half_open
     _open_since: float = field(default=0.0, init=False)
+    _has_any_success: bool = field(default=False, init=False)
+    _reopen_count: int = field(default=0, init=False)
+    _permanent: bool = field(default=False, init=False)
 
     def record_success(self) -> None:
         if self._state == "half_open":
             logger.info("MapsBrowserPool: circuit breaker probe succeeded — closing")
         self._failures = 0
+        self._reopen_count = 0
         self._state = "closed"
+        self._has_any_success = True
 
     def record_failure(self) -> None:
         self._failures += 1
         if self._state == "half_open":
-            # Probe failed — reopen for another full pause
+            self._reopen_count += 1
+            if self._reopen_count >= self.max_reopens:
+                self._permanent = True
+                logger.error(
+                    "MapsBrowserPool: circuit breaker permanently open after %d probe "
+                    "failures — aborting (IP appears persistently bot-walled)",
+                    self._reopen_count,
+                )
+                return
             self._state = "open"
             self._open_since = time.monotonic()
             logger.warning(
-                "MapsBrowserPool: circuit breaker probe failed — reopening for %.0fs",
+                "MapsBrowserPool: circuit breaker probe failed (%d/%d) — reopening for %.0fs",
+                self._reopen_count,
+                self.max_reopens,
                 self.pause_seconds,
             )
         elif self._failures >= self.max_failures:
+            if not self._has_any_success:
+                # Cold-start: breaker is opening with zero successes ever. The
+                # pool has no working egress path — don't wait 10 minutes for a
+                # probe that will also fail.
+                self._permanent = True
+                self._state = "open"
+                self._open_since = time.monotonic()
+                logger.error(
+                    "MapsBrowserPool: circuit breaker opened after %d failures with "
+                    "zero successes — marking permanently open (cold-start IP block)",
+                    self._failures,
+                )
+                return
             self._state = "open"
             self._open_since = time.monotonic()
             logger.warning(
@@ -105,6 +146,8 @@ class _CircuitBreaker:
 
     @property
     def is_open(self) -> bool:
+        if self._permanent:
+            return True
         if self._state == "open":
             elapsed = time.monotonic() - self._open_since
             if elapsed >= self.pause_seconds:
@@ -123,6 +166,15 @@ class _CircuitBreaker:
     @property
     def open_since(self) -> float:
         return self._open_since
+
+    @property
+    def is_permanently_open(self) -> bool:
+        """True once the breaker has given up — cold-start block or max reopens.
+
+        Callers should abort the run (and surface an error) instead of
+        continuing to navigate cells that will all fail with CircuitOpenError.
+        """
+        return self._permanent
 
 
 @dataclass
@@ -586,6 +638,13 @@ class MapsBrowserPool:
             logger.info("MapsBrowserPool: circuit breaker reset between type passes")
         self._breaker._state = "closed"
         self._breaker._failures = 0
+
+    @property
+    def is_permanently_blocked(self) -> bool:
+        """True when the circuit breaker has permanently given up (cold-start
+        block or max reopens exceeded). Grid loops should check this between
+        batches and abort the pass."""
+        return self._breaker.is_permanently_open
 
     async def shutdown(self) -> None:
         async with self._lock:

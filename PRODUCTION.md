@@ -248,6 +248,53 @@ gcloud run jobs execute soulstep-scraper-api-job \
   --project=project-fa2d7f52-2bc4-4a46-8ae
 ```
 
+### Egress path for Google Maps requests
+
+Cloud Run's default egress IP pool is on Google Maps' bot-wall (every request redirects to `google.com/sorry/index`). To work around this without paid proxies, the scraper routes browser traffic through **tinyproxy on the VM**:
+
+- **Proxy address:** `http://10.132.0.2:3128` (VM internal VPC IP).
+- **Route:** Cloud Run Job → Direct VPC Egress (`private-ranges-only`) → VM tinyproxy → VM external IP `34.76.105.103` → Google Maps.
+- **Wiring:** `docker-compose.prod.yml` defaults `BROWSER_PROXY_LIST` to `http://10.132.0.2:3128`. The scraper's `job_env_vars()` forwards the value to every Cloud Run Job execution. Playwright's `ProxyRotator` in `soulstep-scraper-api/app/services/browser_pool.py` passes it into every browser context's `proxy=` config.
+- **Override:** set GitHub secret `BROWSER_PROXY_LIST=http://user:pass@host:port[,...]` to use external proxies instead.
+
+**Tinyproxy install on the VM** (one-time; idempotent):
+
+```bash
+sudo apt-get update -qq && sudo apt-get install -y tinyproxy
+sudo tee /etc/tinyproxy/tinyproxy.conf > /dev/null <<'EOF'
+User tinyproxy
+Group tinyproxy
+Port 3128
+Listen 10.132.0.2
+Timeout 600
+DefaultErrorFile "/usr/share/tinyproxy/default.html"
+StatFile "/usr/share/tinyproxy/stats.html"
+LogFile "/var/log/tinyproxy/tinyproxy.log"
+LogLevel Info
+PidFile "/run/tinyproxy/tinyproxy.pid"
+MaxClients 100
+Allow 10.128.0.0/9
+Allow 127.0.0.1
+ConnectPort 443
+ConnectPort 563
+DisableViaHeader Yes
+EOF
+sudo systemctl restart tinyproxy
+```
+
+The existing `default-allow-internal` firewall rule (source `10.128.0.0/9`) already permits Cloud Run Jobs in all three regions to reach the VM's internal IP — no new firewall rule needed.
+
+**Verify the proxy is working** (from the VM):
+
+```bash
+curl -sL --proxy http://10.132.0.2:3128 -o /dev/null \
+  -w "http=%{http_code} final=%{url_effective}\n" \
+  https://www.google.com/maps/search/mosque/@25.55,55.90,15z?hl=en
+# Expect: http=200 final=…/maps/search/… (NOT /sorry/index)
+```
+
+**Failure mode** (if tinyproxy dies or the VM's IP also gets flagged): the hardened circuit breaker in `browser_pool.py::_CircuitBreaker` detects the pattern — 3 cold-start block events → `_permanent=True` → grid pass aborts immediately → run marked `status=failed` with `error_message` pointing to `BROWSER_PROXY_LIST`. No more silent 10-minute-wasting runs.
+
 ---
 
 ## 10. Multi-Region Scraper Dispatch

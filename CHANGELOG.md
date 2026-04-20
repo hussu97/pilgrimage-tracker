@@ -4,6 +4,26 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-20] — Scraper discovery fix: VM tinyproxy egress + circuit-breaker fail-fast
+
+### Infra
+- **VM tinyproxy at `10.132.0.2:3128`** — installed tinyproxy on `soulstep-vm` and bound it to the internal VPC IP. Cloud Run Jobs now route Google Maps browser traffic through the VM's clean external IP (`34.76.105.103`) instead of Cloud Run's shared egress pool (which is on Google's bot-wall — every request was redirecting to `google.com/sorry/index` and killing discovery). Verified: same Maps URL that returned `/sorry/` from Cloud Run now returns HTTP 200 + 220KB of Place schema markup through the proxy. Setup documented in `PRODUCTION.md §9`.
+- **`docker-compose.prod.yml`** — default `BROWSER_PROXY_LIST` to `http://10.132.0.2:3128`. The scraper's `job_env_vars()` already forwards this to Cloud Run Jobs, and the existing `ProxyRotator` passes it into every Playwright browser context. Override via GitHub secret `BROWSER_PROXY_LIST` if you want to add/replace proxies.
+
+### Backend
+- **`soulstep-scraper-api/app/services/browser_pool.py::_CircuitBreaker`** — hardened with two new terminal-state conditions to stop wasting Cloud Run Job minutes when the egress IP is bot-walled:
+  - **Cold-start guard:** if the breaker opens before any `record_success()` has ever been called (`_has_any_success=False`), it flips straight to `_permanent=True`. Signals "pool has no working egress path", caller should abort.
+  - **Reopen limit:** after `max_reopens=2` probe failures in half-open state, the breaker is permanently open (no more 10-minute pause loops).
+  - New public `MapsBrowserPool.is_permanently_blocked` accessor so the grid loop can check without poking at private state.
+- **`soulstep-scraper-api/app/scrapers/gmaps_browser.py::search_grid_browser`** — checks `pool.is_permanently_blocked` between every 100-cell batch and breaks the loop early instead of burning 5–12s of inter-cell delay × hundreds of cells that all fail instantly with `CircuitOpenError`. Previously a blocked run wasted ~3.5 minutes per 630-cell boundary silently.
+- **`soulstep-scraper-api/app/scrapers/gmaps_browser.py::_do_grid_cell_navigation`** — the "Maps blocked browser" warning now includes `sorry_wall=True/False` and the first 200 chars of the current URL, so `/sorry/`-redirect blocks are visible at a glance in logs (no more hunting for the earlier "Page loaded" line).
+- **`soulstep-scraper-api/app/scrapers/gmaps_browser.py::run_gmaps_browser_scraper`** — when discovery yields zero items AND the pool is permanently blocked, the run is marked `status=failed` with an explicit `error_message` pointing to `BROWSER_PROXY_LIST` and the tinyproxy at `10.132.0.2:3128`. Previously these runs silently set `status=completed, total_items=0` with no signal to the admin UI or operator.
+
+### Tests
+- **`soulstep-scraper-api/tests/test_browser_gmaps.py`** — 3 new tests (`test_cold_start_block_is_permanent`, `test_reopen_limit_marks_permanent`, `test_search_grid_browser_aborts_on_permanent_block`) + updated existing breaker tests to seed a `record_success()` before exercising non-cold-start paths. 88 browser tests pass (was 85). Full suite: 824 pass.
+
+---
+
 ## [2026-04-20] — Full env-var audit: every backend tunable now flows from GitHub secrets
 
 ### CI/CD
