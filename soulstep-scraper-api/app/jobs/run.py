@@ -69,9 +69,29 @@ def main() -> None:
 
         asyncio.run(_run_and_cleanup(resume_scraper_task(run_code)))
     else:
-        from app.db.scraper import run_scraper_task
+        # Cloud Run auto-retries always pass action=run. Auto-promote to resume
+        # if the run already has a persisted stage (i.e. it was previously interrupted).
+        from sqlmodel import Session, select
 
-        asyncio.run(_run_and_cleanup(run_scraper_task(run_code)))
+        from app.db.models import ScraperRun
+        from app.db.session import engine
+
+        with Session(engine) as _s:
+            _run = _s.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+            _existing_stage = _run.stage if _run else None
+
+        if _existing_stage:
+            logger.info(
+                "Cloud Run Job: detected interrupted run at stage=%s — auto-resuming",
+                _existing_stage,
+            )
+            from app.db.scraper import resume_scraper_task
+
+            asyncio.run(_run_and_cleanup(resume_scraper_task(run_code)))
+        else:
+            from app.db.scraper import run_scraper_task
+
+            asyncio.run(_run_and_cleanup(run_scraper_task(run_code)))
 
     logger.info("Cloud Run Job finished: run_code=%s action=%s", run_code, action)
 
