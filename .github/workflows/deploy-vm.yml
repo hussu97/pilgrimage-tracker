@@ -206,37 +206,100 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o ConnectTimeout=30 \
             "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" \
             "grep -v '=$' > /opt/soulstep/.env" <<'ENVEOF'
+          # ── Nginx / TLS ────────────────────────────────────────────────────────
           USE_SSL=${{ secrets.USE_SSL }}
+          # ── Postgres ───────────────────────────────────────────────────────────
           POSTGRES_USER=${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB=${{ secrets.POSTGRES_DB }}
           SCRAPER_POSTGRES_DB=${{ secrets.SCRAPER_POSTGRES_DB }}
+          # ── Catalog-api: auth / tokens ─────────────────────────────────────────
           JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_EXPIRE=${{ secrets.JWT_EXPIRE }}
+          REFRESH_EXPIRE=${{ secrets.REFRESH_EXPIRE }}
+          ENFORCE_HTTPS=${{ secrets.ENFORCE_HTTPS }}
+          # ── Catalog-api: internal keys & integrations ─────────────────────────
           CATALOG_API_KEY=${{ secrets.CATALOG_API_KEY }}
           GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
           RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_EMAIL=${{ secrets.RESEND_FROM_EMAIL }}
+          # ── Catalog-api: URLs / CORS ──────────────────────────────────────────
           CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
           FRONTEND_URL=${{ secrets.FRONTEND_URL }}
           RESET_URL_BASE=${{ secrets.RESET_URL_BASE }}
+          VERIFY_URL_BASE=${{ secrets.VERIFY_URL_BASE }}
+          # ── Catalog-api: app versioning & store links ─────────────────────────
+          MIN_APP_VERSION_SOFT=${{ secrets.MIN_APP_VERSION_SOFT }}
+          MIN_APP_VERSION_HARD=${{ secrets.MIN_APP_VERSION_HARD }}
+          LATEST_APP_VERSION=${{ secrets.LATEST_APP_VERSION }}
+          APP_STORE_URL_IOS=${{ secrets.APP_STORE_URL_IOS }}
+          APP_STORE_URL_ANDROID=${{ secrets.APP_STORE_URL_ANDROID }}
+          # ── Catalog-api: ads ──────────────────────────────────────────────────
+          ADS_ENABLED=${{ secrets.ADS_ENABLED }}
+          ADSENSE_PUBLISHER_ID=${{ secrets.ADSENSE_PUBLISHER_ID }}
+          ADMOB_APP_ID_IOS=${{ secrets.ADMOB_APP_ID_IOS }}
+          ADMOB_APP_ID_ANDROID=${{ secrets.ADMOB_APP_ID_ANDROID }}
+          # ── Catalog-api: image storage ────────────────────────────────────────
+          IMAGE_STORAGE=${{ secrets.IMAGE_STORAGE }}
+          # ── Catalog-api: browser-translation pool ─────────────────────────────
+          BROWSER_POOL_SIZE=${{ secrets.BROWSER_POOL_SIZE }}
+          BROWSER_MAX_TRANSLATIONS=${{ secrets.BROWSER_MAX_TRANSLATIONS }}
+          BROWSER_HEADLESS=${{ secrets.BROWSER_HEADLESS }}
+          # ── Shared: GCP / observability ───────────────────────────────────────
           GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }}
           GOOGLE_CLOUD_PROJECT=${{ secrets.GOOGLE_CLOUD_PROJECT }}
           SENTRY_DSN=${{ secrets.SENTRY_DSN }}
-          ADS_ENABLED=${{ secrets.ADS_ENABLED }}
-          ADSENSE_PUBLISHER_ID=${{ secrets.ADSENSE_PUBLISHER_ID }}
+          LOG_LEVEL=${{ secrets.LOG_LEVEL }}
+          BACKUP_GCS_BUCKET=${{ secrets.BACKUP_GCS_BUCKET }}
+          # ── Scraper-api: API keys ─────────────────────────────────────────────
           SCRAPER_GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
           SCRAPER_GEMINI_API_KEY=${{ secrets.SCRAPER_GEMINI_API_KEY }}
           SCRAPER_FOURSQUARE_API_KEY=${{ secrets.SCRAPER_FOURSQUARE_API_KEY }}
           SCRAPER_OUTSCRAPER_API_KEY=${{ secrets.SCRAPER_OUTSCRAPER_API_KEY }}
           SCRAPER_BESTTIME_API_KEY=${{ secrets.SCRAPER_BESTTIME_API_KEY }}
+          # ── Scraper-api: server config ────────────────────────────────────────
           SCRAPER_ALLOWED_ORIGINS=${{ secrets.SCRAPER_ALLOWED_ORIGINS }}
           SCRAPER_TIMEZONE=${{ secrets.SCRAPER_TIMEZONE }}
           SCRAPER_BACKEND=${{ secrets.SCRAPER_BACKEND }}
+          SCRAPER_DB_PATH=${{ secrets.SCRAPER_DB_PATH }}
+          # ── Scraper-api: DB pool ──────────────────────────────────────────────
+          SCRAPER_POOL_SIZE=${{ secrets.SCRAPER_POOL_SIZE }}
+          SCRAPER_MAX_OVERFLOW=${{ secrets.SCRAPER_MAX_OVERFLOW }}
+          SCRAPER_POOL_TIMEOUT=${{ secrets.SCRAPER_POOL_TIMEOUT }}
+          # ── Scraper-api: concurrency / throughput ─────────────────────────────
+          SCRAPER_DISCOVERY_CONCURRENCY=${{ secrets.SCRAPER_DISCOVERY_CONCURRENCY }}
+          SCRAPER_DETAIL_CONCURRENCY=${{ secrets.SCRAPER_DETAIL_CONCURRENCY }}
+          SCRAPER_ENRICHMENT_CONCURRENCY=${{ secrets.SCRAPER_ENRICHMENT_CONCURRENCY }}
+          SCRAPER_OVERPASS_CONCURRENCY=${{ secrets.SCRAPER_OVERPASS_CONCURRENCY }}
+          SCRAPER_OVERPASS_JITTER_MAX=${{ secrets.SCRAPER_OVERPASS_JITTER_MAX }}
+          SCRAPER_IMAGE_CONCURRENCY=${{ secrets.SCRAPER_IMAGE_CONCURRENCY }}
+          # ── Scraper-api: per-place budgets ────────────────────────────────────
+          SCRAPER_MAX_PHOTOS=${{ secrets.SCRAPER_MAX_PHOTOS }}
+          SCRAPER_MAX_REVIEWS=${{ secrets.SCRAPER_MAX_REVIEWS }}
+          SCRAPER_MAX_REVIEW_IMAGES=${{ secrets.SCRAPER_MAX_REVIEW_IMAGES }}
+          # ── Scraper-api: quality gates ────────────────────────────────────────
+          SCRAPER_GATE_IMAGE_DOWNLOAD=${{ secrets.SCRAPER_GATE_IMAGE_DOWNLOAD }}
+          SCRAPER_GATE_ENRICHMENT=${{ secrets.SCRAPER_GATE_ENRICHMENT }}
+          SCRAPER_GATE_SYNC=${{ secrets.SCRAPER_GATE_SYNC }}
+          # ── Scraper-api: post-run automation ──────────────────────────────────
           SCRAPER_AUTO_SYNC_AFTER_RUN=${{ secrets.SCRAPER_AUTO_SYNC_AFTER_RUN }}
           SCRAPER_TRIGGER_SEO_AFTER_SYNC=${{ secrets.SCRAPER_TRIGGER_SEO_AFTER_SYNC }}
-          CLOUD_RUN_REGIONS=europe-west1:3,europe-west4:5,europe-west2:5
-          BACKUP_GCS_BUCKET=${{ secrets.BACKUP_GCS_BUCKET }}
-          LOG_LEVEL=${{ secrets.LOG_LEVEL }}
+          # ── Scraper-api: Cloud Run dispatch (regions comma-list) ──────────────
+          CLOUD_RUN_REGIONS=${{ secrets.CLOUD_RUN_REGIONS }}
+          # ── Scraper-api: browser grid / Playwright pool ───────────────────────
+          BROWSER_GRID_CELL_SIZE_KM=${{ secrets.BROWSER_GRID_CELL_SIZE_KM }}
+          MAPS_BROWSER_POOL_SIZE=${{ secrets.MAPS_BROWSER_POOL_SIZE }}
+          MAPS_BROWSER_MAX_PAGES=${{ secrets.MAPS_BROWSER_MAX_PAGES }}
+          MAPS_BROWSER_HEADLESS=${{ secrets.MAPS_BROWSER_HEADLESS }}
+          MAPS_BROWSER_CONCURRENCY=${{ secrets.MAPS_BROWSER_CONCURRENCY }}
+          MAPS_BROWSER_CELL_DELAY_MIN=${{ secrets.MAPS_BROWSER_CELL_DELAY_MIN }}
+          MAPS_BROWSER_CELL_DELAY_MAX=${{ secrets.MAPS_BROWSER_CELL_DELAY_MAX }}
+          BROWSER_PROXY_LIST=${{ secrets.BROWSER_PROXY_LIST }}
+          BROWSER_PROXY_ROTATION=${{ secrets.BROWSER_PROXY_ROTATION }}
+          BROWSER_SOCS_COOKIE=${{ secrets.BROWSER_SOCS_COOKIE }}
+          MEMORY_LIMIT_MB=${{ secrets.MEMORY_LIMIT_MB }}
+          # ── Scraper-api: Wikipedia enrichment ─────────────────────────────────
+          WIKIPEDIA_MAX_DISTANCE_KM=${{ secrets.WIKIPEDIA_MAX_DISTANCE_KM }}
           ENVEOF
 
       - name: Deploy on VM

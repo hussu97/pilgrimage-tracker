@@ -4,6 +4,19 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-20] — Full env-var audit: every backend tunable now flows from GitHub secrets
+
+### CI/CD
+- **`.github/workflows/deploy-vm.yml`** — audited every `os.environ.get(...)` call across `soulstep-catalog-api` and `soulstep-scraper-api` and added a `KEY=${{ secrets.KEY }}` row to the `/opt/soulstep/.env` heredoc for each one. Previously, vars like `BROWSER_GRID_CELL_SIZE_KM` (set by the user to `2.0` via GitHub secrets) silently reverted to the hardcoded Python default (`3.0`) because the heredoc never wrote them. The existing `grep -v '=$'` filter means empty secrets are skipped (no blank lines in `.env`), preserving compose/Python defaults. Also converted `CLOUD_RUN_REGIONS` from a hardcoded literal to a secret.
+- Catalog-api vars newly exposed: `JWT_EXPIRE`, `REFRESH_EXPIRE`, `ENFORCE_HTTPS`, `VERIFY_URL_BASE`, `MIN_APP_VERSION_SOFT/HARD`, `LATEST_APP_VERSION`, `APP_STORE_URL_IOS/ANDROID`, `ADMOB_APP_ID_IOS/ANDROID`, `IMAGE_STORAGE`, `BROWSER_POOL_SIZE`, `BROWSER_MAX_TRANSLATIONS`, `BROWSER_HEADLESS`.
+- Scraper-api vars newly exposed: `SCRAPER_DB_PATH`, `SCRAPER_POOL_SIZE`, `SCRAPER_MAX_OVERFLOW`, `SCRAPER_POOL_TIMEOUT`, `SCRAPER_DISCOVERY_CONCURRENCY`, `SCRAPER_DETAIL_CONCURRENCY`, `SCRAPER_ENRICHMENT_CONCURRENCY`, `SCRAPER_OVERPASS_CONCURRENCY`, `SCRAPER_OVERPASS_JITTER_MAX`, `SCRAPER_IMAGE_CONCURRENCY`, `SCRAPER_MAX_PHOTOS`, `SCRAPER_MAX_REVIEWS`, `SCRAPER_MAX_REVIEW_IMAGES`, `SCRAPER_GATE_IMAGE_DOWNLOAD`, `SCRAPER_GATE_ENRICHMENT`, `SCRAPER_GATE_SYNC`, `BROWSER_GRID_CELL_SIZE_KM`, `MAPS_BROWSER_POOL_SIZE`, `MAPS_BROWSER_MAX_PAGES`, `MAPS_BROWSER_HEADLESS`, `MAPS_BROWSER_CONCURRENCY`, `MAPS_BROWSER_CELL_DELAY_MIN/MAX`, `BROWSER_PROXY_LIST`, `BROWSER_PROXY_ROTATION`, `BROWSER_SOCS_COOKIE`, `MEMORY_LIMIT_MB`, `WIKIPEDIA_MAX_DISTANCE_KM`.
+
+### Backend
+- **`docker-compose.prod.yml`** — forward every new env var from the VM host's `/opt/soulstep/.env` into the correct container's `environment:` block. Each key uses `${KEY:-<pythonDefault>}` so an unset secret falls back to the same value the Python code would otherwise default to (no accidental empty-string overrides that would break `float("")` / `int("")` coercion). Reorganized the scraper-api block into grouped sections (API keys, DB pool, concurrency, per-place budgets, quality gates, Cloud Run dispatch, browser grid, Wikipedia).
+- **`soulstep-scraper-api/app/config.py::Settings.job_env_vars`** — added `BROWSER_SOCS_COOKIE`, `MEMORY_LIMIT_MB`, `WIKIPEDIA_MAX_DISTANCE_KM` pass-throughs so the Cloud Run Job receives them alongside the other tuning vars (the outer `{k: v for k, v in raw.items() if v}` filter still drops them when unset, so empty values don't clobber Job-level secrets).
+
+---
+
 ## [2026-04-20] — Homepage ratings regression fix (popular_places showed 0.0)
 
 ### Backend

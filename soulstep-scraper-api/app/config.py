@@ -253,6 +253,10 @@ class Settings:
             "MAPS_BROWSER_CELL_DELAY_MAX": str(self.maps_browser_cell_delay_max),
             "BROWSER_PROXY_LIST": self.browser_proxy_list,
             "BROWSER_PROXY_ROTATION": self.browser_proxy_rotation,
+            # Pass-throughs (no typed setting — read directly in worker code)
+            "BROWSER_SOCS_COOKIE": os.environ.get("BROWSER_SOCS_COOKIE", ""),
+            "MEMORY_LIMIT_MB": os.environ.get("MEMORY_LIMIT_MB", ""),
+            "WIKIPEDIA_MAX_DISTANCE_KM": os.environ.get("WIKIPEDIA_MAX_DISTANCE_KM", ""),
             # ── Post-sync ─────────────────────────────────────────────────────
             "SCRAPER_AUTO_SYNC_AFTER_RUN": str(self.auto_sync_after_run).lower(),
             "SCRAPER_TRIGGER_SEO_AFTER_SYNC": str(self.trigger_seo_after_sync).lower(),
