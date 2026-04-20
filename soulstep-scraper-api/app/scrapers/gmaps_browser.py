@@ -1461,6 +1461,35 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
             run.detail_fetch_duration_s = round(detail_elapsed, 2)
             detail_session.add(run)
             detail_session.commit()
+
+        # Fail fast if the pool was permanently blocked during detail fetch (consent wall
+        # or bot-wall). Continuing to image download / sync would produce zero results.
+        try:
+            _detail_pool_blocked = get_maps_pool().is_permanently_blocked
+        except Exception:
+            _detail_pool_blocked = False
+        if _detail_pool_blocked:
+            _blocked_run = detail_session.exec(
+                select(ScraperRun).where(ScraperRun.run_code == run_code)
+            ).first()
+            if _blocked_run and _blocked_run.processed_items == 0:
+                _blocked_run.status = "failed"
+                _blocked_run.stage = "detail_fetch"
+                _blocked_run.error_message = (
+                    "Detail fetch blocked: EU consent wall (SOCS cookies ineffective) "
+                    "or Maps bot-wall on detail egress IP. "
+                    "Configure BROWSER_PROXY_LIST to route via a clean IP, "
+                    "or check VM tinyproxy at 10.132.0.2:3128."
+                )
+                detail_session.add(_blocked_run)
+                detail_session.commit()
+                logger.error(
+                    "Run %s marked FAILED — pool permanently blocked during detail fetch "
+                    "(0 places processed)",
+                    run_code,
+                )
+                return
+
     logger.info(
         "Detail fetch completed in %.1fs",
         detail_elapsed,

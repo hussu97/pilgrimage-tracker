@@ -353,6 +353,22 @@ class BrowserGmapsCollector(BaseCollector):
 
                 if "consent.google.com" in page.url:
                     await _dismiss_consent(page)
+                    # Verify consent was actually dismissed. If still on consent.google.com,
+                    # the SOCS cookies failed and the markup didn't match any selector.
+                    # Record as a block so the circuit breaker trips and fails the run early
+                    # rather than grinding through 2000+ places at 4 min each.
+                    if "consent.google.com" in page.url:
+                        logger.warning(
+                            "EU consent wall persists for %s (attempt %d/%d) — recording block",
+                            place_id,
+                            attempt + 1,
+                            _MAX_NAV_RETRIES,
+                        )
+                        pool.record_block()
+                        recycle = True
+                        raise BlockedError(
+                            f"EU consent wall: SOCS cookies ineffective for {place_id}"
+                        )
 
                 # Check for blocks
                 from app.scrapers.gmaps_browser import _check_for_block
