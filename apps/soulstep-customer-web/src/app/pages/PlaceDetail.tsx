@@ -277,7 +277,9 @@ export default function PlaceDetail() {
   const seoTitle = place?.seo_title || place?.name || '';
   const seoDescription = place?.seo_meta_description || place?.description?.slice(0, 160) || '';
   const canonicalUrl = place
-    ? `https://www.soul-step.org/places/${placeCode}/${place.seo_slug || ''}`
+    ? place.seo_slug
+      ? `https://www.soul-step.org/places/${placeCode}/${place.seo_slug}`
+      : `https://www.soul-step.org/places/${placeCode}`
     : '';
   const ogImage = place?.seo_og_image_url || (heroImages[0] ?? '');
 

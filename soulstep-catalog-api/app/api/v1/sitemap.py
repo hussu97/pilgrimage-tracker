@@ -116,8 +116,8 @@ def _place_url(place_code: str, slug: str | None) -> str:
 
 
 def _lang_place_url(lang: str, place_code: str, slug: str | None) -> str:
-    if slug:
-        return f"{FRONTEND_URL}/share/{lang}/places/{place_code}/{slug}"
+    # The /{lang}/places/{place_code} route does not accept a slug segment,
+    # so always use the code-only form for hreflang alternates.
     return f"{FRONTEND_URL}/share/{lang}/places/{place_code}"
 
 

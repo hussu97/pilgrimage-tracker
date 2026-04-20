@@ -71,12 +71,10 @@ def build_place_meta_tags(
     if og_image:
         lines.append(f'  <meta name="twitter:image" content="{_html.escape(og_image)}" />')
 
-    # hreflang alternates — each lang gets its own language-specific pre-render URL
+    # hreflang alternates — each lang gets its own language-specific pre-render URL.
+    # The /{lang}/places/{place_code} route does not accept a slug segment.
     for alt_lang in _SUPPORTED_LANGS:
-        if slug:
-            alt_url = f"{_FRONTEND_URL}/share/{alt_lang}/places/{place_code}/{slug}"
-        else:
-            alt_url = f"{_FRONTEND_URL}/share/{alt_lang}/places/{place_code}"
+        alt_url = f"{_FRONTEND_URL}/share/{alt_lang}/places/{place_code}"
         lines.append(
             f'  <link rel="alternate" hreflang="{alt_lang}" href="{_html.escape(alt_url)}" />'
         )
