@@ -4,6 +4,15 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-20] — Scraper: robuster Google Maps results-panel wait + richer block detection
+
+### Backend
+- **`soulstep-scraper-api/app/scrapers/gmaps_browser.py::_do_grid_cell_navigation`** and **`search_area_browser`** — the wait selector used to gate link extraction (`[role="feed"], .m6QErb, [aria-label*="Results"]`) now also accepts `a[href*="/maps/place/"]` (the actual data) and `[aria-label*="No results"]` (legitimate empty-area state). Timeout bumped 15s → 20s to absorb SPA hydration variance under load. On timeout the warning now logs `title`, `url`, feed presence, place-link count and a 300-char body snippet so failures are diagnosable instead of opaque.
+- **`_check_for_block`** — now flags `sorry.google.com` / `/sorry/` redirects (Google's modern bot wall) via URL check, plus three additional message-body indicators (`"before you continue to google"`, `"to continue, please type the characters"`, `"we've detected unusual activity"`). The old set missed the current Sorry-page wording, causing the scraper to treat blocks as legitimate empty pages and quietly drain grid cells (root cause of the repeated `Results panel not found` warnings observed on 2026-04-19).
+- Verified against the failing coordinate (23.9932, 53.6981) with a Playwright probe matching production config (SOCS/CONSENT cookies pre-set, stylesheets blocked, `domcontentloaded` goto): new selector matches within 20s on normal results pages. `tests/test_browser_gmaps.py` — 85 existing tests still pass.
+
+---
+
 ## [2026-04-20] — `/api/v1/places` list perf: projection-only facet pass + paginated hydrate
 
 ### Backend
