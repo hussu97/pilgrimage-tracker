@@ -19,7 +19,6 @@ import random as _random
 import sys
 import time
 from dataclasses import dataclass, field
-from datetime import UTC
 
 from app.services.browser_stealth import (
     apply_stealth,
@@ -384,15 +383,11 @@ class MapsBrowserPool:
         # Configurable via env var; falls back to a date-based default.
         socs_value = os.environ.get("BROWSER_SOCS_COOKIE", "")
         if not socs_value:
-            # Generate a fresh-ish SOCS value based on current date
-            import base64
-            from datetime import datetime, timezone
-
-            now = datetime.now(UTC)
-            date_str = now.strftime("%Y%m%d")
-            socs_value = base64.b64encode(
-                f"CAISHAgBEhJnd3Nfe2RhdGV9XzBfUkMyGgJlbiABGgYIgPy8mgY={date_str}".encode()
-            ).decode()
+            # Static protobuf-encoded "accept all" SOCS cookie for google.com.
+            # Prevents EU consent-wall redirects on fresh browser sessions.
+            # If Google starts rejecting this value, set BROWSER_SOCS_COOKIE env var
+            # to a freshly captured SOCS cookie from a real browser on consent.google.com.
+            socs_value = "CAISNAgBEhJnd3NfMjAyNDAxMDFfMF9SQzIaAmVuIAEaBgjK3biEBg=="
 
         await context.add_cookies(
             [
@@ -404,7 +399,7 @@ class MapsBrowserPool:
                 },
                 {
                     "name": "CONSENT",
-                    "value": "PENDING+987",
+                    "value": "YES+cb.en+20150629-17-0",
                     "domain": ".google.com",
                     "path": "/",
                 },

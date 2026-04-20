@@ -230,61 +230,92 @@ async def _dismiss_consent(page) -> None:
     """Dismiss cookie consent — handles both full-page redirect and in-page banners.
 
     Google serves a full-page redirect to consent.google.com for EU data-centres
-    (e.g. europe-west1). The browser_pool sets SOCS/CONSENT cookies to prevent
+    (e.g. europe-west1). The browser_pool pre-sets SOCS/CONSENT cookies to prevent
     this, but if the redirect still happens this function clicks through it.
+
+    Strategy: JS form-submit first (markup-agnostic), then button-click fallback.
+    On consent.google.com/m the "reject all" form has a hidden input[name='set_eom'];
+    the "accept all" form does not. Both choices dismiss the wall and redirect back
+    to Maps — we don't care which one wins.
     """
     try:
         current_url = page.url
-        # Full-page redirect to consent.google.com (EU GDPR wall)
-        if "consent.google.com" in current_url:
-            logger.info("Consent redirect detected: %s — clicking through", current_url)
-            # The consent page has "Accept all" / "Reject all" buttons.
-            # Try multiple selectors — Google changes markup frequently.
+        if "consent.google.com" not in current_url:
+            # In-page consent banner (overlay on Maps itself)
             for selector in [
                 "button[aria-label*='Accept all']",
                 "button[aria-label*='Reject all']",
-                # Mobile consent page uses form submissions
-                "form[action*='consent'] button",
-                "form:has(input[name='set_eom']) button",
-                # Generic: second form's submit button (Accept) on consent.google.com/m
-                "form:nth-of-type(2) button[type='submit']",
-                "form:nth-of-type(2) button",
-                # Last resort — any visible button on the page
-                "button",
+                "#L2AGLb",
+                "form:nth-child(2) button",
             ]:
+                btn = await page.query_selector(selector)
+                if btn:
+                    await btn.click()
+                    await asyncio.sleep(random.uniform(0.5, 1.5))
+                    break
+            return
+
+        logger.info("Consent redirect detected: %s — clicking through", current_url)
+
+        # Wait for the consent page DOM to be ready
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=8000)
+        except Exception:
+            pass
+
+        # Primary: direct JS form submission — more reliable than button clicks because
+        # it bypasses any click handlers or overlays. Submit the accept-all form first
+        # (identified by the absence of set_eom hidden input); fall back to any form.
+        try:
+            submitted = await page.evaluate("""
+                () => {
+                    const forms = Array.from(document.querySelectorAll('form'));
+                    const accept = forms.find(f => !f.querySelector('input[name="set_eom"]'));
+                    const target = accept || forms[forms.length - 1] || forms[0];
+                    if (target) { target.submit(); return true; }
+                    return false;
+                }
+            """)
+            if submitted:
+                try:
+                    await page.wait_for_url("**/google.com/maps/**", timeout=10000)
+                except Exception:
+                    pass
+                if "consent.google.com" not in page.url:
+                    logger.info("Consent dismissed via JS form submit — now on: %s", page.url)
+                    await asyncio.sleep(random.uniform(0.5, 1.0))
+                    return
+        except Exception:
+            pass
+
+        # Button-click fallback — Google changes markup; ordered by specificity
+        for selector in [
+            "button[jsname='V67aGc']",  # Accept all (consent.google.com/m current)
+            "button[jsname='higCR']",  # Accept all (variant)
+            "button[aria-label='Accept all']",
+            "button[aria-label='Reject all']",
+            "form:nth-of-type(2) button[type='submit']",
+            "form:nth-of-type(2) button",
+            "form:nth-child(2) button",
+            "button[type='submit']",
+            "button",
+        ]:
+            try:
                 btn = await page.query_selector(selector)
                 if btn and await btn.is_visible():
                     await btn.click()
-                    # Wait for navigation back to Maps
                     try:
-                        await page.wait_for_url("**/google.com/maps/**", timeout=10000)
+                        await page.wait_for_url("**/google.com/maps/**", timeout=8000)
                     except Exception:
                         pass
-                    logger.info("Consent dismissed — now on: %s", page.url)
-                    await asyncio.sleep(random.uniform(0.5, 1.5))
-                    return
-
-            # If no button found, try submitting the first form directly
-            logger.warning("No consent button found — attempting form submit")
-            try:
-                await page.evaluate("document.querySelector('form')?.submit()")
-                await page.wait_for_url("**/google.com/maps/**", timeout=10000)
+                    if "consent.google.com" not in page.url:
+                        logger.info("Consent dismissed via %s — now on: %s", selector, page.url)
+                        await asyncio.sleep(random.uniform(0.5, 1.0))
+                        return
             except Exception:
-                pass
-            return
+                continue
 
-        # In-page consent banner (overlay on Maps itself)
-        for selector in [
-            "button[aria-label*='Accept all']",
-            "button[aria-label*='Reject all']",
-            "#L2AGLb",
-            "form:nth-child(2) button",
-        ]:
-            btn = await page.query_selector(selector)
-            if btn:
-                await btn.click()
-                await asyncio.sleep(random.uniform(0.5, 1.5))
-                break
+        logger.warning("Could not dismiss consent wall — still on: %s", page.url)
     except Exception:
         pass
 
