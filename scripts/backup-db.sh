@@ -9,11 +9,14 @@ TIMESTAMP=$(date -u +%Y%m%d_%H%M%S)
 BACKUP_FILE="$BACKUP_DIR/soulstep_${TIMESTAMP}.sql.gz"
 RETAIN_DAYS=7
 
-# Load .env to get POSTGRES_* and BACKUP_GCS_BUCKET
-set -a
-# shellcheck disable=SC1091
-[ -f "$DEPLOY_DIR/.env" ] && source "$DEPLOY_DIR/.env"
-set +a
+# Load .env to get POSTGRES_* and BACKUP_GCS_BUCKET.
+# Use grep-based parsing instead of source to avoid executing bare URLs or
+# malformed lines that cause bash to exit under set -e.
+if [ -f "$DEPLOY_DIR/.env" ]; then
+  while IFS= read -r line; do
+    [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] && export "$line" 2>/dev/null || true
+  done < "$DEPLOY_DIR/.env"
+fi
 
 POSTGRES_USER="${POSTGRES_USER:-soulstep}"
 POSTGRES_DB="${POSTGRES_DB:-soulstep}"
