@@ -263,11 +263,21 @@ class BrowserGmapsCollector(BaseCollector):
     Implements the same interface as GmapsCollector — fetch_details_split() and
     build_place_data() — so it can be used as a drop-in by fetch_place_details()
     in scrapers/gmaps.py without any changes to the calling code.
+
+    Pass ``session_lat`` / ``session_lng`` (city centre coordinates) so every
+    Playwright context gets a matching geolocation.  Discovery sessions already
+    do this per grid-cell; without it, the context falls back to the proxy's
+    IP-based location (Belgium / EU), which triggers Google's GDPR consent
+    redirect and blocks all detail fetches.
     """
 
     name = "gmaps_browser"
     requires_api_key = False
     api_key_env_var = ""
+
+    def __init__(self, session_lat: float | None = None, session_lng: float | None = None):
+        self._session_lat = session_lat
+        self._session_lng = session_lng
 
     def is_available(self) -> bool:
         return True  # No API key required
@@ -338,7 +348,11 @@ class BrowserGmapsCollector(BaseCollector):
         last_exc: Exception | None = None
 
         for attempt in range(_MAX_NAV_RETRIES):
-            session = await pool.acquire(block_images=False)
+            session = await pool.acquire(
+                block_images=False,
+                lat=self._session_lat,
+                lng=self._session_lng,
+            )
             recycle = False
             try:
                 page = session.page

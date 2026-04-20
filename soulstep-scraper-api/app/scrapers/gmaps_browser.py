@@ -1223,6 +1223,11 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
     max_results = config.get("max_results")
     browser_sem = asyncio.Semaphore(settings.maps_browser_concurrency)
 
+    # Extract centre coordinates while the session is still open (used later for
+    # detail-fetch browser geolocation so Google doesn't redirect to EU consent).
+    _boundary_centre_lat = (boundary.lat_min + boundary.lat_max) / 2
+    _boundary_centre_lng = (boundary.lng_min + boundary.lng_max) / 2
+
     # Build grid from multi-box boundary (falls back to single box when no sub-boxes seeded)
     boxes = get_boundary_boxes(boundary, session)
 
@@ -1448,7 +1453,10 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
             all_resource_names,
             run_code,
             detail_session,
-            BrowserGmapsCollector(),
+            BrowserGmapsCollector(
+                session_lat=_boundary_centre_lat,
+                session_lng=_boundary_centre_lng,
+            ),
             "",  # No API key needed
             type_map,
             religion_type_map,
