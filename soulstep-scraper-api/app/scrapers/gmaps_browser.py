@@ -196,6 +196,9 @@ async def _check_for_block(page) -> bool:
     the full 1-5MB DOM over CDP on every navigation.
     """
     try:
+        # Sorry/bot-wall pages live on a dedicated host — cheapest signal.
+        if "/sorry/" in page.url or "sorry.google.com" in page.url:
+            return True
         # Extract only the first 2000 chars of visible text — ~99% less data than full DOM
         snippet: str = await page.evaluate(
             "document.body ? document.body.innerText.slice(0, 2000).toLowerCase() : ''"
@@ -206,6 +209,9 @@ async def _check_for_block(page) -> bool:
                 "unusual traffic",
                 "access denied",
                 "your computer or network may be sending automated queries",
+                "before you continue to google",
+                "to continue, please type the characters",
+                "we've detected unusual activity",
             ]
         ):
             return True
@@ -590,18 +596,30 @@ async def search_area_browser(
 
                 pool.record_success()
 
-                # Wait for results panel
+                # Wait for results panel — accept any of: place link (the actual
+                # data), the feed container, or the "no results" empty-state.
                 try:
                     await page.wait_for_selector(
-                        '[role="feed"], .m6QErb, [aria-label*="Results"]',
-                        timeout=15000,
+                        'a[href*="/maps/place/"], [role="feed"], .m6QErb, '
+                        '[aria-label*="Results"], [aria-label*="No results"]',
+                        timeout=20000,
                     )
                     logger.info("%s[%s] Results panel found", indent, place_type)
                 except Exception:
+                    try:
+                        diag = await page.evaluate(
+                            "({title: document.title, url: location.href, "
+                            "feed: !!document.querySelector('[role=\"feed\"]'), "
+                            "links: document.querySelectorAll('a[href*=\"/maps/place/\"]').length, "
+                            "snippet: (document.body?.innerText || '').slice(0, 300)})"
+                        )
+                    except Exception:
+                        diag = {"error": "evaluate_failed"}
                     logger.warning(
-                        "%s[%s] Results panel not found (timeout) — page may be empty or layout changed",
+                        "%s[%s] Results panel not found (timeout) — diag=%s",
                         indent,
                         place_type,
+                        diag,
                     )
 
                 await asyncio.sleep(random.uniform(1, 3))
@@ -812,11 +830,14 @@ async def _do_grid_cell_navigation(
 
         pool.record_success()
 
-        # Wait for results panel
+        # Wait for results panel — accept any of: place link (the actual data),
+        # the feed container, or the "no results" empty-state. Whichever appears
+        # first means the SPA finished rendering.
         try:
             await page.wait_for_selector(
-                '[role="feed"], .m6QErb, [aria-label*="Results"]',
-                timeout=15000,
+                'a[href*="/maps/place/"], [role="feed"], .m6QErb, '
+                '[aria-label*="Results"], [aria-label*="No results"]',
+                timeout=20000,
             )
             logger.info(
                 "[grid][%s] Results panel found at (%.4f,%.4f)",
@@ -825,11 +846,21 @@ async def _do_grid_cell_navigation(
                 center_lng,
             )
         except Exception:
+            try:
+                diag = await page.evaluate(
+                    "({title: document.title, url: location.href, "
+                    "feed: !!document.querySelector('[role=\"feed\"]'), "
+                    "links: document.querySelectorAll('a[href*=\"/maps/place/\"]').length, "
+                    "snippet: (document.body?.innerText || '').slice(0, 300)})"
+                )
+            except Exception:
+                diag = {"error": "evaluate_failed"}
             logger.warning(
-                "[grid][%s] Results panel not found at (%.4f,%.4f)",
+                "[grid][%s] Results panel not found at (%.4f,%.4f) — diag=%s",
                 place_type,
                 center_lat,
                 center_lng,
+                diag,
             )
 
         await asyncio.sleep(random.uniform(1, 2))
