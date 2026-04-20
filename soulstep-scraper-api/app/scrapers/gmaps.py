@@ -971,15 +971,18 @@ async def fetch_place_details(
     rate_limiter = get_async_rate_limiter()
     counter = AtomicCounter(initial=cached_count)
     flush_batch_size = DETAIL_FLUSH_BATCH_SIZE
-    # Cap concurrency to browser pool size when using browser backend to avoid
-    # acquire timeouts (20 workers competing for 8 browser contexts).
+    # Cap concurrency to pool's active-navigation limit (maps_browser_concurrency)
+    # when using the browser backend.  pool_size is how many contexts *exist*;
+    # maps_browser_concurrency is how many can navigate at once (the pool sem).
+    # Launching more workers than that sem allows just queues them inside
+    # pool.acquire() until the 90 s acquire timeout fires.
     concurrency = settings.detail_concurrency
     if hasattr(collector, "requires_api_key") and not collector.requires_api_key:
-        concurrency = min(concurrency, settings.maps_browser_pool_size)
+        concurrency = min(concurrency, settings.maps_browser_concurrency)
         logger.info(
-            "Browser mode: capping detail concurrency to %d (pool_size=%d)",
+            "Browser mode: capping detail concurrency to %d (maps_browser_concurrency=%d)",
             concurrency,
-            settings.maps_browser_pool_size,
+            settings.maps_browser_concurrency,
         )
     fetch_sem = asyncio.Semaphore(concurrency)
 
