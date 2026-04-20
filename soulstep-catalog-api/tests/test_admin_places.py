@@ -1,6 +1,6 @@
 """Tests for admin places endpoints — CRUD /api/v1/admin/places/..."""
 
-from app.db.models import Place, PlaceImage
+from app.db.models import Place, PlaceImage, PlaceSEO, PlaceSEOTranslation
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -301,6 +301,43 @@ class TestDeletePlace:
             headers={"Authorization": f"Bearer {token}"},
         )
         assert resp.status_code == 403
+
+    def test_delete_cascades_seo_translations(self, client, db_session):
+        from sqlmodel import select
+
+        headers = _admin_headers(client, db_session)
+        place = _make_place(db_session, "plc_ap00032")
+
+        # Create PlaceSEO and PlaceSEOTranslation records
+        seo = PlaceSEO(
+            place_code=place.place_code,
+            slug="test-slug",
+            seo_title="Test",
+            meta_description="Test description",
+        )
+        db_session.add(seo)
+        db_session.commit()
+
+        seo_trans = PlaceSEOTranslation(
+            place_code=place.place_code, lang="ar", seo_title="اختبار", meta_description="Desc"
+        )
+        db_session.add(seo_trans)
+        db_session.commit()
+
+        # Delete place and verify cascading deletes
+        resp = client.delete(f"/api/v1/admin/places/{place.place_code}", headers=headers)
+        assert resp.status_code == 204
+
+        # Verify place and all related records are deleted
+        assert not db_session.exec(
+            select(Place).where(Place.place_code == place.place_code)
+        ).first()
+        assert not db_session.exec(
+            select(PlaceSEO).where(PlaceSEO.place_code == place.place_code)
+        ).first()
+        assert not db_session.exec(
+            select(PlaceSEOTranslation).where(PlaceSEOTranslation.place_code == place.place_code)
+        ).first()
 
 
 # ── Tests: Place images ────────────────────────────────────────────────────────

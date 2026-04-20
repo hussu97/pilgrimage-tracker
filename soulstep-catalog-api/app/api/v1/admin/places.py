@@ -22,6 +22,7 @@ from app.db.models import (
     PlaceAttribute,
     PlaceImage,
     PlaceSEO,
+    PlaceSEOTranslation,
     Review,
     ReviewImage,
 )
@@ -128,6 +129,10 @@ def _delete_place_records(session: Session, place_code: str) -> None:
     seo = session.exec(select(PlaceSEO).where(PlaceSEO.place_code == place_code)).first()
     if seo:
         session.delete(seo)
+    for seo_trans in session.exec(
+        select(PlaceSEOTranslation).where(PlaceSEOTranslation.place_code == place_code)
+    ).all():
+        session.delete(seo_trans)
     for attr in session.exec(
         select(PlaceAttribute).where(PlaceAttribute.place_code == place_code)
     ).all():
