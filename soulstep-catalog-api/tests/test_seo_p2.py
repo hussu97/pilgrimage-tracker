@@ -305,9 +305,12 @@ def test_meta_tags_hreflang_language_specific_urls():
     seo.og_image_url = None
 
     html = build_place_meta_tags(place=place, seo=seo, lang="en")
-    assert "/share/en/places/plc_hreflang/test-place" in html
-    assert "/share/ar/places/plc_hreflang/test-place" in html
-    assert "/share/hi/places/plc_hreflang/test-place" in html
+    # Hreflang alternates use code-only form — the /{lang}/places/{code} route
+    # does not accept a slug segment, so slug must not appear in these URLs.
+    assert "/share/en/places/plc_hreflang" in html
+    assert "/share/ar/places/plc_hreflang" in html
+    assert "/share/hi/places/plc_hreflang" in html
+    assert "/share/en/places/plc_hreflang/test-place" not in html
 
 
 # ── 8. Social preview fallback OG image ─────────────────────────────────────────
