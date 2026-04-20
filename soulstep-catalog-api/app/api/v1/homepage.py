@@ -180,9 +180,9 @@ def get_homepage(
     popular_places = []
     popular_ratings: dict[str, dict] = {}
     for row in popular_rows:
-        place = row[0] if isinstance(row, tuple) else row.Place
-        avg = row[1] if isinstance(row, tuple) else None
-        cnt = row[2] if isinstance(row, tuple) else 0
+        # SQLModel returns SQLAlchemy Row objects for multi-column selects — these
+        # are not `tuple` instances, so index positionally (works for both shapes).
+        place, avg, cnt = row[0], row[1], row[2]
         popular_places.append(place)
         popular_ratings[place.place_code] = {
             "average": round(float(avg) * 10) / 10 if avg else 0.0,

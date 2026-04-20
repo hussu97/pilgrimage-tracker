@@ -167,3 +167,35 @@ def test_homepage_lang_en_no_overlay(client, db_session):
     our_place = next((p for p in all_places if p["place_code"] == "plc_lang_en001"), None)
     if our_place:
         assert our_place["name"] == "English Mosque"
+
+
+def test_homepage_popular_places_include_aggregate_rating(client, db_session):
+    """popular_places entries must surface avg rating + count from the Review join.
+
+    Regression for homepage.py where SQLAlchemy Row objects were misread as
+    non-tuples and every popular_place got {"average": 0.0, "count": 0}.
+    """
+    from app.db.models import Place, Review
+
+    place = Place(
+        place_code="plc_hp_rating01",
+        name="Rating Test Mosque",
+        religion="islam",
+        place_type="mosque",
+        lat=21.4,
+        lng=39.8,
+        address="Rating Street",
+        city="Mecca",
+    )
+    db_session.add(place)
+    db_session.add(Review(review_code="rev_hp_001", place_code=place.place_code, rating=5))
+    db_session.add(Review(review_code="rev_hp_002", place_code=place.place_code, rating=4))
+    db_session.commit()
+
+    res = client.get(HOMEPAGE_URL)
+    assert res.status_code == 200
+    popular = res.json()["popular_places"]
+    ours = next((p for p in popular if p["place_code"] == "plc_hp_rating01"), None)
+    assert ours is not None, "seeded place missing from popular_places"
+    assert ours["review_count"] == 2
+    assert ours["average_rating"] == 4.5

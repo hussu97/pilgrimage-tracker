@@ -4,6 +4,13 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-20] — Homepage ratings regression fix (popular_places showed 0.0)
+
+### Backend
+- **`soulstep-catalog-api/app/api/v1/homepage.py`** — fix `popular_places` returning `average_rating=0.0` and `review_count=0` for every place. The perf rewrite in commit `98c6097` replaced a second ratings query with an inline `(avg, count)` subquery, but branched on `isinstance(row, tuple)` — SQLModel returns SQLAlchemy `Row` objects here, which are not `tuple` instances, so every row hit the `None` / `0` fallback. Switched to unconditional positional indexing (`row[0], row[1], row[2]`) which works for both `Row` and `tuple` shapes. Added regression test `tests/test_homepage.py::test_homepage_popular_places_include_aggregate_rating` that seeds two reviews and asserts `average_rating=4.5`, `review_count=2` on the homepage response.
+
+---
+
 ## [2026-04-20] — Scraper: robuster Google Maps results-panel wait + richer block detection
 
 ### Backend
