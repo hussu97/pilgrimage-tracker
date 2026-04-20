@@ -257,32 +257,36 @@ Cloud Run's default egress IP pool is on Google Maps' bot-wall (every request re
 - **Wiring:** `docker-compose.prod.yml` defaults `BROWSER_PROXY_LIST` to `http://10.132.0.2:3128`. The scraper's `job_env_vars()` forwards the value to every Cloud Run Job execution. Playwright's `ProxyRotator` in `soulstep-scraper-api/app/services/browser_pool.py` passes it into every browser context's `proxy=` config.
 - **Override:** set GitHub secret `BROWSER_PROXY_LIST=http://user:pass@host:port[,...]` to use external proxies instead.
 
-**Tinyproxy install on the VM** (one-time; idempotent):
+**Tinyproxy install:** handled by `scripts/vm-bootstrap.sh` step [4/9] — idempotent, runs on every fresh VM. Binds to `0.0.0.0:3128` with `Allow 10.128.0.0/9` ACL so only VPC-internal traffic (Cloud Run Jobs via Direct VPC Egress) can use it. `systemctl enable tinyproxy` makes it survive reboots.
+
+**The existing `default-allow-internal` firewall rule (source `10.128.0.0/9`) already permits Cloud Run Jobs in all three regions to reach the VM's internal IP — no new firewall rule needed.** GCP's default ingress policy also blocks `3128` from the public internet, so the `0.0.0.0` bind is not externally reachable.
+
+**⚠️ Static internal IP required.** `docker-compose.prod.yml` defaults `BROWSER_PROXY_LIST` to `http://10.132.0.2:3128`. The VM **must** have primary internal IP `10.132.0.2` for this contract to hold. Reserve it when creating / recreating the VM:
 
 ```bash
-sudo apt-get update -qq && sudo apt-get install -y tinyproxy
-sudo tee /etc/tinyproxy/tinyproxy.conf > /dev/null <<'EOF'
-User tinyproxy
-Group tinyproxy
-Port 3128
-Listen 10.132.0.2
-Timeout 600
-DefaultErrorFile "/usr/share/tinyproxy/default.html"
-StatFile "/usr/share/tinyproxy/stats.html"
-LogFile "/var/log/tinyproxy/tinyproxy.log"
-LogLevel Info
-PidFile "/run/tinyproxy/tinyproxy.pid"
-MaxClients 100
-Allow 10.128.0.0/9
-Allow 127.0.0.1
-ConnectPort 443
-ConnectPort 563
-DisableViaHeader Yes
-EOF
-sudo systemctl restart tinyproxy
+gcloud compute instances create soulstep-vm \
+  --zone=europe-west1-b \
+  --private-network-ip=10.132.0.2 \
+  ...
 ```
 
-The existing `default-allow-internal` firewall rule (source `10.128.0.0/9`) already permits Cloud Run Jobs in all three regions to reach the VM's internal IP — no new firewall rule needed.
+If the VM is ever recreated on a different internal IP, either re-reserve `.2` or update the compose default + `BROWSER_PROXY_LIST` GitHub secret.
+
+**⚠️ Static external IP required.** The VM's **external** IP is what Google Maps actually sees. If GCP rotates it, the new IP may land back on the bot-wall. Confirm it's reserved:
+
+```bash
+gcloud compute addresses list --filter="users~soulstep-vm" --format="table(name,address,addressType)"
+# addressType should be EXTERNAL and status RESERVED (not EPHEMERAL)
+```
+
+Promote ephemeral → static once:
+
+```bash
+gcloud compute addresses create soulstep-vm-ip \
+  --addresses=$(gcloud compute instances describe soulstep-vm \
+    --zone=europe-west1-b --format='get(networkInterfaces[0].accessConfigs[0].natIP)') \
+  --region=europe-west1
+```
 
 **Verify the proxy is working** (from the VM):
 

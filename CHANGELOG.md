@@ -7,6 +7,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 ## [2026-04-20] — Scraper discovery fix: VM tinyproxy egress + circuit-breaker fail-fast
 
 ### Infra
+- **`scripts/vm-bootstrap.sh`** — new step [4/9] installs and configures tinyproxy automatically on every fresh VM (binds `0.0.0.0:3128` with `Allow 10.128.0.0/9` ACL, `systemctl enable` so it survives reboots). Previously a manual runbook in `PRODUCTION.md §9` — the fix would have regressed on VM recreation. `PRODUCTION.md §9` now also documents the **static internal IP (`10.132.0.2`)** and **reserved external IP** prerequisites for the egress contract to hold.
 - **VM tinyproxy at `10.132.0.2:3128`** — installed tinyproxy on `soulstep-vm` and bound it to the internal VPC IP. Cloud Run Jobs now route Google Maps browser traffic through the VM's clean external IP (`34.76.105.103`) instead of Cloud Run's shared egress pool (which is on Google's bot-wall — every request was redirecting to `google.com/sorry/index` and killing discovery). Verified: same Maps URL that returned `/sorry/` from Cloud Run now returns HTTP 200 + 220KB of Place schema markup through the proxy. Setup documented in `PRODUCTION.md §9`.
 - **`docker-compose.prod.yml`** — default `BROWSER_PROXY_LIST` to `http://10.132.0.2:3128`. The scraper's `job_env_vars()` already forwards this to Cloud Run Jobs, and the existing `ProxyRotator` passes it into every Playwright browser context. Override via GitHub secret `BROWSER_PROXY_LIST` if you want to add/replace proxies.
 
