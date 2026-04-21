@@ -85,6 +85,7 @@ async def _download_image(url: str, client: httpx.AsyncClient | None = None) -> 
                     )
                     return None
                 return content
+            logger.warning("Image download HTTP %d: %s", resp.status_code, url)
             return None
         except (httpx.ConnectError, httpx.RemoteProtocolError) as e:
             if attempt < _MAX_IMAGE_ATTEMPTS - 1:
@@ -208,7 +209,7 @@ async def download_place_images(run_code: str, engine, max_workers: int | None =
     with Session(engine) as session:
         run_record = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
         if run_record:
-            run_record.images_downloaded = uploaded
+            run_record.images_downloaded += uploaded
             run_record.images_failed = images_failed
             session.add(run_record)
         session.commit()

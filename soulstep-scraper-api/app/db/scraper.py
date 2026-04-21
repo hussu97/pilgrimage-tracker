@@ -971,6 +971,20 @@ def retry_run_images(run_code: str) -> None:
     GCS prefix, so only genuinely failed (non-GCS) URLs are retried.
     """
     from app.collectors.gmaps import download_place_images
-    from app.db.session import engine
 
-    asyncio.run(download_place_images(run_code, engine))
+    with Session(engine) as session:
+        run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+        if run:
+            run.stage = "image_download"
+            session.add(run)
+            session.commit()
+
+    try:
+        asyncio.run(download_place_images(run_code, engine))
+    finally:
+        with Session(engine) as session:
+            run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+            if run:
+                run.stage = None
+                session.add(run)
+                session.commit()
