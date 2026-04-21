@@ -423,7 +423,7 @@ async def _scroll_loop(
         except Exception:
             pass
 
-        await asyncio.sleep(random.uniform(0.5, 1.5))
+        await asyncio.sleep(random.uniform(0.2, 0.6))
 
 
 async def search_area_browser(
@@ -599,14 +599,12 @@ async def search_area_browser(
                     url,
                 )
 
-                await asyncio.sleep(random.uniform(2, 4))
-
                 # Always dismiss if redirected to consent.google.com (EU GDPR);
                 # otherwise only check on the first navigation per search pass.
                 if "consent.google.com" in page.url or not _consent_dismissed:
                     await _dismiss_consent(page)
                     _consent_dismissed = True
-                    await asyncio.sleep(random.uniform(0.5, 1.5))
+                    await asyncio.sleep(random.uniform(0.2, 0.5))
 
                 if await _check_for_block(page):
                     logger.warning(
@@ -651,8 +649,7 @@ async def search_area_browser(
                         place_type,
                         diag,
                     )
-
-                await asyncio.sleep(random.uniform(1, 3))
+                await asyncio.sleep(random.uniform(0.2, 0.5))
 
                 # Scroll until the results feed stabilises (no new links for N scrolls)
                 await _scroll_until_stable(page)
@@ -844,8 +841,6 @@ async def _do_grid_cell_navigation(
             extra={"center_lat": center_lat, "center_lng": center_lng},
         )
 
-        await asyncio.sleep(random.uniform(2, 4))
-
         await _dismiss_consent(page)
 
         if await _check_for_block(page):
@@ -896,8 +891,7 @@ async def _do_grid_cell_navigation(
                 center_lng,
                 diag,
             )
-
-        await asyncio.sleep(random.uniform(1, 2))
+        await asyncio.sleep(random.uniform(0.2, 0.5))
 
         # Scroll until stable
         await _scroll_until_stable(page)
@@ -1121,15 +1115,16 @@ async def search_grid_browser(
             return []
         if max_results and len(existing_ids) >= max_results:
             return []
+        # Jitter before queueing for a scarce browser slot so we don't spend the
+        # active-concurrency budget on sleeping tasks.
+        delay = random.uniform(
+            settings.maps_browser_cell_delay_min,
+            settings.maps_browser_cell_delay_max,
+        )
+        await asyncio.sleep(delay)
         async with _sem:
             if max_results and len(existing_ids) >= max_results:
                 return []
-            # Inter-cell human-like delay to avoid concurrent-request bot detection
-            delay = random.uniform(
-                settings.maps_browser_cell_delay_min,
-                settings.maps_browser_cell_delay_max,
-            )
-            await asyncio.sleep(delay)
             lat_min, lat_max, lng_min, lng_max = cell
             t0 = time.monotonic()
             result = await _search_single_grid_cell(

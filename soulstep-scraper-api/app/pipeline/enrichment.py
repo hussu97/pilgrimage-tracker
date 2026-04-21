@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
+from sqlalchemy import update
 from sqlmodel import Session, select
 
 from app.collectors.base import BaseCollector, CollectorResult
@@ -112,55 +113,69 @@ async def run_enrichment_pipeline(run_code: str):
             logger.warning("Enrichment: Run %s is already cancelled", run_code)
             return
 
-        all_places = session.exec(
-            select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)
+        place_rows = session.exec(
+            select(
+                ScrapedPlace.place_code,
+                ScrapedPlace.enrichment_status,
+                ScrapedPlace.quality_score,
+            ).where(ScrapedPlace.run_code == run_code)
         ).all()
 
-        if not all_places:
+        if not place_rows:
             logger.warning("Enrichment: No places found for run %s", run_code)
             return
 
-        places = [p for p in all_places if p.enrichment_status not in ("complete", "filtered")]
-        if len(places) < len(all_places):
+        remaining_place_codes: list[str] = []
+        below_gate_codes: list[str] = []
+        skipped_previously_processed = 0
+        for place_code, enrichment_status, quality_score in place_rows:
+            if enrichment_status in ("complete", "filtered"):
+                skipped_previously_processed += 1
+            elif not passes_gate(quality_score, GATE_ENRICHMENT):
+                below_gate_codes.append(place_code)
+            else:
+                remaining_place_codes.append(place_code)
+
+        if skipped_previously_processed:
             logger.info(
                 "Enrichment: skipping %d already-enriched/filtered places, %d remaining",
-                len(all_places) - len(places),
-                len(places),
+                skipped_previously_processed,
+                len(place_rows) - skipped_previously_processed,
             )
 
-        if not places:
+        if not remaining_place_codes and not below_gate_codes:
             logger.info("Enrichment: all places already enriched for run %s", run_code)
             return
 
         # Quality gate: mark places below GATE_ENRICHMENT as filtered
-        below_gate = [p for p in places if not passes_gate(p.quality_score, GATE_ENRICHMENT)]
-        if below_gate:
-            for p in below_gate:
-                p.enrichment_status = "filtered"
-                session.add(p)
+        if below_gate_codes:
+            session.exec(
+                update(ScrapedPlace)
+                .where(ScrapedPlace.run_code == run_code)
+                .where(ScrapedPlace.place_code.in_(below_gate_codes))
+                .values(enrichment_status="filtered")
+            )
             session.commit()
 
             # Update places_filtered counter on the run
             run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
             if run:
-                run.places_filtered = len(below_gate)
+                run.places_filtered = len(below_gate_codes)
                 session.add(run)
                 session.commit()
 
             logger.info(
                 "Enrichment: filtered %d places below quality gate (%.2f), %d remaining",
-                len(below_gate),
+                len(below_gate_codes),
                 GATE_ENRICHMENT,
-                len(places) - len(below_gate),
+                len(remaining_place_codes),
             )
 
-        places = [p for p in places if passes_gate(p.quality_score, GATE_ENRICHMENT)]
-
-        if not places:
+        if not remaining_place_codes:
             logger.info("Enrichment: all places filtered by quality gate for run %s", run_code)
             return
 
-        place_codes = [p.place_code for p in places]
+        place_codes = remaining_place_codes
         collectors = get_enrichment_collectors()
 
     collector_names = [c.name for c in collectors]

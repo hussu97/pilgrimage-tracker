@@ -835,6 +835,46 @@ class TestSearchGridBrowser:
         # (any calls that did execute return [] due to the guard inside _bounded_cell)
         assert mock_cell.call_count >= 0  # calls may be 0 if guard fires before gather
 
+    @pytest.mark.asyncio
+    async def test_inter_cell_delay_does_not_hold_browser_slot(self):
+        """The human-like inter-cell delay should happen before semaphore acquire."""
+        from unittest.mock import AsyncMock, patch
+
+        from app.scrapers.base import ThreadSafeIdSet
+        from app.scrapers.gmaps_browser import search_grid_browser
+
+        class TrackingSemaphore:
+            def __init__(self) -> None:
+                self.active = 0
+
+            async def __aenter__(self):
+                self.active += 1
+                return self
+
+            async def __aexit__(self, *_args):
+                self.active -= 1
+
+        sem = TrackingSemaphore()
+        ids = ThreadSafeIdSet()
+        sleep_active_counts: list[int] = []
+
+        async def fake_sleep(*_args, **_kwargs):
+            sleep_active_counts.append(sem.active)
+
+        with (
+            patch("app.scrapers.gmaps_browser.asyncio.sleep", side_effect=fake_sleep),
+            patch(
+                "app.scrapers.gmaps_browser._search_single_grid_cell",
+                new=AsyncMock(return_value=[]),
+            ),
+            patch("app.scrapers.gmaps_browser.get_maps_pool") as mock_pool,
+        ):
+            mock_pool.return_value.is_permanently_blocked = False
+            await search_grid_browser([(25.0, 25.1, 55.0, 55.1)], "mosque", ids, semaphore=sem)
+
+        assert sleep_active_counts
+        assert sleep_active_counts[0] == 0
+
 
 # ── DiscoveryCellStore grid/quadtree isolation ────────────────────────────────
 

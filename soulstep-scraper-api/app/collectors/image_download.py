@@ -148,24 +148,27 @@ async def download_place_images(run_code: str, engine, max_workers: int | None =
 
     _GCS_PREFIX = "https://storage.googleapis.com/"
 
-    with Session(engine) as session:
-        places = session.exec(select(ScrapedPlace).where(ScrapedPlace.run_code == run_code)).all()
-
     # Collect (place_id, url_index, url) tuples to process
     tasks: list[tuple[int, int, str]] = []
-    place_map: dict[int, dict] = {}  # place.id → raw_data
+    place_ids_with_pending_images: set[int] = set()
 
-    for place in places:
-        if not passes_gate(place.quality_score, GATE_IMAGE_DOWNLOAD):
-            continue  # filtered by quality gate
-        raw = place.raw_data or {}
-        urls = raw.get("image_urls") or []
-        if not urls or all(u.startswith(_GCS_PREFIX) for u in urls):
-            continue  # no URLs or already uploaded to GCS
-        place_map[place.id] = raw
-        for idx, url in enumerate(urls):
-            if not url.startswith(_GCS_PREFIX):
-                tasks.append((place.id, idx, url))
+    with Session(engine) as session:
+        rows = session.exec(
+            select(ScrapedPlace.id, ScrapedPlace.raw_data, ScrapedPlace.quality_score).where(
+                ScrapedPlace.run_code == run_code
+            )
+        )
+        for place_id, raw_data, quality_score in rows:
+            if not passes_gate(quality_score, GATE_IMAGE_DOWNLOAD):
+                continue  # filtered by quality gate
+            raw = raw_data or {}
+            urls = raw.get("image_urls") or []
+            if not urls or all(u.startswith(_GCS_PREFIX) for u in urls):
+                continue  # no URLs or already uploaded to GCS
+            place_ids_with_pending_images.add(place_id)
+            for idx, url in enumerate(urls):
+                if not url.startswith(_GCS_PREFIX):
+                    tasks.append((place_id, idx, url))
 
     if not tasks:
         logger.info("Image download: no pending images for run %s", run_code)
@@ -174,7 +177,7 @@ async def download_place_images(run_code: str, engine, max_workers: int | None =
     logger.info(
         "Image download: %d images for %d places (concurrency=%d)",
         len(tasks),
-        len(place_map),
+        len(place_ids_with_pending_images),
         concurrency,
     )
 
