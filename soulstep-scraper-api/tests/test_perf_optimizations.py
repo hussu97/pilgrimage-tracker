@@ -57,7 +57,7 @@ class TestDownloadPlaceImages:
 
     async def test_downloads_images_and_stores_gcs_urls(self):
         """Images are downloaded then uploaded to GCS; GCS URLs stored in image_urls."""
-        from app.collectors.gmaps import download_place_images
+        from app.collectors.image_download import download_place_images
         from app.db.models import ScrapedPlace
 
         engine = _make_engine()
@@ -76,7 +76,7 @@ class TestDownloadPlaceImages:
         _gcs_url = "https://storage.googleapis.com/bucket/images/places/abc123.jpg"
 
         with (
-            patch("app.collectors.gmaps.httpx.AsyncClient", return_value=mock_client),
+            patch("app.collectors.image_download.httpx.AsyncClient", return_value=mock_client),
             patch("app.services.gcs.upload_image_bytes", return_value=_gcs_url),
         ):
             await download_place_images("run1", engine, max_workers=1)
@@ -91,7 +91,7 @@ class TestDownloadPlaceImages:
 
     async def test_skips_places_already_having_gcs_urls(self):
         """Places whose URLs already start with the GCS prefix are not re-processed."""
-        from app.collectors.gmaps import download_place_images
+        from app.collectors.image_download import download_place_images
         from app.db.models import ScrapedPlace
 
         engine = _make_engine()
@@ -117,14 +117,14 @@ class TestDownloadPlaceImages:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("app.collectors.gmaps.httpx.AsyncClient", return_value=mock_client):
+        with patch("app.collectors.image_download.httpx.AsyncClient", return_value=mock_client):
             await download_place_images("run2", engine, max_workers=1)
 
         assert called == [], "Should not have made any HTTP requests"
 
     async def test_handles_download_failure_gracefully(self):
         """A 404 response should result in no GCS URL stored but no crash."""
-        from app.collectors.gmaps import download_place_images
+        from app.collectors.image_download import download_place_images
         from app.db.models import ScrapedPlace
 
         engine = _make_engine()
@@ -138,7 +138,7 @@ class TestDownloadPlaceImages:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("app.collectors.gmaps.httpx.AsyncClient", return_value=mock_client):
+        with patch("app.collectors.image_download.httpx.AsyncClient", return_value=mock_client):
             # Should not raise
             await download_place_images("run3", engine, max_workers=1)
 
@@ -157,62 +157,6 @@ class TestDownloadPlaceImages:
 
 
 class TestResourceNameDerivation:
-    async def test_discover_places_does_not_write_resource_names_to_run(self):
-        """discover_places() should NOT write the full resource name list to run.discovered_resource_names."""
-        from app.db.models import GeoBoundary, ScraperRun
-        from app.scrapers.gmaps import discover_places
-
-        engine = _make_engine()
-
-        with Session(engine) as session:
-            boundary = GeoBoundary(
-                name="TestCity",
-                boundary_type="city",
-                lat_min=25.0,
-                lat_max=25.1,
-                lng_min=55.0,
-                lng_max=55.1,
-            )
-            session.add(boundary)
-
-            run = ScraperRun(run_code="run_x", location_code="loc1")
-            session.add(run)
-            session.commit()
-
-        async def _fake_search_area(*args, **kwargs):
-            return []
-
-        with (
-            patch("app.scrapers.gmaps.search_area", new=AsyncMock(side_effect=_fake_search_area)),
-            patch("app.db.session.engine", engine),
-            patch("app.scrapers.gmaps.GlobalCellStore"),
-            patch("app.scrapers.gmaps.DiscoveryCellStore"),
-            patch("app.scrapers.cell_store.DiscoveryCellStore"),
-        ):
-            with Session(engine) as session:
-                type_map: dict = {}
-                religion_map: dict = {}
-                boundary_obj = session.exec(
-                    select(GeoBoundary).where(GeoBoundary.name == "TestCity")
-                ).first()
-
-                await discover_places(
-                    config={},
-                    run_code="run_x",
-                    session=session,
-                    type_map=type_map,
-                    religion_type_map=religion_map,
-                    api_key="fake",
-                    all_gmaps_types=["mosque"],
-                    boundary=boundary_obj,
-                )
-
-                # Reload run from DB
-                session.expire_all()
-                run = session.exec(select(ScraperRun).where(ScraperRun.run_code == "run_x")).first()
-                # The JSON list should be empty (no longer written at scale)
-                assert run.discovered_resource_names == [] or run.discovered_resource_names is None
-
     def test_cells_provide_resource_names_for_resume(self):
         """DiscoveryCell records should be derivable to reconstruct place_ids on resume."""
         from app.db.models import DiscoveryCell, ScraperRun
@@ -433,126 +377,3 @@ class TestGlobalCellStore:
             t.join(timeout=5)
 
         assert errors == [], f"Thread errors: {errors}"
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 5. Field mask split — fetch_details_split()
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestFetchDetailsSplit:
-    def _make_rate_limiter(self):
-        from app.scrapers.base import AsyncRateLimiter
-
-        return AsyncRateLimiter(burst=10)
-
-    async def test_only_essential_for_permanently_closed(self):
-        """PERMANENTLY_CLOSED places should skip the extended API call."""
-        from app.collectors.gmaps import GmapsCollector
-
-        collector = GmapsCollector()
-        rl = self._make_rate_limiter()
-
-        essential_resp = {
-            "businessStatus": "PERMANENTLY_CLOSED",
-            "rating": 4.5,
-            "displayName": {"text": "Closed Place"},
-        }
-
-        call_count = [0]
-
-        def fake_fetch(place_name, api_key, field_mask=None, http_session=None):
-            call_count[0] += 1
-            return dict(essential_resp)
-
-        with patch.object(collector, "_fetch_details", new=AsyncMock(side_effect=fake_fetch)):
-            with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": "fake"}):
-                await collector.fetch_details_split("places/X", "fake", rl)
-
-        assert call_count[0] == 1  # only essential call
-
-    async def test_single_call_for_any_place(self):
-        """fetch_details_split always issues exactly one _fetch_details call (merged mask)."""
-        from app.collectors.gmaps import GmapsCollector
-
-        collector = GmapsCollector()
-        rl = self._make_rate_limiter()
-
-        full_resp = {
-            "businessStatus": "OPERATIONAL",
-            "rating": 4.2,
-            "accessibilityOptions": {"wheelchairAccessibleEntrance": True},
-        }
-        call_count = [0]
-
-        def fake_fetch(place_name, api_key, field_mask=None, http_session=None):
-            call_count[0] += 1
-            # Merged call must use the full FIELD_MASK (both essential + extended fields)
-            assert field_mask == collector.FIELD_MASK
-            return dict(full_resp)
-
-        with patch.object(collector, "_fetch_details", new=AsyncMock(side_effect=fake_fetch)):
-            result = await collector.fetch_details_split("places/Y", "fake", rl)
-
-        assert call_count[0] == 1  # always exactly one merged call
-        assert result.get("accessibilityOptions") is not None
-
-    async def test_single_call_for_unrated_place(self):
-        """An unrated place also gets exactly one merged call (not two)."""
-        from app.collectors.gmaps import GmapsCollector
-
-        collector = GmapsCollector()
-        rl = self._make_rate_limiter()
-
-        essential_resp = {
-            "businessStatus": "OPERATIONAL",
-            "rating": None,  # no rating
-        }
-
-        call_count = [0]
-
-        def fake_fetch(place_name, api_key, field_mask=None, http_session=None):
-            call_count[0] += 1
-            return dict(essential_resp)
-
-        with patch.object(collector, "_fetch_details", new=AsyncMock(side_effect=fake_fetch)):
-            await collector.fetch_details_split("places/Z", "fake", rl)
-
-        assert call_count[0] == 1  # only essential
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 6. build_place_data — no blobs, only URLs
-# ═══════════════════════════════════════════════════════════════════════════
-
-
-class TestBuildPlaceDataNoBlobStorage:
-    def test_build_place_data_stores_urls_not_blobs(self):
-        """build_place_data must always return empty image_blobs and populated image_urls."""
-        from app.collectors.gmaps import GmapsCollector
-
-        collector = GmapsCollector()
-
-        response = {
-            "photos": [{"name": "places/X/photos/abc"}],
-            "displayName": {"text": "Test Mosque"},
-            "types": ["mosque"],
-            "location": {"latitude": 25.0, "longitude": 55.0},
-            "formattedAddress": "123 Test St",
-            "businessStatus": "OPERATIONAL",
-            "editorialSummary": {"text": "A test mosque."},
-        }
-
-        with (
-            patch("app.collectors.gmaps.detect_religion_from_types", return_value="islam"),
-            patch(
-                "app.collectors.gmaps.get_gmaps_type_to_our_type", return_value={"mosque": "mosque"}
-            ),
-            patch("app.collectors.gmaps.clean_address", return_value="123 Test St"),
-            patch("app.collectors.gmaps.process_weekly_hours", return_value={}),
-        ):
-            result = collector.build_place_data(response, "gplc_X", "fake_key", None)
-
-        assert "image_blobs" not in result
-        assert len(result["image_urls"]) == 1
-        assert "abc" in result["image_urls"][0]

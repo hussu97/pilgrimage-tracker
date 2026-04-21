@@ -5,7 +5,7 @@ All environment variables are read here once at import time.  Import `settings`
 from this module rather than calling ``os.environ.get()`` in individual files.
 
 Defaults are chosen to work out-of-the-box in local development (SQLite, no
-external API keys required except Google Maps for actual scraping).
+external API keys required).
 """
 
 from __future__ import annotations
@@ -20,10 +20,11 @@ load_dotenv()
 class Settings:
     """Flat namespace for all configuration values used across the scraper API."""
 
-    # ── Required ──────────────────────────────────────────────────────────────
-    google_maps_api_key: str = os.environ.get("GOOGLE_MAPS_API_KEY", "")
-
     # ── Optional collector keys ───────────────────────────────────────────────
+    # GOOGLE_MAPS_API_KEY is used by the Knowledge Graph Search enrichment
+    # collector (free, shares the Maps key quota). Scraping itself is
+    # browser-only and does not call the Google Maps Places API.
+    google_maps_api_key: str = os.environ.get("GOOGLE_MAPS_API_KEY", "")
     foursquare_api_key: str = os.environ.get("FOURSQUARE_API_KEY", "")
     outscraper_api_key: str = os.environ.get("OUTSCRAPER_API_KEY", "")
     besttime_api_key: str = os.environ.get("BESTTIME_API_KEY", "")
@@ -74,10 +75,8 @@ class Settings:
     gcs_bucket_name: str = os.environ.get("GCS_BUCKET_NAME", "")
 
     # ── Concurrency (configurable via env for tuning) ─────────────────────────
-    # Max concurrent Google Places searchNearby calls during discovery.
+    # Max concurrent browser grid-cell discovery navigations.
     discovery_concurrency: int = int(os.environ.get("SCRAPER_DISCOVERY_CONCURRENCY", "15"))
-    # Max concurrent Google Places getDetails calls during detail fetch.
-    detail_concurrency: int = int(os.environ.get("SCRAPER_DETAIL_CONCURRENCY", "30"))
     # Max concurrent places enriched in parallel. Keep ≤ pool_size so each
     # concurrent worker can always get a DB connection without overflow.
     enrichment_concurrency: int = int(os.environ.get("SCRAPER_ENRICHMENT_CONCURRENCY", "5"))
@@ -107,11 +106,7 @@ class Settings:
     # Side-length (km) for each fixed grid cell in browser discovery mode.
     browser_grid_cell_size_km: float = float(os.environ.get("BROWSER_GRID_CELL_SIZE_KM", "3.0"))
 
-    # ── Browser scraper backend ───────────────────────────────────────────────
-    # Toggle between Google Places API (default) and browser-based scraping.
-    # SCRAPER_BACKEND=browser uses Playwright at $0 API cost (slower, stealth-based).
-    # SCRAPER_BACKEND=api  uses Google Places API (fast, reliable, costs ~$8/10K places).
-    scraper_backend: str = os.environ.get("SCRAPER_BACKEND", "api")
+    # ── Browser scraper ───────────────────────────────────────────────────────
     # Number of Playwright browser contexts kept in the pool. Idle contexts are
     # reused across grid cells; only `maps_browser_concurrency` are active at once.
     # 8 contexts × ~200 MB each ≈ 1.6 GB — safe for 4-8 GB Cloud Run Jobs.
@@ -211,6 +206,8 @@ class Settings:
         """
         raw: dict[str, str] = {
             # ── API keys / secrets ────────────────────────────────────────────
+            # GOOGLE_MAPS_API_KEY: consumed by the Knowledge Graph Search
+            # enrichment collector (shared-quota key).
             "GOOGLE_MAPS_API_KEY": self.google_maps_api_key,
             "FOURSQUARE_API_KEY": self.foursquare_api_key,
             "OUTSCRAPER_API_KEY": self.outscraper_api_key,
@@ -234,7 +231,6 @@ class Settings:
             "GCS_BUCKET_NAME": self.gcs_bucket_name,
             # ── Concurrency ───────────────────────────────────────────────────
             "SCRAPER_DISCOVERY_CONCURRENCY": str(self.discovery_concurrency),
-            "SCRAPER_DETAIL_CONCURRENCY": str(self.detail_concurrency),
             "SCRAPER_ENRICHMENT_CONCURRENCY": str(self.enrichment_concurrency),
             "SCRAPER_OVERPASS_CONCURRENCY": str(self.overpass_concurrency),
             "SCRAPER_OVERPASS_JITTER_MAX": str(self.overpass_jitter_max),
@@ -248,7 +244,6 @@ class Settings:
             "SCRAPER_GATE_SYNC": str(self.gate_sync),
             # ── Browser / grid ────────────────────────────────────────────────
             "BROWSER_GRID_CELL_SIZE_KM": str(self.browser_grid_cell_size_km),
-            "SCRAPER_BACKEND": self.scraper_backend,
             "MAPS_BROWSER_POOL_SIZE": str(self.maps_browser_pool_size),
             "MAPS_BROWSER_MAX_PAGES": str(self.maps_browser_max_pages),
             "MAPS_BROWSER_HEADLESS": str(self.maps_browser_headless).lower(),

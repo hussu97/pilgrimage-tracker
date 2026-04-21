@@ -10,7 +10,7 @@ import sys
 # Make the data_scraper package importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.scrapers.gmaps import clean_address, normalize_to_24h, process_weekly_hours
+from app.scrapers.gmaps_shared import clean_address, normalize_to_24h, process_weekly_hours
 
 
 class TestNormalizeTo24h:

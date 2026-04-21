@@ -12,7 +12,8 @@ from app.db.session import engine
 from app.logger import get_logger
 from app.pipeline.place_quality import GATE_SYNC, is_name_specific_enough, passes_gate
 from app.scrapers.base import AtomicCounter
-from app.scrapers.gmaps import FailFastError, run_gmaps_scraper
+from app.scrapers.gmaps_browser import run_gmaps_scraper_browser as run_gmaps_scraper
+from app.scrapers.gmaps_shared import FailFastError
 
 logger = get_logger(__name__)
 
@@ -419,9 +420,10 @@ async def _resume_scraper_task_body(run_code: str):
 
         elif resume_from == "detail_fetch":
             # Discovery completed — derive resource names from DiscoveryCell records
-            from app.collectors.gmaps import GmapsCollector, download_place_images
+            from app.collectors.gmaps_browser import BrowserGmapsCollector
+            from app.collectors.image_download import download_place_images
             from app.db.models import DiscoveryCell
-            from app.scrapers.gmaps import (
+            from app.scrapers.gmaps_shared import (
                 fetch_place_details,
                 load_place_type_maps,
             )
@@ -447,10 +449,6 @@ async def _resume_scraper_task_body(run_code: str):
                 with Session(engine) as gmaps_session:
                     await _run_gmaps_with_retry(run_code, location_config, gmaps_session)
             else:
-                api_key = __import__("os").environ.get("GOOGLE_MAPS_API_KEY", "")
-                if not api_key:
-                    raise ValueError("GOOGLE_MAPS_API_KEY environment variable not set")
-
                 with Session(engine) as df_session:
                     pt_maps = load_place_type_maps(df_session)
                     type_map = pt_maps.gmaps_type_to_our_type
@@ -465,8 +463,8 @@ async def _resume_scraper_task_body(run_code: str):
                         place_ids,
                         run_code,
                         df_session,
-                        GmapsCollector(),
-                        api_key,
+                        BrowserGmapsCollector(),
+                        "",
                         type_map,
                         religion_type_map,
                         force_refresh,
@@ -527,7 +525,7 @@ async def _resume_scraper_task_body(run_code: str):
 
         elif resume_from == "image_download":
             # Detail fetch completed but image download failed — re-run images then enrich
-            from app.collectors.gmaps import download_place_images
+            from app.collectors.image_download import download_place_images
 
             t_img = time.monotonic()
             await download_place_images(run_code, engine)
@@ -1180,7 +1178,7 @@ def retry_run_images(run_code: str) -> None:
     download_place_images() skips places whose image URLs already start with the
     GCS prefix, so only genuinely failed (non-GCS) URLs are retried.
     """
-    from app.collectors.gmaps import download_place_images
+    from app.collectors.image_download import download_place_images
 
     with Session(engine) as session:
         run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()

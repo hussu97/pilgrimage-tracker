@@ -25,9 +25,8 @@ Copy the root `.env.example` to `.env`. Key variables:
 
 | Variable | Description |
 |---|---|
-| `GOOGLE_MAPS_API_KEY` | Google Maps API key for place data |
 | `MAIN_SERVER_URL` | Catalog-API base URL (e.g. `http://catalog-api:3000`) |
-| `SCRAPER_BACKEND` | Scraping backend: `google_maps` (default) |
+| `GOOGLE_MAPS_API_KEY` | Knowledge Graph Search enrichment collector (optional — scraping itself is browser-only) |
 | `SCRAPER_DISPATCH` | `local` (in-process) or `cloud_run` (production) |
 | `CLOUD_RUN_JOB_NAME` | Cloud Run Job name for the Playwright scraper |
 | `CLOUD_RUN_REGION` | Primary Cloud Run region |

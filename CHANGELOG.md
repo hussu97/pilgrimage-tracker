@@ -4,6 +4,33 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-21] — Scraper: remove Google Maps API backend (browser-only)
+
+### Backend
+- **`soulstep-scraper-api/app/scrapers/gmaps.py`** → **renamed to `gmaps_shared.py`**. API-only functions removed: `get_places_in_circle`, `search_area`, `_split_quadrants`, `_NullSemaphore`, `discover_places`, `run_gmaps_scraper`. Shared helpers kept: `fetch_place_details`, `PlaceTypeMaps`, `load_place_type_maps`, religion/type lookups, `clean_address`, `normalize_to_24h`, `process_weekly_hours`, `calculate_search_radius`, `_build_flush_objects`, `_flush_detail_buffer`, `_flush_failed_places_buffer`, `_should_fail_fast`, `FailFastError`. Orphan imports pruned.
+- **`soulstep-scraper-api/app/collectors/gmaps.py`** → **renamed to `image_download.py`**. `GmapsCollector` and `_extract_address_components` removed. Image helpers (`download_place_images`, `_download_image`, `_force_jpeg_url`, `_is_valid_image`) kept — still called by the browser-mode image pipeline stage and by `db/scraper.py` retry/backfill paths.
+- **`app/collectors/registry.py`** — `get_all_collectors()` no longer switches on `SCRAPER_BACKEND`; always uses `BrowserGmapsCollector`.
+- **`app/db/scraper.py`** — imports `run_gmaps_scraper_browser` under the name `run_gmaps_scraper`, drops `GmapsCollector` usage. Resume-from-`detail_fetch` path now instantiates `BrowserGmapsCollector()` with `api_key=""`.
+- **`app/pipeline/enrichment.py`** — deleted the dead "gmaps re-extraction" block (`RawCollectorData` where `collector_name="gmaps"` → `GmapsCollector()._extract()`). Browser scraper never wrote `collector_name="gmaps"` rows.
+- **`app/services/browser_pool.py`** — dropped the `SCRAPER_BACKEND=browser` guard in the ImportError message.
+- **`app/config.py`** — removed `scraper_backend`, `scraper_detail_concurrency` settings and their `job_env_vars()` entries. `google_maps_api_key` is kept but re-documented as "used by the Knowledge Graph Search enrichment collector" — scraping itself no longer touches the Google Maps Places API.
+- **`app/main.py`** — removed the `GOOGLE_MAPS_API_KEY` "required for discovery/detail fetching" startup warning. The Knowledge Graph collector skips gracefully when the key is unset.
+- **`app/constants.py`** — deleted `GMAPS_MAX_RESULTS_PER_CALL` and `DEFAULT_DETAIL_CONCURRENCY`; re-commented `MAX_DISCOVERY_RADIUS_M` for browser semantics.
+- **Tests** — deleted `tests/test_detail_fetch_resilience.py`, `tests/test_discovery_cells.py`, `tests/test_collectors_extended.py`. Trimmed API-only cases from `tests/test_perf_optimizations.py`. Retargeted imports in `test_normalize*.py`, `test_gmaps_helpers.py`, `test_collectors.py`, `test_browser_gmaps.py`, `test_perf_optimizations.py` to `gmaps_shared` / `image_download`.
+
+### Infra / CI / Compose
+- **`docker-compose.prod.yml`** — removed `SCRAPER_BACKEND`, `SCRAPER_DETAIL_CONCURRENCY` from the scraper-api service. `GOOGLE_MAPS_API_KEY` is kept (used by the Knowledge Graph Search collector, not the scraper). Catalog-api `GOOGLE_MAPS_API_KEY` is unaffected.
+- **`.github/workflows/deploy-vm.yml`** — removed `SCRAPER_BACKEND`, `SCRAPER_DETAIL_CONCURRENCY`. `SCRAPER_GOOGLE_MAPS_API_KEY` forwarding retained for Knowledge Graph.
+- **`.github/workflows/update-env.yml`** — no changes (`SCRAPER_GOOGLE_MAPS_API_KEY` retained).
+
+### Docs
+- **`soulstep-scraper-api/README.md`** — dropped `SCRAPER_BACKEND` and scraper-side `GOOGLE_MAPS_API_KEY` from the env-var table.
+- **`ARCHITECTURE.md`** — replaced the two-backend table with a single-line statement that the scraper is Playwright browser only.
+- **`PRODUCTION.md`** — removed `SCRAPER_GOOGLE_MAPS_API_KEY`, `SCRAPER_BACKEND`, `SCRAPER_DETAIL_CONCURRENCY` rows; updated `SCRAPER_DISCOVERY_CONCURRENCY` semantics.
+- **`docs/local-scraper-sync.md`** — replaced the Google Maps API-key requirement with a Playwright + Chromium install note.
+
+---
+
 ## [2026-04-21] — Customer web: Umami analytics overhaul (prod 0-events fix + full event coverage)
 
 ### Frontend (web)

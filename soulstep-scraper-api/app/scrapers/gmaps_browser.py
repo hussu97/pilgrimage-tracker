@@ -1,12 +1,10 @@
 """
 Browser-based Google Maps discovery and scraper orchestration.
 
-Replaces Google Places API calls with Playwright-based web scraping when
-SCRAPER_BACKEND=browser is set. Mirrors the quadtree search pattern from
-scrapers/gmaps.py but uses browser navigation instead of API calls.
-
-Discovery returns the same "places/{id}" resource name format consumed by
-fetch_place_details() so all downstream phases remain unchanged.
+Uses Playwright navigation (no Google Places API) to discover places and
+drive detail fetching. Discovery uses a quadtree search pattern and returns
+the same "places/{id}" resource name format consumed by fetch_place_details()
+so all downstream phases remain unchanged.
 
 Each active place type gets an independent quadtree search pass so no types
 are silently dropped and the cell cache is keyed per-type.
@@ -40,7 +38,7 @@ from app.db.models import GeoBoundary, ScraperRun
 from app.logger import get_logger
 from app.scrapers.base import ThreadSafeIdSet
 from app.scrapers.cell_store import DiscoveryCellStore, GlobalCellStore
-from app.scrapers.gmaps import calculate_search_radius
+from app.scrapers.gmaps_shared import calculate_search_radius
 from app.services.browser_pool import (
     AcquireTimeoutError,
     BlockedError,
@@ -985,7 +983,7 @@ async def _search_single_grid_cell(
     Unlike search_area_browser this function never recurses — grid cells are
     fixed-size by design and saturation does not trigger subdivision.
     """
-    from app.scrapers.gmaps import calculate_search_radius
+    from app.scrapers.gmaps_shared import calculate_search_radius
 
     center_lat, center_lng, radius = calculate_search_radius(lat_min, lat_max, lng_min, lng_max)
 
@@ -1201,16 +1199,15 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
     """
     Browser-based orchestrator: discover places → fetch details → download images.
 
-    Drop-in replacement for run_gmaps_scraper() when SCRAPER_BACKEND=browser.
     Each active place type gets an independent quadtree search pass; results are
     deduplicated across passes. All downstream phases (image download, enrichment,
     sync) are unchanged.
     """
-    from app.collectors.gmaps import download_place_images
     from app.collectors.gmaps_browser import BrowserGmapsCollector
+    from app.collectors.image_download import download_place_images
     from app.db.session import engine as _engine
     from app.scrapers.geo_utils import get_boundary_boxes
-    from app.scrapers.gmaps import (
+    from app.scrapers.gmaps_shared import (
         STALE_THRESHOLD_DAYS,
         fetch_place_details,
         load_place_type_maps,

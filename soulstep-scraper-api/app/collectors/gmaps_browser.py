@@ -1,10 +1,7 @@
 """
-BrowserGmapsCollector — fetches place details from Google Maps web pages.
-
-Drop-in replacement for GmapsCollector when SCRAPER_BACKEND=browser.
-Implements the same build_place_data() dict shape and fetch_details_split()
-interface so all downstream pipeline stages (quality scoring, enrichment,
-image download, sync) remain unchanged.
+BrowserGmapsCollector — fetches place details from Google Maps web pages
+using Playwright. Implements the BaseCollector interface (fetch_details_split
++ build_place_data) consumed by fetch_place_details() in gmaps_shared.
 """
 
 from __future__ import annotations
@@ -17,7 +14,7 @@ from typing import Any
 
 from app.collectors.base import BaseCollector, CollectorResult
 from app.logger import get_logger
-from app.scrapers.gmaps import (
+from app.scrapers.gmaps_shared import (
     clean_address,
     detect_religion_from_types,
     get_gmaps_type_to_our_type,

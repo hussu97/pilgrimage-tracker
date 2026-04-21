@@ -45,20 +45,6 @@ def _validate_startup_config() -> None:
     """
     logger.info("=== SoulStep Scraper API — startup config check ===")
 
-    # GOOGLE_MAPS_API_KEY is required for discovery and detail fetching.
-    # Log a critical-level warning (not a hard exit so Cloud Run health probe still responds).
-    gmaps_key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
-    if gmaps_key:
-        logger.info(
-            "  [SET]  GOOGLE_MAPS_API_KEY = %s  (Google Maps scraper + enrichment)",
-            mask_secret(gmaps_key),
-        )
-    else:
-        logger.critical(
-            "GOOGLE_MAPS_API_KEY is not set — discovery and detail fetching will fail. "
-            "Set this env var before starting a scraper run."
-        )
-
     # Optional API keys — collectors degrade gracefully when absent
     optional_keys: dict[str, str] = {
         "FOURSQUARE_API_KEY": "Foursquare enrichment (optional)",

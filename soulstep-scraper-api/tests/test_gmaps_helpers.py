@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.scrapers.gmaps import (
+from app.scrapers.gmaps_shared import (
     MIN_RADIUS,
     calculate_search_radius,
     detect_religion_from_types,

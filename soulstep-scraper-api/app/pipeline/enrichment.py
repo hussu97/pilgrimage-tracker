@@ -354,20 +354,6 @@ async def _enrich_place(
         )
         session.add(raw_record)
 
-    # Include gmaps collector result if raw data was stored during discovery
-    gmaps_raw = session.exec(
-        select(RawCollectorData)
-        .where(RawCollectorData.place_code == place.place_code)
-        .where(RawCollectorData.collector_name == "gmaps")
-        .where(RawCollectorData.run_code == run_code)
-    ).first()
-
-    if gmaps_raw and gmaps_raw.status == "success":
-        from app.collectors.gmaps import GmapsCollector
-
-        gmaps_result = GmapsCollector()._extract(gmaps_raw.raw_response, place.place_code, "")
-        results["gmaps"] = gmaps_result
-
     # Merge all results into final raw_data
     merged = await merge_collector_results(raw_data, results, name)
     place.raw_data = merged

@@ -120,9 +120,7 @@ Go to **GitHub → hussu97/pilgrimage-tracker → Settings → Environments → 
 | `BACKUP_GCS_BUCKET` | `soulstep-db-backups` |
 | `LOG_LEVEL` | `INFO` |
 
-> **Note:** `SCRAPER_GOOGLE_MAPS_API_KEY` is not a separate secret — CI (`deploy-vm.yml`) writes
-> the `GOOGLE_MAPS_API_KEY` secret value to this field automatically. `CLOUD_RUN_REGIONS` is
-> hardcoded in `deploy-vm.yml` — not stored as a GitHub secret.
+> **Note:** `CLOUD_RUN_REGIONS` is hardcoded in `deploy-vm.yml` — not stored as a GitHub secret.
 
 ### Vercel + Cloud Run Job Secrets
 
@@ -407,7 +405,7 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 
 | Variable | Mandatory | Default | Description |
 |---|---|---|---|
-| `SCRAPER_GOOGLE_MAPS_API_KEY` | ✓* | — | Google Maps key. CI derives from `GOOGLE_MAPS_API_KEY` — no separate secret. *Not required when `SCRAPER_BACKEND=browser`. |
+| `SCRAPER_GOOGLE_MAPS_API_KEY` | — | — | Fed into scraper-api as `GOOGLE_MAPS_API_KEY`. Consumed only by the Knowledge Graph Search enrichment collector — scraping itself is browser-only. CI derives this from the `GOOGLE_MAPS_API_KEY` GitHub secret. Collector skips gracefully when unset. |
 | `CATALOG_API_KEY` | ✓ | — | Must match catalog-api's value. Required for sync and SEO trigger. |
 | `MAIN_SERVER_URL` | ✓ | — | catalog-api URL. Compose: `http://catalog-api:3000`. Cloud Run Job: `https://catalog-api.soul-step.org`. |
 | `SCRAPER_FOURSQUARE_API_KEY` | — | — | Foursquare key. Skipped gracefully when unset. |
@@ -421,7 +419,6 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 | `SCRAPER_MAX_OVERFLOW` | — | `10` | Extra connections during bursts. |
 | `LOG_LEVEL` | — | `INFO` | `DEBUG` \| `INFO` \| `WARNING` \| `ERROR` |
 | `LOG_FORMAT` | — | `text` | `text` for local dev; `json` for Cloud Logging. |
-| `SCRAPER_BACKEND` | — | `api` | `api` — Google Places HTTP. `browser` — Playwright (no API cost). **Must be set as a GitHub Actions secret** — the dispatcher forwards its own value to the Cloud Run Job at dispatch time, overriding anything set directly on the job. |
 | `SCRAPER_DISPATCH` | — | `local` | `local` — in-process. `cloud_run` — Cloud Run Job. **Set `cloud_run` in production.** |
 | `CLOUD_RUN_JOB_NAME` | — | `soulstep-scraper-job` | Job name. Required when `SCRAPER_DISPATCH=cloud_run`. |
 | `CLOUD_RUN_REGION` | — | `us-central1` | Fallback region. Required when `SCRAPER_DISPATCH=cloud_run`. |
@@ -429,8 +426,7 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 | `SCRAPER_CLOUD_RUN_DATABASE_URL` | — | — | Postgres DSN for the Cloud Run Job, using the VM's internal GCP IP (`10.132.0.2`). Passed as `DATABASE_URL` override when dispatching. Falls back to `DATABASE_URL` (docker-internal) when unset — only safe when `SCRAPER_DISPATCH=local`. |
 | `GOOGLE_CLOUD_PROJECT` | — | — | GCP project ID. Required for Cloud Run Job dispatch. |
 | `GCS_BUCKET_NAME` | — | — | GCS bucket for scraped images. Must match catalog-api's value. |
-| `SCRAPER_DISCOVERY_CONCURRENCY` | — | `15` | Max concurrent `searchNearby` calls. |
-| `SCRAPER_DETAIL_CONCURRENCY` | — | `30` | Max concurrent `getPlace` calls. |
+| `SCRAPER_DISCOVERY_CONCURRENCY` | — | `15` | Max concurrent browser grid-cell discovery navigations. |
 | `SCRAPER_ENRICHMENT_CONCURRENCY` | — | `10` | Max places enriched in parallel. |
 | `SCRAPER_MAX_PHOTOS` | — | `3` | Max photos stored per place. |
 | `SCRAPER_MAX_REVIEWS` | — | `5` | Max reviews scraped per place. |

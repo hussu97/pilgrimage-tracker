@@ -118,7 +118,8 @@ services:
       GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
       # ── Integrations / API keys ───────────────────────────────────────────
       CATALOG_API_KEY: ${CATALOG_API_KEY}
-      GOOGLE_MAPS_API_KEY: ${SCRAPER_GOOGLE_MAPS_API_KEY}
+      # Used by the Knowledge Graph Search enrichment collector (shared-quota key).
+      GOOGLE_MAPS_API_KEY: ${SCRAPER_GOOGLE_MAPS_API_KEY:-}
       FOURSQUARE_API_KEY: ${SCRAPER_FOURSQUARE_API_KEY:-}
       GEMINI_API_KEY: ${SCRAPER_GEMINI_API_KEY:-}
       OUTSCRAPER_API_KEY: ${SCRAPER_OUTSCRAPER_API_KEY:-}
@@ -131,7 +132,6 @@ services:
       # ── Server config ─────────────────────────────────────────────────────
       SCRAPER_ALLOWED_ORIGINS: ${SCRAPER_ALLOWED_ORIGINS:-https://admin.soul-step.org}
       SCRAPER_TIMEZONE: ${SCRAPER_TIMEZONE:-Asia/Dubai}
-      SCRAPER_BACKEND: ${SCRAPER_BACKEND:-api}
       SCRAPER_DB_PATH: ${SCRAPER_DB_PATH:-scraper.db}
       # ── DB pool ───────────────────────────────────────────────────────────
       SCRAPER_POOL_SIZE: ${SCRAPER_POOL_SIZE:-10}
@@ -139,7 +139,6 @@ services:
       SCRAPER_POOL_TIMEOUT: ${SCRAPER_POOL_TIMEOUT:-30}
       # ── Concurrency / throughput ──────────────────────────────────────────
       SCRAPER_DISCOVERY_CONCURRENCY: ${SCRAPER_DISCOVERY_CONCURRENCY:-15}
-      SCRAPER_DETAIL_CONCURRENCY: ${SCRAPER_DETAIL_CONCURRENCY:-30}
       SCRAPER_ENRICHMENT_CONCURRENCY: ${SCRAPER_ENRICHMENT_CONCURRENCY:-5}
       SCRAPER_OVERPASS_CONCURRENCY: ${SCRAPER_OVERPASS_CONCURRENCY:-2}
       SCRAPER_OVERPASS_JITTER_MAX: ${SCRAPER_OVERPASS_JITTER_MAX:-1.5}

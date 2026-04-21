@@ -717,7 +717,7 @@ class TestDownloadImage:
     async def test_200_returns_content(self):
         """200 response → returns content bytes (must be valid JPEG ≥ 1 KB)."""
 
-        from app.collectors.gmaps import _download_image
+        from app.collectors.image_download import _download_image
 
         resp = self._make_mock_response(200, self._VALID_JPEG)
         mock_client = AsyncMock()
@@ -730,7 +730,7 @@ class TestDownloadImage:
         """Without follow_redirects a raw 302 would return None — validates the fix
         is necessary by confirming the old code path returned None on non-200."""
 
-        from app.collectors.gmaps import _download_image
+        from app.collectors.image_download import _download_image
 
         resp = self._make_mock_response(302, b"")
         mock_client = AsyncMock()
@@ -744,7 +744,7 @@ class TestDownloadImage:
         """httpx with follow_redirects=True transparently follows 302 and delivers 200.
         Simulated by passing a client that returns 200 directly (as httpx would after redirect)."""
 
-        from app.collectors.gmaps import _download_image
+        from app.collectors.image_download import _download_image
 
         resp = self._make_mock_response(200, self._VALID_JPEG)
         mock_client = AsyncMock()
@@ -759,7 +759,7 @@ class TestDownloadImage:
         """ConnectError → retries up to _MAX_IMAGE_ATTEMPTS times, then returns None."""
         import httpx
 
-        from app.collectors.gmaps import _download_image
+        from app.collectors.image_download import _download_image
 
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(side_effect=httpx.ConnectError("refused"))
@@ -772,7 +772,7 @@ class TestDownloadImage:
     async def test_no_client_creates_own_with_follow_redirects(self):
         """When no client is passed, _download_image creates its own with follow_redirects=True."""
 
-        from app.collectors.gmaps import _download_image
+        from app.collectors.image_download import _download_image
 
         # Patch httpx.AsyncClient to capture the kwargs it was constructed with
         captured_kwargs = {}
@@ -793,7 +793,7 @@ class TestDownloadImage:
                 resp.content = b"\xff\xd8\xff" + b"\x00" * 1024
                 return resp
 
-        with patch("app.collectors.gmaps.httpx.AsyncClient", _FakeClient):
+        with patch("app.collectors.image_download.httpx.AsyncClient", _FakeClient):
             result = await _download_image("http://example.com/photo.jpg")
 
         assert captured_kwargs.get("follow_redirects") is True
@@ -807,25 +807,25 @@ class TestForceJpegUrl:
     """Tests for _force_jpeg_url() — ensures lh3 URLs get -rj appended."""
 
     def test_lh3_url_with_size_suffix_gets_rj(self):
-        from app.collectors.gmaps import _force_jpeg_url
+        from app.collectors.image_download import _force_jpeg_url
 
         url = "https://lh3.googleusercontent.com/gps-cs-s/ABC=w800-h600"
         assert _force_jpeg_url(url) == url + "-rj"
 
     def test_lh3_url_already_has_rj_unchanged(self):
-        from app.collectors.gmaps import _force_jpeg_url
+        from app.collectors.image_download import _force_jpeg_url
 
         url = "https://lh3.googleusercontent.com/gps-cs-s/ABC=w800-h600-rj"
         assert _force_jpeg_url(url) == url
 
     def test_non_lh3_url_unchanged(self):
-        from app.collectors.gmaps import _force_jpeg_url
+        from app.collectors.image_download import _force_jpeg_url
 
         url = "https://places.googleapis.com/v1/places/X/photos/Y/media?key=K"
         assert _force_jpeg_url(url) == url
 
     def test_lh3_url_without_size_suffix_unchanged(self):
-        from app.collectors.gmaps import _force_jpeg_url
+        from app.collectors.image_download import _force_jpeg_url
 
         url = "https://lh3.googleusercontent.com/gps-cs-s/ABC"
         assert _force_jpeg_url(url) == url
@@ -838,24 +838,24 @@ class TestIsValidImage:
     """Tests for _is_valid_image() — accepts JPEG and WebP, rejects others."""
 
     def test_jpeg_magic_bytes_accepted(self):
-        from app.collectors.gmaps import _is_valid_image
+        from app.collectors.image_download import _is_valid_image
 
         assert _is_valid_image(b"\xff\xd8\xff" + b"\x00" * 100) is True
 
     def test_webp_magic_bytes_accepted(self):
-        from app.collectors.gmaps import _is_valid_image
+        from app.collectors.image_download import _is_valid_image
 
         # RIFF<4 bytes size>WEBP
         content = b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 100
         assert _is_valid_image(content) is True
 
     def test_png_rejected(self):
-        from app.collectors.gmaps import _is_valid_image
+        from app.collectors.image_download import _is_valid_image
 
         assert _is_valid_image(b"\x89PNG\r\n\x1a\n" + b"\x00" * 100) is False
 
     def test_empty_rejected(self):
-        from app.collectors.gmaps import _is_valid_image
+        from app.collectors.image_download import _is_valid_image
 
         assert _is_valid_image(b"") is False
 
@@ -866,7 +866,7 @@ class TestDownloadImageWebP:
     _VALID_WEBP: bytes = b"RIFF\x00\x00\x00\x00WEBP" + b"\x00" * 1024
 
     async def test_webp_response_accepted(self):
-        from app.collectors.gmaps import _download_image
+        from app.collectors.image_download import _download_image
 
         resp = AsyncMock()
         resp.status_code = 200
@@ -879,7 +879,7 @@ class TestDownloadImageWebP:
 
     async def test_lh3_url_gets_rj_appended_before_request(self):
         """_download_image rewrites lh3 URLs to force JPEG before fetching."""
-        from app.collectors.gmaps import _download_image
+        from app.collectors.image_download import _download_image
 
         resp = AsyncMock()
         resp.status_code = 200

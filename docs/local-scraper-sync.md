@@ -21,7 +21,7 @@ You can run the scraper on your laptop and point `MAIN_SERVER_URL` at any catalo
 | Requirement | Notes |
 |---|---|
 | Python 3.11+ | `python --version` |
-| Google Maps API key | Required for `SCRAPER_BACKEND=api` (default). Not needed for browser mode. |
+| Playwright + Chromium | `pip install playwright && playwright install chromium` (browser-mode scraper only) |
 | Running catalog-api | Local (`http://127.0.0.1:3000`) or remote URL |
 
 ---

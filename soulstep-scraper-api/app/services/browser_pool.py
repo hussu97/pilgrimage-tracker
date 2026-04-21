@@ -255,8 +255,7 @@ class MapsBrowserPool:
         except ImportError as exc:
             raise ImportError(
                 "Playwright is not installed.\n"
-                "Install: pip install playwright && playwright install chromium\n"
-                "Only needed when SCRAPER_BACKEND=browser."
+                "Install: pip install playwright && playwright install chromium"
             ) from exc
 
         try:

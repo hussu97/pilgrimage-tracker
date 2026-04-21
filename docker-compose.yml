@@ -82,6 +82,7 @@ services:
     environment:
       MAIN_SERVER_URL: http://api:3000
       CATALOG_API_KEY: ${CATALOG_API_KEY:-dev-key}
+      # Used by the Knowledge Graph Search enrichment collector
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
       SCRAPER_TIMEZONE: ${SCRAPER_TIMEZONE:-UTC}
       # Persist scraper.db to the named volume below so data survives restarts

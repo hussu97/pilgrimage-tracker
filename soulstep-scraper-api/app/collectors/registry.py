@@ -11,24 +11,15 @@ def get_all_collectors() -> list[BaseCollector]:
     """Return instances of all known collectors (regardless of availability)."""
     from app.collectors.besttime import BestTimeCollector
     from app.collectors.foursquare import FoursquareCollector
+    from app.collectors.gmaps_browser import BrowserGmapsCollector
     from app.collectors.knowledge_graph import KnowledgeGraphCollector
     from app.collectors.osm import OsmCollector
     from app.collectors.outscraper import OutscraperCollector
     from app.collectors.wikidata import WikidataCollector
     from app.collectors.wikipedia import WikipediaCollector
-    from app.config import settings
-
-    if settings.scraper_backend == "browser":
-        from app.collectors.gmaps_browser import BrowserGmapsCollector
-
-        gmaps_collector: BaseCollector = BrowserGmapsCollector()
-    else:
-        from app.collectors.gmaps import GmapsCollector
-
-        gmaps_collector = GmapsCollector()
 
     return [
-        gmaps_collector,
+        BrowserGmapsCollector(),
         OsmCollector(),
         WikipediaCollector(),
         WikidataCollector(),

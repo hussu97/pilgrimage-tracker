@@ -596,8 +596,8 @@ class TestPerTypeBrowserSearch:
             patch("app.scrapers.gmaps_browser.search_grid_browser", side_effect=fake_grid_search),
             patch("app.scrapers.gmaps_browser.DiscoveryCellStore"),
             patch("app.scrapers.gmaps_browser.GlobalCellStore"),
-            patch("app.scrapers.gmaps.fetch_place_details", new=AsyncMock()),
-            patch("app.collectors.gmaps.download_place_images", new=AsyncMock()),
+            patch("app.scrapers.gmaps_shared.fetch_place_details", new=AsyncMock()),
+            patch("app.collectors.image_download.download_place_images", new=AsyncMock()),
             patch("app.db.session.engine", engine),
         ):
             with Session(engine) as sess:
@@ -1621,7 +1621,7 @@ class TestFlushDetailBufferReviewImages:
         from sqlmodel import Session, select
 
         from app.db.models import ScrapedPlace, ScraperRun
-        from app.scrapers.gmaps import AtomicCounter, _flush_detail_buffer
+        from app.scrapers.gmaps_shared import AtomicCounter, _flush_detail_buffer
 
         counter = AtomicCounter()
         patches = [

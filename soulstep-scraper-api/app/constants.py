@@ -24,11 +24,8 @@ DETAIL_FLUSH_BATCH_SIZE: int = 10
 # Minimum bounding-box radius (metres) at which quadtree stops subdividing.
 MIN_DISCOVERY_RADIUS_M: int = 500
 
-# Google Places API hard limit for searchNearby radius (metres).
+# Maximum bounding-box radius (metres) used when sizing quadtree/grid cells.
 MAX_DISCOVERY_RADIUS_M: int = 50_000
-
-# Maximum results returned by a single Google Places searchNearby call.
-GMAPS_MAX_RESULTS_PER_CALL: int = 20
 
 # ── Cache / staleness ─────────────────────────────────────────────────────────
 
@@ -37,11 +34,8 @@ DEFAULT_STALE_THRESHOLD_DAYS: int = 90
 
 # ── Concurrency limits ────────────────────────────────────────────────────────
 
-# Default max concurrent Google Maps discovery API calls.
+# Default max concurrent browser grid-cell discovery navigations.
 DEFAULT_DISCOVERY_CONCURRENCY: int = 15
-
-# Default max concurrent Google Maps detail-fetch API calls.
-DEFAULT_DETAIL_CONCURRENCY: int = 30
 
 # Default max concurrent places enriched in parallel.
 DEFAULT_ENRICHMENT_CONCURRENCY: int = 10

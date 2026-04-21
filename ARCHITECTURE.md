@@ -224,14 +224,7 @@ POST /api/v1/places/batch  →  catalog-api upserts places
 
 Each region gets an independent quota. The queue processor distributes jobs across regions based on available capacity. Only jobs are spread across regions — catalog-api and scraper-api stay on the primary VM.
 
-**Scraper backends:**
-
-| `SCRAPER_BACKEND` | Method | Cost |
-|---|---|---|
-| `api` (default) | Google Maps Places API (quadtree search) | ~$0.008/place |
-| `browser` | Playwright grid search (3 km × 3 km cells) | $0 |
-
-Downstream phases (enrichment, quality, sync) are identical regardless of backend.
+**Scraper backend:** Playwright grid search (3 km × 3 km cells), no API cost. Downstream phases (enrichment, quality, sync) are unchanged.
 
 ---
 
