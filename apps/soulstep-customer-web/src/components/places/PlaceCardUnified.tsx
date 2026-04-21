@@ -12,6 +12,11 @@ interface PlaceCardUnifiedProps {
   variant?: 'default' | 'recommended' | 'tile';
   onAddToJourney?: (e: React.MouseEvent) => void;
   className?: string;
+  /**
+   * Fires right before navigation so callers can emit analytics events with a
+   * caller-specific `source` label (e.g. 'places_list', 'home_featured').
+   */
+  onCardClick?: (place: Place) => void;
 }
 
 function formatCount(n: number): string {
@@ -25,6 +30,7 @@ function PlaceCardUnified({
   variant = 'default',
   onAddToJourney,
   className,
+  onCardClick,
 }: PlaceCardUnifiedProps) {
   const openStatus =
     place.open_status ??
@@ -37,6 +43,7 @@ function PlaceCardUnified({
   return (
     <Link
       to={`/places/${place.place_code}`}
+      onClick={() => onCardClick?.(place)}
       className={`group relative block rounded-3xl overflow-hidden shadow-soft hover:shadow-xl transition-all duration-500 hover:-translate-y-1 ${className ?? ''}`}
     >
       <div className={`relative ${imageHeight} overflow-hidden`}>

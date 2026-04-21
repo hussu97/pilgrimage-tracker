@@ -5,6 +5,7 @@ import { useParams, useNavigate, useSearchParams } from '@/lib/navigation';
 import { useI18n, useFeedback } from '@/app/providers';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 import { cn } from '@/lib/utils/cn';
 import {
   getPlace,
@@ -34,6 +35,12 @@ export default function WriteReview() {
   const { showSuccess, showError } = useFeedback();
   const { trackEvent } = useAnalytics();
   const { trackUmamiEvent } = useUmamiTracking();
+
+  useEffect(() => {
+    trackUmamiEvent(EVENTS.review.start, { place_code: placeCode });
+    // Fire-and-forget on first mount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // editReview code is passed via ?editReview=<review_code> query param
   const editReviewCode = searchParams.get('editReview');
   const [editReview, setEditReview] = useState<Review | undefined>(undefined);
@@ -106,6 +113,7 @@ export default function WriteReview() {
         const thumbnailUrl = URL.createObjectURL(blob);
 
         setPhotos((prev) => [...prev, { ...result, thumbnailUrl }]);
+        trackUmamiEvent(EVENTS.review.photo_upload, { place_code: placeCode });
       }
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : t('reviews.uploadFailed'));
@@ -152,7 +160,11 @@ export default function WriteReview() {
           photo_urls: photos.map((p) => p.url),
         });
         trackEvent('review_submit', { place_code: placeCode, rating });
-        trackUmamiEvent('review_submit', { rating });
+        trackUmamiEvent(EVENTS.review.submit, {
+          place_code: placeCode,
+          rating,
+          has_photos: photos.length > 0,
+        });
         showSuccess(t('feedback.reviewSubmitted'));
       }
       setSuccess(true);
@@ -238,7 +250,13 @@ export default function WriteReview() {
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setRating(value)}
+                  onClick={() => {
+                    setRating(value);
+                    trackUmamiEvent(EVENTS.review.rating_select, {
+                      place_code: placeCode,
+                      rating: value,
+                    });
+                  }}
                   className="focus:outline-none transition-transform active:scale-95"
                   aria-label={t('reviews.starsAccessibility').replace('{count}', String(value))}
                 >

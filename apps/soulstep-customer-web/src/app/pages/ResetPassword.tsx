@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Link, useSearchParams, useNavigate } from '@/lib/navigation';
 import { useI18n } from '@/app/providers';
 import { resetPassword } from '@/lib/api/client';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -15,6 +17,7 @@ export default function ResetPassword() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { trackUmamiEvent } = useUmamiTracking();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,6 +37,7 @@ export default function ResetPassword() {
     setLoading(true);
     try {
       await resetPassword(token, password);
+      trackUmamiEvent(EVENTS.auth.reset_password_success);
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2000);
     } catch (err) {

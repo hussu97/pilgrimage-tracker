@@ -80,6 +80,7 @@ See [PRODUCTION.md](PRODUCTION.md) for the full deployment guide.
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture and tech decisions |
 | [ROADMAP.md](ROADMAP.md) | Planned features |
 | [CHANGELOG.md](CHANGELOG.md) | Release history |
+| [docs/UMAMI_ANALYTICS.md](docs/UMAMI_ANALYTICS.md) | Umami event catalog, goals, funnels, setup |
 
 ---
 

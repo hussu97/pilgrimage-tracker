@@ -5,6 +5,7 @@ import { Link } from '@/lib/navigation';
 import { useI18n } from '@/app/providers';
 import { forgotPassword } from '@/lib/api/client';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 
 export default function ForgotPassword() {
   const { t } = useI18n();
@@ -20,7 +21,7 @@ export default function ForgotPassword() {
     setLoading(true);
     try {
       await forgotPassword(email);
-      trackUmamiEvent('forgot_password');
+      trackUmamiEvent(EVENTS.auth.forgot_password);
       setSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));

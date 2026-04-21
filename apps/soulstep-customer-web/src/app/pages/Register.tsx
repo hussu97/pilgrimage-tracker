@@ -5,6 +5,7 @@ import { Link, useNavigate } from '@/lib/navigation';
 import { useAuth, useI18n } from '@/app/providers';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 import { getFieldRules } from '@/lib/api/client';
 import { cn } from '@/lib/utils/cn';
 import type { PasswordRule } from '@/lib/api/client';
@@ -84,10 +85,11 @@ export default function Register() {
       return;
     }
     setSubmitting(true);
+    trackUmamiEvent(EVENTS.auth.signup_submit);
     try {
       await register(email, password, displayName.trim() || undefined);
       trackEvent('signup');
-      trackUmamiEvent('signup');
+      trackUmamiEvent(EVENTS.auth.signup_success);
       navigate('/home');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.registrationFailed'));

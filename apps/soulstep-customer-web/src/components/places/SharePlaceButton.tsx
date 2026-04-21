@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { shareUrl } from '@/lib/share';
 import { useI18n } from '@/app/providers';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 
 const API_BASE = '';
 
@@ -18,11 +20,16 @@ export function SharePlaceButton({
   variant = 'default',
 }: SharePlaceButtonProps) {
   const { t } = useI18n();
+  const { trackUmamiEvent } = useUmamiTracking();
   const [status, setStatus] = useState<'idle' | 'shared' | 'copied'>('idle');
 
   const handleShare = async () => {
     const shareBackendUrl = `${API_BASE}/share/places/${placeCode}`;
     const result = await shareUrl(placeName, shareBackendUrl);
+    trackUmamiEvent(EVENTS.place.share_click, {
+      place_code: placeCode,
+      method: result, // 'shared' = native share sheet; 'copied' = clipboard fallback
+    });
     setStatus(result === 'shared' ? 'shared' : 'copied');
     setTimeout(() => setStatus('idle'), 2000);
   };

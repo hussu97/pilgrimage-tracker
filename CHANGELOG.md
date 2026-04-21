@@ -4,6 +4,37 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-21] — Customer web: Umami analytics overhaul (prod 0-events fix + full event coverage)
+
+### Frontend (web)
+- **`apps/soulstep-customer-web/next.config.ts`** — **Primary root cause of 0 production events.** The `/umami/*` → `cloud.umami.is/*` rewrite was gated on `NODE_ENV === 'development'`, so in production (Vercel, no nginx) `/umami/script.js` returned 404 and the tracker never loaded. Moved the rewrite into the `always` array.
+- **`apps/soulstep-customer-web/src/lib/analytics/events.ts`** — New: central `EVENTS` constant tree (33 event names across auth/onboarding/discover/place/review/journey/profile/error namespaces) + `EventName` TS union + `routeToPageName` helper for SPA page-view titles.
+- **`apps/soulstep-customer-web/src/lib/hooks/useUmamiPageViews.ts`** — New: reports a page view on every Next.js soft navigation (Umami's built-in tracker only fires on initial document load; `next/link` soft navs were invisible to the dashboard). Mounted once in `App.tsx`.
+- **`apps/soulstep-customer-web/src/lib/hooks/useUmamiTracking.ts`** — Widened the `window.umami.track` type to cover named-event, object-payload, and transform-function call shapes. Added a dev-only `console.info/warn` that reports whether the website ID resolved (helps catch misconfig in local).
+- **Scale-out of `trackUmamiEvent` calls** — Replaced string literals with `EVENTS.*` constants and added coverage for every core journey: `Register`, `Login`, `ForgotPassword`, `ResetPassword`, `Onboarding`, `Profile` (+ logout), `EditProfile`, `Places`, `MapDiscovery`, `ExploreCities`, `ExploreCity`, `PlaceDetail` (+ `SharePlaceButton`, `PlaceCardUnified` onCardClick), `WriteReview`, `CreateGroup`, `EditGroupPlaces`, `GroupDetail`, `JoinGroup`. Added submit/success pairs for auth + check-in, plus granular review events (`review_start`/`rating_select`/`photo_upload`), journey delta events (`journey_place_add`/`remove` with counts), and place card click tracking with `source` label for funnel analysis.
+
+### Docs
+- **`docs/UMAMI_ANALYTICS.md`** — New: complete event catalog, goals to configure (7), journey funnels to configure (5), request-flow diagram, debugging recipes, "how to add a new event".
+- **`README.md`** — Added row linking to `docs/UMAMI_ANALYTICS.md`.
+- **`PRODUCTION.md`** — Updated both Umami env-var rows with the real consequence of leaving `NEXT_PUBLIC_UMAMI_WEBSITE_ID` unset (script tag conditional + hook no-op).
+- **`apps/soulstep-customer-web/.env.example`** — Clarified that unset disables analytics entirely and noted the `<Script>` tag in `app/layout.tsx` is the source of truth for that gate.
+
+### Tests
+- **`apps/soulstep-customer-web/src/__tests__/analytics-events.test.ts`** — New: 11 tests covering `EVENTS` uniqueness + naming, `routeToPageName` for opaque codes vs slugs, `isWebsiteIdConfigured` edge cases. All 266 vitest tests + `tsc --noEmit` pass.
+
+### User action required
+- Confirm `NEXT_PUBLIC_UMAMI_WEBSITE_ID` is set in Vercel for the customer-web project and redeploy so the rewrite fix + env var are both live.
+
+---
+
+## [2026-04-21] — Scraper: fix "Task was destroyed but it is pending" for Playwright route handlers
+
+### Backend (scraper)
+- **`soulstep-scraper-api/app/services/browser_pool.py`** — Playwright `BrowserContext` objects have a `route("**/*", ...)` handler attached for image/font/stylesheet blocking. Closing the context without removing the route left the internal `BrowserContext._on_route()` coroutine pending, and Python's GC logged `Task was destroyed but it is pending!` during Cloud Run Job shutdown. Added `_close_context_safely()` helper that calls `context.unroute_all(behavior="ignoreErrors")` before `context.close()`, and routed all three close sites (`_acquire` evict-dead-session, `release(recycle=True)`, `shutdown`) through it.
+- **`soulstep-scraper-api/requirements-job.txt`** — bumped `playwright>=1.41.0` (the version that introduced `unroute_all(behavior=...)`).
+
+---
+
 ## [2026-04-21] — Admin RunDetailPage: sync lock + ETA + auto-pause banner + Cloud Run deep-link + error summary
 
 Phase 2 of the pre-India hardening audit — admin visibility upgrades on `apps/soulstep-admin-web`. Uses the backend fields landed in the preceding commit.

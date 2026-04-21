@@ -1,13 +1,15 @@
 'use client';
 
 /**
- * Umami Cloud analytics hook (web).
+ * Umami Cloud analytics hook (customer web — Next.js App Router).
  *
  * Wraps window.umami.track() with consent gating.
  * - No-ops when analytics consent is not granted or website ID is unset.
  * - Reads consent automatically from AdProvider context.
- * - The Umami script is loaded via index.html; auto page-views are handled by it.
- *   This hook is only for named custom events.
+ * - The Umami script itself is loaded via app/layout.tsx (conditionally, only
+ *   when NEXT_PUBLIC_UMAMI_WEBSITE_ID is set). Auto page-views on initial load
+ *   come from the script. SPA route-change pageviews are handled by
+ *   useUmamiPageViews(); this hook is only for named custom events.
  */
 
 import { useCallback } from 'react';
@@ -16,12 +18,38 @@ import { useAds } from '@/components/ads/AdProvider';
 declare global {
   interface Window {
     umami?: {
-      track: (eventName: string, data?: Record<string, unknown>) => void;
+      /**
+       * Umami's track() supports three call shapes:
+       *   1. Named event:   track(name, data?)
+       *   2. Page-view override: track({ url, title, referrer, ... })
+       *   3. Payload transform:  track((props) => ({ ...props, url: ... }))
+       */
+      track: {
+        (eventName: string, data?: Record<string, unknown>): void;
+        (props: Record<string, unknown>): void;
+        (fn: (props: Record<string, unknown>) => Record<string, unknown>): void;
+      };
     };
   }
 }
 
-const WEBSITE_ID = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ?? '';
+const WEBSITE_ID: string = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ?? '';
+
+let _devConfigLogged = false;
+function logDevConfigOnce(): void {
+  if (_devConfigLogged) return;
+  _devConfigLogged = true;
+  if (process.env.NODE_ENV !== 'development') return;
+  if (isWebsiteIdConfigured()) {
+    // eslint-disable-next-line no-console
+    console.info(`[umami] tracking enabled (website id ${WEBSITE_ID.slice(0, 8)}…)`);
+  } else {
+    console.warn(
+      '[umami] NEXT_PUBLIC_UMAMI_WEBSITE_ID is unset — events will not be sent. ' +
+        'Add it to .env.local to enable tracking in dev.',
+    );
+  }
+}
 
 // ── Payload builder (exported for unit testing) ────────────────────────────
 
@@ -87,6 +115,7 @@ export function useUmamiTracking(): UseUmamiTrackingResult {
 
   const trackUmamiEvent = useCallback(
     (name: string, data?: Record<string, unknown>) => {
+      logDevConfigOnce();
       if (!isWebsiteIdConfigured()) return;
       // TODO: re-enable consent gating once AdProvider consent flow is wired up
       // if (consent.analytics !== true) return;

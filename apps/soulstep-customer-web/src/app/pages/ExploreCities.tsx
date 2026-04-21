@@ -5,6 +5,8 @@ import { Link } from '@/lib/navigation';
 import { useHead } from '@/lib/hooks/useHead';
 import { useI18n } from '@/app/providers';
 import * as api from '@/lib/api/client';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 
 const PAGE_SIZE = 24;
 
@@ -18,11 +20,18 @@ interface City {
 
 function CityCollageCard({ city }: { city: City }) {
   const { t, locale } = useI18n();
+  const { trackUmamiEvent } = useUmamiTracking();
   const images = city.top_images ?? [];
 
   return (
     <Link
       to={`/explore/${city.city_slug}`}
+      onClick={() =>
+        trackUmamiEvent(EVENTS.discover.city_click, {
+          city: city.city,
+          count: city.count,
+        })
+      }
       className="group relative rounded-2xl overflow-hidden h-48 cursor-pointer block shadow-sm hover:shadow-2xl hover:ring-2 hover:ring-primary/30 transition-all duration-300"
     >
       {/* Image collage */}

@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth, useI18n, useFeedback } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 import { cn } from '@/lib/utils/cn';
 import {
   createGroup,
@@ -195,6 +196,12 @@ export default function CreateGroup() {
   const { coords } = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    trackUmamiEvent(EVENTS.journey.create_start);
+    // Fire-and-forget on first mount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Step state ──────────────────────────────────────────────────────────────
   const [step, setStep] = useState<Step>('intent');
   const [intent, setIntent] = useState<JourneyIntent | null>(null);
@@ -341,7 +348,10 @@ export default function CreateGroup() {
         start_date: startDate || undefined,
         end_date: endDate || undefined,
       });
-      trackUmamiEvent('journey_create', { intent, place_count: selectedPlaces.length });
+      trackUmamiEvent(EVENTS.journey.create_submit, {
+        intent,
+        place_count: selectedPlaces.length,
+      });
       setGroupCode(g.group_code);
       setInviteCode(g.invite_code);
       setStep('success');

@@ -6,6 +6,8 @@ import { useHead } from '@/lib/hooks/useHead';
 import { useI18n } from '@/app/providers';
 import * as api from '@/lib/api/client';
 import PlaceCardUnified from '@/components/places/PlaceCardUnified';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 import type { Place } from '@/lib/types';
 
 interface CityMetrics {
@@ -83,6 +85,7 @@ function PopularityBadge({ label }: { label: string }) {
 
 export default function ExploreCity() {
   const { t } = useI18n();
+  const { trackUmamiEvent } = useUmamiTracking();
   const { city } = useParams<{ city: string }>();
   const [places, setPlaces] = useState<CityPlace[]>([]);
   const [cityName, setCityName] = useState('');
@@ -182,7 +185,20 @@ export default function ExploreCity() {
               address: place.address,
               images: place.images ?? [],
             } as unknown as Place;
-            return <PlaceCardUnified key={place.place_code} place={placeObj} t={t} />;
+            return (
+              <PlaceCardUnified
+                key={place.place_code}
+                place={placeObj}
+                t={t}
+                onCardClick={(p) =>
+                  trackUmamiEvent(EVENTS.discover.place_card_click, {
+                    source: 'explore_city',
+                    place_code: p.place_code,
+                    city,
+                  })
+                }
+              />
+            );
           })}
         </div>
       )}

@@ -26,6 +26,7 @@ import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
 import { useHead } from '@/lib/hooks/useHead';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 import { SharePlaceButton } from '@/components/places';
 import PlaceOpeningHours from '@/components/places/PlaceOpeningHours';
 import PlaceTimingsCarousel from '@/components/places/PlaceTimingsCarousel';
@@ -58,6 +59,7 @@ function ReviewsSection({
 }) {
   const { t } = useI18n();
   const { showSuccess, showError } = useFeedback();
+  const { trackUmamiEvent } = useUmamiTracking();
   const [expanded, setExpanded] = useState(false);
   const [deletingCode, setDeletingCode] = useState<string | null>(null);
   const displayReviews = expanded ? reviews : reviews.slice(0, 3);
@@ -67,6 +69,7 @@ function ReviewsSection({
     setDeletingCode(reviewCode);
     try {
       await deleteReview(reviewCode);
+      trackUmamiEvent(EVENTS.review.delete, { review_code: reviewCode });
       onReviewsChange();
       showSuccess(t('feedback.reviewDeleted'));
     } catch {
@@ -375,7 +378,10 @@ export default function PlaceDetail() {
       setAverageRating(reviewsData.average_rating);
       setReviewCount(reviewsData.total);
       trackEvent('place_view', { place_code: placeData.place_code, religion: placeData.religion });
-      trackUmamiEvent('place_view', { religion: placeData.religion });
+      trackUmamiEvent(EVENTS.place.view, {
+        place_code: placeData.place_code,
+        religion: placeData.religion,
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : t('common.error');
       setError(msg);
@@ -424,7 +430,9 @@ export default function PlaceDetail() {
         place_code: placeCode,
         action: wasFavorite ? 'remove' : 'add',
       });
-      trackUmamiEvent(wasFavorite ? 'favorite_remove' : 'favorite_add');
+      trackUmamiEvent(wasFavorite ? EVENTS.place.favorite_remove : EVENTS.place.favorite_add, {
+        place_code: placeCode,
+      });
       showSuccess(t(wasFavorite ? 'feedback.favoriteRemoved' : 'feedback.favoriteAdded'));
     } catch {
       showError(t('feedback.error'));
@@ -440,6 +448,7 @@ export default function PlaceDetail() {
   const doCheckIn = useCallback(async () => {
     if (!placeCode || checkInLoading || checkInDone) return;
     setCheckInLoading(true);
+    trackUmamiEvent(EVENTS.place.check_in_submit, { place_code: placeCode });
     try {
       const result = await doCheckIn_api(placeCode);
       const date = new Date(result.checked_in_at).toLocaleDateString('en-US', {
@@ -449,7 +458,7 @@ export default function PlaceDetail() {
       });
       setCheckInDate(date);
       trackEvent('check_in', { place_code: placeCode });
-      trackUmamiEvent('check_in');
+      trackUmamiEvent(EVENTS.place.check_in_success, { place_code: placeCode });
       setTimeout(() => setCheckInDone(true), 430);
       showSuccess(t('feedback.checkedIn'));
     } catch {
@@ -1174,7 +1183,12 @@ export default function PlaceDetail() {
                     {t('groups.groupsWithPlace')}
                   </h2>
                   <button
-                    onClick={() => setAddToGroupOpen(true)}
+                    onClick={() => {
+                      trackUmamiEvent(EVENTS.place.add_to_journey_click, {
+                        place_code: placeCode,
+                      });
+                      setAddToGroupOpen(true);
+                    }}
                     className="text-sm font-semibold text-primary hover:underline"
                   >
                     {t('groups.addToMoreGroups')}
@@ -1201,7 +1215,12 @@ export default function PlaceDetail() {
                               : t('placeDetail.noGroupsYet')}
                           </p>
                           <button
-                            onClick={() => setAddToGroupOpen(true)}
+                            onClick={() => {
+                              trackUmamiEvent(EVENTS.place.add_to_journey_click, {
+                                place_code: placeCode,
+                              });
+                              setAddToGroupOpen(true);
+                            }}
                             className="text-sm font-semibold text-primary hover:underline"
                           >
                             {t('groups.addPlace')}

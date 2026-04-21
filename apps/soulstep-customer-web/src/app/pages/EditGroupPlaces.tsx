@@ -7,6 +7,8 @@ import { getGroup, updateGroup, getGroupMembers, getPlaces } from '@/lib/api/cli
 import { useAuth } from '@/app/providers';
 import PlaceSelector from '@/components/groups/PlaceSelector';
 import type { Place } from '@/lib/types';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 
 export default function EditGroupPlaces() {
   const { groupCode } = useParams<{ groupCode: string }>();
@@ -15,11 +17,13 @@ export default function EditGroupPlaces() {
   const { user } = useAuth();
 
   const [selectedPlaceCodes, setSelectedPlaceCodes] = useState<string[]>([]);
+  const [originalPlaceCodes, setOriginalPlaceCodes] = useState<string[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
   const [placesLoading, setPlacesLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const { trackUmamiEvent } = useUmamiTracking();
 
   const fetchData = useCallback(async () => {
     if (!groupCode) return;
@@ -31,7 +35,9 @@ export default function EditGroupPlaces() {
         navigate(`/groups/${groupCode}`);
         return;
       }
-      setSelectedPlaceCodes(g.path_place_codes ?? []);
+      const initial = g.path_place_codes ?? [];
+      setSelectedPlaceCodes(initial);
+      setOriginalPlaceCodes(initial);
     } catch {
       navigate(`/groups/${groupCode}/edit`);
     } finally {
@@ -54,6 +60,22 @@ export default function EditGroupPlaces() {
     setError('');
     try {
       await updateGroup(groupCode, { path_place_codes: selectedPlaceCodes });
+      const originalSet = new Set(originalPlaceCodes);
+      const nextSet = new Set(selectedPlaceCodes);
+      const added = selectedPlaceCodes.filter((c) => !originalSet.has(c)).length;
+      const removed = originalPlaceCodes.filter((c) => !nextSet.has(c)).length;
+      if (added > 0) {
+        trackUmamiEvent(EVENTS.journey.place_add, {
+          group_code: groupCode,
+          count: added,
+        });
+      }
+      if (removed > 0) {
+        trackUmamiEvent(EVENTS.journey.place_remove, {
+          group_code: groupCode,
+          count: removed,
+        });
+      }
       navigate(`/groups/${groupCode}/edit`);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));

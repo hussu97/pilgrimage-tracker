@@ -5,10 +5,12 @@
  * After completion (or skip), sets localStorage 'onboarding_done' = '1'
  * and redirects to /home.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useI18n } from '@/app/providers';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 
 interface Card {
   titleKey: string;
@@ -53,8 +55,18 @@ export default function Onboarding({ onDone }: OnboardingProps = {}) {
   const { t } = useI18n();
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(1);
+  const { trackUmamiEvent } = useUmamiTracking();
 
-  function finish() {
+  useEffect(() => {
+    trackUmamiEvent(EVENTS.onboarding.start);
+    // Fire-and-forget on first mount only — deps intentionally stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function finish(reason: 'complete' | 'skip' = 'complete') {
+    trackUmamiEvent(reason === 'skip' ? EVENTS.onboarding.skip : EVENTS.onboarding.complete, {
+      last_card_index: index,
+    });
     localStorage.setItem('onboarding_done', '1');
     if (onDone) {
       onDone();
@@ -80,7 +92,7 @@ export default function Onboarding({ onDone }: OnboardingProps = {}) {
       {/* Skip button */}
       <div className="flex justify-end p-4 lg:p-6">
         <button
-          onClick={finish}
+          onClick={() => finish('skip')}
           className="text-sm font-medium text-slate-500 dark:text-dark-text-secondary hover:text-primary transition-colors px-3 py-1"
         >
           {t('onboarding.skip')}

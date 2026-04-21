@@ -223,7 +223,7 @@ Both web apps deploy automatically via `deploy.yml`. Set these environment varia
 | Customer web | `NEXT_PUBLIC_API_BASE_URL` | `https://catalog-api.soul-step.org` |
 | Customer web | `INTERNAL_API_URL` | `https://catalog-api.soul-step.org` |
 | Customer web | `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN (client-side) |
-| Customer web | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami website ID (optional) |
+| Customer web | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami website ID (optional). Must be set in Vercel — when unset the analytics `<Script>` tag in `app/layout.tsx` is not rendered and all tracking silently no-ops. |
 | Admin web | `VITE_API_URL` | `https://catalog-api.soul-step.org` |
 | Admin web | `VITE_SENTRY_DSN` | Sentry DSN (client-side) |
 
@@ -450,7 +450,7 @@ Never put secrets in `NEXT_PUBLIC_*` vars.
 | `INTERNAL_API_URL` | Vercel dashboard | _(falls back to `NEXT_PUBLIC_API_BASE_URL`)_ | Server-only URL for SSR metadata fetches. Never use `NEXT_PUBLIC_` prefix. |
 | `NEXT_PUBLIC_SENTRY_DSN` | Vercel dashboard | — | Sentry DSN for client-side error tracking. |
 | `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | Vercel dashboard | — | Google AdSense ID. Required when backend returns `ADS_ENABLED=true`. |
-| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Vercel dashboard | — | Umami analytics website ID. |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Vercel dashboard | — | Umami analytics website ID. Must be set for tracking to work; `app/layout.tsx` only renders the `<Script>` tag when this is truthy, and the tracking hook gates every `track()` call on it being configured. |
 
 ---
 

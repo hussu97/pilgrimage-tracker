@@ -10,6 +10,8 @@ import ErrorState from '@/components/common/ErrorState';
 import ProfileSkeleton from '@/components/common/skeletons/ProfileSkeleton';
 import type { UserStats, Religion } from '@/lib/types';
 import AdBanner from '@/components/ads/AdBanner';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 
 const RELIGIONS = [
   { code: 'islam' as const, emoji: '🕌', labelKey: 'common.islam' },
@@ -32,6 +34,7 @@ function formatJoinedDate(createdAt: string | undefined): string {
 export default function Profile() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { trackUmamiEvent } = useUmamiTracking();
   const { t, locale, languages, setLocale } = useI18n();
   useDocumentTitle(t('nav.profile'));
   const { isDark, setTheme, units, setUnits } = useTheme();
@@ -97,6 +100,9 @@ export default function Profile() {
 
   const handleSavePath = async () => {
     setPathOpen(false);
+    trackUmamiEvent(EVENTS.profile.religion_change, {
+      count: selectedReligions.length,
+    });
     try {
       await updateSettings({ religions: selectedReligions });
       // Refresh user to show updated subtext
@@ -109,6 +115,7 @@ export default function Profile() {
 
   const handleLangSelect = async (code: string) => {
     setLangOpen(false);
+    trackUmamiEvent(EVENTS.profile.language_change, { language: code });
     await setLocale(code);
     if (user) {
       try {
@@ -145,6 +152,7 @@ export default function Profile() {
 
   const handleThemeToggle = (on: boolean) => {
     const t2 = on ? 'dark' : 'light';
+    trackUmamiEvent(EVENTS.profile.theme_toggle, { theme: t2 });
     setTheme(t2);
     if (user) updateSettings({ theme: t2 }).catch(() => {});
   };
@@ -468,6 +476,7 @@ export default function Profile() {
             <button
               type="button"
               onClick={async () => {
+                trackUmamiEvent(EVENTS.auth.logout);
                 await logout();
               }}
               className="w-full flex items-center justify-center gap-2 py-4 text-red-500 font-semibold hover:text-red-600 transition-colors"

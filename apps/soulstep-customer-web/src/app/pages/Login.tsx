@@ -5,6 +5,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from '@/lib/navigation';
 import { useAuth, useI18n } from '@/app/providers';
 import { useAnalytics } from '@/lib/hooks/useAnalytics';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,10 +30,11 @@ export default function Login() {
     e.preventDefault();
     setError('');
     setSubmitting(true);
+    trackUmamiEvent(EVENTS.auth.login_submit);
     try {
       await login(email, password);
       trackEvent('login');
-      trackUmamiEvent('login');
+      trackUmamiEvent(EVENTS.auth.login_success);
       navigate(from, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.loginFailed'));

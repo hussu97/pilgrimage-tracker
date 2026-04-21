@@ -5,11 +5,14 @@ import { useNavigate } from '@/lib/navigation';
 import { useAuth, useI18n, useFeedback } from '@/app/providers';
 import { updateMe, updateSettings } from '@/lib/api/client';
 import type { Religion } from '@/lib/types';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 
 const RELIGIONS: Religion[] = ['islam', 'hinduism', 'christianity'];
 
 export default function EditProfile() {
   const { user, refreshUser } = useAuth();
+  const { trackUmamiEvent } = useUmamiTracking();
   const { t } = useI18n();
   const { showSuccess, showError } = useFeedback();
   const navigate = useNavigate();
@@ -32,6 +35,9 @@ export default function EditProfile() {
         display_name: displayName.trim() || user.display_name,
       });
       await updateSettings({ religions });
+      trackUmamiEvent(EVENTS.profile.edit_submit, {
+        religion_count: religions.length,
+      });
       await refreshUser();
       showSuccess(t('feedback.profileUpdated'));
       navigate('/profile');

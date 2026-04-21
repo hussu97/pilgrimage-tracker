@@ -28,6 +28,8 @@ import type { Group, LeaderboardEntry, ActivityItem, GroupMember, Place } from '
 import type { ChecklistResponse, PlaceNote } from '@/lib/types/groups';
 import AdBanner from '@/components/ads/AdBanner';
 import PlaceListRow from '@/components/places/PlaceListRow';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 
 type Tab = 'route' | 'activity' | 'members';
 
@@ -82,6 +84,7 @@ export default function GroupDetail() {
   const { t } = useI18n();
   const { user } = useAuth();
   const { showSuccess, showError } = useFeedback();
+  const { trackUmamiEvent } = useUmamiTracking();
 
   const [group, setGroup] = useState<Group | null>(null);
   const [tab, setTab] = useState<Tab>('route');
@@ -157,6 +160,7 @@ export default function GroupDetail() {
     setActionLoading(true);
     try {
       await leaveGroup(groupCode);
+      trackUmamiEvent(EVENTS.journey.leave, { group_code: groupCode });
       showSuccess(t('feedback.groupLeft'));
       setTimeout(() => navigate('/groups'), 400);
     } catch {
@@ -187,6 +191,7 @@ export default function GroupDetail() {
     setActionLoading(true);
     try {
       await removeGroupMember(groupCode, userCode);
+      trackUmamiEvent(EVENTS.journey.member_remove, { group_code: groupCode });
       setMembers((prev) => prev.filter((m) => m.user_code !== userCode));
       showSuccess(t('feedback.memberRemoved'));
     } catch {
@@ -379,7 +384,10 @@ export default function GroupDetail() {
             {inviteUrl && (
               <button
                 type="button"
-                onClick={() => shareUrl(group.name, inviteUrl)}
+                onClick={() => {
+                  trackUmamiEvent(EVENTS.journey.invite_click, { group_code: groupCode });
+                  shareUrl(group.name, inviteUrl);
+                }}
                 className="p-2 rounded-full bg-black/30 backdrop-blur-md border border-white/20 text-white hover:bg-black/45 transition-colors"
                 aria-label={t('journey.inviteFriends') || 'Invite'}
               >
@@ -967,7 +975,12 @@ export default function GroupDetail() {
                           />
                           <button
                             type="button"
-                            onClick={() => shareUrl(group.name, inviteUrl)}
+                            onClick={() => {
+                              trackUmamiEvent(EVENTS.journey.invite_click, {
+                                group_code: groupCode,
+                              });
+                              shareUrl(group.name, inviteUrl);
+                            }}
                             className="px-3 py-2.5 rounded-xl bg-primary text-white text-xs font-semibold hover:bg-primary/90 flex items-center gap-1"
                           >
                             <span className="material-symbols-outlined text-sm">share</span>

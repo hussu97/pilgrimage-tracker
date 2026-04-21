@@ -5,6 +5,7 @@ import { useSearchParams, useNavigate } from '@/lib/navigation';
 import { useI18n, useFeedback } from '@/app/providers';
 import { getGroupByInviteCode, joinGroupByCode } from '@/lib/api/client';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 
 export default function JoinGroup() {
   const [searchParams] = useSearchParams();
@@ -38,7 +39,7 @@ export default function JoinGroup() {
     setError('');
     try {
       const { group_code } = await joinGroupByCode(code);
-      trackUmamiEvent('group_join');
+      trackUmamiEvent(EVENTS.journey.join_submit);
       showSuccess(t('feedback.groupJoined'));
       navigate(`/groups/${group_code}`);
     } catch (err) {

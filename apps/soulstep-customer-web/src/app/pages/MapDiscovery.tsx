@@ -9,6 +9,8 @@ import type { MapBounds } from '@/components/places/PlacesMap';
 import { useI18n } from '@/app/providers';
 import { useLocation } from '@/app/contexts/LocationContext';
 import { useHead } from '@/lib/hooks/useHead';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 
 interface BoolFilter {
   key: 'open_now' | 'has_parking' | 'womens_area' | 'top_rated' | 'has_events';
@@ -108,12 +110,32 @@ export default function MapDiscovery() {
     return () => clearTimeout(timer);
   }, [mapBounds, search, filters, fetchPlaces]);
 
-  const handleBoundsChange = useCallback((bounds: MapBounds) => {
-    setMapBounds(bounds);
-  }, []);
+  const { trackUmamiEvent } = useUmamiTracking();
+
+  // Debounce map pan events so a single drag doesn't fire 30 events.
+  const lastPanRef = useRef<number>(0);
+  const handleBoundsChange = useCallback(
+    (bounds: MapBounds) => {
+      setMapBounds(bounds);
+      const now = Date.now();
+      if (now - lastPanRef.current > 2000) {
+        lastPanRef.current = now;
+        trackUmamiEvent(EVENTS.discover.map_pan);
+      }
+    },
+    [trackUmamiEvent],
+  );
 
   const toggleFilter = (key: BoolFilter['key']) => {
-    setFilters((prev) => ({ ...prev, [key]: !prev[key] }));
+    setFilters((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      trackUmamiEvent(EVENTS.discover.filter_toggle, {
+        source: 'map',
+        filter: key,
+        active: next[key],
+      });
+      return next;
+    });
   };
 
   const activeCount = Object.values(filters).filter(Boolean).length;
@@ -227,7 +249,16 @@ export default function MapDiscovery() {
               }
               className="cursor-pointer"
             >
-              <PlaceCardUnified place={place} t={t} />
+              <PlaceCardUnified
+                place={place}
+                t={t}
+                onCardClick={(p) =>
+                  trackUmamiEvent(EVENTS.discover.place_card_click, {
+                    source: 'map',
+                    place_code: p.place_code,
+                  })
+                }
+              />
             </div>
           ))}
 

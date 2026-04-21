@@ -6,6 +6,8 @@ import { useHead } from '@/lib/hooks/useHead';
 import { getPlaces } from '@/lib/api/client';
 import type { Place } from '@/lib/types';
 import PlaceCardUnified from '@/components/places/PlaceCardUnified';
+import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
+import { EVENTS } from '@/lib/analytics/events';
 
 const RELIGIONS = [
   { value: '', labelKey: 'common.all' },
@@ -45,6 +47,7 @@ export default function Places() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [religion, setReligion] = useState('');
+  const { trackUmamiEvent } = useUmamiTracking();
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
@@ -109,7 +112,14 @@ export default function Places() {
           <button
             key={r.value}
             type="button"
-            onClick={() => setReligion(r.value)}
+            onClick={() => {
+              setReligion(r.value);
+              trackUmamiEvent(EVENTS.discover.filter_toggle, {
+                source: 'places_list',
+                filter: 'religion',
+                value: r.value || 'all',
+              });
+            }}
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
               religion === r.value
                 ? 'bg-primary text-white'
@@ -130,7 +140,18 @@ export default function Places() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
           {places.map((place) => (
-            <PlaceCardUnified key={place.place_code} place={place} t={t} />
+            <PlaceCardUnified
+              key={place.place_code}
+              place={place}
+              t={t}
+              onCardClick={(p) =>
+                trackUmamiEvent(EVENTS.discover.place_card_click, {
+                  source: 'places_list',
+                  place_code: p.place_code,
+                  religion: p.religion,
+                })
+              }
+            />
           ))}
         </div>
       )}

@@ -15,6 +15,12 @@ import { AuthGateProvider } from '@/components/auth/AuthGateProvider';
 import { AdProvider } from '@/components/ads/AdProvider';
 import ConsentBanner from '@/components/consent/ConsentBanner';
 import { AnalyticsProviderConnected } from '@/components/analytics/AnalyticsProviderConnected';
+import { useUmamiPageViews } from '@/lib/hooks/useUmamiPageViews';
+
+function UmamiPageViewTracker() {
+  useUmamiPageViews();
+  return null;
+}
 
 function I18nReadyGate({ children }: { children: React.ReactNode }) {
   const { ready } = useI18n();
@@ -36,6 +42,7 @@ export default function App({ children }: { children: React.ReactNode }) {
           <I18nProvider>
             <I18nReadyGate>
               <AdProvider>
+                <UmamiPageViewTracker />
                 <AnalyticsProviderConnected>
                   <FeedbackProvider>
                     <LocationProvider>
