@@ -215,11 +215,13 @@ async def download_place_images(run_code: str, engine, max_workers: int | None =
                 if not place:
                     continue
                 raw = dict(place.raw_data or {})
-                sorted_urls = [
-                    gcs_url
-                    for _, gcs_url in sorted(gcs_urls_by_place[place_id], key=lambda x: x[0])
-                ]
-                raw["image_urls"] = sorted_urls
+                existing_urls = list(raw.get("image_urls") or [])
+                for idx, gcs_url in gcs_urls_by_place[place_id]:
+                    if idx < len(existing_urls):
+                        existing_urls[idx] = gcs_url
+                    else:
+                        existing_urls.append(gcs_url)
+                raw["image_urls"] = existing_urls
                 place.raw_data = raw
                 session.add(place)
             session.commit()
