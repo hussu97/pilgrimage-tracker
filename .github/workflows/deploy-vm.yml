@@ -284,6 +284,7 @@ jobs:
           # ── Scraper-api: post-run automation ──────────────────────────────────
           SCRAPER_AUTO_SYNC_AFTER_RUN=${{ secrets.SCRAPER_AUTO_SYNC_AFTER_RUN }}
           SCRAPER_TRIGGER_SEO_AFTER_SYNC=${{ secrets.SCRAPER_TRIGGER_SEO_AFTER_SYNC }}
+          CLOUD_RUN_CATALOG_URL=${{ secrets.CLOUD_RUN_CATALOG_URL }}
           # ── Scraper-api: Cloud Run dispatch (regions comma-list) ──────────────
           CLOUD_RUN_REGIONS=${{ secrets.CLOUD_RUN_REGIONS }}
           # ── Scraper-api: browser grid / Playwright pool ───────────────────────

@@ -227,13 +227,10 @@ def is_cloud_run_execution_active(execution_name: str) -> bool:
     try:
         client = run_v2.ExecutionsClient()
         execution = client.get_execution(name=execution_name)
-        # completion_time is set when the execution has finished (succeeded,
-        # failed, or cancelled).  A zero/unset Timestamp means still running.
-        ct = execution.completion_time
-        if ct is None:
-            return True
-        # Protobuf Timestamp — zero means unset
-        return ct.seconds == 0 and ct.nanos == 0
+        # run_v2 SDK returns completion_time as a Python datetime (or None when
+        # the execution is still running).  A non-None value means finished
+        # (succeeded, failed, or cancelled).
+        return execution.completion_time is None
     except Exception as exc:
         logger.warning(
             "dispatcher: could not check Cloud Run execution status — assuming still active",

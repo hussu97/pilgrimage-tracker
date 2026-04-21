@@ -376,7 +376,11 @@ def retry_run_images_endpoint(
 
 
 @router.post("/runs/{run_code}/resume")
-def resume_run(run_code: str, session: SessionDep):
+def resume_run(
+    run_code: str,
+    session: SessionDep,
+    force: bool = Query(False, description="Skip active-execution check and force re-queue"),
+):
     """Resume an interrupted, failed, or cancelled run from where it left off.
 
     Cloud Run mode: checks whether the existing Cloud Run execution is still
@@ -397,7 +401,7 @@ def resume_run(run_code: str, session: SessionDep):
             detail=f"Cannot resume run with status: {run.status}. Only interrupted, failed, or cancelled runs can be resumed.",
         )
 
-    if settings.scraper_dispatch == "cloud_run" and run.cloud_run_execution:
+    if not force and settings.scraper_dispatch == "cloud_run" and run.cloud_run_execution:
         if is_cloud_run_execution_active(run.cloud_run_execution):
             raise HTTPException(
                 status_code=409,
