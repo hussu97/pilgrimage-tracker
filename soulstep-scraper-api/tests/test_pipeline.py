@@ -362,3 +362,34 @@ class TestMerger:
 
         merged = await merge_collector_results(base, {"knowledge_graph": kg_result}, "Test")
         assert merged["entity_types"] == ["Place", "TouristAttraction"]
+
+    async def test_merge_preserves_high_score_description_on_reenrichment(self):
+        # Re-enrichment guard (P1.9): a second merge pass where the best
+        # available description scores LOWER than what's already persisted
+        # must not overwrite the stored description — otherwise a flaky
+        # Wikipedia fetch on a retry run could regress place quality.
+        from app.collectors.base import CollectorResult
+        from app.pipeline.merger import merge_collector_results
+
+        base = {
+            "name": "Test Mosque",
+            "description": "A long, well-sourced Wikipedia description of Test Mosque with rich historical context from the 14th century that was already picked on the original enrichment pass.",
+            "_description_source": "wikipedia",
+            "_description_score": 0.95,
+            "_description_method": "quality",
+            "attributes": [],
+            "external_reviews": [],
+        }
+
+        # New results include only a short GMaps editorial (score lower than the stored 0.95)
+        weak_gmaps = CollectorResult(collector_name="gmaps")
+        weak_gmaps.descriptions = [
+            {"text": "A mosque.", "lang": "en", "source": "gmaps", "score": 0.10}
+        ]
+
+        merged = await merge_collector_results(base, {"gmaps": weak_gmaps}, "Test Mosque")
+
+        # The old high-score description must survive re-enrichment
+        assert merged["description"].startswith("A long, well-sourced Wikipedia description")
+        assert merged["_description_source"] == "wikipedia"
+        assert merged["_description_score"] == 0.95

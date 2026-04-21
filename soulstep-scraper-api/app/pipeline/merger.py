@@ -47,10 +47,23 @@ async def merge_collector_results(
     if all_descriptions:
         assessment = await assess_descriptions(all_descriptions, place_name)
         if assessment["text"]:
-            merged["description"] = assessment["text"]
-            merged["_description_source"] = assessment["source"]
-            merged["_description_score"] = assessment["score"]
-            merged["_description_method"] = assessment["method"]
+            # On re-enrichment, only overwrite the existing description if the
+            # new assessment scores at least as high as what's already stored.
+            # Otherwise a second run where Wikipedia is down but GMaps still
+            # returns a weak blurb would replace a previously-great description
+            # with a worse one.
+            old_score = merged.get("_description_score")
+            new_score = assessment["score"]
+            should_overwrite = (
+                old_score is None
+                or not merged.get("description")
+                or (new_score is not None and new_score >= old_score)
+            )
+            if should_overwrite:
+                merged["description"] = assessment["text"]
+                merged["_description_source"] = assessment["source"]
+                merged["_description_score"] = assessment["score"]
+                merged["_description_method"] = assessment["method"]
 
         # Consolidate non-English descriptions into the translations dict
         for desc in all_descriptions:

@@ -4,6 +4,18 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-21] — Enrichment merger: preserve high-score description on re-enrichment
+
+Pre-India hardening, P1.9 from the audit plan. Closes the "last-write-wins" concern where a second enrichment pass could regress description quality if a previously-winning collector (typically Wikipedia) is unreachable the second time.
+
+### Backend
+- **`soulstep-scraper-api/app/pipeline/merger.py::merge_collector_results`** — description overwrite is now guarded by a score comparison. The merger only replaces `merged["description"]` + `_description_source/score/method` when the new assessment scores at least as high as the previously-stored `_description_score`, OR when there is no prior description at all. A re-enrichment that hits a flaky Wikipedia and only gets a weak GMaps editorial this time now keeps the existing high-quality description instead of replacing it. Contact / attributes / reviews / images already use safe merge patterns (append-if-missing / first-success-wins), so no change needed there.
+
+### Tests
+- **`soulstep-scraper-api/tests/test_pipeline.py::TestMerger::test_merge_preserves_high_score_description_on_reenrichment`** — seeds a base with a `_description_score=0.95` Wikipedia description and a fresh merge pass whose only description is a low-score GMaps blurb; asserts the stored high-score description survives. Full scraper-api suite: 834 pass.
+
+---
+
 ## [2026-04-21] — Scraper pipeline resilience: cancel watchdog + httpx transient retry
 
 Pre-India (100k-place) hardening from the e2e audit plan (`uae-scraping-ran-fine-i-wiggly-sparrow.md`). Closes P0.5 (cancel works under full block) and P0.6 (httpx timeout retry at the pipeline boundary).
