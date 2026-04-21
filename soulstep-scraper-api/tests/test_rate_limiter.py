@@ -152,6 +152,19 @@ class TestThreadSafeIdSet:
         assert s.add_new([]) == []
         assert len(s) == 0
 
+    def test_spills_to_disk_without_changing_behavior(self):
+        from app.scrapers.base import ThreadSafeIdSet
+
+        s = ThreadSafeIdSet(spill_threshold=3)
+        try:
+            assert s.add_new(["a", "b"]) == ["a", "b"]
+            assert s.add_new(["b", "c", "d"]) == ["c", "d"]
+            assert len(s) == 4
+            assert "d" in s
+            assert sorted(s.to_list()) == ["a", "b", "c", "d"]
+        finally:
+            s.close()
+
 
 # ── AtomicCounter ─────────────────────────────────────────────────────────────
 

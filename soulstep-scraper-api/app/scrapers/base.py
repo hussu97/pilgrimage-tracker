@@ -1,5 +1,8 @@
 import asyncio
+import os
 import secrets
+import sqlite3
+import tempfile
 import threading
 import time
 
@@ -105,25 +108,106 @@ class ThreadSafeIdSet:
     Thread-safe set for deduplicating place IDs during parallel discovery.
 
     add_new() atomically filters and adds new IDs, returning only the new ones.
+    Once the set grows beyond the spill threshold, membership moves to a tiny
+    on-disk SQLite table so country-scale runs do not keep the whole ID set in RAM.
     """
 
-    def __init__(self) -> None:
+    DEFAULT_SPILL_THRESHOLD: int = 50_000
+
+    def __init__(self, spill_threshold: int = DEFAULT_SPILL_THRESHOLD) -> None:
         self._set: set[str] = set()
         self._lock = threading.Lock()
+        self._spill_threshold = max(1, spill_threshold)
+        self._count = 0
+        self._conn: sqlite3.Connection | None = None
+        self._db_path: str | None = None
+
+    def _ensure_disk_backing(self) -> None:
+        if self._conn is not None:
+            return
+
+        fd, path = tempfile.mkstemp(prefix="soulstep-id-set-", suffix=".sqlite3")
+        os.close(fd)
+        conn = sqlite3.connect(path, check_same_thread=False)
+        conn.execute("PRAGMA journal_mode = WAL")
+        conn.execute("PRAGMA synchronous = NORMAL")
+        conn.execute("CREATE TABLE IF NOT EXISTS ids (id TEXT PRIMARY KEY)")
+
+        if self._set:
+            conn.executemany(
+                "INSERT OR IGNORE INTO ids(id) VALUES (?)",
+                ((item,) for item in self._set),
+            )
+            self._count = len(self._set)
+            self._set.clear()
+
+        self._conn = conn
+        self._db_path = path
+
+    @staticmethod
+    def _dedupe_in_order(ids: list[str]) -> list[str]:
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for id_ in ids:
+            if id_ in seen:
+                continue
+            seen.add(id_)
+            ordered.append(id_)
+        return ordered
+
+    def _add_new_disk(self, ids: list[str]) -> list[str]:
+        assert self._conn is not None
+        new_ids: list[str] = []
+        for id_ in self._dedupe_in_order(ids):
+            cursor = self._conn.execute("INSERT OR IGNORE INTO ids(id) VALUES (?)", (id_,))
+            if cursor.rowcount:
+                new_ids.append(id_)
+                self._count += 1
+        return new_ids
+
+    def close(self) -> None:
+        """Release temp SQLite resources used after spilling to disk."""
+        with self._lock:
+            self._set.clear()
+            self._count = 0
+            if self._conn is not None:
+                self._conn.close()
+                self._conn = None
+            if self._db_path is not None:
+                try:
+                    os.unlink(self._db_path)
+                except FileNotFoundError:
+                    pass
+                self._db_path = None
 
     def add_new(self, ids: list[str]) -> list[str]:
         """Atomically filter already-seen IDs, add the new ones, return only the new ones."""
+        if not ids:
+            return []
+
         with self._lock:
+            if self._conn is None and (self._count + len(ids)) >= self._spill_threshold:
+                self._ensure_disk_backing()
+
+            if self._conn is not None:
+                return self._add_new_disk(ids)
+
             new_ids = [id_ for id_ in ids if id_ not in self._set]
             self._set.update(new_ids)
+            self._count = len(self._set)
             return new_ids
 
     def __len__(self) -> int:
         with self._lock:
-            return len(self._set)
+            return self._count
 
     def __contains__(self, item: object) -> bool:
         with self._lock:
+            if self._conn is not None:
+                if not isinstance(item, str):
+                    return False
+                row = self._conn.execute("SELECT 1 FROM ids WHERE id = ?", (item,)).fetchone()
+                return row is not None
             return item in self._set
 
     def to_list(self) -> list[str]:
@@ -133,13 +217,25 @@ class ThreadSafeIdSet:
         object itself — both acquire the lock for a single copy operation.
         """
         with self._lock:
+            if self._conn is not None:
+                rows = self._conn.execute("SELECT id FROM ids").fetchall()
+                return [row[0] for row in rows]
             return list(self._set)
 
     def __iter__(self):
         """Iterate over a snapshot of current IDs (acquires lock once for the copy)."""
         with self._lock:
-            snapshot = list(self._set)
+            if self._conn is not None:
+                snapshot = [row[0] for row in self._conn.execute("SELECT id FROM ids").fetchall()]
+            else:
+                snapshot = list(self._set)
         return iter(snapshot)
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
 
 
 class AtomicCounter:

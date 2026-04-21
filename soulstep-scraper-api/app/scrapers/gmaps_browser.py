@@ -496,7 +496,8 @@ async def search_area_browser(
                 cached.result_count,
                 cached.saturated,
             )
-            new_ids = existing_ids.add_new(cached.resource_names)
+            cached_names = getattr(cached, "resource_names", None)
+            new_ids = existing_ids.add_new(cached_names) if cached_names else []
             if not cached.saturated:
                 return list(new_ids)
             return await _split_quadrants_browser(
@@ -998,7 +999,8 @@ async def _search_single_grid_cell(
                 center_lng,
                 cached.result_count,
             )
-            new_ids = existing_ids.add_new(cached.resource_names)
+            cached_names = getattr(cached, "resource_names", None)
+            new_ids = existing_ids.add_new(cached_names) if cached_names else []
             return list(new_ids)
 
     # Cross-run global cache check
@@ -1084,6 +1086,7 @@ async def search_grid_browser(
     _progress_callback: object | None = None,
     cancel_event: asyncio.Event | None = None,
     metrics: RunMetrics | None = None,
+    collect_results: bool = True,
 ) -> list[str]:
     """Search a pre-computed grid of fixed-size cells for a single place type.
 
@@ -1102,11 +1105,15 @@ async def search_grid_browser(
         _progress_callback: Optional callable(place_type, cells_done, cells_total, total_ids)
             for updating discovery progress in the DB.
         cancel_event: If set, stops processing remaining cells gracefully.
+        collect_results: When False, skips building the extra aggregate list and
+            only updates the shared dedup set.
 
     Returns:
-        List of new place resource names found during this grid pass.
+        List of new place resource names found during this grid pass. Returns an
+        empty list when collect_results=False.
     """
     all_new: list[str] = []
+    total_new = 0
     _sem = semaphore if semaphore is not None else _NullSemaphore()
 
     async def _bounded_cell(cell: tuple) -> list[str]:
@@ -1170,7 +1177,9 @@ async def search_grid_browser(
             if isinstance(result, Exception):
                 logger.warning("[grid][%s] Cell task error: %s", place_type, result)
             else:
-                all_new.extend(result)
+                total_new += len(result)
+                if collect_results:
+                    all_new.extend(result)
 
         cells_done = min(batch_start + BATCH_SIZE, len(grid_cells))
         logger.info(
@@ -1179,7 +1188,7 @@ async def search_grid_browser(
             batch_start + 1,
             cells_done,
             len(grid_cells),
-            len(all_new),
+            total_new,
             len(existing_ids),
         )
 
@@ -1192,7 +1201,7 @@ async def search_grid_browser(
         metrics.cells_total = len(grid_cells)
         metrics.log_summary(place_type)
 
-    return all_new
+    return all_new if collect_results else []
 
 
 async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Session) -> None:
@@ -1389,6 +1398,7 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
                 _progress_callback=_update_progress,
                 cancel_event=cancel_event,
                 metrics=type_metrics,
+                collect_results=False,
             )
             type_count = len(existing_ids) - prev_count
             logger.info(
@@ -1411,16 +1421,16 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
     watcher_task.cancel()
     mem_monitor_task.cancel()
 
-    all_resource_names = existing_ids.to_list()
+    discovery_count = len(existing_ids)
     discovery_elapsed = time.monotonic() - t_discovery
     logger.info(
         "Browser discovery complete: %d places found in %.1fs",
-        len(all_resource_names),
+        discovery_count,
         discovery_elapsed,
         extra={
             "run_code": run_code,
             "discovery_duration_s": round(discovery_elapsed, 2),
-            "places_found": len(all_resource_names),
+            "places_found": discovery_count,
         },
     )
 
@@ -1436,9 +1446,9 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
 
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if run:
-        run.total_items = len(all_resource_names)
+        run.total_items = discovery_count
         run.discovery_duration_s = round(discovery_elapsed, 2)
-        if pool_blocked and not all_resource_names:
+        if pool_blocked and discovery_count == 0:
             run.status = "failed"
             run.stage = "discovery"
             run.error_message = (
@@ -1451,6 +1461,7 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
                 "Run %s marked FAILED — browser pool permanently blocked, 0 places discovered",
                 run_code,
             )
+            existing_ids.close()
             session.add(run)
             session.commit()
             # Skip detail/image/sync stages — nothing to process, and the pool
@@ -1476,7 +1487,9 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
 
     # Detail fetch phase — fresh session + BrowserGmapsCollector
     t_detail = time.monotonic()
-    logger.info("Fetching details for %d places (browser mode)...", len(all_resource_names))
+    all_resource_names = existing_ids.to_list()
+    existing_ids.close()
+    logger.info("Fetching details for %d places (browser mode)...", discovery_count)
     with Session(_engine) as detail_session:
         await fetch_place_details(
             all_resource_names,

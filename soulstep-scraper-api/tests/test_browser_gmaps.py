@@ -590,6 +590,7 @@ class TestPerTypeBrowserSearch:
 
         async def fake_grid_search(grid_cells, place_type, existing_ids, **kwargs):
             call_types.append(place_type)
+            assert kwargs["collect_results"] is False
             return []
 
         with (
@@ -687,6 +688,35 @@ class TestGlobalCellStorePerTypeKey:
         assert hit is not None
         assert hit.result_count == 2
         assert hit.saturated is True
+
+    def test_lazy_loads_existing_db_row(self):
+        """A fresh store should load a matching DB row on demand instead of preloading all rows."""
+        from sqlmodel import Session
+
+        from app.db.models import GlobalDiscoveryCell
+        from app.scrapers.cell_store import GlobalCellStore
+
+        engine = self._make_engine()
+        with Session(engine) as session:
+            session.add(
+                GlobalDiscoveryCell(
+                    lat_min=25.0,
+                    lat_max=25.1,
+                    lng_min=55.0,
+                    lng_max=55.1,
+                    place_type="mosque",
+                    discovery_method="grid",
+                    result_count=1,
+                    saturated=False,
+                    resource_names=["places/A"],
+                )
+            )
+            session.commit()
+
+        store = GlobalCellStore(engine)
+        hit = store.get(25.0, 25.1, 55.0, 55.1, "mosque", "grid")
+        assert hit is not None
+        assert hit.resource_names == ["places/A"]
 
 
 # ── _scroll_until_stable ─────────────────────────────────────────────────────

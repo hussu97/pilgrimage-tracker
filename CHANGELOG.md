@@ -4,6 +4,17 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-22] — Scraper discovery memory hardening for country-scale runs
+
+### Backend
+- **`soulstep-scraper-api/app/scrapers/base.py`** — `ThreadSafeIdSet` now spills to a temp SQLite table once the discovery dedup set grows large, so country-scale runs keep the same dedup semantics without holding the full place-ID universe in Python set memory.
+- **`soulstep-scraper-api/app/scrapers/cell_store.py`** — `DiscoveryCellStore` now keeps lightweight per-cell metadata in RAM and streams stored `resource_names` when pre-seeding the dedup set; `GlobalCellStore` now lazy-loads matching cache rows on demand instead of preloading every non-expired global cell into memory at startup.
+- **`soulstep-scraper-api/app/scrapers/gmaps_browser.py`** — browser grid discovery no longer accumulates a second long-lived per-type ID list during normal runs, and it delays materializing the full discovered-place list until detail fetch actually starts.
+
+### Tests
+- **`soulstep-scraper-api/tests/test_rate_limiter.py`** — added coverage for `ThreadSafeIdSet` spill-to-disk behavior.
+- **`soulstep-scraper-api/tests/test_browser_gmaps.py`** — added regression coverage for lazy global-cache loading and for the browser orchestrator using the low-memory grid-search mode.
+
 ## [2026-04-21] — Backend infra migration tooling for moving to a new GCP project
 
 ### Backend
