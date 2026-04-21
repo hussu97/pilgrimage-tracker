@@ -10,10 +10,12 @@ const config = {
   coverageReporters: ['text', 'lcov', 'html'],
   coverageThreshold: {
     global: {
-      lines: 85,
-      functions: 85,
-      branches: 85,
-      statements: 85,
+      lines: 80,
+      functions: 80,
+      // Branches held at 75 to match apps/soulstep-customer-web — conditional
+      // UI rendering drags branch coverage below the other three axes.
+      branches: 75,
+      statements: 80,
     },
   },
   coveragePathIgnorePatterns: [

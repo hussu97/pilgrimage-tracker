@@ -100,7 +100,7 @@ repos:
 
       # JS/TS test runs use the :coverage script so vitest/jest enforce the
       # thresholds declared in each project's vitest.config.ts / jest.config.js
-      # (web + mobile = 85%, admin = 80%). Mirrors tests.yml CI behavior.
+      # (all three apps = 80%). Mirrors tests.yml CI behavior.
       - id: vitest-web
         name: Vitest (web) + coverage threshold
         language: system
