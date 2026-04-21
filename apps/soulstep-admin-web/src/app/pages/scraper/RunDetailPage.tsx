@@ -35,6 +35,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { usePolling } from "@/lib/hooks/usePolling";
 import { usePagination } from "@/lib/hooks/usePagination";
+import { computeEtaSeconds, computeSyncLockState, formatEta } from "@/lib/utils/syncLock";
 import { formatDate } from "@/lib/utils";
 import { scoreBarColor, scoreTextColor } from "@/lib/utils/qualityMetrics";
 import { statusVariant } from "@/lib/utils/scraperStatus";
@@ -917,7 +918,32 @@ export function RunDetailPage() {
             </h1>
             <p className="text-xs text-text-secondary dark:text-dark-text-secondary mt-1">
               Location: {run.location_code} · Started: {formatDate(run.created_at)}
+              {run.geo_box_label && <> · Box: <span className="font-mono">{run.geo_box_label}</span></>}
             </p>
+            {/* Cloud Run deep-link — parses the execution resource name
+                (projects/{p}/locations/{r}/jobs/{j}/executions/{id}) to jump
+                straight to the GCP console for crash debugging. */}
+            {run.cloud_run_execution && (() => {
+              const match = run.cloud_run_execution.match(
+                /^projects\/([^/]+)\/locations\/([^/]+)\/jobs\/([^/]+)\/executions\/([^/]+)$/,
+              );
+              if (!match) return null;
+              const [, project, region, job, execId] = match;
+              const url = `https://console.cloud.google.com/run/jobs/executions/details/${region}/${execId}/tasks?project=${project}&job=${job}`;
+              return (
+                <p className="text-[11px] text-text-secondary dark:text-dark-text-secondary mt-0.5">
+                  Cloud Run:{" "}
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline font-mono"
+                  >
+                    {region} / {execId.slice(0, 12)}…
+                  </a>
+                </p>
+              );
+            })()}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <StatusBadge label={run.status} variant={statusVariant(run.status)} />
@@ -939,12 +965,27 @@ export function RunDetailPage() {
             )}
             {run.status === "completed" && (
               <>
-                <button
-                  onClick={() => void handleAction("sync")}
-                  className="flex items-center gap-1.5 rounded-lg border border-input-border dark:border-dark-border px-3 py-1.5 text-xs font-medium text-text-secondary dark:text-dark-text-secondary hover:bg-background-light dark:hover:bg-dark-bg transition-colors"
-                >
-                  <UploadCloud size={13} /> Sync
-                </button>
+                {(() => {
+                  // Sync lock (P1.10): block accidental double-sync within 10 min
+                  // of the last successful sync. A 100k-place accidental re-sync
+                  // can spike catalog-api load and corrupt SEO pipelines. Logic
+                  // lives in syncLock.ts so it's Vitest-testable.
+                  const lock = computeSyncLockState(run.last_sync_at);
+                  return (
+                    <button
+                      onClick={() => !lock.locked && void handleAction("sync")}
+                      disabled={lock.locked}
+                      title={lock.tooltip}
+                      className={
+                        lock.locked
+                          ? "flex items-center gap-1.5 rounded-lg border border-input-border dark:border-dark-border px-3 py-1.5 text-xs font-medium text-text-secondary/40 dark:text-dark-text-secondary/40 cursor-not-allowed"
+                          : "flex items-center gap-1.5 rounded-lg border border-input-border dark:border-dark-border px-3 py-1.5 text-xs font-medium text-text-secondary dark:text-dark-text-secondary hover:bg-background-light dark:hover:bg-dark-bg transition-colors"
+                      }
+                    >
+                      <UploadCloud size={13} /> {lock.buttonLabel}
+                    </button>
+                  );
+                })()}
                 <button
                   onClick={() => void handleAction("re-enrich")}
                   className="flex items-center gap-1.5 rounded-lg border border-input-border dark:border-dark-border px-3 py-1.5 text-xs font-medium text-text-secondary dark:text-dark-text-secondary hover:bg-background-light dark:hover:bg-dark-bg transition-colors"
@@ -994,6 +1035,22 @@ export function RunDetailPage() {
               style={{ width: `${progressPct}%` }}
             />
           </div>
+          {/* ETA line (active runs only) — no avg-time → no reliable ETA yet. */}
+          {isActive && (() => {
+            const etaSecs = computeEtaSeconds(
+              run.total_items,
+              run.processed_items,
+              run.avg_time_per_place_s,
+            );
+            if (etaSecs == null) return null;
+            const remaining = (run.total_items ?? 0) - run.processed_items;
+            return (
+              <p className="text-[11px] text-text-secondary dark:text-dark-text-secondary pt-1">
+                ETA ≈ {formatEta(etaSecs)} ({remaining.toLocaleString()} places left at{" "}
+                {(run.avg_time_per_place_s ?? 0).toFixed(2)}s/place)
+              </p>
+            );
+          })()}
         </div>
 
         {/* Stage pipeline */}
@@ -1046,8 +1103,27 @@ export function RunDetailPage() {
           );
         })()}
 
-        {/* Error message */}
-        {run.error_message && (
+        {/* Auto-pause banner (P0.7 fail-fast) — interrupted with error_message
+            starting "auto-paused" means the scraper saw >50% failures and
+            paused itself to stop burning quota. Distinguished from a normal
+            Cloud-Run-restart "interrupted" which has no error_message. */}
+        {run.status === "interrupted" && run.error_message?.startsWith("auto-paused") && (
+          <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/10 px-4 py-3">
+            <p className="text-xs font-medium text-amber-700 dark:text-amber-400 mb-0.5">
+              Auto-paused by fail-fast
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 font-mono break-words">
+              {run.error_message}
+            </p>
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1">
+              Fix the root cause (API quota, proxy, network) and click Resume. Data already
+              fetched before the pause is preserved.
+            </p>
+          </div>
+        )}
+
+        {/* Generic error message (skipped when the auto-pause banner above handled it) */}
+        {run.error_message && !run.error_message.startsWith("auto-paused") && (
           <div className="rounded-lg border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/10 px-4 py-3">
             <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-0.5">Error</p>
             <p className="text-xs text-red-600 dark:text-red-300 font-mono break-words">
@@ -1144,6 +1220,40 @@ export function RunDetailPage() {
         {/* Live activity panel — while running, syncing, or whenever there is data to show */}
         {(isActive || isSyncing || (activity && (activity.places_synced > 0 || activity.images_downloaded > 0))) && activity && (
           <LiveActivityPanel run={run} activity={activity} />
+        )}
+
+        {/* Error summary (P2 admin visibility) — aggregates rate-limit events
+            by collector + status code so the admin can spot a 429 storm or
+            quota exhaustion without grepping logs. Hidden when empty. */}
+        {run.rate_limit_events && Object.keys(run.rate_limit_events).length > 0 && (
+          <div className="rounded-xl border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface p-4">
+            <p className="text-xs font-medium text-text-secondary dark:text-dark-text-secondary mb-2">
+              Rate-limit / HTTP errors by collector
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {Object.entries(run.rate_limit_events).map(([collector, counts]) => {
+                const total = Object.values(counts).reduce((a, b) => a + b, 0);
+                return (
+                  <div
+                    key={collector}
+                    className="rounded-lg border border-input-border dark:border-dark-border p-2"
+                  >
+                    <p className="text-xs font-medium text-text-main dark:text-white capitalize">
+                      {collector}
+                    </p>
+                    <p className="text-lg font-semibold text-amber-600 dark:text-amber-400">
+                      {total.toLocaleString()}
+                    </p>
+                    <p className="text-[11px] text-text-secondary dark:text-dark-text-secondary font-mono">
+                      {Object.entries(counts)
+                        .map(([code, n]) => `${code}: ${n}`)
+                        .join(" · ")}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
 

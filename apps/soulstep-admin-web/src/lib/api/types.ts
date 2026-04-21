@@ -214,6 +214,7 @@ export interface ScraperRun {
   places_synced: number;
   places_sync_failed: number;
   geo_box_label: string | null;
+  cloud_run_execution: string | null;
   created_at: string;
   // Per-stage timing metrics (seconds)
   discovery_duration_s: number | null;
@@ -222,6 +223,9 @@ export interface ScraperRun {
   enrichment_duration_s: number | null;
   sync_duration_s: number | null;
   avg_time_per_place_s: number | null;
+  // Visibility + idempotency (migration 0023)
+  last_sync_at: string | null;
+  rate_limit_events: Record<string, Record<string, number>>;
 }
 
 export interface ScraperStats {
@@ -274,6 +278,10 @@ export interface ScrapedPlaceData {
   _description_score: number | null;
   _quality_score: number | null;
   _quality_gate: string | null;
+  // Per-place lifecycle state (migration 0023)
+  _detail_fetch_status?: "pending" | "success" | "failed";
+  _detail_fetch_error?: string | null;
+  _sync_status?: "pending" | "synced" | "failed" | "quality_filtered" | "name_filtered";
   name: string;
   [key: string]: unknown;
 }

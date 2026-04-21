@@ -4,6 +4,33 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-21] — Admin RunDetailPage: sync lock + ETA + auto-pause banner + Cloud Run deep-link + error summary
+
+Phase 2 of the pre-India hardening audit — admin visibility upgrades on `apps/soulstep-admin-web`. Uses the backend fields landed in the preceding commit.
+
+### Frontend (admin)
+- **`apps/soulstep-admin-web/src/lib/utils/syncLock.ts`** — new. Extracted sync-lock state + ETA math into pure functions so they're Vitest-testable without a DOM.
+  - `computeSyncLockState(lastSyncAtIso, now)` → `{ locked, minutesSinceLastSync, minutesUntilUnlock, tooltip, buttonLabel }`. 10-minute lock window; gracefully handles null / unparseable timestamps.
+  - `computeEtaSeconds(total, processed, avgPerPlace)` → `number | null` — null when we lack signal (no total, no avg, or already done).
+  - `formatEta(seconds)` → human-readable `45s` / `10m` / `2.5h`.
+- **`apps/soulstep-admin-web/src/lib/api/types.ts`** — `ScraperRun` gains `cloud_run_execution`, `last_sync_at`, `rate_limit_events`. `ScrapedPlaceData` gains `_detail_fetch_status`, `_detail_fetch_error`, `_sync_status`.
+- **`apps/soulstep-admin-web/src/app/pages/scraper/RunDetailPage.tsx`**:
+  - **Auto-pause banner** (amber, distinct from red error banner) when `status === "interrupted"` and `error_message` starts with `"auto-paused"` — communicates the fail-fast pause and tells the admin to fix root cause and Resume.
+  - **Sync lock** on the Sync button: disabled + tooltip + "Sync locked (Nm)" label when the last successful sync was within 10 min. Prevents 100k-place accidental double-sync.
+  - **Cloud Run deep-link** in the run header: parses the resource name and renders a GCP console link (`/tasks?project=…&job=…`) for one-click crash debugging.
+  - **ETA line** under the progress bar for active runs, using `run.avg_time_per_place_s` × remaining.
+  - **Rate-limit / HTTP error summary card** — aggregates `rate_limit_events` per collector × status code so a 429 storm or quota exhaustion is visible without grepping logs.
+  - **Geo box label** now rendered alongside location + start time so it's obvious which of the N country-fanout runs you're looking at.
+
+### Tests
+- **`apps/soulstep-admin-web/src/__tests__/syncLock.test.ts`** — new, 12 tests:
+  - `computeSyncLockState`: unlocked when no prior sync; locked 3m ago; unlocks at exactly the 10m boundary; unlocks hours ago; gracefully handles corrupt timestamps
+  - `computeEtaSeconds`: null for missing total / missing avg / non-positive avg / complete run; correct product when in-flight
+  - `formatEta`: seconds / minutes / hours boundaries
+- Admin-web suite: 131 pass (was 119). TypeScript typecheck clean.
+
+---
+
 ## [2026-04-21] — Sync lock write-out + per-place sync_status tracking
 
 Backend half of P1.10-11 from the pre-India hardening audit. The admin UI consumes these in the next commit.
