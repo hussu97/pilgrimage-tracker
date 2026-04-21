@@ -6,6 +6,6 @@
 # Note: google-cloud-run is in requirements.txt (needed by both API service and job)
 
 # Browser scraper backend
-playwright>=1.40.0
+playwright>=1.41.0
 timezonefinder>=6.0.0
 psutil>=5.9.0

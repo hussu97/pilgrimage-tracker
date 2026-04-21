@@ -431,6 +431,26 @@ class MapsBrowserPool:
         return _MapsSession(context=context, page=page)
 
     @staticmethod
+    async def _close_context_safely(context, timeout: float = 10) -> None:
+        """Close a BrowserContext after removing any registered route handlers.
+
+        Why: `context.route()` registers a handler whose internal
+        ``BrowserContext._on_route()`` coroutine stays pending until the route
+        is unregistered. If we call ``context.close()`` without unrouting first,
+        those coroutines leak as pending tasks and Python's GC logs
+        "Task was destroyed but it is pending!" warnings during shutdown.
+        """
+        try:
+            await asyncio.wait_for(context.unroute_all(behavior="ignoreErrors"), timeout=2)
+        except Exception:
+            # Older Playwright versions or already-closed contexts: best-effort.
+            pass
+        try:
+            await asyncio.wait_for(context.close(), timeout=timeout)
+        except Exception:
+            pass
+
+    @staticmethod
     def _is_target_closed_error(exc: Exception) -> bool:
         """Check if an exception indicates a dead browser/context/page."""
         msg = str(exc).lower()
@@ -525,10 +545,7 @@ class MapsBrowserPool:
                                     "MapsBrowserPool: evicting dead session (nav_count=%d)",
                                     session.nav_count,
                                 )
-                                try:
-                                    await asyncio.wait_for(session.context.close(), timeout=5)
-                                except Exception:
-                                    pass
+                                await self._close_context_safely(session.context, timeout=5)
                                 self._sessions.remove(session)
                                 continue
                             session.in_use = True
@@ -599,10 +616,7 @@ class MapsBrowserPool:
                     await asyncio.wait_for(session.page.close(), timeout=5)
                 except Exception:
                     pass
-                try:
-                    await asyncio.wait_for(session.context.close(), timeout=10)
-                except Exception:
-                    pass
+                await self._close_context_safely(session.context, timeout=10)
                 if session in self._sessions:
                     self._sessions.remove(session)
                 logger.info(
@@ -648,10 +662,7 @@ class MapsBrowserPool:
                     await asyncio.wait_for(session.page.close(), timeout=5)
                 except Exception:
                     pass
-                try:
-                    await asyncio.wait_for(session.context.close(), timeout=5)
-                except Exception:
-                    pass
+                await self._close_context_safely(session.context, timeout=5)
             self._sessions.clear()
             if self._browser:
                 try:
