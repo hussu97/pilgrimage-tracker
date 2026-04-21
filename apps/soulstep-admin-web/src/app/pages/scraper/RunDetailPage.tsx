@@ -928,7 +928,7 @@ export function RunDetailPage() {
                 /^projects\/([^/]+)\/locations\/([^/]+)\/jobs\/([^/]+)\/executions\/([^/]+)$/,
               );
               if (!match) return null;
-              const [, project, region, job, execId] = match;
+              const [, project, region, , execId] = match;
               const url = `https://console.cloud.google.com/run/jobs/executions/details/${region}/${execId}/tasks?project=${project}`;
               return (
                 <p className="text-[11px] text-text-secondary dark:text-dark-text-secondary mt-0.5">
