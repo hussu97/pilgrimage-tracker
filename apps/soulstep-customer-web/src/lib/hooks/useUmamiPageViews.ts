@@ -10,33 +10,34 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { isWebsiteIdConfigured } from './useUmamiTracking';
 import { routeToPageName } from '@/lib/analytics/events';
 
 export function useUmamiPageViews(): void {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const lastReported = useRef<string | null>(null);
 
   useEffect(() => {
     if (!pathname) return;
     if (!isWebsiteIdConfigured()) return;
 
-    // Dedupe — soft navs occasionally re-run this effect with unchanged params.
-    const qs = searchParams?.toString() ?? '';
-    const key = qs ? `${pathname}?${qs}` : pathname;
-    if (lastReported.current === key) return;
-    lastReported.current = key;
+    // Dedupe — soft navs occasionally re-run this effect with unchanged pathname.
+    // We intentionally ignore searchParams: (a) using useSearchParams would
+    // force every page that mounts this hook to sit inside a Suspense boundary
+    // for Next.js static prerender, and (b) most funnels don't care about
+    // query-string variations of the same page.
+    if (lastReported.current === pathname) return;
+    lastReported.current = pathname;
 
     // Passing a plain object to umami.track() reports a page view (not a
     // named custom event). Route template (dynamic segments collapsed) is used
     // as the title so the dashboard rows stay stable instead of exploding into
     // one per entity code.
     window.umami?.track({
-      url: key,
+      url: pathname,
       title: routeToPageName(pathname),
       referrer: typeof document !== 'undefined' ? document.referrer : '',
     });
-  }, [pathname, searchParams]);
+  }, [pathname]);
 }
