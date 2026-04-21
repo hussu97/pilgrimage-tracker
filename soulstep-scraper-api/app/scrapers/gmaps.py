@@ -1183,12 +1183,13 @@ async def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> No
     from app.collectors.gmaps import GmapsCollector
 
     city = config.get("city")
+    state = config.get("state")
     country = config.get("country")
     force_refresh = config.get("force_refresh", False)
     stale_threshold_days = config.get("stale_threshold_days", STALE_THRESHOLD_DAYS)
 
-    if not city and not country:
-        raise ValueError("Either city or country required in config")
+    if not city and not state and not country:
+        raise ValueError("Either city, state, or country required in config")
 
     api_key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
     if not api_key:
@@ -1198,7 +1199,7 @@ async def run_gmaps_scraper(run_code: str, config: dict, session: Session) -> No
     if not run:
         raise ValueError(f"Run {run_code} not found")
 
-    boundary_name = city if city else country
+    boundary_name = city if city else (state if state else country)
     boundary = session.exec(select(GeoBoundary).where(GeoBoundary.name == boundary_name)).first()
     if not boundary:
         raise ValueError(f"Geographic boundary not found for: {boundary_name}")
