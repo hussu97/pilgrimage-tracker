@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-21] — Backend infra migration tooling for moving to a new GCP project
+
+### Backend
+- **`.github/workflows/deploy-vm.yml`** — removed the backend deploy workflow’s hard dependency on a single GCP project by reading the project ID, WIF provider, deploy service account, Artifact Registry host/repo, extra Cloud Run regions, and job name from GitHub environment variables. Also removed the stale Cloud SQL detach flags from Cloud Run Job deploys and now writes `CLOUD_RUN_JOB_NAME` / `CLOUD_RUN_REGION` into the VM `.env`.
+- **`.github/workflows/update-env.yml`** — now mirrors the full backend env surface from `deploy-vm.yml` instead of rewriting a truncated `.env`, which prevents later manual env refreshes from silently dropping required scraper or catalog settings.
+- **`docker-compose.prod.yml`** — `CLOUD_RUN_JOB_NAME` and `CLOUD_RUN_REGION` are now taken from env vars instead of being hardcoded into the production compose file.
+- **`scripts/backup-db.sh`** / **`scripts/restore-db.sh`** — backup and restore now operate on both production databases as a single tarball bundle (`catalog.sql.gz`, `scraper.sql.gz`, `manifest.env`) so migration and recovery preserve scraper state as well as catalog data.
+- **`scripts/gcp-bootstrap-backend-project.sh`** — new idempotent helper that enables required APIs, creates Artifact Registry + buckets, provisions the GitHub deploy service account and WIF provider, and grants the project/bucket roles needed for CI deploys plus VM runtime access.
+- **`scripts/gcs-rsync-buckets.sh`** — new helper for repeatable pre-cutover and final-cutover bucket syncs between the old and new GCS image buckets.
+- **`scripts/rewrite-gcs-urls.sh`** — new helper that rewrites persisted `storage.googleapis.com/<bucket>/...` URLs across both databases after a bucket migration, including JSON payloads in the scraper DB and review/group/blog image pointers in the catalog DB.
+
+### Docs
+- **`docs/backend-gcp-project-migration.md`** — new end-to-end backend-only runbook for moving the GCP VM, Cloud Run jobs, both Postgres databases, and GCS buckets into a new account/project with fresh credits.
+- **`README.md`**, **`ARCHITECTURE.md`**, and **`PRODUCTION.md`** — documented the new migration runbook, new migration scripts, GitHub environment variable–driven deploy metadata, and the updated dual-DB backup behavior.
+
 ## [2026-04-21] — Scraper resume: ignore stale Cloud Run execution records
 
 ### Backend

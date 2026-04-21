@@ -113,8 +113,8 @@ services:
       CLOUD_RUN_CATALOG_URL: ${CLOUD_RUN_CATALOG_URL:-}
       LOG_FORMAT: json
       SCRAPER_DISPATCH: cloud_run
-      CLOUD_RUN_JOB_NAME: soulstep-scraper-api-job
-      CLOUD_RUN_REGION: europe-west1
+      CLOUD_RUN_JOB_NAME: ${CLOUD_RUN_JOB_NAME:-soulstep-scraper-api-job}
+      CLOUD_RUN_REGION: ${CLOUD_RUN_REGION:-europe-west1}
       GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
       # ── Integrations / API keys ───────────────────────────────────────────
       CATALOG_API_KEY: ${CATALOG_API_KEY}

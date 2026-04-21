@@ -78,6 +78,7 @@ See [PRODUCTION.md](PRODUCTION.md) for the full deployment guide.
 |---|---|
 | [PRODUCTION.md](PRODUCTION.md) | Deployment guide, env vars, CI/CD |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System architecture and tech decisions |
+| [docs/backend-gcp-project-migration.md](docs/backend-gcp-project-migration.md) | Backend-only GCP account/project migration runbook |
 | [ROADMAP.md](ROADMAP.md) | Planned features |
 | [CHANGELOG.md](CHANGELOG.md) | Release history |
 | [docs/UMAMI_ANALYTICS.md](docs/UMAMI_ANALYTICS.md) | Umami event catalog, goals, funnels, setup |

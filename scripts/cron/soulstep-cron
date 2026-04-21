@@ -1,7 +1,7 @@
 # SoulStep VM cron jobs — installed by vm-bootstrap.sh
 # All times are UTC.
 
-# Daily database backup → local /opt/soulstep/backups/ + GCS (02:00 UTC)
+# Daily dual-database backup bundle → local /opt/soulstep/backups/ + GCS (02:00 UTC)
 0 2 * * * DEPLOY_DIR=/opt/soulstep /opt/soulstep/scripts/backup-db.sh >> /var/log/soulstep-backup.log 2>&1
 
 # Daily place sync from scraper DB to catalog DB (03:00 UTC)

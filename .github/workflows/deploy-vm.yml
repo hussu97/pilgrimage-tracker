@@ -16,13 +16,14 @@ env:
   GHCR_REGISTRY: ghcr.io
   GHCR_OWNER: hussu97
   # GCP — still needed for the scraper Cloud Run Job
-  REGION: europe-west1
-  AR_REGISTRY: europe-west1-docker.pkg.dev
-  AR_REPO: soulstep
-  PROJECT_ID: project-fa2d7f52-2bc4-4a46-8ae
-  SA_EMAIL: github-deploy@project-fa2d7f52-2bc4-4a46-8ae.iam.gserviceaccount.com
-  WIF_PROVIDER: projects/834941457147/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-  EXTRA_JOB_REGIONS: "europe-west4,europe-west2"
+  REGION: ${{ vars.GCP_REGION != '' && vars.GCP_REGION || 'europe-west1' }}
+  AR_REGISTRY: ${{ vars.GCP_ARTIFACT_REGISTRY_HOST != '' && vars.GCP_ARTIFACT_REGISTRY_HOST || 'europe-west1-docker.pkg.dev' }}
+  AR_REPO: ${{ vars.GCP_ARTIFACT_REGISTRY_REPO != '' && vars.GCP_ARTIFACT_REGISTRY_REPO || 'soulstep' }}
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID != '' && vars.GCP_PROJECT_ID || 'project-fa2d7f52-2bc4-4a46-8ae' }}
+  SA_EMAIL: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT != '' && vars.GCP_DEPLOY_SERVICE_ACCOUNT || 'github-deploy@project-fa2d7f52-2bc4-4a46-8ae.iam.gserviceaccount.com' }}
+  WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER != '' && vars.GCP_WIF_PROVIDER || 'projects/834941457147/locations/global/workloadIdentityPools/github-pool/providers/github-provider' }}
+  EXTRA_JOB_REGIONS: ${{ vars.CLOUD_RUN_EXTRA_JOB_REGIONS != '' && vars.CLOUD_RUN_EXTRA_JOB_REGIONS || 'europe-west4,europe-west2' }}
+  CLOUD_RUN_JOB_NAME: ${{ vars.CLOUD_RUN_JOB_NAME != '' && vars.CLOUD_RUN_JOB_NAME || 'soulstep-scraper-api-job' }}
 
 jobs:
   # ── Detect changed paths (same artifact as deploy.yml) ─────────────────────
@@ -283,6 +284,8 @@ jobs:
           SCRAPER_AUTO_SYNC_AFTER_RUN=${{ secrets.SCRAPER_AUTO_SYNC_AFTER_RUN }}
           SCRAPER_TRIGGER_SEO_AFTER_SYNC=${{ secrets.SCRAPER_TRIGGER_SEO_AFTER_SYNC }}
           CLOUD_RUN_CATALOG_URL=${{ secrets.CLOUD_RUN_CATALOG_URL }}
+          CLOUD_RUN_JOB_NAME=${{ env.CLOUD_RUN_JOB_NAME }}
+          CLOUD_RUN_REGION=${{ env.REGION }}
           # ── Scraper-api: Cloud Run dispatch (regions comma-list) ──────────────
           CLOUD_RUN_REGIONS=${{ secrets.CLOUD_RUN_REGIONS }}
           # ── Scraper-api: browser grid / Playwright pool ───────────────────────
@@ -358,7 +361,7 @@ jobs:
   # ── Deploy: scraper Cloud Run Job (Playwright — stays on Cloud Run) ────────
 
   deploy-scraper-job:
-    name: Update soulstep-scraper-api-job on Cloud Run
+    name: Update scraper Cloud Run Job
     needs: [changes, build-scraper-api]
     if: needs.changes.outputs.scraper == 'true' && needs.build-scraper-api.result == 'success'
     runs-on: ubuntu-latest
@@ -409,7 +412,7 @@ jobs:
           docker push "$AR_IMG"
           echo "AR_JOB_IMAGE=$AR_IMG" >> "$GITHUB_ENV"
 
-      - name: Upsert soulstep-scraper-api-job (primary region)
+      - name: Upsert scraper job (primary region)
         run: |
           # Direct VPC Egress (private-ranges-only) — private IPs (10.x.x.x) are
           # routed through the VPC so the job can reach the VM's internal postgres
@@ -423,16 +426,15 @@ jobs:
             --memory 6Gi --cpu 4
             --task-timeout 86400 --max-retries 1
             --clear-secrets
-            --remove-cloudsql-instances "project-fa2d7f52-2bc4-4a46-8ae:europe-west1:soulstep-db"
             --network default
             --subnet default
             --vpc-egress private-ranges-only
             --quiet
           )
-          if gcloud run jobs describe soulstep-scraper-api-job --region "$REGION" --quiet 2>/dev/null; then
-            gcloud run jobs update soulstep-scraper-api-job --region "$REGION" "${COMMON_FLAGS[@]}"
+          if gcloud run jobs describe "${{ env.CLOUD_RUN_JOB_NAME }}" --region "$REGION" --quiet 2>/dev/null; then
+            gcloud run jobs update "${{ env.CLOUD_RUN_JOB_NAME }}" --region "$REGION" "${COMMON_FLAGS[@]}"
           else
-            gcloud run jobs create soulstep-scraper-api-job --region "$REGION" "${COMMON_FLAGS[@]}"
+            gcloud run jobs create "${{ env.CLOUD_RUN_JOB_NAME }}" --region "$REGION" "${COMMON_FLAGS[@]}"
           fi
 
       - name: Upsert scraper job in extra regions
@@ -446,15 +448,14 @@ jobs:
               --memory 6Gi --cpu 4
               --task-timeout 86400 --max-retries 1
               --clear-secrets
-              --remove-cloudsql-instances "project-fa2d7f52-2bc4-4a46-8ae:europe-west1:soulstep-db"
               --network default
               --subnet default
               --vpc-egress private-ranges-only
               --quiet
             )
-            if gcloud run jobs describe soulstep-scraper-api-job --region "$R" --quiet 2>/dev/null; then
-              gcloud run jobs update soulstep-scraper-api-job --region "$R" "${COMMON_FLAGS[@]}"
+            if gcloud run jobs describe "${{ env.CLOUD_RUN_JOB_NAME }}" --region "$R" --quiet 2>/dev/null; then
+              gcloud run jobs update "${{ env.CLOUD_RUN_JOB_NAME }}" --region "$R" "${COMMON_FLAGS[@]}"
             else
-              gcloud run jobs create soulstep-scraper-api-job --region "$R" "${COMMON_FLAGS[@]}"
+              gcloud run jobs create "${{ env.CLOUD_RUN_JOB_NAME }}" --region "$R" "${COMMON_FLAGS[@]}"
             fi
           done

@@ -7,6 +7,9 @@ Playwright scraper stays on **Cloud Run Jobs** (3 regions). No Cloud SQL, no Sec
 Update this file whenever deployment-relevant changes are made: new env vars, new services, DB
 migrations, or build commands.
 
+For moving the backend stack into a different GCP account/project, follow
+**[docs/backend-gcp-project-migration.md](docs/backend-gcp-project-migration.md)**.
+
 ---
 
 ## 1. Overview
@@ -120,7 +123,20 @@ Go to **GitHub → hussu97/pilgrimage-tracker → Settings → Environments → 
 | `BACKUP_GCS_BUCKET` | `soulstep-db-backups` |
 | `LOG_LEVEL` | `INFO` |
 
-> **Note:** `CLOUD_RUN_REGIONS` is hardcoded in `deploy-vm.yml` — not stored as a GitHub secret.
+### GitHub Environment Variables (workflow metadata)
+
+These values are read by `.github/workflows/deploy-vm.yml` and are the canonical place to bind the repo to a specific GCP project:
+
+| Variable | Description |
+|---|---|
+| `GCP_PROJECT_ID` | Target GCP project ID for Cloud Run job deploys |
+| `GCP_REGION` | Primary deploy region / Artifact Registry region |
+| `GCP_ARTIFACT_REGISTRY_HOST` | Example: `europe-west1-docker.pkg.dev` |
+| `GCP_ARTIFACT_REGISTRY_REPO` | Artifact Registry repo name, usually `soulstep` |
+| `GCP_DEPLOY_SERVICE_ACCOUNT` | GitHub Actions deploy SA email |
+| `GCP_WIF_PROVIDER` | Full Workload Identity provider resource |
+| `CLOUD_RUN_JOB_NAME` | Cloud Run Job name, default `soulstep-scraper-api-job` |
+| `CLOUD_RUN_EXTRA_JOB_REGIONS` | Comma-separated extra regions, e.g. `europe-west4,europe-west2` |
 
 ### Vercel + Cloud Run Job Secrets
 
@@ -132,8 +148,8 @@ Go to **GitHub → hussu97/pilgrimage-tracker → Settings → Environments → 
 | `VERCEL_PROJECT_ID_ADMIN` | Admin web Vercel project |
 
 GCP auth for the Cloud Run Job uses **Workload Identity Federation** (keyless):
-- Pool: `github-pool` / Provider: `github-provider`
-- Service account: `github-deploy@project-fa2d7f52-2bc4-4a46-8ae.iam.gserviceaccount.com`
+- Pool/provider/service account are supplied via the GitHub environment variables above.
+- The current production values can be discovered from the `production` environment in GitHub.
 
 ---
 
@@ -193,10 +209,10 @@ challenge fails, verify nginx is up in HTTP-only mode and port 80 is open in GCP
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `deploy-vm.yml` | Tests pass on `main` | Builds catalog-api + scraper-api images → GHCR; deploys to VM via SSH; updates Cloud Run Job in 3 regions (WIF auth) |
+| `deploy-vm.yml` | Tests pass on `main` | Builds catalog-api + scraper-api images → GHCR; deploys to VM via SSH; updates Cloud Run Job in 3 regions (WIF auth, target project/region from GitHub environment variables) |
 | `deploy.yml` | Changes to `apps/` on `main` | Deploys customer-web + admin-web to Vercel. No Cloud Run steps. |
 | `tests.yml` | Every push/PR | Runs backend pytest + frontend Vitest/Jest suites |
-| `update-env.yml` | Manual | Rewrites `/opt/soulstep/.env` from GitHub secrets without full redeploy |
+| `update-env.yml` | Manual | Rewrites `/opt/soulstep/.env` from GitHub secrets without full redeploy; now matches the full backend env surface from `deploy-vm.yml` |
 
 **`deploy-vm.yml` jobs:**
 
@@ -205,7 +221,7 @@ challenge fails, verify nginx is up in HTTP-only mode and port 80 is open in GCP
 | `build-catalog-api` | `soulstep-catalog-api/` changed | Build + push to GHCR, Trivy scan |
 | `build-scraper-api` | `soulstep-scraper-api/` changed | Build API image + job image (Playwright), push to GHCR, Trivy scan |
 | `deploy-vm` | Either changed | SSH → write `.env` → `git pull` → `docker compose pull` → `up --force-recreate` → health check → nginx reload |
-| `deploy-scraper-job` | Scraper changed | Update Cloud Run Job in 3 regions (WIF: pool `github-pool`, SA `github-deploy@project-fa2d7f52-2bc4-4a46-8ae.iam.gserviceaccount.com`) |
+| `deploy-scraper-job` | Scraper changed | Update Cloud Run Job in 3 regions (WIF auth; project/provider/service-account come from GitHub environment variables) |
 
 VM deploy sequence: `git pull` → `docker compose pull` → `docker compose up --force-recreate` → alembic migrations run via catalog-api lifespan hook → health check (30 × 5 s) → `nginx reload` → `docker image prune -f`.
 
@@ -419,9 +435,9 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 | `LOG_LEVEL` | — | `INFO` | `DEBUG` \| `INFO` \| `WARNING` \| `ERROR` |
 | `LOG_FORMAT` | — | `text` | `text` for local dev; `json` for Cloud Logging. |
 | `SCRAPER_DISPATCH` | — | `local` | `local` — in-process. `cloud_run` — Cloud Run Job. **Set `cloud_run` in production.** |
-| `CLOUD_RUN_JOB_NAME` | — | `soulstep-scraper-job` | Job name. Required when `SCRAPER_DISPATCH=cloud_run`. |
+| `CLOUD_RUN_JOB_NAME` | — | `soulstep-scraper-api-job` | Job name. Required when `SCRAPER_DISPATCH=cloud_run`. |
 | `CLOUD_RUN_REGION` | — | `us-central1` | Fallback region. Required when `SCRAPER_DISPATCH=cloud_run`. |
-| `CLOUD_RUN_REGIONS` | — | `europe-west1:3,europe-west4:5,europe-west2:5` | Multi-region config. Hardcoded in `deploy-vm.yml`. |
+| `CLOUD_RUN_REGIONS` | — | `europe-west1:3,europe-west4:5,europe-west2:5` | Multi-region config. Stored in GitHub runtime secrets and written into the VM `.env`. |
 | `SCRAPER_CLOUD_RUN_DATABASE_URL` | — | — | Postgres DSN for the Cloud Run Job, using the VM's internal GCP IP (`10.132.0.2`). Passed as `DATABASE_URL` override when dispatching. Falls back to `DATABASE_URL` (docker-internal) when unset — only safe when `SCRAPER_DISPATCH=local`. |
 | `GOOGLE_CLOUD_PROJECT` | — | — | GCP project ID. Required for Cloud Run Job dispatch. |
 | `GCS_BUCKET_NAME` | — | — | GCS bucket for scraped images. Must match catalog-api's value. |
@@ -481,7 +497,7 @@ Managed by `scripts/cron/soulstep-cron` (installed by `vm-bootstrap.sh`):
 
 | Schedule | Script / Command | Description |
 |---|---|---|
-| `0 2 * * *` | `scripts/backup-db.sh` | pg_dump → gzip → local `/opt/soulstep/backups/` + GCS upload |
+| `0 2 * * *` | `scripts/backup-db.sh` | bundle catalog DB + scraper DB → local `/opt/soulstep/backups/` + GCS upload |
 | `0 3 * * *` | `docker compose exec catalog-api python -m app.jobs.sync_places` | Sync place data from scraper to catalog |
 | `0 5 * * 1` | `docker compose exec catalog-api python -m app.jobs.cleanup_orphaned_images` | Delete GCS images with no corresponding DB record |
 | `0 4 * * 0` | `docker compose exec catalog-api python -m app.jobs.backfill_timezones` | Backfill missing timezone fields on places |
@@ -532,7 +548,7 @@ The VM runs the **Cloud Ops Agent** — forwards container stdout/stderr to Clou
 ## 14. Backups
 
 Automated daily at **02:00 UTC** via `scripts/backup-db.sh`:
-- pg_dump both DBs → `soulstep_YYYYMMDD_HHMMSS.sql.gz` / `soulstep_scraper_YYYYMMDD_HHMMSS.sql.gz`
+- bundle both DBs into `soulstep_YYYYMMDD_HHMMSS.tar.gz`
 - Upload to `gs://soulstep-db-backups/`
 - Keep 7 days of local copies in `/opt/soulstep/backups/`
 
@@ -541,10 +557,10 @@ Automated daily at **02:00 UTC** via `scripts/backup-db.sh`:
 DEPLOY_DIR=/opt/soulstep /opt/soulstep/scripts/backup-db.sh
 
 # Restore from local file
-/opt/soulstep/scripts/restore-db.sh /opt/soulstep/backups/soulstep_20260419_020000.sql.gz
+/opt/soulstep/scripts/restore-db.sh /opt/soulstep/backups/soulstep_20260419_020000.tar.gz --yes
 
 # Restore from GCS
-/opt/soulstep/scripts/restore-db.sh soulstep_20260419_020000.sql.gz --from-gcs
+/opt/soulstep/scripts/restore-db.sh gs://soulstep-db-backups/soulstep_20260419_020000.tar.gz --yes
 ```
 
 ---

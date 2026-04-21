@@ -44,6 +44,8 @@ Platforms: desktop web, mobile web, iOS, Android.
 
 **Production stack:** GCP e2-micro VM (Docker Compose) · GHCR (VM service images) · Artifact Registry (Cloud Run Job image) · Vercel (customer-web + admin-web) · GCS (images + backups) · Cloud Run Job (Playwright scraper, ephemeral, on-demand)
 
+**Project-bound backend infra:** GitHub Actions now reads GCP deploy metadata (project ID, WIF provider, Artifact Registry host/repo, Cloud Run job name, extra regions) from GitHub environment variables instead of hardcoding one project into the workflow. That lets the same repo deploy into a replacement GCP account/project during credit migration.
+
 ---
 
 ## 2. Monorepo Layout
@@ -87,8 +89,11 @@ soulstep/
 │   └── conf.d/                  # http.conf + ssl.conf templates
 ├── scripts/
 │   ├── vm-bootstrap.sh          # One-shot VM provisioning
-│   ├── backup-db.sh             # Daily pg_dump → GCS
-│   ├── restore-db.sh
+│   ├── backup-db.sh             # Daily dual-DB backup bundle → GCS
+│   ├── restore-db.sh            # Restore dual-DB backup bundles
+│   ├── gcp-bootstrap-backend-project.sh
+│   ├── gcs-rsync-buckets.sh
+│   ├── rewrite-gcs-urls.sh
 │   └── cron/soulstep-cron       # VM crontab entries
 ├── .env.example                 # Single backend env template (filled by CI for VM)
 ├── ARCHITECTURE.md
@@ -234,7 +239,7 @@ All jobs run as VM cron tasks and execute inside the `catalog-api` container via
 
 | Schedule | Job | Description |
 |---|---|---|
-| Daily 02:00 UTC | `backup-db.sh` | pg_dump → gzip → GCS (`soulstep-db-backups`), 7-day retention |
+| Daily 02:00 UTC | `backup-db.sh` | bundle both Postgres DBs → GCS (`soulstep-db-backups`), 7-day retention |
 | Daily 03:00 UTC | `app.jobs.sync_places` | Upsert enriched scraper places into catalog |
 | Monday 05:00 UTC | `app.jobs.cleanup_orphaned_images` | Remove orphaned review images |
 | Sunday 04:00 UTC | `app.jobs.backfill_timezones` | Populate timezone data for places |

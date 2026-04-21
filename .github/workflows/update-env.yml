@@ -9,6 +9,9 @@ jobs:
     name: Write .env to VM + restart services
     runs-on: ubuntu-latest
     environment: production
+    env:
+      REGION: ${{ vars.GCP_REGION != '' && vars.GCP_REGION || 'europe-west1' }}
+      CLOUD_RUN_JOB_NAME: ${{ vars.CLOUD_RUN_JOB_NAME != '' && vars.CLOUD_RUN_JOB_NAME || 'soulstep-scraper-api-job' }}
 
     steps:
       - name: Set up SSH key
@@ -22,13 +25,16 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -o ConnectTimeout=30 \
             "${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}" \
-            "cat > /opt/soulstep/.env" <<'ENVEOF'
+            "grep -v '=$' > /opt/soulstep/.env" <<'ENVEOF'
           USE_SSL=${{ secrets.USE_SSL }}
           POSTGRES_USER=${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB=${{ secrets.POSTGRES_DB }}
           SCRAPER_POSTGRES_DB=${{ secrets.SCRAPER_POSTGRES_DB }}
           JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_EXPIRE=${{ secrets.JWT_EXPIRE }}
+          REFRESH_EXPIRE=${{ secrets.REFRESH_EXPIRE }}
+          ENFORCE_HTTPS=${{ secrets.ENFORCE_HTTPS }}
           CATALOG_API_KEY=${{ secrets.CATALOG_API_KEY }}
           GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
           RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
@@ -36,19 +42,64 @@ jobs:
           CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
           FRONTEND_URL=${{ secrets.FRONTEND_URL }}
           RESET_URL_BASE=${{ secrets.RESET_URL_BASE }}
+          VERIFY_URL_BASE=${{ secrets.VERIFY_URL_BASE }}
+          MIN_APP_VERSION_SOFT=${{ secrets.MIN_APP_VERSION_SOFT }}
+          MIN_APP_VERSION_HARD=${{ secrets.MIN_APP_VERSION_HARD }}
+          LATEST_APP_VERSION=${{ secrets.LATEST_APP_VERSION }}
+          APP_STORE_URL_IOS=${{ secrets.APP_STORE_URL_IOS }}
+          APP_STORE_URL_ANDROID=${{ secrets.APP_STORE_URL_ANDROID }}
+          ADS_ENABLED=${{ secrets.ADS_ENABLED }}
+          ADSENSE_PUBLISHER_ID=${{ secrets.ADSENSE_PUBLISHER_ID }}
+          ADMOB_APP_ID_IOS=${{ secrets.ADMOB_APP_ID_IOS }}
+          ADMOB_APP_ID_ANDROID=${{ secrets.ADMOB_APP_ID_ANDROID }}
+          IMAGE_STORAGE=${{ secrets.IMAGE_STORAGE }}
+          BROWSER_POOL_SIZE=${{ secrets.BROWSER_POOL_SIZE }}
+          BROWSER_MAX_TRANSLATIONS=${{ secrets.BROWSER_MAX_TRANSLATIONS }}
+          BROWSER_HEADLESS=${{ secrets.BROWSER_HEADLESS }}
           GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }}
           GOOGLE_CLOUD_PROJECT=${{ secrets.GOOGLE_CLOUD_PROJECT }}
           SENTRY_DSN=${{ secrets.SENTRY_DSN }}
-          ADS_ENABLED=${{ secrets.ADS_ENABLED }}
-          ADSENSE_PUBLISHER_ID=${{ secrets.ADSENSE_PUBLISHER_ID }}
+          BACKUP_GCS_BUCKET=${{ secrets.BACKUP_GCS_BUCKET }}
           SCRAPER_GEMINI_API_KEY=${{ secrets.SCRAPER_GEMINI_API_KEY }}
           SCRAPER_FOURSQUARE_API_KEY=${{ secrets.SCRAPER_FOURSQUARE_API_KEY }}
           SCRAPER_OUTSCRAPER_API_KEY=${{ secrets.SCRAPER_OUTSCRAPER_API_KEY }}
           SCRAPER_BESTTIME_API_KEY=${{ secrets.SCRAPER_BESTTIME_API_KEY }}
           SCRAPER_ALLOWED_ORIGINS=${{ secrets.SCRAPER_ALLOWED_ORIGINS }}
           SCRAPER_TIMEZONE=${{ secrets.SCRAPER_TIMEZONE }}
+          SCRAPER_DB_PATH=${{ secrets.SCRAPER_DB_PATH }}
+          SCRAPER_POOL_SIZE=${{ secrets.SCRAPER_POOL_SIZE }}
+          SCRAPER_MAX_OVERFLOW=${{ secrets.SCRAPER_MAX_OVERFLOW }}
+          SCRAPER_POOL_TIMEOUT=${{ secrets.SCRAPER_POOL_TIMEOUT }}
+          SCRAPER_DISCOVERY_CONCURRENCY=${{ secrets.SCRAPER_DISCOVERY_CONCURRENCY }}
+          SCRAPER_DETAIL_CONCURRENCY=${{ secrets.SCRAPER_DETAIL_CONCURRENCY }}
+          SCRAPER_ENRICHMENT_CONCURRENCY=${{ secrets.SCRAPER_ENRICHMENT_CONCURRENCY }}
+          SCRAPER_OVERPASS_CONCURRENCY=${{ secrets.SCRAPER_OVERPASS_CONCURRENCY }}
+          SCRAPER_OVERPASS_JITTER_MAX=${{ secrets.SCRAPER_OVERPASS_JITTER_MAX }}
+          SCRAPER_IMAGE_CONCURRENCY=${{ secrets.SCRAPER_IMAGE_CONCURRENCY }}
+          SCRAPER_MAX_PHOTOS=${{ secrets.SCRAPER_MAX_PHOTOS }}
+          SCRAPER_MAX_REVIEWS=${{ secrets.SCRAPER_MAX_REVIEWS }}
+          SCRAPER_MAX_REVIEW_IMAGES=${{ secrets.SCRAPER_MAX_REVIEW_IMAGES }}
+          SCRAPER_GATE_IMAGE_DOWNLOAD=${{ secrets.SCRAPER_GATE_IMAGE_DOWNLOAD }}
+          SCRAPER_GATE_ENRICHMENT=${{ secrets.SCRAPER_GATE_ENRICHMENT }}
+          SCRAPER_GATE_SYNC=${{ secrets.SCRAPER_GATE_SYNC }}
+          SCRAPER_AUTO_SYNC_AFTER_RUN=${{ secrets.SCRAPER_AUTO_SYNC_AFTER_RUN }}
+          SCRAPER_TRIGGER_SEO_AFTER_SYNC=${{ secrets.SCRAPER_TRIGGER_SEO_AFTER_SYNC }}
+          CLOUD_RUN_CATALOG_URL=${{ secrets.CLOUD_RUN_CATALOG_URL }}
+          CLOUD_RUN_JOB_NAME=${{ env.CLOUD_RUN_JOB_NAME }}
+          CLOUD_RUN_REGION=${{ env.REGION }}
           CLOUD_RUN_REGIONS=${{ secrets.CLOUD_RUN_REGIONS }}
-          BACKUP_GCS_BUCKET=${{ secrets.BACKUP_GCS_BUCKET }}
+          BROWSER_GRID_CELL_SIZE_KM=${{ secrets.BROWSER_GRID_CELL_SIZE_KM }}
+          MAPS_BROWSER_POOL_SIZE=${{ secrets.MAPS_BROWSER_POOL_SIZE }}
+          MAPS_BROWSER_MAX_PAGES=${{ secrets.MAPS_BROWSER_MAX_PAGES }}
+          MAPS_BROWSER_HEADLESS=${{ secrets.MAPS_BROWSER_HEADLESS }}
+          MAPS_BROWSER_CONCURRENCY=${{ secrets.MAPS_BROWSER_CONCURRENCY }}
+          MAPS_BROWSER_CELL_DELAY_MIN=${{ secrets.MAPS_BROWSER_CELL_DELAY_MIN }}
+          MAPS_BROWSER_CELL_DELAY_MAX=${{ secrets.MAPS_BROWSER_CELL_DELAY_MAX }}
+          BROWSER_PROXY_LIST=${{ secrets.BROWSER_PROXY_LIST }}
+          BROWSER_PROXY_ROTATION=${{ secrets.BROWSER_PROXY_ROTATION }}
+          BROWSER_SOCS_COOKIE=${{ secrets.BROWSER_SOCS_COOKIE }}
+          MEMORY_LIMIT_MB=${{ secrets.MEMORY_LIMIT_MB }}
+          WIKIPEDIA_MAX_DISTANCE_KM=${{ secrets.WIKIPEDIA_MAX_DISTANCE_KM }}
           LOG_LEVEL=${{ secrets.LOG_LEVEL }}
           ENVEOF
 
