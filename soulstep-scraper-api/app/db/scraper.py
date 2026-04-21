@@ -961,3 +961,16 @@ def sync_run_to_server(run_code: str, server_url: str, failed_only: bool = False
     existing tests via asyncio.run / monkeypatching.
     """
     asyncio.run(sync_run_to_server_async(run_code, server_url, failed_only=failed_only))
+
+
+def retry_run_images(run_code: str) -> None:
+    """Re-download images that failed during the image_download stage.
+
+    Called from FastAPI background tasks. Uses the global engine from db/session.
+    download_place_images() skips places whose image URLs already start with the
+    GCS prefix, so only genuinely failed (non-GCS) URLs are retried.
+    """
+    from app.collectors.gmaps import download_place_images
+    from app.db.session import engine
+
+    asyncio.run(download_place_images(run_code, engine))

@@ -333,6 +333,47 @@ class TestScraperRuns:
         resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/re-enrich")
         assert resp.status_code == 400
 
+    def test_retry_images_with_failures(self, client, db_session):
+        """retry-images fires the background task when images_failed > 0."""
+        loc = _create_location_in_db(db_session, "Retry Img Fail")
+        run = _create_run_in_db(db_session, loc.code, "completed")
+        run.images_failed = 3
+        run.images_downloaded = 7
+        db_session.add(run)
+        db_session.commit()
+
+        with patch("app.api.v1.scraper.retry_run_images") as mock_retry:
+            resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/retry-images")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "retry_started"
+        assert data["images_failed"] == 3
+        mock_retry.assert_called_once()
+
+    def test_retry_images_no_failures(self, client, db_session):
+        """retry-images returns no_failures when images_failed == 0 and some downloaded."""
+        loc = _create_location_in_db(db_session, "Retry Img None")
+        run = _create_run_in_db(db_session, loc.code, "completed")
+        run.images_failed = 0
+        run.images_downloaded = 10
+        db_session.add(run)
+        db_session.commit()
+
+        resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/retry-images")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "no_failures"
+
+    def test_retry_images_not_found(self, client):
+        resp = client.post("/api/v1/scraper/runs/run_nonexistent/retry-images")
+        assert resp.status_code == 404
+
+    def test_retry_images_running_run_returns_400(self, client, db_session):
+        """retry-images on an active run returns 400."""
+        loc = _create_location_in_db(db_session, "Retry Img Run")
+        run = _create_run_in_db(db_session, loc.code, "running")
+        resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/retry-images")
+        assert resp.status_code == 400
+
     def test_sync_run_success(self, client, db_session):
         """Sync a run to the main server (patches the sync task)."""
         loc = _create_location_in_db(db_session, "Sync Test")

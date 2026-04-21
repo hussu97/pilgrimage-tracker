@@ -14,7 +14,7 @@ from app.db.models import (
     ScrapedPlace,
     ScraperRun,
 )
-from app.db.scraper import generate_code, sync_run_to_server
+from app.db.scraper import generate_code, retry_run_images, sync_run_to_server
 from app.db.session import SessionDep
 from app.jobs.dispatcher import cancel_cloud_run_execution
 from app.jobs.queue_processor import trigger_queue_check
@@ -337,6 +337,41 @@ def re_enrich_run(run_code: str, background_tasks: BackgroundTasks, session: Ses
         "status": "re_enrichment_started",
         "run_code": run_code,
         "place_count": place_count,
+    }
+
+
+@router.post("/runs/{run_code}/retry-images")
+def retry_run_images_endpoint(
+    run_code: str, background_tasks: BackgroundTasks, session: SessionDep
+):
+    """Re-download images that failed during the image_download stage.
+
+    Only URLs not yet uploaded to GCS are retried — already-uploaded images
+    are skipped automatically. Safe to call multiple times.
+    """
+    run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    if run.status not in _TERMINAL_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot retry images for run with status '{run.status}'. Run must be completed, interrupted, failed, or cancelled.",
+        )
+
+    if run.images_failed == 0 and run.images_downloaded > 0:
+        return {
+            "status": "no_failures",
+            "run_code": run_code,
+            "message": "No image failures recorded for this run.",
+        }
+
+    background_tasks.add_task(retry_run_images, run_code)
+
+    return {
+        "status": "retry_started",
+        "run_code": run_code,
+        "images_failed": run.images_failed,
     }
 
 

@@ -93,6 +93,9 @@ def _validate_startup_config() -> None:
 
     other_config: dict[str, str] = {
         "MAIN_SERVER_URL": os.environ.get("MAIN_SERVER_URL", "http://127.0.0.1:3000 (default)"),
+        "CLOUD_RUN_CATALOG_URL": os.environ.get(
+            "CLOUD_RUN_CATALOG_URL", "(not set — uses MAIN_SERVER_URL)"
+        ),
         "DATABASE": _db_display,
         "LOG_LEVEL": os.environ.get("LOG_LEVEL", "INFO (default)"),
         "LOG_FORMAT": os.environ.get("LOG_FORMAT", "text (default)"),

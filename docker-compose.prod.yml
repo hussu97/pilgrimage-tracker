@@ -107,6 +107,10 @@ services:
       SCRAPER_CLOUD_RUN_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@10.132.0.2:5432/${SCRAPER_POSTGRES_DB}
       PORT: "8080"
       MAIN_SERVER_URL: http://catalog-api:3000
+      # Public URL forwarded to Cloud Run jobs so they can reach the catalog API.
+      # Cloud Run jobs cannot resolve the Docker-internal "catalog-api" hostname above.
+      # Set this to http://<VM_EXTERNAL_IP>:3000 in your .env file on the VM.
+      CLOUD_RUN_CATALOG_URL: ${CLOUD_RUN_CATALOG_URL:-}
       LOG_FORMAT: json
       SCRAPER_DISPATCH: cloud_run
       CLOUD_RUN_JOB_NAME: soulstep-scraper-api-job
