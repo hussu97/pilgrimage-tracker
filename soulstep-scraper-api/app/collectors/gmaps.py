@@ -52,26 +52,36 @@ def _is_valid_image(content: bytes) -> bool:
     return False
 
 
+_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+_WIKIPEDIA_UA = "SoulStepBot/1.0 (sacred-sites aggregator; +https://soul-step.org)"
+
+
 async def _download_image(url: str, client: httpx.AsyncClient | None = None) -> bytes | None:
     """Download an image with retries on transient errors.
 
-    Google Places photo URLs occasionally fail with UNEXPECTED_EOF_WHILE_READING
-    due to Cloud Run egress dropping the connection. A short backoff retry fixes it.
+    Retry policy (up to _MAX_IMAGE_ATTEMPTS total attempts):
+    - Network errors (ConnectError, RemoteProtocolError): backoff 1 s, 2 s, 4 s
+    - 429 / 5xx: same exponential backoff — these are transient
+    - 403 / 404 / other 4xx: permanent failure, no retry
 
-    lh3.googleusercontent.com URLs may return WebP by default; _force_jpeg_url
-    appends -rj to request JPEG explicitly.
+    lh3.googleusercontent.com URLs may return WebP; _force_jpeg_url appends -rj.
+    Wikipedia URLs require a User-Agent header to bypass hotlink protection.
     """
     url = _force_jpeg_url(url)
+    headers = {}
+    if "wikipedia.org" in url or "wikimedia.org" in url:
+        headers["User-Agent"] = _WIKIPEDIA_UA
+
     for attempt in range(_MAX_IMAGE_ATTEMPTS):
         try:
             if client is not None:
-                resp = await client.get(url, timeout=20.0)
+                resp = await client.get(url, timeout=20.0, headers=headers)
             else:
                 async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as c:
-                    resp = await c.get(url)
+                    resp = await c.get(url, headers=headers)
+
             if resp.status_code == 200:
                 content = resp.content
-                # Validate image format (JPEG or WebP) and minimum size (>1 KB)
                 if len(content) < 1024:
                     logger.warning(
                         "Downloaded image too small (%d bytes), skipping: %s",
@@ -85,11 +95,27 @@ async def _download_image(url: str, client: httpx.AsyncClient | None = None) -> 
                     )
                     return None
                 return content
+
+            if resp.status_code in _RETRYABLE_STATUS and attempt < _MAX_IMAGE_ATTEMPTS - 1:
+                backoff = 2**attempt  # 1 s, 2 s, 4 s
+                logger.warning(
+                    "Image download HTTP %d (attempt %d/%d), retrying in %ds: %s",
+                    resp.status_code,
+                    attempt + 1,
+                    _MAX_IMAGE_ATTEMPTS,
+                    backoff,
+                    url,
+                )
+                await asyncio.sleep(backoff)
+                continue
+
             logger.warning("Image download HTTP %d: %s", resp.status_code, url)
             return None
+
         except (httpx.ConnectError, httpx.RemoteProtocolError) as e:
             if attempt < _MAX_IMAGE_ATTEMPTS - 1:
-                await asyncio.sleep(attempt + 1)  # 1 s, 2 s
+                backoff = 2**attempt
+                await asyncio.sleep(backoff)
                 continue
             logger.warning(
                 "Failed to download image %s after %d attempts: %s", url, _MAX_IMAGE_ATTEMPTS, e
