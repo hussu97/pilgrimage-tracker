@@ -14,6 +14,7 @@ import {
   getRunRawData,
   reEnrichRun,
   resumeRun,
+  retryRunImages,
   syncRun,
 } from "@/lib/api/scraper";
 import type {
@@ -37,7 +38,7 @@ import { usePagination } from "@/lib/hooks/usePagination";
 import { formatDate } from "@/lib/utils";
 import { scoreBarColor, scoreTextColor } from "@/lib/utils/qualityMetrics";
 import { statusVariant } from "@/lib/utils/scraperStatus";
-import { ArrowLeft, Check, Copy, ExternalLink, Play, RefreshCw, Trash2, UploadCloud, XCircle } from "lucide-react";
+import { ArrowLeft, Check, Copy, ExternalLink, ImageOff, Play, RefreshCw, Trash2, UploadCloud, XCircle } from "lucide-react";
 import { CellsMap } from "./CellsMap";
 
 function enrichVariant(s: string) {
@@ -861,6 +862,7 @@ export function RunDetailPage() {
       else if (action === "sync-failed") await syncRun(runCode, { failedOnly: true });
       else if (action === "re-enrich") await reEnrichRun(runCode);
       else if (action === "resume") await resumeRun(runCode);
+      else if (action === "retry-images") await retryRunImages(runCode);
       await loadRun();
     } catch {/* ignore */}
   };
@@ -957,6 +959,14 @@ export function RunDetailPage() {
                 className="flex items-center gap-1.5 rounded-lg border border-orange-300 dark:border-orange-700 px-3 py-1.5 text-xs font-medium text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
               >
                 <UploadCloud size={13} /> Resync Failed ({run.places_sync_failed.toLocaleString()})
+              </button>
+            )}
+            {!isActive && (activity?.images_failed ?? 0) > 0 && (
+              <button
+                onClick={() => void handleAction("retry-images")}
+                className="flex items-center gap-1.5 rounded-lg border border-orange-300 dark:border-orange-700 px-3 py-1.5 text-xs font-medium text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 transition-colors"
+              >
+                <ImageOff size={13} /> Retry Images ({(activity?.images_failed ?? 0).toLocaleString()})
               </button>
             )}
             <button

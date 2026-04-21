@@ -106,6 +106,11 @@ export async function resumeRun(runCode: string): Promise<unknown> {
   return res.data;
 }
 
+export async function retryRunImages(runCode: string): Promise<unknown> {
+  const res = await scraperClient.post(`/runs/${runCode}/retry-images`);
+  return res.data;
+}
+
 export async function cancelRun(runCode: string): Promise<unknown> {
   const res = await scraperClient.post(`/runs/${runCode}/cancel`);
   return res.data;
