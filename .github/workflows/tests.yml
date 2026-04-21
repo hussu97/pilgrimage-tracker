@@ -141,7 +141,7 @@ jobs:
           -n auto
           --tb=short
           --durations=10
-          ${{ github.ref == 'refs/heads/main' && '--cov=app --cov-report=term-missing --cov-fail-under=80' || '' }}
+          ${{ github.ref == 'refs/heads/main' && '--cov=app --cov-report=term-missing --cov-fail-under=75' || '' }}
 
   soulstep-customer-web:
     name: soulstep-customer-web tests

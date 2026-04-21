@@ -79,8 +79,8 @@ repos:
         pass_filenames: false
         stages: [pre-push]
 
-      # Pytest runs include --cov --cov-fail-under=80 to mirror the coverage
-      # gate used on main branch in .github/workflows/tests.yml — catches
+      # Pytest runs include --cov --cov-fail-under to mirror the coverage
+      # gates used on main branch in .github/workflows/tests.yml — catches
       # coverage regressions locally instead of only after push reaches CI.
       - id: pytest-catalog-api
         name: pytest (catalog-api) + coverage >=80%
