@@ -4,6 +4,26 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-21] — Scraper pipeline resilience: cancel watchdog + httpx transient retry
+
+Pre-India (100k-place) hardening from the e2e audit plan (`uae-scraping-ran-fine-i-wiggly-sparrow.md`). Closes P0.5 (cancel works under full block) and P0.6 (httpx timeout retry at the pipeline boundary).
+
+### Backend
+- **`soulstep-scraper-api/app/db/scraper.py::_cancel_watcher`** — new asyncio watchdog started at the top of `run_scraper_task` and `resume_scraper_task`. Polls `ScraperRun.status` every 30 seconds on a fresh DB session; when the admin cancels the run, the watcher cancels the parent task, which propagates `asyncio.CancelledError` through the entire call stack — including the browser pool and discovery loops that today never flush their per-batch cancel-check buffer when they're stuck in a block-page loop. The original DB-set cancel still works; the watcher is a belt-and-suspenders fallback that guarantees a cancel takes effect within 30s even under full block.
+- **`soulstep-scraper-api/app/db/scraper.py::_run_gmaps_with_retry`** — new pipeline-level wrapper that retries `run_gmaps_scraper` exactly once on transient `httpx` errors (`ConnectTimeout`, `ReadTimeout`, `ConnectError`, `RemoteProtocolError`, `PoolTimeout`). At 100k-place scale a single DNS blip during discovery would otherwise mark the whole run failed and require a manual resume. Retry is capped at 1 attempt so a systemic outage still fails fast instead of spinning forever. Both `run_scraper_task` and `resume_scraper_task` now call through this wrapper at all three gmaps callsites.
+- Function bodies were extracted into `_run_scraper_task_body` / `_resume_scraper_task_body` so the new outer function can manage the watcher lifecycle via `try/finally` without re-indenting 200+ lines.
+
+### Tests
+- **`soulstep-scraper-api/tests/test_pipeline_resilience.py`** — new test file, 5 tests (all passing):
+  - retry helper retries exactly once and then succeeds on a transient `ConnectTimeout`
+  - retry helper re-raises after the second failure (`ReadTimeout`)
+  - retry helper does not retry non-httpx exceptions (`ValueError` propagates immediately, only 1 call)
+  - cancel watcher cancels parent task when `status` flips to `"cancelled"` in the DB
+  - cancel watcher exits cleanly when the parent task finishes normally
+- Full scraper-api suite: 833 pass (was 828 before).
+
+---
+
 ## [2026-04-20] — Scraper discovery fix: VM tinyproxy egress + circuit-breaker fail-fast
 
 ### Infra

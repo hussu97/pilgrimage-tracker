@@ -65,10 +65,97 @@ def generate_code(prefix: str) -> str:
     return f"{prefix}_{secrets.token_hex(4)}"
 
 
+_HTTPX_RETRYABLE: tuple[type[BaseException], ...] = (
+    httpx.ConnectTimeout,
+    httpx.ReadTimeout,
+    httpx.ConnectError,
+    httpx.RemoteProtocolError,
+    httpx.PoolTimeout,
+)
+_CANCEL_POLL_INTERVAL_S = 30.0
+
+
+async def _cancel_watcher(run_code: str, parent_task: asyncio.Task) -> None:
+    # Watchdog for DB-set cancel when the main pipeline is stuck in a block-page
+    # loop that never reaches the per-batch cancel-check. Polls status every 30s
+    # on a fresh session; if the run is marked cancelled, cancels the parent task
+    # so asyncio cancellation propagates down the entire call stack.
+    while not parent_task.done():
+        try:
+            await asyncio.sleep(_CANCEL_POLL_INTERVAL_S)
+        except asyncio.CancelledError:
+            return
+        try:
+            with Session(engine) as s:
+                run = s.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+                if run and run.status == "cancelled":
+                    logger.info(
+                        "Cancel watcher: run %s marked cancelled — interrupting pipeline",
+                        run_code,
+                        extra={"run_code": run_code},
+                    )
+                    parent_task.cancel()
+                    return
+        except Exception as exc:
+            logger.warning(
+                "Cancel watcher DB error for run %s: %s",
+                run_code,
+                exc,
+                extra={"run_code": run_code},
+            )
+
+
+async def _run_gmaps_with_retry(run_code: str, location_config: dict, session: Session) -> None:
+    # One retry on transient httpx network errors. At 100k-place scale a single
+    # DNS blip or connection reset during discovery would otherwise mark the
+    # whole run failed. Retry is limited to 1 attempt so a systemic outage
+    # still fails fast instead of spinning forever.
+    for attempt in range(2):
+        try:
+            await run_gmaps_scraper(run_code, location_config, session)
+            return
+        except _HTTPX_RETRYABLE as exc:
+            if attempt == 0:
+                logger.warning(
+                    "gmaps pipeline transient %s (attempt 1/2) — retrying in 10s: %s",
+                    type(exc).__name__,
+                    exc,
+                    extra={"run_code": run_code, "exc_type": type(exc).__name__},
+                    exc_info=True,
+                )
+                await asyncio.sleep(10)
+                try:
+                    session.expire_all()
+                except Exception:
+                    pass
+                continue
+            raise
+
+
 async def run_scraper_task(run_code: str):
     """
     Background task dispatcher that runs the gmaps scraper, then the enrichment pipeline.
     """
+    parent_task = asyncio.current_task()
+    watcher = asyncio.create_task(_cancel_watcher(run_code, parent_task)) if parent_task else None
+    try:
+        await _run_scraper_task_body(run_code)
+    except asyncio.CancelledError:
+        logger.info(
+            "Run %s cancelled via watcher — exiting cleanly",
+            run_code,
+            extra={"run_code": run_code},
+        )
+    finally:
+        if watcher and not watcher.done():
+            watcher.cancel()
+            try:
+                await watcher
+            except (asyncio.CancelledError, Exception):
+                pass
+
+
+async def _run_scraper_task_body(run_code: str):
     with Session(engine) as session:
         run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
         if not run:
@@ -93,7 +180,7 @@ async def run_scraper_task(run_code: str):
         try:
             # Phase 1-3: Discovery + Detail fetching + Image download via gmaps
             t_gmaps = time.monotonic()
-            await run_gmaps_scraper(run_code, location.config, session)
+            await _run_gmaps_with_retry(run_code, location.config, session)
             # run_gmaps_scraper covers discovery, detail_fetch, and image_download;
             # per-stage durations are recorded inside that function via stage transitions.
             # Record the total gmaps duration across all three sub-stages.
@@ -223,6 +310,26 @@ async def resume_scraper_task(run_code: str):
 
     Each stage uses a fresh DB session to avoid stale-connection issues in long runs.
     """
+    parent_task = asyncio.current_task()
+    watcher = asyncio.create_task(_cancel_watcher(run_code, parent_task)) if parent_task else None
+    try:
+        await _resume_scraper_task_body(run_code)
+    except asyncio.CancelledError:
+        logger.info(
+            "Resume of run %s cancelled via watcher — exiting cleanly",
+            run_code,
+            extra={"run_code": run_code},
+        )
+    finally:
+        if watcher and not watcher.done():
+            watcher.cancel()
+            try:
+                await watcher
+            except (asyncio.CancelledError, Exception):
+                pass
+
+
+async def _resume_scraper_task_body(run_code: str):
     with Session(engine) as session:
         run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
         if not run:
@@ -255,7 +362,7 @@ async def resume_scraper_task(run_code: str):
             # Discovery was incomplete — re-run full pipeline
             with Session(engine) as gmaps_session:
                 t_gmaps = time.monotonic()
-                await run_gmaps_scraper(run_code, location_config, gmaps_session)
+                await _run_gmaps_with_retry(run_code, location_config, gmaps_session)
                 logger.info(
                     "GMaps pipeline completed in %.1fs",
                     time.monotonic() - t_gmaps,
@@ -312,7 +419,7 @@ async def resume_scraper_task(run_code: str):
                     run_code,
                 )
                 with Session(engine) as gmaps_session:
-                    await run_gmaps_scraper(run_code, location_config, gmaps_session)
+                    await _run_gmaps_with_retry(run_code, location_config, gmaps_session)
             else:
                 api_key = __import__("os").environ.get("GOOGLE_MAPS_API_KEY", "")
                 if not api_key:
