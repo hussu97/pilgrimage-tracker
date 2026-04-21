@@ -244,6 +244,12 @@ def view_data(
         data["_description_score"] = r.description_score
         data["_quality_score"] = r.quality_score
         data["_quality_gate"] = r.quality_gate
+        # Per-place lifecycle state from migration 0023 — let the admin UI
+        # filter by "failed detail fetches" or "failed sync" without having
+        # to crack open the raw_collector_data table.
+        data["_detail_fetch_status"] = r.detail_fetch_status
+        data["_detail_fetch_error"] = r.detail_fetch_error
+        data["_sync_status"] = r.sync_status
         out.append(data)
 
     return {"items": out, "total": total, "page": page, "page_size": page_size}

@@ -3,6 +3,7 @@ import secrets
 import time
 
 import httpx
+from sqlalchemy import update
 from sqlmodel import Session, select
 
 from app.constants import SYNC_BATCH_SIZE
@@ -1007,6 +1008,20 @@ async def sync_run_to_server_async(
                 run.places_sync_quality_filtered = len(quality_filtered)
                 run.places_sync_name_filtered = len(name_filtered)
             session.add(run)
+        # Stamp per-place sync_status up front so the admin UI can filter /
+        # count by status while the sync is still running (before individual
+        # batch results come back). "pending" → "synced" happens per-batch
+        # below; "quality_filtered" and "name_filtered" are terminal.
+        if not failed_only:
+            for p in quality_filtered:
+                p.sync_status = "quality_filtered"
+                session.add(p)
+            for p in name_filtered:
+                p.sync_status = "name_filtered"
+                session.add(p)
+            for p in places:
+                p.sync_status = "pending"
+                session.add(p)
         session.commit()
 
     logger.info("Syncing %d places to %s in batches of %d", total, server_url, SYNC_BATCH_SIZE)
@@ -1039,6 +1054,13 @@ async def sync_run_to_server_async(
             if batch_synced > 0:
                 synced_counter.increment(batch_synced)
 
+            # Track which places in THIS batch ultimately failed (post-retry) so
+            # we can flip sync_status to "synced" / "failed" per place. Starts
+            # as every failed entry from the first POST; we remove entries that
+            # succeed on the individual retry.
+            batch_codes = {pl["place_code"] for pl in batch}
+            batch_failed_codes: set[str] = set()
+
             # Retry any per-place failures individually — handles both full batch failure
             # (batch_synced == 0) and partial success (batch_synced > 0, some failed).
             if failed_entries:
@@ -1049,6 +1071,9 @@ async def sync_run_to_server_async(
                 # Entries not matching a known code (e.g. batch-level HTTP errors) → log as-is
                 unmatched = [e for e in failed_entries if e.split(":")[0] not in payloads_by_code]
                 all_failure_details.extend(unmatched)
+                # Seed batch_failed_codes with every matched failure; retry step below
+                # removes codes that end up succeeding on the individual replay.
+                batch_failed_codes.update(code for code in failed_codes if code in payloads_by_code)
 
                 if retry_payloads:
                     for pl in retry_payloads:
@@ -1057,6 +1082,28 @@ async def sync_run_to_server_async(
                         )
                         synced_counter.increment(extra_synced)
                         all_failure_details.extend(extra_failures)
+                        if extra_synced > 0 and not extra_failures:
+                            batch_failed_codes.discard(pl["place_code"])
+
+            # Per-place sync_status (P1.11) — update in bulk after batch+retry.
+            batch_synced_codes = batch_codes - batch_failed_codes
+            if batch_synced_codes or batch_failed_codes:
+                with Session(engine) as _st_session:
+                    if batch_synced_codes:
+                        _st_session.exec(
+                            update(ScrapedPlace)
+                            .where(ScrapedPlace.run_code == run_code)
+                            .where(ScrapedPlace.place_code.in_(list(batch_synced_codes)))
+                            .values(sync_status="synced")
+                        )
+                    if batch_failed_codes:
+                        _st_session.exec(
+                            update(ScrapedPlace)
+                            .where(ScrapedPlace.run_code == run_code)
+                            .where(ScrapedPlace.place_code.in_(list(batch_failed_codes)))
+                            .values(sync_status="failed")
+                        )
+                    _st_session.commit()
 
             # Persist progress after every batch
             with Session(engine) as session:
@@ -1085,7 +1132,13 @@ async def sync_run_to_server_async(
     if all_failure_details:
         logger.warning("Failed places:\n%s", "\n".join(f"  - {d}" for d in all_failure_details))
 
-    # Clear syncing stage when done; persist failure details for the sync report
+    # Clear syncing stage when done; persist failure details for the sync report.
+    # Also stamp last_sync_at (UTC) — the admin UI reads this to lock the Sync
+    # button for 10 minutes after a successful sync, preventing accidental
+    # double-sync on country-scale runs.
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
     with Session(engine) as session:
         run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
         if run:
@@ -1093,6 +1146,10 @@ async def sync_run_to_server_async(
             run.places_synced = base_synced + synced_counter.value
             run.places_sync_failed = failed_count
             run.sync_failure_details = all_failure_details[:500]  # cap at 500 entries
+            # Only stamp last_sync_at if at least one place actually synced.
+            # A run that 100% failed doesn't count as a "last successful sync".
+            if synced_counter.value > 0:
+                run.last_sync_at = _dt.now(_UTC)
             session.add(run)
             session.commit()
 

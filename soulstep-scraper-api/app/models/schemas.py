@@ -39,6 +39,7 @@ class ScraperRunResponse(BaseModel):
     processed_items: int = 0
     error_message: str | None = None
     geo_box_label: str | None = None
+    cloud_run_execution: str | None = None
     created_at: datetime
     # Per-stage timing metrics (seconds)
     discovery_duration_s: float | None = None
@@ -47,6 +48,9 @@ class ScraperRunResponse(BaseModel):
     enrichment_duration_s: float | None = None
     sync_duration_s: float | None = None
     avg_time_per_place_s: float | None = None
+    # Visibility + idempotency (migration 0023)
+    last_sync_at: datetime | None = None
+    rate_limit_events: dict = {}
 
 
 class ScraperRunsCreateResponse(BaseModel):

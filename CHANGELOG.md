@@ -4,6 +4,23 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-21] — Sync lock write-out + per-place sync_status tracking
+
+Backend half of P1.10-11 from the pre-India hardening audit. The admin UI consumes these in the next commit.
+
+### Backend
+- **`soulstep-scraper-api/app/db/scraper.py::sync_run_to_server_async`** — at the end of a successful sync (i.e. `synced_counter.value > 0`), stamps `run.last_sync_at = datetime.now(UTC)`. A fully-failed sync leaves `last_sync_at` unchanged, so the admin "last successful sync" clock never gets a misleading update. Also now sets per-place `sync_status` during sync: `"pending"` upfront for places passing the gates, `"quality_filtered"` / `"name_filtered"` for gate-skipped places, and after each batch completes (with per-place retries) `"synced"` or `"failed"` depending on the final outcome. Admin UI can now filter by per-place sync status without cracking open the opaque `sync_failure_details` JSON blob.
+- **`soulstep-scraper-api/app/models/schemas.py::ScraperRunResponse`** — new fields exposed to the admin proxy: `last_sync_at`, `rate_limit_events`, `cloud_run_execution` (for deep-linking to GCP logs).
+- **`soulstep-scraper-api/app/api/v1/scraper.py::view_run_data`** — per-place response now includes `_detail_fetch_status`, `_detail_fetch_error`, `_sync_status` so the admin UI can filter the scraped-places table by lifecycle state.
+
+### Tests
+- **`soulstep-scraper-api/tests/test_sync_lock.py`** — new, 2 tests (both pass):
+  - `last_sync_at` is stamped (and within the last minute, in UTC) when a batch successfully syncs; every place ends with `sync_status="synced"`.
+  - `last_sync_at` remains `None` when every place fails to sync; every place ends with `sync_status="failed"`.
+- Full scraper-api suite: 843 pass (was 841).
+
+---
+
 ## [2026-04-21] — Per-place detail-fetch resilience + fail-fast + schema for run visibility
 
 Closes P0.3 (per-place try/except in detail-fetch), P0.7 (fail-fast on high failure rate), and the schema additions that unblock P1.10-11 + Phase 2 admin UI.
