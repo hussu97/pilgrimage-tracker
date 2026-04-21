@@ -582,6 +582,62 @@ async def _split_quadrants(
     return all_ids
 
 
+# ── Per-place detail-fetch resilience (P0.3 / P0.7) ────────────────────────
+# Threshold values for auto-pausing a run on a cascading failure. We need at
+# least _FAIL_FAST_MIN_ATTEMPTS places fetched before the ratio is meaningful
+# (otherwise a run with 10 attempts and 8 failures would immediately trip).
+_FAIL_FAST_MIN_ATTEMPTS = 500
+_FAIL_FAST_FAILURE_RATIO = 0.5
+
+
+class FailFastError(Exception):
+    # Raised when the detail-fetch stage sees >50% failures after at least
+    # 500 attempts — keeps a systemic outage (expired API key, bot-walled IP,
+    # etc.) from burning quota for hours. Caught at the top of run_scraper_task
+    # and flips the run to status="interrupted" so the admin can fix root
+    # cause and resume.
+    pass
+
+
+def _should_fail_fast(attempted: int, failed: int) -> bool:
+    if attempted < _FAIL_FAST_MIN_ATTEMPTS:
+        return False
+    return failed / attempted >= _FAIL_FAST_FAILURE_RATIO
+
+
+def _flush_failed_places_buffer(
+    failed: list[tuple[str, str, str]],
+    run_code: str,
+    session: Session,
+) -> None:
+    # Persist per-place detail-fetch failures as minimal ScrapedPlace stubs
+    # so the admin UI can surface which places failed and why, and so sync /
+    # enrichment / fail-fast can query actual per-place state rather than
+    # scraping logs. Each stub sets enrichment_status="filtered" which is
+    # already in the enrichment skip set (complete / filtered), so downstream
+    # stages naturally bypass these rows.
+    for place_name, place_code, error in failed:
+        session.add(
+            ScrapedPlace(
+                run_code=run_code,
+                place_code=place_code,
+                name=place_name,
+                raw_data={},
+                detail_fetch_status="failed",
+                detail_fetch_error=error,
+                enrichment_status="filtered",
+            )
+        )
+    try:
+        session.commit()
+    except Exception as exc:
+        logger.warning("Failed-places flush commit error: %s", exc)
+        try:
+            session.rollback()
+        except Exception:
+            pass
+
+
 def _build_flush_objects(
     buffer: list[tuple],
     run_code: str,
@@ -605,6 +661,7 @@ def _build_flush_objects(
             place_code=details["place_code"],
             name=details["name"],
             raw_data=details,
+            detail_fetch_status="success",
             quality_score=quality_score,
             quality_gate=quality_gate,
             city=details.get("city"),
@@ -931,6 +988,7 @@ async def fetch_place_details(
                 place_code=cached_place.place_code,
                 name=cached_place.name,
                 raw_data=cached_place.raw_data or {},
+                detail_fetch_status="success",
                 lat=cached_place.lat,
                 lng=cached_place.lng,
                 rating=cached_place.rating,
@@ -1024,6 +1082,13 @@ async def fetch_place_details(
         CANCEL_CHECK_INTERVAL = flush_batch_size * 3
         _cancelled = False
 
+        # Per-place failure accumulator (P0.3). Persisted as ScrapedPlace stubs with
+        # detail_fetch_status="failed" and enrichment_status="filtered" so downstream
+        # enrichment skips them naturally. Track counts for the fail-fast check (P0.7).
+        failed_buffer: list[tuple[str, str, str]] = []  # (place_name, place_code, error)
+        attempted_total = 0
+        failed_total = 0
+
         for _batch_start in range(0, len(to_fetch), _TASK_BATCH):
             if _cancelled:
                 break
@@ -1033,16 +1098,20 @@ async def fetch_place_details(
             # Process results incrementally as they arrive — this makes processed_items
             # tick up in real time so the admin UI progress bar updates every batch.
             for coro in asyncio.as_completed(tasks):
+                attempted_total += 1
+
                 try:
                     result = await coro
                 except Exception as exc:
                     logger.warning("Detail fetch task error: %s", exc)
                     counter.increment()
+                    failed_total += 1
                     continue
 
                 if isinstance(result, Exception):
                     logger.warning("Detail fetch task error: %s", result)
                     counter.increment()
+                    failed_total += 1
                     continue
 
                 place_name, details, response, error = result
@@ -1050,6 +1119,19 @@ async def fetch_place_details(
                 if error is not None:
                     logger.warning("Error fetching %s: %s", place_name, error)
                     counter.increment()
+                    failed_total += 1
+                    failed_buffer.append((place_name, name_to_code[place_name], error[:500]))
+                    if len(failed_buffer) >= flush_batch_size:
+                        _flush_failed_places_buffer(failed_buffer, run_code, session)
+                        failed_buffer.clear()
+                    if _should_fail_fast(attempted_total, failed_total):
+                        for t in tasks:
+                            t.cancel()
+                        raise FailFastError(
+                            f"Detail-fetch failure rate {failed_total}/{attempted_total} "
+                            f"exceeded {int(_FAIL_FAST_FAILURE_RATIO * 100)}% after "
+                            f"{attempted_total} attempts — auto-paused"
+                        )
                     continue
 
                 buffer.append((place_name, details, response))
@@ -1073,11 +1155,15 @@ async def fetch_place_details(
 
         if buffer:
             _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
+        if failed_buffer:
+            _flush_failed_places_buffer(failed_buffer, run_code, session)
+            failed_buffer.clear()
 
     logger.info(
-        "=== Details Fetch Summary === fresh=%d  cached=%d  total=%d",
-        counter.value - cached_count,
+        "=== Details Fetch Summary === fresh=%d  cached=%d  failed=%d  total=%d",
+        counter.value - cached_count - failed_total,
         cached_count,
+        failed_total,
         len(place_ids),
     )
 

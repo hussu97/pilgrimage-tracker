@@ -57,6 +57,17 @@ class ScraperRun(SQLModel, table=True):
     sync_duration_s: float | None = Field(default=None)
     avg_time_per_place_s: float | None = Field(default=None)
 
+    # ── Visibility + idempotency (migration 0023) ──────────────────────────
+    last_sync_at: datetime | None = Field(default=None)
+    # Set to datetime.now(UTC) after every successful sync_run_to_server_async
+    # completion. Admin UI uses it to lock the Sync button for 10 minutes
+    # after the last successful sync to prevent accidental double-sync on
+    # large country runs.
+    rate_limit_events: dict[str, Any] = Field(default={}, sa_column=Column(JSON))
+    # Aggregate 429 / 403 counts per collector across the run, e.g.
+    # {"gmaps": {"429": 12, "403": 1}, "wikipedia": {"429": 3}}.
+    # Feeds the admin error-summary card.
+
 
 class ScrapedPlace(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("run_code", "place_code", name="uq_scrapedplace_run_place"),)
@@ -86,6 +97,17 @@ class ScrapedPlace(SQLModel, table=True):
     religion: str | None = Field(default=None, index=True)
     place_type: str | None = Field(default=None, index=True)
     business_status: str | None = Field(default=None)
+    # ── Per-place lifecycle state (migration 0023) ────────────────────────
+    detail_fetch_status: str = Field(default="pending", index=True)
+    # "pending" | "success" | "failed" — set per-place inside the detail-fetch
+    # loop so a single bad place no longer crashes the entire run.
+    detail_fetch_error: str | None = Field(default=None)
+    # Short error message captured when detail_fetch_status flips to "failed".
+    sync_status: str = Field(default="pending", index=True)
+    # "pending" | "synced" | "failed" | "quality_filtered" | "name_filtered"
+    # Populated during sync_run_to_server_async so the admin "Sync Failed Only"
+    # filter has real per-place state instead of the opaque sync_failure_details
+    # JSON blob on the run.
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

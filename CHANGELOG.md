@@ -4,6 +4,35 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-21] — Per-place detail-fetch resilience + fail-fast + schema for run visibility
+
+Closes P0.3 (per-place try/except in detail-fetch), P0.7 (fail-fast on high failure rate), and the schema additions that unblock P1.10-11 + Phase 2 admin UI.
+
+### Schema
+- **`soulstep-scraper-api/migrations/versions/0023_run_visibility_and_place_status.py`** — new Alembic migration. Adds:
+  - `scraperrun.last_sync_at` (TSTZ, nullable) — for the upcoming sync-lock
+  - `scraperrun.rate_limit_events` (JSON, default `{}`) — aggregate 429/403 counts per collector for the admin error-summary card
+  - `scrapedplace.detail_fetch_status` (str, default `"pending"`, indexed) — per-place state
+  - `scrapedplace.detail_fetch_error` (str, nullable) — short error captured when a place fails in detail-fetch
+  - `scrapedplace.sync_status` (str, default `"pending"`, indexed) — per-place sync state so "Sync Failed Only" has real state to filter on
+- **`soulstep-scraper-api/app/db/models.py`** — model fields match the migration.
+
+### Backend
+- **`soulstep-scraper-api/app/scrapers/gmaps.py::_build_flush_objects`** — sets `detail_fetch_status="success"` on persisted `ScrapedPlace` rows. Cached-place branch in `fetch_place_details` also sets `detail_fetch_status="success"`.
+- **`soulstep-scraper-api/app/scrapers/gmaps.py::_flush_failed_places_buffer`** — new helper. Persists per-place fetch failures as minimal `ScrapedPlace` stubs with `detail_fetch_status="failed"`, `detail_fetch_error=<reason>`, `enrichment_status="filtered"` (already in the enrichment skip set, so downstream stages bypass these rows naturally). Admin can now see exactly which places failed and why without grep-ing logs.
+- **`soulstep-scraper-api/app/scrapers/gmaps.py::FailFastError` + `_should_fail_fast`** — new. After at least 500 detail-fetch attempts, if the failure ratio hits 50% or more, raise `FailFastError` and auto-pause. Stops a bot-walled IP or expired API key from burning quota for hours on a 100k-place run.
+- **`soulstep-scraper-api/app/db/scraper.py`** — `run_scraper_task` and `resume_scraper_task` now catch `FailFastError` separately from generic `Exception` and flip the run to `status="interrupted"` with `error_message="auto-paused: ..."`. `status="failed"` is reserved for unrecoverable errors; `interrupted` signals "you probably want to fix root cause and resume" and matches the existing semantics for Cloud Run restarts.
+
+### Tests
+- **`soulstep-scraper-api/tests/test_detail_fetch_resilience.py`** — new, 7 tests (all pass):
+  - `_should_fail_fast` predicate: below-min-attempts, at-boundary, below-ratio, above-threshold
+  - `_flush_failed_places_buffer` persists correct status + error per place
+  - empty-buffer flush is a no-op
+  - `FailFastError` is catchable as `Exception`
+- Full scraper-api suite: 841 pass (was 834).
+
+---
+
 ## [2026-04-21] — Enrichment merger: preserve high-score description on re-enrichment
 
 Pre-India hardening, P1.9 from the audit plan. Closes the "last-write-wins" concern where a second enrichment pass could regress description quality if a previously-winning collector (typically Wikipedia) is unreachable the second time.

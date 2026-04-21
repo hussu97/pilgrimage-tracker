@@ -11,7 +11,7 @@ from app.db.session import engine
 from app.logger import get_logger
 from app.pipeline.place_quality import GATE_SYNC, is_name_specific_enough, passes_gate
 from app.scrapers.base import AtomicCounter
-from app.scrapers.gmaps import run_gmaps_scraper
+from app.scrapers.gmaps import FailFastError, run_gmaps_scraper
 
 logger = get_logger(__name__)
 
@@ -191,6 +191,31 @@ async def _run_scraper_task_body(run_code: str):
                 extra={"run_code": run_code, "gmaps_duration_s": round(gmaps_elapsed, 2)},
             )
 
+        except FailFastError as ff:
+            logger.warning(
+                "Run %s auto-paused by fail-fast: %s", run_code, ff, extra={"run_code": run_code}
+            )
+            try:
+                session.rollback()
+            except Exception:
+                pass
+            with Session(engine) as err_session:
+                try:
+                    err_run = err_session.exec(
+                        select(ScraperRun).where(ScraperRun.run_code == run_code)
+                    ).first()
+                    if err_run:
+                        err_run.status = "interrupted"
+                        err_run.error_message = f"auto-paused: {str(ff)[:400]}"
+                        err_session.add(err_run)
+                        err_session.commit()
+                except Exception as save_err:
+                    logger.error(
+                        "Could not persist interrupted status for run %s: %s",
+                        run_code,
+                        save_err,
+                    )
+            return
         except Exception as e:
             logger.error("Run %s failed during gmaps pipeline: %s", run_code, e, exc_info=True)
             try:
@@ -587,6 +612,27 @@ async def _resume_scraper_task_body(run_code: str):
                 final_session.commit()
                 logger.info("Run %s resumed and completed", run_code, extra={"run_code": run_code})
 
+    except FailFastError as ff:
+        logger.warning(
+            "Resume of run %s auto-paused by fail-fast: %s",
+            run_code,
+            ff,
+            extra={"run_code": run_code},
+        )
+        with Session(engine) as err_session:
+            try:
+                err_run = err_session.exec(
+                    select(ScraperRun).where(ScraperRun.run_code == run_code)
+                ).first()
+                if err_run:
+                    err_run.status = "interrupted"
+                    err_run.error_message = f"auto-paused: {str(ff)[:400]}"
+                    err_session.add(err_run)
+                    err_session.commit()
+            except Exception as save_err:
+                logger.error(
+                    "Could not persist interrupted status for run %s: %s", run_code, save_err
+                )
     except Exception as e:
         logger.error("Resume of run %s failed: %s", run_code, e, exc_info=True)
         with Session(engine) as err_session:
