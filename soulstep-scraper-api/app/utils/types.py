@@ -10,7 +10,7 @@ from typing import TypedDict
 class DescriptionDict(TypedDict):
     text: str
     lang: str  # "en", "ar", "hi", "te"
-    source: str  # "wikipedia", "gmaps_editorial", "knowledge_graph", etc.
+    source: str  # "wikipedia", "gmaps_editorial", "wikidata", etc.
     score: float | None
 
 

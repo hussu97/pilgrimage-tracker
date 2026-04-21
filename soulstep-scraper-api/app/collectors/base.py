@@ -38,7 +38,7 @@ class CollectorResult:
     # Free-form tags for downstream collectors (e.g., OSM wikipedia/wikidata tags)
 
     entity_types: list[str] = field(default_factory=list)
-    # schema.org types from Knowledge Graph
+    # Optional schema.org-style types inferred by enrichment collectors.
 
 
 class BaseCollector(ABC):

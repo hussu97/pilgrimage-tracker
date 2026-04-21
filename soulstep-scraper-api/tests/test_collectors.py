@@ -414,48 +414,6 @@ class TestWikidataCollector:
         assert en_descs[0]["text"] == "Mosque in Jerusalem"
 
 
-# ── TestKnowledgeGraphCollector ───────────────────────────────────────────────
-
-
-class TestKnowledgeGraphCollector:
-    async def test_not_configured_without_key(self):
-        from app.collectors.knowledge_graph import KnowledgeGraphCollector
-
-        collector = KnowledgeGraphCollector()
-        with patch.dict(os.environ, {"GOOGLE_MAPS_API_KEY": ""}, clear=False):
-            # Override the is_available check
-            result = await collector.collect("gplc_test", 25.0, 55.0, "Test")
-            # May be not_configured or fail depending on env
-            assert result.status in ("not_configured", "failed", "skipped")
-
-    def test_extract_element(self):
-        from app.collectors.knowledge_graph import KnowledgeGraphCollector
-
-        collector = KnowledgeGraphCollector()
-        element = {
-            "result": {
-                "name": "Al-Aqsa Mosque",
-                "@type": ["Place", "TouristAttraction", "CivicStructure"],
-                "description": "Historic mosque in Jerusalem",
-                "detailedDescription": {
-                    "articleBody": "Al-Aqsa Mosque is the third holiest site in Islam, located in the Old City of Jerusalem.",
-                    "url": "https://en.wikipedia.org/wiki/Al-Aqsa_Mosque",
-                },
-                "image": {"contentUrl": "https://example.com/image.jpg"},
-                "url": "https://alaqsa.org",
-            },
-            "resultScore": 1234.56,
-        }
-
-        result = collector._extract(element)
-        assert result.status == "success"
-        assert len(result.descriptions) >= 1
-        assert "Al-Aqsa" in result.descriptions[0]["text"]
-        assert result.entity_types == ["Place", "TouristAttraction", "CivicStructure"]
-        assert len(result.images) == 1
-        assert result.contact["website"] == "https://alaqsa.org"
-
-
 # ── TestPaidCollectors ────────────────────────────────────────────────────────
 
 
@@ -501,13 +459,12 @@ class TestCollectorRegistry:
         from app.collectors.registry import get_all_collectors
 
         collectors = get_all_collectors()
-        assert len(collectors) == 8
+        assert len(collectors) == 7
         names = [c.name for c in collectors]
         assert "gmaps" in names or "gmaps_browser" in names
         assert "osm" in names
         assert "wikipedia" in names
         assert "wikidata" in names
-        assert "knowledge_graph" in names
         assert "besttime" in names
         assert "foursquare" in names
         assert "outscraper" in names

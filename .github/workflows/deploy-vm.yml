@@ -252,8 +252,6 @@ jobs:
           LOG_LEVEL=${{ secrets.LOG_LEVEL }}
           BACKUP_GCS_BUCKET=${{ secrets.BACKUP_GCS_BUCKET }}
           # ── Scraper-api: API keys ─────────────────────────────────────────────
-          # Used by the Knowledge Graph Search enrichment collector.
-          SCRAPER_GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
           SCRAPER_GEMINI_API_KEY=${{ secrets.SCRAPER_GEMINI_API_KEY }}
           SCRAPER_FOURSQUARE_API_KEY=${{ secrets.SCRAPER_FOURSQUARE_API_KEY }}
           SCRAPER_OUTSCRAPER_API_KEY=${{ secrets.SCRAPER_OUTSCRAPER_API_KEY }}
@@ -268,6 +266,7 @@ jobs:
           SCRAPER_POOL_TIMEOUT=${{ secrets.SCRAPER_POOL_TIMEOUT }}
           # ── Scraper-api: concurrency / throughput ─────────────────────────────
           SCRAPER_DISCOVERY_CONCURRENCY=${{ secrets.SCRAPER_DISCOVERY_CONCURRENCY }}
+          SCRAPER_DETAIL_CONCURRENCY=${{ secrets.SCRAPER_DETAIL_CONCURRENCY }}
           SCRAPER_ENRICHMENT_CONCURRENCY=${{ secrets.SCRAPER_ENRICHMENT_CONCURRENCY }}
           SCRAPER_OVERPASS_CONCURRENCY=${{ secrets.SCRAPER_OVERPASS_CONCURRENCY }}
           SCRAPER_OVERPASS_JITTER_MAX=${{ secrets.SCRAPER_OVERPASS_JITTER_MAX }}

@@ -103,12 +103,12 @@ class TestQualityScoring:
         )
         wp_score = score_description(text, "wikipedia")
         ed_score = score_description(text, "gmaps_editorial")
-        kg_score = score_description(text, "knowledge_graph")
+        wd_score = score_description(text, "wikidata")
         gen_score = score_description(text, "gmaps_generative")
 
         assert wp_score > ed_score
-        assert ed_score > kg_score
-        assert kg_score > gen_score
+        assert ed_score > wd_score
+        assert wd_score > gen_score
 
     def test_length_scoring_tiers(self):
         from app.pipeline.quality import score_description
@@ -190,7 +190,7 @@ class TestAssessDescriptions:
             {
                 "text": "Description B about a historical mosque with heritage",
                 "lang": "en",
-                "source": "knowledge_graph",
+                "source": "wikidata",
                 "score": None,
             },
         ]
@@ -349,19 +349,6 @@ class TestMerger:
 
         merged = await merge_collector_results(base, {"wikipedia": wp_result}, "Test")
         assert len(merged["image_urls"]) == 2  # Original + 1 new
-
-    async def test_merge_entity_types(self):
-        """Entity types from knowledge graph should be stored."""
-        from app.collectors.base import CollectorResult
-        from app.pipeline.merger import merge_collector_results
-
-        base = {"name": "Test", "attributes": [], "external_reviews": []}
-
-        kg_result = CollectorResult(collector_name="knowledge_graph")
-        kg_result.entity_types = ["Place", "TouristAttraction"]
-
-        merged = await merge_collector_results(base, {"knowledge_graph": kg_result}, "Test")
-        assert merged["entity_types"] == ["Place", "TouristAttraction"]
 
     async def test_merge_preserves_high_score_description_on_reenrichment(self):
         # Re-enrichment guard (P1.9): a second merge pass where the best

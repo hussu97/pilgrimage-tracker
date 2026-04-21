@@ -98,7 +98,7 @@ class TestQualityScoringExtended:
             {
                 "text": long_text,
                 "lang": "en",
-                "source": "knowledge_graph",  # reliability=0.3 → score=0.6
+                "source": "gmaps_editorial",  # reliability=0.35 → score ≈ wikipedia - 0.05
                 "score": None,
             },
         ]
@@ -127,7 +127,7 @@ class TestQualityScoringExtended:
         long_text = "y" * 350
         candidates = [
             {"text": long_text, "lang": "en", "source": "wikipedia", "score": None},
-            {"text": long_text, "lang": "en", "source": "knowledge_graph", "score": None},
+            {"text": long_text, "lang": "en", "source": "gmaps_editorial", "score": None},
         ]
 
         with patch("app.pipeline.quality._llm_tiebreak", new=AsyncMock(return_value=None)):
@@ -142,7 +142,7 @@ class TestQualityScoringExtended:
         from app.pipeline.quality import _llm_tiebreak
 
         candidate_a = {"text": "Description A", "source": "wikipedia", "score": 0.7}
-        candidate_b = {"text": "Description B", "source": "knowledge_graph", "score": 0.62}
+        candidate_b = {"text": "Description B", "source": "gmaps_editorial", "score": 0.62}
 
         mock_client = MagicMock()
         mock_response = MagicMock(text='{"choice": "A", "text": "Description A"}')
@@ -160,7 +160,7 @@ class TestQualityScoringExtended:
         from app.pipeline.quality import _llm_tiebreak
 
         candidate_a = {"text": "Description A", "source": "wikipedia", "score": 0.65}
-        candidate_b = {"text": "Description B", "source": "knowledge_graph", "score": 0.60}
+        candidate_b = {"text": "Description B", "source": "gmaps_editorial", "score": 0.60}
 
         mock_client = MagicMock()
         mock_response = MagicMock(text='{"choice": "B", "text": "Description B"}')
@@ -169,14 +169,14 @@ class TestQualityScoringExtended:
         with patch("google.genai.Client", return_value=mock_client):
             result = await _llm_tiebreak(candidate_a, candidate_b, "Test")
 
-        assert result["source"] == "knowledge_graph"
+        assert result["source"] == "gmaps_editorial"
 
     async def test_llm_tiebreak_synthesized(self):
         """_llm_tiebreak returns a synthesized description."""
         from app.pipeline.quality import _llm_tiebreak
 
         candidate_a = {"text": "Description A", "source": "wikipedia", "score": 0.68}
-        candidate_b = {"text": "Description B", "source": "knowledge_graph", "score": 0.62}
+        candidate_b = {"text": "Description B", "source": "gmaps_editorial", "score": 0.62}
 
         mock_client = MagicMock()
         mock_response = MagicMock(
@@ -196,7 +196,7 @@ class TestQualityScoringExtended:
         from app.pipeline.quality import _llm_tiebreak
 
         candidate_a = {"text": "Desc A", "source": "wikipedia", "score": 0.7}
-        candidate_b = {"text": "Desc B", "source": "knowledge_graph", "score": 0.65}
+        candidate_b = {"text": "Desc B", "source": "gmaps_editorial", "score": 0.65}
 
         mock_client = MagicMock()
         mock_response = MagicMock(text='{"choice": "C", "text": ""}')
@@ -212,7 +212,7 @@ class TestQualityScoringExtended:
         from app.pipeline.quality import _llm_tiebreak
 
         candidate_a = {"text": "Desc A", "source": "wikipedia", "score": 0.7}
-        candidate_b = {"text": "Desc B", "source": "knowledge_graph", "score": 0.63}
+        candidate_b = {"text": "Desc B", "source": "gmaps_editorial", "score": 0.63}
 
         mock_client = MagicMock()
         mock_response = MagicMock(text='{"choice": "A", "text": "Desc A"}')
@@ -229,7 +229,7 @@ class TestQualityScoringExtended:
         from app.pipeline.quality import _llm_tiebreak
 
         candidate_a = {"text": "Desc A", "source": "wikipedia", "score": 0.7}
-        candidate_b = {"text": "Desc B", "source": "knowledge_graph", "score": 0.65}
+        candidate_b = {"text": "Desc B", "source": "gmaps_editorial", "score": 0.65}
 
         mock_client = MagicMock()
         mock_client.aio.models.generate_content = AsyncMock(
@@ -246,7 +246,7 @@ class TestQualityScoringExtended:
         from app.pipeline.quality import _llm_tiebreak
 
         candidate_a = {"text": "Fallback A", "source": "wikipedia", "score": 0.7}
-        candidate_b = {"text": "Desc B", "source": "knowledge_graph", "score": 0.63}
+        candidate_b = {"text": "Desc B", "source": "gmaps_editorial", "score": 0.63}
 
         mock_client = MagicMock()
         mock_response = MagicMock(text='{"choice": "A", "text": ""}')

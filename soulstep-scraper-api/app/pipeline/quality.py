@@ -19,10 +19,8 @@ logger = get_logger(__name__)
 SOURCE_RELIABILITY = {
     "wikipedia": 0.40,
     "gmaps_editorial": 0.35,
-    "knowledge_graph": 0.30,
     "wikidata": 0.25,
     "wikipedia_short": 0.15,
-    "knowledge_graph_short": 0.10,
 }
 
 # Keywords that indicate specificity for pilgrimage/religious sites

@@ -12,7 +12,6 @@ def get_all_collectors() -> list[BaseCollector]:
     from app.collectors.besttime import BestTimeCollector
     from app.collectors.foursquare import FoursquareCollector
     from app.collectors.gmaps_browser import BrowserGmapsCollector
-    from app.collectors.knowledge_graph import KnowledgeGraphCollector
     from app.collectors.osm import OsmCollector
     from app.collectors.outscraper import OutscraperCollector
     from app.collectors.wikidata import WikidataCollector
@@ -23,7 +22,6 @@ def get_all_collectors() -> list[BaseCollector]:
         OsmCollector(),
         WikipediaCollector(),
         WikidataCollector(),
-        KnowledgeGraphCollector(),
         BestTimeCollector(),
         FoursquareCollector(),
         OutscraperCollector(),
@@ -42,7 +40,6 @@ def get_enrichment_collectors() -> list[BaseCollector]:
     """
     from app.collectors.besttime import BestTimeCollector
     from app.collectors.foursquare import FoursquareCollector
-    from app.collectors.knowledge_graph import KnowledgeGraphCollector
     from app.collectors.osm import OsmCollector
     from app.collectors.outscraper import OutscraperCollector
     from app.collectors.wikidata import WikidataCollector
@@ -54,7 +51,6 @@ def get_enrichment_collectors() -> list[BaseCollector]:
         OsmCollector(),
         WikipediaCollector(),
         WikidataCollector(),
-        KnowledgeGraphCollector(),
         BestTimeCollector(),
         FoursquareCollector(),
         OutscraperCollector(),
@@ -73,13 +69,12 @@ def get_enrichment_phases() -> list[list[BaseCollector]]:
         WikipediaCollector, WikidataCollector
 
     Phase 2 — fully independent (run in parallel):
-        KnowledgeGraphCollector, BestTimeCollector, FoursquareCollector, OutscraperCollector
+        BestTimeCollector, FoursquareCollector, OutscraperCollector
 
     Empty phases are omitted from the returned list.
     """
     from app.collectors.besttime import BestTimeCollector
     from app.collectors.foursquare import FoursquareCollector
-    from app.collectors.knowledge_graph import KnowledgeGraphCollector
     from app.collectors.osm import OsmCollector
     from app.collectors.outscraper import OutscraperCollector
     from app.collectors.wikidata import WikidataCollector
@@ -90,7 +85,6 @@ def get_enrichment_phases() -> list[list[BaseCollector]]:
     phase2 = [
         c
         for c in [
-            KnowledgeGraphCollector(),
             BestTimeCollector(),
             FoursquareCollector(),
             OutscraperCollector(),

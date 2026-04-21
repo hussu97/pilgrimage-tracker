@@ -82,7 +82,7 @@ async def merge_collector_results(
         "phone_national": ["gmaps", "osm", "wikidata"],
         "phone_international": ["gmaps", "osm", "wikidata"],
         "email": ["osm", "wikidata"],
-        "website": ["gmaps", "osm", "wikidata", "knowledge_graph"],
+        "website": ["gmaps", "osm", "wikidata"],
         "social_facebook": ["wikidata", "osm"],
         "social_instagram": ["wikidata", "osm"],
         "social_twitter": ["wikidata", "osm"],
@@ -155,18 +155,12 @@ async def merge_collector_results(
     # --- 5. Images merging (deduped) ---
     existing_urls = set(merged.get("image_urls", []))
 
-    for source_name in ["wikipedia", "knowledge_graph"]:
-        r = results.get(source_name)
-        if r and r.status == "success":
-            for img in r.images:
-                url = img.get("url", "")
-                if url and url not in existing_urls:
-                    merged.setdefault("image_urls", []).append(url)
-                    existing_urls.add(url)
-
-    # --- 6. Entity types from Knowledge Graph ---
-    kg = results.get("knowledge_graph")
-    if kg and kg.status == "success" and kg.entity_types:
-        merged["entity_types"] = kg.entity_types
+    r = results.get("wikipedia")
+    if r and r.status == "success":
+        for img in r.images:
+            url = img.get("url", "")
+            if url and url not in existing_urls:
+                merged.setdefault("image_urls", []).append(url)
+                existing_urls.add(url)
 
     return merged

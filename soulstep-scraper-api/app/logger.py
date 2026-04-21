@@ -60,7 +60,6 @@ _SECRET_PATTERNS: list[tuple[re.Pattern, str]] = [
 # Environment variable names whose values must be masked when logging config.
 SECRET_ENV_VARS: frozenset[str] = frozenset(
     {
-        "GOOGLE_MAPS_API_KEY",
         "BESTTIME_API_KEY",
         "FOURSQUARE_API_KEY",
         "OUTSCRAPER_API_KEY",

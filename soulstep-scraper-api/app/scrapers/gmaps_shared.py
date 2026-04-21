@@ -572,11 +572,11 @@ async def fetch_place_details(
     rate_limiter = get_async_rate_limiter()
     counter = AtomicCounter(initial=cached_count)
     flush_batch_size = DETAIL_FLUSH_BATCH_SIZE
-    # Concurrency is capped to pool's active-navigation limit
-    # (maps_browser_concurrency = how many contexts can navigate at once).
-    # Launching more workers than that just queues them inside pool.acquire()
-    # until the 90 s acquire timeout fires.
-    concurrency = settings.maps_browser_concurrency
+    # Detail-fetch workers are sized by settings.detail_concurrency, but the
+    # real active-navigation limit is the browser pool sem
+    # (MAPS_BROWSER_CONCURRENCY). We cap at that so extra workers don't just
+    # queue on pool.acquire() until the 90 s acquire timeout fires.
+    concurrency = min(settings.detail_concurrency, settings.maps_browser_concurrency)
     fetch_sem = asyncio.Semaphore(concurrency)
 
     # Buffer and lock for thread-safe batch writes (asyncio is single-threaded,

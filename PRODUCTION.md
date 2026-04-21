@@ -405,7 +405,6 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 
 | Variable | Mandatory | Default | Description |
 |---|---|---|---|
-| `SCRAPER_GOOGLE_MAPS_API_KEY` | — | — | Fed into scraper-api as `GOOGLE_MAPS_API_KEY`. Consumed only by the Knowledge Graph Search enrichment collector — scraping itself is browser-only. CI derives this from the `GOOGLE_MAPS_API_KEY` GitHub secret. Collector skips gracefully when unset. |
 | `CATALOG_API_KEY` | ✓ | — | Must match catalog-api's value. Required for sync and SEO trigger. |
 | `MAIN_SERVER_URL` | ✓ | — | catalog-api URL. Compose: `http://catalog-api:3000`. Cloud Run Job: `https://catalog-api.soul-step.org`. |
 | `SCRAPER_FOURSQUARE_API_KEY` | — | — | Foursquare key. Skipped gracefully when unset. |
@@ -427,6 +426,7 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 | `GOOGLE_CLOUD_PROJECT` | — | — | GCP project ID. Required for Cloud Run Job dispatch. |
 | `GCS_BUCKET_NAME` | — | — | GCS bucket for scraped images. Must match catalog-api's value. |
 | `SCRAPER_DISCOVERY_CONCURRENCY` | — | `15` | Max concurrent browser grid-cell discovery navigations. |
+| `SCRAPER_DETAIL_CONCURRENCY` | — | `8` | Max concurrent browser detail-fetch workers. Effectively capped by the browser pool sem (`MAPS_BROWSER_CONCURRENCY`). |
 | `SCRAPER_ENRICHMENT_CONCURRENCY` | — | `10` | Max places enriched in parallel. |
 | `SCRAPER_MAX_PHOTOS` | — | `3` | Max photos stored per place. |
 | `SCRAPER_MAX_REVIEWS` | — | `5` | Max reviews scraped per place. |

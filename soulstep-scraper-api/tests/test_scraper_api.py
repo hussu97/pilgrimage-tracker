@@ -514,9 +514,7 @@ class TestCollectors:
         resp = client.get("/api/v1/scraper/collectors")
         assert resp.status_code == 200
         data = resp.json()
-        assert (
-            len(data) == 8
-        )  # gmaps, osm, wikipedia, wikidata, kg, besttime, foursquare, outscraper
+        assert len(data) == 7  # gmaps, osm, wikipedia, wikidata, besttime, foursquare, outscraper
         names = [c["name"] for c in data]
         assert "gmaps" in names or "gmaps_browser" in names
         assert "osm" in names

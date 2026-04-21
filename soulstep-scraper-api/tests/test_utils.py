@@ -54,7 +54,7 @@ class TestMakeDescription:
         assert d["score"] is None
 
     def test_returns_description_dict_type(self):
-        d = make_description("Text", "hi", "knowledge_graph")
+        d = make_description("Text", "hi", "wikidata")
         # DescriptionDict is a TypedDict — verify all keys present
         assert "text" in d and "lang" in d and "source" in d and "score" in d
 

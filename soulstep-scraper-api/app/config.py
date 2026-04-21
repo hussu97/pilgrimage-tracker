@@ -21,10 +21,6 @@ class Settings:
     """Flat namespace for all configuration values used across the scraper API."""
 
     # ── Optional collector keys ───────────────────────────────────────────────
-    # GOOGLE_MAPS_API_KEY is used by the Knowledge Graph Search enrichment
-    # collector (free, shares the Maps key quota). Scraping itself is
-    # browser-only and does not call the Google Maps Places API.
-    google_maps_api_key: str = os.environ.get("GOOGLE_MAPS_API_KEY", "")
     foursquare_api_key: str = os.environ.get("FOURSQUARE_API_KEY", "")
     outscraper_api_key: str = os.environ.get("OUTSCRAPER_API_KEY", "")
     besttime_api_key: str = os.environ.get("BESTTIME_API_KEY", "")
@@ -77,6 +73,10 @@ class Settings:
     # ── Concurrency (configurable via env for tuning) ─────────────────────────
     # Max concurrent browser grid-cell discovery navigations.
     discovery_concurrency: int = int(os.environ.get("SCRAPER_DISCOVERY_CONCURRENCY", "15"))
+    # Max concurrent browser detail-fetch workers. Effectively capped by the
+    # browser pool's active-navigation sem (MAPS_BROWSER_CONCURRENCY), so the
+    # useful range is 1..MAPS_BROWSER_CONCURRENCY.
+    detail_concurrency: int = int(os.environ.get("SCRAPER_DETAIL_CONCURRENCY", "8"))
     # Max concurrent places enriched in parallel. Keep ≤ pool_size so each
     # concurrent worker can always get a DB connection without overflow.
     enrichment_concurrency: int = int(os.environ.get("SCRAPER_ENRICHMENT_CONCURRENCY", "5"))
@@ -206,9 +206,6 @@ class Settings:
         """
         raw: dict[str, str] = {
             # ── API keys / secrets ────────────────────────────────────────────
-            # GOOGLE_MAPS_API_KEY: consumed by the Knowledge Graph Search
-            # enrichment collector (shared-quota key).
-            "GOOGLE_MAPS_API_KEY": self.google_maps_api_key,
             "FOURSQUARE_API_KEY": self.foursquare_api_key,
             "OUTSCRAPER_API_KEY": self.outscraper_api_key,
             "BESTTIME_API_KEY": self.besttime_api_key,
@@ -231,6 +228,7 @@ class Settings:
             "GCS_BUCKET_NAME": self.gcs_bucket_name,
             # ── Concurrency ───────────────────────────────────────────────────
             "SCRAPER_DISCOVERY_CONCURRENCY": str(self.discovery_concurrency),
+            "SCRAPER_DETAIL_CONCURRENCY": str(self.detail_concurrency),
             "SCRAPER_ENRICHMENT_CONCURRENCY": str(self.enrichment_concurrency),
             "SCRAPER_OVERPASS_CONCURRENCY": str(self.overpass_concurrency),
             "SCRAPER_OVERPASS_JITTER_MAX": str(self.overpass_jitter_max),

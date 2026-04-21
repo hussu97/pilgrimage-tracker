@@ -80,7 +80,7 @@ class ScrapedPlace(SQLModel, table=True):
     # "pending" | "enriching" | "complete" | "failed" | "filtered"
     description_source: str | None = Field(default=None)
     # which source won: "wikipedia", "gmaps_editorial", "gmaps_generative",
-    #                    "wikidata", "knowledge_graph", "llm_synthesized"
+    #                    "wikidata", "llm_synthesized"
     description_score: float | None = Field(default=None)
     quality_score: float | None = Field(default=None)
     quality_gate: str | None = Field(default=None)
@@ -117,7 +117,7 @@ class RawCollectorData(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     place_code: str = Field(index=True)
     collector_name: str = Field(index=True)
-    # "gmaps", "osm", "wikipedia", "wikidata", "knowledge_graph",
+    # "gmaps", "gmaps_browser", "osm", "wikipedia", "wikidata",
     # "besttime", "foursquare", "outscraper"
     run_code: str = Field(foreign_key="scraperrun.run_code", index=True)
     raw_response: dict[str, Any] = Field(default={}, sa_column=Column(JSON))

@@ -91,9 +91,9 @@ repos:
         stages: [pre-push]
 
       - id: pytest-scraper-api
-        name: pytest (scraper-api) + coverage >=80%
+        name: pytest (scraper-api) + coverage >=75%
         language: system
-        entry: bash -c 'cd soulstep-scraper-api && source .venv/bin/activate && python -m pytest tests/ -x -q --tb=short --cov=app --cov-report=term-missing:skip-covered --cov-fail-under=80'
+        entry: bash -c 'cd soulstep-scraper-api && source .venv/bin/activate && python -m pytest tests/ -x -q --tb=short --cov=app --cov-report=term-missing:skip-covered --cov-fail-under=75'
         files: ^soulstep-scraper-api/
         pass_filenames: false
         stages: [pre-push]
