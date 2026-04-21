@@ -156,7 +156,7 @@ services:
       SCRAPER_AUTO_SYNC_AFTER_RUN: ${SCRAPER_AUTO_SYNC_AFTER_RUN:-false}
       SCRAPER_TRIGGER_SEO_AFTER_SYNC: ${SCRAPER_TRIGGER_SEO_AFTER_SYNC:-false}
       # ── Cloud Run dispatch (regions list) ─────────────────────────────────
-      CLOUD_RUN_REGIONS: ${CLOUD_RUN_REGIONS:-europe-west1:3,europe-west4:5,europe-west2:5}
+      CLOUD_RUN_REGIONS: ${CLOUD_RUN_REGIONS:-europe-west1:3,europe-west4:4,europe-west2:4}
       # ── Browser grid / Playwright pool ────────────────────────────────────
       BROWSER_GRID_CELL_SIZE_KM: ${BROWSER_GRID_CELL_SIZE_KM:-3.0}
       MAPS_BROWSER_POOL_SIZE: ${MAPS_BROWSER_POOL_SIZE:-8}
