@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-21] — Scraper resume: ignore stale Cloud Run execution records
+
+### Backend
+- **`soulstep-scraper-api/app/jobs/dispatcher.py`** — `is_cloud_run_execution_active()` now treats Cloud Run `NotFound` responses as inactive instead of "still active". This fixes false `409` resume failures when a stored `cloud_run_execution` points at an execution resource that has already finished and disappeared from the Executions API. Other lookup failures still stay fail-closed to avoid duplicate dispatches during transient GCP outages.
+- **`soulstep-scraper-api/tests/test_resume.py`** — added regression coverage for both branches: stale/missing execution resource returns inactive, generic lookup errors still block resume.
+- **`soulstep-catalog-api/app/api/v1/admin/scraper_proxy.py`** — the admin scraper resume proxy now forwards the existing `force=true` query parameter to scraper-api, so operators can deliberately bypass the active-execution guard when GCP status lookup is wrong or unavailable.
+- **`apps/soulstep-admin-web/src/lib/api/scraper.ts`** — `resumeRun()` now accepts `{ force?: boolean }` and forwards it as a query param; normal UI behavior remains unchanged, but the force path is now reachable from admin-web callers.
+
+### Docs
+- **`soulstep-scraper-api/README.md`** — documented the resume and cancel endpoints, including the `force=true` resume override.
+
+### Tests
+- **`soulstep-catalog-api/tests/test_scraper_proxy.py`** — added coverage that `POST /api/v1/admin/scraper/runs/{run_code}/resume?force=true` forwards the query string upstream.
+- **`apps/soulstep-admin-web/src/__tests__/scraper-api.test.ts`** — added Vitest coverage for default resume requests and the `force=true` client option.
+
 ## [2026-04-21] — Scraper: remove Google Maps API backend (browser-only)
 
 ### Backend

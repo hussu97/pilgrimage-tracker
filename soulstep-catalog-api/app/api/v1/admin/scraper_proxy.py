@@ -202,8 +202,9 @@ async def re_enrich_run(run_code: str, admin: AdminDep):
 
 
 @router.post("/runs/{run_code}/resume")
-async def resume_run(run_code: str, admin: AdminDep):
-    return await _proxy("POST", f"/runs/{run_code}/resume")
+async def resume_run(run_code: str, admin: AdminDep, force: bool = Query(False)):
+    params = {"force": str(force).lower()} if force else None
+    return await _proxy("POST", f"/runs/{run_code}/resume", params=params)
 
 
 @router.post("/runs/{run_code}/cancel")

@@ -10,11 +10,14 @@ Covers:
 """
 
 import secrets
+import sys
+import types
 from unittest.mock import patch
 
 from sqlmodel import Session, select
 
 from app.db.models import DataLocation, ScraperRun
+from app.jobs.dispatcher import is_cloud_run_execution_active
 
 
 def _make_location(session: Session) -> DataLocation:
@@ -43,6 +46,35 @@ def _make_run(
     session.commit()
     session.refresh(run)
     return run
+
+
+def _install_fake_google_run(
+    monkeypatch, *, execution=None, get_execution_exc=None, not_found_cls=None
+):
+    class _FakeExecutionsClient:
+        def get_execution(self, name: str):
+            if get_execution_exc is not None:
+                raise get_execution_exc
+            return execution
+
+    google_mod = types.ModuleType("google")
+    cloud_mod = types.ModuleType("google.cloud")
+    run_v2_mod = types.ModuleType("google.cloud.run_v2")
+    run_v2_mod.ExecutionsClient = _FakeExecutionsClient
+    cloud_mod.run_v2 = run_v2_mod
+    google_mod.cloud = cloud_mod
+
+    monkeypatch.setitem(sys.modules, "google", google_mod)
+    monkeypatch.setitem(sys.modules, "google.cloud", cloud_mod)
+    monkeypatch.setitem(sys.modules, "google.cloud.run_v2", run_v2_mod)
+
+    if not_found_cls is not None:
+        api_core_mod = types.ModuleType("google.api_core")
+        exceptions_mod = types.ModuleType("google.api_core.exceptions")
+        exceptions_mod.NotFound = not_found_cls
+        api_core_mod.exceptions = exceptions_mod
+        monkeypatch.setitem(sys.modules, "google.api_core", api_core_mod)
+        monkeypatch.setitem(sys.modules, "google.api_core.exceptions", exceptions_mod)
 
 
 # ── 1. Startup: _mark_interrupted_runs ────────────────────────────────────────
@@ -78,6 +110,37 @@ def test_startup_ignores_completed_runs(db_session, test_engine, real_mark_inter
     assert completed.status == "completed"
     assert failed.status == "failed"
     assert cancelled.status == "cancelled"
+
+
+def test_cloud_run_execution_missing_is_treated_as_inactive(monkeypatch):
+    """Missing Cloud Run executions should not block resume."""
+
+    class _FakeNotFound(Exception):
+        pass
+
+    _install_fake_google_run(
+        monkeypatch,
+        get_execution_exc=_FakeNotFound("gone"),
+        not_found_cls=_FakeNotFound,
+    )
+
+    assert (
+        is_cloud_run_execution_active("projects/p/locations/r/jobs/j/executions/missing") is False
+    )
+
+
+def test_cloud_run_status_lookup_errors_remain_fail_closed(monkeypatch):
+    """Transient lookup failures should still block resume to avoid duplicates."""
+
+    _install_fake_google_run(
+        monkeypatch,
+        get_execution_exc=RuntimeError("transport unavailable"),
+    )
+
+    assert (
+        is_cloud_run_execution_active("projects/p/locations/r/jobs/j/executions/maybe-active")
+        is True
+    )
 
 
 def test_startup_leaves_active_cloud_run_execution_alone(

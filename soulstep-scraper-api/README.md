@@ -41,6 +41,8 @@ Copy the root `.env.example` to `.env`. Key variables:
 | POST | `/runs` | Start a new scraper run |
 | GET | `/runs` | List all runs |
 | GET | `/runs/:runCode` | Get run status and results |
+| POST | `/runs/:runCode/resume` | Resume an interrupted, failed, or cancelled run; accepts `?force=true` to bypass the active-execution guard |
+| POST | `/runs/:runCode/cancel` | Cancel a queued, pending, running, or interrupted run |
 | POST | `/runs/:runCode/sync` | Sync scraped data to catalog-api |
 | DELETE | `/runs/:runCode` | Delete a run |
 | GET | `/collectors` | List collector configurations |

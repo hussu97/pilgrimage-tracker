@@ -213,6 +213,19 @@ class TestRunsProxy:
             )
         assert resp.status_code == 200
 
+    def test_resume_run_forwards_force_query_param(self):
+        with _mock_proxy({"status": "queued"}) as mock_cls:
+            resp = self.client.post(
+                "/api/v1/admin/scraper/runs/run_abc/resume?force=true",
+                headers=self.auth,
+            )
+
+        assert resp.status_code == 200
+        mock_client = mock_cls.return_value
+        mock_client.request.assert_awaited_once()
+        _, kwargs = mock_client.request.await_args
+        assert kwargs["params"] == {"force": "true"}
+
     def test_cancel_run(self):
         with _mock_proxy({"status": "cancelled"}):
             resp = self.client.post("/api/v1/admin/scraper/runs/run_abc/cancel", headers=self.auth)

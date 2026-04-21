@@ -215,14 +215,19 @@ def is_cloud_run_execution_active(execution_name: str) -> bool:
     """Return True if the Cloud Run execution is still running (not yet finished).
 
     Uses the Executions API to fetch the execution and checks whether it has a
-    completion_time.  Returns False on any error (SDK missing, permission denied,
-    execution not found) so the caller can safely treat it as "not running" and
-    dispatch a new one.
+    completion_time. Returns False when the SDK is unavailable or the execution
+    no longer exists. Other lookup failures stay fail-closed and are treated as
+    active so we do not accidentally double-dispatch on a transient GCP error.
     """
     try:
         from google.cloud import run_v2
     except ImportError:
         return False
+
+    try:
+        from google.api_core.exceptions import NotFound
+    except ImportError:
+        NotFound = None
 
     try:
         client = run_v2.ExecutionsClient()
@@ -232,6 +237,12 @@ def is_cloud_run_execution_active(execution_name: str) -> bool:
         # (succeeded, failed, or cancelled).
         return execution.completion_time is None
     except Exception as exc:
+        if NotFound is not None and isinstance(exc, NotFound):
+            logger.info(
+                "dispatcher: Cloud Run execution no longer exists — treating as inactive",
+                extra={"execution_name": execution_name},
+            )
+            return False
         logger.warning(
             "dispatcher: could not check Cloud Run execution status — assuming still active",
             extra={

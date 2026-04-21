@@ -101,8 +101,9 @@ export async function reEnrichRun(runCode: string): Promise<unknown> {
   return res.data;
 }
 
-export async function resumeRun(runCode: string): Promise<unknown> {
-  const res = await scraperClient.post(`/runs/${runCode}/resume`);
+export async function resumeRun(runCode: string, options?: { force?: boolean }): Promise<unknown> {
+  const params = options?.force ? { force: true } : undefined;
+  const res = await scraperClient.post(`/runs/${runCode}/resume`, undefined, { params });
   return res.data;
 }
 
