@@ -211,6 +211,11 @@ async def cancel_run(run_code: str, admin: AdminDep):
     return await _proxy("POST", f"/runs/{run_code}/cancel")
 
 
+@router.post("/runs/{run_code}/retry-images")
+async def retry_images(run_code: str, admin: AdminDep):
+    return await _proxy("POST", f"/runs/{run_code}/retry-images")
+
+
 @router.delete("/runs/{run_code}")
 async def delete_run(
     run_code: str,
