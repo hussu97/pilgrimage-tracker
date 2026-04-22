@@ -32,6 +32,10 @@ Copy the root `.env.example` to `.env`. Key variables:
 | `CLOUD_RUN_REGIONS` | Comma-separated regions for multi-region dispatch |
 | `GCS_BUCKET_NAME` | GCS bucket for scraped images |
 | `GOOGLE_CLOUD_PROJECT` | GCP project ID |
+| `SCRAPER_DISCOVERY_CONCURRENCY` | Primary discovery concurrency knob for browser grid search |
+| `MAPS_BROWSER_POOL_SIZE` | Optional browser-context override; leave blank to follow discovery concurrency |
+| `MAPS_BROWSER_CONCURRENCY` | Optional active browser override; leave blank to follow discovery concurrency |
+| `MAPS_BROWSER_CELL_DELAY_MIN/MAX` | Per-cell browser discovery jitter range |
 
 ## API Endpoints
 

@@ -71,11 +71,11 @@ class Settings:
     gcs_bucket_name: str = os.environ.get("GCS_BUCKET_NAME", "")
 
     # ── Concurrency (configurable via env for tuning) ─────────────────────────
-    # Max concurrent browser grid-cell discovery navigations.
+    # Primary discovery throughput knob: max concurrent browser grid-cell
+    # navigations during the discovery phase.
     discovery_concurrency: int = int(os.environ.get("SCRAPER_DISCOVERY_CONCURRENCY", "15"))
-    # Max concurrent browser detail-fetch workers. Effectively capped by the
-    # browser pool's active-navigation sem (MAPS_BROWSER_CONCURRENCY), so the
-    # useful range is 1..MAPS_BROWSER_CONCURRENCY.
+    # Max concurrent browser detail-fetch workers. This is still capped by the
+    # active browser pool sem when MAPS_BROWSER_CONCURRENCY is explicitly set.
     detail_concurrency: int = int(os.environ.get("SCRAPER_DETAIL_CONCURRENCY", "8"))
     # Max concurrent places enriched in parallel. Keep ≤ pool_size so each
     # concurrent worker can always get a DB connection without overflow.
@@ -107,29 +107,34 @@ class Settings:
     browser_grid_cell_size_km: float = float(os.environ.get("BROWSER_GRID_CELL_SIZE_KM", "3.0"))
 
     # ── Browser scraper ───────────────────────────────────────────────────────
-    # Number of Playwright browser contexts kept in the pool. Idle contexts are
-    # reused across grid cells; only `maps_browser_concurrency` are active at once.
-    # 8 contexts × ~200 MB each ≈ 1.6 GB — safe for 4-8 GB Cloud Run Jobs.
-    maps_browser_pool_size: int = int(os.environ.get("MAPS_BROWSER_POOL_SIZE", "8"))
+    # Number of Playwright browser contexts kept in the pool. If unset, discovery
+    # follows SCRAPER_DISCOVERY_CONCURRENCY so there is no hidden lower cap.
+    # Idle contexts are reused across grid cells; only `maps_browser_concurrency`
+    # are active at once.
+    maps_browser_pool_size: int = int(
+        os.environ.get("MAPS_BROWSER_POOL_SIZE")
+        or os.environ.get("SCRAPER_DISCOVERY_CONCURRENCY", "15")
+    )
     # Max navigations per browser context before recycling (prevents fingerprinting).
     maps_browser_max_pages: int = int(os.environ.get("MAPS_BROWSER_MAX_PAGES", "30"))
     # Run Chromium headless (set false for local debugging).
     maps_browser_headless: bool = os.environ.get("MAPS_BROWSER_HEADLESS", "true").lower() == "true"
-    # Max concurrent grid cell navigations in browser mode.
-    # Each concurrent navigation needs its own Chromium context (~200 MB).
-    # 8 active contexts ≈ 1.6 GB; ensure Cloud Run Job has enough RAM (8 GiB recommended).
-    maps_browser_concurrency: int = int(os.environ.get("MAPS_BROWSER_CONCURRENCY", "8"))
+    # Max concurrent active browser navigations. If unset, discovery uses
+    # SCRAPER_DISCOVERY_CONCURRENCY directly; set this only to override the
+    # browser-pool cap independently (for example, detail fetch tuning).
+    maps_browser_concurrency: int = int(
+        os.environ.get("MAPS_BROWSER_CONCURRENCY")
+        or os.environ.get("SCRAPER_DISCOVERY_CONCURRENCY", "15")
+    )
     # Comma-separated proxy URLs for browser contexts (e.g. "http://proxy1:8080,http://proxy2:8080").
     # Empty = no proxy. Each new context picks the next proxy in rotation.
     browser_proxy_list: str = os.environ.get("BROWSER_PROXY_LIST", "")
     # Proxy rotation strategy: "round_robin" or "random".
     browser_proxy_rotation: str = os.environ.get("BROWSER_PROXY_ROTATION", "round_robin")
     # Random delay range (seconds) injected between consecutive cell navigations.
-    # Mimics human think-time between page visits.
-    maps_browser_cell_delay_min: float = float(os.environ.get("MAPS_BROWSER_CELL_DELAY_MIN", "5.0"))
-    maps_browser_cell_delay_max: float = float(
-        os.environ.get("MAPS_BROWSER_CELL_DELAY_MAX", "12.0")
-    )
+    # Keeps some human-like pacing without dominating long country-scale runs.
+    maps_browser_cell_delay_min: float = float(os.environ.get("MAPS_BROWSER_CELL_DELAY_MIN", "1.0"))
+    maps_browser_cell_delay_max: float = float(os.environ.get("MAPS_BROWSER_CELL_DELAY_MAX", "2.0"))
 
     # ── Job dispatcher ────────────────────────────────────────────────────────
     # Controls how scraper runs are dispatched after POST /runs.

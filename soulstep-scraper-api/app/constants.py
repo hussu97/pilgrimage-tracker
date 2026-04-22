@@ -49,14 +49,14 @@ ENRICHING_SNAPSHOT_LIMIT: int = 5
 BROWSER_GRID_CELL_SIZE_KM: float = 3.0
 
 # Maximum scroll attempts before giving up on a single browser cell.
-BROWSER_SCROLL_MAX_ATTEMPTS: int = 30
+BROWSER_SCROLL_MAX_ATTEMPTS: int = 20
 
 # Number of consecutive scrolls with no new place links before declaring the
 # feed fully loaded (stable threshold).
-BROWSER_SCROLL_STABLE_THRESHOLD: int = 3
+BROWSER_SCROLL_STABLE_THRESHOLD: int = 2
 
 # Pixels scrolled inside the results feed per scroll step.
-BROWSER_SCROLL_PIXEL_STEP: int = 800
+BROWSER_SCROLL_PIXEL_STEP: int = 900
 
 # ── Browser timeout / retry safety nets ──────────────────────────────────────
 

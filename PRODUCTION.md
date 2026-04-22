@@ -441,11 +441,15 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 | `SCRAPER_CLOUD_RUN_DATABASE_URL` | — | — | Postgres DSN for the Cloud Run Job, using the VM's internal GCP IP (`10.132.0.2`). Passed as `DATABASE_URL` override when dispatching. Falls back to `DATABASE_URL` (docker-internal) when unset — only safe when `SCRAPER_DISPATCH=local`. |
 | `GOOGLE_CLOUD_PROJECT` | — | — | GCP project ID. Required for Cloud Run Job dispatch. |
 | `GCS_BUCKET_NAME` | — | — | GCS bucket for scraped images. Must match catalog-api's value. |
-| `SCRAPER_DISCOVERY_CONCURRENCY` | — | `15` | Max concurrent browser grid-cell discovery navigations. |
-| `SCRAPER_DETAIL_CONCURRENCY` | — | `8` | Max concurrent browser detail-fetch workers. Effectively capped by the browser pool sem (`MAPS_BROWSER_CONCURRENCY`). |
+| `SCRAPER_DISCOVERY_CONCURRENCY` | — | `15` | Primary discovery throughput knob: max concurrent browser grid-cell navigations. |
+| `SCRAPER_DETAIL_CONCURRENCY` | — | `8` | Max concurrent browser detail-fetch workers. Still capped by `MAPS_BROWSER_CONCURRENCY` when that override is explicitly set. |
 | `SCRAPER_ENRICHMENT_CONCURRENCY` | — | `10` | Max places enriched in parallel. |
 | `SCRAPER_MAX_PHOTOS` | — | `3` | Max photos stored per place. |
 | `SCRAPER_MAX_REVIEWS` | — | `5` | Max reviews scraped per place. |
+| `MAPS_BROWSER_POOL_SIZE` | — | _(defaults to `SCRAPER_DISCOVERY_CONCURRENCY` when unset)_ | Max Playwright contexts kept warm. Leave unset unless you need a separate override. |
+| `MAPS_BROWSER_CONCURRENCY` | — | _(defaults to `SCRAPER_DISCOVERY_CONCURRENCY` when unset)_ | Active browser pool semaphore. Leave unset unless you need a separate override from discovery. |
+| `MAPS_BROWSER_CELL_DELAY_MIN` | — | `1.0` | Minimum per-cell discovery delay in seconds. |
+| `MAPS_BROWSER_CELL_DELAY_MAX` | — | `2.0` | Maximum per-cell discovery delay in seconds. |
 | `SCRAPER_AUTO_SYNC_AFTER_RUN` | — | `false` | Auto-sync to catalog-api after enrichment. |
 | `SCRAPER_TRIGGER_SEO_AFTER_SYNC` | — | `false` | Auto-call catalog-api SEO endpoint after sync. |
 

@@ -1,7 +1,7 @@
 """MapsBrowserPool — manages a pool of Playwright browser contexts for Maps scraping.
 
 Features:
-- Configurable pool size (MAPS_BROWSER_POOL_SIZE, default 5)
+- Configurable pool size (MAPS_BROWSER_POOL_SIZE, defaults to SCRAPER_DISCOVERY_CONCURRENCY)
 - Session recycling after MAPS_BROWSER_MAX_PAGES navigations (default 30)
 - Geolocation spoofing per context
 - CAPTCHA/block detection with exponential backoff
@@ -190,7 +190,7 @@ class MapsBrowserPool:
     def __init__(self) -> None:
         from app.config import settings
 
-        self._pool_size = settings.maps_browser_pool_size
+        self._pool_size = max(1, settings.maps_browser_pool_size)
         self._max_pages = settings.maps_browser_max_pages
         self._headless = settings.maps_browser_headless
         self._sessions: list[_MapsSession] = []
@@ -198,13 +198,26 @@ class MapsBrowserPool:
         self._browser = None
         self._lock = asyncio.Lock()
         self._initialized = False
-        # Semaphore must match concurrency, not pool_size, to avoid starving tasks.
-        # Pool size caps how many contexts exist; concurrency caps active navigations.
-        self._sem = asyncio.Semaphore(settings.maps_browser_concurrency)
+        # Discovery should be driven by SCRAPER_DISCOVERY_CONCURRENCY. The pool sem
+        # therefore uses the larger of discovery/detail browser limits so discovery
+        # is never silently bottlenecked by MAPS_BROWSER_CONCURRENCY.
+        self._active_navigation_limit = max(
+            1,
+            settings.discovery_concurrency,
+            settings.maps_browser_concurrency,
+        )
+        self._sem = asyncio.Semaphore(self._active_navigation_limit)
         self._breaker = _CircuitBreaker()
         self._proxy_rotator = ProxyRotator(
             settings.browser_proxy_list, settings.browser_proxy_rotation
         )
+        if self._pool_size < self._active_navigation_limit:
+            logger.warning(
+                "MapsBrowserPool: pool size (%d) is below active navigation cap (%d); "
+                "browser work will queue on available sessions",
+                self._pool_size,
+                self._active_navigation_limit,
+            )
 
     @staticmethod
     def _install_target_closed_handler() -> None:

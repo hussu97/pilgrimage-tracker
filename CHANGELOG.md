@@ -4,6 +4,20 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-22] — Discovery pacing and concurrency tuning
+
+### Backend
+- **`soulstep-scraper-api/app/config.py`** — discovery pacing defaults are now `MAPS_BROWSER_CELL_DELAY_MIN=1.0` and `MAPS_BROWSER_CELL_DELAY_MAX=2.0`; when `MAPS_BROWSER_POOL_SIZE` / `MAPS_BROWSER_CONCURRENCY` are left unset they now follow `SCRAPER_DISCOVERY_CONCURRENCY` instead of imposing a lower hidden cap.
+- **`soulstep-scraper-api/app/scrapers/gmaps_browser.py`** — browser discovery now takes its active semaphore from `SCRAPER_DISCOVERY_CONCURRENCY`, derives per-type scheduling from the same knob instead of a hard-coded `3`, and trims several post-navigation settle sleeps while keeping the same per-type grid-pass behavior.
+- **`soulstep-scraper-api/app/constants.py`** — reduced browser discovery scroll budgets (`max_attempts`, stable threshold, and scroll step) without changing the overall timeout ceilings.
+- **`soulstep-scraper-api/app/services/browser_pool.py`** — pool semaphore now respects the larger of discovery/detail browser caps so discovery is not throttled below `SCRAPER_DISCOVERY_CONCURRENCY`; it also warns when `MAPS_BROWSER_POOL_SIZE` is manually set below the active navigation cap.
+
+### Docs
+- **`docker-compose.prod.yml`**, **`.env.example`**, **`PRODUCTION.md`**, and **`soulstep-scraper-api/README.md`** — documented the new discovery tuning semantics and made production compose leave `MAPS_BROWSER_POOL_SIZE` / `MAPS_BROWSER_CONCURRENCY` unset by default so the scraper service can derive them from `SCRAPER_DISCOVERY_CONCURRENCY`.
+
+### Tests
+- **`soulstep-scraper-api/tests/test_browser_gmaps.py`** — added regression coverage that the browser orchestrator sizes discovery from `SCRAPER_DISCOVERY_CONCURRENCY` and that the browser pool no longer silently caps discovery below that setting.
+
 ## [2026-04-22] — Scraper discovery memory hardening for country-scale runs
 
 ### Backend

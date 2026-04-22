@@ -607,6 +607,83 @@ class TestPerTypeBrowserSearch:
         # Should have been called once per active place type
         assert sorted(call_types) == ["church", "mosque"]
 
+    @pytest.mark.asyncio
+    async def test_browser_grid_search_uses_discovery_concurrency(self):
+        """Discovery should size its semaphore from SCRAPER_DISCOVERY_CONCURRENCY."""
+        from unittest.mock import AsyncMock, patch
+
+        from sqlalchemy import StaticPool, create_engine
+        from sqlmodel import Session, SQLModel
+
+        from app.config import settings
+        from app.scrapers.gmaps_browser import run_gmaps_scraper_browser
+
+        engine = create_engine(
+            "sqlite:///:memory:",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        SQLModel.metadata.create_all(engine)
+
+        from app.db.models import GeoBoundary, PlaceTypeMapping, ScraperRun
+
+        with Session(engine) as sess:
+            sess.add(
+                ScraperRun(
+                    run_code="run_grid_concurrency_test",
+                    location_code="loc_test",
+                    status="running",
+                )
+            )
+            sess.add(
+                GeoBoundary(
+                    name="TestCity",
+                    boundary_type="city",
+                    lat_min=25.0,
+                    lat_max=25.5,
+                    lng_min=55.0,
+                    lng_max=55.5,
+                )
+            )
+            for gmaps_type in ["mosque", "church"]:
+                sess.add(
+                    PlaceTypeMapping(
+                        religion="test",
+                        source_type="gmaps",
+                        gmaps_type=gmaps_type,
+                        our_place_type=gmaps_type,
+                        is_active=True,
+                        display_order=0,
+                    )
+                )
+            sess.commit()
+
+        seen_values: list[int] = []
+
+        async def fake_grid_search(grid_cells, place_type, existing_ids, **kwargs):
+            seen_values.append(kwargs["semaphore"]._value)
+            return []
+
+        with (
+            patch.object(settings, "discovery_concurrency", 4),
+            patch.object(settings, "maps_browser_concurrency", 1),
+            patch("app.scrapers.gmaps_browser.search_grid_browser", side_effect=fake_grid_search),
+            patch("app.scrapers.gmaps_browser.DiscoveryCellStore"),
+            patch("app.scrapers.gmaps_browser.GlobalCellStore"),
+            patch("app.scrapers.gmaps_shared.fetch_place_details", new=AsyncMock()),
+            patch("app.collectors.image_download.download_place_images", new=AsyncMock()),
+            patch("app.db.session.engine", engine),
+        ):
+            with Session(engine) as sess:
+                await run_gmaps_scraper_browser(
+                    "run_grid_concurrency_test",
+                    {"city": "TestCity"},
+                    sess,
+                )
+
+        assert seen_values
+        assert all(value == 4 for value in seen_values)
+
 
 class TestDiscoveryCellStorePerType:
     def _make_engine(self):
@@ -1047,6 +1124,21 @@ class TestAcquireTimeout:
             pool._sem.release()
         finally:
             constants_mod.BROWSER_ACQUIRE_TIMEOUT_S = original
+
+    def test_pool_semaphore_honors_discovery_concurrency(self):
+        """Pool sem should not silently cap discovery below SCRAPER_DISCOVERY_CONCURRENCY."""
+        from app.config import settings
+        from app.services.browser_pool import MapsBrowserPool
+
+        with (
+            patch.object(settings, "discovery_concurrency", 6),
+            patch.object(settings, "maps_browser_concurrency", 2),
+            patch.object(settings, "maps_browser_pool_size", 6),
+        ):
+            pool = MapsBrowserPool()
+
+        assert pool._sem._value == 6
+        assert pool._active_navigation_limit == 6
 
     @pytest.mark.asyncio
     async def test_acquire_raises_after_max_retries(self):

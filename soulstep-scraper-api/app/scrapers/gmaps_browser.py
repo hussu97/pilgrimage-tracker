@@ -249,7 +249,7 @@ async def _dismiss_consent(page) -> None:
                 btn = await page.query_selector(selector)
                 if btn:
                     await btn.click()
-                    await asyncio.sleep(random.uniform(0.5, 1.5))
+                    await asyncio.sleep(random.uniform(0.2, 0.6))
                     break
             return
 
@@ -281,7 +281,7 @@ async def _dismiss_consent(page) -> None:
                     pass
                 if "consent.google.com" not in page.url:
                     logger.info("Consent dismissed via JS form submit — now on: %s", page.url)
-                    await asyncio.sleep(random.uniform(0.5, 1.0))
+                    await asyncio.sleep(random.uniform(0.2, 0.4))
                     return
         except Exception:
             pass
@@ -308,7 +308,7 @@ async def _dismiss_consent(page) -> None:
                         pass
                     if "consent.google.com" not in page.url:
                         logger.info("Consent dismissed via %s — now on: %s", selector, page.url)
-                        await asyncio.sleep(random.uniform(0.5, 1.0))
+                        await asyncio.sleep(random.uniform(0.2, 0.4))
                         return
             except Exception:
                 continue
@@ -423,7 +423,7 @@ async def _scroll_loop(
         except Exception:
             pass
 
-        await asyncio.sleep(random.uniform(0.2, 0.6))
+        await asyncio.sleep(random.uniform(0.1, 0.25))
 
 
 async def search_area_browser(
@@ -604,7 +604,7 @@ async def search_area_browser(
                 if "consent.google.com" in page.url or not _consent_dismissed:
                     await _dismiss_consent(page)
                     _consent_dismissed = True
-                    await asyncio.sleep(random.uniform(0.2, 0.5))
+                    await asyncio.sleep(random.uniform(0.1, 0.25))
 
                 if await _check_for_block(page):
                     logger.warning(
@@ -649,7 +649,7 @@ async def search_area_browser(
                         place_type,
                         diag,
                     )
-                await asyncio.sleep(random.uniform(0.2, 0.5))
+                await asyncio.sleep(random.uniform(0.1, 0.25))
 
                 # Scroll until the results feed stabilises (no new links for N scrolls)
                 await _scroll_until_stable(page)
@@ -891,7 +891,7 @@ async def _do_grid_cell_navigation(
                 center_lng,
                 diag,
             )
-        await asyncio.sleep(random.uniform(0.2, 0.5))
+        await asyncio.sleep(random.uniform(0.1, 0.25))
 
         # Scroll until stable
         await _scroll_until_stable(page)
@@ -1254,7 +1254,7 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
 
     t_discovery = time.monotonic()
     max_results = config.get("max_results")
-    browser_sem = asyncio.Semaphore(settings.maps_browser_concurrency)
+    browser_sem = asyncio.Semaphore(max(1, settings.discovery_concurrency))
 
     # Extract centre coordinates while the session is still open (used later for
     # detail-fetch browser geolocation so Google doesn't redirect to EU consent).
@@ -1355,10 +1355,9 @@ async def run_gmaps_scraper_browser(run_code: str, config: dict, session: Sessio
         except Exception:
             pass  # non-critical — don't interrupt discovery
 
-    # Run 2-3 place types concurrently — the shared browser_sem still limits total
-    # navigations, but overlapping cache lookups and delays cuts total time.
-    TYPE_CONCURRENCY = 3
-    type_sem = asyncio.Semaphore(TYPE_CONCURRENCY)
+    # Use the same primary discovery concurrency knob for type-pass scheduling too
+    # so there is no separate hard-coded discovery limit.
+    type_sem = asyncio.Semaphore(max(1, min(len(all_gmaps_types), settings.discovery_concurrency)))
 
     async def _run_type_pass(i: int, place_type: str) -> None:
         async with type_sem:

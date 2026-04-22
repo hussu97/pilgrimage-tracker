@@ -157,12 +157,12 @@ services:
       CLOUD_RUN_REGIONS: ${CLOUD_RUN_REGIONS:-europe-west1:3,europe-west4:4,europe-west2:4}
       # ── Browser grid / Playwright pool ────────────────────────────────────
       BROWSER_GRID_CELL_SIZE_KM: ${BROWSER_GRID_CELL_SIZE_KM:-3.0}
-      MAPS_BROWSER_POOL_SIZE: ${MAPS_BROWSER_POOL_SIZE:-8}
+      MAPS_BROWSER_POOL_SIZE: ${MAPS_BROWSER_POOL_SIZE:-}
       MAPS_BROWSER_MAX_PAGES: ${MAPS_BROWSER_MAX_PAGES:-30}
       MAPS_BROWSER_HEADLESS: ${MAPS_BROWSER_HEADLESS:-true}
-      MAPS_BROWSER_CONCURRENCY: ${MAPS_BROWSER_CONCURRENCY:-8}
-      MAPS_BROWSER_CELL_DELAY_MIN: ${MAPS_BROWSER_CELL_DELAY_MIN:-5.0}
-      MAPS_BROWSER_CELL_DELAY_MAX: ${MAPS_BROWSER_CELL_DELAY_MAX:-12.0}
+      MAPS_BROWSER_CONCURRENCY: ${MAPS_BROWSER_CONCURRENCY:-}
+      MAPS_BROWSER_CELL_DELAY_MIN: ${MAPS_BROWSER_CELL_DELAY_MIN:-1.0}
+      MAPS_BROWSER_CELL_DELAY_MAX: ${MAPS_BROWSER_CELL_DELAY_MAX:-2.0}
       # Default: route Cloud Run Job browser traffic through the VM's tinyproxy
       # so Maps requests egress via the VM's clean IP (Cloud Run's shared egress
       # pool is on Google's Maps bot-wall). Override via GitHub secret if needed.
