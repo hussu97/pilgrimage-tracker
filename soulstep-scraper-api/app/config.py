@@ -95,6 +95,10 @@ class Settings:
     max_review_images: int = int(os.environ.get("SCRAPER_MAX_REVIEW_IMAGES", "2"))
     # Max concurrent image downloads (plain CDN, no API rate limit).
     image_concurrency: int = int(os.environ.get("SCRAPER_IMAGE_CONCURRENCY", "40"))
+    # Minimum number of detail-fetch attempts before the auto-pause fail-fast
+    # logic becomes eligible. Raise carefully: very high values can let a
+    # systemic outage burn hours of Cloud Run time before pausing.
+    fail_fast_min_attempts: int = int(os.environ.get("SCRAPER_FAIL_FAST_MIN_ATTEMPTS", "500"))
 
     # ── Quality gate thresholds (0.0–1.0) ────────────────────────────────────
     # Tune per-run via env vars to allow more/fewer places through each gate.
@@ -241,6 +245,7 @@ class Settings:
             "SCRAPER_MAX_REVIEWS": str(self.max_reviews),
             "SCRAPER_MAX_REVIEW_IMAGES": str(self.max_review_images),
             "SCRAPER_IMAGE_CONCURRENCY": str(self.image_concurrency),
+            "SCRAPER_FAIL_FAST_MIN_ATTEMPTS": str(self.fail_fast_min_attempts),
             # ── Quality gates ─────────────────────────────────────────────────
             "SCRAPER_GATE_IMAGE_DOWNLOAD": str(self.gate_image_download),
             "SCRAPER_GATE_ENRICHMENT": str(self.gate_enrichment),

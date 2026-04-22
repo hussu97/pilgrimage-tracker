@@ -225,7 +225,8 @@ def calculate_search_radius(
 # Threshold values for auto-pausing a run on a cascading failure. We need at
 # least _FAIL_FAST_MIN_ATTEMPTS places fetched before the ratio is meaningful
 # (otherwise a run with 10 attempts and 8 failures would immediately trip).
-_FAIL_FAST_MIN_ATTEMPTS = 500
+
+_FAIL_FAST_MIN_ATTEMPTS = settings.fail_fast_min_attempts
 _FAIL_FAST_FAILURE_RATIO = 0.5
 
 

@@ -4,6 +4,17 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-22] — Configurable scraper fail-fast threshold
+
+### Backend
+- **`soulstep-scraper-api/app/config.py`** and **`app/scrapers/gmaps_shared.py`** — the detail-fetch auto-pause threshold is now configurable via `SCRAPER_FAIL_FAST_MIN_ATTEMPTS` instead of being hardcoded at `500`.
+
+### Docs
+- **`.env.example`** and **`PRODUCTION.md`** — documented `SCRAPER_FAIL_FAST_MIN_ATTEMPTS` and its default/safety tradeoff.
+
+### Tests
+- **`soulstep-scraper-api/tests/test_perf_optimizations.py`** — added regression coverage that fail-fast stays disabled below the configured minimum-attempts threshold.
+
 ## [2026-04-22] — Detail-fetch speed tuning for browser-only scraper runs
 
 ### Backend

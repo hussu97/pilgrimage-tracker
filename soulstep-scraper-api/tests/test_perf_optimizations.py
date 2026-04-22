@@ -207,6 +207,21 @@ class TestResourceNameDerivation:
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# 2b. Fail-fast threshold configurability
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestFailFastThreshold:
+    def test_should_fail_fast_respects_min_attempts_threshold(self):
+        """Fail-fast must stay disabled below the configured minimum attempts."""
+        from app.scrapers.gmaps_shared import _should_fail_fast
+
+        with patch("app.scrapers.gmaps_shared._FAIL_FAST_MIN_ATTEMPTS", 50_000):
+            assert _should_fail_fast(49_999, 49_999) is False
+            assert _should_fail_fast(50_000, 25_000) is True
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # 3. Token-bucket rate limiter
 # ═══════════════════════════════════════════════════════════════════════════
 

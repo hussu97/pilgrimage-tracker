@@ -443,6 +443,7 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 | `GCS_BUCKET_NAME` | — | — | GCS bucket for scraped images. Must match catalog-api's value. |
 | `SCRAPER_DISCOVERY_CONCURRENCY` | — | `15` | Primary discovery throughput knob: max concurrent browser grid-cell navigations. |
 | `SCRAPER_DETAIL_CONCURRENCY` | — | `8` | Max concurrent browser detail-fetch workers. Still capped by `MAPS_BROWSER_CONCURRENCY` when that override is explicitly set. |
+| `SCRAPER_FAIL_FAST_MIN_ATTEMPTS` | — | `500` | Minimum detail-fetch attempts before the auto-pause fail-fast logic can trigger. Set very high values carefully: they delay interruption during systemic failures. |
 | `SCRAPER_ENRICHMENT_CONCURRENCY` | — | `10` | Max places enriched in parallel. |
 | `SCRAPER_MAX_PHOTOS` | — | `3` | Max photos stored per place. |
 | `SCRAPER_MAX_REVIEWS` | — | `5` | Max reviews scraped per place. |
