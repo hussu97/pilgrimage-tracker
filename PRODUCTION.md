@@ -453,6 +453,16 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 | `SCRAPER_AUTO_SYNC_AFTER_RUN` | — | `false` | Auto-sync to catalog-api after enrichment. |
 | `SCRAPER_TRIGGER_SEO_AFTER_SYNC` | — | `false` | Auto-call catalog-api SEO endpoint after sync. |
 
+Recommended browser-only Cloud Run starting point for the current scraper job size (`6 GiB`, `4 vCPU`):
+- `SCRAPER_DISCOVERY_CONCURRENCY=18`
+- `SCRAPER_DETAIL_CONCURRENCY=12`
+- `MAPS_BROWSER_POOL_SIZE=18`
+- `MAPS_BROWSER_CONCURRENCY=18`
+- `MAPS_BROWSER_CELL_DELAY_MIN=1.0`
+- `MAPS_BROWSER_CELL_DELAY_MAX=2.0`
+
+Treat those as optimistic starting values, not guarantees. Raise them one step at a time while watching Cloud Logging for RSS growth, Chromium crashes, acquire timeouts, and Google block-rate increases.
+
 ---
 
 ### Customer Web (`apps/soulstep-customer-web`)

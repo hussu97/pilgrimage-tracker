@@ -4,6 +4,18 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-22] — Detail-fetch speed tuning for browser-only scraper runs
+
+### Backend
+- **`soulstep-scraper-api/app/collectors/gmaps_browser.py`** — cut the largest fixed waits in browser detail fetch: the pre-navigation delay is now `1-2s` instead of `5-8s`, the post-`goto()` settle is now `0.5-1.0s` instead of `2-4s`, and the hours/about/reviews tab settle sleeps were all shortened.
+- **`soulstep-scraper-api/app/collectors/gmaps_browser.py`** — primary image capture and review-image capture now download multiple discovered image URLs concurrently per place instead of fetching them serially, reducing detail-phase latency without changing the browser-only pipeline.
+
+### Docs
+- **`.env.example`**, **`PRODUCTION.md`**, and **`soulstep-scraper-api/README.md`** — added an “optimistic starting point” for browser-only Cloud Run tuning on the current `6 GiB / 4 vCPU` job (`SCRAPER_DISCOVERY_CONCURRENCY=18`, `SCRAPER_DETAIL_CONCURRENCY=12`, `MAPS_BROWSER_POOL_SIZE=18`, `MAPS_BROWSER_CONCURRENCY=18`).
+
+### Tests
+- **`soulstep-scraper-api/tests/test_browser_gmaps.py`** — added coverage for detail-fetch pacing and for the browser collector’s multi-image capture paths.
+
 ## [2026-04-22] — Discovery pacing and concurrency tuning
 
 ### Backend

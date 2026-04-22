@@ -37,6 +37,14 @@ Copy the root `.env.example` to `.env`. Key variables:
 | `MAPS_BROWSER_CONCURRENCY` | Optional active browser override; leave blank to follow discovery concurrency |
 | `MAPS_BROWSER_CELL_DELAY_MIN/MAX` | Per-cell browser discovery jitter range |
 
+For the current Cloud Run Job size (`6 GiB`, `4 vCPU`), an aggressive browser-only starting point is:
+- `SCRAPER_DISCOVERY_CONCURRENCY=18`
+- `SCRAPER_DETAIL_CONCURRENCY=12`
+- `MAPS_BROWSER_POOL_SIZE=18`
+- `MAPS_BROWSER_CONCURRENCY=18`
+- `MAPS_BROWSER_CELL_DELAY_MIN=1.0`
+- `MAPS_BROWSER_CELL_DELAY_MAX=2.0`
+
 ## API Endpoints
 
 | Method | Path | Description |

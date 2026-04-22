@@ -319,8 +319,8 @@ class BrowserGmapsCollector(BaseCollector):
         """
         place_id = place_name[7:] if place_name.startswith("places/") else place_name
 
-        # Rate-limit browser navigations (5-8s between pages per context)
-        await asyncio.sleep(random.uniform(5, 8))
+        # Keep some pacing between detail navigations without dominating runtime.
+        await asyncio.sleep(random.uniform(1.0, 2.0))
 
         return await self._navigate_and_extract(place_id)
 
@@ -357,7 +357,7 @@ class BrowserGmapsCollector(BaseCollector):
                 # Use domcontentloaded — Google Maps never reaches networkidle due to
                 # continuous background requests (analytics, prefetch, etc.).
                 await page.goto(nav_url, wait_until="domcontentloaded", timeout=30000)
-                await asyncio.sleep(random.uniform(2, 4))
+                await asyncio.sleep(random.uniform(0.5, 1.0))
 
                 # Dismiss EU consent redirect if it occurred despite cookies
                 from app.scrapers.gmaps_browser import _dismiss_consent
@@ -495,7 +495,7 @@ class BrowserGmapsCollector(BaseCollector):
             )
             if hours_btn:
                 await hours_btn.click()
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.2)
 
             rows = await page.evaluate(
                 r"""
@@ -521,7 +521,7 @@ class BrowserGmapsCollector(BaseCollector):
             )
             if about_tab:
                 await about_tab.click()
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(0.35)
 
             result = await page.evaluate(_EXTRACT_ABOUT_JS)
             return result if isinstance(result, dict) else {}
@@ -549,7 +549,7 @@ class BrowserGmapsCollector(BaseCollector):
             )
             if reviews_tab:
                 await reviews_tab.click()
-                await asyncio.sleep(2.0)
+                await asyncio.sleep(0.75)
 
             # Scroll the panel and trigger scrollIntoView on review photo buttons
             # to force Google Maps' IntersectionObserver to load thumbnail images.
@@ -565,7 +565,7 @@ class BrowserGmapsCollector(BaseCollector):
                         });
                     }"""
                 )
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(0.35)
             except Exception:
                 pass
 
@@ -654,19 +654,30 @@ class BrowserGmapsCollector(BaseCollector):
         except Exception:
             cookie_header = ""
 
+        async def _download_one(
+            rev_idx: int, ph_idx: int, url: str, client: httpx.AsyncClient
+        ) -> tuple[int, int, bytes] | None:
+            try:
+                resp = await client.get(url)
+                if resp.status_code == 200 and len(resp.content) > 2048:
+                    return rev_idx, ph_idx, resp.content
+            except Exception:
+                return None
+            return None
+
         results: list[tuple[int, int, bytes]] = []
         async with httpx.AsyncClient(
             timeout=15.0,
             follow_redirects=True,
             headers={"Cookie": cookie_header} if cookie_header else {},
         ) as client:
-            for rev_idx, ph_idx, url in to_download:
-                try:
-                    resp = await client.get(url)
-                    if resp.status_code == 200 and len(resp.content) > 2048:
-                        results.append((rev_idx, ph_idx, resp.content))
-                except Exception:
-                    pass
+            downloaded = await asyncio.gather(
+                *[
+                    _download_one(rev_idx, ph_idx, url, client)
+                    for rev_idx, ph_idx, url in to_download
+                ]
+            )
+            results = [item for item in downloaded if item is not None]
 
         return results
 
@@ -723,19 +734,23 @@ class BrowserGmapsCollector(BaseCollector):
             cookie_header = ""
 
         # Download images with httpx (much faster than base64-over-CDP)
+        async def _download_one(url: str, client: httpx.AsyncClient) -> bytes | None:
+            try:
+                resp = await client.get(url)
+                if resp.status_code == 200 and len(resp.content) > 2048:
+                    return resp.content
+            except Exception:
+                return None
+            return None
+
         blobs: list[bytes] = []
         async with httpx.AsyncClient(
             timeout=15.0,
             follow_redirects=True,
             headers={"Cookie": cookie_header} if cookie_header else {},
         ) as client:
-            for url in raw_urls[:n]:
-                try:
-                    resp = await client.get(url)
-                    if resp.status_code == 200 and len(resp.content) > 2048:
-                        blobs.append(resp.content)
-                except Exception:
-                    pass
+            downloaded = await asyncio.gather(*[_download_one(url, client) for url in raw_urls[:n]])
+            blobs = [blob for blob in downloaded if blob is not None]
 
         return blobs
 

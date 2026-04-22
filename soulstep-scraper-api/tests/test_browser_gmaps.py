@@ -451,6 +451,81 @@ class TestBrowserGmapsCollectorAsync:
         assert isinstance(result, dict)
         assert result["name"] == "X"
 
+    @pytest.mark.asyncio
+    async def test_fetch_details_split_applies_detail_pacing(self):
+        """Detail fetch keeps a small pre-navigation sleep before browsing."""
+        collector = BrowserGmapsCollector()
+
+        with (
+            patch("app.collectors.gmaps_browser.random.uniform", return_value=1.25),
+            patch("app.collectors.gmaps_browser.asyncio.sleep", new=AsyncMock()) as mock_sleep,
+            patch.object(
+                collector, "_navigate_and_extract", new=AsyncMock(return_value={"name": "X"})
+            ),
+        ):
+            await collector.fetch_details_split("places/ChIJtest", "", None, None)
+
+        mock_sleep.assert_awaited_once_with(1.25)
+
+    @pytest.mark.asyncio
+    async def test_capture_page_images_downloads_multiple_images(self):
+        """Primary image capture should return all successfully downloaded blobs."""
+        collector = BrowserGmapsCollector()
+        page = MagicMock()
+        page.evaluate = AsyncMock(
+            return_value=[
+                "https://lh3.googleusercontent.com/a=w800-h600",
+                "https://lh3.googleusercontent.com/b=w800-h600",
+            ]
+        )
+        page.context.cookies = AsyncMock(return_value=[])
+
+        fake_client = AsyncMock()
+        fake_client.get = AsyncMock(
+            side_effect=[
+                MagicMock(status_code=200, content=b"x" * 4096),
+                MagicMock(status_code=200, content=b"y" * 4096),
+            ]
+        )
+        fake_cm = AsyncMock()
+        fake_cm.__aenter__.return_value = fake_client
+        fake_cm.__aexit__.return_value = False
+
+        with patch("httpx.AsyncClient", return_value=fake_cm):
+            blobs = await collector._capture_page_images(page, max_photos=2)
+
+        assert len(blobs) == 2
+        assert fake_client.get.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_capture_review_images_downloads_multiple_images(self):
+        """Review image capture should keep successfully downloaded review photos."""
+        collector = BrowserGmapsCollector()
+        page = MagicMock()
+        page.context.cookies = AsyncMock(return_value=[])
+        reviews = [
+            {"photo_urls": ["https://lh3.googleusercontent.com/rev1=w800-h600"]},
+            {"photo_urls": ["https://lh3.googleusercontent.com/rev2=w800-h600"]},
+        ]
+
+        fake_client = AsyncMock()
+        fake_client.get = AsyncMock(
+            side_effect=[
+                MagicMock(status_code=200, content=b"a" * 4096),
+                MagicMock(status_code=200, content=b"b" * 4096),
+            ]
+        )
+        fake_cm = AsyncMock()
+        fake_cm.__aenter__.return_value = fake_client
+        fake_cm.__aexit__.return_value = False
+
+        with patch("httpx.AsyncClient", return_value=fake_cm):
+            results = await collector._capture_review_images(page, reviews)
+
+        assert len(results) == 2
+        assert results[0][:2] == (0, 0)
+        assert results[1][:2] == (1, 0)
+
 
 # ── Circuit breaker / block detection ───────────────────────────────────────
 
