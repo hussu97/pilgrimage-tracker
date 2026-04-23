@@ -140,13 +140,22 @@ async def download_place_images(run_code: str, engine, max_workers: int | None =
     DB writes: committed in batches of _IMAGE_DB_BATCH places to avoid a
     single giant transaction that blocks the DB and spikes memory usage.
     """
-    from app.db.models import ScrapedPlace
+    from app.db.models import ScrapedAsset, ScrapedPlace
     from app.pipeline.place_quality import GATE_IMAGE_DOWNLOAD, passes_gate
     from app.services.gcs import upload_image_bytes
+    from app.services.scraped_assets import wait_for_asset_barrier
 
     concurrency = max_workers if max_workers is not None else settings.image_concurrency
 
     _GCS_PREFIX = "https://storage.googleapis.com/"
+
+    with Session(engine) as session:
+        has_assets = session.exec(
+            select(ScrapedAsset.id).where(ScrapedAsset.run_code == run_code).limit(1)
+        ).first()
+    if has_assets:
+        await wait_for_asset_barrier(run_code, engine, timeout_s=300)
+        return
 
     # Collect (place_id, url_index, url) tuples to process
     tasks: list[tuple[int, int, str]] = []

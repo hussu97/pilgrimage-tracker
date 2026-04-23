@@ -1,0 +1,153 @@
+import gzip
+import json
+import os
+import sys
+import tempfile
+from unittest.mock import patch
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from sqlmodel import Session, select
+
+from app.db.models import DataLocation, GeoBoundary, ScraperRun
+from app.services.handoff import build_run_bundle, mark_handoff_exported, prepare_handoff_export
+
+
+def _seed_location(db_session, location_code: str = "loc_handoff") -> DataLocation:
+    boundary = GeoBoundary(
+        name="India",
+        boundary_type="country",
+        lat_min=8.0,
+        lat_max=37.0,
+        lng_min=68.0,
+        lng_max=97.0,
+    )
+    db_session.add(boundary)
+    loc = DataLocation(
+        code=location_code,
+        name="India",
+        source_type="gmaps",
+        config={"country": "India", "max_results": 1000},
+    )
+    db_session.add(loc)
+    db_session.commit()
+    return loc
+
+
+def _seed_run(
+    db_session, status: str = "running", stage: str | None = "detail_fetch"
+) -> ScraperRun:
+    loc = _seed_location(db_session)
+    run = ScraperRun(
+        run_code="run_handoff_1",
+        location_code=loc.code,
+        status=status,
+        stage=stage,
+        cloud_run_execution="projects/proj/locations/us-central1/jobs/scraper/executions/e1",
+    )
+    db_session.add(run)
+    db_session.commit()
+    db_session.refresh(run)
+    return run
+
+
+def _bundle_upload(bundle: dict) -> tuple[str, bytes]:
+    payload = json.dumps(bundle, ensure_ascii=True, sort_keys=True).encode("utf-8")
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".json.gz") as fh:
+        with gzip.GzipFile(fileobj=fh, mode="wb") as gz:
+            gz.write(payload)
+        path = fh.name
+    return path, open(path, "rb").read()
+
+
+def test_export_running_cloud_run_run_creates_exported_handoff_and_blocks_resume(
+    client, db_session
+):
+    run = _seed_run(db_session)
+
+    with (
+        patch("app.config.settings") as mock_settings,
+        patch("app.jobs.dispatcher.cancel_cloud_run_execution") as mock_cancel,
+        patch("app.jobs.dispatcher.is_cloud_run_execution_active", return_value=False),
+    ):
+        mock_settings.scraper_dispatch = "cloud_run"
+        resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/handoff/export")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "exported"
+    assert data["handoff"]["run_code"] == run.run_code
+    mock_cancel.assert_called_once()
+
+    db_session.expire_all()
+    saved_run = db_session.exec(
+        select(ScraperRun).where(ScraperRun.run_code == run.run_code)
+    ).first()
+    assert saved_run.status == "interrupted"
+
+    resume_resp = client.post(f"/api/v1/scraper/runs/{run.run_code}/resume")
+    assert resume_resp.status_code == 409
+    assert "handoff" in resume_resp.json()["detail"].lower()
+
+
+def test_finalize_is_idempotent(client, db_session):
+    run = _seed_run(db_session, status="interrupted", stage=None)
+    with Session(db_session.bind) as session:
+        handoff = prepare_handoff_export(session, run.run_code, lease_owner="tester")
+        bundle = build_run_bundle(session, run.run_code, handoff.handoff_code)
+        handoff = mark_handoff_exported(
+            session,
+            handoff.handoff_code,
+            bundle_uri="/tmp/run.json.gz",
+            manifest_sha256="placeholder",
+        )
+
+    path, payload = _bundle_upload(bundle)
+    try:
+        with patch("app.api.v1.scraper.sync_run_to_server") as mock_sync:
+            resp1 = client.post(
+                f"/api/v1/scraper/runs/{run.run_code}/handoff/finalize",
+                params={"handoff_code": handoff.handoff_code},
+                content=payload,
+                headers={"Content-Type": "application/gzip"},
+            )
+            resp2 = client.post(
+                f"/api/v1/scraper/runs/{run.run_code}/handoff/finalize",
+                params={"handoff_code": handoff.handoff_code},
+                content=payload,
+                headers={"Content-Type": "application/gzip"},
+            )
+
+        assert resp1.status_code == 200
+        assert resp2.status_code == 200
+        assert resp1.json()["status"] == "completed"
+        assert resp2.json()["status"] == "completed"
+        assert mock_sync.call_count == 1
+    finally:
+        os.unlink(path)
+
+
+def test_batch_export_returns_independent_handoffs(client, db_session):
+    loc = _seed_location(db_session, "loc_batch")
+    run1 = ScraperRun(
+        run_code="run_batch_1", location_code=loc.code, status="failed", stage="detail_fetch"
+    )
+    run2 = ScraperRun(
+        run_code="run_batch_2", location_code=loc.code, status="interrupted", stage="enrichment"
+    )
+    db_session.add(run1)
+    db_session.add(run2)
+    db_session.commit()
+
+    with patch("app.config.settings") as mock_settings:
+        mock_settings.scraper_dispatch = "local"
+        resp = client.post(
+            "/api/v1/scraper/runs/handoff/export-batch",
+            json={"location_code": loc.code, "statuses": ["failed", "interrupted"]},
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert set(data["run_codes"]) == {"run_batch_1", "run_batch_2"}
+    assert len(data["handoffs"]) == 2
+    assert {item["run_code"] for item in data["handoffs"]} == {"run_batch_1", "run_batch_2"}

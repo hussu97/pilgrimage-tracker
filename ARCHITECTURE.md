@@ -203,7 +203,7 @@ Cloud Run Job (soulstep-scraper-api-job)
 Playwright + Chromium, 6 GB / 4 vCPU, ephemeral
         │
         ▼
-Discovery  →  Detail fetch  →  Image download
+Discovery  →  Detail fetch + asset enqueue  →  Image barrier drain
         │
         ▼
 Enrichment: OSM → Wikipedia/Wikidata → KnowledgeGraph/BestTime/Foursquare
@@ -229,7 +229,9 @@ POST /api/v1/places/batch  →  catalog-api upserts places
 
 Each region gets an independent quota. The queue processor distributes jobs across regions based on available capacity. Only jobs are spread across regions — catalog-api and scraper-api stay on the primary VM.
 
-**Scraper backend:** Playwright grid search (3 km × 3 km cells), no API cost. Downstream phases (enrichment, quality, sync) are unchanged.
+**Scraper backend:** Playwright grid search (3 km × 3 km cells), no API cost. Detail fetch now persists place/review asset work into a durable `ScrapedAsset` queue, preserves `source_image_urls` / `source_photo_urls`, and uploads to the production GCS bucket in parallel while detail fetch is still running. The `image_download` stage is now a bounded drain/barrier over leftover queued assets rather than the primary image path.
+
+**Portable run handoff:** runs can now be leased into a `RunHandoff`, exported into a portable bundle, resumed locally against a snapshot DB, and finalized back into production as the same `run_code`. While a handoff is active, mutating run actions are blocked until the handoff is finalized or aborted.
 
 ---
 

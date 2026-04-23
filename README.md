@@ -9,7 +9,7 @@ Multi-platform app for discovering, visiting, and tracking sacred sites worldwid
 | Service | Path | Description |
 |---|---|---|
 | **catalog-api** | `soulstep-catalog-api/` | FastAPI REST API — users, places, groups, check-ins, SEO |
-| **scraper-api** | `soulstep-scraper-api/` | FastAPI scraper — discovers and enriches sacred sites |
+| **scraper-api** | `soulstep-scraper-api/` | FastAPI scraper — discovers and enriches sacred sites, supports run handoff/export/finalize for large interrupted jobs |
 | **customer-web** | `apps/soulstep-customer-web/` | Next.js 15 + React — customer-facing web app (Vercel) |
 | **admin-web** | `apps/soulstep-admin-web/` | Vite + React — admin dashboard (Vercel) |
 | **mobile** | `apps/soulstep-customer-mobile/` | Expo / React Native — iOS + Android |
@@ -82,6 +82,16 @@ See [PRODUCTION.md](PRODUCTION.md) for the full deployment guide.
 | [ROADMAP.md](ROADMAP.md) | Planned features |
 | [CHANGELOG.md](CHANGELOG.md) | Release history |
 | [docs/UMAMI_ANALYTICS.md](docs/UMAMI_ANALYTICS.md) | Umami event catalog, goals, funnels, setup |
+
+---
+
+## Scraper Handoff Workflow
+
+Large interrupted scraper runs can now be exported, resumed locally, and finalized back into production as the same `run_code`.
+
+- API: `POST /api/v1/scraper/runs/{runCode}/handoff/export`, `GET /api/v1/scraper/runs/{runCode}/handoff`, `POST /api/v1/scraper/runs/{runCode}/handoff/finalize`, `POST /api/v1/scraper/runs/{runCode}/handoff/abort`, `POST /api/v1/scraper/runs/handoff/export-batch`
+- CLI: `cd soulstep-scraper-api && source .venv/bin/activate && python scripts/handoff.py ...`
+- See [soulstep-scraper-api/README.md](soulstep-scraper-api/README.md) for the concrete export/resume/finalize flow.
 
 ---
 

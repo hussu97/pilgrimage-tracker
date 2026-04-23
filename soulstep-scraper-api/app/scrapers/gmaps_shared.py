@@ -29,6 +29,11 @@ from app.scrapers.base import (
     AtomicCounter,
     get_async_rate_limiter,
 )
+from app.services.scraped_assets import (
+    build_assets_for_place,
+    drain_scraped_assets,
+    preserve_source_media_fields,
+)
 
 logger = get_logger(__name__)
 
@@ -295,97 +300,39 @@ def _build_flush_objects(
     for _place_name, details, response in buffer:
         quality_score = score_place_quality(details)
         quality_gate = get_quality_gate(quality_score)
+        normalized_details = preserve_source_media_fields(details)
 
         scraped_place = ScrapedPlace(
             run_code=run_code,
-            place_code=details["place_code"],
-            name=details["name"],
-            raw_data=details,
+            place_code=normalized_details["place_code"],
+            name=normalized_details["name"],
+            raw_data=normalized_details,
             detail_fetch_status="success",
             quality_score=quality_score,
             quality_gate=quality_gate,
-            city=details.get("city"),
-            state=details.get("state"),
-            country=details.get("country"),
-            lat=_safe_float(details.get("lat")),
-            lng=_safe_float(details.get("lng")),
-            rating=_safe_float(details.get("rating")),
-            user_rating_count=_safe_int(details.get("user_rating_count")),
-            google_place_id=details.get("google_place_id"),
-            address=details.get("address"),
-            religion=details.get("religion"),
-            place_type=details.get("place_type"),
-            business_status=details.get("business_status"),
+            city=normalized_details.get("city"),
+            state=normalized_details.get("state"),
+            country=normalized_details.get("country"),
+            lat=_safe_float(normalized_details.get("lat")),
+            lng=_safe_float(normalized_details.get("lng")),
+            rating=_safe_float(normalized_details.get("rating")),
+            user_rating_count=_safe_int(normalized_details.get("user_rating_count")),
+            google_place_id=normalized_details.get("google_place_id"),
+            address=normalized_details.get("address"),
+            religion=normalized_details.get("religion"),
+            place_type=normalized_details.get("place_type"),
+            business_status=normalized_details.get("business_status"),
         )
-
-        # Handle browser-captured image bytes: upload directly to GCS
-        image_bytes: list[bytes] = response.pop("_image_bytes", None) or []
-        if image_bytes:
-            from app.services.gcs import upload_image_bytes as gcs_upload
-
-            gcs_urls = []
-            for img_data in image_bytes:
-                url = gcs_upload(img_data)
-                if url:
-                    gcs_urls.append(url)
-            if gcs_urls:
-                raw = dict(scraped_place.raw_data or {})
-                raw["image_urls"] = gcs_urls
-                scraped_place.raw_data = raw
-
-        # Handle browser-captured review photo bytes: upload to GCS (images/reviews/)
-        # and write GCS URLs back into external_reviews[i]["photo_urls"].
-        # Format: list of (review_idx, photo_idx, bytes) tuples.
-        review_image_bytes: list[tuple[int, int, bytes]] = (
-            response.pop("_review_image_bytes", None) or []
-        )
-        if review_image_bytes:
-            from app.services.gcs import upload_review_image_bytes as gcs_upload_review
-
-            logger.debug(
-                "Review images: uploading %d image(s) for place %s",
-                len(review_image_bytes),
-                details["place_code"],
-            )
-
-            raw = dict(scraped_place.raw_data or {})
-            reviews = [dict(r) for r in (raw.get("external_reviews") or [])]
-
-            # Collect GCS URLs keyed by (review_idx, photo_idx)
-            gcs_by_review: dict[int, dict[int, str]] = {}
-            for rev_idx, ph_idx, img_data in review_image_bytes:
-                gcs_url = gcs_upload_review(img_data)
-                if gcs_url:
-                    gcs_by_review.setdefault(rev_idx, {})[ph_idx] = gcs_url
-
-            rev_uploaded = sum(len(v) for v in gcs_by_review.values())
-            rev_failed = len(review_image_bytes) - rev_uploaded
-            run.review_images_downloaded += rev_uploaded
-            run.review_images_failed += rev_failed
-
-            logger.debug(
-                "Review images: %d/%d uploaded to GCS for place %s (%d failed)",
-                rev_uploaded,
-                len(review_image_bytes),
-                details["place_code"],
-                rev_failed,
-            )
-
-            if gcs_by_review:
-                for rev_idx, ph_map in gcs_by_review.items():
-                    if rev_idx < len(reviews):
-                        reviews[rev_idx]["photo_urls"] = [ph_map[i] for i in sorted(ph_map)]
-                raw["external_reviews"] = reviews
-                scraped_place.raw_data = raw
 
         raw_record = RawCollectorData(
-            place_code=details["place_code"],
+            place_code=normalized_details["place_code"],
             collector_name="gmaps",
             run_code=run_code,
             raw_response=response,
             status="success",
         )
-        objects.append((scraped_place, raw_record))
+        assets = build_assets_for_place(run_code, normalized_details, response)
+        objects.append((scraped_place, raw_record, assets))
 
     return objects
 
@@ -410,9 +357,11 @@ def _flush_detail_buffer(
 
     objects = _build_flush_objects(buffer, run_code, run)
 
-    for scraped_place, raw_record in objects:
+    for scraped_place, raw_record, assets in objects:
         session.add(scraped_place)
         session.add(raw_record)
+        for asset in assets:
+            session.add(asset)
 
     new_count = counter.increment(len(buffer))
     run.processed_items = new_count
@@ -434,7 +383,7 @@ def _flush_detail_buffer(
             ).first()
             if not fresh_run:
                 raise RuntimeError(f"Run {run_code} not found during flush retry") from exc
-            for scraped_place, raw_record in objects:
+            for scraped_place, raw_record, assets in objects:
                 # Expunge from old session so they can be added to fresh
                 try:
                     session.expunge(scraped_place)
@@ -446,12 +395,30 @@ def _flush_detail_buffer(
                     pass
                 fresh.add(scraped_place)
                 fresh.add(raw_record)
+                for asset in assets:
+                    try:
+                        session.expunge(asset)
+                    except Exception:
+                        pass
+                    fresh.add(asset)
             fresh_run.processed_items = new_count
             fresh.add(fresh_run)
             fresh.commit()
             logger.info("Flush retry succeeded with fresh session (%d places)", len(buffer))
 
     logger.debug("Flushed %d places (%d/%d total)", len(buffer), new_count, total)
+
+    # Compatibility path for sync callers (mainly unit tests) that exercise
+    # _flush_detail_buffer directly outside the async detail-fetch pipeline.
+    # In the real scraper flow a long-lived background asset worker already
+    # drains the queue in parallel while detail fetch is still running.
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        sync_engine = session.get_bind()
+        asyncio.run(
+            drain_scraped_assets(run_code, sync_engine, max_workers=settings.image_concurrency)
+        )
 
 
 async def fetch_place_details(
@@ -472,6 +439,8 @@ async def fetch_place_details(
     asyncio.gather() with a concurrency semaphore (max 20 concurrent).
     Results are committed to the DB in batches of 10.
     """
+    from app.db.session import engine
+
     stale_cutoff = datetime.now() - timedelta(days=stale_threshold_days)
 
     # Build place_code → place_name mapping
@@ -584,6 +553,13 @@ async def fetch_place_details(
     # but we still need the buffer list to be consistent across await points)
     buffer: list[tuple] = []
 
+    asset_stop_event = asyncio.Event()
+    asset_worker = asyncio.create_task(
+        drain_scraped_assets(
+            run_code, engine, max_workers=settings.image_concurrency, stop_event=asset_stop_event
+        )
+    )
+
     async with httpx.AsyncClient(timeout=35.0) as detail_client:
 
         async def _fetch_worker(place_name: str) -> tuple[str, dict, dict, str | None]:
@@ -694,6 +670,9 @@ async def fetch_place_details(
         if failed_buffer:
             _flush_failed_places_buffer(failed_buffer, run_code, session)
             failed_buffer.clear()
+
+    asset_stop_event.set()
+    await asset_worker
 
     logger.info(
         "=== Details Fetch Summary === fresh=%d  cached=%d  failed=%d  total=%d",

@@ -313,6 +313,23 @@ curl -sL --proxy http://10.132.0.2:3128 -o /dev/null \
 
 **Failure mode** (if tinyproxy dies or the VM's IP also gets flagged): the hardened circuit breaker in `browser_pool.py::_CircuitBreaker` detects the pattern — 3 cold-start block events → `_permanent=True` → grid pass aborts immediately → run marked `status=failed` with `error_message` pointing to `BROWSER_PROXY_LIST`. No more silent 10-minute-wasting runs.
 
+### Portable run handoff
+
+For large interrupted runs, operators can now export a production `run_code`, continue it locally, and finalize it back into production as the same run:
+
+```bash
+cd soulstep-scraper-api
+source .venv/bin/activate
+python scripts/handoff.py export --run-code run_abc123 --prod-dsn postgresql://...
+python scripts/handoff.py resume-local --bundle /tmp/run_abc123-....json.gz --local-database-url postgresql://...
+python scripts/handoff.py finalize --bundle /tmp/run_abc123-....json.gz --prod-url https://scraper-api.soul-step.org
+```
+
+Operational notes:
+- `POST /api/v1/scraper/runs/{run_code}/handoff/export` also exists on the server and freezes the run by creating a `RunHandoff`.
+- While a handoff is active, run mutations (`resume`, `cancel`, `sync`, `retry-images`, `re-enrich`) return `409`.
+- Finalize uploads raw gzip bytes to `POST /api/v1/scraper/runs/{run_code}/handoff/finalize?handoff_code=...`; production remains the only place that performs the final sync/SEO steps.
+
 ---
 
 ## 10. Multi-Region Scraper Dispatch

@@ -1,6 +1,8 @@
 import math
+import tempfile
+from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request
 from sqlalchemy import delete as _delete
 from sqlalchemy import update as _update
 from sqlmodel import func, select
@@ -11,6 +13,7 @@ from app.db.models import (
     GeoBoundary,
     PlaceTypeMapping,
     RawCollectorData,
+    RunHandoff,
     ScrapedPlace,
     ScraperRun,
 )
@@ -23,6 +26,10 @@ from app.models.schemas import (
     CollectorStatusResponse,
     DataLocationCreate,
     DataLocationResponse,
+    HandoffBatchExportRequest,
+    HandoffBatchExportResponse,
+    HandoffExportResponse,
+    HandoffFinalizeResponse,
     MapCellItem,
     MapPlaceItem,
     PlaceTypeMappingCreate,
@@ -30,18 +37,47 @@ from app.models.schemas import (
     PlaceTypeMappingUpdate,
     QualityMetricsResponse,
     RawCollectorDataResponse,
+    RunHandoffResponse,
     ScraperRunCreate,
     ScraperRunResponse,
     ScraperRunsCreateResponse,
     ScraperStatsResponse,
 )
+from app.services.handoff import (
+    abort_handoff,
+    active_handoff_for_run,
+    assert_no_active_handoff,
+    build_run_bundle,
+    default_bundle_path,
+    finalize_handoff_bundle,
+    mark_handoff_exported,
+    prepare_handoff_export,
+    read_bundle_file,
+    write_bundle_file,
+)
 from app.services.quality_metrics import compute_quality_metrics
 from app.services.run_activity import get_activity_snapshot
+from app.services.scraped_assets import get_asset_stats
 
 logger = get_logger(__name__)
 router = APIRouter()
 
 _TERMINAL_STATUSES = {"completed", "interrupted", "failed", "cancelled"}
+
+
+def _serialize_run(session: SessionDep, run: ScraperRun) -> ScraperRunResponse:
+    handoff = active_handoff_for_run(session, run.run_code)
+    asset_stats = get_asset_stats(run.run_code, session)
+    return ScraperRunResponse.model_validate(
+        {
+            **ScraperRunResponse.model_validate(run, from_attributes=True).model_dump(),
+            "handoff_state": handoff.state if handoff else None,
+            "asset_pending": asset_stats.pending,
+            "asset_uploaded": asset_stats.uploaded,
+            "asset_failed": asset_stats.failed,
+            "oldest_pending_asset_age_s": asset_stats.oldest_pending_asset_age_s,
+        }
+    )
 
 
 @router.post("/data-locations", response_model=DataLocationResponse)
@@ -152,7 +188,7 @@ def list_runs(
     ).all()
 
     return {
-        "items": [ScraperRunResponse.model_validate(r, from_attributes=True) for r in runs],
+        "items": [_serialize_run(session, r) for r in runs],
         "total": total,
         "page": page,
         "page_size": page_size,
@@ -210,7 +246,94 @@ def get_run(run_code: str, session: SessionDep):
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
-    return run
+    return _serialize_run(session, run)
+
+
+@router.post("/runs/handoff/export-batch", response_model=HandoffBatchExportResponse)
+def export_run_batch(body: HandoffBatchExportRequest, session: SessionDep):
+    runs = session.exec(
+        select(ScraperRun)
+        .where(ScraperRun.location_code == body.location_code)
+        .where(ScraperRun.status.in_(body.statuses))
+        .order_by(ScraperRun.created_at.asc())
+    ).all()
+    handoffs = [
+        prepare_handoff_export(session, run.run_code, lease_owner=body.lease_owner) for run in runs
+    ]
+    return HandoffBatchExportResponse(
+        location_code=body.location_code,
+        run_codes=[run.run_code for run in runs],
+        handoffs=[RunHandoffResponse.model_validate(h, from_attributes=True) for h in handoffs],
+    )
+
+
+@router.post("/runs/{run_code}/handoff/export", response_model=HandoffExportResponse)
+def export_run_handoff(run_code: str, session: SessionDep, lease_owner: str | None = Query(None)):
+    handoff = prepare_handoff_export(session, run_code, lease_owner=lease_owner)
+    bundle = build_run_bundle(session, run_code, handoff.handoff_code)
+    bundle_path = default_bundle_path(run_code, handoff.handoff_code)
+    bundle_uri, digest = write_bundle_file(bundle, bundle_path)
+    handoff = mark_handoff_exported(
+        session,
+        handoff.handoff_code,
+        bundle_uri=bundle_uri,
+        manifest_sha256=digest,
+    )
+    return HandoffExportResponse(
+        handoff=RunHandoffResponse.model_validate(handoff, from_attributes=True),
+        run_code=run_code,
+        status=handoff.state,
+    )
+
+
+@router.get("/runs/{run_code}/handoff", response_model=RunHandoffResponse)
+def get_run_handoff(run_code: str, session: SessionDep):
+    handoff = session.exec(
+        select(RunHandoff)
+        .where(RunHandoff.run_code == run_code)
+        .order_by(RunHandoff.created_at.desc())
+    ).first()
+    if not handoff:
+        raise HTTPException(status_code=404, detail="Handoff not found")
+    return RunHandoffResponse.model_validate(handoff, from_attributes=True)
+
+
+@router.post("/runs/{run_code}/handoff/abort", response_model=RunHandoffResponse)
+def abort_run_handoff(run_code: str, session: SessionDep):
+    handoff = abort_handoff(session, run_code)
+    return RunHandoffResponse.model_validate(handoff, from_attributes=True)
+
+
+@router.post("/runs/{run_code}/handoff/finalize", response_model=HandoffFinalizeResponse)
+async def finalize_run_handoff(
+    run_code: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    session: SessionDep,
+    handoff_code: str = Query(...),
+):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".json.gz") as fh:
+        payload = await request.body()
+        fh.write(payload)
+        bundle_path = Path(fh.name)
+
+    try:
+        bundle_data = read_bundle_file(bundle_path)
+    finally:
+        bundle_path.unlink(missing_ok=True)
+    handoff, triggered_sync = finalize_handoff_bundle(session, run_code, handoff_code, bundle_data)
+
+    if triggered_sync:
+        from app.config import settings
+
+        background_tasks.add_task(sync_run_to_server, run_code, settings.main_server_url, False)
+
+    return HandoffFinalizeResponse(
+        handoff=RunHandoffResponse.model_validate(handoff, from_attributes=True),
+        run_code=run_code,
+        status=handoff.state,
+        triggered_sync=triggered_sync,
+    )
 
 
 @router.get("/runs/{run_code}/data")
@@ -285,6 +408,7 @@ def sync_run(
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
+    assert_no_active_handoff(session, run_code, "sync the run")
 
     if run.status not in _TERMINAL_STATUSES:
         raise HTTPException(
@@ -315,6 +439,7 @@ def re_enrich_run(run_code: str, background_tasks: BackgroundTasks, session: Ses
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
+    assert_no_active_handoff(session, run_code, "re-enrich the run")
 
     if run.status not in _TERMINAL_STATUSES:
         raise HTTPException(
@@ -358,6 +483,7 @@ def retry_run_images_endpoint(
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
+    assert_no_active_handoff(session, run_code, "retry images for the run")
 
     if run.status not in _TERMINAL_STATUSES:
         raise HTTPException(
@@ -400,6 +526,7 @@ def resume_run(
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
+    assert_no_active_handoff(session, run_code, "resume the run")
 
     if run.status not in ["interrupted", "failed", "cancelled"]:
         raise HTTPException(
@@ -439,6 +566,7 @@ def cancel_run(run_code: str, session: SessionDep):
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
+    assert_no_active_handoff(session, run_code, "cancel the run")
 
     if run.status not in ["queued", "pending", "running", "interrupted"]:
         raise HTTPException(status_code=400, detail=f"Cannot cancel run with status: {run.status}")

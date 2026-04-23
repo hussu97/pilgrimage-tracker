@@ -51,12 +51,59 @@ class ScraperRunResponse(BaseModel):
     # Visibility + idempotency (migration 0023)
     last_sync_at: datetime | None = None
     rate_limit_events: dict = {}
+    handoff_state: str | None = None
+    asset_pending: int = 0
+    asset_uploaded: int = 0
+    asset_failed: int = 0
+    oldest_pending_asset_age_s: int | None = None
 
 
 class ScraperRunsCreateResponse(BaseModel):
     """Response for POST /runs — always returns a list (1 or N runs for cloud_run fan-out)."""
 
     runs: list[ScraperRunResponse]
+
+
+class RunHandoffResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    handoff_code: str
+    run_code: str
+    state: str
+    lease_owner: str | None = None
+    exported_at: datetime | None = None
+    claimed_at: datetime | None = None
+    finalized_at: datetime | None = None
+    resume_from_stage: str | None = None
+    bundle_uri: str | None = None
+    manifest_sha256: str | None = None
+    error_message: str | None = None
+    created_at: datetime
+
+
+class HandoffExportResponse(BaseModel):
+    handoff: RunHandoffResponse
+    run_code: str
+    status: str
+
+
+class HandoffBatchExportRequest(BaseModel):
+    location_code: str
+    statuses: list[str] = Field(default_factory=lambda: ["interrupted", "failed"])
+    lease_owner: str | None = None
+
+
+class HandoffBatchExportResponse(BaseModel):
+    location_code: str
+    run_codes: list[str]
+    handoffs: list[RunHandoffResponse]
+
+
+class HandoffFinalizeResponse(BaseModel):
+    handoff: RunHandoffResponse
+    run_code: str
+    status: str
+    triggered_sync: bool
 
 
 class SyncRequest(BaseModel):

@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-23] — Portable scraper run handoff + durable parallel image queue
+
+### Backend
+- **`soulstep-scraper-api/app/db/models.py`**, **`migrations/versions/0024_run_handoffs_and_scraped_assets.py`** — added `RunHandoff` for lease/export/finalize tracking, `ScrapedAsset` for durable place/review image work items, and a natural-key uniqueness constraint on `DiscoveryCell` for resume/import idempotency.
+- **`soulstep-scraper-api/app/services/handoff.py`** and **`app/api/v1/scraper.py`** — added first-class handoff flows: single-run export, batch export, finalize, abort, active-handoff guards on mutating run actions, and run responses/activity snapshots that now expose `handoff_state`, asset counters, and oldest-pending-asset age.
+- **`soulstep-scraper-api/app/services/scraped_assets.py`**, **`app/scrapers/gmaps_shared.py`**, and **`app/collectors/image_download.py`** — replaced inline GCS write-back in detail flush with a durable asset queue. Detail fetch now preserves `source_image_urls` / `source_photo_urls`, persists pending asset work, drains uploads in parallel while fetch is running, and treats the `image_download` stage as a bounded barrier over leftover asset work.
+- **`soulstep-scraper-api/scripts/handoff.py`** — new operator CLI for `handoff export`, `export-batch`, `resume-local`, and `finalize`, supporting the local-continue/prod-finalize workflow for large interrupted runs.
+
+### Docs
+- **`ARCHITECTURE.md`**, **`PRODUCTION.md`**, **`README.md`**, and **`soulstep-scraper-api/README.md`** — documented the new handoff lifecycle, durable asset pipeline, finalize endpoint, and local CLI workflow.
+
+### Tests
+- **`soulstep-scraper-api/tests/test_handoff.py`** and **`tests/test_scraped_assets.py`** — added coverage for export/finalize/idempotence/batch handoffs and for the asset barrier patching final GCS URLs back onto place/review payloads.
+- **`soulstep-scraper-api/tests/test_map_endpoints.py`** — updated discovery-cell fixtures to respect the new bbox idempotency constraint.
+
 ## [2026-04-22] — Configurable scraper fail-fast threshold
 
 ### Backend

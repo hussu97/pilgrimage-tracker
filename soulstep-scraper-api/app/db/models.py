@@ -69,6 +69,23 @@ class ScraperRun(SQLModel, table=True):
     # Feeds the admin error-summary card.
 
 
+class RunHandoff(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    handoff_code: str = Field(index=True, unique=True)
+    run_code: str = Field(foreign_key="scraperrun.run_code", index=True)
+    state: str = Field(default="quiescing", index=True)
+    # quiescing | exported | claimed | finalizing | completed | aborted | expired
+    lease_owner: str | None = Field(default=None)
+    exported_at: datetime | None = Field(default=None)
+    claimed_at: datetime | None = Field(default=None)
+    finalized_at: datetime | None = Field(default=None)
+    resume_from_stage: str | None = Field(default=None)
+    bundle_uri: str | None = Field(default=None)
+    manifest_sha256: str | None = Field(default=None)
+    error_message: str | None = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
 class ScrapedPlace(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("run_code", "place_code", name="uq_scrapedplace_run_place"),)
     id: int | None = Field(default=None, primary_key=True)
@@ -109,6 +126,38 @@ class ScrapedPlace(SQLModel, table=True):
     # filter has real per-place state instead of the opaque sync_failure_details
     # JSON blob on the run.
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+class ScrapedAsset(SQLModel, table=True):
+    __table_args__ = (
+        UniqueConstraint(
+            "run_code",
+            "place_code",
+            "asset_kind",
+            "review_index",
+            "asset_index",
+            name="uq_scrapedasset_identity",
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_code: str = Field(foreign_key="scraperrun.run_code", index=True)
+    place_code: str = Field(index=True)
+    asset_kind: str = Field(index=True)
+    # place_image | review_image
+    review_index: int | None = Field(default=None)
+    asset_index: int = Field(default=0)
+    source_url: str | None = Field(default=None)
+    gcs_url: str | None = Field(default=None)
+    status: str = Field(default="pending_upload", index=True)
+    # pending_upload | uploaded | failed | needs_recapture | skipped
+    attempt_count: int = Field(default=0)
+    captured_via: str | None = Field(default=None)
+    # inline_bytes | source_url | recaptured
+    last_error: str | None = Field(default=None)
+    inline_bytes_b64: str | None = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class RawCollectorData(SQLModel, table=True):
@@ -161,6 +210,19 @@ class DiscoveryCell(SQLModel, table=True):
     Only cells where an actual API call was made are stored — oversized cells
     that auto-subdivide without calling the API are not recorded.
     """
+
+    __table_args__ = (
+        UniqueConstraint(
+            "run_code",
+            "place_type",
+            "discovery_method",
+            "lat_min",
+            "lat_max",
+            "lng_min",
+            "lng_max",
+            name="uq_discoverycell_run_scope_bbox",
+        ),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     run_code: str = Field(index=True)

@@ -36,12 +36,16 @@ def _make_cell(
     result_count: int = 5,
     depth: int = 1,
 ) -> DiscoveryCell:
+    lat_min = 10.0 + (depth - 1) * 0.1
+    lat_max = 11.0 + (depth - 1) * 0.1
+    lng_min = 20.0 + (depth - 1) * 0.1
+    lng_max = 21.0 + (depth - 1) * 0.1
     cell = DiscoveryCell(
         run_code=run_code,
-        lat_min=10.0,
-        lat_max=11.0,
-        lng_min=20.0,
-        lng_max=21.0,
+        lat_min=lat_min,
+        lat_max=lat_max,
+        lng_min=lng_min,
+        lng_max=lng_max,
         depth=depth,
         radius_m=5000,
         result_count=result_count,

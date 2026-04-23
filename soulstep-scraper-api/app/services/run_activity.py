@@ -11,7 +11,9 @@ from __future__ import annotations
 from sqlmodel import Session, func, select
 
 from app.constants import ENRICHING_SNAPSHOT_LIMIT
-from app.db.models import DiscoveryCell, ScrapedPlace, ScraperRun
+from app.db.models import DiscoveryCell, RunHandoff, ScrapedPlace, ScraperRun
+from app.services.handoff import ACTIVE_HANDOFF_STATES
+from app.services.scraped_assets import get_asset_stats
 
 
 def get_activity_snapshot(run_code: str, session: Session) -> dict:
@@ -32,6 +34,13 @@ def get_activity_snapshot(run_code: str, session: Session) -> dict:
     run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
     if run is None:
         return {}
+    asset_stats = get_asset_stats(run_code, session)
+    handoff = session.exec(
+        select(RunHandoff)
+        .where(RunHandoff.run_code == run_code)
+        .where(RunHandoff.state.in_(ACTIVE_HANDOFF_STATES))
+        .order_by(RunHandoff.created_at.desc())
+    ).first()
 
     cells_total = session.exec(
         select(func.count()).select_from(DiscoveryCell).where(DiscoveryCell.run_code == run_code)
@@ -95,4 +104,9 @@ def get_activity_snapshot(run_code: str, session: Session) -> dict:
         "places_sync_name_filtered": run.places_sync_name_filtered,
         "detail_fetch_total": run.total_items,
         "detail_fetch_cached": run.detail_fetch_cached,
+        "handoff_state": handoff.state if handoff else None,
+        "asset_pending": asset_stats.pending,
+        "asset_uploaded": asset_stats.uploaded,
+        "asset_failed": asset_stats.failed,
+        "oldest_pending_asset_age_s": asset_stats.oldest_pending_asset_age_s,
     }
