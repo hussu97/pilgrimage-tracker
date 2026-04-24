@@ -133,6 +133,17 @@ Generated files:
 - `local-handoffs/run_abc123-hof_abc-finalize.json.gz` — fresh bundle rebuilt from the local DB.
 - `local-handoffs/run_abc123.catalog-sync.log` — JSON-line finalize/catalog-sync progress log.
 
+The monitor-friendly command below checks one or more local runs, verifies they
+are complete with no pending/failed assets or recent local errors, and starts
+`finalize-bg` exactly once for each ready run:
+
+```bash
+python scripts/handoff.py monitor \
+  --run-code run_abc123 \
+  --run-code run_def456 \
+  --prod-url https://scraper-api.soul-step.org
+```
+
 During an active handoff, mutating run actions such as `resume`, `cancel`, `sync`,
 `retry-images`, and `re-enrich` return `409` until the handoff is finalized or aborted.
 

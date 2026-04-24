@@ -10,9 +10,10 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 import httpx
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, SQLModel, create_engine, func, select
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -52,6 +53,18 @@ MODEL_MAP = {
     "geo_boundary_boxes": GeoBoundaryBox,
     "place_type_mappings": PlaceTypeMapping,
 }
+
+_RECENT_LOG_ERROR_MARKERS = (
+    "traceback",
+    "run failed",
+    "failed as interrupted",
+    "asset-backlog",
+    "asset backlog",
+    "asset barrier",
+    "timed out after",
+    "catalog_sync_failed",
+    "catalog_sync_timeout",
+)
 
 
 def _default_work_dir() -> Path:
@@ -203,6 +216,35 @@ def _fetch_sync_snapshot(client: httpx.Client, prod_url: str, run_code: str) -> 
         "asset_pending": run.get("asset_pending", activity.get("asset_pending", 0)),
         "asset_failed": run.get("asset_failed", activity.get("asset_failed", 0)),
     }
+
+
+def _read_recent_log(path: Path, max_bytes: int = 200_000) -> str:
+    if not path.exists():
+        return ""
+    with path.open("rb") as fh:
+        if path.stat().st_size > max_bytes:
+            fh.seek(-max_bytes, os.SEEK_END)
+        return fh.read().decode("utf-8", errors="replace")
+
+
+def _recent_log_has_errors(path: Path) -> bool:
+    recent = _read_recent_log(path).lower()
+    return any(marker in recent for marker in _RECENT_LOG_ERROR_MARKERS)
+
+
+def _catalog_sync_completed(path: Path) -> bool:
+    return "catalog_sync_completed" in _read_recent_log(path)
+
+
+def _latest_original_bundle(work_dir: Path, run_code: str) -> Path | None:
+    bundles = [
+        path
+        for path in work_dir.glob(f"{run_code}-hof_*.json.gz")
+        if not path.name.endswith("-finalize.json.gz")
+    ]
+    if not bundles:
+        return None
+    return max(bundles, key=lambda path: path.stat().st_mtime)
 
 
 def export_single(args: argparse.Namespace) -> int:
@@ -492,6 +534,97 @@ def finalize_bg(args: argparse.Namespace) -> int:
     return 0
 
 
+def monitor_handoffs(args: argparse.Namespace) -> int:
+    work_dir = Path(args.work_dir or _default_work_dir()).resolve()
+    summaries: list[dict[str, object]] = []
+    for run_code in args.run_code:
+        db_path = work_dir / f"{run_code}.db"
+        run_log = work_dir / f"{run_code}.log"
+        sync_log = work_dir / f"{run_code}.catalog-sync.log"
+        run_screen = args.run_screen_prefix + run_code
+        sync_screen = args.sync_screen_prefix + run_code
+        summary: dict[str, object] = {
+            "run_code": run_code,
+            "database": str(db_path),
+            "run_log": str(run_log),
+            "catalog_sync_log": str(sync_log),
+            "run_screen_alive": _screen_session_exists(run_screen),
+            "sync_screen_alive": _screen_session_exists(sync_screen),
+            "action": "none",
+        }
+        if not db_path.exists():
+            summary["error"] = "local_db_missing"
+            summaries.append(summary)
+            continue
+
+        database_url = _default_local_database_url(run_code, work_dir)
+        engine = create_engine(database_url, echo=False)
+        with Session(engine) as session:
+            run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+            asset_counts = dict(
+                session.exec(
+                    select(ScrapedAsset.status, func.count())
+                    .where(ScrapedAsset.run_code == run_code)
+                    .group_by(ScrapedAsset.status)
+                ).all()
+            )
+
+        if not run:
+            summary["error"] = "run_missing"
+            summaries.append(summary)
+            continue
+
+        pending_assets = int(asset_counts.get("pending_upload", 0) or 0)
+        failed_assets = int(asset_counts.get("failed", 0) or 0)
+        local_log_has_errors = _recent_log_has_errors(run_log)
+        sync_completed = _catalog_sync_completed(sync_log)
+        ready = (
+            run.status == "completed"
+            and run.stage is None
+            and pending_assets == 0
+            and failed_assets == 0
+            and not local_log_has_errors
+        )
+        summary.update(
+            {
+                "status": run.status,
+                "stage": run.stage,
+                "processed_items": run.processed_items,
+                "total_items": run.total_items,
+                "asset_pending": pending_assets,
+                "asset_uploaded": int(asset_counts.get("uploaded", 0) or 0),
+                "asset_failed": failed_assets,
+                "ready_to_finalize": ready,
+                "local_log_has_errors": local_log_has_errors,
+                "catalog_sync_completed": sync_completed,
+            }
+        )
+
+        if ready and not summary["sync_screen_alive"] and not sync_completed:
+            bundle = _latest_original_bundle(work_dir, run_code)
+            if bundle is None:
+                summary["error"] = "original_bundle_missing"
+            else:
+                finalize_bg(
+                    SimpleNamespace(
+                        bundle=str(bundle),
+                        prod_url=args.prod_url,
+                        work_dir=str(work_dir),
+                        local_database_url=database_url,
+                        screen_name=sync_screen,
+                        poll_interval_seconds=args.poll_interval_seconds,
+                        timeout_seconds=args.timeout_seconds,
+                    )
+                )
+                summary["action"] = "started_finalize_bg"
+                summary["bundle"] = str(bundle)
+
+        summaries.append(summary)
+
+    print(json.dumps({"runs": summaries}, indent=2, sort_keys=True))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Portable run handoff utilities")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -571,6 +704,19 @@ def main() -> int:
     finalize_bg_parser.add_argument("--poll-interval-seconds", type=int, default=30)
     finalize_bg_parser.add_argument("--timeout-seconds", type=int, default=6 * 60 * 60)
     finalize_bg_parser.set_defaults(func=finalize_bg)
+
+    monitor_parser = sub.add_parser(
+        "monitor",
+        help="Check local handoff runs and start catalog sync when a run is ready",
+    )
+    monitor_parser.add_argument("--run-code", action="append", required=True)
+    monitor_parser.add_argument("--prod-url", required=True)
+    monitor_parser.add_argument("--work-dir", default=None)
+    monitor_parser.add_argument("--run-screen-prefix", default="soulstep-")
+    monitor_parser.add_argument("--sync-screen-prefix", default="soulstep-sync-")
+    monitor_parser.add_argument("--poll-interval-seconds", type=int, default=30)
+    monitor_parser.add_argument("--timeout-seconds", type=int, default=6 * 60 * 60)
+    monitor_parser.set_defaults(func=monitor_handoffs)
 
     args = parser.parse_args()
     return args.func(args)
