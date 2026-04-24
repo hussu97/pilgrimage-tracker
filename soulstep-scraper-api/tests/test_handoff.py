@@ -3,11 +3,13 @@ import json
 import os
 import sys
 import tempfile
+from datetime import datetime
 from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from sqlmodel import Session, select
+from scripts.handoff import _import_bundle_into_db
+from sqlmodel import Session, create_engine, select
 
 from app.db.models import DataLocation, GeoBoundary, ScraperRun
 from app.services.handoff import build_run_bundle, mark_handoff_exported, prepare_handoff_export
@@ -125,6 +127,26 @@ def test_finalize_is_idempotent(client, db_session):
         assert mock_sync.call_count == 1
     finally:
         os.unlink(path)
+
+
+def test_resume_local_import_hydrates_datetime_fields_for_sqlite(tmp_path, db_session):
+    run = _seed_run(db_session, status="interrupted", stage="detail_fetch")
+    with Session(db_session.bind) as session:
+        handoff = prepare_handoff_export(session, run.run_code, lease_owner="tester")
+        bundle = build_run_bundle(session, run.run_code, handoff.handoff_code)
+
+    local_url = f"sqlite:///{tmp_path / 'handoff.db'}"
+    _import_bundle_into_db(bundle, local_url)
+
+    engine = create_engine(local_url)
+    with Session(engine) as session:
+        imported = session.exec(
+            select(ScraperRun).where(ScraperRun.run_code == run.run_code)
+        ).first()
+
+    assert imported is not None
+    assert isinstance(imported.created_at, datetime)
+    assert imported.stage == "detail_fetch"
 
 
 def test_batch_export_returns_independent_handoffs(client, db_session):

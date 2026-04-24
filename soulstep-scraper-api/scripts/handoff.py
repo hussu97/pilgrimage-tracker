@@ -27,6 +27,7 @@ from app.db.models import (  # noqa: E402,I001
 from app.services.handoff import (  # noqa: E402
     build_run_bundle,
     default_bundle_path,
+    hydrate_row,
     mark_handoff_exported,
     prepare_handoff_export,
     read_bundle_file,
@@ -68,7 +69,7 @@ def _import_bundle_into_db(bundle: dict, database_url: str) -> None:
 
         for table_name, model in MODEL_MAP.items():
             for row in rows.get(table_name, []):
-                session.merge(model(**row))
+                session.merge(hydrate_row(model, row))
         session.commit()
 
 

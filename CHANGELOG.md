@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-25] — Local handoff bundle import fix
+
+### Backend
+- **`soulstep-scraper-api/scripts/handoff.py`** — fixed `resume-local` imports into SQLite/local databases by hydrating serialized bundle rows through the shared model parser, preserving datetime fields from exported production bundles.
+
+### Tests
+- **`soulstep-scraper-api/tests/test_handoff.py`** — added regression coverage for importing exported handoff bundles into a local SQLite database.
+
+---
+
 ## [2026-04-23] — Portable scraper run handoff + durable parallel image queue
 
 ### Backend
