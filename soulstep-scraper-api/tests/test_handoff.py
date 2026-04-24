@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from scripts.handoff import _import_bundle_into_db
+from scripts.handoff import _import_bundle_into_db, _start_screen_runner
 from sqlmodel import Session, create_engine, select
 
 from app.db.models import DataLocation, GeoBoundary, ScraperRun
@@ -147,6 +147,42 @@ def test_resume_local_import_hydrates_datetime_fields_for_sqlite(tmp_path, db_se
     assert imported is not None
     assert isinstance(imported.created_at, datetime)
     assert imported.stage == "detail_fetch"
+
+
+def test_screen_runner_uses_run_scoped_db_and_log(tmp_path):
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append((cmd, kwargs))
+
+        class Result:
+            stdout = ""
+
+        return Result()
+
+    with (
+        patch("scripts.handoff.shutil.which", return_value="/usr/bin/screen"),
+        patch("scripts.handoff._screen_session_exists", return_value=False),
+        patch("scripts.handoff.subprocess.run", side_effect=fake_run),
+    ):
+        _start_screen_runner(
+            screen_name="soulstep-run_test",
+            database_url=f"sqlite:///{tmp_path / 'run_test.db'}",
+            run_code="run_test",
+            run_action="resume",
+            log_path=tmp_path / "run_test.log",
+            env_overrides={"SCRAPER_DETAIL_CONCURRENCY": "15"},
+        )
+
+    assert calls
+    cmd = calls[0][0]
+    assert cmd[:3] == ["screen", "-dmS", "soulstep-run_test"]
+    shell_command = cmd[-1]
+    assert "DATABASE_URL=" in shell_command
+    assert "SCRAPER_RUN_CODE=run_test" in shell_command
+    assert "SCRAPER_AUTO_SYNC_AFTER_RUN=false" in shell_command
+    assert "SCRAPER_DETAIL_CONCURRENCY=15" in shell_command
+    assert "run_test.log" in shell_command
 
 
 def test_batch_export_returns_independent_handoffs(client, db_session):

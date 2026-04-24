@@ -322,11 +322,13 @@ cd soulstep-scraper-api
 source .venv/bin/activate
 python scripts/handoff.py export --run-code run_abc123 --prod-dsn postgresql://...
 python scripts/handoff.py resume-local --bundle /tmp/run_abc123-....json.gz --local-database-url postgresql://...
+python scripts/handoff.py start-local-bg --run-code run_abc123 --prod-dsn postgresql://...
 python scripts/handoff.py finalize --bundle /tmp/run_abc123-....json.gz --prod-url https://scraper-api.soul-step.org
 ```
 
 Operational notes:
 - `POST /api/v1/scraper/runs/{run_code}/handoff/export` also exists on the server and freezes the run by creating a `RunHandoff`.
+- `start-local-bg` is the preferred local operator command for long resumes: it stores the bundle, local DB, and log under `soulstep-scraper-api/local-handoffs/`, then launches a detached `screen` session.
 - While a handoff is active, run mutations (`resume`, `cancel`, `sync`, `retry-images`, `re-enrich`) return `409`.
 - Finalize uploads raw gzip bytes to `POST /api/v1/scraper/runs/{run_code}/handoff/finalize?handoff_code=...`; production remains the only place that performs the final sync/SEO steps.
 

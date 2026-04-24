@@ -86,6 +86,22 @@ python scripts/handoff.py resume-local \
   --local-database-url postgresql://...
 ```
 
+For operator workflows that should keep running after the terminal closes, use
+the all-in-one background command. It writes the bundle, SQLite DB, and log under
+`local-handoffs/`, then starts `python -m app.jobs.run` inside a detached
+`screen` session:
+
+```bash
+python scripts/handoff.py start-local-bg \
+  --run-code run_abc123 \
+  --prod-dsn postgresql://... \
+  --lease-owner hussain-local
+```
+
+By default, `start-local-bg` inherits scraper concurrency from `.env`. Pass
+`--detail-concurrency`, `--browser-pool-size`, `--browser-concurrency`, or
+`--image-concurrency` only when a specific local run needs different limits.
+
 3. Finalize the completed bundle back into production:
 
 ```bash

@@ -8,9 +8,13 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ### Backend
 - **`soulstep-scraper-api/scripts/handoff.py`** — fixed `resume-local` imports into SQLite/local databases by hydrating serialized bundle rows through the shared model parser, preserving datetime fields from exported production bundles.
+- **`soulstep-scraper-api/scripts/handoff.py`** — added `start-local-bg`, an operator command that exports a production run, imports it into a run-scoped local DB, and resumes it in a detached `screen` session with local bundle/DB/log files under `local-handoffs/`.
+
+### Docs
+- **`soulstep-scraper-api/README.md`** and **`PRODUCTION.md`** — documented the background local handoff command and where its generated files live.
 
 ### Tests
-- **`soulstep-scraper-api/tests/test_handoff.py`** — added regression coverage for importing exported handoff bundles into a local SQLite database.
+- **`soulstep-scraper-api/tests/test_handoff.py`** — added regression coverage for importing exported handoff bundles into a local SQLite database and for launching run-scoped detached screen workers.
 
 ---
 

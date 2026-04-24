@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -47,6 +50,59 @@ MODEL_MAP = {
     "geo_boundary_boxes": GeoBoundaryBox,
     "place_type_mappings": PlaceTypeMapping,
 }
+
+
+def _default_work_dir() -> Path:
+    return ROOT / "local-handoffs"
+
+
+def _default_local_database_url(run_code: str, work_dir: Path) -> str:
+    return f"sqlite:///{work_dir / f'{run_code}.db'}"
+
+
+def _sqlite_path_from_url(database_url: str) -> Path | None:
+    prefix = "sqlite:///"
+    if not database_url.startswith(prefix):
+        return None
+    return Path(database_url[len(prefix) :])
+
+
+def _screen_session_exists(screen_name: str) -> bool:
+    if not shutil.which("screen"):
+        return False
+    result = subprocess.run(["screen", "-ls"], capture_output=True, text=True, check=False)
+    return f".{screen_name}" in result.stdout
+
+
+def _start_screen_runner(
+    *,
+    screen_name: str,
+    database_url: str,
+    run_code: str,
+    run_action: str,
+    log_path: Path,
+    env_overrides: dict[str, str],
+) -> None:
+    if not shutil.which("screen"):
+        raise RuntimeError("screen is required to start a detached local handoff runner")
+    if _screen_session_exists(screen_name):
+        raise RuntimeError(f"screen session already exists: {screen_name}")
+
+    env_pairs = {
+        "DATABASE_URL": database_url,
+        "SCRAPER_AUTO_SYNC_AFTER_RUN": "false",
+        "SCRAPER_RUN_CODE": run_code,
+        "SCRAPER_RUN_ACTION": run_action,
+        "PYTHONUNBUFFERED": "1",
+        **env_overrides,
+    }
+    env_args = " ".join(f"{key}={shlex.quote(value)}" for key, value in env_pairs.items())
+    command = (
+        f"cd {shlex.quote(str(ROOT))} && "
+        f"env {env_args} {shlex.quote(sys.executable)} -m app.jobs.run "
+        f">> {shlex.quote(str(log_path))} 2>&1"
+    )
+    subprocess.run(["screen", "-dmS", screen_name, "zsh", "-lc", command], check=True)
 
 
 def _import_bundle_into_db(bundle: dict, database_url: str) -> None:
@@ -150,6 +206,76 @@ def resume_local(args: argparse.Namespace) -> int:
     return 0
 
 
+def start_local_bg(args: argparse.Namespace) -> int:
+    work_dir = Path(args.work_dir or _default_work_dir()).resolve()
+    work_dir.mkdir(parents=True, exist_ok=True)
+
+    database_url = args.local_database_url or _default_local_database_url(args.run_code, work_dir)
+    db_path = _sqlite_path_from_url(database_url)
+    if db_path and db_path.exists() and not args.force:
+        raise RuntimeError(
+            f"Local DB already exists for {args.run_code}: {db_path}. "
+            "Use --force to replace it, or resume the existing DB directly."
+        )
+    if db_path and args.force:
+        for suffix in ("", "-journal", "-wal", "-shm"):
+            db_path.with_name(db_path.name + suffix).unlink(missing_ok=True)
+
+    engine = create_engine(args.prod_dsn, echo=False)
+    with Session(engine) as session:
+        handoff = prepare_handoff_export(session, args.run_code, lease_owner=args.lease_owner)
+        bundle = build_run_bundle(session, args.run_code, handoff.handoff_code)
+        bundle_path = work_dir / f"{args.run_code}-{handoff.handoff_code}.json.gz"
+        bundle_uri, digest = write_bundle_file(bundle, bundle_path)
+        mark_handoff_exported(
+            session,
+            handoff.handoff_code,
+            bundle_uri=bundle_uri,
+            manifest_sha256=digest,
+        )
+
+    _import_bundle_into_db(bundle, database_url)
+
+    run_action = "resume" if bundle["manifest"].get("resume_from_stage") else "run"
+    log_path = work_dir / f"{args.run_code}.log"
+    screen_name = args.screen_name or f"soulstep-{args.run_code}"
+    env_overrides = {"LOG_LEVEL": args.log_level}
+    optional_env = {
+        "SCRAPER_DETAIL_CONCURRENCY": args.detail_concurrency,
+        "MAPS_BROWSER_POOL_SIZE": args.browser_pool_size,
+        "MAPS_BROWSER_CONCURRENCY": args.browser_concurrency,
+        "SCRAPER_IMAGE_CONCURRENCY": args.image_concurrency,
+    }
+    env_overrides.update(
+        {key: str(value) for key, value in optional_env.items() if value is not None}
+    )
+    _start_screen_runner(
+        screen_name=screen_name,
+        database_url=database_url,
+        run_code=args.run_code,
+        run_action=run_action,
+        log_path=log_path,
+        env_overrides=env_overrides,
+    )
+
+    print(
+        json.dumps(
+            {
+                "run_code": args.run_code,
+                "handoff_code": bundle["manifest"]["handoff_code"],
+                "bundle": str(bundle_path),
+                "database_url": database_url,
+                "log": str(log_path),
+                "screen": screen_name,
+                "status": "started",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
 def finalize_remote(args: argparse.Namespace) -> int:
     bundle = read_bundle_file(args.bundle)
     handoff_code = bundle["manifest"]["handoff_code"]
@@ -193,6 +319,24 @@ def main() -> int:
     resume_parser.add_argument("--bundle", required=True)
     resume_parser.add_argument("--local-database-url", required=True)
     resume_parser.set_defaults(func=resume_local)
+
+    bg_parser = sub.add_parser(
+        "start-local-bg",
+        help="Export a run, import it into a local DB, and resume it in detached screen",
+    )
+    bg_parser.add_argument("--run-code", required=True)
+    bg_parser.add_argument("--prod-dsn", required=True)
+    bg_parser.add_argument("--lease-owner", default=None)
+    bg_parser.add_argument("--work-dir", default=None)
+    bg_parser.add_argument("--local-database-url", default=None)
+    bg_parser.add_argument("--screen-name", default=None)
+    bg_parser.add_argument("--force", action="store_true")
+    bg_parser.add_argument("--log-level", default="INFO")
+    bg_parser.add_argument("--detail-concurrency", type=int, default=None)
+    bg_parser.add_argument("--browser-pool-size", type=int, default=None)
+    bg_parser.add_argument("--browser-concurrency", type=int, default=None)
+    bg_parser.add_argument("--image-concurrency", type=int, default=None)
+    bg_parser.set_defaults(func=start_local_bg)
 
     finalize_parser = sub.add_parser(
         "finalize", help="Upload a completed bundle back to production"
