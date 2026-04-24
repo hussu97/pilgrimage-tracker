@@ -72,6 +72,7 @@ __pycache__/
 *.sqlite3
 soulstep-catalog-api/*.db
 soulstep-scraper-api/*.db
+soulstep-scraper-api/local-handoffs/
 
 .claude/worktrees
 
