@@ -4,15 +4,27 @@ import os
 import sys
 import tempfile
 from datetime import datetime
+from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from scripts.handoff import _import_bundle_into_db, _start_screen_runner
+from scripts.handoff import (
+    _import_bundle_into_db,
+    _refresh_finalize_bundle,
+    _start_screen_runner,
+    finalize_bg,
+)
 from sqlmodel import Session, create_engine, select
 
 from app.db.models import DataLocation, GeoBoundary, ScraperRun
-from app.services.handoff import build_run_bundle, mark_handoff_exported, prepare_handoff_export
+from app.services.handoff import (
+    build_run_bundle,
+    mark_handoff_exported,
+    prepare_handoff_export,
+    read_bundle_file,
+    write_bundle_file,
+)
 
 
 def _seed_location(db_session, location_code: str = "loc_handoff") -> DataLocation:
@@ -149,6 +161,41 @@ def test_resume_local_import_hydrates_datetime_fields_for_sqlite(tmp_path, db_se
     assert imported.stage == "detail_fetch"
 
 
+def test_refresh_finalize_bundle_exports_current_local_db_state(tmp_path, db_session):
+    run = _seed_run(db_session, status="interrupted", stage="detail_fetch")
+    with Session(db_session.bind) as session:
+        handoff = prepare_handoff_export(session, run.run_code, lease_owner="tester")
+        bundle = build_run_bundle(session, run.run_code, handoff.handoff_code)
+
+    source_bundle = tmp_path / "source.json.gz"
+    write_bundle_file(bundle, source_bundle)
+    local_url = f"sqlite:///{tmp_path / 'handoff.db'}"
+    _import_bundle_into_db(bundle, local_url)
+
+    local_engine = create_engine(local_url)
+    with Session(local_engine) as session:
+        imported = session.exec(
+            select(ScraperRun).where(ScraperRun.run_code == run.run_code)
+        ).first()
+        imported.status = "completed"
+        imported.stage = None
+        imported.processed_items = 42
+        session.add(imported)
+        session.commit()
+
+    finalize_bundle = _refresh_finalize_bundle(
+        source_bundle=source_bundle,
+        local_database_url=local_url,
+        output=tmp_path / "finalize.json.gz",
+    )
+    refreshed = read_bundle_file(finalize_bundle)
+    refreshed_run = refreshed["data"]["scraper_runs"][0]
+
+    assert refreshed_run["status"] == "completed"
+    assert refreshed_run["stage"] is None
+    assert refreshed_run["processed_items"] == 42
+
+
 def test_screen_runner_uses_run_scoped_db_and_log(tmp_path):
     calls = []
 
@@ -183,6 +230,37 @@ def test_screen_runner_uses_run_scoped_db_and_log(tmp_path):
     assert "SCRAPER_AUTO_SYNC_AFTER_RUN=false" in shell_command
     assert "SCRAPER_DETAIL_CONCURRENCY=15" in shell_command
     assert "run_test.log" in shell_command
+
+
+def test_finalize_bg_starts_catalog_sync_screen_with_local_log(tmp_path):
+    bundle_path = tmp_path / "run_test-hof_test.json.gz"
+    write_bundle_file(
+        {"manifest": {"run_code": "run_test", "handoff_code": "hof_test"}, "data": {}},
+        bundle_path,
+    )
+    calls = []
+
+    with patch("scripts.handoff._start_screen_command", side_effect=lambda **kw: calls.append(kw)):
+        result = finalize_bg(
+            SimpleNamespace(
+                bundle=str(bundle_path),
+                prod_url="https://scraper-api.soul-step.org",
+                work_dir=str(tmp_path),
+                local_database_url=None,
+                screen_name=None,
+                poll_interval_seconds=15,
+                timeout_seconds=900,
+            )
+        )
+
+    assert result == 0
+    assert calls
+    assert calls[0]["screen_name"] == "soulstep-sync-run_test"
+    command = calls[0]["command"]
+    assert "finalize-watch" in command
+    assert "run_test.catalog-sync.log" in command
+    assert "run_test-hof_test-finalize.json.gz" in command
+    assert "sqlite:///" in command
 
 
 def test_batch_export_returns_independent_handoffs(client, db_session):

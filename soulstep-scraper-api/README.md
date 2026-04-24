@@ -107,11 +107,31 @@ By default, `start-local-bg` inherits scraper concurrency from `.env`. Pass
 ```bash
 python scripts/handoff.py finalize \
   --bundle /tmp/run_abc123-handoff.json.gz \
+  --local-database-url sqlite:///local-handoffs/run_abc123.db \
   --prod-url https://scraper-api.soul-step.org
 ```
 
 Bundle finalize uploads raw `application/gzip` bytes to
 `POST /api/v1/scraper/runs/{run_code}/handoff/finalize?handoff_code=...`.
+When `--local-database-url` is passed, the CLI first rebuilds a fresh finalize
+bundle from the current local DB so production receives the completed local rows,
+not the original export snapshot.
+
+For unattended operations, use `finalize-bg`. It refreshes the finalize bundle,
+starts a detached `screen` job, uploads the bundle to production, then polls the
+production run/activity endpoints until the catalog sync completes. Logs and the
+refreshed bundle stay inside `local-handoffs/`:
+
+```bash
+python scripts/handoff.py finalize-bg \
+  --bundle local-handoffs/run_abc123-hof_abc.json.gz \
+  --prod-url https://scraper-api.soul-step.org
+```
+
+Generated files:
+
+- `local-handoffs/run_abc123-hof_abc-finalize.json.gz` — fresh bundle rebuilt from the local DB.
+- `local-handoffs/run_abc123.catalog-sync.log` — JSON-line finalize/catalog-sync progress log.
 
 During an active handoff, mutating run actions such as `resume`, `cancel`, `sync`,
 `retry-images`, and `re-enrich` return `409` until the handoff is finalized or aborted.

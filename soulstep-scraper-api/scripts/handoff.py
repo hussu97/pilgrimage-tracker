@@ -7,6 +7,8 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -74,6 +76,14 @@ def _screen_session_exists(screen_name: str) -> bool:
     return f".{screen_name}" in result.stdout
 
 
+def _start_screen_command(*, screen_name: str, command: str) -> None:
+    if not shutil.which("screen"):
+        raise RuntimeError("screen is required to start a detached local handoff runner")
+    if _screen_session_exists(screen_name):
+        raise RuntimeError(f"screen session already exists: {screen_name}")
+    subprocess.run(["screen", "-dmS", screen_name, "zsh", "-lc", command], check=True)
+
+
 def _start_screen_runner(
     *,
     screen_name: str,
@@ -83,11 +93,6 @@ def _start_screen_runner(
     log_path: Path,
     env_overrides: dict[str, str],
 ) -> None:
-    if not shutil.which("screen"):
-        raise RuntimeError("screen is required to start a detached local handoff runner")
-    if _screen_session_exists(screen_name):
-        raise RuntimeError(f"screen session already exists: {screen_name}")
-
     env_pairs = {
         "DATABASE_URL": database_url,
         "SCRAPER_AUTO_SYNC_AFTER_RUN": "false",
@@ -102,7 +107,17 @@ def _start_screen_runner(
         f"env {env_args} {shlex.quote(sys.executable)} -m app.jobs.run "
         f">> {shlex.quote(str(log_path))} 2>&1"
     )
-    subprocess.run(["screen", "-dmS", screen_name, "zsh", "-lc", command], check=True)
+    _start_screen_command(screen_name=screen_name, command=command)
+
+
+def _log_event(event: str, **fields: object) -> None:
+    print(
+        json.dumps(
+            {"event": event, "ts": datetime.now(UTC).isoformat(), **fields},
+            sort_keys=True,
+        ),
+        flush=True,
+    )
 
 
 def _import_bundle_into_db(bundle: dict, database_url: str) -> None:
@@ -127,6 +142,67 @@ def _import_bundle_into_db(bundle: dict, database_url: str) -> None:
             for row in rows.get(table_name, []):
                 session.merge(hydrate_row(model, row))
         session.commit()
+
+
+def _refresh_finalize_bundle(
+    *,
+    source_bundle: str | Path,
+    local_database_url: str,
+    output: str | Path | None = None,
+) -> Path:
+    source_path = Path(source_bundle)
+    manifest = read_bundle_file(source_path)["manifest"]
+    run_code = manifest["run_code"]
+    handoff_code = manifest["handoff_code"]
+    output_path = (
+        Path(output)
+        if output
+        else source_path.with_name(f"{run_code}-{handoff_code}-finalize.json.gz")
+    )
+    engine = create_engine(local_database_url, echo=False)
+    with Session(engine) as session:
+        bundle = build_run_bundle(session, run_code, handoff_code)
+        write_bundle_file(bundle, output_path)
+    return output_path
+
+
+def _post_finalize_bundle(
+    *,
+    client: httpx.Client,
+    prod_url: str,
+    bundle_path: str | Path,
+    run_code: str,
+    handoff_code: str,
+) -> dict:
+    with open(bundle_path, "rb") as fh:
+        resp = client.post(
+            f"{prod_url.rstrip('/')}/api/v1/scraper/runs/{run_code}/handoff/finalize",
+            params={"handoff_code": handoff_code},
+            content=fh.read(),
+            headers={"Content-Type": "application/gzip"},
+        )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def _fetch_sync_snapshot(client: httpx.Client, prod_url: str, run_code: str) -> dict:
+    run_resp = client.get(f"{prod_url.rstrip('/')}/api/v1/scraper/runs/{run_code}")
+    run_resp.raise_for_status()
+    activity_resp = client.get(f"{prod_url.rstrip('/')}/api/v1/scraper/runs/{run_code}/activity")
+    activity_resp.raise_for_status()
+    run = run_resp.json()
+    activity = activity_resp.json() or {}
+    return {
+        "status": run.get("status"),
+        "stage": run.get("stage"),
+        "places_synced": activity.get("places_synced", 0),
+        "places_sync_failed": activity.get("places_sync_failed", 0),
+        "places_sync_quality_filtered": activity.get("places_sync_quality_filtered", 0),
+        "places_sync_name_filtered": activity.get("places_sync_name_filtered", 0),
+        "last_sync_at": run.get("last_sync_at"),
+        "asset_pending": run.get("asset_pending", activity.get("asset_pending", 0)),
+        "asset_failed": run.get("asset_failed", activity.get("asset_failed", 0)),
+    }
 
 
 def export_single(args: argparse.Namespace) -> int:
@@ -277,19 +353,142 @@ def start_local_bg(args: argparse.Namespace) -> int:
 
 
 def finalize_remote(args: argparse.Namespace) -> int:
-    bundle = read_bundle_file(args.bundle)
+    bundle_path = (
+        _refresh_finalize_bundle(
+            source_bundle=args.bundle,
+            local_database_url=args.local_database_url,
+            output=args.finalize_bundle_output,
+        )
+        if getattr(args, "local_database_url", None)
+        else Path(args.bundle)
+    )
+    bundle = read_bundle_file(bundle_path)
     handoff_code = bundle["manifest"]["handoff_code"]
     run_code = bundle["manifest"]["run_code"]
     with httpx.Client(timeout=120.0) as client:
-        with open(args.bundle, "rb") as fh:
-            resp = client.post(
-                f"{args.prod_url.rstrip('/')}/api/v1/scraper/runs/{run_code}/handoff/finalize",
-                params={"handoff_code": handoff_code},
-                content=fh.read(),
-                headers={"Content-Type": "application/gzip"},
+        result = _post_finalize_bundle(
+            client=client,
+            prod_url=args.prod_url,
+            bundle_path=bundle_path,
+            run_code=run_code,
+            handoff_code=handoff_code,
+        )
+    print(json.dumps(result, sort_keys=True))
+    return 0
+
+
+def finalize_watch(args: argparse.Namespace) -> int:
+    bundle_path = Path(args.bundle)
+    if args.local_database_url:
+        bundle_path = _refresh_finalize_bundle(
+            source_bundle=bundle_path,
+            local_database_url=args.local_database_url,
+            output=args.finalize_bundle_output,
+        )
+
+    bundle = read_bundle_file(bundle_path)
+    run_code = bundle["manifest"]["run_code"]
+    handoff_code = bundle["manifest"]["handoff_code"]
+    deadline = time.monotonic() + args.timeout_seconds
+
+    _log_event(
+        "catalog_sync_finalize_started",
+        run_code=run_code,
+        handoff_code=handoff_code,
+        bundle=str(bundle_path),
+    )
+    with httpx.Client(timeout=args.request_timeout) as client:
+        result = _post_finalize_bundle(
+            client=client,
+            prod_url=args.prod_url,
+            bundle_path=bundle_path,
+            run_code=run_code,
+            handoff_code=handoff_code,
+        )
+        _log_event("catalog_sync_finalize_response", run_code=run_code, response=result)
+
+        if not result.get("triggered_sync"):
+            _log_event(
+                "catalog_sync_not_triggered",
+                run_code=run_code,
+                reason="finalize endpoint returned triggered_sync=false",
             )
-            resp.raise_for_status()
-    print(resp.text)
+            return 0
+
+        saw_syncing = False
+        while time.monotonic() < deadline:
+            snapshot = _fetch_sync_snapshot(client, args.prod_url, run_code)
+            _log_event("catalog_sync_poll", run_code=run_code, **snapshot)
+            saw_syncing = saw_syncing or snapshot.get("stage") == "syncing"
+            has_sync_result = bool(
+                snapshot.get("last_sync_at")
+                or int(snapshot.get("places_synced") or 0)
+                or int(snapshot.get("places_sync_failed") or 0)
+                or int(snapshot.get("places_sync_quality_filtered") or 0)
+                or int(snapshot.get("places_sync_name_filtered") or 0)
+            )
+
+            if snapshot.get("stage") != "syncing" and (saw_syncing or has_sync_result):
+                failures = int(snapshot.get("places_sync_failed") or 0)
+                event = "catalog_sync_completed" if failures == 0 else "catalog_sync_failed"
+                _log_event(event, run_code=run_code, **snapshot)
+                return 0 if failures == 0 else 2
+
+            time.sleep(args.poll_interval_seconds)
+
+    _log_event("catalog_sync_timeout", run_code=run_code, timeout_seconds=args.timeout_seconds)
+    return 3
+
+
+def finalize_bg(args: argparse.Namespace) -> int:
+    work_dir = Path(args.work_dir or _default_work_dir()).resolve()
+    work_dir.mkdir(parents=True, exist_ok=True)
+    bundle = read_bundle_file(args.bundle)
+    run_code = bundle["manifest"]["run_code"]
+    handoff_code = bundle["manifest"]["handoff_code"]
+    database_url = args.local_database_url or _default_local_database_url(run_code, work_dir)
+    finalize_bundle = work_dir / f"{run_code}-{handoff_code}-finalize.json.gz"
+    log_path = work_dir / f"{run_code}.catalog-sync.log"
+    screen_name = args.screen_name or f"soulstep-sync-{run_code}"
+    command = " ".join(
+        [
+            f"cd {shlex.quote(str(ROOT))} &&",
+            shlex.quote(sys.executable),
+            shlex.quote(str(ROOT / "scripts" / "handoff.py")),
+            "finalize-watch",
+            "--bundle",
+            shlex.quote(str(Path(args.bundle).resolve())),
+            "--prod-url",
+            shlex.quote(args.prod_url),
+            "--local-database-url",
+            shlex.quote(database_url),
+            "--finalize-bundle-output",
+            shlex.quote(str(finalize_bundle)),
+            "--poll-interval-seconds",
+            shlex.quote(str(args.poll_interval_seconds)),
+            "--timeout-seconds",
+            shlex.quote(str(args.timeout_seconds)),
+            ">>",
+            shlex.quote(str(log_path)),
+            "2>&1",
+        ]
+    )
+    _start_screen_command(screen_name=screen_name, command=command)
+    print(
+        json.dumps(
+            {
+                "run_code": run_code,
+                "handoff_code": handoff_code,
+                "database_url": database_url,
+                "finalize_bundle": str(finalize_bundle),
+                "log": str(log_path),
+                "screen": screen_name,
+                "status": "started",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
     return 0
 
 
@@ -343,7 +542,35 @@ def main() -> int:
     )
     finalize_parser.add_argument("--bundle", required=True)
     finalize_parser.add_argument("--prod-url", required=True)
+    finalize_parser.add_argument("--local-database-url", default=None)
+    finalize_parser.add_argument("--finalize-bundle-output", default=None)
     finalize_parser.set_defaults(func=finalize_remote)
+
+    watch_parser = sub.add_parser(
+        "finalize-watch",
+        help="Upload a refreshed local bundle and watch the production catalog sync",
+    )
+    watch_parser.add_argument("--bundle", required=True)
+    watch_parser.add_argument("--prod-url", required=True)
+    watch_parser.add_argument("--local-database-url", default=None)
+    watch_parser.add_argument("--finalize-bundle-output", default=None)
+    watch_parser.add_argument("--poll-interval-seconds", type=int, default=30)
+    watch_parser.add_argument("--timeout-seconds", type=int, default=6 * 60 * 60)
+    watch_parser.add_argument("--request-timeout", type=float, default=120.0)
+    watch_parser.set_defaults(func=finalize_watch)
+
+    finalize_bg_parser = sub.add_parser(
+        "finalize-bg",
+        help="Refresh a bundle from the local DB, finalize it, and monitor prod sync in screen",
+    )
+    finalize_bg_parser.add_argument("--bundle", required=True)
+    finalize_bg_parser.add_argument("--prod-url", required=True)
+    finalize_bg_parser.add_argument("--work-dir", default=None)
+    finalize_bg_parser.add_argument("--local-database-url", default=None)
+    finalize_bg_parser.add_argument("--screen-name", default=None)
+    finalize_bg_parser.add_argument("--poll-interval-seconds", type=int, default=30)
+    finalize_bg_parser.add_argument("--timeout-seconds", type=int, default=6 * 60 * 60)
+    finalize_bg_parser.set_defaults(func=finalize_bg)
 
     args = parser.parse_args()
     return args.func(args)
