@@ -2066,6 +2066,52 @@ class TestFlushDetailBufferReviewImages:
         assert places[0].name == "Already Won Race"
         assert run.processed_items == 1
 
+    @pytest.mark.asyncio
+    async def test_resume_skip_updates_processed_items_when_all_places_done(self):
+        """A resume with all places already persisted should not reset progress to zero."""
+        from sqlmodel import Session, select
+
+        from app.db.models import ScrapedPlace, ScraperRun
+        from app.scrapers.gmaps_shared import fetch_place_details
+
+        engine = self._make_engine_and_run()
+        with Session(engine) as sess:
+            run = sess.exec(
+                select(ScraperRun).where(ScraperRun.run_code == "run_rev_img_test")
+            ).first()
+            run.processed_items = 0
+            sess.add(run)
+            sess.add(
+                ScrapedPlace(
+                    run_code="run_rev_img_test",
+                    place_code="gplc_ChIJalready",
+                    name="Already Done",
+                    raw_data={},
+                    detail_fetch_status="success",
+                )
+            )
+            sess.commit()
+
+        with Session(engine) as sess:
+            await fetch_place_details(
+                ["places/ChIJalready"],
+                "run_rev_img_test",
+                sess,
+                collector=object(),
+                api_key="",
+                type_map={},
+                religion_type_map={},
+                force_refresh=False,
+                stale_threshold_days=30,
+            )
+
+        with Session(engine) as sess:
+            run = sess.exec(
+                select(ScraperRun).where(ScraperRun.run_code == "run_rev_img_test")
+            ).first()
+
+        assert run.processed_items == 1
+
 
 # ── _capture_review_images: URL collection and limit ────────────────────────
 

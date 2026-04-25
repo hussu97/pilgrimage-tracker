@@ -502,6 +502,7 @@ async def fetch_place_details(
 
     # Build place_code → place_name mapping
     name_to_code: dict[str, str] = {}
+    original_place_count = len(place_ids)
     for place_name in place_ids:
         extracted_id = place_name[7:] if place_name.startswith("places/") else place_name
         name_to_code[place_name] = f"gplc_{extracted_id}"
@@ -511,15 +512,22 @@ async def fetch_place_details(
     already_fetched_codes = set(
         session.exec(select(ScrapedPlace.place_code).where(ScrapedPlace.run_code == run_code)).all()
     )
+    already_fetched_count = 0
     if already_fetched_codes:
         original_count = len(place_ids)
         place_ids = [pn for pn in place_ids if name_to_code[pn] not in already_fetched_codes]
+        already_fetched_count = original_count - len(place_ids)
         logger.info(
             "Resume: skipping %d already-fetched places, %d remaining",
-            original_count - len(place_ids),
+            already_fetched_count,
             len(place_ids),
         )
         if not place_ids:
+            _run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+            if _run:
+                _run.processed_items = max(_run.processed_items or 0, original_place_count)
+                session.add(_run)
+                session.commit()
             logger.info("All places already fetched for run %s, skipping detail fetch", run_code)
             return
 
@@ -576,6 +584,10 @@ async def fetch_place_details(
         _run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
         if _run:
             _run.detail_fetch_cached = cached_count
+            _run.processed_items = max(
+                _run.processed_items or 0,
+                already_fetched_count + cached_count,
+            )
             session.add(_run)
         session.commit()
         logger.info("Stored %d cached places", cached_count)
@@ -597,7 +609,7 @@ async def fetch_place_details(
         raise ValueError(f"Run {run_code} not found during detail fetch")
 
     rate_limiter = get_async_rate_limiter()
-    counter = AtomicCounter(initial=cached_count)
+    counter = AtomicCounter(initial=already_fetched_count + cached_count)
     flush_batch_size = DETAIL_FLUSH_BATCH_SIZE
     # Detail-fetch workers are sized by settings.detail_concurrency, but the
     # real active-navigation limit is the browser pool sem
@@ -706,7 +718,9 @@ async def fetch_place_details(
                 buffer.append((place_name, details, response))
 
                 if len(buffer) >= flush_batch_size:
-                    _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
+                    _flush_detail_buffer(
+                        buffer, run_code, session, run, counter, original_place_count
+                    )
                     buffer.clear()
 
                 # Periodic cancellation check so we don't hold locks until all fetches finish
@@ -723,7 +737,7 @@ async def fetch_place_details(
                         break
 
         if buffer:
-            _flush_detail_buffer(buffer, run_code, session, run, counter, len(place_ids))
+            _flush_detail_buffer(buffer, run_code, session, run, counter, original_place_count)
         if failed_buffer:
             _flush_failed_places_buffer(failed_buffer, run_code, session)
             failed_buffer.clear()
@@ -733,8 +747,8 @@ async def fetch_place_details(
 
     logger.info(
         "=== Details Fetch Summary === fresh=%d  cached=%d  failed=%d  total=%d",
-        counter.value - cached_count - failed_total,
+        counter.value - already_fetched_count - cached_count - failed_total,
         cached_count,
         failed_total,
-        len(place_ids),
+        original_place_count,
     )

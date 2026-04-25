@@ -12,13 +12,14 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - **`soulstep-scraper-api/scripts/handoff.py`** — added `monitor`, which checks local handoff runs and starts the background catalog sync job exactly once when a run is verified complete; stale failures before the latest run start no longer block finalization.
 - **`soulstep-scraper-api/scripts/handoff.py`** — added `pause-local` and `resume-bg` for laptop-safe pause/resume of already-handed-off local runs without discarding committed progress; forced pauses now terminate stale child Python/Playwright/Chromium process trees matched to the run-scoped DB/log.
 - **`soulstep-scraper-api/app/scrapers/gmaps_shared.py`** — made resumed detail flushes skip resolved place codes that already exist in the run and re-check duplicates on flush retry, preventing duplicate Google-place redirects or stale workers from failing local handoff resumes.
+- **`soulstep-scraper-api/app/scrapers/gmaps_shared.py`** — fixed resumed detail-fetch progress accounting so `processed_items` starts from already-persisted places instead of resetting to the current batch count.
 
 ### Docs
 - **`README.md`**, **`soulstep-scraper-api/README.md`**, and **`PRODUCTION.md`** — documented the refreshed local-DB finalize flow, background catalog sync command, pause/resume controls, and local log locations.
 
 ### Tests
 - **`soulstep-scraper-api/tests/test_handoff.py`** — added coverage for rebuilding finalize bundles from current local DB state, launching run-scoped catalog sync background jobs, monitor-triggered finalization, local pause/resume commands, forced process-tree cleanup, and ignoring stale pre-restart log errors.
-- **`soulstep-scraper-api/tests/test_browser_gmaps.py`** — added regression coverage for idempotent duplicate-place detail flushes and retry-after-integrity-race handling during resumed runs.
+- **`soulstep-scraper-api/tests/test_browser_gmaps.py`** — added regression coverage for idempotent duplicate-place detail flushes, retry-after-integrity-race handling, and processed counter restoration during resumed runs.
 
 ---
 
