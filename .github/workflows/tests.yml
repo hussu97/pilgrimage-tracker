@@ -31,12 +31,14 @@ jobs:
           filters: |
             catalog:
               - 'soulstep-catalog-api/**'
+              - 'docker-compose.prod.yml'
               - '.github/workflows/tests.yml'
               - '.github/workflows/deploy.yml'
               - '.github/workflows/deploy-vm.yml'
               - 'README.md'
             scraper:
               - 'soulstep-scraper-api/**'
+              - 'docker-compose.prod.yml'
               - '.github/workflows/tests.yml'
               - '.github/workflows/deploy.yml'
               - '.github/workflows/deploy-vm.yml'
