@@ -210,9 +210,6 @@ class TestSyncPlacesMain:
                 "address": "123 St",
             },
             0.9,  # quality_score
-            25.2,
-            55.3,
-            "United Arab Emirates",
         )
 
         mock_conn = MagicMock()
@@ -229,7 +226,6 @@ class TestSyncPlacesMain:
         with (
             patch("app.jobs.sync_places.run_migrations"),
             patch("app.jobs.sync_places.create_engine", return_value=mock_engine),
-            patch("app.jobs.sync_places._load_run_scope", return_value=None),
             patch("app.jobs.sync_places._process_chunk", return_value=chunk_result),
         ):
             from app.jobs.sync_places import main
@@ -244,9 +240,6 @@ class TestSyncPlacesMain:
             "Grand Mosque",
             {"religion": "islam", "place_type": "mosque", "lat": 25.2, "lng": 55.3, "address": "x"},
             0.9,
-            25.2,
-            55.3,
-            "United Arab Emirates",
         )
 
         mock_conn = MagicMock()
@@ -262,7 +255,6 @@ class TestSyncPlacesMain:
         with (
             patch("app.jobs.sync_places.run_migrations"),
             patch("app.jobs.sync_places.create_engine", return_value=mock_engine),
-            patch("app.jobs.sync_places._load_run_scope", return_value=None),
             patch("app.jobs.sync_places._process_chunk", return_value=chunk_result),
         ):
             from app.jobs.sync_places import main
@@ -281,9 +273,6 @@ class TestSyncPlacesMain:
             "Grand Mosque",
             {"religion": "islam", "place_type": "mosque", "lat": 25.2, "lng": 55.3, "address": "x"},
             0.5,
-            25.2,
-            55.3,
-            "United Arab Emirates",
         )
 
         mock_conn = MagicMock()
@@ -297,7 +286,6 @@ class TestSyncPlacesMain:
         with (
             patch("app.jobs.sync_places.run_migrations"),
             patch("app.jobs.sync_places.create_engine", return_value=mock_engine),
-            patch("app.jobs.sync_places._load_run_scope", return_value=None),
             patch("app.jobs.sync_places._process_chunk") as mock_chunk,
         ):
             from app.jobs.sync_places import main
@@ -424,7 +412,7 @@ class TestDirectSyncRunScoped:
         assert direct["state"] == "completed"
         assert direct["images_replaced"] == 1
 
-    def test_sync_places_for_run_filters_out_of_scope_places(self, tmp_path):
+    def test_sync_places_for_run_syncs_out_of_scope_places_by_quality_only(self, tmp_path):
         from app.jobs.sync_places import sync_places_for_run
 
         db_path = tmp_path / "scraper.sqlite"
@@ -471,6 +459,10 @@ class TestDirectSyncRunScoped:
                     "('run_scope', 'plc_raw_in', 'Raw Coordinate Mosque', :raw_in, 0.9, NULL, NULL, "
                     "NULL, NULL), "
                     "('run_scope', 'plc_zero', 'Zero Mosque', :raw_in, 0.9, 0, 0, "
+                    "'United Arab Emirates', NULL), "
+                    "('run_scope', 'plc_low', 'Low Quality Mosque', :raw_in, 0.5, 25.2, 55.3, "
+                    "'United Arab Emirates', NULL), "
+                    "('run_scope', 'plc_generic', 'Mosque', :raw_in, 0.9, 25.2, 55.3, "
                     "'United Arab Emirates', NULL)"
                 ),
                 {"raw_in": raw_in, "raw_out": raw_out},
@@ -482,7 +474,9 @@ class TestDirectSyncRunScoped:
                 "app.jobs.sync_places._process_chunk",
                 return_value=[
                     {"place_code": "plc_in", "ok": True, "action": "created"},
+                    {"place_code": "plc_out", "ok": True, "action": "created"},
                     {"place_code": "plc_raw_in", "ok": True, "action": "created"},
+                    {"place_code": "plc_zero", "ok": True, "action": "created"},
                 ],
             ) as mock_chunk,
         ):
@@ -494,20 +488,23 @@ class TestDirectSyncRunScoped:
 
         mock_chunk.assert_called_once()
         synced_codes = [place.place_code for place in mock_chunk.call_args.args[0]]
-        assert synced_codes == ["plc_in", "plc_raw_in"]
-        assert summary.scanned == 4
-        assert summary.synced == 2
-        assert summary.skipped_quality == 2
+        assert synced_codes == ["plc_in", "plc_out", "plc_raw_in", "plc_zero"]
+        assert summary.scanned == 6
+        assert summary.synced == 4
+        assert summary.skipped_quality == 1
+        assert summary.skipped_name == 1
         with scraper_engine.connect() as conn:
             statuses = conn.execute(
                 text("SELECT place_code, sync_status FROM scrapedplace ORDER BY place_code")
             ).all()
 
         assert statuses == [
+            ("plc_generic", "name_filtered"),
             ("plc_in", "synced"),
-            ("plc_out", "quality_filtered"),
+            ("plc_low", "quality_filtered"),
+            ("plc_out", "synced"),
             ("plc_raw_in", "synced"),
-            ("plc_zero", "quality_filtered"),
+            ("plc_zero", "synced"),
         ]
 
 

@@ -13,7 +13,6 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import bindparam, create_engine, text
-from sqlalchemy.exc import SQLAlchemyError
 
 from app.db.session import run_migrations
 from app.models.schemas import (
@@ -33,7 +32,6 @@ logger = logging.getLogger(__name__)
 _QUALITY_GATE = 0.75
 _BATCH_SIZE = 50
 _VALID_RELIGIONS = {"islam", "hinduism", "christianity", "all"}
-_GEOFENCE_PADDING_DEGREES = 0.05
 
 
 @dataclass
@@ -54,111 +52,6 @@ class DirectSyncSummary:
     batches: int = 0
     elapsed_s: float = 0.0
     failure_details: list[str] | None = None
-
-
-@dataclass(frozen=True)
-class RunScope:
-    expected_country: str | None = None
-    lat_min: float | None = None
-    lat_max: float | None = None
-    lng_min: float | None = None
-    lng_max: float | None = None
-
-
-def _load_run_scope(scraper_engine, run_code: str | None) -> RunScope | None:
-    if not run_code:
-        return None
-
-    try:
-        with scraper_engine.connect() as conn:
-            run = (
-                conn.execute(
-                    text(
-                        "SELECT r.geo_box_label, dl.config "
-                        "FROM scraperrun r "
-                        "LEFT JOIN datalocation dl ON dl.code = r.location_code "
-                        "WHERE r.run_code = :run_code"
-                    ),
-                    {"run_code": run_code},
-                )
-                .mappings()
-                .first()
-            )
-            if not run:
-                return None
-
-            config = run.get("config") or {}
-            if isinstance(config, str):
-                try:
-                    config = json.loads(config)
-                except json.JSONDecodeError:
-                    config = {}
-            expected_country = config.get("country") if isinstance(config, dict) else None
-
-            box = None
-            if run.get("geo_box_label"):
-                box = (
-                    conn.execute(
-                        text(
-                            "SELECT bx.lat_min, bx.lat_max, bx.lng_min, bx.lng_max "
-                            "FROM geoboundarybox bx "
-                            "JOIN geoboundary b ON b.id = bx.boundary_id "
-                            "WHERE bx.label = :label "
-                            "AND (:country IS NULL OR b.name = :country) "
-                            "ORDER BY bx.id DESC "
-                            "LIMIT 1"
-                        ),
-                        {"label": run["geo_box_label"], "country": expected_country},
-                    )
-                    .mappings()
-                    .first()
-                )
-    except SQLAlchemyError as exc:
-        logger.warning(
-            "Could not load run scope for %s; proceeding without geofence: %s", run_code, exc
-        )
-        return None
-
-    if not box:
-        return RunScope(expected_country=expected_country)
-
-    return RunScope(
-        expected_country=expected_country,
-        lat_min=float(box["lat_min"]) - _GEOFENCE_PADDING_DEGREES,
-        lat_max=float(box["lat_max"]) + _GEOFENCE_PADDING_DEGREES,
-        lng_min=float(box["lng_min"]) - _GEOFENCE_PADDING_DEGREES,
-        lng_max=float(box["lng_max"]) + _GEOFENCE_PADDING_DEGREES,
-    )
-
-
-def _is_in_run_scope(
-    *,
-    lat: Any,
-    lng: Any,
-    country: str | None,
-    scope: RunScope | None,
-) -> bool:
-    if not scope:
-        return True
-
-    normalized_country = (country or "").strip().casefold()
-    expected_country = (scope.expected_country or "").strip().casefold()
-    if expected_country and normalized_country and normalized_country != expected_country:
-        return False
-
-    if None in (scope.lat_min, scope.lat_max, scope.lng_min, scope.lng_max):
-        return True
-
-    try:
-        lat_f = float(lat)
-        lng_f = float(lng)
-    except (TypeError, ValueError):
-        return False
-
-    if lat_f == 0 and lng_f == 0:
-        return False
-
-    return scope.lat_min <= lat_f <= scope.lat_max and scope.lng_min <= lng_f <= scope.lng_max
 
 
 def _sanitize_religion(religion: str | None) -> str:
@@ -450,8 +343,7 @@ def _iter_scraped_rows(scraper_engine, run_code: str | None, failed_only: bool):
         clauses.append("sync_status = 'failed'")
     where = " WHERE " + " AND ".join(clauses) if clauses else ""
     query = text(
-        "SELECT place_code, name, raw_data, quality_score, lat, lng, country FROM scrapedplace"
-        f"{where} ORDER BY place_code"
+        f"SELECT place_code, name, raw_data, quality_score FROM scrapedplace{where} ORDER BY place_code"
     )
     with scraper_engine.connect() as conn:
         if scraper_engine.dialect.name == "sqlite":
@@ -486,7 +378,6 @@ def sync_places_for_run(
         run_code=run_code, dry_run=dry_run, failed_only=failed_only, failure_details=[]
     )
     base_synced = _start_scraper_sync(scraper_engine, run_code, failed_only, dry_run)
-    run_scope = _load_run_scope(scraper_engine, run_code)
 
     chunk: list[PlaceCreate] = []
     chunk_codes: list[str] = []
@@ -533,21 +424,9 @@ def sync_places_for_run(
         chunk_codes = []
 
     for row in _iter_scraped_rows(scraper_engine, run_code, failed_only):
-        place_code, name, raw_data, quality_score, lat, lng, country = tuple(row)
+        place_code, name, raw_data, quality_score = tuple(row)
         summary.scanned += 1
         raw_payload = _coerce_raw_data(raw_data)
-        scope_lat = lat if lat is not None else raw_payload.get("lat")
-        scope_lng = lng if lng is not None else raw_payload.get("lng")
-        scope_country = country or raw_payload.get("country")
-        if not _is_in_run_scope(
-            lat=scope_lat,
-            lng=scope_lng,
-            country=scope_country,
-            scope=run_scope,
-        ):
-            summary.skipped_quality += 1
-            mark_status("quality_filtered", [place_code])
-            continue
         if quality_score is not None and float(quality_score) < _QUALITY_GATE:
             summary.skipped_quality += 1
             mark_status("quality_filtered", [place_code])

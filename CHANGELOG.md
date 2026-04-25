@@ -4,13 +4,13 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
-## [2026-04-25] — Direct catalog sync geofence guard
+## [2026-04-25] — Direct catalog sync quality-only filtering
 
 ### Backend
-- **`soulstep-catalog-api/app/jobs/sync_places.py`** — direct scraper-to-catalog sync now loads the run's target country and geo box from the scraper DB, filters out places outside that scope, falls back to `raw_data` coordinates for older scraper rows, rejects `0,0` coordinates, and keeps SQLite local dry-run/fallback behavior safe while preserving Postgres streaming for large runs.
+- **`soulstep-catalog-api/app/jobs/sync_places.py`** — direct scraper-to-catalog sync now treats catalog quality/name gates as the only sync eligibility filters, allowing places outside a child run's boundary box or country to sync when they pass those gates while preserving SQLite local fallback behavior and Postgres streaming for large runs.
 
 ### Tests
-- **`soulstep-catalog-api/tests/test_jobs.py`** — added regression coverage that out-of-country/out-of-box scraper rows are marked filtered and never sent into catalog ingestion during direct sync.
+- **`soulstep-catalog-api/tests/test_jobs.py`** — added regression coverage that high-quality out-of-country/out-of-box scraper rows are sent to catalog ingestion while low-quality and generic-name rows remain filtered.
 
 ---
 
