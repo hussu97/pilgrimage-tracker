@@ -4,6 +4,13 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-25] — Fix Vercel cache headers for frontend app shell
+
+### Frontend (web)
+- **`apps/soulstep-customer-web/vercel.json`** — added `headers` config: catch-all `no-store, no-cache, must-revalidate` for all paths (covers `index.html` and `sw.js`), then overrides with `public, max-age=31536000, immutable` for `/assets/*` (content-hashed JS/CSS bundles). Previously `vercel.json` only set the region, so Vercel applied no `Cache-Control` at all and browsers used heuristic caching on the HTML shell.
+
+---
+
 ## [2026-04-25] — Fix browser caching of frontend app shell
 
 ### Frontend (web)
