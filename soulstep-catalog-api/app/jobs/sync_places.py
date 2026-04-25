@@ -535,7 +535,16 @@ def sync_places_for_run(
     for row in _iter_scraped_rows(scraper_engine, run_code, failed_only):
         place_code, name, raw_data, quality_score, lat, lng, country = tuple(row)
         summary.scanned += 1
-        if not _is_in_run_scope(lat=lat, lng=lng, country=country, scope=run_scope):
+        raw_payload = _coerce_raw_data(raw_data)
+        scope_lat = lat if lat is not None else raw_payload.get("lat")
+        scope_lng = lng if lng is not None else raw_payload.get("lng")
+        scope_country = country or raw_payload.get("country")
+        if not _is_in_run_scope(
+            lat=scope_lat,
+            lng=scope_lng,
+            country=scope_country,
+            scope=run_scope,
+        ):
             summary.skipped_quality += 1
             mark_status("quality_filtered", [place_code])
             continue
@@ -548,7 +557,7 @@ def sync_places_for_run(
             mark_status("name_filtered", [place_code])
             continue
 
-        place = _build_place_create(place_code, name, _coerce_raw_data(raw_data))
+        place = _build_place_create(place_code, name, raw_payload)
         if place is None:
             summary.skipped_build += 1
             summary.failed += 1

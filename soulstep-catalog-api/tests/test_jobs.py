@@ -468,6 +468,8 @@ class TestDirectSyncRunScoped:
                     "'United Arab Emirates', NULL), "
                     "('run_scope', 'plc_out', 'Brussels Mosque', :raw_out, 0.9, 50.85, 4.35, "
                     "'Belgium', NULL), "
+                    "('run_scope', 'plc_raw_in', 'Raw Coordinate Mosque', :raw_in, 0.9, NULL, NULL, "
+                    "NULL, NULL), "
                     "('run_scope', 'plc_zero', 'Zero Mosque', :raw_in, 0.9, 0, 0, "
                     "'United Arab Emirates', NULL)"
                 ),
@@ -478,7 +480,10 @@ class TestDirectSyncRunScoped:
             patch("app.jobs.sync_places.run_migrations"),
             patch(
                 "app.jobs.sync_places._process_chunk",
-                return_value=[{"place_code": "plc_in", "ok": True, "action": "created"}],
+                return_value=[
+                    {"place_code": "plc_in", "ok": True, "action": "created"},
+                    {"place_code": "plc_raw_in", "ok": True, "action": "created"},
+                ],
             ) as mock_chunk,
         ):
             summary = sync_places_for_run(
@@ -489,9 +494,9 @@ class TestDirectSyncRunScoped:
 
         mock_chunk.assert_called_once()
         synced_codes = [place.place_code for place in mock_chunk.call_args.args[0]]
-        assert synced_codes == ["plc_in"]
-        assert summary.scanned == 3
-        assert summary.synced == 1
+        assert synced_codes == ["plc_in", "plc_raw_in"]
+        assert summary.scanned == 4
+        assert summary.synced == 2
         assert summary.skipped_quality == 2
         with scraper_engine.connect() as conn:
             statuses = conn.execute(
@@ -501,6 +506,7 @@ class TestDirectSyncRunScoped:
         assert statuses == [
             ("plc_in", "synced"),
             ("plc_out", "quality_filtered"),
+            ("plc_raw_in", "synced"),
             ("plc_zero", "quality_filtered"),
         ]
 
