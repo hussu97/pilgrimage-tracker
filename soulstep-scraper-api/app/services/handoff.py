@@ -63,6 +63,12 @@ def hydrate_row(model: type[SQLModel], data: dict[str, Any]) -> SQLModel:
     return model(**data)
 
 
+def hydrate_portable_run_row(model: type[SQLModel], data: dict[str, Any]) -> SQLModel:
+    portable_data = dict(data)
+    portable_data.pop("id", None)
+    return hydrate_row(model, portable_data)
+
+
 def write_bundle_file(bundle: dict[str, Any], output_path: str | Path) -> tuple[str, str]:
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -306,13 +312,13 @@ def _replace_run_scoped_rows(
         session.merge(imported_run)
 
     for item in rows.get("discovery_cells", []):
-        session.add(hydrate_row(DiscoveryCell, item))
+        session.add(hydrate_portable_run_row(DiscoveryCell, item))
     for item in rows.get("scraped_places", []):
-        session.add(hydrate_row(ScrapedPlace, item))
+        session.add(hydrate_portable_run_row(ScrapedPlace, item))
     for item in rows.get("raw_collector_data", []):
-        session.add(hydrate_row(RawCollectorData, item))
+        session.add(hydrate_portable_run_row(RawCollectorData, item))
     for item in rows.get("scraped_assets", []):
-        session.add(hydrate_row(ScrapedAsset, item))
+        session.add(hydrate_portable_run_row(ScrapedAsset, item))
 
     if imported_run is None:
         raise HTTPException(status_code=400, detail="Bundle missing scraper run data")

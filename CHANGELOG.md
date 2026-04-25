@@ -7,6 +7,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 ## [2026-04-25] — Direct DB catalog sync for handoff finalization
 
 ### Backend
+- **`soulstep-scraper-api/app/services/handoff.py`** — fixed prod finalize imports to regenerate local-only numeric IDs for run-scoped handoff rows, preventing local SQLite primary keys from colliding with existing production Postgres rows while preserving run/place/cache status data.
 - **`soulstep-catalog-api/app/services/place_ingest.py`** — factored catalog place ingestion into a shared service used by both `/places/batch` and direct DB jobs, preserving the existing quality/name/religion/attribute/review/translation behavior.
 - **`soulstep-catalog-api/app/jobs/sync_places.py`** — added run-scoped direct scraper-to-catalog DB sync with `--run-code`, `--failed-only`, and `--dry-run`; the job streams scraper rows by run, updates scraper sync counters/status, and records direct catalog sync telemetry.
 - **`soulstep-catalog-api/app/api/v1/admin/sync_places.py`** and **`soulstep-scraper-api/app/db/scraper.py`** — added the small authenticated control endpoint and scraper trigger path so finalize/sync can avoid bulk `/places/batch` uploads.
@@ -19,6 +20,7 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 ### Tests
 - **`soulstep-catalog-api/tests/test_jobs.py`** — added coverage for run-scoped direct sync status/counter writes and the catalog image replace/preserve rule.
 - **`soulstep-scraper-api/tests/test_sync.py`** — added coverage that direct mode triggers the catalog control endpoint instead of posting catalog batches.
+- **`soulstep-scraper-api/tests/test_handoff.py`** — added regression coverage for finalizing a bundle whose local surrogate IDs collide with existing production rows.
 
 ---
 

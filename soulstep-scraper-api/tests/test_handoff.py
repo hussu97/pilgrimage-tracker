@@ -22,7 +22,13 @@ from scripts.handoff import (
 )
 from sqlmodel import Session, create_engine, select
 
-from app.db.models import DataLocation, GeoBoundary, ScraperRun
+from app.db.models import (
+    DataLocation,
+    GeoBoundary,
+    RawCollectorData,
+    ScrapedPlace,
+    ScraperRun,
+)
 from app.services.handoff import (
     build_run_bundle,
     mark_handoff_exported,
@@ -144,6 +150,86 @@ def test_finalize_is_idempotent(client, db_session):
         assert mock_sync.call_count == 1
     finally:
         os.unlink(path)
+
+
+def test_finalize_regenerates_local_surrogate_ids(client, db_session):
+    run = _seed_run(db_session, status="interrupted", stage=None)
+    other_run = ScraperRun(
+        run_code="run_other",
+        location_code=run.location_code,
+        status="completed",
+        stage=None,
+    )
+    db_session.add(other_run)
+    db_session.add(
+        ScrapedPlace(
+            id=1,
+            run_code=other_run.run_code,
+            place_code="gplc_other",
+            name="Other",
+            raw_data={"name": "Other"},
+            detail_fetch_status="success",
+        )
+    )
+    db_session.add(
+        RawCollectorData(
+            id=1,
+            run_code=other_run.run_code,
+            place_code="gplc_other",
+            collector_name="gmaps",
+            raw_response={"name": "Other"},
+        )
+    )
+    db_session.commit()
+
+    with Session(db_session.bind) as session:
+        handoff = prepare_handoff_export(session, run.run_code, lease_owner="tester")
+        place = ScrapedPlace(
+            run_code=run.run_code,
+            place_code="gplc_local",
+            name="Local Place",
+            raw_data={"name": "Local Place"},
+            detail_fetch_status="success",
+        )
+        raw = RawCollectorData(
+            run_code=run.run_code,
+            place_code=place.place_code,
+            collector_name="gmaps",
+            raw_response={"name": "Local Place"},
+        )
+        session.add(place)
+        session.add(raw)
+        session.commit()
+        bundle = build_run_bundle(session, run.run_code, handoff.handoff_code)
+        bundle["data"]["scraped_places"][0]["id"] = 1
+        bundle["data"]["raw_collector_data"][0]["id"] = 1
+        handoff = mark_handoff_exported(
+            session,
+            handoff.handoff_code,
+            bundle_uri="/tmp/run.json.gz",
+            manifest_sha256="placeholder",
+        )
+
+    _, payload = _bundle_upload(bundle)
+    with patch("app.api.v1.scraper.sync_run_to_server") as mock_sync:
+        resp = client.post(
+            f"/api/v1/scraper/runs/{run.run_code}/handoff/finalize",
+            params={"handoff_code": handoff.handoff_code},
+            content=payload,
+            headers={"Content-Type": "application/gzip"},
+        )
+
+    assert resp.status_code == 200
+    assert mock_sync.call_count == 1
+    imported_raw = db_session.exec(
+        select(RawCollectorData).where(RawCollectorData.run_code == run.run_code)
+    ).first()
+    imported_place = db_session.exec(
+        select(ScrapedPlace).where(ScrapedPlace.run_code == run.run_code)
+    ).first()
+    assert imported_raw.id != 1
+    assert imported_place.id != 1
+    assert imported_raw.place_code == "gplc_local"
 
 
 def test_resume_local_import_hydrates_datetime_fields_for_sqlite(tmp_path, db_session):
