@@ -5,6 +5,7 @@ import json
 import os
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -92,6 +93,98 @@ def _screen_session_exists(screen_name: str) -> bool:
 def _screen_quit(screen_name: str) -> None:
     if shutil.which("screen") and _screen_session_exists(screen_name):
         subprocess.run(["screen", "-S", screen_name, "-X", "quit"], check=False)
+
+
+def _collect_descendant_pids(process_rows: list[tuple[int, int, str]], root_pid: int) -> set[int]:
+    children: dict[int, list[int]] = {}
+    for pid, ppid, _cmd in process_rows:
+        children.setdefault(ppid, []).append(pid)
+
+    found: set[int] = set()
+    stack = [root_pid]
+    while stack:
+        pid = stack.pop()
+        if pid in found:
+            continue
+        found.add(pid)
+        stack.extend(children.get(pid, []))
+    return found
+
+
+def _read_process_rows() -> list[tuple[int, int, str]]:
+    output = subprocess.check_output(["ps", "-axo", "pid=,ppid=,command="], text=True)
+    rows: list[tuple[int, int, str]] = []
+    for line in output.splitlines():
+        parts = line.strip().split(None, 2)
+        if len(parts) < 2:
+            continue
+        cmd = parts[2] if len(parts) == 3 else ""
+        rows.append((int(parts[0]), int(parts[1]), cmd))
+    return rows
+
+
+def _terminate_local_runner_process_tree(
+    *,
+    run_code: str,
+    database_url: str,
+    log_path: Path,
+    grace_seconds: float = 3.0,
+) -> int:
+    """Terminate stale local handoff runner/browser children for one run.
+
+    `screen -X quit` can leave the login shell, Python runner, Playwright node
+    process, and Chromium children orphaned under PID 1 on macOS. Matching the
+    run-scoped DB/log paths lets us clean up only this handoff without touching
+    other local runs.
+    """
+
+    rows = _read_process_rows()
+    own_pids = {os.getpid(), os.getppid()}
+    sqlite_path = _sqlite_path_from_url(database_url)
+    needle_parts = {
+        f"SCRAPER_RUN_CODE={run_code}",
+        database_url,
+        str(sqlite_path) if sqlite_path else "",
+        str(log_path),
+    }
+    roots = {
+        pid
+        for pid, _ppid, cmd in rows
+        if pid not in own_pids and any(part and part in cmd for part in needle_parts)
+    }
+
+    targets: set[int] = set()
+    for root in roots:
+        targets.update(_collect_descendant_pids(rows, root))
+    targets -= own_pids
+    if not targets:
+        return 0
+
+    command_by_pid = {pid: cmd for pid, _ppid, cmd in rows}
+    for pid in sorted(targets):
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except (PermissionError, ProcessLookupError):
+            pass
+
+    time.sleep(grace_seconds)
+    live_commands = {pid: cmd for pid, _ppid, cmd in _read_process_rows()}
+    terminated = 0
+    for pid in sorted(targets):
+        if pid not in live_commands:
+            terminated += 1
+            continue
+        # Safety check for fast PID reuse after SIGTERM.
+        if live_commands[pid] != command_by_pid.get(pid):
+            continue
+        try:
+            os.kill(pid, signal.SIGKILL)
+            terminated += 1
+        except ProcessLookupError:
+            terminated += 1
+        except PermissionError:
+            pass
+    return terminated
 
 
 def _start_screen_command(*, screen_name: str, command: str) -> None:
@@ -466,6 +559,7 @@ def resume_bg(args: argparse.Namespace) -> int:
 def pause_local(args: argparse.Namespace) -> int:
     work_dir = Path(args.work_dir or _default_work_dir()).resolve()
     database_url = args.local_database_url or _default_local_database_url(args.run_code, work_dir)
+    log_path = work_dir / f"{args.run_code}.log"
     db_path = _sqlite_path_from_url(database_url)
     if db_path and not db_path.exists():
         raise RuntimeError(f"Local DB does not exist for {args.run_code}: {db_path}")
@@ -484,14 +578,27 @@ def pause_local(args: argparse.Namespace) -> int:
     deadline = time.monotonic() + args.wait_seconds
     while _screen_session_exists(screen_name) and time.monotonic() < deadline:
         time.sleep(2)
+    terminated_processes = 0
     if _screen_session_exists(screen_name):
         if args.force:
             _screen_quit(screen_name)
+            terminated_processes = _terminate_local_runner_process_tree(
+                run_code=args.run_code,
+                database_url=database_url,
+                log_path=log_path,
+            )
         else:
             raise RuntimeError(
                 f"Run {args.run_code} was marked cancelled, but screen {screen_name} "
                 f"is still alive after {args.wait_seconds}s. Re-run with --force to close it."
             )
+    elif args.force:
+        terminated_processes = _terminate_local_runner_process_tree(
+            run_code=args.run_code,
+            database_url=database_url,
+            log_path=log_path,
+            grace_seconds=0.5,
+        )
 
     print(
         json.dumps(
@@ -500,6 +607,7 @@ def pause_local(args: argparse.Namespace) -> int:
                 "database_url": database_url,
                 "screen": screen_name,
                 "status": "paused",
+                "terminated_processes": terminated_processes,
             },
             indent=2,
             sort_keys=True,

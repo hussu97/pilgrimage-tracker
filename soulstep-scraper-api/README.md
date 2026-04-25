@@ -153,7 +153,10 @@ python scripts/handoff.py pause-local --run-code run_abc123
 
 This marks the local DB run as cancelled so the scraper's cancellation watcher
 can exit between batches without losing committed `ScrapedPlace` or
-`ScrapedAsset` progress. To resume the same local DB later:
+`ScrapedAsset` progress. If the screen does not exit, re-run with `--force`;
+the CLI quits the detached `screen` and cleans up stale child Python/Playwright
+processes tied to that run-scoped DB/log so they cannot keep writing in the
+background. To resume the same local DB later:
 
 ```bash
 python scripts/handoff.py resume-bg \

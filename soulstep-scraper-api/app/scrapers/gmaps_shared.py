@@ -337,25 +337,18 @@ def _build_flush_objects(
     return objects
 
 
-def _flush_detail_buffer(
+def _filter_new_detail_buffer(
     buffer: list[tuple],
     run_code: str,
     session: Session,
-    run: ScraperRun,
-    counter: AtomicCounter,
-    total: int,
-) -> None:
-    """Batch-write a buffer of fetched place details to the database.
+) -> tuple[list[tuple], int]:
+    """Drop places already persisted for this run before writing a flush batch.
 
-    Computes quality score and gate label for each place immediately after
-    detail fetch so downstream phases can gate on these values.
-
-    If the primary session's commit fails (stale connection, FK violation from
-    a dead connection, etc.), retries once with a fresh session.
+    Resumed local handoffs can see duplicate resolved place IDs when Google
+    redirects multiple discovery results to the same place, or when an old
+    worker committed a row just before a restarted worker flushes its batch.
     """
-    from app.db.session import engine
 
-    original_count = len(buffer)
     incoming_codes = [
         details.get("place_code")
         for _place_name, details, _response in buffer
@@ -383,6 +376,29 @@ def _flush_detail_buffer(
         if place_code:
             seen_codes.add(place_code)
         filtered_buffer.append(item)
+    return filtered_buffer, skipped_duplicates
+
+
+def _flush_detail_buffer(
+    buffer: list[tuple],
+    run_code: str,
+    session: Session,
+    run: ScraperRun,
+    counter: AtomicCounter,
+    total: int,
+) -> None:
+    """Batch-write a buffer of fetched place details to the database.
+
+    Computes quality score and gate label for each place immediately after
+    detail fetch so downstream phases can gate on these values.
+
+    If the primary session's commit fails (stale connection, FK violation from
+    a dead connection, etc.), retries once with a fresh session.
+    """
+    from app.db.session import engine
+
+    original_count = len(buffer)
+    filtered_buffer, skipped_duplicates = _filter_new_detail_buffer(buffer, run_code, session)
 
     if skipped_duplicates:
         logger.info(
@@ -412,35 +428,40 @@ def _flush_detail_buffer(
         except Exception:
             pass
 
-        # Retry with a brand-new session to bypass the stale connection
+        # Retry with a brand-new session to bypass stale connections and to
+        # re-check duplicate rows that may have been committed by an old worker
+        # between the first duplicate scan and the failed commit.
         with Session(engine) as fresh:
             fresh_run = fresh.exec(
                 select(ScraperRun).where(ScraperRun.run_code == run_code)
             ).first()
             if not fresh_run:
                 raise RuntimeError(f"Run {run_code} not found during flush retry") from exc
-            for scraped_place, raw_record, assets in objects:
-                # Expunge from old session so they can be added to fresh
-                try:
-                    session.expunge(scraped_place)
-                except Exception:
-                    pass
-                try:
-                    session.expunge(raw_record)
-                except Exception:
-                    pass
+
+            retry_buffer, retry_skipped_duplicates = _filter_new_detail_buffer(
+                buffer, run_code, fresh
+            )
+            if retry_skipped_duplicates:
+                logger.info(
+                    "Skipping %d duplicate resolved places during detail flush retry for run %s",
+                    retry_skipped_duplicates,
+                    run_code,
+                )
+
+            retry_objects = _build_flush_objects(retry_buffer, run_code, fresh_run)
+            for scraped_place, raw_record, assets in retry_objects:
                 fresh.add(scraped_place)
                 fresh.add(raw_record)
                 for asset in assets:
-                    try:
-                        session.expunge(asset)
-                    except Exception:
-                        pass
                     fresh.add(asset)
             fresh_run.processed_items = new_count
             fresh.add(fresh_run)
             fresh.commit()
-            logger.info("Flush retry succeeded with fresh session (%d places)", len(buffer))
+            logger.info(
+                "Flush retry succeeded with fresh session (%d/%d new places)",
+                len(retry_buffer),
+                len(buffer),
+            )
 
     logger.debug("Flushed %d places (%d/%d total)", len(buffer), new_count, total)
 

@@ -338,7 +338,7 @@ Operational notes:
 - Pass `--local-database-url` when finalizing from a resumed local run so the CLI rebuilds a fresh finalize bundle from the local DB instead of uploading the original export snapshot.
 - `finalize-bg` starts the same finalize/catalog-sync flow in a detached `screen` session and writes `local-handoffs/{run_code}.catalog-sync.log` plus a fresh `*-finalize.json.gz` bundle for monitor-friendly auditing.
 - `monitor` checks local run DBs/logs and starts `finalize-bg` exactly once for each completed run with no pending/failed assets or recent local errors.
-- `pause-local` and `resume-bg` are the laptop-safe local controls for an already-handed-off run; progress is preserved in the run-scoped local DB and resumed from the persisted stage.
+- `pause-local` and `resume-bg` are the laptop-safe local controls for an already-handed-off run; progress is preserved in the run-scoped local DB and resumed from the persisted stage. If a local screen ignores the graceful cancel, `pause-local --force` quits the screen and terminates stale child Python/Playwright/Chromium processes matched to that run-scoped DB/log.
 
 ---
 

@@ -10,15 +10,15 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - **`soulstep-scraper-api/scripts/handoff.py`** — added `finalize-bg` / `finalize-watch` so completed local handoff runs can rebuild a fresh finalize bundle from the local DB, upload it to production, and monitor the production catalog sync in a detached `screen` job.
 - **`soulstep-scraper-api/scripts/handoff.py`** — stores refreshed finalize bundles and JSON-line catalog sync logs under `local-handoffs/` for each run.
 - **`soulstep-scraper-api/scripts/handoff.py`** — added `monitor`, which checks local handoff runs and starts the background catalog sync job exactly once when a run is verified complete.
-- **`soulstep-scraper-api/scripts/handoff.py`** — added `pause-local` and `resume-bg` for laptop-safe pause/resume of already-handed-off local runs without discarding committed progress.
-- **`soulstep-scraper-api/app/scrapers/gmaps_shared.py`** — made resumed detail flushes skip resolved place codes that already exist in the run, preventing duplicate Google-place redirects from failing local handoff resumes.
+- **`soulstep-scraper-api/scripts/handoff.py`** — added `pause-local` and `resume-bg` for laptop-safe pause/resume of already-handed-off local runs without discarding committed progress; forced pauses now terminate stale child Python/Playwright/Chromium process trees matched to the run-scoped DB/log.
+- **`soulstep-scraper-api/app/scrapers/gmaps_shared.py`** — made resumed detail flushes skip resolved place codes that already exist in the run and re-check duplicates on flush retry, preventing duplicate Google-place redirects or stale workers from failing local handoff resumes.
 
 ### Docs
 - **`README.md`**, **`soulstep-scraper-api/README.md`**, and **`PRODUCTION.md`** — documented the refreshed local-DB finalize flow, background catalog sync command, pause/resume controls, and local log locations.
 
 ### Tests
-- **`soulstep-scraper-api/tests/test_handoff.py`** — added coverage for rebuilding finalize bundles from current local DB state, launching run-scoped catalog sync background jobs, monitor-triggered finalization, and local pause/resume commands.
-- **`soulstep-scraper-api/tests/test_browser_gmaps.py`** — added regression coverage for idempotent duplicate-place detail flushes during resumed runs.
+- **`soulstep-scraper-api/tests/test_handoff.py`** — added coverage for rebuilding finalize bundles from current local DB state, launching run-scoped catalog sync background jobs, monitor-triggered finalization, local pause/resume commands, and forced process-tree cleanup.
+- **`soulstep-scraper-api/tests/test_browser_gmaps.py`** — added regression coverage for idempotent duplicate-place detail flushes and retry-after-integrity-race handling during resumed runs.
 
 ---
 

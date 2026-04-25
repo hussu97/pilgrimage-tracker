@@ -13,6 +13,7 @@ from scripts.handoff import (
     _import_bundle_into_db,
     _refresh_finalize_bundle,
     _start_screen_runner,
+    _terminate_local_runner_process_tree,
     finalize_bg,
     monitor_handoffs,
     pause_local,
@@ -378,6 +379,82 @@ def test_pause_local_marks_run_cancelled_and_waits_for_screen_exit(tmp_path, db_
 
     assert paused.status == "cancelled"
     assert "paused" in paused.error_message
+
+
+def test_pause_local_force_terminates_stale_runner_tree(tmp_path, db_session):
+    run = _seed_run(db_session, status="running", stage="detail_fetch")
+    with Session(db_session.bind) as session:
+        handoff = prepare_handoff_export(session, run.run_code, lease_owner="tester")
+        bundle = build_run_bundle(session, run.run_code, handoff.handoff_code)
+
+    local_url = f"sqlite:///{tmp_path / f'{run.run_code}.db'}"
+    _import_bundle_into_db(bundle, local_url)
+    calls = []
+    exists_calls = iter([True, True, False])
+
+    with (
+        patch(
+            "scripts.handoff._screen_session_exists", side_effect=lambda _name: next(exists_calls)
+        ),
+        patch(
+            "scripts.handoff._screen_quit", side_effect=lambda name: calls.append(("quit", name))
+        ),
+        patch(
+            "scripts.handoff._terminate_local_runner_process_tree",
+            side_effect=lambda **kwargs: calls.append(("terminate", kwargs)) or 3,
+        ),
+    ):
+        result = pause_local(
+            SimpleNamespace(
+                run_code=run.run_code,
+                work_dir=str(tmp_path),
+                local_database_url=None,
+                screen_name=None,
+                wait_seconds=0,
+                force=True,
+            )
+        )
+
+    assert result == 0
+    assert calls[0] == ("quit", f"soulstep-{run.run_code}")
+    assert calls[1][0] == "terminate"
+    assert calls[1][1]["run_code"] == run.run_code
+
+
+def test_terminate_local_runner_process_tree_targets_only_matching_run(tmp_path):
+    run_code = "run_proc_test"
+    db_url = f"sqlite:///{tmp_path / f'{run_code}.db'}"
+    log_path = tmp_path / f"{run_code}.log"
+    ps_output = f"""
+100 1 SCREEN -dmS soulstep-{run_code} zsh -lc env DATABASE_URL={db_url} SCRAPER_RUN_CODE={run_code}
+101 100 login -pflq hussainabbasi /bin/zsh -lc env DATABASE_URL={db_url} SCRAPER_RUN_CODE={run_code}
+102 101 /path/python -m app.jobs.run
+103 102 /path/playwright/node
+104 103 /path/chrome-headless-shell
+200 1 SCREEN -dmS soulstep-other zsh -lc env DATABASE_URL=sqlite:///{tmp_path / 'other.db'} SCRAPER_RUN_CODE=run_other
+201 200 /path/python -m app.jobs.run
+"""
+    killed = []
+
+    with (
+        patch("scripts.handoff.os.getpid", return_value=9999),
+        patch("scripts.handoff.os.getppid", return_value=9998),
+        patch("scripts.handoff.subprocess.check_output", return_value=ps_output),
+        patch("scripts.handoff.time.sleep", return_value=None),
+        patch("scripts.handoff.os.kill", side_effect=lambda pid, sig: killed.append((pid, sig))),
+    ):
+        count = _terminate_local_runner_process_tree(
+            run_code=run_code,
+            database_url=db_url,
+            log_path=log_path,
+            grace_seconds=0,
+        )
+
+    killed_pids = {pid for pid, _sig in killed}
+    assert {100, 101, 102, 103, 104}.issubset(killed_pids)
+    assert 200 not in killed_pids
+    assert 201 not in killed_pids
+    assert count == 5
 
 
 def test_batch_export_returns_independent_handoffs(client, db_session):

@@ -2004,6 +2004,68 @@ class TestFlushDetailBufferReviewImages:
         assert len(places) == 1
         assert run.processed_items == 1
 
+    def test_integrity_race_is_rechecked_on_flush_retry(self):
+        """If an old worker commits the same place mid-flush, retry should skip it."""
+        from sqlmodel import Session, select
+
+        from app.db.models import ScrapedPlace, ScraperRun
+        from app.scrapers.gmaps_shared import AtomicCounter, _flush_detail_buffer
+
+        engine = self._make_engine_and_run()
+        details = self._minimal_details("gbr_race01")
+
+        with Session(engine) as sess:
+            run_obj = sess.exec(
+                select(ScraperRun).where(ScraperRun.run_code == "run_rev_img_test")
+            ).first()
+            counter = AtomicCounter()
+            raised_once = False
+
+            def commit_after_duplicate_insert():
+                nonlocal raised_once
+                if raised_once:
+                    return None
+                raised_once = True
+                with Session(engine) as dupe_session:
+                    dupe_session.add(
+                        ScrapedPlace(
+                            run_code="run_rev_img_test",
+                            place_code="gbr_race01",
+                            name="Already Won Race",
+                            raw_data={},
+                            detail_fetch_status="success",
+                        )
+                    )
+                    dupe_session.commit()
+                raise RuntimeError("simulated duplicate race")
+
+            with (
+                patch("app.db.session.engine", engine),
+                patch.object(sess, "commit", side_effect=commit_after_duplicate_insert),
+                patch("app.pipeline.place_quality.score_place_quality", return_value=0.85),
+                patch("app.pipeline.place_quality.get_quality_gate", return_value="sync"),
+            ):
+                _flush_detail_buffer(
+                    [("Racing Place", details, {})],
+                    "run_rev_img_test",
+                    sess,
+                    run_obj,
+                    counter,
+                    1,
+                )
+
+        with Session(engine) as sess:
+            places = sess.exec(
+                select(ScrapedPlace).where(ScrapedPlace.place_code == "gbr_race01")
+            ).all()
+            run = sess.exec(
+                select(ScraperRun).where(ScraperRun.run_code == "run_rev_img_test")
+            ).first()
+
+        assert len(places) == 1
+        assert places[0].name == "Already Won Race"
+        assert run.processed_items == 1
+
 
 # ── _capture_review_images: URL collection and limit ────────────────────────
 
