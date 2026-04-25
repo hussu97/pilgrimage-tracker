@@ -40,6 +40,7 @@ from app.api.v1.admin import (  # noqa: E402
     scraper_proxy,
     seo,
     stats,
+    sync_places,
     translations,
     users,
 )
@@ -65,6 +66,7 @@ admin_router.include_router(seo.router, tags=["admin-seo"])
 admin_router.include_router(ads.router, tags=["admin-ads"])
 admin_router.include_router(health.router, tags=["admin-health"])
 admin_router.include_router(analytics.router, tags=["admin-analytics"])
+admin_router.include_router(sync_places.router, tags=["admin-sync-places"])
 admin_router.include_router(
     city_aliases.router, prefix="/city-aliases", tags=["Admin - City Aliases"]
 )

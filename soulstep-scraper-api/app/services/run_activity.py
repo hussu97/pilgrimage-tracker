@@ -82,6 +82,7 @@ def get_activity_snapshot(run_code: str, session: Session) -> dict:
         .where(ScrapedPlace.enrichment_status == "filtered")
     ).one()
 
+    direct_sync = (run.rate_limit_events or {}).get("direct_catalog_sync") or {}
     return {
         "cells_total": cells_total,
         "cells_saturated": cells_saturated,
@@ -109,4 +110,11 @@ def get_activity_snapshot(run_code: str, session: Session) -> dict:
         "asset_uploaded": asset_stats.uploaded,
         "asset_failed": asset_stats.failed,
         "oldest_pending_asset_age_s": asset_stats.oldest_pending_asset_age_s,
+        "direct_catalog_sync_state": direct_sync.get("state"),
+        "direct_catalog_synced": int(direct_sync.get("synced") or 0),
+        "direct_catalog_failed": int(direct_sync.get("failed") or 0),
+        "direct_catalog_quality_filtered": int(direct_sync.get("quality_filtered") or 0),
+        "direct_catalog_name_filtered": int(direct_sync.get("name_filtered") or 0),
+        "direct_catalog_images_replaced": int(direct_sync.get("images_replaced") or 0),
+        "direct_catalog_images_preserved": int(direct_sync.get("images_preserved") or 0),
     }

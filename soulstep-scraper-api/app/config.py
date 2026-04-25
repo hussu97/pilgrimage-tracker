@@ -46,6 +46,11 @@ class Settings:
 
     # ── Runtime ───────────────────────────────────────────────────────────────
     main_server_url: str = os.environ.get("MAIN_SERVER_URL", "http://127.0.0.1:3000")
+    direct_catalog_sync: bool = os.environ.get("SCRAPER_DIRECT_CATALOG_SYNC", "false").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
     # Public URL forwarded to Cloud Run jobs instead of MAIN_SERVER_URL.
     # Set this when the scraper-API container uses a Docker-internal hostname
     # (e.g. http://catalog-api:3000) that Cloud Run jobs cannot resolve.
@@ -228,6 +233,7 @@ class Settings:
             "SCRAPER_POOL_TIMEOUT": str(self.scraper_pool_timeout),
             # ── Runtime ───────────────────────────────────────────────────────
             "MAIN_SERVER_URL": self.cloud_run_catalog_url or self.main_server_url,
+            "SCRAPER_DIRECT_CATALOG_SYNC": str(self.direct_catalog_sync).lower(),
             "SCRAPER_TIMEZONE": self.scraper_timezone,
             # ── Logging ───────────────────────────────────────────────────────
             "LOG_LEVEL": self.log_level,

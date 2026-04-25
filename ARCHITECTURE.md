@@ -212,7 +212,12 @@ Enrichment: OSM → Wikipedia/Wikidata → KnowledgeGraph/BestTime/Foursquare
 Quality assessment  →  GATE_SYNC (0.75 threshold)
         │
         ▼
-POST /api/v1/places/batch  →  catalog-api upserts places
+catalog sync
+  ├─ direct DB job (prod handoff/default): catalog-api reads scraper DB by run_code
+  └─ /api/v1/places/batch (legacy/local fallback)
+        │
+        ▼
+catalog-api shared place-ingest service  →  catalog DB upserts places
 ```
 
 **Queue processor** (inside scraper-api):
@@ -232,6 +237,8 @@ Each region gets an independent quota. The queue processor distributes jobs acro
 **Scraper backend:** Playwright grid search (3 km × 3 km cells), no API cost. Detail fetch now persists place/review asset work into a durable `ScrapedAsset` queue, preserves `source_image_urls` / `source_photo_urls`, and uploads to the production GCS bucket in parallel while detail fetch is still running. The `image_download` stage is now a bounded drain/barrier over leftover queued assets rather than the primary image path.
 
 **Portable run handoff:** runs can now be leased into a `RunHandoff`, exported into a portable bundle, resumed locally against a snapshot DB, and finalized back into production as the same `run_code`. While a handoff is active, mutating run actions are blocked until the handoff is finalized or aborted.
+
+**Direct catalog sync:** production finalize/sync keeps scraper DB authoritative first, then triggers catalog-api with a small control request. Catalog-api reads `scrapedplace` rows from the scraper DB by `run_code`, converts them through the shared place-ingest service used by `/api/v1/places/batch`, upserts catalog place core data/attributes/reviews/translations/images directly, and writes scraper sync counters/status back to the scraper DB. Catalog images are replaced only when the incoming scraper image count is equal or higher; otherwise existing catalog images are preserved.
 
 ---
 

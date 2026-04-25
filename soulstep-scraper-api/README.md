@@ -33,6 +33,7 @@ Copy the root `.env.example` to `.env`. Key variables:
 | `GCS_BUCKET_NAME` | GCS bucket for scraped images |
 | `GOOGLE_CLOUD_PROJECT` | GCP project ID |
 | `SCRAPER_DISCOVERY_CONCURRENCY` | Primary discovery concurrency knob for browser grid search |
+| `SCRAPER_DIRECT_CATALOG_SYNC` | Use catalog-api direct DB sync control endpoint instead of `/places/batch` |
 | `MAPS_BROWSER_POOL_SIZE` | Optional browser-context override; leave blank to follow discovery concurrency |
 | `MAPS_BROWSER_CONCURRENCY` | Optional active browser override; leave blank to follow discovery concurrency |
 | `MAPS_BROWSER_CELL_DELAY_MIN/MAX` | Per-cell browser discovery jitter range |
@@ -116,6 +117,13 @@ Bundle finalize uploads raw `application/gzip` bytes to
 When `--local-database-url` is passed, the CLI first rebuilds a fresh finalize
 bundle from the current local DB so production receives the completed local rows,
 not the original export snapshot.
+
+In production, `SCRAPER_DIRECT_CATALOG_SYNC=true` makes finalize/sync trigger
+catalog-api’s direct DB job with a small control request. The bulk place data is
+read by catalog-api from the production scraper DB, formatted through the same
+shared ingest logic as the `/places/batch` API, and written directly to the
+catalog DB. `scripts/handoff.py monitor` and `finalize-watch` include
+`direct_catalog_*` counters from the production run/activity responses.
 
 For unattended operations, use `finalize-bg`. It refreshes the finalize bundle,
 starts a detached `screen` job, uploads the bundle to production, then polls the

@@ -5,7 +5,7 @@ Tests for sync_run_to_server and its sanitisation helpers in app.db.scraper.
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 import app.db.scraper as scraper_module
 from app.db.models import ScrapedPlace
@@ -252,6 +252,49 @@ class TestSyncRunToServer:
             sync_run_to_server(run_code, "http://127.0.0.1:3000")
 
         async_batch.assert_not_called()
+
+    def test_direct_catalog_sync_triggers_control_endpoint(
+        self, test_engine, db_session, monkeypatch
+    ):
+        """Direct mode starts the catalog control job instead of POSTing batches."""
+        from app.config import settings
+        from app.db.models import DataLocation, ScraperRun
+
+        run_code = "run_direct_catalog_sync"
+        db_session.add(DataLocation(code="loc_direct", name="Direct City", type="city"))
+        db_session.add(
+            ScraperRun(run_code=run_code, location_code="loc_direct", status="completed")
+        )
+        db_session.commit()
+        monkeypatch.setattr(scraper_module, "engine", test_engine)
+        monkeypatch.setattr(settings, "direct_catalog_sync", True)
+        monkeypatch.setattr(settings, "catalog_api_key", "tok_direct")
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 202
+        mock_resp.text = ""
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_resp)
+
+        with (
+            patch("app.db.scraper.httpx.AsyncClient", return_value=mock_client),
+            patch("app.db.scraper._post_batch_async") as async_batch,
+        ):
+            sync_run_to_server(run_code, "https://catalog-api.soul-step.org")
+
+        async_batch.assert_not_called()
+        mock_client.post.assert_awaited_once()
+        url = mock_client.post.await_args.args[0]
+        kwargs = mock_client.post.await_args.kwargs
+        assert url == "https://catalog-api.soul-step.org/api/v1/admin/sync-places/direct"
+        assert kwargs["json"] == {"run_code": run_code, "failed_only": False, "dry_run": False}
+        assert kwargs["headers"] == {"X-API-Key": "tok_direct"}
+        with Session(test_engine) as session:
+            run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+        assert run is not None
+        assert run.stage == "syncing"
 
     def test_quality_gate_filters_low_quality(self, test_engine, db_session, monkeypatch):
         """Places below GATE_SYNC should be skipped, not sent to server."""
@@ -568,6 +611,7 @@ class TestAutoSeoTriggerInSync:
         monkeypatch.setattr(scraper_module, "engine", test_engine)
 
         fake_settings = MagicMock()
+        fake_settings.direct_catalog_sync = False
         fake_settings.trigger_seo_after_sync = True
         fake_settings.catalog_api_key = "admin_jwt_token"
 
@@ -605,6 +649,7 @@ class TestAutoSeoTriggerInSync:
         monkeypatch.setattr(scraper_module, "engine", test_engine)
 
         fake_settings = MagicMock()
+        fake_settings.direct_catalog_sync = False
         fake_settings.trigger_seo_after_sync = False
         fake_settings.catalog_api_key = "some_token"
 
@@ -637,6 +682,7 @@ class TestAutoSeoTriggerInSync:
         monkeypatch.setattr(scraper_module, "engine", test_engine)
 
         fake_settings = MagicMock()
+        fake_settings.direct_catalog_sync = False
         fake_settings.trigger_seo_after_sync = True
         fake_settings.catalog_api_key = ""  # empty — not set
 

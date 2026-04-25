@@ -5,8 +5,7 @@ from threading import Lock
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import RedirectResponse
-from sqlalchemy.exc import IntegrityError, OperationalError
-from sqlmodel import Session, func, select
+from sqlmodel import func, select
 
 from app.api.deps import ApiKeyDep, OptionalUserDep, UserDep
 from app.api.v1.place_serializers import (
@@ -17,17 +16,17 @@ from app.api.v1.place_serializers import (
 from app.db import check_ins as check_ins_db
 from app.db import content_translations as ct_db
 from app.db import favorites as favorites_db
-from app.db import place_attributes as attr_db
 from app.db import place_images, review_images
 from app.db import places as places_db
 from app.db import reviews as reviews_db
 from app.db import store as user_store
 from app.db.enums import ImageType, NotificationType, Religion, ReviewSource
-from app.db.locations import resolve_location_codes
 from app.db.models import Place
 from app.db.places import _haversine_km
 from app.db.session import SessionDep, engine
 from app.models.schemas import CheckInBody, PlaceBatch, PlaceCreate, ReviewCreateBody
+from app.services import place_ingest
+from app.services.place_ingest import upsert_single_place
 
 logger = logging.getLogger(__name__)
 
@@ -555,249 +554,17 @@ def create_review(
     }
 
 
-def _persist_place_translations(place_code: str, translations, session: Session) -> None:
-    """Upsert ContentTranslation rows from a PlaceTranslationInput."""
-    from app.models.schemas import PlaceTranslationInput
-
-    if not isinstance(translations, PlaceTranslationInput):
-        return
-    any_written = False
-    for field, lang_map in [
-        ("name", translations.name),
-        ("description", translations.description),
-        ("address", translations.address),
-    ]:
-        if not lang_map:
-            continue
-        for lang, text in lang_map.items():
-            if lang and text and lang != "en":
-                ct_db.upsert_translation(
-                    entity_type="place",
-                    entity_code=place_code,
-                    field=field,
-                    lang=lang,
-                    text=text,
-                    source="scraper",
-                    session=session,
-                    commit=False,
-                )
-                any_written = True
-    if any_written:
-        session.commit()
-
-
-def _upsert_single_place(
-    place_data,
-    session: Session,
-    existing_map: dict[str, Place] | None = None,
-    loc_cache: dict[tuple, tuple] | None = None,
-) -> tuple:
-    """Create or update a single place and all its related data.
-
-    Args:
-        existing_map: Pre-fetched {place_code: Place} dict (batch optimisation).
-                      When None, falls back to a single SELECT.
-        loc_cache:    Per-batch {(city, state, country): (city_code, state_code, country_code)}
-                      cache to avoid repeated location lookups for the same strings.
-
-    Returns:
-        (place_row, action) where action is "created" or "updated".
-    """
-    city_str = getattr(place_data, "city", None)
-    state_str = getattr(place_data, "state", None)
-    country_str = getattr(place_data, "country", None)
-
-    loc_key = (city_str, state_str, country_str)
-    if loc_cache is not None:
-        if loc_key not in loc_cache:
-            loc_cache[loc_key] = resolve_location_codes(city_str, state_str, country_str, session)
-        city_code, state_code, country_code = loc_cache[loc_key]
-    else:
-        city_code, state_code, country_code = resolve_location_codes(
-            city_str, state_str, country_str, session
-        )
-
-    existing = (
-        existing_map.get(place_data.place_code)
-        if existing_map is not None
-        else places_db.get_place_by_code(place_data.place_code, session)
-    )
-
-    shared_kwargs = {
-        "session": session,
-        "name": place_data.name,
-        "religion": place_data.religion,
-        "place_type": place_data.place_type,
-        "lat": place_data.lat,
-        "lng": place_data.lng,
-        "address": place_data.address,
-        "opening_hours": place_data.opening_hours,
-        "utc_offset_minutes": getattr(place_data, "utc_offset_minutes", None),
-        "description": place_data.description,
-        "website_url": place_data.website_url,
-        "source": place_data.source,
-        "city": city_str,
-        "state": state_str,
-        "country": country_str,
-        "city_code": city_code,
-        "state_code": state_code,
-        "country_code": country_code,
-    }
-
-    if existing:
-        row = places_db.update_place(place_code=place_data.place_code, **shared_kwargs)
-        action = "updated"
-    else:
-        row = places_db.create_place(place_code=place_data.place_code, **shared_kwargs)
-        action = "created"
-
-    # Only upload/set images if the place is new, or if it has no images yet.
-    # Skipping re-upload for existing places with images prevents redundant GCS
-    # uploads on every sync run (scraper sends the same blobs each time).
-    if not place_images.has_images(place_data.place_code, session):
-        if place_data.image_blobs:
-            try:
-                place_images.set_images_from_blobs(
-                    place_data.place_code, place_data.image_blobs, session=session
-                )
-            except Exception as e:
-                logger.error(
-                    "Failed to store image blobs for %s: %s",
-                    place_data.place_code,
-                    e,
-                    exc_info=True,
-                )
-        elif place_data.image_urls:
-            place_images.set_images_from_urls(
-                place_data.place_code, place_data.image_urls, session=session
-            )
-
-    if place_data.attributes:
-        attr_db.bulk_upsert_attributes(place_data.place_code, place_data.attributes, session)
-        session.commit()
-
-    if place_data.external_reviews:
-        reviews_db.upsert_external_reviews(
-            place_data.place_code, place_data.external_reviews, session
-        )
-
-    if place_data.translations:
-        _persist_place_translations(place_data.place_code, place_data.translations, session)
-
-    return row, action
-
-
 _BATCH_CHUNK_SIZE = 50
 
 
-_MAX_CHUNK_RETRIES = 3
-
-
 def _process_chunk(chunk: list[PlaceCreate]) -> list[dict]:
-    """Upsert one chunk of places using a dedicated short-lived session.
-
-    Opens and closes its own Session so the connection is returned to the pool
-    as soon as the chunk finishes. A DB-level error (e.g. pool timeout) only
-    affects this chunk; the caller continues with the remaining chunks.
-
-    Retries up to _MAX_CHUNK_RETRIES times on OperationalError (pool timeout /
-    transient connection error) with exponential backoff (1s, 2s).
-    """
-    chunk_codes = [p.place_code for p in chunk]
-    last_op_err: OperationalError | None = None
-
-    for attempt in range(_MAX_CHUNK_RETRIES):
-        if attempt:
-            delay = 2 ** (attempt - 1)  # 1s, 2s
-            logger.warning(
-                "Chunk DB retry %d/%d (%d places) in %ds: %s",
-                attempt + 1,
-                _MAX_CHUNK_RETRIES,
-                len(chunk),
-                delay,
-                last_op_err,
-            )
-            time.sleep(delay)
-
-        results: list[dict] = []
-        with Session(engine) as session:
-            try:
-                existing_rows = session.exec(
-                    select(Place).where(Place.place_code.in_(chunk_codes))
-                ).all()
-            except OperationalError as e:
-                # Pool timeout or transient connection error — retry
-                last_op_err = e
-                continue
-            except Exception as e:
-                logger.warning("Chunk pre-fetch failed (%s places): %s", len(chunk), e)
-                return [
-                    {"place_code": p.place_code, "ok": False, "error": f"db_unavailable: {e}"}
-                    for p in chunk
-                ]
-
-            existing_map: dict[str, Place] = {p.place_code: p for p in existing_rows}
-            loc_cache: dict[tuple, tuple] = {}
-
-            for place_data in chunk:
-                try:
-                    _, action = _upsert_single_place(place_data, session, existing_map, loc_cache)
-                    results.append(
-                        {"place_code": place_data.place_code, "ok": True, "action": action}
-                    )
-                except IntegrityError:
-                    # Race condition: concurrent request inserted this place between our
-                    # pre-fetch and our INSERT. Roll back, re-fetch the row, then update.
-                    session.rollback()
-                    try:
-                        existing = places_db.get_place_by_code(place_data.place_code, session)
-                        if existing:
-                            existing_map[place_data.place_code] = existing
-                        _, action = _upsert_single_place(
-                            place_data, session, existing_map, loc_cache
-                        )
-                        results.append(
-                            {"place_code": place_data.place_code, "ok": True, "action": action}
-                        )
-                    except Exception as retry_err:
-                        session.rollback()
-                        logger.warning(
-                            "Failed to upsert place %s after IntegrityError retry: %s",
-                            place_data.place_code,
-                            retry_err,
-                            exc_info=True,
-                        )
-                        results.append(
-                            {
-                                "place_code": place_data.place_code,
-                                "ok": False,
-                                "error": str(retry_err),
-                            }
-                        )
-                except Exception as e:
-                    session.rollback()
-                    logger.warning(
-                        "Failed to upsert place %s: %s",
-                        place_data.place_code,
-                        e,
-                        exc_info=True,
-                    )
-                    results.append(
-                        {"place_code": place_data.place_code, "ok": False, "error": str(e)}
-                    )
-
-        return results  # success
-
-    logger.warning(
-        "Chunk pre-fetch failed after %d attempts (%d places): %s",
-        _MAX_CHUNK_RETRIES,
-        len(chunk),
-        last_op_err,
-    )
-    return [
-        {"place_code": p.place_code, "ok": False, "error": f"db_unavailable: {last_op_err}"}
-        for p in chunk
-    ]
+    """Upsert one API batch chunk through the shared catalog place-ingest service."""
+    previous_engine = place_ingest.engine
+    place_ingest.engine = engine
+    try:
+        return place_ingest.process_place_chunk(chunk, image_policy="missing_only")
+    finally:
+        place_ingest.engine = previous_engine
 
 
 @router.post("/batch")
@@ -850,7 +617,7 @@ def create_place(
     """
     Create a new place or update an existing one if place_code matches.
     """
-    row, _ = _upsert_single_place(body, session)
+    row, _, _ = upsert_single_place(body, session)
     return serialize_place_detail(row, session)
 
 

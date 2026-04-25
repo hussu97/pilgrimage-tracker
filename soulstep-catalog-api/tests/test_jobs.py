@@ -6,9 +6,12 @@ external I/O (DB connections, process_chunk).
 
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy import create_engine, text
+from sqlmodel import Session, select
 
 # ─────────────────────────────────────────────────────────────────────────────
 # sync_places: pure logic helpers
@@ -289,3 +292,214 @@ class TestSyncPlacesMain:
 
             main()
             mock_chunk.assert_not_called()  # Filtered out — nothing to process
+
+
+class TestDirectSyncRunScoped:
+    def test_sync_places_for_run_updates_scraper_status_and_counters(self, tmp_path):
+        from app.jobs.sync_places import sync_places_for_run
+
+        db_path = tmp_path / "scraper.sqlite"
+        scraper_url = f"sqlite:///{db_path}"
+        scraper_engine = create_engine(scraper_url)
+        with scraper_engine.begin() as conn:
+            conn.execute(
+                text(
+                    "CREATE TABLE scraperrun ("
+                    "run_code TEXT PRIMARY KEY, stage TEXT, places_synced INTEGER, "
+                    "places_sync_failed INTEGER, places_sync_quality_filtered INTEGER, "
+                    "places_sync_name_filtered INTEGER, sync_failure_details TEXT, "
+                    "rate_limit_events TEXT, last_sync_at TEXT)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE TABLE scrapedplace ("
+                    "run_code TEXT, place_code TEXT, name TEXT, raw_data TEXT, "
+                    "quality_score REAL, sync_status TEXT)"
+                )
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO scraperrun VALUES "
+                    "('run_a', NULL, 5, 0, 0, 0, '[]', '{}', NULL), "
+                    "('run_b', NULL, 0, 0, 0, 0, '[]', '{}', NULL)"
+                )
+            )
+            raw = json.dumps(
+                {
+                    "religion": "islam",
+                    "place_type": "mosque",
+                    "lat": 25.2,
+                    "lng": 55.3,
+                    "address": "123 St",
+                    "image_urls": ["https://example.com/a.jpg"],
+                }
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO scrapedplace VALUES "
+                    "('run_a', 'plc_a', 'Grand Mosque', :raw, 0.9, NULL), "
+                    "('run_b', 'plc_b', 'Other Mosque', :raw, 0.9, NULL)"
+                ),
+                {"raw": raw},
+            )
+
+        with (
+            patch("app.jobs.sync_places.run_migrations"),
+            patch(
+                "app.jobs.sync_places._process_chunk",
+                return_value=[
+                    {
+                        "place_code": "plc_a",
+                        "ok": True,
+                        "action": "created",
+                        "image_action": "replaced",
+                    }
+                ],
+            ),
+        ):
+            summary = sync_places_for_run(
+                run_code="run_a",
+                scraper_database_url=scraper_url,
+                run_catalog_migrations=False,
+            )
+
+        assert summary.scanned == 1
+        assert summary.synced == 1
+        assert summary.images_replaced == 1
+        with scraper_engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT run_code, place_code, sync_status FROM scrapedplace ORDER BY place_code"
+                )
+            ).all()
+            run = (
+                conn.execute(text("SELECT * FROM scraperrun WHERE run_code = 'run_a'"))
+                .mappings()
+                .first()
+            )
+
+        assert rows == [("run_a", "plc_a", "synced"), ("run_b", "plc_b", None)]
+        assert run["stage"] is None
+        assert run["places_synced"] == 1
+        direct = json.loads(run["rate_limit_events"])["direct_catalog_sync"]
+        assert direct["state"] == "completed"
+        assert direct["images_replaced"] == 1
+
+
+class TestPlaceIngestImages:
+    def _place_create(self, code: str, image_urls: list[str]):
+        from app.models.schemas import PlaceCreate
+
+        return PlaceCreate(
+            place_code=code,
+            name="Grand Mosque",
+            religion="islam",
+            place_type="mosque",
+            lat=25.2,
+            lng=55.3,
+            address="123 St",
+            image_urls=image_urls,
+        )
+
+    def _seed_place_with_images(self, db_session: Session, place_code: str, count: int) -> None:
+        from app.db.models import Place, PlaceImage
+
+        db_session.add(
+            Place(
+                place_code=place_code,
+                name="Old Mosque",
+                religion="islam",
+                place_type="mosque",
+                lat=25.2,
+                lng=55.3,
+                address="Old St",
+            )
+        )
+        for idx in range(count):
+            db_session.add(
+                PlaceImage(
+                    place_code=place_code,
+                    image_type="url",
+                    url=f"https://old.example.com/{idx}.jpg",
+                    display_order=idx,
+                )
+            )
+        db_session.commit()
+
+    def test_direct_sync_preserves_images_when_incoming_count_is_lower(
+        self, db_session, test_engine, monkeypatch
+    ):
+        from app.db.models import PlaceImage
+        from app.services import place_ingest
+
+        self._seed_place_with_images(db_session, "plc_preserve", 3)
+        monkeypatch.setattr(place_ingest, "engine", test_engine)
+
+        result = place_ingest.process_place_chunk(
+            [self._place_create("plc_preserve", ["https://new.example.com/one.jpg"])],
+            image_policy="incoming_gte_existing",
+        )
+
+        images = db_session.exec(
+            select(PlaceImage).where(PlaceImage.place_code == "plc_preserve")
+        ).all()
+        assert result[0]["image_action"] == "preserved"
+        assert [img.url for img in images] == [
+            "https://old.example.com/0.jpg",
+            "https://old.example.com/1.jpg",
+            "https://old.example.com/2.jpg",
+        ]
+
+    def test_direct_sync_replaces_images_when_incoming_count_is_equal_or_higher(
+        self, db_session, test_engine, monkeypatch
+    ):
+        from app.db.models import PlaceImage
+        from app.services import place_ingest
+
+        self._seed_place_with_images(db_session, "plc_replace", 2)
+        monkeypatch.setattr(place_ingest, "engine", test_engine)
+
+        result = place_ingest.process_place_chunk(
+            [
+                self._place_create(
+                    "plc_replace",
+                    ["https://new.example.com/one.jpg", "https://new.example.com/two.jpg"],
+                )
+            ],
+            image_policy="incoming_gte_existing",
+        )
+
+        images = db_session.exec(
+            select(PlaceImage).where(PlaceImage.place_code == "plc_replace")
+        ).all()
+        assert result[0]["image_action"] == "replaced"
+        assert [img.url for img in images] == [
+            "https://new.example.com/one.jpg",
+            "https://new.example.com/two.jpg",
+        ]
+
+
+class TestDirectSyncControlEndpoint:
+    def test_control_endpoint_starts_background_job(self, client, monkeypatch):
+        monkeypatch.setenv("SCRAPER_DATABASE_URL", "sqlite:///scraper.db")
+        with patch("app.api.v1.admin.sync_places._run_direct_sync") as mock_sync:
+            resp = client.post(
+                "/api/v1/admin/sync-places/direct",
+                headers={"X-API-Key": "test-api-key"},
+                json={"run_code": "run_endpoint", "failed_only": True, "dry_run": True},
+            )
+
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "direct_sync_started"
+        mock_sync.assert_called_once_with("run_endpoint", True, True)
+
+    def test_control_endpoint_requires_scraper_database_url(self, client, monkeypatch):
+        monkeypatch.delenv("SCRAPER_DATABASE_URL", raising=False)
+        resp = client.post(
+            "/api/v1/admin/sync-places/direct",
+            headers={"X-API-Key": "test-api-key"},
+            json={"run_code": "run_endpoint"},
+        )
+
+        assert resp.status_code == 503

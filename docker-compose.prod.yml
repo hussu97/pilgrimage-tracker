@@ -41,6 +41,7 @@ services:
     environment:
       # ── Constructed / internal ────────────────────────────────────────────
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      SCRAPER_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${SCRAPER_POSTGRES_DB}
       PORT: "3000"
       DATA_SCRAPER_URL: http://scraper-api:8080
       LOG_FORMAT: json
@@ -153,6 +154,7 @@ services:
       # ── Post-run automation ───────────────────────────────────────────────
       SCRAPER_AUTO_SYNC_AFTER_RUN: ${SCRAPER_AUTO_SYNC_AFTER_RUN:-false}
       SCRAPER_TRIGGER_SEO_AFTER_SYNC: ${SCRAPER_TRIGGER_SEO_AFTER_SYNC:-false}
+      SCRAPER_DIRECT_CATALOG_SYNC: ${SCRAPER_DIRECT_CATALOG_SYNC:-true}
       # ── Cloud Run dispatch (regions list) ─────────────────────────────────
       CLOUD_RUN_REGIONS: ${CLOUD_RUN_REGIONS:-europe-west1:3,europe-west4:4,europe-west2:4}
       # ── Browser grid / Playwright pool ────────────────────────────────────

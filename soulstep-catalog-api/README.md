@@ -23,6 +23,7 @@ Copy the root `.env.example` to `.env`. Key variables:
 | `JWT_SECRET` | Secret for signing JWT tokens |
 | `CATALOG_API_KEY` | Internal API key used by other services |
 | `DATABASE_URL` | Postgres DSN (e.g. `postgresql+psycopg2://...`) |
+| `SCRAPER_DATABASE_URL` | Read DSN for direct DB sync from scraper runs |
 | `PORT` | Port to listen on (default `3000`) |
 | `CORS_ORIGINS` | Comma-separated allowed origins |
 | `FRONTEND_URL` | Customer web URL (for email links) |
@@ -114,6 +115,25 @@ Copy the root `.env.example` to `.env`. Key variables:
 | GET | `/api/v1/admin/users` | List users |
 | GET | `/api/v1/admin/seo` | SEO dashboard stats |
 | GET | `/api/v1/admin/seo/ai-citations` | AI crawler log |
+| POST | `/api/v1/admin/sync-places/direct` | Start a run-scoped direct DB sync from scraper DB to catalog DB |
+
+## Direct Scraper Sync Job
+
+Large handoff finalizations should not send places through `/api/v1/places/batch`.
+Instead, catalog-api can read completed scraper rows directly from
+`SCRAPER_DATABASE_URL`, run them through the same place-ingest service used by
+the API path, and update scraper sync counters when done:
+
+```bash
+source .venv/bin/activate
+SCRAPER_DATABASE_URL=postgresql://... python -m app.jobs.sync_places --run-code run_xxx
+SCRAPER_DATABASE_URL=postgresql://... python -m app.jobs.sync_places --run-code run_xxx --failed-only
+SCRAPER_DATABASE_URL=postgresql://... python -m app.jobs.sync_places --run-code run_xxx --dry-run
+```
+
+The direct job preserves existing catalog images when incoming scraper image
+count is lower, and replaces scraper-owned `PlaceImage` rows when incoming count
+is equal or higher.
 
 ## Migrations
 

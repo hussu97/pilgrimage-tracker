@@ -56,6 +56,13 @@ class ScraperRunResponse(BaseModel):
     asset_uploaded: int = 0
     asset_failed: int = 0
     oldest_pending_asset_age_s: int | None = None
+    direct_catalog_sync_state: str | None = None
+    direct_catalog_synced: int = 0
+    direct_catalog_failed: int = 0
+    direct_catalog_quality_filtered: int = 0
+    direct_catalog_name_filtered: int = 0
+    direct_catalog_images_replaced: int = 0
+    direct_catalog_images_preserved: int = 0
 
 
 class ScraperRunsCreateResponse(BaseModel):
@@ -104,6 +111,7 @@ class HandoffFinalizeResponse(BaseModel):
     run_code: str
     status: str
     triggered_sync: bool
+    direct_catalog_sync_state: str | None = None
 
 
 class SyncRequest(BaseModel):

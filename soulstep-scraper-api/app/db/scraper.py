@@ -885,6 +885,49 @@ async def _trigger_seo_generation_async(server_url: str, api_key: str) -> None:
         logger.error("Auto-SEO generation failed (sync still succeeded): %s", exc)
 
 
+async def _trigger_direct_catalog_sync_async(
+    run_code: str,
+    server_url: str,
+    failed_only: bool,
+    api_key: str,
+) -> None:
+    """Ask catalog-api to run the direct DB sync job for this scraper run."""
+
+    if not api_key:
+        raise RuntimeError("CATALOG_API_KEY is required for direct catalog sync")
+    if not server_url.startswith(("http://", "https://")):
+        server_url = f"http://{server_url}"
+    server_url = server_url.rstrip("/")
+
+    with Session(engine) as session:
+        run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+        if run:
+            run.stage = "syncing"
+            run.places_sync_failed = 0
+            session.add(run)
+            session.commit()
+
+    url = f"{server_url}/api/v1/admin/sync-places/direct"
+    logger.info("Direct catalog sync: triggering %s for run %s", url, run_code)
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(
+            url,
+            json={"run_code": run_code, "failed_only": failed_only, "dry_run": False},
+            headers={"X-API-Key": api_key},
+        )
+    if resp.status_code not in (200, 202):
+        reason = f"direct catalog sync trigger failed: HTTP {resp.status_code} {resp.text[:200]}"
+        with Session(engine) as session:
+            run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+            if run:
+                run.stage = None
+                run.places_sync_failed = max(run.places_sync_failed, 1)
+                run.sync_failure_details = [reason]
+                session.add(run)
+                session.commit()
+        raise RuntimeError(reason)
+
+
 async def sync_run_to_server_async(
     run_code: str, server_url: str, failed_only: bool = False
 ) -> None:
@@ -901,6 +944,17 @@ async def sync_run_to_server_async(
     Individual fallback POSTs are also async.
     Progress is persisted after every batch for the admin UI live counter.
     """
+    from app.config import settings as _settings
+
+    if _settings.direct_catalog_sync:
+        await _trigger_direct_catalog_sync_async(
+            run_code,
+            server_url,
+            failed_only,
+            _settings.catalog_api_key,
+        )
+        return
+
     # Ensure the URL has an http(s) scheme
     if not server_url.startswith(("http://", "https://")):
         server_url = f"http://{server_url}"
@@ -1023,8 +1077,6 @@ async def sync_run_to_server_async(
         session.commit()
 
     logger.info("Syncing %d places to %s in batches of %d", total, server_url, SYNC_BATCH_SIZE)
-
-    from app.config import settings as _settings
 
     api_key = _settings.catalog_api_key
 

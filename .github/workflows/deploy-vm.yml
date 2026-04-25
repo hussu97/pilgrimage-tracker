@@ -283,6 +283,7 @@ jobs:
           # ── Scraper-api: post-run automation ──────────────────────────────────
           SCRAPER_AUTO_SYNC_AFTER_RUN=${{ secrets.SCRAPER_AUTO_SYNC_AFTER_RUN }}
           SCRAPER_TRIGGER_SEO_AFTER_SYNC=${{ secrets.SCRAPER_TRIGGER_SEO_AFTER_SYNC }}
+          SCRAPER_DIRECT_CATALOG_SYNC=${{ secrets.SCRAPER_DIRECT_CATALOG_SYNC }}
           CLOUD_RUN_CATALOG_URL=${{ secrets.CLOUD_RUN_CATALOG_URL }}
           CLOUD_RUN_JOB_NAME=${{ env.CLOUD_RUN_JOB_NAME }}
           CLOUD_RUN_REGION=${{ env.REGION }}

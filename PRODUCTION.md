@@ -416,6 +416,7 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 | `POSTGRES_PASSWORD` | ✓ | — | PostgreSQL password. |
 | `POSTGRES_DB` | ✓ | — | catalog-api DB name. Example: `soulstep` |
 | `SCRAPER_POSTGRES_DB` | ✓ | — | scraper-api DB name. Example: `soulstep_scraper` |
+| `SCRAPER_DATABASE_URL` | — | `postgresql://.../${SCRAPER_POSTGRES_DB}` | Read DSN for catalog-api direct DB sync jobs. `docker-compose.prod.yml` constructs this from the shared Postgres credentials. |
 | `RESEND_API_KEY` | ✓ | — | Resend.com key for password-reset emails. |
 | `CORS_ORIGINS` | ✓ | `localhost` only | Space-separated browser origins. Example: `https://soul-step.org https://admin.soul-step.org` |
 | `FRONTEND_URL` | ✓ | `http://localhost:5173` | Customer web URL — used in OG, sitemap, JSON-LD, email links. |
@@ -480,6 +481,7 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 | `MAPS_BROWSER_CELL_DELAY_MAX` | — | `2.0` | Maximum per-cell discovery delay in seconds. |
 | `SCRAPER_AUTO_SYNC_AFTER_RUN` | — | `false` | Auto-sync to catalog-api after enrichment. |
 | `SCRAPER_TRIGGER_SEO_AFTER_SYNC` | — | `false` | Auto-call catalog-api SEO endpoint after sync. |
+| `SCRAPER_DIRECT_CATALOG_SYNC` | — | `true` in production compose, `false` in bare local config | When true, scraper finalize/sync sends a small control request to catalog-api and catalog-api reads scraper DB directly instead of using `/places/batch`. |
 
 Recommended browser-only Cloud Run starting point for the current scraper job size (`6 GiB`, `4 vCPU`):
 - `SCRAPER_DISCOVERY_CONCURRENCY=18`

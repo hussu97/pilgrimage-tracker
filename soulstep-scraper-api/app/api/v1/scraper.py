@@ -68,6 +68,7 @@ _TERMINAL_STATUSES = {"completed", "interrupted", "failed", "cancelled"}
 def _serialize_run(session: SessionDep, run: ScraperRun) -> ScraperRunResponse:
     handoff = active_handoff_for_run(session, run.run_code)
     asset_stats = get_asset_stats(run.run_code, session)
+    direct_sync = (run.rate_limit_events or {}).get("direct_catalog_sync") or {}
     return ScraperRunResponse.model_validate(
         {
             **ScraperRunResponse.model_validate(run, from_attributes=True).model_dump(),
@@ -76,6 +77,13 @@ def _serialize_run(session: SessionDep, run: ScraperRun) -> ScraperRunResponse:
             "asset_uploaded": asset_stats.uploaded,
             "asset_failed": asset_stats.failed,
             "oldest_pending_asset_age_s": asset_stats.oldest_pending_asset_age_s,
+            "direct_catalog_sync_state": direct_sync.get("state"),
+            "direct_catalog_synced": int(direct_sync.get("synced") or 0),
+            "direct_catalog_failed": int(direct_sync.get("failed") or 0),
+            "direct_catalog_quality_filtered": int(direct_sync.get("quality_filtered") or 0),
+            "direct_catalog_name_filtered": int(direct_sync.get("name_filtered") or 0),
+            "direct_catalog_images_replaced": int(direct_sync.get("images_replaced") or 0),
+            "direct_catalog_images_preserved": int(direct_sync.get("images_preserved") or 0),
         }
     )
 
@@ -333,6 +341,7 @@ async def finalize_run_handoff(
         run_code=run_code,
         status=handoff.state,
         triggered_sync=triggered_sync,
+        direct_catalog_sync_state="triggered" if triggered_sync else None,
     )
 
 

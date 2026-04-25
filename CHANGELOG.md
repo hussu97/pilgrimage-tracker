@@ -4,6 +4,24 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-25] — Direct DB catalog sync for handoff finalization
+
+### Backend
+- **`soulstep-catalog-api/app/services/place_ingest.py`** — factored catalog place ingestion into a shared service used by both `/places/batch` and direct DB jobs, preserving the existing quality/name/religion/attribute/review/translation behavior.
+- **`soulstep-catalog-api/app/jobs/sync_places.py`** — added run-scoped direct scraper-to-catalog DB sync with `--run-code`, `--failed-only`, and `--dry-run`; the job streams scraper rows by run, updates scraper sync counters/status, and records direct catalog sync telemetry.
+- **`soulstep-catalog-api/app/api/v1/admin/sync_places.py`** and **`soulstep-scraper-api/app/db/scraper.py`** — added the small authenticated control endpoint and scraper trigger path so finalize/sync can avoid bulk `/places/batch` uploads.
+- **`soulstep-catalog-api/app/services/place_ingest.py`** — direct sync now replaces catalog images only when incoming scraper image count is equal or higher, otherwise preserving existing images and counting the preservation.
+- **`docker-compose.prod.yml`** and **`.github/workflows/*env*`** — wired `SCRAPER_DATABASE_URL` for catalog-api and `SCRAPER_DIRECT_CATALOG_SYNC` for scraper-api production deployments.
+
+### Docs
+- **`README.md`**, **`ARCHITECTURE.md`**, **`PRODUCTION.md`**, **`soulstep-catalog-api/README.md`**, and **`soulstep-scraper-api/README.md`** — documented direct DB sync architecture, config, CLI, endpoint, and monitor counters.
+
+### Tests
+- **`soulstep-catalog-api/tests/test_jobs.py`** — added coverage for run-scoped direct sync status/counter writes and the catalog image replace/preserve rule.
+- **`soulstep-scraper-api/tests/test_sync.py`** — added coverage that direct mode triggers the catalog control endpoint instead of posting catalog batches.
+
+---
+
 ## [2026-04-25] — Background catalog sync finalization monitor
 
 ### Backend

@@ -322,6 +322,15 @@ def _fetch_sync_snapshot(client: httpx.Client, prod_url: str, run_code: str) -> 
     activity_resp.raise_for_status()
     run = run_resp.json()
     activity = activity_resp.json() or {}
+    direct_keys = (
+        "direct_catalog_sync_state",
+        "direct_catalog_synced",
+        "direct_catalog_failed",
+        "direct_catalog_quality_filtered",
+        "direct_catalog_name_filtered",
+        "direct_catalog_images_replaced",
+        "direct_catalog_images_preserved",
+    )
     return {
         "status": run.get("status"),
         "stage": run.get("stage"),
@@ -332,6 +341,7 @@ def _fetch_sync_snapshot(client: httpx.Client, prod_url: str, run_code: str) -> 
         "last_sync_at": run.get("last_sync_at"),
         "asset_pending": run.get("asset_pending", activity.get("asset_pending", 0)),
         "asset_failed": run.get("asset_failed", activity.get("asset_failed", 0)),
+        **{key: run.get(key, activity.get(key)) for key in direct_keys},
     }
 
 
@@ -806,6 +816,7 @@ def monitor_handoffs(args: argparse.Namespace) -> int:
 
         pending_assets = int(asset_counts.get("pending_upload", 0) or 0)
         failed_assets = int(asset_counts.get("failed", 0) or 0)
+        direct_sync = (run.rate_limit_events or {}).get("direct_catalog_sync") or {}
         local_log_has_errors = _recent_log_has_errors(run_log)
         sync_completed = _catalog_sync_completed(sync_log)
         ready = (
@@ -827,6 +838,13 @@ def monitor_handoffs(args: argparse.Namespace) -> int:
                 "ready_to_finalize": ready,
                 "local_log_has_errors": local_log_has_errors,
                 "catalog_sync_completed": sync_completed,
+                "direct_catalog_sync_state": direct_sync.get("state"),
+                "direct_catalog_synced": int(direct_sync.get("synced") or 0),
+                "direct_catalog_failed": int(direct_sync.get("failed") or 0),
+                "direct_catalog_quality_filtered": int(direct_sync.get("quality_filtered") or 0),
+                "direct_catalog_name_filtered": int(direct_sync.get("name_filtered") or 0),
+                "direct_catalog_images_replaced": int(direct_sync.get("images_replaced") or 0),
+                "direct_catalog_images_preserved": int(direct_sync.get("images_preserved") or 0),
             }
         )
 
