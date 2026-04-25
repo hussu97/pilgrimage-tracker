@@ -210,6 +210,9 @@ class TestSyncPlacesMain:
                 "address": "123 St",
             },
             0.9,  # quality_score
+            25.2,
+            55.3,
+            "United Arab Emirates",
         )
 
         mock_conn = MagicMock()
@@ -226,6 +229,7 @@ class TestSyncPlacesMain:
         with (
             patch("app.jobs.sync_places.run_migrations"),
             patch("app.jobs.sync_places.create_engine", return_value=mock_engine),
+            patch("app.jobs.sync_places._load_run_scope", return_value=None),
             patch("app.jobs.sync_places._process_chunk", return_value=chunk_result),
         ):
             from app.jobs.sync_places import main
@@ -240,6 +244,9 @@ class TestSyncPlacesMain:
             "Grand Mosque",
             {"religion": "islam", "place_type": "mosque", "lat": 25.2, "lng": 55.3, "address": "x"},
             0.9,
+            25.2,
+            55.3,
+            "United Arab Emirates",
         )
 
         mock_conn = MagicMock()
@@ -255,6 +262,7 @@ class TestSyncPlacesMain:
         with (
             patch("app.jobs.sync_places.run_migrations"),
             patch("app.jobs.sync_places.create_engine", return_value=mock_engine),
+            patch("app.jobs.sync_places._load_run_scope", return_value=None),
             patch("app.jobs.sync_places._process_chunk", return_value=chunk_result),
         ):
             from app.jobs.sync_places import main
@@ -273,6 +281,9 @@ class TestSyncPlacesMain:
             "Grand Mosque",
             {"religion": "islam", "place_type": "mosque", "lat": 25.2, "lng": 55.3, "address": "x"},
             0.5,
+            25.2,
+            55.3,
+            "United Arab Emirates",
         )
 
         mock_conn = MagicMock()
@@ -286,6 +297,7 @@ class TestSyncPlacesMain:
         with (
             patch("app.jobs.sync_places.run_migrations"),
             patch("app.jobs.sync_places.create_engine", return_value=mock_engine),
+            patch("app.jobs.sync_places._load_run_scope", return_value=None),
             patch("app.jobs.sync_places._process_chunk") as mock_chunk,
         ):
             from app.jobs.sync_places import main
@@ -295,34 +307,58 @@ class TestSyncPlacesMain:
 
 
 class TestDirectSyncRunScoped:
-    def test_sync_places_for_run_updates_scraper_status_and_counters(self, tmp_path):
-        from app.jobs.sync_places import sync_places_for_run
-
-        db_path = tmp_path / "scraper.sqlite"
-        scraper_url = f"sqlite:///{db_path}"
-        scraper_engine = create_engine(scraper_url)
+    def _create_scraper_schema(self, scraper_engine) -> None:
         with scraper_engine.begin() as conn:
             conn.execute(
                 text(
                     "CREATE TABLE scraperrun ("
-                    "run_code TEXT PRIMARY KEY, stage TEXT, places_synced INTEGER, "
-                    "places_sync_failed INTEGER, places_sync_quality_filtered INTEGER, "
-                    "places_sync_name_filtered INTEGER, sync_failure_details TEXT, "
-                    "rate_limit_events TEXT, last_sync_at TEXT)"
+                    "run_code TEXT PRIMARY KEY, location_code TEXT, geo_box_label TEXT, "
+                    "stage TEXT, places_synced INTEGER, places_sync_failed INTEGER, "
+                    "places_sync_quality_filtered INTEGER, places_sync_name_filtered INTEGER, "
+                    "sync_failure_details TEXT, rate_limit_events TEXT, last_sync_at TEXT)"
+                )
+            )
+            conn.execute(text("CREATE TABLE datalocation (code TEXT PRIMARY KEY, config TEXT)"))
+            conn.execute(text("CREATE TABLE geoboundary (id INTEGER PRIMARY KEY, name TEXT)"))
+            conn.execute(
+                text(
+                    "CREATE TABLE geoboundarybox ("
+                    "id INTEGER PRIMARY KEY, boundary_id INTEGER, label TEXT, "
+                    "lat_min REAL, lat_max REAL, lng_min REAL, lng_max REAL)"
                 )
             )
             conn.execute(
                 text(
                     "CREATE TABLE scrapedplace ("
                     "run_code TEXT, place_code TEXT, name TEXT, raw_data TEXT, "
-                    "quality_score REAL, sync_status TEXT)"
+                    "quality_score REAL, lat REAL, lng REAL, country TEXT, sync_status TEXT)"
                 )
             )
             conn.execute(
+                text("INSERT INTO datalocation VALUES ('loc_uae', :config)"),
+                {"config": json.dumps({"country": "United Arab Emirates"})},
+            )
+            conn.execute(text("INSERT INTO geoboundary VALUES (1, 'United Arab Emirates')"))
+            conn.execute(
+                text("INSERT INTO geoboundarybox VALUES (1, 1, 'uae_box', 24.0, 26.0, 54.0, 56.0)")
+            )
+
+    def test_sync_places_for_run_updates_scraper_status_and_counters(self, tmp_path):
+        from app.jobs.sync_places import sync_places_for_run
+
+        db_path = tmp_path / "scraper.sqlite"
+        scraper_url = f"sqlite:///{db_path}"
+        scraper_engine = create_engine(scraper_url)
+        self._create_scraper_schema(scraper_engine)
+        with scraper_engine.begin() as conn:
+            conn.execute(
                 text(
-                    "INSERT INTO scraperrun VALUES "
-                    "('run_a', NULL, 5, 0, 0, 0, '[]', '{}', NULL), "
-                    "('run_b', NULL, 0, 0, 0, 0, '[]', '{}', NULL)"
+                    "INSERT INTO scraperrun "
+                    "(run_code, location_code, geo_box_label, stage, places_synced, "
+                    "places_sync_failed, places_sync_quality_filtered, places_sync_name_filtered, "
+                    "sync_failure_details, rate_limit_events, last_sync_at) VALUES "
+                    "('run_a', 'loc_uae', 'uae_box', NULL, 5, 0, 0, 0, '[]', '{}', NULL), "
+                    "('run_b', 'loc_uae', 'uae_box', NULL, 0, 0, 0, 0, '[]', '{}', NULL)"
                 )
             )
             raw = json.dumps(
@@ -338,8 +374,10 @@ class TestDirectSyncRunScoped:
             conn.execute(
                 text(
                     "INSERT INTO scrapedplace VALUES "
-                    "('run_a', 'plc_a', 'Grand Mosque', :raw, 0.9, NULL), "
-                    "('run_b', 'plc_b', 'Other Mosque', :raw, 0.9, NULL)"
+                    "('run_a', 'plc_a', 'Grand Mosque', :raw, 0.9, 25.2, 55.3, "
+                    "'United Arab Emirates', NULL), "
+                    "('run_b', 'plc_b', 'Other Mosque', :raw, 0.9, 25.2, 55.3, "
+                    "'United Arab Emirates', NULL)"
                 ),
                 {"raw": raw},
             )
@@ -385,6 +423,86 @@ class TestDirectSyncRunScoped:
         direct = json.loads(run["rate_limit_events"])["direct_catalog_sync"]
         assert direct["state"] == "completed"
         assert direct["images_replaced"] == 1
+
+    def test_sync_places_for_run_filters_out_of_scope_places(self, tmp_path):
+        from app.jobs.sync_places import sync_places_for_run
+
+        db_path = tmp_path / "scraper.sqlite"
+        scraper_url = f"sqlite:///{db_path}"
+        scraper_engine = create_engine(scraper_url)
+        self._create_scraper_schema(scraper_engine)
+        with scraper_engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO scraperrun "
+                    "(run_code, location_code, geo_box_label, stage, places_synced, "
+                    "places_sync_failed, places_sync_quality_filtered, places_sync_name_filtered, "
+                    "sync_failure_details, rate_limit_events, last_sync_at) VALUES "
+                    "('run_scope', 'loc_uae', 'uae_box', NULL, 0, 0, 0, 0, '[]', '{}', NULL)"
+                )
+            )
+            raw_in = json.dumps(
+                {
+                    "religion": "islam",
+                    "place_type": "mosque",
+                    "lat": 25.2,
+                    "lng": 55.3,
+                    "country": "United Arab Emirates",
+                    "address": "123 St",
+                }
+            )
+            raw_out = json.dumps(
+                {
+                    "religion": "islam",
+                    "place_type": "mosque",
+                    "lat": 50.85,
+                    "lng": 4.35,
+                    "country": "Belgium",
+                    "address": "Brussels",
+                }
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO scrapedplace VALUES "
+                    "('run_scope', 'plc_in', 'Grand Mosque', :raw_in, 0.9, 25.2, 55.3, "
+                    "'United Arab Emirates', NULL), "
+                    "('run_scope', 'plc_out', 'Brussels Mosque', :raw_out, 0.9, 50.85, 4.35, "
+                    "'Belgium', NULL), "
+                    "('run_scope', 'plc_zero', 'Zero Mosque', :raw_in, 0.9, 0, 0, "
+                    "'United Arab Emirates', NULL)"
+                ),
+                {"raw_in": raw_in, "raw_out": raw_out},
+            )
+
+        with (
+            patch("app.jobs.sync_places.run_migrations"),
+            patch(
+                "app.jobs.sync_places._process_chunk",
+                return_value=[{"place_code": "plc_in", "ok": True, "action": "created"}],
+            ) as mock_chunk,
+        ):
+            summary = sync_places_for_run(
+                run_code="run_scope",
+                scraper_database_url=scraper_url,
+                run_catalog_migrations=False,
+            )
+
+        mock_chunk.assert_called_once()
+        synced_codes = [place.place_code for place in mock_chunk.call_args.args[0]]
+        assert synced_codes == ["plc_in"]
+        assert summary.scanned == 3
+        assert summary.synced == 1
+        assert summary.skipped_quality == 2
+        with scraper_engine.connect() as conn:
+            statuses = conn.execute(
+                text("SELECT place_code, sync_status FROM scrapedplace ORDER BY place_code")
+            ).all()
+
+        assert statuses == [
+            ("plc_in", "synced"),
+            ("plc_out", "quality_filtered"),
+            ("plc_zero", "quality_filtered"),
+        ]
 
 
 class TestPlaceIngestImages:
