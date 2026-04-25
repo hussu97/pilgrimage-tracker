@@ -355,7 +355,43 @@ def _flush_detail_buffer(
     """
     from app.db.session import engine
 
-    objects = _build_flush_objects(buffer, run_code, run)
+    original_count = len(buffer)
+    incoming_codes = [
+        details.get("place_code")
+        for _place_name, details, _response in buffer
+        if details.get("place_code")
+    ]
+    existing_codes = set()
+    if incoming_codes:
+        existing_codes = set(
+            session.exec(
+                select(ScrapedPlace.place_code)
+                .where(ScrapedPlace.run_code == run_code)
+                .where(ScrapedPlace.place_code.in_(incoming_codes))
+            ).all()
+        )
+
+    seen_codes: set[str] = set()
+    filtered_buffer: list[tuple] = []
+    skipped_duplicates = 0
+    for item in buffer:
+        _place_name, details, _response = item
+        place_code = details.get("place_code")
+        if place_code and (place_code in existing_codes or place_code in seen_codes):
+            skipped_duplicates += 1
+            continue
+        if place_code:
+            seen_codes.add(place_code)
+        filtered_buffer.append(item)
+
+    if skipped_duplicates:
+        logger.info(
+            "Skipping %d duplicate resolved places during detail flush for run %s",
+            skipped_duplicates,
+            run_code,
+        )
+
+    objects = _build_flush_objects(filtered_buffer, run_code, run)
 
     for scraped_place, raw_record, assets in objects:
         session.add(scraped_place)
@@ -363,7 +399,7 @@ def _flush_detail_buffer(
         for asset in assets:
             session.add(asset)
 
-    new_count = counter.increment(len(buffer))
+    new_count = counter.increment(original_count)
     run.processed_items = new_count
     session.add(run)
 

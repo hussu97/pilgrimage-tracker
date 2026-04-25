@@ -1953,6 +1953,57 @@ class TestFlushDetailBufferReviewImages:
         assert rev_dl == 0
         assert rev_fail == 1
 
+    def test_existing_place_code_is_skipped_on_resume_flush(self):
+        """Resolved place duplicates from a resumed run should not fail the batch."""
+        from sqlmodel import Session, select
+
+        from app.db.models import ScrapedPlace, ScraperRun
+        from app.scrapers.gmaps_shared import AtomicCounter, _flush_detail_buffer
+
+        engine = self._make_engine_and_run()
+        details = self._minimal_details("gbr_existing01")
+
+        with Session(engine) as sess:
+            sess.add(
+                ScrapedPlace(
+                    run_code="run_rev_img_test",
+                    place_code="gbr_existing01",
+                    name="Existing Place",
+                    raw_data={},
+                    detail_fetch_status="success",
+                )
+            )
+            sess.commit()
+
+        with Session(engine) as sess:
+            run_obj = sess.exec(
+                select(ScraperRun).where(ScraperRun.run_code == "run_rev_img_test")
+            ).first()
+            counter = AtomicCounter()
+            with (
+                patch("app.pipeline.place_quality.score_place_quality", return_value=0.85),
+                patch("app.pipeline.place_quality.get_quality_gate", return_value="sync"),
+            ):
+                _flush_detail_buffer(
+                    [("Duplicate Place", details, {})],
+                    "run_rev_img_test",
+                    sess,
+                    run_obj,
+                    counter,
+                    1,
+                )
+
+        with Session(engine) as sess:
+            places = sess.exec(
+                select(ScrapedPlace).where(ScrapedPlace.place_code == "gbr_existing01")
+            ).all()
+            run = sess.exec(
+                select(ScraperRun).where(ScraperRun.run_code == "run_rev_img_test")
+            ).first()
+
+        assert len(places) == 1
+        assert run.processed_items == 1
+
 
 # ── _capture_review_images: URL collection and limit ────────────────────────
 
