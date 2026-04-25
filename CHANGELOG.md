@@ -4,6 +4,14 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-25] — Fix browser caching of frontend app shell
+
+### Frontend (web)
+- **`apps/soulstep-customer-web/nginx.conf`** — added `Cache-Control: no-store, no-cache, must-revalidate` to the `location /` block so browsers and CDNs never heuristically cache `index.html` (the entry point that references hashed asset bundles).
+- **`apps/soulstep-customer-web/vite.config.ts`** — removed `html` from Workbox `globPatterns` so the service worker no longer precaches `index.html`; added a `NetworkFirst` runtime caching strategy for navigation requests (3-second network timeout before falling back to cache); added `skipWaiting: true` and `clientsClaim: true` so a newly installed service worker takes control of all open tabs immediately without waiting for a full browser restart.
+
+---
+
 ## [2026-04-25] — Direct catalog sync quality-only filtering
 
 ### Backend

@@ -25,11 +25,26 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Exclude html so the SW never serves a stale index.html from precache.
+        // Navigation requests use NetworkFirst (below) so the shell is always
+        // fetched fresh; the SW only caches hashed JS/CSS/asset files.
+        globPatterns: ['**/*.{js,css,ico,png,svg,woff2}'],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         // Ensure API calls are never intercepted by the SW
         navigateFallbackDenylist: [/^\/api\//],
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'navigations',
+              networkTimeoutSeconds: 3,
+            },
+          },
+        ],
       },
     }),
   ],
