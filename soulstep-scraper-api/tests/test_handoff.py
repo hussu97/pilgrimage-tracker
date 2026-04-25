@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from scripts.handoff import (
     _import_bundle_into_db,
+    _recent_log_has_errors,
     _refresh_finalize_bundle,
     _start_screen_runner,
     _terminate_local_runner_process_tree,
@@ -455,6 +456,32 @@ def test_terminate_local_runner_process_tree_targets_only_matching_run(tmp_path)
     assert 200 not in killed_pids
     assert 201 not in killed_pids
     assert count == 5
+
+
+def test_recent_log_errors_ignore_failures_before_latest_start(tmp_path):
+    log_path = tmp_path / "run_test.log"
+    log_path.write_text(
+        "\n".join(
+            [
+                '{"message":"Resume of run run_test failed: old duplicate"}',
+                '{"message":"Cloud Run Job starting: run_code=run_test action=resume"}',
+                '{"message":"Browser detail fetch completed"}',
+            ]
+        )
+    )
+
+    assert _recent_log_has_errors(log_path) is False
+
+    log_path.write_text(
+        "\n".join(
+            [
+                '{"message":"Cloud Run Job starting: run_code=run_test action=resume"}',
+                '{"message":"Resume of run run_test failed: new duplicate"}',
+            ]
+        )
+    )
+
+    assert _recent_log_has_errors(log_path) is True
 
 
 def test_batch_export_returns_independent_handoffs(client, db_session):

@@ -57,6 +57,7 @@ MODEL_MAP = {
 
 _RECENT_LOG_ERROR_MARKERS = (
     "traceback",
+    "resume of run",
     "run failed",
     "failed as interrupted",
     "asset-backlog",
@@ -345,7 +346,14 @@ def _read_recent_log(path: Path, max_bytes: int = 200_000) -> str:
 
 def _recent_log_has_errors(path: Path) -> bool:
     recent = _read_recent_log(path).lower()
-    return any(marker in recent for marker in _RECENT_LOG_ERROR_MARKERS)
+    start_markers = (
+        "cloud run job starting:",
+        "resuming run ",
+        "starting scraper run ",
+    )
+    latest_start = max((recent.rfind(marker) for marker in start_markers), default=-1)
+    active_segment = recent[latest_start:] if latest_start >= 0 else recent
+    return any(marker in active_segment for marker in _RECENT_LOG_ERROR_MARKERS)
 
 
 def _catalog_sync_completed(path: Path) -> bool:
