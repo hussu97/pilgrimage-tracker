@@ -177,7 +177,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256m
+          memory: 768m
     depends_on:
       postgres:
         condition: service_healthy

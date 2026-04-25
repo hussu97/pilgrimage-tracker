@@ -225,6 +225,8 @@ challenge fails, verify nginx is up in HTTP-only mode and port 80 is open in GCP
 
 VM deploy sequence: `git pull` → `docker compose pull` → `docker compose up --force-recreate` → alembic migrations run via catalog-api lifespan hook → health check (30 × 5 s) → `nginx reload` → `docker image prune -f`.
 
+The VM `scraper-api` service is capped at `768m` in `docker-compose.prod.yml` so production handoff finalize imports have enough memory to deserialize and replace large run bundles. The browser-heavy scraping work still runs in Cloud Run Jobs with separate 6Gi limits.
+
 ---
 
 ## 8. Vercel Web Frontends
