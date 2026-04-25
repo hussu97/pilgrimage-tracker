@@ -15,6 +15,8 @@ from scripts.handoff import (
     _start_screen_runner,
     finalize_bg,
     monitor_handoffs,
+    pause_local,
+    resume_bg,
 )
 from sqlmodel import Session, create_engine, select
 
@@ -305,6 +307,77 @@ def test_monitor_starts_finalize_bg_for_ready_run(tmp_path, db_session):
     assert calls
     assert calls[0]["screen_name"] == f"soulstep-sync-{run.run_code}"
     assert "finalize-watch" in calls[0]["command"]
+
+
+def test_resume_bg_starts_existing_local_db_with_tuning_overrides(tmp_path, db_session):
+    run = _seed_run(db_session, status="interrupted", stage="detail_fetch")
+    with Session(db_session.bind) as session:
+        handoff = prepare_handoff_export(session, run.run_code, lease_owner="tester")
+        bundle = build_run_bundle(session, run.run_code, handoff.handoff_code)
+
+    local_url = f"sqlite:///{tmp_path / f'{run.run_code}.db'}"
+    _import_bundle_into_db(bundle, local_url)
+    calls = []
+
+    with (
+        patch("scripts.handoff.shutil.which", return_value="/usr/bin/screen"),
+        patch("scripts.handoff._screen_session_exists", return_value=False),
+        patch("scripts.handoff._start_screen_command", side_effect=lambda **kw: calls.append(kw)),
+    ):
+        result = resume_bg(
+            SimpleNamespace(
+                run_code=run.run_code,
+                work_dir=str(tmp_path),
+                local_database_url=None,
+                screen_name=None,
+                log_path=None,
+                log_level="INFO",
+                detail_concurrency=3,
+                browser_pool_size=3,
+                browser_concurrency=3,
+                image_concurrency=20,
+                max_reviews=2,
+                max_review_images=0,
+                max_photos=2,
+            )
+        )
+
+    assert result == 0
+    command = calls[0]["command"]
+    assert f"SCRAPER_RUN_CODE={run.run_code}" in command
+    assert "SCRAPER_RUN_ACTION=resume" in command
+    assert "SCRAPER_DETAIL_CONCURRENCY=3" in command
+    assert "SCRAPER_MAX_REVIEW_IMAGES=0" in command
+
+
+def test_pause_local_marks_run_cancelled_and_waits_for_screen_exit(tmp_path, db_session):
+    run = _seed_run(db_session, status="running", stage="detail_fetch")
+    with Session(db_session.bind) as session:
+        handoff = prepare_handoff_export(session, run.run_code, lease_owner="tester")
+        bundle = build_run_bundle(session, run.run_code, handoff.handoff_code)
+
+    local_url = f"sqlite:///{tmp_path / f'{run.run_code}.db'}"
+    _import_bundle_into_db(bundle, local_url)
+
+    with patch("scripts.handoff._screen_session_exists", return_value=False):
+        result = pause_local(
+            SimpleNamespace(
+                run_code=run.run_code,
+                work_dir=str(tmp_path),
+                local_database_url=None,
+                screen_name=None,
+                wait_seconds=0,
+                force=False,
+            )
+        )
+
+    assert result == 0
+    engine = create_engine(local_url)
+    with Session(engine) as session:
+        paused = session.exec(select(ScraperRun).where(ScraperRun.run_code == run.run_code)).first()
+
+    assert paused.status == "cancelled"
+    assert "paused" in paused.error_message
 
 
 def test_batch_export_returns_independent_handoffs(client, db_session):

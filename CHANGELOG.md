@@ -10,12 +10,13 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 - **`soulstep-scraper-api/scripts/handoff.py`** — added `finalize-bg` / `finalize-watch` so completed local handoff runs can rebuild a fresh finalize bundle from the local DB, upload it to production, and monitor the production catalog sync in a detached `screen` job.
 - **`soulstep-scraper-api/scripts/handoff.py`** — stores refreshed finalize bundles and JSON-line catalog sync logs under `local-handoffs/` for each run.
 - **`soulstep-scraper-api/scripts/handoff.py`** — added `monitor`, which checks local handoff runs and starts the background catalog sync job exactly once when a run is verified complete.
+- **`soulstep-scraper-api/scripts/handoff.py`** — added `pause-local` and `resume-bg` for laptop-safe pause/resume of already-handed-off local runs without discarding committed progress.
 
 ### Docs
-- **`README.md`**, **`soulstep-scraper-api/README.md`**, and **`PRODUCTION.md`** — documented the refreshed local-DB finalize flow, background catalog sync command, and local log locations.
+- **`README.md`**, **`soulstep-scraper-api/README.md`**, and **`PRODUCTION.md`** — documented the refreshed local-DB finalize flow, background catalog sync command, pause/resume controls, and local log locations.
 
 ### Tests
-- **`soulstep-scraper-api/tests/test_handoff.py`** — added coverage for rebuilding finalize bundles from current local DB state, launching run-scoped catalog sync background jobs, and monitor-triggered finalization.
+- **`soulstep-scraper-api/tests/test_handoff.py`** — added coverage for rebuilding finalize bundles from current local DB state, launching run-scoped catalog sync background jobs, monitor-triggered finalization, and local pause/resume commands.
 
 ---
 

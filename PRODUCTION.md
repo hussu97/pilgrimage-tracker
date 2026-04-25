@@ -326,6 +326,8 @@ python scripts/handoff.py start-local-bg --run-code run_abc123 --prod-dsn postgr
 python scripts/handoff.py finalize --bundle /tmp/run_abc123-....json.gz --local-database-url sqlite:///local-handoffs/run_abc123.db --prod-url https://scraper-api.soul-step.org
 python scripts/handoff.py finalize-bg --bundle local-handoffs/run_abc123-....json.gz --prod-url https://scraper-api.soul-step.org
 python scripts/handoff.py monitor --run-code run_abc123 --prod-url https://scraper-api.soul-step.org
+python scripts/handoff.py pause-local --run-code run_abc123
+python scripts/handoff.py resume-bg --run-code run_abc123 --detail-concurrency 3 --browser-pool-size 3 --browser-concurrency 3
 ```
 
 Operational notes:
@@ -336,6 +338,7 @@ Operational notes:
 - Pass `--local-database-url` when finalizing from a resumed local run so the CLI rebuilds a fresh finalize bundle from the local DB instead of uploading the original export snapshot.
 - `finalize-bg` starts the same finalize/catalog-sync flow in a detached `screen` session and writes `local-handoffs/{run_code}.catalog-sync.log` plus a fresh `*-finalize.json.gz` bundle for monitor-friendly auditing.
 - `monitor` checks local run DBs/logs and starts `finalize-bg` exactly once for each completed run with no pending/failed assets or recent local errors.
+- `pause-local` and `resume-bg` are the laptop-safe local controls for an already-handed-off run; progress is preserved in the run-scoped local DB and resumed from the persisted stage.
 
 ---
 

@@ -89,12 +89,35 @@ def _screen_session_exists(screen_name: str) -> bool:
     return f".{screen_name}" in result.stdout
 
 
+def _screen_quit(screen_name: str) -> None:
+    if shutil.which("screen") and _screen_session_exists(screen_name):
+        subprocess.run(["screen", "-S", screen_name, "-X", "quit"], check=False)
+
+
 def _start_screen_command(*, screen_name: str, command: str) -> None:
     if not shutil.which("screen"):
         raise RuntimeError("screen is required to start a detached local handoff runner")
     if _screen_session_exists(screen_name):
         raise RuntimeError(f"screen session already exists: {screen_name}")
     subprocess.run(["screen", "-dmS", screen_name, "zsh", "-lc", command], check=True)
+
+
+def _start_local_resume_screen(
+    *,
+    screen_name: str,
+    database_url: str,
+    run_code: str,
+    log_path: Path,
+    env_overrides: dict[str, str],
+) -> None:
+    _start_screen_runner(
+        screen_name=screen_name,
+        database_url=database_url,
+        run_code=run_code,
+        run_action="resume",
+        log_path=log_path,
+        env_overrides=env_overrides,
+    )
 
 
 def _start_screen_runner(
@@ -394,6 +417,97 @@ def start_local_bg(args: argparse.Namespace) -> int:
     return 0
 
 
+def resume_bg(args: argparse.Namespace) -> int:
+    work_dir = Path(args.work_dir or _default_work_dir()).resolve()
+    work_dir.mkdir(parents=True, exist_ok=True)
+    database_url = args.local_database_url or _default_local_database_url(args.run_code, work_dir)
+    db_path = _sqlite_path_from_url(database_url)
+    if db_path and not db_path.exists():
+        raise RuntimeError(f"Local DB does not exist for {args.run_code}: {db_path}")
+
+    log_path = Path(args.log_path) if args.log_path else work_dir / f"{args.run_code}.log"
+    screen_name = args.screen_name or f"soulstep-{args.run_code}"
+    env_overrides = {"LOG_LEVEL": args.log_level}
+    optional_env = {
+        "SCRAPER_DETAIL_CONCURRENCY": args.detail_concurrency,
+        "MAPS_BROWSER_POOL_SIZE": args.browser_pool_size,
+        "MAPS_BROWSER_CONCURRENCY": args.browser_concurrency,
+        "SCRAPER_IMAGE_CONCURRENCY": args.image_concurrency,
+        "SCRAPER_MAX_REVIEWS": args.max_reviews,
+        "SCRAPER_MAX_REVIEW_IMAGES": args.max_review_images,
+        "SCRAPER_MAX_PHOTOS": args.max_photos,
+    }
+    env_overrides.update(
+        {key: str(value) for key, value in optional_env.items() if value is not None}
+    )
+    _start_local_resume_screen(
+        screen_name=screen_name,
+        database_url=database_url,
+        run_code=args.run_code,
+        log_path=log_path,
+        env_overrides=env_overrides,
+    )
+    print(
+        json.dumps(
+            {
+                "run_code": args.run_code,
+                "database_url": database_url,
+                "log": str(log_path),
+                "screen": screen_name,
+                "status": "started",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
+def pause_local(args: argparse.Namespace) -> int:
+    work_dir = Path(args.work_dir or _default_work_dir()).resolve()
+    database_url = args.local_database_url or _default_local_database_url(args.run_code, work_dir)
+    db_path = _sqlite_path_from_url(database_url)
+    if db_path and not db_path.exists():
+        raise RuntimeError(f"Local DB does not exist for {args.run_code}: {db_path}")
+
+    engine = create_engine(database_url, echo=False)
+    with Session(engine) as session:
+        run = session.exec(select(ScraperRun).where(ScraperRun.run_code == args.run_code)).first()
+        if not run:
+            raise RuntimeError(f"Run not found in local DB: {args.run_code}")
+        run.status = "cancelled"
+        run.error_message = "Local handoff paused by operator; resume with handoff resume-bg"
+        session.add(run)
+        session.commit()
+
+    screen_name = args.screen_name or f"soulstep-{args.run_code}"
+    deadline = time.monotonic() + args.wait_seconds
+    while _screen_session_exists(screen_name) and time.monotonic() < deadline:
+        time.sleep(2)
+    if _screen_session_exists(screen_name):
+        if args.force:
+            _screen_quit(screen_name)
+        else:
+            raise RuntimeError(
+                f"Run {args.run_code} was marked cancelled, but screen {screen_name} "
+                f"is still alive after {args.wait_seconds}s. Re-run with --force to close it."
+            )
+
+    print(
+        json.dumps(
+            {
+                "run_code": args.run_code,
+                "database_url": database_url,
+                "screen": screen_name,
+                "status": "paused",
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+    return 0
+
+
 def finalize_remote(args: argparse.Namespace) -> int:
     bundle_path = (
         _refresh_finalize_bundle(
@@ -669,6 +783,37 @@ def main() -> int:
     bg_parser.add_argument("--browser-concurrency", type=int, default=None)
     bg_parser.add_argument("--image-concurrency", type=int, default=None)
     bg_parser.set_defaults(func=start_local_bg)
+
+    resume_bg_parser = sub.add_parser(
+        "resume-bg",
+        help="Resume an existing local handoff DB in a detached screen session",
+    )
+    resume_bg_parser.add_argument("--run-code", required=True)
+    resume_bg_parser.add_argument("--work-dir", default=None)
+    resume_bg_parser.add_argument("--local-database-url", default=None)
+    resume_bg_parser.add_argument("--screen-name", default=None)
+    resume_bg_parser.add_argument("--log-path", default=None)
+    resume_bg_parser.add_argument("--log-level", default="INFO")
+    resume_bg_parser.add_argument("--detail-concurrency", type=int, default=None)
+    resume_bg_parser.add_argument("--browser-pool-size", type=int, default=None)
+    resume_bg_parser.add_argument("--browser-concurrency", type=int, default=None)
+    resume_bg_parser.add_argument("--image-concurrency", type=int, default=None)
+    resume_bg_parser.add_argument("--max-reviews", type=int, default=None)
+    resume_bg_parser.add_argument("--max-review-images", type=int, default=None)
+    resume_bg_parser.add_argument("--max-photos", type=int, default=None)
+    resume_bg_parser.set_defaults(func=resume_bg)
+
+    pause_parser = sub.add_parser(
+        "pause-local",
+        help="Pause a local handoff run by marking it cancelled and waiting for its screen to exit",
+    )
+    pause_parser.add_argument("--run-code", required=True)
+    pause_parser.add_argument("--work-dir", default=None)
+    pause_parser.add_argument("--local-database-url", default=None)
+    pause_parser.add_argument("--screen-name", default=None)
+    pause_parser.add_argument("--wait-seconds", type=int, default=90)
+    pause_parser.add_argument("--force", action="store_true")
+    pause_parser.set_defaults(func=pause_local)
 
     finalize_parser = sub.add_parser(
         "finalize", help="Upload a completed bundle back to production"

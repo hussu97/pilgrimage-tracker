@@ -144,6 +144,29 @@ python scripts/handoff.py monitor \
   --prod-url https://scraper-api.soul-step.org
 ```
 
+To pause safely before taking the laptop offline, stop the local worker through
+the handoff CLI instead of killing random Chromium processes:
+
+```bash
+python scripts/handoff.py pause-local --run-code run_abc123
+```
+
+This marks the local DB run as cancelled so the scraper's cancellation watcher
+can exit between batches without losing committed `ScrapedPlace` or
+`ScrapedAsset` progress. To resume the same local DB later:
+
+```bash
+python scripts/handoff.py resume-bg \
+  --run-code run_abc123 \
+  --detail-concurrency 3 \
+  --browser-pool-size 3 \
+  --browser-concurrency 3
+```
+
+`resume-bg` is also useful after a laptop sleep/crash: if the old `screen`
+session is gone but `local-handoffs/run_abc123.db` remains, it resumes from the
+persisted stage and skips already-fetched places.
+
 During an active handoff, mutating run actions such as `resume`, `cancel`, `sync`,
 `retry-images`, and `re-enrich` return `409` until the handoff is finalized or aborted.
 
