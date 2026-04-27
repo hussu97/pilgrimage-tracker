@@ -42,6 +42,7 @@ services:
       # ── Constructed / internal ────────────────────────────────────────────
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SCRAPER_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${SCRAPER_POSTGRES_DB}
+      CATALOG_SYNC_LOG_DIR: ${CATALOG_SYNC_LOG_DIR:-/tmp/soulstep-catalog-sync}
       PORT: "3000"
       DATA_SCRAPER_URL: http://scraper-api:8080
       LOG_FORMAT: json

@@ -4,6 +4,21 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-27] — Detached direct catalog sync workers
+
+### Backend
+- **`soulstep-catalog-api/app/api/v1/admin/sync_places.py`** — direct scraper-to-catalog control requests now launch the existing `app.jobs.sync_places` CLI as a detached process with run-scoped logs instead of FastAPI `BackgroundTasks`, so large finalize syncs are not tied to a uvicorn worker lifetime.
+- **`soulstep-catalog-api/app/jobs/sync_places.py`** — direct sync now publishes running progress counters to the scraper DB during batch processing and marks the sync failed with an explicit error if the job crashes before completion.
+- **`docker-compose.prod.yml`** and **`.env.example`** — added `CATALOG_SYNC_LOG_DIR` for detached direct sync job logs.
+
+### Docs
+- **`README.md`**, **`ARCHITECTURE.md`**, **`PRODUCTION.md`**, **`soulstep-catalog-api/README.md`**, and **`soulstep-scraper-api/README.md`** — documented that direct catalog sync is the default durable production path for future finalize/sync operations.
+
+### Tests
+- **`soulstep-catalog-api/tests/test_jobs.py`** — added coverage for detached control-job launch and crash-state publication back into the scraper DB.
+
+---
+
 ## [2026-04-25] — Fix Vercel cache headers for frontend app shell
 
 ### Frontend (web)

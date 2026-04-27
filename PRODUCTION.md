@@ -444,6 +444,7 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 | `APP_STORE_URL_IOS` | — | — | App Store URL for update prompts. |
 | `APP_STORE_URL_ANDROID` | — | — | Play Store URL for update prompts. |
 | `SENTRY_DSN` | — | — | Sentry DSN for backend errors. Shared with scraper-api via Compose. |
+| `CATALOG_SYNC_LOG_DIR` | — | `/tmp/soulstep-catalog-sync` | Directory inside catalog-api where detached direct scraper-to-catalog sync jobs write run-scoped logs. |
 
 ---
 

@@ -410,7 +410,71 @@ class TestDirectSyncRunScoped:
         assert run["places_synced"] == 1
         direct = json.loads(run["rate_limit_events"])["direct_catalog_sync"]
         assert direct["state"] == "completed"
+        assert direct["scanned"] == 1
+        assert direct["batches"] == 1
         assert direct["images_replaced"] == 1
+
+    def test_sync_places_for_run_marks_scraper_sync_failed_on_crash(self, tmp_path):
+        from app.jobs.sync_places import sync_places_for_run
+
+        db_path = tmp_path / "scraper.sqlite"
+        scraper_url = f"sqlite:///{db_path}"
+        scraper_engine = create_engine(scraper_url)
+        self._create_scraper_schema(scraper_engine)
+        with scraper_engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO scraperrun "
+                    "(run_code, location_code, geo_box_label, stage, places_synced, "
+                    "places_sync_failed, places_sync_quality_filtered, places_sync_name_filtered, "
+                    "sync_failure_details, rate_limit_events, last_sync_at) VALUES "
+                    "('run_crash', 'loc_uae', 'uae_box', NULL, 0, 0, 0, 0, '[]', '{}', NULL)"
+                )
+            )
+            raw = json.dumps(
+                {
+                    "religion": "islam",
+                    "place_type": "mosque",
+                    "lat": 25.2,
+                    "lng": 55.3,
+                    "address": "123 St",
+                }
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO scrapedplace VALUES "
+                    "('run_crash', 'plc_crash', 'Grand Mosque', :raw, 0.9, 25.2, 55.3, "
+                    "'United Arab Emirates', NULL)"
+                ),
+                {"raw": raw},
+            )
+
+        with (
+            patch("app.jobs.sync_places.run_migrations"),
+            patch("app.jobs.sync_places._process_chunk", side_effect=RuntimeError("boom")),
+            pytest.raises(RuntimeError, match="boom"),
+        ):
+            sync_places_for_run(
+                run_code="run_crash",
+                scraper_database_url=scraper_url,
+                run_catalog_migrations=False,
+            )
+
+        with scraper_engine.connect() as conn:
+            run = (
+                conn.execute(text("SELECT * FROM scraperrun WHERE run_code = 'run_crash'"))
+                .mappings()
+                .first()
+            )
+
+        assert run["stage"] is None
+        direct = json.loads(run["rate_limit_events"])["direct_catalog_sync"]
+        assert direct["state"] == "failed"
+        assert direct["scanned"] == 1
+        assert direct["error"] == "RuntimeError: boom"
+        assert "direct_sync_exception: RuntimeError: boom" in json.loads(
+            run["sync_failure_details"]
+        )
 
     def test_sync_places_for_run_syncs_out_of_scope_places_by_quality_only(self, tmp_path):
         from app.jobs.sync_places import sync_places_for_run
@@ -602,9 +666,12 @@ class TestPlaceIngestImages:
 
 
 class TestDirectSyncControlEndpoint:
-    def test_control_endpoint_starts_background_job(self, client, monkeypatch):
+    def test_control_endpoint_starts_detached_job(self, client, monkeypatch):
         monkeypatch.setenv("SCRAPER_DATABASE_URL", "sqlite:///scraper.db")
-        with patch("app.api.v1.admin.sync_places._run_direct_sync") as mock_sync:
+        with patch(
+            "app.api.v1.admin.sync_places._start_direct_sync_process",
+            return_value={"pid": 123, "log_path": "/tmp/soulstep-catalog-sync/run_endpoint.log"},
+        ) as mock_start:
             resp = client.post(
                 "/api/v1/admin/sync-places/direct",
                 headers={"X-API-Key": "test-api-key"},
@@ -612,8 +679,11 @@ class TestDirectSyncControlEndpoint:
             )
 
         assert resp.status_code == 200
-        assert resp.json()["status"] == "direct_sync_started"
-        mock_sync.assert_called_once_with("run_endpoint", True, True)
+        body = resp.json()
+        assert body["status"] == "direct_sync_started"
+        assert body["pid"] == 123
+        assert body["log_path"] == "/tmp/soulstep-catalog-sync/run_endpoint.log"
+        mock_start.assert_called_once_with("run_endpoint", True, True)
 
     def test_control_endpoint_requires_scraper_database_url(self, client, monkeypatch):
         monkeypatch.delenv("SCRAPER_DATABASE_URL", raising=False)

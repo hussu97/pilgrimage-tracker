@@ -122,7 +122,7 @@ Copy the root `.env.example` to `.env`. Key variables:
 Large handoff finalizations should not send places through `/api/v1/places/batch`.
 Instead, catalog-api can read completed scraper rows directly from
 `SCRAPER_DATABASE_URL`, run them through the same place-ingest service used by
-the API path, and update scraper sync counters when done:
+the API path, and update scraper sync counters during and after the job:
 
 ```bash
 source .venv/bin/activate
@@ -130,6 +130,12 @@ SCRAPER_DATABASE_URL=postgresql://... python -m app.jobs.sync_places --run-code 
 SCRAPER_DATABASE_URL=postgresql://... python -m app.jobs.sync_places --run-code run_xxx --failed-only
 SCRAPER_DATABASE_URL=postgresql://... python -m app.jobs.sync_places --run-code run_xxx --dry-run
 ```
+
+`POST /api/v1/admin/sync-places/direct` starts that same CLI in a detached
+process instead of FastAPI `BackgroundTasks`, so large run syncs are not tied to
+the request worker lifetime. Logs are written under `CATALOG_SYNC_LOG_DIR`
+(default `/tmp/soulstep-catalog-sync`) and the scraper DB receives running,
+failed, or completed `rate_limit_events.direct_catalog_sync` telemetry.
 
 The direct job preserves existing catalog images when incoming scraper image
 count is lower, and replaces scraper-owned `PlaceImage` rows when incoming count

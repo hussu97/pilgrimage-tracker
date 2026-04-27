@@ -298,10 +298,15 @@ def _finish_scraper_sync(
         events = _load_rate_limit_events(row.get("rate_limit_events") if row else None)
         events["direct_catalog_sync"] = {
             "state": "completed" if summary.failed == 0 else "failed",
+            "scanned": summary.scanned,
             "synced": summary.synced,
+            "created": summary.created,
+            "updated": summary.updated,
             "failed": summary.failed,
             "quality_filtered": summary.skipped_quality,
             "name_filtered": summary.skipped_name,
+            "build_failed": summary.skipped_build,
+            "batches": summary.batches,
             "images_replaced": summary.images_replaced,
             "images_preserved": summary.images_preserved,
             "dry_run": summary.dry_run,
@@ -328,6 +333,133 @@ def _finish_scraper_sync(
                 "name_filtered": summary.skipped_name,
                 "failure_details": json.dumps(failure_details),
                 "last_sync_at": now if summary.synced > 0 else None,
+                "rate_limit_events": json.dumps(events),
+            },
+        )
+
+
+def _publish_scraper_sync_progress(
+    scraper_engine,
+    summary: DirectSyncSummary,
+    *,
+    base_synced: int,
+) -> None:
+    if not summary.run_code or summary.dry_run:
+        return
+
+    failure_details = (summary.failure_details or [])[:500]
+    now = datetime.now(UTC)
+    with scraper_engine.begin() as conn:
+        row = (
+            conn.execute(
+                text("SELECT rate_limit_events FROM scraperrun WHERE run_code = :run_code"),
+                {"run_code": summary.run_code},
+            )
+            .mappings()
+            .first()
+        )
+        events = _load_rate_limit_events(row.get("rate_limit_events") if row else None)
+        events["direct_catalog_sync"] = {
+            "state": "running",
+            "scanned": summary.scanned,
+            "synced": summary.synced,
+            "created": summary.created,
+            "updated": summary.updated,
+            "failed": summary.failed,
+            "quality_filtered": summary.skipped_quality,
+            "name_filtered": summary.skipped_name,
+            "build_failed": summary.skipped_build,
+            "batches": summary.batches,
+            "images_replaced": summary.images_replaced,
+            "images_preserved": summary.images_preserved,
+            "dry_run": summary.dry_run,
+            "failed_only": summary.failed_only,
+            "elapsed_s": summary.elapsed_s,
+            "updated_at": now.isoformat(),
+        }
+        conn.execute(
+            text(
+                "UPDATE scraperrun SET stage = 'syncing', places_synced = :places_synced, "
+                "places_sync_failed = :places_sync_failed, "
+                "places_sync_quality_filtered = :quality_filtered, "
+                "places_sync_name_filtered = :name_filtered, "
+                f"sync_failure_details = {_json_bind_expression(scraper_engine, 'failure_details')}, "
+                f"rate_limit_events = {_json_bind_expression(scraper_engine, 'rate_limit_events')} "
+                "WHERE run_code = :run_code"
+            ),
+            {
+                "run_code": summary.run_code,
+                "places_synced": base_synced + summary.synced,
+                "places_sync_failed": summary.failed,
+                "quality_filtered": summary.skipped_quality,
+                "name_filtered": summary.skipped_name,
+                "failure_details": json.dumps(failure_details),
+                "rate_limit_events": json.dumps(events),
+            },
+        )
+
+
+def _fail_scraper_sync(
+    scraper_engine,
+    summary: DirectSyncSummary,
+    *,
+    base_synced: int,
+    error: BaseException,
+) -> None:
+    if not summary.run_code or summary.dry_run:
+        return
+
+    now = datetime.now(UTC)
+    error_message = f"{type(error).__name__}: {error}"
+    failure_details = list(summary.failure_details or [])
+    failure_details.append(f"direct_sync_exception: {error_message}")
+    summary.failure_details = failure_details
+    with scraper_engine.begin() as conn:
+        row = (
+            conn.execute(
+                text("SELECT rate_limit_events FROM scraperrun WHERE run_code = :run_code"),
+                {"run_code": summary.run_code},
+            )
+            .mappings()
+            .first()
+        )
+        events = _load_rate_limit_events(row.get("rate_limit_events") if row else None)
+        events["direct_catalog_sync"] = {
+            "state": "failed",
+            "scanned": summary.scanned,
+            "synced": summary.synced,
+            "created": summary.created,
+            "updated": summary.updated,
+            "failed": summary.failed,
+            "quality_filtered": summary.skipped_quality,
+            "name_filtered": summary.skipped_name,
+            "build_failed": summary.skipped_build,
+            "batches": summary.batches,
+            "images_replaced": summary.images_replaced,
+            "images_preserved": summary.images_preserved,
+            "dry_run": summary.dry_run,
+            "failed_only": summary.failed_only,
+            "elapsed_s": summary.elapsed_s,
+            "error": error_message,
+            "updated_at": now.isoformat(),
+        }
+        conn.execute(
+            text(
+                "UPDATE scraperrun SET stage = NULL, places_synced = :places_synced, "
+                "places_sync_failed = :places_sync_failed, "
+                "places_sync_quality_filtered = :quality_filtered, "
+                "places_sync_name_filtered = :name_filtered, "
+                f"sync_failure_details = {_json_bind_expression(scraper_engine, 'failure_details')}, "
+                f"rate_limit_events = {_json_bind_expression(scraper_engine, 'rate_limit_events')} "
+                "WHERE run_code = :run_code"
+            ),
+            {
+                "run_code": summary.run_code,
+                "places_synced": base_synced + summary.synced,
+                "places_sync_failed": summary.failed,
+                "quality_filtered": summary.skipped_quality,
+                "name_filtered": summary.skipped_name,
+                "failure_details": json.dumps(failure_details[:500]),
                 "rate_limit_events": json.dumps(events),
             },
         )
@@ -381,10 +513,27 @@ def sync_places_for_run(
 
     chunk: list[PlaceCreate] = []
     chunk_codes: list[str] = []
+    last_progress_scanned = 0
+    last_progress_at = start_time
 
     def mark_status(status: str, codes: list[str]) -> None:
         if not dry_run:
             _mark_status(scraper_engine, run_code, status, codes)
+
+    def maybe_publish_progress(force: bool = False) -> None:
+        nonlocal last_progress_scanned, last_progress_at
+        if dry_run or not run_code:
+            return
+        now = time.time()
+        if force or summary.scanned - last_progress_scanned >= 500 or now - last_progress_at >= 10:
+            summary.elapsed_s = round(now - start_time, 2)
+            _publish_scraper_sync_progress(
+                scraper_engine,
+                summary,
+                base_synced=base_synced,
+            )
+            last_progress_scanned = summary.scanned
+            last_progress_at = now
 
     def flush_chunk() -> None:
         nonlocal chunk, chunk_codes
@@ -420,36 +569,47 @@ def sync_places_for_run(
                 summary.failure_details.append(f"{code}: {r.get('error', 'unknown error')}")
         mark_status("synced", synced_codes)
         mark_status("failed", failed_codes)
+        maybe_publish_progress(force=True)
         chunk = []
         chunk_codes = []
 
-    for row in _iter_scraped_rows(scraper_engine, run_code, failed_only):
-        place_code, name, raw_data, quality_score = tuple(row)
-        summary.scanned += 1
-        raw_payload = _coerce_raw_data(raw_data)
-        if quality_score is not None and float(quality_score) < _QUALITY_GATE:
-            summary.skipped_quality += 1
-            mark_status("quality_filtered", [place_code])
-            continue
-        if not _is_name_specific_enough(name or ""):
-            summary.skipped_name += 1
-            mark_status("name_filtered", [place_code])
-            continue
+    try:
+        for row in _iter_scraped_rows(scraper_engine, run_code, failed_only):
+            place_code, name, raw_data, quality_score = tuple(row)
+            summary.scanned += 1
+            raw_payload = _coerce_raw_data(raw_data)
+            if quality_score is not None and float(quality_score) < _QUALITY_GATE:
+                summary.skipped_quality += 1
+                mark_status("quality_filtered", [place_code])
+                maybe_publish_progress()
+                continue
+            if not _is_name_specific_enough(name or ""):
+                summary.skipped_name += 1
+                mark_status("name_filtered", [place_code])
+                maybe_publish_progress()
+                continue
 
-        place = _build_place_create(place_code, name, raw_payload)
-        if place is None:
-            summary.skipped_build += 1
-            summary.failed += 1
-            summary.failure_details.append(f"{place_code}: build_failed")
-            mark_status("failed", [place_code])
-            continue
+            place = _build_place_create(place_code, name, raw_payload)
+            if place is None:
+                summary.skipped_build += 1
+                summary.failed += 1
+                summary.failure_details.append(f"{place_code}: build_failed")
+                mark_status("failed", [place_code])
+                maybe_publish_progress()
+                continue
 
-        chunk.append(place)
-        chunk_codes.append(place_code)
-        if len(chunk) >= _BATCH_SIZE:
-            flush_chunk()
+            chunk.append(place)
+            chunk_codes.append(place_code)
+            if len(chunk) >= _BATCH_SIZE:
+                flush_chunk()
 
-    flush_chunk()
+        flush_chunk()
+    except BaseException as exc:
+        summary.elapsed_s = round(time.time() - start_time, 2)
+        _fail_scraper_sync(scraper_engine, summary, base_synced=base_synced, error=exc)
+        logger.exception("sync_places: failed before completion")
+        raise
+
     summary.elapsed_s = round(time.time() - start_time, 2)
     _finish_scraper_sync(scraper_engine, summary, base_synced=base_synced)
 

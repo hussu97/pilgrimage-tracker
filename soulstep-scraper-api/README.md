@@ -120,9 +120,9 @@ not the original export snapshot.
 
 In production, `SCRAPER_DIRECT_CATALOG_SYNC=true` makes finalize/sync trigger
 catalog-api’s direct DB job with a small control request. The bulk place data is
-read by catalog-api from the production scraper DB, formatted through the same
-shared ingest logic as the `/places/batch` API, and written directly to the
-catalog DB. `scripts/handoff.py monitor` and `finalize-watch` include
+read by a detached catalog-api CLI worker from the production scraper DB,
+formatted through the same shared ingest logic as the `/places/batch` API, and
+written directly to the catalog DB. `scripts/handoff.py monitor` and `finalize-watch` include
 `direct_catalog_*` counters from the production run/activity responses.
 
 For unattended operations, use `finalize-bg`. It refreshes the finalize bundle,

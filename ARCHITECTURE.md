@@ -238,7 +238,7 @@ Each region gets an independent quota. The queue processor distributes jobs acro
 
 **Portable run handoff:** runs can now be leased into a `RunHandoff`, exported into a portable bundle, resumed locally against a snapshot DB, and finalized back into production as the same `run_code`. While a handoff is active, mutating run actions are blocked until the handoff is finalized or aborted.
 
-**Direct catalog sync:** production finalize/sync keeps scraper DB authoritative first, then triggers catalog-api with a small control request. Catalog-api reads `scrapedplace` rows from the scraper DB by `run_code`, converts them through the shared place-ingest service used by `/api/v1/places/batch`, upserts catalog place core data/attributes/reviews/translations/images directly, and writes scraper sync counters/status back to the scraper DB. Catalog images are replaced only when the incoming scraper image count is equal or higher; otherwise existing catalog images are preserved.
+**Direct catalog sync:** production finalize/sync keeps scraper DB authoritative first, then triggers catalog-api with a small control request. Catalog-api starts the run-scoped `app.jobs.sync_places` CLI as a detached process, reads `scrapedplace` rows from the scraper DB by `run_code`, converts them through the shared place-ingest service used by `/api/v1/places/batch`, upserts catalog place core data/attributes/reviews/translations/images directly, and writes running/completed/failed scraper sync counters/status back to the scraper DB. Catalog images are replaced only when the incoming scraper image count is equal or higher; otherwise existing catalog images are preserved.
 
 ---
 

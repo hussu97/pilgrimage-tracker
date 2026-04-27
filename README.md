@@ -92,7 +92,7 @@ Large interrupted scraper runs can now be exported, resumed locally, and finaliz
 - API: `POST /api/v1/scraper/runs/{runCode}/handoff/export`, `GET /api/v1/scraper/runs/{runCode}/handoff`, `POST /api/v1/scraper/runs/{runCode}/handoff/finalize`, `POST /api/v1/scraper/runs/{runCode}/handoff/abort`, `POST /api/v1/scraper/runs/handoff/export-batch`
 - CLI: `cd soulstep-scraper-api && source .venv/bin/activate && python scripts/handoff.py ...`
 - Background ops: `start-local-bg` stores local run bundles/DB/logs under `soulstep-scraper-api/local-handoffs/`; `pause-local`/`resume-bg` safely stop and restart an existing local handoff DB; `finalize-bg` stores refreshed finalize bundles and catalog-sync logs there too; `monitor` checks completed local runs and starts sync jobs automatically.
-- Catalog sync: production finalization can use catalog-api’s direct DB sync job (`POST /api/v1/admin/sync-places/direct`) so bulk place data is read from the scraper DB and written directly to the catalog DB instead of uploaded through `/places/batch`.
+- Catalog sync: production finalization can use catalog-api’s detached direct DB sync job (`POST /api/v1/admin/sync-places/direct`) so bulk place data is read from the scraper DB and written directly to the catalog DB instead of uploaded through `/places/batch`.
 - See [soulstep-scraper-api/README.md](soulstep-scraper-api/README.md) for the concrete export/resume/finalize flow.
 
 ---
