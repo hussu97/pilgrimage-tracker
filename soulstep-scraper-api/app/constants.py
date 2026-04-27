@@ -66,6 +66,9 @@ BROWSER_ACQUIRE_TIMEOUT_S: float = 90.0
 # Max seconds for a single grid cell navigation (acquire → extract → release).
 BROWSER_CELL_TIMEOUT_S: float = 120.0
 
+# Max seconds for a single place detail navigation (acquire → extract → release).
+BROWSER_DETAIL_TIMEOUT_S: float = 600.0
+
 # Max seconds for the scroll-until-stable loop inside a single cell.
 BROWSER_SCROLL_TIMEOUT_S: float = 60.0
 

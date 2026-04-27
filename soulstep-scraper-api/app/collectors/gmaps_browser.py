@@ -13,6 +13,7 @@ import re
 from typing import Any
 
 from app.collectors.base import BaseCollector, CollectorResult
+from app.constants import BROWSER_DETAIL_TIMEOUT_S
 from app.logger import get_logger
 from app.scrapers.gmaps_shared import (
     clean_address,
@@ -322,7 +323,20 @@ class BrowserGmapsCollector(BaseCollector):
         # Keep some pacing between detail navigations without dominating runtime.
         await asyncio.sleep(random.uniform(1.0, 2.0))
 
-        return await self._navigate_and_extract(place_id)
+        try:
+            return await asyncio.wait_for(
+                self._navigate_and_extract(place_id),
+                timeout=BROWSER_DETAIL_TIMEOUT_S,
+            )
+        except TimeoutError as e:
+            logger.warning(
+                "Browser detail fetch watchdog timed out for %s after %.0fs",
+                place_id,
+                BROWSER_DETAIL_TIMEOUT_S,
+            )
+            raise TimeoutError(
+                f"Browser detail fetch exceeded {BROWSER_DETAIL_TIMEOUT_S:.0f}s for {place_id}"
+            ) from e
 
     async def _navigate_and_extract(self, place_id: str) -> dict:
         """Navigate to the place page and extract all data via evaluate().
@@ -482,6 +496,13 @@ class BrowserGmapsCollector(BaseCollector):
                     )
                     raise
             finally:
+                task = asyncio.current_task()
+                if task is not None and task.cancelling():
+                    recycle = True
+                    logger.warning(
+                        "Browser detail fetch cancelled for %s — recycling browser session",
+                        place_id,
+                    )
                 await pool.release(session, recycle=recycle)
 
         raise last_exc  # type: ignore[misc]

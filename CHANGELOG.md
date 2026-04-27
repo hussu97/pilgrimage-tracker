@@ -4,6 +4,17 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-27] — Browser detail fetch watchdog
+
+### Backend
+- **`soulstep-scraper-api/app/collectors/gmaps_browser.py`** — added a hard 600-second watchdog around each browser place-detail fetch and recycle the browser session on cancellation so a single wedged Google Maps page cannot stall a local handoff worker for hours.
+- **`soulstep-scraper-api/app/constants.py`** — centralized the new per-place detail watchdog limit as `BROWSER_DETAIL_TIMEOUT_S`.
+
+### Tests
+- **`soulstep-scraper-api/tests/test_browser_gmaps.py`** — added coverage for the hard detail watchdog and cancellation-triggered browser session recycling.
+
+---
+
 ## [2026-04-27] — Harden ads.txt for ad crawlers
 
 ### Frontend (web)

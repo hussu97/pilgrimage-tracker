@@ -468,6 +468,49 @@ class TestBrowserGmapsCollectorAsync:
         mock_sleep.assert_awaited_once_with(1.25)
 
     @pytest.mark.asyncio
+    async def test_fetch_details_split_applies_hard_watchdog(self):
+        """A single stuck place must fail fast instead of wedging the worker."""
+        collector = BrowserGmapsCollector()
+
+        async def hang(_place_id: str) -> dict:
+            await asyncio.Event().wait()
+            return {}
+
+        with (
+            patch("app.collectors.gmaps_browser.random.uniform", return_value=0.0),
+            patch("app.collectors.gmaps_browser.BROWSER_DETAIL_TIMEOUT_S", 0.01),
+            patch.object(collector, "_navigate_and_extract", side_effect=hang),
+        ):
+            with pytest.raises(TimeoutError, match="Browser detail fetch exceeded 0s"):
+                await collector.fetch_details_split("places/ChIJslow", "", None, None)
+
+    @pytest.mark.asyncio
+    async def test_navigate_and_extract_recycles_session_on_cancellation(self):
+        """Watchdog cancellation should never return a suspect session to the pool."""
+        collector = BrowserGmapsCollector()
+
+        async def hang(*_args, **_kwargs):
+            await asyncio.Event().wait()
+
+        page = MagicMock()
+        page.goto = AsyncMock(side_effect=hang)
+        session = MagicMock()
+        session.page = page
+
+        pool = MagicMock()
+        pool.acquire = AsyncMock(return_value=session)
+        pool.release = AsyncMock()
+
+        with patch("app.collectors.gmaps_browser.get_maps_pool", return_value=pool):
+            task = asyncio.create_task(collector._navigate_and_extract("ChIJslow"))
+            await asyncio.sleep(0)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+        pool.release.assert_awaited_once_with(session, recycle=True)
+
+    @pytest.mark.asyncio
     async def test_capture_page_images_downloads_multiple_images(self):
         """Primary image capture should return all successfully downloaded blobs."""
         collector = BrowserGmapsCollector()
