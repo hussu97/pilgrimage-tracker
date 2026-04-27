@@ -297,7 +297,7 @@ catalog-api serves all SEO content:
 
 - **`PlaceSEO` model** — `seo_slug`, `meta_title`, `meta_description`, `structured_data` (JSON-LD TouristAttraction), `alt_text`, FAQ
 - **Multi-language SEO** — `SEOContentTemplate` + `PlaceSEOTranslation` per language; `generate_all_langs()` renders all five languages in one pass
-- **Sitemaps** — `/sitemap.xml` (places + hreflang + image entries), `/sitemap-images.xml`
+- **Sitemaps** — `/sitemap.xml` is a sitemap index; `/sitemaps/static.xml` contains static/blog/city URLs; `/sitemaps/places-N.xml` contains bounded place chunks with hreflang + image entries so responses stay below Vercel and crawler size limits.
 - **AI discoverability** — `/robots.txt` (allows major AI bots), `/llms.txt`, `/ai-plugin.json`
 - **Feeds** — `/feed.xml` (RSS 2.0), `/feed.atom` (Atom 1.0)
 - **AI citation monitoring** — `AICrawlerLog` model + middleware + `GET /admin/seo/ai-citations`

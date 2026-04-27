@@ -99,7 +99,9 @@ Copy the root `.env.example` to `.env`. Key variables:
 | GET | `/share/about` | About page |
 | GET | `/share/how-it-works` | How it works page |
 | GET | `/share/coverage` | Coverage page |
-| GET | `/sitemap.xml` | XML sitemap |
+| GET | `/sitemap.xml` | XML sitemap index |
+| GET | `/sitemaps/static.xml` | Static, blog, city, and city/religion sitemap URLs |
+| GET | `/sitemaps/places-:page.xml` | Chunked place sitemap with hreflang and image entries |
 | GET | `/feed.xml` | RSS feed |
 | GET | `/feed.atom` | Atom feed |
 | GET | `/robots.txt` | Robots rules |

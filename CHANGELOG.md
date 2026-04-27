@@ -4,6 +4,24 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-27] — Chunked sitemap index for large catalogues
+
+### Backend
+- **`soulstep-catalog-api/app/api/v1/sitemap.py`** — `/sitemap.xml` now returns a sitemap index, `/sitemaps/static.xml` serves static/blog/city URLs, and `/sitemaps/places-N.xml` serves bounded place chunks with hreflang and image sitemap entries so large catalogues no longer produce oversized XML responses.
+- **`soulstep-catalog-api/app/api/v1/seo_static.py`** — updated `llms.txt` endpoint copy to describe sitemap index behavior.
+
+### Frontend (web)
+- **`apps/soulstep-customer-web/app/api/sitemap/route.ts`** and **`app/api/sitemaps/[...path]/route.ts`** — proxy sitemap index and chunk files through `soul-step.org` without Next ISR body caching, avoiding Vercel `FALLBACK_BODY_TOO_LARGE` failures.
+- **`apps/soulstep-customer-web/next.config.ts`** — added `/sitemaps/:path*` rewrite to the new sitemap chunk proxy route.
+
+### Docs
+- **`ARCHITECTURE.md`**, **`soulstep-catalog-api/README.md`**, **`apps/soulstep-customer-web/README.md`**, and **`apps/soulstep-customer-web/public/llms.txt`** — documented the sitemap index/chunk layout.
+
+### Tests
+- **`soulstep-catalog-api/tests/test_seo.py`** and **`tests/test_seo_p2.py`** — added coverage for sitemap index generation, bounded place chunks, static sitemap URLs, image sitemap entries, and hreflang URLs in place chunks.
+
+---
+
 ## [2026-04-27] — Detached direct catalog sync workers
 
 ### Backend

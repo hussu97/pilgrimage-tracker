@@ -97,7 +97,7 @@ Islam · Christianity · Hinduism · Buddhism · Sikhism · Judaism · Bahá'í 
 - `GET {api_base}/api/v1/places` — List and filter sacred sites
 - `GET {api_base}/api/v1/places/{{place_code}}` — Place detail (name, address, hours, rating)
 - `GET {api_base}/api/v1/search?q={{query}}` — Text search
-- `GET {api_base}/sitemap.xml` — Full place sitemap
+- `GET {api_base}/sitemap.xml` — Sitemap index for static and chunked place sitemaps
 - `GET {api_base}/share/places/{{place_code}}` — Pre-rendered place page (HTML + JSON-LD)
 
 ## Data Coverage

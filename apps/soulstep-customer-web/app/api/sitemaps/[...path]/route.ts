@@ -1,5 +1,6 @@
-// Proxies the backend sitemap at soul-step.org/sitemap.xml
-// This allows Google Search Console to verify the sitemap against the main domain.
+// Proxies chunked backend sitemaps at soul-step.org/sitemaps/*.
+// These responses intentionally avoid Next ISR caching because sitemap chunks
+// can be several megabytes and Vercel has a strict ISR body-size limit.
 
 const API_BASE =
   process.env.INTERNAL_API_URL ||
@@ -8,9 +9,16 @@ const API_BASE =
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+type RouteContext = {
+  params: Promise<{ path: string[] }>;
+};
+
+export async function GET(_request: Request, context: RouteContext) {
+  const params = await context.params;
+  const path = params.path.join('/');
+
   try {
-    const res = await fetch(`${API_BASE}/sitemap.xml`, { cache: 'no-store' });
+    const res = await fetch(`${API_BASE}/sitemaps/${path}`, { cache: 'no-store' });
     const xml = await res.text();
     return new Response(xml, {
       status: res.status,

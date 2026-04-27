@@ -9,7 +9,7 @@ const backendOrigin =
 
 const nextConfig: NextConfig = {
   // Rewrite rules:
-  //   /sitemap.xml, /feed.xml, /feed.atom → internal Next.js route handlers (all envs)
+  //   /sitemap.xml, /sitemaps/*, /feed.xml, /feed.atom → internal Next.js route handlers
   //   /llms.txt, /openapi.json, /.well-known/*, /share/* → backend proxy (all envs)
   //   /api/v1/*                           → backend proxy (all envs)
   //   /umami/*                            → Umami cloud (all envs — same-origin
@@ -18,14 +18,15 @@ const nextConfig: NextConfig = {
     return [
       // Proxy sitemap and feeds from main domain so GSC and feed readers work
       { source: '/sitemap.xml', destination: '/api/sitemap' },
+      { source: '/sitemaps/:path*', destination: '/api/sitemaps/:path*' },
       { source: '/feed.xml', destination: '/api/feed-xml' },
       { source: '/feed.atom', destination: '/api/feed-atom' },
       // SEO/GEO crawler content — route through soul-step.org, never the api subdomain
-      { source: '/llms.txt',           destination: `${backendOrigin}/llms.txt` },
-      { source: '/llms-full.txt',      destination: `${backendOrigin}/llms-full.txt` },
-      { source: '/openapi.json',       destination: `${backendOrigin}/openapi.json` },
+      { source: '/llms.txt', destination: `${backendOrigin}/llms.txt` },
+      { source: '/llms-full.txt', destination: `${backendOrigin}/llms-full.txt` },
+      { source: '/openapi.json', destination: `${backendOrigin}/openapi.json` },
       { source: '/.well-known/:path*', destination: `${backendOrigin}/.well-known/:path*` },
-      { source: '/share/:path*',       destination: `${backendOrigin}/share/:path*` },
+      { source: '/share/:path*', destination: `${backendOrigin}/share/:path*` },
       // Proxy all backend API calls in every environment.
       // Scoped to /api/v1/ so internal Next.js handlers (/api/sitemap etc.) are unaffected.
       {

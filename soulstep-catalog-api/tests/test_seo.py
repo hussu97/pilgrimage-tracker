@@ -106,15 +106,17 @@ class TestLlmsTxt:
 
 
 class TestSitemapXml:
-    def test_sitemap_empty(self, client):
+    def test_sitemap_xml_returns_index(self, client):
         resp = client.get("/sitemap.xml")
         assert resp.status_code == 200
         assert "application/xml" in resp.headers.get("content-type", "")
-        assert b"urlset" in resp.content
+        assert b"sitemapindex" in resp.content
+        assert "/sitemaps/static.xml" in resp.text
+        assert "/sitemaps/places-1.xml" in resp.text
 
     def test_sitemap_contains_place(self, client):
         _create_place(client, "plc_sitemap01", name="Sitemap Mosque")
-        resp = client.get("/sitemap.xml")
+        resp = client.get("/sitemaps/places-1.xml")
         assert resp.status_code == 200
         body = resp.text
         assert "plc_sitemap01" in body
@@ -122,15 +124,39 @@ class TestSitemapXml:
 
     def test_sitemap_hreflang(self, client):
         _create_place(client, "plc_sitemap02", name="Hreflang Mosque")
-        resp = client.get("/sitemap.xml")
+        resp = client.get("/sitemaps/places-1.xml")
         assert "hreflang" in resp.text
 
     def test_sitemap_includes_static_pages(self, client):
-        resp = client.get("/sitemap.xml")
+        resp = client.get("/sitemaps/static.xml")
         assert resp.status_code == 200
         body = resp.text
         for path in ("/about", "/privacy", "/terms", "/contact", "/developers"):
             assert path in body, f"Missing static page {path} in sitemap"
+
+    def test_sitemap_place_chunks_are_bounded(self, client, monkeypatch):
+        from app.api.v1 import sitemap as sitemap_module
+
+        monkeypatch.setattr(sitemap_module, "_PLACE_SITEMAP_CHUNK_SIZE", 2)
+        for idx in range(5):
+            _create_place(client, f"plc_chunk_{idx}", name=f"Chunk Mosque {idx}")
+
+        index = client.get("/sitemap.xml")
+        assert index.status_code == 200
+        assert "/sitemaps/places-1.xml" in index.text
+        assert "/sitemaps/places-2.xml" in index.text
+        assert "/sitemaps/places-3.xml" in index.text
+
+        first = client.get("/sitemaps/places-1.xml")
+        third = client.get("/sitemaps/places-3.xml")
+        missing = client.get("/sitemaps/places-4.xml")
+
+        assert first.status_code == 200
+        assert first.headers["x-sitemap-count"] == "2"
+        assert first.text.count("<url>") == 2
+        assert third.status_code == 200
+        assert third.headers["x-sitemap-count"] == "1"
+        assert missing.status_code == 404
 
 
 # ── Share (enhanced pre-rendering) ────────────────────────────────────────────

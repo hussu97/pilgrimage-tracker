@@ -1,24 +1,26 @@
 """Dynamic XML sitemap endpoint.
 
-Generates a sitemap.xml from all published places in the database.
+Generates a sitemap index plus bounded child sitemap files.
 Multi-language URLs with hreflang and lastmod dates are included.
 Image sitemap extension (Google image namespace) is included per place.
-For catalogues exceeding 50,000 URLs a sitemap index is returned instead.
 
 Routes registered in main.py:
     GET /sitemap.xml
-    GET /sitemap-index.xml  (auto-generated when >50 k places)
+    GET /sitemaps/static.xml
+    GET /sitemaps/places-{page}.xml
 """
 
 from __future__ import annotations
 
 import logging
+import math
 import re
 from datetime import UTC, datetime
 from xml.etree import ElementTree as ET
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
+from sqlalchemy import func
 from sqlmodel import select
 
 from app.core.config import FRONTEND_URL
@@ -88,7 +90,7 @@ def _is_real_city_slug(slug: str) -> bool:
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-_SITEMAP_LIMIT = 50_000  # Standard sitemap URL cap
+_PLACE_SITEMAP_CHUNK_SIZE = 5_000
 _SUPPORTED_LANGS = ("en", "ar", "hi", "te", "ml")
 
 # Sitemap XML namespaces
@@ -127,51 +129,54 @@ def _build_sitemap_xml(
     images_map: dict[str, list[PlaceImage]],
     cities: list[tuple[str, set[str]]],
     blog_posts: list[BlogPost],
+    *,
+    include_static: bool = True,
 ) -> bytes:
     """Build a standard sitemap XML document."""
     _register_ns()
 
     urlset = ET.Element(f"{{{_NS}}}urlset")
 
-    # Homepage
-    _add_url(urlset, FRONTEND_URL, priority="1.0", changefreq="daily")
+    if include_static:
+        # Homepage
+        _add_url(urlset, FRONTEND_URL, priority="1.0", changefreq="daily")
 
-    # Legal/trust pages
-    _add_url(urlset, f"{FRONTEND_URL}/about", priority="0.6", changefreq="monthly")
-    _add_url(urlset, f"{FRONTEND_URL}/privacy", priority="0.5", changefreq="monthly")
-    _add_url(urlset, f"{FRONTEND_URL}/terms", priority="0.5", changefreq="monthly")
-    _add_url(urlset, f"{FRONTEND_URL}/contact", priority="0.5", changefreq="monthly")
-    _add_url(urlset, f"{FRONTEND_URL}/developers", priority="0.6", changefreq="monthly")
+        # Legal/trust pages
+        _add_url(urlset, f"{FRONTEND_URL}/about", priority="0.6", changefreq="monthly")
+        _add_url(urlset, f"{FRONTEND_URL}/privacy", priority="0.5", changefreq="monthly")
+        _add_url(urlset, f"{FRONTEND_URL}/terms", priority="0.5", changefreq="monthly")
+        _add_url(urlset, f"{FRONTEND_URL}/contact", priority="0.5", changefreq="monthly")
+        _add_url(urlset, f"{FRONTEND_URL}/developers", priority="0.6", changefreq="monthly")
 
-    # Blog index + individual articles (from database)
-    _add_url(urlset, f"{FRONTEND_URL}/blog", priority="0.7", changefreq="weekly")
-    for post in blog_posts:
-        _add_url(
-            urlset,
-            f"{FRONTEND_URL}/blog/{post.slug}",
-            lastmod=_fmt_date(post.updated_at),
-            priority="0.7",
-            changefreq="monthly",
-        )
-
-    # Explore index
-    _add_url(urlset, f"{FRONTEND_URL}/explore", priority="0.8", changefreq="weekly")
-
-    # City pages
-    for city_slug, religions in cities:
-        _add_url(
-            urlset,
-            f"{FRONTEND_URL}/explore/{city_slug}",
-            priority="0.7",
-            changefreq="weekly",
-        )
-        for religion in religions:
+        # Blog index + individual articles (from database)
+        _add_url(urlset, f"{FRONTEND_URL}/blog", priority="0.7", changefreq="weekly")
+        for post in blog_posts:
             _add_url(
                 urlset,
-                f"{FRONTEND_URL}/explore/{city_slug}/{religion}",
-                priority="0.6",
+                f"{FRONTEND_URL}/blog/{post.slug}",
+                lastmod=_fmt_date(post.updated_at),
+                priority="0.7",
+                changefreq="monthly",
+            )
+
+        # Explore index
+        _add_url(urlset, f"{FRONTEND_URL}/explore", priority="0.8", changefreq="weekly")
+
+        # City pages
+        for city_slug, religions in cities:
+            _add_url(
+                urlset,
+                f"{FRONTEND_URL}/explore/{city_slug}",
+                priority="0.7",
                 changefreq="weekly",
             )
+            for religion in religions:
+                _add_url(
+                    urlset,
+                    f"{FRONTEND_URL}/explore/{city_slug}/{religion}",
+                    priority="0.6",
+                    changefreq="weekly",
+                )
 
     # Place pages
     for place in places:
@@ -215,6 +220,19 @@ def _build_sitemap_xml(
     return ('<?xml version="1.0" encoding="UTF-8"?>\n' + xml_str).encode("utf-8")
 
 
+def _build_sitemap_index_xml(entries: list[tuple[str, str]]) -> bytes:
+    """Build a sitemap index whose entries are already absolute URLs."""
+    _register_ns()
+    sitemapindex = ET.Element(f"{{{_NS}}}sitemapindex")
+    for loc, lastmod in entries:
+        sitemap_el = ET.SubElement(sitemapindex, f"{{{_NS}}}sitemap")
+        ET.SubElement(sitemap_el, f"{{{_NS}}}loc").text = loc
+        ET.SubElement(sitemap_el, f"{{{_NS}}}lastmod").text = lastmod
+    ET.indent(sitemapindex, space="  ")
+    xml_str = ET.tostring(sitemapindex, encoding="unicode", xml_declaration=False)
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n' + xml_str).encode("utf-8")
+
+
 def _add_url(
     parent: ET.Element,
     loc: str,
@@ -231,48 +249,49 @@ def _add_url(
     return url_el
 
 
-@router.get(
-    "/sitemap.xml",
-    response_class=Response,
-    tags=["seo"],
-    include_in_schema=False,
-)
-def sitemap_xml(session: SessionDep) -> Response:
-    """Return the dynamic XML sitemap for all place pages."""
-    places = session.exec(select(Place)).all()
+def _xml_response(
+    content: bytes, *, count: int | None = None, parts: int | None = None
+) -> Response:
+    headers = {"Cache-Control": "public, max-age=3600"}
+    if count is not None:
+        headers["X-Sitemap-Count"] = str(count)
+    if parts is not None:
+        headers["X-Sitemap-Parts"] = str(parts)
+    return Response(
+        content=content,
+        media_type="application/xml; charset=utf-8",
+        headers=headers,
+    )
 
-    # Build SEO lookup map
-    seo_rows = session.exec(select(PlaceSEO)).all()
-    seo_map: dict[str, PlaceSEO] = {s.place_code: s for s in seo_rows}
 
-    # Batch-fetch URL-type images for all places
-    place_codes = [p.place_code for p in places]
-    images_map: dict[str, list[PlaceImage]] = {}
-    if place_codes:
-        all_imgs = session.exec(
-            select(PlaceImage).where(
-                PlaceImage.place_code.in_(place_codes),
-                PlaceImage.url.is_not(None),
-            )
-        ).all()
-        for img in all_imgs:
-            images_map.setdefault(img.place_code, []).append(img)
+def _place_count(session: SessionDep) -> int:
+    return int(session.exec(select(func.count(Place.place_code))).one() or 0)
+
+
+def _place_sitemap_page_count(place_count: int) -> int:
+    return max(1, math.ceil(place_count / _PLACE_SITEMAP_CHUNK_SIZE))
+
+
+def _load_static_sitemap_inputs(
+    session: SessionDep,
+) -> tuple[list[tuple[str, set[str]]], list[BlogPost]]:
+    places = session.exec(select(Place.city, Place.religion)).all()
 
     # Build city → set-of-religions map for city pages.
     # Only include cities that pass the real-city filter AND have enough places
     # to make the explore page worthwhile.
     city_religions: dict[str, set[str]] = {}
     city_place_counts: dict[str, int] = {}
-    for p in places:
-        if not p.city or not p.city.strip():
+    for city, religion in places:
+        if not city or not city.strip():
             continue
-        slug = _city_to_slug(p.city)
+        slug = _city_to_slug(city)
         if not slug or not _is_real_city_slug(slug):
             continue
         city_religions.setdefault(slug, set())
         city_place_counts[slug] = city_place_counts.get(slug, 0) + 1
-        if p.religion:
-            city_religions[slug].add(p.religion)
+        if religion:
+            city_religions[slug].add(religion)
 
     cities = [
         (slug, religions)
@@ -286,19 +305,106 @@ def sitemap_xml(session: SessionDep) -> Response:
         .where(BlogPost.is_published == True)  # noqa: E712
         .order_by(BlogPost.published_at.asc())
     ).all()
+    return cities, blog_posts
 
-    xml_bytes = _build_sitemap_xml(places, seo_map, images_map, cities, blog_posts)
+
+def _load_place_page(session: SessionDep, page: int) -> list[Place]:
+    offset = (page - 1) * _PLACE_SITEMAP_CHUNK_SIZE
+    return session.exec(
+        select(Place).order_by(Place.place_code).offset(offset).limit(_PLACE_SITEMAP_CHUNK_SIZE)
+    ).all()
+
+
+def _load_place_assets(
+    session: SessionDep, place_codes: list[str]
+) -> tuple[dict[str, PlaceSEO], dict[str, list[PlaceImage]]]:
+    if not place_codes:
+        return {}, {}
+
+    seo_rows = session.exec(select(PlaceSEO).where(PlaceSEO.place_code.in_(place_codes))).all()
+    seo_map: dict[str, PlaceSEO] = {s.place_code: s for s in seo_rows}
+
+    images_map: dict[str, list[PlaceImage]] = {}
+    all_imgs = session.exec(
+        select(PlaceImage).where(
+            PlaceImage.place_code.in_(place_codes),
+            PlaceImage.url.is_not(None),
+        )
+    ).all()
+    for img in all_imgs:
+        images_map.setdefault(img.place_code, []).append(img)
+    return seo_map, images_map
+
+
+@router.get(
+    "/sitemap.xml",
+    response_class=Response,
+    tags=["seo"],
+    include_in_schema=False,
+)
+def sitemap_xml(session: SessionDep) -> Response:
+    """Return a sitemap index for static URLs plus chunked place sitemaps."""
+    count = _place_count(session)
+    page_count = _place_sitemap_page_count(count)
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
+    entries = [(f"{FRONTEND_URL}/sitemaps/static.xml", today)]
+    entries.extend(
+        (f"{FRONTEND_URL}/sitemaps/places-{page}.xml", today) for page in range(1, page_count + 1)
+    )
+    xml_bytes = _build_sitemap_index_xml(entries)
 
     logger.info(
-        "Served sitemap.xml with %d place URLs and %d blog posts",
-        len(places),
-        len(blog_posts),
+        "Served sitemap index with %d place URLs across %d place sitemap parts",
+        count,
+        page_count,
     )
-    return Response(
-        content=xml_bytes,
-        media_type="application/xml; charset=utf-8",
-        headers={
-            "Cache-Control": "public, max-age=3600",
-            "X-Sitemap-Count": str(len(places)),
-        },
+    return _xml_response(xml_bytes, count=count, parts=page_count + 1)
+
+
+@router.get(
+    "/sitemaps/static.xml",
+    response_class=Response,
+    tags=["seo"],
+    include_in_schema=False,
+)
+def static_sitemap_xml(session: SessionDep) -> Response:
+    """Return static, city, and blog URLs in a bounded sitemap file."""
+    cities, blog_posts = _load_static_sitemap_inputs(session)
+    xml_bytes = _build_sitemap_xml(
+        [],
+        {},
+        {},
+        cities,
+        blog_posts,
+        include_static=True,
     )
+    logger.info("Served static sitemap with %d city groups", len(cities))
+    return _xml_response(xml_bytes)
+
+
+@router.get(
+    "/sitemaps/places-{page}.xml",
+    response_class=Response,
+    tags=["seo"],
+    include_in_schema=False,
+)
+def place_sitemap_xml(page: int, session: SessionDep) -> Response:
+    """Return one bounded page of place URLs and image sitemap entries."""
+    count = _place_count(session)
+    page_count = _place_sitemap_page_count(count)
+    if page < 1 or page > page_count:
+        raise HTTPException(status_code=404, detail="Sitemap page not found")
+
+    places = _load_place_page(session, page)
+    place_codes = [p.place_code for p in places]
+    seo_map, images_map = _load_place_assets(session, place_codes)
+    xml_bytes = _build_sitemap_xml(
+        places,
+        seo_map,
+        images_map,
+        [],
+        [],
+        include_static=False,
+    )
+    logger.info("Served place sitemap page %d/%d with %d places", page, page_count, len(places))
+    return _xml_response(xml_bytes, count=len(places), parts=page_count)

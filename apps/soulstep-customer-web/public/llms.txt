@@ -20,7 +20,7 @@ Islam · Christianity · Hinduism · Buddhism · Sikhism · Judaism · Bahá'í 
 - `GET https://catalog-api.soul-step.org/api/v1/places` — List and filter sacred sites
 - `GET https://catalog-api.soul-step.org/api/v1/places/{place_code}` — Place detail (name, address, hours, rating)
 - `GET https://catalog-api.soul-step.org/api/v1/search?q={query}` — Text search
-- `GET https://catalog-api.soul-step.org/sitemap.xml` — Full place sitemap
+- `GET https://catalog-api.soul-step.org/sitemap.xml` — Sitemap index for static and chunked place sitemaps
 - `GET https://catalog-api.soul-step.org/share/places/{place_code}` — Pre-rendered place page (HTML + JSON-LD)
 
 ## Language Support

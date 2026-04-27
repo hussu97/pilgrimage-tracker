@@ -264,7 +264,7 @@ def test_sitemap_image_namespace_present(client, db_session):
     )
     db_session.add(img)
     db_session.commit()
-    resp = client.get("/sitemap.xml")
+    resp = client.get("/sitemaps/places-1.xml")
     assert resp.status_code == 200
     assert "google.com/schemas/sitemap-image" in resp.text
 
@@ -275,7 +275,7 @@ def test_sitemap_language_hreflang_urls(client, db_session):
     headers = _admin_headers(client, db_session, email="admin@sitemaplang.test")
     _generate_seo(client, headers, "plc_sitemap_lang")
 
-    resp = client.get("/sitemap.xml")
+    resp = client.get("/sitemaps/places-1.xml")
     assert resp.status_code == 200
     xml = resp.text
     assert "/share/en/places/" in xml
