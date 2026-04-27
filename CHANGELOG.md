@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-27] — Harden ads.txt for ad crawlers
+
+### Frontend (web)
+- **`apps/soulstep-customer-web/vercel.json`** — added an explicit `/ads.txt` header override so the static Google seller file is served as `text/plain` with crawler-friendly cache headers instead of inheriting the app-shell `no-store` policy.
+
+### Tests
+- **`apps/soulstep-customer-web/src/__tests__/adsTxt.test.ts`** — added regression coverage for the static Google seller entry and the Vercel `/ads.txt` header override.
+
+---
+
 ## [2026-04-27] — Chunked sitemap index for large catalogues
 
 ### Backend
