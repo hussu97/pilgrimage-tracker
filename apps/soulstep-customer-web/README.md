@@ -46,6 +46,9 @@ catalog-api owns the generated XML/HTML payloads.
 | `/sitemap.xml`     | Proxies the catalog sitemap index without ISR body caching           |
 | `/sitemaps/:path*` | Proxies chunked catalog sitemap files, e.g. `/sitemaps/places-1.xml` |
 | `/ads.txt`         | Static Google seller file with crawler-friendly text/cache headers   |
+| `/robots.txt`      | Static robots file with crawler-friendly text/cache headers          |
+| `/llms.txt`        | Static AI crawler summary with crawler-friendly text/cache headers   |
+| `/.well-known/*`   | Static well-known metadata with crawler-friendly cache headers       |
 | `/feed.xml`        | Proxies the catalog RSS feed                                         |
 | `/feed.atom`       | Proxies the catalog Atom feed                                        |
 

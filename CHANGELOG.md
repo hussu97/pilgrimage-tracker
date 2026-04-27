@@ -8,9 +8,10 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ### Frontend (web)
 - **`apps/soulstep-customer-web/vercel.json`** — added an explicit `/ads.txt` header override so the static Google seller file is served as `text/plain` with crawler-friendly cache headers instead of inheriting the app-shell `no-store` policy.
+- **`apps/soulstep-customer-web/vercel.json`** and **`nginx.conf`** — applied the same crawler-friendly cache behavior to `/robots.txt`, `/llms.txt`, and `/.well-known/*`, including Docker/nginx deployments, while keeping the app shell itself on `no-store`.
 
 ### Tests
-- **`apps/soulstep-customer-web/src/__tests__/adsTxt.test.ts`** — added regression coverage for the static Google seller entry and the Vercel `/ads.txt` header override.
+- **`apps/soulstep-customer-web/src/__tests__/adsTxt.test.ts`** — added regression coverage for the static Google seller entry, canonical robots sitemap URL, and Vercel crawler-file header overrides.
 
 ---
 
