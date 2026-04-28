@@ -379,6 +379,35 @@ def _filter_new_detail_buffer(
     return filtered_buffer, skipped_duplicates
 
 
+def _requeue_pending_detail_placeholders(run_code: str, session: Session) -> int:
+    """Remove non-terminal detail rows so resume can fetch them again.
+
+    A crashed or externally repaired handoff can leave ``ScrapedPlace`` rows in
+    ``detail_fetch_status='pending'``. Those rows are placeholders, not completed
+    detail fetches, so keeping them makes the resume idempotency guard skip work
+    that still needs to happen.
+    """
+
+    pending_rows = session.exec(
+        select(ScrapedPlace)
+        .where(ScrapedPlace.run_code == run_code)
+        .where(ScrapedPlace.detail_fetch_status == "pending")
+    ).all()
+    if not pending_rows:
+        return 0
+
+    for row in pending_rows:
+        session.delete(row)
+    session.commit()
+
+    logger.warning(
+        "Resume: requeued %d pending detail placeholder(s) for run %s",
+        len(pending_rows),
+        run_code,
+    )
+    return len(pending_rows)
+
+
 def _flush_detail_buffer(
     buffer: list[tuple],
     run_code: str,
@@ -507,10 +536,16 @@ async def fetch_place_details(
         extracted_id = place_name[7:] if place_name.startswith("places/") else place_name
         name_to_code[place_name] = f"gplc_{extracted_id}"
 
+    requeued_pending_count = _requeue_pending_detail_placeholders(run_code, session)
+
     # Idempotency guard: select only place_code — never load raw_data (20-50 KB each)
     # Loading full rows here caused OOM on resumed country-level runs (40K × 30KB ≈ 1.2 GB).
     already_fetched_codes = set(
-        session.exec(select(ScrapedPlace.place_code).where(ScrapedPlace.run_code == run_code)).all()
+        session.exec(
+            select(ScrapedPlace.place_code)
+            .where(ScrapedPlace.run_code == run_code)
+            .where(ScrapedPlace.detail_fetch_status.in_(["success", "failed"]))
+        ).all()
     )
     already_fetched_count = 0
     if already_fetched_codes:
@@ -530,6 +565,13 @@ async def fetch_place_details(
                 session.commit()
             logger.info("All places already fetched for run %s, skipping detail fetch", run_code)
             return
+
+    if requeued_pending_count:
+        _run = session.exec(select(ScraperRun).where(ScraperRun.run_code == run_code)).first()
+        if _run:
+            _run.processed_items = already_fetched_count
+            session.add(_run)
+            session.commit()
 
     # Single bulk query for cached places
     cached_places: dict[str, ScrapedPlace] = {}

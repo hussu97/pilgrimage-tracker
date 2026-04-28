@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-28] — Requeue pending detail placeholders on resume
+
+### Backend
+- **`soulstep-scraper-api/app/scrapers/gmaps_shared.py`** — local/prod scraper resume now removes non-terminal `detail_fetch_status='pending'` placeholder rows before building the already-fetched skip list, so interrupted handoff runs do not silently strand pending places outside the detail-fetch queue.
+
+### Tests
+- **`soulstep-scraper-api/tests/test_browser_gmaps.py`** — added regression coverage proving pending detail placeholders are re-fetched on resume while completed places still advance progress idempotently.
+
+---
+
 ## [2026-04-27] — Browser detail fetch watchdog
 
 ### Backend

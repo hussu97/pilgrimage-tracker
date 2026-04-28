@@ -2155,6 +2155,87 @@ class TestFlushDetailBufferReviewImages:
 
         assert run.processed_items == 1
 
+    @pytest.mark.asyncio
+    async def test_resume_requeues_pending_detail_placeholders(self):
+        """Pending placeholder rows must not make resume skip unfinished details."""
+        from sqlmodel import Session, select
+
+        from app.db.models import ScrapedPlace, ScraperRun
+        from app.scrapers.gmaps_shared import fetch_place_details
+
+        class Collector:
+            calls = 0
+
+            async def fetch_details_split(self, place_name, api_key, rate_limiter, detail_client):
+                self.calls += 1
+                return {"id": place_name}
+
+            def build_place_data(
+                self,
+                response,
+                place_code,
+                api_key,
+                _unused,
+                type_map=None,
+                religion_type_map=None,
+            ):
+                return {
+                    **TestFlushDetailBufferReviewImages()._minimal_details(place_code),
+                    "name": "Requeued Place",
+                    "google_place_id": place_code.replace("gplc_", ""),
+                }
+
+        engine = self._make_engine_and_run()
+        with Session(engine) as sess:
+            run = sess.exec(
+                select(ScraperRun).where(ScraperRun.run_code == "run_rev_img_test")
+            ).first()
+            run.processed_items = 1
+            sess.add(run)
+            sess.add(
+                ScrapedPlace(
+                    run_code="run_rev_img_test",
+                    place_code="gplc_ChIJpending",
+                    name="places/ChIJpending",
+                    raw_data={"id": "places/ChIJpending"},
+                    detail_fetch_status="pending",
+                )
+            )
+            sess.commit()
+
+        collector = Collector()
+
+        async def _noop_asset_drain(*args, **kwargs):
+            return None
+
+        with Session(engine) as sess:
+            with patch("app.scrapers.gmaps_shared.drain_scraped_assets", _noop_asset_drain):
+                await fetch_place_details(
+                    ["places/ChIJpending"],
+                    "run_rev_img_test",
+                    sess,
+                    collector=collector,
+                    api_key="",
+                    type_map={},
+                    religion_type_map={},
+                    force_refresh=False,
+                    stale_threshold_days=30,
+                )
+
+        with Session(engine) as sess:
+            places = sess.exec(
+                select(ScrapedPlace).where(ScrapedPlace.place_code == "gplc_ChIJpending")
+            ).all()
+            run = sess.exec(
+                select(ScraperRun).where(ScraperRun.run_code == "run_rev_img_test")
+            ).first()
+
+        assert collector.calls == 1
+        assert len(places) == 1
+        assert places[0].detail_fetch_status == "success"
+        assert places[0].name == "Requeued Place"
+        assert run.processed_items == 1
+
 
 # ── _capture_review_images: URL collection and limit ────────────────────────
 
