@@ -4,6 +4,16 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-29] — Mobile responsiveness and translation fixes
+
+### Frontend (web)
+- Fixed mobile horizontal overflow by adding `overflow-x-hidden` to the root layout container, preventing any overflowing element from causing the page to scroll horizontally on mobile.
+
+### Backend
+- Added 10 missing translation keys in all five languages (en, ar, hi, te, ml): `common.close`, `common.search`, `common.showMap`, `common.hideMap`, `groups.active`, `groups.activeStreak`, `groups.create`, `groups.journeyCount`, `groups.journeyFound`, `checkins.noVisitsOnDate`.
+
+---
+
 ## [2026-04-29] — Frontend release freshness rule
 
 ### Docs

@@ -562,7 +562,17 @@
       "footer.privacy": "Privacy Policy",
       "footer.terms": "Terms of Service",
       "footer.contact": "Contact",
-      "footer.api": "API"
+      "footer.api": "API",
+      "checkins.noVisitsOnDate": "No visits on this date",
+      "common.close": "Close",
+      "common.hideMap": "Hide Map",
+      "common.search": "Search",
+      "common.showMap": "Show Map",
+      "groups.active": "Active",
+      "groups.activeStreak": "Active Streak",
+      "groups.create": "Create",
+      "groups.journeyCount": "Journeys",
+      "groups.journeyFound": "Journey Found"
     },
     "ar": {
       "auth.login": "تسجيل الدخول",
@@ -1104,7 +1114,17 @@
       "footer.privacy": "سياسة الخصوصية",
       "footer.terms": "شروط الخدمة",
       "footer.contact": "تواصل",
-      "footer.api": "API"
+      "footer.api": "API",
+      "checkins.noVisitsOnDate": "لا زيارات في هذا التاريخ",
+      "common.close": "إغلاق",
+      "common.hideMap": "إخفاء الخريطة",
+      "common.search": "بحث",
+      "common.showMap": "عرض الخريطة",
+      "groups.active": "نشط",
+      "groups.activeStreak": "سلسلة نشطة",
+      "groups.create": "إنشاء",
+      "groups.journeyCount": "رحلات",
+      "groups.journeyFound": "تم العثور على الرحلة"
     },
     "hi": {
       "auth.login": "लॉग इन करें",
@@ -1646,7 +1666,17 @@
       "footer.privacy": "गोपनीयता नीति",
       "footer.terms": "सेवा शर्तें",
       "footer.contact": "संपर्क",
-      "footer.api": "API"
+      "footer.api": "API",
+      "checkins.noVisitsOnDate": "इस तारीख पर कोई यात्रा नहीं",
+      "common.close": "बंद करें",
+      "common.hideMap": "नक्शा छुपाएं",
+      "common.search": "खोजें",
+      "common.showMap": "नक्शा दिखाएं",
+      "groups.active": "सक्रिय",
+      "groups.activeStreak": "सक्रिय लकीर",
+      "groups.create": "बनाएं",
+      "groups.journeyCount": "यात्राएं",
+      "groups.journeyFound": "यात्रा मिली"
     },
     "te": {
       "auth.login": "లాగిన్ చేయండి",
@@ -2188,7 +2218,17 @@
       "footer.privacy": "గోప్యతా విధానం",
       "footer.terms": "సేవా నిబంధనలు",
       "footer.contact": "సంప్రదించండి",
-      "footer.api": "API"
+      "footer.api": "API",
+      "checkins.noVisitsOnDate": "ఈ తేదీన సందర్శనలు లేవు",
+      "common.close": "మూసివేయి",
+      "common.hideMap": "మ్యాప్ దాచు",
+      "common.search": "వెతకండి",
+      "common.showMap": "మ్యాప్ చూపించు",
+      "groups.active": "క్రియాశీలం",
+      "groups.activeStreak": "క్రియాశీల స్ట్రీక్",
+      "groups.create": "సృష్టించు",
+      "groups.journeyCount": "యాత్రలు",
+      "groups.journeyFound": "యాత్ర కనుగొన్నారు"
     },
     "ml": {
       "auth.login": "ലോഗിൻ",
@@ -2730,7 +2770,17 @@
       "footer.privacy": "സ്വകാര്യതാ നയം",
       "footer.terms": "സേവന നിബന്ധനകൾ",
       "footer.contact": "ബന്ധപ്പെടുക",
-      "footer.api": "API"
+      "footer.api": "API",
+      "checkins.noVisitsOnDate": "ഈ തീയതിയിൽ സന്ദർശനങ്ങളൊന്നുമില്ല",
+      "common.close": "അടയ്ക്കുക",
+      "common.hideMap": "ഭൂപടം മറയ്ക്കുക",
+      "common.search": "തിരയുക",
+      "common.showMap": "ഭൂപടം കാണിക്കുക",
+      "groups.active": "സജീവം",
+      "groups.activeStreak": "സജീവ സ്ട്രീക്ക്",
+      "groups.create": "ഉണ്ടാക്കുക",
+      "groups.journeyCount": "യാത്രകൾ",
+      "groups.journeyFound": "യാത്ര കണ്ടെത്തി"
     }
   },
   "content_translations": [
