@@ -4,12 +4,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useI18n } from '@/app/providers';
 import { useHead } from '@/lib/hooks/useHead';
 import { getPlaces } from '@/lib/api/client';
-import type { Place } from '@/lib/types';
+import type { Place, Religion } from '@/lib/types';
 import PlaceCardUnified from '@/components/places/PlaceCardUnified';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { EVENTS } from '@/lib/analytics/events';
+import { useAuthRequired } from '@/lib/hooks/useAuthRequired';
+import AddToGroupSheet from '@/components/groups/AddToGroupSheet';
 
-const RELIGIONS = [
+const RELIGIONS: Array<{ value: Religion | ''; labelKey: string }> = [
   { value: '', labelKey: 'common.all' },
   { value: 'islam', labelKey: 'common.islam' },
   { value: 'christianity', labelKey: 'common.christianity' },
@@ -46,7 +48,12 @@ export default function Places() {
   const { t } = useI18n();
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
-  const [religion, setReligion] = useState('');
+  const [religion, setReligion] = useState<Religion | ''>('');
+  const [search, setSearch] = useState('');
+  const [openNow, setOpenNow] = useState(false);
+  const [topRated, setTopRated] = useState(false);
+  const [addToJourneyPlace, setAddToJourneyPlace] = useState<Place | null>(null);
+  const { requireAuth } = useAuthRequired();
   const { trackUmamiEvent } = useUmamiTracking();
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -62,7 +69,10 @@ export default function Places() {
       try {
         const resp = await getPlaces(
           {
-            religions: religion ? [religion as any] : undefined,
+            religions: religion ? [religion] : undefined,
+            search: search.trim() || undefined,
+            open_now: openNow || undefined,
+            top_rated: topRated || undefined,
             page,
             page_size: PAGE_SIZE,
           },
@@ -82,13 +92,13 @@ export default function Places() {
         if (!controller.signal.aborted) setLoading(false);
       }
     },
-    [religion],
+    [openNow, religion, search, topRated],
   );
 
   useEffect(() => {
     setCurrentPage(1);
     fetchPlaces(1, true);
-  }, [religion, fetchPlaces]);
+  }, [religion, search, openNow, topRated, fetchPlaces]);
 
   // Abort in-flight request on unmount
   useEffect(() => {
@@ -100,14 +110,63 @@ export default function Places() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-text-main dark:text-white mb-1">All Sacred Sites</h1>
+        <h1 className="text-2xl font-bold text-text-main dark:text-white mb-1">
+          {t('discover.allPlacesTitle')}
+        </h1>
         <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
-          Browse mosques, temples, churches, and places of worship worldwide.
+          {t('discover.allPlacesSubtitle')}
         </p>
       </div>
 
-      {/* Religion filter */}
+      <div className="mb-4 rounded-2xl border border-slate-100 bg-white p-2 shadow-sm dark:border-dark-border dark:bg-dark-surface">
+        <label htmlFor="places-search" className="sr-only">
+          {t('discover.searchPlaceholder')}
+        </label>
+        <div className="flex items-center gap-2 px-2">
+          <span className="material-symbols-outlined text-slate-400">search</span>
+          <input
+            id="places-search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder={t('discover.searchPlaceholder')}
+            className="min-h-12 flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted dark:text-white dark:placeholder:text-dark-text-secondary"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-primary dark:hover:bg-dark-bg"
+              aria-label={t('common.clear')}
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="flex gap-2 flex-wrap mb-6">
+        <button
+          type="button"
+          onClick={() => setOpenNow((value) => !value)}
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            openNow
+              ? 'bg-primary text-white'
+              : 'bg-slate-100 dark:bg-dark-surface text-text-secondary dark:text-dark-text-secondary hover:bg-slate-200 dark:hover:bg-dark-border'
+          }`}
+        >
+          {t('discover.openNow')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setTopRated((value) => !value)}
+          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            topRated
+              ? 'bg-primary text-white'
+              : 'bg-slate-100 dark:bg-dark-surface text-text-secondary dark:text-dark-text-secondary hover:bg-slate-200 dark:hover:bg-dark-border'
+          }`}
+        >
+          {t('discover.topRated')}
+        </button>
         {RELIGIONS.map((r) => (
           <button
             key={r.value}
@@ -151,6 +210,12 @@ export default function Places() {
                   religion: p.religion,
                 })
               }
+              variant="recommended"
+              onAddToJourney={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                requireAuth(() => setAddToJourneyPlace(place), 'visitor.loginToPlanJourney');
+              }}
             />
           ))}
         </div>
@@ -164,9 +229,18 @@ export default function Places() {
             disabled={loading}
             className="px-6 py-2 rounded-xl bg-primary text-white font-medium text-sm hover:bg-primary-hover disabled:opacity-60 transition-colors"
           >
-            {loading ? t('common.loading') : 'Load More'}
+            {loading ? t('common.loading') : t('common.loadMore')}
           </button>
         </div>
+      )}
+
+      {addToJourneyPlace && (
+        <AddToGroupSheet
+          placeCode={addToJourneyPlace.place_code}
+          placeName={addToJourneyPlace.name}
+          onClose={() => setAddToJourneyPlace(null)}
+          t={t}
+        />
       )}
     </div>
   );

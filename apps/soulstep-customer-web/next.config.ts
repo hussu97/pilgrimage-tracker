@@ -8,6 +8,40 @@ const backendOrigin =
     : process.env.NEXT_PUBLIC_API_BASE_URL || 'https://catalog-api.soul-step.org';
 
 const nextConfig: NextConfig = {
+  async headers() {
+    const scriptSrc = [
+      "'self'",
+      "'unsafe-inline'",
+      ...(process.env.NODE_ENV === 'development' ? ["'unsafe-eval'"] : []),
+      'https://pagead2.googlesyndication.com',
+      'https://www.googletagservices.com',
+      'https://adservice.google.com',
+      'https://tpc.googlesyndication.com',
+      'https://cloud.umami.is',
+    ].join(' ');
+    const csp = [
+      "default-src 'self'",
+      `script-src ${scriptSrc}`,
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: https:",
+      "connect-src 'self' http://localhost:* http://127.0.0.1:* https://*.run.app https://soul-step.org https://www.soul-step.org https://catalog-api.soul-step.org https://pagead2.googlesyndication.com https://*.adtrafficquality.google",
+      'frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com',
+      "frame-ancestors 'none'",
+    ].join('; ');
+
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Content-Security-Policy', value: csp },
+        ],
+      },
+    ];
+  },
+
   // Rewrite rules:
   //   /sitemap.xml, /sitemaps/*, /feed.xml, /feed.atom → internal Next.js route handlers
   //   /llms.txt, /openapi.json, /.well-known/*, /share/* → backend proxy (all envs)

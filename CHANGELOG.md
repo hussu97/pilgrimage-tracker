@@ -4,6 +4,26 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-29] — Discovery-first customer web journey redesign
+
+### Frontend (web)
+- Reworked the customer web Home surface into a cleaner Discover experience with search, shared filters, recommended places, non-blocking first-visit guidance, and a selected-places tray for starting a journey.
+- Made `/journeys` the canonical journeys route, with `/groups/*` kept as redirect-compatible legacy URLs, and updated customer navigation to visible Discover, Map, Journeys, and Profile destinations.
+- Simplified journey creation so `/journeys/new` starts with place selection and can prefill from Discover-selected places instead of forcing intent cards first.
+- Standardized discovery filters across the Discover, Places, and Map surfaces and filtered low-quality city labels from home discovery modules.
+- Moved CSP into real Next.js headers, removed pre-consent AdSense script loading, and guarded invite-link rendering from server-side `window` access.
+
+### Backend
+- Added translation keys for the redesigned web discovery and journey-planning UI in all supported languages.
+
+### Docs
+- Updated the customer web README to reflect the canonical Discover/Journeys route model.
+
+### Tests
+- Added discovery utility coverage for city-quality filtering and selected-place journey draft serialization.
+
+---
+
 ## [2026-04-29] — Web-only cleanup, Umami proxy, and mobile browser layout hardening
 
 ### Backend

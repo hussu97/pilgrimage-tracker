@@ -80,7 +80,7 @@ export default function AddToGroupSheet({
               {t('groups.noGroupsYetShort')}
             </p>
             <Link
-              to="/groups/create"
+              to="/journeys/new"
               className="inline-block bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-primary-hover transition-colors"
               onClick={onClose}
             >

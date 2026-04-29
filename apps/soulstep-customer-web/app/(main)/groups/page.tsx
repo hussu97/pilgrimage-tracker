@@ -1,10 +1,5 @@
-import Groups from '@/app/pages/Groups';
-import type { Metadata } from 'next';
-
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};
+import { redirect } from 'next/navigation';
 
 export default function Page() {
-  return <Groups />;
+  redirect('/journeys');
 }

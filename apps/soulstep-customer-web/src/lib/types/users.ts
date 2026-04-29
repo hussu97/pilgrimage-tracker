@@ -1,4 +1,13 @@
-export type Religion = 'islam' | 'hinduism' | 'christianity' | 'all';
+export type Religion =
+  | 'islam'
+  | 'hinduism'
+  | 'christianity'
+  | 'buddhism'
+  | 'sikhism'
+  | 'judaism'
+  | 'bahai'
+  | 'zoroastrianism'
+  | 'all';
 
 export interface User {
   user_code: string;

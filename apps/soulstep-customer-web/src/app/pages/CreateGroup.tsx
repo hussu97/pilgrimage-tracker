@@ -28,7 +28,8 @@ import {
 import type { FeaturedGroup } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
-import type { Place } from '@/lib/types';
+import { DISCOVERY_JOURNEY_DRAFT_KEY, parseDiscoveryJourneyDraft } from '@/lib/utils/discovery';
+import type { Place, Religion } from '@/lib/types';
 import { COLORS } from '@/lib/colors';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -111,8 +112,12 @@ function generateJourneyName(
 
 /** Horizontal progress indicator */
 function StepIndicator({ step }: { step: Step }) {
-  const steps: Step[] = ['intent', 'build', 'polish'];
-  const labels = ['Choose Intent', 'Build Route', 'Review'];
+  const { t } = useI18n();
+  const steps: Step[] = step === 'intent' ? ['intent', 'build', 'polish'] : ['build', 'polish'];
+  const labels =
+    step === 'intent'
+      ? [t('journey.stepIntent'), t('journey.stepChoosePlaces'), t('journey.stepReview')]
+      : [t('journey.stepChoosePlaces'), t('journey.stepReview')];
   const idx = steps.indexOf(step);
   return (
     <div className="flex items-center justify-center gap-2 px-4 py-3">
@@ -203,8 +208,8 @@ export default function CreateGroup() {
   }, []);
 
   // ── Step state ──────────────────────────────────────────────────────────────
-  const [step, setStep] = useState<Step>('intent');
-  const [intent, setIntent] = useState<JourneyIntent | null>(null);
+  const [step, setStep] = useState<Step>('build');
+  const [intent, setIntent] = useState<JourneyIntent | null>('scratch');
 
   // ── Build step sub-step state ────────────────────────────────────────────────
   const [buildSubStep, setBuildSubStep] = useState<BuildSubStep>(null);
@@ -241,6 +246,19 @@ export default function CreateGroup() {
   const [groupCode, setGroupCode] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
 
+  useEffect(() => {
+    const draft = parseDiscoveryJourneyDraft(localStorage.getItem(DISCOVERY_JOURNEY_DRAFT_KEY));
+    if (!draft?.places.length) return;
+    setSelectedPlaces(draft.places as Place[]);
+    setIntent('scratch');
+    setStep('build');
+    localStorage.removeItem(DISCOVERY_JOURNEY_DRAFT_KEY);
+  }, []);
+
+  const inviteUrl = inviteCode
+    ? `${typeof window !== 'undefined' ? window.location.origin : 'https://www.soul-step.org'}/join?code=${inviteCode}`
+    : '';
+
   // ── Load places when entering build step ────────────────────────────────────
   const loadPlaces = useCallback(
     async (opts?: { city?: string; religions?: string[] }) => {
@@ -252,7 +270,7 @@ export default function CreateGroup() {
           sort: 'distance',
           page_size: 100,
           city: opts?.city,
-          religions: (opts?.religions as any) ?? undefined,
+          religions: opts?.religions as Religion[] | undefined,
         });
         setAllPlaces(res.places ?? []);
       } catch {
@@ -290,7 +308,9 @@ export default function CreateGroup() {
       );
       if (!coverImageUrl && selectedPlaces[0]) {
         // Auto-set cover from first place
-        const img = (selectedPlaces[0] as Place & { image_url?: string }).image_url;
+        const img =
+          (selectedPlaces[0] as Place & { image_url?: string }).image_url ??
+          selectedPlaces[0].images?.[0]?.url;
         if (img) setCoverImageUrl(img);
       }
     }
@@ -371,15 +391,14 @@ export default function CreateGroup() {
       <div className="flex items-center gap-3 px-4 pt-4 pb-2">
         <button
           onClick={() => {
-            if (step === 'intent') navigate(-1);
+            if (step === 'intent') navigate('/home');
             else if (step === 'build') {
               if (buildSubStep !== null) {
-                setStep('intent');
+                setStep('build');
                 setBuildSubStep(null);
                 setSelectedCity(null);
                 setSelectedFaith(null);
                 setAllPlaces([]);
-                setSelectedPlaces([]);
               } else if (intent !== 'scratch' && (selectedCity || selectedFaith)) {
                 if (intent === 'city') {
                   setBuildSubStep('city_pick');
@@ -389,8 +408,7 @@ export default function CreateGroup() {
                   setAllPlaces([]);
                 }
               } else {
-                setStep('intent');
-                setBuildSubStep(null);
+                navigate('/home');
               }
             } else if (step === 'polish') setStep('build');
           }}
@@ -404,7 +422,7 @@ export default function CreateGroup() {
             {t('journey.createJourney')}
           </h1>
         </div>
-        {step !== 'intent' && step !== 'success' && (
+        {step === 'polish' && (
           <button
             onClick={() => navigate(-1)}
             className="text-xs text-text-muted dark:text-dark-text-secondary hover:text-primary"
@@ -720,7 +738,10 @@ export default function CreateGroup() {
                               </p>
                             )}
                             <p className="text-xs text-primary font-semibold mt-1">
-                              {route.total_sites} sites
+                              {t('journey.placesCount').replace(
+                                '{count}',
+                                String(route.total_sites),
+                              )}
                             </p>
                           </div>
                         </button>
@@ -774,7 +795,10 @@ export default function CreateGroup() {
                     <div className="px-4 py-2 border-b border-slate-100 dark:border-dark-border">
                       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
                         <span className="text-xs font-semibold text-text-muted dark:text-dark-text-secondary flex-shrink-0">
-                          {selectedPlaces.length} selected
+                          {t('journey.selectedCount').replace(
+                            '{count}',
+                            String(selectedPlaces.length),
+                          )}
                         </span>
                         <AnimatePresence>
                           {selectedPlaces.map((p, i) => (
@@ -873,12 +897,12 @@ export default function CreateGroup() {
                                   )}
                                   {place.open_status === 'open' && (
                                     <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
-                                      Open
+                                      {t('places.open')}
                                     </span>
                                   )}
                                   {place.open_status === 'closed' && (
                                     <span className="text-[10px] font-semibold text-red-500 dark:text-red-400">
-                                      Closed
+                                      {t('places.closed')}
                                     </span>
                                   )}
                                 </div>
@@ -910,17 +934,21 @@ export default function CreateGroup() {
                   {/* Continue CTA */}
                   <div className="fixed bottom-0 left-0 right-0 md:static p-4 bg-white/90 dark:bg-dark-bg/90 backdrop-blur-sm border-t border-slate-100 dark:border-dark-border">
                     <button
-                      onClick={() => setStep('polish')}
+                      onClick={() => selectedPlaces.length > 0 && setStep('polish')}
+                      disabled={selectedPlaces.length === 0}
                       className={cn(
                         'w-full py-3 rounded-xl font-semibold text-white transition-all',
                         selectedPlaces.length > 0
                           ? 'bg-primary hover:bg-primary-hover'
-                          : 'bg-primary/50 cursor-default',
+                          : 'bg-primary/50 cursor-not-allowed',
                       )}
                     >
                       {selectedPlaces.length > 0
-                        ? `Continue with ${selectedPlaces.length} place${selectedPlaces.length > 1 ? 's' : ''}`
-                        : 'Continue without places'}
+                        ? t('journey.continueWithPlaces').replace(
+                            '{count}',
+                            String(selectedPlaces.length),
+                          )
+                        : t('journey.chooseAtLeastOnePlace')}
                     </button>
                   </div>
                 </>
@@ -1065,7 +1093,7 @@ export default function CreateGroup() {
                       {t('groups.privateGroup')}
                     </p>
                     <p className="text-xs text-text-muted dark:text-dark-text-secondary">
-                      {isPrivate ? 'Invite only' : 'Anyone can join with link'}
+                      {isPrivate ? t('groups.inviteOnly') : t('groups.anyoneWithLink')}
                     </p>
                   </div>
                 </div>
@@ -1088,10 +1116,10 @@ export default function CreateGroup() {
               {selectedPlaces.length > 0 && (
                 <div className="bg-white dark:bg-dark-surface rounded-xl p-4 border border-slate-100 dark:border-dark-border">
                   <p className="text-xs font-semibold text-text-muted dark:text-dark-text-secondary uppercase tracking-wider mb-2">
-                    Route Summary
+                    {t('journey.routeSummary')}
                   </p>
                   <p className="text-sm text-text-primary dark:text-white">
-                    {selectedPlaces.length} place{selectedPlaces.length > 1 ? 's' : ''}
+                    {t('journey.selectedCount').replace('{count}', String(selectedPlaces.length))}
                   </p>
                   <div className="flex gap-1 mt-2 flex-wrap">
                     {selectedPlaces.slice(0, 5).map((p) => (
@@ -1104,7 +1132,10 @@ export default function CreateGroup() {
                     ))}
                     {selectedPlaces.length > 5 && (
                       <span className="text-[10px] text-text-muted dark:text-dark-text-secondary px-2 py-0.5">
-                        +{selectedPlaces.length - 5} more
+                        {t('common.moreCount').replace(
+                          '{count}',
+                          String(selectedPlaces.length - 5),
+                        )}
                       </span>
                     )}
                   </div>
@@ -1159,16 +1190,11 @@ export default function CreateGroup() {
                 <div className="flex gap-2 w-full">
                   <input
                     readOnly
-                    value={`${window.location.origin}/join?code=${inviteCode}`}
+                    value={inviteUrl}
                     className="flex-1 text-xs border border-input-border dark:border-dark-border rounded-xl px-3 py-2.5 bg-slate-50 dark:bg-dark-surface text-text-primary dark:text-white"
                   />
                   <button
-                    onClick={() =>
-                      shareUrl(
-                        t('groups.shareMessage'),
-                        `${window.location.origin}/join?code=${inviteCode}`,
-                      )
-                    }
+                    onClick={() => shareUrl(t('groups.shareMessage'), inviteUrl)}
                     className="px-3 py-2.5 rounded-xl border border-input-border dark:border-dark-border text-text-muted hover:text-primary transition-colors"
                   >
                     <span className="material-symbols-outlined text-[18px]">share</span>
@@ -1211,7 +1237,7 @@ export default function CreateGroup() {
                 <span className="material-symbols-outlined text-[16px] animate-spin">
                   progress_activity
                 </span>
-                Creating…
+                {t('common.creating')}
               </span>
             ) : (
               t('groups.createAndInvite')

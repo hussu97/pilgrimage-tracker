@@ -41,7 +41,7 @@ export default function JoinGroup() {
       const { group_code } = await joinGroupByCode(code);
       trackUmamiEvent(EVENTS.journey.join_submit);
       showSuccess(t('feedback.groupJoined'));
-      navigate(`/groups/${group_code}`);
+      navigate(`/journeys/${group_code}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
       showError(t('feedback.error'));
@@ -72,7 +72,7 @@ export default function JoinGroup() {
         </p>
         <button
           type="button"
-          onClick={() => navigate('/groups')}
+          onClick={() => navigate('/journeys')}
           className="px-4 py-2 rounded-xl bg-primary text-white font-medium"
         >
           {t('groups.title')}
@@ -107,7 +107,7 @@ export default function JoinGroup() {
       <div className="flex gap-3">
         <button
           type="button"
-          onClick={() => navigate('/groups')}
+          onClick={() => navigate('/journeys')}
           className="flex-1 py-3 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white font-medium"
         >
           {t('common.cancel')}

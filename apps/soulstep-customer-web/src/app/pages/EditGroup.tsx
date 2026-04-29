@@ -38,7 +38,7 @@ export default function EditGroup() {
 
       const isAdmin = members.some((m) => m.user_code === user?.user_code && m.role === 'admin');
       if (!isAdmin) {
-        navigate(`/groups/${groupCode}`);
+        navigate(`/journeys/${groupCode}`);
         return;
       }
 
@@ -51,7 +51,7 @@ export default function EditGroup() {
       setEndDate(g.end_date ?? '');
       setPlaceCount((g.path_place_codes ?? []).length);
     } catch {
-      navigate(`/groups/${groupCode}`);
+      navigate(`/journeys/${groupCode}`);
     } finally {
       setLoading(false);
     }
@@ -116,7 +116,7 @@ export default function EditGroup() {
         end_date: endDate || undefined,
       });
       showSuccess(t('feedback.groupUpdated'));
-      navigate(`/groups/${groupCode}`);
+      navigate(`/journeys/${groupCode}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
       showError(t('feedback.error'));
@@ -140,7 +140,7 @@ export default function EditGroup() {
       <div className="flex items-center gap-3 mb-6">
         <button
           type="button"
-          onClick={() => navigate(`/groups/${groupCode}`)}
+          onClick={() => navigate(`/journeys/${groupCode}`)}
           className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-dark-surface"
         >
           <span className="material-symbols-outlined text-slate-600 dark:text-white">
@@ -282,7 +282,7 @@ export default function EditGroup() {
         {/* Manage Itinerary button */}
         <button
           type="button"
-          onClick={() => navigate(`/groups/${groupCode}/edit-places`)}
+          onClick={() => navigate(`/journeys/${groupCode}/edit-places`)}
           className="w-full h-12 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white font-medium flex items-center justify-center gap-2 hover:bg-soft-blue dark:hover:bg-dark-surface transition-colors"
         >
           <span className="material-symbols-outlined text-lg">edit_note</span>
@@ -303,7 +303,7 @@ export default function EditGroup() {
         <div className="flex gap-3 pt-2">
           <button
             type="button"
-            onClick={() => navigate(`/groups/${groupCode}`)}
+            onClick={() => navigate(`/journeys/${groupCode}`)}
             className="flex-1 h-12 rounded-xl border border-input-border dark:border-dark-border text-text-main dark:text-white font-medium"
           >
             {t('common.cancel')}

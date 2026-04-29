@@ -1,4 +1,4 @@
-import Home from '@/app/pages/Home';
+import Groups from '@/app/pages/Groups';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -6,5 +6,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <Home />;
+  return <Groups />;
 }

@@ -32,14 +32,14 @@ export default function EditGroupPlaces() {
       const [g, members] = await Promise.all([getGroup(groupCode), getGroupMembers(groupCode)]);
       const isAdmin = members.some((m) => m.user_code === user?.user_code && m.role === 'admin');
       if (!isAdmin) {
-        navigate(`/groups/${groupCode}`);
+        navigate(`/journeys/${groupCode}`);
         return;
       }
       const initial = g.path_place_codes ?? [];
       setSelectedPlaceCodes(initial);
       setOriginalPlaceCodes(initial);
     } catch {
-      navigate(`/groups/${groupCode}/edit`);
+      navigate(`/journeys/${groupCode}/edit`);
     } finally {
       setLoading(false);
     }
@@ -76,7 +76,7 @@ export default function EditGroupPlaces() {
           count: removed,
         });
       }
-      navigate(`/groups/${groupCode}/edit`);
+      navigate(`/journeys/${groupCode}/edit`);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.error'));
     } finally {
@@ -100,7 +100,7 @@ export default function EditGroupPlaces() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate(`/groups/${groupCode}/edit`)}
+            onClick={() => navigate(`/journeys/${groupCode}/edit`)}
             className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-dark-surface"
           >
             <span className="material-symbols-outlined text-slate-600 dark:text-white">

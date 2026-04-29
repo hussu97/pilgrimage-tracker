@@ -1,15 +1,10 @@
-import EditGroupPlaces from '@/app/pages/EditGroupPlaces';
-import ProtectedRoute from '@/components/layout/ProtectedRoute';
-import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};
+interface PageProps {
+  params: Promise<{ groupCode: string }>;
+}
 
-export default function Page() {
-  return (
-    <ProtectedRoute>
-      <EditGroupPlaces />
-    </ProtectedRoute>
-  );
+export default async function Page({ params }: PageProps) {
+  const { groupCode } = await params;
+  redirect(`/journeys/${groupCode}/edit-places`);
 }

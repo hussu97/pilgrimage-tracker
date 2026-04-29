@@ -70,7 +70,6 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
     try {
       await login(email, password);
       resetForm();
-      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.loginFailed'));
     } finally {
@@ -93,7 +92,6 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
     try {
       await register(email, password, displayName.trim() || undefined);
       resetForm();
-      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('errors.registrationFailed'));
     } finally {
@@ -157,6 +155,7 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={inputClass}
+              autoComplete="email"
               required
             />
             <label htmlFor="login-password" className="sr-only">
@@ -169,6 +168,7 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
+              autoComplete="current-password"
               required
             />
             <div className="text-right">
@@ -201,6 +201,7 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               className={inputClass}
+              autoComplete="name"
             />
             <label htmlFor="register-email" className="sr-only">
               {t('auth.email')}
@@ -212,6 +213,7 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={inputClass}
+              autoComplete="email"
               required
             />
             <div>
@@ -226,6 +228,7 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
                 onChange={(e) => setPassword(e.target.value)}
                 onFocus={() => setShowRules(true)}
                 className={inputClass}
+                autoComplete="new-password"
                 required
                 minLength={minLength}
               />
@@ -272,6 +275,7 @@ export default function AuthModal({ isOpen, onClose, promptKey }: AuthModalProps
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               className={inputClass}
+              autoComplete="new-password"
               required
             />
             {error && <p className="text-red-500 text-xs font-medium">{error}</p>}

@@ -812,7 +812,7 @@ export default function PlaceDetail() {
       <div className="relative max-w-6xl mx-auto">
         {/* Mobile layout */}
         <div className="lg:hidden">
-          <div className="bg-background-light dark:bg-dark-bg rounded-t-[2rem] pt-6 pb-[calc(var(--mobile-bottom-nav-height)+var(--mobile-sticky-action-height)+1.5rem)] px-4 space-y-6">
+          <div className="bg-background-light dark:bg-dark-bg rounded-t-[2rem] pt-6 pb-[calc(var(--mobile-bottom-nav-height)_+_var(--mobile-sticky-action-height)_+_8rem)] px-4 space-y-6">
             {/* Breadcrumb */}
             <Breadcrumb
               items={[
@@ -1233,7 +1233,7 @@ export default function PlaceDetail() {
                         {matchingGroups.map((g) => (
                           <Link
                             key={g.group_code}
-                            to={`/groups/${g.group_code}`}
+                            to={`/journeys/${g.group_code}`}
                             className="flex items-center gap-3 p-3 rounded-2xl border border-slate-100 dark:border-dark-border hover:border-primary bg-white dark:bg-dark-surface transition-colors"
                           >
                             {g.cover_image_url ? (

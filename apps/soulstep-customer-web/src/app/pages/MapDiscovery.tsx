@@ -14,16 +14,16 @@ import { EVENTS } from '@/lib/analytics/events';
 
 interface BoolFilter {
   key: 'open_now' | 'has_parking' | 'womens_area' | 'top_rated' | 'has_events';
-  label: string;
+  labelKey: string;
   icon: string;
 }
 
 const BOOL_FILTERS: BoolFilter[] = [
-  { key: 'open_now', label: 'Open Now', icon: 'schedule' },
-  { key: 'top_rated', label: 'Top Rated', icon: 'star' },
-  { key: 'has_parking', label: 'Parking', icon: 'local_parking' },
-  { key: 'womens_area', label: "Women's Area", icon: 'wc' },
-  { key: 'has_events', label: 'Events', icon: 'event' },
+  { key: 'open_now', labelKey: 'discover.openNow', icon: 'schedule' },
+  { key: 'top_rated', labelKey: 'discover.topRated', icon: 'star' },
+  { key: 'has_parking', labelKey: 'discover.parking', icon: 'local_parking' },
+  { key: 'womens_area', labelKey: 'discover.womensArea', icon: 'wc' },
+  { key: 'has_events', labelKey: 'discover.events', icon: 'event' },
 ];
 
 type ActiveFilters = Record<BoolFilter['key'], boolean>;
@@ -166,7 +166,7 @@ export default function MapDiscovery() {
               <button
                 onClick={() => setSearch('')}
                 className="shrink-0 p-0.5 rounded-full hover:bg-slate-100 dark:hover:bg-dark-border transition-colors"
-                aria-label="Clear search"
+                aria-label={t('common.clear')}
               >
                 <span className="material-symbols-outlined text-[16px] text-slate-400 dark:text-dark-text-secondary">
                   close
@@ -199,7 +199,7 @@ export default function MapDiscovery() {
                   >
                     {f.icon}
                   </span>
-                  {f.label}
+                  {t(f.labelKey)}
                 </button>
               );
             })}
@@ -311,7 +311,7 @@ export default function MapDiscovery() {
                 <button
                   onClick={() => setSearch('')}
                   className="shrink-0 p-0.5 rounded-full hover:bg-slate-100 dark:hover:bg-dark-border transition-colors"
-                  aria-label="Clear search"
+                  aria-label={t('common.clear')}
                 >
                   <span className="material-symbols-outlined text-[16px] text-slate-400 dark:text-dark-text-secondary">
                     close
@@ -342,7 +342,7 @@ export default function MapDiscovery() {
                     >
                       {f.icon}
                     </span>
-                    {f.label}
+                    {t(f.labelKey)}
                   </button>
                 );
               })}

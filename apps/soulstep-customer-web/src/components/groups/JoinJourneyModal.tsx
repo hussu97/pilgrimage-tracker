@@ -86,7 +86,7 @@ export default function JoinJourneyModal({ open, onClose }: Props) {
       showSuccess(t('feedback.groupJoined'));
       setTimeout(() => {
         onClose();
-        navigate(`/groups/${group_code}`);
+        navigate(`/journeys/${group_code}`);
       }, 1500);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';

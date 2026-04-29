@@ -167,7 +167,7 @@ export default function GroupDetail() {
       await leaveGroup(groupCode);
       trackUmamiEvent(EVENTS.journey.leave, { group_code: groupCode });
       showSuccess(t('feedback.groupLeft'));
-      setTimeout(() => navigate('/groups'), 400);
+      setTimeout(() => navigate('/journeys'), 400);
     } catch {
       showError(t('feedback.error'));
     } finally {
@@ -182,7 +182,7 @@ export default function GroupDetail() {
     try {
       await deleteGroup(groupCode);
       showSuccess(t('feedback.groupDeleted'));
-      setTimeout(() => navigate('/groups'), 400);
+      setTimeout(() => navigate('/journeys'), 400);
     } catch {
       showError(t('feedback.error'));
     } finally {
@@ -274,7 +274,7 @@ export default function GroupDetail() {
     return (
       <div className="p-6 text-center dark:bg-dark-bg min-h-screen">
         <p className="text-text-muted dark:text-dark-text-secondary">{t('groups.missingGroup')}</p>
-        <button type="button" onClick={() => navigate('/groups')} className="text-primary mt-2">
+        <button type="button" onClick={() => navigate('/journeys')} className="text-primary mt-2">
           {t('groups.title')}
         </button>
       </div>
@@ -295,7 +295,7 @@ export default function GroupDetail() {
           action={
             <button
               type="button"
-              onClick={() => navigate('/groups')}
+              onClick={() => navigate('/journeys')}
               className="px-4 py-2 rounded-xl border border-input-border text-text-main font-medium hover:bg-soft-blue"
             >
               {t('nav.groups')}
@@ -343,7 +343,7 @@ export default function GroupDetail() {
   };
 
   return (
-    <div className="max-w-lg lg:max-w-none lg:mx-0 mx-auto pb-[calc(var(--mobile-bottom-nav-height)+1.5rem)] lg:pb-16 dark:bg-dark-bg min-h-screen">
+    <div className="max-w-lg lg:max-w-none lg:mx-0 mx-auto pb-[calc(var(--mobile-bottom-nav-height)_+_1.5rem)] lg:pb-16 dark:bg-dark-bg min-h-screen">
       {/* ── HERO SECTION ────────────────────────────────────────────── */}
       <div className="relative w-full h-52 overflow-hidden">
         {group.cover_image_url ? (
@@ -369,7 +369,7 @@ export default function GroupDetail() {
         <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">
           <button
             type="button"
-            onClick={() => navigate('/groups')}
+            onClick={() => navigate('/journeys')}
             className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-black/30 backdrop-blur-md border border-white/20 text-white text-sm font-medium hover:bg-black/45 transition-colors"
           >
             <span className="material-symbols-outlined text-base">arrow_back</span>
@@ -379,7 +379,7 @@ export default function GroupDetail() {
             {isAdmin && (
               <button
                 type="button"
-                onClick={() => navigate(`/groups/${groupCode}/edit`)}
+                onClick={() => navigate(`/journeys/${groupCode}/edit`)}
                 className="p-2 rounded-full bg-black/30 backdrop-blur-md border border-white/20 text-white hover:bg-black/45 transition-colors"
                 aria-label={t('groups.editGroup')}
               >
@@ -549,7 +549,7 @@ export default function GroupDetail() {
                       {isAdmin && (
                         <button
                           type="button"
-                          onClick={() => navigate(`/groups/${groupCode}/edit`)}
+                          onClick={() => navigate(`/journeys/${groupCode}/edit`)}
                           className="mt-4 px-4 py-2 rounded-xl bg-primary text-white text-sm font-semibold"
                         >
                           {t('groups.editGroup')}
@@ -1224,7 +1224,7 @@ export default function GroupDetail() {
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => navigate(`/journeys/${groupCode}/edit-places`)}
-          className="fixed bottom-[calc(var(--mobile-bottom-nav-height)+1.5rem)] right-6 z-50 w-14 h-14 rounded-full bg-primary text-white shadow-xl shadow-primary/30 flex items-center justify-center hover:bg-primary-hover transition-colors"
+          className="fixed bottom-[calc(var(--mobile-bottom-nav-height)_+_1.5rem)] right-6 z-50 w-14 h-14 rounded-full bg-primary text-white shadow-xl shadow-primary/30 flex items-center justify-center hover:bg-primary-hover transition-colors"
           aria-label={t('groups.addPlace') || 'Add Place'}
         >
           <span

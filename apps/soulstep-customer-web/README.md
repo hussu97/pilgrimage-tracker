@@ -15,13 +15,13 @@ App runs at http://localhost:5173
 
 ## Environment Variables
 
-| Variable                   | Description                                        |
-| -------------------------- | -------------------------------------------------- |
-| `NEXT_PUBLIC_API_BASE_URL` | Public catalog-api base URL (browser-side fetches) |
-| `INTERNAL_API_URL`         | Catalog-api URL for server-side / SSR fetches      |
-| `NEXT_PUBLIC_PROXY_TARGET` | API proxy target for local dev rewrites            |
-| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami website ID; enables `/lib/app.js` + `/api/send` same-origin analytics |
-| `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID |
+| Variable                           | Description                                                                 |
+| ---------------------------------- | --------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_BASE_URL`         | Public catalog-api base URL (browser-side fetches)                          |
+| `INTERNAL_API_URL`                 | Catalog-api URL for server-side / SSR fetches                               |
+| `NEXT_PUBLIC_PROXY_TARGET`         | API proxy target for local dev rewrites                                     |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID`     | Umami website ID; enables `/lib/app.js` + `/api/send` same-origin analytics |
+| `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID                                                 |
 
 Only `NEXT_PUBLIC_UMAMI_WEBSITE_ID` is read for Umami. `VITE_UMAMI_WEBSITE_ID` and old native-app env names are ignored by the Next.js app.
 
@@ -31,18 +31,21 @@ Legacy Vite/PWA service workers are tombstoned at `/sw.js`, `/service-worker.js`
 
 ## Key Pages
 
-| Route                | Description                                          |
-| -------------------- | ---------------------------------------------------- |
-| `/`                  | Home — featured places, nearby, recommended journeys |
-| `/places`            | Browse all sacred sites                              |
-| `/places/:placeCode` | Place detail with check-in, reviews, FAQs, nearby    |
-| `/map`               | Interactive map with filters                         |
-| `/groups`            | My journeys list                                     |
-| `/groups/:groupCode` | Journey detail — timeline, members, progress         |
-| `/explore`           | Explore cities                                       |
-| `/explore/:citySlug` | City page with place grid                            |
-| `/profile`           | User profile and settings                            |
-| `/login`             | Login / register                                     |
+| Route                  | Description                                         |
+| ---------------------- | --------------------------------------------------- |
+| `/`                    | Redirects into the customer web experience          |
+| `/home`                | Discover — search, filter, and select sacred places |
+| `/places`              | Browse the full sacred-site catalog                 |
+| `/places/:placeCode`   | Place detail with check-in, reviews, FAQs, nearby   |
+| `/map`                 | Interactive map with filters                        |
+| `/journeys`            | My journeys list                                    |
+| `/journeys/new`        | Create a journey from selected places               |
+| `/journeys/:groupCode` | Journey detail — timeline, members, progress        |
+| `/groups/*`            | Legacy compatibility redirects to `/journeys/*`     |
+| `/explore`             | Explore cities                                      |
+| `/explore/:citySlug`   | City page with place grid                           |
+| `/profile`             | User profile and settings                           |
+| `/login`               | Login / register                                    |
 
 ## SEO Proxy Routes
 

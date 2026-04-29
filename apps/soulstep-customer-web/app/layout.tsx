@@ -27,6 +27,9 @@ export const metadata: Metadata = {
     title: 'SoulStep — Sacred Sites Discovery Platform',
     description: 'Discover mosques, temples, churches, and sacred sites worldwide.',
   },
+  icons: {
+    icon: '/favicon.svg',
+  },
   other: {
     // Google AdSense verification tag
     'google-adsense-account': ADSENSE_ID,
@@ -37,13 +40,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Security headers as meta equivalents */}
-        <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-        <meta httpEquiv="X-Frame-Options" content="DENY" />
-        <meta
-          httpEquiv="Content-Security-Policy"
-          content="default-src 'self'; script-src 'self' 'unsafe-inline' https://pagead2.googlesyndication.com https://www.googletagservices.com https://adservice.google.com https://tpc.googlesyndication.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' http://localhost:* http://127.0.0.1:* https://*.run.app https://soul-step.org https://catalog-api.soul-step.org https://pagead2.googlesyndication.com https://*.adtrafficquality.google; frame-src https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.google.com; frame-ancestors 'none';"
-        />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
         {/* Google Fonts */}
@@ -60,14 +56,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
           rel="stylesheet"
-        />
-
-        {/* Google AdSense */}
-        <Script
-          async
-          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_ID}`}
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
         />
 
         {/* Google Consent Mode v2 — default deny until user grants consent */}
@@ -97,7 +85,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <noscript>
-          <div style={{ maxWidth: 800, margin: '0 auto', padding: '40px 20px', fontFamily: 'system-ui,sans-serif' }}>
+          <div
+            style={{
+              maxWidth: 800,
+              margin: '0 auto',
+              padding: '40px 20px',
+              fontFamily: 'system-ui,sans-serif',
+            }}
+          >
             <h1>SoulStep — Sacred Sites Discovery Platform</h1>
             <p>
               SoulStep connects spiritual travelers with mosques, temples, churches, gurdwaras,
@@ -121,11 +116,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </ul>
             <h2>Quick Links</h2>
             <ul>
-              <li><a href="/about">About SoulStep</a></li>
-              <li><a href="/privacy">Privacy Policy</a></li>
-              <li><a href="/terms">Terms of Service</a></li>
-              <li><a href="/contact">Contact Us</a></li>
-              <li><a href="/developers">API for Developers</a></li>
+              <li>
+                <a href="/about">About SoulStep</a>
+              </li>
+              <li>
+                <a href="/privacy">Privacy Policy</a>
+              </li>
+              <li>
+                <a href="/terms">Terms of Service</a>
+              </li>
+              <li>
+                <a href="/contact">Contact Us</a>
+              </li>
+              <li>
+                <a href="/developers">API for Developers</a>
+              </li>
             </ul>
             <p>
               Visit <a href="https://soul-step.org">soul-step.org</a> with JavaScript enabled for

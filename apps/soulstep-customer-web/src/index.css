@@ -45,6 +45,13 @@ body {
   border: none !important;
 }
 
+@media (max-width: 767px) {
+  .leaflet-bottom.leaflet-left,
+  .leaflet-bottom.leaflet-right {
+    bottom: var(--mobile-bottom-nav-height) !important;
+  }
+}
+
 /* ──────────────────────────────────────────────────────────────────
    Glass morphism utilities
    Light:  bg-white/70, backdrop-blur-md, border-white/20

@@ -62,7 +62,7 @@ export default function Groups() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useI18n();
-  useDocumentTitle(t('nav.groups'));
+  useDocumentTitle(t('nav.journeys'));
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -283,7 +283,7 @@ export default function Groups() {
                         layout
                       >
                         <Link
-                          to={`/groups/${g.group_code}`}
+                          to={`/journeys/${g.group_code}`}
                           className={cn(
                             'block rounded-2xl overflow-hidden border border-slate-100 dark:border-white/5 bg-white dark:bg-dark-surface hover:shadow-lg transition-all duration-200',
                             isDone && 'opacity-70 hover:opacity-100',

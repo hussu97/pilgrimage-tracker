@@ -1,15 +1,10 @@
-import EditGroup from '@/app/pages/EditGroup';
-import ProtectedRoute from '@/components/layout/ProtectedRoute';
-import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};
+interface PageProps {
+  params: Promise<{ groupCode: string }>;
+}
 
-export default function Page() {
-  return (
-    <ProtectedRoute>
-      <EditGroup />
-    </ProtectedRoute>
-  );
+export default async function Page({ params }: PageProps) {
+  const { groupCode } = await params;
+  redirect(`/journeys/${groupCode}/edit`);
 }
