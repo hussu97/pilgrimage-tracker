@@ -425,23 +425,6 @@ export interface CreateTranslationBody {
   values: Record<string, string>;
 }
 
-// App Versions
-export interface AppVersionConfig {
-  platform: string;
-  min_version_hard: string;
-  min_version_soft: string;
-  latest_version: string;
-  store_url: string;
-  updated_at: string;
-}
-
-export interface UpdateAppVersionBody {
-  min_version_hard?: string;
-  min_version_soft?: string;
-  latest_version?: string;
-  store_url?: string;
-}
-
 // Content Translations
 export interface AdminContentTranslation {
   id: number;

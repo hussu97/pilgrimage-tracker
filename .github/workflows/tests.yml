@@ -21,7 +21,6 @@ jobs:
       catalog: ${{ steps.filter.outputs.catalog }}
       scraper: ${{ steps.filter.outputs.scraper }}
       web: ${{ steps.filter.outputs.web }}
-      mobile: ${{ steps.filter.outputs.mobile }}
       admin: ${{ steps.filter.outputs.admin }}
     steps:
       - uses: actions/checkout@v4
@@ -49,11 +48,6 @@ jobs:
               - '.firebaserc'
               - '.github/workflows/tests.yml'
               - '.github/workflows/deploy.yml'
-              - '.github/workflows/deploy-vm.yml'
-              - 'README.md'
-            mobile:
-              - 'apps/soulstep-customer-mobile/**'
-              - '.github/workflows/tests.yml'
               - '.github/workflows/deploy-vm.yml'
               - 'README.md'
             admin:
@@ -167,29 +161,6 @@ jobs:
       - name: Run tests with coverage
         working-directory: apps/soulstep-customer-web
         run: npm run test -- --coverage
-
-  soulstep-customer-mobile:
-    name: soulstep-customer-mobile tests
-    needs: changes
-    if: needs.changes.outputs.mobile == 'true'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: npm
-          cache-dependency-path: apps/soulstep-customer-mobile/package-lock.json
-
-      - name: Install dependencies
-        working-directory: apps/soulstep-customer-mobile
-        run: npm ci
-
-      - name: Run tests with coverage
-        working-directory: apps/soulstep-customer-mobile
-        run: npm test -- --coverage
 
   soulstep-admin-web:
     name: soulstep-admin-web tests

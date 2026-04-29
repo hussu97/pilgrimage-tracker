@@ -12,8 +12,7 @@ const nextConfig: NextConfig = {
   //   /sitemap.xml, /sitemaps/*, /feed.xml, /feed.atom → internal Next.js route handlers
   //   /llms.txt, /openapi.json, /.well-known/*, /share/* → backend proxy (all envs)
   //   /api/v1/*                           → backend proxy (all envs)
-  //   /umami/*                            → Umami cloud (all envs — same-origin
-  //                                        proxy so ad-blockers don't strip it)
+  //   /lib/app.js                         → Umami script proxy
   async rewrites() {
     return [
       // Proxy sitemap and feeds from main domain so GSC and feed readers work
@@ -33,13 +32,12 @@ const nextConfig: NextConfig = {
         source: '/api/v1/:path*',
         destination: `${backendOrigin}/api/v1/:path*`,
       },
-      // Umami analytics proxy — same-origin so ad-blockers don't see
-      // cloud.umami.is and strip the request. Required in production (Vercel
-      // doesn't run nginx); without this rewrite /umami/script.js 404s and no
-      // tracking events are ever sent.
+      // Umami analytics script proxy. Event collection is handled by the
+      // server-side /api/send route so browser requests never hit Umami Cloud
+      // directly.
       {
-        source: '/umami/:path*',
-        destination: 'https://cloud.umami.is/:path*',
+        source: '/lib/app.js',
+        destination: 'https://cloud.umami.is/script.js',
       },
     ];
   },

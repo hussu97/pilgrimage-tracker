@@ -42,16 +42,7 @@ coverage/
 .nyc_output/
 *.lcov
 
-# Expo
-.expo/
-apps/mobile/.expo/
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
 *.orig.*
-web-build/
 
 # Python
 __pycache__/

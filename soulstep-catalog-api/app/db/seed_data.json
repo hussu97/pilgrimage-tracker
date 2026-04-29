@@ -2543,22 +2543,6 @@
       "source": "manual"
     }
   ],
-  "app_version_config": [
-    {
-      "platform": "ios",
-      "min_version_hard": "",
-      "min_version_soft": "",
-      "latest_version": "1.0.0",
-      "store_url": ""
-    },
-    {
-      "platform": "android",
-      "min_version_hard": "",
-      "min_version_soft": "",
-      "latest_version": "1.0.0",
-      "store_url": ""
-    }
-  ],
   "users": [
     {
       "user_code": "usr_admin",

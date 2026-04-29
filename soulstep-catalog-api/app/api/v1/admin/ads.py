@@ -53,7 +53,7 @@ class ConsentStatsResponse(BaseModel):
 
 @router.get("/ads/config", response_model=AdminAdConfigListResponse, tags=["admin-ads"])
 def list_ad_configs(session: SessionDep, admin: AdminDep):
-    """List ad config for all platforms."""
+    """List web ad config."""
     rows = session.exec(select(AdConfig).order_by(AdConfig.platform)).all()
     return AdminAdConfigListResponse(
         items=[

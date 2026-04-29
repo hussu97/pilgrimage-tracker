@@ -34,7 +34,6 @@ export default defineConfig({
         'dist/**',
         '.next/**',
         'coverage/**',
-        'src/main.tsx',
         '**/*.d.ts',
         'vitest.config.ts',
         'next.config.ts',

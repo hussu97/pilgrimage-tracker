@@ -23,7 +23,6 @@ import { PlaceTypeMappingsPage } from "./pages/scraper/PlaceTypeMappingsPage";
 import { QualityMetricsPage } from "./pages/scraper/QualityMetricsPage";
 import { CoverageMapPage } from "./pages/scraper/CoverageMapPage";
 import { TranslationsPage } from "./pages/content/TranslationsPage";
-import { AppVersionsPage } from "./pages/content/AppVersionsPage";
 import { ContentTranslationsPage } from "./pages/content/ContentTranslationsPage";
 import { PlaceAttributesPage } from "./pages/content/PlaceAttributesPage";
 import { BulkTranslationsPage } from "./pages/content/BulkTranslationsPage";
@@ -163,7 +162,6 @@ export const routes = [
               { path: "/coverage-map", element: <CoverageMapPage /> },
               // Content & Configuration (Phase 4)
               { path: "/translations", element: <TranslationsPage /> },
-              { path: "/app-versions", element: <AppVersionsPage /> },
               { path: "/content-translations", element: <ContentTranslationsPage /> },
               { path: "/place-attributes", element: <PlaceAttributesPage /> },
               { path: "/translations/bulk", element: <BulkTranslationsPage /> },

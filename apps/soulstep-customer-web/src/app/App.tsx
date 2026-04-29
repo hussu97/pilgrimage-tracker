@@ -16,6 +16,7 @@ import { AdProvider } from '@/components/ads/AdProvider';
 import ConsentBanner from '@/components/consent/ConsentBanner';
 import { AnalyticsProviderConnected } from '@/components/analytics/AnalyticsProviderConnected';
 import { useUmamiPageViews } from '@/lib/hooks/useUmamiPageViews';
+import { cleanupLegacyServiceWorkers } from '@/lib/serviceWorkerCleanup';
 
 function UmamiPageViewTracker() {
   useUmamiPageViews();
@@ -35,6 +36,10 @@ function I18nReadyGate({ children }: { children: React.ReactNode }) {
 
 /** Root app component that wraps all providers around Next.js page children. */
 export default function App({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    cleanupLegacyServiceWorkers();
+  }, []);
+
   return (
     <ErrorBoundary>
       <ThemeProvider>

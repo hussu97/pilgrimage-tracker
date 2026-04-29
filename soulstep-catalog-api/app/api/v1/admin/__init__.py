@@ -23,7 +23,6 @@ admin_limiter = Limiter(key_func=_admin_key_func)
 from app.api.v1.admin import (  # noqa: E402
     ads,
     analytics,
-    app_versions,
     audit_log,
     bulk,
     bulk_translations,
@@ -54,7 +53,6 @@ admin_router.include_router(check_ins.router, tags=["admin-check-ins"])
 admin_router.include_router(groups.router, tags=["admin-groups"])
 admin_router.include_router(bulk_translations.router, tags=["admin-bulk-translations"])
 admin_router.include_router(translations.router, tags=["admin-translations"])
-admin_router.include_router(app_versions.router, tags=["admin-app-versions"])
 admin_router.include_router(content_translations.router, tags=["admin-content-translations"])
 admin_router.include_router(place_attributes.router, tags=["admin-place-attributes"])
 admin_router.include_router(stats.router, tags=["admin-stats"])

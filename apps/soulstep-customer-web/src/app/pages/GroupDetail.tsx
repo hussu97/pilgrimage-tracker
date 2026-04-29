@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useParams, useNavigate, Link } from '@/lib/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth, useFeedback, useI18n } from '@/app/providers';
@@ -23,13 +24,17 @@ import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import ErrorState from '@/components/common/ErrorState';
 import GroupDetailSkeleton from '@/components/common/skeletons/GroupDetailSkeleton';
 import GroupCheckInModal from '@/components/groups/GroupCheckInModal';
-import JourneyMapView from '@/components/groups/JourneyMapView';
 import type { Group, LeaderboardEntry, ActivityItem, GroupMember, Place } from '@/lib/types';
 import type { ChecklistResponse, PlaceNote } from '@/lib/types/groups';
 import AdBanner from '@/components/ads/AdBanner';
 import PlaceListRow from '@/components/places/PlaceListRow';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { EVENTS } from '@/lib/analytics/events';
+
+const JourneyMapView = dynamic(() => import('@/components/groups/JourneyMapView'), {
+  ssr: false,
+  loading: () => <div className="h-52 rounded-xl bg-soft-blue dark:bg-dark-surface" />,
+});
 
 type Tab = 'route' | 'activity' | 'members';
 
@@ -338,7 +343,7 @@ export default function GroupDetail() {
   };
 
   return (
-    <div className="max-w-lg lg:max-w-none lg:mx-0 mx-auto pb-28 dark:bg-dark-bg min-h-screen">
+    <div className="max-w-lg lg:max-w-none lg:mx-0 mx-auto pb-[calc(var(--mobile-bottom-nav-height)+1.5rem)] lg:pb-16 dark:bg-dark-bg min-h-screen">
       {/* ── HERO SECTION ────────────────────────────────────────────── */}
       <div className="relative w-full h-52 overflow-hidden">
         {group.cover_image_url ? (
@@ -1219,7 +1224,7 @@ export default function GroupDetail() {
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => navigate(`/journeys/${groupCode}/edit-places`)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-primary text-white shadow-xl shadow-primary/30 flex items-center justify-center hover:bg-primary-hover transition-colors"
+          className="fixed bottom-[calc(var(--mobile-bottom-nav-height)+1.5rem)] right-6 z-50 w-14 h-14 rounded-full bg-primary text-white shadow-xl shadow-primary/30 flex items-center justify-center hover:bg-primary-hover transition-colors"
           aria-label={t('groups.addPlace') || 'Add Place'}
         >
           <span

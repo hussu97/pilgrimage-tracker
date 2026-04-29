@@ -5,8 +5,8 @@ extend it.
 
 - **App tracked:** `apps/soulstep-customer-web` (Next.js 15 App Router on Vercel)
 - **Backend:** Umami Cloud (`cloud.umami.is`) — privacy-friendly, cookie-free
-- **Same-origin proxy:** `/umami/*` rewrites to `cloud.umami.is/*` via
-  `next.config.ts` so ad-blockers don't strip the script
+- **Same-origin proxy:** `/lib/app.js` rewrites to the Umami Cloud script, and
+  `/api/send` forwards events server-side to `cloud.umami.is/api/send`
 
 ---
 
@@ -21,25 +21,25 @@ extend it.
 The `<Script>` tag in `app/layout.tsx` is gated on this value (`{UMAMI_ID && …}`).
 If it's empty, **no** script loads and **all** `trackUmamiEvent` calls no-op.
 That's the intended off-switch — not a bug.
+The Next.js app does not read `VITE_UMAMI_WEBSITE_ID` or old native-app env names.
 
 ### Request flow
 
 ```
 Browser
-  ↳ GET  /umami/script.js        →  cloud.umami.is/script.js   (same-origin, cached)
-  ↳ POST /umami/api/send         →  cloud.umami.is/api/send    (event ingestion)
+  ↳ GET  /lib/app.js             →  cloud.umami.is/script.js   (same-origin script)
+  ↳ POST /api/send               →  cloud.umami.is/api/send    (server-side forward)
 ```
 
-Both legs are rewritten by `next.config.ts` in **every** environment (dev +
-prod). This rewrite has bitten us once: it used to be dev-only, which is why
-production Umami was silently dead until 2026-04-21.
+The script is rewritten by `next.config.ts`; event ingestion is handled by
+`app/api/send/route.ts` so the browser only talks to the SoulStep origin.
 
 ### Verifying it works
 
 1. **Dev:** `npm run dev`, open the app, open DevTools → Network, filter
    `api/send`. You should see a `POST` on initial load. Navigate between
    routes → one `POST` per navigation.
-2. **Prod:** same check against `https://soul-step.org/umami/api/send`.
+2. **Prod:** same check against `https://www.soul-step.org/api/send`.
 3. **Dashboard:** Umami Cloud → your website → Events. New events appear within
    ~1 minute.
 
@@ -51,9 +51,11 @@ production Umami was silently dead until 2026-04-21.
   time, not runtime).
 - **"Dev console says unset but I set it"** → restart `npm run dev`. Next.js
   only reads `.env.local` at boot.
-- **"Events show on some browsers, not others"** → an aggressive ad-blocker may
-  still block `/umami/script.js` even same-origin. Umami doesn't let you rename
-  that path; our own domain just happens not to be on most blocklists.
+- **"Events show on apex but not www"** → make sure the script tag has no
+  `data-domains` filter. The live host is `www.soul-step.org`; the old
+  `data-domains="soul-step.org"` excluded it.
+- **"Events disappear when DNT is enabled"** → the script must include
+  `data-do-not-track="false"` so Umami receives events consistently.
 - **Consent banner currently does NOT gate analytics** — there's a TODO in
   `useUmamiTracking.ts`. When the consent UX is finished, re-enable the guard.
 
@@ -62,7 +64,7 @@ production Umami was silently dead until 2026-04-21.
 ## 2. Architecture
 
 ```
-index.html / app/layout.tsx      ← loads script (initial pageview only)
+app/layout.tsx                   ← loads script (initial pageview only)
               │
               ▼
   window.umami.track(…)
@@ -268,7 +270,8 @@ Core:
 - `apps/soulstep-customer-web/src/lib/hooks/useUmamiTracking.ts` — `trackUmamiEvent` hook, website-id guard
 - `apps/soulstep-customer-web/src/lib/hooks/useUmamiPageViews.ts` — SPA route-change pageviews
 - `apps/soulstep-customer-web/app/layout.tsx` — `<Script>` tag (conditional on `NEXT_PUBLIC_UMAMI_WEBSITE_ID`)
-- `apps/soulstep-customer-web/next.config.ts` — `/umami/*` same-origin rewrite
+- `apps/soulstep-customer-web/next.config.ts` — `/lib/app.js` same-origin script rewrite
+- `apps/soulstep-customer-web/app/api/send/route.ts` — server-side Umami event forwarder
 - `apps/soulstep-customer-web/src/app/App.tsx` — `<UmamiPageViewTracker />` mount point
 
 Tests:

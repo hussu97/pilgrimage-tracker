@@ -4,6 +4,8 @@
 
 :root {
   font-family: Inter, sans-serif;
+  --mobile-bottom-nav-height: calc(96px + env(safe-area-inset-bottom));
+  --mobile-sticky-action-height: 88px;
 }
 
 /* Accessibility: visible focus for keyboard users (fallback where components don't use ring) */

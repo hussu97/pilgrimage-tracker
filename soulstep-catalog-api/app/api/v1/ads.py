@@ -47,9 +47,9 @@ class ConsentStatusResponse(BaseModel):
 def get_ad_config(
     response: Response,
     session: SessionDep,
-    platform: str = Query(default="web", pattern="^(web|ios|android)$"),
+    platform: str = Query(default="web", pattern="^web$"),
 ):
-    """Return ad configuration for the given platform (no auth required)."""
+    """Return ad configuration for the web app (no auth required)."""
     now = time.monotonic()
     with _ad_config_lock:
         cached = _ad_config_cache.get(platform)

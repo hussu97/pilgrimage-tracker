@@ -61,14 +61,6 @@ DATABASE_URL = os.environ.get("DATABASE_URL", _sqlite_url)
 # Frontend URL (for OG share redirect)
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 
-# App version enforcement (mobile only)
-# Set to a semver string like "1.1.0" to enforce; leave empty to disable.
-MIN_APP_VERSION_SOFT = os.environ.get("MIN_APP_VERSION_SOFT", "")
-MIN_APP_VERSION_HARD = os.environ.get("MIN_APP_VERSION_HARD", "")
-LATEST_APP_VERSION = os.environ.get("LATEST_APP_VERSION", "")
-APP_STORE_URL_IOS = os.environ.get("APP_STORE_URL_IOS", "")
-APP_STORE_URL_ANDROID = os.environ.get("APP_STORE_URL_ANDROID", "")
-
 # Logging
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 LOG_FORMAT = os.environ.get("LOG_FORMAT", "json")  # "json" | "text"
@@ -83,8 +75,6 @@ DATA_SCRAPER_URL = os.environ.get("DATA_SCRAPER_URL", "http://localhost:8001")
 # Ads integration
 ADS_ENABLED = os.environ.get("ADS_ENABLED", "false").lower() == "true"
 ADSENSE_PUBLISHER_ID = os.environ.get("ADSENSE_PUBLISHER_ID", "")
-ADMOB_APP_ID_IOS = os.environ.get("ADMOB_APP_ID_IOS", "")
-ADMOB_APP_ID_ANDROID = os.environ.get("ADMOB_APP_ID_ANDROID", "")
 
 # Internal service auth — shared secret used by the scraper to call write endpoints.
 # Required in production; set to any placeholder string in local dev (e.g. "dev-key").

@@ -164,7 +164,7 @@ export default function Profile() {
       {/* gradient header bg */}
       <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-soft-blue to-transparent dark:from-dark-surface/30 dark:to-transparent pointer-events-none z-0" />
 
-      <div className="relative z-10 max-w-sm mx-auto px-4 py-6 pb-28">
+      <div className="relative z-10 max-w-sm mx-auto px-4 py-6 pb-[var(--mobile-bottom-nav-height)]">
         {error && user && (
           <div className="mb-6">
             <ErrorState message={error} onRetry={fetchData} retryLabel={t('common.retry')} />

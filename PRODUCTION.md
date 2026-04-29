@@ -211,7 +211,7 @@ challenge fails, verify nginx is up in HTTP-only mode and port 80 is open in GCP
 |---|---|---|
 | `deploy-vm.yml` | Tests pass on `main` | Builds catalog-api + scraper-api images → GHCR; deploys to VM via SSH; updates Cloud Run Job in 3 regions (WIF auth, target project/region from GitHub environment variables) |
 | `deploy.yml` | Changes to `apps/` on `main` | Deploys customer-web + admin-web to Vercel. No Cloud Run steps. |
-| `tests.yml` | Every push/PR | Runs backend pytest + frontend Vitest/Jest suites |
+| `tests.yml` | Every push/PR | Runs backend pytest + frontend Vitest suites |
 | `update-env.yml` | Manual | Rewrites `/opt/soulstep/.env` from GitHub secrets without full redeploy; now matches the full backend env surface from `deploy-vm.yml` |
 
 **`deploy-vm.yml` jobs:**
@@ -239,7 +239,7 @@ Both web apps deploy automatically via `deploy.yml`. Set these environment varia
 | Customer web | `NEXT_PUBLIC_API_BASE_URL` | `https://catalog-api.soul-step.org` |
 | Customer web | `INTERNAL_API_URL` | `https://catalog-api.soul-step.org` |
 | Customer web | `NEXT_PUBLIC_SENTRY_DSN` | Sentry DSN (client-side) |
-| Customer web | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami website ID (optional). Must be set in Vercel — when unset the analytics `<Script>` tag in `app/layout.tsx` is not rendered and all tracking silently no-ops. |
+| Customer web | `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami website ID (optional). Must be set in Vercel — when unset the analytics `<Script>` tag in `app/layout.tsx` is not rendered and all tracking silently no-ops. Events flow through same-origin `/lib/app.js` and `/api/send`; old Vite/native env names are ignored. |
 | Admin web | `VITE_API_URL` | `https://catalog-api.soul-step.org` |
 | Admin web | `VITE_SENTRY_DSN` | Sentry DSN (client-side) |
 
@@ -406,7 +406,7 @@ Extra regions: **5 parallel jobs each** (20,000 mCPU ÷ 4,000 per job = 5).
 
 ## 11. Environment Variables
 
-Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time vars go in **Vercel dashboard** or **EAS secrets**.
+Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web build-time vars go in the **Vercel dashboard**.
 
 ### catalog-api (`soulstep-catalog-api`)
 
@@ -436,13 +436,6 @@ Secrets flow via **GitHub Actions Secrets** → VM `.env`. Web/mobile build-time
 | `DATA_SCRAPER_URL` | — | `http://localhost:8001` | scraper-api URL for admin proxy. Docker Compose: `http://scraper-api:8080`. |
 | `ADS_ENABLED` | — | `false` | Master switch for ads. |
 | `ADSENSE_PUBLISHER_ID` | — | — | AdSense publisher ID. Required when `ADS_ENABLED=true`. |
-| `ADMOB_APP_ID_IOS` | — | — | AdMob App ID (iOS). Required when `ADS_ENABLED=true`. |
-| `ADMOB_APP_ID_ANDROID` | — | — | AdMob App ID (Android). Required when `ADS_ENABLED=true`. |
-| `MIN_APP_VERSION_SOFT` | — | — | Soft update gate — clients below see a non-blocking banner. |
-| `MIN_APP_VERSION_HARD` | — | — | Hard update gate — clients below get HTTP 426. |
-| `LATEST_APP_VERSION` | — | — | Current release, returned by `GET /api/v1/app-version`. |
-| `APP_STORE_URL_IOS` | — | — | App Store URL for update prompts. |
-| `APP_STORE_URL_ANDROID` | — | — | Play Store URL for update prompts. |
 | `SENTRY_DSN` | — | — | Sentry DSN for backend errors. Shared with scraper-api via Compose. |
 | `CATALOG_SYNC_LOG_DIR` | — | `/tmp/soulstep-catalog-sync` | Directory inside catalog-api where detached direct scraper-to-catalog sync jobs write run-scoped logs. |
 
@@ -509,7 +502,7 @@ Never put secrets in `NEXT_PUBLIC_*` vars.
 | `INTERNAL_API_URL` | Vercel dashboard | _(falls back to `NEXT_PUBLIC_API_BASE_URL`)_ | Server-only URL for SSR metadata fetches. Never use `NEXT_PUBLIC_` prefix. |
 | `NEXT_PUBLIC_SENTRY_DSN` | Vercel dashboard | — | Sentry DSN for client-side error tracking. |
 | `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | Vercel dashboard | — | Google AdSense ID. Required when backend returns `ADS_ENABLED=true`. |
-| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Vercel dashboard | — | Umami analytics website ID. Must be set for tracking to work; `app/layout.tsx` only renders the `<Script>` tag when this is truthy, and the tracking hook gates every `track()` call on it being configured. |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Vercel dashboard | — | Umami analytics website ID. Must be set for tracking to work; `app/layout.tsx` only renders the `<Script>` tag when this is truthy, and the tracking hook gates every `track()` call on it being configured. The script loads from `/lib/app.js` and posts events to `/api/send`. |
 
 ---
 
@@ -520,21 +513,6 @@ Never put secrets in `NEXT_PUBLIC_*` vars.
 | `VITE_API_URL` | Vercel dashboard | _(relative)_ | Catalog API base URL. Example: `https://catalog-api.soul-step.org` |
 | `VITE_SENTRY_DSN` | Vercel dashboard | — | Sentry DSN for client-side error tracking. |
 | `VITE_FRONTEND_URL` | Vercel dashboard | `https://soul-step.org` | Customer web URL for place-preview links in the SEO admin page. |
-
----
-
-### Mobile (`apps/soulstep-customer-mobile`)
-
-All `EXPO_PUBLIC_*` vars are bundled at build time — visible in decompiled app bundles.
-
-| Variable | Where set | Default | Description |
-|---|---|---|---|
-| `EXPO_PUBLIC_API_URL` | EAS secrets | `http://127.0.0.1:3000` | Backend API URL. Production: `https://catalog-api.soul-step.org` |
-| `EXPO_PUBLIC_INVITE_LINK_BASE_URL` | EAS secrets | — | Base URL for group invite links. Example: `https://soul-step.org/invite` |
-| `EXPO_PUBLIC_ADMOB_APP_ID_IOS` | EAS secrets | — | AdMob App ID for iOS. Required when AdMob is enabled. |
-| `EXPO_PUBLIC_ADMOB_APP_ID_ANDROID` | EAS secrets | — | AdMob App ID for Android. Required when AdMob is enabled. |
-| `EXPO_PUBLIC_UMAMI_WEBSITE_ID` | EAS secrets | — | Umami analytics website ID. |
-| `EXPO_PUBLIC_SENTRY_DSN` | EAS secrets | — | Sentry DSN for mobile error tracking. |
 
 ---
 
@@ -588,7 +566,6 @@ The VM runs the **Cloud Ops Agent** — forwards container stdout/stderr to Clou
 | `SENTRY_DSN` | catalog-api + scraper-api |
 | `NEXT_PUBLIC_SENTRY_DSN` | Customer web |
 | `VITE_SENTRY_DSN` | Admin web |
-| `EXPO_PUBLIC_SENTRY_DSN` | Mobile app |
 
 ---
 

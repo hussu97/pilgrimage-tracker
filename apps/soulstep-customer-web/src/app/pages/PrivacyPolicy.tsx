@@ -40,9 +40,9 @@ export default function PrivacyPolicy() {
             <a href="https://soul-step.org" className="text-primary hover:underline">
               soul-step.org
             </a>{' '}
-            and use our mobile applications (collectively, the &quot;Service&quot;). Please read
-            this policy carefully. By accessing or using the Service, you acknowledge that you have
-            read, understood, and agree to be bound by this Privacy Policy.
+            on desktop or mobile web (collectively, the &quot;Service&quot;). Please read this
+            policy carefully. By accessing or using the Service, you acknowledge that you have read,
+            understood, and agree to be bound by this Privacy Policy.
           </p>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
             If you do not agree with the terms of this Privacy Policy, please do not access or use

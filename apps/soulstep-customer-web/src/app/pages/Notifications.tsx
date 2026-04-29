@@ -69,7 +69,7 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-tint dark:bg-dark-bg max-w-md md:max-w-2xl mx-auto px-4 py-6 pb-24 md:pb-6">
+    <div className="min-h-screen bg-surface-tint dark:bg-dark-bg max-w-md md:max-w-2xl mx-auto px-4 py-6 pb-[var(--mobile-bottom-nav-height)] md:pb-6">
       <header className="mb-6">
         <p className="text-xs text-primary-dark font-semibold uppercase tracking-wider mb-1">
           {t('notifications.updatesLabel')}

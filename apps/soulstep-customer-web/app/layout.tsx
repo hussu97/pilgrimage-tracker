@@ -84,15 +84,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           `}
         </Script>
 
-        {/* Umami analytics — proxied via /umami to bypass adblockers */}
+        {/* Umami analytics — proxied through neutral same-origin endpoints */}
         {UMAMI_ID && (
           <Script
-            async
-            defer
-            src="/umami/script.js"
+            src="/lib/app.js"
             data-website-id={UMAMI_ID}
-            data-host-url="/umami"
-            data-domains="soul-step.org"
+            data-host-url="/"
+            data-do-not-track="false"
             strategy="afterInteractive"
           />
         )}

@@ -484,7 +484,7 @@ export default function CheckInsList() {
           </div>
 
           {/* All recent visits */}
-          <section className="px-6 space-y-3 pb-24">
+          <section className="px-6 space-y-3 pb-[var(--mobile-bottom-nav-height)]">
             <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] mb-6">
               {t('journey.recentVisits')}
             </h2>

@@ -2,11 +2,22 @@
 
 from datetime import UTC, datetime
 
+import pytest
 from sqlmodel import select
 
+from app.api.v1 import ads as ads_module
 from app.db.models import AdConfig, ConsentRecord, User
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def clear_ad_config_cache():
+    with ads_module._ad_config_lock:
+        ads_module._ad_config_cache.clear()
+    yield
+    with ads_module._ad_config_lock:
+        ads_module._ad_config_cache.clear()
 
 
 def _register(client, email="user@example.com", password="Testpass123!", display_name="Tester"):
@@ -60,18 +71,18 @@ def test_get_ad_config_default_no_rows(client):
 
 
 def test_get_ad_config_for_platform(client, db_session):
-    _seed_ad_config(db_session, "ios", ads_enabled=True)
-    resp = client.get("/api/v1/ads/config", params={"platform": "ios"})
+    _seed_ad_config(db_session, "web", ads_enabled=True)
+    resp = client.get("/api/v1/ads/config", params={"platform": "web"})
     assert resp.status_code == 200
     data = resp.json()
-    assert data["platform"] == "ios"
+    assert data["platform"] == "web"
     assert data["ads_enabled"] is True
     assert data["adsense_publisher_id"] == "ca-pub-test123"
     assert data["ad_slots"] == {"place-detail-mid": "slot-111"}
 
 
 def test_get_ad_config_invalid_platform(client):
-    resp = client.get("/api/v1/ads/config", params={"platform": "windows"})
+    resp = client.get("/api/v1/ads/config", params={"platform": "ios"})
     assert resp.status_code == 422
 
 
@@ -192,12 +203,12 @@ def test_admin_list_ad_configs_empty(client, db_session):
 
 def test_admin_list_ad_configs_with_data(client, db_session):
     _seed_ad_config(db_session, "web")
-    _seed_ad_config(db_session, "ios")
     headers = _admin_headers(client, db_session)
     resp = client.get("/api/v1/admin/ads/config", headers=headers)
     assert resp.status_code == 200
     items = resp.json()["items"]
-    assert len(items) == 2
+    assert len(items) == 1
+    assert items[0]["platform"] == "web"
 
 
 # ── Admin: PATCH /api/v1/admin/ads/config/:id ────────────────────────────────

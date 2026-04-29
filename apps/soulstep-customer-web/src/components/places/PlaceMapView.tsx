@@ -1,11 +1,16 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import type { Place } from '@/lib/types';
 import type { SearchLocation } from '@/lib/utils/searchHistory';
 import type { MapBounds } from '@/components/places/PlacesMap';
-import PlacesMap from '@/components/places/PlacesMap';
 import PlaceCardUnified from '@/components/places/PlaceCardUnified';
+
+const PlacesMap = dynamic(() => import('@/components/places/PlacesMap'), {
+  ssr: false,
+  loading: () => <div className="h-full w-full bg-soft-blue dark:bg-dark-surface" />,
+});
 
 interface PlaceMapViewProps {
   places: Place[];
@@ -191,7 +196,7 @@ export default function PlaceMapView({
 
           {/* ── Mobile: draggable bottom sheet (overlay) ────────────────────── */}
           <div
-            className="md:hidden absolute bottom-0 left-0 right-0 z-[1000] flex flex-col bg-white/95 dark:bg-dark-surface backdrop-blur-xl rounded-t-3xl shadow-[0_-8px_40px_rgba(0,0,0,0.18)] border-t border-input-border/50 dark:border-dark-border"
+            className="md:hidden absolute bottom-[var(--mobile-bottom-nav-height)] left-0 right-0 z-[1000] flex flex-col bg-white/95 dark:bg-dark-surface backdrop-blur-xl rounded-t-3xl shadow-[0_-8px_40px_rgba(0,0,0,0.18)] border-t border-input-border/50 dark:border-dark-border"
             style={{
               height: sheetPx ? `${sheetPx}px` : `${PEEK_RATIO * 100}%`,
               transition: isDragging ? 'none' : 'height 0.25s cubic-bezier(0.4, 0, 0.2, 1)',

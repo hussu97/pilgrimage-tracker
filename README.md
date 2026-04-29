@@ -1,6 +1,6 @@
 # SoulStep
 
-Multi-platform app for discovering, visiting, and tracking sacred sites worldwide.
+Web platform for discovering, visiting, and tracking sacred sites worldwide.
 
 ---
 
@@ -10,9 +10,8 @@ Multi-platform app for discovering, visiting, and tracking sacred sites worldwid
 |---|---|---|
 | **catalog-api** | `soulstep-catalog-api/` | FastAPI REST API — users, places, groups, check-ins, SEO |
 | **scraper-api** | `soulstep-scraper-api/` | FastAPI scraper — discovers and enriches sacred sites, supports run handoff/export/finalize for large interrupted jobs |
-| **customer-web** | `apps/soulstep-customer-web/` | Next.js 15 + React — customer-facing web app (Vercel) |
+| **customer-web** | `apps/soulstep-customer-web/` | Next.js 15 + React — customer-facing desktop/mobile web app (Vercel) |
 | **admin-web** | `apps/soulstep-admin-web/` | Vite + React — admin dashboard (Vercel) |
-| **mobile** | `apps/soulstep-customer-mobile/` | Expo / React Native — iOS + Android |
 
 ---
 
@@ -42,9 +41,8 @@ uvicorn app.main:app --reload --port 3000
 ### Frontend
 
 ```bash
-cd apps/soulstep-customer-web && npm install && npm run dev   # http://localhost:3000
+cd apps/soulstep-customer-web && npm install && npm run dev   # http://localhost:5173
 cd apps/soulstep-admin-web   && npm install && npm run dev   # http://localhost:5174
-cd apps/soulstep-customer-mobile && npm install && npx expo start
 ```
 
 ---
@@ -53,7 +51,7 @@ cd apps/soulstep-customer-mobile && npm install && npx expo start
 
 Copy `.env.example` to `.env` in the repo root — this single file is used by Docker Compose for both backend services locally and in production (written by CI at deploy time).
 
-Frontend apps each have their own `.env.local` file inside their directory.
+Frontend apps each have their own `.env.local` file inside their directory. Customer web uses `NEXT_PUBLIC_UMAMI_WEBSITE_ID` for Umami; old Vite/native env names are not read.
 
 See **[PRODUCTION.md §11](PRODUCTION.md)** for the full env var reference.
 
@@ -108,6 +106,4 @@ cd soulstep-scraper-api && source .venv/bin/activate && python -m pytest tests/ 
 cd apps/soulstep-customer-web && npm test && npx tsc --noEmit
 cd apps/soulstep-admin-web    && npm test
 
-# Mobile
-cd apps/soulstep-customer-mobile && npm test
 ```

@@ -142,7 +142,7 @@ export default function Groups() {
         )}
       </header>
 
-      <main className="max-w-md md:max-w-4xl xl:max-w-6xl mx-auto px-4 md:px-6 py-6 pb-28">
+      <main className="max-w-md md:max-w-4xl xl:max-w-6xl mx-auto px-4 md:px-6 py-6 pb-[var(--mobile-bottom-nav-height)]">
         {/* Visitor empty state */}
         {!user && (
           <div className="flex flex-col items-center justify-center py-16 text-center">

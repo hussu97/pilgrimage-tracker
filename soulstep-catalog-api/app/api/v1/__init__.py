@@ -3,7 +3,6 @@ from fastapi import APIRouter
 from app.api.v1 import (
     ads,
     analytics,
-    app_version,
     auth,
     blog,
     cities,
@@ -21,7 +20,6 @@ from app.api.v1.admin import admin_router
 
 api_router = APIRouter(prefix="/api/v1", tags=["v1"])
 api_router.include_router(i18n.router, tags=["i18n"])
-api_router.include_router(app_version.router, tags=["app-version"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(places.router, prefix="/places", tags=["places"])

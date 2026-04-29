@@ -43,15 +43,8 @@ jobs:
           FRONTEND_URL=${{ secrets.FRONTEND_URL }}
           RESET_URL_BASE=${{ secrets.RESET_URL_BASE }}
           VERIFY_URL_BASE=${{ secrets.VERIFY_URL_BASE }}
-          MIN_APP_VERSION_SOFT=${{ secrets.MIN_APP_VERSION_SOFT }}
-          MIN_APP_VERSION_HARD=${{ secrets.MIN_APP_VERSION_HARD }}
-          LATEST_APP_VERSION=${{ secrets.LATEST_APP_VERSION }}
-          APP_STORE_URL_IOS=${{ secrets.APP_STORE_URL_IOS }}
-          APP_STORE_URL_ANDROID=${{ secrets.APP_STORE_URL_ANDROID }}
           ADS_ENABLED=${{ secrets.ADS_ENABLED }}
           ADSENSE_PUBLISHER_ID=${{ secrets.ADSENSE_PUBLISHER_ID }}
-          ADMOB_APP_ID_IOS=${{ secrets.ADMOB_APP_ID_IOS }}
-          ADMOB_APP_ID_ANDROID=${{ secrets.ADMOB_APP_ID_ANDROID }}
           IMAGE_STORAGE=${{ secrets.IMAGE_STORAGE }}
           BROWSER_POOL_SIZE=${{ secrets.BROWSER_POOL_SIZE }}
           BROWSER_MAX_TRANSLATIONS=${{ secrets.BROWSER_MAX_TRANSLATIONS }}

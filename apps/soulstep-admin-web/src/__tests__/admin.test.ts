@@ -340,24 +340,6 @@ describe("createTranslation", () => {
   });
 });
 
-// ── App Versions ──────────────────────────────────────────────────────────────
-
-describe("listAppVersions", () => {
-  it("GETs /admin/app-versions", async () => {
-    mockGet.mockResolvedValue({ data: [] });
-    await admin.listAppVersions();
-    expect(mockGet).toHaveBeenCalledWith("/admin/app-versions");
-  });
-});
-
-describe("updateAppVersion", () => {
-  it("PUTs /admin/app-versions/:platform", async () => {
-    mockPut.mockResolvedValue({ data: { platform: "ios" } });
-    await admin.updateAppVersion("ios", { min_version_hard: "2.0" });
-    expect(mockPut).toHaveBeenCalledWith("/admin/app-versions/ios", { min_version_hard: "2.0" });
-  });
-});
-
 // ── Content Translations ──────────────────────────────────────────────────────
 
 describe("listContentTranslations", () => {

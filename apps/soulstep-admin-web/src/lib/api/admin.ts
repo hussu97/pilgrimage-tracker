@@ -15,7 +15,6 @@ import type {
   AdminUserCheckIn,
   AdminUserDetail,
   AdminUserReview,
-  AppVersionConfig,
   AuditLogListResponse,
   AuthResponse,
   BroadcastResult,
@@ -39,7 +38,6 @@ import type {
   PlaceAttributeDefinition,
   TranslationEntry,
   UntranslatedPlaceItem,
-  UpdateAppVersionBody,
   UpdateContentTranslationBody,
   UpsertTranslationBody,
   User,
@@ -291,21 +289,6 @@ export async function deleteTranslationOverrides(key: string): Promise<void> {
 
 export async function createTranslation(body: CreateTranslationBody): Promise<TranslationEntry> {
   const res = await apiClient.post<TranslationEntry>("/admin/translations", body);
-  return res.data;
-}
-
-// ── App Versions ───────────────────────────────────────────────────────────────
-
-export async function listAppVersions(): Promise<AppVersionConfig[]> {
-  const res = await apiClient.get<AppVersionConfig[]>("/admin/app-versions");
-  return res.data;
-}
-
-export async function updateAppVersion(
-  platform: string,
-  body: UpdateAppVersionBody
-): Promise<AppVersionConfig> {
-  const res = await apiClient.put<AppVersionConfig>(`/admin/app-versions/${platform}`, body);
   return res.data;
 }
 

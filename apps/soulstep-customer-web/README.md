@@ -7,11 +7,11 @@ Next.js 15 + React customer-facing web app with Tailwind CSS, SSR, and i18n. Dep
 ```bash
 cd apps/soulstep-customer-web
 npm install
-cp .env.local.example .env.local   # edit values
+cp .env.example .env.local   # edit values
 npm run dev
 ```
 
-App runs at http://localhost:3000
+App runs at http://localhost:5173
 
 ## Environment Variables
 
@@ -20,6 +20,14 @@ App runs at http://localhost:3000
 | `NEXT_PUBLIC_API_BASE_URL` | Public catalog-api base URL (browser-side fetches) |
 | `INTERNAL_API_URL`         | Catalog-api URL for server-side / SSR fetches      |
 | `NEXT_PUBLIC_PROXY_TARGET` | API proxy target for local dev rewrites            |
+| `NEXT_PUBLIC_UMAMI_WEBSITE_ID` | Umami website ID; enables `/lib/app.js` + `/api/send` same-origin analytics |
+| `NEXT_PUBLIC_ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID |
+
+Only `NEXT_PUBLIC_UMAMI_WEBSITE_ID` is read for Umami. `VITE_UMAMI_WEBSITE_ID` and old native-app env names are ignored by the Next.js app.
+
+## Browser Cache Cleanup
+
+Legacy Vite/PWA service workers are tombstoned at `/sw.js`, `/service-worker.js`, and `/registerSW.js` with `Cache-Control: no-store`. The client shell also unregisters any old service workers and clears Cache Storage once per session.
 
 ## Key Pages
 
@@ -57,6 +65,7 @@ catalog-api owns the generated XML/HTML payloads.
 ```bash
 npm test                  # Vitest unit tests
 npx tsc --noEmit          # TypeScript type check
+npm run test:e2e          # Playwright browser tests
 ```
 
 ## Deploy

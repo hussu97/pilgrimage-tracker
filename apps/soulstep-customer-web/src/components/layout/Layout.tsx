@@ -26,6 +26,8 @@ export default function Layout({ children }: { children: ReactNode }) {
   const hideBottomNav =
     location.pathname.startsWith('/journeys/new') ||
     location.pathname.startsWith('/groups/new') ||
+    location.pathname.includes('/edit') ||
+    location.pathname.endsWith('/review') ||
     location.pathname === '/login' ||
     location.pathname === '/register' ||
     location.pathname === '/forgot-password' ||
@@ -112,11 +114,8 @@ export default function Layout({ children }: { children: ReactNode }) {
       <main
         id="main-content"
         className={cn(
-          // safe-area-bottom is intentionally omitted here — it is defined after
-          // @tailwind utilities in index.css and would override pb-24.
-          // The mobile bottom nav already pads its own safe-area-inset-bottom.
           'flex-1 safe-area-top md:pb-6 w-full max-w-6xl xl:max-w-7xl mx-auto px-0',
-          showBottomNav ? 'pb-24' : 'pb-6',
+          showBottomNav ? 'pb-[var(--mobile-bottom-nav-height)]' : 'pb-6',
         )}
       >
         {children}
@@ -151,7 +150,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
       {/* Mobile footer — shown above the bottom nav */}
       {showBottomNav && (
-        <div className="md:hidden px-4 pb-28 pt-4 border-t border-slate-100 dark:border-dark-border">
+        <div className="md:hidden px-4 pb-[calc(var(--mobile-bottom-nav-height)+1rem)] pt-4 border-t border-slate-100 dark:border-dark-border">
           <nav
             className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-xs text-text-secondary dark:text-dark-text-secondary"
             aria-label="Footer"
@@ -180,6 +179,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         <nav
           className="md:hidden fixed bottom-0 left-0 right-0 z-[500]"
           aria-label="Main navigation"
+          style={{ minHeight: 'var(--mobile-bottom-nav-height)' }}
         >
           {/* Glass background */}
           <div className="absolute inset-0 bg-white/80 dark:bg-dark-bg/80 backdrop-blur-lg border-t border-white/30 dark:border-white/5" />

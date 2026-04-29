@@ -196,7 +196,7 @@ export default function About() {
       {/* Available Everywhere */}
       <section className="mb-8">
         <h2 className="text-xl font-bold text-text-main dark:text-white mb-3">
-          Available Everywhere
+          Available in Every Browser
         </h2>
         <div className="rounded-2xl border border-slate-100 dark:border-dark-border bg-white dark:bg-dark-surface p-5">
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary mb-4">
@@ -209,21 +209,18 @@ export default function About() {
             >
               soul-step.org
             </a>{' '}
-            from any browser, or download our mobile apps for iOS and Android to discover sacred
-            sites on the go.
+            from any desktop or mobile browser to discover sacred sites on the go.
           </p>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-xl">language</span>
-              <span className="text-sm text-text-main dark:text-white font-medium">Web App</span>
+              <span className="text-sm text-text-main dark:text-white font-medium">
+                Desktop Web
+              </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-xl">phone_iphone</span>
-              <span className="text-sm text-text-main dark:text-white font-medium">iOS</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-xl">phone_android</span>
-              <span className="text-sm text-text-main dark:text-white font-medium">Android</span>
+              <span className="material-symbols-outlined text-primary text-xl">smartphone</span>
+              <span className="text-sm text-text-main dark:text-white font-medium">Mobile Web</span>
             </div>
           </div>
         </div>

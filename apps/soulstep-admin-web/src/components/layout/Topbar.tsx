@@ -13,7 +13,6 @@ const ROUTE_LABELS: Record<string, string> = {
   "/scraper": "Scraper",
   "/translations": "Translations",
   "/audit-log": "Audit Log",
-  "/app-versions": "App Versions",
   "/place-attributes": "Place Attributes",
   "/content-translations": "Content Translations",
   "/notifications": "Notifications",

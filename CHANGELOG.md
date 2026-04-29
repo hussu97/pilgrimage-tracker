@@ -4,6 +4,29 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-29] — Web-only cleanup, Umami proxy, and mobile browser layout hardening
+
+### Backend
+- **`soulstep-catalog-api`** — removed native-app version enforcement endpoints, admin app-version management, the `AppVersionConfig` model/seed rows, hard-update middleware, and mobile-only env vars; added migration `0029_drop_app_version_config.py`.
+- **Ads config** — simplified ad configuration to web-only (`platform=web`) while leaving historical analytics platform fields intact.
+
+### Frontend (web)
+- **Umami** — moved tracking to neutral same-origin `/lib/app.js` plus server-side `/api/send`, removed the broken domain filter, and forced `data-do-not-track="false"`.
+- **Cache cleanup** — removed stale Vite/PWA entry files, added service-worker tombstones for `/sw.js`, `/service-worker.js`, and `/registerSW.js`, and added one-time client cleanup for old service workers and Cache Storage entries.
+- **Mobile web layout** — centralized bottom-nav sizing with `--mobile-bottom-nav-height` and offset sticky footers, FABs, map sheets, footers, and page padding so bottom actions remain reachable.
+- **Native app removal** — deleted `apps/soulstep-customer-mobile/` and removed mobile CI paths/jobs.
+
+### Admin
+- Removed the App Versions admin page, route, API helpers, types, and tests.
+
+### Docs
+- Updated README, architecture, production env docs, project rules, roadmap, Umami analytics notes, and web/legal/static copy for the web-only product.
+
+### Tests
+- Added service-worker cleanup unit coverage and a Playwright mobile-bottom-nav regression for `/home`, `/places`, `/groups`, `/places/:code`, and `/map`; updated backend/admin tests for removed app-version and web-only ad config behavior.
+
+---
+
 ## [2026-04-28] — Requeue pending detail placeholders on resume
 
 ### Backend

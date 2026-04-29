@@ -812,7 +812,7 @@ export default function PlaceDetail() {
       <div className="relative max-w-6xl mx-auto">
         {/* Mobile layout */}
         <div className="lg:hidden">
-          <div className="bg-background-light dark:bg-dark-bg rounded-t-[2rem] pt-6 pb-28 px-4 space-y-6">
+          <div className="bg-background-light dark:bg-dark-bg rounded-t-[2rem] pt-6 pb-[calc(var(--mobile-bottom-nav-height)+var(--mobile-sticky-action-height)+1.5rem)] px-4 space-y-6">
             {/* Breadcrumb */}
             <Breadcrumb
               items={[
@@ -970,7 +970,7 @@ export default function PlaceDetail() {
           </div>
 
           {/* Mobile sticky footer — check-in only */}
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl dark:bg-dark-bg/95 border-t border-slate-100 dark:border-dark-border px-6 py-4 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] animate-in slide-in-from-bottom-full duration-500 lg:hidden">
+          <div className="fixed bottom-[var(--mobile-bottom-nav-height)] left-0 right-0 z-50 bg-white/95 backdrop-blur-xl dark:bg-dark-bg/95 border-t border-slate-100 dark:border-dark-border px-6 py-4 shadow-[0_-8px_24px_rgba(0,0,0,0.06)] animate-in slide-in-from-bottom-full duration-500 lg:hidden">
             {checkInWidget()}
           </div>
         </div>

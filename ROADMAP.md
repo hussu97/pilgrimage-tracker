@@ -2,7 +2,7 @@
 
 Single unified roadmap for the SoulStep monorepo. Only **uncompleted** items. Check git history or CHANGELOG.md for completed work.
 
-> **Last updated:** 2026-04-19
+> **Last updated:** 2026-04-29
 
 ---
 
@@ -60,25 +60,10 @@ All P0 items completed. See CHANGELOG.md.
 
 ### UX Completeness
 
-- [ ] **EditProfile screen for mobile**
-  - Web has a profile editing flow; no equivalent screen exists in mobile.
-  - Add `EditProfileScreen`. Match fields and validation with web. Wire to `PATCH /api/v1/users/me`.
-  - Files: new `apps/soulstep-customer-mobile/src/app/screens/EditProfileScreen.tsx`, navigation.tsx
-
 - [ ] **Consent gating for analytics (wire up useUmamiTracking TODO)**
   - `useUmamiTracking.ts` has a `TODO: wire consent check` comment. Analytics fire regardless of consent, violating GDPR.
   - Gate all `umami.track()` calls behind the existing consent state.
   - Files: `apps/soulstep-customer-web/src/lib/hooks/useUmamiTracking.ts`
-
-- [ ] **Wire up AdMob stubs in mobile app**
-  - AdMob stubs exist but are not connected to actual ad units.
-  - Configure real ad unit IDs, implement consent flow (UMP SDK), add banner and interstitial placements.
-  - Files: `apps/soulstep-customer-mobile/src/components/ads/`
-
-- [ ] **Error tracking for mobile (Sentry)**
-  - Web has Sentry configured. Mobile has no crash or error reporting.
-  - Add `@sentry/react-native`. Initialize with DSN from `EXPO_PUBLIC_SENTRY_DSN`. Capture unhandled exceptions.
-  - Files: `apps/soulstep-customer-mobile/src/app/App.tsx`, `app.json`
 
 ---
 
@@ -93,18 +78,18 @@ All P0 items completed. See CHANGELOG.md.
 
 - [ ] **Push notifications**
   - `Notification` model exists but no push delivery is implemented.
-  - Integrate Expo Push Notifications (mobile) and Web Push API (web). Send on: new review on favorited place, badge earned, streak reminder.
-  - Files: new `soulstep-catalog-api/app/services/push.py`, `apps/soulstep-customer-mobile/src/`
+  - Integrate Web Push API. Send on: new review on favorited place, badge earned, streak reminder.
+  - Files: new `soulstep-catalog-api/app/services/push.py`, `apps/soulstep-customer-web/src/`
 
 - [ ] **Directions integration**
   - No way to get directions to a place from within the app.
-  - Add "Directions" button on place detail. Mobile: deep link to Maps. Web: open Google Maps in new tab.
-  - Files: `apps/soulstep-customer-web/src/app/pages/PlaceDetail.tsx`, `apps/soulstep-customer-mobile/src/app/screens/PlaceDetailScreen.tsx`
+  - Add "Directions" button on place detail that opens Google Maps in a new tab.
+  - Files: `apps/soulstep-customer-web/src/app/pages/PlaceDetail.tsx`
 
 - [ ] **Recently viewed places**
   - No record of viewed places.
   - Track last 20 viewed places in local storage. Show "Recently Viewed" on home screen.
-  - Files: `apps/soulstep-customer-web/src/app/pages/HomePage.tsx`, `apps/soulstep-customer-mobile/src/app/screens/HomeScreen.tsx`
+  - Files: `apps/soulstep-customer-web/src/app/pages/Home.tsx`
 
 - [ ] **Religion expansion**
   - "View More Faiths" button is non-functional. Only Islam, Christianity, and Hinduism are supported.
@@ -119,42 +104,22 @@ All P0 items completed. See CHANGELOG.md.
 - [ ] **Onboarding tour for new users**
   - No guidance for first-time users.
   - Show guided tooltip overlay on first login. Store `has_seen_onboarding` flag locally.
-  - Files: `apps/soulstep-customer-web/src/`, `apps/soulstep-customer-mobile/src/`
-
-- [ ] **Deep linking (iOS Universal Links + Android App Links)**
-  - Shared place URLs do not open the mobile app.
-  - Configure Universal Links and App Links. Map `/places/:code` to mobile place detail screen.
-  - Files: `apps/soulstep-customer-mobile/app.json`, new `apple-app-site-association`, `assetlinks.json`
+  - Files: `apps/soulstep-customer-web/src/`
 
 - [ ] **Offline mode with sync queue**
   - App is unusable without a network connection. No cached data, no offline check-ins.
-  - Web: service worker with cache-first strategy. Mobile: cache place list + favorites in AsyncStorage. Queue check-ins for sync when online.
-  - Files: new `apps/soulstep-customer-web/public/sw.js`, `apps/soulstep-customer-mobile/src/lib/`
+  - Design a deliberate web-only offline strategy with explicit cache versioning, update prompts, and service-worker tombstones before registering a new worker.
+  - Files: `apps/soulstep-customer-web/public/`, `apps/soulstep-customer-web/src/`
 
 - [ ] **Optimistic UI updates for favorites and check-ins**
   - Favorite toggles and check-ins show a loading state, then reload data.
   - Update UI immediately. Revert on API failure.
-  - Files: `apps/soulstep-customer-web/src/app/pages/PlaceDetail.tsx`, `apps/soulstep-customer-mobile/src/app/screens/PlaceDetailScreen.tsx`
+  - Files: `apps/soulstep-customer-web/src/app/pages/PlaceDetail.tsx`
 
 - [ ] **Image lazy loading and CLS prevention**
   - Place card images lack `loading="lazy"` and explicit dimensions, causing layout shift.
   - Add `loading="lazy"`, `width`, `height` to all `<img>` elements. Use aspect-ratio containers.
   - Files: `apps/soulstep-customer-web/src/components/places/PlaceCardUnified.tsx`
-
-- [ ] **PWA offline fallback page and update notification**
-  - No service worker. No offline fallback. No "new version available" prompt.
-  - Register a service worker. Add offline fallback HTML. Show toast when new version is cached.
-  - Files: `apps/soulstep-customer-web/public/`, `apps/soulstep-customer-web/src/`
-
-- [ ] **Haptic feedback on mobile interactions**
-  - No haptic feedback on check-in, favorite, or other key interactions.
-  - Fire `Haptics.impactAsync(ImpactFeedbackStyle.Medium)` on check-in success. `ImpactFeedbackStyle.Light` for favorites.
-  - Files: `apps/soulstep-customer-mobile/src/app/screens/PlaceDetailScreen.tsx`
-
-- [ ] **Pull-to-refresh on all mobile list screens**
-  - No pull-to-refresh gesture. Users must navigate away and back to reload.
-  - Add `refreshControl` with `RefreshControl` to all FlatList/ScrollView on main screens.
-  - Files: `apps/soulstep-customer-mobile/src/app/screens/`
 
 ### Backend Features
 
@@ -239,11 +204,6 @@ All P0 items completed. See CHANGELOG.md.
   - FastAPI `BackgroundTasks` runs in-process with no retry, persistence, or monitoring.
   - Set up Celery with Redis or `arq`. Move email sending, image processing, badge evaluation, analytics aggregation.
   - Files: new `soulstep-catalog-api/app/workers/`
-
-- [ ] **Mobile CI/CD pipeline (EAS Build)**
-  - No mobile build or delivery automation.
-  - Add EAS Build workflow for iOS and Android. Trigger on tagged releases. Upload to TestFlight / Google Play internal track.
-  - Files: new `.github/workflows/mobile.yml`
 
 - [ ] **Load testing**
   - No performance benchmarks. Unknown behavior under concurrent load.

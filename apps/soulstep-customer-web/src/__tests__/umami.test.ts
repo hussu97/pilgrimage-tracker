@@ -168,7 +168,7 @@ describe('website ID guard', () => {
     expect(isValidWebsiteId('')).toBe(false);
   });
 
-  it('rejects un-replaced Vite placeholder', () => {
+  it('rejects an un-replaced HTML placeholder', () => {
     expect(isValidWebsiteId('%NEXT_PUBLIC_UMAMI_WEBSITE_ID%')).toBe(false);
   });
 

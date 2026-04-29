@@ -44,14 +44,12 @@ from app.api.v1 import feed as feed_module  # noqa: E402
 from app.api.v1 import seo_static as seo_static_module  # noqa: E402
 from app.api.v1 import share as share_router_module  # noqa: E402
 from app.api.v1 import sitemap as sitemap_module  # noqa: E402
-from app.api.v1 import umami_proxy as umami_proxy_module  # noqa: E402
 from app.core import config  # noqa: E402
 from app.core.client_context import (  # noqa: E402
     ClientContext,
     get_client_context,
     reset_client_context,
     set_client_context,
-    version_meets_minimum,
 )
 from app.core.request_context import (  # noqa: E402
     generate_request_id,
@@ -289,18 +287,16 @@ app.add_middleware(_TracerMiddleware)
 # (runs first on incoming request, last on outgoing response).
 #
 # Execution order (outermost → innermost):
-#   request_timing → api_version_header → request_id → hard_update → client_context → handler
+#   request_timing → api_version_header → request_id → client_context → handler
 
 
 @app.middleware("http")
 async def client_context_middleware(request: Request, call_next):
-    """Extract X-Content-Type / X-App-Type / X-Platform / X-App-Version headers
-    and store them in a ContextVar for the lifetime of the request."""
+    """Extract web client headers and store them in a ContextVar for the request."""
     ctx = ClientContext(
         content_type=request.headers.get("X-Content-Type", "desktop"),
         app_type=request.headers.get("X-App-Type", "web"),
         platform=request.headers.get("X-Platform", "web"),
-        app_version=request.headers.get("X-App-Version") or None,
     )
     token = set_client_context(ctx)
     try:
@@ -308,35 +304,6 @@ async def client_context_middleware(request: Request, call_next):
         return response
     finally:
         reset_client_context(token)
-
-
-@app.middleware("http")
-async def hard_update_middleware(request: Request, call_next):
-    """Block mobile clients running below MIN_APP_VERSION_HARD with HTTP 426."""
-    if not config.MIN_APP_VERSION_HARD:
-        return await call_next(request)
-
-    app_type = request.headers.get("X-App-Type", "web")
-    if app_type != "app":
-        return await call_next(request)
-
-    app_version = request.headers.get("X-App-Version", "")
-    if not app_version:
-        return await call_next(request)
-
-    if not version_meets_minimum(app_version, config.MIN_APP_VERSION_HARD):
-        platform = request.headers.get("X-Platform", "")
-        store_url = config.APP_STORE_URL_IOS if platform == "ios" else config.APP_STORE_URL_ANDROID
-        return JSONResponse(
-            status_code=426,
-            content={
-                "detail": "update_required",
-                "min_version": config.MIN_APP_VERSION_HARD,
-                "store_url": store_url,
-            },
-        )
-
-    return await call_next(request)
 
 
 @app.middleware("http")
@@ -453,7 +420,6 @@ app.include_router(share_router_module.router, prefix="/share")
 app.include_router(sitemap_module.router)
 app.include_router(seo_static_module.router)
 app.include_router(feed_module.router)
-app.include_router(umami_proxy_module.router)
 
 # Prometheus metrics — exposes GET /metrics (excluded from OpenAPI schema)
 try:

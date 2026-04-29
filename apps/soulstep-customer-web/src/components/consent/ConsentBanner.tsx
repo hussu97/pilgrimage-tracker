@@ -33,7 +33,7 @@ export default function ConsentBanner() {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="fixed inset-x-0 bottom-0 z-[1500] p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="mx-auto max-w-lg bg-white dark:bg-dark-surface rounded-2xl shadow-xl border border-slate-200 dark:border-dark-border p-5">
         <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-2">
           {t('consent.title')}

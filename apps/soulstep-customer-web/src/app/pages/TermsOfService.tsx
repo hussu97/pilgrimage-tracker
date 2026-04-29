@@ -35,9 +35,9 @@ export default function TermsOfService() {
             <a href="https://soul-step.org" className="text-primary hover:underline">
               soul-step.org
             </a>{' '}
-            and our mobile applications (collectively, the &quot;Service&quot;), you agree to be
-            bound by these Terms of Service (&quot;Terms&quot;). If you do not agree to these Terms,
-            you may not access or use the Service.
+            on desktop or mobile web (collectively, the &quot;Service&quot;), you agree to be bound
+            by these Terms of Service (&quot;Terms&quot;). If you do not agree to these Terms, you
+            may not access or use the Service.
           </p>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
             These Terms constitute a legally binding agreement between you and SoulStep. By creating
@@ -66,10 +66,9 @@ export default function TermsOfService() {
             create journey groups, and plan pilgrimages with friends and family.
           </p>
           <p className="text-sm text-text-secondary dark:text-dark-text-secondary">
-            The Service is available through our website and mobile applications for iOS and
-            Android. While the core discovery features are available without an account, certain
-            features such as check-ins, reviews, favorites, journey groups, and notifications
-            require a registered account.
+            The Service is available through our desktop and mobile website. While the core
+            discovery features are available without an account, certain features such as check-ins,
+            reviews, favorites, journey groups, and notifications require a registered account.
           </p>
         </div>
       </section>

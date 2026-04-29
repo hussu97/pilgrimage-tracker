@@ -61,17 +61,9 @@ services:
       FRONTEND_URL: ${FRONTEND_URL:-https://soul-step.org}
       RESET_URL_BASE: ${RESET_URL_BASE:-https://soul-step.org}
       VERIFY_URL_BASE: ${VERIFY_URL_BASE:-}
-      # ── App versioning / store links ──────────────────────────────────────
-      MIN_APP_VERSION_SOFT: ${MIN_APP_VERSION_SOFT:-}
-      MIN_APP_VERSION_HARD: ${MIN_APP_VERSION_HARD:-}
-      LATEST_APP_VERSION: ${LATEST_APP_VERSION:-}
-      APP_STORE_URL_IOS: ${APP_STORE_URL_IOS:-}
-      APP_STORE_URL_ANDROID: ${APP_STORE_URL_ANDROID:-}
       # ── Ads ───────────────────────────────────────────────────────────────
       ADS_ENABLED: ${ADS_ENABLED:-false}
       ADSENSE_PUBLISHER_ID: ${ADSENSE_PUBLISHER_ID:-}
-      ADMOB_APP_ID_IOS: ${ADMOB_APP_ID_IOS:-}
-      ADMOB_APP_ID_ANDROID: ${ADMOB_APP_ID_ANDROID:-}
       # ── Image storage ─────────────────────────────────────────────────────
       IMAGE_STORAGE: ${IMAGE_STORAGE:-gcs}
       GCS_BUCKET_NAME: ${GCS_BUCKET_NAME}

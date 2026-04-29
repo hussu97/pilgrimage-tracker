@@ -86,7 +86,7 @@ _LLMS_TXT_TEMPLATE = """\
 - Check in at religious sites to track your spiritual journey
 - Read and write reviews from fellow visitors
 - Save favourite places and plan pilgrimages with groups
-- Available on web and mobile (iOS & Android)
+- Available on desktop and mobile web
 
 ## Religions Covered
 

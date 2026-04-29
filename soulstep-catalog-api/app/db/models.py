@@ -404,26 +404,6 @@ class ContentTranslation(SQLModel, table=True):
     )
 
 
-class AppVersionConfig(SQLModel, table=True):
-    """Per-platform app version requirements.
-
-    Rows: one for "ios", one for "android".
-    Used by GET /api/v1/app-version to decide soft/hard update banners.
-    Falls back to env vars when no row exists.
-    """
-
-    id: int | None = Field(default=None, primary_key=True)
-    platform: str = Field(index=True, unique=True)  # "ios" | "android"
-    min_version_hard: str = Field(default="")  # e.g. "1.0.0" — blocks below this
-    min_version_soft: str = Field(default="")  # e.g. "1.1.0" — banner below this
-    latest_version: str = Field(default="")  # e.g. "1.2.0"
-    store_url: str = Field(default="")  # App Store / Play Store URL
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
-        sa_column=_TSTZ(nullable=False),
-    )
-
-
 class UITranslation(SQLModel, table=True):
     """Runtime overrides for UI translation keys.
 
@@ -649,16 +629,15 @@ class PlaceSEOTranslation(SQLModel, table=True):
 
 
 class AdConfig(SQLModel, table=True):
-    """Server-driven feature flag and ad-unit configuration per platform.
+    """Server-driven feature flag and ad-unit configuration for the web app.
 
-    Rows: one for "web", one for "ios", one for "android".
     Used by GET /api/v1/ads/config to deliver ad unit IDs and the kill-switch.
     """
 
     __tablename__ = "ad_config"
 
     id: int | None = Field(default=None, primary_key=True)
-    platform: str = Field(index=True, unique=True)  # "web" | "ios" | "android"
+    platform: str = Field(index=True, unique=True)  # "web"
     ads_enabled: bool = Field(
         default=False,
         sa_column=Column(Boolean, nullable=False, server_default="0"),

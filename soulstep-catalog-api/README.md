@@ -31,6 +31,8 @@ Copy the root `.env.example` to `.env`. Key variables:
 | `IMAGE_STORAGE` | `gcs` or `local` |
 | `GCS_BUCKET_NAME` | GCS bucket for place images |
 | `DATA_SCRAPER_URL` | URL of the scraper-api service |
+| `ADS_ENABLED` | Master switch for web ads |
+| `ADSENSE_PUBLISHER_ID` | Google AdSense publisher ID for web ad slots |
 | `SENTRY_DSN` | Sentry/GlitchTip error tracking DSN |
 
 ## API Endpoints
@@ -92,6 +94,14 @@ Copy the root `.env.example` to `.env`. Key variables:
 | GET | `/api/v1/languages` | Supported languages |
 | GET | `/api/v1/translations` | All strings for `?lang=en\|ar\|hi\|te\|ml` |
 
+### Ads, Consent, Analytics
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/v1/ads/config?platform=web` | Web ad configuration and kill switch |
+| POST | `/api/v1/consent` | Record ads or analytics consent |
+| GET | `/api/v1/consent` | Latest consent status for a user or visitor |
+| POST | `/api/v1/analytics/events` | Batch analytics events |
+
 ### SEO Content Pages
 | Method | Path | Description |
 |---|---|---|
@@ -117,6 +127,9 @@ Copy the root `.env.example` to `.env`. Key variables:
 | GET | `/api/v1/admin/users` | List users |
 | GET | `/api/v1/admin/seo` | SEO dashboard stats |
 | GET | `/api/v1/admin/seo/ai-citations` | AI crawler log |
+| GET | `/api/v1/admin/ads/config` | List web ad configuration |
+| PATCH | `/api/v1/admin/ads/config/:id` | Update web ad configuration |
+| GET | `/api/v1/admin/ads/consent-stats` | Consent grant/deny stats |
 | POST | `/api/v1/admin/sync-places/direct` | Start a run-scoped direct DB sync from scraper DB to catalog DB |
 
 ## Direct Scraper Sync Job

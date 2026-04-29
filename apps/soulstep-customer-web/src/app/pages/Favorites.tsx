@@ -51,7 +51,7 @@ export default function Favorites() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-tint dark:bg-dark-bg max-w-md mx-auto px-4 py-6 md:max-w-4xl pb-24 md:pb-6">
+    <div className="min-h-screen bg-surface-tint dark:bg-dark-bg max-w-md mx-auto px-4 py-6 md:max-w-4xl pb-[var(--mobile-bottom-nav-height)] md:pb-6">
       <header className="mb-6">
         <button
           type="button"

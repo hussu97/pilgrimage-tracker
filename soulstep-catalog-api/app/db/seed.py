@@ -15,7 +15,6 @@ from app.db import places as places_db
 from app.db import store
 from app.db.models import (
     AdConfig,
-    AppVersionConfig,
     BlogPost,
     City,
     Country,
@@ -67,8 +66,6 @@ def run_seed_system(seed_path: str | Path | None = None) -> None:
         attr_db.seed_attribute_definitions(data["attribute_definitions"])
     if "content_translations" in data:
         _seed_content_translations(data["content_translations"])
-    if "app_version_config" in data:
-        _seed_app_version_config(data["app_version_config"])
     if "locations" in data:
         _seed_locations(data["locations"])
 
@@ -78,7 +75,7 @@ def run_seed_system(seed_path: str | Path | None = None) -> None:
 
 
 def _seed_ad_config() -> None:
-    """Upsert AdConfig rows for web, ios, and android with ads enabled.
+    """Upsert the web AdConfig row with ads enabled.
 
     Safe to call repeatedly — updates existing rows rather than inserting duplicates.
     Publisher ID matches the hardcoded value in the frontend ad-constants.ts.
@@ -97,33 +94,24 @@ def _seed_ad_config() -> None:
         "notifications-bottom": f"{_PUBLISHER_ID}/notifications-bottom",
     }
 
-    platforms = [
-        {"platform": "web", "ad_slots": _WEB_SLOTS},
-        {"platform": "ios", "ad_slots": {}},
-        {"platform": "android", "ad_slots": {}},
-    ]
-
     with Session(engine) as session:
-        for entry in platforms:
-            row = session.exec(
-                select(AdConfig).where(AdConfig.platform == entry["platform"])
-            ).first()
-            if row is None:
-                session.add(
-                    AdConfig(
-                        platform=entry["platform"],
-                        ads_enabled=True,
-                        adsense_publisher_id=_PUBLISHER_ID,
-                        ad_slots=entry["ad_slots"],
-                        updated_at=datetime.now(UTC),
-                    )
+        row = session.exec(select(AdConfig).where(AdConfig.platform == "web")).first()
+        if row is None:
+            session.add(
+                AdConfig(
+                    platform="web",
+                    ads_enabled=True,
+                    adsense_publisher_id=_PUBLISHER_ID,
+                    ad_slots=_WEB_SLOTS,
+                    updated_at=datetime.now(UTC),
                 )
-            else:
-                row.ads_enabled = True
-                row.adsense_publisher_id = _PUBLISHER_ID
-                if not row.ad_slots:
-                    row.ad_slots = entry["ad_slots"]
-                row.updated_at = datetime.now(UTC)
+            )
+        else:
+            row.ads_enabled = True
+            row.adsense_publisher_id = _PUBLISHER_ID
+            if not row.ad_slots:
+                row.ad_slots = _WEB_SLOTS
+            row.updated_at = datetime.now(UTC)
         session.commit()
 
 
@@ -184,27 +172,6 @@ def _seed_content_translations(rows: list[dict]) -> None:
                 source=row.get("source", "manual"),
                 session=session,
             )
-
-
-def _seed_app_version_config(rows: list[dict]) -> None:
-    """Upsert AppVersionConfig rows from seed data. Safe to call repeatedly."""
-    with Session(engine) as session:
-        for row in rows:
-            existing = session.exec(
-                select(AppVersionConfig).where(AppVersionConfig.platform == row["platform"])
-            ).first()
-            if existing is None:
-                session.add(
-                    AppVersionConfig(
-                        platform=row["platform"],
-                        min_version_hard=row.get("min_version_hard", ""),
-                        min_version_soft=row.get("min_version_soft", ""),
-                        latest_version=row.get("latest_version", ""),
-                        store_url=row.get("store_url", ""),
-                        updated_at=datetime.now(UTC),
-                    )
-                )
-        session.commit()
 
 
 def _seed_locations(locations: dict) -> None:
