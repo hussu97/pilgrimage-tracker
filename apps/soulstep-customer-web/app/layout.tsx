@@ -2,9 +2,75 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { AppClientShell } from './AppClientShell';
+import { APP_RELEASE, APP_RELEASE_RELOAD_PARAM, APP_RELEASE_STORAGE_KEY } from '@/lib/appRelease';
 
 const ADSENSE_ID = process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID ?? 'ca-pub-7902951158656200';
 const UMAMI_ID = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ?? '';
+
+const releaseRefreshScript = `
+(() => {
+  const release = ${JSON.stringify(APP_RELEASE)};
+  const storageKey = ${JSON.stringify(APP_RELEASE_STORAGE_KEY)};
+  const reloadParam = ${JSON.stringify(APP_RELEASE_RELOAD_PARAM)};
+  let hadStaleState = false;
+  let previous = null;
+
+  try {
+    previous = window.localStorage.getItem(storageKey);
+    if (previous === release) return;
+
+    const keysToRemove = [];
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (key && key.startsWith('cache:')) keysToRemove.push(key);
+    }
+    if (keysToRemove.length > 0) hadStaleState = true;
+    keysToRemove.forEach((key) => window.localStorage.removeItem(key));
+    window.localStorage.setItem(storageKey, release);
+  } catch {
+    // Storage may be unavailable in private/locked-down modes.
+  }
+
+  if (previous && previous !== release) hadStaleState = true;
+
+  const cleanupTasks = [];
+  if ('serviceWorker' in navigator) {
+    cleanupTasks.push(
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((registrations) => {
+          if (registrations.length > 0) hadStaleState = true;
+          return Promise.all(registrations.map((registration) => registration.unregister()));
+        })
+        .catch(() => {})
+    );
+  }
+  if ('caches' in window) {
+    cleanupTasks.push(
+      window.caches
+        .keys()
+        .then((names) => {
+          if (names.length > 0) hadStaleState = true;
+          return Promise.all(names.map((name) => window.caches.delete(name)));
+        })
+        .catch(() => {})
+    );
+  }
+
+  Promise.all(cleanupTasks).finally(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (!hadStaleState || url.searchParams.get(reloadParam) === release) return;
+      url.searchParams.set(reloadParam, release);
+      window.location.replace(url.toString());
+    } catch {
+      if (hadStaleState && !window.location.search.includes(reloadParam)) {
+        window.location.reload();
+      }
+    }
+  });
+})();
+`;
 
 export const metadata: Metadata = {
   title: {
@@ -57,6 +123,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
           rel="stylesheet"
         />
+
+        <Script id="soulstep-release-refresh" strategy="beforeInteractive">
+          {releaseRefreshScript}
+        </Script>
 
         {/* Google Consent Mode v2 — default deny until user grants consent */}
         <Script id="google-consent-default" strategy="beforeInteractive">

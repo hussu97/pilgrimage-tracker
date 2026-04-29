@@ -4,6 +4,14 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-29] — Safari stale web shell refresh
+
+### Frontend (web)
+- Added a release-aware refresh guard that clears persisted API caches, unregisters legacy service workers, deletes Cache Storage, and reloads once with a cache-busting URL when a browser profile carries stale SoulStep web state.
+- Versioned the legacy service-worker cleanup marker so future release refreshes can rerun cleanup instead of being blocked by an older session marker.
+
+---
+
 ## [2026-04-29] — Discovery-first customer web journey redesign
 
 ### Frontend (web)

@@ -1,4 +1,6 @@
-const CLEANUP_MARKER = 'soulstep:legacy-sw-cleaned';
+import { APP_RELEASE } from '@/lib/appRelease';
+
+const CLEANUP_MARKER = `soulstep:legacy-sw-cleaned:${APP_RELEASE}`;
 
 async function deleteLegacyCaches(): Promise<void> {
   if (typeof caches === 'undefined') return;
