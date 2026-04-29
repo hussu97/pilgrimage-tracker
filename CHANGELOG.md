@@ -4,6 +4,13 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-04-29] — Frontend release freshness rule
+
+### Docs
+- Added a project rule requiring frontend changes that affect the app shell, navigation, first-screen UX, translations, service-worker cleanup, or client-side cache behavior to bump or verify the customer web release marker so returning Safari/iOS browsers cannot stay on stale UI.
+
+---
+
 ## [2026-04-29] — Safari stale web shell refresh
 
 ### Frontend (web)

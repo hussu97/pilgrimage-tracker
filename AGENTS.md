@@ -86,6 +86,7 @@ After every frontend task, verify:
 - [ ] The route works on desktop and mobile browser widths.
 - [ ] API client methods match backend request/response shapes.
 - [ ] Mobile web bottom navigation and sticky actions do not cover content.
+- [ ] Returning browsers receive the new UI: when changing app shell, navigation, first-screen UX, translations, service-worker cleanup, or client-side cache behavior, bump the customer web release marker in `apps/soulstep-customer-web/src/lib/appRelease.ts` or otherwise prove stale Safari/iOS browser state cannot keep serving the old UI.
 
 Browser clients may still send `X-Content-Type: mobile` for responsive analytics/context, but `X-App-Type` and `X-Platform` remain `web`.
 
