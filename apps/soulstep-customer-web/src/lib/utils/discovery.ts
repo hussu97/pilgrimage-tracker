@@ -8,8 +8,8 @@ export interface DiscoveryJourneyDraftPlace {
   name: string;
   religion: Place['religion'];
   place_type: string;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   address: string;
   images?: Place['images'];
 }

@@ -40,6 +40,32 @@ def test_homepage_authenticated(client):
     assert isinstance(data["groups"], list)
 
 
+def test_homepage_authenticated_group_datetimes_are_json_encoded(client, db_session):
+    """Authenticated homepage must serialize group datetime fields."""
+    from sqlmodel import select
+
+    from app.db import groups as groups_db
+    from app.db.models import User
+
+    email = "hp_group_owner@example.com"
+    token = _register_and_token(client, email=email)
+    user = db_session.exec(select(User).where(User.email == email)).first()
+    assert user is not None
+
+    groups_db.create_group(
+        name="Serializable Journey",
+        description="Regression coverage",
+        created_by_user_code=user.user_code,
+        session=db_session,
+    )
+
+    res = client.get(HOMEPAGE_URL, headers=_auth_headers(token))
+    assert res.status_code == 200
+    group = next(g for g in res.json()["groups"] if g["name"] == "Serializable Journey")
+    assert isinstance(group["created_at"], str)
+    assert isinstance(group["updated_at"], str)
+
+
 def test_homepage_with_location(client):
     """Homepage with lat/lng returns recommended_places with distance field."""
     res = client.get(HOMEPAGE_URL, params={"lat": 51.5074, "lng": -0.1278})

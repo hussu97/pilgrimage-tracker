@@ -49,4 +49,22 @@ describe('discovery utilities', () => {
     expect(parsed?.places).toHaveLength(1);
     expect(parsed?.places[0].place_code).toBe('plc_123');
   });
+
+  it('keeps selected places with missing coordinates in journey drafts', () => {
+    const place: Place = {
+      place_code: 'plc_null_coords',
+      name: 'Coordinate Pending Shrine',
+      religion: 'hinduism',
+      place_type: 'temple',
+      lat: null,
+      lng: null,
+      address: 'Unknown',
+      images: [],
+    };
+
+    const draft = buildDiscoveryJourneyDraft([place]);
+
+    expect(draft.places[0].lat).toBeNull();
+    expect(draft.places[0].lng).toBeNull();
+  });
 });

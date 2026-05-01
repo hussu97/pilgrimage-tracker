@@ -4,6 +4,19 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-01] — Homepage serialization and null-coordinate hardening
+
+### Backend
+- **`soulstep-catalog-api/app/api/v1/homepage.py`** — encoded the composite homepage payload with FastAPI's JSON encoder before returning `JSONResponse`, preventing journey/group datetime fields from crashing response serialization.
+
+### Frontend (web)
+- **`apps/soulstep-customer-web`** — made place coordinate types nullable where catalog rows can lack coordinates and guarded map/directions surfaces so null `lat`/`lng` values do not crash the app.
+
+### Tests
+- Added homepage serialization regression coverage and customer-web coordinate/discovery draft tests for null-coordinate places.
+
+---
+
 ## [2026-04-29] — Mobile responsiveness and translation fixes
 
 ### Frontend (web)

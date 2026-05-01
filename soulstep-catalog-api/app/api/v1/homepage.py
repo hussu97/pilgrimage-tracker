@@ -3,6 +3,7 @@
 import time as _time
 
 from fastapi import APIRouter, Query
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy import or_ as _or
 from sqlmodel import func, select
@@ -334,6 +335,6 @@ def get_homepage(
     }
 
     return JSONResponse(
-        content=result,
+        content=jsonable_encoder(result),
         headers={"Cache-Control": "public, max-age=60, stale-while-revalidate=120"},
     )

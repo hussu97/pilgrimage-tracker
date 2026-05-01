@@ -557,7 +557,10 @@ export default function PlaceDetail() {
   };
   const handleHeroMouseUp = () => setHeroIsDragging(false);
 
-  const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(place.lat + ',' + place.lng)}`;
+  const hasDirectionsCoordinates = typeof place.lat === 'number' && typeof place.lng === 'number';
+  const directionsUrl = hasDirectionsCoordinates
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${place.lat},${place.lng}`)}`
+    : null;
 
   const timings: PlaceTiming[] =
     (place as PlaceDetailType & { timings?: PlaceTiming[] }).timings ?? [];
@@ -582,7 +585,7 @@ export default function PlaceDetail() {
       <div className="rounded-2xl border border-input-border dark:border-dark-border bg-white dark:bg-dark-surface p-4">
         <div className="flex items-center divide-x divide-input-border dark:divide-dark-border">
           <a
-            href={directionsUrl}
+            href={directionsUrl ?? undefined}
             target="_blank"
             rel="noopener noreferrer"
             className="flex-1 flex flex-col items-center gap-1 px-2 hover:text-primary transition-colors"
@@ -830,7 +833,7 @@ export default function PlaceDetail() {
             {/* Mobile scorecards */}
             <div className="flex items-center divide-x divide-input-border dark:divide-dark-border bg-white dark:bg-dark-surface rounded-2xl border border-input-border dark:border-dark-border shadow-sm py-4">
               <a
-                href={directionsUrl}
+                href={directionsUrl ?? undefined}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex-1 flex flex-col items-center gap-1 px-2 hover:text-primary"

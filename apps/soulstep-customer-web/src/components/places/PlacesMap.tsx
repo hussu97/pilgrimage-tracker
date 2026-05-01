@@ -24,6 +24,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import 'leaflet.markercluster';
 import type { Place } from '@/lib/types';
+import { hasCoordinates } from '@/lib/utils/coordinates';
 import { formatDistance } from '@/lib/utils/place-utils';
 
 const DEFAULT_CENTER: [number, number] = [25, 0];
@@ -292,7 +293,9 @@ export default function PlacesMap({
       clusterRef.current = null;
     }
 
-    if (places.length === 0) return;
+    const mappablePlaces = places.filter(hasCoordinates);
+
+    if (mappablePlaces.length === 0) return;
 
     const cluster = L.markerClusterGroup({
       maxClusterRadius: 60,
@@ -302,7 +305,7 @@ export default function PlacesMap({
       iconCreateFunction: createClusterIcon,
     });
 
-    places.forEach((place) => {
+    mappablePlaces.forEach((place) => {
       const isSelected = place.place_code === selectedPlaceCode;
       const marker = L.marker([place.lat, place.lng], {
         icon: createMarkerIcon(place.open_status, isSelected),
@@ -356,8 +359,8 @@ export default function PlacesMap({
     } else {
       hasInitialFitRef.current = true;
       // Fit map to all markers
-      const lats = places.map((p) => p.lat);
-      const lngs = places.map((p) => p.lng);
+      const lats = mappablePlaces.map((p) => p.lat);
+      const lngs = mappablePlaces.map((p) => p.lng);
       const bounds = L.latLngBounds(
         [Math.min(...lats), Math.min(...lngs)],
         [Math.max(...lats), Math.max(...lngs)],

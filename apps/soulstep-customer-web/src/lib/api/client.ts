@@ -784,8 +784,8 @@ export interface SearchPlaceDetails {
   place_id: string;
   name: string;
   address: string;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
 }
 
 export async function searchAutocomplete(
@@ -898,8 +898,8 @@ export interface HomepageRecommendedPlace {
   city?: string;
   image_url?: string | null;
   distance_km?: number | null;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface HomepagePopularPlace {
@@ -908,8 +908,8 @@ export interface HomepagePopularPlace {
   religion: string;
   address: string;
   city?: string;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   images: { url: string }[];
   average_rating?: number | null;
   review_count?: number | null;

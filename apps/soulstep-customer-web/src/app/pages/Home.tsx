@@ -68,6 +68,7 @@ function popularToPlace(place: HomepagePopularPlace): Place {
 function uniquePlaces(places: Place[]): Place[] {
   const seen = new Set<string>();
   return places.filter((place) => {
+    if (!place) return false;
     if (seen.has(place.place_code)) return false;
     seen.add(place.place_code);
     return true;

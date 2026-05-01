@@ -6,6 +6,7 @@ import type { Place } from '@/lib/types';
 import type { SearchLocation } from '@/lib/utils/searchHistory';
 import type { MapBounds } from '@/components/places/PlacesMap';
 import PlaceCardUnified from '@/components/places/PlaceCardUnified';
+import { hasCoordinates } from '@/lib/utils/coordinates';
 
 const PlacesMap = dynamic(() => import('@/components/places/PlacesMap'), {
   ssr: false,
@@ -78,6 +79,7 @@ export default function PlaceMapView({
     if (!visibleBounds) return [];
     return places.filter(
       (p) =>
+        hasCoordinates(p) &&
         p.lat >= visibleBounds.south &&
         p.lat <= visibleBounds.north &&
         p.lng >= visibleBounds.west &&

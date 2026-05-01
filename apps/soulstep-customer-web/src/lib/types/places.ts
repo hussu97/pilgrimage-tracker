@@ -5,8 +5,8 @@ export interface Place {
   name: string;
   religion: Religion;
   place_type: string;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   address: string;
   /**
    * Place images. Each image has a URL and display order.
@@ -73,8 +73,8 @@ export interface NearbyPlace {
   seo_slug?: string;
   image_url?: string;
   average_rating?: number;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface CheckIn {

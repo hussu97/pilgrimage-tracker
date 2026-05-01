@@ -15,8 +15,8 @@ describe('getHomepage', () => {
           name: 'Test Mosque',
           religion: 'islam',
           address: '1 Main St',
-          lat: 0,
-          lng: 0,
+          lat: null,
+          lng: null,
           image_url: null,
           distance_km: 1.5,
         },
@@ -41,6 +41,7 @@ describe('getHomepage', () => {
     expect(result.place_count).toBe(100);
     expect(result.popular_cities[0].city).toBe('London');
     expect(result.recommended_places[0].place_code).toBe('plc_001');
+    expect(result.recommended_places[0].lat).toBeNull();
     expect(result.groups).toEqual([]);
   });
 
