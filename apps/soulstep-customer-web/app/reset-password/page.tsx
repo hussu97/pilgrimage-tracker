@@ -1,4 +1,5 @@
 import ResetPassword from '@/app/pages/ResetPassword';
+import { QueryParamPageShell } from '../AppClientShell';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -6,5 +7,9 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <ResetPassword />;
+  return (
+    <QueryParamPageShell>
+      <ResetPassword />
+    </QueryParamPageShell>
+  );
 }

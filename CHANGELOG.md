@@ -4,6 +4,19 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-01] — AdSense low-value content hardening
+
+### Frontend (web)
+- Removed the root-shell `useSearchParams` CSR bailout so public pages prerender meaningful HTML instead of the splash/loading shell.
+- Seeded the web i18n provider with backend English translations during SSR so crawler-visible content shows real copy, not translation keys.
+- Added visible editorial guidance to indexable discovery, places, explore, blog, city, and place pages; rendered `/` as the real home page; and marked the interactive map page `noindex, follow`.
+- Bumped the customer web release marker so returning browsers refresh stale app-shell state.
+
+### Tests
+- Added coverage for crawl-visible public editorial content and reran the full customer-web Vitest suite, typecheck, and production build.
+
+---
+
 ## [2026-05-01] — Homepage serialization and null-coordinate hardening
 
 ### Backend

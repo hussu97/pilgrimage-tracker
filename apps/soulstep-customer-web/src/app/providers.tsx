@@ -308,6 +308,12 @@ interface I18nContextValue {
 
 export const I18nContext = createContext<I18nContextValue | null>(null);
 
+export interface InitialI18nPayload {
+  locale: LocaleCode;
+  translations: Record<string, string>;
+  languages: { code: string; name: string }[];
+}
+
 function resolveInitialLocale(list: { code: string; name: string }[]): LocaleCode {
   const codes = list.map((l) => l.code);
   const codeSet = new Set(codes);
@@ -322,12 +328,24 @@ function resolveInitialLocale(list: { code: string; name: string }[]): LocaleCod
   return (match as LocaleCode) ?? (codes.includes('en') ? 'en' : (codes[0] as LocaleCode));
 }
 
-export function I18nProvider({ children }: { children: ReactNode }) {
+export function I18nProvider({
+  children,
+  initialI18n,
+}: {
+  children: ReactNode;
+  initialI18n?: InitialI18nPayload;
+}) {
   const { user, visitorCode } = useAuth();
-  const [locale, setLocaleState] = useState<LocaleCode>('en');
-  const [translations, setTranslations] = useState<Record<string, string>>({});
-  const [languages, setLanguages] = useState<{ code: string; name: string }[]>([]);
-  const [ready, setReady] = useState(false);
+  const initialLocale = normalizeLocale(initialI18n?.locale ?? 'en');
+  const hasInitialTranslations = !!initialI18n && Object.keys(initialI18n.translations).length > 0;
+  const [locale, setLocaleState] = useState<LocaleCode>(initialLocale);
+  const [translations, setTranslations] = useState<Record<string, string>>(
+    initialI18n?.translations ?? {},
+  );
+  const [languages, setLanguages] = useState<{ code: string; name: string }[]>(
+    initialI18n?.languages ?? [],
+  );
+  const [ready, setReady] = useState(hasInitialTranslations);
 
   const loadLanguages = useCallback(async () => {
     try {

@@ -15,15 +15,33 @@ function formatDate(iso: string): string {
   });
 }
 
-export default function BlogPostPage() {
+export default function BlogPostPage({
+  initialPost = null,
+}: {
+  initialPost?: BlogPostDetail | null;
+}) {
   const { slug } = useParams<{ slug: string }>();
-  const [post, setPost] = useState<BlogPostDetail | null>(null);
+  const [post, setPost] = useState<BlogPostDetail | null>(initialPost);
   const [related, setRelated] = useState<BlogPostSummary[]>([]);
   const [notFound, setNotFound] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialPost);
 
   useEffect(() => {
     if (!slug) return;
+    if (initialPost?.slug === slug) {
+      setPost(initialPost);
+      setLoading(false);
+      setNotFound(false);
+      getBlogPosts()
+        .then((all) => {
+          const sameCat = all.filter((a) => a.slug !== slug && a.category === initialPost.category);
+          const others = all.filter((a) => a.slug !== slug && a.category !== initialPost.category);
+          setRelated([...sameCat, ...others].slice(0, 2));
+        })
+        .catch(() => {});
+      return;
+    }
+
     setLoading(true);
     setNotFound(false);
 
@@ -39,7 +57,7 @@ export default function BlogPostPage() {
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
-  }, [slug]);
+  }, [slug, initialPost]);
 
   useHead(
     post

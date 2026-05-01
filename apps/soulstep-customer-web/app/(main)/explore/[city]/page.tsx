@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import ExploreCity from '@/app/pages/ExploreCity';
-import { fetchCityMeta } from '@/lib/server/api';
+import { fetchCityMeta, type CityMeta } from '@/lib/server/api';
 import { buildCityMetadata } from '@/lib/server/metadata';
+import { CityEditorialContent } from '../../_components/PublicEditorialContent';
 
 type Props = { params: Promise<{ city: string }> };
 
@@ -16,6 +17,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default function Page() {
-  return <ExploreCity />;
+export default async function Page({ params }: Props) {
+  const { city } = await params;
+  let cityMeta: CityMeta | null = null;
+  try {
+    cityMeta = await fetchCityMeta(city);
+  } catch {
+    // The client page still handles loading and errors.
+  }
+
+  return (
+    <>
+      <ExploreCity />
+      {cityMeta && <CityEditorialContent city={cityMeta} />}
+    </>
+  );
 }

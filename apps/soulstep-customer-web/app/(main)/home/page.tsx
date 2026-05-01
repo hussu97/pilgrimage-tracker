@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Home from '@/app/pages/Home';
 import { JsonLd } from '@/components/server/JsonLd';
 import { buildStaticMetadata } from '@/lib/server/metadata';
+import { HomeEditorialContent } from '../_components/PublicEditorialContent';
 
 export const metadata: Metadata = buildStaticMetadata('home');
 
@@ -35,6 +36,7 @@ export default function Page() {
     <>
       <JsonLd schemas={WEBSITE_JSONLD} />
       <Home />
+      <HomeEditorialContent />
     </>
   );
 }

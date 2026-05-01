@@ -1,4 +1,5 @@
 import JoinGroup from '@/app/pages/JoinGroup';
+import { QueryParamPageShell } from '../../AppClientShell';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import type { Metadata } from 'next';
 
@@ -8,8 +9,10 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <ProtectedRoute>
-      <JoinGroup />
-    </ProtectedRoute>
+    <QueryParamPageShell>
+      <ProtectedRoute>
+        <JoinGroup />
+      </ProtectedRoute>
+    </QueryParamPageShell>
   );
 }

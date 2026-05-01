@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import PlaceDetail from '@/app/pages/PlaceDetail';
 import { JsonLd } from '@/components/server/JsonLd';
-import { fetchPlace } from '@/lib/server/api';
+import { fetchPlace, type PlaceForMeta } from '@/lib/server/api';
 import { buildPlaceMetadata, buildPlaceJsonLd } from '@/lib/server/metadata';
+import { PlaceEditorialContent } from '../../_components/PublicEditorialContent';
 
 type Props = { params: Promise<{ placeCode: string }> };
 
@@ -19,8 +20,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function Page({ params }: Props) {
   const { placeCode } = await params;
   let schemas: Record<string, unknown>[] = [];
+  let place: PlaceForMeta | null = null;
   try {
-    const place = await fetchPlace(placeCode);
+    place = await fetchPlace(placeCode);
     schemas = buildPlaceJsonLd(place);
   } catch {
     // Client component handles error state
@@ -29,6 +31,7 @@ export default async function Page({ params }: Props) {
     <>
       <JsonLd schemas={schemas} />
       <PlaceDetail />
+      {place && <PlaceEditorialContent place={place} />}
     </>
   );
 }

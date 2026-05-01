@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from '@/lib/navigation';
+import { usePathname } from 'next/navigation';
+import { Link } from '@/lib/navigation';
 import type { ReactNode } from 'react';
 import { useAuth, useI18n } from '@/app/providers';
 import { getNotifications } from '@/lib/api/client';
@@ -16,7 +17,7 @@ interface NavItem {
 }
 
 export default function Layout({ children }: { children: ReactNode }) {
-  const location = useLocation();
+  const pathname = usePathname() || '/';
   const { user } = useAuth();
   const { t } = useI18n();
   const [unreadCount, setUnreadCount] = useState(0);
@@ -33,31 +34,29 @@ export default function Layout({ children }: { children: ReactNode }) {
   }, [userCode]);
 
   const hideBottomNav =
-    location.pathname.startsWith('/journeys/new') ||
-    location.pathname.startsWith('/groups/new') ||
-    location.pathname.includes('/edit') ||
-    location.pathname.endsWith('/review') ||
-    location.pathname === '/login' ||
-    location.pathname === '/register' ||
-    location.pathname === '/forgot-password' ||
-    location.pathname === '/reset-password';
+    pathname.startsWith('/journeys/new') ||
+    pathname.startsWith('/groups/new') ||
+    pathname.includes('/edit') ||
+    pathname.endsWith('/review') ||
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password';
 
   const navItems = useMemo<NavItem[]>(() => {
     const isDiscover =
-      location.pathname === '/' ||
-      location.pathname === '/home' ||
-      location.pathname === '/dashboard' ||
-      location.pathname === '/places';
-    const isMap = location.pathname === '/map';
+      pathname === '/' ||
+      pathname === '/home' ||
+      pathname === '/dashboard' ||
+      pathname === '/places';
+    const isMap = pathname === '/map';
     const isJourneys =
-      location.pathname === '/journeys' ||
-      location.pathname.startsWith('/journeys/') ||
-      location.pathname === '/groups' ||
-      location.pathname.startsWith('/groups/');
+      pathname === '/journeys' ||
+      pathname.startsWith('/journeys/') ||
+      pathname === '/groups' ||
+      pathname.startsWith('/groups/');
     const isProfile =
-      location.pathname === '/profile' ||
-      location.pathname.startsWith('/profile/') ||
-      location.pathname === '/favorites';
+      pathname === '/profile' || pathname.startsWith('/profile/') || pathname === '/favorites';
 
     return [
       { href: '/home', label: t('nav.discover'), icon: 'explore', active: isDiscover },
@@ -71,7 +70,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         badge: unreadCount > 0,
       },
     ];
-  }, [location.pathname, t, unreadCount, userCode]);
+  }, [pathname, t, unreadCount, userCode]);
 
   return (
     <div className="flex min-h-screen flex-col font-display dark:bg-dark-bg dark:text-white overflow-x-hidden">

@@ -11,21 +11,18 @@
 import { type ReactNode, Suspense } from 'react';
 import App from '@/app/App';
 import SplashScreen from '@/components/common/SplashScreen';
+import type { InitialI18nPayload } from '@/app/providers';
 
-// Wrap children in a Suspense boundary because useSearchParams() (used by
-// some pages via the navigation shim) requires Suspense in Next.js 15.
-function SuspenseWrapper({ children }: { children: ReactNode }) {
-  return (
-    <Suspense fallback={<SplashScreen />}>
-      {children}
-    </Suspense>
-  );
+export function AppClientShell({
+  children,
+  initialI18n,
+}: {
+  children: ReactNode;
+  initialI18n?: InitialI18nPayload;
+}) {
+  return <App initialI18n={initialI18n}>{children}</App>;
 }
 
-export function AppClientShell({ children }: { children: ReactNode }) {
-  return (
-    <App>
-      <SuspenseWrapper>{children}</SuspenseWrapper>
-    </App>
-  );
+export function QueryParamPageShell({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<SplashScreen />}>{children}</Suspense>;
 }

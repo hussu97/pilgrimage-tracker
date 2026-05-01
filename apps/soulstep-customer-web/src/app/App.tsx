@@ -15,6 +15,7 @@ import { AuthGateProvider } from '@/components/auth/AuthGateProvider';
 import { AdProvider } from '@/components/ads/AdProvider';
 import ConsentBanner from '@/components/consent/ConsentBanner';
 import { AnalyticsProviderConnected } from '@/components/analytics/AnalyticsProviderConnected';
+import type { InitialI18nPayload } from '@/app/providers';
 import { useUmamiPageViews } from '@/lib/hooks/useUmamiPageViews';
 import { cleanupLegacyServiceWorkers } from '@/lib/serviceWorkerCleanup';
 
@@ -35,7 +36,13 @@ function I18nReadyGate({ children }: { children: React.ReactNode }) {
 }
 
 /** Root app component that wraps all providers around Next.js page children. */
-export default function App({ children }: { children: React.ReactNode }) {
+export default function App({
+  children,
+  initialI18n,
+}: {
+  children: React.ReactNode;
+  initialI18n?: InitialI18nPayload;
+}) {
   useEffect(() => {
     cleanupLegacyServiceWorkers();
   }, []);
@@ -44,7 +51,7 @@ export default function App({ children }: { children: React.ReactNode }) {
     <ErrorBoundary>
       <ThemeProvider>
         <AuthProvider>
-          <I18nProvider>
+          <I18nProvider initialI18n={initialI18n}>
             <I18nReadyGate>
               <AdProvider>
                 <UmamiPageViewTracker />

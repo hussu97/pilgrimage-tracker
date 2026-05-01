@@ -2,10 +2,36 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { AppClientShell } from './AppClientShell';
+import type { InitialI18nPayload } from '@/app/providers';
 import { APP_RELEASE, APP_RELEASE_RELOAD_PARAM, APP_RELEASE_STORAGE_KEY } from '@/lib/appRelease';
 
 const ADSENSE_ID = process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID ?? 'ca-pub-7902951158656200';
 const UMAMI_ID = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID ?? '';
+const API_BASE = (
+  process.env.INTERNAL_API_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  'https://catalog-api.soul-step.org'
+).replace(/\/$/, '');
+
+async function getInitialI18n(): Promise<InitialI18nPayload | undefined> {
+  try {
+    const [languagesRes, translationsRes] = await Promise.all([
+      fetch(`${API_BASE}/api/v1/languages`, { next: { revalidate: 3600 } }),
+      fetch(`${API_BASE}/api/v1/translations?lang=en`, { next: { revalidate: 3600 } }),
+    ]);
+
+    if (!translationsRes.ok) return undefined;
+
+    const translations = (await translationsRes.json()) as Record<string, string>;
+    const languages = languagesRes.ok
+      ? ((await languagesRes.json()) as { code: string; name: string }[])
+      : [{ code: 'en', name: 'English' }];
+
+    return { locale: 'en', translations, languages };
+  } catch {
+    return undefined;
+  }
+}
 
 const releaseRefreshScript = `
 (() => {
@@ -73,6 +99,7 @@ const releaseRefreshScript = `
 `;
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://www.soul-step.org'),
   title: {
     default: 'SoulStep — Sacred Sites Discovery Platform',
     template: '%s | SoulStep',
@@ -102,7 +129,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const initialI18n = await getInitialI18n();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -209,7 +238,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </noscript>
         {/* AppClientShell is a 'use client' component that wraps all providers + page content */}
-        <AppClientShell>{children}</AppClientShell>
+        <AppClientShell initialI18n={initialI18n}>{children}</AppClientShell>
       </body>
     </html>
   );
