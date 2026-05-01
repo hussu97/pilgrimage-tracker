@@ -10,6 +10,13 @@ from unittest.mock import patch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from scripts.handoff import (
+    LOCAL_HANDOFF_BROWSER_CONCURRENCY,
+    LOCAL_HANDOFF_BROWSER_POOL_SIZE,
+    LOCAL_HANDOFF_DETAIL_CONCURRENCY,
+    LOCAL_HANDOFF_DISCOVERY_CONCURRENCY,
+    LOCAL_HANDOFF_IMAGE_CONCURRENCY,
+    LOCAL_HANDOFF_MAX_PHOTOS,
+    LOCAL_HANDOFF_MAX_REVIEW_IMAGES,
     _import_bundle_into_db,
     _recent_log_has_errors,
     _refresh_finalize_bundle,
@@ -420,6 +427,7 @@ def test_resume_bg_starts_existing_local_db_with_tuning_overrides(tmp_path, db_s
                 screen_name=None,
                 log_path=None,
                 log_level="INFO",
+                discovery_concurrency=3,
                 detail_concurrency=3,
                 browser_pool_size=3,
                 browser_concurrency=3,
@@ -434,8 +442,56 @@ def test_resume_bg_starts_existing_local_db_with_tuning_overrides(tmp_path, db_s
     command = calls[0]["command"]
     assert f"SCRAPER_RUN_CODE={run.run_code}" in command
     assert "SCRAPER_RUN_ACTION=resume" in command
+    assert "SCRAPER_DISCOVERY_CONCURRENCY=3" in command
     assert "SCRAPER_DETAIL_CONCURRENCY=3" in command
+    assert "MAPS_BROWSER_POOL_SIZE=3" in command
+    assert "MAPS_BROWSER_CONCURRENCY=3" in command
     assert "SCRAPER_MAX_REVIEW_IMAGES=0" in command
+
+
+def test_resume_bg_uses_local_handoff_tuning_defaults(tmp_path, db_session):
+    run = _seed_run(db_session, status="interrupted", stage="detail_fetch")
+    with Session(db_session.bind) as session:
+        handoff = prepare_handoff_export(session, run.run_code, lease_owner="tester")
+        bundle = build_run_bundle(session, run.run_code, handoff.handoff_code)
+
+    local_url = f"sqlite:///{tmp_path / f'{run.run_code}.db'}"
+    _import_bundle_into_db(bundle, local_url)
+    calls = []
+
+    with (
+        patch("scripts.handoff.shutil.which", return_value="/usr/bin/screen"),
+        patch("scripts.handoff._screen_session_exists", return_value=False),
+        patch("scripts.handoff._start_screen_command", side_effect=lambda **kw: calls.append(kw)),
+    ):
+        result = resume_bg(
+            SimpleNamespace(
+                run_code=run.run_code,
+                work_dir=str(tmp_path),
+                local_database_url=None,
+                screen_name=None,
+                log_path=None,
+                log_level="INFO",
+                discovery_concurrency=None,
+                detail_concurrency=None,
+                browser_pool_size=None,
+                browser_concurrency=None,
+                image_concurrency=None,
+                max_reviews=None,
+                max_review_images=None,
+                max_photos=None,
+            )
+        )
+
+    assert result == 0
+    command = calls[0]["command"]
+    assert f"SCRAPER_DISCOVERY_CONCURRENCY={LOCAL_HANDOFF_DISCOVERY_CONCURRENCY}" in command
+    assert f"SCRAPER_DETAIL_CONCURRENCY={LOCAL_HANDOFF_DETAIL_CONCURRENCY}" in command
+    assert f"MAPS_BROWSER_POOL_SIZE={LOCAL_HANDOFF_BROWSER_POOL_SIZE}" in command
+    assert f"MAPS_BROWSER_CONCURRENCY={LOCAL_HANDOFF_BROWSER_CONCURRENCY}" in command
+    assert f"SCRAPER_IMAGE_CONCURRENCY={LOCAL_HANDOFF_IMAGE_CONCURRENCY}" in command
+    assert f"SCRAPER_MAX_PHOTOS={LOCAL_HANDOFF_MAX_PHOTOS}" in command
+    assert f"SCRAPER_MAX_REVIEW_IMAGES={LOCAL_HANDOFF_MAX_REVIEW_IMAGES}" in command
 
 
 def test_pause_local_marks_run_cancelled_and_waits_for_screen_exit(tmp_path, db_session):

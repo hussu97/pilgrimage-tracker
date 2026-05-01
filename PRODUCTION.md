@@ -329,8 +329,15 @@ python scripts/handoff.py finalize --bundle /tmp/run_abc123-....json.gz --local-
 python scripts/handoff.py finalize-bg --bundle local-handoffs/run_abc123-....json.gz --prod-url https://scraper-api.soul-step.org
 python scripts/handoff.py monitor --run-code run_abc123 --prod-url https://scraper-api.soul-step.org
 python scripts/handoff.py pause-local --run-code run_abc123
-python scripts/handoff.py resume-bg --run-code run_abc123 --detail-concurrency 3 --browser-pool-size 3 --browser-concurrency 3
+python scripts/handoff.py resume-bg --run-code run_abc123
 ```
+
+`start-local-bg` and `resume-bg` default to the large-run local handoff profile:
+`SCRAPER_DISCOVERY_CONCURRENCY=7`, `SCRAPER_DETAIL_CONCURRENCY=30`,
+`MAPS_BROWSER_POOL_SIZE=7`, `MAPS_BROWSER_CONCURRENCY=7`,
+`SCRAPER_IMAGE_CONCURRENCY=40`, `SCRAPER_MAX_PHOTOS=3`, and
+`SCRAPER_MAX_REVIEW_IMAGES=0`. Override those CLI flags only when a specific
+machine or run needs a different safety envelope.
 
 Operational notes:
 - `POST /api/v1/scraper/runs/{run_code}/handoff/export` also exists on the server and freezes the run by creating a `RunHandoff`.

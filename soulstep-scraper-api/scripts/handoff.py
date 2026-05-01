@@ -68,6 +68,14 @@ _RECENT_LOG_ERROR_MARKERS = (
     "catalog_sync_timeout",
 )
 
+LOCAL_HANDOFF_DISCOVERY_CONCURRENCY = 7
+LOCAL_HANDOFF_DETAIL_CONCURRENCY = 30
+LOCAL_HANDOFF_BROWSER_POOL_SIZE = 7
+LOCAL_HANDOFF_BROWSER_CONCURRENCY = 7
+LOCAL_HANDOFF_IMAGE_CONCURRENCY = 40
+LOCAL_HANDOFF_MAX_PHOTOS = 3
+LOCAL_HANDOFF_MAX_REVIEW_IMAGES = 0
+
 
 def _default_work_dir() -> Path:
     return ROOT / "local-handoffs"
@@ -238,6 +246,36 @@ def _start_screen_runner(
         f">> {shlex.quote(str(log_path))} 2>&1"
     )
     _start_screen_command(screen_name=screen_name, command=command)
+
+
+def _local_handoff_env_overrides(args: argparse.Namespace) -> dict[str, str]:
+    """Build the default tuning profile for local browser handoff workers."""
+
+    optional_env = {
+        "SCRAPER_DISCOVERY_CONCURRENCY": (
+            getattr(args, "discovery_concurrency", None) or LOCAL_HANDOFF_DISCOVERY_CONCURRENCY
+        ),
+        "SCRAPER_DETAIL_CONCURRENCY": (
+            getattr(args, "detail_concurrency", None) or LOCAL_HANDOFF_DETAIL_CONCURRENCY
+        ),
+        "MAPS_BROWSER_POOL_SIZE": (
+            getattr(args, "browser_pool_size", None) or LOCAL_HANDOFF_BROWSER_POOL_SIZE
+        ),
+        "MAPS_BROWSER_CONCURRENCY": (
+            getattr(args, "browser_concurrency", None) or LOCAL_HANDOFF_BROWSER_CONCURRENCY
+        ),
+        "SCRAPER_IMAGE_CONCURRENCY": (
+            getattr(args, "image_concurrency", None) or LOCAL_HANDOFF_IMAGE_CONCURRENCY
+        ),
+        "SCRAPER_MAX_PHOTOS": getattr(args, "max_photos", None) or LOCAL_HANDOFF_MAX_PHOTOS,
+        "SCRAPER_MAX_REVIEW_IMAGES": (
+            getattr(args, "max_review_images", None) or LOCAL_HANDOFF_MAX_REVIEW_IMAGES
+        ),
+    }
+    max_reviews = getattr(args, "max_reviews", None)
+    if max_reviews is not None:
+        optional_env["SCRAPER_MAX_REVIEWS"] = max_reviews
+    return {key: str(value) for key, value in optional_env.items()}
 
 
 def _log_event(event: str, **fields: object) -> None:
@@ -491,16 +529,7 @@ def start_local_bg(args: argparse.Namespace) -> int:
     run_action = "resume" if bundle["manifest"].get("resume_from_stage") else "run"
     log_path = work_dir / f"{args.run_code}.log"
     screen_name = args.screen_name or f"soulstep-{args.run_code}"
-    env_overrides = {"LOG_LEVEL": args.log_level}
-    optional_env = {
-        "SCRAPER_DETAIL_CONCURRENCY": args.detail_concurrency,
-        "MAPS_BROWSER_POOL_SIZE": args.browser_pool_size,
-        "MAPS_BROWSER_CONCURRENCY": args.browser_concurrency,
-        "SCRAPER_IMAGE_CONCURRENCY": args.image_concurrency,
-    }
-    env_overrides.update(
-        {key: str(value) for key, value in optional_env.items() if value is not None}
-    )
+    env_overrides = {"LOG_LEVEL": args.log_level, **_local_handoff_env_overrides(args)}
     _start_screen_runner(
         screen_name=screen_name,
         database_url=database_url,
@@ -538,19 +567,7 @@ def resume_bg(args: argparse.Namespace) -> int:
 
     log_path = Path(args.log_path) if args.log_path else work_dir / f"{args.run_code}.log"
     screen_name = args.screen_name or f"soulstep-{args.run_code}"
-    env_overrides = {"LOG_LEVEL": args.log_level}
-    optional_env = {
-        "SCRAPER_DETAIL_CONCURRENCY": args.detail_concurrency,
-        "MAPS_BROWSER_POOL_SIZE": args.browser_pool_size,
-        "MAPS_BROWSER_CONCURRENCY": args.browser_concurrency,
-        "SCRAPER_IMAGE_CONCURRENCY": args.image_concurrency,
-        "SCRAPER_MAX_REVIEWS": args.max_reviews,
-        "SCRAPER_MAX_REVIEW_IMAGES": args.max_review_images,
-        "SCRAPER_MAX_PHOTOS": args.max_photos,
-    }
-    env_overrides.update(
-        {key: str(value) for key, value in optional_env.items() if value is not None}
-    )
+    env_overrides = {"LOG_LEVEL": args.log_level, **_local_handoff_env_overrides(args)}
     _start_local_resume_screen(
         screen_name=screen_name,
         database_url=database_url,
@@ -912,10 +929,13 @@ def main() -> int:
     bg_parser.add_argument("--screen-name", default=None)
     bg_parser.add_argument("--force", action="store_true")
     bg_parser.add_argument("--log-level", default="INFO")
+    bg_parser.add_argument("--discovery-concurrency", type=int, default=None)
     bg_parser.add_argument("--detail-concurrency", type=int, default=None)
     bg_parser.add_argument("--browser-pool-size", type=int, default=None)
     bg_parser.add_argument("--browser-concurrency", type=int, default=None)
     bg_parser.add_argument("--image-concurrency", type=int, default=None)
+    bg_parser.add_argument("--max-review-images", type=int, default=None)
+    bg_parser.add_argument("--max-photos", type=int, default=None)
     bg_parser.set_defaults(func=start_local_bg)
 
     resume_bg_parser = sub.add_parser(
@@ -928,6 +948,7 @@ def main() -> int:
     resume_bg_parser.add_argument("--screen-name", default=None)
     resume_bg_parser.add_argument("--log-path", default=None)
     resume_bg_parser.add_argument("--log-level", default="INFO")
+    resume_bg_parser.add_argument("--discovery-concurrency", type=int, default=None)
     resume_bg_parser.add_argument("--detail-concurrency", type=int, default=None)
     resume_bg_parser.add_argument("--browser-pool-size", type=int, default=None)
     resume_bg_parser.add_argument("--browser-concurrency", type=int, default=None)

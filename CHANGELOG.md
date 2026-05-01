@@ -4,6 +4,20 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-02] — Local handoff concurrency profile
+
+### Backend
+- **`soulstep-scraper-api/scripts/handoff.py`** — made local handoff `start-local-bg` / `resume-bg` default to the large-run laptop profile: discovery/browser pool/browser concurrency `7`, detail concurrency `30`, image concurrency `40`, max place photos `3`, and review images `0`.
+- **`soulstep-scraper-api/scripts/handoff.py`** — added `--discovery-concurrency` support so the browser pool cap and discovery navigation cap can be kept aligned from the CLI.
+
+### Docs
+- Documented the default local handoff tuning profile in `soulstep-scraper-api/README.md` and `PRODUCTION.md`.
+
+### Tests
+- Added handoff CLI coverage for the default local tuning profile and explicit override behavior.
+
+---
+
 ## [2026-05-01] — AdSense low-value content hardening
 
 ### Frontend (web)

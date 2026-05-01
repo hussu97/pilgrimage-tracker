@@ -99,9 +99,13 @@ python scripts/handoff.py start-local-bg \
   --lease-owner hussain-local
 ```
 
-By default, `start-local-bg` inherits scraper concurrency from `.env`. Pass
-`--detail-concurrency`, `--browser-pool-size`, `--browser-concurrency`, or
-`--image-concurrency` only when a specific local run needs different limits.
+By default, `start-local-bg` and `resume-bg` use the local handoff tuning
+profile that has worked best for large laptop resumes: discovery concurrency
+`7`, browser pool size `7`, active browser concurrency `7`, detail concurrency
+`30`, image concurrency `40`, max place photos `3`, and review images `0`.
+Pass `--discovery-concurrency`, `--detail-concurrency`, `--browser-pool-size`,
+`--browser-concurrency`, `--image-concurrency`, `--max-photos`, or
+`--max-review-images` only when a specific local run needs different limits.
 
 3. Finalize the completed bundle back into production:
 
@@ -169,14 +173,14 @@ background. To resume the same local DB later:
 ```bash
 python scripts/handoff.py resume-bg \
   --run-code run_abc123 \
-  --detail-concurrency 3 \
-  --browser-pool-size 3 \
-  --browser-concurrency 3
+  --browser-pool-size 7 \
+  --browser-concurrency 7
 ```
 
 `resume-bg` is also useful after a laptop sleep/crash: if the old `screen`
 session is gone but `local-handoffs/run_abc123.db` remains, it resumes from the
-persisted stage and skips already-fetched places.
+persisted stage and skips already-fetched places. When no concurrency flags are
+passed, it uses the same local handoff tuning profile as `start-local-bg`.
 
 During an active handoff, mutating run actions such as `resume`, `cancel`, `sync`,
 `retry-images`, and `re-enrich` return `409` until the handoff is finalized or aborted.
