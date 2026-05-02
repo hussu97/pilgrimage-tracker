@@ -1,4 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#B0563D" stroke-width="2">
-  <circle cx="12" cy="12" r="9"/>
-  <path d="M12 8v4l2 2"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="SoulStep logo">
+  <rect width="64" height="64" rx="14" fill="#EAD9C0"/>
+  <path
+    d="M12 34V23.5C12 13.7 20.1 7 31 7s21 6.7 21 16.5v11.2c0 7.2-4.2 11.3-11.5 11.3H28.8c-6.3 0-8.4 5.9-3.2 9.2l5.9 3.8"
+    fill="none"
+    stroke="#AB553E"
+    stroke-width="5.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M18 34V23.6C18 17 23.1 13 31 13s15 4 15 10.6v12c0 4.7-2.5 7.4-7.3 7.4H31c-4.1 0-5.8 3.8-2.4 6l7.8 5.1"
+    fill="none"
+    stroke="#364844"
+    stroke-width="5.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M11 52c8.8-1 16-2.5 21.7-4.4 5.4-1.8 10.2-2.5 14.3-2.1"
+    fill="none"
+    stroke="#AB553E"
+    stroke-width="5.2"
+    stroke-linecap="round"
+  />
 </svg>

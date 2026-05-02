@@ -4,6 +4,17 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-02] — SoulStep favicon branding
+
+### Frontend (web)
+- Replaced the customer-web timer favicon with the SoulStep brand mark and added PNG/ICO/apple-touch icon variants for browser tabs, bookmarks, and install surfaces.
+- Added a web manifest route using SoulStep icon assets and bumped the customer web release marker so returning browsers refresh stale favicon metadata.
+
+### Tests
+- Added customer-web regression coverage that the favicon is the SoulStep mark and that manifest icon assets exist.
+
+---
+
 ## [2026-05-02] — Local handoff concurrency profile
 
 ### Backend

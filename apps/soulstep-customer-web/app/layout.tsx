@@ -100,6 +100,7 @@ const releaseRefreshScript = `
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.soul-step.org'),
+  manifest: '/manifest.webmanifest',
   title: {
     default: 'SoulStep — Sacred Sites Discovery Platform',
     template: '%s | SoulStep',
@@ -121,7 +122,12 @@ export const metadata: Metadata = {
     description: 'Discover mosques, temples, churches, and sacred sites worldwide.',
   },
   icons: {
-    icon: '/favicon.svg',
+    icon: [
+      { url: '/favicon.ico?v=20260502', sizes: '32x32' },
+      { url: '/favicon.svg?v=20260502', type: 'image/svg+xml' },
+      { url: '/favicon-512x512.png?v=20260502', type: 'image/png', sizes: '512x512' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png?v=20260502', sizes: '180x180', type: 'image/png' }],
   },
   other: {
     // Google AdSense verification tag
