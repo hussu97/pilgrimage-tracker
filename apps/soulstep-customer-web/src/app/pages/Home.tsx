@@ -15,8 +15,8 @@ import type {
 } from '@/lib/api/client';
 import type { Place, Religion } from '@/lib/types';
 import PlaceCardUnified from '@/components/places/PlaceCardUnified';
+import PlaceImage from '@/components/places/PlaceImage';
 import JoinJourneyModal from '@/components/groups/JoinJourneyModal';
-import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import {
   DISCOVERY_JOURNEY_DRAFT_KEY,
   buildDiscoveryJourneyDraft,
@@ -79,7 +79,6 @@ function ActiveJourneyStrip({ journey }: { journey: HomepageData['groups'][numbe
   const total = journey.total_sites ?? 0;
   const visited = journey.sites_visited ?? 0;
   const pct = total > 0 ? Math.round((visited / total) * 100) : 0;
-  const coverUrl = journey.cover_image_url ? getFullImageUrl(journey.cover_image_url) : null;
   const { t } = useI18n();
 
   return (
@@ -88,13 +87,12 @@ function ActiveJourneyStrip({ journey }: { journey: HomepageData['groups'][numbe
       className="group flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-3 shadow-sm transition hover:border-primary/30 hover:shadow-md dark:border-dark-border dark:bg-dark-surface"
     >
       <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-primary/10">
-        {coverUrl ? (
-          <img src={coverUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <span className="material-symbols-outlined flex h-full items-center justify-center text-primary">
-            route
-          </span>
-        )}
+        <PlaceImage
+          src={journey.cover_image_url}
+          alt=""
+          kind="route"
+          className="h-full w-full object-cover"
+        />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-text-primary dark:text-white">
@@ -493,17 +491,12 @@ export default function Home() {
                         className="group overflow-hidden rounded-2xl bg-white shadow-sm transition hover:shadow-md dark:bg-dark-surface"
                       >
                         <div className="relative h-24 bg-slate-100 dark:bg-dark-border">
-                          {city.top_images?.[0] ? (
-                            <img
-                              src={getFullImageUrl(city.top_images[0])}
-                              alt=""
-                              className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                            />
-                          ) : (
-                            <span className="material-symbols-outlined flex h-full items-center justify-center text-slate-300">
-                              location_city
-                            </span>
-                          )}
+                          <PlaceImage
+                            src={city.top_images?.[0]}
+                            alt=""
+                            kind="city"
+                            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                          />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/65 to-transparent" />
                           <div className="absolute bottom-2 left-2 right-2">
                             <p className="truncate text-sm font-bold text-white">{city.city}</p>

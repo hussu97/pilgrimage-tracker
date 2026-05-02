@@ -3,8 +3,8 @@
 import React from 'react';
 import { Link } from '@/lib/navigation';
 import type { Place } from '@/lib/types';
-import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import { formatDistance } from '@/lib/utils/place-utils';
+import PlaceImage from './PlaceImage';
 
 interface PlaceCardUnifiedProps {
   place: Place;
@@ -47,17 +47,12 @@ function PlaceCardUnified({
       className={`group relative block rounded-3xl overflow-hidden shadow-soft hover:shadow-xl transition-all duration-500 hover:-translate-y-1 ${className ?? ''}`}
     >
       <div className={`relative ${imageHeight} overflow-hidden`}>
-        {place.images?.[0]?.url ? (
-          <img
-            src={getFullImageUrl(place.images[0].url)}
-            alt={place.name}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-          />
-        ) : (
-          <div className="w-full h-full bg-slate-800 flex items-center justify-center">
-            <span className="material-symbols-outlined text-5xl text-slate-500">image</span>
-          </div>
-        )}
+        <PlaceImage
+          src={place.images?.[0]?.url}
+          alt={place.images?.[0]?.alt_text || place.name}
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          fallbackClassName="transition-transform duration-700 group-hover:scale-110"
+        />
 
         {/* Status pill – top left */}
         <div className="absolute top-4 left-4 z-10 max-w-[45%]">

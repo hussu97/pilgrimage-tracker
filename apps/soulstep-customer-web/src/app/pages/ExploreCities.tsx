@@ -7,6 +7,7 @@ import { useI18n } from '@/app/providers';
 import * as api from '@/lib/api/client';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { EVENTS } from '@/lib/analytics/events';
+import PlaceImage from '@/components/places/PlaceImage';
 
 const PAGE_SIZE = 24;
 
@@ -36,44 +37,48 @@ function CityCollageCard({ city }: { city: City }) {
     >
       {/* Image collage */}
       {images.length === 0 ? (
-        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
-          <span className="material-icons text-5xl text-white/60">location_city</span>
-        </div>
+        <PlaceImage alt={city.city} kind="city" className="w-full h-full" />
       ) : images.length === 1 ? (
-        <img
+        <PlaceImage
           src={images[0]}
           alt={city.city}
+          kind="city"
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
         />
       ) : images.length === 2 ? (
         <div className="flex h-full gap-0.5">
-          <img
+          <PlaceImage
             src={images[0]}
             alt=""
+            kind="city"
             className="w-1/2 h-full object-cover group-hover:scale-110 transition-transform duration-500"
           />
-          <img
+          <PlaceImage
             src={images[1]}
             alt=""
+            kind="city"
             className="w-1/2 h-full object-cover group-hover:scale-110 transition-transform duration-500"
           />
         </div>
       ) : (
         <div className="flex h-full gap-0.5">
-          <img
+          <PlaceImage
             src={images[0]}
             alt=""
+            kind="city"
             className="w-1/2 h-full object-cover group-hover:scale-110 transition-transform duration-500"
           />
           <div className="w-1/2 flex flex-col gap-0.5">
-            <img
+            <PlaceImage
               src={images[1]}
               alt=""
+              kind="city"
               className="h-1/2 w-full object-cover group-hover:scale-110 transition-transform duration-500"
             />
-            <img
+            <PlaceImage
               src={images[2]}
               alt=""
+              kind="city"
               className="h-1/2 w-full object-cover group-hover:scale-110 transition-transform duration-500"
             />
           </div>

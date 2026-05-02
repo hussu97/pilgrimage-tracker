@@ -15,9 +15,9 @@ import {
   getPlaceReviews,
 } from '@/lib/api/client';
 import { compressImage, validateImageFile } from '@/lib/utils/imageUpload';
-import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { PlaceDetail } from '@/lib/types';
 import type { Review } from '@/lib/types';
+import PlaceImage from '@/components/places/PlaceImage';
 
 interface UploadedImage {
   id: number;
@@ -229,15 +229,13 @@ export default function WriteReview() {
                 {place?.address ?? ''}
               </p>
             </div>
-            {place?.images?.[0]?.url && (
-              <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 opacity-90">
-                <img
-                  src={getFullImageUrl(place.images[0].url)}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
+            <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 opacity-90">
+              <PlaceImage
+                src={place?.images?.[0]?.url}
+                alt={place?.name ?? ''}
+                className="w-full h-full object-cover"
+              />
+            </div>
           </div>
         </section>
 
@@ -326,9 +324,9 @@ export default function WriteReview() {
               )}
               {photos.map((photo) => (
                 <div key={photo.id} className="relative flex-shrink-0">
-                  <img
+                  <PlaceImage
                     src={photo.thumbnailUrl}
-                    alt="Review photo"
+                    alt=""
                     className="w-16 h-16 object-cover rounded-lg"
                   />
                   <button

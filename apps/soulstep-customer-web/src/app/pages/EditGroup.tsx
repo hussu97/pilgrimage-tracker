@@ -6,6 +6,7 @@ import { useAuth, useFeedback, useI18n } from '@/app/providers';
 import { cn } from '@/lib/utils/cn';
 import { getGroup, updateGroup, getGroupMembers, uploadGroupCover } from '@/lib/api/client';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
+import PlaceImage from '@/components/places/PlaceImage';
 
 export default function EditGroup() {
   const { groupCode } = useParams<{ groupCode: string }>();
@@ -163,7 +164,12 @@ export default function EditGroup() {
         />
         {coverPreview ? (
           <div className="relative w-full h-44 rounded-xl overflow-hidden">
-            <img src={coverPreview} alt="Cover" className="w-full h-full object-cover" />
+            <PlaceImage
+              src={coverPreview}
+              alt={name}
+              kind="route"
+              className="w-full h-full object-cover"
+            />
             <div className="absolute inset-0 bg-black/20 flex items-center justify-center gap-2 opacity-0 hover:opacity-100 transition-opacity">
               <button
                 type="button"

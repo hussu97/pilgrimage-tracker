@@ -31,6 +31,7 @@ import { SharePlaceButton } from '@/components/places';
 import PlaceOpeningHours from '@/components/places/PlaceOpeningHours';
 import PlaceTimingsCarousel from '@/components/places/PlaceTimingsCarousel';
 import PlaceSpecificationsGrid from '@/components/places/PlaceSpecificationsGrid';
+import PlaceImage from '@/components/places/PlaceImage';
 import { crowdColorClass, formatDistance } from '@/lib/utils/place-utils';
 import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import { COLORS } from '@/lib/colors';
@@ -210,8 +211,8 @@ function ReviewsSection({
                       key={i}
                       className="w-24 h-24 rounded-2xl overflow-hidden shadow-soft shrink-0 border border-slate-200/50"
                     >
-                      <img
-                        src={getFullImageUrl(img.url)}
+                      <PlaceImage
+                        src={img.url}
                         alt=""
                         className="w-full h-full object-cover transition-transform hover:scale-110 duration-500"
                       />
@@ -709,21 +710,23 @@ export default function PlaceDetail() {
             }}
           >
             {heroImages.map((src, i) => (
-              <img
+              <PlaceImage
                 key={i}
                 src={src}
                 alt={place?.images?.[i]?.alt_text || place?.name || ''}
                 className="h-full object-cover flex-shrink-0"
                 style={{ width: `${100 / heroImages.length}%` }}
                 draggable={false}
-                loading={i === 0 ? undefined : 'lazy'}
+                loading={i === 0 ? 'eager' : 'lazy'}
               />
             ))}
           </div>
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="material-symbols-outlined text-7xl text-white/30">location_city</span>
-          </div>
+          <PlaceImage
+            alt={place?.name || ''}
+            className="absolute inset-0"
+            fallbackClassName="text-white/30"
+          />
         )}
         {/* Gradient overlays */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40 pointer-events-none" />
@@ -1018,14 +1021,14 @@ export default function PlaceDetail() {
                   }}
                 >
                   {heroImages.map((src, i) => (
-                    <img
+                    <PlaceImage
                       key={i}
                       src={src}
                       alt={place.images?.[i]?.alt_text || place.name || ''}
                       className="h-full object-cover flex-shrink-0"
                       style={{ width: `${100 / heroImages.length}%` }}
                       draggable={false}
-                      loading={i === 0 ? undefined : 'lazy'}
+                      loading={i === 0 ? 'eager' : 'lazy'}
                     />
                   ))}
                 </div>
@@ -1240,17 +1243,18 @@ export default function PlaceDetail() {
                             className="flex items-center gap-3 p-3 rounded-2xl border border-slate-100 dark:border-dark-border hover:border-primary bg-white dark:bg-dark-surface transition-colors"
                           >
                             {g.cover_image_url ? (
-                              <img
+                              <PlaceImage
                                 src={g.cover_image_url}
                                 alt=""
+                                kind="route"
                                 className="w-10 h-10 rounded-xl object-cover shrink-0"
                               />
                             ) : (
-                              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                                <span className="material-symbols-outlined text-primary text-xl">
-                                  group
-                                </span>
-                              </div>
+                              <PlaceImage
+                                alt=""
+                                kind="route"
+                                className="w-10 h-10 rounded-xl object-cover shrink-0"
+                              />
                             )}
                             <div className="min-w-0">
                               <p className="font-semibold text-slate-900 dark:text-white text-sm truncate">

@@ -4,8 +4,8 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from '@/lib/navigation';
 import type { Place } from '@/lib/types';
 import { useI18n, useTheme } from '@/app/providers';
-import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import { formatDistance } from '@/lib/utils/place-utils';
+import PlaceImage from './PlaceImage';
 
 interface PlaceCardProps {
   place: Place;
@@ -24,8 +24,8 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
   const isClosed = openStatus === 'closed';
   const isUnknown = openStatus === 'unknown';
 
-  const rawImages = place.images ?? [];
-  const images = rawImages.map((img) => getFullImageUrl(img.url)).filter(Boolean) as string[];
+  const rawImages = (place.images ?? []).filter((img) => Boolean(img.url));
+  const images = rawImages.map((img) => img.url);
   const imageUrl = images[0] ?? null;
   const altTexts = rawImages.map((img) => img.alt_text || place.name);
 
@@ -97,18 +97,11 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
         className="flex gap-4 h-32 bg-white dark:bg-dark-surface rounded-2xl p-4 shadow-card border border-slate-100 dark:border-dark-border items-center hover:shadow-card-md transition-shadow group"
       >
         <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0 bg-soft-blue dark:bg-dark-surface">
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={altTexts[0] || place.name}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-              loading="lazy"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <span className="material-symbols-outlined text-3xl text-text-muted">explore</span>
-            </div>
-          )}
+          <PlaceImage
+            src={imageUrl}
+            alt={altTexts[0] || place.name}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
         </div>
         <div className="flex-1 flex flex-col justify-center h-full py-1 min-w-0">
           <h3 className="text-base font-medium text-slate-800 dark:text-white leading-tight truncate group-hover:text-primary transition-colors">
@@ -183,21 +176,18 @@ export default function PlaceCard({ place, compact = false }: PlaceCardProps) {
             }}
           >
             {images.map((src, i) => (
-              <img
+              <PlaceImage
                 key={i}
                 src={src}
                 alt={altTexts[i] || place.name}
                 className="h-full object-cover flex-shrink-0"
                 style={{ width: `${100 / images.length}%` }}
                 draggable={false}
-                loading="lazy"
               />
             ))}
           </div>
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="material-symbols-outlined text-4xl text-text-muted">explore</span>
-          </div>
+          <PlaceImage alt={place.name} className="w-full h-full" />
         )}
 
         {/* Hero gradient */}

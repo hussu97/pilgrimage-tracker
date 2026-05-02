@@ -2,8 +2,8 @@
 
 import React from 'react';
 import type { Place } from '@/lib/types';
-import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import { cn } from '@/lib/utils/cn';
+import PlaceImage from './PlaceImage';
 
 interface PlaceListRowProps {
   place: Place;
@@ -22,8 +22,6 @@ function PlaceListRow({
   isHighlighted = false,
   onClick,
 }: PlaceListRowProps) {
-  const imageUrl = place.images?.[0]?.url ? getFullImageUrl(place.images[0].url) : null;
-
   const openStatus =
     place.open_status ??
     (place.is_open_now === true ? 'open' : place.is_open_now === false ? 'closed' : 'unknown');
@@ -45,11 +43,11 @@ function PlaceListRow({
 
       {/* Thumbnail */}
       <div className="w-[60px] h-[60px] rounded-xl overflow-hidden flex-shrink-0 bg-slate-100 dark:bg-dark-border flex items-center justify-center">
-        {imageUrl ? (
-          <img src={imageUrl} alt={place.name} className="w-full h-full object-cover" />
-        ) : (
-          <span className="material-icons text-slate-400 dark:text-dark-text-secondary">place</span>
-        )}
+        <PlaceImage
+          src={place.images?.[0]?.url}
+          alt={place.images?.[0]?.alt_text || place.name}
+          className="w-full h-full object-cover"
+        />
       </div>
 
       {/* Info */}

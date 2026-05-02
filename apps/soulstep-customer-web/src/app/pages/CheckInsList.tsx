@@ -5,9 +5,9 @@ import { Link, useNavigate } from '@/lib/navigation';
 import { useI18n } from '@/app/providers';
 import { cn } from '@/lib/utils/cn';
 import { getMyCheckIns, getOnThisDayCheckIns, getThisMonthCheckIns } from '@/lib/api/client';
-import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import type { CheckIn } from '@/lib/types';
 import AdBanner from '@/components/ads/AdBanner';
+import PlaceImage from '@/components/places/PlaceImage';
 
 /** Get locale-aware single-letter weekday abbreviations starting from Sunday. */
 function getWeekdayLabels(locale: string): string[] {
@@ -57,17 +57,11 @@ function CheckInCard({ c }: { c: CheckIn }) {
       className="bg-white dark:bg-dark-surface rounded-[1.5rem] p-4 shadow-subtle border border-slate-100 dark:border-dark-border flex gap-4 h-32 items-center group hover:shadow-lg transition-all"
     >
       <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 relative bg-slate-100 dark:bg-dark-border">
-        {c.place_image_url || c.place?.images?.[0]?.url ? (
-          <img
-            src={getFullImageUrl(c.place_image_url || c.place?.images?.[0]?.url)}
-            alt=""
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-400">
-            <span className="material-symbols-outlined text-2xl">place</span>
-          </div>
-        )}
+        <PlaceImage
+          src={c.place_image_url || c.place?.images?.[0]?.url}
+          alt={c.place?.name ?? c.place_name ?? ''}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+        />
         {c.place?.average_rating ? (
           <div className="absolute bottom-1 right-1 bg-primary px-1.5 py-0.5 rounded-lg flex items-center gap-0.5">
             <span

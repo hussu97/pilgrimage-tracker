@@ -7,8 +7,8 @@ import { useAuth, useI18n } from '@/app/providers';
 import { useDocumentTitle } from '@/lib/hooks/useDocumentTitle';
 import { cn } from '@/lib/utils/cn';
 import { getGroups } from '@/lib/api/client';
-import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import JoinJourneyModal from '@/components/groups/JoinJourneyModal';
+import PlaceImage from '@/components/places/PlaceImage';
 import EmptyState from '@/components/common/EmptyState';
 import ErrorState from '@/components/common/ErrorState';
 import GroupListSkeleton from '@/components/common/skeletons/GroupListSkeleton';
@@ -271,8 +271,7 @@ export default function Groups() {
                     const recently = isRecentlyActive(g.last_activity);
                     const isDone = pct >= 100 && total > 0;
                     const isNew = visited === 0;
-                    const coverUrl = g.cover_image_url ? getFullImageUrl(g.cover_image_url) : null;
-
+                    const hasCover = Boolean(g.cover_image_url);
                     return (
                       <motion.div
                         key={g.group_code}
@@ -291,25 +290,13 @@ export default function Groups() {
                         >
                           {/* Cover image with gradient overlay */}
                           <div className="relative h-32 lg:h-40 bg-gradient-to-br from-primary/20 to-primary/5">
-                            {coverUrl ? (
-                              <>
-                                <img
-                                  src={coverUrl}
-                                  alt={g.name}
-                                  className="absolute inset-0 w-full h-full object-cover"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                              </>
-                            ) : (
-                              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                                <span
-                                  className="material-symbols-outlined text-5xl text-primary/30"
-                                  style={{ fontVariationSettings: "'FILL' 1" }}
-                                >
-                                  route
-                                </span>
-                              </div>
-                            )}
+                            <PlaceImage
+                              src={g.cover_image_url}
+                              alt={g.name}
+                              kind="route"
+                              className="absolute inset-0 w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
 
                             {/* Badges on image */}
                             <div className="absolute top-2.5 left-2.5 right-2.5 flex items-start justify-between">
@@ -338,7 +325,7 @@ export default function Groups() {
                             </div>
 
                             {/* Journey name on image */}
-                            {coverUrl && (
+                            {hasCover && (
                               <div className="absolute bottom-2.5 left-3 right-3">
                                 <h3 className="font-bold text-white text-sm leading-tight line-clamp-1 drop-shadow">
                                   {g.name}
@@ -349,7 +336,7 @@ export default function Groups() {
 
                           {/* Card body */}
                           <div className="p-3.5">
-                            {!coverUrl && (
+                            {!hasCover && (
                               <h3 className="font-bold text-text-dark dark:text-white text-sm mb-1 truncate">
                                 {g.name}
                               </h3>

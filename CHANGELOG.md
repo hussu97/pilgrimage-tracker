@@ -4,6 +4,17 @@ All notable changes from implementing [IMPLEMENTATION_PROMPTS.md](IMPLEMENTATION
 
 ---
 
+## [2026-05-02] — Place image fallback hardening
+
+### Frontend (web)
+- Added a shared `PlaceImage` renderer that swaps missing or broken place, journey, city, deity, and review thumbnails to an accessible decorative SoulStep-style placeholder.
+- Updated place cards, rows, detail heroes, journey covers, city cards, check-ins, and journey creation/edit surfaces to use the guarded renderer instead of showing broken image icons.
+
+### Tests
+- Added customer-web regression coverage for missing image placeholders, broken image fallback, and non-decorative fallback labelling.
+
+---
+
 ## [2026-05-02] — SoulStep favicon branding
 
 ### Frontend (web)

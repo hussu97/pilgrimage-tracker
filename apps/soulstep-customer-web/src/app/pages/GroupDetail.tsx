@@ -20,7 +20,6 @@ import {
   deletePlaceNote,
 } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
-import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import ErrorState from '@/components/common/ErrorState';
 import GroupDetailSkeleton from '@/components/common/skeletons/GroupDetailSkeleton';
 import GroupCheckInModal from '@/components/groups/GroupCheckInModal';
@@ -28,6 +27,7 @@ import type { Group, LeaderboardEntry, ActivityItem, GroupMember, Place } from '
 import type { ChecklistResponse, PlaceNote } from '@/lib/types/groups';
 import AdBanner from '@/components/ads/AdBanner';
 import PlaceListRow from '@/components/places/PlaceListRow';
+import PlaceImage from '@/components/places/PlaceImage';
 import { useUmamiTracking } from '@/lib/hooks/useUmamiTracking';
 import { EVENTS } from '@/lib/analytics/events';
 
@@ -346,24 +346,14 @@ export default function GroupDetail() {
     <div className="max-w-lg lg:max-w-none lg:mx-0 mx-auto pb-[calc(var(--mobile-bottom-nav-height)_+_1.5rem)] lg:pb-16 dark:bg-dark-bg min-h-screen">
       {/* ── HERO SECTION ────────────────────────────────────────────── */}
       <div className="relative w-full h-52 overflow-hidden">
-        {group.cover_image_url ? (
-          <>
-            <img
-              src={getFullImageUrl(group.cover_image_url)}
-              alt={group.name}
-              className="absolute inset-0 w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).parentElement!.style.background =
-                  'linear-gradient(135deg, #c8956c 0%, #a0714f 100%)';
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
-            {/* Dark overlay */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/60" />
-          </>
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-primary to-primary-hover" />
-        )}
+        <PlaceImage
+          src={group.cover_image_url}
+          alt={group.name}
+          kind="route"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/60" />
 
         {/* Floating back + share buttons */}
         <div className="absolute top-4 left-4 right-4 flex items-center justify-between z-10">

@@ -27,10 +27,10 @@ import {
 } from '@/lib/api/client';
 import type { FeaturedGroup } from '@/lib/api/client';
 import { shareUrl } from '@/lib/share';
-import { getFullImageUrl } from '@/lib/utils/imageUtils';
 import { DISCOVERY_JOURNEY_DRAFT_KEY, parseDiscoveryJourneyDraft } from '@/lib/utils/discovery';
 import type { Place, Religion } from '@/lib/types';
 import { COLORS } from '@/lib/colors';
+import PlaceImage from '@/components/places/PlaceImage';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -565,10 +565,11 @@ export default function CreateGroup() {
                           {(c.top_images?.length ?? 0) > 0 && (
                             <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
                               {c.top_images!.slice(0, 4).map((imgUrl, idx) => (
-                                <img
+                                <PlaceImage
                                   key={idx}
-                                  src={getFullImageUrl(imgUrl)}
+                                  src={imgUrl}
                                   alt=""
+                                  kind="city"
                                   className="w-16 h-12 rounded-lg object-cover flex-shrink-0"
                                 />
                               ))}
@@ -715,19 +716,12 @@ export default function CreateGroup() {
                           }}
                           className="w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-dark-border bg-white dark:bg-dark-surface hover:shadow-md transition-all text-left"
                         >
-                          {route.cover_image_url ? (
-                            <img
-                              src={getFullImageUrl(route.cover_image_url)}
-                              alt=""
-                              className="w-full h-28 object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-28 bg-slate-100 dark:bg-dark-border flex items-center justify-center">
-                              <span className="material-symbols-outlined text-4xl text-slate-400">
-                                route
-                              </span>
-                            </div>
-                          )}
+                          <PlaceImage
+                            src={route.cover_image_url}
+                            alt=""
+                            kind="route"
+                            className="w-full h-28 object-cover"
+                          />
                           <div className="p-3">
                             <p className="text-sm font-bold text-text-primary dark:text-white">
                               {route.name}
@@ -862,23 +856,11 @@ export default function CreateGroup() {
                               )}
                             >
                               <div className="w-14 h-14 rounded-lg bg-slate-100 dark:bg-dark-border flex-shrink-0 overflow-hidden">
-                                {place.images?.[0]?.url ? (
-                                  <img
-                                    src={getFullImageUrl(place.images[0].url)}
-                                    alt=""
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <span
-                                      className="material-symbols-outlined text-xl text-slate-400"
-                                      aria-hidden
-                                      style={{ fontVariationSettings: "'FILL' 1" }}
-                                    >
-                                      place
-                                    </span>
-                                  </div>
-                                )}
+                                <PlaceImage
+                                  src={place.images?.[0]?.url}
+                                  alt={place.name}
+                                  className="w-full h-full object-cover"
+                                />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-semibold text-text-primary dark:text-white truncate">
@@ -975,9 +957,10 @@ export default function CreateGroup() {
                   className="h-36 rounded-2xl overflow-hidden border-2 border-dashed border-slate-200 dark:border-dark-border cursor-pointer hover:border-primary/50 transition-colors flex items-center justify-center bg-white dark:bg-dark-surface"
                 >
                   {coverPreview || coverImageUrl ? (
-                    <img
-                      src={coverPreview ?? getFullImageUrl(coverImageUrl)}
+                    <PlaceImage
+                      src={coverPreview ?? coverImageUrl}
                       alt=""
+                      kind="route"
                       className="w-full h-full object-cover"
                     />
                   ) : (
