@@ -33,6 +33,7 @@ from app.db.models import (
     DataLocation,
     GeoBoundary,
     RawCollectorData,
+    ScrapedAsset,
     ScrapedPlace,
     ScraperRun,
 )
@@ -402,6 +403,56 @@ def test_monitor_starts_finalize_bg_for_ready_run(tmp_path, db_session):
     assert calls
     assert calls[0]["screen_name"] == f"soulstep-sync-{run.run_code}"
     assert "finalize-watch" in calls[0]["command"]
+
+
+def test_monitor_blocks_finalize_when_assets_need_recapture(tmp_path, db_session):
+    run = _seed_run(db_session, status="interrupted", stage="detail_fetch")
+    with Session(db_session.bind) as session:
+        handoff = prepare_handoff_export(session, run.run_code, lease_owner="tester")
+        bundle = build_run_bundle(session, run.run_code, handoff.handoff_code)
+
+    bundle_path = tmp_path / f"{run.run_code}-{handoff.handoff_code}.json.gz"
+    write_bundle_file(bundle, bundle_path)
+    local_url = f"sqlite:///{tmp_path / f'{run.run_code}.db'}"
+    _import_bundle_into_db(bundle, local_url)
+    local_engine = create_engine(local_url)
+    with Session(local_engine) as session:
+        imported = session.exec(
+            select(ScraperRun).where(ScraperRun.run_code == run.run_code)
+        ).first()
+        imported.status = "completed"
+        imported.stage = None
+        session.add(imported)
+        session.add(
+            ScrapedAsset(
+                run_code=run.run_code,
+                place_code="gplc_needs_recapture",
+                asset_kind="place_image",
+                asset_index=0,
+                status="needs_recapture",
+            )
+        )
+        session.commit()
+
+    calls = []
+    with (
+        patch("scripts.handoff._screen_session_exists", return_value=False),
+        patch("scripts.handoff._start_screen_command", side_effect=lambda **kw: calls.append(kw)),
+    ):
+        result = monitor_handoffs(
+            SimpleNamespace(
+                run_code=[run.run_code],
+                prod_url="https://scraper-api.soul-step.org",
+                work_dir=str(tmp_path),
+                run_screen_prefix="soulstep-",
+                sync_screen_prefix="soulstep-sync-",
+                poll_interval_seconds=15,
+                timeout_seconds=900,
+            )
+        )
+
+    assert result == 0
+    assert calls == []
 
 
 def test_resume_bg_starts_existing_local_db_with_tuning_overrides(tmp_path, db_session):

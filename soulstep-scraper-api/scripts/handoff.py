@@ -831,7 +831,9 @@ def monitor_handoffs(args: argparse.Namespace) -> int:
             summaries.append(summary)
             continue
 
-        pending_assets = int(asset_counts.get("pending_upload", 0) or 0)
+        pending_assets = int(asset_counts.get("pending_upload", 0) or 0) + int(
+            asset_counts.get("needs_recapture", 0) or 0
+        )
         failed_assets = int(asset_counts.get("failed", 0) or 0)
         direct_sync = (run.rate_limit_events or {}).get("direct_catalog_sync") or {}
         local_log_has_errors = _recent_log_has_errors(run_log)
